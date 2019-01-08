@@ -17,7 +17,7 @@
 #define SWOOLE_CONFIG_H_
 
 #ifndef __clang__
-//gcc version check
+// gcc version check
 #if defined(__GNUC__) && (__GNUC__ < 3 || (__GNUC__ == 4 && __GNUC_MINOR__ < 8))
 #error "GCC 4.8 or later required."
 #endif
@@ -25,17 +25,17 @@
 
 #define SW_COROUTINE               1
 
-#define SW_MAX_FDTYPE              32   //32 kinds of event
+#define SW_MAX_FDTYPE              32   // 32 kinds of event
 #define SW_MAX_HOOK_TYPE           32
 #define SW_ERROR_MSG_SIZE          8192
-#define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
+#define SW_MAX_FILE_CONTENT        (64*1024*1024) // for swoole_file_get_contents
 #define SW_MAX_LISTEN_PORT         60000
 #define SW_MAX_CONNECTION          10000
 #define SW_MAX_CONCURRENT_TASK     1024
 #define SW_STACK_BUFFER_SIZE       65536
 
 #ifdef HAVE_MALLOC_TRIM
-#define SW_USE_MALLOC_TRIM
+#define SW_USE_MALLOC_TRIM         1
 #endif
 #define SW_MALLOC_TRIM_INTERVAL    1
 #define SW_MALLOC_TRIM_PAD         0
@@ -50,31 +50,32 @@
 #endif
 #define SW_SYSTEMD_FDS_START       3
 
-#define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) // global memory page
+#define SW_GLOBAL_MEMORY_PAGESIZE  (2*1024*1024) // global memory page
+// #define SW_USE_HUGEPAGE
 
 #define SW_MAX_THREAD_NCPU         4    // n * cpu_num
 #define SW_MAX_WORKER_NCPU         1000 // n * cpu_num
 
 #define SW_HOST_MAXSIZE            sizeof(((struct sockaddr_un *)NULL)->sun_path)  // Linux has 108 UNIX_PATH_MAX, but BSD/MacOS limit is only 104
 
-#define SW_LOG_NO_SRCINFO          //no source info
+#define SW_LOG_NO_SRCINFO          1 // no source info
 #define SW_CLIENT_BUFFER_SIZE      65536
 #define SW_CLIENT_CONNECT_TIMEOUT  0.5
 #define SW_CLIENT_MAX_PORT         65535
 
-//!!!Don't modify.----------------------------------------------------------
+// !!!Don't modify.----------------------------------------------------------
 #ifdef __MACH__
 #define SW_IPC_MAX_SIZE            2048  // MacOS
 #else
 #define SW_IPC_MAX_SIZE            8192  // for IPC, dgram and message-queue max size
 #endif
 #define SW_IPC_BUFFER_SIZE         (SW_IPC_MAX_SIZE - sizeof(struct _swDataHead))
-//!!!End.-------------------------------------------------------------------
+// !!!End.-------------------------------------------------------------------
 
 #define SW_BUFFER_SIZE_STD         8192
 #define SW_BUFFER_SIZE_BIG         65536
 #define SW_BUFFER_SIZE_UDP         65536
-//#define SW_BUFFER_RECV_TIME
+// #define SW_BUFFER_RECV_TIME
 
 #define SW_SENDFILE_CHUNK_SIZE     65536
 #define SW_SENDFILE_MAXLEN         4194304
@@ -100,7 +101,7 @@
 
 #define SW_WORKER_WAIT_TIMEOUT           1000
 
-#define SW_WORKER_USE_SIGNALFD
+#define SW_WORKER_USE_SIGNALFD           1
 #define SW_WORKER_MAX_WAIT_TIME          30
 
 #define SW_REACTOR_MAXEVENTS             4096
@@ -162,7 +163,7 @@
 
 #define SW_FILE_CHUNK_SIZE               65536
 
-#define SW_TABLE_CONFLICT_PROPORTION     0.2 //20%
+#define SW_TABLE_CONFLICT_PROPORTION     0.2 // 20%
 #define SW_TABLE_KEY_SIZE                64
 #define SW_TABLE_USE_SPINLOCK            1
 
@@ -205,7 +206,7 @@
 #define SW_HTTP_RFC1123_DATE_UTC         "%a, %d %b %Y %T UTC"
 #define SW_HTTP_RFC850_DATE              "%A, %d-%b-%y %T GMT"
 #define SW_HTTP_ASCTIME_DATE             "%a %b %e %T %Y"
-//#define SW_HTTP_100_CONTINUE
+// #define SW_HTTP_100_CONTINUE
 
 /**
  * HTTP2 Protocol
@@ -254,11 +255,11 @@
 #define SW_MAX_CORO_NESTING_LEVEL        128
 
 #define SW_CORO_SWAP_BAILOUT
-//#define SW_CORO_ZEND_TRY
+// #define SW_CORO_ZEND_TRY
 
 #ifdef SW_DEBUG
 #ifndef SW_LOG_TRACE_OPEN
-#define SW_LOG_TRACE_OPEN
+#define SW_LOG_TRACE_OPEN                1
 #endif
 #endif
 
