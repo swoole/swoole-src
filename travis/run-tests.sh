@@ -33,7 +33,7 @@ run_tests()
 touch tests.list
 trap "rm -f tests.list; echo ''; echo '⌛ Done on '`date "+%Y-%m-%d %H:%M:%S"`;" EXIT
 
-if [ "`git symbolic-ref --short -q HEAD`"x == "valgrind"x ]; then
+if [ "`git symbolic-ref --short -q HEAD`" = "valgrind" ]; then
     dir="base"
     options="-m"
 else
