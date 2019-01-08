@@ -7,6 +7,7 @@ swoole_http_server: use async io and coroutine in task process
 require __DIR__ . '/../../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
+    usleep(100 * 1000);
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {

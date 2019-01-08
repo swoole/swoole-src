@@ -583,7 +583,7 @@ class ProcessManager
     protected $randomData = [];
 
     /**
-     * 默认等待1秒
+     * wait wakeup 1s default
      */
     protected $waitTimeout = 1.0;
 
@@ -592,7 +592,7 @@ class ProcessManager
     public $async = false;
 
     protected $childPid;
-    protected $childStatus;
+    protected $childStatus = 255;
     protected $parentFirst = false;
 
     public function __construct()
@@ -620,7 +620,7 @@ class ProcessManager
         $this->childFunc = $func;
     }
 
-    public function setWaitTimeout($value = '')
+    public function setWaitTimeout(int $value)
     {
         $this->waitTimeout = $value;
     }
@@ -681,9 +681,9 @@ class ProcessManager
             define('PCNTL_ESRCH', 3);
         }
         if (!$this->alone && $this->childPid) {
-            $ret = Swoole\Process::kill($this->childPid);
+            $ret = @Swoole\Process::kill($this->childPid);
             if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
-                $ret = Swoole\Process::kill($this->childPid, SIGKILL);
+                $ret = @Swoole\Process::kill($this->childPid, SIGKILL);
             }
             if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
                 exit('KILL CHILD PROCESS ERROR');
