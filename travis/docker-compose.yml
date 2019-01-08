@@ -18,24 +18,6 @@ services:
     environment:
       SWOOLE_BRANCH: "${TRAVIS_BRANCH}"
     command: tail -f /etc/group
-  swoole-alpine:
-    container_name: "swoole-alpine"
-    image: "twosee/php:${PHP_VERSION}-alpine"
-    volumes:
-      - "${TRAVIS_BUILD_DIR}:/swoole-src:rw"
-    working_dir: /swoole-src
-    ulimits:
-      core: -1
-    privileged: true
-    depends_on:
-      - mysql
-      - redis
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
-    environment:
-      SWOOLE_BRANCH: "${TRAVIS_BRANCH}"
-    command: tail -f /etc/group
   mysql:
     container_name: "mysql"
     image: "twosee/swoole:mysql5"

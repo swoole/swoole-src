@@ -40,13 +40,17 @@ prepare_files(){
 }
 
 start_docker_containers(){
+    if [ "${TRAVIS_BRANCH}" = "alpine" ]; then
+        export PHP_VERSION="${PHP_VERSION}-alpine"
+    fi
     cd ${__DIR__} && \
-    docker-compose up -d && docker ps
+    docker-compose up -d && \
+    docker ps -a
 }
 
 run_tests_in_docker(){
-    docker exec $1 touch /.travisenv && \
-    docker exec $1 /swoole-src/travis/docker-route.sh
+    docker exec swoole touch /.travisenv && \
+    docker exec swoole /swoole-src/travis/docker-route.sh
 }
 
 #------------ RUN TESTS -------------
@@ -65,7 +69,6 @@ echo "📦 Start docker containers...\n"
 start_docker_containers
 
 echo "\n⏳ Run tests in docker...\n"
-run_tests_in_docker "swoole-alpine"
-run_tests_in_docker "swoole"
+run_tests_in_docker
 
 echo "\n🚀🚀🚀Completed successfully🚀🚀🚀\n"

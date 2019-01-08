@@ -18,11 +18,5 @@ php -v && echo ""
 # swoole info
 php --ri swoole
 
-# alpine
-if [ "`apk 2>&1 | grep apk-tools`"x != ""x ]; then
-  echo -e "\n😪 skip alpine\n"
-  exit 0
-fi
-
 # run unit tests
 ./run-tests.sh
