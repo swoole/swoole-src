@@ -98,7 +98,7 @@ namespace swoole_test
     int my_onReceive(swServer *serv, swEventData *req)
     {
         int ret;
-        char resp_data[SW_BUFFER_SIZE];
+        char resp_data[SW_IPC_BUFFER_SIZE];
 
         g_receive_count++;
 
@@ -107,7 +107,7 @@ namespace swoole_test
         printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count, swConnection_get_ip(conn),
                swConnection_get_port(conn), req->data, req->info.len);
 
-        int n = snprintf(resp_data, SW_BUFFER_SIZE, "Server: %*s\n", req->info.len, req->data);
+        int n = snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %*s\n", req->info.len, req->data);
         ret = serv->send(serv, req->info.fd, resp_data, n);
         if (ret < 0)
         {
@@ -163,8 +163,8 @@ namespace swoole_test
 
         printf("Packet[client=%s:%d, %d bytes]: data=%*s\n", address, port, length, length, data);
 
-        char resp_data[SW_BUFFER_SIZE];
-        int n = snprintf(resp_data, SW_BUFFER_SIZE, "Server: %*s", length, data);
+        char resp_data[SW_IPC_BUFFER_SIZE];
+        int n = snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %*s", length, data);
 
         //udp ipv4
         if (req->info.type == SW_EVENT_UDP)

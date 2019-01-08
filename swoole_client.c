@@ -579,7 +579,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
 
         cli->protocol.package_length_size = 0;
         cli->protocol.package_length_type = '\0';
-        cli->protocol.package_length_offset = SW_BUFFER_SIZE;
+        cli->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
     }
     //package length offset
     if (php_swoole_array_get_value(vht, "package_length_offset", v))

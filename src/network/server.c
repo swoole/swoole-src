@@ -1102,7 +1102,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
 #endif
             if (!conn->out_buffer)
             {
-                conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
+                conn->out_buffer = swBuffer_new(SW_IPC_BUFFER_SIZE);
                 if (conn->out_buffer == NULL)
                 {
                     return SW_ERR;
@@ -1225,14 +1225,14 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
     }
 
     swSendData send_data;
-    char _buffer[SW_BUFFER_SIZE];
+    char _buffer[SW_IPC_BUFFER_SIZE];
     swSendFile_request *req = (swSendFile_request*) _buffer;
 
     //file name size
-    if (filename_length > SW_BUFFER_SIZE - sizeof(swSendFile_request) - 1)
+    if (filename_length > SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1)
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "sendfile name too long. [MAX_LENGTH=%d]",
-                (int) (SW_BUFFER_SIZE - sizeof(swSendFile_request) - 1));
+                (int) (SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1));
         return SW_ERR;
     }
 

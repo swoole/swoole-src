@@ -107,7 +107,7 @@ static int receive_count = 0;
 int my_onReceive(swServer *serv, swEventData *req)
 {
 	int ret;
-	char resp_data[SW_BUFFER_SIZE];
+	char resp_data[SW_IPC_BUFFER_SIZE];
 	swSendData resp;
 	receive_count ++;
 	resp.info.fd = req->info.fd; //fd can be not source fd.

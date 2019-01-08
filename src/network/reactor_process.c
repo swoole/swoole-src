@@ -500,9 +500,9 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
 
             while (send_n > 0)
             {
-                if (send_n > SW_BUFFER_SIZE)
+                if (send_n > SW_IPC_BUFFER_SIZE)
                 {
-                    proxy_msg.info.len = SW_BUFFER_SIZE;
+                    proxy_msg.info.len = SW_IPC_BUFFER_SIZE;
                 }
                 else
                 {

@@ -37,7 +37,6 @@
 #ifdef HAVE_MALLOC_TRIM
 #define SW_USE_MALLOC_TRIM
 #endif
-
 #define SW_MALLOC_TRIM_INTERVAL    1
 #define SW_MALLOC_TRIM_PAD         0
 #define SW_USE_MONOTONIC_TIME      1
@@ -69,16 +68,15 @@
 #else
 #define SW_IPC_MAX_SIZE            8192  // for IPC, dgram and message-queue max size
 #endif
-
-#define SW_BUFFER_SIZE             (SW_IPC_MAX_SIZE - sizeof(struct _swDataHead))
+#define SW_IPC_BUFFER_SIZE         (SW_IPC_MAX_SIZE - sizeof(struct _swDataHead))
 //!!!End.-------------------------------------------------------------------
 
 #define SW_BUFFER_SIZE_STD         8192
 #define SW_BUFFER_SIZE_BIG         65536
 #define SW_BUFFER_SIZE_UDP         65536
 //#define SW_BUFFER_RECV_TIME
-#define SW_SENDFILE_CHUNK_SIZE     65536
 
+#define SW_SENDFILE_CHUNK_SIZE     65536
 #define SW_SENDFILE_MAXLEN         4194304
 
 #define SW_HASHMAP_KEY_MAXLEN      256
