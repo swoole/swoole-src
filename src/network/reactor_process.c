@@ -94,7 +94,7 @@ int swReactorProcess_start(swServer *serv)
         }
     }
 
-    if (swProcessPool_create(&serv->gs->event_workers, serv->worker_num, serv->max_request, serv->max_wait_time, 0, SW_IPC_UNIXSOCK) < 0)
+    if (swProcessPool_create(&serv->gs->event_workers, serv->worker_num, serv->max_request, 0, SW_IPC_UNIXSOCK) < 0)
     {
         return SW_ERR;
     }
@@ -104,6 +104,7 @@ int swReactorProcess_start(swServer *serv)
      */
     serv->gs->event_workers.ptr = serv;
     serv->gs->event_workers.worker_num = serv->worker_num;
+    serv->gs->event_workers.max_wait_time = serv->max_wait_time;
     serv->gs->event_workers.use_msgqueue = 0;
     serv->gs->event_workers.main_loop = swReactorProcess_loop;
     serv->gs->event_workers.onWorkerNotFound = swManager_wait_other_worker;

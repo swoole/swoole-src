@@ -63,13 +63,12 @@ static void swProcessPool_killTimeout(swTimer *timer, swTimer_node *tnode)
 /**
  * Process manager
  */
-int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, uint32_t max_wait_time, key_t msgqueue_key, int ipc_mode)
+int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int ipc_mode)
 {
     bzero(pool, sizeof(swProcessPool));
 
     pool->worker_num = worker_num;
     pool->max_request = max_request;
-    pool->max_wait_time = max_wait_time;
 
     pool->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num * sizeof(swWorker));
     if (pool->workers == NULL)
