@@ -3147,7 +3147,7 @@ static PHP_METHOD(swoole_server, send)
     zend_long server_socket = -1;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3219,7 +3219,7 @@ static PHP_METHOD(swoole_server, sendto)
     zend_bool ipv6 = 0;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3282,7 +3282,7 @@ static PHP_METHOD(swoole_server, sendfile)
     zend_long length = 0;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3308,7 +3308,7 @@ static PHP_METHOD(swoole_server, close)
     zend_bool reset = SW_FALSE;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3334,7 +3334,7 @@ static PHP_METHOD(swoole_server, confirm)
     long fd;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3359,7 +3359,7 @@ static PHP_METHOD(swoole_server, pause)
     long fd;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3378,7 +3378,7 @@ static PHP_METHOD(swoole_server, resume)
     long fd;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3395,7 +3395,7 @@ static PHP_METHOD(swoole_server, resume)
 static PHP_METHOD(swoole_server, stats)
 {
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3442,7 +3442,7 @@ static PHP_METHOD(swoole_server, reload)
     zend_bool only_reload_taskworker = 0;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3467,7 +3467,7 @@ static PHP_METHOD(swoole_server, heartbeat)
     zend_bool close_connection = 0;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3520,7 +3520,7 @@ static PHP_METHOD(swoole_server, taskwait)
     zend_long dst_worker_id = -1;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3609,7 +3609,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
     double timeout = SW_TASKWAIT_TIMEOUT;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3755,7 +3755,7 @@ static PHP_METHOD(swoole_server, taskCo)
     double timeout = SW_TASKWAIT_TIMEOUT;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3855,7 +3855,7 @@ static PHP_METHOD(swoole_server, task)
     zend_long dst_worker_id = -1;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3919,7 +3919,7 @@ static PHP_METHOD(swoole_server, sendMessage)
     long worker_id = -1;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3965,7 +3965,7 @@ static PHP_METHOD(swoole_server, finish)
     zval *data;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -3983,7 +3983,7 @@ static PHP_METHOD(swoole_server_task, finish)
     zval *data;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -4003,7 +4003,7 @@ static PHP_METHOD(swoole_server, bind)
     long uid = 0;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -4066,7 +4066,7 @@ static PHP_METHOD(swoole_server, connection_info)
     zend_bool dont_check_connection = 0;
 
     swServer *serv = (swServer *) swoole_get_object(zobject);
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -4132,7 +4132,7 @@ static PHP_METHOD(swoole_server, connection_list)
     long find_count = 10;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -4206,7 +4206,7 @@ static PHP_METHOD(swoole_server, sendwait)
     zval *zdata;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -4240,7 +4240,7 @@ static PHP_METHOD(swoole_server, exist)
     zend_long fd;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -4272,7 +4272,7 @@ static PHP_METHOD(swoole_server, protect)
     zend_bool value = 1;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -4304,7 +4304,7 @@ static PHP_METHOD(swoole_server, protect)
 static PHP_METHOD(swoole_server, getReceivedTime)
 {
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -4323,7 +4323,7 @@ static PHP_METHOD(swoole_server, getReceivedTime)
 static PHP_METHOD(swoole_server, shutdown)
 {
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
@@ -4343,7 +4343,7 @@ static PHP_METHOD(swoole_server, shutdown)
 static PHP_METHOD(swoole_server, stop)
 {
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
