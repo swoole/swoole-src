@@ -143,7 +143,7 @@ int swTableColumn_add(swTable *table, char *name, int len, int type, int size)
     }
     col->index = table->item_size;
     table->item_size += col->size;
-    table->column_num ++;
+    ++table->column_num;
     return swHashMap_add(table->columns, name, len, col);
 }
 
