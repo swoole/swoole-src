@@ -33,9 +33,8 @@ run_tests()
 touch tests.list
 trap "rm -f tests.list; echo ''; echo '⌛ Done on '`date "+%Y-%m-%d %H:%M:%S"`;" EXIT
 
-branch="`cat ../.git/HEAD | rev | cut -d '/' -f1 | rev`"
-echo "\n🌵️️ Current branch is ${branch}\n"
-if [ "${branch}" = "valgrind" ]; then
+echo "\n🌵️️ Current branch is ${SWOOLE_BRANCH}\n"
+if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
     dir="base"
     options="-m"
 else

@@ -2,9 +2,8 @@
 __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
-# show dir info
-cd ${__DIR__} && pwd
-ls -al ../ && echo ""
+# enter the dir
+cd ${__DIR__}
 
 # show system info
 date && echo ""

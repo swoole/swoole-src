@@ -39,6 +39,11 @@ prepare_files(){
     chmod -R 777 data
 }
 
+start_docker_containers(){
+    cd ${__DIR__} && \
+    docker-compose up -d && docker ps
+}
+
 run_tests_in_docker(){
     docker exec $1 touch /.travisenv && \
     docker exec $1 /swoole-src/travis/docker-route.sh
@@ -57,7 +62,7 @@ echo "\n📖 Prepare for files...\n"
 prepare_files
 
 echo "📦 Start docker containers...\n"
-docker-compose up -d && docker ps
+start_docker_containers
 
 echo "\n⏳ Run tests in docker...\n"
 run_tests_in_docker "swoole-alpine"
