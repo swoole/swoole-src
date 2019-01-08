@@ -18,7 +18,7 @@ phpize > /dev/null && \
 --enable-mysqlnd \
 > /dev/null && \
 make clean > /dev/null && \
-make > /dev/null | tee /tmp/compile.log && \
+make -j > /dev/null | tee /tmp/compile.log && \
 (test "`cat /tmp/compile.log`"x = ""x || exit 255) && \
 make install && \
 docker-php-ext-enable swoole && \
