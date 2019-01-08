@@ -329,6 +329,11 @@ PHP_FUNCTION(swoole_timer_clear);
 //---------------------------------------------------------
 //                  error
 //---------------------------------------------------------
+#define SW_STRERROR_SYSTEM  0
+#define SW_STRERROR_GAI     1
+#define SW_STRERROR_DNS     2
+#define SW_STRERROR_SWOOLE  9
+
 PHP_FUNCTION(swoole_strerror);
 PHP_FUNCTION(swoole_errno);
 PHP_FUNCTION(swoole_last_error);

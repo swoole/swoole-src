@@ -19,6 +19,8 @@
 
 enum swErrorCode
 {
+    SW_ERROR_START = 500,
+
     /**
      * common error
      */
@@ -134,6 +136,8 @@ enum swErrorCode
     SW_ERROR_CO_PROTECT_STACK_FAILED,
     SW_ERROR_CO_STD_THREAD_LINK_ERROR,
     SW_ERROR_CO_DISABLED_MULTI_THREAD,
+
+    SW_ERROR_END
 };
 
 const char* swstrerror(enum swErrorCode code);

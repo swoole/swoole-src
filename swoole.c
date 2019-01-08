@@ -717,6 +717,14 @@ PHP_MINIT_FUNCTION(swoole)
     REGISTER_LONG_CONSTANT("SWOOLE_EVENT_WRITE", SW_EVENT_WRITE, CONST_CS | CONST_PERSISTENT);
 
     /**
+     * Register ERROR types
+     */
+    SWOOLE_DEFINE(STRERROR_SYSTEM);
+    SWOOLE_DEFINE(STRERROR_GAI);
+    SWOOLE_DEFINE(STRERROR_DNS);
+    SWOOLE_DEFINE(STRERROR_SWOOLE);
+
+    /**
      * Register ERROR constants
      */
     SWOOLE_DEFINE(ERROR_MALLOC_FAIL);
@@ -1153,22 +1161,22 @@ PHP_FUNCTION(swoole_cpu_num)
 PHP_FUNCTION(swoole_strerror)
 {
     zend_long swoole_errno = 0;
-    zend_long error_type = 0;
+    zend_long error_type = SW_STRERROR_SYSTEM;
     char error_msg[256] = {0};
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &swoole_errno, &error_type) == FAILURE)
     {
         RETURN_FALSE;
     }
-    if (error_type == 1)
+    if (error_type == SW_STRERROR_GAI)
     {
         snprintf(error_msg, sizeof(error_msg) - 1, "%s", gai_strerror(swoole_errno));
     }
-    else if (error_type == 2)
+    else if (error_type == SW_STRERROR_DNS)
     {
         snprintf(error_msg, sizeof(error_msg) - 1, "%s", hstrerror(swoole_errno));
     }
-    else if (error_type == 9)
+    else if (error_type == SW_STRERROR_SWOOLE || (swoole_errno > SW_ERROR_START && swoole_errno < SW_ERROR_END))
     {
         snprintf(error_msg, sizeof(error_msg) - 1, "%s", swstrerror(swoole_errno));
     }
