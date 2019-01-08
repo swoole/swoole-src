@@ -155,35 +155,6 @@ function get_safe_random(int $length = 32, $original = false): string
     return $raw;
 }
 
-function swoole_php_fork($func, $out = false) {
-	$process = new swoole_process($func, $out);
-	$pid = $process->start();
-
-    register_shutdown_function(
-        function ($pid, $process)
-        {
-            swoole_process::kill($pid);
-            $process->wait();
-        },
-        $pid, $process
-    );
-
-	return $process;
-}
-
-function swoole_unittest_fork($func)
-{
-    $process = new swoole_process($func, false, false);
-    $process->start();
-
-    return $process;
-}
-
-function swoole_unittest_wait()
-{
-    return swoole_process::wait();
-}
-
 function makeTcpClient($host, $port, callable $onConnect = null, callable $onReceive = null)
 {
     $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
@@ -282,11 +253,11 @@ function kill_self_and_descendant($pid)
  * @param int $sig
  */
 function killself_in_syncmode($lifetime = 1000, $sig = SIGKILL) {
-    $proc = new \swoole_process(function(\swoole_process $proc) use($lifetime, $sig) {
+    $proc = new Swoole\Process(function(Swoole\Process $proc) use($lifetime, $sig) {
         $pid = $proc->pop();
         $proc->freeQueue();
         usleep($lifetime * 1000);
-        \swoole_process::kill($pid, $sig);
+        Swoole\Process::kill($pid, $sig);
         $proc->exit();
     }, true);
     $proc->useQueue();
@@ -702,12 +673,21 @@ class ProcessManager
     }
 
     /**
-     * 杀死子进程
+     *  Kill Child Process
      */
     public function kill()
     {
+        if (!defined('PCNTL_ESRCH')) {
+            define('PCNTL_ESRCH', 3);
+        }
         if (!$this->alone && $this->childPid) {
-            swoole_process::kill($this->childPid);
+            $ret = Swoole\Process::kill($this->childPid);
+            if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
+                $ret = Swoole\Process::kill($this->childPid, SIGKILL);
+            }
+            if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
+                exit('KILL CHILD PROCESS ERROR');
+            }
         }
     }
 

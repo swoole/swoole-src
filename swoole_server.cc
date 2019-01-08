@@ -399,8 +399,8 @@ zend_class_entry *swoole_connection_iterator_ce_ptr;
 static zend_object_handlers swoole_connection_iterator_handlers;
 
 static zend_class_entry swoole_server_task_ce;
-static zend_object_handlers swoole_server_task_handlers;
 static zend_class_entry *swoole_server_task_ce_ptr;
+static zend_object_handlers swoole_server_task_handlers;
 
 static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *current_task);
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
@@ -3968,6 +3968,11 @@ static PHP_METHOD(swoole_server, finish)
     if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
+        RETURN_FALSE;
+    }
+    if (unlikely(serv->task_enable_coroutine))
+    {
+        swoole_php_fatal_error(E_ERROR, "please use %s->finish instead when task_enable_coroutine is enable.", ZSTR_VAL(swoole_server_task_ce_ptr->name));
         RETURN_FALSE;
     }
 
