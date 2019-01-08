@@ -22,10 +22,11 @@ define co_list
             if $co->state == 3
                 printf "%s\n", "SW_CORO_END"
             end
+        else
+            set $running = 0
         end
-
-        set $running = 0
     end
+    
 end
 
 define co_bt
