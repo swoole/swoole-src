@@ -1,3 +1,36 @@
+define timer_list
+    if SwooleG.timer.initialized == 1
+        printf "current timer number: %d, round: %d\n", SwooleG.timer.num,SwooleG.timer->round
+        set $running = 1
+        set $i = 1
+        while $running
+            if $i < SwooleG.timer->heap->num
+                set $tmp = SwooleG.timer->heap->nodes[$i]
+                set $node = (swTimer_node *)$tmp->data
+                if $node
+                   printf "\t timer[%d] exec_msec:%ld round:%ld\n", $node->id, $node->exec_msec, $node->round
+                end
+            else
+                set $running = 0
+            end
+            set $i = $i + 1
+        end
+    else
+        printf "no timer\n"
+    end
+end
+
+define reactor_info
+    if SwooleG.main_reactor
+        printf "current reactor id: %d\n",SwooleG.main_reactor->id
+        printf "\t running: %d\n", SwooleG.main_reactor->running
+        printf "\t event_num: %d\n", SwooleG.main_reactor->event_num
+        printf "\t max_event_num: %d\n", SwooleG.main_reactor->max_event_num
+        printf "\t check_timer: %d\n", SwooleG.main_reactor->check_timer
+        printf "\t timeout_msec: %d\n", SwooleG.main_reactor->timeout_msec
+    end
+end
+
 define co_list
     call swoole_coro_iterator_reset()
     set $running = 1
