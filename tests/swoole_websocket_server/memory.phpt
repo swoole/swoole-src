@@ -10,7 +10,7 @@ skip_if_no_top();
 require __DIR__ . '/../include/bootstrap.php';
 
 define('FRAME_DATA_SIZE', 100 * 1024);
-define('REQUESTS_TIMES', 16);
+define('REQUESTS_TIMES', 24);
 
 $pm = new ProcessManager();
 $pm->parentFunc = function () use ($pm) {
@@ -60,9 +60,9 @@ $pm->childFunc = function () use ($pm) {
                 phpt_echo("=== worker real ===\n");
                 phpt_var_dump($worker_real = array_column($mem_records, 'worker_real'));
                 for ($i = $records_count / 2; $i < $records_count; $i++) {
-                    assert($master_virtual[$i] === $master_virtual[$records_count / 2]);
-                    assert($worker_virtual[$i] === $worker_virtual[$records_count / 2]);
-                    assert($worker_real[$i] === $worker_real[$records_count / 2]);
+                    assert(approximate($master_virtual[$i], $master_virtual[$records_count / 2]));
+                    assert(approximate($worker_virtual[$i], $worker_virtual[$records_count / 2]));
+                    assert(approximate($worker_real[$i], $worker_real[$records_count / 2]));
                 }
                 $server->shutdown();
                 return;
