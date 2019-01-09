@@ -63,7 +63,7 @@ do
             echo "\n😮 Retry failed tests#${i}:\n"
         fi
         cat tests.list
-        timeout=`echo | expr ${i} \* 10`
+        timeout=`echo | expr ${i} \* 10 + 5`
         options="${options} --set-timeout ${timeout}"
         run_tests tests.list "${options}"
     else

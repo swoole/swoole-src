@@ -3,7 +3,7 @@ require_once __DIR__ . '/functions.php';
 
 /** ============== Env =============== */
 define('IS_MAC_OS', stripos(PHP_OS, 'Darwin') !== false);
-define('IS_IN_TRAVIS', file_exists('/.travisenv'));
+define('IS_IN_TRAVIS', !!getenv('TRAVIS') || file_exists('/.travisenv'));
 define('IS_PHPTESTSING', !!getenv('PHPT'));
 define('USE_VALGRIND', getenv('USE_ZEND_ALLOC') === '0');
 define('HAS_SSL', defined("SWOOLE_SSL"));
@@ -58,12 +58,22 @@ define('HTTP_PROXY_PORT', IS_MAC_OS ? 1087 : 8888);
 define('SOCKS5_PROXY_HOST', '127.0.0.1');
 define('SOCKS5_PROXY_PORT', IS_MAC_OS ? 1086 : 1080);
 
+/** ============== Pressure ============== */
+define('PRESSURE_LOW', 1);
+define('PRESSURE_MID', 2);
+define('PRESSURE_NORMAL', 3);
+define('PRESSURE_LEVEL', USE_VALGRIND ? PRESSURE_LOW : IS_IN_TRAVIS ? PRESSURE_MID : PRESSURE_NORMAL);
+
+/** ============== Time ============== */
+define('SERVER_PREHEATING_TIME', 0.1);
+define('REQUESTS_WAIT_TIME', [0.005, 0.005, 0.05, 0.1][PRESSURE_LEVEL]);
+
 /** ============== Times ============== */
-define('PRESSURE_LEVEL', USE_VALGRIND ? 1 : IS_IN_TRAVIS ? 2 : 3);
 define('MAX_CONCURRENCY', [16, 32, 64, 256][PRESSURE_LEVEL]);
 define('MAX_CONCURRENCY_MID', [8, 16, 32, 128][PRESSURE_LEVEL]);
 define('MAX_CONCURRENCY_LOW', [4, 8, 16, 64][PRESSURE_LEVEL]);
 define('MAX_REQUESTS', [12, 24, 50, 100][PRESSURE_LEVEL]);
+define('MAX_REQUESTS_MID', [8, 16, 32, 64][PRESSURE_LEVEL]);
 define('MAX_REQUESTS_LOW', [4, 8, 10, 25][PRESSURE_LEVEL]);
 define('MAX_LOOPS', [12, 24, 100, 1000][PRESSURE_LEVEL] * 1000);
 define('MAX_PROCESS_NUM', [2, 4, 6, 8][PRESSURE_LEVEL]);

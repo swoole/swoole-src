@@ -22,6 +22,17 @@ function clear_php()
     `ps -A | grep php | grep -v phpstorm | grep -v 'run-tests' | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1`;
 }
 
+function top(int $pid)
+{
+    if (IS_MAC_OS || stripos(`top help 2>/dev/null`, 'usage') === false) {
+        return false;
+    }
+    $top = `top -b -n 1 -p {$pid}`;
+    $top = explode("\n", $top);
+    $top = array_combine(preg_split('/\s+/', trim($top[6])), preg_split('/\s+/', trim($top[7])));
+    return $top;
+}
+
 function get_one_free_port()
 {
     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
@@ -41,11 +52,8 @@ function get_one_free_port()
     return $port;
 }
 
-function time_approximate($expect, $actual, float $ratio = 0.1): bool
+function approximate($expect, $actual, float $ratio = 0.1): bool
 {
-    if (USE_VALGRIND) {
-        return true;
-    }
     $ret = $actual * (1 - $ratio) < $expect && $actual * (1 + $ratio) > $expect;
     if (!$ret) {
         trigger_error("approximate: expect {$expect}, but got {$actual}\n", E_USER_WARNING);
@@ -53,9 +61,24 @@ function time_approximate($expect, $actual, float $ratio = 0.1): bool
     return $ret;
 }
 
+function time_approximate($expect, $actual, float $ratio = 0.1)
+{
+    return USE_VALGRIND || approximate($expect, $actual, $ratio);
+}
+
 function array_random(array $array)
 {
     return $array[mt_rand(0, count($array) - 1)];
+}
+
+function phpt_echo(...$args)
+{
+    global $argv;
+    if (substr($argv[0], -5) === '.phpt') {
+        foreach ($args as $arg) {
+            echo $arg;
+        }
+    }
 }
 
 function phpt_var_dump(...$args)
