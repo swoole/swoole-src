@@ -55,7 +55,7 @@ else
     options=""
 fi
 echo "${dir}" > tests.list
-for i in 1 2 3 4 5
+for i in 1 2 3
 do
     if [ "`has_failures`" ]; then
         if [ ${i} -gt "1" ]; then
@@ -63,7 +63,7 @@ do
             echo "\n😮 Retry failed tests#${i}:\n"
         fi
         cat tests.list
-        timeout=`echo | expr ${i} \* 10 + 5`
+        timeout=`echo | expr ${i} \* 15 + 15`
         options="${options} --set-timeout ${timeout}"
         run_tests tests.list "${options}"
     else
