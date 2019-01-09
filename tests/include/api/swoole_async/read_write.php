@@ -30,6 +30,9 @@ function gen_rand_file($file, $m = 10)
     // !! linux 的bs不支持m作为单位 !!!
     $bs = 1024 * 1024;
     `dd if=/dev/urandom of=$file bs=$bs count=$m >/dev/null 2>&1`;
+    register_shutdown_function(function () use ($file) {
+        @unlink($file);
+    });
     // 可能会失败
     // return filesize($file);
     return $m * 1024 * 1024;
