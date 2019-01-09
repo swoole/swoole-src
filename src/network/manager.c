@@ -162,7 +162,7 @@ int swManager_start(swFactory *factory)
     case 0:
         //wait master process
         SW_START_SLEEP;
-        if (serv->gs->start == 0)
+        if (!serv->gs->start)
         {
             return SW_OK;
         }

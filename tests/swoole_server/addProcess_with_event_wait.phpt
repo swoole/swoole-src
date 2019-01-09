@@ -6,6 +6,7 @@ swoole_server: addProcess with event wait
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
+$pm->setWaitTimeout(-1);
 $pm->parentFunc = function () use ($pm) {
     $pm->kill();
 };
@@ -23,7 +24,6 @@ $pm->childFunc = function () use ($pm) {
             swoole_timer_tick(100, function (int $id) use (&$i) {
                 global $pm;
                 if (++$i === 10) {
-                    usleep(100 * 1000);
                     swoole_timer_clear($id);
                     $pm->wakeup();
                 }

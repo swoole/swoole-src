@@ -87,10 +87,10 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 
 #define SWOOLE_MAJOR_VERSION      4
 #define SWOOLE_MINOR_VERSION      2
-#define SWOOLE_RELEASE_VERSION    11
-#define SWOOLE_EXTRA_VERSION      ""
-#define SWOOLE_VERSION            "4.2.11"
-#define SWOOLE_VERSION_ID         40211
+#define SWOOLE_RELEASE_VERSION    13
+#define SWOOLE_EXTRA_VERSION      "alpha"
+#define SWOOLE_VERSION            "4.2.13-alpha"
+#define SWOOLE_VERSION_ID         40213
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -780,7 +780,7 @@ typedef struct _swEvent
 typedef struct _swEventData
 {
     swDataHead info;
-    char data[SW_BUFFER_SIZE];
+    char data[SW_IPC_BUFFER_SIZE];
 } swEventData;
 
 typedef struct _swDgramPacket

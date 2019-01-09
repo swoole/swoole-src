@@ -364,14 +364,14 @@ static PHP_METHOD(swoole_server_port, set)
 
         port->protocol.package_length_size = 0;
         port->protocol.package_length_type = '\0';
-        port->protocol.package_length_offset = SW_BUFFER_SIZE;
+        port->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
     }
     //package length offset
     if (php_swoole_array_get_value(vht, "package_length_offset", v))
     {
         convert_to_long(v);
         port->protocol.package_length_offset = (int) Z_LVAL_P(v);
-        if (port->protocol.package_length_offset > SW_BUFFER_SIZE)
+        if (port->protocol.package_length_offset > SW_IPC_BUFFER_SIZE)
         {
             swoole_php_fatal_error(E_ERROR, "'package_length_offset' value is too large.");
         }
@@ -381,7 +381,7 @@ static PHP_METHOD(swoole_server_port, set)
     {
         convert_to_long(v);
         port->protocol.package_body_offset = (int) Z_LVAL_P(v);
-        if (port->protocol.package_body_offset > SW_BUFFER_SIZE)
+        if (port->protocol.package_body_offset > SW_IPC_BUFFER_SIZE)
         {
             swoole_php_fatal_error(E_ERROR, "'package_body_offset' value is too large.");
         }

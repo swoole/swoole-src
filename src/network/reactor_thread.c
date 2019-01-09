@@ -195,9 +195,9 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         }
 #endif
         //dgram body
-        if (pkt.length > SW_BUFFER_SIZE - sizeof(pkt))
+        if (pkt.length > SW_IPC_BUFFER_SIZE - sizeof(pkt))
         {
-            task.data.info.len = SW_BUFFER_SIZE;
+            task.data.info.len = SW_IPC_BUFFER_SIZE;
         }
         else
         {
@@ -234,10 +234,10 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
             goto do_recvfrom;
         }
 
-        offset = SW_BUFFER_SIZE - header_size;
+        offset = SW_IPC_BUFFER_SIZE - header_size;
         while (send_n > 0)
         {
-            task.data.info.len = send_n > SW_BUFFER_SIZE ? SW_BUFFER_SIZE : send_n;
+            task.data.info.len = send_n > SW_IPC_BUFFER_SIZE ? SW_IPC_BUFFER_SIZE : send_n;
             memcpy(task.data.data, packet + offset, task.data.info.len);
             send_n -= task.data.info.len;
             offset += task.data.info.len;
@@ -1228,9 +1228,9 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
 
     while (send_n > 0)
     {
-        if (send_n > SW_BUFFER_SIZE)
+        if (send_n > SW_IPC_BUFFER_SIZE)
         {
-            task.data.info.len = SW_BUFFER_SIZE;
+            task.data.info.len = SW_IPC_BUFFER_SIZE;
         }
         else
         {
@@ -1266,7 +1266,7 @@ void swReactorThread_free(swServer *serv)
     int i;
     swReactorThread *thread;
 
-    if (serv->gs->start == 0)
+    if (!serv->gs->start)
     {
         return;
     }

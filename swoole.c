@@ -512,7 +512,7 @@ void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr)
 
         if (old_size == 0)
         {
-            new_size = 65536;
+            new_size = handle < SWOOLE_OBJECT_DEFAULT ? SWOOLE_OBJECT_DEFAULT : swoole_get_new_size(SWOOLE_OBJECT_DEFAULT, handle);
             new_ptr = sw_calloc(new_size, sizeof(void *));
         }
         else
@@ -717,6 +717,14 @@ PHP_MINIT_FUNCTION(swoole)
     REGISTER_LONG_CONSTANT("SWOOLE_EVENT_WRITE", SW_EVENT_WRITE, CONST_CS | CONST_PERSISTENT);
 
     /**
+     * Register ERROR types
+     */
+    SWOOLE_DEFINE(STRERROR_SYSTEM);
+    SWOOLE_DEFINE(STRERROR_GAI);
+    SWOOLE_DEFINE(STRERROR_DNS);
+    SWOOLE_DEFINE(STRERROR_SWOOLE);
+
+    /**
      * Register ERROR constants
      */
     SWOOLE_DEFINE(ERROR_MALLOC_FAIL);
@@ -912,7 +920,7 @@ PHP_MINIT_FUNCTION(swoole)
     SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
     SwooleG.dns_cache_refresh_time = 60;
 
-    swoole_objects.size = 65536;
+    swoole_objects.size = SWOOLE_OBJECT_DEFAULT;
     swoole_objects.array = sw_calloc(swoole_objects.size, sizeof(void*));
 
     return SUCCESS;
@@ -937,7 +945,7 @@ PHP_MINFO_FUNCTION(swoole)
     char buf[64];
     php_info_print_table_start();
     php_info_print_table_header(2, "Swoole", "enabled");
-    php_info_print_table_row(2, "Author", "Swoole Team[email: team@swoole.com]");
+    php_info_print_table_row(2, "Author", "Swoole Team <team@swoole.com>");
     php_info_print_table_row(2, "Version", SWOOLE_VERSION);
     snprintf(buf, sizeof(buf), "%s %s", __DATE__, __TIME__);
     php_info_print_table_row(2, "Built", buf);
@@ -1153,22 +1161,22 @@ PHP_FUNCTION(swoole_cpu_num)
 PHP_FUNCTION(swoole_strerror)
 {
     zend_long swoole_errno = 0;
-    zend_long error_type = 0;
+    zend_long error_type = SW_STRERROR_SYSTEM;
     char error_msg[256] = {0};
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &swoole_errno, &error_type) == FAILURE)
     {
         RETURN_FALSE;
     }
-    if (error_type == 1)
+    if (error_type == SW_STRERROR_GAI)
     {
         snprintf(error_msg, sizeof(error_msg) - 1, "%s", gai_strerror(swoole_errno));
     }
-    else if (error_type == 2)
+    else if (error_type == SW_STRERROR_DNS)
     {
         snprintf(error_msg, sizeof(error_msg) - 1, "%s", hstrerror(swoole_errno));
     }
-    else if (error_type == 9)
+    else if (error_type == SW_STRERROR_SWOOLE || (swoole_errno > SW_ERROR_START && swoole_errno < SW_ERROR_END))
     {
         snprintf(error_msg, sizeof(error_msg) - 1, "%s", swstrerror(swoole_errno));
     }

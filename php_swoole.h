@@ -94,6 +94,7 @@ extern zend_module_entry swoole_module_entry;
 #endif
 
 #define SWOOLE_PROPERTY_MAX     32
+#define SWOOLE_OBJECT_DEFAULT   65536
 #define SWOOLE_OBJECT_MAX       10000000
 
 typedef struct
@@ -328,6 +329,11 @@ PHP_FUNCTION(swoole_timer_clear);
 //---------------------------------------------------------
 //                  error
 //---------------------------------------------------------
+#define SW_STRERROR_SYSTEM  0
+#define SW_STRERROR_GAI     1
+#define SW_STRERROR_DNS     2
+#define SW_STRERROR_SWOOLE  9
+
 PHP_FUNCTION(swoole_strerror);
 PHP_FUNCTION(swoole_errno);
 PHP_FUNCTION(swoole_last_error);

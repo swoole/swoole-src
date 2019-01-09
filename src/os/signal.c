@@ -45,7 +45,7 @@ static void swSignal_async_handler(int signo);
 
 char* swSignal_str(int sig)
 {
-    static char buf[48];
+    static char buf[64];
     snprintf(buf, sizeof(buf), "%s", strsignal(sig));
     if (strchr(buf, ':') == 0)
     {
@@ -304,8 +304,7 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
         }
         else
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT,
-                    swSignal_str(siginfo.ssi_signo));
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT, swSignal_str(siginfo.ssi_signo));
         }
     }
 

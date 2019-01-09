@@ -71,8 +71,8 @@ $pm->childFunc = function () use ($pm) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECT--
-object(Swoole\WebSocket\Frame)#15 (4) {
+--EXPECTF--
+object(Swoole\WebSocket\Frame)#%d (4) {
   ["fd"]=>
   int(1)
   ["data"]=>
@@ -82,7 +82,7 @@ object(Swoole\WebSocket\Frame)#15 (4) {
   ["finish"]=>
   bool(true)
 }
-object(Swoole\WebSocket\Frame)#7 (4) {
+object(Swoole\WebSocket\Frame)#%d (4) {
   ["fd"]=>
   int(0)
   ["data"]=>

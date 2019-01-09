@@ -47,8 +47,6 @@ static zend_class_entry swoole_websocket_closeframe_ce;
 static zend_class_entry *swoole_websocket_closeframe_ce_ptr;
 static zend_object_handlers swoole_websocket_closeframe_handlers;
 
-static int websocket_handshake(swListenPort *, http_context *);
-
 static PHP_METHOD(swoole_websocket_server, push);
 static PHP_METHOD(swoole_websocket_server, exist);
 static PHP_METHOD(swoole_websocket_server, isEstablished);
@@ -626,7 +624,7 @@ static PHP_METHOD(swoole_websocket_server, exist)
     zend_long fd;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         php_error_docref(NULL, E_WARNING, "the server is not running.");
         RETURN_FALSE;
@@ -670,7 +668,7 @@ static PHP_METHOD(swoole_websocket_server, isEstablished)
     zend_long fd;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         php_error_docref(NULL, E_WARNING, "the server is not running.");
         RETURN_FALSE;

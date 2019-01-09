@@ -937,10 +937,6 @@ Socket* Socket::accept()
 
 bool Socket::shutdown(int __how)
 {
-    if (unlikely(!is_available()))
-    {
-        return false;
-    }
     if (__how == SHUT_RD && !shutdown_read)
     {
         if (::shutdown(socket->fd, SHUT_RD) == 0)
@@ -971,10 +967,7 @@ bool Socket::shutdown(int __how)
 
 bool Socket::close()
 {
-    if (unlikely(!is_available()))
-    {
-        return false;
-    }
+    // TODO: waiting on review
     if (!socket->closed)
     {
         socket->closed = 1;

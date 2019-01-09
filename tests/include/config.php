@@ -4,6 +4,7 @@ require_once __DIR__ . '/functions.php';
 /** ============== Env =============== */
 define('IS_MAC_OS', stripos(PHP_OS, 'Darwin') !== false);
 define('IS_IN_TRAVIS', file_exists('/.travisenv'));
+define('IS_PHPTESTSING', !!getenv('PHPT'));
 define('USE_VALGRIND', getenv('USE_ZEND_ALLOC') === '0');
 define('HAS_SSL', defined("SWOOLE_SSL"));
 define('HAS_ASYNC_REDIS', class_exists("swoole_redis", false));

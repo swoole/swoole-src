@@ -22,10 +22,11 @@ define co_list
             if $co->state == 3
                 printf "%s\n", "SW_CORO_END"
             end
+        else
+            set $running = 0
         end
-
-        set $running = 0
     end
+    
 end
 
 define co_bt
@@ -54,9 +55,7 @@ define __co_bt
     if $co
         set $task = (php_coro_task *)$co->task
         if $task
-            set $backup = $eg.current_execute_data
-            dump_bt $task->execute_data
-            set $eg.current_execute_data = $backup
+            dump_bt $eg.current_execute_data
         end
     else
         printf "coroutines %d not found\n", $cid
