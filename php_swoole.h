@@ -140,9 +140,9 @@ extern swoole_object_array swoole_objects;
 #endif
 #endif
 
-#if PHP_VERSION_ID < 70300
+//#if PHP_VERSION_ID < 70300
 #define SW_USE_FAST_SERIALIZE 1
-#endif
+//#endif
 
 #if PHP_MAJOR_VERSION < 7
 #error "require PHP version 7.0 or later."
@@ -620,7 +620,7 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 
 #ifndef GC_IS_RECURSIVE
 #define GC_IS_RECURSIVE(p) \
-	(ZEND_HASH_GET_APPLY_COUNT(p) > 1)
+	(ZEND_HASH_GET_APPLY_COUNT(p) >= 1)
 #define GC_PROTECT_RECURSION(p) \
 	ZEND_HASH_INC_APPLY_COUNT(p)
 #define GC_UNPROTECT_RECURSION(p) \

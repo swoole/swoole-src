@@ -24,7 +24,7 @@ var_dump($bar);
 
 ?>
 --EXPECTF--
-object(Foo)#2 (1) {
+object(Foo)#%d (1) {
   ["a"]=>
   NULL
 }
