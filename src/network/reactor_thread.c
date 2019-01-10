@@ -1266,7 +1266,7 @@ void swReactorThread_free(swServer *serv)
     int i;
     swReactorThread *thread;
 
-    if (serv->gs->start == 0)
+    if (!serv->gs->start)
     {
         return;
     }

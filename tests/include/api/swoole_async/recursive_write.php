@@ -36,10 +36,10 @@ function recursiveWrite($dep = 0, $size = 1024 * 1024)
     if ($data === null) {
         $data = file_get_contents("/dev/urandom", null, null, null, $size);
     }
-
-    $file = "tmp.file";
-
-    swoole_async_write($file, $data, -1, function ($file, $len) use(&$recursiveWrite, $dep, $size) {
+    register_shutdown_function(function () {
+        @unlink('tmp.file');
+    });
+    swoole_async_write('tmp.file', $data, -1, function ($file, $len) use(&$recursiveWrite, $dep, $size) {
         if ($dep > 100) {
             echo "SUCCESS";
             unlink($file);

@@ -22,7 +22,7 @@ go(function () {
     $s = microtime(true);
     $cli->get('/');
     $s = microtime(true) - $s;
-    approximate($random_timeout, $s);
+    time_approximate($random_timeout, $s);
     echo $cli->body;
     $cli->close();
 });

@@ -64,7 +64,7 @@ function skip_if_no_ssl()
 function skip_if_openssl_version_lower_than($version = '1.0.0')
 {
     skip_if_no_ssl();
-    $exist = preg_match('/openssl => openssl ([^ ]+)/i', `php --ri swoole`, $match);
+    $exist = preg_match('/openssl => openssl ([\d\.]+)/i', `php --ri swoole`, $match);
     assert($exist);
     if (version_compare($match[1], $version, '<')) {
         skip("openssl version {$match[1]} is lower than {$version}");
@@ -86,10 +86,18 @@ function skip_if_no_http2()
     }
 }
 
+function skip_if_no_top()
+{
+    skip_if_darwin();
+    if (stripos(`top help 2>/dev/null`, 'usage') === false) {
+        skip('no top');
+    }
+}
+
 function skip_if_darwin()
 {
     if (stripos(PHP_OS, 'Darwin') !== false) {
-        skip("not support on darwin");
+        skip('not support on darwin');
     }
 }
 
@@ -145,7 +153,7 @@ function skip_if_pdo_not_support_mysql8()
             );
         } catch (\PDOException $e) {
             if ($e->getCode() === 2054) {
-                skip('pdo auth not support.');
+                skip('pdo auth not support');
             }
         }
     }
@@ -158,22 +166,25 @@ function skip_if_not_mysql8()
         '/caching_sha2_password/',
         $r = curlGet('http://' . MYSQL_SERVER_HOST . ':' . MYSQL_SERVER_PORT))
     ) {
-        skip('require mysql8.');
+        skip('require mysql8');
     }
-    var_dump($r);
 }
 
 function skip_deprecated()
 {
-    skip('it\'s the deprecated.', file_exists('/.travisenv'), SWOOLE_COLOR_WHITE);
+    skip('it\'s the deprecated', file_exists('/.travisenv'), SWOOLE_COLOR_WHITE);
 }
 
 (function () {
+    global $argv;
+    skip_php_version_lower_than('7.0');
+    if (!getenv('PHPT') && substr($argv[0], -4) === '.php') {
+        skip('please read ' . dirname(dirname(__FILE__)) . '/README.md and try again');
+    }
     if (preg_match('#\/(swoole_[^\/]+)\/#', $_SERVER['SCRIPT_FILENAME'], $dir)) {
         $dir = $dir[1];
         if (stripos($dir, 'http2') !== false) {
             skip_if_no_http2();
         }
-        skip_php_version_lower_than('7.0');
     }
 })();
