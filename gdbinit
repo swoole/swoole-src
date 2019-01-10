@@ -22,7 +22,7 @@ end
 
 define reactor_info
     if SwooleG.main_reactor
-        printf "current reactor id: %d\n",SwooleG.main_reactor->id
+        printf "\t reactor id: %d\n",SwooleG.main_reactor->id
         printf "\t running: %d\n", SwooleG.main_reactor->running
         printf "\t event_num: %d\n", SwooleG.main_reactor->event_num
         printf "\t max_event_num: %d\n", SwooleG.main_reactor->max_event_num
@@ -36,35 +36,29 @@ define co_list
     set $running = 1
     while $running
         set $co = swoole_coro_iterator_each()
-        
         if $co
             printf "coroutine %d ", $co->get_cid()
             if $co->state == 0
-                printf "%s\n", "SW_CORO_INIT"
+                printlnc $GREEN "SW_CORO_INIT"
             end
             if $co->state == 1
-                color $RED
-                printf "%s\n", "SW_CORO_WAITING"
-                color_reset
-            end      
+                printlnc $YELLOW "SW_CORO_WAITING"
+            end
             if $co->state == 2
-                color $GREEN
-                printf "%s\n", "SW_CORO_RUNNING"
-                color_reset
+                printlnc $GREEN "SW_CORO_RUNNING"
             end
             if $co->state == 3
-                printf "%s\n", "SW_CORO_END"
+                printlnc $CYAN "SW_CORO_END"
             end
         else
             set $running = 0
         end
     end
-    
 end
 
 define co_bt
     if swoole_coro_count() == 0
-        printf "no coroutines running\n"
+        printf "no coroutine is running\n"
     end
     ____executor_globals
     if $argc > 0
@@ -72,11 +66,9 @@ define co_bt
     else
         set $cid = 'swoole::Coroutine::get_current_cid'()
     end
-    
     printf "coroutine cid:[%d]\n",$cid
     __co_bt $cid
 end
-
 document co_bt
     dump current coroutine or the cid backtrace.
     useage: co_bt [cid]
@@ -171,7 +163,6 @@ define dump_bt
                 if $arg > 0
                     printf ", "
                 end
-
                 set $zvalue = (zval *) $ex + $callFrameSize + $arg
                 set $type = $zvalue->u1.v.type
                 if $type == 1
@@ -226,84 +217,29 @@ define dump_bt
     end
 end
 
-# __________________color functions_________________
-#
-set $USECOLOR = 1
-# color codes
-set $BLACK = 0
-set $RED = 1
-set $GREEN = 2
-set $YELLOW = 3
-set $BLUE = 4
+# ======== color ========
+set $BLACK   = 0
+set $RED     = 1
+set $GREEN   = 2
+set $YELLOW  = 3
+set $BLUE    = 4
 set $MAGENTA = 5
-set $CYAN = 6
-set $WHITE = 7
+set $CYAN    = 6
+set $WHITE   = 7
 
-set $COLOR_REGNAME = $GREEN
-set $COLOR_REGVAL = $BLACK
-set $COLOR_REGVAL_MODIFIED  = $RED
-set $COLOR_SEPARATOR = $BLUE
-set $COLOR_CPUFLAGS = $RED
-
-# this is ugly but there's no else if available :-(
 define color
- if $USECOLOR == 1
-    # BLACK
-    if $arg0 == 0
-        echo \033[30m
+    if $argc == 0
+        set $arg = 0
     else
-        # RED
-        if $arg0 == 1
-            echo \033[31m
-        else
-            # GREEN
-            if $arg0 == 2
-                echo \033[32m
-            else
-                # YELLOW
-                if $arg0 == 3
-                    echo \033[33m
-                else
-                    # BLUE
-                    if $arg0 == 4
-                        echo \033[34m
-                    else
-                        # MAGENTA
-                        if $arg0 == 5
-                            echo \033[35m
-                        else
-                            # CYAN
-                            if $arg0 == 6
-                                echo \033[36m
-                            else
-                                # WHITE
-                                if $arg0 == 7
-                                    echo \033[37m
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-     end
- end
+        set $arg = $arg0 + 30
+    end
+    printf "%c[%dm", 27, $arg
 end
 
-define color_reset
-    if $USECOLOR == 1
-       echo \033[0m
-    end
-end
+# ======== print ========
 
-define color_bold
-    if $USECOLOR == 1
-       echo \033[1m
-    end
-end
-
-define color_underline
-    if $USECOLOR == 1
-       echo \033[4m
-    end
+define printlnc
+    color $arg0
+    printf "%s\n", $arg1
+    color
 end
