@@ -1125,7 +1125,9 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
 
                     if (swoole_redis_coro_connect(redis) > 0)
                     {
+                        freeReplyObject(reply);
                         redis_request(redis, argc, argv, argvlen, return_value, retry);
+                        return;
                     }
                     else
                     {
