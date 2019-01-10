@@ -3908,7 +3908,7 @@ static PHP_METHOD(swoole_redis_coro, select)
     SW_REDIS_COMMAND_CHECK
     zval *zsetting = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
     add_assoc_long(zsetting, "db_number", db_number);
-    redis_select_db(redis, db_number);
+    redis_select_db(redis, db_number, return_value);
 }
 
 static PHP_METHOD(swoole_redis_coro, getRange)
