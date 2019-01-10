@@ -21,7 +21,7 @@ go(function () {
     $ret = $redis->getDBNum();
     assert($ret === 1);
 
-    $ret = $redis->set('a', 1);
+    $ret = $redis->set('a', '1');
     assert($ret);
 
     $redis = new Swoole\Coroutine\Redis(['database' => 1]);
@@ -36,7 +36,7 @@ go(function () {
     assert($ret === 1);
 
     $ret = $redis->get('a');
-    assert($ret === 1);
+    assert($ret === '1');
 });
 swoole_event_wait();
 echo "DONE\n";
