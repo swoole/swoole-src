@@ -937,29 +937,34 @@ Socket* Socket::accept()
 
 bool Socket::shutdown(int __how)
 {
-    if (__how == SHUT_RD && !shutdown_read)
+    set_err(0);
+    if (!is_connect() || (__how == SHUT_RD && shutdown_read) || (__how == SHUT_WR && shutdown_write))
     {
-        if (::shutdown(socket->fd, SHUT_RD) == 0)
+        errno = ENOTCONN;
+    }
+    else if (::shutdown(socket->fd, __how) == 0 || errno == ENOTCONN)
+    {
+        if (errno == ENOTCONN)
         {
+            // connection reset by server side
+            __how = SHUT_RDWR;
+        }
+        switch (__how)
+        {
+        case SHUT_RD:
             shutdown_read = true;
-            return true;
-        }
-    }
-    else if (__how == SHUT_WR && !shutdown_write)
-    {
-        if (::shutdown(socket->fd, SHUT_WR) == 0)
-        {
+            break;
+        case SHUT_WR:
             shutdown_write = true;
-            return true;
-        }
-    }
-    else if (__how == SHUT_RDWR && !shutdown_read && !shutdown_write)
-    {
-        if (::shutdown(socket->fd, SHUT_RDWR) == 0)
-        {
+            break;
+        default:
             shutdown_read = shutdown_write = true;
-            return true;
         }
+        if (shutdown_read && shutdown_write)
+        {
+            socket->active = 0;
+        }
+        return true;
     }
     set_err(errno);
     return false;
