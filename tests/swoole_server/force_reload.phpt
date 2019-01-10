@@ -21,7 +21,6 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $flag = 0;
     $serv = new swoole_server('127.0.0.1', $pm->getFreePort());
     $serv->set([
         "worker_num" => 4,
@@ -29,11 +28,9 @@ $pm->childFunc = function () use ($pm) {
     ]);
     $serv->on("WorkerStart", function (\swoole_server $server, $worker_id) use ($pm) {
         $pm->wakeup();
-        global $flag;
-        echo "$worker_id [".$server->worker_pid."] start \n";
-        if ($worker_id == 1 and $flag == 0) {
-            $flag = 1;
-            $server->after(1,function() use ($server, $worker_id){
+        echo "$worker_id [".$server->worker_pid."] start\n";
+        if ($worker_id == 1) {
+            $server->after(500,function() use ($server, $worker_id){
                 echo "$worker_id [".$server->worker_pid."] start to reload\n";
                 $server->reload();
             });
@@ -51,18 +48,22 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-0 [%d] start 
-1 [%d] start 
-2 [%d] start 
-3 [%d] start 
-1 [%d] start to reload
+%s
+%s
+%s
+%s
+%s start to reload
 [%s]	NOTICE	Server is reloading all workers now.
-0 [%d] start 
-1 [%d] start 
-[%s]	WARNING	swManager_killTimeout: kill(%d, SIGKILL) [2].
-[%s]	WARNING	swManager_killTimeout: kill(%d, SIGKILL) [3].
+[%s]	WARNING	swManager_killTimeout: kill(%d, SIGKILL) [%d].
+[%s]	WARNING	swManager_killTimeout: kill(%d, SIGKILL) [%d].
+[%s]	WARNING	swManager_killTimeout: kill(%d, SIGKILL) [%d].
+[%s]	WARNING	swManager_killTimeout: kill(%d, SIGKILL) [%d].
 [%s]	WARNING	swManager_check_exit_status: worker#%d abnormal exit, status=0, signal=9
 [%s]	WARNING	swManager_check_exit_status: worker#%d abnormal exit, status=0, signal=9
-%d [%d] start 
-%d [%d] start 
+[%s]	WARNING	swManager_check_exit_status: worker#%d abnormal exit, status=0, signal=9
+[%s]	WARNING	swManager_check_exit_status: worker#%d abnormal exit, status=0, signal=9
+%s
+%s
+%s
+%s
 [%s]	NOTICE	Server is shutdown now.
