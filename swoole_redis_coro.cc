@@ -1515,6 +1515,7 @@ static sw_inline void sw_redis_command_key_str_str(INTERNAL_FUNCTION_PARAMETERS,
 static PHP_METHOD(swoole_redis_coro, __construct);
 static PHP_METHOD(swoole_redis_coro, __destruct);
 static PHP_METHOD(swoole_redis_coro, connect);
+static PHP_METHOD(swoole_redis_coro, getDBNum);
 static PHP_METHOD(swoole_redis_coro, getOptions);
 static PHP_METHOD(swoole_redis_coro, setOptions);
 static PHP_METHOD(swoole_redis_coro, setDefer);
@@ -1657,6 +1658,7 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, __construct, arginfo_swoole_redis_coro_construct, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, __destruct, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, connect, arginfo_swoole_redis_coro_connect, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, getDBNum, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, getOptions, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, setOptions, arginfo_swoole_redis_coro_setOptions, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, setDefer, NULL, ZEND_ACC_PUBLIC)
@@ -1974,6 +1976,27 @@ static PHP_METHOD(swoole_redis_coro, connect)
     else
     {
         RETURN_FALSE;
+    }
+}
+
+static PHP_METHOD(swoole_redis_coro, getDBNum)
+{
+    zval *zconnected = sw_zend_read_property(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("connected"), 0);
+    if (!Z_BVAL_P(zconnected))
+    {
+        RETURN_FALSE;
+    }
+
+    zval *zsetting = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
+    zval *db_number;
+    if (php_swoole_array_get_value(Z_ARRVAL_P(zsetting), "db_number", db_number))
+    {
+        convert_to_long(db_number);
+        RETURN_LONG(Z_LVAL_P(db_number));
+    }
+    else
+    {
+        RETURN_LONG(0);
     }
 }
 
