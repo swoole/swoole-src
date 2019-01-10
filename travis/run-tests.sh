@@ -22,12 +22,25 @@ do
 done
 
 # run tests @params($1=list_file, $1=options)
-run_tests()
-{
+run_tests(){
     ./start.sh \
     "`tr '\n' ' ' < ${1} | xargs`" \
     -w ${1} \
     ${2}
+}
+
+has_failures(){
+    cat tests.list
+}
+
+should_exit_with_error(){
+    if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
+        set +e
+        find ./ -type f -name "*.mem"
+        set -e
+    else
+        has_failures
+    fi
 }
 
 touch tests.list
@@ -42,21 +55,21 @@ else
     options=""
 fi
 echo "${dir}" > tests.list
-for i in 1 2 3 4 5
+for i in 1 2 3
 do
-    if [ "`cat tests.list`" ]; then
+    if [ "`has_failures`" ]; then
         if [ ${i} -gt "1" ]; then
             sleep ${i}
             echo "\n😮 Retry failed tests#${i}:\n"
         fi
         cat tests.list
-        timeout=`echo | expr ${i} \* 10`
+        timeout=`echo | expr ${i} \* 15 + 15`
         options="${options} --set-timeout ${timeout}"
         run_tests tests.list "${options}"
     else
         break
     fi
 done
-if [ "`cat tests.list`" ]; then
+if [ "`should_exit_with_error`" ]; then
     exit 255
 fi

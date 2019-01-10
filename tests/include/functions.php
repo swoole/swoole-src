@@ -22,6 +22,17 @@ function clear_php()
     `ps -A | grep php | grep -v phpstorm | grep -v 'run-tests' | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1`;
 }
 
+function top(int $pid)
+{
+    if (IS_MAC_OS || stripos(`top help 2>/dev/null`, 'usage') === false) {
+        return false;
+    }
+    $top = `top -b -n 1 -p {$pid}`;
+    $top = explode("\n", $top);
+    $top = array_combine(preg_split('/\s+/', trim($top[6])), preg_split('/\s+/', trim($top[7])));
+    return $top;
+}
+
 function get_one_free_port()
 {
     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
@@ -50,9 +61,24 @@ function approximate($expect, $actual, float $ratio = 0.1): bool
     return $ret;
 }
 
+function time_approximate($expect, $actual, float $ratio = 0.1)
+{
+    return USE_VALGRIND || approximate($expect, $actual, $ratio);
+}
+
 function array_random(array $array)
 {
     return $array[mt_rand(0, count($array) - 1)];
+}
+
+function phpt_echo(...$args)
+{
+    global $argv;
+    if (substr($argv[0], -5) === '.phpt') {
+        foreach ($args as $arg) {
+            echo $arg;
+        }
+    }
 }
 
 function phpt_var_dump(...$args)
@@ -583,7 +609,7 @@ class ProcessManager
     protected $randomData = [];
 
     /**
-     * 默认等待1秒
+     * wait wakeup 1s default
      */
     protected $waitTimeout = 1.0;
 
@@ -592,7 +618,7 @@ class ProcessManager
     public $async = false;
 
     protected $childPid;
-    protected $childStatus;
+    protected $childStatus = 255;
     protected $parentFirst = false;
 
     public function __construct()
@@ -620,7 +646,7 @@ class ProcessManager
         $this->childFunc = $func;
     }
 
-    public function setWaitTimeout($value = '')
+    public function setWaitTimeout(int $value)
     {
         $this->waitTimeout = $value;
     }
@@ -681,9 +707,9 @@ class ProcessManager
             define('PCNTL_ESRCH', 3);
         }
         if (!$this->alone && $this->childPid) {
-            $ret = Swoole\Process::kill($this->childPid);
+            $ret = @Swoole\Process::kill($this->childPid);
             if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
-                $ret = Swoole\Process::kill($this->childPid, SIGKILL);
+                $ret = @Swoole\Process::kill($this->childPid, SIGKILL);
             }
             if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
                 exit('KILL CHILD PROCESS ERROR');
