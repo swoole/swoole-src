@@ -943,14 +943,17 @@ static sw_inline Socket* swoole_redis_coro_get_socket(redisContext *context)
     return conn ? (Socket *) conn->object : nullptr;
 }
 
+static void redis_auth(swRedisClient *redis, char *pw, size_t pw_len, zval *return_value);
+static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *argvlen, zval *return_value, bool retry = false);
+
 static bool swoole_redis_coro_connect(swRedisClient *redis)
 {
     zval *zobject = redis->zobject;
     redisContext *context;
     Socket *socket;
-    zval *zhost, *zport;
-    char *host;
-    size_t host_len;
+    zval *zhost, *zport, *zpwd;
+    char *host, *pwd;
+    size_t host_len, pwd_len;
     zend_long port;
     struct timeval tv;
 
@@ -1042,6 +1045,31 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     socket->set_timeout(redis->timeout);
     zend_update_property_bool(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("connected"), 1);
     zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("sock"), context->fd);
+
+    auto zsetting = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("setting"), 1);
+    auto vht = Z_ARRVAL_P(zsetting);
+    if (php_swoole_array_get_value(vht, "password", zpwd))
+    {
+        convert_to_string(zpwd);
+        pwd = Z_STRVAL_P(zpwd);
+        pwd_len = Z_STRLEN_P(zpwd);
+
+        if (pwd_len > 0)
+        {
+            zval *auth_return = sw_malloc_zval();
+            redis_auth(redis, pwd, pwd_len, auth_return);
+
+            if (Z_TYPE_P(auth_return) != IS_TRUE)
+            {
+                sw_zval_free(auth_return);
+                swoole_redis_coro_close(redis);
+                return false;
+            }
+
+            sw_zval_free(auth_return);
+        }
+    }
+
     return true;
 }
 
@@ -1072,7 +1100,17 @@ static sw_inline bool swoole_redis_coro_keep_liveness(swRedisClient *redis)
     return true;
 }
 
-static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *argvlen, zval *return_value, bool retry = false)
+static void redis_auth(swRedisClient *redis, char *pw, size_t pw_len, zval *return_value)
+{
+    int i = 0;
+    size_t argvlen[2];
+    char *argv[2];
+    SW_REDIS_COMMAND_ARGV_FILL("AUTH", 4)
+    SW_REDIS_COMMAND_ARGV_FILL(pw, pw_len)
+    redis_request(redis, 2, argv, argvlen, return_value);
+}
+
+static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *argvlen, zval *return_value, bool retry)
 {
     redisReply *reply = nullptr;
     if (!swoole_redis_coro_keep_liveness(redis))
@@ -2857,13 +2895,11 @@ static PHP_METHOD(swoole_redis_coro, auth)
     {
         RETURN_FALSE;
     }
+
     SW_REDIS_COMMAND_CHECK
-    int i = 0;
-    size_t argvlen[2];
-    char *argv[2];
-    SW_REDIS_COMMAND_ARGV_FILL("AUTH", 4)
-    SW_REDIS_COMMAND_ARGV_FILL(pw, pw_len)
-    redis_request(redis, 2, argv, argvlen, return_value);
+    auto zsetting = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
+    add_assoc_stringl(zsetting, "password", pw, pw_len);
+    redis_auth(redis, pw, pw_len, return_value);
 }
 
 static PHP_METHOD(swoole_redis_coro, save)
