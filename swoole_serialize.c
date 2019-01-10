@@ -52,6 +52,8 @@ zend_class_entry swoole_serialize_ce;
 zend_class_entry *swoole_serialize_class_entry_ptr;
 
 #define SWOOLE_SERI_EOF "EOF"
+#define CHECK_STEP if(buffer>unseri_buffer_end){ php_error_docref(NULL, E_ERROR, "illegal unserialize data"); return NULL;}
+#define SW_HT_HASH_RESET(ht) memset(&HT_HASH(ht, (ht)->nTableMask), HT_INVALID_IDX, HT_HASH_SIZE((ht)->nTableMask))
 
 static struct _swSeriaG swSeriaG;
 
@@ -683,7 +685,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
         php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
         return NULL;
     }
-    HT_HASH_RESET(ht);
+    SW_HT_HASH_RESET(ht);
     //}
 
 
@@ -1028,15 +1030,24 @@ try_again:
                  */
                 ((SBucketType*) (buffer->buffer + p))->data_type = IS_UNDEF;
 
-                if (ZEND_HASH_APPLY_PROTECTION(Z_OBJPROP_P(data)))
+                if (GC_IS_RECURSIVE(Z_OBJPROP_P(data)))
                 {
-                    GC_PROTECT_RECURSION(Z_OBJPROP_P(data));
-                    swoole_serialize_object(buffer, data, p);
-                    GC_UNPROTECT_RECURSION(Z_OBJPROP_P(data));
+                    ((SBucketType*) (buffer->buffer + p))->data_type = IS_NULL; //reset type null
+                    php_error_docref(NULL, E_NOTICE, "the obj has cycle ref");
                 }
                 else
                 {
-                    swoole_serialize_object(buffer, data, p);
+                    if (ZEND_HASH_APPLY_PROTECTION(Z_OBJPROP_P(data)))
+                    {
+                        GC_PROTECT_RECURSION(Z_OBJPROP_P(data));
+                        swoole_serialize_object(buffer, data, p);
+                        GC_UNPROTECT_RECURSION(Z_OBJPROP_P(data));
+                    }
+                    else
+                    {
+                        swoole_serialize_object(buffer, data, p);
+                    }
+
                 }
 
                 break;
@@ -1098,11 +1109,11 @@ static CPINLINE void swoole_serialize_raw(seriaString *buffer, zval *zvalue)
 static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start)
 {
     zend_string *name = Z_OBJCE_P(obj)->name;
-    if (GC_IS_RECURSIVE(Z_OBJPROP_P(obj)))
-    {
-        zend_throw_exception_ex(NULL, 0, "the object %s has cycle ref.", name->val);
-        return;
-    }
+//    if (GC_IS_RECURSIVE(Z_OBJPROP_P(obj)))
+//    {
+//        zend_throw_exception_ex(NULL, 0, "the object %s has cycle ref.", name->val);
+//        return;
+//    }
     if (name->len > 0xffff)
     {//so long?
         zend_throw_exception_ex(NULL, 0, "the object name is too long.");
@@ -1141,7 +1152,7 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
                 void *ht_addr = do_alloca(HT_SIZE(ht), use_heap);
                 HT_SET_DATA_ADDR(ht, ht_addr);
                 ht->u.flags |= HASH_FLAG_INITIALIZED;
-                HT_HASH_RESET(ht);
+                SW_HT_HASH_RESET(ht);
 
                 //just clean property do not add null when does not exist
                 //we double for each, cause we do not malloc  and release it
