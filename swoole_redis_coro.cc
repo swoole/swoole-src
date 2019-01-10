@@ -1111,7 +1111,34 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
             }
             else
             {
-                swoole_redis_coro_parse_result(redis, return_value, reply);
+                if (reply->type == REDIS_REPLY_ERROR &&
+                    (!strncmp(reply->str, "MOVED", 5) || !strncmp(reply->str, "ASK", 3)))
+                {
+                    char *p1, *p2;
+                    // MOVED 1234 127.0.0.1:1234
+                    p1 = strrchr(reply->str, ' ') + 1; // MOVED 1234 [p1]27.0.0.1:1234
+                    p2 = strrchr(p1, ':'); // MOVED 1234 [p1]27.0.0.1[p2]1234
+                    *p2 = '\0';
+                    int port = atoi(p2 + 1);
+                    zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("host"), p1);
+                    zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("port"), port);
+
+                    if (swoole_redis_coro_connect(redis) > 0)
+                    {
+                        freeReplyObject(reply);
+                        redis_request(redis, argc, argv, argvlen, return_value, retry);
+                        return;
+                    }
+                    else
+                    {
+                        ZVAL_FALSE(return_value);
+                    }
+                }
+                else
+                {
+                    swoole_redis_coro_parse_result(redis, return_value, reply);
+                }
+
                 freeReplyObject(reply);
             }
         }
