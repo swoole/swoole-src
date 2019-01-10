@@ -24,7 +24,7 @@ go(function () {
     $ret = $redis->set('a', 1);
     assert($ret);
 
-    $redis = new Swoole\Coroutine\Redis(['db_number' => 1]);
+    $redis = new Swoole\Coroutine\Redis(['database' => 1]);
 
     $ret = $redis->getDBNum();
     assert($ret === false);
