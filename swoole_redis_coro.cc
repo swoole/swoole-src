@@ -1069,15 +1069,21 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
         }
     }
 
-    if (php_swoole_array_get_value(vht, "db_number", ztmp))
+    if (php_swoole_array_get_value(vht, "database", ztmp))
     {
         convert_to_long(ztmp);
-        redis_select_db(redis, Z_LVAL_P(ztmp), &ztmp_ret);
+        long db_number = Z_LVAL_P(ztmp);
 
-        if (Z_TYPE(ztmp_ret) != IS_TRUE)
+        if (db_number != 0)
         {
-            swoole_redis_coro_close(redis);
-            return false;
+            // default is 0, don't need select
+            redis_select_db(redis, db_number, &ztmp_ret);
+
+            if (Z_TYPE(ztmp_ret) != IS_TRUE)
+            {
+                swoole_redis_coro_close(redis);
+                return false;
+            }
         }
     }
 
@@ -1989,7 +1995,7 @@ static PHP_METHOD(swoole_redis_coro, getDBNum)
 
     zval *zsetting = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
     zval *db_number;
-    if (php_swoole_array_get_value(Z_ARRVAL_P(zsetting), "db_number", db_number))
+    if (php_swoole_array_get_value(Z_ARRVAL_P(zsetting), "database", db_number))
     {
         convert_to_long(db_number);
         RETURN_LONG(Z_LVAL_P(db_number));
@@ -3930,7 +3936,7 @@ static PHP_METHOD(swoole_redis_coro, select)
 
     SW_REDIS_COMMAND_CHECK
     zval *zsetting = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
-    add_assoc_long(zsetting, "db_number", db_number);
+    add_assoc_long(zsetting, "database", db_number);
     redis_select_db(redis, db_number, return_value);
 }
 
