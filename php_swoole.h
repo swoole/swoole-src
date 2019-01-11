@@ -846,8 +846,13 @@ static sw_inline zval* sw_zend_read_property_array(zend_class_entry *class_ptr, 
     if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
     else *(retval) = &__retval;
 
-// TODO: remove it after remove async modules
+static sw_inline int sw_zend_function_max_num_args(zend_function *function)
+{
+    // due to internaled function required_num_args maybe bigger than num_args
+    return MAX(function->common.required_num_args, function->common.num_args);
+}
 
+// TODO: remove it after remove async modules
 static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
 {
     zend_string *key = NULL;

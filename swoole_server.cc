@@ -2575,31 +2575,34 @@ static PHP_METHOD(swoole_server, set)
     //dispatch function
     if (php_swoole_array_get_value(vht, "dispatch_func", v))
     {
-        swServer_dispatch_function func = NULL;
+        swServer_dispatch_function c_dispatch_func = NULL;
         while(1)
         {
             if (Z_TYPE_P(v) == IS_STRING)
             {
-                func = (swServer_dispatch_function) swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
-                break;
+                c_dispatch_func = (swServer_dispatch_function) swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                if (c_dispatch_func)
+                {
+                    break;
+                }
             }
-
             char *func_name = NULL;
-            if (!sw_zend_is_callable(v, 0, &func_name))
+            zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
+            if (!sw_zend_is_callable_ex(v, NULL, 0, &func_name, NULL, fci_cache, NULL))
             {
                 swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
                 return;
             }
             efree(func_name);
-            Z_TRY_ADDREF_P(v);
-            serv->private_data_3 = sw_zval_dup(v);
-            func = php_swoole_dispatch_func;
+            sw_fci_cache_persist(fci_cache);
+            serv->private_data_3 = (void *) fci_cache;
+            c_dispatch_func = php_swoole_dispatch_func;
             break;
         }
-        if (func)
+        if (c_dispatch_func)
         {
             serv->dispatch_mode = SW_DISPATCH_USERFUNC;
-            serv->dispatch_func = func;
+            serv->dispatch_func = c_dispatch_func;
         }
     }
     //log_file
