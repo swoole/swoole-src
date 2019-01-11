@@ -49,6 +49,8 @@ define('REDIS_SERVER_PATH',
 );
 define('REDIS_SERVER_HOST', IS_IN_TRAVIS ? 'redis' : '127.0.0.1');
 define('REDIS_SERVER_PORT', 6379);
+define('REDIS_SERVER_PWD', 'root');
+define('REDIS_SERVER_DB', 0);
 
 /** =============== IP ================ */
 define('IP_REGEX', '/^(?:[\d]{1,3}\.){3}[\d]{1,3}$/');
