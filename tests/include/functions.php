@@ -24,7 +24,7 @@ function clear_php()
 
 function top(int $pid)
 {
-    if (IS_MAC_OS || stripos(`top help 2>/dev/null`, 'usage') === false) {
+    if (IS_MAC_OS || stripos(`top help 2>&1`, 'usage') === false) {
         return false;
     }
     $top = `top -b -n 1 -p {$pid}`;

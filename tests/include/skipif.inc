@@ -88,7 +88,7 @@ function skip_if_no_http2()
 function skip_if_no_top()
 {
     skip_if_darwin();
-    if (stripos(`top help 2>/dev/null`, 'usage') === false) {
+    if (stripos(`top help 2>&1`, 'usage') === false) {
         skip('no top');
     }
 }

@@ -116,6 +116,15 @@ if ((substr(PHP_OS, 0, 3) == "WIN") && empty($environment["SystemRoot"])) {
     $environment["SystemRoot"] = getenv("SystemRoot");
 }
 
+// swoole patch (persistent config)
+{
+    $environment['HAS_NETSTAT'] = $environment['HAS_NETSTAT'] ?? (stripos(`netstat --help 2>&1`, 'usage') ? '1' : '0');
+    if ($environment['HAS_NETSTAT']) {
+        $environment['MYSQL_SERVER_PATH'] = $environment['MYSQL_SERVER_PATH'] ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*mysqld?\.sock'`) ?: null);
+        $environment['REDIS_SERVER_PATH'] = $environment['REDIS_SERVER_PATH'] ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*redis.*\.sock'`) ?: null);
+    }
+}
+
 // Don't ever guess at the PHP executable location.
 // Require the explicit specification.
 // Otherwise we could end up testing the wrong file!
