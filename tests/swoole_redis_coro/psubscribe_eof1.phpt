@@ -1,5 +1,5 @@
 --TEST--
-swoole_redis_coro: redis psubscribe
+swoole_redis_coro: redis psubscribe eof 1
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -16,15 +16,18 @@ go(function () use ($sock) {
     }
     echo "DONE\n";
 });
+
 go(function () use ($sock, $port) {
     $redis = new Swoole\Coroutine\Redis();
     $redis->connect('127.0.0.1', $port);
+
     for ($i = 0; $i < MAX_REQUESTS; $i++) {
         $val = $redis->psubscribe(['test.*']);
         assert($val === false);
         assert($redis->connected === false);
         assert($redis->errType === SWOOLE_REDIS_ERR_EOF);
     }
+
     $redis->close();
     $sock->close();
 });
