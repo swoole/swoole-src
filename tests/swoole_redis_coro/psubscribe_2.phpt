@@ -19,8 +19,8 @@ go(function () {
         $channel .= 'test';
         assert($val);
 
-        go(function () use ($channel) {
-            $ret = $redis->publish($channel, 'test' . $channel);
+        go(function () use ($channel, $redis2) {
+            $ret = $redis2->publish($channel, 'test' . $channel);
             assert($ret);
         });
 
