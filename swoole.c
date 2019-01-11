@@ -405,10 +405,10 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *da
     ZVAL_STRINGL(zdata, data->data, data->info.len);
 
     SW_MAKE_STD_ZVAL(zfd);
-    ZVAL_LONG(zfd, (long ) conn->session_id);
+    ZVAL_LONG(zfd, (long) conn ? conn->session_id : data->info.fd);
 
     SW_MAKE_STD_ZVAL(ztype);
-    ZVAL_LONG(ztype, (long ) data->info.type);
+    ZVAL_LONG(ztype, (long) data->info.type);
 
     zval args[4];
     args[0] = *zserv;
