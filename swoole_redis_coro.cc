@@ -85,6 +85,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_setOptions, 0, 0, 1)
     ZEND_ARG_INFO(0, options)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_setDefer, 0, 0, 1)
+    ZEND_ARG_INFO(0, defer)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -870,10 +874,12 @@ typedef struct
     redisContext *context;
     double connect_timeout;
     double timeout;
-    zend_bool serialize;
-    zend_bool defer;
+    bool serialize;
+    bool defer;
     uint8_t reconnect_interval;
     uint8_t reconnected_count;
+    bool auth;
+    long database;
     zval *zobject;
     zval _zobject;
 } swRedisClient;
@@ -943,8 +949,8 @@ static sw_inline Socket* swoole_redis_coro_get_socket(redisContext *context)
     return conn ? (Socket *) conn->object : nullptr;
 }
 
-static void redis_auth(swRedisClient *redis, char *pw, size_t pw_len, zval *return_value);
-static void redis_select_db(swRedisClient *redis, long db_number, zval *return_value);
+static bool redis_auth(swRedisClient *redis, char *pw, size_t pw_len);
+static bool redis_select_db(swRedisClient *redis, long db_number);
 static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *argvlen, zval *return_value, bool retry = false);
 
 static bool swoole_redis_coro_connect(swRedisClient *redis)
@@ -1047,46 +1053,32 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     zend_update_property_bool(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("connected"), 1);
     zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("sock"), context->fd);
 
+    // auth and select db after connected
     zval *zsetting = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("setting"), 1);
     HashTable *vht = Z_ARRVAL_P(zsetting);
-    zval ztmp_ret;
 
     if (php_swoole_array_get_value(vht, "password", ztmp))
     {
         convert_to_string(ztmp);
         pwd = Z_STRVAL_P(ztmp);
         pwd_len = Z_STRLEN_P(ztmp);
-
-        if (pwd_len > 0)
+        if (pwd_len > 0 && !redis_auth(redis, pwd, pwd_len))
         {
-            redis_auth(redis, pwd, pwd_len, &ztmp_ret);
-
-            if (Z_TYPE(ztmp_ret) != IS_TRUE)
-            {
-                swoole_redis_coro_close(redis);
-                return false;
-            }
+            swoole_redis_coro_close(redis);
+            return false;
         }
     }
-
     if (php_swoole_array_get_value(vht, "database", ztmp))
     {
         convert_to_long(ztmp);
-        long db_number = Z_LVAL_P(ztmp);
-
-        if (db_number != 0)
+        zend_long db_number = Z_LVAL_P(ztmp);
+        // default is 0, don't need select
+        if (db_number > 0 && !redis_select_db(redis, db_number))
         {
-            // default is 0, don't need select
-            redis_select_db(redis, db_number, &ztmp_ret);
-
-            if (Z_TYPE(ztmp_ret) != IS_TRUE)
-            {
-                swoole_redis_coro_close(redis);
-                return false;
-            }
+            swoole_redis_coro_close(redis);
+            return false;
         }
     }
-
     return true;
 }
 
@@ -1117,28 +1109,44 @@ static sw_inline bool swoole_redis_coro_keep_liveness(swRedisClient *redis)
     return true;
 }
 
-static void redis_auth(swRedisClient *redis, char *pw, size_t pw_len, zval *return_value)
+static bool redis_auth(swRedisClient *redis, char *pw, size_t pw_len)
 {
     int i = 0;
     size_t argvlen[2];
     char *argv[2];
+    bool ret;
+    zval retval;
 
     SW_REDIS_COMMAND_ARGV_FILL("AUTH", 4)
     SW_REDIS_COMMAND_ARGV_FILL(pw, pw_len)
-    redis_request(redis, 2, argv, argvlen, return_value);
+    redis_request(redis, 2, argv, argvlen, &retval);
+    ret = Z_BVAL_P(&retval);
+    if (ret)
+    {
+        redis->auth = true;
+    }
+    return ret;
 }
 
-static void redis_select_db(swRedisClient *redis, long db_number, zval *return_value)
+static bool redis_select_db(swRedisClient *redis, long db_number)
 {
     int i = 0;
     size_t argvlen[2];
     char *argv[2];
+    char str[32];
+    bool ret;
+    zval retval;
 
     SW_REDIS_COMMAND_ARGV_FILL("SELECT", 6)
-    char str[32];
     sprintf(str, "%ld", db_number);
     SW_REDIS_COMMAND_ARGV_FILL(str, strlen(str))
-    redis_request(redis, 2, argv, argvlen, return_value);
+    redis_request(redis, 2, argv, argvlen, &retval);
+    ret = Z_BVAL_P(&retval);
+    if (ret)
+    {
+        redis->database = db_number;
+    }
+    return ret;
 }
 
 static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *argvlen, zval *return_value, bool retry)
@@ -1548,11 +1556,12 @@ static sw_inline void sw_redis_command_key_str_str(INTERNAL_FUNCTION_PARAMETERS,
 static PHP_METHOD(swoole_redis_coro, __construct);
 static PHP_METHOD(swoole_redis_coro, __destruct);
 static PHP_METHOD(swoole_redis_coro, connect);
+static PHP_METHOD(swoole_redis_coro, getAuth);
 static PHP_METHOD(swoole_redis_coro, getDBNum);
 static PHP_METHOD(swoole_redis_coro, getOptions);
 static PHP_METHOD(swoole_redis_coro, setOptions);
-static PHP_METHOD(swoole_redis_coro, setDefer);
 static PHP_METHOD(swoole_redis_coro, getDefer);
+static PHP_METHOD(swoole_redis_coro, setDefer);
 static PHP_METHOD(swoole_redis_coro, recv);
 static PHP_METHOD(swoole_redis_coro, request);
 static PHP_METHOD(swoole_redis_coro, close);
@@ -1691,12 +1700,13 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, __construct, arginfo_swoole_redis_coro_construct, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, __destruct, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, connect, arginfo_swoole_redis_coro_connect, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, getAuth, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, getDBNum, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, getOptions, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, setOptions, arginfo_swoole_redis_coro_setOptions, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, setDefer, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, getDefer, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, recv, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, getDefer, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, setDefer, arginfo_swoole_redis_coro_setDefer, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, recv, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, request, arginfo_swoole_redis_coro_request, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, close, arginfo_swoole_redis_coro_close, ZEND_ACC_PUBLIC)
     /*---------------------Redis Command------------------------*/
@@ -1966,10 +1976,14 @@ static PHP_METHOD(swoole_redis_coro, __construct)
     redis->timeout = PHPCoroutine::socket_timeout;
     redis->reconnect_interval = 1;
 
+    // settings init
     add_assoc_double(zsettings, "connect_timeout", redis->connect_timeout);
     add_assoc_double(zsettings, "timeout", redis->timeout);
     add_assoc_bool(zsettings, "serialize", redis->serialize);
     add_assoc_long(zsettings, "reconnect", redis->reconnect_interval);
+    // after connected
+    add_assoc_string(zsettings, "password", "");
+    add_assoc_long(zsettings, "database", 0);
 
     if (zset)
     {
@@ -2012,25 +2026,29 @@ static PHP_METHOD(swoole_redis_coro, connect)
     }
 }
 
+static PHP_METHOD(swoole_redis_coro, getAuth)
+{
+    swRedisClient *redis = swoole_get_redis_client(getThis());
+    if (redis->auth)
+    {
+        zval *ztmp = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
+        if (php_swoole_array_get_value(Z_ARRVAL_P(ztmp), "password", ztmp))
+        {
+            RETURN_ZVAL(ztmp, 1, 0);
+        }
+        RETURN_EMPTY_STRING();
+    }
+    RETURN_FALSE;
+}
+
 static PHP_METHOD(swoole_redis_coro, getDBNum)
 {
-    zval *zconnected = sw_zend_read_property(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("connected"), 0);
-    if (!Z_BVAL_P(zconnected))
+    swRedisClient *redis = swoole_get_redis_client(getThis());
+    if (!redis->context)
     {
         RETURN_FALSE;
     }
-
-    zval *zsetting = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
-    zval *db_number;
-    if (php_swoole_array_get_value(Z_ARRVAL_P(zsetting), "database", db_number))
-    {
-        convert_to_long(db_number);
-        RETURN_LONG(Z_LVAL_P(db_number));
-    }
-    else
-    {
-        RETURN_LONG(0);
-    }
+    RETURN_LONG(redis->database);
 }
 
 static PHP_METHOD(swoole_redis_coro, getOptions)
@@ -2980,7 +2998,7 @@ static PHP_METHOD(swoole_redis_coro, auth)
     SW_REDIS_COMMAND_CHECK
     zval *zsetting = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
     add_assoc_stringl(zsetting, "password", pw, pw_len);
-    redis_auth(redis, pw, pw_len, return_value);
+    RETURN_BOOL(redis_auth(redis, pw, pw_len));
 }
 
 static PHP_METHOD(swoole_redis_coro, save)
@@ -3955,16 +3973,16 @@ static PHP_METHOD(swoole_redis_coro, move)
 
 static PHP_METHOD(swoole_redis_coro, select)
 {
-    long db_number;
+    zend_long db_number;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &db_number) == FAILURE) {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(db_number)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     SW_REDIS_COMMAND_CHECK
     zval *zsetting = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
     add_assoc_long(zsetting, "database", db_number);
-    redis_select_db(redis, db_number, return_value);
+    RETURN_BOOL(redis_select_db(redis, db_number));
 }
 
 static PHP_METHOD(swoole_redis_coro, getRange)
