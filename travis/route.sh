@@ -78,7 +78,7 @@ echo "\n📖 Prepare for files...\n"
 prepare_data_files
 
 echo "📦 Start docker containers...\n"
-start_docker_containers && trap "remove_tests_resources"
+start_docker_containers # && trap "remove_tests_resources"
 
 echo "\n⏳ Run tests in docker...\n"
 run_tests_in_docker
