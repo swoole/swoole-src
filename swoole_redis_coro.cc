@@ -3156,9 +3156,9 @@ static PHP_METHOD(swoole_redis_coro, zRange)
     {
         argc = 4;
     }
+
     redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
-
 }
 
 static PHP_METHOD(swoole_redis_coro, zRevRange)
@@ -3193,9 +3193,9 @@ static PHP_METHOD(swoole_redis_coro, zRevRange)
     {
         argc = 4;
     }
+
     redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
-
 }
 
 static PHP_METHOD(swoole_redis_coro, zUnion)
@@ -3482,6 +3482,7 @@ static PHP_METHOD(swoole_redis_coro, zRangeByLex)
         buf_len = sprintf(buf, "%ld", count);
         SW_REDIS_COMMAND_ARGV_FILL(buf, buf_len)
     }
+
     redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
 }
@@ -3535,6 +3536,7 @@ static PHP_METHOD(swoole_redis_coro, zRevRangeByLex)
         buf_len = sprintf(buf, "%ld", count);
         SW_REDIS_COMMAND_ARGV_FILL(buf, buf_len)
     }
+
     redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
 }
@@ -3607,6 +3609,7 @@ static PHP_METHOD(swoole_redis_coro, zRangeByScore)
         buf_len = sprintf(buf, "%ld", limit_high);
         SW_REDIS_COMMAND_ARGV_FILL(buf, buf_len)
     }
+
     redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
 }
@@ -3679,6 +3682,7 @@ static PHP_METHOD(swoole_redis_coro, zRevRangeByScore)
         buf_len = sprintf(buf, "%ld", limit_high);
         SW_REDIS_COMMAND_ARGV_FILL(buf, buf_len)
     }
+
     redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
 }
@@ -3782,7 +3786,6 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
 
     redis_request(redis, argc, argv, argvlen, return_value);;
     SW_REDIS_COMMAND_FREE_ARGV
-
 }
 
 static PHP_METHOD(swoole_redis_coro, zScore)
@@ -3838,7 +3841,6 @@ static PHP_METHOD(swoole_redis_coro, hMGet)
     SW_HASHTABLE_FOREACH_END();
     redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
-
 }
 
 static PHP_METHOD(swoole_redis_coro, hExists)
@@ -3890,8 +3892,6 @@ static PHP_METHOD(swoole_redis_coro, hIncrBy)
     SW_REDIS_COMMAND_ARGV_FILL(str, strlen(str))
 
     redis_request(redis, 4, argv, argvlen, return_value);
-
-
 }
 
 static PHP_METHOD(swoole_redis_coro, hIncrByFloat)
@@ -3918,8 +3918,6 @@ static PHP_METHOD(swoole_redis_coro, hIncrByFloat)
     SW_REDIS_COMMAND_ARGV_FILL(str, strlen(str))
 
     redis_request(redis, 4, argv, argvlen, return_value);
-
-
 }
 
 static PHP_METHOD(swoole_redis_coro, incr)
@@ -3971,7 +3969,6 @@ static PHP_METHOD(swoole_redis_coro, lInsert)
     SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_pivot)
     SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_val)
     redis_request(redis, 5, argv, argvlen, return_value);
-
 }
 
 static PHP_METHOD(swoole_redis_coro, lGet)
@@ -4057,8 +4054,6 @@ static PHP_METHOD(swoole_redis_coro, lRem)
     SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_val)
 
     redis_request(redis, 4, argv, argvlen, return_value);
-
-
 }
 
 static PHP_METHOD(swoole_redis_coro, zDeleteRangeByRank)
@@ -4096,8 +4091,6 @@ static PHP_METHOD(swoole_redis_coro, bitCount)
     SW_REDIS_COMMAND_ARGV_FILL(str, strlen(str))
 
     redis_request(redis, 4, argv, argvlen, return_value);
-
-
 }
 
 static PHP_METHOD(swoole_redis_coro, bitOp)
@@ -4122,10 +4115,10 @@ static PHP_METHOD(swoole_redis_coro, bitOp)
         SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
         zend_string_release(convert_str);
     }
+
     redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
     efree(z_args);
-
 }
 
 static PHP_METHOD(swoole_redis_coro, sMove)
