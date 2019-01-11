@@ -23,6 +23,7 @@ services:
     image: "twosee/swoole:mysql5"
     volumes:
       - ./data/mysql:/var/lib/mysql:rw
+      - ./data/mysql/mysql.sock:/var/run/mysqld/mysqld.sock:rw
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: test

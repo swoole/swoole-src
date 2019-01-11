@@ -54,6 +54,13 @@ function skip_if_class_not_exist(string $class_name)
     }
 }
 
+function skip_if_file_not_exist(string $filename)
+{
+    if (!file_exists($filename)) {
+        skip("file {$filename} is not exist");
+    }
+}
+
 function skip_if_no_ssl()
 {
     if (!defined("SWOOLE_SSL")) {

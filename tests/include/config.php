@@ -20,6 +20,7 @@ define('SSL_FILE_DIR', __DIR__ . '/api/swoole_http_server/localhost-ssl');
 
 /** ============ Servers ============ */
 define('SERVER_MODE_RANDOM', array_random([SWOOLE_BASE, SWOOLE_PROCESS]));
+define('UNIXSOCK_PATH', '/tmp/unix-sock-test.sock');
 
 define('TCP_SERVER_HOST', '127.0.0.1');
 define('TCP_SERVER_PORT', 9001);
@@ -29,12 +30,13 @@ define('HTTP_SERVER_PORT', 9002);
 define('WEBSOCKET_SERVER_HOST', '127.0.0.1');
 define('WEBSOCKET_SERVER_PORT', 9003);
 
-define('UNIXSOCK_PATH', '/tmp/unix-sock-test.sock');
-
 define('UDP_SERVER_HOST', '127.0.0.1');
-define('UDP_SERVER_PORT', '9003');
+define('UDP_SERVER_PORT', 9003);
 
 /** ============== MySQL ============== */
+define('MYSQL_SERVER_PATH',
+    IS_IN_TRAVIS ? '/data/mysql/mysql.sock' : (IS_MAC_OS ? '/tmp/mysql.sock' : '/var/run/mysqld/mysqld.sock')
+);
 define('MYSQL_SERVER_HOST', IS_IN_TRAVIS ? 'mysql' : '127.0.0.1');
 define('MYSQL_SERVER_PORT', 3306);
 define('MYSQL_SERVER_USER', 'root');
