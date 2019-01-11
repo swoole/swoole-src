@@ -941,6 +941,7 @@ static sw_inline bool swoole_redis_coro_close(swRedisClient *redis)
     zend_update_property_bool(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("connected"), 0);
     redisFree(redis->context);
     redis->context = NULL;
+    redis->subscribe = false;
     return true;
 }
 
@@ -2138,11 +2139,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
         zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errCode"), sw_redis_convert_err(redis->context->err));
         zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errMsg"), redis->context->errstr);
 
-        if (redis->context->err == REDIS_ERR_EOF)
-        {
-            swoole_redis_coro_close(redis);
-        }
-
+        swoole_redis_coro_close(redis);
         RETURN_FALSE;
     }
 }
