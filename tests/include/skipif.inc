@@ -78,14 +78,6 @@ function skip_if_openssl_version_lower_than($version = '1.0.0')
     }
 }
 
-function skip_if_no_redis_unix_socket()
-{
-    require_once __DIR__ . '/config.php';
-    if (!file_exists(REDIS_SERVER_PATH)) {
-        skip('cannot found redis server unix socket on ' . REDIS_SERVER_PATH);
-    }
-}
-
 function skip_if_no_http2()
 {
     if (!class_exists("swoole_http2_request", false)) {

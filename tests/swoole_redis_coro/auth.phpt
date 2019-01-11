@@ -19,7 +19,7 @@ go(function () {
     assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
     assert($redis->getAuth() === false);
     assert(!$redis->auth(get_safe_random()));
-    assert($redis->errCode = SOCKET_EINVAL);
+    assert($redis->errCode === SOCKET_EINVAL);
     assert($redis->getAuth() === false);
     assert($redis->auth(REDIS_SERVER_PWD));
     assert($redis->getAuth() === REDIS_SERVER_PWD);

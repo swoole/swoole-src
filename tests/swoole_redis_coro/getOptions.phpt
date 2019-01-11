@@ -20,7 +20,7 @@ $redis->setOptions([
 var_dump($redis->getOptions());
 ?>
 --EXPECT--
-array(4) {
+array(6) {
   ["connect_timeout"]=>
   float(1)
   ["timeout"]=>
@@ -29,8 +29,12 @@ array(4) {
   bool(false)
   ["reconnect"]=>
   int(1)
+  ["password"]=>
+  string(0) ""
+  ["database"]=>
+  int(0)
 }
-array(4) {
+array(6) {
   ["connect_timeout"]=>
   float(0.001)
   ["timeout"]=>
@@ -39,4 +43,8 @@ array(4) {
   bool(true)
   ["reconnect"]=>
   int(3)
+  ["password"]=>
+  string(0) ""
+  ["database"]=>
+  int(0)
 }

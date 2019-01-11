@@ -23,7 +23,7 @@ services:
     image: "twosee/swoole:mysql5"
     volumes:
       - ./data/mysql:/var/lib/mysql:rw
-      - ./data/mysql/mysql.sock:/var/run/mysqld/mysqld.sock:rw
+      - ./data/run/mysqld:/var/run/mysqld:rw
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: test
@@ -34,5 +34,6 @@ services:
     image: "twosee/swoole:redis"
     volumes:
       - ./data/redis:/var/lib/redis:rw
+      - ./data/run/redis:/var/run/redis:rw
     sysctls:
         net.core.somaxconn: 65535

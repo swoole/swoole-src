@@ -2,6 +2,8 @@
 __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
+[ -z "${SWOOLE_BRANCH}" ] && export SWOOLE_BRANCH="master"
+
 #-------------PHPT-------------
 cd ${__DIR__} && cd ../tests/
 
