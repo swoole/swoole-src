@@ -10,6 +10,8 @@ fi
 #-----------compile------------
 #-------print error only-------
 cd ${__DIR__} && cd ../ && \
+./clear.sh > /dev/null && \
+phpize --clean > /dev/null && \
 phpize > /dev/null && \
 ./configure \
 --enable-openssl \
@@ -17,7 +19,6 @@ phpize > /dev/null && \
 --enable-sockets \
 --enable-mysqlnd \
 > /dev/null && \
-make clean > /dev/null && \
 make -j > /dev/null | tee /tmp/compile.log && \
 (test "`cat /tmp/compile.log`"x = ""x || exit 255) && \
 make install && \
