@@ -38,7 +38,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $data = $client->recv();
     $client->close();
 
-    assert(!empty($data) and $data = 4096);
+    assert(!empty($data) and $data == 4096);
     swoole_process::kill($pid);
 };
 

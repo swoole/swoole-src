@@ -24,7 +24,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
                 // recv the last close frame
                 $frame = $cli->recv();
                 assert($frame instanceof swoole_websocket_closeframe);
-                assert($frame->opcode = WEBSOCKET_OPCODE_CLOSE);
+                assert($frame->opcode === WEBSOCKET_OPCODE_CLOSE);
                 assert(md5($frame->code) === $frame->reason);
                 // connection closed
                 assert($cli->recv() === false);
@@ -47,7 +47,7 @@ $pm->childFunc = function () use ($pm) {
     });
     $serv->on('Message', function (swoole_websocket_server $serv, swoole_websocket_frame $frame) {
         assert($frame instanceof swoole_websocket_closeframe);
-        assert($frame->opcode = WEBSOCKET_OPCODE_CLOSE);
+        assert($frame->opcode === WEBSOCKET_OPCODE_CLOSE);
         if (mt_rand(0, 1)) {
             $serv->push($frame->fd, $frame);
         } else {
