@@ -22,19 +22,19 @@ $pm->childFunc = function () use ($pm) {
 
         public function run()
         {
-			swoole_timer_tick(100, function () {
-				global $atomic;
-				if ($atomic->add() > 5) {
-					global $pm;
-					$pm->wakeup();
+            swoole_timer_tick(100, function () {
+                global $atomic;
+                if ($atomic->add() > 5) {
+                    global $pm;
+                    $pm->wakeup();
                     Co::yield();
                     return;
-				}
-				echo "sleep start then ";
-				Co::sleep(0.01);
-				echo "sleep end\n";
-				trigger_error('ERROR', E_USER_ERROR);
-			});
+                }
+                echo "sleep start then ";
+                Co::sleep(0.01);
+                echo "sleep end\n";
+                trigger_error('ERROR', E_USER_ERROR);
+            });
         }
     }
 
