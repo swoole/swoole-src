@@ -472,7 +472,10 @@ struct _swServer
      * enable coroutine
      */
     uint32_t enable_coroutine :1;
-
+    /**
+     * disable multi-threads
+     */
+    uint32_t single_thread :1;
     /**
      *  heartbeat check time
      */

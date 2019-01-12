@@ -121,19 +121,21 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             return SW_OK;
         }
 
-        if (serv->factory_mode == SW_MODE_BASE)
+        if (serv->single_thread)
         {
             reactor_id = 0;
+            sub_reactor = reactor;
         }
         else
         {
             reactor_id = new_fd % serv->reactor_num;
+            sub_reactor = &serv->reactor_threads[reactor_id].reactor;
         }
 
         //add to connection_list
         swConnection *conn = swServer_connection_new(serv, listen_host, new_fd, event->fd, reactor_id);
         memcpy(&conn->info.addr, &client_addr, sizeof(client_addr));
-        sub_reactor = &serv->reactor_threads[reactor_id].reactor;
+       
         conn->socket_type = listen_host->type;
 
 #ifdef SW_USE_OPENSSL
@@ -217,6 +219,15 @@ static int swServer_start_check(swServer *serv)
     {
         serv->reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
     }
+    else if (serv->reactor_num == 0)
+    {
+        serv->reactor_num = SW_CPU_NUM;
+    }
+    if (serv->single_thread)
+    {
+        serv->reactor_num = 1;
+    }
+    //check worker num
     if (serv->worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
     {
         swWarn("serv->worker_num > %d, Too many processes, the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
@@ -801,7 +812,7 @@ int swServer_free(swServer *serv)
             swProcessPool_shutdown(&serv->gs->task_workers);
         }
     }
-    else
+    else if (!serv->single_thread)
     {
         swTraceLog(SW_TRACE_SERVER, "terminate reactor threads.");
         /**
@@ -1000,6 +1011,10 @@ int swServer_master_send(swServer *serv, swSendData *_send)
             }
             return SW_ERR;
         }
+    }
+    else if (serv->single_thread)
+    {
+        reactor = &serv->reactor;
     }
     else
     {
