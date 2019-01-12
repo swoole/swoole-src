@@ -1519,7 +1519,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 
         if (task_co_iterator == task_coroutine_map.end())
         {
-            swWarn(E_WARNING, "task[%d] has expired.", task_id);
+            swWarn("task[%d] has expired.", task_id);
             _fail: sw_zval_free(zdata);
             return SW_OK;
         }

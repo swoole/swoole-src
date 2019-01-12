@@ -675,6 +675,11 @@ int swServer_start(swServer *serv)
     {
         ret = swReactorThread_start(serv);
     }
+    //failed to start
+    if (ret < 0)
+    {
+        return SW_ERR;
+    }
     swServer_free(serv);
     serv->gs->start = 0;
     //remove PID file
