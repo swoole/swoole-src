@@ -41,7 +41,7 @@ static inline void coro_test(std::initializer_list<coroutine_func_t> args)
     coro_test_wait();
 }
 
-static inline void coro_test(coroutine_func_t fn, void *arg)
+static inline void coro_test(coroutine_func_t fn, void *arg = nullptr)
 {
     coro_test_create(fn, arg);
     coro_test_wait();
