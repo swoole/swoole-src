@@ -57,7 +57,7 @@ $pm->childFunc = function () use ($pm) {
         'worker_num' => $worker_num
         // 'task_worker_num' => 1
     ]);
-    $server->on('Start', function () use ($pm) {
+    $server->on('ManagerStart', function () use ($pm) {
         $pm->wakeup();
     });
     $server->on('WorkerStart', function (Swoole\Server $server, int $worker_id) use ($pm) {
