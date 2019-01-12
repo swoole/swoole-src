@@ -141,7 +141,7 @@ int swFactory_end(swFactory *factory, int fd)
 
         if (swBuffer_empty(conn->out_buffer) || conn->removed)
         {
-            swReactor *reactor = &serv->reactor_threads[SwooleTG.id].reactor;
+            swReactor *reactor = SwooleG.main_reactor;
             return swReactorThread_close(reactor, conn->fd);
         }
         else
