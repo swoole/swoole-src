@@ -1639,6 +1639,9 @@ struct _swProcessPool
     uint8_t dispatch_mode;
     uint8_t ipc_mode;
     uint8_t started;
+    uint32_t reload_worker_i;
+    uint32_t max_wait_time;
+    swWorker *reload_workers;
 
     /**
      * process type
