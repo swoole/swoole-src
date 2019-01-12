@@ -41,7 +41,7 @@ var_dump($a->getData());
 
 ?>
 --EXPECTF--
-object(test)#1 (1) {
+object(test)#%d (1) {
   ["data":"AbstractAsyncTask":private]=>
   string(3) "aaa"
 }

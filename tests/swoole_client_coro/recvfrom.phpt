@@ -22,7 +22,7 @@ go(function () use ($free_port) {
     $port = null;
     $cli->recvfrom(1024, $addr, $port);
     assert($addr === '127.0.0.1');
-    assert($port = $free_port);
+    assert($port === $free_port);
 });
 
 swoole_event::wait();

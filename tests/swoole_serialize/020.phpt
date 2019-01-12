@@ -35,9 +35,9 @@ test($o, true);
 ?>
 --EXPECTF--
 2
-object(stdClass)#4 (1) {
+object(stdClass)#%d (1) {
   ["sub"]=>
-  object(stdClass)#3 (1) {
+  object(stdClass)#%d (1) {
     ["b"]=>
     string(3) "sub"
   }

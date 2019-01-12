@@ -624,7 +624,7 @@ static PHP_METHOD(swoole_websocket_server, exist)
     zend_long fd;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         php_error_docref(NULL, E_WARNING, "the server is not running.");
         RETURN_FALSE;
@@ -668,7 +668,7 @@ static PHP_METHOD(swoole_websocket_server, isEstablished)
     zend_long fd;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         php_error_docref(NULL, E_WARNING, "the server is not running.");
         RETURN_FALSE;

@@ -22,6 +22,17 @@ function clear_php()
     `ps -A | grep php | grep -v phpstorm | grep -v 'run-tests' | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1`;
 }
 
+function top(int $pid)
+{
+    if (IS_MAC_OS || stripos(`top help 2>&1`, 'usage') === false) {
+        return false;
+    }
+    $top = `top -b -n 1 -p {$pid}`;
+    $top = explode("\n", $top);
+    $top = array_combine(preg_split('/\s+/', trim($top[6])), preg_split('/\s+/', trim($top[7])));
+    return $top;
+}
+
 function get_one_free_port()
 {
     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
@@ -50,9 +61,24 @@ function approximate($expect, $actual, float $ratio = 0.1): bool
     return $ret;
 }
 
+function time_approximate($expect, $actual, float $ratio = 0.1)
+{
+    return USE_VALGRIND || approximate($expect, $actual, $ratio);
+}
+
 function array_random(array $array)
 {
     return $array[mt_rand(0, count($array) - 1)];
+}
+
+function phpt_echo(...$args)
+{
+    global $argv;
+    if (substr($argv[0], -5) === '.phpt') {
+        foreach ($args as $arg) {
+            echo $arg;
+        }
+    }
 }
 
 function phpt_var_dump(...$args)
@@ -155,35 +181,6 @@ function get_safe_random(int $length = 32, $original = false): string
     return $raw;
 }
 
-function swoole_php_fork($func, $out = false) {
-	$process = new swoole_process($func, $out);
-	$pid = $process->start();
-
-    register_shutdown_function(
-        function ($pid, $process)
-        {
-            swoole_process::kill($pid);
-            $process->wait();
-        },
-        $pid, $process
-    );
-
-	return $process;
-}
-
-function swoole_unittest_fork($func)
-{
-    $process = new swoole_process($func, false, false);
-    $process->start();
-
-    return $process;
-}
-
-function swoole_unittest_wait()
-{
-    return swoole_process::wait();
-}
-
 function makeTcpClient($host, $port, callable $onConnect = null, callable $onReceive = null)
 {
     $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
@@ -282,11 +279,11 @@ function kill_self_and_descendant($pid)
  * @param int $sig
  */
 function killself_in_syncmode($lifetime = 1000, $sig = SIGKILL) {
-    $proc = new \swoole_process(function(\swoole_process $proc) use($lifetime, $sig) {
+    $proc = new Swoole\Process(function(Swoole\Process $proc) use($lifetime, $sig) {
         $pid = $proc->pop();
         $proc->freeQueue();
         usleep($lifetime * 1000);
-        \swoole_process::kill($pid, $sig);
+        Swoole\Process::kill($pid, $sig);
         $proc->exit();
     }, true);
     $proc->useQueue();
@@ -612,7 +609,7 @@ class ProcessManager
     protected $randomData = [];
 
     /**
-     * 默认等待1秒
+     * wait wakeup 1s default
      */
     protected $waitTimeout = 1.0;
 
@@ -621,7 +618,7 @@ class ProcessManager
     public $async = false;
 
     protected $childPid;
-    protected $childStatus;
+    protected $childStatus = 255;
     protected $parentFirst = false;
 
     public function __construct()
@@ -649,7 +646,7 @@ class ProcessManager
         $this->childFunc = $func;
     }
 
-    public function setWaitTimeout($value = '')
+    public function setWaitTimeout(int $value)
     {
         $this->waitTimeout = $value;
     }
@@ -702,12 +699,21 @@ class ProcessManager
     }
 
     /**
-     * 杀死子进程
+     *  Kill Child Process
      */
     public function kill()
     {
+        if (!defined('PCNTL_ESRCH')) {
+            define('PCNTL_ESRCH', 3);
+        }
         if (!$this->alone && $this->childPid) {
-            swoole_process::kill($this->childPid);
+            $ret = @Swoole\Process::kill($this->childPid);
+            if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
+                $ret = @Swoole\Process::kill($this->childPid, SIGKILL);
+            }
+            if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
+                exit('KILL CHILD PROCESS ERROR');
+            }
         }
     }
 

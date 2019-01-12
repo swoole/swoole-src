@@ -120,8 +120,6 @@ typedef struct _swReactorThread
 {
     pthread_t thread_id;
     swReactor reactor;
-    swMemoryPool *buffer_input;
-    swLock lock;
     int notify_pipe;
 } swReactorThread;
 
@@ -393,9 +391,6 @@ struct _swServer
      */
     uint32_t max_request;
 
-    int signal_fd;
-    int event_fd;
-
     int udp_socket_ipv4;
     int udp_socket_ipv6;
 
@@ -472,7 +467,10 @@ struct _swServer
      * enable coroutine
      */
     uint32_t enable_coroutine :1;
-
+    /**
+     * disable multi-threads
+     */
+    uint32_t single_thread :1;
     /**
      *  heartbeat check time
      */
@@ -495,7 +493,6 @@ struct _swServer
     void *ptr2;
     void *private_data_3;
 
-    swReactor reactor;
     swFactory factory;
     swListenPort *listen_list;
     pthread_t heartbeat_pidt;

@@ -121,19 +121,21 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             return SW_OK;
         }
 
-        if (serv->factory_mode == SW_MODE_BASE)
+        if (serv->single_thread)
         {
             reactor_id = 0;
+            sub_reactor = reactor;
         }
         else
         {
             reactor_id = new_fd % serv->reactor_num;
+            sub_reactor = &serv->reactor_threads[reactor_id].reactor;
         }
 
         //add to connection_list
         swConnection *conn = swServer_connection_new(serv, listen_host, new_fd, event->fd, reactor_id);
         memcpy(&conn->info.addr, &client_addr, sizeof(client_addr));
-        sub_reactor = &serv->reactor_threads[reactor_id].reactor;
+       
         conn->socket_type = listen_host->type;
 
 #ifdef SW_USE_OPENSSL
@@ -217,6 +219,15 @@ static int swServer_start_check(swServer *serv)
     {
         serv->reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
     }
+    else if (serv->reactor_num == 0)
+    {
+        serv->reactor_num = SW_CPU_NUM;
+    }
+    if (serv->single_thread)
+    {
+        serv->reactor_num = 1;
+    }
+    //check worker num
     if (serv->worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
     {
         swWarn("serv->worker_num > %d, Too many processes, the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
@@ -730,12 +741,6 @@ void swServer_init(swServer *serv)
 
 int swServer_create(swServer *serv)
 {
-    if (SwooleG.main_reactor)
-    {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT, "The swoole_server must create before client");
-        return SW_ERR;
-    }
-
     serv->factory.ptr = serv;
     /**
      * init current time
@@ -801,7 +806,7 @@ int swServer_free(swServer *serv)
             swProcessPool_shutdown(&serv->gs->task_workers);
         }
     }
-    else
+    else if (!serv->single_thread)
     {
         swTraceLog(SW_TRACE_SERVER, "terminate reactor threads.");
         /**
@@ -814,11 +819,6 @@ int swServer_free(swServer *serv)
     LL_FOREACH(serv->listen_list, port)
     {
         swPort_free(port);
-    }
-    //reactor free
-    if (serv->reactor.free != NULL)
-    {
-        serv->reactor.free(&(serv->reactor));
     }
     //close log file
     if (SwooleG.log_file != 0)
@@ -985,27 +985,28 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     int fd = conn->fd;
     swReactor *reactor;
 
-    if (serv->factory_mode == SW_MODE_BASE)
+    if (serv->single_thread)
     {
-        reactor = &(serv->reactor_threads[0].reactor);
-        if (conn->overflow)
-        {
-            if (serv->send_yield)
-            {
-                SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
-            }
-            else
-            {
-                swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow.", fd);
-            }
-            return SW_ERR;
-        }
+        reactor = SwooleG.main_reactor;
     }
     else
     {
         reactor = &(serv->reactor_threads[conn->from_id].reactor);
         assert(fd % serv->reactor_num == reactor->id);
         assert(fd % serv->reactor_num == SwooleTG.id);
+    }
+
+    if (serv->factory_mode == SW_MODE_BASE && conn->overflow)
+    {
+        if (serv->send_yield)
+        {
+            SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
+        }
+        else
+        {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow.", fd);
+        }
+        return SW_ERR;
     }
 
     /**
@@ -1102,7 +1103,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
 #endif
             if (!conn->out_buffer)
             {
-                conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
+                conn->out_buffer = swBuffer_new(SW_IPC_BUFFER_SIZE);
                 if (conn->out_buffer == NULL)
                 {
                     return SW_ERR;
@@ -1225,14 +1226,14 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
     }
 
     swSendData send_data;
-    char _buffer[SW_BUFFER_SIZE];
+    char _buffer[SW_IPC_BUFFER_SIZE];
     swSendFile_request *req = (swSendFile_request*) _buffer;
 
     //file name size
-    if (filename_length > SW_BUFFER_SIZE - sizeof(swSendFile_request) - 1)
+    if (filename_length > SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1)
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "sendfile name too long. [MAX_LENGTH=%d]",
-                (int) (SW_BUFFER_SIZE - sizeof(swSendFile_request) - 1));
+                (int) (SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1));
         return SW_ERR;
     }
 

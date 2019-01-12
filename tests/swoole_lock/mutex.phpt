@@ -1,22 +1,21 @@
 --TEST--
 swoole_lock: mutex
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\Lock;
-
-$lock = new Lock(LOCK::MUTEX);
+$lock = new Swoole\Lock(Swoole\Lock::MUTEX);
+echo "[Parent] Lock\n";
 assert($lock->lock());
 
 if (pcntl_fork() > 0)
 {
-    sleep(1);
+    usleep(100 * 1000);
+    echo "[Parent] Unlock\n";
     assert($lock->unlock());
-    echo "[Parent] exit\n";
+    echo "[Parent] Exit\n";
     pcntl_wait($status);
 }
 else
@@ -29,7 +28,9 @@ else
 }
 ?>
 --EXPECT--
+[Parent] Lock
 [Child] Wait Lock
-[Parent] exit
+[Parent] Unlock
+[Parent] Exit
 [Child] Get Lock
 [Child] exit

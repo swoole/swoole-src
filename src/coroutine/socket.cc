@@ -935,56 +935,6 @@ Socket* Socket::accept()
     return client_sock;
 }
 
-bool Socket::shutdown(int __how)
-{
-    if (__how == SHUT_RD && !shutdown_read)
-    {
-        if (::shutdown(socket->fd, SHUT_RD) == 0)
-        {
-            shutdown_read = true;
-            return true;
-        }
-    }
-    else if (__how == SHUT_WR && !shutdown_write)
-    {
-        if (::shutdown(socket->fd, SHUT_WR) == 0)
-        {
-            shutdown_write = true;
-            return true;
-        }
-    }
-    else if (__how == SHUT_RDWR && !shutdown_read && !shutdown_write)
-    {
-        if (::shutdown(socket->fd, SHUT_RDWR) == 0)
-        {
-            shutdown_read = shutdown_write = true;
-            return true;
-        }
-    }
-    set_err(errno);
-    return false;
-}
-
-bool Socket::close()
-{
-    // TODO: waiting on review
-    if (!socket->closed)
-    {
-        socket->closed = 1;
-    }
-    if (socket->active)
-    {
-        shutdown();
-        socket->active = 0;
-    }
-    if (coroutine)
-    {
-        reactor->del(reactor, socket->fd);
-        resume();
-    }
-    return true;
-}
-
 #ifdef SW_USE_OPENSSL
 bool Socket::ssl_handshake()
 {
@@ -1425,6 +1375,60 @@ ssize_t Socket::recv_packet()
     }
 
     return retval;
+}
+
+bool Socket::shutdown(int __how)
+{
+    set_err(0);
+    if (!is_connect() || (__how == SHUT_RD && shutdown_read) || (__how == SHUT_WR && shutdown_write))
+    {
+        errno = ENOTCONN;
+    }
+    else if (::shutdown(socket->fd, __how) == 0 || errno == ENOTCONN)
+    {
+        if (errno == ENOTCONN)
+        {
+            // connection reset by server side
+            __how = SHUT_RDWR;
+        }
+        switch (__how)
+        {
+        case SHUT_RD:
+            shutdown_read = true;
+            break;
+        case SHUT_WR:
+            shutdown_write = true;
+            break;
+        default:
+            shutdown_read = shutdown_write = true;
+        }
+        if (shutdown_read && shutdown_write)
+        {
+            socket->active = 0;
+        }
+        return true;
+    }
+    set_err(errno);
+    return false;
+}
+
+bool Socket::close()
+{
+    // TODO: waiting on review
+    if (socket->active)
+    {
+        shutdown();
+    }
+    if (!socket->closed)
+    {
+        socket->closed = 1;
+    }
+    if (coroutine)
+    {
+        reactor->del(reactor, socket->fd);
+        resume();
+    }
+    return true;
 }
 
 Socket::~Socket()

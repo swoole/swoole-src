@@ -20,6 +20,7 @@
 #include "websocket.h"
 
 static int swReactorThread_loop(swThreadParam *param);
+static int swReactorThread_init_reactor(swServer *serv, swReactor *reactor, uint16_t reactor_id);
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onRead(swReactor *reactor, swEvent *ev);
@@ -195,9 +196,9 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         }
 #endif
         //dgram body
-        if (pkt.length > SW_BUFFER_SIZE - sizeof(pkt))
+        if (pkt.length > SW_IPC_BUFFER_SIZE - sizeof(pkt))
         {
-            task.data.info.len = SW_BUFFER_SIZE;
+            task.data.info.len = SW_IPC_BUFFER_SIZE;
         }
         else
         {
@@ -234,10 +235,10 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
             goto do_recvfrom;
         }
 
-        offset = SW_BUFFER_SIZE - header_size;
+        offset = SW_IPC_BUFFER_SIZE - header_size;
         while (send_n > 0)
         {
-            task.data.info.len = send_n > SW_BUFFER_SIZE ? SW_BUFFER_SIZE : send_n;
+            task.data.info.len = send_n > SW_IPC_BUFFER_SIZE ? SW_IPC_BUFFER_SIZE : send_n;
             memcpy(task.data.data, packet + offset, task.data.info.len);
             send_n -= task.data.info.len;
             offset += task.data.info.len;
@@ -847,7 +848,7 @@ int swReactorThread_create(swServer *serv)
 int swReactorThread_start(swServer *serv)
 {
     int ret;
-    swReactor *main_reactor = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swReactor));
+    swReactor *main_reactor = sw_malloc(sizeof(swReactor));
 
     ret = swReactor_create(main_reactor, SW_REACTOR_MAXEVENTS);
     if (ret < 0)
@@ -910,6 +911,23 @@ int swReactorThread_start(swServer *serv)
         main_reactor->add(main_reactor, ls->sock, SW_FD_LISTEN);
     }
 
+    if (serv->single_thread)
+    {
+        swReactorThread_init_reactor(serv, main_reactor, 0);
+        goto _init_master_thread;
+    }
+    /**
+     * multi-threads
+     */
+    else
+    {
+        /**
+         * set a special id
+         */
+        main_reactor->id = serv->reactor_num;
+        SwooleTG.id = serv->reactor_num;
+    }
+
 #ifdef HAVE_PTHREAD_BARRIER
     //init thread barrier
     pthread_barrier_init(&serv->barrier, NULL, serv->reactor_num + 1);
@@ -942,6 +960,8 @@ int swReactorThread_start(swServer *serv)
     SW_START_SLEEP;
 #endif
 
+    _init_master_thread: 
+
     /**
      * heartbeat thread
      */
@@ -951,23 +971,15 @@ int swReactorThread_start(swServer *serv)
         swHeartbeatThread_start(serv);
     }
 
-    /**
-     * master thread loop
-     */
     SwooleTG.type = SW_THREAD_MASTER;
     SwooleTG.factory_target_worker = -1;
     SwooleTG.factory_lock_target = 0;
-    SwooleTG.id = serv->reactor_num;
     SwooleTG.update_time = 1;
 
     SwooleG.main_reactor = main_reactor;
     SwooleG.pid = getpid();
     SwooleG.process_type = SW_PROCESS_MASTER;
 
-    /**
-     * set a special id
-     */
-    main_reactor->id = serv->reactor_num;
     main_reactor->ptr = serv;
     main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
 
@@ -1000,6 +1012,109 @@ int swReactorThread_start(swServer *serv)
     return retval;
 }
 
+
+int swReactorThread_init_reactor(swServer *serv, swReactor *reactor, uint16_t reactor_id)
+{
+    swReactorThread *thread = swServer_get_thread(serv, reactor_id);
+
+    reactor->ptr = serv;
+    reactor->id = reactor_id;
+    reactor->thread = 1;
+    reactor->socket_list = serv->connection_list;
+    reactor->max_socket = serv->max_connection;
+    reactor->close = swReactorThread_close;
+
+    reactor->setHandle(reactor, SW_FD_CLOSE, swReactorThread_onClose);
+    reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorThread_onPipeReceive);
+    reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactorThread_onPipeWrite);
+
+    //listen UDP
+    if (serv->have_dgram_sock == 1)
+    {
+        swListenPort *ls;
+        LL_FOREACH(serv->listen_list, ls)
+        {
+            if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
+            {
+                if (ls->sock % serv->reactor_num != reactor_id)
+                {
+                    continue;
+                }
+                if (ls->type == SW_SOCK_UDP)
+                {
+                    serv->connection_list[ls->sock].info.addr.inet_v4.sin_port = htons(ls->port);
+                }
+                else
+                {
+                    serv->connection_list[ls->sock].info.addr.inet_v6.sin6_port = htons(ls->port);
+                }
+                serv->connection_list[ls->sock].fd = ls->sock;
+                serv->connection_list[ls->sock].socket_type = ls->type;
+                serv->connection_list[ls->sock].object = ls;
+                ls->thread_id = pthread_self();
+                if (reactor->add(reactor, ls->sock, SW_FD_UDP) < 0)
+                {
+                    return SW_ERR;
+                }
+            }
+        }
+    }
+
+    //set protocol function point
+    swReactorThread_set_protocol(serv, reactor);
+
+    int i = 0, pipe_fd;
+    for (i = 0; i < serv->worker_num; i++)
+    {
+        if (i % serv->reactor_num != reactor_id)
+        {
+            continue;
+        }
+
+        pipe_fd = serv->workers[i].pipe_master;
+
+        //for request
+        swBuffer *buffer = swBuffer_new(sizeof(swEventData));
+        if (!buffer)
+        {
+            swWarn("create buffer failed.");
+            return SW_ERR;
+        }
+        serv->connection_list[pipe_fd].in_buffer = buffer;
+
+        //for response
+        swSetNonBlock(pipe_fd);
+        if (reactor->add(reactor, pipe_fd, SW_FD_PIPE) < 0)
+        {
+            return SW_ERR;
+        }
+
+        if (thread->notify_pipe == 0)
+        {
+            thread->notify_pipe = serv->workers[i].pipe_worker;
+        }
+
+        /**
+         * mapping reactor_id and worker pipe
+         */
+        serv->connection_list[pipe_fd].from_id = reactor_id;
+        serv->connection_list[pipe_fd].fd = pipe_fd;
+        serv->connection_list[pipe_fd].object = sw_malloc(sizeof(swLock));
+
+        /**
+         * create pipe lock
+         */
+        if (serv->connection_list[pipe_fd].object == NULL)
+        {
+            swWarn("create pipe mutex lock failed.");
+            return SW_ERR;
+        }
+        swMutex_create(serv->connection_list[pipe_fd].object, 0);
+    }
+
+    return SW_OK;
+}
+
 /**
  * ReactorThread main Loop
  */
@@ -1008,8 +1123,6 @@ static int swReactorThread_loop(swThreadParam *param)
     swServer *serv = param->object;
     int reactor_id = param->pti;
     int ret;
-
-    pthread_t thread_id = pthread_self();
 
     SwooleTG.factory_lock_target = 0;
     SwooleTG.factory_target_worker = -1;
@@ -1043,7 +1156,7 @@ static int swReactorThread_loop(swThreadParam *param)
             CPU_SET(reactor_id % SW_CPU_NUM, &cpu_set);
         }
 
-        if (0 != pthread_setaffinity_np(thread_id, sizeof(cpu_set), &cpu_set))
+        if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
         {
             swSysError("pthread_setaffinity_np() failed.");
         }
@@ -1058,98 +1171,12 @@ static int swReactorThread_loop(swThreadParam *param)
 
     swSignal_none();
 
-    reactor->ptr = serv;
-    reactor->id = reactor_id;
-    reactor->thread = 1;
-    reactor->socket_list = serv->connection_list;
-    reactor->max_socket = serv->max_connection;
-
     reactor->onFinish = NULL;
     reactor->onTimeout = NULL;
-    reactor->close = swReactorThread_close;
 
-    reactor->setHandle(reactor, SW_FD_CLOSE, swReactorThread_onClose);
-    reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorThread_onPipeReceive);
-    reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactorThread_onPipeWrite);
-
-    //listen UDP
-    if (serv->have_dgram_sock == 1)
+    if (swReactorThread_init_reactor(serv, reactor, reactor_id) < 0)
     {
-        swListenPort *ls;
-        LL_FOREACH(serv->listen_list, ls)
-        {
-            if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
-            {
-                if (ls->sock % serv->reactor_num != reactor_id)
-                {
-                    continue;
-                }
-                if (ls->type == SW_SOCK_UDP)
-                {
-                    serv->connection_list[ls->sock].info.addr.inet_v4.sin_port = htons(ls->port);
-                }
-                else
-                {
-                    serv->connection_list[ls->sock].info.addr.inet_v6.sin6_port = htons(ls->port);
-                }
-                serv->connection_list[ls->sock].fd = ls->sock;
-                serv->connection_list[ls->sock].socket_type = ls->type;
-                serv->connection_list[ls->sock].object = ls;
-                ls->thread_id = thread_id;
-                reactor->add(reactor, ls->sock, SW_FD_UDP);
-            }
-        }
-    }
-
-    //set protocol function point
-    swReactorThread_set_protocol(serv, reactor);
-
-    int i = 0, pipe_fd;
-
-    if (serv->factory_mode == SW_MODE_PROCESS)
-    {
-        for (i = 0; i < serv->worker_num; i++)
-        {
-            if (i % serv->reactor_num == reactor_id)
-            {
-                pipe_fd = serv->workers[i].pipe_master;
-
-                //for request
-                swBuffer *buffer = swBuffer_new(sizeof(swEventData));
-                if (!buffer)
-                {
-                    swWarn("create buffer failed.");
-                    break;
-                }
-                serv->connection_list[pipe_fd].in_buffer = buffer;
-
-                //for response
-                swSetNonBlock(pipe_fd);
-                reactor->add(reactor, pipe_fd, SW_FD_PIPE);
-
-                if (thread->notify_pipe == 0)
-                {
-                    thread->notify_pipe = serv->workers[i].pipe_worker;
-                }
-
-                /**
-                 * mapping reactor_id and worker pipe
-                 */
-                serv->connection_list[pipe_fd].from_id = reactor_id;
-                serv->connection_list[pipe_fd].fd = pipe_fd;
-                serv->connection_list[pipe_fd].object = sw_malloc(sizeof(swLock));
-
-                /**
-                 * create pipe lock
-                 */
-                if (serv->connection_list[pipe_fd].object == NULL)
-                {
-                    swWarn("create pipe mutex lock failed.");
-                    break;
-                }
-                swMutex_create(serv->connection_list[pipe_fd].object, 0);
-            }
-        }
+        return SW_ERR;
     }
 
     //wait other thread
@@ -1228,9 +1255,9 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
 
     while (send_n > 0)
     {
-        if (send_n > SW_BUFFER_SIZE)
+        if (send_n > SW_IPC_BUFFER_SIZE)
         {
-            task.data.info.len = SW_BUFFER_SIZE;
+            task.data.info.len = SW_IPC_BUFFER_SIZE;
         }
         else
         {
@@ -1266,7 +1293,7 @@ void swReactorThread_free(swServer *serv)
     int i;
     swReactorThread *thread;
 
-    if (serv->gs->start == 0)
+    if (!serv->gs->start)
     {
         return;
     }
@@ -1298,7 +1325,6 @@ void swReactorThread_free(swServer *serv)
         }
     }
 }
-
 
 static void swHeartbeatThread_start(swServer *serv)
 {
@@ -1359,16 +1385,9 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                 conn->close_force = 1;
                 conn->close_notify = 1;
 
-                if (serv->factory_mode != SW_MODE_PROCESS)
+                if (serv->single_thread)
                 {
-                    if (serv->factory_mode == SW_MODE_BASE)
-                    {
-                        reactor = SwooleG.main_reactor;
-                    }
-                    else
-                    {
-                        reactor = &serv->reactor_threads[conn->from_id].reactor;
-                    }
+                    reactor = SwooleG.main_reactor;
                 }
                 else
                 {

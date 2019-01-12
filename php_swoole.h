@@ -140,9 +140,9 @@ extern swoole_object_array swoole_objects;
 #endif
 #endif
 
-#if PHP_VERSION_ID < 70300
+//#if PHP_VERSION_ID < 70300
 #define SW_USE_FAST_SERIALIZE 1
-#endif
+//#endif
 
 #if PHP_MAJOR_VERSION < 7
 #error "require PHP version 7.0 or later."
@@ -329,6 +329,11 @@ PHP_FUNCTION(swoole_timer_clear);
 //---------------------------------------------------------
 //                  error
 //---------------------------------------------------------
+#define SW_STRERROR_SYSTEM  0
+#define SW_STRERROR_GAI     1
+#define SW_STRERROR_DNS     2
+#define SW_STRERROR_SWOOLE  9
+
 PHP_FUNCTION(swoole_strerror);
 PHP_FUNCTION(swoole_errno);
 PHP_FUNCTION(swoole_last_error);
@@ -615,7 +620,7 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 
 #ifndef GC_IS_RECURSIVE
 #define GC_IS_RECURSIVE(p) \
-	(ZEND_HASH_GET_APPLY_COUNT(p) > 1)
+	(ZEND_HASH_GET_APPLY_COUNT(p) >= 1)
 #define GC_PROTECT_RECURSION(p) \
 	ZEND_HASH_INC_APPLY_COUNT(p)
 #define GC_UNPROTECT_RECURSION(p) \
@@ -841,8 +846,13 @@ static sw_inline zval* sw_zend_read_property_array(zend_class_entry *class_ptr, 
     if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
     else *(retval) = &__retval;
 
-// TODO: remove it after remove async modules
+static sw_inline int sw_zend_function_max_num_args(zend_function *function)
+{
+    // due to internaled function required_num_args maybe bigger than num_args
+    return MAX(function->common.required_num_args, function->common.num_args);
+}
 
+// TODO: remove it after remove async modules
 static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
 {
     zend_string *key = NULL;

@@ -40,7 +40,7 @@ $pm->childFunc = function () use ($pm) {
             });
         }
     });
-    $http->on('task', function (swoole_http_server $server, $task) {
+    $http->on('task', function (swoole_http_server $server, swoole_server_task $task) {
         $fd = $task->data;
         if (mt_rand(0, 1)) {
             $task->finish([$fd, 'Hello Swoole!']);

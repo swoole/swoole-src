@@ -229,7 +229,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     swDispatchData task;
     swConnection *conn =  event->socket;
 
-    n = swConnection_recv(conn, task.data.data, SW_BUFFER_SIZE, 0);
+    n = swConnection_recv(conn, task.data.data, SW_IPC_BUFFER_SIZE, 0);
     if (n < 0)
     {
         switch (swConnection_error(errno))

@@ -1,13 +1,12 @@
 --TEST--
 swoole_http_server: use async io and coroutine in task process
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 $randoms = [];
-for ($n = MAX_REQUESTS; $n--;)
-{
+for ($n = MAX_REQUESTS; $n--;) {
     $randoms[] = openssl_random_pseudo_bytes(mt_rand(0, 65536));
 }
 
@@ -56,11 +55,10 @@ $pm->childFunc = function () use ($pm) {
                 }
         }
     });
-    $server->on('task', function (swoole_http_server $server, $task) use ($pm) {
+    $server->on('task', function (swoole_http_server $server, swoole_server_task $task) use ($pm) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-        $n = $task->data;
-        $cli->get("/random?n={$n}");
-        $server->finish([$n, $cli->body]);
+        $cli->get("/random?n={$task->data}");
+        $task->finish([$task->data, $cli->body]);
     });
     $server->on('finish', function () { });
     $server->start();
