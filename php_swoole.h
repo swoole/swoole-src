@@ -848,8 +848,9 @@ static sw_inline zval* sw_zend_read_property_array(zend_class_entry *class_ptr, 
 
 static sw_inline int sw_zend_function_max_num_args(zend_function *function)
 {
-    // due to internaled function required_num_args maybe bigger than num_args
-    return MAX(function->common.required_num_args, function->common.num_args);
+    // https://github.com/php/php-src/commit/2646f7bcb98dcdd322ea21701c8bb101104ea619
+    // zend_function.common.num_args don't include the variadic argument anymore.
+    return (function->common.fn_flags & ZEND_ACC_VARIADIC) ? UINT32_MAX : function->common.num_args;
 }
 
 // TODO: remove it after remove async modules
