@@ -91,20 +91,24 @@ TEST(coroutine_socket, listen)
 
 TEST(coroutine_socket, accept)
 {
-    coro_test({[](void *arg)
-    {
-        Socket sock(SW_SOCK_TCP);
-        bool retval = sock.bind("127.0.0.1", 9909);
-        ASSERT_EQ(retval, true);
-        ASSERT_EQ(sock.listen(128), true);
+    coro_test({
+        [](void *arg)
+        {
+            Socket sock(SW_SOCK_TCP);
+            bool retval = sock.bind("127.0.0.1", 9909);
+            ASSERT_EQ(retval, true);
+            ASSERT_EQ(sock.listen(128), true);
 
-        Socket *conn = sock.accept();
-        ASSERT_NE(conn, nullptr);
-    }, [](void *arg)
-    {
-        Socket sock(SW_SOCK_TCP);
-        bool retval = sock.connect("127.0.0.1", 9909, -1);
-        ASSERT_EQ(retval, true);
-        ASSERT_EQ(sock.errCode, 0);
-    }});
+            Socket *conn = sock.accept();
+            ASSERT_NE(conn, nullptr);
+        },
+
+        [](void *arg)
+        {
+            Socket sock(SW_SOCK_TCP);
+            bool retval = sock.connect("127.0.0.1", 9909, -1);
+            ASSERT_EQ(retval, true);
+            ASSERT_EQ(sock.errCode, 0);
+        }
+    });
 }
