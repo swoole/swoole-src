@@ -848,7 +848,7 @@ int swReactorThread_create(swServer *serv)
 int swReactorThread_start(swServer *serv)
 {
     int ret;
-    swReactor *main_reactor = &serv->reactor;
+    swReactor *main_reactor = sw_malloc(sizeof(swReactor));
 
     ret = swReactor_create(main_reactor, SW_REACTOR_MAXEVENTS);
     if (ret < 0)

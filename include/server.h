@@ -391,9 +391,6 @@ struct _swServer
      */
     uint32_t max_request;
 
-    int signal_fd;
-    int event_fd;
-
     int udp_socket_ipv4;
     int udp_socket_ipv6;
 
@@ -496,7 +493,6 @@ struct _swServer
     void *ptr2;
     void *private_data_3;
 
-    swReactor reactor;
     swFactory factory;
     swListenPort *listen_list;
     pthread_t heartbeat_pidt;

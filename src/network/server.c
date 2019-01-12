@@ -741,12 +741,6 @@ void swServer_init(swServer *serv)
 
 int swServer_create(swServer *serv)
 {
-    if (SwooleG.main_reactor)
-    {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT, "The swoole_server must create before client");
-        return SW_ERR;
-    }
-
     serv->factory.ptr = serv;
     /**
      * init current time
@@ -825,11 +819,6 @@ int swServer_free(swServer *serv)
     LL_FOREACH(serv->listen_list, port)
     {
         swPort_free(port);
-    }
-    //reactor free
-    if (serv->reactor.free != NULL)
-    {
-        serv->reactor.free(&(serv->reactor));
     }
     //close log file
     if (SwooleG.log_file != 0)
@@ -998,7 +987,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
 
     if (serv->single_thread)
     {
-        reactor = &serv->reactor;
+        reactor = SwooleG.main_reactor;
     }
     else
     {

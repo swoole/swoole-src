@@ -274,11 +274,12 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swReactor *reactor;
     if (!SwooleG.main_reactor)
     {
-        reactor = &serv->reactor;
+        reactor = sw_malloc(sizeof(swReactor));
         if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
         {
             return SW_ERR;
         }
+        SwooleG.main_reactor = reactor;
     }
     else
     {
@@ -302,8 +303,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 #endif
         reactor->add(reactor, ls->sock, fdtype);
     }
-
-    SwooleG.main_reactor = reactor;
 
     reactor->id = worker->id;
     reactor->ptr = serv;
