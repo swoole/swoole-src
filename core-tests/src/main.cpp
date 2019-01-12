@@ -4,6 +4,7 @@ static pid_t create_server()
 {
     pid_t pid;
     swoole_shell_exec("php server/tcp.php", &pid, 1);
+    sleep(1); // wait 1s
     return pid;
 }
 
