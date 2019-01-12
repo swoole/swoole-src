@@ -3,7 +3,7 @@
 
 static swThreadPool pool;
 static int _pipe;
-const static int N = 1000000;
+const static int N = 10000;
 
 static int thread_onTask(swThreadPool *pool, void *task, int task_len)
 {
@@ -25,14 +25,9 @@ TEST(thread_pool, dispatch)
 
     _pipe = eventfd(0, 0);
 
-
     for (long i = 0; i < N; i++)
     {
         ASSERT_EQ(swThreadPool_dispatch(&pool, (void*) &result, sizeof(result)), SW_OK);
-        if (N % 10000 == 9999)
-        {
-            usleep(1);
-        }
     }
 
     long buf;
