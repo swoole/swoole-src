@@ -25,7 +25,17 @@ static inline void coro_test(std::initializer_list<std::pair<coroutine_func_t, v
 {
     for (const auto &arg : args)
     {
-        coro_test_create(args.first, arg.second);
+        coro_test_create(arg.first, arg.second);
+    }
+
+    coro_test_wait();
+}
+
+static inline void coro_test(std::initializer_list<coroutine_func_t> args)
+{
+    for (const auto &arg : args)
+    {
+        coro_test_create(arg, nullptr);
     }
 
     coro_test_wait();

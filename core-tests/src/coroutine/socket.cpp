@@ -91,11 +91,7 @@ TEST(coroutine_socket, listen)
 
 TEST(coroutine_socket, accept)
 {
-    coroutine_func_t fns[2];
-    /**
-     * Accept
-     */
-    fns[0] = [](void *arg)
+    coro_test([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.bind("127.0.0.1", 9909);
@@ -104,18 +100,11 @@ TEST(coroutine_socket, accept)
 
         Socket *conn = sock.accept();
         ASSERT_NE(conn, nullptr);
-    };
-
-    /**
-     * Connect
-     */
-    fns[1] = [](void *arg)
+    }, [](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.connect("127.0.0.1", 9909, -1);
         ASSERT_EQ(retval, true);
         ASSERT_EQ(sock.errCode, 0);
-    };
-
-    coro_test(fns, 2);
+    });
 }
