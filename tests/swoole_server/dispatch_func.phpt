@@ -32,6 +32,10 @@ $pm->childFunc = function () use ($pm) {
         'log_file' => '/dev/null',
         'dispatch_func' => 'dispatch_packet'
     ]);
+    $server->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
+    {
+        $pm->wakeup();
+    });
     $server->on('packet', function (Swoole\Server $server, $data, $client) {
         $fd = unpack('L', pack('N', ip2long($client['address'])))[1];
         assert($fd % $server->setting['worker_num'] === $server->worker_id);
