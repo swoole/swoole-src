@@ -32,12 +32,6 @@ static uint32_t heartbeat_check_lasttime = 0;
 int swReactorProcess_create(swServer *serv)
 {
     serv->reactor_num = serv->worker_num;
-    serv->reactor_threads = sw_calloc(1, sizeof(swReactorThread));
-    if (serv->reactor_threads == NULL)
-    {
-        swSysError("calloc[1](%d) failed.", (int )(serv->reactor_num * sizeof(swReactorThread)));
-        return SW_ERR;
-    }
     serv->connection_list = sw_calloc(serv->max_connection, sizeof(swConnection));
     if (serv->connection_list == NULL)
     {
@@ -54,13 +48,11 @@ int swReactorProcess_create(swServer *serv)
     return SW_OK;
 }
 
-/**
- * base模式
- * 在worker进程中直接accept连接
- */
 int swReactorProcess_start(swServer *serv)
 {
     swListenPort *ls;
+    serv->single_thread = 1;
+
     if (serv->onStart != NULL)
     {
         serv->onStart(serv);
@@ -104,6 +96,7 @@ int swReactorProcess_start(swServer *serv)
      */
     serv->gs->event_workers.ptr = serv;
     serv->gs->event_workers.worker_num = serv->worker_num;
+    serv->gs->event_workers.max_wait_time = serv->max_wait_time;
     serv->gs->event_workers.use_msgqueue = 0;
     serv->gs->event_workers.main_loop = swReactorProcess_loop;
     serv->gs->event_workers.onWorkerNotFound = swManager_wait_other_worker;
@@ -282,11 +275,12 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swReactor *reactor;
     if (!SwooleG.main_reactor)
     {
-        reactor = &(serv->reactor_threads[0].reactor);
+        reactor = sw_malloc(sizeof(swReactor));
         if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
         {
             return SW_ERR;
         }
+        SwooleG.main_reactor = reactor;
     }
     else
     {
@@ -310,8 +304,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 #endif
         reactor->add(reactor, ls->sock, fdtype);
     }
-
-    SwooleG.main_reactor = reactor;
 
     reactor->id = worker->id;
     reactor->ptr = serv;

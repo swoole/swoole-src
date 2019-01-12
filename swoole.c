@@ -416,7 +416,7 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *da
     {
         convert_to_long(retval);
         worker_id = (int) Z_LVAL_P(retval);
-        if (worker_id < 0 || worker_id >= serv->worker_num)
+        if (worker_id >= serv->worker_num)
         {
             swoole_php_fatal_error(E_WARNING, "invalid target worker-id[%d].", worker_id);
             worker_id = -1;

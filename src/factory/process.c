@@ -145,7 +145,11 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
     //discard the data packet.
     if (target_worker_id < 0)
     {
-        return SW_OK;
+        /**
+         * -1 : discard packet
+         * [TODO] -2 : close connection
+         */
+        return SW_ERR;
     }
 
     if (swEventData_is_stream(task->data.info.type))
