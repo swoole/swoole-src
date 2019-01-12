@@ -32,12 +32,6 @@ static uint32_t heartbeat_check_lasttime = 0;
 int swReactorProcess_create(swServer *serv)
 {
     serv->reactor_num = serv->worker_num;
-    serv->reactor_threads = sw_calloc(1, sizeof(swReactorThread));
-    if (serv->reactor_threads == NULL)
-    {
-        swSysError("calloc[1](%d) failed.", (int )(serv->reactor_num * sizeof(swReactorThread)));
-        return SW_ERR;
-    }
     serv->connection_list = sw_calloc(serv->max_connection, sizeof(swConnection));
     if (serv->connection_list == NULL)
     {

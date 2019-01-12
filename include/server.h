@@ -120,8 +120,6 @@ typedef struct _swReactorThread
 {
     pthread_t thread_id;
     swReactor reactor;
-    swMemoryPool *buffer_input;
-    swLock lock;
     int notify_pipe;
 } swReactorThread;
 
