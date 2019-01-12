@@ -66,3 +66,29 @@ TEST(coroutine_channel, pop_yield)
         ASSERT_TRUE(ret);
     }, &chan);
 }
+
+TEST(coroutine_channel, push_timeout)
+{
+    Coroutine::create([](void *arg)
+    {
+        Channel chan(1);
+        bool ret;
+
+        ret = chan.push(nullptr, 0.001);
+        ASSERT_TRUE(ret);
+        ret = chan.push(nullptr, 0.001);
+        ASSERT_FALSE(ret);
+    });
+}
+
+TEST(coroutine_channel, pop_timeout)
+{
+    Coroutine::create([](void *arg)
+    {
+        Channel chan(1);
+        void *ret;
+
+        ret = chan.pop(0.001);
+        ASSERT_EQ(ret, nullptr);
+    });
+}
