@@ -53,11 +53,6 @@ int swReactorProcess_start(swServer *serv)
     swListenPort *ls;
     serv->single_thread = 1;
 
-    if (serv->onStart != NULL)
-    {
-        serv->onStart(serv);
-    }
-
     //listen TCP
     if (serv->have_stream_sock == 1)
     {
@@ -166,7 +161,7 @@ int swReactorProcess_start(swServer *serv)
      * manager process is the same as the master process
      */
     SwooleG.pid = serv->gs->manager_pid = getpid();
-    SwooleG.process_type = SW_PROCESS_MASTER;
+    SwooleG.process_type = SW_PROCESS_MANAGER;
 
     /**
      * manager process can not use signalfd
@@ -175,10 +170,27 @@ int swReactorProcess_start(swServer *serv)
 
     swProcessPool_start(&serv->gs->event_workers);
     swServer_signal_init(serv);
+
+    if (serv->onStart)
+    {
+        swWarn("The onStart event with SWOOLE_BASE is deprecated.");
+        serv->onStart(serv);
+    }
+
+    if (serv->onManagerStart)
+    {
+        serv->onManagerStart(serv);
+    }
+
     swProcessPool_wait(&serv->gs->event_workers);
     swProcessPool_shutdown(&serv->gs->event_workers);
 
     swManager_kill_user_worker(serv);
+
+    if (serv->onManagerStop)
+    {
+        serv->onManagerStop(serv);
+    }
 
     return SW_OK;
 }
