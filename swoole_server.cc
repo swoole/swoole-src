@@ -1903,10 +1903,10 @@ static void php_swoole_onWorkerExit(swServer *serv, int worker_id)
 
 static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker)
 {
-	if (serv->enable_coroutine)
-	{
-		SwooleG.enable_coroutine = 1;
-	}
+    if (serv->enable_coroutine)
+    {
+        SwooleG.enable_coroutine = 1;
+    }
     zval *object = (zval *) worker->ptr;
     zend_update_property_long(swoole_process_ce_ptr, object, ZEND_STRL("id"), SwooleWG.id);
 
