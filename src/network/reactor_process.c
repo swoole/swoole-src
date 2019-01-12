@@ -54,13 +54,11 @@ int swReactorProcess_create(swServer *serv)
     return SW_OK;
 }
 
-/**
- * base模式
- * 在worker进程中直接accept连接
- */
 int swReactorProcess_start(swServer *serv)
 {
     swListenPort *ls;
+    serv->single_thread = 1;
+
     if (serv->onStart != NULL)
     {
         serv->onStart(serv);
