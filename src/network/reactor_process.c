@@ -280,7 +280,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swReactor *reactor;
     if (!SwooleG.main_reactor)
     {
-        reactor = &(serv->reactor_threads[0].reactor);
+        reactor = &serv->reactor;
         if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
         {
             return SW_ERR;

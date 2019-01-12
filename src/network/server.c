@@ -996,23 +996,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     int fd = conn->fd;
     swReactor *reactor;
 
-    if (serv->factory_mode == SW_MODE_BASE)
-    {
-        reactor = &(serv->reactor_threads[0].reactor);
-        if (conn->overflow)
-        {
-            if (serv->send_yield)
-            {
-                SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
-            }
-            else
-            {
-                swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow.", fd);
-            }
-            return SW_ERR;
-        }
-    }
-    else if (serv->single_thread)
+    if (serv->single_thread)
     {
         reactor = &serv->reactor;
     }
@@ -1021,6 +1005,19 @@ int swServer_master_send(swServer *serv, swSendData *_send)
         reactor = &(serv->reactor_threads[conn->from_id].reactor);
         assert(fd % serv->reactor_num == reactor->id);
         assert(fd % serv->reactor_num == SwooleTG.id);
+    }
+
+    if (serv->factory_mode == SW_MODE_BASE && conn->overflow)
+    {
+        if (serv->send_yield)
+        {
+            SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
+        }
+        else
+        {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow.", fd);
+        }
+        return SW_ERR;
     }
 
     /**
