@@ -8,7 +8,7 @@
 
 #include <gtest/gtest.h>
 #include <initializer_list>
-#include <pair>
+#include <utility>
 
 static inline void coro_test_wait()
 {
