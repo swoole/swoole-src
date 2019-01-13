@@ -3,7 +3,7 @@
 
 using namespace swoole;
 
-TEST(network_async_thread, thread_one)
+TEST(network_aio_thread, dispatch)
 {
     int i = 0;
     swAio_event event;
