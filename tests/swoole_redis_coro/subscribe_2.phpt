@@ -16,7 +16,7 @@ go(function () {
     for ($i = 0; $i < MAX_REQUESTS; $i++) {
         $channel = 'channel' . $i;
         $val = $redis->subscribe([$channel]);
-        assert($val);
+        assert($val[0][0] == 'subscribe' && $val[0][1] == $channel);
 
         go(function () use ($channel, $redis2) {
             $ret = $redis2->publish($channel, 'test' . $channel);

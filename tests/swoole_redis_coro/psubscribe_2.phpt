@@ -17,7 +17,7 @@ go(function () {
         $channel = 'channel' . $i;
         $val = $redis->psubscribe([$channel . '*']);
         $channel .= 'test';
-        assert($val);
+        assert($val[0][0] == 'psubscribe' && $val[0][1] == $channel . '*');
 
         go(function () use ($channel, $redis2) {
             $ret = $redis2->publish($channel, 'test' . $channel);

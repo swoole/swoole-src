@@ -11,7 +11,8 @@ go(function () {
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
 
     $val = $redis->subscribe(['test1', 'test2', 'test3']);
-    assert($val);
+    assert($val[0][0] == 'subscribe' && $val[1][0] == 'subscribe' && $val[2][0] == 'subscribe');
+    assert($val[0][1] == 'test1' && $val[1][1] == 'test2' && $val[2][1] == 'test3');
 
     for ($i = 0; $i < 3; $i++) {
         $val = $redis->recv();

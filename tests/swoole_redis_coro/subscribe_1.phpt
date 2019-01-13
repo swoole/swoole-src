@@ -10,7 +10,7 @@ go(function () {
     $redis = new Co\Redis();
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
     $val = $redis->subscribe(['test']);
-    assert($val);
+    assert($val[0][0] == 'subscribe' && $val[0][1] == 'test');
 
     for ($i = 0; $i < MAX_REQUESTS; $i++) {
         $val = $redis->recv();
