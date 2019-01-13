@@ -1,18 +1,16 @@
 #include "tests.h"
 #include "async.h"
 
-using namespace swoole;
-
 TEST(network_aio_thread, dispatch)
 {
-    int i = 0;
+    sw_atomic_long_t i = 0;
     swAio_event event;
-    event.object = &i;
+    event.object = (void *) &i;
     event.canceled = 0;
 
     event.handler = [](swAio_event *event)
     {
-        (*(int *) event->object)++;
+        sw_atomic_fetch_add((sw_atomic_t *) event->object, 1);
     };
 
     for (int i = 0; i < 1000; ++i)
@@ -22,6 +20,7 @@ TEST(network_aio_thread, dispatch)
         ASSERT_NE(ret->task_id, event.task_id);
     }
 
+    sleep(1);
     ASSERT_EQ(i, 1000);
     swAio_free();
 }
