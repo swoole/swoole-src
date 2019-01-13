@@ -4200,6 +4200,7 @@ static sw_inline void redis_subscribe(INTERNAL_FUNCTION_PARAMETERS, bool psubscr
 
     if (Z_TYPE_P(return_value) == IS_FALSE)
     {
+        redis->subscribe = false;
         return;
     }
 
@@ -4230,15 +4231,17 @@ static sw_inline void redis_subscribe(INTERNAL_FUNCTION_PARAMETERS, bool psubscr
             zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errCode"), sw_redis_convert_err(redis->context->err));
             zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errMsg"), redis->context->errstr);
 
-            swoole_redis_coro_close(redis);
             goto _error;
         }
     }
 
     return;
+
     _error:
+    swoole_redis_coro_close(redis);
     zval_ptr_dtor(&tmp);
     zval_ptr_dtor(return_value);
+
     RETURN_FALSE;
 }
 
