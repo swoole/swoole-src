@@ -872,14 +872,16 @@ ZEND_END_ARG_INFO()
 typedef struct
 {
     redisContext *context;
+    struct {
+        bool auth;
+        long db_num;
+    } session;
     double connect_timeout;
     double timeout;
     bool serialize;
     bool defer;
     uint8_t reconnect_interval;
     uint8_t reconnected_count;
-    bool auth;
-    long database;
     zval *zobject;
     zval _zobject;
 } swRedisClient;
@@ -940,6 +942,7 @@ static sw_inline bool swoole_redis_coro_close(swRedisClient *redis)
     zend_update_property_bool(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("connected"), 0);
     redisFree(redis->context);
     redis->context = NULL;
+    redis->session = { false, 0 };
     return true;
 }
 
@@ -1123,7 +1126,7 @@ static bool redis_auth(swRedisClient *redis, char *pw, size_t pw_len)
     ret = Z_BVAL_P(&retval);
     if (ret)
     {
-        redis->auth = true;
+        redis->session.auth = true;
     }
     return ret;
 }
@@ -1144,7 +1147,7 @@ static bool redis_select_db(swRedisClient *redis, long db_number)
     ret = Z_BVAL_P(&retval);
     if (ret)
     {
-        redis->database = db_number;
+        redis->session.db_num = db_number;
     }
     return ret;
 }
@@ -1188,10 +1191,11 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
             }
             else
             {
-                if (reply->type == REDIS_REPLY_ERROR &&
-                    (!strncmp(reply->str, "MOVED", 5) || !strncmp(reply->str, "ASK", 3)))
+                // Redis Cluster
+                if (reply->type == REDIS_REPLY_ERROR && (!strncmp(reply->str, "MOVED", 5) || !strncmp(reply->str, "ASK", 3)))
                 {
                     char *p1, *p2;
+
                     // MOVED 1234 127.0.0.1:1234
                     p1 = strrchr(reply->str, ' ') + 1; // MOVED 1234 [p1]27.0.0.1:1234
                     p2 = strrchr(p1, ':'); // MOVED 1234 [p1]27.0.0.1[p2]1234
@@ -1211,11 +1215,11 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
                         ZVAL_FALSE(return_value);
                     }
                 }
+                // Normal Response
                 else
                 {
                     swoole_redis_coro_parse_result(redis, return_value, reply);
                 }
-
                 freeReplyObject(reply);
             }
         }
@@ -2029,7 +2033,7 @@ static PHP_METHOD(swoole_redis_coro, connect)
 static PHP_METHOD(swoole_redis_coro, getAuth)
 {
     swRedisClient *redis = swoole_get_redis_client(getThis());
-    if (redis->auth)
+    if (redis->session.auth)
     {
         zval *ztmp = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
         if (php_swoole_array_get_value(Z_ARRVAL_P(ztmp), "password", ztmp))
@@ -2048,7 +2052,7 @@ static PHP_METHOD(swoole_redis_coro, getDBNum)
     {
         RETURN_FALSE;
     }
-    RETURN_LONG(redis->database);
+    RETURN_LONG(redis->session.db_num);
 }
 
 static PHP_METHOD(swoole_redis_coro, getOptions)
