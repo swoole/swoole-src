@@ -4174,7 +4174,8 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
     }
 
     HashTable *ht_chan = Z_ARRVAL_P(z_arr);
-    int argc = 1 + zend_hash_num_elements(ht_chan), i = 0;
+    size_t chan_num = zend_hash_num_elements(ht_chan);
+    int argc = 1 + chan_num, i = 0;
     SW_REDIS_COMMAND_ALLOC_ARGV
     SW_REDIS_COMMAND_ARGV_FILL("PSUBSCRIBE", 10)
 
@@ -4194,7 +4195,43 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
         return;
     }
 
-    RETURN_TRUE;
+    zval tmp;
+    redisReply *reply;
+
+    array_init(return_value);
+    for (size_t n = 0; n < chan_num; ++n)
+    {
+        array_init(&tmp);
+        if (redisGetReply(redis->context, (void**) &reply) == REDIS_OK)
+        {
+            swoole_redis_coro_parse_result(redis, &tmp, reply);
+            freeReplyObject(reply);
+
+            if (Z_TYPE(tmp) == IS_ARRAY)
+            {
+                add_index_zval(return_value, n, &tmp);
+            }
+            else
+            {
+                goto _error;
+            }
+        }
+        else
+        {
+            zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errType"), redis->context->err);
+            zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errCode"), sw_redis_convert_err(redis->context->err));
+            zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errMsg"), redis->context->errstr);
+
+            swoole_redis_coro_close(redis);
+            goto _error;
+        }
+    }
+
+    return;
+    _error:
+    zval_ptr_dtor(&tmp);
+    zval_ptr_dtor(return_value);
+    RETURN_FALSE;
 }
 
 static PHP_METHOD(swoole_redis_coro, subscribe)
@@ -4251,7 +4288,6 @@ static PHP_METHOD(swoole_redis_coro, subscribe)
             if (Z_TYPE(tmp) == IS_ARRAY)
             {
                 add_index_zval(return_value, n, &tmp);
-                zval_ptr_dtor(&tmp);
             }
             else
             {
