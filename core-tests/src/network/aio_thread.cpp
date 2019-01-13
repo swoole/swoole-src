@@ -1,8 +1,6 @@
 #include "tests.h"
 #include "async.h"
 
-#include <mutex>
-#include <condition_variable>
 #include <atomic>
 
 using namespace std;
