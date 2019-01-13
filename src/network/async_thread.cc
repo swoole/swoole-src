@@ -169,8 +169,7 @@ public:
 
     async_event* dispatch(const async_event *request)
     {
-        async_event *_event_copy = new async_event;
-        *_event_copy = *request;
+        auto _event_copy = new async_event(*request);
         schedule();
         _event_copy->task_id = current_task_id++;
         queue.push(_event_copy);
@@ -199,7 +198,7 @@ private:
             _accept: event = queue.pop();
             if (event)
             {
-                if (unlikely(event->handler == NULL))
+                if (unlikely(event->handler == nullptr))
                 {
                     event->error = SW_ERROR_AIO_BAD_REQUEST;
                     event->ret = -1;
@@ -218,7 +217,7 @@ private:
 
                 swTrace("aio_thread ok. ret=%d, error=%d", event->ret, event->error);
 
-                _error: while (1)
+                _error: while (true)
                 {
                     SwooleAIO.lock.lock(&SwooleAIO.lock);
                     int ret = write(_pipe_write, &event, sizeof(event));
@@ -284,7 +283,7 @@ private:
 
 static async_thread_pool *pool = nullptr;
 
-static int swAio_init(void)
+static int swAio_init()
 {
     if (SwooleAIO.init)
     {
