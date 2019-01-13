@@ -16,7 +16,9 @@ go(function () {
     for ($i = 0; $i < MAX_REQUESTS; $i++) {
         $channel = 'channel' . $i;
         $val = $redis->psubscribe([$channel . '*']);
-        assert($val[0][0] == 'psubscribe' && $val[0][1] == $channel . '*');
+        assert($val[0][0] == 'psubscribe');
+        assert($val[0][1] == $channel . '*');
+
         $channel .= 'test';
 
         go(function () use ($channel, $redis2) {

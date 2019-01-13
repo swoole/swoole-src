@@ -937,6 +937,7 @@ static sw_inline bool swoole_redis_coro_close(swRedisClient *redis)
     {
         return false;
     }
+
     swTraceLog(SW_TRACE_REDIS_CLIENT, "redis connection closed, fd=%d", redis->context->fd);
     zend_update_property_bool(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("connected"), 0);
     redisFree(redis->context);
