@@ -495,25 +495,16 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
     PHPCoroutine::check();
 
     double seconds;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "d", & seconds) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
 
-    int ms = (int) (seconds * 1000);
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_DOUBLE(seconds)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (SwooleG.serv && swIsMaster())
-    {
-        swoole_php_fatal_error(E_WARNING, "cannot use timer in master process.");
-        return;
-    }
-    if (ms <= 0)
+    if (seconds <= 0)
     {
         swoole_php_fatal_error(E_WARNING, "Timer must be greater than 0");
-        return;
+        RETURN_FALSE;
     }
-
-    php_swoole_check_reactor();
     Coroutine::sleep(seconds);
     RETURN_TRUE;
 }
