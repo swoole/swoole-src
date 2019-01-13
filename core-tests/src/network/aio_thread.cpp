@@ -1,16 +1,22 @@
 #include "tests.h"
 #include "async.h"
 
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
+
+using namespace std;
+
 TEST(network_aio_thread, dispatch)
 {
-    sw_atomic_long_t i = 0;
+    atomic<int> i(0);
     swAio_event event;
-    event.object = (void *) &i;
+    event.object = &i;
     event.canceled = 0;
 
     event.handler = [](swAio_event *event)
     {
-        sw_atomic_fetch_add((sw_atomic_t *) event->object, 1);
+        (*(atomic<int> *) event->object)++;
     };
 
     for (int i = 0; i < 1000; ++i)
@@ -20,7 +26,16 @@ TEST(network_aio_thread, dispatch)
         ASSERT_NE(ret->task_id, event.task_id);
     }
 
-    sleep(1);
-    ASSERT_EQ(i, 1000);
+    time_t start = time(nullptr);
+    while (i != 1000)
+    {
+        usleep(100);
+        
+        if ((time(nullptr) - start) > 3)
+        {
+            ASSERT_TRUE(false);
+        }
+    }
+
     swAio_free();
 }
