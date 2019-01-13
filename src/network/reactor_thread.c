@@ -1044,7 +1044,7 @@ int swReactorThread_init_reactor(swServer *serv, swReactor *reactor, uint16_t re
                 {
                     serv->connection_list[ls->sock].info.addr.inet_v4.sin_port = htons(ls->port);
                 }
-                else
+                else if (ls->type == SW_SOCK_UDP6)
                 {
                     serv->connection_list[ls->sock].info.addr.inet_v6.sin6_port = htons(ls->port);
                 }
