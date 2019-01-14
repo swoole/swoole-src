@@ -12,8 +12,11 @@ go(function () {
     assert($ret);
 
     $ret = $redis->subscribe(['channel1']);
-    assert($ret[0][0] == 'subscribe');
-    assert($ret[0][1] == 'channel1');
+    assert($ret);
+
+    $ret = $redis->recv();
+    assert($ret[0] == 'subscribe');
+    assert($ret[1] == 'channel1');
 
     $ret = $redis->set('a', '1');
     assert(!$ret);

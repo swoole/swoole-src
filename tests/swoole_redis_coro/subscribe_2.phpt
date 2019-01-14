@@ -13,10 +13,13 @@ go(function () {
     $redis2 = new Co\Redis;
     $redis2->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
 
-    for ($i = 0; $i < MAX_CONCURRENCY; $i++) {
+    for ($i = 0; $i < MAX_REQUESTS; $i++) {
         $channel = 'channel' . $i;
         $val = $redis->subscribe([$channel]);
-        assert($val[0][0] == 'subscribe' && $val[0][1] == $channel);
+        assert($val);
+
+        $val = $redis->recv();
+        assert($val[0] == 'subscribe' && $val[1] == $channel);
 
         go(function () use ($channel, $redis2) {
             $ret = $redis2->publish($channel, 'test' . $channel);
@@ -28,6 +31,7 @@ go(function () {
     }
 
     $redis->close();
+    $redis2->close();
 });
 
 ?>

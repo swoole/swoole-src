@@ -12,10 +12,13 @@ go(function () {
     assert($ret);
 
     $ret = $redis->subscribe(['channel1', 'channel2']);
-    assert($ret[0][0] == 'subscribe');
-    assert($ret[0][1] == 'channel1');
-    assert($ret[1][0] == 'subscribe');
-    assert($ret[1][1] == 'channel2');
+    assert($ret);
+
+    for ($i = 0; $i < 2; ++$i)
+    {
+        $ret = $redis->recv();
+        assert($ret[0] == 'subscribe');
+    }
 
     $ret = $redis->getDefer();
     assert(!$ret);
@@ -27,9 +30,12 @@ go(function () {
     assert(!$ret);
 
     $ret = $redis->unsubscribe(['channel1']);
-    assert($ret[0][0] == 'unsubscribe');
-    assert($ret[0][1] == 'channel1');
-    assert($ret[0][2] == 1);
+    assert($ret);
+
+    $ret = $redis->recv();
+    assert($ret[0] == 'unsubscribe');
+    assert($ret[1] == 'channel1');
+    assert($ret[2] == 1);
 
     $ret = $redis->getDefer();
     assert(!$ret);
