@@ -12,7 +12,7 @@ go(function () {
     $val = $redis->psubscribe(['test.*']);
     assert($val[0][0] == 'psubscribe' && $val[0][1] == 'test.*');
 
-    for ($i = 0; $i < MAX_REQUESTS; $i++) {
+    for ($i = 0; $i < MAX_CONCURRENCY; $i++) {
         $val = $redis->recv();
         assert($val and $val[0] == 'pmessage');
     }
@@ -25,7 +25,7 @@ go(function () {
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
     co::sleep(0.1);
 
-    for ($i = 0; $i < MAX_REQUESTS; $i++) {
+    for ($i = 0; $i < MAX_CONCURRENCY; $i++) {
         $ret = $redis->publish('test.a', 'hello-' . $i);
         assert($ret);
     }
