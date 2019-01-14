@@ -426,6 +426,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_psubscribe, 0, 0, 1)
     ZEND_ARG_INFO(0, patterns)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_punsubscribe, 0, 0, 1)
+    ZEND_ARG_INFO(0, patterns)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_pttl, 0, 0, 1)
     ZEND_ARG_INFO(0, key)
 ZEND_END_ARG_INFO()
@@ -599,6 +603,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_strlen, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_subscribe, 0, 0, 1)
+    ZEND_ARG_INFO(0, channels)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_unsubscribe, 0, 0, 1)
     ZEND_ARG_INFO(0, channels)
 ZEND_END_ARG_INFO()
 
@@ -1691,6 +1699,8 @@ static PHP_METHOD(swoole_redis_coro, sRemove);
 static PHP_METHOD(swoole_redis_coro, zDelete);
 static PHP_METHOD(swoole_redis_coro, subscribe);
 static PHP_METHOD(swoole_redis_coro, pSubscribe);
+static PHP_METHOD(swoole_redis_coro, unsubscribe);
+static PHP_METHOD(swoole_redis_coro, pUnSubscribe);
 static PHP_METHOD(swoole_redis_coro, multi);
 static PHP_METHOD(swoole_redis_coro, exec);
 static PHP_METHOD(swoole_redis_coro, eval);
@@ -1855,6 +1865,8 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_MALIAS(swoole_redis_coro, zRem, zDelete, arginfo_swoole_redis_coro_zRem, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, pSubscribe, arginfo_swoole_redis_coro_psubscribe, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, subscribe, arginfo_swoole_redis_coro_subscribe, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, unsubscribe, arginfo_swoole_redis_coro_unsubscribe, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, pUnSubscribe, arginfo_swoole_redis_coro_punsubscribe, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, multi, arginfo_swoole_redis_coro_multi, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, exec, arginfo_swoole_redis_coro_exec, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, eval, arginfo_swoole_redis_coro_eval, ZEND_ACC_PUBLIC)
@@ -4247,6 +4259,16 @@ static PHP_METHOD(swoole_redis_coro, subscribe)
 static PHP_METHOD(swoole_redis_coro, pSubscribe)
 {
     redis_subscribe(INTERNAL_FUNCTION_PARAM_PASSTHRU, "PSUBSCRIBE");
+}
+
+static PHP_METHOD(swoole_redis_coro, unsubscribe)
+{
+    redis_subscribe(INTERNAL_FUNCTION_PARAM_PASSTHRU, "UNSUBSCRIBE");
+}
+
+static PHP_METHOD(swoole_redis_coro, pUnSubscribe)
+{
+    redis_subscribe(INTERNAL_FUNCTION_PARAM_PASSTHRU, "PUNSUBSCRIBE");
 }
 
 static PHP_METHOD(swoole_redis_coro, multi)
