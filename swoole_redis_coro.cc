@@ -4224,7 +4224,19 @@ static sw_inline void redis_subscribe(INTERNAL_FUNCTION_PARAMETERS, const char *
 
             if (Z_TYPE(tmp) == IS_ARRAY)
             {
-                add_index_zval(return_value, n, &tmp);
+                zval *v = zend_hash_index_find(Z_ARRVAL(tmp), 2);
+                if (v && Z_TYPE_P(v) == IS_LONG)
+                {
+                    add_index_zval(return_value, n, &tmp);
+                    if (Z_LVAL_P(v) == 0)
+                    {
+                        redis->subscribe = false;
+                    }
+                }
+                else
+                {
+                    goto _error;
+                }
             }
             else
             {
