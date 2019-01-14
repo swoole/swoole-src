@@ -233,7 +233,7 @@ static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t len
     swWorker_onTask(&serv->factory, task);
 
     client_conn->stream_fd = 0;
-    int _end = htonl(0);
+    int _end = 0;
     SwooleG.main_reactor->write(SwooleG.main_reactor, conn->fd, (void *) &_end, sizeof(_end));
 
     return SW_OK;
