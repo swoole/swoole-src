@@ -266,7 +266,6 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *dst_work
             return SW_ERR;
         }
         stream->response = NULL;
-        stream->session_id = 0;
         if (swStream_send(stream, (char*) data, sizeof(data->info) + data->info.len) < 0)
         {
             stream->cancel = 1;

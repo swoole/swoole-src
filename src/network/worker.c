@@ -226,13 +226,11 @@ static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t len
     uint32_t data_length = length - sizeof(task->info) - 4;
     //merge data to package buffer
     swString_append_ptr(package, data + sizeof(task->info) + 4, data_length);
-
-    swConnection *client_conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
-    client_conn->stream_fd = conn->fd;
+    serv->last_stream_fd = conn->fd;
 
     swWorker_onTask(&serv->factory, task);
 
-    client_conn->stream_fd = 0;
+    serv->last_stream_fd  = -1;
     int _end = 0;
     SwooleG.main_reactor->write(SwooleG.main_reactor, conn->fd, (void *) &_end, sizeof(_end));
 

@@ -556,6 +556,7 @@ struct _swServer
     char *stream_socket;
     int stream_fd;
     swProtocol stream_protocol;
+    int last_stream_fd;
     swLinkedList *buffer_pool;
 
 #ifdef SW_BUFFER_RECV_TIME
