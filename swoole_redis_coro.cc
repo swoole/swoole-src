@@ -2121,7 +2121,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
 static PHP_METHOD(swoole_redis_coro, close)
 {
     swRedisClient *redis = swoole_get_redis_client(getThis());
-    SW_CHECK_RETURN(swoole_redis_coro_close(redis) ? SW_OK : SW_ERR);
+    RETURN_BOOL(swoole_redis_coro_close(redis));
 }
 
 static PHP_METHOD(swoole_redis_coro, __destruct)
