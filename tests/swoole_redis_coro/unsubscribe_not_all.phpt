@@ -52,4 +52,5 @@ go(function () {
 ?>
 --EXPECT--
 Warning: Swoole\Coroutine\Redis::setDefer(): you should not use setDefer after subscribe in /swoole-src/tests/swoole_redis_coro/unsubscribe_not_all.php on line 24
+
 Warning: Swoole\Coroutine\Redis::setDefer(): you should not use setDefer after subscribe in /swoole-src/tests/swoole_redis_coro/unsubscribe_not_all.php on line 41
