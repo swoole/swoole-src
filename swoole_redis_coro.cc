@@ -4157,7 +4157,7 @@ static PHP_METHOD(swoole_redis_coro, zDelete)
     sw_redis_command_key_var_val(INTERNAL_FUNCTION_PARAM_PASSTHRU, "ZREM", 4);
 }
 
-static sw_inline void redis_subscribe(INTERNAL_FUNCTION_PARAMETERS, bool psubscribe = false)
+static sw_inline void redis_subscribe(INTERNAL_FUNCTION_PARAMETERS, const char *cmd)
 {
     zval *z_arr;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &z_arr) == FAILURE)
@@ -4179,14 +4179,7 @@ static sw_inline void redis_subscribe(INTERNAL_FUNCTION_PARAMETERS, bool psubscr
     int argc = 1 + chan_num, i = 0;
     SW_REDIS_COMMAND_ALLOC_ARGV
 
-    if (psubscribe)
-    {
-        SW_REDIS_COMMAND_ARGV_FILL("PSUBSCRIBE", 10);
-    }
-    else
-    {
-        SW_REDIS_COMMAND_ARGV_FILL("SUBSCRIBE", 9);
-    }
+    SW_REDIS_COMMAND_ARGV_FILL(cmd, strlen(cmd));
 
     zval *value;
     SW_HASHTABLE_FOREACH_START(ht_chan, value)
@@ -4248,12 +4241,12 @@ static sw_inline void redis_subscribe(INTERNAL_FUNCTION_PARAMETERS, bool psubscr
 
 static PHP_METHOD(swoole_redis_coro, subscribe)
 {
-    redis_subscribe(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
+    redis_subscribe(INTERNAL_FUNCTION_PARAM_PASSTHRU, "SUBSCRIBE");
 }
 
 static PHP_METHOD(swoole_redis_coro, pSubscribe)
 {
-    redis_subscribe(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
+    redis_subscribe(INTERNAL_FUNCTION_PARAM_PASSTHRU, "PSUBSCRIBE");
 }
 
 static PHP_METHOD(swoole_redis_coro, multi)
