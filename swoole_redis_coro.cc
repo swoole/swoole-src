@@ -2133,7 +2133,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
         if (redis->subscribe)
         {
             zval *ztype;
-            
+
             if (Z_TYPE_P(return_value) != IS_ARRAY)
             {
                 zval_ptr_dtor(return_value);
