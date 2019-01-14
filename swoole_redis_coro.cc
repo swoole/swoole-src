@@ -2137,7 +2137,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
             if (Z_TYPE_P(return_value) != IS_ARRAY)
             {
                 zval_ptr_dtor(return_value);
-                goto _recv;
+                goto _error;
             }
 
             ztype = zend_hash_index_find(Z_ARRVAL_P(return_value), 0);
@@ -2168,6 +2168,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
     }
     else
     {
+        _error:
         zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errType"), redis->context->err);
         zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errCode"), sw_redis_convert_err(redis->context->err));
         zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errMsg"), redis->context->errstr);
