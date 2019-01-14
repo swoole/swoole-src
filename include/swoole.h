@@ -645,6 +645,8 @@ typedef struct _swConnection
      */
     int buffer_size;
 
+    int stream_fd;
+
     /**
      * upgarde websocket
      */

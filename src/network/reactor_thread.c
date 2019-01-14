@@ -1227,12 +1227,12 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
 
         if (swStream_send(stream, (char*) &task.data.info, sizeof(task.data.info)) < 0)
         {
+            _cancel: stream->cancel = 1;
             return SW_ERR;
         }
         if (swStream_send(stream, data, length) < 0)
         {
-            stream->cancel = 1;
-            return SW_ERR;
+            goto _cancel;
         }
         return SW_OK;
     }
