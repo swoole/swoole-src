@@ -5,12 +5,16 @@ swoole_server: bug Github#2313
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$serv = new swoole_server("0.0.0.0",9501);
-$proc = new swoole_process(function(){});
-$serv->addProcess($proc);
-if(!is_null($proc->id)){
-	echo "SUCCESS";
-}
+$pm = new ProcessManager;
+$pm->childFunc = function () use ($pm) {
+    $server = new Swoole\Server('127.0.0.1', 9501);
+    $process = new Swoole\Process(function () { });
+    $server->addProcess($process);
+    var_dump($process->id);
+    $pm->wakeup();
+};
+$pm->childFirst();
+$pm->run();
 ?>
---EXPECT--
-SUCCESS
+--EXPECTF--
+int(%d)
