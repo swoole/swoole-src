@@ -230,7 +230,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     if (serv->last_stream_fd > 0)
     {
         int _len = resp->length > 0 ? resp->length : resp->info.len;
-        int _header = htonl(_len);
+        int _header = htonl(_len + sizeof(resp->info));
         if (SwooleG.main_reactor->write(SwooleG.main_reactor, serv->last_stream_fd, (char*) &_header, sizeof(_header)) < 0)
         {
             return SW_ERR;

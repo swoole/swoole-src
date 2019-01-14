@@ -158,6 +158,7 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
     conn->fd = fd;
     conn->active = 1;
     conn->socket_type = SW_SOCK_UNIX_STREAM;
+    conn->nonblock = 1;
     memcpy(&conn->info.addr, &client_addr, sizeof(client_addr));
 
     if (reactor->add(reactor, fd, SW_FD_STREAM | SW_EVENT_READ) < 0)

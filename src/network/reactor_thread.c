@@ -107,7 +107,7 @@ static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint3
     response.info.fd = conn->session_id;
     response.info.type = pkg_info->type;
     response.info.len = 0;
-    response.length = length;
+    response.length = length - sizeof(swDataHead);
     response.data = data + sizeof(swDataHead);
     swServer_master_send(SwooleG.serv, &response);
 }
