@@ -23,6 +23,9 @@ go(function () use ($sock, $port) {
 
     for ($i = 0; $i < MAX_REQUESTS; $i++) {
         $val = $redis->psubscribe(['test.*']);
+        assert($val);
+
+        $val = $redis->recv();
         assert($val === false);
         assert($redis->connected === false);
         assert($redis->errType === SWOOLE_REDIS_ERR_EOF);

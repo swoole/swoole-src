@@ -28,8 +28,11 @@ go(function () {
     assert(!$ret);
 
     $ret = $redis->punsubscribe(['channel1']);
-    assert($ret[0][0] == 'punsubscribe');
-    assert($ret[0][1] == 'channel1');
+    assert($ret);
+
+    $ret = $redis->recv();
+    assert($ret[0] == 'punsubscribe');
+    assert($ret[1] == 'channel1');
 
     $ret = $redis->getDefer();
     assert(!$ret);
