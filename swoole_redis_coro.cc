@@ -2132,7 +2132,15 @@ static PHP_METHOD(swoole_redis_coro, recv)
 
         if (redis->subscribe)
         {
-            zval *ztype = zend_hash_index_find(Z_ARRVAL_P(return_value), 0);
+            zval *ztype;
+            
+            if (Z_TYPE_P(return_value) != IS_ARRAY)
+            {
+                zval_ptr_dtor(return_value);
+                goto _recv;
+            }
+
+            ztype = zend_hash_index_find(Z_ARRVAL_P(return_value), 0);
             if (Z_TYPE_P(ztype) == IS_STRING)
             {
                 char *type = Z_STRVAL_P(ztype);
