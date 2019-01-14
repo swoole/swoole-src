@@ -7,10 +7,10 @@ swoole_redis_coro: redis subscribe 2
 require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
-    $redis = new Co\Redis();
+    $redis = new Co\Redis;
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
 
-    $redis2 = new Co\redis;
+    $redis2 = new Co\Redis;
     $redis2->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
 
     for ($i = 0; $i < MAX_REQUESTS; $i++) {

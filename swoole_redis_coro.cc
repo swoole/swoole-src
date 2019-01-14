@@ -1174,7 +1174,7 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
         zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errType"), 0);
         zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errCode"), 0);
         zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errMsg"), "");
-        if (redis->defer || redis->subscribe)
+        if (redis->defer)
         {
             if (redisAppendCommandArgv(redis->context, argc, (const char **) argv, (const size_t *) argvlen) == REDIS_ERR)
             {
@@ -4201,7 +4201,9 @@ static sw_inline void redis_subscribe(INTERNAL_FUNCTION_PARAMETERS, const char *
     SW_HASHTABLE_FOREACH_END();
 
     redis->subscribe = true;
+    redis->defer = true;
     redis_request(redis, argc, argv, argvlen, return_value);
+    redis->defer = false;
     SW_REDIS_COMMAND_FREE_ARGV
 
     if (Z_TYPE_P(return_value) == IS_FALSE)
