@@ -182,14 +182,14 @@ static Socket* client_coro_new(zval *zobject, int port)
 
     if (ztype == NULL || ZVAL_IS_NULL(ztype))
     {
-        swoole_php_fatal_error(E_ERROR, "failed to get swoole_client->type.");
+        swoole_php_fatal_error(E_ERROR, "failed to get client type.");
         return NULL;
     }
 
     long type = Z_LVAL_P(ztype);
     if ((type == SW_SOCK_TCP || type == SW_SOCK_TCP6) && (port <= 0 || port > SW_CLIENT_MAX_PORT))
     {
-        swoole_php_fatal_error(E_WARNING, "The port is invalid.");
+        swoole_php_fatal_error(E_ERROR, "The port is invalid.");
         return NULL;
     }
 
@@ -534,7 +534,7 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
                 }
                 else
                 {
-                    swoole_php_fatal_error(E_WARNING, "http_proxy_password can not be null.");
+                    swoole_php_fatal_error(E_ERROR, "http_proxy_password can not be null.");
                 }
             }
             //https proxy
@@ -546,7 +546,7 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
         }
         else
         {
-            swoole_php_fatal_error(E_WARNING, "http_proxy_port can not be null.");
+            swoole_php_fatal_error(E_ERROR, "http_proxy_port can not be null.");
         }
     }
 
@@ -717,7 +717,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     Socket *cli = (Socket *) swoole_get_object(getThis());
     if (cli)
     {
-        swoole_php_fatal_error(E_WARNING, "connection to the server has already been established.");
+        swoole_php_error(E_WARNING, "connection to the server has already been established.");
         RETURN_FALSE;
     }
 
@@ -910,7 +910,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
     if (ret < 0)
     {
         SwooleG.error = errno;
-        swoole_php_fatal_error(E_WARNING, "sendfile() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
+        swoole_php_error(E_WARNING, "sendfile() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
         zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         RETVAL_FALSE;
     }
