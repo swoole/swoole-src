@@ -18,6 +18,12 @@
 #include "socks5.h"
 #include "mqtt.h"
 
+#include <string>
+#include <queue>
+#include <unordered_map>
+
+using namespace std;
+
 #include "ext/standard/basic_functions.h"
 
 typedef struct
@@ -89,7 +95,7 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     zval args[1];
 
     client_callback *cb = (client_callback *) swoole_get_property(zobject, client_property_callback);
-    char *callback_name;
+    const char *callback_name;
 
     zend_fcall_info_cache *fci_cache;
 
@@ -259,7 +265,7 @@ static const zend_function_entry swoole_client_methods[] =
     PHP_FE_END
 };
 
-static swHashMap *php_sw_long_connections;
+static unordered_map<string, queue<swClient *> *> long_connections;
 
 static zend_class_entry swoole_client_ce;
 zend_class_entry *swoole_client_ce_ptr;
@@ -291,8 +297,6 @@ void swoole_client_init(int module_number)
 #ifdef SW_USE_OPENSSL
     zend_declare_property_null(swoole_client_ce_ptr, ZEND_STRL("onSSLReady"), ZEND_ACC_PRIVATE);
 #endif
-
-    php_sw_long_connections = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
 
     zend_declare_class_constant_long(swoole_client_ce_ptr, ZEND_STRL("MSG_OOB"), MSG_OOB);
     zend_declare_class_constant_long(swoole_client_ce_ptr, ZEND_STRL("MSG_PEEK"), MSG_PEEK);
@@ -798,10 +802,18 @@ void php_swoole_client_free(zval *zobject, swClient *cli)
     //long tcp connection, delete from php_sw_long_connections
     if (cli->keep)
     {
-        if (swHashMap_del(php_sw_long_connections, cli->server_str, cli->server_strlen))
+        string conn_key = string(cli->server_str, cli->server_strlen);
+        auto i = long_connections.find(conn_key);
+        if (i != long_connections.end())
         {
-            swoole_php_fatal_error(E_WARNING, "failed to delete key[%s] from hashtable.", cli->server_str);
+            queue<swClient *> *q = i->second;
+            if (q->empty())
+            {
+                delete q;
+                long_connections.erase(string(cli->server_str, cli->server_strlen));
+            }
         }
+
         sw_free(cli->server_str);
         swClient_free(cli);
         pefree(cli, 1);
@@ -828,8 +840,6 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
 {
     zval *ztype;
     int async = 0;
-    char conn_key[SW_LONG_CONNECTION_KEY_LEN];
-    int conn_key_len = 0;
     uint64_t tmp_buf;
     int ret;
 
@@ -857,34 +867,43 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
     }
 
     swClient *cli;
-    bzero(conn_key, SW_LONG_CONNECTION_KEY_LEN);
+    string conn_key;
     zval *zconnection_id = sw_zend_read_property_not_null(Z_OBJCE_P(zobject), zobject, ZEND_STRL("id"), 1);
 
     if (zconnection_id && Z_TYPE_P(zconnection_id) == IS_STRING && Z_STRLEN_P(zconnection_id) > 0)
     {
-        conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s", Z_STRVAL_P(zconnection_id)) + 1;
+        conn_key = string(Z_STRVAL_P(zconnection_id), Z_STRLEN_P(zconnection_id));
     }
     else
     {
-        conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s:%d", host, port) + 1;
+        char *buffer;
+        size_t size;
+        size = spprintf(&buffer, 0, "%s:%p", host, port);
+        conn_key = string(buffer, size);
+        efree(buffer);
     }
 
     //keep the tcp connection
     if (type & SW_FLAG_KEEP)
     {
-        swClient *find = swHashMap_find(php_sw_long_connections, conn_key, conn_key_len);
-        if (find == NULL)
+        auto i = long_connections.find(conn_key);
+        queue<swClient*> *q;
+        if (i == long_connections.end())
         {
-            cli = (swClient*) pemalloc(sizeof(swClient), 1);
-            if (swHashMap_add(php_sw_long_connections, conn_key, conn_key_len, cli) == FAILURE)
-            {
-                swoole_php_fatal_error(E_WARNING, "failed to add swoole_client_create_socket to hashtable.");
-            }
+            q = new queue<swClient*>;
+            long_connections[conn_key] = q;
+            _alloc: cli = (swClient*) pemalloc(sizeof(swClient), 1);
             goto create_socket;
         }
         else
         {
-            cli = find;
+            q = i->second;
+            if (q->empty())
+            {
+                goto _alloc;
+            }
+            cli = q->front();
+            q->pop();
             //try recv, check connection status
             ret = recv(cli->socket->fd, &tmp_buf, sizeof(tmp_buf), MSG_DONTWAIT | MSG_PEEK);
             if (ret == 0 || (ret < 0 && swConnection_error(errno) == SW_CLOSE))
@@ -908,8 +927,8 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
         }
 
         //don't forget free it
-        cli->server_str = sw_strndup(conn_key, conn_key_len);
-        cli->server_strlen = conn_key_len;
+        cli->server_str = sw_strndup(conn_key.c_str(), conn_key.length());
+        cli->server_strlen = conn_key.length();
     }
 
     zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("sock"), cli->socket->fd);
@@ -1175,6 +1194,10 @@ static PHP_METHOD(swoole_client, connect)
             php_swoole_client_free(getThis(), cli TSRMLS_CC);
             zval_ptr_dtor(getThis());
         }
+        if (cli->keep)
+        {
+            php_swoole_client_free(getThis(), cli TSRMLS_CC);
+        }
         RETURN_FALSE;
     }
     RETURN_TRUE;
@@ -1389,7 +1412,7 @@ static PHP_METHOD(swoole_client, recv)
                 eof += protocol->package_eof_len;
                 RETVAL_STRINGL(buffer->str, eof);
 
-                if (buffer->length > eof)
+                if ((int) buffer->length > eof)
                 {
                     buffer->length -= eof;
                     memmove(buffer->str, buffer->str + eof, buffer->length);
@@ -1412,7 +1435,7 @@ static PHP_METHOD(swoole_client, recv)
                 {
                     if (buffer->size < protocol->package_max_length)
                     {
-                        int new_size = buffer->size * 2;
+                        uint32_t new_size = buffer->size * 2;
                         if (new_size > protocol->package_max_length)
                         {
                             new_size = protocol->package_max_length;
@@ -1480,7 +1503,7 @@ static PHP_METHOD(swoole_client, recv)
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "Package is too big. package_length=%d", (int )buf_len);
             RETURN_EMPTY_STRING();
         }
-        else if (buf_len == cli->buffer->length)
+        else if (buf_len == (zend_long) cli->buffer->length)
         {
             RETURN_STRINGL(cli->buffer->str, cli->buffer->length);
         }
@@ -1700,6 +1723,11 @@ static PHP_METHOD(swoole_client, close)
     }
     else
     {
+        if (cli->keep)
+        {
+            queue<swClient *> *q = long_connections[string(cli->server_str, cli->server_strlen)];
+            q->push(cli);
+        }
         //unset object
         swoole_set_object(getThis(), NULL);
     }
