@@ -1982,7 +1982,7 @@ static PHP_METHOD(swoole_redis_coro, __construct)
     add_assoc_bool(zsettings, "serialize", redis->serialize);
     add_assoc_long(zsettings, "reconnect", redis->reconnect_interval);
     // after connected
-    add_assoc_string(zsettings, "password", "");
+    add_assoc_string(zsettings, "password", (char *) "");
     add_assoc_long(zsettings, "database", 0);
 
     if (zset)
