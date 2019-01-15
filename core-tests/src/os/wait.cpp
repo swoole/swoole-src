@@ -63,9 +63,18 @@ TEST(os_wait, wait_before_child_exit)
         }
 
         int status = -1;
-        pid_t pid2 = swoole_coroutine_wait(&status);
-        ASSERT_EQ(status, 0);
-        ASSERT_EQ(pid, pid2);
+        pid_t pid2 = -1;
+
+        for (;;)
+        {
+            pid2 = swoole_coroutine_wait(&status);
+            if (pid2 == pid)
+            {
+                break;
+            }
+        }
+
+        ASSERT_EQ(WEXITSTATUS(status), 0);
     });
 }
 
@@ -85,8 +94,17 @@ TEST(os_wait, wait_after_child_exit)
 
         usleep(100000);
         int status = -1;
-        pid_t pid2 = swoole_coroutine_wait(&status);
-        ASSERT_EQ(status, 0);
-        ASSERT_EQ(pid, pid2);
+        pid_t pid2 = -1;
+
+        for (;;)
+        {
+            pid2 = swoole_coroutine_wait(&status);
+            if (pid2 == pid)
+            {
+                break;
+            }
+        }
+
+        ASSERT_EQ(WEXITSTATUS(status), 0);
     });
 }
