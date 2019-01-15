@@ -127,12 +127,20 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_FE_END
 };
 
-static sw_inline socket_coro * swoole_socket_coro_fetch_object(zend_object *obj)
+#define SW_BAD_SOCKET ((Socket *)-1)
+#define swoole_get_socket_coro(_sock, _zobject) \
+        socket_coro* _sock = _swoole_get_socket_coro(_zobject); \
+        if (UNEXPECTED(_sock->socket == SW_BAD_SOCKET)) { \
+            zend_update_property_long(swoole_socket_coro_ce_ptr, _zobject, ZEND_STRL("errCode"), EBADF); \
+            RETURN_FALSE; \
+        }
+
+static sw_inline socket_coro* swoole_socket_coro_fetch_object(zend_object *obj)
 {
     return (socket_coro *) ((char *) obj - swoole_socket_coro_handlers.offset);
 }
 
-static sw_inline socket_coro * swoole_get_socket_coro(zval *zobject)
+static sw_inline socket_coro* _swoole_get_socket_coro(zval *zobject)
 {
     socket_coro *sock = swoole_socket_coro_fetch_object(Z_OBJ_P(zobject));
     if (UNEXPECTED(!sock->socket))
@@ -151,11 +159,14 @@ static void swoole_socket_coro_free_object(zend_object *object)
         sw_zval_free(sock->resource);
     }
 #endif
-    delete sock->socket;
+    if (sock->socket && sock->socket != SW_BAD_SOCKET)
+    {
+        delete sock->socket;
+    }
     zend_object_std_dtor(&sock->std);
 }
 
-static zend_object *swoole_socket_coro_create_object(zend_class_entry *ce)
+static zend_object* swoole_socket_coro_create_object(zend_class_entry *ce)
 {
     socket_coro *sock = (socket_coro *) ecalloc(1, sizeof(socket_coro) + zend_object_properties_size(ce));
     zend_object_std_init(&sock->std, ce);
@@ -191,21 +202,24 @@ static PHP_METHOD(swoole_socket_coro, __construct)
         Z_PARAM_LONG(protocol)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    php_swoole_check_reactor();
-
     socket_coro *sock = (socket_coro *) swoole_socket_coro_fetch_object(Z_OBJ_P(getThis()));
-    sock->socket = new Socket((int)domain, (int)type, (int)protocol);
-    if (unlikely(sock->socket->socket == nullptr))
+
+    if (EXPECTED(!sock->socket))
     {
-        zend_throw_exception_ex(
-            swoole_socket_coro_exception_ce_ptr, errno,
-            "new Socket() failed. Error: %s [%d]", strerror(errno), errno
-        );
-        delete sock->socket;
-        sock->socket = nullptr;
-        RETURN_FALSE;
+        php_swoole_check_reactor();
+        sock->socket = new Socket((int)domain, (int)type, (int)protocol);
+        if (unlikely(sock->socket->socket == nullptr))
+        {
+            zend_throw_exception_ex(
+                swoole_socket_coro_exception_ce_ptr, errno,
+                "new Socket() failed. Error: %s [%d]", strerror(errno), errno
+            );
+            delete sock->socket;
+            sock->socket = nullptr;
+            RETURN_FALSE;
+        }
+        sock->socket->set_timeout(PHPCoroutine::socket_timeout);
     }
-    sock->socket->set_timeout(PHPCoroutine::socket_timeout);
 }
 
 static PHP_METHOD(swoole_socket_coro, bind)
@@ -220,7 +234,8 @@ static PHP_METHOD(swoole_socket_coro, bind)
         Z_PARAM_LONG(port)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    socket_coro *sock = swoole_get_socket_coro(getThis());
+    swoole_get_socket_coro(sock, getThis());
+
     if (!sock->socket->bind(std::string(address, l_address), port))
     {
         zend_update_property_long(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
@@ -238,7 +253,8 @@ static PHP_METHOD(swoole_socket_coro, listen)
         Z_PARAM_LONG(backlog)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    socket_coro *sock = swoole_get_socket_coro(getThis());
+    swoole_get_socket_coro(sock, getThis());
+
     if (!sock->socket->listen(backlog))
     {
         zend_update_property_long(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
@@ -256,7 +272,7 @@ static PHP_METHOD(swoole_socket_coro, accept)
         Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    socket_coro *sock = swoole_get_socket_coro(getThis());
+    swoole_get_socket_coro(sock, getThis());
 
     double persistent_timeout = sock->socket->get_timeout();
     sock->socket->set_timeout(timeout);
@@ -292,7 +308,7 @@ static PHP_METHOD(swoole_socket_coro, recv)
         length = SW_BUFFER_SIZE_BIG;
     }
 
-    socket_coro *sock = swoole_get_socket_coro(getThis());
+    swoole_get_socket_coro(sock, getThis());
 
     zend_string *buf = zend_string_alloc(length, 0);
     double persistent_timeout = sock->socket->get_timeout();
@@ -313,14 +329,13 @@ static PHP_METHOD(swoole_socket_coro, recv)
     else
     {
         ZSTR_LEN(buf) = bytes;
-        ZSTR_VAL(buf)[bytes] = 0;
+        ZSTR_VAL(buf)[bytes] = '\0';
         RETURN_STR(buf);
     }
 }
 
 static PHP_METHOD(swoole_socket_coro, recvfrom)
 {
-    socket_coro *sock = swoole_get_socket_coro(getThis());
     zval *peername;
     double timeout = PHPCoroutine::socket_timeout;
 
@@ -329,6 +344,8 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
         Z_PARAM_OPTIONAL
         Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    swoole_get_socket_coro(sock, getThis());
 
     zend_string *buf = zend_string_alloc(SW_BUFFER_SIZE_BIG, 0);
     double persistent_timeout = sock->socket->get_timeout();
@@ -383,7 +400,7 @@ static PHP_METHOD(swoole_socket_coro, send)
         Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    socket_coro *sock = swoole_get_socket_coro(getThis());
+    swoole_get_socket_coro(sock, getThis());
 
     double persistent_timeout = sock->socket->get_timeout();
     sock->socket->set_timeout(timeout);
@@ -414,7 +431,8 @@ static PHP_METHOD(swoole_socket_coro, sendto)
         Z_PARAM_STRING(data, l_data)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    socket_coro *sock = swoole_get_socket_coro(getThis());
+    swoole_get_socket_coro(sock, getThis());
+
     ssize_t retval = sock->socket->sendto(addr, port, data, l_data);
     if (retval < 0)
     {
@@ -429,24 +447,18 @@ static PHP_METHOD(swoole_socket_coro, sendto)
 
 static PHP_METHOD(swoole_socket_coro, close)
 {
-    socket_coro *sock = swoole_get_socket_coro(getThis());
-
-    if (!sock->socket->close())
-    {
-        zend_update_property_long(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
-        RETURN_FALSE;
-    }
-    else
-    {
-        RETURN_TRUE;
-    }
+    swoole_get_socket_coro(sock, getThis());
+    sock->socket->close();
+    sock->socket = SW_BAD_SOCKET;
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_socket_coro, getsockname)
 {
-    socket_coro *sock = swoole_get_socket_coro(getThis());
     swSocketAddress info;
     char addr_str[INET6_ADDRSTRLEN + 1];
+
+    swoole_get_socket_coro(sock, getThis());
 
     memset(&info, 0, sizeof(info));
     info.len = sizeof(info.addr);
@@ -481,9 +493,10 @@ static PHP_METHOD(swoole_socket_coro, getsockname)
 
 static PHP_METHOD(swoole_socket_coro, getpeername)
 {
-    socket_coro *sock = swoole_get_socket_coro(getThis());
     swSocketAddress info;
     char addr_str[INET6_ADDRSTRLEN + 1];
+
+    swoole_get_socket_coro(sock, getThis());
 
     memset(&info, 0, sizeof(info));
     array_init(return_value);
@@ -517,7 +530,6 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
 
 static PHP_METHOD(swoole_socket_coro, connect)
 {
-    socket_coro *sock = swoole_get_socket_coro(getThis());
     char *host;
     size_t l_host;
     zend_long port = 0;
@@ -529,6 +541,8 @@ static PHP_METHOD(swoole_socket_coro, connect)
         Z_PARAM_LONG(port)
         Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    swoole_get_socket_coro(sock, getThis());
 
     if (sock->socket->sock_domain == AF_INET6 || sock->socket->sock_domain == AF_INET)
     {
@@ -553,8 +567,9 @@ static PHP_METHOD(swoole_socket_coro, connect)
 #ifdef SWOOLE_SOCKETS_SUPPORT
 static PHP_METHOD(swoole_socket_coro, getSocket)
 {
-    socket_coro *sock = swoole_get_socket_coro(getThis());
     php_socket *socket_object;
+
+    swoole_get_socket_coro(sock, getThis());
 
     if (sock->resource)
     {
