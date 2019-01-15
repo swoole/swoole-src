@@ -191,11 +191,8 @@ int swoole_coroutine_close(int fd)
     {
         goto _no_coro;
     }
-    else
-    {
-        delete (Socket *) conn->object;
-        return 0;
-    }
+    Socket *socket = (Socket *) conn->object;
+    return socket->close() ? 0 : -1;
 }
 
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)

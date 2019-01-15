@@ -61,7 +61,7 @@ public:
     swSSL_option ssl_option = {0};
 #endif
 
-    Socket(int domain = AF_INET, int type = SOCK_STREAM, int protocol = 0);
+    Socket(int domain = AF_INET, int type = SOCK_STREAM, int protocol = IPPROTO_IP);
     Socket(enum swSocket_type type = SW_SOCK_TCP);
     Socket(int _fd, Socket *socket);
     Socket(int _fd, enum swSocket_type _type);
@@ -301,7 +301,6 @@ protected:
         check_bind();
         if (unlikely(socket->closed))
         {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKET_CLOSED, "Socket#%d belongs to coroutine#%ld has already been closed.", socket->fd, Coroutine::get_current_cid());
             set_err(ECONNRESET);
             return false;
         }

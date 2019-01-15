@@ -921,14 +921,10 @@ Socket* Socket::accept()
 #ifdef SW_USE_OPENSSL
     if (open_ssl)
     {
-        if (swSSL_create(client_sock->socket, ssl_context, 0) < 0)
+        if (swSSL_create(client_sock->socket, ssl_context, 0) < 0 || !client_sock->ssl_accept())
         {
-            _delete: delete client_sock;
+            client_sock->close();
             return nullptr;
-        }
-        if (client_sock->ssl_accept() == false)
-        {
-            goto _delete;
         }
     }
 #endif
@@ -1414,31 +1410,39 @@ bool Socket::shutdown(int __how)
 
 bool Socket::close()
 {
-    // TODO: waiting on review
-    if (socket->active)
-    {
-        shutdown();
-    }
-    if (!socket->closed)
-    {
-        socket->closed = 1;
-    }
+    bool ret = true;
     if (coroutine)
     {
+        if (socket->active)
+        {
+            ret = shutdown();
+        }
+        if (!socket->closed)
+        {
+            socket->closed = 1;
+        }
         reactor->del(reactor, socket->fd);
         resume();
+        return ret;
     }
-    return true;
+    ret = ::close(socket->fd) == 0;
+    socket->fd = -1;
+    delete this;
+    return ret;
 }
 
+/**
+ * Notice:
+ * the destructor should only be called when the construct fails
+ * If you want to safe release the socket, you should call Soskcet::close
+ */
 Socket::~Socket()
 {
-    int fd;
     if (socket == nullptr)
     {
-        // construct failed
         return;
     }
+    SW_ASSERT(!coroutine);
     if (read_buffer)
     {
         swString_free(read_buffer);
@@ -1447,14 +1451,7 @@ Socket::~Socket()
     {
         swString_free(write_buffer);
     }
-    if (sock_domain == AF_UNIX && !bind_address.empty())
-    {
-        unlink(bind_address_info.addr.un.sun_path);
-    }
-    if (sock_type == SW_SOCK_UNIX_DGRAM)
-    {
-        unlink(socket->info.addr.un.sun_path);
-    }
+    /* {{{ release socket resources */
 #ifdef SW_USE_OPENSSL
     if (socket->ssl)
     {
@@ -1463,6 +1460,7 @@ Socket::~Socket()
     if (ssl_context)
     {
         swSSL_free_context(ssl_context);
+        ssl_context = nullptr;
         if (ssl_option.cert_file)
         {
             sw_free(ssl_option.cert_file);
@@ -1489,6 +1487,7 @@ Socket::~Socket()
         {
             sw_free(ssl_option.capath);
         }
+        ssl_option = {0};
     }
 #endif
     if (socket->in_buffer)
@@ -1499,13 +1498,26 @@ Socket::~Socket()
     {
         swBuffer_free(socket->out_buffer);
     }
-    fd = socket->fd;
-    if (socket->removed == 0)
+    if (sock_domain == AF_UNIX && !bind_address.empty())
     {
-        reactor->del(reactor, fd);
+        unlink(bind_address_info.addr.un.sun_path);
+        bind_address_info = {{}, 0};
+    }
+    if (sock_type == SW_SOCK_UNIX_DGRAM)
+    {
+        unlink(socket->info.addr.un.sun_path);
+    }
+    if (unlikely(socket->fd > 0))
+    {
+        if (!socket->removed)
+        {
+            reactor->del(reactor, socket->fd);
+        }
+        ::close(socket->fd);
     }
     bzero(socket, sizeof(swConnection));
+    socket->fd = -1;
     socket->removed = 1;
     socket->closed = 1;
-    ::close(fd);
+    /* }}} */
 }

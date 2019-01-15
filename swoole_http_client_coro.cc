@@ -671,8 +671,8 @@ bool http_client::keep_liveness()
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
             zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
+            close();
         }
-        close();
         for (; reconnected_count < reconnect_interval; reconnected_count++)
         {
             if (connect())
@@ -1254,6 +1254,11 @@ bool http_client::recv(double timeout)
             _error:
             // IO error
             socket->del_timer(Socket::TIMER_LV_GLOBAL);
+            if (retval == 0)
+            {
+                // TODO: move to Client::recv
+                socket->set_err(ECONNRESET);
+            }
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
             zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
             if (socket->errCode == ETIMEDOUT)
@@ -1425,24 +1430,21 @@ void http_client::reset()
 
 bool http_client::close()
 {
-    bool ret;
-    if (!socket)
+    Socket *socket = this->socket;
+    if (socket)
     {
-        return false;
+        zend_update_property_bool(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("connected"), 0);
+        if (!socket->has_bound())
+        {
+            // reset some request period states
+            reset();
+            // reset the properties that depend on the connection
+            this->websocket = false;
+            this->socket = nullptr;
+        }
+        return php_swoole_client_coro_socket_free(socket);
     }
-    zend_update_property_bool(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("connected"), 0);
-
-    // reset some request period states
-    reset();
-
-    // reset the properties that depend on the connection
-    websocket = false;
-
-    // close socket
-    ret = php_swoole_client_coro_socket_free(socket);
-    socket = nullptr;
-
-    return ret;
+    return false;
 }
 
 http_client::~http_client()

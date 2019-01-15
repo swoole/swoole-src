@@ -161,7 +161,7 @@ static void swoole_socket_coro_free_object(zend_object *object)
 #endif
     if (sock->socket && sock->socket != SW_BAD_SOCKET)
     {
-        delete sock->socket;
+        sock->socket->close();
     }
     zend_object_std_dtor(&sock->std);
 }
@@ -193,7 +193,7 @@ void swoole_socket_coro_init(int module_number)
 
 static PHP_METHOD(swoole_socket_coro, __construct)
 {
-    zend_long domain, type, protocol = 0;
+    zend_long domain, type, protocol = IPPROTO_IP;
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
         Z_PARAM_LONG(domain)
@@ -448,9 +448,9 @@ static PHP_METHOD(swoole_socket_coro, sendto)
 static PHP_METHOD(swoole_socket_coro, close)
 {
     swoole_get_socket_coro(sock, getThis());
-    sock->socket->close();
+    bool ret = sock->socket->close();
     sock->socket = SW_BAD_SOCKET;
-    RETURN_TRUE;
+    RETURN_BOOL(ret);
 }
 
 static PHP_METHOD(swoole_socket_coro, getsockname)
