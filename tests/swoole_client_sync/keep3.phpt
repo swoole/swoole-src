@@ -45,3 +45,5 @@ $pm->run();
 
 ?>
 --EXPECT--
+Swoole hello
+Swoole hello
