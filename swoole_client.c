@@ -860,14 +860,13 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
     bzero(conn_key, SW_LONG_CONNECTION_KEY_LEN);
     zval *zconnection_id = sw_zend_read_property_not_null(Z_OBJCE_P(zobject), zobject, ZEND_STRL("id"), 1);
 
-    if (!zconnection_id)
+    if (zconnection_id && Z_TYPE_P(zconnection_id) == IS_STRING && Z_STRLEN_P(zconnection_id) > 0)
     {
-        conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s:%d", host, port) + 1;
+        conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s", Z_STRVAL_P(zconnection_id)) + 1;
     }
     else
     {
-        convert_to_string(zconnection_id);
-        conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s", Z_STRVAL_P(zconnection_id)) + 1;
+        conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s:%d", host, port) + 1;
     }
 
     //keep the tcp connection
@@ -893,7 +892,7 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
                 cli->close(cli);
                 goto create_socket;
             }
-            cli->reuse_count ++;
+            cli->reuse_count++;
             zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("reuseCount"), cli->reuse_count);
         }
     }
@@ -901,8 +900,7 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
     {
         cli = (swClient*) emalloc(sizeof(swClient));
 
-        create_socket:
-        if (swClient_create(cli, php_swoole_socktype(type), async) < 0)
+        create_socket: if (swClient_create(cli, php_swoole_socktype(type), async) < 0)
         {
             swoole_php_fatal_error(E_WARNING, "swClient_create() failed. Error: %s [%d]", strerror(errno), errno);
             zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), errno);
