@@ -63,7 +63,7 @@ public:
 
     Socket(int domain = AF_INET, int type = SOCK_STREAM, int protocol = 0);
     Socket(enum swSocket_type type = SW_SOCK_TCP);
-    Socket(int _fd, Socket *sock);
+    Socket(int _fd, Socket *socket);
     Socket(int _fd, enum swSocket_type _type);
     ~Socket();
     void set_timer(timer_levels _timer_level = TIMER_LV_NORMAL, double _timeout = 0);

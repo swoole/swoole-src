@@ -13,19 +13,19 @@ using namespace std;
 
 void Socket::timer_callback(swTimer *timer, swTimer_node *tnode)
 {
-    Socket *sock = (Socket *) tnode->data;
-    swTraceLog(SW_TRACE_SOCKET, "socket[%d] timeout", sock->socket->fd);
-    sock->set_err(ETIMEDOUT);
-    sock->reactor->del(sock->reactor, sock->socket->fd);
-    sock->timer = NULL;
-    sock->resume();
+    Socket *socket = (Socket *) tnode->data;
+    swTraceLog(SW_TRACE_SOCKET, "socket[%d] timeout", socket->socket->fd);
+    socket->set_err(ETIMEDOUT);
+    socket->reactor->del(socket->reactor, socket->socket->fd);
+    socket->timer = NULL;
+    socket->resume();
 }
 
 int Socket::event_callback(swReactor *reactor, swEvent *event)
 {
-    Socket *sock = (Socket *) event->socket->object;
-    sock->reactor->del(sock->reactor, event->fd);
-    sock->resume();
+    Socket *socket = (Socket *) event->socket->object;
+    socket->reactor->del(socket->reactor, event->fd);
+    socket->resume();
     return SW_OK;
 }
 
