@@ -120,11 +120,10 @@ pid_t swoole_coroutine_wait(int *__stat_loc)
         return wait( __stat_loc);
     }
 
-    pid_t __pid;
     if (!child_processes.empty())
     {
-        unordered_map<int, int>::iterator i = child_processes.begin();
-        __pid = i->first;
+        auto i = child_processes.begin();
+        pid_t __pid = i->first;
         *__stat_loc = i->second;
         child_processes.erase(__pid);
         return __pid;
@@ -132,7 +131,7 @@ pid_t swoole_coroutine_wait(int *__stat_loc)
 
     wait_task task;
     task.co = Coroutine::get_current();;
-    waitpid_map[__pid] = &task;
+    wait_list.push(&task);
     task.co->yield();
     *__stat_loc = task.status;
 

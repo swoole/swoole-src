@@ -74,8 +74,8 @@ long php_swoole_add_timer(long ms, zval *callback, zval *param, int persistent)
         return SW_ERR;
     }
 
-    // no server || task process with async mode || user worker
-    if (!SwooleG.serv || (SwooleG.serv && ((swIsTaskWorker() && SwooleG.serv->task_enable_coroutine) || swIsUserWorker())))
+    // no server || user worker || task process with async mode
+    if (!SwooleG.serv || swIsUserWorker() || (swIsTaskWorker() && SwooleG.serv->task_enable_coroutine))
     {
         php_swoole_check_reactor();
     }
