@@ -617,6 +617,22 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
     p += n;
     *p = 0;
 
+    char real_path[PATH_MAX];
+    if (!realpath(buffer.filename, real_path))
+    {
+        return SW_FALSE;
+    }
+
+    if (real_path[serv->document_root_len] != '/')
+    {
+        return SW_FALSE;
+    }
+
+    if (strncmp(real_path, serv->document_root, serv->document_root_len) != 0)
+    {
+        return SW_FALSE;
+    }
+
     struct stat file_stat;
     if (lstat(buffer.filename, &file_stat) < 0)
     {
