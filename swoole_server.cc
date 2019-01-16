@@ -2813,10 +2813,18 @@ static PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "document_root", v))
     {
         convert_to_string(v);
+
+        if (Z_STRLEN_P(v) >= PATH_MAX)
+        {
+            swoole_php_fatal_error(E_ERROR, "The length of document_root must be less than %d.", PATH_MAX);
+            return;
+        }
+
         if (serv->document_root)
         {
             sw_free(serv->document_root);
         }
+
         serv->document_root = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
         if (serv->document_root[Z_STRLEN_P(v) - 1] == '/')
         {
