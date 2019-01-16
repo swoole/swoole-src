@@ -6,12 +6,13 @@ swoole_atomic: multi wakeup
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager();
-$pm->setWaitTimeout(1);
+$pm->setWaitTimeout(5);
 $s = microtime(true);
 $pm->parentFunc = function () use ($pm, $s) {
     echo "WAKED\n";
     $s = microtime(true) - $s;
     assert($s < 1);
+    usleep(1000);
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
