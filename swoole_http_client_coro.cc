@@ -571,10 +571,9 @@ void http_client::set(zval *zset = nullptr)
         vht = Z_ARRVAL_P(zset);
         if (php_swoole_array_get_value(vht, "timeout", ztmp))
         {
-            convert_to_double(ztmp);
             // backward compatibility
-            connect_timeout = (double) Z_DVAL_P(ztmp);
-            timeout = (double) Z_DVAL_P(ztmp);
+            connect_timeout = zval_get_double(ztmp);
+            timeout = zval_get_double(ztmp);
             if (socket)
             {
                 socket->set_timeout(timeout);
@@ -582,28 +581,23 @@ void http_client::set(zval *zset = nullptr)
         }
         if (php_swoole_array_get_value(vht, "connect_timeout", ztmp))
         {
-            convert_to_double(ztmp);
-            connect_timeout = (double) Z_DVAL_P(ztmp);
+            connect_timeout = zval_get_double(ztmp);
         }
         if (php_swoole_array_get_value(vht, "reconnect", ztmp))
         {
-            convert_to_long(ztmp);
-            reconnect_interval = (uint8_t) MIN(Z_LVAL_P(ztmp), UINT8_MAX);
+            reconnect_interval = (uint8_t) MIN(zval_get_long(ztmp), UINT8_MAX);
         }
         if (php_swoole_array_get_value(vht, "defer", ztmp))
         {
-            convert_to_boolean(ztmp);
-            defer = Z_BVAL_P(ztmp);
+            defer = zval_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
         {
-            convert_to_boolean(ztmp);
-            keep_alive = Z_BVAL_P(ztmp);
+            keep_alive = zval_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "websocket_mask", ztmp))
         {
-            convert_to_boolean(ztmp);
-            websocket_mask = Z_BVAL_P(ztmp);
+            websocket_mask = zval_is_true(ztmp);
         }
     }
     if (socket)

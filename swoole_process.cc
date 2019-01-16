@@ -1071,8 +1071,7 @@ static PHP_METHOD(swoole_process, setaffinity)
     CPU_ZERO(&cpu_set);
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(array), value)
-        convert_to_long(value);
-        if (Z_LVAL_P(value) >= SW_CPU_NUM)
+        if (zval_get_long(value) >= SW_CPU_NUM)
         {
             swoole_php_fatal_error(E_WARNING, "invalid cpu id [%d]", (int) Z_LVAL_P(value));
             RETURN_FALSE;

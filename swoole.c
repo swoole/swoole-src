@@ -379,8 +379,7 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
     zval_ptr_dtor(zdata);
     if (retval)
     {
-        convert_to_long(retval);
-        int length = Z_LVAL_P(retval);
+        ssize_t length = zval_get_long(retval);
         zval_ptr_dtor(retval);
         SwooleG.lock.unlock(&SwooleG.lock);
         return length;
@@ -414,8 +413,7 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *da
     }
     else if (!ZVAL_IS_NULL(retval))
     {
-        convert_to_long(retval);
-        worker_id = (int) Z_LVAL_P(retval);
+        worker_id = (int) zval_get_long(retval);
         if (worker_id >= serv->worker_num)
         {
             swoole_php_fatal_error(E_WARNING, "invalid target worker-id[%d].", worker_id);

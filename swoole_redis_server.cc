@@ -382,8 +382,7 @@ static PHP_METHOD(swoole_redis_server, format)
             goto no_value;
         }
 
-        convert_to_long(value);
-        length = sw_snprintf(message, sizeof(message), ":" ZEND_LONG_FMT "\r\n", Z_LVAL_P(value));
+        length = sw_snprintf(message, sizeof(message), ":" ZEND_LONG_FMT "\r\n", zval_get_long(value));
         RETURN_STRINGL(message, length);
     }
     else if (type == SW_REDIS_REPLY_STRING)

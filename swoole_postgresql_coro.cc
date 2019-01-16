@@ -403,7 +403,7 @@ static  int meta_data_result_parse(pg_object *object)
 
     if (PQresultStatus(pg_result) != PGRES_TUPLES_OK || (num_rows = PQntuples(pg_result)) == 0)
     {
-        php_error_docref(NULL, E_WARNING, "Table doesn't exists");
+        swoole_php_fatal_error(E_WARNING, "Table doesn't exists");
         return  0;
     }
 
@@ -605,7 +605,7 @@ static PHP_METHOD(swoole_postgresql_coro, prepare)
     is_non_blocking = PQisnonblocking(pgsql);
 
     if (is_non_blocking == 0 && PQsetnonblocking(pgsql, 1) == -1) {
-        php_error_docref(NULL, E_NOTICE, "Cannot set connection to nonblocking mode");
+        swoole_php_fatal_error(E_NOTICE, "Cannot set connection to nonblocking mode");
         RETURN_FALSE;
     }
 
@@ -666,7 +666,7 @@ static PHP_METHOD(swoole_postgresql_coro, execute)
     is_non_blocking = PQisnonblocking(pgsql);
 
     if (is_non_blocking == 0 && PQsetnonblocking(pgsql, 1) == -1) {
-        php_error_docref(NULL, E_NOTICE, "Cannot set connection to nonblocking mode");
+        swoole_php_fatal_error(E_NOTICE, "Cannot set connection to nonblocking mode");
         RETURN_FALSE;
     }
 
@@ -689,7 +689,7 @@ static PHP_METHOD(swoole_postgresql_coro, execute)
                 ZVAL_COPY(&tmp_val, tmp);
                 convert_to_string(&tmp_val);
                 if (Z_TYPE(tmp_val) != IS_STRING) {
-                    php_error_docref(NULL, E_WARNING,"Error converting parameter");
+                    swoole_php_fatal_error(E_WARNING,"Error converting parameter");
                     zval_ptr_dtor(&tmp_val);
                     _php_pgsql_free_params(params, num_params);
                     RETURN_FALSE;
@@ -895,7 +895,7 @@ static PHP_METHOD(swoole_postgresql_coro, metaData)
 
     if (table_name_len == 0)
     {
-        php_error_docref(NULL, E_WARNING, "The table name must be specified");
+        swoole_php_fatal_error(E_WARNING, "The table name must be specified");
         RETURN_FALSE;
     }
 
@@ -904,7 +904,7 @@ static PHP_METHOD(swoole_postgresql_coro, metaData)
     if (!tmp_name)
     {
         efree(src);
-        php_error_docref(NULL, E_WARNING, "The table name must be specified");
+        swoole_php_fatal_error(E_WARNING, "The table name must be specified");
         RETURN_FALSE;
     }
     if (!tmp_name2 || !*tmp_name2)
@@ -1008,7 +1008,7 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
         }
         if (!ce)
         {
-            php_error_docref(NULL, E_WARNING, "Could not find class '%s'", ZSTR_VAL(class_name));
+            swoole_php_fatal_error(E_WARNING, "Could not find class '%s'", ZSTR_VAL(class_name));
             return;
         }
         result_type = PGSQL_ASSOC;
@@ -1023,11 +1023,13 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
     if (zrow == NULL)
     {
         row = -1;
-    } else {
-        convert_to_long(zrow);
-        row = Z_LVAL_P(zrow);
-        if (row < 0) {
-            php_error_docref(NULL, E_WARNING, "The row parameter must be greater or equal to zero");
+    }
+    else
+    {
+        row = zval_get_long(zrow);
+        if (row < 0)
+        {
+            swoole_php_fatal_error(E_WARNING, "The row parameter must be greater or equal to zero");
             RETURN_FALSE;
         }
     }
@@ -1035,7 +1037,7 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
 
     if (!(result_type & PGSQL_BOTH))
     {
-        php_error_docref(NULL, E_WARNING, "Invalid result type");
+        swoole_php_fatal_error(E_WARNING, "Invalid result type");
         RETURN_FALSE;
     }
 
@@ -1050,7 +1052,7 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
     {
         if (row < 0 || row >= PQntuples(pgsql_result))
         {
-            php_error_docref(NULL, E_WARNING, "Unable to jump to row " ZEND_LONG_FMT " on PostgreSQL result index " ZEND_LONG_FMT,
+            swoole_php_fatal_error(E_WARNING, "Unable to jump to row " ZEND_LONG_FMT " on PostgreSQL result index " ZEND_LONG_FMT,
                     row, Z_LVAL_P(result));
             RETURN_FALSE;
         }

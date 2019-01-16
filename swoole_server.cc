@@ -2487,13 +2487,13 @@ static PHP_METHOD(swoole_server, set)
     //daemonize
     if (php_swoole_array_get_value(vht, "daemonize", v))
     {
-        serv->daemonize = zend_is_true(v);
+        serv->daemonize = zval_is_true(v);
     }
 #ifdef SW_DEBUG
     //debug
     if (php_swoole_array_get_value(vht, "debug_mode", v))
     {
-        if (zend_is_true(v))
+        if (zval_is_true(v))
         {
             SwooleG.log_level = 0;
         }
@@ -2539,8 +2539,7 @@ static PHP_METHOD(swoole_server, set)
 #ifdef SW_COROUTINE
     if (php_swoole_array_get_value(vht, "enable_coroutine", v))
     {
-        convert_to_boolean(v);
-        serv->enable_coroutine = SwooleG.enable_coroutine = Z_BVAL_P(v);
+        serv->enable_coroutine = SwooleG.enable_coroutine = zval_is_true(v);
     }
     if (php_swoole_array_get_value(vht, "max_coro_num", v) || php_swoole_array_get_value(vht, "max_coroutine", v))
     {
@@ -2550,8 +2549,7 @@ static PHP_METHOD(swoole_server, set)
     }
     if (php_swoole_array_get_value(vht, "send_yield", v))
     {
-        convert_to_boolean(v);
-        serv->send_yield = Z_BVAL_P(v);
+        serv->send_yield = zval_is_true(v);
     }
     if (php_swoole_array_get_value(vht, "send_timeout", v))
     {
@@ -2618,26 +2616,22 @@ static PHP_METHOD(swoole_server, set)
      */
     if (php_swoole_array_get_value(vht, "discard_timeout_request", v))
     {
-        convert_to_boolean(v);
-        serv->discard_timeout_request = (uint32_t) Z_BVAL_P(v);
+        serv->discard_timeout_request = zval_is_true(v);
     }
     //onConnect/onClose event
     if (php_swoole_array_get_value(vht, "enable_unsafe_event", v))
     {
-        convert_to_boolean(v);
-        serv->enable_unsafe_event = Z_BVAL_P(v);
+        serv->enable_unsafe_event = zval_is_true(v);
     }
     //delay receive
     if (php_swoole_array_get_value(vht, "enable_delay_receive", v))
     {
-        convert_to_boolean(v);
-        serv->enable_delay_receive = Z_BVAL_P(v);
+        serv->enable_delay_receive = zval_is_true(v);
     }
     //task coroutine
     if (php_swoole_array_get_value(vht, "task_enable_coroutine", v))
     {
-        convert_to_boolean(v);
-        if (Z_BVAL_P(v))
+        if (zval_is_true(v))
         {
             if (!SwooleG.enable_coroutine)
             {
@@ -2659,13 +2653,11 @@ static PHP_METHOD(swoole_server, set)
     //slowlog
     if (php_swoole_array_get_value(vht, "trace_event_worker", v))
     {
-        convert_to_boolean(v);
-        serv->trace_event_worker = Z_BVAL_P(v);
+        serv->trace_event_worker = zval_is_true(v);
     }
     if (php_swoole_array_get_value(vht, "request_slowlog_timeout", v))
     {
-        convert_to_long(v);
-        serv->request_slowlog_timeout = (uint8_t) Z_LVAL_P(v);
+        serv->request_slowlog_timeout = (uint8_t) zval_get_long(v);
     }
     if (php_swoole_array_get_value(vht, "request_slowlog_file", v))
     {
@@ -2742,14 +2734,12 @@ static PHP_METHOD(swoole_server, set)
     //reload async
     if (php_swoole_array_get_value(vht, "reload_async", v))
     {
-        convert_to_boolean(v);
-        serv->reload_async = Z_BVAL_P(v);
+        serv->reload_async = zval_is_true(v);
     }
     //cpu affinity
     if (php_swoole_array_get_value(vht, "open_cpu_affinity", v))
     {
-        convert_to_boolean(v);
-        serv->open_cpu_affinity = Z_BVAL_P(v);
+        serv->open_cpu_affinity = zval_is_true(v);
     }
     //cpu affinity set
     if (php_swoole_array_get_value(vht, "cpu_affinity_ignore", v))
@@ -2788,15 +2778,13 @@ static PHP_METHOD(swoole_server, set)
     //paser x-www-form-urlencoded form data
     if (php_swoole_array_get_value(vht, "http_parse_post", v))
     {
-        convert_to_boolean(v);
-        serv->http_parse_post = Z_BVAL_P(v);
+        serv->http_parse_post = zval_is_true(v);
     }
 #ifdef SW_HAVE_ZLIB
     //http content compression
     if (php_swoole_array_get_value(vht, "http_compression", v))
     {
-        convert_to_boolean(v);
-        serv->http_compression = Z_BVAL_P(v);
+        serv->http_compression = zval_is_true(v);
         serv->http_compression_level = Z_BEST_SPEED;
     }
     if (php_swoole_array_get_value(vht, "http_gzip_level", v) || php_swoole_array_get_value(vht, "http_compression_level", v))
@@ -2833,8 +2821,7 @@ static PHP_METHOD(swoole_server, set)
      */
     if (php_swoole_array_get_value(vht, "enable_static_handler", v))
     {
-        convert_to_boolean(v);
-        serv->enable_static_handler = Z_BVAL_P(v);
+        serv->enable_static_handler = zval_is_true(v);
     }
     if (php_swoole_array_get_value(vht, "document_root", v))
     {
@@ -3173,8 +3160,8 @@ static PHP_METHOD(swoole_server, send)
         }
     }
 
-    _convert: convert_to_long(zfd);
-    uint32_t fd = (uint32_t) Z_LVAL_P(zfd);
+    uint32_t fd;
+    _convert: fd = (uint32_t) zval_get_long(zfd);
 
     ret = swServer_tcp_send(serv, fd, data, length);
     if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)

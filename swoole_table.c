@@ -410,13 +410,13 @@ static PHP_METHOD(swoole_table, set)
         }
         else if (col->type == SW_TABLE_FLOAT)
         {
-            convert_to_double(v);
-            swTableRow_set_value(row, col, &Z_DVAL_P(v), 0);
+            double _value = zval_get_double(v);
+            swTableRow_set_value(row, col, &_value, 0);
         }
         else
         {
-            convert_to_long(v);
-            swTableRow_set_value(row, col, &Z_LVAL_P(v), 0);
+            long _value = zval_get_long(v);
+            swTableRow_set_value(row, col, &_value, 0);
         }
     }
     (void) ktype;
@@ -479,8 +479,7 @@ static PHP_METHOD(swoole_table, incr)
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
         if (incrby)
         {
-            convert_to_double(incrby);
-            set_value += Z_DVAL_P(incrby);
+            set_value += zval_get_double(incrby);
         }
         else
         {
@@ -495,8 +494,7 @@ static PHP_METHOD(swoole_table, incr)
         memcpy(&set_value, row->data + column->index, column->size);
         if (incrby)
         {
-            convert_to_long(incrby);
-            set_value += Z_LVAL_P(incrby);
+            set_value += zval_get_long(incrby);
         }
         else
         {
@@ -557,8 +555,7 @@ static PHP_METHOD(swoole_table, decr)
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
         if (decrby)
         {
-            convert_to_double(decrby);
-            set_value -= Z_DVAL_P(decrby);
+            set_value -= zval_get_double(decrby);
         }
         else
         {
@@ -573,8 +570,7 @@ static PHP_METHOD(swoole_table, decr)
         memcpy(&set_value, row->data + column->index, column->size);
         if (decrby)
         {
-            convert_to_long(decrby);
-            set_value -= Z_LVAL_P(decrby);
+            set_value -= zval_get_long(decrby);
         }
         else
         {
@@ -904,13 +900,13 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     }
     else if (col->type == SW_TABLE_FLOAT)
     {
-        convert_to_double(value);
-        swTableRow_set_value(row, col, &Z_DVAL_P(value), 0);
+        double _value = zval_get_double(value);
+        swTableRow_set_value(row, col, &_value, 0);
     }
     else
     {
-        convert_to_long(value);
-        swTableRow_set_value(row, col, &Z_LVAL_P(value), 0);
+        long _value = zval_get_double(value);
+        swTableRow_set_value(row, col, &_value, 0);
     }
     swTableRow_unlock(_rowlock);
 

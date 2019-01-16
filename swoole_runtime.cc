@@ -453,7 +453,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
 
     if ((NULL != PHP_STREAM_CONTEXT(stream))
             && (tmpzval = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "socket", "tcp_nodelay")) != NULL
-            && zend_is_true(tmpzval))
+            && zval_is_true(tmpzval))
     {
         tcp_nodelay = 1;
     }
@@ -652,7 +652,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
 
 #ifdef SO_REUSEPORT
             if ((tmpzval = php_stream_context_get_option(ctx, "socket", "so_reuseport")) != NULL
-                    && zend_is_true(tmpzval))
+                    && zval_is_true(tmpzval))
             {
                 setsockopt(sock->get_fd(), SOL_SOCKET, SO_REUSEPORT, (char*) &sockoptval, sizeof(sockoptval));
             }
@@ -660,7 +660,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
 
 #ifdef SO_BROADCAST
             if ((tmpzval = php_stream_context_get_option(ctx, "socket", "so_broadcast")) != NULL
-                    && zend_is_true(tmpzval))
+                    && zval_is_true(tmpzval))
             {
                 setsockopt(sock->get_fd(), SOL_SOCKET, SO_BROADCAST, (char*) &sockoptval, sizeof(sockoptval));
             }

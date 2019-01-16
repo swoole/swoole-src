@@ -2425,8 +2425,7 @@ static PHP_METHOD(swoole_http_response, redirect)
     //status
     if (http_code)
     {
-        convert_to_long(http_code);
-        ctx->response.status = Z_LVAL_P(http_code);
+        ctx->response.status = zval_get_long(http_code);
     }
     else
     {

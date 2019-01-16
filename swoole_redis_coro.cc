@@ -972,16 +972,15 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     zval *zhost, *zport, *ztmp;
     char *host, *pwd;
     size_t host_len, pwd_len;
-    zend_long port;
     struct timeval tv;
 
     zhost = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("host"), 0);
     zport = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("port"), 0);
     convert_to_string(zhost);
-    convert_to_long(zport);
     host = Z_STRVAL_P(zhost);
     host_len = Z_STRLEN_P(zhost);
-    port = Z_LVAL_P(zport);
+
+    zend_long port = zval_get_long(zport);
     if (host_len == 0)
     {
         swoole_php_fatal_error(E_ERROR, "The host is empty.");
@@ -1921,8 +1920,7 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
 
     if (php_swoole_array_get_value(vht, "connect_timeout", ztmp))
     {
-        convert_to_double(ztmp);
-        redis->connect_timeout = (double) Z_DVAL_P(ztmp);
+        redis->connect_timeout = zval_get_double(ztmp);
         if (redis->connect_timeout <= 0)
         {
             redis->connect_timeout = SW_TIMER_MAX_SEC;
@@ -1930,8 +1928,7 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
     }
     if (php_swoole_array_get_value(vht, "timeout", ztmp))
     {
-        convert_to_double(ztmp);
-        redis->timeout = (double) Z_DVAL_P(ztmp);
+        redis->timeout = zval_get_double(ztmp);
         if (backward_compatibility)
         {
             redis->connect_timeout = redis->timeout;
@@ -1951,13 +1948,11 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
     }
     if (php_swoole_array_get_value(vht, "serialize", ztmp))
     {
-        convert_to_boolean(ztmp);
-        redis->serialize = Z_BVAL_P(ztmp);
+        redis->serialize = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "reconnect", ztmp))
     {
-        convert_to_long(ztmp);
-        redis->reconnect_interval = (uint8_t) MIN(Z_LVAL_P(ztmp), UINT8_MAX);
+        redis->reconnect_interval = (uint8_t) MIN(zval_get_long(ztmp), UINT8_MAX);
     }
 }
 
