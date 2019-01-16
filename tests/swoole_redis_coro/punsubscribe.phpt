@@ -47,5 +47,5 @@ go(function () {
 });
 
 ?>
---EXPECT--
-Warning: Swoole\Coroutine\Redis::setDefer(): you should not use setDefer after subscribe in /swoole-src/tests/swoole_redis_coro/punsubscribe.php on line 22
+--EXPECTF--
+Warning: Swoole\Coroutine\Redis::setDefer(): you should not use setDefer after subscribe in %s/tests/swoole_redis_coro/punsubscribe.php on line 22
