@@ -1589,11 +1589,11 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
      */
     if (!ctx->response.reason)
     {
-        n = snprintf(buf, l_buf, "HTTP/1.1 %s\r\n", http_status_message(ctx->response.status));
+        n = sw_snprintf(buf, l_buf, "HTTP/1.1 %s\r\n", http_status_message(ctx->response.status));
     }
     else
     {
-        n = snprintf(buf, l_buf, "HTTP/1.1 %d %s\r\n", ctx->response.status, ctx->response.reason);
+        n = sw_snprintf(buf, l_buf, "HTTP/1.1 %d %s\r\n", ctx->response.status, ctx->response.reason);
     }
     swString_append_ptr(response, buf, n);
 
@@ -1644,7 +1644,7 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
             if (!ZVAL_IS_NULL(value))
             {
                 convert_to_string(value);
-                n = snprintf(buf, l_buf, "%*s: %*s\r\n", keylen - 1, key, (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
+                n = sw_snprintf(buf, l_buf, "%*s: %*s\r\n", keylen - 1, key, (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
                 swString_append_ptr(response, buf, n);
             }
         }
@@ -1681,7 +1681,7 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
     if (!(header_flag & HTTP_HEADER_DATE))
     {
         date_str = sw_php_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0);
-        n = snprintf(buf, l_buf, "Date: %s\r\n", date_str);
+        n = sw_snprintf(buf, l_buf, "Date: %s\r\n", date_str);
         swString_append_ptr(response, buf, n);
         efree(date_str);
     }
@@ -1702,7 +1702,7 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
             body_length = swoole_zlib_buffer->length;
         }
 #endif
-        n = snprintf(buf, l_buf, "Content-Length: %d\r\n", body_length);
+        n = sw_snprintf(buf, l_buf, "Content-Length: %d\r\n", body_length);
         swString_append_ptr(response, buf, n);
     }
 

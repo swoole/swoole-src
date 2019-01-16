@@ -233,7 +233,7 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
 
     char key[1024];
     int request_id = ntohs(header->id);
-    int key_len = snprintf(key, sizeof(key), "%s-%d", _domain_name, request_id);
+    int key_len = sw_snprintf(key, sizeof(key), "%s-%d", _domain_name, request_id);
     swDNS_lookup_request *request = swHashMap_find(request_map, key, key_len);
     if (request == NULL)
     {
@@ -310,7 +310,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         return SW_ERR;
     }
 
-    int key_len = snprintf(key, sizeof(key), "%s-%d", domain, swoole_dns_request_id);
+    int key_len = sw_snprintf(key, sizeof(key), "%s-%d", domain, swoole_dns_request_id);
     if (!request_map)
     {
         request_map = swHashMap_new(128, NULL);

@@ -876,11 +876,8 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
     }
     else
     {
-        char *buffer;
-        size_t size;
-        size = spprintf(&buffer, 0, "%s:%p", host, port);
-        conn_key = string(buffer, size);
-        efree(buffer);
+        size_t size = sw_snprintf(SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->length, "%s:%d", host, port);
+        conn_key = string(SwooleTG.buffer_stack->str, size);
     }
 
     //keep the tcp connection

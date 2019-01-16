@@ -219,6 +219,11 @@ typedef unsigned long ulong_t;
 #endif
 #endif
 
+/**
+ * always return less than size
+ */
+size_t sw_snprintf(char *buf, size_t s, const char *format, ...);
+
 #define SW_MEM_ALIGNED_SIZE(size)               SW_MM_ALIGNED_SIZE_EX(size, 8)
 #define SW_MEM_ALIGNED_SIZE_EX(size, alignment) (((size) + ((alignment) - 1LL)) & ~((alignment) - 1LL))
 
