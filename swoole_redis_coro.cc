@@ -1081,8 +1081,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     }
     if (php_swoole_array_get_value(vht, "database", ztmp))
     {
-        convert_to_long(ztmp);
-        zend_long db_number = Z_LVAL_P(ztmp);
+        zend_long db_number = zval_get_long(ztmp);
         // default is 0, don't need select
         if (db_number > 0 && !redis_select_db(redis, db_number))
         {
