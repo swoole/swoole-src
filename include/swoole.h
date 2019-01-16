@@ -727,7 +727,7 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize)
 #define SW_STRINGCVL(s)    s->str + s->offset, s->length - s->offset
 
 swString *swString_new(size_t size);
-swString *swString_dup(const char *src_str, int length);
+swString *swString_dup(const char *src_str, size_t length);
 swString *swString_dup2(swString *src);
 
 void swString_print(swString *str);
