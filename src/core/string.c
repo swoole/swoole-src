@@ -43,8 +43,8 @@ swString *swString_new(size_t size)
 void swString_print(swString *str)
 {
     printf(
-        "String[length=%d,size=%d,offset=%d]=%.*s\n",
-        (int) str->length, (int) str->size, (int) str->offset, (int) str->length, str->str
+        "String[length=%zu,size=%zu,offset=%zu]=%.*s\n",
+        str->length, str->size, str->offset, (int) str->length, str->str
     );
 }
 
@@ -189,7 +189,7 @@ char* swString_alloc(swString *str, size_t __size)
             return NULL;
         }
     }
-    
+
     char *tmp = str->str + str->length;
     str->length += __size;
     return tmp;
