@@ -16,7 +16,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 
 #include "swoole_http_client.h"
 #include "swoole_coroutine.h"
@@ -737,8 +737,8 @@ bool http_client::send()
     // ============ download ============
     if (z_download_file)
     {
-        convert_to_string(z_download_file);
-        char *download_file_name = Z_STRVAL_P(z_download_file);
+        zend::string str_download_file(z_download_file);
+        char *download_file_name = str_download_file.val();
         zval *z_download_offset = sw_zend_read_property_not_null(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("downloadOffset"), 1);
         off_t download_offset = 0;
         if (z_download_offset)
@@ -775,15 +775,17 @@ bool http_client::send()
     }
 
     // ============ method ============
+    zend::string str_method;
     if (zmethod)
     {
-        convert_to_string(zmethod);
-        method = Z_STRVAL_P(zmethod);
+        str_method = zmethod;
+        method = str_method.val();
     }
     else
     {
         method = (char *) (zbody ? "POST" : "GET");
     }
+
     this->method = swHttp_get_method(method, strlen(method) + 1);
     swString_append_ptr(http_client_buffer, method, strlen(method));
     swString_append_ptr(http_client_buffer, ZEND_STRL(" "));
@@ -840,8 +842,8 @@ bool http_client::send()
             {
                 continue;
             }
-            convert_to_string(value);
-            if ((Z_STRLEN_P(value) == 0) || (strncasecmp(key, ZEND_STRL("Host")) == 0))
+            zend::string _value(value);
+            if ((_value.len() == 0) || (strncasecmp(key, ZEND_STRL("Host")) == 0))
             {
                 continue;
             }
@@ -859,7 +861,7 @@ bool http_client::send()
             {
                 header_flag |= HTTP_HEADER_ACCEPT_ENCODING;
             }
-            http_client_swString_append_headers(http_client_buffer, key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
+            http_client_swString_append_headers(http_client_buffer, key, keylen, _value.val(), _value.len());
         SW_HASHTABLE_FOREACH_END();
     }
     else
@@ -898,8 +900,8 @@ bool http_client::send()
             {
                 continue;
             }
-            convert_to_string(value);
-            if (Z_STRLEN_P(value) == 0)
+            zend::string _value(value);
+            if (_value.len() == 0)
             {
                 continue;
             }
@@ -907,7 +909,7 @@ bool http_client::send()
             swString_append_ptr(http_client_buffer, "=", 1);
 
             int encoded_value_len;
-            encoded_value = sw_php_url_encode(Z_STRVAL_P(value), Z_STRLEN_P(value), &encoded_value_len);
+            encoded_value = sw_php_url_encode(_value.val(), _value.len(), &encoded_value_len);
             if (encoded_value)
             {
                 swString_append_ptr(http_client_buffer, encoded_value, encoded_value_len);
@@ -954,10 +956,10 @@ bool http_client::send()
                 {
                     continue;
                 }
-                convert_to_string(value);
+                zend::string _value(value);
                 //strlen("%.*")*2 = 6
                 //header + body + CRLF
-                content_length += (sizeof(SW_HTTP_FORM_DATA_FORMAT_STRING) - 7) + (sizeof(boundary_str) - 1) + keylen + Z_STRLEN_P(value) + 2;
+                content_length += (sizeof(SW_HTTP_FORM_DATA_FORMAT_STRING) - 7) + (sizeof(boundary_str) - 1) + keylen + _value.len() + 2;
             SW_HASHTABLE_FOREACH_END();
         }
 
@@ -1006,14 +1008,14 @@ bool http_client::send()
                 {
                     continue;
                 }
-                convert_to_string(value);
+                zend::string _value(value);
                 n = sw_snprintf(
                     header_buf, sizeof(header_buf),
                     SW_HTTP_FORM_DATA_FORMAT_STRING, (int)(sizeof(boundary_str) - 1),
                     boundary_str, keylen, key
                 );
                 swString_append_ptr(http_client_buffer, header_buf, n);
-                swString_append_ptr(http_client_buffer, Z_STRVAL_P(value), Z_STRLEN_P(value));
+                swString_append_ptr(http_client_buffer, _value.val(), _value.len());
                 swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
             SW_HASHTABLE_FOREACH_END();
         }
