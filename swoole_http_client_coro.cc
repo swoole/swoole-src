@@ -815,7 +815,7 @@ bool http_client::send()
         }
         size_t proxy_uri_len = uri.length() + _host_len + strlen(pre) + 10;
         char *proxy_uri = (char*) emalloc(proxy_uri_len);
-        proxy_uri_len = snprintf(proxy_uri, proxy_uri_len, "%s%s:%u%s", pre, _host, port, uri.c_str());
+        proxy_uri_len = sw_snprintf(proxy_uri, proxy_uri_len, "%s%s:%u%s", pre, _host, port, uri.c_str());
         uri = std::string(proxy_uri, proxy_uri_len);
         efree(proxy_uri);
     }
@@ -943,7 +943,7 @@ bool http_client::send()
             boundary_str + sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1,
             sizeof(boundary_str) - sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY)
         );
-        n = snprintf(
+        n = sw_snprintf(
             header_buf,
             sizeof(header_buf), "Content-Type: multipart/form-data; boundary=%*s\r\n",
             (int)(sizeof(boundary_str) - 1), boundary_str
@@ -1014,7 +1014,7 @@ bool http_client::send()
                     continue;
                 }
                 convert_to_string(value);
-                n = snprintf(
+                n = sw_snprintf(
                     header_buf, sizeof(header_buf),
                     SW_HTTP_FORM_DATA_FORMAT_STRING, (int)(sizeof(boundary_str) - 1),
                     boundary_str, keylen, key
@@ -1074,7 +1074,7 @@ bool http_client::send()
                 /**
                  * part header
                  */
-                n = snprintf(
+                n = sw_snprintf(
                     header_buf, sizeof(header_buf), SW_HTTP_FORM_DATA_FORMAT_FILE,
                     (int) (sizeof(boundary_str) - 1), boundary_str,
                     (int) Z_STRLEN_P(zname), Z_STRVAL_P(zname),
@@ -1116,7 +1116,7 @@ bool http_client::send()
             SW_HASHTABLE_FOREACH_END();
         }
 
-        n = snprintf(header_buf, sizeof(header_buf), "--%*s--\r\n", (int)(sizeof(boundary_str) - 1), boundary_str);
+        n = sw_snprintf(header_buf, sizeof(header_buf), "--%*s--\r\n", (int)(sizeof(boundary_str) - 1), boundary_str);
         if (socket->send(header_buf, n) < 0)
         {
             goto _send_fail;

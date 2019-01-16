@@ -664,7 +664,7 @@ int swServer_start(swServer *serv)
     //write PID file
     if (serv->pid_file)
     {
-        ret = snprintf(SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size, "%d", getpid());
+        ret = sw_snprintf(SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size, "%d", getpid());
         swoole_file_put_contents(serv->pid_file, SwooleTG.buffer_stack->str, ret);
     }
     if (serv->factory_mode == SW_MODE_BASE)

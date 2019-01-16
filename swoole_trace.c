@@ -138,7 +138,7 @@ size_t trace_print_time(struct timeval *tv, char *timebuf, size_t timebuf_len)
     size_t len;
 
     len = strftime(timebuf, timebuf_len, "[%d-%b-%Y %H:%M:%S", localtime_r((const time_t *) &tv->tv_sec, &t));
-    len += snprintf(timebuf + len, timebuf_len - len, "] ");
+    len += sw_snprintf(timebuf + len, timebuf_len - len, "] ");
     return len;
 }
 

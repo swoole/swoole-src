@@ -2714,7 +2714,7 @@ static PHP_METHOD(swoole_server, set)
             sw_free(SwooleG.task_tmpdir);
         }
         SwooleG.task_tmpdir = (char*) sw_malloc(Z_STRLEN_P(v) + sizeof(SW_TASK_TMP_FILE) + 1);
-        SwooleG.task_tmpdir_len = snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/swoole.task.XXXXXX", Z_STRVAL_P(v)) + 1;
+        SwooleG.task_tmpdir_len = sw_snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/swoole.task.XXXXXX", Z_STRVAL_P(v)) + 1;
     }
     //task_max_request
     if (php_swoole_array_get_value(vht, "task_max_request", v))
