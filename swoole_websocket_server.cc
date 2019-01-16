@@ -317,7 +317,7 @@ static int websocket_handshake(swServer *serv, swListenPort *port, http_context 
     php_swoole_sha1(_buf, Z_STRLEN_P(pData) + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
     // base64
     n = swBase64_encode((unsigned char *) sha1_str, sizeof(sha1_str), encoded_str);
-    n = snprintf(_buf, sizeof(_buf), "Sec-WebSocket-Accept: %.*s\r\n", n, encoded_str);
+    n = sw_snprintf(_buf, sizeof(_buf), "Sec-WebSocket-Accept: %.*s\r\n", n, encoded_str);
 
     swString_append_ptr(swoole_http_buffer, _buf, n);
     swString_append_ptr(swoole_http_buffer, ZEND_STRL("Sec-WebSocket-Version: " SW_WEBSOCKET_VERSION "\r\n"));

@@ -1307,7 +1307,7 @@ static sw_inline void sw_redis_command_var_key(INTERNAL_FUNCTION_PARAMETERS, con
         SW_HASHTABLE_FOREACH_END();
         if (has_timeout)
         {
-            buf_len = snprintf(buf, sizeof(buf), "%ld", timeout);
+            buf_len = sw_snprintf(buf, sizeof(buf), "%ld", timeout);
             SW_REDIS_COMMAND_ARGV_FILL((char* )buf, buf_len);
         }
     }
@@ -1329,7 +1329,7 @@ static sw_inline void sw_redis_command_var_key(INTERNAL_FUNCTION_PARAMETERS, con
             zend_string_release(convert_str);
         }
         if(has_timeout) {
-            buf_len = snprintf(buf, sizeof(buf), ZEND_LONG_FMT, SW_REDIS_COMMAND_ARGS_LVAL(z_args[tail]));
+            buf_len = sw_snprintf(buf, sizeof(buf), ZEND_LONG_FMT, SW_REDIS_COMMAND_ARGS_LVAL(z_args[tail]));
             SW_REDIS_COMMAND_ARGV_FILL((char*)buf, buf_len);
         }
     }
@@ -2483,7 +2483,7 @@ static PHP_METHOD(swoole_redis_coro, hMSet)
     ZEND_HASH_FOREACH_KEY_VAL_IND(Z_ARRVAL_P(z_arr), idx, _key, value) {
         if (_key == NULL)
         {
-            key_len = snprintf(buf, sizeof(buf), "%ld", (long) idx);
+            key_len = sw_snprintf(buf, sizeof(buf), "%ld", (long) idx);
             key = (char*) buf;
         }
         else
@@ -2614,7 +2614,7 @@ static PHP_METHOD(swoole_redis_coro, mSet)
     ZEND_HASH_FOREACH_KEY_VAL_IND(Z_ARRVAL_P(z_args), idx, _key, value) {
         if (_key == NULL)
         {
-            key_len = snprintf(buf, sizeof(buf), "%ld", (long) idx);
+            key_len = sw_snprintf(buf, sizeof(buf), "%ld", (long) idx);
             key = (char*) buf;
         }
         else
@@ -2657,7 +2657,7 @@ static PHP_METHOD(swoole_redis_coro, mSetNx)
     zend_string *_key;
     ZEND_HASH_FOREACH_KEY_VAL_IND(Z_ARRVAL_P(z_args), idx, _key, value) {
         if (_key == NULL) {
-            key_len = snprintf(buf, sizeof(buf), "%ld", (long)idx);
+            key_len = sw_snprintf(buf, sizeof(buf), "%ld", (long)idx);
             key = (char*)buf;
         } else {
             key_len = ZSTR_LEN(_key);
@@ -2880,7 +2880,7 @@ static PHP_METHOD(swoole_redis_coro, sRandMember)
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len);
     if (argc == 3)
     {
-        buf_len = snprintf(buf, sizeof(buf), "%ld", count);
+        buf_len = sw_snprintf(buf, sizeof(buf), "%ld", count);
         SW_REDIS_COMMAND_ARGV_FILL((char *)buf, buf_len);
     }
     redis_request(redis, argc, argv, argvlen, return_value);;
@@ -3187,9 +3187,9 @@ static PHP_METHOD(swoole_redis_coro, zRange)
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
     char buf[32];
     size_t buf_len;
-    buf_len = snprintf(buf, sizeof(buf), "%ld", start);
+    buf_len = sw_snprintf(buf, sizeof(buf), "%ld", start);
     SW_REDIS_COMMAND_ARGV_FILL((char* )buf, buf_len)
-    buf_len = snprintf(buf, sizeof(buf), "%ld", end);
+    buf_len = sw_snprintf(buf, sizeof(buf), "%ld", end);
     SW_REDIS_COMMAND_ARGV_FILL((char* )buf, buf_len)
     if (ws)
     {
@@ -3224,9 +3224,9 @@ static PHP_METHOD(swoole_redis_coro, zRevRange)
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
     char buf[32];
     size_t buf_len;
-    buf_len = snprintf(buf, sizeof(buf), "%ld", start);
+    buf_len = sw_snprintf(buf, sizeof(buf), "%ld", start);
     SW_REDIS_COMMAND_ARGV_FILL((char* )buf, buf_len)
-    buf_len = snprintf(buf, sizeof(buf), "%ld", end);
+    buf_len = sw_snprintf(buf, sizeof(buf), "%ld", end);
     SW_REDIS_COMMAND_ARGV_FILL((char* )buf, buf_len)
     if (ws)
     {
@@ -3821,7 +3821,7 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
     char buf[32];
     size_t buf_len;
     for (j = k; j < argc-1; j += 2) {
-        convert_to_double(SW_REDIS_COMMAND_ARGS_REF(z_args[j])); buf_len = snprintf(buf, sizeof(buf), "%f", SW_REDIS_COMMAND_ARGS_DVAL(z_args[j]));
+        convert_to_double(SW_REDIS_COMMAND_ARGS_REF(z_args[j])); buf_len = sw_snprintf(buf, sizeof(buf), "%f", SW_REDIS_COMMAND_ARGS_DVAL(z_args[j]));
         SW_REDIS_COMMAND_ARGV_FILL((char*)buf, buf_len)
         SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(SW_REDIS_COMMAND_ARGS_REF(z_args[j+1]))
     }

@@ -20,17 +20,17 @@ go(function () use ($sock) {
 go(function () use ($sock, $port) {
     $redis = new Swoole\Coroutine\Redis();
     $redis->connect('127.0.0.1', $port);
-
-    for ($i = 0; $i < MAX_REQUESTS; $i++) {
+    for ($n = 0; $n < MAX_REQUESTS; $n++) {
         $val = $redis->psubscribe(['test.*']);
         assert($val);
-
         $val = $redis->recv();
         assert($val === false);
         assert($redis->connected === false);
-        assert($redis->errType === SWOOLE_REDIS_ERR_EOF);
+        assert(in_array($redis->errType, [SWOOLE_REDIS_ERR_IO, SWOOLE_REDIS_ERR_EOF], true));
+        if ($redis->errType === SWOOLE_REDIS_ERR_IO) {
+            assert($redis->errCode === SOCKET_ECONNRESET);
+        }
     }
-
     $redis->close();
     $sock->close();
 });
