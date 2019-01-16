@@ -97,17 +97,18 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
 static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint32_t length)
 {
     swSendData response;
-    swConnection *conn = swServer_connection_verify(SwooleG.serv, stream->session_id);
+    swDataHead *pkg_info = (swDataHead *) data;
+    swConnection *conn = swServer_connection_verify(SwooleG.serv, pkg_info->fd);
     if (!conn)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists.", stream->session_id);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists.", pkg_info->fd);
         return;
     }
     response.info.fd = conn->session_id;
-    response.info.type = SW_EVENT_TCP;
+    response.info.type = pkg_info->type;
     response.info.len = 0;
-    response.length = length;
-    response.data = data;
+    response.length = length - sizeof(swDataHead);
+    response.data = data + sizeof(swDataHead);
     swServer_master_send(SwooleG.serv, &response);
 }
 
@@ -1217,7 +1218,6 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
             return SW_ERR;
         }
         stream->response = swReactorThread_onStreamResponse;
-        stream->session_id = conn->session_id;
         swListenPort *port = swServer_get_port(serv, conn->fd);
         swStream_set_max_length(stream, port->protocol.package_max_length);
 
@@ -1227,12 +1227,12 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
 
         if (swStream_send(stream, (char*) &task.data.info, sizeof(task.data.info)) < 0)
         {
+            _cancel: stream->cancel = 1;
             return SW_ERR;
         }
         if (swStream_send(stream, data, length) < 0)
         {
-            stream->cancel = 1;
-            return SW_ERR;
+            goto _cancel;
         }
         return SW_OK;
     }

@@ -188,7 +188,6 @@ int swDNSResolver_free();
 typedef struct _swStream
 {
     swString *buffer;
-    uint32_t session_id;
     uint8_t cancel;
     void (*response)(struct _swStream *stream, char *data, uint32_t length);
     swClient client;

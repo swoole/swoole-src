@@ -31,6 +31,31 @@ define reactor_info
     end
 end
 
+define sw_hash_map_list
+    set $hmap = $arg0
+    if $hmap
+        if $hmap->root->hh.tbl->num_items == 0
+            echo "no content\n"
+        else
+            set $running = 1
+            set $it = $hmap->iterator
+            if $it == 0
+               set $it = $hmap->root
+            end
+            while $running
+                
+                set $tmp = (swHashMap_node *)$it->hh.next
+                if $tmp
+                    printf "key_int[%d] key_str:%s data:%p\n", $tmp->key_int, $tmp->key_str, $tmp->data
+                    set $it = $tmp
+                else
+                    set $running = 0
+                end
+            end 
+        end
+    end
+end
+
 define co_list
     call swoole_coro_iterator_reset()
     set $running = 1

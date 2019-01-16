@@ -654,19 +654,19 @@ class ProcessManager
     //等待信息
     public function wait()
     {
-        $this->atomic->wait($this->waitTimeout);
+        return $this->atomic->wait($this->waitTimeout);
     }
 
     //唤醒等待的进程
     public function wakeup()
     {
-        $this->atomic->wakeup();
+        return $this->atomic->wakeup();
     }
 
     public function runParentFunc($pid = 0)
     {
         if (!$this->parentFunc) {
-            return (function () { $this->kill(); })($pid);
+            return (function () { $this->kill(); })();
         } else {
             return call_user_func($this->parentFunc, $pid);
         }
@@ -748,14 +748,9 @@ class ProcessManager
             $this->runChildFunc();
             exit;
         });
-        $childProcess->start();
-        if ($this->parentFirst) {
-            $this->atomic->set(0);
-        }
-        if (!$childProcess) {
+        if (!$childProcess || !$childProcess->start()) {
             exit("ERROR: CAN NOT CREATE PROCESS\n");
         }
-        // child process first, parent wait
         if (!$this->parentFirst) {
             $this->wait();
         }

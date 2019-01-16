@@ -3063,7 +3063,7 @@ static PHP_METHOD(swoole_server, addProcess)
         swoole_php_fatal_error(E_WARNING, "swServer_add_worker failed.");
         RETURN_FALSE;
     }
-    zend_update_property_long(swoole_process_ce_ptr, getThis(), ZEND_STRL("id"), id);
+    zend_update_property_long(swoole_process_ce_ptr, process, ZEND_STRL("id"), id);
     RETURN_LONG(id);
 }
 
