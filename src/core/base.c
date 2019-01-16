@@ -774,6 +774,19 @@ void swBreakPoint()
 
 }
 
+size_t sw_snprintf(char *buf, size_t s, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    size_t tmp_n = vsnprintf(buf, s, format, args);
+    if (tmp_n > s)
+    {
+        tmp_n = s - 1;
+        buf[tmp_n] = '\0';
+    }
+    return tmp_n;
+}
+
 void swoole_ioctl_set_block(int sock, int nonblock)
 {
     int ret;
