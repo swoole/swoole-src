@@ -308,14 +308,12 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
     //buffer: eof check
     if (php_swoole_array_get_value(vht, "open_eof_check", v))
     {
-        convert_to_boolean(v);
-        cli->open_eof_check = Z_BVAL_P(v);
+        cli->open_eof_check = zval_is_true(v);
     }
     //buffer: split package with eof
     if (php_swoole_array_get_value(vht, "open_eof_split", v))
     {
-        convert_to_boolean(v);
-        cli->protocol.split_by_eof = Z_BVAL_P(v);
+        cli->protocol.split_by_eof = zval_is_true(v);
         if (cli->protocol.split_by_eof)
         {
             cli->open_eof_check = 1;
@@ -342,15 +340,13 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
     //open mqtt protocol
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", v))
     {
-        convert_to_boolean(v);
-        cli->open_length_check = Z_BVAL_P(v);
+        cli->open_length_check = zval_is_true(v);
         cli->protocol.get_package_length = swMqtt_get_package_length;
     }
     //open length check
     if (php_swoole_array_get_value(vht, "open_length_check", v))
     {
-        convert_to_boolean(v);
-        cli->open_length_check = Z_BVAL_P(v);
+        cli->open_length_check = zval_is_true(v);
         cli->protocol.get_package_length = swProtocol_get_package_length;
     }
     //package length size
@@ -402,22 +398,19 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
     //package length offset
     if (php_swoole_array_get_value(vht, "package_length_offset", v))
     {
-        convert_to_long(v);
-        cli->protocol.package_length_offset = (int) Z_LVAL_P(v);
+        cli->protocol.package_length_offset = (int) zval_get_long(v);
     }
     //package body start
     if (php_swoole_array_get_value(vht, "package_body_offset", v))
     {
-        convert_to_long(v);
-        cli->protocol.package_body_offset = (int) Z_LVAL_P(v);
+        cli->protocol.package_body_offset = (int) zval_get_long(v);
     }
     /**
      * package max length
      */
     if (php_swoole_array_get_value(vht, "package_max_length", v))
     {
-        convert_to_long(v);
-        cli->protocol.package_max_length = (int) Z_LVAL_P(v);
+        cli->protocol.package_max_length = (int) zval_get_long(v);
     }
     else
     {
@@ -428,8 +421,7 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
      */
     if (php_swoole_array_get_value(vht, "socket_buffer_size", v))
     {
-        convert_to_long(v);
-        value = (int) Z_LVAL_P(v);
+        value = (int) zval_get_long(v);
         if (value <= 0)
         {
             value = SW_MAX_INT;
@@ -450,8 +442,7 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
      */
     if (php_swoole_array_get_value(vht, "bind_port", v))
     {
-        convert_to_long(v);
-        bind_port = (int) Z_LVAL_P(v);
+        bind_port = (int) zval_get_long(v);
     }
     if (bind_address)
     {
@@ -462,8 +453,7 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
      */
     if (php_swoole_array_get_value(vht, "open_tcp_nodelay", v))
     {
-        convert_to_boolean(v);
-        cli->set_tcp_nodelay(Z_BVAL_P(v));
+        cli->set_tcp_nodelay(zval_is_true(v));
     }
     else
     {
@@ -483,8 +473,7 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
 
         if (php_swoole_array_get_value(vht, "socks5_port", v))
         {
-            convert_to_long(v);
-            cli->socks5_proxy->port = Z_LVAL_P(v);
+            cli->socks5_proxy->port = zval_get_long(v);
         }
         else
         {
@@ -514,10 +503,9 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
         char *host = Z_STRVAL_P(v);
         if (php_swoole_array_get_value(vht, "http_proxy_port", v))
         {
-            convert_to_long(v);
             cli->http_proxy = (struct _http_proxy*) ecalloc(1, sizeof(struct _http_proxy));
             cli->http_proxy->proxy_host = estrdup(host);
-            cli->http_proxy->proxy_port = Z_LVAL_P(v);
+            cli->http_proxy->proxy_port = zval_get_long(v);
             if (php_swoole_array_get_value(vht, "http_proxy_user", v))
             {
                 convert_to_string(v);
@@ -543,8 +531,7 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
             //https proxy
             if (php_swoole_array_get_value(vht, "http_proxy_ssl", v))
             {
-                convert_to_boolean(v);
-                cli->http_proxy->ssl = Z_BVAL_P(v);
+                cli->http_proxy->ssl = zval_is_true(v);
             }
         }
         else
@@ -569,13 +556,11 @@ static void sw_coro_socket_set_ssl(Socket *cli, zval *zset)
 
     if (php_swoole_array_get_value(vht, "ssl_method", v))
     {
-        convert_to_long(v);
-        cli->ssl_option.method = (int) Z_LVAL_P(v);
+        cli->ssl_option.method = (int) zval_get_long(v);
     }
     if (php_swoole_array_get_value(vht, "ssl_compress", v))
     {
-        convert_to_boolean(v);
-        cli->ssl_option.disable_compress = !Z_BVAL_P(v);
+        cli->ssl_option.disable_compress = !zval_is_true(v);
     }
     if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
     {
@@ -611,13 +596,11 @@ static void sw_coro_socket_set_ssl(Socket *cli, zval *zset)
 #endif
     if (php_swoole_array_get_value(vht, "ssl_verify_peer", v))
     {
-        convert_to_boolean(v);
-        cli->ssl_option.verify_peer = Z_BVAL_P(v);
+        cli->ssl_option.verify_peer = zval_is_true(v);
     }
     if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", v))
     {
-        convert_to_boolean(v);
-        cli->ssl_option.allow_self_signed = Z_BVAL_P(v);
+        cli->ssl_option.allow_self_signed = zval_is_true(v);
     }
     if (php_swoole_array_get_value(vht, "ssl_cafile", v))
     {
@@ -631,8 +614,7 @@ static void sw_coro_socket_set_ssl(Socket *cli, zval *zset)
     }
     if (php_swoole_array_get_value(vht, "ssl_verify_depth", v))
     {
-        convert_to_long(v);
-        cli->ssl_option.verify_depth = (int) Z_LVAL_P(v);
+        cli->ssl_option.verify_depth = (int) zval_get_long(v);
     }
     if (cli->ssl_option.cert_file && !cli->ssl_option.key_file)
     {

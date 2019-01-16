@@ -112,6 +112,7 @@ enum swErrorCode
     SW_ERROR_SERVER_ONLY_START_ONE,
     SW_ERROR_SERVER_SEND_IN_MASTER,
     SW_ERROR_SERVER_INVALID_REQUEST,
+    SW_ERROR_SERVER_CONNECT_FAIL,
 
     /**
      * Process exit timeout, forced to end.

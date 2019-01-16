@@ -439,24 +439,21 @@ static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *c
          */
         if (php_swoole_array_get_value(vht, "timeout", ztmp))
         {
-            convert_to_double(ztmp);
-            http->timeout = (double) Z_DVAL_P(ztmp);
+            http->timeout = zval_get_double(ztmp);
         }
         /**
          * keep_alive
          */
         if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
         {
-            convert_to_boolean(ztmp);
-            http->keep_alive = Z_BVAL_P(ztmp);
+            http->keep_alive = zval_is_true(ztmp);
         }
         /**
          * websocket mask
          */
         if (php_swoole_array_get_value(vht, "websocket_mask", ztmp))
         {
-            convert_to_boolean(ztmp);
-            http->websocket_mask = (int) Z_BVAL_P(ztmp);
+            http->websocket_mask = zval_is_true(ztmp);
         }
         //client settings
         php_swoole_client_check_setting(http->cli, zset);
@@ -1431,13 +1428,11 @@ static http_client* http_client_create(zval *zobject)
     http->host_len = Z_STRLEN_P(ztmp);
 
     ztmp = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("port"), 0);
-    convert_to_long(ztmp);
-    http->port = Z_LVAL_P(ztmp);
+    http->port = zval_get_long(ztmp);
 
 #ifdef SW_USE_OPENSSL
     ztmp = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("ssl"), 0);
-    convert_to_boolean(ztmp);
-    http->ssl = Z_BVAL_P(ztmp);
+    http->ssl = zval_is_true(ztmp);
 #endif
 
     http->timeout = SW_CLIENT_CONNECT_TIMEOUT;

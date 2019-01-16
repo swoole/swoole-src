@@ -675,8 +675,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     if (php_swoole_array_get_value(_ht, "port", value))
     {
-        convert_to_long(value);
-        connector->port = Z_LVAL_P(value);
+        connector->port = zval_get_long(value);
     }
     else
     {
@@ -720,8 +719,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     if (php_swoole_array_get_value(_ht, "timeout", value))
     {
-        convert_to_double(value);
-        connector->timeout = Z_DVAL_P(value);
+        connector->timeout = zval_get_double(value);
     }
     else
     {
@@ -747,14 +745,12 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 
     if (php_swoole_array_get_value(_ht, "strict_type", value))
     {
-        convert_to_boolean(value);
-        connector->strict_type = Z_BVAL_P(value);
+        connector->strict_type = zval_is_true(value);
     }
 
     if (php_swoole_array_get_value(_ht, "fetch_mode", value))
     {
-        convert_to_boolean(value);
-        connector->fetch_mode = Z_BVAL_P(value);
+        connector->fetch_mode = zval_is_true(value);
     }
 
     swClient *cli = (swClient *) emalloc(sizeof(swClient));

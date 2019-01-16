@@ -986,16 +986,15 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     zval *zhost, *zport, *ztmp;
     char *host, *pwd;
     size_t host_len, pwd_len;
-    zend_long port;
     struct timeval tv;
 
     zhost = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("host"), 0);
     zport = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("port"), 0);
     convert_to_string(zhost);
-    convert_to_long(zport);
     host = Z_STRVAL_P(zhost);
     host_len = Z_STRLEN_P(zhost);
-    port = Z_LVAL_P(zport);
+
+    zend_long port = zval_get_long(zport);
     if (host_len == 0)
     {
         swoole_php_fatal_error(E_ERROR, "The host is empty.");
@@ -1095,8 +1094,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     }
     if (php_swoole_array_get_value(vht, "database", ztmp))
     {
-        convert_to_long(ztmp);
-        zend_long db_number = Z_LVAL_P(ztmp);
+        zend_long db_number = zval_get_long(ztmp);
         // default is 0, don't need select
         if (db_number > 0 && !redis_select_db(redis, db_number))
         {
@@ -1936,8 +1934,7 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
 
     if (php_swoole_array_get_value(vht, "connect_timeout", ztmp))
     {
-        convert_to_double(ztmp);
-        redis->connect_timeout = (double) Z_DVAL_P(ztmp);
+        redis->connect_timeout = zval_get_double(ztmp);
         if (redis->connect_timeout <= 0)
         {
             redis->connect_timeout = SW_TIMER_MAX_SEC;
@@ -1945,8 +1942,7 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
     }
     if (php_swoole_array_get_value(vht, "timeout", ztmp))
     {
-        convert_to_double(ztmp);
-        redis->timeout = (double) Z_DVAL_P(ztmp);
+        redis->timeout = zval_get_double(ztmp);
         if (backward_compatibility)
         {
             redis->connect_timeout = redis->timeout;
@@ -1966,13 +1962,11 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
     }
     if (php_swoole_array_get_value(vht, "serialize", ztmp))
     {
-        convert_to_boolean(ztmp);
-        redis->serialize = Z_BVAL_P(ztmp);
+        redis->serialize = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "reconnect", ztmp))
     {
-        convert_to_long(ztmp);
-        redis->reconnect_interval = (uint8_t) MIN(Z_LVAL_P(ztmp), UINT8_MAX);
+        redis->reconnect_interval = (uint8_t) MIN(zval_get_long(ztmp), UINT8_MAX);
     }
 }
 
@@ -3762,6 +3756,7 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
     int argc = ZEND_NUM_ARGS();
     SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
+
     if (zend_get_parameters_array(ht, argc, z_args) == FAILURE)
     {
         efree(z_args);
@@ -3820,9 +3815,10 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
 
     char buf[32];
     size_t buf_len;
-    for (j = k; j < argc-1; j += 2) {
-        convert_to_double(SW_REDIS_COMMAND_ARGS_REF(z_args[j])); buf_len = sw_snprintf(buf, sizeof(buf), "%f", SW_REDIS_COMMAND_ARGS_DVAL(z_args[j]));
-        SW_REDIS_COMMAND_ARGV_FILL((char*)buf, buf_len)
+    for (j = k; j < argc - 1; j += 2)
+    {
+        buf_len = sw_snprintf(buf, sizeof(buf), "%f", zval_get_double(&z_args[j]));
+        SW_REDIS_COMMAND_ARGV_FILL((char* )buf, buf_len)
         SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(SW_REDIS_COMMAND_ARGS_REF(z_args[j+1]))
     }
     efree(z_args);

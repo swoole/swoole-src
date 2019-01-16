@@ -1210,7 +1210,7 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     task.data.info.time = conn->last_time_usec;
 #endif
 
-    if (serv->dispatch_mode == SW_DISPATCH_STREAM)
+    if (serv->stream_socket)
     {
         swStream *stream = swStream_new(serv->stream_socket, 0, SW_SOCK_UNIX_STREAM);
         if (stream == NULL)

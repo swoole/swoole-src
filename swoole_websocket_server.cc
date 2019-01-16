@@ -167,15 +167,13 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
         zdata = NULL;
         if ((ztmp = sw_zend_read_property(swoole_websocket_frame_ce_ptr, zframe, ZEND_STRL("opcode"), 1)))
         {
-            convert_to_long(ztmp);
-            opcode = Z_LVAL_P(ztmp);
+            opcode = zval_get_long(ztmp);
         }
         if (opcode == WEBSOCKET_OPCODE_CLOSE)
         {
             if ((ztmp = sw_zend_read_property_not_null(swoole_websocket_frame_ce_ptr, zframe, ZEND_STRL("code"), 1)))
             {
-                convert_to_long(ztmp);
-                code = Z_LVAL_P(ztmp);
+                code = zval_get_long(ztmp);
             }
             if ((ztmp = sw_zend_read_property_not_null(swoole_websocket_frame_ce_ptr, zframe, ZEND_STRL("reason"), 1)))
             {
@@ -188,13 +186,11 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
         }
         if ((ztmp = sw_zend_read_property(swoole_websocket_frame_ce_ptr, zframe, ZEND_STRL("finish"), 1)))
         {
-            convert_to_boolean(ztmp);
-            fin = Z_BVAL_P(ztmp);
+            fin = zval_is_true(ztmp);
         }
         if ((ztmp = sw_zend_read_property(swoole_websocket_frame_ce_ptr, zframe, ZEND_STRL("mask"), 1)))
         {
-            convert_to_boolean(ztmp);
-            mask = Z_BVAL_P(ztmp);
+            mask = zval_is_true(ztmp);
         }
     }
     if (unlikely(opcode > SW_WEBSOCKET_OPCODE_MAX))
