@@ -710,33 +710,20 @@ int php_swoole_task_pack(swEventData *task, zval *data)
 
 void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint32_t header_length)
 {
-    char *data_ptr = NULL;
-    uint32_t data_len;
+    char *data = NULL;
 
-    if (req->info.type == SW_EVENT_PACKAGE_END)
-    {
-        swString *worker_buffer = swWorker_get_buffer(SwooleG.serv, req->info.from_id);
-        data_ptr = worker_buffer->str;
-        data_len = worker_buffer->length;
-    }
-    else
-    {
-        data_ptr = req->data;
-        data_len = req->info.len;
-    }
-
-    if (header_length >= data_len)
+    size_t length = swWorker_get_recv_data(req, &data);
+    if (header_length >= length)
     {
         ZVAL_STRING(zdata, "");
     }
     else
     {
-        ZVAL_STRINGL(zdata, data_ptr + header_length, data_len - header_length);
+        ZVAL_STRINGL(zdata, data + header_length, length - header_length);
     }
-
     if (header_length > 0)
     {
-        memcpy(header, data_ptr, header_length);
+        memcpy(header, data, header_length);
     }
 }
 

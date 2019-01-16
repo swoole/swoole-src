@@ -38,31 +38,35 @@ extern "C" {
 enum swEventType
 {
     //networking socket
-    SW_EVENT_TCP             = 0,
-    SW_EVENT_UDP             = 1,
-    SW_EVENT_TCP6            = 2,
-    SW_EVENT_UDP6            = 3,
+    SW_EVENT_TCP,
+    SW_EVENT_UDP,
+    SW_EVENT_TCP6,
+    SW_EVENT_UDP6,
     //tcp event
-    SW_EVENT_CLOSE           = 4,
-    SW_EVENT_CONNECT         = 5,
+    SW_EVENT_CLOSE,
+    SW_EVENT_CONNECT,
     //timer
-    SW_EVENT_TIMER           = 6,
+    SW_EVENT_TIMER,
     //task
-    SW_EVENT_TASK            = 7,
-    SW_EVENT_FINISH          = 8,
+    SW_EVENT_TASK,
+    SW_EVENT_FINISH,
     //package
-    SW_EVENT_PACKAGE_START   = 9,
-    SW_EVENT_PACKAGE_END     = 10,
-    SW_EVENT_PACKAGE         = 11,
-    SW_EVENT_SENDFILE        = 12,
-    SW_EVENT_UNIX_DGRAM      = 13,
-    SW_EVENT_UNIX_STREAM     = 14,
+    SW_EVENT_PACKAGE_START,
+    SW_EVENT_PACKAGE_END,
+    SW_EVENT_PACKAGE,
+    /**
+     * Passing Memory Pointer
+     */
+    SW_EVENT_PACKAGE_PTR,
+    SW_EVENT_SENDFILE,
+    SW_EVENT_UNIX_DGRAM,
+    SW_EVENT_UNIX_STREAM,
     //pipe
-    SW_EVENT_PIPE_MESSAGE    = 15,
+    SW_EVENT_PIPE_MESSAGE,
     //proxy
-    SW_EVENT_PROXY_START     = 16,
-    SW_EVENT_PROXY_END       = 17,
-    SW_EVENT_CONFIRM         = 18,
+    SW_EVENT_PROXY_START,
+    SW_EVENT_PROXY_END,
+    SW_EVENT_CONFIRM,
     //event operate
     SW_EVENT_PAUSE_RECV,
     SW_EVENT_RESUME_RECV,
@@ -260,6 +264,12 @@ typedef struct
     long target_worker_id;
     swEventData data;
 } swDispatchData;
+
+typedef struct
+{
+    swDataHead info;
+    swString data;
+} swPackagePtr;
 
 struct _swFactory
 {
@@ -710,6 +720,7 @@ static sw_inline int swEventData_is_stream(uint8_t type)
     case SW_EVENT_UNIX_STREAM:
     case SW_EVENT_PACKAGE_START:
     case SW_EVENT_PACKAGE:
+    case SW_EVENT_PACKAGE_PTR:
     case SW_EVENT_PACKAGE_END:
     case SW_EVENT_CONNECT:
     case SW_EVENT_CLOSE:
@@ -732,6 +743,7 @@ int swServer_get_socket(swServer *serv, int port);
 int swServer_worker_create(swServer *serv, swWorker *worker);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 void swServer_worker_start(swServer *serv, swWorker *worker);
+
 swString** swServer_create_worker_buffer(swServer *serv);
 int swServer_create_task_worker(swServer *serv);
 void swServer_enable_accept(swReactor *reactor);
@@ -946,6 +958,29 @@ static sw_inline swString *swWorker_get_buffer(swServer *serv, int reactor_id)
     }
 }
 
+static sw_inline size_t swWorker_get_recv_data(swEventData *req, char **data_ptr)
+{
+    size_t length;
+    if (req->info.type == SW_EVENT_PACKAGE_END)
+    {
+        swString *worker_buffer = swWorker_get_buffer(SwooleG.serv, req->info.from_id);
+        *data_ptr = worker_buffer->str;
+        length = worker_buffer->length;
+    }
+    else if (req->info.type == SW_EVENT_PACKAGE_PTR)
+    {
+        swPackagePtr *task = (swPackagePtr *) req;
+        *data_ptr = task->data.str;
+        length = task->data.length;
+    }
+    else
+    {
+        *data_ptr = req->data;
+        length = req->info.len;
+    }
+    return length;
+}
+
 static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv, uint32_t session_id)
 {
     swSession *session = swServer_get_session(serv, session_id);
@@ -1012,6 +1047,8 @@ static sw_inline int swWorker_get_send_pipe(swServer *serv, int session_id, int 
     swWorker *worker = swServer_get_worker(serv, pipe_worker_id);
     return worker->pipe_worker;
 }
+
+size_t  swWorker_get_recv_data(swEventData *req, char **data_ptr);
 
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv);
