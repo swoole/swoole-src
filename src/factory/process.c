@@ -70,6 +70,24 @@ static int swFactoryProcess_start(swFactory *factory)
     int i;
     swServer *serv = factory->ptr;
 
+    if (serv->dispatch_mode == SW_DISPATCH_STREAM)
+    {
+        serv->stream_socket = swoole_string_format(64, "/tmp/swoole.%d.sock", serv->gs->master_pid);
+        if (serv->stream_socket == NULL)
+        {
+            return SW_ERR;
+        }
+        int _reuse_port = SwooleG.reuse_port;
+        SwooleG.reuse_port = 0;
+        serv->stream_fd = swSocket_create_server(SW_SOCK_UNIX_STREAM, serv->stream_socket, 0, 2048);
+        if (serv->stream_fd < 0)
+        {
+            return SW_ERR;
+        }
+        swoole_fcntl_set_option(serv->stream_fd, 1, 1);
+        SwooleG.reuse_port = _reuse_port;
+    }
+
     for (i = 0; i < serv->worker_num; i++)
     {
         if (swServer_worker_create(serv, swServer_get_worker(serv, i)) < 0)
