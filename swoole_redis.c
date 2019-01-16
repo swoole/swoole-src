@@ -228,8 +228,7 @@ static PHP_METHOD(swoole_redis, __construct)
          */
         if (php_swoole_array_get_value(vht, "timeout", ztmp))
         {
-            convert_to_double(ztmp);
-            redis->timeout = (double) Z_DVAL_P(ztmp);
+            redis->timeout = zval_get_double(ztmp);
         }
         /**
          * password
@@ -252,14 +251,13 @@ static PHP_METHOD(swoole_redis, __construct)
          */
         if (php_swoole_array_get_value(vht, "database", ztmp))
         {
-            convert_to_long(ztmp);
-            if (Z_LVAL_P(ztmp) > 1 << 8)
+            if (zval_get_long(ztmp) > 1 << 8)
             {
                 swoole_php_fatal_error(E_WARNING, "redis database number is too big.");
             }
             else
             {
-                redis->database = (int8_t) Z_LVAL_P(ztmp);
+                redis->database = (int8_t) zval_get_long(ztmp);
             }
         }
     }

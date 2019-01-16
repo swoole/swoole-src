@@ -221,17 +221,27 @@ static int swWorker_onStreamClose(swReactor *reactor, swEvent *event)
 static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t length)
 {
     swServer *serv = SwooleG.serv;
-    swEventData *task = (swEventData *) (data + 4);
 
-    swString *package = swWorker_get_buffer(serv, task->info.from_id);
-    uint32_t data_length = length - sizeof(task->info) - 4;
-    //merge data to package buffer
-    swString_append_ptr(package, data + sizeof(task->info) + 4, data_length);
+    /**
+     * passing memory pointer
+     */
+    swPackagePtr task;
+    memcpy(&task.info, data + 4, sizeof(task.info));
+    task.info.type = SW_EVENT_PACKAGE_PTR;
+    bzero(&task.data, sizeof(task.data));
+    task.data.length = length - (uint32_t) sizeof(task.info) - 4;
+    task.data.str = data + 4 + sizeof(task.info);
+
+    /**
+     * do task
+     */
     serv->last_stream_fd = conn->fd;
+    swWorker_onTask(&serv->factory, &task);
+    serv->last_stream_fd = -1;
 
-    swWorker_onTask(&serv->factory, task);
-
-    serv->last_stream_fd  = -1;
+    /**
+     * stream end
+     */
     int _end = 0;
     SwooleG.main_reactor->write(SwooleG.main_reactor, conn->fd, (void *) &_end, sizeof(_end));
 
@@ -257,6 +267,8 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     {
     //no buffer
     case SW_EVENT_TCP:
+    //memory point
+    case SW_EVENT_PACKAGE_PTR:
     //ringbuffer shm package
     case SW_EVENT_PACKAGE:
         //discard data

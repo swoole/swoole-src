@@ -362,55 +362,46 @@ static PHP_METHOD(swoole_coroutine_util, set)
     vht = Z_ARRVAL_P(zset);
     if (php_swoole_array_get_value(vht, "max_coroutine", v))
     {
-        zend_long max_num;
-        convert_to_long(v);
-        max_num = Z_LVAL_P(v);
+        zend_long max_num = zval_get_long(v);
         PHPCoroutine::set_max_num(max_num <= 0 ? SW_DEFAULT_MAX_CORO_NUM : max_num);
     }
     if (php_swoole_array_get_value(vht, "c_stack_size", v) || php_swoole_array_get_value(vht, "stack_size", v))
     {
-        zend_long c_stack_size;
-        convert_to_long(v);
-        c_stack_size = Z_LVAL_P(v);
+        zend_long c_stack_size = zval_get_long(v);
         Coroutine::set_stack_size(c_stack_size);
     }
     if (php_swoole_array_get_value(vht, "socket_connect_timeout", v))
     {
-        convert_to_double(v);
-        if (Z_DVAL_P(v))
+        double _value = zval_get_double(v);
+        if (_value)
         {
-            PHPCoroutine::socket_connect_timeout = (double) Z_DVAL_P(v);
+            PHPCoroutine::socket_connect_timeout = _value;
         }
     }
     if (php_swoole_array_get_value(vht, "socket_timeout", v))
     {
-        convert_to_double(v);
-        if (Z_DVAL_P(v))
+        double _value = zval_get_double(v);
+        if (_value)
         {
-            PHPCoroutine::socket_timeout = (double) Z_DVAL_P(v);
+            PHPCoroutine::socket_timeout = _value;
         }
     }
     if (php_swoole_array_get_value(vht, "log_level", v))
     {
-        zend_long level;
-        convert_to_long(v);
-        level = Z_LVAL_P(v);
+        zend_long level = zval_get_long(v);
         SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
     }
     if (php_swoole_array_get_value(vht, "trace_flags", v))
     {
-        convert_to_long(v);
-        SwooleG.trace_flags = (uint32_t) MAX(0, Z_LVAL_P(v));
+        SwooleG.trace_flags = (uint32_t) MAX(0, zval_get_long(v));
     }
     if (php_swoole_array_get_value(vht, "dns_cache_expire", v))
     {
-        convert_to_long(v);
-        set_dns_cache_expire((time_t) Z_LVAL_P(v));
+        set_dns_cache_expire((time_t) zval_get_long(v));
     }
     if (php_swoole_array_get_value(vht, "dns_cache_capacity", v))
     {
-        convert_to_long(v);
-        set_dns_cache_capacity((size_t) Z_LVAL_P(v));
+        set_dns_cache_capacity((size_t) zval_get_long(v));
     }
     zval_ptr_dtor(zset);
 }

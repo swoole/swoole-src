@@ -1193,8 +1193,7 @@ static PHP_METHOD(swoole_http2_client_coro, connect)
          */
         if (php_swoole_array_get_value(vht, "timeout", ztmp))
         {
-            convert_to_double(ztmp);
-            hcc->timeout = (double) Z_DVAL_P(ztmp);
+            hcc->timeout = zval_get_double(ztmp);
         }
         //client settings
         php_swoole_client_check_setting(hcc->client, zset);

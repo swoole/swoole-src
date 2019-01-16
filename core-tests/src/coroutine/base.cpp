@@ -29,13 +29,16 @@ TEST(coroutine_base, get_current)
 
 TEST(coroutine_base, yield_resume)
 {
+    long _cid;
     long cid = Coroutine::create([](void *arg)
     {
         long cid = Coroutine::get_current_cid();
         Coroutine *co = Coroutine::get_by_cid(cid);
         co->yield();
-    });
+        *(long *) arg = Coroutine::get_current_cid();
+    }, &_cid);
 
     ASSERT_GT(cid, 0);
     Coroutine::get_by_cid(cid)->resume();
+    ASSERT_EQ(cid, _cid);
 }
