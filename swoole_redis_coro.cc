@@ -3750,6 +3750,7 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
     int argc = ZEND_NUM_ARGS();
     SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
+
     if (zend_get_parameters_array(ht, argc, z_args) == FAILURE)
     {
         efree(z_args);
@@ -3808,9 +3809,10 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
 
     char buf[32];
     size_t buf_len;
-    for (j = k; j < argc-1; j += 2) {
-        convert_to_double(SW_REDIS_COMMAND_ARGS_REF(z_args[j])); buf_len = sw_snprintf(buf, sizeof(buf), "%f", SW_REDIS_COMMAND_ARGS_DVAL(z_args[j]));
-        SW_REDIS_COMMAND_ARGV_FILL((char*)buf, buf_len)
+    for (j = k; j < argc - 1; j += 2)
+    {
+        buf_len = sw_snprintf(buf, sizeof(buf), "%f", zval_get_double(&z_args[j]));
+        SW_REDIS_COMMAND_ARGV_FILL((char* )buf, buf_len)
         SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(SW_REDIS_COMMAND_ARGS_REF(z_args[j+1]))
     }
     efree(z_args);
