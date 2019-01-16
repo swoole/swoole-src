@@ -125,7 +125,7 @@ static int mmap_stream_seek(php_stream *stream, off_t offset, int whence, off_t 
             *newoffset = (off_t) -1;
             return -1;
         }
-        res->ptr += offset;
+        res->ptr = res->memory + res->size + offset;
         *newoffset = res->ptr - res->memory;
         return 0;
     default:
