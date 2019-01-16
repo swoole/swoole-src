@@ -252,9 +252,9 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
     {
         worker = swServer_get_worker(serv, i);
         pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_master);
-        pipe_socket->buffer_size = SW_MAX_INT;
+        pipe_socket->buffer_size = INT_MAX;
         pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_worker);
-        pipe_socket->buffer_size = SW_MAX_INT;
+        pipe_socket->buffer_size = INT_MAX;
     }
 
 #ifdef HAVE_SIGNALFD

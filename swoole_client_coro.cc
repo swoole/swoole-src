@@ -429,7 +429,7 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
         value = (int) Z_LVAL_P(v);
         if (value <= 0)
         {
-            value = SW_MAX_INT;
+            value = INT_MAX;
         }
         swSocket_set_buffer_size(cli->socket->fd, value);
         cli->socket->buffer_size = value;

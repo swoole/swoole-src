@@ -906,9 +906,9 @@ PHP_FUNCTION(swoole_async_set)
     {
         convert_to_long(v);
         SwooleG.socket_buffer_size = Z_LVAL_P(v);
-        if (SwooleG.socket_buffer_size <= 0 || SwooleG.socket_buffer_size > SW_MAX_INT)
+        if (SwooleG.socket_buffer_size <= 0 || SwooleG.socket_buffer_size > INT_MAX)
         {
-            SwooleG.socket_buffer_size = SW_MAX_INT;
+            SwooleG.socket_buffer_size = INT_MAX;
         }
     }
     if (php_swoole_array_get_value(vht, "log_level", v))
