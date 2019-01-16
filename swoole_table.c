@@ -905,7 +905,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     }
     else
     {
-        long _value = zval_get_double(value);
+        long _value = zval_get_long(value);
         swTableRow_set_value(row, col, &_value, 0);
     }
     swTableRow_unlock(_rowlock);

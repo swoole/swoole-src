@@ -572,8 +572,7 @@ void http_client::set(zval *zset = nullptr)
         if (php_swoole_array_get_value(vht, "timeout", ztmp))
         {
             // backward compatibility
-            connect_timeout = zval_get_double(ztmp);
-            timeout = zval_get_double(ztmp);
+            timeout = connect_timeout = zval_get_double(ztmp);
             if (socket)
             {
                 socket->set_timeout(timeout);
