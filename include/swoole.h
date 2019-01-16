@@ -1415,30 +1415,14 @@ int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
 static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
 {
     int ret;
-    do
-    {
-        ret = waitpid(__pid, __stat_loc, __options);
-        if (ret < 0 && errno == EINTR)
-        {
-            continue;
-        }
-        break;
-    } while(1);
+    do { ret = waitpid(__pid, __stat_loc, __options); } while (ret < 0 && errno == EINTR);
     return ret;
 }
 
 static sw_inline int swKill(pid_t __pid, int __sig)
 {
     int ret;
-    do
-    {
-        ret = kill(__pid, __sig);
-        if (ret < 0 && errno == EINTR)
-        {
-            continue;
-        }
-        break;
-    } while (1);
+    do { ret = kill(__pid, __sig); } while (ret < 0 && errno == EINTR);
     return ret;
 }
 #endif
