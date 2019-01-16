@@ -612,10 +612,16 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
 
     memcpy(p, serv->document_root, serv->document_root_len);
     p += serv->document_root_len;
-    uint32_t n = params ? params - url : request->url_length;
+    size_t n = params ? params - url : request->url_length;
+
+    if (serv->document_root_len + n >= PATH_MAX)
+    {
+        return SW_FALSE;
+    }
+
     memcpy(p, url, n);
     p += n;
-    *p = 0;
+    *p = '\0';
 
     char real_path[PATH_MAX];
     if (!realpath(buffer.filename, real_path))
