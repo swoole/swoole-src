@@ -82,6 +82,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_recv, 0, 0, 0)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_connect, 0, 0, 1)
+    ZEND_ARG_INFO(0, host)
+    ZEND_ARG_INFO(0, port)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_send, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
     ZEND_ARG_INFO(0, timeout)
@@ -96,12 +102,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_sendto, 0, 0, 3)
     ZEND_ARG_INFO(0, addr)
     ZEND_ARG_INFO(0, port)
     ZEND_ARG_INFO(0, data)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_connect, 0, 0, 1)
-    ZEND_ARG_INFO(0, host)
-    ZEND_ARG_INFO(0, port)
-    ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
@@ -293,6 +293,42 @@ static PHP_METHOD(swoole_socket_coro, accept)
         zend_update_property_long(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
         RETURN_FALSE;
     }
+}
+
+static PHP_METHOD(swoole_socket_coro, connect)
+{
+    char *host;
+    size_t l_host;
+    zend_long port = 0;
+    double timeout = PHPCoroutine::socket_connect_timeout;
+
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STRING(host, l_host)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(port)
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    swoole_get_socket_coro(sock, getThis());
+
+    if (sock->socket->sock_domain == AF_INET6 || sock->socket->sock_domain == AF_INET)
+    {
+        if (ZEND_NUM_ARGS() == 1)
+        {
+            swoole_php_error(E_WARNING, "Socket of type AF_INET/AF_INET6 requires port argument");
+            RETURN_FALSE;
+        }
+        else if (port == 0 || port >= 65536)
+        {
+            swoole_php_error(E_WARNING, "Invalid port argument[" ZEND_LONG_FMT "]", port);
+            RETURN_FALSE;
+        }
+    }
+
+    sock->socket->set_timeout(timeout);
+    bool ret = sock->socket->connect(std::string(host, l_host), port);
+    sock->socket->set_timeout(PHPCoroutine::socket_timeout);
+    RETURN_BOOL(ret);
 }
 
 static PHP_METHOD(swoole_socket_coro, recv)
@@ -529,42 +565,6 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
         swoole_php_error(E_WARNING, "Unsupported address family %d", sock->socket->sock_domain);
         RETURN_FALSE;
     }
-}
-
-static PHP_METHOD(swoole_socket_coro, connect)
-{
-    char *host;
-    size_t l_host;
-    zend_long port = 0;
-    double timeout = PHPCoroutine::socket_connect_timeout;
-
-    ZEND_PARSE_PARAMETERS_START(1, 3)
-        Z_PARAM_STRING(host, l_host)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_LONG(port)
-        Z_PARAM_DOUBLE(timeout)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    swoole_get_socket_coro(sock, getThis());
-
-    if (sock->socket->sock_domain == AF_INET6 || sock->socket->sock_domain == AF_INET)
-    {
-        if (ZEND_NUM_ARGS() == 1)
-        {
-            swoole_php_error(E_WARNING, "Socket of type AF_INET/AF_INET6 requires port argument");
-            RETURN_FALSE;
-        }
-        else if (port == 0 || port >= 65536)
-        {
-            swoole_php_error(E_WARNING, "Invalid port argument[" ZEND_LONG_FMT "]", port);
-            RETURN_FALSE;
-        }
-    }
-
-    sock->socket->set_timeout(timeout);
-    bool ret = sock->socket->connect(std::string(host, l_host), port);
-    sock->socket->set_timeout(PHPCoroutine::socket_timeout);
-    RETURN_BOOL(ret);
 }
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
