@@ -94,17 +94,16 @@ function phpt_var_dump(...$args)
     }
 }
 
-function httpCoroGet(string $uri)
+function httpCoroGet(string $uri, array $options = [])
 {
     $url_info = parse_url($uri);
     $domain = $url_info['host'];
     $path = $url_info['path'] ?? null ?: '/';
     $port = (int)($url_info['port'] ?? null ?: 80);
     $cli = new Swoole\Coroutine\Http\Client($domain, $port, $port == 443);
-    $cli->set(['timeout' => 5]);
+    $cli->set($options + ['timeout' => 5]);
     $cli->setHeaders(['Host' => $domain]);
     $cli->get($path);
-
     return $cli->body;
 }
 
