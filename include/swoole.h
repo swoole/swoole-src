@@ -818,7 +818,7 @@ typedef struct
 {
     off_t offset;
     size_t length;
-    char filename[];
+    char filename[0];
 } swSendFile_request;
 
 typedef void * (*swThreadStartFunc)(void *);
