@@ -409,7 +409,7 @@ http_client::http_client(zval* zobject, std::string host, zend_long port, zend_b
     // check host
     if (host.length() == 0)
     {
-        swoole_php_fatal_error(E_ERROR, "host is empty.");
+        swoole_php_fatal_error(E_WARNING, "host is empty.");
         return;
     }
     if (host.compare(0, 6, "unix:/", 0, 6) == 0)
@@ -426,14 +426,6 @@ http_client::http_client(zval* zobject, std::string host, zend_long port, zend_b
     {
         socket_type = SW_SOCK_TCP;
     }
-    if (socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_TCP6)
-    {
-        if (port <= 0 || port > SW_CLIENT_MAX_PORT)
-        {
-            swoole_php_fatal_error(E_ERROR, "The port " ZEND_LONG_FMT " is invaild.", port);
-            return;
-        }
-    }
     this->host = host;
     this->port = port;
 #ifdef SW_USE_OPENSSL
@@ -441,7 +433,7 @@ http_client::http_client(zval* zobject, std::string host, zend_long port, zend_b
 #else
     if (ssl)
     {
-        swoole_php_fatal_error(E_ERROR, "need to use `--enable-openssl` to support ssl when compiling swoole.");
+        swoole_php_fatal_error(E_ERROR, "Need to use `--enable-openssl` to support ssl when compiling swoole.");
         return;
     }
 #endif
@@ -689,7 +681,7 @@ bool http_client::send()
 
     if (uri.length() == 0)
     {
-        swoole_php_fatal_error(E_ERROR, "path is empty.");
+        swoole_php_fatal_error(E_WARNING, "path is empty.");
         return false;
     }
 

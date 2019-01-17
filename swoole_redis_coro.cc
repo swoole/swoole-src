@@ -986,6 +986,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     zval *zhost, *zport, *ztmp;
     char *host, *pwd;
     size_t host_len, pwd_len;
+    zend_long port;
     struct timeval tv;
 
     zhost = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("host"), 0);
@@ -993,11 +994,11 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     convert_to_string(zhost);
     host = Z_STRVAL_P(zhost);
     host_len = Z_STRLEN_P(zhost);
+    port = zval_get_long(zport);
 
-    zend_long port = zval_get_long(zport);
     if (host_len == 0)
     {
-        swoole_php_fatal_error(E_ERROR, "The host is empty.");
+        swoole_php_fatal_error(E_WARNING, "The host is empty.");
         return false;
     }
 
@@ -1039,7 +1040,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     {
         if (port <= 0 || port > SW_CLIENT_MAX_PORT)
         {
-            swoole_php_fatal_error(E_ERROR, "The port " ZEND_LONG_FMT " is invaild.", port);
+            swoole_php_fatal_error(E_WARNING, "The port " ZEND_LONG_FMT " is invalid.", port);
             return false;
         }
         context = redisConnectWithTimeout(host, (int) port, tv);

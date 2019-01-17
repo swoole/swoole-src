@@ -43,7 +43,6 @@ enum swSocks5_method
 typedef struct _swSocks5
 {
     char *host;
-    int l_host;
     int port;
 
     uint8_t state;
@@ -51,16 +50,16 @@ typedef struct _swSocks5
     uint8_t method;
     uint8_t dns_tunnel;
 
-    char *password;
     char *username;
+    char *password;
+    uint16_t l_username;
+    uint16_t l_password;
+
     char *target_host;
     int target_port;
-    int l_target_host;
-    int l_username;
-    int l_password;
+    uint16_t l_target_host;
 
     char buf[600];
-
 } swSocks5;
 
 static sw_inline void swSocks5_pack(char *buf, int method)

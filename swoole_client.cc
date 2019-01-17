@@ -661,70 +661,72 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
      */
     if (php_swoole_array_get_value(vht, "socks5_host", v))
     {
-        zend::string _v(v);
-        cli->socks5_proxy = (struct _swSocks5 *) emalloc(sizeof(swSocks5));
-        bzero(cli->socks5_proxy, sizeof(swSocks5));
-        cli->socks5_proxy->host = estrdup(_v.val());
-        cli->socks5_proxy->dns_tunnel = 1;
-
+        zend::string host(v);
         if (php_swoole_array_get_value(vht, "socks5_port", v))
         {
+            cli->socks5_proxy = (struct _swSocks5 *) ecalloc(1, sizeof(swSocks5));
+            cli->socks5_proxy->host = estrdup(host.val());
             cli->socks5_proxy->port = zval_get_long(v);
+            cli->socks5_proxy->dns_tunnel = 1;
+            if (php_swoole_array_get_value(vht, "socks5_username", v))
+            {
+                zend::string username(v);
+                if (php_swoole_array_get_value(vht, "socks5_password", v))
+                {
+                    zend::string password(v);
+                    cli->socks5_proxy->method = 0x02;
+                    cli->socks5_proxy->username = username.val();
+                    cli->socks5_proxy->l_username = username.len();
+                    cli->socks5_proxy->password = password.val();
+                    cli->socks5_proxy->l_password = password.len();
+                }
+                else
+                {
+                    swoole_php_fatal_error(E_WARNING, "socks5_password should not be null.");
+                }
+            }
         }
         else
         {
-            swoole_php_fatal_error(E_ERROR, "socks5 proxy require server port option.");
-            return;
-        }
-        if (php_swoole_array_get_value(vht, "socks5_username", v))
-        {
-            zend::string _v(v);
-            cli->socks5_proxy->username = estrdup(_v.val());
-            cli->socks5_proxy->l_username = _v.len();
-            cli->socks5_proxy->method = 0x02;
-        }
-        if (php_swoole_array_get_value(vht, "socks5_password", v))
-        {
-            zend::string _v(v);
-            cli->socks5_proxy->password = estrdup(_v.val());
-            cli->socks5_proxy->l_password = _v.len();
+            swoole_php_fatal_error(E_WARNING, "socks5_port should not be null.");
         }
     }
-    if (php_swoole_array_get_value(vht, "http_proxy_host", v))
+    /**
+     * http proxy
+     */
+    else if (php_swoole_array_get_value(vht, "http_proxy_host", v))
     {
-        zend::string _v(v);
+        zend::string host(v);
         if (php_swoole_array_get_value(vht, "http_proxy_port", v))
         {
             cli->http_proxy = (struct _http_proxy*) ecalloc(1, sizeof(struct _http_proxy));
-            cli->http_proxy->proxy_host = estrdup(_v.val());
+            cli->http_proxy->proxy_host = estrdup(host.val());
             cli->http_proxy->proxy_port = zval_get_long(v);
-        }
-        else
-        {
-            swoole_php_fatal_error(E_WARNING, "http_proxy_port can not be null.");
-        }
-    }
-    if (php_swoole_array_get_value(vht, "http_proxy_user", v) && cli->http_proxy)
-    {
-        zend::string _v(v);
-        zval *v2;
-        if (php_swoole_array_get_value(vht, "http_proxy_password", v2))
-        {
-            zend::string _v2(v2);
-            if (_v.len() + _v2.len() >= 128 - 1)
+            if (php_swoole_array_get_value(vht, "http_proxy_username", v) || php_swoole_array_get_value(vht, "http_proxy_user", v))
             {
-                swoole_php_fatal_error(E_WARNING, "http_proxy user and password is too long.");
+                zend::string username(v);
+                if (php_swoole_array_get_value(vht, "http_proxy_password", v))
+                {
+                    zend::string password(v);
+                    cli->http_proxy->user = estrdup(username.val());
+                    cli->http_proxy->l_user = username.len();
+                    cli->http_proxy->password = estrdup(password.val());
+                    cli->http_proxy->l_password = password.len();
+                }
+                else
+                {
+                    swoole_php_fatal_error(E_WARNING, "http_proxy_password should not be null.");
+                }
             }
-            cli->http_proxy->l_user = _v.len();
-            cli->http_proxy->l_password = _v2.len();
-            cli->http_proxy->user = estrdup(_v.val());
-            cli->http_proxy->password = estrdup(_v2.val());
         }
         else
         {
-            swoole_php_fatal_error(E_WARNING, "http_proxy_password can not be null.");
+            swoole_php_fatal_error(E_WARNING, "http_proxy_port should not be null.");
         }
     }
+    /**
+     * ssl
+     */
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl)
     {
@@ -1028,7 +1030,7 @@ static PHP_METHOD(swoole_client, connect)
 
     if (host_len == 0)
     {
-        swoole_php_fatal_error(E_ERROR, "The host is empty.");
+        swoole_php_fatal_error(E_WARNING, "The host is empty.");
         RETURN_FALSE;
     }
 
