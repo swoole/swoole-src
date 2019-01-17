@@ -274,24 +274,6 @@ bool Socket::http_proxy_handshake()
     return false;
 }
 
-static inline int socket_connect(int fd, const struct sockaddr *addr, socklen_t len)
-{
-    int retval;
-    while (1)
-    {
-        retval = ::connect(fd, addr, len);
-        if (retval < 0)
-        {
-            if (errno == EINTR)
-            {
-                continue;
-            }
-        }
-        break;
-    }
-    return retval;
-}
-
 void Socket::init_sock()
 {
 #ifdef SOCK_CLOEXEC
@@ -404,8 +386,11 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
     {
         return false;
     }
-    int retval = socket_connect(socket->fd, addr, addrlen);
-    if (retval == -1)
+    int retval;
+    do {
+        retval = ::connect(socket->fd, addr, addrlen);
+    } while (retval < 0 && errno == EINTR);
+    if (retval < 0)
     {
         if (errno != EINPROGRESS)
         {
@@ -416,7 +401,6 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
         {
             return false;
         }
-        //Connection is closed
         if (socket->closed)
         {
             set_err(ECONNABORTED);
@@ -429,8 +413,8 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
             return false;
         }
     }
-    set_err(0);
     socket->active = 1;
+    set_err(0);
     return true;
 }
 
