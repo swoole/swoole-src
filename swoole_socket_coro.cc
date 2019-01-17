@@ -51,9 +51,10 @@ static PHP_METHOD(swoole_socket_coro, recv);
 static PHP_METHOD(swoole_socket_coro, send);
 static PHP_METHOD(swoole_socket_coro, recvfrom);
 static PHP_METHOD(swoole_socket_coro, sendto);
-static PHP_METHOD(swoole_socket_coro, getpeername);
-static PHP_METHOD(swoole_socket_coro, getsockname);
+static PHP_METHOD(swoole_socket_coro, shutdown);
 static PHP_METHOD(swoole_socket_coro, close);
+static PHP_METHOD(swoole_socket_coro, getsockname);
+static PHP_METHOD(swoole_socket_coro, getpeername);
 #ifdef SWOOLE_SOCKETS_SUPPORT
 static PHP_METHOD(swoole_socket_coro, getSocket);
 #endif
@@ -104,32 +105,41 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_sendto, 0, 0, 3)
     ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_shutdown, 0, 0, 1)
+    ZEND_ARG_INFO(0, how)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry swoole_socket_coro_methods[] =
 {
     PHP_ME(swoole_socket_coro, __construct, arginfo_swoole_socket_coro_construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, bind, arginfo_swoole_socket_coro_bind, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, listen, arginfo_swoole_socket_coro_listen, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, accept, arginfo_swoole_socket_coro_accept, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, connect, arginfo_swoole_socket_coro_connect, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, recv, arginfo_swoole_socket_coro_recv, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, send, arginfo_swoole_socket_coro_send, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, recvfrom, arginfo_swoole_socket_coro_recvfrom, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, sendto, arginfo_swoole_socket_coro_sendto, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, getpeername, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, getsockname, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, bind,        arginfo_swoole_socket_coro_bind,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, listen,      arginfo_swoole_socket_coro_listen,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, accept,      arginfo_swoole_socket_coro_accept,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, connect,     arginfo_swoole_socket_coro_connect,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, recv,        arginfo_swoole_socket_coro_recv,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, send,        arginfo_swoole_socket_coro_send,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, recvfrom,    arginfo_swoole_socket_coro_recvfrom,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, sendto,      arginfo_swoole_socket_coro_sendto,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, shutdown,    arginfo_swoole_socket_coro_shutdown,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, close,       arginfo_swoole_void,                  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, getpeername, arginfo_swoole_void,                  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, getsockname, arginfo_swoole_void,                  ZEND_ACC_PUBLIC)
 #ifdef SWOOLE_SOCKETS_SUPPORT
-    PHP_ME(swoole_socket_coro, getSocket, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, getSocket,   arginfo_swoole_void,                  ZEND_ACC_PUBLIC)
 #endif
-    PHP_ME(swoole_socket_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
 #define SW_BAD_SOCKET ((Socket *)-1)
 #define swoole_get_socket_coro(_sock, _zobject) \
-        socket_coro* _sock = _swoole_get_socket_coro(_zobject); \
+        socket_coro* _sock = swoole_socket_coro_fetch_object(Z_OBJ_P(_zobject)); \
+        if (UNEXPECTED(!sock->socket)) \
+        { \
+            swoole_php_fatal_error(E_ERROR, "you must call Socket constructor first."); \
+        } \
         if (UNEXPECTED(_sock->socket == SW_BAD_SOCKET)) { \
             zend_update_property_long(swoole_socket_coro_ce_ptr, _zobject, ZEND_STRL("errCode"), EBADF); \
             RETURN_FALSE; \
@@ -138,16 +148,6 @@ static const zend_function_entry swoole_socket_coro_methods[] =
 static sw_inline socket_coro* swoole_socket_coro_fetch_object(zend_object *obj)
 {
     return (socket_coro *) ((char *) obj - swoole_socket_coro_handlers.offset);
-}
-
-static sw_inline socket_coro* _swoole_get_socket_coro(zval *zobject)
-{
-    socket_coro *sock = swoole_socket_coro_fetch_object(Z_OBJ_P(zobject));
-    if (UNEXPECTED(!sock->socket))
-    {
-        swoole_php_fatal_error(E_ERROR, "you must call Socket constructor first.");
-    }
-    return sock;
 }
 
 static void swoole_socket_coro_free_object(zend_object *object)
@@ -484,11 +484,33 @@ static PHP_METHOD(swoole_socket_coro, sendto)
     }
 }
 
+static PHP_METHOD(swoole_socket_coro, shutdown)
+{
+    zend_long how = SHUT_RDWR;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(how)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    swoole_get_socket_coro(sock, getThis());
+    bool ret = sock->socket->shutdown(how);
+    if (!ret)
+    {
+        zend_update_property_long(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
+    }
+    RETURN_BOOL(ret);
+}
+
 static PHP_METHOD(swoole_socket_coro, close)
 {
     swoole_get_socket_coro(sock, getThis());
     bool ret = sock->socket->close();
     sock->socket = SW_BAD_SOCKET;
+    if (!ret)
+    {
+        zend_update_property_long(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
+    }
     RETURN_BOOL(ret);
 }
 
