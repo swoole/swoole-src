@@ -205,7 +205,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
         send_n -= buf.info.len;
         offset += buf.info.len;
 
-        swTrace("dispatch, type=%d|len=%d", task.data.info.type, task.data.info.len);
+        swTrace("dispatch, type=%d|len=%d", buf.info.type, buf.info.len);
 
         if (swReactorThread_send2worker(serv, &buf, sizeof(buf.info) + buf.info.len, target_worker_id) < 0)
         {
