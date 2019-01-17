@@ -292,9 +292,6 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
     zval *v;
     int value = 1;
 
-    char *bind_address = NULL;
-    int bind_port = 0;
-
     vht = Z_ARRVAL_P(zset);
 
     //buffer: eof check
@@ -426,18 +423,14 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
      */
     if (php_swoole_array_get_value(vht, "bind_port", v))
     {
-        bind_port = (int) zval_get_long(v);
-    }
-    /**
-     * bind address
-     */
-    if (php_swoole_array_get_value(vht, "bind_address", v))
-    {
-        zend::string str_v(v);
-        bind_address = str_v.val();
-        if (bind_address)
+        int bind_port = (int) zval_get_long(v);
+        /**
+         * bind address
+         */
+        if (php_swoole_array_get_value(vht, "bind_address", v))
         {
-            swSocket_bind(cli->socket->fd, cli->type, bind_address, &bind_port);
+            zend::string str_v(v);
+            swSocket_bind(cli->socket->fd, cli->type, str_v.val(), &bind_port);
         }
     }
     /**

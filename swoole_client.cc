@@ -481,8 +481,6 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
     zval *v;
     int value = 1;
 
-    int bind_port = 0;
-
     vht = Z_ARRVAL_P(zset);
 
     //buffer: eof check
@@ -624,15 +622,15 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
      */
     if (php_swoole_array_get_value(vht, "bind_port", v))
     {
-        bind_port = (int) zval_get_long(v);
-    }
-    /**
-     * bind address
-     */
-    if (php_swoole_array_get_value(vht, "bind_address", v))
-    {
-        zend::string _v(v);
-        swSocket_bind(cli->socket->fd, cli->type, _v.val(), &bind_port);
+        int bind_port = (int) zval_get_long(v);
+        /**
+         * bind address
+         */
+        if (php_swoole_array_get_value(vht, "bind_address", v))
+        {
+            zend::string str_v(v);
+            swSocket_bind(cli->socket->fd, cli->type, str_v.val(), &bind_port);
+        }
     }
     /**
      * client: tcp_nodelay
