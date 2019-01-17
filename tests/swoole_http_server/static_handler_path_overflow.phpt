@@ -8,18 +8,9 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
-    go (function () {
-        $cli = new \Co\Client(SWOOLE_TCP);
-        $ret = $cli->connect('127.0.0.1', $pm->getFreePort());
-        assert($ret);
-
-        $ret = $cli->send("GET /" . str_repeat('a', 8192) . " HTTP/1.1\r\n\r\n");
-        assert($ret);
-
-        $ret = $cli->recv();
-        assert(strpos($ret, 'swoole_test') !== false);
-        $pm->kill();
-    });
+    $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/" . str_repeat('a', 8192));
+    assert($data == 'swoole_test');
+    $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
