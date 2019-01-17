@@ -1462,13 +1462,13 @@ static PHP_METHOD(swoole_http_client, __construct)
 
     if (host_len == 0)
     {
-        swoole_php_fatal_error(E_ERROR, "host is empty.");
+        swoole_php_fatal_error(E_WARNING, "host is empty.");
         RETURN_FALSE;
     }
 
     if (port <= 0 || port > SW_CLIENT_MAX_PORT)
     {
-        swoole_php_fatal_error(E_ERROR, "invalid port.");
+        swoole_php_fatal_error(E_WARNING, "invalid port.");
         RETURN_FALSE;
     }
 

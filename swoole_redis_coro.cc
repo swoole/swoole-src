@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole_cxx.h"
+#include "php_swoole.h"
 #include "swoole_coroutine.h"
 #include "socket.h"
 
@@ -986,19 +986,19 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     zval *zhost, *zport, *ztmp;
     char *host, *pwd;
     size_t host_len, pwd_len;
+    zend_long port;
     struct timeval tv;
 
     zhost = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("host"), 0);
     zport = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("port"), 0);
+    convert_to_string(zhost);
+    host = Z_STRVAL_P(zhost);
+    host_len = Z_STRLEN_P(zhost);
+    port = zval_get_long(zport);
 
-    zend::string str_zhost(zhost);
-    host = str_zhost.val();
-    host_len = str_zhost.len();
-
-    zend_long port = zval_get_long(zport);
     if (host_len == 0)
     {
-        swoole_php_fatal_error(E_ERROR, "The host is empty.");
+        swoole_php_fatal_error(E_WARNING, "The host is empty.");
         return false;
     }
 
@@ -1040,7 +1040,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     {
         if (port <= 0 || port > SW_CLIENT_MAX_PORT)
         {
-            swoole_php_fatal_error(E_ERROR, "The port " ZEND_LONG_FMT " is invaild.", port);
+            swoole_php_fatal_error(E_WARNING, "The port " ZEND_LONG_FMT " is invalid.", port);
             return false;
         }
         context = redisConnectWithTimeout(host, (int) port, tv);
@@ -1084,9 +1084,9 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
 
     if (php_swoole_array_get_value(vht, "password", ztmp))
     {
-        zend::string str_ztmp(ztmp);
-        pwd = str_ztmp.val();
-        pwd_len = str_ztmp.len();
+        convert_to_string(ztmp);
+        pwd = Z_STRVAL_P(ztmp);
+        pwd_len = Z_STRLEN_P(ztmp);
         if (pwd_len > 0 && !redis_auth(redis, pwd, pwd_len))
         {
             swoole_redis_coro_close(redis);
@@ -2508,12 +2508,11 @@ static PHP_METHOD(swoole_redis_coro, hSetNx)
     int i = 0;
     size_t argvlen[4];
     char *argv[4];
-
-    zend::string str_z_val(z_val);
+    convert_to_string(z_val);
     SW_REDIS_COMMAND_ARGV_FILL("HSETNX", 6)
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
     SW_REDIS_COMMAND_ARGV_FILL(field, field_len)
-    SW_REDIS_COMMAND_ARGV_FILL(str_z_val.val(), str_z_val.len())
+    SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_val), Z_STRLEN_P(z_val))
 
     redis_request(redis, 4, argv, argvlen, return_value);
 }
@@ -3297,7 +3296,7 @@ static PHP_METHOD(swoole_redis_coro, zUnion)
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
     char buf[32];
     size_t buf_len;
-    buf_len = sprintf(buf, "%zd", keys_count);
+    buf_len = sprintf(buf, "%zu", keys_count);
     SW_REDIS_COMMAND_ARGV_FILL(buf, buf_len)
 
     // Process input keys
@@ -3414,7 +3413,7 @@ static PHP_METHOD(swoole_redis_coro, zInter)
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
     char buf[32];
     size_t buf_len;
-    buf_len = sprintf(buf, "%zd", keys_count);
+    buf_len = sprintf(buf, "%zu", keys_count);
     SW_REDIS_COMMAND_ARGV_FILL(buf, buf_len)
 
     // Process input keys

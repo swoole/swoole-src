@@ -225,7 +225,7 @@ void swPort_clear_protocol(swListenPort *ls)
 
 static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *event)
 {
-    int n;
+    ssize_t n;
     swConnection *conn = event->socket;
     char *buffer = SwooleTG.buffer_stack->str;
 
@@ -239,21 +239,21 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
             return SW_OK;
         case SW_CLOSE:
             conn->close_errno = errno;
-            goto close_fd;
+            goto _close_fd;
         default:
             return SW_OK;
         }
     }
     else if (n == 0)
     {
-        close_fd: swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
+        _close_fd:
+        swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
         return SW_OK;
     }
     else
     {
         return swReactorThread_dispatch(conn, buffer, n);
     }
-    return SW_OK;
 }
 
 static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, swEvent *event)
@@ -513,8 +513,10 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             }
             else
             {
-                swTrace("PostWait: request->content_length=%d, buffer->length=%zd, request->header_length=%d\n",
-                        request->content_length, buffer->length, request->header_length);
+                swTraceLog(
+                    SW_TRACE_SERVER, "PostWait: request->content_length=%d, buffer->length=%zu, request->header_length=%d\n",
+                    request->content_length, buffer->length, request->header_length
+                );
             }
 #endif
             goto recv_data;

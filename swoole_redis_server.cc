@@ -14,10 +14,12 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole_cxx.h"
+#include "php_swoole.h"
 #include "redis.h"
 
+#ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
+#endif
 BEGIN_EXTERN_C()
 #include "ext/standard/php_string.h"
 END_EXTERN_C()
@@ -351,8 +353,8 @@ static PHP_METHOD(swoole_redis_server, format)
     {
         if (value)
         {
-            zend::string str_value(value);
-            length = sw_snprintf(message, sizeof(message), "+%*s\r\n", (int) str_value.len(), str_value.val());
+            convert_to_string(value);
+            length = sw_snprintf(message, sizeof(message), "+%*s\r\n", (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
         }
         else
         {
@@ -364,8 +366,8 @@ static PHP_METHOD(swoole_redis_server, format)
     {
         if (value)
         {
-            zend::string str_value(value);
-            length = sw_snprintf(message, sizeof(message), "-%*s\r\n", (int) str_value.len(), str_value.val());
+            convert_to_string(value);
+            length = sw_snprintf(message, sizeof(message), "-%*s\r\n", (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
         }
         else
         {
@@ -391,16 +393,16 @@ static PHP_METHOD(swoole_redis_server, format)
             swoole_php_fatal_error(E_WARNING, "require more parameters.");
             RETURN_FALSE;
         }
-        zend::string str_value(value);
-        if (str_value.len() > SW_REDIS_MAX_STRING_SIZE || str_value.len() < 1)
+        convert_to_string(value);
+        if (Z_STRLEN_P(value) > SW_REDIS_MAX_STRING_SIZE || Z_STRLEN_P(value) < 1)
         {
             swoole_php_fatal_error(E_WARNING, "invalid string size.");
             RETURN_FALSE;
         }
         swString_clear(format_buffer);
-        length = sw_snprintf(message, sizeof(message), "$%zd\r\n", str_value.len());
+        length = sw_snprintf(message, sizeof(message), "$%zu\r\n", Z_STRLEN_P(value));
         swString_append_ptr(format_buffer, message, length);
-        swString_append_ptr(format_buffer, str_value.val(), str_value.len());
+        swString_append_ptr(format_buffer, Z_STRVAL_P(value), Z_STRLEN_P(value));
         swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
         RETURN_STRINGL(format_buffer->str, format_buffer->length);
     }
@@ -419,12 +421,22 @@ static PHP_METHOD(swoole_redis_server, format)
         swString_append_ptr(format_buffer, message, length);
 
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(value), item)
-            zend::string str_item(item);
-            length = sw_snprintf(message, sizeof(message), "$%zd\r\n", str_item.len());
+            zval _copy;
+            if (Z_TYPE_P(item) != IS_STRING)
+            {
+                _copy = *item;
+                zval_copy_ctor(&_copy);
+                item = &_copy;
+            }
+            convert_to_string(item);
+            length = sw_snprintf(message, sizeof(message), "$%zu\r\n", Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, message, length);
-            swString_append_ptr(format_buffer, str_item.val(), str_item.len());
+            swString_append_ptr(format_buffer, Z_STRVAL_P(item), Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
-
+            if (item == &_copy)
+            {
+                zval_dtor(item);
+            }
         SW_HASHTABLE_FOREACH_END();
 
         RETURN_STRINGL(format_buffer->str, format_buffer->length);
@@ -452,11 +464,23 @@ static PHP_METHOD(swoole_redis_server, format)
             {
                 continue;
             }
-            zend::string str_item(item);
-            length = sw_snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%zd\r\n", keylen, key, str_item.len());
+            zval _copy;
+            if (Z_TYPE_P(item) != IS_STRING)
+            {
+                _copy = *item;
+                zval_copy_ctor(&_copy);
+                item = &_copy;
+            }
+            convert_to_string(item);
+            length = sw_snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%zu\r\n", keylen, key, Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, message, length);
-            swString_append_ptr(format_buffer, str_item.val(), str_item.len());
+            swString_append_ptr(format_buffer, Z_STRVAL_P(item), Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
+
+            if (item == &_copy)
+            {
+                zval_dtor(item);
+            }
             (void) keytype;
         SW_HASHTABLE_FOREACH_END();
 

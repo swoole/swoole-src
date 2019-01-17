@@ -1,10 +1,10 @@
 --TEST--
 swoole_coroutine: coro defer
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 go(function () {
     defer(function () {
         echo "10\n";
