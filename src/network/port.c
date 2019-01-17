@@ -598,33 +598,34 @@ void swPort_free(swListenPort *port)
 
 static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, swConnection *conn)
 {
+    const size_t header_buffer_size = 1024;
+
     char *url = request->buffer->str + request->url_offset;
     char *params = memchr(url, '?', request->url_length);
 
-    struct
-    {
-        off_t offset;
-        size_t length;
-        char filename[PATH_MAX];
-    } buffer;
+    swSendFile_request *buffer = (swSendFile_request *) SwooleTG.buffer_stack->str;
+    char *p = buffer->filename;
 
-    char *p = buffer.filename;
-
-    memcpy(p, serv->document_root, serv->document_root_len);
-    p += serv->document_root_len;
     size_t n = params ? params - url : request->url_length;
+    // buffer: |--struct--|------unused------|------header------|--------path--------|
+    ssize_t max_size = MIN(PATH_MAX, SwooleTG.buffer_stack->size - sizeof(swSendFile_request) - PATH_MAX - header_buffer_size);
+    size_t filename_length = serv->document_root_len + n;
+    assert(max_size > 0);
 
-    if (serv->document_root_len + n >= PATH_MAX)
+    if (filename_length >= max_size)
     {
         return SW_FALSE;
     }
+
+    memcpy(p, serv->document_root, serv->document_root_len);
+    p += serv->document_root_len;
 
     memcpy(p, url, n);
     p += n;
     *p = '\0';
 
-    char real_path[PATH_MAX];
-    if (!realpath(buffer.filename, real_path))
+    char *real_path = SwooleTG.buffer_stack->str + (SwooleTG.buffer_stack->size - PATH_MAX);
+    if (!realpath(buffer->filename, real_path))
     {
         return SW_FALSE;
     }
@@ -640,7 +641,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
     }
 
     struct stat file_stat;
-    if (lstat(buffer.filename, &file_stat) < 0)
+    if (lstat(buffer->filename, &file_stat) < 0)
     {
         return SW_FALSE;
     }
@@ -653,7 +654,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
         return SW_FALSE;
     }
 
-    char header_buffer[1024];
+    char *header_buffer = real_path - header_buffer_size;
     swSendData response;
     response.info.fd = conn->session_id;
 
@@ -741,7 +742,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
         }
         if (date_format && mktime(&tm3) - (int) timezone >= file_mtime)
         {
-            response.length = response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
+            response.length = response.info.len = sw_snprintf(header_buffer, header_buffer_size,
                     "HTTP/1.1 304 Not Modified\r\n"
                     "%s"
                     "Date: %s\r\n"
@@ -752,13 +753,14 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
                     date_last_modified,
                     SW_HTTP_SERVER_SOFTWARE
             );
+
             response.data = header_buffer;
             swServer_master_send(serv, &response);
             goto _finish;
         }
     }
 
-    response.length = response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
+    response.length = response.info.len = sw_snprintf(header_buffer, header_buffer_size,
             "HTTP/1.1 200 OK\r\n"
             "%s"
             "Content-Length: %ld\r\n"
@@ -768,7 +770,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
             "Server: %s\r\n\r\n",
             request->keep_alive ? "Connection: keep-alive\r\n" : "",
             (long) file_stat.st_size,
-            swoole_get_mime_type(buffer.filename),
+            swoole_get_mime_type(buffer->filename),
             date_,
             date_last_modified,
             SW_HTTP_SERVER_SOFTWARE);
@@ -787,12 +789,12 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
 #endif
     swServer_master_send(serv, &response);
 
-    buffer.offset = 0;
-    buffer.length = file_stat.st_size;
+    buffer->offset = 0;
+    buffer->length = (size_t) file_stat.st_size;
 
     response.info.type = SW_EVENT_SENDFILE;
-    response.length = response.info.len = sizeof(swSendFile_request) + buffer.length + 1;
-    response.data = (void*) &buffer;
+    response.length = response.info.len = sizeof(swSendFile_request) + filename_length + 1;
+    response.data = (char *) buffer;
 
     swServer_master_send(serv, &response);
 

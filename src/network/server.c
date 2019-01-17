@@ -1231,14 +1231,14 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
     }
 
     swSendData send_data;
-    char _buffer[SW_IPC_BUFFER_SIZE];
+    char *_buffer = SwooleTG.buffer_stack->str;
     swSendFile_request *req = (swSendFile_request*) _buffer;
 
+    size_t max_size = MIN(SwooleTG.buffer_stack->size, SW_IPC_BUFFER_SIZE) - sizeof(swSendFile_request) - 1;
     //file name size
-    if (filename_length > SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1)
+    if (filename_length > max_size)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "sendfile name too long. [MAX_LENGTH=%d]",
-                (int) (SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1));
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "sendfile name too long. [MAX_LENGTH=%zu]", max_size);
         return SW_ERR;
     }
 
@@ -1249,8 +1249,7 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
 
     send_data.info.fd = session_id;
     send_data.info.type = SW_EVENT_SENDFILE;
-    send_data.info.len = sizeof(swSendFile_request) + filename_length + 1;
-    send_data.length = 0;
+    send_data.length = send_data.info.len = sizeof(swSendFile_request) + filename_length + 1;
     send_data.data = _buffer;
 
     return serv->factory.finish(&serv->factory, &send_data);
