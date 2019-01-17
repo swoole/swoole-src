@@ -53,6 +53,17 @@ int swReactorProcess_start(swServer *serv)
     swListenPort *ls;
     serv->single_thread = 1;
 
+    if (serv->onStart)
+    {
+        swWarn("The onStart event with SWOOLE_BASE is deprecated.");
+        serv->onStart(serv);
+    }
+
+    if (serv->onManagerStart)
+    {
+        serv->onManagerStart(serv);
+    }
+
     //listen TCP
     if (serv->have_stream_sock == 1)
     {
@@ -170,17 +181,6 @@ int swReactorProcess_start(swServer *serv)
 
     swProcessPool_start(&serv->gs->event_workers);
     swServer_signal_init(serv);
-
-    if (serv->onStart)
-    {
-        swWarn("The onStart event with SWOOLE_BASE is deprecated.");
-        serv->onStart(serv);
-    }
-
-    if (serv->onManagerStart)
-    {
-        serv->onManagerStart(serv);
-    }
 
     swProcessPool_wait(&serv->gs->event_workers);
     swProcessPool_shutdown(&serv->gs->event_workers);
