@@ -724,9 +724,9 @@ int swWorker_loop(swFactory *factory, int worker_id)
     {
         worker = swServer_get_worker(serv, i);
         pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_master);
-        pipe_socket->buffer_size = SW_MAX_INT;
+        pipe_socket->buffer_size = INT_MAX;
         pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_worker);
-        pipe_socket->buffer_size = SW_MAX_INT;
+        pipe_socket->buffer_size = INT_MAX;
     }
 
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
@@ -735,7 +735,7 @@ int swWorker_loop(swFactory *factory, int worker_id)
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_LISTEN, swWorker_onStreamAccept);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_STREAM, swWorker_onStreamRead);
         swStream_set_protocol(&serv->stream_protocol);
-        serv->stream_protocol.package_max_length = SW_MAX_INT;
+        serv->stream_protocol.package_max_length = INT_MAX;
         serv->stream_protocol.onPackage = swWorker_onStreamPackage;
         serv->buffer_pool = swLinkedList_new(0, NULL);
     }

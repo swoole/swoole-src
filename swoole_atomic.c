@@ -245,7 +245,7 @@ PHP_METHOD(swoole_atomic, wait)
 #ifdef HAVE_FUTEX
     SW_CHECK_RETURN(swoole_futex_wait(atomic, timeout));
 #else
-    timeout = timeout <= 0 ? SW_MAX_INT : timeout;
+    timeout = timeout <= 0 ? INT_MAX : timeout;
     int32_t i = (int32_t) sw_atomic_add_fetch(atomic, 1);
     while (timeout > 0)
     {

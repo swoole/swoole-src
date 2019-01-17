@@ -148,7 +148,7 @@ typedef unsigned long ulong_t;
 #endif
 
 #define SW_START_LINE  "-------------------------START----------------------------"
-#define SW_END_LINE    "-------------------------END------------------------------"
+#define SW_END_LINE    "--------------------------END-----------------------------"
 #define SW_ECHO_RED               "\e[31m%s\e[0m"
 #define SW_ECHO_GREEN             "\e[32m%s\e[0m"
 #define SW_ECHO_YELLOW            "\e[33m%s\e[0m"
@@ -180,9 +180,6 @@ typedef unsigned long ulong_t;
 #include "array.h"
 #include "error.h"
 
-#define SW_MAX_UINT            UINT_MAX
-#define SW_MAX_INT             INT_MAX
-
 #ifndef MAX
 #define MAX(A, B)              ((A) > (B) ? (A) : (B))
 #endif
@@ -195,9 +192,14 @@ typedef unsigned long ulong_t;
 #else
 #define SW_ASSERT(e)
 #endif
-#define SW_STRS(s)             s, sizeof(s)
-#define SW_STRL(s)             s, sizeof(s)-1
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
+
+/*-----------------------------------Memory------------------------------------*/
+
+#define SW_MEM_ALIGNED_SIZE(size) \
+        SW_MM_ALIGNED_SIZE_EX(size, 8)
+#define SW_MEM_ALIGNED_SIZE_EX(size, alignment) \
+        (((size) + ((alignment) - 1LL)) & ~((alignment) - 1LL))
 
 #ifdef SW_USE_EMALLOC
 #define sw_malloc              emalloc
@@ -219,13 +221,21 @@ typedef unsigned long ulong_t;
 #endif
 #endif
 
-/**
- * always return less than size
- */
-size_t sw_snprintf(char *buf, size_t s, const char *format, ...);
+/*----------------------------------String-------------------------------------*/
 
-#define SW_MEM_ALIGNED_SIZE(size)               SW_MM_ALIGNED_SIZE_EX(size, 8)
-#define SW_MEM_ALIGNED_SIZE_EX(size, alignment) (((size) + ((alignment) - 1LL)) & ~((alignment) - 1LL))
+#define SW_STRS(s)             s, sizeof(s)
+#define SW_STRL(s)             s, sizeof(s)-1
+
+#if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
+#define sw_strdup              swoole_strdup
+#define sw_strndup             swoole_strndup
+#else
+#define sw_strdup              strdup
+#define sw_strndup             strndup
+#endif
+
+/** always return less than size */
+size_t sw_snprintf(char *buf, size_t s, const char *format, ...);
 
 static sw_inline char* swoole_strdup(const char *s)
 {
@@ -243,17 +253,8 @@ static sw_inline char* swoole_strndup(const char *s, size_t n)
     return p;
 }
 
-#if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
-#define sw_strdup              swoole_strdup
-#define sw_strndup             swoole_strndup
-#else
-#define sw_strdup              strdup
-#define sw_strndup             strndup
-#endif
+/*--------------------------------Constants------------------------------------*/
 
-#define METHOD_DEF(class,name,...)  class##_##name(class *object, ##__VA_ARGS__)
-#define METHOD(class,name,...)      class##_##name(object, ##__VA_ARGS__)
-//-------------------------------------------------------------------------------
 #define SW_OK                  0
 #define SW_ERR                -1
 #define SW_AGAIN              -2

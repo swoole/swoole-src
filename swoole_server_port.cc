@@ -145,7 +145,7 @@ static PHP_METHOD(swoole_server_port, set)
         port->socket_buffer_size = (int) zval_get_long(v);
         if (port->socket_buffer_size <= 0)
         {
-            port->socket_buffer_size = SW_MAX_INT;
+            port->socket_buffer_size = INT_MAX;
         }
     }
     /**
@@ -156,7 +156,7 @@ static PHP_METHOD(swoole_server_port, set)
         port->kernel_socket_recv_buffer_size = (int) zval_get_long(v);
         if (port->kernel_socket_recv_buffer_size <= 0)
         {
-            port->kernel_socket_recv_buffer_size = SW_MAX_INT;
+            port->kernel_socket_recv_buffer_size = INT_MAX;
         }
     }
     /**
@@ -167,7 +167,7 @@ static PHP_METHOD(swoole_server_port, set)
         port->kernel_socket_send_buffer_size = (int) zval_get_long(v);
         if (port->kernel_socket_send_buffer_size <= 0)
         {
-            port->kernel_socket_send_buffer_size = SW_MAX_INT;
+            port->kernel_socket_send_buffer_size = INT_MAX;
         }
     }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", v))

@@ -774,17 +774,25 @@ void swBreakPoint()
 
 }
 
-size_t sw_snprintf(char *buf, size_t s, const char *format, ...)
+size_t sw_snprintf(char *buf, size_t size, const char *format, ...)
 {
+    int ret;
     va_list args;
+
     va_start(args, format);
-    size_t tmp_n = vsnprintf(buf, s, format, args);
-    if (tmp_n >= s)
+    ret = vsnprintf(buf, size, format, args);
+    va_end(args);
+    if (unlikely(ret < 0))
     {
-        tmp_n = s - 1;
-        buf[tmp_n] = '\0';
+        ret = 0;
+        buf[0] = '\0';
     }
-    return tmp_n;
+    else if (unlikely(ret >= size))
+    {
+        ret = size - 1;
+        buf[ret] = '\0';
+    }
+    return ret;
 }
 
 void swoole_ioctl_set_block(int sock, int nonblock)
@@ -1278,21 +1286,20 @@ int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream)
 char* swoole_string_format(size_t n, const char *format, ...)
 {
     char *buf = sw_malloc(n);
-    if (buf == NULL)
+    if (buf)
     {
-        return NULL;
-    }
-
-    va_list _va_list;
-    va_start(_va_list, format);
-
-    if (vsnprintf(buf, n, format, _va_list) < 0)
-    {
+        int ret;
+        va_list va_list;
+        va_start(va_list, format);
+        ret = vsnprintf(buf, n, format, va_list);
+        va_end(va_list);
+        if (ret >= 0)
+        {
+            return buf;
+        }
         sw_free(buf);
-        return NULL;
     }
-
-    return buf;
+    return NULL;
 }
 
 #ifdef HAVE_EXECINFO

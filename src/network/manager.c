@@ -428,7 +428,7 @@ static int swManager_loop(swFactory *factory)
                     new_pid = swManager_spawn_worker(factory, i);
                     if (new_pid < 0)
                     {
-                        usleep(100000);
+                        SW_START_SLEEP;
                         continue;
                     }
                     else

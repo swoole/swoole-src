@@ -915,7 +915,12 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
      */
     if (length > serv->buffer_output_size)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_DATA_LENGTH_TOO_LARGE, "More than the output buffer size[%d], please use the sendfile.", serv->buffer_output_size);
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_DATA_LENGTH_TOO_LARGE,
+            "The length of data [%u] exceeds the output buffer size[%u], "
+            "please use the sendfile, chunked transfer mode or adjust the buffer_output_size.",
+            length, serv->buffer_output_size
+        );
         return SW_ERR;
     }
     else

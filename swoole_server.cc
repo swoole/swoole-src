@@ -636,7 +636,7 @@ int php_swoole_task_pack(swEventData *task, zval *data)
     task->info.type = SW_EVENT_TASK;
     //field fd save task_id
     task->info.fd = php_swoole_task_id++;
-    if (unlikely(php_swoole_task_id >= SW_MAX_INT))
+    if (unlikely(php_swoole_task_id >= INT_MAX))
     {
         php_swoole_task_id = 0;
     }
