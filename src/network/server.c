@@ -653,14 +653,6 @@ int swServer_start(swServer *serv)
         }
     }
 
-    if (serv->factory_mode == SW_MODE_PROCESS)
-    {
-        if (serv->onStart != NULL)
-        {
-            serv->onStart(serv);
-        }
-    }
-
     //factory start
     if (factory->start(factory) < 0)
     {

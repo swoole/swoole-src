@@ -998,6 +998,11 @@ int swReactorThread_start(swServer *serv)
         return SW_ERR;
     }
 
+    if (serv->onStart != NULL)
+    {
+        serv->onStart(serv);
+    }
+
     int retval = main_reactor->wait(main_reactor, NULL);
 
     if (update_timer)
