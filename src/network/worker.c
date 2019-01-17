@@ -251,29 +251,6 @@ static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t len
 
 typedef int (*task_callback)(swServer *, swEventData *);
 
-size_t swWorker_get_data(swEventData *req, char **data_ptr)
-{
-    size_t length;
-    if (req->info.flags & SW_EVENT_DATA_PTR)
-    {
-        swPackagePtr *task = (swPackagePtr *) req;
-        *data_ptr = task->data.str;
-        length = task->data.length;
-    }
-    else if (req->info.flags & SW_EVENT_DATA_END)
-    {
-        swString *worker_buffer = swWorker_get_buffer(SwooleG.serv, req->info.from_id);
-        *data_ptr = worker_buffer->str;
-        length = worker_buffer->length;
-    }
-    else
-    {
-        *data_ptr = req->data;
-        length = req->info.len;
-    }
-    return length;
-}
-
 static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEventData *task, task_callback callback)
 {
     worker->request_time = serv->gs->now;

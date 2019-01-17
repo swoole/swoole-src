@@ -1312,7 +1312,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     zval *zaddr;
 
     char *buffer;
-    swWorker_get_recv_data(req, &buffer);
+    swWorker_get_data(req, &buffer);
 
     SW_MAKE_STD_ZVAL(zdata);
     SW_MAKE_STD_ZVAL(zaddr);

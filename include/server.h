@@ -920,7 +920,6 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
 void swServer_worker_onStart(swServer *serv);
 void swServer_worker_onStop(swServer *serv);
 
-size_t swWorker_get_data(swEventData *req, char **data_ptr);
 int swWorker_onTask(swFactory *factory, swEventData *task);
 void swWorker_stop(swWorker *worker);
 
@@ -941,6 +940,29 @@ static sw_inline swString *swWorker_get_buffer(swServer *serv, int reactor_id)
     {
         return SwooleWG.buffer_input[reactor_id];
     }
+}
+
+static sw_inline size_t swWorker_get_data(swEventData *req, char **data_ptr)
+{
+    size_t length;
+    if (req->info.flags & SW_EVENT_DATA_PTR)
+    {
+        swPackagePtr *task = (swPackagePtr *) req;
+        *data_ptr = task->data.str;
+        length = task->data.length;
+    }
+    else if (req->info.flags & SW_EVENT_DATA_END)
+    {
+        swString *worker_buffer = swWorker_get_buffer(SwooleG.serv, req->info.from_id);
+        *data_ptr = worker_buffer->str;
+        length = worker_buffer->length;
+    }
+    else
+    {
+        *data_ptr = req->data;
+        length = req->info.len;
+    }
+    return length;
 }
 
 static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv, uint32_t session_id)
@@ -1009,8 +1031,6 @@ static sw_inline int swWorker_get_send_pipe(swServer *serv, int session_id, int 
     swWorker *worker = swServer_get_worker(serv, pipe_worker_id);
     return worker->pipe_worker;
 }
-
-size_t  swWorker_get_recv_data(swEventData *req, char **data_ptr);
 
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv);
