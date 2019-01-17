@@ -345,6 +345,23 @@ static void mysql_client_free(mysql_client *client, zval* zobject)
         swTimer_del(&SwooleG.timer, client->cli->timer);
         client->cli->timer = NULL;
     }
+    //clear connector
+    if (client->connector.host)
+    {
+        efree(client->connector.host);
+    }
+    if (client->connector.user)
+    {
+        efree(client->connector.user);
+    }
+    if (client->connector.password)
+    {
+        efree(client->connector.password);
+    }
+    if (client->connector.database)
+    {
+        efree(client->connector.database);
+    }
     //close the connection
     client->cli->close(client->cli);
     //release client object memory
@@ -2453,14 +2470,20 @@ static PHP_METHOD(swoole_mysql, connect)
 
     HashTable *_ht = Z_ARRVAL_P(server_info);
     zval *value;
+    zend_string *str_host = NULL;
+    zend_string *str_user = NULL;
+    zend_string *str_password = NULL;
+    zend_string *str_database = NULL;
+    zend_string *str_charset = NULL;
+    zend_bool _retval = SW_TRUE;
 
     mysql_connector *connector = &client->connector;
 
     if (php_swoole_array_get_value(_ht, "host", value))
     {
-        convert_to_string(value);
-        connector->host = Z_STRVAL_P(value);
-        connector->host_len = Z_STRLEN_P(value);
+        str_host = zval_get_string(value);
+        connector->host = ZSTR_VAL(str_host);
+        connector->host_len = ZSTR_LEN(str_host);
     }
     else
     {
@@ -2477,36 +2500,39 @@ static PHP_METHOD(swoole_mysql, connect)
     }
     if (php_swoole_array_get_value(_ht, "user", value))
     {
-        convert_to_string(value);
-        connector->user = Z_STRVAL_P(value);
-        connector->user_len = Z_STRLEN_P(value);
+        str_user = zval_get_string(value);
+        connector->user = ZSTR_VAL(str_host);
+        connector->user_len = ZSTR_LEN(str_host);
     }
     else
     {
         zend_throw_exception(swoole_mysql_exception_ce_ptr, "USER parameter is required.", 11);
-        RETURN_FALSE;
+        _retval = SW_FALSE;
+        goto _return;
     }
     if (php_swoole_array_get_value(_ht, "password", value))
     {
-        convert_to_string(value);
-        connector->password = Z_STRVAL_P(value);
-        connector->password_len = Z_STRLEN_P(value);
+        str_password = zval_get_string(value);
+        connector->password = ZSTR_VAL(str_password);
+        connector->password_len = ZSTR_LEN(str_password);
     }
     else
     {
         zend_throw_exception(swoole_mysql_exception_ce_ptr, "PASSWORD parameter is required.", 11);
-        RETURN_FALSE;
+        _retval = SW_FALSE;
+        goto _return;
     }
     if (php_swoole_array_get_value(_ht, "database", value))
     {
-        convert_to_string(value);
-        connector->database = Z_STRVAL_P(value);
-        connector->database_len = Z_STRLEN_P(value);
+        str_database = zval_get_string(value);
+        connector->database = ZSTR_VAL(str_password);
+        connector->database_len = ZSTR_LEN(str_password);
     }
     else
     {
         zend_throw_exception(swoole_mysql_exception_ce_ptr, "DATABASE parameter is required.", 11);
-        RETURN_FALSE;
+        _retval = SW_FALSE;
+        goto _return;
     }
     if (php_swoole_array_get_value(_ht, "timeout", value))
     {
@@ -2518,13 +2544,14 @@ static PHP_METHOD(swoole_mysql, connect)
     }
     if (php_swoole_array_get_value(_ht, "charset", value))
     {
-        convert_to_string(value);
-        connector->character_set = mysql_get_charset(Z_STRVAL_P(value));
+        str_charset = zval_get_string(value);
+        connector->character_set = mysql_get_charset(ZSTR_VAL(str_charset));
         if (connector->character_set < 0)
         {
-            snprintf(buf, sizeof(buf), "unknown charset [%s].", Z_STRVAL_P(value));
+            snprintf(buf, sizeof(buf), "unknown charset [%s].", ZSTR_VAL(str_charset));
             zend_throw_exception(swoole_mysql_exception_ce_ptr, buf, 11);
-            RETURN_FALSE;
+            _retval = SW_FALSE;
+            goto _return;
         }
     }
     //use the server default charset.
@@ -2568,7 +2595,8 @@ static PHP_METHOD(swoole_mysql, connect)
     if (swClient_create(cli, type, 0) < 0)
     {
         zend_throw_exception(swoole_mysql_exception_ce_ptr, "swClient_create failed.", 1);
-        RETURN_FALSE;
+        _retval = SW_FALSE;
+        goto _return;
     }
     //tcp nodelay
     if (type != SW_SOCK_UNIX_STREAM)
@@ -2590,14 +2618,16 @@ static PHP_METHOD(swoole_mysql, connect)
         }
         if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, PHP_SWOOLE_FD_MYSQL | SW_EVENT_WRITE) < 0)
         {
-            RETURN_FALSE;
+            _retval = SW_FALSE;
+            goto _return;
         }
     }
     else
     {
         snprintf(buf, sizeof(buf), "connect to mysql server[%s:%ld] failed.", connector->host, connector->port);
         zend_throw_exception(swoole_mysql_exception_ce_ptr, buf, 2);
-        RETURN_FALSE;
+        _retval = SW_FALSE;
+        goto _return;
     }
 
     zend_update_property(swoole_mysql_ce_ptr, getThis(), ZEND_STRL("onConnect"), callback);
@@ -2608,6 +2638,12 @@ static PHP_METHOD(swoole_mysql, connect)
     client->fd = cli->socket->fd;
     client->object = getThis();
     client->cli = cli;
+
+    connector->host = estrndup(connector->host, connector->host_len);
+    connector->user = estrndup(connector->user, connector->user_len);
+    connector->password = estrndup(connector->password, connector->password_len);
+    connector->database = estrndup(connector->database, connector->database_len);
+
     sw_copy_to_stack(client->object, client->_object);
     Z_TRY_ADDREF_P(client->object);
     zval_ptr_dtor(server_info);
@@ -2616,7 +2652,27 @@ static PHP_METHOD(swoole_mysql, connect)
     _socket->object = client;
     _socket->active = 0;
 
-    RETURN_TRUE;
+    _return: if (str_host)
+    {
+        zend_string_release(str_host);
+    }
+    if (str_user)
+    {
+        zend_string_release(str_user);
+    }
+    if (str_password)
+    {
+        zend_string_release(str_password);
+    }
+    if (str_database)
+    {
+        zend_string_release(str_database);
+    }
+    if (str_charset)
+    {
+        zend_string_release(str_charset);
+    }
+    RETURN_BOOL(_retval);
 }
 
 static PHP_METHOD(swoole_mysql, query)

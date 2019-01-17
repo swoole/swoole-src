@@ -235,15 +235,15 @@ static PHP_METHOD(swoole_redis, __construct)
          */
         if (php_swoole_array_get_value(vht, "password", ztmp))
         {
-            convert_to_string(ztmp);
-            if (Z_STRLEN_P(ztmp) >= 1 << 8)
+            zend_string *str = zval_get_string(ztmp);
+            if (ZSTR_LEN(str) >= 1 << 8)
             {
                 swoole_php_fatal_error(E_WARNING, "redis password is too long.");
             }
-            else if (Z_STRLEN_P(ztmp) > 0)
+            else if (ZSTR_LEN(str) > 0)
             {
-                redis->password = estrdup(Z_STRVAL_P(ztmp));
-                redis->password_len = Z_STRLEN_P(ztmp);
+                redis->password = estrndup(ZSTR_VAL(str), ZSTR_LEN(str));
+                redis->password_len = ZSTR_LEN(str);
             }
         }
         /**
@@ -558,9 +558,10 @@ static PHP_METHOD(swoole_redis, __call)
         redis->state = SWOOLE_REDIS_STATE_SUBSCRIBE;
 
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)
-            convert_to_string(value);
-            argvlen[i] = (size_t) Z_STRLEN_P(value);
-            argv[i] = estrndup(Z_STRVAL_P(value), Z_STRLEN_P(value));
+            zend_string *str = zval_get_string(value);
+            argvlen[i] = ZSTR_LEN(str);
+            argv[i] = estrndup(ZSTR_VAL(str), ZSTR_LEN(str));
+            zend_string_release(str);
             if (i == argc)
             {
                 break;
@@ -605,10 +606,10 @@ static PHP_METHOD(swoole_redis, __call)
             {
                 break;
             }
-
-            convert_to_string(value);
-            argvlen[i] = (size_t) Z_STRLEN_P(value);
-            argv[i] = estrndup(Z_STRVAL_P(value), Z_STRLEN_P(value));
+            zend_string *str = zval_get_string(value);
+            argvlen[i] = ZSTR_LEN(str);
+            argv[i] = estrndup(ZSTR_VAL(str), ZSTR_LEN(str));
+            zend_string_release(str);
             i++;
         SW_HASHTABLE_FOREACH_END();
 

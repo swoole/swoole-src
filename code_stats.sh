@@ -1,2 +1,2 @@
-cloc . --exclude-dir=thirdparty
+cloc . --exclude-dir=thirdparty,Debug,CMakeFiles,build,CMakeFiles,.git
 

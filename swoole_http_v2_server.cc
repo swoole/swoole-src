@@ -24,6 +24,7 @@
 #include "main/php_variables.h"
 
 #include <unordered_map>
+#include <vector>
 
 extern swString *swoole_http_buffer;
 
@@ -115,6 +116,8 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
     zval *ztrailer = sw_zend_read_property(swoole_http_response_ce_ptr, ctx->response.zobject, ZEND_STRL("trailer"), 0);
     uint32_t nv_size = ZVAL_IS_ARRAY(ztrailer) ? php_swoole_array_length(ztrailer) : 0;
 
+    std::vector<zend::string_ptr> str_list;
+
     if (nv_size > 0)
     {
         nghttp2_nv *nv = (nghttp2_nv *) ecalloc(sizeof(nghttp2_nv), nv_size);
@@ -129,7 +132,13 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
             {
                 break;
             }
+            if (ZVAL_IS_NULL(value))
+            {
+                continue;
+            }
+            zend_string *str = zval_get_string(value);
             http2_add_header(&nv[index++], key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
+            str_list.emplace_back(zend::string_ptr(str));
             (void) type;
         }
         SW_HASHTABLE_FOREACH_END();
@@ -232,6 +241,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     {
         uint32_t header_flag = 0x0;
         HashTable *ht = Z_ARRVAL_P(zheader);
+        std::vector<zend::string_ptr> str_list;
         zval *value = NULL;
         char *key = NULL;
         uint32_t keylen = 0;
@@ -261,8 +271,9 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
             }
             if (!ZVAL_IS_NULL(value))
             {
-                convert_to_string(value);
+                zend_string *str = zval_get_string(value);
                 http2_add_header(&nv[index++], key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
+                str_list.emplace_back(zend::string_ptr(str));
             }
         }
         SW_HASHTABLE_FOREACH_END();
