@@ -1294,7 +1294,7 @@ int swServer_tcp_close(swServer *serv, int fd, int reset)
     if (!swIsWorker())
     {
         swWorker *worker = swServer_get_worker(serv, conn->fd % serv->worker_num);
-        swDataHead ev;
+        swDataHead ev = {0};
         ev.type = SW_EVENT_CLOSE;
         ev.fd = fd;
         ev.from_id = conn->from_id;

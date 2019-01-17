@@ -167,15 +167,24 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
     //without data
     if (task->data == NULL)
     {
+        task->info.flags = 0;
         return swReactorThread_send2worker(serv, &task->info, sizeof(task->info), target_worker_id);
     }
 
-    size_t send_n = task->length;
-    size_t offset = 0;
+    uint32_t send_n = task->length;
+    uint32_t offset = 0;
     swEventData buf;
     char *data = task->data;
 
-    memcpy(&buf.info, &task->info, sizeof(buf.info));
+    buf.info = task->info;
+
+    if (send_n <= SW_IPC_BUFFER_SIZE)
+    {
+        buf.info.flags = 0;
+        buf.info.len = send_n;
+        memcpy(buf.data, data, buf.info.len);
+        return swReactorThread_send2worker(serv, &buf, sizeof(buf.info) + buf.info.len, target_worker_id);
+    }
 
     buf.info.flags = SW_EVENT_DATA_CHUNK;
 

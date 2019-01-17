@@ -3877,6 +3877,7 @@ static PHP_METHOD(swoole_server, task)
 static PHP_METHOD(swoole_server, sendMessage)
 {
     swEventData buf;
+    bzero(&buf.info, sizeof(buf.info));
 
     zval *message;
     long worker_id = -1;
