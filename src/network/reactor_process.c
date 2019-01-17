@@ -104,10 +104,20 @@ int swReactorProcess_start(swServer *serv)
         serv->gs->event_workers.workers[i].type = SW_PROCESS_WORKER;
     }
 
-    //no worker
+    //single worker
     if (serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 && serv->user_worker_list == NULL)
     {
-        return swReactorProcess_loop(&serv->gs->event_workers, &serv->gs->event_workers.workers[0]);
+        if (serv->onStart)
+        {
+            serv->onStart(serv);
+        }
+        int retval = swReactorProcess_loop(&serv->gs->event_workers, &serv->gs->event_workers.workers[0]);
+        if (serv->onShutdown)
+        {
+            swWarn("The onShutdown event with SWOOLE_BASE is deprecated.");
+            serv->onShutdown(serv);
+        }
+        return retval;
     }
 
     for (i = 0; i < serv->worker_num; i++)
@@ -190,6 +200,12 @@ int swReactorProcess_start(swServer *serv)
     if (serv->onManagerStop)
     {
         serv->onManagerStop(serv);
+    }
+
+    if (serv->onShutdown)
+    {
+        swWarn("The onShutdown event with SWOOLE_BASE is deprecated.");
+        serv->onShutdown(serv);
     }
 
     return SW_OK;

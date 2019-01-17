@@ -16,9 +16,8 @@
  +----------------------------------------------------------------------+
  */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 
-#ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 #include "swoole_mysql.h"
 
@@ -297,39 +296,33 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
             else
             {
                 mysql_int2store((mysql_request_buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_VAR_STRING);
-                ZVAL_DUP(&_value, value);
-                value = &_value;
-                convert_to_string(value);
-                if (Z_STRLEN_P(value) > 0xffff)
+                zend::string str_value(value);
+
+                if (str_value.len() > 0xffff)
                 {
                     buf[0] = (char) SW_MYSQL_TYPE_VAR_STRING;
                     if (swString_append_ptr(mysql_request_buffer, buf, 1) < 0)
                     {
-                        zval_dtor(value);
                         return SW_ERR;
                     }
                 }
-                else if (Z_STRLEN_P(value) > 250)
+                else if (str_value.len() > 250)
                 {
                     buf[0] = (char) SW_MYSQL_TYPE_BLOB;
                     if (swString_append_ptr(mysql_request_buffer, buf, 1) < 0)
                     {
-                        zval_dtor(value);
                         return SW_ERR;
                     }
                 }
-                lval = mysql_write_lcb(buf, Z_STRLEN_P(value));
+                lval = mysql_write_lcb(buf, str_value.len());
                 if (swString_append_ptr(mysql_request_buffer, buf, lval) < 0)
                 {
-                    zval_dtor(value);
                     return SW_ERR;
                 }
-                if (swString_append_ptr(mysql_request_buffer, Z_STRVAL_P(value), Z_STRLEN_P(value)) < 0)
+                if (swString_append_ptr(mysql_request_buffer, str_value.val(), str_value.len()) < 0)
                 {
-                    zval_dtor(value);
                     return SW_ERR;
                 }
-                zval_dtor(value);
             }
             index++;
        }
@@ -660,12 +653,16 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
 
     mysql_connector *connector = &client->connector;
+    zend::string str_host;
+    zend::string str_user;
+    zend::string str_database;
+    zend::string str_password;
 
     if (php_swoole_array_get_value(_ht, "host", value))
     {
-        convert_to_string(value);
-        connector->host = Z_STRVAL_P(value);
-        connector->host_len = Z_STRLEN_P(value);
+        str_host = value;
+        connector->host = str_host.val();
+        connector->host_len = str_host.len();
     }
     else
     {
@@ -683,9 +680,9 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     if (php_swoole_array_get_value(_ht, "user", value))
     {
-        convert_to_string(value);
-        connector->user = Z_STRVAL_P(value);
-        connector->user_len = Z_STRLEN_P(value);
+        str_user = value;
+        connector->user = str_user.val();
+        connector->user_len = str_user.len();
     }
     else
     {
@@ -695,9 +692,9 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     if (php_swoole_array_get_value(_ht, "password", value))
     {
-        convert_to_string(value);
-        connector->password = Z_STRVAL_P(value);
-        connector->password_len = Z_STRLEN_P(value);
+        str_password = value;
+        connector->password = str_password.val();
+        connector->password_len = str_password.len();
     }
     else
     {
@@ -707,9 +704,9 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     if (php_swoole_array_get_value(_ht, "database", value))
     {
-        convert_to_string(value);
-        connector->database = Z_STRVAL_P(value);
-        connector->database_len = Z_STRLEN_P(value);
+        str_database = value;
+        connector->database = str_database.val();
+        connector->database_len = str_database.len();
     }
     else
     {
@@ -727,12 +724,12 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     if (php_swoole_array_get_value(_ht, "charset", value))
     {
-        convert_to_string(value);
-        connector->character_set = mysql_get_charset(Z_STRVAL_P(value));
+        zend::string str_charset(value);
+        connector->character_set = mysql_get_charset(str_charset.val());
         if (connector->character_set < 0)
         {
             char buf[64];
-            snprintf(buf, sizeof(buf), "unknown charset [%s].", Z_STRVAL_P(value));
+            snprintf(buf, sizeof(buf), "unknown charset [%s].", str_charset.val());
             zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, buf, 11);
             zval_ptr_dtor(server_info);
             RETURN_FALSE;
@@ -1948,5 +1945,3 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
     }
     return SW_OK;
 }
-
-#endif

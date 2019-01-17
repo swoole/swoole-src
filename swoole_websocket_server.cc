@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 #include "swoole_http.h"
 #include "swoole_coroutine.h"
 
@@ -198,11 +198,12 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
         swoole_php_fatal_error(E_WARNING, "the maximum value of opcode is %d.", SW_WEBSOCKET_OPCODE_MAX);
         return SW_ERR;
     }
+    zend::string str_zdata;
     if (zdata && !ZVAL_IS_NULL(zdata))
     {
-        convert_to_string(zdata);
-        data = Z_STRVAL_P(zdata);
-        length = Z_STRLEN_P(zdata);
+        str_zdata = zdata;
+        data = str_zdata.val();
+        length = str_zdata.len();
     }
     switch(opcode)
     {
@@ -294,11 +295,11 @@ static int websocket_handshake(swServer *serv, swListenPort *port, http_context 
 
     if (!(pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-key"))))
     {
-        php_error_docref(NULL, E_WARNING, "header no sec-websocket-key");
+        swoole_php_fatal_error(NULL, E_WARNING, "header no sec-websocket-key");
         return SW_ERR;
     }
-    convert_to_string(pData);
 
+    zend::string str_pData(pData);
     swString_clear(swoole_http_buffer);
     swString_append_ptr(swoole_http_buffer, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"));
 
@@ -307,10 +308,10 @@ static int websocket_handshake(swServer *serv, swListenPort *port, http_context 
     char sha1_str[20];
     char encoded_str[50];
     // sec_websocket_accept
-    memcpy(_buf, Z_STRVAL_P(pData), Z_STRLEN_P(pData));
-    memcpy(_buf + Z_STRLEN_P(pData), SW_WEBSOCKET_GUID, sizeof(SW_WEBSOCKET_GUID) - 1);
+    memcpy(_buf, str_pData.val(), str_pData.len());
+    memcpy(_buf + str_pData.len(), SW_WEBSOCKET_GUID, sizeof(SW_WEBSOCKET_GUID) - 1);
     // sha1 sec_websocket_accept
-    php_swoole_sha1(_buf, Z_STRLEN_P(pData) + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
+    php_swoole_sha1(_buf, str_pData.len() + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
     // base64
     n = swBase64_encode((unsigned char *) sha1_str, sizeof(sha1_str), encoded_str);
     n = sw_snprintf(_buf, sizeof(_buf), "Sec-WebSocket-Accept: %.*s\r\n", n, encoded_str);

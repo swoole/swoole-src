@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 #include "swoole_coroutine.h"
 #include "socket.h"
 
@@ -990,9 +990,10 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
 
     zhost = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("host"), 0);
     zport = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("port"), 0);
-    convert_to_string(zhost);
-    host = Z_STRVAL_P(zhost);
-    host_len = Z_STRLEN_P(zhost);
+
+    zend::string str_zhost(zhost);
+    host = str_zhost.val();
+    host_len = str_zhost.len();
 
     zend_long port = zval_get_long(zport);
     if (host_len == 0)
@@ -1083,9 +1084,9 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
 
     if (php_swoole_array_get_value(vht, "password", ztmp))
     {
-        convert_to_string(ztmp);
-        pwd = Z_STRVAL_P(ztmp);
-        pwd_len = Z_STRLEN_P(ztmp);
+        zend::string str_ztmp(ztmp);
+        pwd = str_ztmp.val();
+        pwd_len = str_ztmp.len();
         if (pwd_len > 0 && !redis_auth(redis, pwd, pwd_len))
         {
             swoole_redis_coro_close(redis);
@@ -2507,11 +2508,12 @@ static PHP_METHOD(swoole_redis_coro, hSetNx)
     int i = 0;
     size_t argvlen[4];
     char *argv[4];
-    convert_to_string(z_val);
+
+    zend::string str_z_val(z_val);
     SW_REDIS_COMMAND_ARGV_FILL("HSETNX", 6)
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
     SW_REDIS_COMMAND_ARGV_FILL(field, field_len)
-    SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_val), Z_STRLEN_P(z_val))
+    SW_REDIS_COMMAND_ARGV_FILL(str_z_val.val(), str_z_val.len())
 
     redis_request(redis, 4, argv, argvlen, return_value);
 }

@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
@@ -214,8 +214,8 @@ static PHP_METHOD(swoole_server_port, set)
     //package eof
     if (php_swoole_array_get_value(vht, "package_eof", v))
     {
-        convert_to_string(v);
-        port->protocol.package_eof_len = Z_STRLEN_P(v);
+        zend::string str_v(v);
+        port->protocol.package_eof_len = str_v.len();
         if (port->protocol.package_eof_len == 0)
         {
             swoole_php_fatal_error(E_ERROR, "pacakge_eof cannot be an empty string");
@@ -227,7 +227,7 @@ static PHP_METHOD(swoole_server_port, set)
             RETURN_FALSE;
         }
         bzero(port->protocol.package_eof, SW_DATA_EOF_MAXLEN);
-        memcpy(port->protocol.package_eof, Z_STRVAL_P(v), Z_STRLEN_P(v));
+        memcpy(port->protocol.package_eof, str_v.val(), str_v.len());
     }
     //http_protocol
     if (php_swoole_array_get_value(vht, "open_http_protocol", v))
@@ -246,13 +246,13 @@ static PHP_METHOD(swoole_server_port, set)
     }
     if (php_swoole_array_get_value(vht, "websocket_subprotocol", v))
     {
-        convert_to_string(v);
+        zend::string str_v(v);
         if (port->websocket_subprotocol)
         {
             sw_free(port->websocket_subprotocol);
         }
-        port->websocket_subprotocol = sw_strdup(Z_STRVAL_P(v));
-        port->websocket_subprotocol_length = Z_STRLEN_P(v);
+        port->websocket_subprotocol = sw_strndup(str_v.val(), str_v.len());
+        port->websocket_subprotocol_length = str_v.len();
     }
     if (php_swoole_array_get_value(vht, "open_websocket_close_frame", v))
     {
@@ -286,12 +286,12 @@ static PHP_METHOD(swoole_server_port, set)
         port->tcp_keepinterval = (uint16_t) zval_get_long(v);
     }
     //tcp_keepcount
-    if ((v = zend_hash_str_find(vht, ZEND_STRL("tcp_keepcount"))))
+    if (php_swoole_array_get_value(vht, "tcp_keepcount", v))
     {
         port->tcp_keepcount = (uint16_t) zval_get_long(v);
     }
     //tcp_fastopen
-    if ((v = zend_hash_str_find(vht, ZEND_STRL("tcp_fastopen"))))
+    if (php_swoole_array_get_value(vht, "tcp_fastopen", v))
     {
         port->tcp_fastopen = zval_is_true(v);
     }
@@ -303,8 +303,8 @@ static PHP_METHOD(swoole_server_port, set)
     //package length size
     if (php_swoole_array_get_value(vht, "package_length_type", v))
     {
-        convert_to_string(v);
-        port->protocol.package_length_type = Z_STRVAL_P(v)[0];
+        zend::string str_v(v);
+        port->protocol.package_length_type = str_v.val()[0];
         port->protocol.package_length_size = swoole_type_size(port->protocol.package_length_type);
         if (port->protocol.package_length_size == 0)
         {
@@ -375,32 +375,32 @@ static PHP_METHOD(swoole_server_port, set)
     {
         if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
         {
-            convert_to_string(v);
-            if (access(Z_STRVAL_P(v), R_OK) < 0)
+            zend::string str_v(v);
+            if (access(str_v.val(), R_OK) < 0)
             {
-                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", Z_STRVAL_P(v));
+                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", str_v.val());
                 return;
             }
             if (port->ssl_option.cert_file)
             {
                 sw_free(port->ssl_option.cert_file);
             }
-            port->ssl_option.cert_file = sw_strdup(Z_STRVAL_P(v));
+            port->ssl_option.cert_file = sw_strndup(str_v.val(), str_v.len());
             port->open_ssl_encrypt = 1;
         }
         if (php_swoole_array_get_value(vht, "ssl_key_file", v))
         {
-            convert_to_string(v);
-            if (access(Z_STRVAL_P(v), R_OK) < 0)
+            zend::string str_v(v);
+            if (access(str_v.val(), R_OK) < 0)
             {
-                swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", Z_STRVAL_P(v));
+                swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", str_v.val());
                 return;
             }
             if (port->ssl_option.key_file)
             {
                 sw_free(port->ssl_option.key_file);
             }
-            port->ssl_option.key_file = sw_strdup(Z_STRVAL_P(v));
+            port->ssl_option.key_file = sw_strndup(str_v.val(), str_v.len());
         }
         if (php_swoole_array_get_value(vht, "ssl_method", v))
         {
@@ -417,17 +417,17 @@ static PHP_METHOD(swoole_server_port, set)
         //verify client cert
         if (php_swoole_array_get_value(vht, "ssl_client_cert_file", v))
         {
-            convert_to_string(v);
-            if (access(Z_STRVAL_P(v), R_OK) < 0)
+            zend::string str_v(v);
+            if (access(str_v.val(), R_OK) < 0)
             {
-                swoole_php_fatal_error(E_ERROR, "ssl_client_cert_file[%s] not found.", Z_STRVAL_P(v));
+                swoole_php_fatal_error(E_ERROR, "ssl_client_cert_file[%s] not found.", str_v.val());
                 return;
             }
             if (port->ssl_option.client_cert_file)
             {
                 sw_free(port->ssl_option.client_cert_file);
             }
-            port->ssl_option.client_cert_file = sw_strdup(Z_STRVAL_P(v));
+            port->ssl_option.client_cert_file = sw_strndup(str_v.val(), str_v.len());
         }
         if (php_swoole_array_get_value(vht, "ssl_verify_depth", v))
         {
@@ -451,35 +451,32 @@ static PHP_METHOD(swoole_server_port, set)
         //    }
         if (php_swoole_array_get_value(vht, "ssl_ciphers", v))
         {
-            convert_to_string(v);
             if (port->ssl_config.ciphers)
             {
                 sw_free(port->ssl_config.ciphers);
             }
-            port->ssl_config.ciphers = sw_strdup(Z_STRVAL_P(v));
+            port->ssl_config.ciphers = zend::string_dup(v);
         }
         if (php_swoole_array_get_value(vht, "ssl_ecdh_curve", v))
         {
-            convert_to_string(v);
+            zend::string str_v(v);
             if (port->ssl_config.ecdh_curve)
             {
                 sw_free(port->ssl_config.ecdh_curve);
             }
-            port->ssl_config.ecdh_curve = sw_strdup(Z_STRVAL_P(v));
+            port->ssl_config.ecdh_curve = zend::string_dup(v);
         }
         if (php_swoole_array_get_value(vht, "ssl_dhparam", v))
         {
-            convert_to_string(v);
             if (port->ssl_config.dhparam)
             {
                 sw_free(port->ssl_config.dhparam);
             }
-            port->ssl_config.dhparam = sw_strdup(Z_STRVAL_P(v));
+            port->ssl_config.dhparam = zend::string_dup(v);
         }
         //    if ((v = zend_hash_str_find(vht, ZEND_STRL("ssl_session_cache"))))
         //    {
-        //        convert_to_string(v);
-        //        port->ssl_config.session_cache = strdup(Z_STRVAL_P(v));
+        //        port->ssl_config.session_cache = zend::string_dup(v);
         //    }
         if (swPort_enable_ssl_encrypt(port) < 0)
         {

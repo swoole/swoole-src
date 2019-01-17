@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 #include "swoole_http.h"
 
 #ifdef SW_USE_HTTP2
@@ -274,8 +274,9 @@ static void http2_client_add_cookie(nghttp2_nv *nv, int *index, zval *cookies)
         {
             continue;
         }
-        convert_to_string(value);
-        if (Z_STRLEN_P(value) == 0)
+
+        zend::string str_value(value);
+        if (str_value.len() == 0)
         {
             continue;
         }
@@ -285,7 +286,7 @@ static void http2_client_add_cookie(nghttp2_nv *nv, int *index, zval *cookies)
         swString_append_ptr(buffer, "=", 1);
 
         int encoded_value_len;
-        encoded_value = sw_php_url_encode(Z_STRVAL_P(value), Z_STRLEN_P(value), &encoded_value_len);
+        encoded_value = sw_php_url_encode(str_value.val(), str_value.len(), &encoded_value_len);
         if (encoded_value)
         {
             swString_append_ptr(buffer, encoded_value, encoded_value_len);
@@ -846,6 +847,7 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
         smart_str formstr_s = { NULL, 0 };
         uint8_t send_flag;
         uint32_t send_len;
+        zend::string str_zpost_data;
 
         int flag = stream->type == SW_HTTP2_STREAM_PIPELINE ? 0 : SW_HTTP2_FLAG_END_STREAM;
         if (Z_TYPE_P(zpost_data) == IS_ARRAY)
@@ -859,9 +861,9 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
         }
         else
         {
-            convert_to_string(zpost_data);
-            p = Z_STRVAL_P(zpost_data);
-            len = Z_STRLEN_P(zpost_data);
+            str_zpost_data = zpost_data;
+            p = str_zpost_data.val();
+            len = str_zpost_data.len();
         }
 
         swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN ", END, STREAM#%d] length=%zu", swHttp2_get_type(SW_HTTP2_TYPE_DATA), stream->stream_id, len);

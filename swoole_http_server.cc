@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 #include "swoole_http.h"
 #include "swoole_coroutine.h"
 
@@ -1643,8 +1643,8 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
             }
             if (!ZVAL_IS_NULL(value))
             {
-                convert_to_string(value);
-                n = sw_snprintf(buf, l_buf, "%*s: %*s\r\n", keylen - 1, key, (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
+                zend::string str_value(value);
+                n = sw_snprintf(buf, l_buf, "%*s: %*s\r\n", keylen - 1, key, (int) str_value.len(), str_value.val());
                 swString_append_ptr(response, buf, n);
             }
         }

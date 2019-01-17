@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 #include "php_streams.h"
 #include "php_network.h"
 
@@ -506,18 +506,18 @@ PHP_FUNCTION(swoole_async_read)
         buf_size = SW_AIO_MAX_CHUNK_SIZE;
     }
 
-    convert_to_string(filename);
-    int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
+    zend::string str_filename(filename);
+    int fd = open(str_filename.val(), open_flag, 0644);
     if (fd < 0)
     {
-        swoole_php_sys_error(E_WARNING, "open(%s, O_RDONLY) failed.", Z_STRVAL_P(filename));
+        swoole_php_sys_error(E_WARNING, "open(%s, O_RDONLY) failed.", str_filename.val());
         RETURN_FALSE;
     }
 
     struct stat file_stat;
     if (fstat(fd, &file_stat) < 0)
     {
-        swoole_php_sys_error(E_WARNING, "fstat(%s) failed.", Z_STRVAL_P(filename));
+        swoole_php_sys_error(E_WARNING, "fstat(%s) failed.", str_filename.val());
         close(fd);
         RETURN_FALSE;
     }
@@ -597,6 +597,10 @@ PHP_FUNCTION(swoole_async_write)
     {
         RETURN_FALSE;
     }
+    if (offset < 0)
+    {
+        offset = 0;
+    }
     if (callback && !ZVAL_IS_NULL(callback))
     {
         if (!php_swoole_is_callable(callback))
@@ -605,17 +609,12 @@ PHP_FUNCTION(swoole_async_write)
         }
     }
 
-    convert_to_string(filename);
-
-    if (offset < 0)
-    {
-        offset = 0;
-    }
+    zend::string str_filename(filename);
 
     file_request *req = (file_request *) emalloc(sizeof(file_request));
 
     int fd;
-    std::string key(Z_STRVAL_P(filename), Z_STRLEN_P(filename));
+    std::string key(str_filename.val(), str_filename.len());
     auto file_iterator = open_write_files.find(key);
     if (file_iterator == open_write_files.end())
     {
@@ -624,10 +623,10 @@ PHP_FUNCTION(swoole_async_write)
         {
             open_flag |= O_APPEND;
         }
-        fd = open(Z_STRVAL_P(filename), open_flag, 0644);
+        fd = open(str_filename.val(), open_flag, 0644);
         if (fd < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "open(%s, %d) failed. Error: %s[%d]", Z_STRVAL_P(filename), open_flag, strerror(errno), errno);
+            swoole_php_fatal_error(E_WARNING, "open(%s, %d) failed. Error: %s[%d]", str_filename.val(), open_flag, strerror(errno), errno);
             RETURN_FALSE;
         }
         swTraceLog(SW_TRACE_AIO, "open write file fd#%d", fd);
@@ -699,12 +698,13 @@ PHP_FUNCTION(swoole_async_readfile)
     {
         RETURN_FALSE;
     }
-    convert_to_string(filename);
 
-    int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
+    zend::string str_filename(filename);
+
+    int fd = open(str_filename.val(), open_flag, 0644);
     if (fd < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "open file[%s] failed. Error: %s[%d]", Z_STRVAL_P(filename), strerror(errno), errno);
+        swoole_php_fatal_error(E_WARNING, "open file[%s] failed. Error: %s[%d]", str_filename.val(), strerror(errno), errno);
         RETURN_FALSE;
     }
     if (!php_swoole_is_callable(callback))
@@ -814,8 +814,8 @@ PHP_FUNCTION(swoole_async_writefile)
         }
     }
 
-    convert_to_string(filename);
-    int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
+    zend::string str_filename(filename);
+    int fd = open(str_filename.val(), open_flag, 0644);
     if (fd < 0)
     {
         swoole_php_fatal_error(E_WARNING, "open file failed. Error: %s[%d]", strerror(errno), errno);
@@ -935,8 +935,8 @@ PHP_FUNCTION(swoole_async_set)
     }
     if (php_swoole_array_get_value(vht, "dns_server", v))
     {
-        convert_to_string(v);
-        SwooleG.dns_server_v4 = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        zend::string str_v(v);
+        SwooleG.dns_server_v4 = sw_strndup(str_v.val(), str_v.len());
     }
     if (php_swoole_array_get_value(vht, "use_async_resolver", v))
     {
