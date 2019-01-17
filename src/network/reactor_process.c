@@ -111,13 +111,7 @@ int swReactorProcess_start(swServer *serv)
         {
             serv->onStart(serv);
         }
-        int retval = swReactorProcess_loop(&serv->gs->event_workers, &serv->gs->event_workers.workers[0]);
-        if (serv->onShutdown)
-        {
-            swWarn("The onShutdown event with SWOOLE_BASE is deprecated.");
-            serv->onShutdown(serv);
-        }
-        return retval;
+        return swReactorProcess_loop(&serv->gs->event_workers, &serv->gs->event_workers.workers[0]);
     }
 
     for (i = 0; i < serv->worker_num; i++)
@@ -200,12 +194,6 @@ int swReactorProcess_start(swServer *serv)
     if (serv->onManagerStop)
     {
         serv->onManagerStop(serv);
-    }
-
-    if (serv->onShutdown)
-    {
-        swWarn("The onShutdown event with SWOOLE_BASE is deprecated.");
-        serv->onShutdown(serv);
     }
 
     return SW_OK;
