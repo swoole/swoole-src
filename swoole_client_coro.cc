@@ -182,14 +182,14 @@ static Socket* client_coro_new(zval *zobject, int port)
 
     if (ztype == NULL || ZVAL_IS_NULL(ztype))
     {
-        swoole_php_fatal_error(E_ERROR, "failed to get swoole_client->type.");
+        swoole_php_fatal_error(E_ERROR, "failed to get client type.");
         return NULL;
     }
 
-    long type = Z_LVAL_P(ztype);
+    zend_long type = Z_LVAL_P(ztype);
     if ((type == SW_SOCK_TCP || type == SW_SOCK_TCP6) && (port <= 0 || port > SW_CLIENT_MAX_PORT))
     {
-        swoole_php_fatal_error(E_WARNING, "The port is invalid.");
+        swoole_php_fatal_error(E_ERROR, "The port is invalid.");
         return NULL;
     }
 
@@ -219,76 +219,79 @@ static Socket* client_coro_new(zval *zobject, int port)
 static bool client_coro_close(zval *zobject)
 {
     Socket *cli = (Socket *) swoole_get_object(zobject);
-
-    zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), 0);
-
-    if (!cli)
+    if (cli)
     {
-        return false;
-    }
+        zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), 0);
+        if (!cli->has_bound())
+        {
 #ifdef SWOOLE_SOCKETS_SUPPORT
-    zval *zsocket = (zval *) swoole_get_property(zobject, client_property_socket);
-    if (zsocket)
-    {
-        sw_zval_free(zsocket);
-        swoole_set_property(zobject, client_property_socket, NULL);
-    }
+            zval *zsocket = (zval *) swoole_get_property(zobject, client_property_socket);
+            if (zsocket)
+            {
+                sw_zval_free(zsocket);
+                swoole_set_property(zobject, client_property_socket, NULL);
+            }
 #endif
-    swoole_set_object(zobject, NULL);
-
-    return php_swoole_client_coro_socket_free(cli);
+            swoole_set_object(zobject, NULL);
+        }
+        return php_swoole_client_coro_socket_free(cli);
+    }
+    return false;
 }
 
 bool php_swoole_client_coro_socket_free(Socket *cli)
 {
-    bool ret;
-    //TODO: move to Socket method, we should not manage it externally
-    //socks5 proxy config
-    if (cli->socks5_proxy)
+    //FIXME: move to Socket method, we should not manage it externally
+    if (!cli->has_bound())
     {
-        efree(cli->socks5_proxy->host);
-        cli->socks5_proxy->host = nullptr;
-        if (cli->socks5_proxy->username)
+        if (cli->socks5_proxy)
         {
-            efree(cli->socks5_proxy->username);
-            cli->socks5_proxy->username = nullptr;
+            if (cli->socks5_proxy->host)
+            {
+                efree(cli->socks5_proxy->host);
+                cli->socks5_proxy->host = nullptr;
+            }
+            if (cli->socks5_proxy->username)
+            {
+                efree(cli->socks5_proxy->username);
+                cli->socks5_proxy->username = nullptr;
+            }
+            if (cli->socks5_proxy->password)
+            {
+                efree(cli->socks5_proxy->password);
+                cli->socks5_proxy->password = nullptr;
+            }
+            efree(cli->socks5_proxy);
+            cli->socks5_proxy = nullptr;
         }
-        if (cli->socks5_proxy->password)
+        if (cli->http_proxy)
         {
-            efree(cli->socks5_proxy->password);
-            cli->socks5_proxy->password = nullptr;
+            if (cli->http_proxy->proxy_host)
+            {
+                efree(cli->http_proxy->proxy_host);
+                cli->http_proxy->proxy_host = nullptr;
+            }
+            if (cli->http_proxy->user)
+            {
+                efree(cli->http_proxy->user);
+                cli->http_proxy->user = nullptr;
+            }
+            if (cli->http_proxy->password)
+            {
+                efree(cli->http_proxy->password);
+                cli->http_proxy->password = nullptr;
+            }
+            efree(cli->http_proxy);
+            cli->http_proxy = nullptr;
         }
-        efree(cli->socks5_proxy);
-        cli->socks5_proxy = nullptr;
+        if (cli->protocol.private_data)
+        {
+            zval *zcallback = (zval *) cli->protocol.private_data;
+            sw_zval_free(zcallback);
+            cli->protocol.private_data = nullptr;
+        }
     }
-    //http proxy config
-    if (cli->http_proxy)
-    {
-        efree(cli->http_proxy->proxy_host);
-        cli->http_proxy->proxy_host = nullptr;
-        if (cli->http_proxy->user)
-        {
-            efree(cli->http_proxy->user);
-            cli->http_proxy->user = nullptr;
-        }
-        if (cli->http_proxy->password)
-        {
-            efree(cli->http_proxy->password);
-            cli->http_proxy->password = nullptr;
-        }
-        efree(cli->http_proxy);
-        cli->http_proxy = nullptr;
-    }
-    if (cli->protocol.private_data)
-    {
-        zval *zcallback = (zval *) cli->protocol.private_data;
-        sw_zval_free(zcallback);
-        cli->protocol.private_data = nullptr;
-    }
-    ret = cli->close();
-    delete cli;
-
-    return ret;
+    return cli->close();
 }
 
 void sw_coro_socket_set(Socket *cli, zval *zset)
@@ -522,7 +525,7 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
                 }
                 else
                 {
-                    swoole_php_fatal_error(E_WARNING, "http_proxy_password can not be null.");
+                    swoole_php_fatal_error(E_ERROR, "http_proxy_password can not be null.");
                 }
             }
             //https proxy
@@ -533,7 +536,7 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
         }
         else
         {
-            swoole_php_fatal_error(E_WARNING, "http_proxy_port can not be null.");
+            swoole_php_fatal_error(E_ERROR, "http_proxy_port can not be null.");
         }
     }
 
@@ -699,7 +702,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     Socket *cli = (Socket *) swoole_get_object(getThis());
     if (cli)
     {
-        swoole_php_fatal_error(E_WARNING, "connection to the server has already been established.");
+        swoole_php_error(E_WARNING, "connection to the server has already been established.");
         RETURN_FALSE;
     }
 
@@ -766,6 +769,7 @@ static PHP_METHOD(swoole_client_coro, send)
     if (ret < 0)
     {
         swoole_php_sys_error(E_WARNING, "failed to send(%d) %zd bytes.", cli->socket->fd, data_len);
+        SwooleG.error = cli->errCode;
         zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         RETVAL_FALSE;
     }
@@ -892,7 +896,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
     if (ret < 0)
     {
         SwooleG.error = errno;
-        swoole_php_fatal_error(E_WARNING, "sendfile() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
+        swoole_php_error(E_WARNING, "sendfile() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
         zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         RETVAL_FALSE;
     }
@@ -983,8 +987,7 @@ static PHP_METHOD(swoole_client_coro, peek)
     {
         SwooleG.error = errno;
         swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
-        zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"),
-                SwooleG.error);
+        zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         efree(buf);
         RETURN_FALSE;
     }

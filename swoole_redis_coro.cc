@@ -880,6 +880,11 @@ ZEND_END_ARG_INFO()
 typedef struct
 {
     redisContext *context;
+    struct {
+        bool auth;
+        long db_num;
+        bool subscribe;
+    } session;
     double connect_timeout;
     double timeout;
     bool serialize;
@@ -890,7 +895,6 @@ typedef struct
     long database;
     zval *zobject;
     zval _zobject;
-    bool subscribe;
 } swRedisClient;
 
 typedef struct
@@ -912,6 +916,16 @@ static sw_inline swRedisClient* swoole_get_redis_client(zval *zobject)
         swoole_php_fatal_error(E_ERROR, "you must call Redis constructor first.");
     }
     return redis;
+}
+
+static sw_inline Socket* swoole_redis_coro_get_socket(redisContext *context)
+{
+    if (context->fd > 0)
+    {
+        swConnection *conn = swReactor_get(SwooleG.main_reactor, context->fd);
+        return conn ? (Socket *) conn->object : nullptr;
+    }
+    return nullptr;
 }
 
 static sw_inline int sw_redis_convert_err(int err)
@@ -941,23 +955,23 @@ static sw_inline int sw_redis_convert_err(int err)
 
 static sw_inline bool swoole_redis_coro_close(swRedisClient *redis)
 {
-    if (!redis->context)
+    if (redis->context)
     {
-        return false;
+        Socket *socket = swoole_redis_coro_get_socket(redis->context);
+        swTraceLog(SW_TRACE_REDIS_CLIENT, "redis connection closed, fd=%d", redis->context->fd);
+        zend_update_property_bool(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("connected"), 0);
+        if (!(socket && socket->has_bound()))
+        {
+            redisFreeKeepFd(redis->context);
+            redis->context = NULL;
+            redis->session = { false, 0, false };
+        }
+        if (socket)
+        {
+            return socket->close();
+        }
     }
-
-    swTraceLog(SW_TRACE_REDIS_CLIENT, "redis connection closed, fd=%d", redis->context->fd);
-    zend_update_property_bool(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("connected"), 0);
-    redisFree(redis->context);
-    redis->context = NULL;
-    redis->subscribe = false;
-    return true;
-}
-
-static sw_inline Socket* swoole_redis_coro_get_socket(redisContext *context)
-{
-    swConnection *conn = swReactor_get(SwooleG.main_reactor, context->fd);
-    return conn ? (Socket *) conn->object : nullptr;
+    return false;
 }
 
 static bool redis_auth(swRedisClient *redis, char *pw, size_t pw_len);
@@ -1132,7 +1146,7 @@ static bool redis_auth(swRedisClient *redis, char *pw, size_t pw_len)
     ret = Z_BVAL_P(&retval);
     if (ret)
     {
-        redis->auth = true;
+        redis->session.auth = true;
     }
     return ret;
 }
@@ -1153,7 +1167,7 @@ static bool redis_select_db(swRedisClient *redis, long db_number)
     ret = Z_BVAL_P(&retval);
     if (ret)
     {
-        redis->database = db_number;
+        redis->session.db_num = db_number;
     }
     return ret;
 }
@@ -1197,8 +1211,8 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
             }
             else
             {
-                if (reply->type == REDIS_REPLY_ERROR &&
-                    (!strncmp(reply->str, "MOVED", 5) || !strcmp(reply->str, "ASK")))
+                // Redis Cluster
+                if (reply->type == REDIS_REPLY_ERROR && (!strncmp(reply->str, "MOVED", 5) || !strcmp(reply->str, "ASK")))
                 {
                     char *p1, *p2;
                     // MOVED 1234 127.0.0.1:1234
@@ -1220,11 +1234,11 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
                         ZVAL_FALSE(return_value);
                     }
                 }
+                // Normal Response
                 else
                 {
                     swoole_redis_coro_parse_result(redis, return_value, reply);
                 }
-
                 freeReplyObject(reply);
             }
         }
@@ -2038,7 +2052,7 @@ static PHP_METHOD(swoole_redis_coro, connect)
 static PHP_METHOD(swoole_redis_coro, getAuth)
 {
     swRedisClient *redis = swoole_get_redis_client(getThis());
-    if (redis->auth)
+    if (redis->session.auth)
     {
         zval *ztmp = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
         if (php_swoole_array_get_value(Z_ARRVAL_P(ztmp), "password", ztmp))
@@ -2057,7 +2071,7 @@ static PHP_METHOD(swoole_redis_coro, getDBNum)
     {
         RETURN_FALSE;
     }
-    RETURN_LONG(redis->database);
+    RETURN_LONG(redis->session.db_num);
 }
 
 static PHP_METHOD(swoole_redis_coro, getOptions)
@@ -2089,19 +2103,17 @@ static PHP_METHOD(swoole_redis_coro, getDefer)
 static PHP_METHOD(swoole_redis_coro, setDefer)
 {
     swRedisClient *redis = swoole_get_redis_client(getThis());
+    zend_bool defer = 1;
 
-    if (redis->subscribe)
+    if (redis->session.subscribe)
     {
         swoole_php_fatal_error(E_WARNING, "you should not use setDefer after subscribe");
         RETURN_FALSE;
     }
-
-    zend_bool defer = 1;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &defer) == FAILURE)
     {
         RETURN_FALSE;
     }
-
     redis->defer = defer;
 
     RETURN_TRUE;
@@ -2111,7 +2123,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
 {
     SW_REDIS_COMMAND_CHECK
 
-    if (!redis->subscribe && !redis->defer)
+    if (!redis->defer && !redis->session.subscribe)
     {
         swoole_php_fatal_error(E_WARNING, "you should not use recv without defer or subscribe.");
         RETURN_FALSE;
@@ -2124,7 +2136,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
         swoole_redis_coro_parse_result(redis, return_value, reply);
         freeReplyObject(reply);
 
-        if (redis->subscribe)
+        if (redis->session.subscribe)
         {
             zval *ztype;
 
@@ -2144,7 +2156,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
                     zval *znum = zend_hash_index_find(Z_ARRVAL_P(return_value), 2);
                     if (Z_LVAL_P(znum) == 0)
                     {
-                        redis->subscribe = false;
+                        redis->session.subscribe = false;
                     }
 
                     return;
@@ -2175,7 +2187,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
 static PHP_METHOD(swoole_redis_coro, close)
 {
     swRedisClient *redis = swoole_get_redis_client(getThis());
-    SW_CHECK_RETURN(swoole_redis_coro_close(redis) ? SW_OK : SW_ERR);
+    RETURN_BOOL(swoole_redis_coro_close(redis));
 }
 
 static PHP_METHOD(swoole_redis_coro, __destruct)
@@ -4224,7 +4236,7 @@ static sw_inline void redis_subscribe(INTERNAL_FUNCTION_PARAMETERS, const char *
 
     if (Z_TYPE_P(return_value) == IS_TRUE)
     {
-        redis->subscribe = true;
+        redis->session.subscribe = true;
     }
 }
 

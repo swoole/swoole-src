@@ -295,8 +295,13 @@ static int socket_flush(php_stream *stream)
 static int socket_close(php_stream *stream, int close_handle)
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    if (!abstract)
+    {
+        return 0;
+    }
+    stream->abstract = NULL;
     Socket *sock = (Socket*) abstract->socket;
-    delete sock;
+    sock->close();
     efree(abstract);
     return 0;
 }
