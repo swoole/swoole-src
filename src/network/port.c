@@ -513,8 +513,10 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             }
             else
             {
-                swTrace("PostWait: request->content_length=%d, buffer->length=%zd, request->header_length=%d\n",
-                        request->content_length, buffer->length, request->header_length);
+                swTraceLog(
+                    SW_TRACE_SERVER, "PostWait: request->content_length=%d, buffer->length=%zu, request->header_length=%d\n",
+                    request->content_length, buffer->length, request->header_length
+                );
             }
 #endif
             goto recv_data;

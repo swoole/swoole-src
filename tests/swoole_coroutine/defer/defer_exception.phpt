@@ -1,10 +1,10 @@
 --TEST--
 swoole_coroutine: coro defer with exception
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 go(function () {
     go(function () {
         $foo = 1;

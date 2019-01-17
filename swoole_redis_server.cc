@@ -400,7 +400,7 @@ static PHP_METHOD(swoole_redis_server, format)
             RETURN_FALSE;
         }
         swString_clear(format_buffer);
-        length = sw_snprintf(message, sizeof(message), "$%zd\r\n", Z_STRLEN_P(value));
+        length = sw_snprintf(message, sizeof(message), "$%zu\r\n", Z_STRLEN_P(value));
         swString_append_ptr(format_buffer, message, length);
         swString_append_ptr(format_buffer, Z_STRVAL_P(value), Z_STRLEN_P(value));
         swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
@@ -429,7 +429,7 @@ static PHP_METHOD(swoole_redis_server, format)
                 item = &_copy;
             }
             convert_to_string(item);
-            length = sw_snprintf(message, sizeof(message), "$%zd\r\n", Z_STRLEN_P(item));
+            length = sw_snprintf(message, sizeof(message), "$%zu\r\n", Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, message, length);
             swString_append_ptr(format_buffer, Z_STRVAL_P(item), Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
@@ -472,7 +472,7 @@ static PHP_METHOD(swoole_redis_server, format)
                 item = &_copy;
             }
             convert_to_string(item);
-            length = sw_snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%zd\r\n", keylen, key, Z_STRLEN_P(item));
+            length = sw_snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%zu\r\n", keylen, key, Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, message, length);
             swString_append_ptr(format_buffer, Z_STRVAL_P(item), Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);

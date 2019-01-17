@@ -57,7 +57,7 @@ else
     options=""
 fi
 echo "${dir}" > tests.list
-for i in 1 2 3
+for i in 1 2 3 4 5
 do
     if [ "`has_failures`" ]; then
         if [ ${i} -gt "1" ]; then
