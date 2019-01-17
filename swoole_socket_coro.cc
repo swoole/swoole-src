@@ -208,7 +208,7 @@ static PHP_METHOD(swoole_socket_coro, __construct)
     {
         php_swoole_check_reactor();
         sock->socket = new Socket((int)domain, (int)type, (int)protocol);
-        if (unlikely(sock->socket->socket == nullptr))
+        if (UNEXPECTED(sock->socket->socket == nullptr))
         {
             zend_throw_exception_ex(
                 swoole_socket_coro_exception_ce_ptr, errno,
@@ -216,10 +216,13 @@ static PHP_METHOD(swoole_socket_coro, __construct)
             );
             delete sock->socket;
             sock->socket = nullptr;
-            RETURN_FALSE;
         }
-        sock->socket->set_timeout(PHPCoroutine::socket_timeout);
+        else
+        {
+            sock->socket->set_timeout(PHPCoroutine::socket_timeout);
+        }
     }
+    RETURN_FALSE;
 }
 
 static PHP_METHOD(swoole_socket_coro, bind)
