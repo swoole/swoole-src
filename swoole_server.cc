@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 #include "connection.h"
 #include "swoole_coroutine.h"
 #include "websocket.h"
@@ -2443,32 +2443,29 @@ static PHP_METHOD(swoole_server, set)
     //chroot
     if (php_swoole_array_get_value(vht, "chroot", v))
     {
-        convert_to_string(v);
         if (SwooleG.chroot)
         {
             sw_free(SwooleG.chroot);
         }
-        SwooleG.chroot = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.chroot = zend::string_dup(v);
     }
     //user
     if (php_swoole_array_get_value(vht, "user", v))
     {
-        convert_to_string(v);
         if (SwooleG.user)
         {
             sw_free(SwooleG.user);
         }
-        SwooleG.user = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.user = zend::string_dup(v);
     }
     //group
     if (php_swoole_array_get_value(vht, "group", v))
     {
-        convert_to_string(v);
         if (SwooleG.group)
         {
             sw_free(SwooleG.group);
         }
-        SwooleG.group = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.group = zend::string_dup(v);
     }
     //daemonize
     if (php_swoole_array_get_value(vht, "daemonize", v))
@@ -2492,12 +2489,11 @@ static PHP_METHOD(swoole_server, set)
     //pid file
     if (php_swoole_array_get_value(vht, "pid_file", v))
     {
-        convert_to_string(v);
         if (serv->pid_file)
         {
             sw_free(serv->pid_file);
         }
-        serv->pid_file = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        serv->pid_file = zend::string_dup(v);
     }
     //reactor thread num
     if (php_swoole_array_get_value(vht, "reactor_num", v))
@@ -2583,12 +2579,11 @@ static PHP_METHOD(swoole_server, set)
     //log_file
     if (php_swoole_array_get_value(vht, "log_file", v))
     {
-        convert_to_string(v);
         if (SwooleG.log_file)
         {
             sw_free(SwooleG.log_file);
         }
-        SwooleG.log_file = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.log_file = zend::string_dup(v);
     }
     //log_level
     if (php_swoole_array_get_value(vht, "log_level", v))
@@ -2647,11 +2642,11 @@ static PHP_METHOD(swoole_server, set)
     }
     if (php_swoole_array_get_value(vht, "request_slowlog_file", v))
     {
-        convert_to_string(v);
-        serv->request_slowlog_file = fopen(Z_STRVAL_P(v), "a+");
+        zend::string str_v(v);
+        serv->request_slowlog_file = fopen(str_v.val(), "a+");
         if (serv->request_slowlog_file == NULL)
         {
-            swoole_php_fatal_error(E_ERROR, "Unable to open request_slowlog_file[%s].", Z_STRVAL_P(v));
+            swoole_php_fatal_error(E_ERROR, "Unable to open request_slowlog_file[%s].", str_v.val());
             return;
         }
         if (serv->request_slowlog_timeout == 0)
@@ -2669,18 +2664,18 @@ static PHP_METHOD(swoole_server, set)
      */
     if (php_swoole_array_get_value(vht, "task_tmpdir", v))
     {
-        convert_to_string(v);
-        if (php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v)) < 0)
+        zend::string str_v(v);
+        if (php_swoole_create_dir(str_v.val(), str_v.len()) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "Unable to create task_tmpdir[%s].", Z_STRVAL_P(v));
+            swoole_php_fatal_error(E_ERROR, "Unable to create task_tmpdir[%s].", str_v.val());
             return;
         }
         if (SwooleG.task_tmpdir)
         {
             sw_free(SwooleG.task_tmpdir);
         }
-        SwooleG.task_tmpdir = (char*) sw_malloc(Z_STRLEN_P(v) + sizeof(SW_TASK_TMP_FILE) + 1);
-        SwooleG.task_tmpdir_len = sw_snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/swoole.task.XXXXXX", Z_STRVAL_P(v)) + 1;
+        SwooleG.task_tmpdir = (char*) sw_malloc(str_v.len() + sizeof(SW_TASK_TMP_FILE) + 1);
+        SwooleG.task_tmpdir_len = sw_snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/swoole.task.XXXXXX", str_v.val()) + 1;
     }
     //task_max_request
     if (php_swoole_array_get_value(vht, "task_max_request", v))
@@ -2790,17 +2785,17 @@ static PHP_METHOD(swoole_server, set)
     //temporary directory for HTTP uploaded file.
     if (php_swoole_array_get_value(vht, "upload_tmp_dir", v))
     {
-        convert_to_string(v);
-        if (php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v)) < 0)
+        zend::string str_v(v);
+        if (php_swoole_create_dir(str_v.val(), str_v.len()) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "Unable to create upload_tmp_dir[%s].", Z_STRVAL_P(v));
+            swoole_php_fatal_error(E_ERROR, "Unable to create upload_tmp_dir[%s].", str_v.val());
             return;
         }
         if (serv->upload_tmp_dir)
         {
             sw_free(serv->upload_tmp_dir);
         }
-        serv->upload_tmp_dir = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        serv->upload_tmp_dir = sw_strndup(str_v.val(), str_v.len());
     }
     /**
      * http static file handler
@@ -2811,9 +2806,9 @@ static PHP_METHOD(swoole_server, set)
     }
     if (php_swoole_array_get_value(vht, "document_root", v))
     {
-        convert_to_string(v);
+        zend::string str_v(v);
 
-        if (Z_STRLEN_P(v) >= PATH_MAX)
+        if (str_v.len() >= PATH_MAX)
         {
             swoole_php_fatal_error(E_ERROR, "The length of document_root must be less than %d.", PATH_MAX);
             return;
@@ -2824,15 +2819,15 @@ static PHP_METHOD(swoole_server, set)
             sw_free(serv->document_root);
         }
 
-        serv->document_root = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
-        if (serv->document_root[Z_STRLEN_P(v) - 1] == '/')
+        serv->document_root = sw_strndup(str_v.val(), str_v.len());
+        if (serv->document_root[str_v.len() - 1] == '/')
         {
-            serv->document_root[Z_STRLEN_P(v) - 1] = 0;
-            serv->document_root_len = Z_STRLEN_P(v) - 1;
+            serv->document_root[str_v.len() - 1] = 0;
+            serv->document_root_len = str_v.len() - 1;
         }
         else
         {
-            serv->document_root_len = Z_STRLEN_P(v);
+            serv->document_root_len = str_v.len();
         }
     }
     /**

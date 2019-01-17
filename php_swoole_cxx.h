@@ -47,5 +47,11 @@ public:
 private:
     zend_string *str;
 };
+
+inline char* string_dup(zval *v)
+{
+    zend::string str(v);
+    return sw_strndup(str.val(), str.len());
+}
 }
 

@@ -314,8 +314,8 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
     //package eof
     if (php_swoole_array_get_value(vht, "package_eof", v))
     {
-        convert_to_string(v);
-        cli->protocol.package_eof_len = Z_STRLEN_P(v);
+        zend::string str_v(v);
+        cli->protocol.package_eof_len = str_v.len();
         if (cli->protocol.package_eof_len == 0)
         {
             swoole_php_fatal_error(E_ERROR, "pacakge_eof cannot be an empty string");
@@ -327,7 +327,7 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
             return;
         }
         bzero(cli->protocol.package_eof, SW_DATA_EOF_MAXLEN);
-        memcpy(cli->protocol.package_eof, Z_STRVAL_P(v), Z_STRLEN_P(v));
+        memcpy(cli->protocol.package_eof, str_v.val(), str_v.len());
     }
     //open mqtt protocol
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", v))
@@ -344,8 +344,8 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
     //package length size
     if (php_swoole_array_get_value(vht, "package_length_type", v))
     {
-        convert_to_string(v);
-        cli->protocol.package_length_type = Z_STRVAL_P(v)[0];
+        zend::string str_v(v);
+        cli->protocol.package_length_type = str_v.val()[0];
         cli->protocol.package_length_size = swoole_type_size(cli->protocol.package_length_type);
 
         if (cli->protocol.package_length_size == 0)
@@ -422,23 +422,23 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
         cli->socket->buffer_size = value;
     }
     /**
-     * bind address
-     */
-    if (php_swoole_array_get_value(vht, "bind_address", v))
-    {
-        convert_to_string(v);
-        bind_address = Z_STRVAL_P(v);
-    }
-    /**
      * bind port
      */
     if (php_swoole_array_get_value(vht, "bind_port", v))
     {
         bind_port = (int) zval_get_long(v);
     }
-    if (bind_address)
+    /**
+     * bind address
+     */
+    if (php_swoole_array_get_value(vht, "bind_address", v))
     {
-        swSocket_bind(cli->socket->fd, cli->type, bind_address, &bind_port);
+        zend::string str_v(v);
+        bind_address = str_v.val();
+        if (bind_address)
+        {
+            swSocket_bind(cli->socket->fd, cli->type, bind_address, &bind_port);
+        }
     }
     /**
      * client: tcp_nodelay
@@ -547,8 +547,8 @@ static void sw_coro_socket_set_ssl(Socket *cli, zval *zset)
     }
     if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
     {
-        convert_to_string(v);
-        cli->ssl_option.cert_file = sw_strdup(Z_STRVAL_P(v));
+        zend::string str_v(v);
+        cli->ssl_option.cert_file = sw_strndup(str_v.val(), str_v.len());
         if (access(cli->ssl_option.cert_file, R_OK) < 0)
         {
             swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_option.cert_file);
@@ -557,8 +557,8 @@ static void sw_coro_socket_set_ssl(Socket *cli, zval *zset)
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", v))
     {
-        convert_to_string(v);
-        cli->ssl_option.key_file = sw_strdup(Z_STRVAL_P(v));
+        zend::string str_v(v);
+        cli->ssl_option.key_file = sw_strndup(str_v.val(), str_v.len());
         if (access(cli->ssl_option.key_file, R_OK) < 0)
         {
             swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_option.key_file);
@@ -567,14 +567,14 @@ static void sw_coro_socket_set_ssl(Socket *cli, zval *zset)
     }
     if (php_swoole_array_get_value(vht, "ssl_passphrase", v))
     {
-        convert_to_string(v);
-        cli->ssl_option.passphrase = sw_strdup(Z_STRVAL_P(v));
+        zend::string str_v(v);
+        cli->ssl_option.passphrase = sw_strndup(str_v.val(), str_v.len());
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (php_swoole_array_get_value(vht, "ssl_host_name", v))
     {
-        convert_to_string(v);
-        cli->ssl_option.tls_host_name = sw_strdup(Z_STRVAL_P(v));
+        zend::string str_v(v);
+        cli->ssl_option.tls_host_name = sw_strndup(str_v.val(), str_v.len());
     }
 #endif
     if (php_swoole_array_get_value(vht, "ssl_verify_peer", v))
@@ -587,13 +587,13 @@ static void sw_coro_socket_set_ssl(Socket *cli, zval *zset)
     }
     if (php_swoole_array_get_value(vht, "ssl_cafile", v))
     {
-        convert_to_string(v);
-        cli->ssl_option.cafile = sw_strdup(Z_STRVAL_P(v));
+        zend::string str_v(v);
+        cli->ssl_option.cafile = sw_strndup(str_v.val(), str_v.len());
     }
     if (php_swoole_array_get_value(vht, "ssl_capath", v))
     {
-        convert_to_string(v);
-        cli->ssl_option.capath = sw_strdup(Z_STRVAL_P(v));
+        zend::string str_v(v);
+        cli->ssl_option.capath = sw_strndup(str_v.val(), str_v.len());
     }
     if (php_swoole_array_get_value(vht, "ssl_verify_depth", v))
     {
