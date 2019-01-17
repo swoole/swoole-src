@@ -118,7 +118,14 @@ int swReactorProcess_start(swServer *serv)
     //no worker
     if (serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 && serv->user_worker_list == NULL)
     {
-        return swReactorProcess_loop(&serv->gs->event_workers, &serv->gs->event_workers.workers[0]);
+        int ret = swReactorProcess_loop(&serv->gs->event_workers, &serv->gs->event_workers.workers[0]);
+
+        if (serv->onManagerStop)
+        {
+            serv->onManagerStop(serv);
+        }
+
+        return ret;
     }
 
     for (i = 0; i < serv->worker_num; i++)
