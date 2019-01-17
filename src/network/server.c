@@ -905,8 +905,7 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
 
     if (unlikely(swIsMaster()))
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER,
-                "can't send data to the connections in master process.");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't send data to the connections in master process.");
         return SW_ERR;
     }
 

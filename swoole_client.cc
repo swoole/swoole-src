@@ -1203,7 +1203,7 @@ static PHP_METHOD(swoole_client, send)
     int ret = cli->send(cli, data, data_len, flags);
     if (ret < 0)
     {
-        swoole_php_sys_error(E_WARNING, "failed to send(%d) %zd bytes.", cli->socket->fd, data_len);
+        swoole_php_sys_error(E_WARNING, "failed to send(%d) %zu bytes.", cli->socket->fd, data_len);
         zend_update_property_long(swoole_client_ce_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         RETVAL_FALSE;
     }

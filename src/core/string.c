@@ -43,8 +43,8 @@ swString *swString_new(size_t size)
 void swString_print(swString *str)
 {
     printf(
-        "String[length=%zu,size=%zu,offset=%zu]=%.*s\n",
-        str->length, str->size, str->offset, (int) str->length, str->str
+        "String[length=%zu,size=%zu,offset=%jd]=%.*s\n",
+        str->length, str->size, (intmax_t) str->offset, (int) str->length, str->str
     );
 }
 
