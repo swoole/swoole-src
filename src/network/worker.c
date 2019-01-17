@@ -227,7 +227,8 @@ static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t len
      */
     swPackagePtr task;
     memcpy(&task.info, data + 4, sizeof(task.info));
-    task.info.type = SW_EVENT_PACKAGE_PTR;
+    task.info.flags = SW_EVENT_DATA_PTR;
+
     bzero(&task.data, sizeof(task.data));
     task.data.length = length - (uint32_t) sizeof(task.info) - 4;
     task.data.str = data + 4 + sizeof(task.info);
@@ -236,7 +237,7 @@ static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t len
      * do task
      */
     serv->last_stream_fd = conn->fd;
-    swWorker_onTask(&serv->factory, &task);
+    swWorker_onTask(&serv->factory, (swEventData *) &task);
     serv->last_stream_fd = -1;
 
     /**
@@ -248,11 +249,51 @@ static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t len
     return SW_OK;
 }
 
+typedef int (*task_callback)(swServer *, swEventData *);
+
+size_t swWorker_get_data(swEventData *req, char **data_ptr)
+{
+    size_t length;
+    if (req->info.flags & SW_EVENT_DATA_PTR)
+    {
+        swPackagePtr *task = (swPackagePtr *) req;
+        *data_ptr = task->data.str;
+        length = task->data.length;
+    }
+    else if (req->info.flags & SW_EVENT_DATA_END)
+    {
+        swString *worker_buffer = swWorker_get_buffer(SwooleG.serv, req->info.from_id);
+        *data_ptr = worker_buffer->str;
+        length = worker_buffer->length;
+    }
+    else
+    {
+        *data_ptr = req->data;
+        length = req->info.len;
+    }
+    return length;
+}
+
+static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEventData *task, task_callback callback)
+{
+    worker->request_time = serv->gs->now;
+#ifdef SW_BUFFER_RECV_TIME
+    serv->last_receive_usec = task->info.time;
+#endif
+    callback(serv, task);
+    worker->request_time = 0;
+#ifdef SW_BUFFER_RECV_TIME
+    serv->last_receive_usec = 0;
+#endif
+    worker->traced = 0;
+    worker->request_count++;
+    sw_atomic_fetch_add(&serv->stats->request_count, 1);
+}
+
 int swWorker_onTask(swFactory *factory, swEventData *task)
 {
     swServer *serv = factory->ptr;
     swString *package = NULL;
-    swDgramPacket *header;
 
 #ifdef SW_USE_OPENSSL
     swConnection *conn;
@@ -262,92 +303,36 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     swWorker *worker = SwooleWG.worker;
     //worker busy
     worker->status = SW_WORKER_BUSY;
+    //packet chunk
+    if (task->info.flags & SW_EVENT_DATA_CHUNK)
+    {
+        package = swWorker_get_buffer(serv, task->info.from_id);
+        //merge data to package buffer
+        swString_append_ptr(package, task->data, task->info.len);
+        //wait more data
+        if (!(task->info.flags & SW_EVENT_DATA_END))
+        {
+            return SW_OK;
+        }
+    }
 
     switch (task->info.type)
     {
-    //no buffer
+    case SW_EVENT_TCP6:
     case SW_EVENT_TCP:
-    //memory point
-    case SW_EVENT_PACKAGE_PTR:
-    //ringbuffer shm package
-    case SW_EVENT_PACKAGE:
+    case SW_EVENT_UNIX_STREAM:
         //discard data
         if (swWorker_discard_data(serv, task) == SW_TRUE)
         {
             break;
         }
-        do_task:
-        {
-            worker->request_time = serv->gs->now;
-#ifdef SW_BUFFER_RECV_TIME
-            serv->last_receive_usec = task->info.time;
-#endif
-            serv->onReceive(serv, task);
-            worker->request_time = 0;
-#ifdef SW_BUFFER_RECV_TIME
-            serv->last_receive_usec = 0;
-#endif
-            worker->traced = 0;
-            worker->request_count++;
-            sw_atomic_fetch_add(&serv->stats->request_count, 1);
-        }
-        if (task->info.type == SW_EVENT_PACKAGE_END)
-        {
-            package->length = 0;
-        }
-        break;
-
-    //chunk package
-    case SW_EVENT_PACKAGE_START:
-    case SW_EVENT_PACKAGE_END:
-        //discard data
-        if (swWorker_discard_data(serv, task) == SW_TRUE)
-        {
-            break;
-        }
-        package = swWorker_get_buffer(serv, task->info.from_id);
-        if (task->info.len > 0)
-        {
-            //merge data to package buffer
-            swString_append_ptr(package, task->data, task->info.len);
-        }
-        //package end
-        if (task->info.type == SW_EVENT_PACKAGE_END)
-        {
-            goto do_task;
-        }
+        swWorker_do_task(serv, worker, task, serv->onReceive);
         break;
 
     case SW_EVENT_UDP:
     case SW_EVENT_UDP6:
     case SW_EVENT_UNIX_DGRAM:
-        package = swWorker_get_buffer(serv, task->info.from_id);
-        swString_append_ptr(package, task->data, task->info.len);
-
-        if (package->offset == 0)
-        {
-            header = (swDgramPacket *) package->str;
-            package->offset = header->length;
-        }
-
-        //one packet
-        if (package->offset == package->length - sizeof(swDgramPacket))
-        {
-            worker->request_count++;
-            worker->request_time = serv->gs->now;
-#ifdef SW_BUFFER_RECV_TIME
-            serv->last_receive_usec = task->info.time;
-#endif
-            sw_atomic_fetch_add(&serv->stats->request_count, 1);
-            serv->onPacket(serv, task);
-            worker->request_time = 0;
-#ifdef SW_BUFFER_RECV_TIME
-            serv->last_receive_usec = 0;
-#endif
-            worker->traced = 0;
-            worker->request_count++;
-            swString_clear(package);
-        }
+        swWorker_do_task(serv, worker, task, serv->onPacket);
         break;
 
     case SW_EVENT_CLOSE:
@@ -407,6 +392,11 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
 
     //worker idle
     worker->status = SW_WORKER_IDLE;
+
+    if (task->info.flags & SW_EVENT_DATA_END)
+    {
+        swString_clear(package);
+    }
 
     //maximum number of requests, process will exit.
     if (!SwooleWG.run_always && worker->request_count >= SwooleWG.max_request)
@@ -805,7 +795,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
         /**
          * Big package
          */
-        if (task.info.type == SW_EVENT_PACKAGE_START)
+        if (task.info.flags & SW_EVENT_DATA_CHUNK)
 #endif
         {
             //no data

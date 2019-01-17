@@ -39,33 +39,52 @@ int swFactory_shutdown(swFactory *factory)
     return SW_OK;
 }
 
-int swFactory_dispatch(swFactory *factory, swDispatchData *task)
+int swFactory_dispatch(swFactory *factory, swSendData *task)
 {
     swServer *serv = factory->ptr;
-    factory->last_from_id = task->data.info.from_id;
+    factory->last_from_id = task->info.from_id;
+    swPackagePtr pkg;
 
-    if (swEventData_is_stream(task->data.info.type))
+    if (swEventData_is_stream(task->info.type))
     {
-        swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
+        swConnection *conn = swServer_connection_get(serv, task->info.fd);
         if (conn == NULL || conn->active == 0)
         {
-            swWarn("dispatch[type=%d] failed, connection#%d is not active.", task->data.info.type, task->data.info.fd);
+            swWarn("dispatch[type=%d] failed, connection#%d is not active.", task->info.type, task->info.fd);
             return SW_ERR;
         }
         //server active close, discard data.
         if (conn->closed)
         {
-            swWarn("dispatch[type=%d] failed, connection#%d is closed by server.", task->data.info.type,
-                    task->data.info.fd);
+            swWarn("dispatch[type=%d] failed, connection#%d is closed by server.", task->info.type,
+                    task->info.fd);
             return SW_OK;
         }
         //converted fd to session_id
-        task->data.info.fd = conn->session_id;
-        task->data.info.from_fd = conn->from_fd;
+        task->info.fd = conn->session_id;
+        task->info.from_fd = conn->from_fd;
     }
-    return swWorker_onTask(factory, &task->data);
+    //with data
+    if (task->length > 0)
+    {
+        memcpy(&pkg.info, &task->info, sizeof(pkg.info));
+        pkg.info.flags = SW_EVENT_DATA_PTR;
+        bzero(&pkg.data, sizeof(pkg.data));
+        pkg.data.length = task->length;
+        pkg.data.str = task->data;
+
+        return swWorker_onTask(factory, (swEventData*) &pkg);
+    }
+    //no data
+    else
+    {
+        return swWorker_onTask(factory, (swEventData*) &task->info);
+    }
 }
 
+/**
+ * only stream fd
+ */
 int swFactory_notify(swFactory *factory, swDataHead *info)
 {
     swServer *serv = factory->ptr;
@@ -84,6 +103,7 @@ int swFactory_notify(swFactory *factory, swDataHead *info)
     //converted fd to session_id
     info->fd = conn->session_id;
     info->from_fd = conn->from_fd;
+    info->flags = SW_EVENT_DATA_NORMAL;
     return swWorker_onTask(factory, (swEventData *) info);
 }
 

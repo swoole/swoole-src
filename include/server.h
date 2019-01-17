@@ -50,15 +50,9 @@ enum swEventType
     //task
     SW_EVENT_TASK,
     SW_EVENT_FINISH,
-    //package
-    SW_EVENT_PACKAGE_START,
-    SW_EVENT_PACKAGE_END,
-    SW_EVENT_PACKAGE,
-    /**
-     * Passing Memory Pointer
-     */
-    SW_EVENT_PACKAGE_PTR,
+    //sendfile
     SW_EVENT_SENDFILE,
+    //dgram
     SW_EVENT_UNIX_DGRAM,
     SW_EVENT_UNIX_STREAM,
     //pipe
@@ -261,12 +255,6 @@ typedef struct
 //-----------------------------------Factory--------------------------------------------
 typedef struct
 {
-    long target_worker_id;
-    swEventData data;
-} swDispatchData;
-
-typedef struct
-{
     swDataHead info;
     swString data;
 } swPackagePtr;
@@ -281,7 +269,7 @@ struct _swFactory
 
     int (*start)(struct _swFactory *);
     int (*shutdown)(struct _swFactory *);
-    int (*dispatch)(struct _swFactory *, swDispatchData *);
+    int (*dispatch)(struct _swFactory *, swSendData *);
     int (*finish)(struct _swFactory *, swSendData *);
     int (*notify)(struct _swFactory *, swDataHead *);    //send a event notify
     int (*end)(struct _swFactory *, int fd);
@@ -292,12 +280,12 @@ typedef struct _swFactoryProcess
     swPipe *pipes;
 } swFactoryProcess;
 
-typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swEventData *);
+typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);
 
 int swFactory_create(swFactory *factory);
 int swFactory_start(swFactory *factory);
 int swFactory_shutdown(swFactory *factory);
-int swFactory_dispatch(swFactory *factory, swDispatchData *req);
+int swFactory_dispatch(swFactory *factory, swSendData *req);
 int swFactory_finish(swFactory *factory, swSendData *_send);
 int swFactory_notify(swFactory *factory, swDataHead *event);
 int swFactory_end(swFactory *factory, int fd);
@@ -620,7 +608,7 @@ struct _swServer
     int (*sendfile)(swServer *serv, int fd, char *filename, uint32_t filename_length, off_t offset, size_t length);
     int (*sendwait)(swServer *serv, int fd, void *data, uint32_t length);
     int (*close)(swServer *serv, int fd, int reset);
-    int (*dispatch_func)(swServer *, swConnection *, swEventData *);
+    int (*dispatch_func)(swServer *, swConnection *, swSendData *);
 };
 
 typedef struct
@@ -718,10 +706,6 @@ static sw_inline int swEventData_is_stream(uint8_t type)
     case SW_EVENT_TCP:
     case SW_EVENT_TCP6:
     case SW_EVENT_UNIX_STREAM:
-    case SW_EVENT_PACKAGE_START:
-    case SW_EVENT_PACKAGE:
-    case SW_EVENT_PACKAGE_PTR:
-    case SW_EVENT_PACKAGE_END:
     case SW_EVENT_CONNECT:
     case SW_EVENT_CLOSE:
     case SW_EVENT_PAUSE_RECV:
@@ -852,7 +836,7 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     return NULL;
 }
 
-static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventData *data)
+static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData *data)
 {
     uint32_t key;
 
@@ -936,6 +920,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
 void swServer_worker_onStart(swServer *serv);
 void swServer_worker_onStop(swServer *serv);
 
+size_t swWorker_get_data(swEventData *req, char **data_ptr);
 int swWorker_onTask(swFactory *factory, swEventData *task);
 void swWorker_stop(swWorker *worker);
 
@@ -956,29 +941,6 @@ static sw_inline swString *swWorker_get_buffer(swServer *serv, int reactor_id)
     {
         return SwooleWG.buffer_input[reactor_id];
     }
-}
-
-static sw_inline size_t swWorker_get_recv_data(swEventData *req, char **data_ptr)
-{
-    size_t length;
-    if (req->info.type == SW_EVENT_PACKAGE_END)
-    {
-        swString *worker_buffer = swWorker_get_buffer(SwooleG.serv, req->info.from_id);
-        *data_ptr = worker_buffer->str;
-        length = worker_buffer->length;
-    }
-    else if (req->info.type == SW_EVENT_PACKAGE_PTR)
-    {
-        swPackagePtr *task = (swPackagePtr *) req;
-        *data_ptr = task->data.str;
-        length = task->data.length;
-    }
-    else
-    {
-        *data_ptr = req->data;
-        length = req->info.len;
-    }
-    return length;
 }
 
 static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv, uint32_t session_id)

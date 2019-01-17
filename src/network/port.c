@@ -226,10 +226,10 @@ void swPort_clear_protocol(swListenPort *ls)
 static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *event)
 {
     int n;
-    swDispatchData task;
-    swConnection *conn =  event->socket;
+    swConnection *conn = event->socket;
+    char *buffer = SwooleTG.buffer_stack->str;
 
-    n = swConnection_recv(conn, task.data.data, SW_IPC_BUFFER_SIZE, 0);
+    n = swConnection_recv(conn, buffer, SwooleTG.buffer_stack->size, 0);
     if (n < 0)
     {
         switch (swConnection_error(errno))
@@ -251,16 +251,10 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     }
     else
     {
-        task.data.info.fd = event->fd;
-        task.data.info.from_id = event->from_id;
-        task.data.info.len = n;
-        task.data.info.type = SW_EVENT_TCP;
-        task.target_worker_id = -1;
-        return swReactorThread_dispatch(conn, task.data.data, task.data.info.len);
+        return swReactorThread_dispatch(conn, buffer, n);
     }
     return SW_OK;
 }
-
 
 static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, swEvent *event)
 {

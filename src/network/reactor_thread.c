@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include "server.h"
+#include "hash.h"
 #include "client.h"
 #include "websocket.h"
 
@@ -43,8 +44,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
         {
             if (port->ssl_option.client_cert_file)
             {
-                swDispatchData task;
-                ret = swSSL_get_client_certificate(conn->ssl, task.data.data, sizeof(task.data.data));
+                ret = swSSL_get_client_certificate(conn->ssl, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
                 if (ret < 0)
                 {
                     goto no_client_cert;
@@ -54,11 +54,12 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                     if (!port->ssl_option.verify_peer || swSSL_verify(conn, port->ssl_option.allow_self_signed) == SW_OK)
                     {
                         swFactory *factory = &serv->factory;
-                        task.target_worker_id = -1;
-                        task.data.info.fd = conn->fd;
-                        task.data.info.type = SW_EVENT_CONNECT;
-                        task.data.info.from_id = conn->from_id;
-                        task.data.info.len = ret;
+                        swSendData task;
+                        task.info.fd = conn->fd;
+                        task.info.type = SW_EVENT_CONNECT;
+                        task.info.from_id = conn->from_id;
+                        task.data = SwooleTG.buffer_stack->str;
+                        task.length = ret;
                         factory->dispatch(factory, &task);
                         goto delay_receive;
                     }
@@ -122,141 +123,38 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
 
     swServer *serv = SwooleG.serv;
     swConnection *server_sock = &serv->connection_list[fd];
-    swDispatchData task;
-    swSocketAddress info;
-    swDgramPacket pkt;
+    swSendData task;
+    swDgramPacket *pkt = (swDgramPacket *) SwooleTG.buffer_stack->str;
     swFactory *factory = &serv->factory;
 
-    info.len = sizeof(info.addr);
-    bzero(&task.data.info, sizeof(task.data.info));
-    task.data.info.from_fd = fd;
-    task.data.info.from_id = SwooleTG.id;
+    pkt->info.len = sizeof(pkt->info.addr);
+
+    bzero(&task.info, sizeof(task.info));
+    task.info.from_fd = fd;
+    task.info.from_id = SwooleTG.id;
 #ifdef SW_BUFFER_RECV_TIME
-    task.data.info.time = swoole_microtime();
+    task.info.time = swoole_microtime();
 #endif
 
     int socket_type = server_sock->socket_type;
     switch(socket_type)
     {
     case SW_SOCK_UDP6:
-        task.data.info.type = SW_EVENT_UDP6;
+        task.info.type = SW_EVENT_UDP6;
         break;
     case SW_SOCK_UNIX_DGRAM:
-        task.data.info.type = SW_EVENT_UNIX_DGRAM;
+        task.info.type = SW_EVENT_UNIX_DGRAM;
         break;
     case SW_SOCK_UDP:
     default:
-        task.data.info.type = SW_EVENT_UDP;
+        task.info.type = SW_EVENT_UDP;
         break;
     }
 
-    char packet[SW_BUFFER_SIZE_UDP];
-    do_recvfrom:
-    ret = recvfrom(fd, packet, SW_BUFFER_SIZE_UDP, 0, (struct sockaddr *) &info.addr, &info.len);
+    do_recvfrom: ret = recvfrom(fd, pkt->data, SwooleTG.buffer_stack->size - sizeof(*pkt), 0,
+            (struct sockaddr *) &pkt->info.addr, &pkt->info.len);
 
-    if (ret > 0)
-    {
-        pkt.length = ret;
-
-        //IPv4
-        if (socket_type == SW_SOCK_UDP)
-        {
-            pkt.port = ntohs(info.addr.inet_v4.sin_port);
-            pkt.addr.v4.s_addr = info.addr.inet_v4.sin_addr.s_addr;
-            task.data.info.fd = pkt.addr.v4.s_addr;
-        }
-        //IPv6
-        else if (socket_type == SW_SOCK_UDP6)
-        {
-            pkt.port = ntohs(info.addr.inet_v6.sin6_port);
-            memcpy(&pkt.addr.v6, &info.addr.inet_v6.sin6_addr, sizeof(info.addr.inet_v6.sin6_addr));
-            memcpy(&task.data.info.fd, &info.addr.inet_v6.sin6_addr, sizeof(task.data.info.fd));
-        }
-#ifndef _WIN32
-        //Unix Dgram
-        else
-        {
-            pkt.addr.un.path_length = strlen(info.addr.un.sun_path) + 1;
-            pkt.length += pkt.addr.un.path_length;
-            pkt.port = 0;
-            memcpy(&task.data.info.fd, info.addr.un.sun_path + pkt.addr.un.path_length - 6, sizeof(task.data.info.fd));
-        }
-#endif
-
-        task.target_worker_id = -1;
-        uint32_t header_size = sizeof(pkt);
-
-        //dgram header
-        memcpy(task.data.data, &pkt, sizeof(pkt));
-#ifndef _WIN32
-        //unix dgram
-        if (socket_type == SW_SOCK_UNIX_DGRAM)
-        {
-            header_size += pkt.addr.un.path_length;
-            memcpy(task.data.data + sizeof(pkt), info.addr.un.sun_path, pkt.addr.un.path_length);
-        }
-#endif
-        //dgram body
-        if (pkt.length > SW_IPC_BUFFER_SIZE - sizeof(pkt))
-        {
-            task.data.info.len = SW_IPC_BUFFER_SIZE;
-        }
-        else
-        {
-            task.data.info.len = pkt.length + sizeof(pkt);
-        }
-        //dispatch packet header
-        memcpy(task.data.data + header_size, packet, task.data.info.len - header_size);
-
-        uint32_t send_n = pkt.length + header_size;
-        if (socket_type == SW_SOCK_UNIX_DGRAM)
-        {
-            send_n -= pkt.addr.un.path_length;
-        }
-        uint32_t offset = 0;
-
-        /**
-         * lock target
-         */
-        SwooleTG.factory_lock_target = 1;
-
-        if (factory->dispatch(factory, &task) < 0)
-        {
-            return SW_ERR;
-        }
-
-        send_n -= task.data.info.len;
-        if (send_n == 0)
-        {
-            /**
-             * unlock
-             */
-            SwooleTG.factory_target_worker = -1;
-            SwooleTG.factory_lock_target = 0;
-            goto do_recvfrom;
-        }
-
-        offset = SW_IPC_BUFFER_SIZE - header_size;
-        while (send_n > 0)
-        {
-            task.data.info.len = send_n > SW_IPC_BUFFER_SIZE ? SW_IPC_BUFFER_SIZE : send_n;
-            memcpy(task.data.data, packet + offset, task.data.info.len);
-            send_n -= task.data.info.len;
-            offset += task.data.info.len;
-
-            if (factory->dispatch(factory, &task) < 0)
-            {
-                break;
-            }
-        }
-        /**
-         * unlock
-         */
-        SwooleTG.factory_target_worker = -1;
-        SwooleTG.factory_lock_target = 0;
-        goto do_recvfrom;
-    }
-    else
+    if (ret <= 0)
     {
         if (errno == EAGAIN)
         {
@@ -265,9 +163,39 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         else
         {
             swSysError("recvfrom(%d) failed.", fd);
+            return ret;
         }
     }
-    return ret;
+
+    //IPv4
+    if (socket_type == SW_SOCK_UDP)
+    {
+        memcpy(&task.info.fd, &pkt->info.addr.inet_v4.sin_addr, sizeof(task.info.fd));
+    }
+    //IPv6
+    else if (socket_type == SW_SOCK_UDP6)
+    {
+        memcpy(&task.info.fd, &pkt->info.addr.inet_v6.sin6_addr, sizeof(task.info.fd));
+    }
+#ifndef _WIN32
+    else
+    {
+        task.info.fd = swoole_crc32(pkt->info.addr.un.sun_path, pkt->info.len);
+    }
+#endif
+
+    pkt->length = ret;
+    task.length = sizeof(*pkt) + ret;
+    task.data = (char*) pkt;
+
+    if (factory->dispatch(factory, &task) < 0)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        goto do_recvfrom;
+    }
 }
 
 /**
@@ -634,6 +562,11 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
 
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
 {
+    //64k packet
+    if (serv->have_dgram_sock)
+    {
+        swString_extend_align(SwooleTG.buffer_stack, SwooleTG.buffer_stack->size * 2);
+    }
     //UDP Packet
     reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);
     //Write
@@ -973,8 +906,6 @@ int swReactorThread_start(swServer *serv)
     }
 
     SwooleTG.type = SW_THREAD_MASTER;
-    SwooleTG.factory_target_worker = -1;
-    SwooleTG.factory_lock_target = 0;
     SwooleTG.update_time = 1;
 
     SwooleG.main_reactor = main_reactor;
@@ -1125,8 +1056,6 @@ static int swReactorThread_loop(swThreadParam *param)
     int reactor_id = param->pti;
     int ret;
 
-    SwooleTG.factory_lock_target = 0;
-    SwooleTG.factory_target_worker = -1;
     SwooleTG.id = reactor_id;
     SwooleTG.type = SW_THREAD_REACTOR;
 
@@ -1202,13 +1131,18 @@ static int swReactorThread_loop(swThreadParam *param)
 int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
 {
     swServer *serv = SwooleG.serv;
-    swDispatchData task;
+    swSendData task;
 
-    task.data.info.from_fd = conn->from_fd;
-    task.data.info.from_id = conn->from_id;
+    task.info.len = 0;
+    task.info.flags = 0;
+    task.info.from_fd = conn->from_fd;
+    task.info.from_id = conn->from_id;
+    task.info.type = SW_EVENT_TCP;
 #ifdef SW_BUFFER_RECV_TIME
-    task.data.info.time = conn->last_time_usec;
+    task.info.info.time = conn->last_time_usec;
 #endif
+
+    swTrace("send string package, size=%ld bytes.", (long)length);
 
     if (serv->stream_socket)
     {
@@ -1221,11 +1155,9 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
         swListenPort *port = swServer_get_port(serv, conn->fd);
         swStream_set_max_length(stream, port->protocol.package_max_length);
 
-        task.data.info.fd = conn->session_id;
-        task.data.info.type = SW_EVENT_PACKAGE_END;
-        task.data.info.len = 0;
+        task.info.fd = conn->session_id;
 
-        if (swStream_send(stream, (char*) &task.data.info, sizeof(task.data.info)) < 0)
+        if (swStream_send(stream, (char*) &task.info, sizeof(task.info)) < 0)
         {
             _cancel: stream->cancel = 1;
             return SW_ERR;
@@ -1236,56 +1168,13 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
         }
         return SW_OK;
     }
-
-    task.data.info.fd = conn->fd;
-
-    swTrace("send string package, size=%ld bytes.", (long)length);
-
-
-    task.data.info.type = SW_EVENT_PACKAGE_START;
-    task.target_worker_id = -1;
-
-    /**
-     * lock target
-     */
-    SwooleTG.factory_lock_target = 1;
-
-    size_t send_n = length;
-    size_t offset = 0;
-
-    while (send_n > 0)
+    else
     {
-        if (send_n > SW_IPC_BUFFER_SIZE)
-        {
-            task.data.info.len = SW_IPC_BUFFER_SIZE;
-        }
-        else
-        {
-            task.data.info.type = SW_EVENT_PACKAGE_END;
-            task.data.info.len = send_n;
-        }
-
-        task.data.info.fd = conn->fd;
-        memcpy(task.data.data, data + offset, task.data.info.len);
-
-        send_n -= task.data.info.len;
-        offset += task.data.info.len;
-
-        swTrace("dispatch, type=%d|len=%d", task.data.info.type, task.data.info.len);
-
-        if (serv->factory.dispatch(&serv->factory, &task) < 0)
-        {
-            break;
-        }
+        task.info.fd = conn->fd;
+        task.data = data;
+        task.length = length;
+        return serv->factory.dispatch(&serv->factory, &task);
     }
-
-    /**
-     * unlock
-     */
-    SwooleTG.factory_target_worker = -1;
-    SwooleTG.factory_lock_target = 0;
-
-    return SW_OK;
 }
 
 void swReactorThread_free(swServer *serv)

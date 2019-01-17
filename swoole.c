@@ -389,7 +389,7 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
     return -1;
 }
 
-int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *data)
+int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *data)
 {
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache*) serv->private_data_3;
     zval args[4];
@@ -405,7 +405,7 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *da
     {
         // optimization: reduce memory copy
         zdata = &args[3];
-        ZVAL_STRINGL(zdata, data->data, data->info.len);
+        ZVAL_STRINGL(zdata, data->data, data->length);
     }
     if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, zdata ? 4 : 3, args) == FAILURE)
     {

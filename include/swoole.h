@@ -390,11 +390,11 @@ enum swWorker_status
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
     exit(1)
 
-#define swSysError(str,...) SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+#define swSysError(str,...)  do{SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
     snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str " Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
     swLog_put(SW_LOG_ERROR, sw_error);\
     SwooleG.error=errno;\
-    SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
+    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}while(0)
 
 #define swoole_error_log(level, __errno, str, ...)      do{SwooleG.error=__errno;\
     if (level >= SwooleG.log_level){\
@@ -761,6 +761,14 @@ static sw_inline int swString_extend_align(swString *str, size_t _new_size)
 }
 
 //------------------------------Base--------------------------------
+enum _swEventData_flag
+{
+    SW_EVENT_DATA_NORMAL,
+    SW_EVENT_DATA_PTR = 1u << 1,
+    SW_EVENT_DATA_CHUNK = 1u << 2,
+    SW_EVENT_DATA_END = 1u << 3,
+};
+
 typedef struct _swDataHead
 {
     int fd;
@@ -790,16 +798,7 @@ typedef struct _swEventData
 
 typedef struct _swDgramPacket
 {
-    union
-    {
-        struct in6_addr v6;
-        struct in_addr v4;
-        struct
-        {
-            uint16_t path_length;
-        } un;
-    } addr;
-    uint16_t port;
+    swSocketAddress info;
     uint32_t length;
     char data[0];
 } swDgramPacket;
@@ -2115,8 +2114,6 @@ typedef struct
     uint16_t id;
     uint8_t type;
     uint8_t update_time;
-    uint8_t factory_lock_target;
-    int16_t factory_target_worker;
     swString *buffer_stack;
     swReactor *reactor;
 } swThreadG;

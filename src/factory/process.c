@@ -21,7 +21,7 @@
 
 static int swFactoryProcess_start(swFactory *factory);
 static int swFactoryProcess_notify(swFactory *factory, swDataHead *event);
-static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *buf);
+static int swFactoryProcess_dispatch(swFactory *factory, swSendData *data);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 static int swFactoryProcess_shutdown(swFactory *factory);
 static int swFactoryProcess_end(swFactory *factory, int fd);
@@ -110,56 +110,28 @@ static int swFactoryProcess_start(swFactory *factory)
     return SW_OK;
 }
 
-static __thread struct
-{
-    long target_worker_id;
-    swDataHead _send;
-} sw_notify_data;
-
 /**
  * [ReactorThread] notify info to worker process
  */
 static int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
 {
-    memcpy(&sw_notify_data._send, ev, sizeof(swDataHead));
-    sw_notify_data._send.len = 0;
-    sw_notify_data.target_worker_id = -1;
-    return factory->dispatch(factory, (swDispatchData *) &sw_notify_data);
+    swSendData task;
+    task.info = *ev;
+    task.length = 0;
+    task.data = NULL;
+    return swFactoryProcess_dispatch(factory, &task);
 }
 
 /**
  * [ReactorThread] dispatch request to worker
  */
-static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
+static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
 {
-    uint32_t send_len = sizeof(task->data.info) + task->data.info.len;
-    int target_worker_id;
     swServer *serv = (swServer *) factory->ptr;
-    int fd = task->data.info.fd;
+    int fd = task->info.fd;
 
-    if (task->target_worker_id < 0)
-    {
-        if (SwooleTG.factory_lock_target)
-        {
-            if (SwooleTG.factory_target_worker < 0)
-            {
-                target_worker_id = swServer_worker_schedule(serv, fd, &task->data);
-                SwooleTG.factory_target_worker = target_worker_id;
-            }
-            else
-            {
-                target_worker_id = SwooleTG.factory_target_worker;
-            }
-        }
-        else
-        {
-            target_worker_id = swServer_worker_schedule(serv, fd, &task->data);
-        }
-    }
-    else
-    {
-        target_worker_id = task->target_worker_id;
-    }
+    int target_worker_id = swServer_worker_schedule(serv, fd, task);
+
     //discard the data packet.
     if (target_worker_id < 0)
     {
@@ -170,29 +142,69 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         return SW_ERR;
     }
 
-    if (swEventData_is_stream(task->data.info.type))
+    if (swEventData_is_stream(task->info.type))
     {
         swConnection *conn = swServer_connection_get(serv, fd);
         if (conn == NULL || conn->active == 0)
         {
-            swWarn("dispatch[type=%d] failed, connection#%d is not active.", task->data.info.type, fd);
+            swWarn("dispatch[type=%d] failed, connection#%d is not active.", task->info.type, fd);
             return SW_ERR;
         }
         //server active close, discard data.
         if (conn->closed)
         {
             //Connection has been clsoed by server
-            if (!(task->data.info.type == SW_EVENT_CLOSE && conn->close_force))
+            if (!(task->info.type == SW_EVENT_CLOSE && conn->close_force))
             {
                 return SW_OK;
             }
         }
         //converted fd to session_id
-        task->data.info.fd = conn->session_id;
-        task->data.info.from_fd = conn->from_fd;
+        task->info.fd = conn->session_id;
+        task->info.from_fd = conn->from_fd;
     }
 
-    return swReactorThread_send2worker(serv, (void *) &(task->data), send_len, target_worker_id);
+    //without data
+    if (task->data == NULL)
+    {
+        return swReactorThread_send2worker(serv, &task->info, sizeof(task->info), target_worker_id);
+    }
+
+    size_t send_n = task->length;
+    size_t offset = 0;
+    swEventData buf;
+    char *data = task->data;
+
+    memcpy(&buf.info, &task->info, sizeof(buf.info));
+
+    buf.info.flags = SW_EVENT_DATA_CHUNK;
+
+    while (send_n > 0)
+    {
+        if (send_n > SW_IPC_BUFFER_SIZE)
+        {
+            buf.info.len = SW_IPC_BUFFER_SIZE;
+        }
+        else
+        {
+            buf.info.flags |= SW_EVENT_DATA_END;
+            buf.info.len = send_n;
+        }
+
+        memcpy(buf.data, data + offset, buf.info.len);
+
+        send_n -= buf.info.len;
+        offset += buf.info.len;
+
+        swTrace("dispatch, type=%d|len=%d", task.data.info.type, task.data.info.len);
+
+        if (swReactorThread_send2worker(serv, &buf, sizeof(buf.info) + buf.info.len, target_worker_id) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
+    return SW_OK;
 }
 
 /**

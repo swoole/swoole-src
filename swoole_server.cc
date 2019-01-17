@@ -712,7 +712,7 @@ void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint3
 {
     char *data = NULL;
 
-    size_t length = swWorker_get_recv_data(req, &data);
+    size_t length = swWorker_get_data(req, &data);
     if (header_length >= length)
     {
         ZVAL_STRING(zdata, "");
@@ -1262,21 +1262,21 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     zval *zserv = (zval *) serv->ptr2;
 
     zval *zfd;
-    zval *zfrom_id;
+    zval *zthread_id;
     zval *zdata;
 
     SW_MAKE_STD_ZVAL(zfd);
-    SW_MAKE_STD_ZVAL(zfrom_id);
+    SW_MAKE_STD_ZVAL(zthread_id);
     SW_MAKE_STD_ZVAL(zdata);
 
-    ZVAL_LONG(zfrom_id, (long ) req->info.from_id);
+    ZVAL_LONG(zthread_id, (long ) req->info.from_id);
     ZVAL_LONG(zfd, (long ) req->info.fd);
     php_swoole_get_recv_data(zdata, req, NULL, 0);
 
     zval args[4];
     args[0] = *zserv;
     args[1] = *zfd;
-    args[2] = *zfrom_id;
+    args[2] = *zthread_id;
     args[3] = *zdata;
 
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
@@ -1299,7 +1299,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     }
 
     zval_ptr_dtor(zfd);
-    zval_ptr_dtor(zfrom_id);
+    zval_ptr_dtor(zthread_id);
     zval_ptr_dtor(zdata);
 
     return SW_OK;
@@ -1310,15 +1310,15 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     zval *zserv = (zval *) serv->ptr2;
     zval *zdata;
     zval *zaddr;
-    swDgramPacket *packet;
 
+    char *buffer;
+    swWorker_get_recv_data(req, &buffer);
 
     SW_MAKE_STD_ZVAL(zdata);
     SW_MAKE_STD_ZVAL(zaddr);
     array_init(zaddr);
 
-    swString *buffer = swWorker_get_buffer(serv, req->info.from_id);
-    packet = (swDgramPacket*) buffer->str;
+    swDgramPacket *packet = (swDgramPacket*) buffer;
 
     add_assoc_long(zaddr, "server_socket", req->info.from_fd);
     swConnection *from_sock = swServer_connection_get(serv, req->info.from_fd);
@@ -1334,25 +1334,24 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     //udp ipv4
     if (req->info.type == SW_EVENT_UDP)
     {
-        inet_ntop(AF_INET, &packet->addr.v4, address, sizeof(address));
+        inet_ntop(AF_INET, &packet->info.addr.inet_v4.sin_addr, address, sizeof(address));
         add_assoc_string(zaddr, "address", address);
-        add_assoc_long(zaddr, "port", packet->port);
-        ZVAL_STRINGL(zdata, packet->data, packet->length);
+        add_assoc_long(zaddr, "port", ntohs(packet->info.addr.inet_v4.sin_port));
     }
     //udp ipv6
     else if (req->info.type == SW_EVENT_UDP6)
     {
-        inet_ntop(AF_INET6, &packet->addr.v6, address, sizeof(address));
+        inet_ntop(AF_INET6, &packet->info.addr.inet_v6.sin6_addr, address, sizeof(address));
         add_assoc_string(zaddr, "address", address);
-        add_assoc_long(zaddr, "port", packet->port);
-        ZVAL_STRINGL(zdata, packet->data, packet->length);
+        add_assoc_long(zaddr, "port", packet->info.addr.inet_v6.sin6_port);
     }
     //unix dgram
     else if (req->info.type == SW_EVENT_UNIX_DGRAM)
     {
-        add_assoc_stringl(zaddr, "address", packet->data, packet->addr.un.path_length);
-        ZVAL_STRINGL(zdata, packet->data + packet->addr.un.path_length, packet->length - packet->addr.un.path_length);
+        add_assoc_string(zaddr, "address", packet->info.addr.un.sun_path);
     }
+
+    ZVAL_STRINGL(zdata, packet->data, packet->length);
 
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
     zval args[3];
