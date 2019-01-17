@@ -39,4 +39,4 @@ defer 1
 Fatal error: Uncaught Exception: something wrong in %s:%d
 Stack trace:
 #0 {main}
-  thrown in %s/tests/swoole_coroutine/defer_exception.php on line %d
+  thrown in %s/tests/swoole_coroutine/defer/defer_exception.php on line %d
