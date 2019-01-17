@@ -1,5 +1,5 @@
 --TEST--
-swoole_event: swoole_event_write
+swoole_event: swoole_event_defer
 
 --FILE--
 <?php

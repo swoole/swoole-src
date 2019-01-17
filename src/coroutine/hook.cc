@@ -71,13 +71,13 @@ int swoole_coroutine_socket(int domain, int type, int protocol)
     {
         return socket(domain, type, protocol);
     }
-    Socket *sock = new Socket(domain, type, protocol);
-    if (sock->socket == nullptr)
+    Socket *socket = new Socket(domain, type, protocol);
+    if (socket->socket == nullptr)
     {
-        delete sock;
+        delete socket;
         return -1;
     }
-    return sock->socket->fd;
+    return socket->socket->fd;
 }
 
 ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags)
@@ -191,11 +191,8 @@ int swoole_coroutine_close(int fd)
     {
         goto _no_coro;
     }
-    else
-    {
-        delete (Socket *) conn->object;
-        return 0;
-    }
+    Socket *socket = (Socket *) conn->object;
+    return socket->close() ? 0 : -1;
 }
 
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)

@@ -17,6 +17,11 @@
  +----------------------------------------------------------------------+
  */
 
+function switch_process()
+{
+    usleep((USE_VALGRIND ? 100 : 1) * 1000);
+}
+
 function clear_php()
 {
     `ps -A | grep php | grep -v phpstorm | grep -v 'run-tests' | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1`;
