@@ -1204,7 +1204,6 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     swServer *serv = SwooleG.serv;
     swDispatchData task;
 
-    task.data.info.from_fd = conn->from_fd;
     task.data.info.from_id = conn->from_id;
 #ifdef SW_BUFFER_RECV_TIME
     task.data.info.time = conn->last_time_usec;
