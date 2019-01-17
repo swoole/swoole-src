@@ -1,0 +1,2 @@
+cloc . --exclude-dir=thirdparty
+
