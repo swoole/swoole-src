@@ -430,11 +430,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
 
         SW_HASHTABLE_FOREACH_START2(ht, key, keylen, type, value)
         {
-            if (!key)
-            {
-                break;
-            }
-            if (*key == ':')
+            if (!key || *key == ':' || ZVAL_IS_NULL(value))
             {
                 continue;
             }

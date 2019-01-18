@@ -127,20 +127,16 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
         int type;
         SW_HASHTABLE_FOREACH_START2(ht, key, keylen, type, value)
         {
-            if (!key)
-            {
-                break;
-            }
-            if (ZVAL_IS_NULL(value))
+            if (!key || ZVAL_IS_NULL(value))
             {
                 continue;
             }
             zend_string *zstr = zval_get_string(value);
             http2_add_header(&nv[index++], key, keylen, ZSTR_VAL(zstr), ZSTR_LEN(zstr));
             zstr_list.emplace_back(zend::string_ptr(zstr));
-            (void) type;
         }
         SW_HASHTABLE_FOREACH_END();
+        (void) type;
 
         ssize_t rv;
         size_t buflen;
@@ -250,7 +246,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
         {
             if (!key)
             {
-                break;
+                continue;
             }
             if (strncmp(key, "server", keylen) == 0)
             {

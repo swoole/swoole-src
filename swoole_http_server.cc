@@ -1615,7 +1615,7 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
             // TODO: numeric key name neccessary?
             if (!key)
             {
-                break;
+                continue;
             }
             if (strncasecmp(key, "Server", keylen) == 0)
             {
