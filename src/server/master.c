@@ -1208,7 +1208,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename,
         return SW_ERR;
     }
 
-    swSendData send_data;
+    swSendData send_data = {0};
     char _buffer[SW_IPC_BUFFER_SIZE];
     swSendFile_request *req = (swSendFile_request*) _buffer;
 
@@ -1227,8 +1227,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename,
 
     send_data.info.fd = session_id;
     send_data.info.type = SW_EVENT_SENDFILE;
-    send_data.info.len = sizeof(swSendFile_request) + filename_length + 1;
-    send_data.length = 0;
+    send_data.length = sizeof(swSendFile_request) + filename_length + 1;
     send_data.data = _buffer;
 
     return serv->factory.finish(&serv->factory, &send_data);
