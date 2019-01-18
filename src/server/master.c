@@ -1648,15 +1648,6 @@ swListenPort* swServer_add_port(swServer *serv, int type, const char *host, int 
     return ls;
 }
 
-int swServer_get_manager_pid(swServer *serv)
-{
-    if (SW_MODE_PROCESS != serv->factory_mode)
-    {
-        return SW_ERR;
-    }
-    return serv->gs->manager_pid;
-}
-
 int swServer_get_socket(swServer *serv, int port)
 {
     swListenPort *ls;
