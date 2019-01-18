@@ -1044,7 +1044,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         swWarn("swoole_http_parser_execute failed.");
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
-            return swServer_tcp_close(serv, fd, 1);
+            return serv->close(serv, fd, 1);
         }
     }
     else
@@ -1116,7 +1116,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             if (PHPCoroutine::create(fci_cache, 2, args) < 0)
             {
                 swoole_php_error(E_WARNING, "create Http onRequest coroutine error.");
-                swServer_tcp_close(serv, fd, 0);
+                serv->close(serv, fd, 0);
             }
         }
         else

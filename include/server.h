@@ -531,23 +531,19 @@ struct _swServer
      * temporary directory for HTTP uploaded file.
      */
     char *upload_tmp_dir;
-
     /**
      * http compression level for gzip/br
      */
     uint8_t http_compression_level;
-
     /**
      * http static file directory
      */
     char *document_root;
     uint16_t document_root_len;
-
     /**
      * master process pid
      */
     char *pid_file;
-
     /**
      * stream
      */
@@ -567,7 +563,6 @@ struct _swServer
      * message queue key
      */
     uint64_t message_queue_key;
-
     /**
      * slow request log
      */
@@ -603,11 +598,16 @@ struct _swServer
      */
     int (*onTask)(swServer *serv, swEventData *data);
     int (*onFinish)(swServer *serv, swEventData *data);
+    /**
+     * Server method
+     */
+    int (*send)(swServer *serv, int session_id, void *data, uint32_t length);
+    int (*sendfile)(swServer *serv, int session_id, char *file, uint32_t l_file, off_t offset, size_t length);
+    int (*sendwait)(swServer *serv, int session_id, void *data, uint32_t length);
+    int (*close)(swServer *serv, int session_id, int reset);
+    int (*notify)(swServer *serv, swConnection *conn, int event);
+    int (*feedback)(swServer *serv, int session_id, int event);
 
-    int (*send)(swServer *serv, int fd, void *data, uint32_t length);
-    int (*sendfile)(swServer *serv, int fd, char *filename, uint32_t filename_length, off_t offset, size_t length);
-    int (*sendwait)(swServer *serv, int fd, void *data, uint32_t length);
-    int (*close)(swServer *serv, int fd, int reset);
     int (*dispatch_func)(swServer *, swConnection *, swSendData *);
 };
 
@@ -677,12 +677,6 @@ static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
 }
 
 int swServer_udp_send(swServer *serv, swSendData *resp);
-int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
-int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length);
-int swServer_tcp_close(swServer *serv, int fd, int reset);
-int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t filename_length, off_t offset, size_t length);
-int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
-int swServer_tcp_feedback(swServer *serv, int fd, int event);
 
 #define SW_MAX_SESSION_ID             0x1000000
 

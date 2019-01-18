@@ -454,7 +454,7 @@ static int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
         }
         else 
         {
-            return swServer_tcp_notify(serv, conn, SW_EVENT_CLOSE);
+            return serv->notify(serv, conn, SW_EVENT_CLOSE);
         }
     }
     else

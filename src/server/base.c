@@ -176,10 +176,6 @@ int swFactory_end(swFactory *factory, int fd)
 
 int swFactory_finish(swFactory *factory, swSendData *resp)
 {
-    if (resp->length == 0)
-    {
-        resp->length = resp->info.len;
-    }
     if (swServer_master_send(factory->ptr, resp) < 0)
     {
         return SW_ERR;

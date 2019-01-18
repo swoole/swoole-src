@@ -1951,7 +1951,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 //{
 //    swServer *serv = SwooleG.serv;
 //    swTrace("onConnect finish and send confirm");
-//    swServer_tcp_feedback(serv, (uint32_t) (long) param, SW_EVENT_CONFIRM);
+//    serv->feedback(serv, (uint32_t) (long) param, SW_EVENT_CONFIRM);
 //}
 #endif
 
@@ -3309,7 +3309,7 @@ static PHP_METHOD(swoole_server, confirm)
         RETURN_FALSE;
     }
 
-    SW_CHECK_RETURN(swServer_tcp_feedback(serv, fd, SW_EVENT_CONFIRM));
+    SW_CHECK_RETURN(serv->feedback(serv, fd, SW_EVENT_CONFIRM));
 }
 
 static PHP_METHOD(swoole_server, pause)
@@ -3328,7 +3328,7 @@ static PHP_METHOD(swoole_server, pause)
         RETURN_FALSE;
     }
 
-    SW_CHECK_RETURN(swServer_tcp_feedback(serv, fd, SW_EVENT_PAUSE_RECV));
+    SW_CHECK_RETURN(serv->feedback(serv, fd, SW_EVENT_PAUSE_RECV));
 }
 
 static PHP_METHOD(swoole_server, resume)
@@ -3347,7 +3347,7 @@ static PHP_METHOD(swoole_server, resume)
         RETURN_FALSE;
     }
 
-    SW_CHECK_RETURN(swServer_tcp_feedback(serv, fd, SW_EVENT_RESUME_RECV));
+    SW_CHECK_RETURN(serv->feedback(serv, fd, SW_EVENT_RESUME_RECV));
 }
 
 static PHP_METHOD(swoole_server, stats)
@@ -4196,7 +4196,7 @@ static PHP_METHOD(swoole_server, sendwait)
         RETURN_FALSE;
     }
 
-    SW_CHECK_RETURN(swServer_tcp_sendwait(serv, fd, data, length));
+    SW_CHECK_RETURN(serv->sendwait(serv, fd, data, length));
 }
 
 static PHP_METHOD(swoole_server, exist)

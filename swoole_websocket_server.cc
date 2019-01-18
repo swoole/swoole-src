@@ -404,7 +404,7 @@ int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_contex
     int ret = websocket_handshake(serv, port, ctx);
     if (ret == SW_ERR)
     {
-        swServer_tcp_close(serv, fd, 1);
+        serv->close(serv, fd, 1);
     }
     else
     {
@@ -483,7 +483,7 @@ static sw_inline int swoole_websocket_server_push(swServer *serv, int fd, swStri
         return SW_ERR;
     }
 
-    int ret = swServer_tcp_send(SwooleG.serv, fd, buffer->str, buffer->length);
+    int ret = serv->send(serv, fd, buffer->str, buffer->length);
     if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
     {
         zval _return_value;

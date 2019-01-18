@@ -23,6 +23,13 @@ static void swServer_signal_handler(int sig);
 static void swServer_disable_accept(swReactor *reactor);
 static void swServer_master_update_time(swServer *serv);
 
+static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_t length);
+static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uint32_t length);
+static int swServer_tcp_close(swServer *serv, int session_id, int reset);
+static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t filename_length, off_t offset, size_t length);
+static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
+static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
+
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int from_fd, int reactor_id);
 
 swServerG SwooleG;
@@ -576,10 +583,16 @@ int swServer_start(swServer *serv)
     //master pid
     serv->gs->master_pid = getpid();
     serv->gs->now = serv->stats->start_time = time(NULL);
+
+    /**
+     * init method
+     */
     serv->send = swServer_tcp_send;
     serv->sendwait = swServer_tcp_sendwait;
     serv->sendfile = swServer_tcp_sendfile;
     serv->close = swServer_tcp_close;
+    serv->notify = swServer_tcp_notify;
+    serv->feedback = swServer_tcp_feedback;
 
     serv->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
     if (serv->workers == NULL)
@@ -848,9 +861,9 @@ int swServer_udp_send(swServer *serv, swSendData *resp)
 /**
  * worker to master process
  */
-int swServer_tcp_feedback(swServer *serv, int fd, int event)
+static int swServer_tcp_feedback(swServer *serv, int session_id, int event)
 {
-    swConnection *conn = swServer_connection_verify(serv, fd);
+    swConnection *conn = swServer_connection_verify(serv, session_id);
     if (!conn)
     {
         return SW_ERR;
@@ -864,12 +877,12 @@ int swServer_tcp_feedback(swServer *serv, int fd, int event)
     swSendData _send;
     bzero(&_send, sizeof(_send));
     _send.info.type = event;
-    _send.info.fd = fd;
+    _send.info.fd = session_id;
     _send.info.from_id = conn->from_id;
 
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
-        return swWorker_send2reactor(serv, (swEventData *) &_send.info, sizeof(_send.info), fd);
+        return swWorker_send2reactor(serv, (swEventData *) &_send.info, sizeof(_send.info), session_id);
     }
     else
     {
@@ -898,9 +911,10 @@ swPipe * swServer_get_pipe_object(swServer *serv, int pipe_fd)
 /**
  * [Worker]
  */
-int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
+static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_t length)
 {
     swSendData _send;
+    bzero(&_send.info, sizeof(_send.info));
     swFactory *factory = &(serv->factory);
 
     if (unlikely(swIsMaster()))
@@ -909,36 +923,11 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
         return SW_ERR;
     }
 
-    /**
-     * More than the output buffer
-     */
-    if (length > serv->buffer_output_size)
-    {
-        swoole_error_log(
-            SW_LOG_WARNING, SW_ERROR_DATA_LENGTH_TOO_LARGE,
-            "The length of data [%u] exceeds the output buffer size[%u], "
-            "please use the sendfile, chunked transfer mode or adjust the buffer_output_size.",
-            length, serv->buffer_output_size
-        );
-        return SW_ERR;
-    }
-    else
-    {
-        _send.info.fd = fd;
-        _send.info.type = SW_EVENT_TCP;
-        _send.data = data;
-
-        if (length >= SW_IPC_MAX_SIZE - sizeof(swDataHead))
-        {
-            _send.length = length;
-        }
-        else
-        {
-            _send.info.len = length;
-            _send.length = 0;
-        }
-        return factory->finish(factory, &_send) < 0 ? SW_ERR : SW_OK;
-    }
+    _send.info.fd = session_id;
+    _send.info.type = SW_EVENT_TCP;
+    _send.data = data;
+    _send.length = length;
+    return factory->finish(factory, &_send) < 0 ? SW_ERR : SW_OK;
 }
 
 /**
@@ -1159,7 +1148,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
         swListenPort *port = swServer_get_port(serv, fd);
         if (serv->onBufferFull && conn->high_watermark == 0 && conn->out_buffer->length >= port->buffer_high_watermark)
         {
-            swServer_tcp_notify(serv, conn, SW_EVENT_BUFFER_FULL);
+            serv->notify(serv, conn, SW_EVENT_BUFFER_FULL);
             conn->high_watermark = 1;
         }
     }
@@ -1177,7 +1166,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
 /**
  * use in master process
  */
-int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
+static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
 {
     swDataHead notify_event;
     notify_event.type = event;
@@ -1189,7 +1178,10 @@ int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
     return serv->factory.notify(&serv->factory, &notify_event);
 }
 
-int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t filename_length, off_t offset, size_t length)
+/**
+ * [Worker]
+ */
+static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t filename_length, off_t offset, size_t length)
 {
     if (session_id <= 0 || session_id > SW_MAX_SESSION_ID)
     {
@@ -1242,12 +1234,15 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
     return serv->factory.finish(&serv->factory, &send_data);
 }
 
-int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length)
+/**
+ * [Worker]
+ */
+static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uint32_t length)
 {
-    swConnection *conn = swServer_connection_verify(serv, fd);
+    swConnection *conn = swServer_connection_verify(serv, session_id);
     if (!conn)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "send %d byte failed, because session#%d is closed.", length, fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "send %d byte failed, because session#%d is closed.", length, session_id);
         return SW_ERR;
     }
     return swSocket_write_blocking(conn->fd, data, length);
@@ -1267,7 +1262,10 @@ SW_API void swServer_call_hook(swServer *serv, enum swServer_hook_type type, voi
     }
 }
 
-int swServer_tcp_close(swServer *serv, int fd, int reset)
+/**
+ * [Worker]
+ */
+static int swServer_tcp_close(swServer *serv, int session_id, int reset)
 {
     if (unlikely(swIsMaster()))
     {
@@ -1275,7 +1273,7 @@ int swServer_tcp_close(swServer *serv, int fd, int reset)
                 "can't close the connections in master process.");
         return SW_ERR;
     }
-    swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
+    swConnection *conn = swServer_connection_verify_no_ssl(serv, session_id);
     if (!conn)
     {
         return SW_ERR;
@@ -1287,7 +1285,7 @@ int swServer_tcp_close(swServer *serv, int fd, int reset)
     }
     //server is initiative to close the connection
     conn->close_actively = 1;
-    swTraceLog(SW_TRACE_CLOSE, "session_id=%d, fd=%d.", fd, conn->fd);
+    swTraceLog(SW_TRACE_CLOSE, "session_id=%d, fd=%d.", session_id, conn->session_id);
 
     int ret;
     if (!swIsWorker())
@@ -1295,13 +1293,13 @@ int swServer_tcp_close(swServer *serv, int fd, int reset)
         swWorker *worker = swServer_get_worker(serv, conn->fd % serv->worker_num);
         swDataHead ev = {0};
         ev.type = SW_EVENT_CLOSE;
-        ev.fd = fd;
+        ev.fd = session_id;
         ev.from_id = conn->from_id;
         ret = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
     }
     else
     {
-        ret = serv->factory.end(&serv->factory, fd);
+        ret = serv->factory.end(&serv->factory, session_id);
     }
     return ret;
 }
