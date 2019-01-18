@@ -620,10 +620,6 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_REQUIRE_CXX()
     
-    if test "$CLANG" = "no"; then
-        PHP_ADD_LIBRARY(stdc++, 1, SWOOLE_SHARED_LIBADD)
-    fi
-
     CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations -std=c++11"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
