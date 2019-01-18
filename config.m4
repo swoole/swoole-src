@@ -288,7 +288,7 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
 
         dnl Some systems build and package PHP socket extension separately
-        dnl and php_config.h doesn't have HAVE_SOCKETS defined.
+        dnl and php_config.h does not have HAVE_SOCKETS defined.
         AC_DEFINE(HAVE_SOCKETS, 1, [whether sockets extension is enabled])
 
         PHP_ADD_EXTENSION_DEP(swoole, sockets, true)
@@ -316,13 +316,13 @@ if test "$PHP_SWOOLE" != "no"; then
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
 
-    if test "$SW_OS" = 'MAC'; then
+    if test "$SW_OS" = "MAC"; then
         AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
     else
         AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
     fi
-    if test "$SW_OS" = 'LINUX'; then
+    if test "$SW_OS" = "LINUX"; then
         LDFLAGS="$LDFLAGS -z now"
     fi
 
@@ -546,44 +546,44 @@ if test "$PHP_SWOOLE" != "no"; then
       ]
     )
 
-    if test "$SW_OS" = 'MAC'; then
-        if test "$SW_CPU" = 'arm'; then
+    if test "$SW_OS" = "MAC"; then
+        if test "$SW_CPU" = "arm"; then
             SW_CONTEXT_ASM_FILE="arm_aapcs_macho_gas.S"
-        elif test "$SW_CPU" = 'arm64'; then
+        elif test "$SW_CPU" = "arm64"; then
             SW_CONTEXT_ASM_FILE="arm64_aapcs_macho_gas.S"
         else
             SW_CONTEXT_ASM_FILE="combined_sysv_macho_gas.S"
         fi
-    elif test "$SW_CPU" = 'x86_64'; then
-        if test "$SW_OS" = 'LINUX'; then
+    elif test "$SW_CPU" = "x86_64"; then
+        if test "$SW_OS" = "LINUX"; then
             SW_CONTEXT_ASM_FILE="x86_64_sysv_elf_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
         fi
-    elif test "$SW_CPU" = 'x86'; then
-        if test "$SW_OS" = 'LINUX'; then
+    elif test "$SW_CPU" = "x86"; then
+        if test "$SW_OS" = "LINUX"; then
             SW_CONTEXT_ASM_FILE="i386_sysv_elf_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
         fi
-    elif test "$SW_CPU" = 'arm'; then
-        if test "$SW_OS" = 'LINUX'; then
+    elif test "$SW_CPU" = "arm"; then
+        if test "$SW_OS" = "LINUX"; then
             SW_CONTEXT_ASM_FILE="arm_aapcs_elf_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
         fi
-    elif test "$SW_CPU" = 'arm64'; then
-        if test "$SW_OS" = 'LINUX'; then
+    elif test "$SW_CPU" = "arm64"; then
+        if test "$SW_OS" = "LINUX"; then
             SW_CONTEXT_ASM_FILE="arm64_aapcs_elf_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
         fi
-    elif test "$SW_CPU" = 'mips32'; then
-        if test "$SW_OS" = 'LINUX'; then
+    elif test "$SW_CPU" = "mips32"; then
+        if test "$SW_OS" = "LINUX"; then
            SW_CONTEXT_ASM_FILE="mips32_o32_elf_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
@@ -591,11 +591,11 @@ if test "$PHP_SWOOLE" != "no"; then
         fi
     fi
 
-    if test "$SW_NO_USE_ASM_CONTEXT" = 'no'; then
+    if test "$SW_NO_USE_ASM_CONTEXT" = "no"; then
         swoole_source_file="$swoole_source_file \
             ${SW_ASM_DIR}make_${SW_CONTEXT_ASM_FILE} \
             ${SW_ASM_DIR}jump_${SW_CONTEXT_ASM_FILE} "
-    elif test "$SW_HAVE_BOOST_CONTEXT" = 'yes'; then
+    elif test "$SW_HAVE_BOOST_CONTEXT" = "yes"; then
          LDFLAGS="$LDFLAGS -lboost_context"
     fi
 
@@ -619,7 +619,11 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h])
 
     PHP_REQUIRE_CXX()
-    PHP_ADD_LIBRARY(stdc++, 1, SWOOLE_SHARED_LIBADD)
+    
+    if test "$CLANG" = "no"; then
+        PHP_ADD_LIBRARY(stdc++, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
     CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations -std=c++11"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
