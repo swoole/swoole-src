@@ -117,43 +117,41 @@ int my_onReceive(swServer *serv, swEventData *req)
 
 int my_onPacket(swServer *serv, swEventData *req)
 {
-    swDgramPacket *packet;
-
-    swString *buffer = swWorker_get_buffer(serv, req->info.from_id);
-    packet = (swDgramPacket*) buffer->str;
-
-    int serv_sock = req->info.from_fd;
     char *data;
     int length;
     char address[256];
     int port = 0;
     int ret;
 
+    swDgramPacket *packet;
+
+    swWorker_get_data(req, &data);
+    packet = (swDgramPacket*) data;
+
+    int serv_sock = req->info.from_fd;
+
     //udp ipv4
     if (req->info.type == SW_EVENT_UDP)
     {
-        struct in_addr sin_addr;
-        sin_addr.s_addr = packet->addr.v4.s_addr;
-        char *tmp = inet_ntoa(sin_addr);
-        memcpy(address, tmp, strlen(tmp));
+        inet_ntop(AF_INET6, &packet->info.addr.inet_v4.sin_addr, address, sizeof(address));
         data = packet->data;
         length = packet->length;
-        port = packet->port;
+        port = ntohs(packet->info.addr.inet_v4.sin_port);
     }
     //udp ipv6
     else if (req->info.type == SW_EVENT_UDP6)
     {
-        inet_ntop(AF_INET6, &packet->addr.v6, address, sizeof(address));
+        inet_ntop(AF_INET6, &packet->info.addr.inet_v6.sin6_addr, address, sizeof(address));
         data = packet->data;
         length = packet->length;
-        port = packet->port;
+        port = ntohs(packet->info.addr.inet_v6.sin6_port);
     }
     //unix dgram
     else if (req->info.type == SW_EVENT_UNIX_DGRAM)
     {
-        memcpy(address, packet->data, packet->addr.un.path_length);
-        data = packet->data + packet->addr.un.path_length;
-        length = packet->length - packet->addr.un.path_length;
+        strcpy(address, packet->info.addr.un.sun_path);
+        data = packet->data;
+        length = packet->length;
     }
 
     printf("Packet[client=%s:%d, %d bytes]: data=%*s\n", address, port, length, length, data);
@@ -174,9 +172,7 @@ int my_onPacket(swServer *serv, swEventData *req)
     //unix dgram
     else if (req->info.type == SW_EVENT_UNIX_DGRAM)
     {
-        memcpy(address, packet->data, packet->addr.un.path_length);
-        data = packet->data + packet->addr.un.path_length;
-        length = packet->length - packet->addr.un.path_length;
+        ret = swSocket_unix_sendto(serv_sock, address, resp_data, n);
     }
 
     if (ret < 0)
