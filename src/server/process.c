@@ -272,7 +272,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         return SW_ERR;
     }
 
-    swEventData ev_data = {0};
+    swEventData ev_data = {{0}};
     ev_data.info.fd = session_id;
     ev_data.info.type = resp->info.type;
     swWorker *worker = swServer_get_worker(serv, SwooleWG.id);

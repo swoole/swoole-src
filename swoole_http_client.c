@@ -997,7 +997,7 @@ static int http_client_send_http_request(zval *zobject)
             {
                 continue;
             }
-            if (strncasecmp(key, ZEND_STRL("Content-Length")) == 0 || strncasecmp(key, ZEND_STRL("Host") == 0))
+            if (strncasecmp(key, ZEND_STRL("Content-Length")) == 0 || strncasecmp(key, ZEND_STRL("Host")) == 0)
             {
                 header_flag |= HTTP_HEADER_CONTENT_LENGTH;
                 //ignore custom Content-Length value

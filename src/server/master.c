@@ -1208,7 +1208,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename,
         return SW_ERR;
     }
 
-    swSendData send_data = {0};
+    swSendData send_data = {{0}};
     char _buffer[SW_IPC_BUFFER_SIZE];
     swSendFile_request *req = (swSendFile_request*) _buffer;
 
