@@ -229,7 +229,6 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
     long lval;
     char buf[10];
     zval *value;
-    zval _value;
 
     uint16_t param_count = 0;
     if (params)
@@ -613,13 +612,34 @@ static int swoole_mysql_coro_close(zval *zobject)
         client->statement_list = NULL;
     }
 
+    //clear connector
+    if (client->connector.host)
+    {
+        efree(client->connector.host);
+        client->connector.host = NULL;
+    }
+    if (client->connector.user)
+    {
+        efree(client->connector.user);
+        client->connector.user = NULL;
+    }
+    if (client->connector.password)
+    {
+        efree(client->connector.password);
+        client->connector.password = NULL;
+    }
+    if (client->connector.database)
+    {
+        efree(client->connector.database);
+        client->connector.database = NULL;
+    }
+
     client->cli->close(client->cli);
     swClient_free(client->cli);
     efree(client->cli);
     client->cli = NULL;
     client->state = SW_MYSQL_STATE_CLOSED;
     client->iowait = SW_MYSQL_CORO_STATUS_CLOSED;
-    //TODO: clear connector
 
     return SUCCESS;
 }
@@ -836,6 +856,11 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     context->state = SW_CORO_CONTEXT_RUNNING;
     context->coro_params = *getThis();
+
+    connector->host = estrndup(connector->host, connector->host_len);
+    connector->user = estrndup(connector->user, connector->user_len);
+    connector->password = estrndup(connector->password, connector->password_len);
+    connector->database = estrndup(connector->database, connector->database_len);
 
     if (connector->timeout > 0)
     {

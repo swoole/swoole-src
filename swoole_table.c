@@ -405,8 +405,9 @@ static PHP_METHOD(swoole_table, set)
         }
         else if (col->type == SW_TABLE_STRING)
         {
-            convert_to_string(v);
-            swTableRow_set_value(row, col, Z_STRVAL_P(v), Z_STRLEN_P(v));
+            zend_string *str = zval_get_string(v);
+            swTableRow_set_value(row, col, ZSTR_VAL(str), ZSTR_LEN(str));
+            zend_string_release(str);
         }
         else if (col->type == SW_TABLE_FLOAT)
         {
@@ -895,8 +896,9 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     }
     if (col->type == SW_TABLE_STRING)
     {
-        convert_to_string(value);
+        zend_string *str = zval_get_string(value);
         swTableRow_set_value(row, col, Z_STRVAL_P(value), Z_STRLEN_P(value));
+        zend_string_release(str);
     }
     else if (col->type == SW_TABLE_FLOAT)
     {
