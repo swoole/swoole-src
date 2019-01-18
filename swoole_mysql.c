@@ -2529,8 +2529,8 @@ static PHP_METHOD(swoole_mysql, connect)
     if (php_swoole_array_get_value(_ht, "database", value))
     {
         str_database = zval_get_string(value);
-        connector->database = ZSTR_VAL(str_password);
-        connector->database_len = ZSTR_LEN(str_password);
+        connector->database = ZSTR_VAL(str_database);
+        connector->database_len = ZSTR_LEN(str_database);
     }
     else
     {
