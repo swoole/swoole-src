@@ -273,9 +273,10 @@ void swoole_websocket_onRequest(http_context *ctx)
             "Server: " SW_HTTP_SERVER_SOFTWARE "\r\n\r\n"
             "<html><body><h2>HTTP 400 Bad Request</h2><hr><i>Powered by Swoole</i></body></html>";
 
-    swServer_tcp_send(SwooleG.serv, ctx->fd, (char *) bad_request, strlen(bad_request));
+    swServer *serv = SwooleG.serv;
+    serv->send(serv, ctx->fd, (char *) bad_request, strlen(bad_request));
     ctx->end = 1;
-    swServer_tcp_close(SwooleG.serv, ctx->fd, 0);
+    serv->close(serv, ctx->fd, 0);
     swoole_http_context_free(ctx);
 }
 
@@ -295,7 +296,7 @@ static int websocket_handshake(swServer *serv, swListenPort *port, http_context 
 
     if (!(pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-key"))))
     {
-        swoole_php_fatal_error(NULL, E_WARNING, "header no sec-websocket-key");
+        swoole_php_fatal_error(E_WARNING, "header no sec-websocket-key");
         return SW_ERR;
     }
 

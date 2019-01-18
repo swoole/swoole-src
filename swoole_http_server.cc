@@ -1496,12 +1496,14 @@ static PHP_METHOD(swoole_http_response, write)
     ctx->enable_compression = 0;
 #endif
 
+    swServer *serv = SwooleG.serv;
+
     if (!ctx->send_header)
     {
         ctx->chunk = 1;
         swString_clear(swoole_http_buffer);
         http_build_header(ctx, getThis(), swoole_http_buffer, -1);
-        if (swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length) < 0)
+        if (serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length) < 0)
         {
             ctx->chunk = 0;
             ctx->send_header = 0;
@@ -1538,8 +1540,7 @@ static PHP_METHOD(swoole_http_response, write)
     swString_append_ptr(swoole_http_buffer, ZEND_STRL("\r\n"));
     sw_free(hex_string);
 
-    swServer *serv = SwooleG.serv;
-    int ret = swServer_tcp_send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
+    int ret = serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
 #ifdef SW_COROUTINE
     if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
     {
@@ -1964,9 +1965,11 @@ static PHP_METHOD(swoole_http_response, end)
     }
 #endif
 
+    swServer *serv = SwooleG.serv;
+
     if (ctx->chunk)
     {
-        ret = swServer_tcp_send(SwooleG.serv, ctx->fd, (char*) ZEND_STRL("0\r\n\r\n"));
+        ret = serv->send(serv, ctx->fd, (char*) ZEND_STRL("0\r\n\r\n"));
         if (ret < 0)
         {
             RETURN_FALSE;
@@ -2001,7 +2004,7 @@ static PHP_METHOD(swoole_http_response, end)
             }
         }
 
-        ret = swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
+        ret = serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
         if (ret < 0)
         {
             ctx->send_header = 0;
@@ -2011,7 +2014,7 @@ static PHP_METHOD(swoole_http_response, end)
 
     if (ctx->upgrade)
     {
-        swConnection *conn = swWorker_get_connection(SwooleG.serv, ctx->fd);
+        swConnection *conn = swWorker_get_connection(serv, ctx->fd);
         if (conn && conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE && ctx->response.status == 101)
         {
             conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
@@ -2020,7 +2023,7 @@ static PHP_METHOD(swoole_http_response, end)
 
     if (!ctx->keepalive)
     {
-        swServer_tcp_close(SwooleG.serv, ctx->fd, 0);
+        serv->close(serv, ctx->fd, 0);
     }
     swoole_http_context_free(ctx);
     RETURN_TRUE;
@@ -2088,14 +2091,15 @@ static PHP_METHOD(swoole_http_response, sendfile)
     swString_clear(swoole_http_buffer);
     http_build_header(ctx, getThis(), swoole_http_buffer, length);
 
-    int ret = swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
+    swServer *serv = SwooleG.serv;
+
+    int ret = serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
     if (ret < 0)
     {
         ctx->send_header = 0;
         RETURN_FALSE;
     }
-
-    ret = swServer_tcp_sendfile(SwooleG.serv, ctx->fd, filename, filename_length, offset, length);
+    ret = serv->sendfile(serv, ctx->fd, filename, filename_length, offset, length);
     if (ret < 0)
     {
         ctx->send_header = 0;
@@ -2103,7 +2107,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
     if (!ctx->keepalive)
     {
-        swServer_tcp_close(SwooleG.serv, ctx->fd, 0);
+        serv->close(serv, ctx->fd, 0);
     }
     swoole_http_context_free(ctx);
     RETURN_TRUE;

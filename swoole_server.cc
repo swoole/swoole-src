@@ -2163,7 +2163,7 @@ static int php_swoole_server_send_resume(swServer *serv, php_coro_context *conte
         {
             goto _fail;
         }
-        int ret = swServer_tcp_send(serv, fd, data, length);
+        int ret = serv->send(serv, fd, data, length);
         if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
         {
             return SW_AGAIN;
@@ -3152,7 +3152,7 @@ static PHP_METHOD(swoole_server, send)
     uint32_t fd;
     _convert: fd = (uint32_t) zval_get_long(zfd);
 
-    ret = swServer_tcp_send(serv, fd, data, length);
+    ret = serv->send(serv, fd, data, length);
     if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
     {
         zval_add_ref(zdata);
@@ -3257,7 +3257,7 @@ static PHP_METHOD(swoole_server, sendfile)
         RETURN_FALSE;
     }
 
-    SW_CHECK_RETURN(swServer_tcp_sendfile(serv, (int) fd, filename, len, offset, length));
+    SW_CHECK_RETURN(serv->sendfile(serv, (int) fd, filename, len, offset, length));
 }
 
 static PHP_METHOD(swoole_server, close)
