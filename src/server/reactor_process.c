@@ -111,7 +111,12 @@ int swReactorProcess_start(swServer *serv)
         {
             serv->onStart(serv);
         }
-        return swReactorProcess_loop(&serv->gs->event_workers, &serv->gs->event_workers.workers[0]);
+        int retval = swReactorProcess_loop(&serv->gs->event_workers, &serv->gs->event_workers.workers[0]);
+        if (serv->onShutdown)
+        {
+            serv->onShutdown(serv);
+        }
+        return retval;
     }
 
     for (i = 0; i < serv->worker_num; i++)
