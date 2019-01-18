@@ -35,7 +35,11 @@ check_docker_dependency(){
 prepare_data_files(){
     cd ${__DIR__} && \
     remove_data_files && \
-    mkdir -p data data/run && \
+    mkdir -p \
+    data \
+    data/run \
+    data/mysql data/run/mysqld \
+    data/redis data/run/redis && \
     chmod -R 777 data
 }
 
