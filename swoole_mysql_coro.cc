@@ -616,18 +616,22 @@ static int swoole_mysql_coro_close(zval *zobject)
     if (client->connector.host)
     {
         efree(client->connector.host);
+        client->connector.host = NULL;
     }
     if (client->connector.user)
     {
         efree(client->connector.user);
+        client->connector.user = NULL;
     }
     if (client->connector.password)
     {
         efree(client->connector.password);
+        client->connector.password = NULL;
     }
     if (client->connector.database)
     {
         efree(client->connector.database);
+        client->connector.database = NULL;
     }
 
     client->cli->close(client->cli);

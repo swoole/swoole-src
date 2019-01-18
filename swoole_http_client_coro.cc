@@ -789,6 +789,7 @@ bool http_client::send()
     if (socket->http_proxy)
 #endif
     {
+        zend::string str_host;
         const static char *pre = "http://";
         char *_host = (char *) host.c_str();
         size_t _host_len = host.length();
@@ -796,8 +797,9 @@ bool http_client::send()
         {
             if ((value = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))))
             {
-                _host = Z_STRVAL_P(value);
-                _host_len = Z_STRLEN_P(value);
+                str_host = value;
+                _host = str_host.val();
+                _host_len = str_host.len();
             }
         }
         size_t proxy_uri_len = uri.length() + _host_len + strlen(pre) + 10;

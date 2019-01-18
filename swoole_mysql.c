@@ -349,18 +349,22 @@ static void mysql_client_free(mysql_client *client, zval* zobject)
     if (client->connector.host)
     {
         efree(client->connector.host);
+        client->connector.host = NULL;
     }
     if (client->connector.user)
     {
         efree(client->connector.user);
+        client->connector.user = NULL;
     }
     if (client->connector.password)
     {
         efree(client->connector.password);
+        client->connector.password = NULL;
     }
     if (client->connector.database)
     {
         efree(client->connector.database);
+        client->connector.database = NULL;
     }
     //close the connection
     client->cli->close(client->cli);
@@ -2501,8 +2505,8 @@ static PHP_METHOD(swoole_mysql, connect)
     if (php_swoole_array_get_value(_ht, "user", value))
     {
         str_user = zval_get_string(value);
-        connector->user = ZSTR_VAL(str_host);
-        connector->user_len = ZSTR_LEN(str_host);
+        connector->user = ZSTR_VAL(str_user);
+        connector->user_len = ZSTR_LEN(str_user);
     }
     else
     {
@@ -2525,8 +2529,8 @@ static PHP_METHOD(swoole_mysql, connect)
     if (php_swoole_array_get_value(_ht, "database", value))
     {
         str_database = zval_get_string(value);
-        connector->database = ZSTR_VAL(str_password);
-        connector->database_len = ZSTR_LEN(str_password);
+        connector->database = ZSTR_VAL(str_database);
+        connector->database_len = ZSTR_LEN(str_database);
     }
     else
     {
