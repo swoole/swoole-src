@@ -87,15 +87,11 @@ void swoole_process_pool_init(int module_number)
 static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worker_id)
 {
     zval *zobject = (zval *) pool->ptr;
-    zval *zworker_id;
     zval *retval = NULL;
-
-    SW_MAKE_STD_ZVAL(zworker_id);
-    ZVAL_LONG(zworker_id, worker_id);
 
     zval args[2];
     args[0] = *zobject;
-    args[1] = *zworker_id;
+    ZVAL_LONG(&args[1], worker_id);
 
     process_pool_property *pp = swoole_get_property(zobject, 0);
     if (pp->onWorkerStart == NULL)
@@ -128,17 +124,12 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
 
 static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, uint32_t length)
 {
-
     zval *zobject = (zval *) pool->ptr;
-    zval *zdata;
     zval *retval = NULL;
-
-    SW_MAKE_STD_ZVAL(zdata);
-    ZVAL_STRINGL(zdata, data, length);
 
     zval args[2];
     args[0] = *zobject;
-    args[1] = *zdata;
+    ZVAL_STRINGL(&args[1], data, length);
 
     process_pool_property *pp = swoole_get_property(zobject, 0);
 
@@ -150,7 +141,7 @@ static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, u
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    zval_ptr_dtor(zdata);
+    zval_ptr_dtor(&args[1]);
     if (retval)
     {
         zval_ptr_dtor(retval);
@@ -159,17 +150,12 @@ static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, u
 
 static void php_swoole_process_pool_onWorkerStop(swProcessPool *pool, int worker_id)
 {
-
     zval *zobject = (zval *) pool->ptr;
-    zval *zworker_id;
     zval *retval = NULL;
-
-    SW_MAKE_STD_ZVAL(zworker_id);
-    ZVAL_LONG(zworker_id, worker_id);
 
     zval args[2];
     args[0] = *zobject;
-    args[1] = *zworker_id;
+    ZVAL_LONG(&args[1], worker_id);
 
     process_pool_property *pp = swoole_get_property(zobject, 0);
     if (pp->onWorkerStop == NULL)

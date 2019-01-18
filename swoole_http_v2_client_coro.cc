@@ -1046,12 +1046,11 @@ static void http2_client_onConnect(swClient *cli)
     hcc->iowait = 0;
     hcc->read_cid = 0;
     // hcc->write_cid = 0;
-    zval *result;
-    SW_MAKE_STD_ZVAL(result);
-    ZVAL_BOOL(result, 1);
+    zval result;
+    ZVAL_BOOL(&result, 1);
     zval *retval = NULL;
     php_coro_context *context = (php_coro_context *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
-    ret = PHPCoroutine::resume_m(context, result, retval);
+    ret = PHPCoroutine::resume_m(context, &result, retval);
     if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -1122,11 +1121,10 @@ static void http2_client_onTimeout(swTimer *timer, swTimer_node *tnode)
     http2_client_property *hcc = (http2_client_property *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
     hcc->iowait = 0;
     hcc->read_cid = 0;
-    zval *result;
-    SW_MAKE_STD_ZVAL(result);
-    ZVAL_BOOL(result, 0);
+    zval result;
+    ZVAL_BOOL(&result, 0);
     zval *retval = NULL;
-    int ret = PHPCoroutine::resume_m(ctx, result, retval);
+    int ret = PHPCoroutine::resume_m(ctx, &result, retval);
     if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);

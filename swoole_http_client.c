@@ -657,12 +657,8 @@ static int http_client_onMessage(swConnection *conn, char *data, uint32_t length
     zval args[2];
     zval *retval = NULL;
 
-    zval *zframe;
-    SW_MAKE_STD_ZVAL(zframe);
-    php_swoole_websocket_frame_unpack(cli->buffer, zframe);
-
     args[0] = *zobject;
-    args[1] = *zframe;
+    php_swoole_websocket_frame_unpack(cli->buffer, &args[1]);
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
     zval *zcallback = hcc->onMessage;
@@ -679,7 +675,7 @@ static int http_client_onMessage(swConnection *conn, char *data, uint32_t length
     {
         zval_ptr_dtor(retval);
     }
-    zval_ptr_dtor(zframe);
+    zval_ptr_dtor(&args[1]);
 
     return SW_OK;
 }
@@ -1680,30 +1676,28 @@ static PHP_METHOD(swoole_http_client, addFile)
     }
 
     http_client_property *hcc = swoole_get_property(getThis(), 0);
-    zval *files;
+    zval files;
     if (!hcc->request_upload_files)
     {
-        SW_MAKE_STD_ZVAL(files);
-        array_init(files);
-        zend_update_property(swoole_http_client_ce_ptr, getThis(), ZEND_STRL("uploadFiles"), files);
-        zval_ptr_dtor(files);
+        array_init(&files);
+        zend_update_property(swoole_http_client_ce_ptr, getThis(), ZEND_STRL("uploadFiles"), &files);
+        zval_ptr_dtor(&files);
 
         hcc->request_upload_files = sw_zend_read_property(swoole_http_client_ce_ptr, getThis(), ZEND_STRL("uploadFiles"), 0);
         sw_copy_to_stack(hcc->request_upload_files, hcc->_request_upload_files);
     }
 
-    zval *upload_file;
-    SW_MAKE_STD_ZVAL(upload_file);
-    array_init(upload_file);
+    zval upload_file;
+    array_init(&upload_file);
 
-    add_assoc_stringl_ex(upload_file, ZEND_STRL("path"), path, l_path);
-    add_assoc_stringl_ex(upload_file, ZEND_STRL("name"), name, l_name);
-    add_assoc_stringl_ex(upload_file, ZEND_STRL("filename"), filename, l_filename);
-    add_assoc_stringl_ex(upload_file, ZEND_STRL("type"), type, l_type);
-    add_assoc_long(upload_file, "size", length);
-    add_assoc_long(upload_file, "offset", offset);
+    add_assoc_stringl_ex(&upload_file, ZEND_STRL("path"), path, l_path);
+    add_assoc_stringl_ex(&upload_file, ZEND_STRL("name"), name, l_name);
+    add_assoc_stringl_ex(&upload_file, ZEND_STRL("filename"), filename, l_filename);
+    add_assoc_stringl_ex(&upload_file, ZEND_STRL("type"), type, l_type);
+    add_assoc_long(&upload_file, "size", length);
+    add_assoc_long(&upload_file, "offset", offset);
+    add_next_index_zval(hcc->request_upload_files, &upload_file);
 
-    add_next_index_zval(hcc->request_upload_files, upload_file);
     RETURN_TRUE;
 }
 

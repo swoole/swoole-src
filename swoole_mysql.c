@@ -2998,10 +2998,7 @@ static void swoole_mysql_onConnect(mysql_client *client)
     zval *zcallback = sw_zend_read_property(swoole_mysql_ce_ptr, zobject, ZEND_STRL("onConnect"), 0);
 
     zval *retval = NULL;
-    zval *result;
     zval args[2];
-
-    SW_MAKE_STD_ZVAL(result);
 
     if (client->cli->timer)
     {
@@ -3013,17 +3010,16 @@ static void swoole_mysql_onConnect(mysql_client *client)
     {
         zend_update_property_stringl(swoole_mysql_ce_ptr, zobject, ZEND_STRL("connect_error"), client->connector.error_msg, client->connector.error_length);
         zend_update_property_long(swoole_mysql_ce_ptr, zobject, ZEND_STRL("connect_errno"), client->connector.error_code);
-        ZVAL_BOOL(result, 0);
+        ZVAL_BOOL(&args[1], 0);
     }
     else
     {
         zend_update_property_bool(swoole_mysql_ce_ptr, zobject, ZEND_STRL("connected"), 1);
-        ZVAL_BOOL(result, 1);
+        ZVAL_BOOL(&args[1], 1);
         client->connected = 1;
     }
 
     args[0] = *zobject;
-    args[1] = *result;
 
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) != SUCCESS)
     {
@@ -3037,7 +3033,6 @@ static void swoole_mysql_onConnect(mysql_client *client)
     {
         zval_ptr_dtor(retval);
     }
-    zval_ptr_dtor(result);
     if (client->connector.error_code > 0)
     {
         retval = NULL;

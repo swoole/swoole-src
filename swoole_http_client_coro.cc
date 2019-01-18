@@ -1718,16 +1718,15 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     }
 
     zval *zupload_files = sw_zend_read_property_array(swoole_http_client_coro_ce_ptr, getThis(), ZEND_STRL("uploadFiles"), 1);
-    zval *zupload_file;
-    SW_MAKE_STD_ZVAL(zupload_file);
-    array_init(zupload_file);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("path"), path, l_path);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("name"), name, l_name);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("filename"), filename, l_filename);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("type"), type, l_type);
-    add_assoc_long(zupload_file, "size", length);
-    add_assoc_long(zupload_file, "offset", offset);
-    add_next_index_zval(zupload_files, zupload_file);
+    zval zupload_file;
+    array_init(&zupload_file);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("path"), path, l_path);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("name"), name, l_name);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("filename"), filename, l_filename);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("type"), type, l_type);
+    add_assoc_long(&zupload_file, "size", length);
+    add_assoc_long(&zupload_file, "offset", offset);
+    add_next_index_zval(zupload_files, &zupload_file);
 
     RETURN_TRUE;
 }
@@ -1763,15 +1762,14 @@ static PHP_METHOD(swoole_http_client_coro, addData)
     }
 
     zval *zupload_files = sw_zend_read_property_array(swoole_http_client_coro_ce_ptr, getThis(), ZEND_STRL("uploadFiles"), 1);
-    zval *zupload_file;
-    SW_MAKE_STD_ZVAL(zupload_file);
-    array_init(zupload_file);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("content"), data, l_data);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("name"), name, l_name);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("filename"), filename, l_filename);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("type"), type, l_type);
-    add_assoc_long(zupload_file, "size", l_data);
-    add_next_index_zval(zupload_files, zupload_file);
+    zval zupload_file;
+    array_init(&zupload_file);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("content"), data, l_data);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("name"), name, l_name);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("filename"), filename, l_filename);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("type"), type, l_type);
+    add_assoc_long(&zupload_file, "size", l_data);
+    add_next_index_zval(zupload_files, &zupload_file);
 
     RETURN_TRUE;
 }

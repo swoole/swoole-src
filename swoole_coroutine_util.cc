@@ -503,26 +503,24 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
 static void aio_onReadCompleted(swAio_event *event)
 {
     zval *retval = NULL;
-    zval *result = NULL;
-    SW_MAKE_STD_ZVAL(result);
+    zval result;
 
     if (event->error == 0)
     {
-        ZVAL_STRINGL(result, (char* )event->buf, event->ret);
+        ZVAL_STRINGL(&result, (char* )event->buf, event->ret);
     }
     else
     {
         SwooleG.error = event->error;
-        ZVAL_BOOL(result, 0);
+        ZVAL_BOOL(&result, 0);
     }
 
     php_coro_context *context = (php_coro_context *) event->object;
-    int ret = PHPCoroutine::resume_m(context, result, retval);
+    int ret = PHPCoroutine::resume_m(context, &result, retval);
     if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
-    zval_ptr_dtor(result);
     efree(event->buf);
     efree(context);
 }
@@ -530,17 +528,16 @@ static void aio_onReadCompleted(swAio_event *event)
 static void aio_onFgetsCompleted(swAio_event *event)
 {
     zval *retval = NULL;
-    zval *result = NULL;
-    SW_MAKE_STD_ZVAL(result);
+    zval result;
 
     if (event->ret != -1)
     {
-        ZVAL_STRING(result, (char* )event->buf);
+        ZVAL_STRING(&result, (char* )event->buf);
     }
     else
     {
         SwooleG.error = event->error;
-        ZVAL_BOOL(result, 0);
+        ZVAL_BOOL(&result, 0);
     }
 
     php_coro_context *context = (php_coro_context *) event->object;
@@ -552,38 +549,36 @@ static void aio_onFgetsCompleted(swAio_event *event)
         stream->eof = 1;
     }
 
-    int ret = PHPCoroutine::resume_m(context, result, retval);
+    int ret = PHPCoroutine::resume_m(context, &result, retval);
     if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
-    zval_ptr_dtor(result);
+    zval_ptr_dtor(&result);
     efree(context);
 }
 
 static void aio_onWriteCompleted(swAio_event *event)
 {
     zval *retval = NULL;
-    zval *result = NULL;
+    zval result;
 
-    SW_MAKE_STD_ZVAL(result);
     if (event->ret < 0)
     {
         SwooleG.error = event->error;
-        ZVAL_BOOL(result, 0);
+        ZVAL_BOOL(&result, 0);
     }
     else
     {
-        ZVAL_LONG(result, event->ret);
+        ZVAL_LONG(&result, event->ret);
     }
 
     php_coro_context *context = (php_coro_context *) event->object;
-    int ret = PHPCoroutine::resume_m(context, result, retval);
+    int ret = PHPCoroutine::resume_m(context, &result, retval);
     if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
-    zval_ptr_dtor(result);
     efree(event->buf);
     efree(context);
 }
@@ -658,7 +653,6 @@ static int co_socket_onWritable(swReactor *reactor, swEvent *event)
         ZVAL_LONG(&result, n);
     }
     int ret = PHPCoroutine::resume_m(context, &result, retval);
-    zval_ptr_dtor(&result);
     if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -1039,43 +1033,12 @@ static PHP_METHOD(swoole_coroutine_util, writeFile)
     }
 }
 
-static void coro_dns_onResolveCompleted(swAio_event *event)
-{
-    php_coro_context *context = (php_coro_context *) event->object;
-
-    zval *retval = NULL;
-    zval *result = NULL;
-
-    SW_MAKE_STD_ZVAL(result);
-
-    if (event->error == 0)
-    {
-        ZVAL_STRING(result, (char * )event->buf);
-    }
-    else
-    {
-        SwooleG.error = event->error;
-        ZVAL_BOOL(result, 0);
-    }
-
-    int ret = PHPCoroutine::resume_m(context, result, retval);
-    if (ret == SW_CORO_ERR_END && retval)
-    {
-        zval_ptr_dtor(retval);
-    }
-    zval_ptr_dtor(result);
-    efree(event->buf);
-    efree(context);
-}
-
 static void coro_dns_onGetaddrinfoCompleted(swAio_event *event)
 {
     php_coro_context *context = (php_coro_context *) event->object;
 
     zval *retval = NULL;
-    zval *result = NULL;
-
-    SW_MAKE_STD_ZVAL(result);
+    zval result;
 
     struct sockaddr_in *addr_v4;
     struct sockaddr_in6 *addr_v6;
@@ -1084,7 +1047,7 @@ static void coro_dns_onGetaddrinfoCompleted(swAio_event *event)
 
     if (req->error == 0)
     {
-        array_init(result);
+        array_init(&result);
         int i;
         char tmp[INET6_ADDRSTRLEN];
         const char *r ;
@@ -1103,22 +1066,22 @@ static void coro_dns_onGetaddrinfoCompleted(swAio_event *event)
             }
             if (r)
             {
-                add_next_index_string(result, tmp);
+                add_next_index_string(&result, tmp);
             }
         }
     }
     else
     {
-        ZVAL_BOOL(result, 0);
+        ZVAL_BOOL(&result, 0);
         SwooleG.error = req->error;
     }
 
-    int ret = PHPCoroutine::resume_m(context, result, retval);
+    int ret = PHPCoroutine::resume_m(context, &result, retval);
     if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
-    zval_ptr_dtor(result);
+    zval_ptr_dtor(&result);
     efree(req->hostname);
     efree(req->result);
     if (req->service)
@@ -1404,15 +1367,14 @@ PHP_FUNCTION(swoole_coroutine_exec)
         }
     }
 
-    zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata);
+    zval zdata;
     if (buffer->length == 0)
     {
-        ZVAL_EMPTY_STRING(zdata);
+        ZVAL_EMPTY_STRING(&zdata);
     }
     else
     {
-        ZVAL_STRINGL(zdata, buffer->str, buffer->length);
+        ZVAL_STRINGL(&zdata, buffer->str, buffer->length);
     }
 
     int status;
@@ -1422,11 +1384,11 @@ PHP_FUNCTION(swoole_coroutine_exec)
         array_init(return_value);
         add_assoc_long(return_value, "code", WEXITSTATUS(status));
         add_assoc_long(return_value, "signal", WTERMSIG(status));
-        add_assoc_zval(return_value, "output", zdata);
+        add_assoc_zval(return_value, "output", &zdata);
     }
     else
     {
-        zval_ptr_dtor(zdata);
+        zval_ptr_dtor(&zdata);
         RETVAL_FALSE;
     }
 

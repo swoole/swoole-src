@@ -355,14 +355,10 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
 {
     SwooleG.lock.lock(&SwooleG.lock);
 
-    zval *zdata;
     zval *retval = NULL;
 
-    SW_MAKE_STD_ZVAL(zdata);
-    ZVAL_STRINGL(zdata, data, length);
-
     zval args[1];
-    args[0] = *zdata;
+    ZVAL_STRINGL(&args[0], data, length);
 
     zval *callback = protocol->private_data;
 
@@ -371,12 +367,12 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
         swoole_php_fatal_error(E_WARNING, "length function handler error.");
         goto error;
     }
+    zval_ptr_dtor(&args[0]);
     if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
         goto error;
     }
-    zval_ptr_dtor(zdata);
     if (retval)
     {
         ssize_t length = zval_get_long(retval);

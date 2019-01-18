@@ -1251,13 +1251,12 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetch)
         ZVAL_NEW_REF(stmt->result, stmt->result);
         args[0] = *stmt->result;
 
-        zval *fcn;
-        SW_MAKE_STD_ZVAL(fcn);
-        ZVAL_STRING(fcn, "array_shift");
+        zval fcn;
+        ZVAL_STRING(&fcn, "array_shift");
         int ret;
         zval retval;
-        ret = call_user_function_ex(EG(function_table), NULL, fcn, &retval, 1, args, 0, NULL);
-        zval_ptr_dtor(fcn);
+        ret = call_user_function_ex(EG(function_table), NULL, &fcn, &retval, 1, args, 0, NULL);
+        zval_ptr_dtor(&fcn);
         ZVAL_UNREF(stmt->result);
 
         if (ret == FAILURE)
@@ -1495,15 +1494,13 @@ static void swoole_mysql_coro_onConnect(mysql_client *client)
     zval *zobject = client->object;
 
     zval *retval = NULL;
-    zval *result;
+    zval result;
 
     if (client->connector.timer)
     {
         swTimer_del(&SwooleG.timer, client->connector.timer);
         client->connector.timer = NULL;
     }
-
-    SW_MAKE_STD_ZVAL(result);
 
     //SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
 
@@ -1512,7 +1509,7 @@ static void swoole_mysql_coro_onConnect(mysql_client *client)
         zend_update_property_stringl(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_error"), client->connector.error_msg, client->connector.error_length);
         zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_errno"), client->connector.error_code);
 
-        ZVAL_BOOL(result, 0);
+        ZVAL_BOOL(&result, 0);
 
         swoole_mysql_coro_close(zobject);
     }
@@ -1522,14 +1519,13 @@ static void swoole_mysql_coro_onConnect(mysql_client *client)
         client->iowait = SW_MYSQL_CORO_STATUS_READY;
         zend_update_property_bool(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connected"), 1);
         client->connected = 1;
-        ZVAL_BOOL(result, 1);
+        ZVAL_BOOL(&result, 1);
     }
 
     client->cid = 0;
 
     php_coro_context *sw_current_context = (php_coro_context *) swoole_get_property(zobject, 0);
-    int ret = PHPCoroutine::resume_m(sw_current_context, result, retval);
-    zval_ptr_dtor(result);
+    int ret = PHPCoroutine::resume_m(sw_current_context, &result, retval);
     if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);

@@ -146,14 +146,14 @@ static sw_inline int swoole_redis_is_message_command(char *command, int command_
 
 static sw_inline void redis_execute_connect_callback(swRedisClient *redis, int success)
 {
-    zval *result, *retval;
-    SW_MAKE_STD_ZVAL(result);
-    ZVAL_BOOL(result, success);
+    zval *retval;
 
     zval args[2];
     zval *zcallback = sw_zend_read_property(swoole_redis_ce_ptr, redis->object, ZEND_STRL("onConnect"), 0);
+
     args[0] = *redis->object;
-    args[1] = *result;
+    ZVAL_BOOL(&args[1], success);
+
     redis->connecting = 1;
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) != SUCCESS)
     {
@@ -167,7 +167,6 @@ static sw_inline void redis_execute_connect_callback(swRedisClient *redis, int s
     {
         zval_ptr_dtor(retval);
     }
-    zval_ptr_dtor(result);
     redis->connecting = 0;
 }
 
@@ -788,10 +787,9 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
     zend_bool is_subscribe = 0;
     char *callback_type;
     swRedisClient *redis = c->ev.data;
-    zval *result, *retval, *callback;
-    SW_MAKE_STD_ZVAL(result);
+    zval result, *retval, *callback;
 
-    swoole_redis_parse_result(redis, result, reply);
+    swoole_redis_parse_result(redis, &result, reply);
 
     if (redis->state == SWOOLE_REDIS_STATE_SUBSCRIBE)
     {
@@ -813,7 +811,7 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
 
     zval args[2];
     args[0] = *redis->object;
-    args[1] = *result;
+    args[1] = result;
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL) != SUCCESS)
     {
@@ -827,7 +825,7 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
     {
         zval_ptr_dtor(retval);
     }
-    zval_ptr_dtor(result);
+    zval_ptr_dtor(&result);
     if (!is_subscribe)
     {
         sw_zval_free(callback);
@@ -912,9 +910,7 @@ static int swoole_redis_onError(swReactor *reactor, swEvent *event)
     if (!ZVAL_IS_NULL(zcallback))
     {
         const redisAsyncContext *c = redis->context;
-        zval *result;
-        SW_MAKE_STD_ZVAL(result);
-        ZVAL_BOOL(result, 0);
+
         zend_update_property_long(swoole_redis_ce_ptr, redis->object, ZEND_STRL("errCode"), c->err);
         zend_update_property_string(swoole_redis_ce_ptr, redis->object, ZEND_STRL("errMsg"), c->errstr);
 
@@ -922,8 +918,10 @@ static int swoole_redis_onError(swReactor *reactor, swEvent *event)
 
         zval *retval = NULL;
         zval args[2];
+
         args[0] = *redis->object;
-        args[1] = *result;
+        ZVAL_BOOL(&args[1], 0);
+
         redis->connecting = 1;
         if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) != SUCCESS)
         {
@@ -937,8 +935,6 @@ static int swoole_redis_onError(swReactor *reactor, swEvent *event)
         {
             zval_ptr_dtor(retval);
         }
-        zval_ptr_dtor(result);
-
         redis->connecting = 0;
         retval = NULL;
         zval *zobject = redis->object;

@@ -700,11 +700,10 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
     http2_stream *stream = nullptr;
     http_context *ctx = nullptr;
     zval *zrequest_object = nullptr;
-    zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata);
-    php_swoole_get_recv_data(zdata, req, NULL, 0);
+    zval zdata;
+    php_swoole_get_recv_data(&zdata, req, NULL, 0);
 
-    char *buf = Z_STRVAL_P(zdata);
+    char *buf = Z_STRVAL(zdata);
     int type = buf[3];
     int flags = buf[4];
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
@@ -769,7 +768,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             stream = new http2_stream(fd, stream_id);
             if (unlikely(!stream->ctx))
             {
-                zval_ptr_dtor(zdata);
+                zval_ptr_dtor(&zdata);
                 swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 create stream#%d context error.", stream_id);
                 return SW_ERR;
             }
@@ -812,7 +811,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
         auto stream_iterator = client->streams.find(stream_id);
         if (stream_iterator == client->streams.end())
         {
-            zval_ptr_dtor(zdata);
+            zval_ptr_dtor(&zdata);
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NOT_FOUND, "http2 stream#%d not found.", stream_id);
             return SW_ERR;
         }
@@ -925,7 +924,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
     }
     }
 
-    zval_ptr_dtor(zdata);
+    zval_ptr_dtor(&zdata);
 
     return SW_OK;
 }

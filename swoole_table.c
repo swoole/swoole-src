@@ -639,24 +639,23 @@ static PHP_METHOD(swoole_table, offsetGet)
         RETURN_FALSE;
     }
 
-    zval *value;
-    SW_MAKE_STD_ZVAL(value);
+    zval value;
 
     swTableRow *row = swTableRow_get(table, key, keylen, &_rowlock);
     if (!row)
     {
-        array_init(value);
+        array_init(&value);
     }
     else
     {
-        php_swoole_table_row2array(table, row, value);
+        php_swoole_table_row2array(table, row, &value);
     }
     swTableRow_unlock(_rowlock);
 
     object_init_ex(return_value, swoole_table_row_ce_ptr);
-    zend_update_property(swoole_table_row_ce_ptr, return_value, ZEND_STRL("value"), value);
+    zend_update_property(swoole_table_row_ce_ptr, return_value, ZEND_STRL("value"), &value);
     zend_update_property_stringl(swoole_table_row_ce_ptr, return_value, ZEND_STRL("key"), key, keylen);
-    zval_ptr_dtor(value);
+    zval_ptr_dtor(&value);
     swoole_set_object(return_value, table);
 }
 

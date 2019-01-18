@@ -315,12 +315,8 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
     zval args[2];
     zval _retval, *retval = &_retval;
 
-    zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata);
-    ZVAL_STRINGL(zdata, data, length);
-
     args[0] = *zobject;
-    args[1] = *zdata;
+    ZVAL_STRINGL(&args[1], data, length);
 
     client_callback *cb = (client_callback *) swoole_get_property(zobject, 0);
     fci_cache = &cb->cache_onReceive;
@@ -343,7 +339,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
         zval_ptr_dtor(retval);
     }
     free_zdata:
-    zval_ptr_dtor(zdata);
+    zval_ptr_dtor(&args[1]);
 }
 
 static void client_onConnect(swClient *cli)

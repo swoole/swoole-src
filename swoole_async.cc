@@ -110,11 +110,16 @@ static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, 
 {
     dns_request *req = (dns_request *) data;
     zval *retval = NULL;
-    zval *zaddress;
     zval args[2];
     char *address;
 
-    SW_MAKE_STD_ZVAL(zaddress);
+    /**
+     * args[0]: host domain name
+     */
+    args[0] = *req->domain;
+    /**
+     * args[1]: IP address
+     */
     if (result->num > 0)
     {
         if (SwooleG.dns_lookup_random)
@@ -125,15 +130,12 @@ static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, 
         {
             address = result->hosts[0].address;
         }
-        ZVAL_STRING(zaddress, address);
+        ZVAL_STRING(&args[1], address);
     }
     else
     {
-        ZVAL_STRING(zaddress, "");
+        ZVAL_STRING(&args[1], "");
     }
-
-    args[0] = *req->domain;
-    args[1] = *zaddress;
 
     zval *zcallback = req->callback;
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) == FAILURE)
@@ -153,7 +155,7 @@ static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, 
     {
         zval_ptr_dtor(retval);
     }
-    zval_ptr_dtor(zaddress);
+    zval_ptr_dtor(&args[1]);
 }
 
 static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void *data)
@@ -161,9 +163,8 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
     dns_request *req = (dns_request *) data;
     zval *retval = NULL;
 
-    zval *zaddress;
+    zval zaddress;
     char *address;
-    SW_MAKE_STD_ZVAL(zaddress);
     if (result->num > 0)
     {
         if (SwooleG.dns_lookup_random)
@@ -175,11 +176,11 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
             address = result->hosts[0].address;
         }
 
-        ZVAL_STRING(zaddress, address);
+        ZVAL_STRING(&zaddress, address);
     }
     else
     {
-        ZVAL_STRING(zaddress, "");
+        ZVAL_STRING(&zaddress, "");
     }
 
     std::string key(Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain));
@@ -196,8 +197,8 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
         cache = cache_iterator->second;
     }
 
-    memcpy(cache->address, Z_STRVAL_P(zaddress), Z_STRLEN_P(zaddress));
-    cache->address[Z_STRLEN_P(zaddress)] = '\0';
+    memcpy(cache->address, Z_STRVAL(zaddress), Z_STRLEN(zaddress));
+    cache->address[Z_STRLEN(zaddress)] = '\0';
 
     cache->update_time = swTimer_get_absolute_msec() + (int64_t) (SwooleG.dns_cache_refresh_time * 1000);
 
@@ -213,7 +214,7 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
         return;
     }
 
-    int ret = PHPCoroutine::resume_m(req->context, zaddress, retval);
+    int ret = PHPCoroutine::resume_m(req->context, &zaddress, retval);
     if (ret > 0)
     {
         goto free_zdata;
@@ -224,7 +225,7 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
         zval_ptr_dtor(retval);
     }
     free_zdata:
-    zval_ptr_dtor(zaddress);
+    zval_ptr_dtor(&zaddress);
     efree(req->context);
     efree(req);
 }
@@ -232,23 +233,21 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
 static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
 {
     zval *retval = NULL;
-    zval *zaddress;
+    zval zaddress;
     php_coro_context *cxt = (php_coro_context *) tnode->data;
     dns_request *req = (dns_request *) cxt->coro_params.value.ptr;
-
-    SW_MAKE_STD_ZVAL(zaddress);
 
     dns_cache *cache = request_cache_map[std::string(Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain))];
     if (cache != NULL && cache->update_time > swTimer_get_absolute_msec())
     {
-        ZVAL_STRING(zaddress, cache->address);
+        ZVAL_STRING(&zaddress, cache->address);
     }
     else
     {
-        ZVAL_STRING(zaddress, "");
+        ZVAL_STRING(&zaddress, "");
     }
 
-    int ret = PHPCoroutine::resume_m(req->context, zaddress, retval);
+    int ret = PHPCoroutine::resume_m(req->context, &zaddress, retval);
     if (ret > 0)
     {
         goto free_zdata;
@@ -259,7 +258,7 @@ static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
         zval_ptr_dtor(retval);
     }
     free_zdata:
-    zval_ptr_dtor(zaddress);
+    zval_ptr_dtor(&zaddress);
     efree(req->context);
     req->useless = 1;
 }
@@ -1064,39 +1063,31 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
     zval *retval = NULL;
     zval args[2];
 
-    zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata);
-    if (ps->buffer->length == 0)
-    {
-        ZVAL_EMPTY_STRING(zdata);
-    }
-    else
-    {
-        ZVAL_STRINGL(zdata, ps->buffer->str, ps->buffer->length);
-    }
-
     SwooleG.main_reactor->del(SwooleG.main_reactor, ps->fd);
 
     swString_free(ps->buffer);
-    args[0] = *zdata;
 
-    int status;
-    zval *zstatus;
-    SW_MAKE_STD_ZVAL(zstatus);
-
-    pid_t pid = swWaitpid(ps->pid, &status, WNOHANG);
-    if (pid > 0)
+    if (ps->buffer->length == 0)
     {
-        array_init(zstatus);
-        add_assoc_long(zstatus, "code", WEXITSTATUS(status));
-        add_assoc_long(zstatus, "signal", WTERMSIG(status));
+        ZVAL_EMPTY_STRING(&args[0]);
     }
     else
     {
-        ZVAL_FALSE(zstatus);
+        ZVAL_STRINGL(&args[0], ps->buffer->str, ps->buffer->length);
     }
 
-    args[1] = *zstatus;
+    int status;
+    pid_t pid = swWaitpid(ps->pid, &status, WNOHANG);
+    if (pid > 0)
+    {
+        array_init(&args[1]);
+        add_assoc_long(&args[1], "code", WEXITSTATUS(status));
+        add_assoc_long(&args[1], "signal", WTERMSIG(status));
+    }
+    else
+    {
+        ZVAL_FALSE(&args[1]);
+    }
 
     zval *zcallback = ps->callback;
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) == FAILURE)
@@ -1113,8 +1104,8 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
     {
         zval_ptr_dtor(retval);
     }
-    zval_ptr_dtor(zdata);
-    zval_ptr_dtor(zstatus);
+    zval_ptr_dtor(&args[0]);
+    zval_ptr_dtor(&args[1]);
     close(ps->fd);
     efree(ps);
 

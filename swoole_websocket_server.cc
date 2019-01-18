@@ -345,11 +345,9 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
     zend_bool finish = 0;
     zend_long opcode = 0;
 
-    zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata);
-
+    zval zdata;
     char frame_header[2];
-    php_swoole_get_recv_data(zdata, req, frame_header, SW_WEBSOCKET_HEADER_LEN);
+    php_swoole_get_recv_data(&zdata, req, frame_header, SW_WEBSOCKET_HEADER_LEN);
 
     // frame info has already decoded in swWebSocket_dispatch_frame
     finish = frame_header[0] ? 1 : 0;
@@ -359,20 +357,19 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
     {
         if (!SwooleG.serv->listen_list->open_websocket_close_frame)
         {
-            zval_ptr_dtor(zdata);
+            zval_ptr_dtor(&zdata);
             return SW_OK;
         }
     }
 
-    zval *zframe;
-    SW_MAKE_STD_ZVAL(zframe);
-    php_swoole_websocket_construct_frame(zframe, opcode, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata), finish);
-    zend_update_property_long(swoole_websocket_frame_ce_ptr, zframe, ZEND_STRL("fd"), fd);
+    zval zframe;
+    php_swoole_websocket_construct_frame(&zframe, opcode, Z_STRVAL(zdata), Z_STRLEN(zdata), finish);
+    zend_update_property_long(swoole_websocket_frame_ce_ptr, &zframe, ZEND_STRL("fd"), fd);
 
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
     zval args[2];
     args[0] = *(zval *) serv->ptr2; // zserver
-    args[1] = *zframe;
+    args[1] = zframe;
 
     if (SwooleG.enable_coroutine)
     {
@@ -392,8 +389,8 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
         zval_ptr_dtor(retval);
     }
 
-    zval_ptr_dtor(zdata);
-    zval_ptr_dtor(zframe);
+    zval_ptr_dtor(&zdata);
+    zval_ptr_dtor(&zframe);
 
     return SW_OK;
 }

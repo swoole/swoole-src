@@ -100,17 +100,15 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         return php_swoole_onReceive(serv, req);
     }
 
-    zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata);
-    php_swoole_get_recv_data(zdata, req, NULL, 0);
-    char *p = Z_STRVAL_P(zdata);
-    char *pe = p + Z_STRLEN_P(zdata);
+    zval zdata;
+    php_swoole_get_recv_data(&zdata, req, NULL, 0);
+    char *p = Z_STRVAL(zdata);
+    char *pe = p + Z_STRLEN(zdata);
     int ret;
     int length = 0;
 
-    zval *zparams;
-    SW_MAKE_STD_ZVAL(zparams);
-    array_init(zparams);
+    zval zparams;
+    array_init(&zparams);
 
     int state = SW_REDIS_RECEIVE_TOTAL_LINE;
     int add_param = 0;
@@ -134,7 +132,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
             {
                 if (ret == -1)
                 {
-                    add_next_index_null(zparams);
+                    add_next_index_null(&zparams);
                     break;
                 }
                 length = ret;
@@ -144,7 +142,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
             //integer
             else if (*p == ':' && (p = swRedis_get_number(p, &ret)))
             {
-                add_next_index_long(zparams, ret);
+                add_next_index_long(&zparams, ret);
                 break;
             }
             /* no break */
@@ -158,7 +156,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
             }
             else
             {
-                add_next_index_stringl(zparams, p, length);
+                add_next_index_stringl(&zparams, p, length);
             }
             p += length + SW_CRLF_LEN;
             state = SW_REDIS_RECEIVE_LENGTH;
@@ -184,13 +182,9 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     zval *zobject = (zval *) serv->ptr2;
     char err_msg[256];
 
-    zval *zfd;
-    SW_MAKE_STD_ZVAL(zfd);
-    ZVAL_LONG(zfd, fd);
-
     zval args[2];
-    args[0] = *zfd;
-    args[1] = *zparams;
+    ZVAL_LONG(&args[0], fd);
+    args[1] = zparams;
 
     zval *zindex = sw_zend_read_property(swoole_redis_server_ce_ptr, zobject, _command, _command_len, 1);
     if (!zindex || ZVAL_IS_NULL(zindex))
@@ -222,9 +216,8 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         zval_ptr_dtor(retval);
     }
 
-    zval_ptr_dtor(zfd);
-    zval_ptr_dtor(zdata);
-    zval_ptr_dtor(zparams);
+    zval_ptr_dtor(&zdata);
+    zval_ptr_dtor(&zparams);
 
     return SW_OK;
 }

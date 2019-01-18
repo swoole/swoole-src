@@ -191,15 +191,12 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
 
 void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
 {
-    zval *ztimer_id;
     swTimer_callback *cb = (swTimer_callback *) tnode->data;
 
-    SW_MAKE_STD_ZVAL(ztimer_id);
-    ZVAL_LONG(ztimer_id, tnode->id);
-
     zval args[2];
+    ZVAL_LONG(&args[0], tnode->id);
+
     int argc = 1;
-    args[0] = *ztimer_id;
     if (cb->data)
     {
         argc = 2;

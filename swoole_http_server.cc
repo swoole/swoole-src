@@ -708,13 +708,12 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
             return SW_OK;
         }
 
-        zval *tmp_array;
-        SW_MAKE_STD_ZVAL(tmp_array);
-        array_init(tmp_array);
-        http_parse_cookie(tmp_array, (char *) at + sizeof("form-data;") - 1, length - sizeof("form-data;") + 1);
+        zval tmp_array;
+        array_init(&tmp_array);
+        http_parse_cookie(&tmp_array, (char *) at + sizeof("form-data;") - 1, length - sizeof("form-data;") + 1);
 
         zval *form_name;
-        if (!(form_name = zend_hash_str_find(Z_ARRVAL_P(tmp_array), ZEND_STRL("name"))))
+        if (!(form_name = zend_hash_str_find(Z_ARRVAL(tmp_array), ZEND_STRL("name"))))
         {
             return SW_OK;
         }
@@ -731,7 +730,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 
         zval *filename;
         //POST form data
-        if (!(filename = zend_hash_str_find(Z_ARRVAL_P(tmp_array), ZEND_STRL("filename"))))
+        if (!(filename = zend_hash_str_find(Z_ARRVAL(tmp_array), ZEND_STRL("filename"))))
         {
             ctx->current_form_data_name = estrndup(tmp, value_len);
             ctx->current_form_data_name_len = value_len;
@@ -763,7 +762,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 
             ctx->current_multipart_header = multipart_header;
         }
-        zval_ptr_dtor(tmp_array);
+        zval_ptr_dtor(&tmp_array);
     }
 
     if (strncasecmp(headername, "content-type", header_len) == 0 && ctx->current_multipart_header)

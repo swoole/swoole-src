@@ -629,11 +629,7 @@ static void php_swoole_onSignal(int signo)
     zval args[1];
     zval *callback = signal_callback[signo];
 
-    zval *zsigno;
-    SW_MAKE_STD_ZVAL(zsigno);
-    ZVAL_LONG(zsigno, signo);
-
-    args[0] = *zsigno;
+    ZVAL_LONG(& args[0], signo);
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL) == FAILURE)
     {
@@ -647,7 +643,6 @@ static void php_swoole_onSignal(int signo)
     {
         zval_ptr_dtor(retval);
     }
-    zval_ptr_dtor(zsigno);
 }
 
 zend_bool php_swoole_signal_isset_handler(int signo)
