@@ -196,7 +196,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     if (!zindex || ZVAL_IS_NULL(zindex))
     {
         length = sw_snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%*s'\r\n", command_len, command);
-        swServer_tcp_send(serv, fd, err_msg, length);
+        serv->send(serv, fd, err_msg, length);
         return SW_OK;
     }
     zend_fcall_info_cache *fci_cache = func_cache_array.array[Z_LVAL_P(zindex)];

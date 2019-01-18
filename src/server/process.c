@@ -223,8 +223,22 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 {
     int ret, sendn;
     swServer *serv = factory->ptr;
-    int session_id = resp->info.fd;
 
+    /**
+     * More than the output buffer
+     */
+    if (resp->length > serv->buffer_output_size)
+    {
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_DATA_LENGTH_TOO_LARGE,
+            "The length of data [%u] exceeds the output buffer size[%u], "
+            "please use the sendfile, chunked transfer mode or adjust the buffer_output_size.",
+            resp->length, serv->buffer_output_size
+        );
+        return SW_ERR;
+    }
+
+    int session_id = resp->info.fd;
     swConnection *conn;
     if (resp->info.type != SW_EVENT_CLOSE)
     {
@@ -258,7 +272,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         return SW_ERR;
     }
 
-    swEventData ev_data;
+    swEventData ev_data = {0};
     ev_data.info.fd = session_id;
     ev_data.info.type = resp->info.type;
     swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
@@ -288,7 +302,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     /**
      * Big response, use shared memory
      */
-    if (resp->length > 0)
+    if (resp->length > SW_IPC_BUFFER_SIZE)
     {
         if (worker == NULL || worker->send_shm == NULL)
         {
@@ -329,9 +343,8 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     else
     {
         //copy data
-        memcpy(ev_data.data, resp->data, resp->info.len);
-
-        ev_data.info.len = resp->info.len;
+        memcpy(ev_data.data, resp->data, resp->length);
+        ev_data.info.len = resp->length;
         ev_data.info.from_fd = SW_RESPONSE_SMALL;
     }
 

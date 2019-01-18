@@ -419,8 +419,15 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/hook.cc \
         src/coroutine/socket.cc \
         src/coroutine/ucontext.cc \
-        src/factory/base.c \
-        src/factory/process.c \
+        src/server/base.c \
+        src/server/process.c \
+        src/server/reactor_thread.c \
+        src/server/master.c \
+        src/server/worker.c \
+        src/server/task_worker.c \
+        src/server/reactor_process.c \
+        src/server/manager.c \
+        src/server/port.c \
         src/lock/atomic.c \
         src/lock/cond.c \
         src/lock/file_lock.c \
@@ -440,17 +447,10 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/client.c \
         src/network/connection.c \
         src/network/dns.c \
-        src/network/manager.c \
-        src/network/port.c \
-        src/network/process_pool.c \
-        src/network/reactor_process.c \
-        src/network/reactor_thread.c \
-        src/network/server.c \
+        src/network/process_pool.c \ 
         src/network/stream.c \
-        src/network/task_worker.c \
         src/network/thread_pool.c \
         src/network/timer.c \
-        src/network/worker.c \
         src/os/base.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \
@@ -629,12 +629,12 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)
-    PHP_ADD_BUILD_DIR($ext_builddir/src/factory)
     PHP_ADD_BUILD_DIR($ext_builddir/src/reactor)
     PHP_ADD_BUILD_DIR($ext_builddir/src/pipe)
     PHP_ADD_BUILD_DIR($ext_builddir/src/lock)
     PHP_ADD_BUILD_DIR($ext_builddir/src/os)
     PHP_ADD_BUILD_DIR($ext_builddir/src/network)
+    PHP_ADD_BUILD_DIR($ext_builddir/src/server)
     PHP_ADD_BUILD_DIR($ext_builddir/src/protocol)
     PHP_ADD_BUILD_DIR($ext_builddir/src/coroutine)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)

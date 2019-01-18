@@ -72,7 +72,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
             no_client_cert:
             if (serv->onConnect)
             {
-                swServer_tcp_notify(serv, conn, SW_EVENT_CONNECT);
+                serv->notify(serv, conn, SW_EVENT_CONNECT);
             }
             delay_receive:
             if (serv->enable_delay_receive)
@@ -647,7 +647,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         //notify worker process
         if (serv->onConnect)
         {
-            swServer_tcp_notify(serv, conn, SW_EVENT_CONNECT);
+            serv->notify(serv, conn, SW_EVENT_CONNECT);
             if (!swBuffer_empty(conn->out_buffer))
             {
                 goto _pop_chunk;
@@ -675,7 +675,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
             return swReactorThread_close(reactor, fd);
         }
 #endif
-        swServer_tcp_notify(serv, conn, SW_EVENT_CLOSE);
+        serv->notify(serv, conn, SW_EVENT_CLOSE);
         conn->close_notify = 0;
         return SW_OK;
     }
@@ -725,7 +725,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         if (conn->out_buffer->length <= port->buffer_low_watermark)
         {
             conn->high_watermark = 0;
-            swServer_tcp_notify(serv, conn, SW_EVENT_BUFFER_EMPTY);
+            serv->notify(serv, conn, SW_EVENT_BUFFER_EMPTY);
         }
     }
 
@@ -1285,7 +1285,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                 //notify to reactor thread
                 if (conn->removed)
                 {
-                    swServer_tcp_notify(serv, conn, SW_EVENT_CLOSE);
+                    serv->notify(serv, conn, SW_EVENT_CLOSE);
                 }
                 else
                 {
