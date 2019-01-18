@@ -419,15 +419,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/hook.cc \
         src/coroutine/socket.cc \
         src/coroutine/ucontext.cc \
-        src/server/base.c \
-        src/server/process.c \
-        src/server/reactor_thread.c \
-        src/server/master.c \
-        src/server/worker.c \
-        src/server/task_worker.c \
-        src/server/reactor_process.c \
-        src/server/manager.c \
-        src/server/port.c \
         src/lock/atomic.c \
         src/lock/cond.c \
         src/lock/file_lock.c \
@@ -447,7 +438,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/client.c \
         src/network/connection.c \
         src/network/dns.c \
-        src/network/process_pool.c \ 
+        src/network/process_pool.c \
         src/network/stream.c \
         src/network/thread_pool.c \
         src/network/timer.c \
@@ -477,6 +468,15 @@ if test "$PHP_SWOOLE" != "no"; then
         src/reactor/kqueue.c \
         src/reactor/poll.c \
         src/reactor/select.c \
+        src/server/base.c \
+        src/server/manager.c \
+        src/server/master.c \
+        src/server/port.c \
+        src/server/process.c \
+        src/server/reactor_process.c \
+        src/server/reactor_thread.c \
+        src/server/task_worker.c \
+        src/server/worker.c \
         swoole.c \
         swoole_async.cc \
         swoole_atomic.c \
