@@ -1065,8 +1065,6 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
 
     SwooleG.main_reactor->del(SwooleG.main_reactor, ps->fd);
 
-    swString_free(ps->buffer);
-
     if (ps->buffer->length == 0)
     {
         ZVAL_EMPTY_STRING(&args[0]);
@@ -1075,6 +1073,7 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
     {
         ZVAL_STRINGL(&args[0], ps->buffer->str, ps->buffer->length);
     }
+    swString_free(ps->buffer);
 
     int status;
     pid_t pid = swWaitpid(ps->pid, &status, WNOHANG);
