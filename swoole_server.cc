@@ -761,7 +761,7 @@ static sw_inline int php_swoole_check_task_param(swServer *serv, int dst_worker_
         return SW_ERR;
     }
 
-    if (!swIsWorker())
+    if (!swIsWorker() && !swIsUserWorker())
     {
         swoole_php_fatal_error(E_WARNING, "task method can only be used in the worker process.");
         return SW_ERR;
@@ -1837,6 +1837,7 @@ static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker)
     {
         SwooleG.enable_coroutine = 1;
     }
+
     zval *object = (zval *) worker->ptr;
     zend_update_property_long(swoole_process_ce_ptr, object, ZEND_STRL("id"), SwooleWG.id);
 
