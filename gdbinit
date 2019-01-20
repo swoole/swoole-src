@@ -62,7 +62,7 @@ define co_list
     while $running
         set $co = swoole_coro_iterator_each()
         if $co
-            printf "coroutine %d ", $co->get_cid()
+            printf "coroutine %ld ", $co->cid
             if $co->state == 0
                 printlnc $GREEN "SW_CORO_INIT"
             end
