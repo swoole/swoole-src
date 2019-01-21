@@ -2340,7 +2340,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(SwooleG.chroot);
         }
-        SwooleG.chroot = zend::string_dup(v);
+        SwooleG.chroot = zend::string::dup(v);
     }
     //user
     if (php_swoole_array_get_value(vht, "user", v))
@@ -2349,7 +2349,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(SwooleG.user);
         }
-        SwooleG.user = zend::string_dup(v);
+        SwooleG.user = zend::string::dup(v);
     }
     //group
     if (php_swoole_array_get_value(vht, "group", v))
@@ -2358,7 +2358,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(SwooleG.group);
         }
-        SwooleG.group = zend::string_dup(v);
+        SwooleG.group = zend::string::dup(v);
     }
     //daemonize
     if (php_swoole_array_get_value(vht, "daemonize", v))
@@ -2386,7 +2386,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(serv->pid_file);
         }
-        serv->pid_file = zend::string_dup(v);
+        serv->pid_file = zend::string::dup(v);
     }
     //reactor thread num
     if (php_swoole_array_get_value(vht, "reactor_num", v))
@@ -2476,7 +2476,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(SwooleG.log_file);
         }
-        SwooleG.log_file = zend::string_dup(v);
+        SwooleG.log_file = zend::string::dup(v);
     }
     //log_level
     if (php_swoole_array_get_value(vht, "log_level", v))
