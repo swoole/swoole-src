@@ -15,15 +15,7 @@
 */
 
 #include "php_swoole.h"
-
-typedef struct
-{
-    size_t size;
-    off_t offset;
-    char *filename;
-    void *memory;
-    void *ptr;
-} swMmapFile;
+#include "swoole_mmap.h"
 
 static size_t mmap_stream_write(php_stream * stream, const char *buffer, size_t length);
 static size_t mmap_stream_read(php_stream *stream, char *buffer, size_t length);
@@ -143,6 +135,29 @@ static int mmap_stream_close(php_stream *stream, int close_handle)
     }
     efree(res);
     return 0;
+}
+
+void *php_swoole_mmap_get_memory(zval *zmmap, size_t offset, size_t need_size)
+{
+    php_stream *stream;
+
+    if (!SW_ZEND_FETCH_RESOURCE_NO_RETURN(stream, php_stream *, &zmmap, -1, NULL, php_file_le_stream()))
+    {
+        return NULL;
+    }
+
+    if (stream->ops != &mmap_ops)
+    {
+        return NULL;
+    }
+
+    swMmapFile *res = stream->abstract;
+    if (offset + need_size > res->size)
+    {
+        return NULL;
+    }
+
+    return res->memory + offset;
 }
 
 void swoole_mmap_init(int module_number)

@@ -15,6 +15,7 @@
 */
 
 #include "php_swoole.h"
+#include "swoole_mmap.h"
 
 static PHP_METHOD(swoole_atomic, __construct);
 static PHP_METHOD(swoole_atomic, add);
@@ -24,6 +25,22 @@ static PHP_METHOD(swoole_atomic, set);
 static PHP_METHOD(swoole_atomic, cmpset);
 static PHP_METHOD(swoole_atomic, wait);
 static PHP_METHOD(swoole_atomic, wakeup);
+
+static PHP_METHOD(swoole_atomic, fetchAdd);
+static PHP_METHOD(swoole_atomic, addFetch);
+static PHP_METHOD(swoole_atomic, fetchSub);
+static PHP_METHOD(swoole_atomic, subFetch);
+static PHP_METHOD(swoole_atomic, cmpAndSet);
+static PHP_METHOD(swoole_atomic, fetchOr);
+static PHP_METHOD(swoole_atomic, orFetch);
+static PHP_METHOD(swoole_atomic, fetchXor);
+static PHP_METHOD(swoole_atomic, xorFetch);
+static PHP_METHOD(swoole_atomic, fetchAnd);
+static PHP_METHOD(swoole_atomic, andFetch);
+static PHP_METHOD(swoole_atomic, fetchNand);
+static PHP_METHOD(swoole_atomic, nandFetch);
+static PHP_METHOD(swoole_atomic, getValue);
+static PHP_METHOD(swoole_atomic, setValue);
 
 static PHP_METHOD(swoole_atomic_long, __construct);
 static PHP_METHOD(swoole_atomic_long, add);
@@ -101,6 +118,24 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_cmpset, 0, 0, 2)
     ZEND_ARG_INFO(0, new_value)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_mmap, 0, 0, 2)
+    ZEND_ARG_INFO(0, mmap)
+    ZEND_ARG_INFO(0, value)
+    ZEND_ARG_INFO(0, offset)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_mmap_getValue, 0, 0, 1)
+    ZEND_ARG_INFO(0, mmap)
+    ZEND_ARG_INFO(0, offset)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_mmap_cmpset, 0, 0, 3)
+    ZEND_ARG_INFO(0, mmap)
+    ZEND_ARG_INFO(0, cmp_value)
+    ZEND_ARG_INFO(0, new_value)
+    ZEND_ARG_INFO(0, offset)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_wait, 0, 0, 0)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
@@ -127,6 +162,21 @@ static const zend_function_entry swoole_atomic_methods[] =
     PHP_ME(swoole_atomic, wait, arginfo_swoole_atomic_wait, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic, wakeup, arginfo_swoole_atomic_waitup, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic, cmpset, arginfo_swoole_atomic_cmpset, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, fetchAdd, arginfo_swoole_atomic_mmap, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_atomic, fetchSub, arginfo_swoole_atomic_mmap, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_atomic, fetchOr, arginfo_swoole_atomic_mmap, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_atomic, fetchXor, arginfo_swoole_atomic_mmap, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_atomic, fetchAnd, arginfo_swoole_atomic_mmap, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_atomic, fetchNand, arginfo_swoole_atomic_mmap, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_atomic, addFetch, arginfo_swoole_atomic_mmap, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_atomic, subFetch, arginfo_swoole_atomic_mmap, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_atomic, orFetch, arginfo_swoole_atomic_mmap, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_atomic, xorFetch, arginfo_swoole_atomic_mmap, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_atomic, andFetch, arginfo_swoole_atomic_mmap, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_atomic, nandFetch, arginfo_swoole_atomic_mmap, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_atomic, cmpAndSet, arginfo_swoole_atomic_mmap_cmpset, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_atomic, getValue, arginfo_swoole_atomic_mmap_getValue, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_atomic, setValue, arginfo_swoole_atomic_mmap, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -279,6 +329,235 @@ PHP_METHOD(swoole_atomic, wakeup)
     sw_atomic_fetch_sub(atomic, n);
     RETURN_TRUE;
 #endif
+}
+
+static sw_atomic_t *get_atomic_from_mmap(INTERNAL_FUNCTION_PARAMETERS, zend_long *value)
+{
+    zval *zmmap;
+    zend_long offset = 0;
+
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+        Z_PARAM_ZVAL(zmmap)
+        Z_PARAM_LONG(*value)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(offset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    return php_swoole_mmap_get_memory(zmmap, (size_t) offset, sizeof(sw_atomic_t));
+}
+
+PHP_METHOD(swoole_atomic, fetchAdd)
+{
+    zend_long value;
+    sw_atomic_t *atomic = get_atomic_from_mmap(INTERNAL_FUNCTION_PARAM_PASSTHRU, &value);
+
+    if (atomic == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    RETURN_LONG(sw_atomic_fetch_add(atomic, (sw_atomic_t) value));
+}
+
+PHP_METHOD(swoole_atomic, fetchSub)
+{
+    zend_long value;
+    sw_atomic_t *atomic = get_atomic_from_mmap(INTERNAL_FUNCTION_PARAM_PASSTHRU, &value);
+
+    if (atomic == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    RETURN_LONG(sw_atomic_fetch_sub(atomic, (sw_atomic_t) value));
+}
+
+PHP_METHOD(swoole_atomic, fetchOr)
+{
+    zend_long value;
+    sw_atomic_t *atomic = get_atomic_from_mmap(INTERNAL_FUNCTION_PARAM_PASSTHRU, &value);
+
+    if (atomic == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    RETURN_LONG(sw_atomic_fetch_or(atomic, (sw_atomic_t) value));
+}
+
+PHP_METHOD(swoole_atomic, fetchXor)
+{
+    zend_long value;
+    sw_atomic_t *atomic = get_atomic_from_mmap(INTERNAL_FUNCTION_PARAM_PASSTHRU, &value);
+
+    if (atomic == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    RETURN_LONG(sw_atomic_fetch_xor(atomic, (sw_atomic_t) value));
+}
+
+PHP_METHOD(swoole_atomic, fetchAnd)
+{
+    zend_long value;
+    sw_atomic_t *atomic = get_atomic_from_mmap(INTERNAL_FUNCTION_PARAM_PASSTHRU, &value);
+
+    if (atomic == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    RETURN_LONG(sw_atomic_fetch_and(atomic, (sw_atomic_t) value));
+}
+
+PHP_METHOD(swoole_atomic, fetchNand)
+{
+    zend_long value;
+    sw_atomic_t *atomic = get_atomic_from_mmap(INTERNAL_FUNCTION_PARAM_PASSTHRU, &value);
+
+    if (atomic == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    RETURN_LONG(sw_atomic_fetch_nand(atomic, (sw_atomic_t) value));
+}
+
+PHP_METHOD(swoole_atomic, addFetch)
+{
+    zend_long value;
+    sw_atomic_t *atomic = get_atomic_from_mmap(INTERNAL_FUNCTION_PARAM_PASSTHRU, &value);
+
+    if (atomic == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    RETURN_LONG(sw_atomic_add_fetch(atomic, (sw_atomic_t) value));
+}
+
+PHP_METHOD(swoole_atomic, subFetch)
+{
+    zend_long value;
+    sw_atomic_t *atomic = get_atomic_from_mmap(INTERNAL_FUNCTION_PARAM_PASSTHRU, &value);
+
+    if (atomic == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    RETURN_LONG(sw_atomic_sub_fetch(atomic, (sw_atomic_t) value));
+}
+
+PHP_METHOD(swoole_atomic, orFetch)
+{
+    zend_long value;
+    sw_atomic_t *atomic = get_atomic_from_mmap(INTERNAL_FUNCTION_PARAM_PASSTHRU, &value);
+
+    if (atomic == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    RETURN_LONG(sw_atomic_or_fetch(atomic, (sw_atomic_t) value));
+}
+
+PHP_METHOD(swoole_atomic, xorFetch)
+{
+    zend_long value;
+    sw_atomic_t *atomic = get_atomic_from_mmap(INTERNAL_FUNCTION_PARAM_PASSTHRU, &value);
+
+    if (atomic == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    RETURN_LONG(sw_atomic_xor_fetch(atomic, (sw_atomic_t) value));
+}
+
+PHP_METHOD(swoole_atomic, andFetch)
+{
+    zend_long value;
+    sw_atomic_t *atomic = get_atomic_from_mmap(INTERNAL_FUNCTION_PARAM_PASSTHRU, &value);
+
+    if (atomic == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    RETURN_LONG(sw_atomic_and_fetch(atomic, (sw_atomic_t) value));
+}
+
+PHP_METHOD(swoole_atomic, nandFetch)
+{
+    zend_long value;
+    sw_atomic_t *atomic = get_atomic_from_mmap(INTERNAL_FUNCTION_PARAM_PASSTHRU, &value);
+
+    if (atomic == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    RETURN_LONG(sw_atomic_nand_fetch(atomic, (sw_atomic_t) value));
+}
+
+PHP_METHOD(swoole_atomic, getValue)
+{
+    zval *zmmap;
+    zend_long offset = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_ZVAL(zmmap)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(offset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    sw_atomic_t *atomic = php_swoole_mmap_get_memory(zmmap, (size_t) offset, sizeof(sw_atomic_t));
+    if (atomic == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    RETURN_LONG(*atomic);
+}
+
+PHP_METHOD(swoole_atomic, setValue)
+{
+    zend_long value;
+    sw_atomic_t *atomic = get_atomic_from_mmap(INTERNAL_FUNCTION_PARAM_PASSTHRU, &value);
+
+    if (atomic == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    *atomic = (sw_atomic_t) value;
+    RETURN_TRUE;
+}
+
+PHP_METHOD(swoole_atomic, cmpAndSet)
+{
+    zval *zmmap;
+    zend_long offset = 0;
+    zend_long cmp_value;
+    zend_long set_value;
+
+    ZEND_PARSE_PARAMETERS_START(3, 4)
+        Z_PARAM_ZVAL(zmmap)
+        Z_PARAM_LONG(cmp_value)
+        Z_PARAM_LONG(set_value)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(offset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_NULL);
+
+    sw_atomic_t *atomic = php_swoole_mmap_get_memory(zmmap, (size_t) offset, sizeof(sw_atomic_t));
+    if (atomic == NULL)
+    {
+        RETURN_NULL;
+    }
+
+    RETURN_BOOL(sw_atomic_cmp_set(atomic, (sw_atomic_t) cmp_value, (sw_atomic_t) set_value));
 }
 
 PHP_METHOD(swoole_atomic_long, __construct)
