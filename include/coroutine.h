@@ -42,6 +42,12 @@ typedef enum
     SW_CORO_END,
 } sw_coro_state;
 
+typedef enum
+{
+    SW_CORO_YIELD = 0,
+    SW_CORO_RESUME,
+} sw_coro_action;
+
 typedef void (*coro_php_create_t)();
 typedef void (*coro_php_yield_t)(void*);
 typedef void (*coro_php_resume_t)(void*);
@@ -85,9 +91,16 @@ public:
         return ctx.end;
     }
 
-    inline void mark_schedule()
+    inline void mark_schedule(sw_coro_action action)
     {
-        last_schedule_msec = swTimer_get_absolute_msec();
+        if (action == SW_CORO_YIELD)
+        {
+            last_schedule_msec = swTimer_get_absolute_msec();
+        }
+        else
+        {
+            last_schedule_msec = 0;
+        }
     }
 
     inline void set_task(void *_task)
@@ -108,6 +121,7 @@ public:
     static swString* read_file(const char *file, int lock);
     static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
+    static time_t max_death_msec ;
 
     static void set_on_yield(coro_php_yield_t func);
     static void set_on_resume(coro_php_resume_t func);
@@ -160,7 +174,6 @@ protected:
     static coro_php_yield_t  on_yield;  /* before php yield coro */
     static coro_php_resume_t on_resume; /* before php resume coro */
     static coro_php_close_t  on_close;  /* before php close coro */
-    static time_t max_death_msec ;
 
     sw_coro_state state = SW_CORO_INIT;
     long cid;

@@ -30,8 +30,12 @@ double PHPCoroutine::socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double PHPCoroutine::socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
 php_coro_task PHPCoroutine::main_task = {0};
 
-static user_opcode_handler_t ori_jumpnz_handler = NULL;
 static user_opcode_handler_t ori_jump_handler = NULL;
+static user_opcode_handler_t ori_jumpz_handler = NULL;
+static user_opcode_handler_t ori_jumpnz_handler = NULL;
+static user_opcode_handler_t ori_jumpznz_handler = NULL;
+static user_opcode_handler_t ori_jumpz_ex_handler = NULL;
+static user_opcode_handler_t ori_jumpnz_ex_handler = NULL;
 
 static int coro_common_handler(zend_execute_data *execute_data)
 {
@@ -48,14 +52,32 @@ static void interrupt_callback(void *data)
     }
 }
 
+/*
+ *
+#define ZEND_JMP                              42
+#define ZEND_JMPZ                             43
+#define ZEND_JMPNZ                            44
+#define ZEND_JMPZNZ                           45
+#define ZEND_JMPZ_EX                          46
+#define ZEND_JMPNZ_EX                         47
+ */
 static void try_reset_opcode()
 {
-    ori_jumpnz_handler = zend_get_user_opcode_handler(ZEND_JMPNZ);
     ori_jump_handler = zend_get_user_opcode_handler(ZEND_JMP);
-    if (!ori_jumpnz_handler && !ori_jump_handler)
+    ori_jumpz_handler = zend_get_user_opcode_handler(ZEND_JMPZ);
+    ori_jumpnz_handler = zend_get_user_opcode_handler(ZEND_JMPNZ);
+    ori_jumpznz_handler = zend_get_user_opcode_handler(ZEND_JMPZNZ);
+    ori_jumpz_ex_handler = zend_get_user_opcode_handler(ZEND_JMPZ_EX);
+    ori_jumpnz_ex_handler = zend_get_user_opcode_handler(ZEND_JMPNZ_EX);
+    if (!ori_jump_handler && !ori_jumpz_handler && !ori_jumpnz_handler && \
+            !ori_jumpznz_handler && !ori_jumpz_ex_handler && !ori_jumpnz_ex_handler)
     {
-        zend_set_user_opcode_handler(ZEND_JMPNZ, coro_common_handler);
         zend_set_user_opcode_handler(ZEND_JMP, coro_common_handler);
+        zend_set_user_opcode_handler(ZEND_JMPZ, coro_common_handler);
+        zend_set_user_opcode_handler(ZEND_JMPNZ, coro_common_handler);
+        zend_set_user_opcode_handler(ZEND_JMPZNZ, coro_common_handler);
+        zend_set_user_opcode_handler(ZEND_JMPZ_EX, coro_common_handler);
+        zend_set_user_opcode_handler(ZEND_JMPNZ_EX, coro_common_handler);
     }
 }
 

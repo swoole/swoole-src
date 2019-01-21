@@ -1,6 +1,6 @@
 <?php
 Swoole\Coroutine::set([
-    'max_death_ms' => 5000,
+    'max_death_ms' => 2000,
 ]);
 echo "start\n";
 go(function () {
