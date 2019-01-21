@@ -141,19 +141,28 @@ void *php_swoole_mmap_get_memory(zval *zmmap, size_t offset, size_t need_size)
 {
     php_stream *stream;
 
-    if (!SW_ZEND_FETCH_RESOURCE_NO_RETURN(stream, php_stream *, &zmmap, -1, NULL, php_file_le_stream()))
+    if (unlikely(Z_TYPE_P(zmmap) != IS_RESOURCE))
     {
+        goto _type_error;
+    }
+
+    if (unlikely(!SW_ZEND_FETCH_RESOURCE_NO_RETURN(stream, php_stream *, &zmmap, -1, NULL, php_file_le_stream())))
+    {
+        swoole_php_error(E_WARNING, "fetch resource failed.");
         return NULL;
     }
 
-    if (stream->ops != &mmap_ops)
+    if (unlikely(stream->ops != &mmap_ops))
     {
+        _type_error:
+        swoole_php_fatal_error(E_WARNING, "Resource is not swoole_mmap.");
         return NULL;
     }
 
     swMmapFile *res = stream->abstract;
-    if (offset + need_size > res->size)
+    if (unlikely(offset + need_size > res->size))
     {
+        swoole_php_error(E_WARNING, "mmap size[%zu] not enough, need %zu.", res->size, offset + need_size);
         return NULL;
     }
 
