@@ -178,7 +178,7 @@ function var_dump_return(...$data): string
 
 function get_safe_random(int $length = 32, $original = false): string
 {
-    $raw = base64_encode(openssl_random_pseudo_bytes($original ? $length : $length * 2));
+    $raw = base64_encode(RandStr::getBytes($original ? $length : $length * 2));
     if (!$original) {
         $raw = substr(str_replace(['/', '+', '='], '', $raw), 0, $length);
     }
