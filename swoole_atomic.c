@@ -341,7 +341,7 @@ static sw_atomic_t *get_atomic_from_mmap(INTERNAL_FUNCTION_PARAMETERS, zend_long
         Z_PARAM_LONG(*value)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(offset)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+    ZEND_PARSE_PARAMETERS_END_EX({return NULL;});
 
     return php_swoole_mmap_get_memory(zmmap, (size_t) offset, sizeof(sw_atomic_t));
 }
@@ -549,12 +549,12 @@ PHP_METHOD(swoole_atomic, cmpAndSet)
         Z_PARAM_LONG(set_value)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(offset)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_NULL);
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_NULL());
 
     sw_atomic_t *atomic = php_swoole_mmap_get_memory(zmmap, (size_t) offset, sizeof(sw_atomic_t));
     if (atomic == NULL)
     {
-        RETURN_NULL;
+        RETURN_NULL();
     }
 
     RETURN_BOOL(sw_atomic_cmp_set(atomic, (sw_atomic_t) cmp_value, (sw_atomic_t) set_value));
