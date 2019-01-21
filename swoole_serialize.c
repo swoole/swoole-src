@@ -25,13 +25,13 @@
 #define CPINLINE sw_inline
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_serialize_pack, 0, 0, 1)
-ZEND_ARG_INFO(0, data)
-ZEND_ARG_INFO(0, flag)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, flag)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_serialize_unpack, 0, 0, 1)
-ZEND_ARG_INFO(0, string)
-ZEND_ARG_INFO(0, args)
+    ZEND_ARG_INFO(0, string)
+    ZEND_ARG_INFO(0, flag)
 ZEND_END_ARG_INFO()
 
 static void swoole_serialize_object(seriaString *buffer, zval *zvalue, size_t start);
@@ -55,6 +55,7 @@ static zend_object_handlers swoole_serialize_handlers;
 
 #define SWOOLE_SERI_EOF "EOF"
 #define CHECK_STEP if(buffer>unseri_buffer_end){ php_error_docref(NULL, E_ERROR, "illegal unserialize data"); return NULL;}
+#define SW_HT_HASH_RESET(ht) memset(&HT_HASH(ht, (ht)->nTableMask), HT_INVALID_IDX, HT_HASH_SIZE((ht)->nTableMask))
 
 static struct _swSeriaG swSeriaG;
 void *unseri_buffer_end = NULL;
@@ -690,7 +691,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
         php_error_docref(NULL, E_NOTICE, "illegal unserialize data");
         return NULL;
     }
-    HT_HASH_RESET(ht);
+    SW_HT_HASH_RESET(ht);
     //}
 
 
@@ -1040,15 +1041,24 @@ try_again:
                  */
                 ((SBucketType*) (buffer->buffer + p))->data_type = IS_UNDEF;
 
-                if (ZEND_HASH_APPLY_PROTECTION(Z_OBJPROP_P(data)))
+                if (GC_IS_RECURSIVE(Z_OBJPROP_P(data)))
                 {
-                    GC_PROTECT_RECURSION(Z_OBJPROP_P(data));
-                    swoole_serialize_object(buffer, data, p);
-                    GC_UNPROTECT_RECURSION(Z_OBJPROP_P(data));
+                    ((SBucketType*) (buffer->buffer + p))->data_type = IS_NULL; //reset type null
+                    php_error_docref(NULL, E_NOTICE, "the obj has cycle ref");
                 }
                 else
                 {
-                    swoole_serialize_object(buffer, data, p);
+                    if (ZEND_HASH_APPLY_PROTECTION(Z_OBJPROP_P(data)))
+                    {
+                        GC_PROTECT_RECURSION(Z_OBJPROP_P(data));
+                        swoole_serialize_object(buffer, data, p);
+                        GC_UNPROTECT_RECURSION(Z_OBJPROP_P(data));
+                    }
+                    else
+                    {
+                        swoole_serialize_object(buffer, data, p);
+                    }
+
                 }
 
                 break;
@@ -1111,11 +1121,11 @@ static CPINLINE void swoole_serialize_raw(seriaString *buffer, zval *zvalue)
 static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start)
 {
     zend_string *name = Z_OBJCE_P(obj)->name;
-    if (GC_IS_RECURSIVE(Z_OBJPROP_P(obj)))
-    {
-        zend_throw_exception_ex(NULL, 0, "the object %s has cycle ref.", name->val);
-        return;
-    }
+//    if (GC_IS_RECURSIVE(Z_OBJPROP_P(obj)))
+//    {
+//        zend_throw_exception_ex(NULL, 0, "the object %s has cycle ref.", name->val);
+//        return;
+//    }
     if (name->len > 0xffff)
     {
         zend_throw_exception_ex(NULL, 0, "the object name is too long.");
@@ -1155,7 +1165,7 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
                 void *ht_addr = do_alloca(HT_SIZE(ht), use_heap);
                 HT_SET_DATA_ADDR(ht, ht_addr);
                 ht->u.flags |= HASH_FLAG_INITIALIZED;
-                HT_HASH_RESET(ht);
+                SW_HT_HASH_RESET(ht);
 
                 //just clean property do not add null when does not exist
                 //we double for each, cause we do not malloc  and release it
@@ -1573,18 +1583,18 @@ static PHP_METHOD(swoole_serialize, pack)
 
 static PHP_METHOD(swoole_serialize, unpack)
 {
-    char *buffer = NULL;
-    size_t arg_len;
+    char *buffer;
+    size_t buffer_len;
+    zend_long flag = 0;
     zval *args = NULL; //for object
-    long flag = 0;
 
     swoole_php_fatal_error(E_DEPRECATED, "swoole serialize will be removed, you should be using the php serialize instead.");
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|la", &buffer, &arg_len, &flag, &args) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|la", &buffer, &buffer_len, &flag, &args) == FAILURE)
     {
         RETURN_FALSE;
     }
-    if (!php_swoole_unserialize(buffer, arg_len, return_value, args, flag))
+    if (!php_swoole_unserialize(buffer, buffer_len, return_value, args, flag))
     {
         RETURN_FALSE;
     }

@@ -1,7 +1,7 @@
 --TEST--
 swoole_server: reload with enable_coroutine
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

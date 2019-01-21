@@ -188,8 +188,8 @@ static PHP_METHOD(swoole_buffer, append)
 
 static PHP_METHOD(swoole_buffer, substr)
 {
-    long offset;
-    long length = -1;
+    zend_long offset;
+    zend_long length = -1;
     zend_bool remove = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|lb", &offset, &length, &remove) == FAILURE)

@@ -81,7 +81,7 @@ typedef struct
    uint8_t type;
    uint32_t size;
    swString* name;
-   uint16_t index;
+   size_t index;
 } swTableColumn;
 
 enum swoole_table_type

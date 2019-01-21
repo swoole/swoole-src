@@ -69,13 +69,7 @@ array(1) {
     [0]=>
     array(1) {
       [0]=>
-      array(1) {
-        [0]=>
-        array(1) {
-          [0]=>
-          NULL
-        }
-      }
+      NULL
     }
   }
 }

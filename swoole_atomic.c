@@ -185,7 +185,7 @@ PHP_METHOD(swoole_atomic, add)
         Z_PARAM_LONG(add_value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_LONG(sw_atomic_add_fetch(atomic, (uint32_t ) add_value));
+    RETURN_LONG(sw_atomic_add_fetch(atomic, (uint32_t) add_value));
 }
 
 PHP_METHOD(swoole_atomic, sub)
@@ -198,7 +198,7 @@ PHP_METHOD(swoole_atomic, sub)
         Z_PARAM_LONG(sub_value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_LONG(sw_atomic_sub_fetch(atomic, (uint32_t ) sub_value));
+    RETURN_LONG(sw_atomic_sub_fetch(atomic, (uint32_t) sub_value));
 }
 
 PHP_METHOD(swoole_atomic, get)
@@ -245,11 +245,11 @@ PHP_METHOD(swoole_atomic, wait)
 #ifdef HAVE_FUTEX
     SW_CHECK_RETURN(swoole_futex_wait(atomic, timeout));
 #else
-    timeout = timeout <= 0 ? SW_MAX_INT : timeout;
-    sw_atomic_long_t i = sw_atomic_add_fetch(atomic, 1);
+    timeout = timeout <= 0 ? INT_MAX : timeout;
+    int32_t i = (int32_t) sw_atomic_add_fetch(atomic, 1);
     while (timeout > 0)
     {
-        if (*atomic < i)
+        if ((int32_t) *atomic < i)
         {
             RETURN_TRUE;
         }
@@ -259,6 +259,7 @@ PHP_METHOD(swoole_atomic, wait)
             timeout -= 0.001;
         }
     }
+    RETURN_FALSE;
 #endif
 }
 
@@ -276,6 +277,7 @@ PHP_METHOD(swoole_atomic, wakeup)
     SW_CHECK_RETURN(swoole_futex_wakeup(atomic, (int ) n));
 #else
     sw_atomic_fetch_sub(atomic, n);
+    RETURN_TRUE;
 #endif
 }
 
@@ -310,7 +312,7 @@ PHP_METHOD(swoole_atomic_long, add)
         Z_PARAM_LONG(add_value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_LONG(sw_atomic_add_fetch(atomic, (sw_atomic_long_t ) add_value));
+    RETURN_LONG(sw_atomic_add_fetch(atomic, (sw_atomic_long_t) add_value));
 }
 
 PHP_METHOD(swoole_atomic_long, sub)
@@ -323,7 +325,7 @@ PHP_METHOD(swoole_atomic_long, sub)
         Z_PARAM_LONG(sub_value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_LONG(sw_atomic_sub_fetch(atomic, (sw_atomic_long_t ) sub_value));
+    RETURN_LONG(sw_atomic_sub_fetch(atomic, (sw_atomic_long_t) sub_value));
 }
 
 PHP_METHOD(swoole_atomic_long, get)

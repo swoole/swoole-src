@@ -447,7 +447,7 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 pecl install swoole
 ```
 
-### 2. Install from source (recommand)
+### 2. Install from source (recommended)
 
 ```shell
 git clone https://github.com/swoole/swoole-src.git && \

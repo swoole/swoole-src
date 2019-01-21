@@ -16,9 +16,6 @@
 
 #include "swoole.h"
 
-static int swReactorTimer_init(long msec);
-static int swReactorTimer_set(swTimer *timer, long exec_msec);
-
 int swTimer_now(struct timeval *time)
 {
 #if defined(SW_USE_MONOTONIC_TIME) && defined(CLOCK_MONOTONIC)
@@ -37,6 +34,21 @@ int swTimer_now(struct timeval *time)
         return SW_ERR;
     }
 #endif
+    return SW_OK;
+}
+
+static int swReactorTimer_set(swTimer *timer, long exec_msec)
+{
+    SwooleG.main_reactor->timeout_msec = exec_msec;
+    return SW_OK;
+}
+
+static int swReactorTimer_init(long exec_msec)
+{
+    SwooleG.main_reactor->check_timer = SW_TRUE;
+    SwooleG.main_reactor->timeout_msec = exec_msec;
+    SwooleG.timer.set = swReactorTimer_set;
+    SwooleG.timer.initialized = 1;
     return SW_OK;
 }
 
@@ -69,14 +81,12 @@ static int swTimer_init(long msec)
 
     if (SwooleG.main_reactor == NULL)
     {
-        swSystemTimer_init(msec);
+        return swSystemTimer_init(msec);
     }
     else
     {
-        swReactorTimer_init(msec);
+        return swReactorTimer_init(msec);
     }
-
-    return SW_OK;
 }
 
 void swTimer_free(swTimer *timer)
@@ -86,21 +96,6 @@ void swTimer_free(swTimer *timer)
         swHeap_free(timer->heap);
     }
     timer->set(timer, -1);
-}
-
-static int swReactorTimer_init(long exec_msec)
-{
-    SwooleG.main_reactor->check_timer = SW_TRUE;
-    SwooleG.main_reactor->timeout_msec = exec_msec;
-    SwooleG.timer.set = swReactorTimer_set;
-    SwooleG.timer.initialized = 1;
-    return SW_OK;
-}
-
-static int swReactorTimer_set(swTimer *timer, long exec_msec)
-{
-    SwooleG.main_reactor->timeout_msec = exec_msec;
-    return SW_OK;
 }
 
 swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback)
@@ -197,15 +192,15 @@ int swTimer_del(swTimer *timer, swTimer_node *tnode)
 
 int swTimer_select(swTimer *timer)
 {
-    int64_t now_msec = swTimer_get_relative_msec();
-    if (now_msec < 0)
-    {
-        return SW_ERR;
-    }
-
     swTimer_node *tnode = NULL;
     swHeap_node *tmp;
     long timer_id;
+    int64_t now_msec = swTimer_get_relative_msec();
+
+    if (unlikely(now_msec < 0))
+    {
+        return SW_ERR;
+    }
 
     swTraceLog(SW_TRACE_TIMER, "timer msec=%" PRId64 ", round=%" PRId64, now_msec, timer->round);
     while ((tmp = swHeap_top(timer->heap)))
@@ -256,5 +251,6 @@ int swTimer_select(swTimer *timer)
         timer->set(timer, next_msec);
     }
     timer->round++;
+
     return SW_OK;
 }

@@ -87,10 +87,10 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 
 #define SWOOLE_MAJOR_VERSION      4
 #define SWOOLE_MINOR_VERSION      2
-#define SWOOLE_RELEASE_VERSION    11
-#define SWOOLE_EXTRA_VERSION      ""
-#define SWOOLE_VERSION            "4.2.11"
-#define SWOOLE_VERSION_ID         40211
+#define SWOOLE_RELEASE_VERSION    13
+#define SWOOLE_EXTRA_VERSION      "alpha"
+#define SWOOLE_VERSION            "4.2.13-alpha"
+#define SWOOLE_VERSION_ID         40213
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -148,7 +148,7 @@ typedef unsigned long ulong_t;
 #endif
 
 #define SW_START_LINE  "-------------------------START----------------------------"
-#define SW_END_LINE    "-------------------------END------------------------------"
+#define SW_END_LINE    "--------------------------END-----------------------------"
 #define SW_ECHO_RED               "\e[31m%s\e[0m"
 #define SW_ECHO_GREEN             "\e[32m%s\e[0m"
 #define SW_ECHO_YELLOW            "\e[33m%s\e[0m"
@@ -180,9 +180,6 @@ typedef unsigned long ulong_t;
 #include "array.h"
 #include "error.h"
 
-#define SW_MAX_UINT            UINT_MAX
-#define SW_MAX_INT             INT_MAX
-
 #ifndef MAX
 #define MAX(A, B)              ((A) > (B) ? (A) : (B))
 #endif
@@ -195,9 +192,14 @@ typedef unsigned long ulong_t;
 #else
 #define SW_ASSERT(e)
 #endif
-#define SW_STRS(s)             s, sizeof(s)
-#define SW_STRL(s)             s, sizeof(s)-1
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
+
+/*-----------------------------------Memory------------------------------------*/
+
+#define SW_MEM_ALIGNED_SIZE(size) \
+        SW_MM_ALIGNED_SIZE_EX(size, 8)
+#define SW_MEM_ALIGNED_SIZE_EX(size, alignment) \
+        (((size) + ((alignment) - 1LL)) & ~((alignment) - 1LL))
 
 #ifdef SW_USE_EMALLOC
 #define sw_malloc              emalloc
@@ -219,8 +221,21 @@ typedef unsigned long ulong_t;
 #endif
 #endif
 
-#define SW_MEM_ALIGNED_SIZE(size)               SW_MM_ALIGNED_SIZE_EX(size, 8)
-#define SW_MEM_ALIGNED_SIZE_EX(size, alignment) (((size) + ((alignment) - 1LL)) & ~((alignment) - 1LL))
+/*----------------------------------String-------------------------------------*/
+
+#define SW_STRS(s)             s, sizeof(s)
+#define SW_STRL(s)             s, sizeof(s)-1
+
+#if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
+#define sw_strdup              swoole_strdup
+#define sw_strndup             swoole_strndup
+#else
+#define sw_strdup              strdup
+#define sw_strndup             strndup
+#endif
+
+/** always return less than size */
+size_t sw_snprintf(char *buf, size_t s, const char *format, ...);
 
 static sw_inline char* swoole_strdup(const char *s)
 {
@@ -238,17 +253,8 @@ static sw_inline char* swoole_strndup(const char *s, size_t n)
     return p;
 }
 
-#if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
-#define sw_strdup              swoole_strdup
-#define sw_strndup             swoole_strndup
-#else
-#define sw_strdup              strdup
-#define sw_strndup             strndup
-#endif
+/*--------------------------------Constants------------------------------------*/
 
-#define METHOD_DEF(class,name,...)  class##_##name(class *object, ##__VA_ARGS__)
-#define METHOD(class,name,...)      class##_##name(object, ##__VA_ARGS__)
-//-------------------------------------------------------------------------------
 #define SW_OK                  0
 #define SW_ERR                -1
 #define SW_AGAIN              -2
@@ -385,11 +391,11 @@ enum swWorker_status
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
     exit(1)
 
-#define swSysError(str,...) SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+#define swSysError(str,...)  do{SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
     snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str " Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
     swLog_put(SW_LOG_ERROR, sw_error);\
     SwooleG.error=errno;\
-    SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
+    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}while(0)
 
 #define swoole_error_log(level, __errno, str, ...)      do{SwooleG.error=__errno;\
     if (level >= SwooleG.log_level){\
@@ -722,7 +728,7 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize)
 #define SW_STRINGCVL(s)    s->str + s->offset, s->length - s->offset
 
 swString *swString_new(size_t size);
-swString *swString_dup(const char *src_str, int length);
+swString *swString_dup(const char *src_str, size_t length);
 swString *swString_dup2(swString *src);
 
 void swString_print(swString *str);
@@ -756,6 +762,14 @@ static sw_inline int swString_extend_align(swString *str, size_t _new_size)
 }
 
 //------------------------------Base--------------------------------
+enum _swEventData_flag
+{
+    SW_EVENT_DATA_NORMAL,
+    SW_EVENT_DATA_PTR = 1u << 1,
+    SW_EVENT_DATA_CHUNK = 1u << 2,
+    SW_EVENT_DATA_END = 1u << 3,
+};
+
 typedef struct _swDataHead
 {
     int fd;
@@ -780,21 +794,12 @@ typedef struct _swEvent
 typedef struct _swEventData
 {
     swDataHead info;
-    char data[SW_BUFFER_SIZE];
+    char data[SW_IPC_BUFFER_SIZE];
 } swEventData;
 
 typedef struct _swDgramPacket
 {
-    union
-    {
-        struct in6_addr v6;
-        struct in_addr v4;
-        struct
-        {
-            uint16_t path_length;
-        } un;
-    } addr;
-    uint16_t port;
+    swSocketAddress info;
     uint32_t length;
     char data[0];
 } swDgramPacket;
@@ -1399,30 +1404,14 @@ int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
 static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
 {
     int ret;
-    do
-    {
-        ret = waitpid(__pid, __stat_loc, __options);
-        if (ret < 0 && errno == EINTR)
-        {
-            continue;
-        }
-        break;
-    } while(1);
+    do { ret = waitpid(__pid, __stat_loc, __options); } while (ret < 0 && errno == EINTR);
     return ret;
 }
 
 static sw_inline int swKill(pid_t __pid, int __sig)
 {
     int ret;
-    do
-    {
-        ret = kill(__pid, __sig);
-        if (ret < 0 && errno == EINTR)
-        {
-            continue;
-        }
-        break;
-    } while (1);
+    do { ret = kill(__pid, __sig); } while (ret < 0 && errno == EINTR);
     return ret;
 }
 #endif
@@ -1639,6 +1628,9 @@ struct _swProcessPool
     uint8_t dispatch_mode;
     uint8_t ipc_mode;
     uint8_t started;
+    uint32_t reload_worker_i;
+    uint32_t max_wait_time;
+    swWorker *reload_workers;
 
     /**
      * process type
@@ -1775,11 +1767,7 @@ static sw_inline swConnection* swReactor_get(swReactor *reactor, int fd)
         return &reactor->socket_list[fd];
     }
     swConnection *socket = (swConnection*) swArray_alloc(reactor->socket_array, fd);
-    if (socket == NULL)
-    {
-        return NULL;
-    }
-    if (!socket->active)
+    if (socket && !socket->active)
     {
         socket->fd = fd;
     }
@@ -2123,8 +2111,6 @@ typedef struct
     uint16_t id;
     uint8_t type;
     uint8_t update_time;
-    uint8_t factory_lock_target;
-    int16_t factory_target_worker;
     swString *buffer_stack;
     swReactor *reactor;
 } swThreadG;

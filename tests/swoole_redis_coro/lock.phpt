@@ -19,7 +19,7 @@ go(function () {
     usleep(50 * 1000);
     $ret = $redis->set('lock', 1, ['nx', 'px' => 100]);
     assert(!$ret);
-    usleep(50 * 1000);
+    usleep(100 * 1000);
     $ret = $redis->set('lock', 1, ['nx', 'px' => 100]);
     assert($ret);
 });

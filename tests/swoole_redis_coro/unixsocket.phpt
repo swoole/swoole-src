@@ -3,7 +3,8 @@ swoole_redis_coro: use unixsocket
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_no_redis_unix_socket();
+require __DIR__ . '/../include/config.php';
+skip_if_file_not_exist(REDIS_SERVER_PATH);
 ?>
 --FILE--
 <?php

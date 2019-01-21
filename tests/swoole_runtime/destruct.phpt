@@ -10,7 +10,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $redis = new Redis();
 $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-$redis->eval('CLIENT KILL TYPE normal');
+$redis->rawCommand('CLIENT', 'KILL', 'TYPE', 'normal');
 $redis->close();
 usleep(100);
 

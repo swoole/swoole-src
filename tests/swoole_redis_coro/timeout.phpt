@@ -14,14 +14,14 @@ go(function () {
     assert(!$res);
     assert($redis->errCode === SOCKET_ETIMEDOUT);
     $s = microtime(true) - $s;
-    assert($s > 0.45 && $s < 0.55); // would not retry after timeout
+    time_approximate(0.5, $s); // would not retry after timeout
 
     $s = microtime(true);
     $res = $redis->brpoplpush('test', 'test2', 3);
     assert(!$res);
     assert($redis->errCode === SOCKET_ETIMEDOUT);
     $s = microtime(true) - $s;
-    assert($s > 0.45 && $s < 0.55); // would not retry after timeout
+    time_approximate(0.5, $s); // would not retry after timeout
 
     // right way: no timeout
     $redis->setOptions(['timeout' => -1]);
@@ -31,14 +31,14 @@ go(function () {
     assert($res === null);
     assert($redis->errCode === 0);
     $s = microtime(true) - $s;
-    assert($s > 0.9 && $s < 1.1);
+    time_approximate(1, $s);
 
     $s = microtime(true);
     $res = $redis->brpoplpush('test', 'test2', 1);
     assert($res === null);
     assert($redis->errCode === 0);
     $s = microtime(true) - $s;
-    assert($s > 0.9 && $s < 1.1);
+    time_approximate(1, $s);
 });
 swoole_event_wait();
 echo "DONE\n";

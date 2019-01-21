@@ -1,29 +1,29 @@
 --TEST--
-swoole_coroutine: call_user_func_array
+swoole_coroutine: call_user_func_array 2
 --SKIPIF--
-<?php require  __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-
-class A {
-
- 	function bar() {
-		echo "bar\n";
-		co::sleep(.02);
-		$result = co::gethostbyname("www.swoole.com");
-		echo "end\n";
-		return $result;
-	}
+class A
+{
+    function bar()
+    {
+        echo "bar\n";
+        co::sleep(.02);
+        $result = co::gethostbyname('www.swoole.com');
+        echo "end\n";
+        return $result;
+    }
 }
-go(function () {
-	$a = new A;
-	$result = call_user_func_array([$a, "bar"], []);
-	assert($result == gethostbyname("www.swoole.com"));
-});
-swoole_event::wait();
 
+go(function () {
+    $a = new A;
+    $result = call_user_func_array([$a, 'bar'], []);
+    assert($result == gethostbyname('www.swoole.com'));
+});
+swoole_event_wait();
 ?>
 --EXPECT--
 bar

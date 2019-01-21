@@ -100,17 +100,15 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         return php_swoole_onReceive(serv, req);
     }
 
-    zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata);
-    php_swoole_get_recv_data(zdata, req, NULL, 0);
-    char *p = Z_STRVAL_P(zdata);
-    char *pe = p + Z_STRLEN_P(zdata);
+    zval zdata;
+    php_swoole_get_recv_data(&zdata, req, NULL, 0);
+    char *p = Z_STRVAL(zdata);
+    char *pe = p + Z_STRLEN(zdata);
     int ret;
     int length = 0;
 
-    zval *zparams;
-    SW_MAKE_STD_ZVAL(zparams);
-    array_init(zparams);
+    zval zparams;
+    array_init(&zparams);
 
     int state = SW_REDIS_RECEIVE_TOTAL_LINE;
     int add_param = 0;
@@ -134,7 +132,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
             {
                 if (ret == -1)
                 {
-                    add_next_index_null(zparams);
+                    add_next_index_null(&zparams);
                     break;
                 }
                 length = ret;
@@ -144,7 +142,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
             //integer
             else if (*p == ':' && (p = swRedis_get_number(p, &ret)))
             {
-                add_next_index_long(zparams, ret);
+                add_next_index_long(&zparams, ret);
                 break;
             }
             /* no break */
@@ -158,7 +156,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
             }
             else
             {
-                add_next_index_stringl(zparams, p, length);
+                add_next_index_stringl(&zparams, p, length);
             }
             p += length + SW_CRLF_LEN;
             state = SW_REDIS_RECEIVE_LENGTH;
@@ -178,25 +176,21 @@ static int redis_onReceive(swServer *serv, swEventData *req)
 
     char _command[SW_REDIS_MAX_COMMAND_SIZE];
     command[command_len] = 0;
-    int _command_len = snprintf(_command, sizeof(_command), "_handler_%*s", command_len, command);
+    int _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%*s", command_len, command);
     php_strtolower(_command, _command_len);
 
     zval *zobject = (zval *) serv->ptr2;
     char err_msg[256];
 
-    zval *zfd;
-    SW_MAKE_STD_ZVAL(zfd);
-    ZVAL_LONG(zfd, fd);
-
     zval args[2];
-    args[0] = *zfd;
-    args[1] = *zparams;
+    ZVAL_LONG(&args[0], fd);
+    args[1] = zparams;
 
     zval *zindex = sw_zend_read_property(swoole_redis_server_ce_ptr, zobject, _command, _command_len, 1);
     if (!zindex || ZVAL_IS_NULL(zindex))
     {
-        length = snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%*s'\r\n", command_len, command);
-        swServer_tcp_send(serv, fd, err_msg, length);
+        length = sw_snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%*s'\r\n", command_len, command);
+        serv->send(serv, fd, err_msg, length);
         return SW_OK;
     }
     zend_fcall_info_cache *fci_cache = func_cache_array.array[Z_LVAL_P(zindex)];
@@ -222,9 +216,8 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         zval_ptr_dtor(retval);
     }
 
-    zval_ptr_dtor(zfd);
-    zval_ptr_dtor(zdata);
-    zval_ptr_dtor(zparams);
+    zval_ptr_dtor(&zdata);
+    zval_ptr_dtor(&zparams);
 
     return SW_OK;
 }
@@ -290,7 +283,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
         RETURN_FALSE;
     }
 
-    if (command_len <= 0 || command_len >= SW_REDIS_MAX_COMMAND_SIZE)
+    if (command_len == 0 || command_len >= SW_REDIS_MAX_COMMAND_SIZE)
     {
         swoole_php_fatal_error(E_ERROR, "invalid command.");
         RETURN_FALSE;
@@ -314,7 +307,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
 #endif
 
     char _command[SW_REDIS_MAX_COMMAND_SIZE];
-    int length = snprintf(_command, sizeof(_command), "_handler_%s", command);
+    int length = sw_snprintf(_command, sizeof(_command), "_handler_%s", command);
     php_strtolower(_command, length);
 
     int func_cache_index = func_cache_array.count;
@@ -333,7 +326,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
 
 static PHP_METHOD(swoole_redis_server, format)
 {
-    long type;
+    zend_long type;
     zval *value = NULL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|z", &type, &value) == FAILURE)
@@ -354,11 +347,11 @@ static PHP_METHOD(swoole_redis_server, format)
         if (value)
         {
             convert_to_string(value);
-            length = snprintf(message, sizeof(message), "+%*s\r\n", (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
+            length = sw_snprintf(message, sizeof(message), "+%*s\r\n", (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
         }
         else
         {
-            length = snprintf(message, sizeof(message), "+%s\r\n", "OK");
+            length = sw_snprintf(message, sizeof(message), "+%s\r\n", "OK");
         }
         RETURN_STRINGL(message, length);
     }
@@ -367,11 +360,11 @@ static PHP_METHOD(swoole_redis_server, format)
         if (value)
         {
             convert_to_string(value);
-            length = snprintf(message, sizeof(message), "-%*s\r\n", (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
+            length = sw_snprintf(message, sizeof(message), "-%*s\r\n", (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
         }
         else
         {
-            length = snprintf(message, sizeof(message), "-%s\r\n", "ERR");
+            length = sw_snprintf(message, sizeof(message), "-%s\r\n", "ERR");
         }
         RETURN_STRINGL(message, length);
     }
@@ -382,8 +375,7 @@ static PHP_METHOD(swoole_redis_server, format)
             goto no_value;
         }
 
-        convert_to_long(value);
-        length = snprintf(message, sizeof(message), ":" ZEND_LONG_FMT "\r\n", Z_LVAL_P(value));
+        length = sw_snprintf(message, sizeof(message), ":" ZEND_LONG_FMT "\r\n", zval_get_long(value));
         RETURN_STRINGL(message, length);
     }
     else if (type == SW_REDIS_REPLY_STRING)
@@ -401,7 +393,7 @@ static PHP_METHOD(swoole_redis_server, format)
             RETURN_FALSE;
         }
         swString_clear(format_buffer);
-        length = snprintf(message, sizeof(message), "$%zd\r\n", Z_STRLEN_P(value));
+        length = sw_snprintf(message, sizeof(message), "$%zu\r\n", Z_STRLEN_P(value));
         swString_append_ptr(format_buffer, message, length);
         swString_append_ptr(format_buffer, Z_STRVAL_P(value), Z_STRLEN_P(value));
         swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
@@ -418,7 +410,7 @@ static PHP_METHOD(swoole_redis_server, format)
             swoole_php_fatal_error(E_WARNING, "the second parameter should be an array.");
         }
         swString_clear(format_buffer);
-        length = snprintf(message, sizeof(message), "*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
+        length = sw_snprintf(message, sizeof(message), "*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
         swString_append_ptr(format_buffer, message, length);
 
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(value), item)
@@ -430,7 +422,7 @@ static PHP_METHOD(swoole_redis_server, format)
                 item = &_copy;
             }
             convert_to_string(item);
-            length = snprintf(message, sizeof(message), "$%zd\r\n", Z_STRLEN_P(item));
+            length = sw_snprintf(message, sizeof(message), "$%zu\r\n", Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, message, length);
             swString_append_ptr(format_buffer, Z_STRVAL_P(item), Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
@@ -453,7 +445,7 @@ static PHP_METHOD(swoole_redis_server, format)
             swoole_php_fatal_error(E_WARNING, "the second parameter should be an array.");
         }
         swString_clear(format_buffer);
-        length = snprintf(message, sizeof(message), "*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));
+        length = sw_snprintf(message, sizeof(message), "*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));
         swString_append_ptr(format_buffer, message, length);
 
         char *key;
@@ -461,7 +453,7 @@ static PHP_METHOD(swoole_redis_server, format)
         int keytype;
 
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(value), key, keylen, keytype, item)
-            if (key == NULL || keylen <= 0)
+            if (key == NULL || keylen == 0)
             {
                 continue;
             }
@@ -473,7 +465,7 @@ static PHP_METHOD(swoole_redis_server, format)
                 item = &_copy;
             }
             convert_to_string(item);
-            length = snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%zd\r\n", keylen, key, Z_STRLEN_P(item));
+            length = sw_snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%zu\r\n", keylen, key, Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, message, length);
             swString_append_ptr(format_buffer, Z_STRVAL_P(item), Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);

@@ -68,11 +68,11 @@ $pm->childFunc = function () use ($pm, $port)
         $_data = unserialize(rtrim($data));
         if ($_data and is_array($_data) and $_data['sid'] == 1000236)
         {
-            $serv->send($fd, "SUCCESS");
+            $serv->send($fd, "SUCCESS\n");
         }
         else
         {
-            $serv->send($fd, "ERROR");
+            $serv->send($fd, "ERROR\n");
         }
     });
     $serv->start();

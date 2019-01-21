@@ -237,9 +237,9 @@ void swoole_process_init(int module_number)
 
 static PHP_METHOD(swoole_process, __construct)
 {
-    zend_bool redirect_stdin_and_stdout = 0;
-    long pipe_type = 2;
     zval *callback;
+    zend_bool redirect_stdin_and_stdout = 0;
+    zend_long pipe_type = 2;
 
     //only cli env
     if (!SWOOLE_G(cli))
@@ -447,8 +447,8 @@ static PHP_METHOD(swoole_process, freeQueue)
 
 static PHP_METHOD(swoole_process, kill)
 {
-    long pid;
-    long sig = SIGTERM;
+    zend_long pid;
+    zend_long sig = SIGTERM;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &pid, &sig) == FAILURE)
     {
@@ -564,8 +564,8 @@ static PHP_METHOD(swoole_process, signal)
 
 static PHP_METHOD(swoole_process, alarm)
 {
-    long usec = 0;
-    long type = ITIMER_REAL;
+    zend_long usec;
+    zend_long type = ITIMER_REAL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &usec, &type) == FAILURE)
     {
@@ -629,11 +629,7 @@ static void php_swoole_onSignal(int signo)
     zval args[1];
     zval *callback = signal_callback[signo];
 
-    zval *zsigno;
-    SW_MAKE_STD_ZVAL(zsigno);
-    ZVAL_LONG(zsigno, signo);
-
-    args[0] = *zsigno;
+    ZVAL_LONG(& args[0], signo);
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL) == FAILURE)
     {
@@ -647,7 +643,6 @@ static void php_swoole_onSignal(int signo)
     {
         zval_ptr_dtor(retval);
     }
-    zval_ptr_dtor(zsigno);
 }
 
 zend_bool php_swoole_signal_isset_handler(int signo)
@@ -1071,8 +1066,7 @@ static PHP_METHOD(swoole_process, setaffinity)
     CPU_ZERO(&cpu_set);
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(array), value)
-        convert_to_long(value);
-        if (Z_LVAL_P(value) >= SW_CPU_NUM)
+        if (zval_get_long(value) >= SW_CPU_NUM)
         {
             swoole_php_fatal_error(E_WARNING, "invalid cpu id [%d]", (int) Z_LVAL_P(value));
             RETURN_FALSE;

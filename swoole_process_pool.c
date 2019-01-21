@@ -87,15 +87,11 @@ void swoole_process_pool_init(int module_number)
 static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worker_id)
 {
     zval *zobject = (zval *) pool->ptr;
-    zval *zworker_id;
     zval *retval = NULL;
-
-    SW_MAKE_STD_ZVAL(zworker_id);
-    ZVAL_LONG(zworker_id, worker_id);
 
     zval args[2];
     args[0] = *zobject;
-    args[1] = *zworker_id;
+    ZVAL_LONG(&args[1], worker_id);
 
     process_pool_property *pp = swoole_get_property(zobject, 0);
     if (pp->onWorkerStart == NULL)
@@ -128,17 +124,12 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
 
 static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, uint32_t length)
 {
-
     zval *zobject = (zval *) pool->ptr;
-    zval *zdata;
     zval *retval = NULL;
-
-    SW_MAKE_STD_ZVAL(zdata);
-    ZVAL_STRINGL(zdata, data, length);
 
     zval args[2];
     args[0] = *zobject;
-    args[1] = *zdata;
+    ZVAL_STRINGL(&args[1], data, length);
 
     process_pool_property *pp = swoole_get_property(zobject, 0);
 
@@ -150,7 +141,7 @@ static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, u
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    zval_ptr_dtor(zdata);
+    zval_ptr_dtor(&args[1]);
     if (retval)
     {
         zval_ptr_dtor(retval);
@@ -159,17 +150,12 @@ static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, u
 
 static void php_swoole_process_pool_onWorkerStop(swProcessPool *pool, int worker_id)
 {
-
     zval *zobject = (zval *) pool->ptr;
-    zval *zworker_id;
     zval *retval = NULL;
-
-    SW_MAKE_STD_ZVAL(zworker_id);
-    ZVAL_LONG(zworker_id, worker_id);
 
     zval args[2];
     args[0] = *zobject;
-    args[1] = *zworker_id;
+    ZVAL_LONG(&args[1], worker_id);
 
     process_pool_property *pp = swoole_get_property(zobject, 0);
     if (pp->onWorkerStop == NULL)
@@ -209,9 +195,9 @@ static void php_swoole_process_pool_signal_handler(int sig)
 
 static PHP_METHOD(swoole_process_pool, __construct)
 {
-    long worker_num;
-    long ipc_type = SW_IPC_NONE;
-    long msgq_key = 0;
+    zend_long worker_num;
+    zend_long ipc_type = SW_IPC_NONE;
+    zend_long msgq_key = 0;
 
     //only cli env
     if (!SWOOLE_G(cli))
@@ -336,8 +322,8 @@ static PHP_METHOD(swoole_process_pool, listen)
 {
     char *host;
     size_t l_host;
-    long port;
-    long backlog = 2048;
+    zend_long port = 0;
+    zend_long backlog = 2048;
 
     swProcessPool *pool = swoole_get_object(getThis());
 

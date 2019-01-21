@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 #include "swoole_http.h"
 #include "swoole_coroutine.h"
 
@@ -46,8 +46,6 @@ static zend_object_handlers swoole_websocket_frame_handlers;
 static zend_class_entry swoole_websocket_closeframe_ce;
 static zend_class_entry *swoole_websocket_closeframe_ce_ptr;
 static zend_object_handlers swoole_websocket_closeframe_handlers;
-
-static int websocket_handshake(swListenPort *, http_context *);
 
 static PHP_METHOD(swoole_websocket_server, push);
 static PHP_METHOD(swoole_websocket_server, exist);
@@ -169,15 +167,13 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
         zdata = NULL;
         if ((ztmp = sw_zend_read_property(swoole_websocket_frame_ce_ptr, zframe, ZEND_STRL("opcode"), 1)))
         {
-            convert_to_long(ztmp);
-            opcode = Z_LVAL_P(ztmp);
+            opcode = zval_get_long(ztmp);
         }
         if (opcode == WEBSOCKET_OPCODE_CLOSE)
         {
             if ((ztmp = sw_zend_read_property_not_null(swoole_websocket_frame_ce_ptr, zframe, ZEND_STRL("code"), 1)))
             {
-                convert_to_long(ztmp);
-                code = Z_LVAL_P(ztmp);
+                code = zval_get_long(ztmp);
             }
             if ((ztmp = sw_zend_read_property_not_null(swoole_websocket_frame_ce_ptr, zframe, ZEND_STRL("reason"), 1)))
             {
@@ -190,13 +186,11 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
         }
         if ((ztmp = sw_zend_read_property(swoole_websocket_frame_ce_ptr, zframe, ZEND_STRL("finish"), 1)))
         {
-            convert_to_boolean(ztmp);
-            fin = Z_BVAL_P(ztmp);
+            fin = zval_is_true(ztmp);
         }
         if ((ztmp = sw_zend_read_property(swoole_websocket_frame_ce_ptr, zframe, ZEND_STRL("mask"), 1)))
         {
-            convert_to_boolean(ztmp);
-            mask = Z_BVAL_P(ztmp);
+            mask = zval_is_true(ztmp);
         }
     }
     if (unlikely(opcode > SW_WEBSOCKET_OPCODE_MAX))
@@ -204,11 +198,12 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
         swoole_php_fatal_error(E_WARNING, "the maximum value of opcode is %d.", SW_WEBSOCKET_OPCODE_MAX);
         return SW_ERR;
     }
+    zend::string str_zdata;
     if (zdata && !ZVAL_IS_NULL(zdata))
     {
-        convert_to_string(zdata);
-        data = Z_STRVAL_P(zdata);
-        length = Z_STRLEN_P(zdata);
+        str_zdata = zdata;
+        data = str_zdata.val();
+        length = str_zdata.len();
     }
     switch(opcode)
     {
@@ -278,9 +273,10 @@ void swoole_websocket_onRequest(http_context *ctx)
             "Server: " SW_HTTP_SERVER_SOFTWARE "\r\n\r\n"
             "<html><body><h2>HTTP 400 Bad Request</h2><hr><i>Powered by Swoole</i></body></html>";
 
-    swServer_tcp_send(SwooleG.serv, ctx->fd, (char *) bad_request, strlen(bad_request));
+    swServer *serv = SwooleG.serv;
+    serv->send(serv, ctx->fd, (char *) bad_request, strlen(bad_request));
     ctx->end = 1;
-    swServer_tcp_close(SwooleG.serv, ctx->fd, 0);
+    serv->close(serv, ctx->fd, 0);
     swoole_http_context_free(ctx);
 }
 
@@ -300,11 +296,11 @@ static int websocket_handshake(swServer *serv, swListenPort *port, http_context 
 
     if (!(pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-key"))))
     {
-        php_error_docref(NULL, E_WARNING, "header no sec-websocket-key");
+        swoole_php_fatal_error(E_WARNING, "header no sec-websocket-key");
         return SW_ERR;
     }
-    convert_to_string(pData);
 
+    zend::string str_pData(pData);
     swString_clear(swoole_http_buffer);
     swString_append_ptr(swoole_http_buffer, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"));
 
@@ -313,13 +309,13 @@ static int websocket_handshake(swServer *serv, swListenPort *port, http_context 
     char sha1_str[20];
     char encoded_str[50];
     // sec_websocket_accept
-    memcpy(_buf, Z_STRVAL_P(pData), Z_STRLEN_P(pData));
-    memcpy(_buf + Z_STRLEN_P(pData), SW_WEBSOCKET_GUID, sizeof(SW_WEBSOCKET_GUID) - 1);
+    memcpy(_buf, str_pData.val(), str_pData.len());
+    memcpy(_buf + str_pData.len(), SW_WEBSOCKET_GUID, sizeof(SW_WEBSOCKET_GUID) - 1);
     // sha1 sec_websocket_accept
-    php_swoole_sha1(_buf, Z_STRLEN_P(pData) + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
+    php_swoole_sha1(_buf, str_pData.len() + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
     // base64
     n = swBase64_encode((unsigned char *) sha1_str, sizeof(sha1_str), encoded_str);
-    n = snprintf(_buf, sizeof(_buf), "Sec-WebSocket-Accept: %.*s\r\n", n, encoded_str);
+    n = sw_snprintf(_buf, sizeof(_buf), "Sec-WebSocket-Accept: %.*s\r\n", n, encoded_str);
 
     swString_append_ptr(swoole_http_buffer, _buf, n);
     swString_append_ptr(swoole_http_buffer, ZEND_STRL("Sec-WebSocket-Version: " SW_WEBSOCKET_VERSION "\r\n"));
@@ -349,11 +345,9 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
     zend_bool finish = 0;
     zend_long opcode = 0;
 
-    zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata);
-
+    zval zdata;
     char frame_header[2];
-    php_swoole_get_recv_data(zdata, req, frame_header, SW_WEBSOCKET_HEADER_LEN);
+    php_swoole_get_recv_data(&zdata, req, frame_header, SW_WEBSOCKET_HEADER_LEN);
 
     // frame info has already decoded in swWebSocket_dispatch_frame
     finish = frame_header[0] ? 1 : 0;
@@ -363,20 +357,19 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
     {
         if (!SwooleG.serv->listen_list->open_websocket_close_frame)
         {
-            zval_ptr_dtor(zdata);
+            zval_ptr_dtor(&zdata);
             return SW_OK;
         }
     }
 
-    zval *zframe;
-    SW_MAKE_STD_ZVAL(zframe);
-    php_swoole_websocket_construct_frame(zframe, opcode, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata), finish);
-    zend_update_property_long(swoole_websocket_frame_ce_ptr, zframe, ZEND_STRL("fd"), fd);
+    zval zframe;
+    php_swoole_websocket_construct_frame(&zframe, opcode, Z_STRVAL(zdata), Z_STRLEN(zdata), finish);
+    zend_update_property_long(swoole_websocket_frame_ce_ptr, &zframe, ZEND_STRL("fd"), fd);
 
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
     zval args[2];
     args[0] = *(zval *) serv->ptr2; // zserver
-    args[1] = *zframe;
+    args[1] = zframe;
 
     if (SwooleG.enable_coroutine)
     {
@@ -396,8 +389,8 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
         zval_ptr_dtor(retval);
     }
 
-    zval_ptr_dtor(zdata);
-    zval_ptr_dtor(zframe);
+    zval_ptr_dtor(&zdata);
+    zval_ptr_dtor(&zframe);
 
     return SW_OK;
 }
@@ -408,7 +401,7 @@ int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_contex
     int ret = websocket_handshake(serv, port, ctx);
     if (ret == SW_ERR)
     {
-        swServer_tcp_close(serv, fd, 1);
+        serv->close(serv, fd, 1);
     }
     else
     {
@@ -487,7 +480,7 @@ static sw_inline int swoole_websocket_server_push(swServer *serv, int fd, swStri
         return SW_ERR;
     }
 
-    int ret = swServer_tcp_send(SwooleG.serv, fd, buffer->str, buffer->length);
+    int ret = serv->send(serv, fd, buffer->str, buffer->length);
     if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
     {
         zval _return_value;
@@ -626,7 +619,7 @@ static PHP_METHOD(swoole_websocket_server, exist)
     zend_long fd;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         php_error_docref(NULL, E_WARNING, "the server is not running.");
         RETURN_FALSE;
@@ -670,7 +663,7 @@ static PHP_METHOD(swoole_websocket_server, isEstablished)
     zend_long fd;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (serv->gs->start == 0)
+    if (unlikely(!serv->gs->start))
     {
         php_error_docref(NULL, E_WARNING, "the server is not running.");
         RETURN_FALSE;

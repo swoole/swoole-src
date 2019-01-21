@@ -13,19 +13,19 @@ using namespace std;
 
 void Socket::timer_callback(swTimer *timer, swTimer_node *tnode)
 {
-    Socket *sock = (Socket *) tnode->data;
-    swTraceLog(SW_TRACE_SOCKET, "socket[%d] timeout", sock->socket->fd);
-    sock->set_err(ETIMEDOUT);
-    sock->reactor->del(sock->reactor, sock->socket->fd);
-    sock->timer = NULL;
-    sock->resume();
+    Socket *socket = (Socket *) tnode->data;
+    swTraceLog(SW_TRACE_SOCKET, "socket[%d] timeout", socket->socket->fd);
+    socket->set_err(ETIMEDOUT);
+    socket->reactor->del(socket->reactor, socket->socket->fd);
+    socket->timer = NULL;
+    socket->resume();
 }
 
 int Socket::event_callback(swReactor *reactor, swEvent *event)
 {
-    Socket *sock = (Socket *) event->socket->object;
-    sock->reactor->del(sock->reactor, event->fd);
-    sock->resume();
+    Socket *socket = (Socket *) event->socket->object;
+    socket->reactor->del(socket->reactor, event->fd);
+    socket->resume();
     return SW_OK;
 }
 
@@ -184,13 +184,13 @@ bool Socket::http_proxy_handshake()
     {
         char auth_buf[256];
         char encode_buf[512];
-        n = snprintf(
+        n = sw_snprintf(
             auth_buf, sizeof(auth_buf), "%*s:%*s",
             http_proxy->l_user, http_proxy->user,
             http_proxy->l_password, http_proxy->password
         );
         swBase64_encode((unsigned char *) auth_buf, n, encode_buf);
-        n = snprintf(
+        n = sw_snprintf(
             http_proxy->buf, sizeof(http_proxy->buf),
             "CONNECT %*s:%d HTTP/1.1\r\nProxy-Authorization:Basic %s\r\n\r\n",
             http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port, encode_buf
@@ -198,7 +198,7 @@ bool Socket::http_proxy_handshake()
     }
     else
     {
-        n = snprintf(
+        n = sw_snprintf(
             http_proxy->buf, sizeof(http_proxy->buf),
             "CONNECT %*s:%d HTTP/1.1\r\n\r\n",
             http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port
@@ -272,24 +272,6 @@ bool Socket::http_proxy_handshake()
         }
     }
     return false;
-}
-
-static inline int socket_connect(int fd, const struct sockaddr *addr, socklen_t len)
-{
-    int retval;
-    while (1)
-    {
-        retval = ::connect(fd, addr, len);
-        if (retval < 0)
-        {
-            if (errno == EINTR)
-            {
-                continue;
-            }
-        }
-        break;
-    }
-    return retval;
 }
 
 void Socket::init_sock()
@@ -404,8 +386,11 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
     {
         return false;
     }
-    int retval = socket_connect(socket->fd, addr, addrlen);
-    if (retval == -1)
+    int retval;
+    do {
+        retval = ::connect(socket->fd, addr, addrlen);
+    } while (retval < 0 && errno == EINTR);
+    if (retval < 0)
     {
         if (errno != EINPROGRESS)
         {
@@ -416,7 +401,6 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
         {
             return false;
         }
-        //Connection is closed
         if (socket->closed)
         {
             set_err(ECONNABORTED);
@@ -429,8 +413,8 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
             return false;
         }
     }
-    set_err(0);
     socket->active = 1;
+    set_err(0);
     return true;
 }
 
@@ -921,68 +905,14 @@ Socket* Socket::accept()
 #ifdef SW_USE_OPENSSL
     if (open_ssl)
     {
-        if (swSSL_create(client_sock->socket, ssl_context, 0) < 0)
+        if (swSSL_create(client_sock->socket, ssl_context, 0) < 0 || !client_sock->ssl_accept())
         {
-            _delete: delete client_sock;
+            client_sock->close();
             return nullptr;
-        }
-        if (client_sock->ssl_accept() == false)
-        {
-            goto _delete;
         }
     }
 #endif
     return client_sock;
-}
-
-bool Socket::shutdown(int __how)
-{
-    if (__how == SHUT_RD && !shutdown_read)
-    {
-        if (::shutdown(socket->fd, SHUT_RD) == 0)
-        {
-            shutdown_read = true;
-            return true;
-        }
-    }
-    else if (__how == SHUT_WR && !shutdown_write)
-    {
-        if (::shutdown(socket->fd, SHUT_WR) == 0)
-        {
-            shutdown_write = true;
-            return true;
-        }
-    }
-    else if (__how == SHUT_RDWR && !shutdown_read && !shutdown_write)
-    {
-        if (::shutdown(socket->fd, SHUT_RDWR) == 0)
-        {
-            shutdown_read = shutdown_write = true;
-            return true;
-        }
-    }
-    set_err(errno);
-    return false;
-}
-
-bool Socket::close()
-{
-    // TODO: waiting on review
-    if (!socket->closed)
-    {
-        socket->closed = 1;
-    }
-    if (socket->active)
-    {
-        shutdown();
-        socket->active = 0;
-    }
-    if (coroutine)
-    {
-        reactor->del(reactor, socket->fd);
-        resume();
-    }
-    return true;
 }
 
 #ifdef SW_USE_OPENSSL
@@ -1427,14 +1357,76 @@ ssize_t Socket::recv_packet()
     return retval;
 }
 
+bool Socket::shutdown(int __how)
+{
+    set_err(0);
+    if (!is_connect() || (__how == SHUT_RD && shutdown_read) || (__how == SHUT_WR && shutdown_write))
+    {
+        errno = ENOTCONN;
+    }
+    else if (::shutdown(socket->fd, __how) == 0 || errno == ENOTCONN)
+    {
+        if (errno == ENOTCONN)
+        {
+            // connection reset by server side
+            __how = SHUT_RDWR;
+        }
+        switch (__how)
+        {
+        case SHUT_RD:
+            shutdown_read = true;
+            break;
+        case SHUT_WR:
+            shutdown_write = true;
+            break;
+        default:
+            shutdown_read = shutdown_write = true;
+        }
+        if (shutdown_read && shutdown_write)
+        {
+            socket->active = 0;
+        }
+        return true;
+    }
+    set_err(errno);
+    return false;
+}
+
+bool Socket::close()
+{
+    bool ret = true;
+    if (coroutine)
+    {
+        if (socket->active)
+        {
+            ret = shutdown();
+        }
+        if (!socket->closed)
+        {
+            socket->closed = 1;
+        }
+        reactor->del(reactor, socket->fd);
+        resume();
+        return ret;
+    }
+    ret = ::close(socket->fd) == 0;
+    socket->fd = -1;
+    delete this;
+    return ret;
+}
+
+/**
+ * Notice:
+ * the destructor should only be called when the construct fails
+ * If you want to safe release the socket, you should call Soskcet::close
+ */
 Socket::~Socket()
 {
-    int fd;
     if (socket == nullptr)
     {
-        // construct failed
         return;
     }
+    SW_ASSERT(!coroutine);
     if (read_buffer)
     {
         swString_free(read_buffer);
@@ -1443,14 +1435,7 @@ Socket::~Socket()
     {
         swString_free(write_buffer);
     }
-    if (sock_domain == AF_UNIX && !bind_address.empty())
-    {
-        unlink(bind_address_info.addr.un.sun_path);
-    }
-    if (sock_type == SW_SOCK_UNIX_DGRAM)
-    {
-        unlink(socket->info.addr.un.sun_path);
-    }
+    /* {{{ release socket resources */
 #ifdef SW_USE_OPENSSL
     if (socket->ssl)
     {
@@ -1459,6 +1444,7 @@ Socket::~Socket()
     if (ssl_context)
     {
         swSSL_free_context(ssl_context);
+        ssl_context = nullptr;
         if (ssl_option.cert_file)
         {
             sw_free(ssl_option.cert_file);
@@ -1485,6 +1471,7 @@ Socket::~Socket()
         {
             sw_free(ssl_option.capath);
         }
+        ssl_option = {0};
     }
 #endif
     if (socket->in_buffer)
@@ -1495,13 +1482,26 @@ Socket::~Socket()
     {
         swBuffer_free(socket->out_buffer);
     }
-    fd = socket->fd;
-    if (socket->removed == 0)
+    if (sock_domain == AF_UNIX && !bind_address.empty())
     {
-        reactor->del(reactor, fd);
+        unlink(bind_address_info.addr.un.sun_path);
+        bind_address_info = {{}, 0};
+    }
+    if (sock_type == SW_SOCK_UNIX_DGRAM)
+    {
+        unlink(socket->info.addr.un.sun_path);
+    }
+    if (unlikely(socket->fd > 0))
+    {
+        if (!socket->removed)
+        {
+            reactor->del(reactor, socket->fd);
+        }
+        ::close(socket->fd);
     }
     bzero(socket, sizeof(swConnection));
+    socket->fd = -1;
     socket->removed = 1;
     socket->closed = 1;
-    ::close(fd);
+    /* }}} */
 }

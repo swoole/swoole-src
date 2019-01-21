@@ -403,7 +403,7 @@ static  int meta_data_result_parse(pg_object *object)
 
     if (PQresultStatus(pg_result) != PGRES_TUPLES_OK || (num_rows = PQntuples(pg_result)) == 0)
     {
-        php_error_docref(NULL, E_WARNING, "Table doesn't exists");
+        swoole_php_fatal_error(E_WARNING, "Table doesn't exists");
         return  0;
     }
 
@@ -525,14 +525,14 @@ static  int prepare_result_parse(pg_object *object)
     int ret;
     zval *retval = NULL;
     zval return_value;
-    php_context *context = (php_context *) swoole_get_property(object->object, 0);
+    php_coro_context *context = (php_coro_context *) swoole_get_property(object->object, 0);
 
     /* Wait to finish sending buffer */
     //res = PQflush(object->conn);
     ZVAL_TRUE(&return_value);
-    ret = sw_coro_resume(context, &return_value, retval);
+    ret = PHPCoroutine::resume_m(context, &return_value, retval);
 
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -605,7 +605,7 @@ static PHP_METHOD(swoole_postgresql_coro, prepare)
     is_non_blocking = PQisnonblocking(pgsql);
 
     if (is_non_blocking == 0 && PQsetnonblocking(pgsql, 1) == -1) {
-        php_error_docref(NULL, E_NOTICE, "Cannot set connection to nonblocking mode");
+        swoole_php_fatal_error(E_NOTICE, "Cannot set connection to nonblocking mode");
         RETURN_FALSE;
     }
 
@@ -628,7 +628,7 @@ static PHP_METHOD(swoole_postgresql_coro, prepare)
     }
 
 
-    php_context *context = (php_context *) swoole_get_property(getThis(), 0);
+    php_coro_context *context = (php_coro_context *) swoole_get_property(getThis(), 0);
     context->state = SW_CORO_CONTEXT_RUNNING;
     context->coro_params = *getThis();
 
@@ -638,8 +638,7 @@ static PHP_METHOD(swoole_postgresql_coro, prepare)
         {
             pg_object->timer = swTimer_add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pgsql_coro_onTimeout);
         }*/
-    sw_coro_save(return_value, context);
-    sw_coro_yield();
+    PHPCoroutine::yield_m(return_value, context);
 }
 
 static PHP_METHOD(swoole_postgresql_coro, execute)
@@ -667,7 +666,7 @@ static PHP_METHOD(swoole_postgresql_coro, execute)
     is_non_blocking = PQisnonblocking(pgsql);
 
     if (is_non_blocking == 0 && PQsetnonblocking(pgsql, 1) == -1) {
-        php_error_docref(NULL, E_NOTICE, "Cannot set connection to nonblocking mode");
+        swoole_php_fatal_error(E_NOTICE, "Cannot set connection to nonblocking mode");
         RETURN_FALSE;
     }
 
@@ -690,7 +689,7 @@ static PHP_METHOD(swoole_postgresql_coro, execute)
                 ZVAL_COPY(&tmp_val, tmp);
                 convert_to_string(&tmp_val);
                 if (Z_TYPE(tmp_val) != IS_STRING) {
-                    php_error_docref(NULL, E_WARNING,"Error converting parameter");
+                    swoole_php_fatal_error(E_WARNING,"Error converting parameter");
                     zval_ptr_dtor(&tmp_val);
                     _php_pgsql_free_params(params, num_params);
                     RETURN_FALSE;
@@ -720,7 +719,7 @@ static PHP_METHOD(swoole_postgresql_coro, execute)
         }
     }
 
-    php_context *context = (php_context *) swoole_get_property(getThis(), 0);
+    php_coro_context *context = (php_coro_context *) swoole_get_property(getThis(), 0);
     context->state = SW_CORO_CONTEXT_RUNNING;
     context->coro_params = *getThis();
 
@@ -730,8 +729,7 @@ static PHP_METHOD(swoole_postgresql_coro, execute)
         {
             pg_object->timer = swTimer_add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pgsql_coro_onTimeout);
         }*/
-    sw_coro_save(return_value, context);
-    sw_coro_yield();
+    PHPCoroutine::yield_m(return_value, context);
 
 }
 
@@ -871,7 +869,6 @@ static PHP_METHOD(swoole_postgresql_coro, numRows)
 
 static PHP_METHOD(swoole_postgresql_coro, metaData)
 {
-
     char *table_name;
     size_t table_name_len;
     zend_bool extended=0;
@@ -883,8 +880,7 @@ static PHP_METHOD(swoole_postgresql_coro, metaData)
     smart_str querystr = {0};
     size_t new_len;
 
-
-    ZEND_PARSE_PARAMETERS_START(1,1)
+    ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_STRING(table_name, table_name_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
@@ -897,9 +893,9 @@ static PHP_METHOD(swoole_postgresql_coro, metaData)
         PQclear(pg_result);
     }
 
-    if (!*table_name)
+    if (table_name_len == 0)
     {
-        php_error_docref(NULL, E_WARNING, "The table name must be specified");
+        swoole_php_fatal_error(E_WARNING, "The table name must be specified");
         RETURN_FALSE;
     }
 
@@ -908,7 +904,7 @@ static PHP_METHOD(swoole_postgresql_coro, metaData)
     if (!tmp_name)
     {
         efree(src);
-        php_error_docref(NULL, E_WARNING, "The table name must be specified");
+        swoole_php_fatal_error(E_WARNING, "The table name must be specified");
         RETURN_FALSE;
     }
     if (!tmp_name2 || !*tmp_name2)
@@ -1012,7 +1008,7 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
         }
         if (!ce)
         {
-            php_error_docref(NULL, E_WARNING, "Could not find class '%s'", ZSTR_VAL(class_name));
+            swoole_php_fatal_error(E_WARNING, "Could not find class '%s'", ZSTR_VAL(class_name));
             return;
         }
         result_type = PGSQL_ASSOC;
@@ -1027,11 +1023,13 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
     if (zrow == NULL)
     {
         row = -1;
-    } else {
-        convert_to_long(zrow);
-        row = Z_LVAL_P(zrow);
-        if (row < 0) {
-            php_error_docref(NULL, E_WARNING, "The row parameter must be greater or equal to zero");
+    }
+    else
+    {
+        row = zval_get_long(zrow);
+        if (row < 0)
+        {
+            swoole_php_fatal_error(E_WARNING, "The row parameter must be greater or equal to zero");
             RETURN_FALSE;
         }
     }
@@ -1039,7 +1037,7 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
 
     if (!(result_type & PGSQL_BOTH))
     {
-        php_error_docref(NULL, E_WARNING, "Invalid result type");
+        swoole_php_fatal_error(E_WARNING, "Invalid result type");
         RETURN_FALSE;
     }
 
@@ -1054,7 +1052,7 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
     {
         if (row < 0 || row >= PQntuples(pgsql_result))
         {
-            php_error_docref(NULL, E_WARNING, "Unable to jump to row " ZEND_LONG_FMT " on PostgreSQL result index " ZEND_LONG_FMT,
+            swoole_php_fatal_error(E_WARNING, "Unable to jump to row " ZEND_LONG_FMT " on PostgreSQL result index " ZEND_LONG_FMT,
                     row, Z_LVAL_P(result));
             RETURN_FALSE;
         }

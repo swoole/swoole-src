@@ -94,6 +94,7 @@ extern zend_module_entry swoole_module_entry;
 #endif
 
 #define SWOOLE_PROPERTY_MAX     32
+#define SWOOLE_OBJECT_DEFAULT   65536
 #define SWOOLE_OBJECT_MAX       10000000
 
 typedef struct
@@ -139,7 +140,7 @@ extern swoole_object_array swoole_objects;
 #endif
 #endif
 
-#if PHP_VERSION_ID < 70300
+#if PHP_VERSION_ID < 70400
 #define SW_USE_FAST_SERIALIZE 1
 #endif
 
@@ -328,6 +329,11 @@ PHP_FUNCTION(swoole_timer_clear);
 //---------------------------------------------------------
 //                  error
 //---------------------------------------------------------
+#define SW_STRERROR_SYSTEM  0
+#define SW_STRERROR_GAI     1
+#define SW_STRERROR_DNS     2
+#define SW_STRERROR_SWOOLE  9
+
 PHP_FUNCTION(swoole_strerror);
 PHP_FUNCTION(swoole_errno);
 PHP_FUNCTION(swoole_last_error);
@@ -480,7 +486,7 @@ void php_swoole_onClose(swServer *, swDataHead *);
 void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
 ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
-int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *data);
+int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *data);
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
 void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
 void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
@@ -614,7 +620,7 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 
 #ifndef GC_IS_RECURSIVE
 #define GC_IS_RECURSIVE(p) \
-	(ZEND_HASH_GET_APPLY_COUNT(p) > 1)
+	(ZEND_HASH_GET_APPLY_COUNT(p) >= 1)
 #define GC_PROTECT_RECURSION(p) \
 	ZEND_HASH_INC_APPLY_COUNT(p)
 #define GC_UNPROTECT_RECURSION(p) \
@@ -751,9 +757,15 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 #define SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(module, _unset_property) \
     module##_handlers.unset_property = _unset_property;
 
-#define SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj) \
-    module##_ce_ptr->create_object = _create_object; \
+#define SWOOLE_SET_CLASS_CREATE(module, _create_object) \
+    module##_ce_ptr->create_object = _create_object;
+
+#define SWOOLE_SET_CLASS_FREE(module, _free_obj) \
     module##_handlers.free_obj = _free_obj;
+
+#define SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj) \
+    SWOOLE_SET_CLASS_CREATE(module, _create_object); \
+    SWOOLE_SET_CLASS_FREE(module, _free_obj);
 
 #define SWOOLE_SET_CLASS_CUSTOM_OBJECT(module, _create_object, _free_obj, _struct, _std) \
     SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj); \
@@ -840,8 +852,14 @@ static sw_inline zval* sw_zend_read_property_array(zend_class_entry *class_ptr, 
     if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
     else *(retval) = &__retval;
 
-// TODO: remove it after remove async modules
+static sw_inline int sw_zend_function_max_num_args(zend_function *function)
+{
+    // https://github.com/php/php-src/commit/2646f7bcb98dcdd322ea21701c8bb101104ea619
+    // zend_function.common.num_args don't include the variadic argument anymore.
+    return (function->common.fn_flags & ZEND_ACC_VARIADIC) ? UINT32_MAX : function->common.num_args;
+}
 
+// TODO: remove it after remove async modules
 static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
 {
     zend_string *key = NULL;

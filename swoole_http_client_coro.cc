@@ -16,7 +16,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 
 #include "swoole_http_client.h"
 #include "swoole_coroutine.h"
@@ -409,7 +409,7 @@ http_client::http_client(zval* zobject, std::string host, zend_long port, zend_b
     // check host
     if (host.length() == 0)
     {
-        swoole_php_fatal_error(E_ERROR, "host is empty.");
+        swoole_php_fatal_error(E_WARNING, "host is empty.");
         return;
     }
     if (host.compare(0, 6, "unix:/", 0, 6) == 0)
@@ -426,14 +426,6 @@ http_client::http_client(zval* zobject, std::string host, zend_long port, zend_b
     {
         socket_type = SW_SOCK_TCP;
     }
-    if (socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_TCP6)
-    {
-        if (port <= 0 || port > SW_CLIENT_MAX_PORT)
-        {
-            swoole_php_fatal_error(E_ERROR, "The port " ZEND_LONG_FMT " is invaild.", port);
-            return;
-        }
-    }
     this->host = host;
     this->port = port;
 #ifdef SW_USE_OPENSSL
@@ -441,7 +433,7 @@ http_client::http_client(zval* zobject, std::string host, zend_long port, zend_b
 #else
     if (ssl)
     {
-        swoole_php_fatal_error(E_ERROR, "need to use `--enable-openssl` to support ssl when compiling swoole.");
+        swoole_php_fatal_error(E_ERROR, "Need to use `--enable-openssl` to support ssl when compiling swoole.");
         return;
     }
 #endif
@@ -571,10 +563,8 @@ void http_client::set(zval *zset = nullptr)
         vht = Z_ARRVAL_P(zset);
         if (php_swoole_array_get_value(vht, "timeout", ztmp))
         {
-            convert_to_double(ztmp);
             // backward compatibility
-            connect_timeout = (double) Z_DVAL_P(ztmp);
-            timeout = (double) Z_DVAL_P(ztmp);
+            timeout = connect_timeout = zval_get_double(ztmp);
             if (socket)
             {
                 socket->set_timeout(timeout);
@@ -582,28 +572,23 @@ void http_client::set(zval *zset = nullptr)
         }
         if (php_swoole_array_get_value(vht, "connect_timeout", ztmp))
         {
-            convert_to_double(ztmp);
-            connect_timeout = (double) Z_DVAL_P(ztmp);
+            connect_timeout = zval_get_double(ztmp);
         }
         if (php_swoole_array_get_value(vht, "reconnect", ztmp))
         {
-            convert_to_long(ztmp);
-            reconnect_interval = (uint8_t) MIN(Z_LVAL_P(ztmp), UINT8_MAX);
+            reconnect_interval = (uint8_t) MIN(zval_get_long(ztmp), UINT8_MAX);
         }
         if (php_swoole_array_get_value(vht, "defer", ztmp))
         {
-            convert_to_boolean(ztmp);
-            defer = Z_BVAL_P(ztmp);
+            defer = zval_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
         {
-            convert_to_boolean(ztmp);
-            keep_alive = Z_BVAL_P(ztmp);
+            keep_alive = zval_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "websocket_mask", ztmp))
         {
-            convert_to_boolean(ztmp);
-            websocket_mask = Z_BVAL_P(ztmp);
+            websocket_mask = zval_is_true(ztmp);
         }
     }
     if (socket)
@@ -671,8 +656,8 @@ bool http_client::keep_liveness()
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
             zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
+            close();
         }
-        close();
         for (; reconnected_count < reconnect_interval; reconnected_count++)
         {
             if (connect())
@@ -696,7 +681,7 @@ bool http_client::send()
 
     if (uri.length() == 0)
     {
-        swoole_php_fatal_error(E_ERROR, "path is empty.");
+        swoole_php_fatal_error(E_WARNING, "path is empty.");
         return false;
     }
 
@@ -744,8 +729,8 @@ bool http_client::send()
     // ============ download ============
     if (z_download_file)
     {
-        convert_to_string(z_download_file);
-        char *download_file_name = Z_STRVAL_P(z_download_file);
+        zend::string str_download_file(z_download_file);
+        char *download_file_name = str_download_file.val();
         zval *z_download_offset = sw_zend_read_property_not_null(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("downloadOffset"), 1);
         off_t download_offset = 0;
         if (z_download_offset)
@@ -782,15 +767,17 @@ bool http_client::send()
     }
 
     // ============ method ============
+    zend::string str_method;
     if (zmethod)
     {
-        convert_to_string(zmethod);
-        method = Z_STRVAL_P(zmethod);
+        str_method = zmethod;
+        method = str_method.val();
     }
     else
     {
         method = (char *) (zbody ? "POST" : "GET");
     }
+
     this->method = swHttp_get_method(method, strlen(method) + 1);
     swString_append_ptr(http_client_buffer, method, strlen(method));
     swString_append_ptr(http_client_buffer, ZEND_STRL(" "));
@@ -802,6 +789,7 @@ bool http_client::send()
     if (socket->http_proxy)
 #endif
     {
+        zend::string str_host;
         const static char *pre = "http://";
         char *_host = (char *) host.c_str();
         size_t _host_len = host.length();
@@ -809,13 +797,14 @@ bool http_client::send()
         {
             if ((value = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))))
             {
-                _host = Z_STRVAL_P(value);
-                _host_len = Z_STRLEN_P(value);
+                str_host = value;
+                _host = str_host.val();
+                _host_len = str_host.len();
             }
         }
         size_t proxy_uri_len = uri.length() + _host_len + strlen(pre) + 10;
         char *proxy_uri = (char*) emalloc(proxy_uri_len);
-        proxy_uri_len = snprintf(proxy_uri, proxy_uri_len, "%s%s:%u%s", pre, _host, port, uri.c_str());
+        proxy_uri_len = sw_snprintf(proxy_uri, proxy_uri_len, "%s%s:%u%s", pre, _host, port, uri.c_str());
         uri = std::string(proxy_uri, proxy_uri_len);
         efree(proxy_uri);
     }
@@ -847,8 +836,8 @@ bool http_client::send()
             {
                 continue;
             }
-            convert_to_string(value);
-            if ((Z_STRLEN_P(value) == 0) || (strncasecmp(key, ZEND_STRL("Host")) == 0))
+            zend::string _value(value);
+            if ((_value.len() == 0) || (strncasecmp(key, ZEND_STRL("Host")) == 0))
             {
                 continue;
             }
@@ -866,7 +855,7 @@ bool http_client::send()
             {
                 header_flag |= HTTP_HEADER_ACCEPT_ENCODING;
             }
-            http_client_swString_append_headers(http_client_buffer, key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
+            http_client_swString_append_headers(http_client_buffer, key, keylen, _value.val(), _value.len());
         SW_HASHTABLE_FOREACH_END();
     }
     else
@@ -905,8 +894,8 @@ bool http_client::send()
             {
                 continue;
             }
-            convert_to_string(value);
-            if (Z_STRLEN_P(value) == 0)
+            zend::string _value(value);
+            if (_value.len() == 0)
             {
                 continue;
             }
@@ -914,7 +903,7 @@ bool http_client::send()
             swString_append_ptr(http_client_buffer, "=", 1);
 
             int encoded_value_len;
-            encoded_value = sw_php_url_encode(Z_STRVAL_P(value), Z_STRLEN_P(value), &encoded_value_len);
+            encoded_value = sw_php_url_encode(_value.val(), _value.len(), &encoded_value_len);
             if (encoded_value)
             {
                 swString_append_ptr(http_client_buffer, encoded_value, encoded_value_len);
@@ -943,7 +932,7 @@ bool http_client::send()
             boundary_str + sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1,
             sizeof(boundary_str) - sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY)
         );
-        n = snprintf(
+        n = sw_snprintf(
             header_buf,
             sizeof(header_buf), "Content-Type: multipart/form-data; boundary=%*s\r\n",
             (int)(sizeof(boundary_str) - 1), boundary_str
@@ -961,10 +950,10 @@ bool http_client::send()
                 {
                     continue;
                 }
-                convert_to_string(value);
+                zend::string _value(value);
                 //strlen("%.*")*2 = 6
                 //header + body + CRLF
-                content_length += (sizeof(SW_HTTP_FORM_DATA_FORMAT_STRING) - 7) + (sizeof(boundary_str) - 1) + keylen + Z_STRLEN_P(value) + 2;
+                content_length += (sizeof(SW_HTTP_FORM_DATA_FORMAT_STRING) - 7) + (sizeof(boundary_str) - 1) + keylen + _value.len() + 2;
             SW_HASHTABLE_FOREACH_END();
         }
 
@@ -1013,14 +1002,14 @@ bool http_client::send()
                 {
                     continue;
                 }
-                convert_to_string(value);
-                n = snprintf(
+                zend::string _value(value);
+                n = sw_snprintf(
                     header_buf, sizeof(header_buf),
                     SW_HTTP_FORM_DATA_FORMAT_STRING, (int)(sizeof(boundary_str) - 1),
                     boundary_str, keylen, key
                 );
                 swString_append_ptr(http_client_buffer, header_buf, n);
-                swString_append_ptr(http_client_buffer, Z_STRVAL_P(value), Z_STRLEN_P(value));
+                swString_append_ptr(http_client_buffer, _value.val(), _value.len());
                 swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
             SW_HASHTABLE_FOREACH_END();
         }
@@ -1074,7 +1063,7 @@ bool http_client::send()
                 /**
                  * part header
                  */
-                n = snprintf(
+                n = sw_snprintf(
                     header_buf, sizeof(header_buf), SW_HTTP_FORM_DATA_FORMAT_FILE,
                     (int) (sizeof(boundary_str) - 1), boundary_str,
                     (int) Z_STRLEN_P(zname), Z_STRVAL_P(zname),
@@ -1116,7 +1105,7 @@ bool http_client::send()
             SW_HASHTABLE_FOREACH_END();
         }
 
-        n = snprintf(header_buf, sizeof(header_buf), "--%*s--\r\n", (int)(sizeof(boundary_str) - 1), boundary_str);
+        n = sw_snprintf(header_buf, sizeof(header_buf), "--%*s--\r\n", (int)(sizeof(boundary_str) - 1), boundary_str);
         if (socket->send(header_buf, n) < 0)
         {
             goto _send_fail;
@@ -1254,6 +1243,11 @@ bool http_client::recv(double timeout)
             _error:
             // IO error
             socket->del_timer(Socket::TIMER_LV_GLOBAL);
+            if (retval == 0)
+            {
+                // TODO: move to Client::recv
+                socket->set_err(ECONNRESET);
+            }
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
             zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
             if (socket->errCode == ETIMEDOUT)
@@ -1425,24 +1419,21 @@ void http_client::reset()
 
 bool http_client::close()
 {
-    bool ret;
-    if (!socket)
+    Socket *socket = this->socket;
+    if (socket)
     {
-        return false;
+        zend_update_property_bool(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("connected"), 0);
+        if (!socket->has_bound())
+        {
+            // reset some request period states
+            reset();
+            // reset the properties that depend on the connection
+            this->websocket = false;
+            this->socket = nullptr;
+        }
+        return php_swoole_client_coro_socket_free(socket);
     }
-    zend_update_property_bool(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("connected"), 0);
-
-    // reset some request period states
-    reset();
-
-    // reset the properties that depend on the connection
-    websocket = false;
-
-    // close socket
-    ret = php_swoole_client_coro_socket_free(socket);
-    socket = nullptr;
-
-    return ret;
+    return false;
 }
 
 http_client::~http_client()
@@ -1706,12 +1697,12 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     {
         length = file_stat.st_size - offset;
     }
-    if (type == NULL)
+    if (l_type == 0)
     {
         type = (char *) swoole_get_mime_type(path);
         l_type = strlen(type);
     }
-    if (filename == NULL)
+    if (l_filename == 0)
     {
         char *dot = strrchr(path, '/');
         if (dot == NULL)
@@ -1727,16 +1718,15 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     }
 
     zval *zupload_files = sw_zend_read_property_array(swoole_http_client_coro_ce_ptr, getThis(), ZEND_STRL("uploadFiles"), 1);
-    zval *zupload_file;
-    SW_MAKE_STD_ZVAL(zupload_file);
-    array_init(zupload_file);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("path"), path, l_path);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("name"), name, l_name);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("filename"), filename, l_filename);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("type"), type, l_type);
-    add_assoc_long(zupload_file, "size", length);
-    add_assoc_long(zupload_file, "offset", offset);
-    add_next_index_zval(zupload_files, zupload_file);
+    zval zupload_file;
+    array_init(&zupload_file);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("path"), path, l_path);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("name"), name, l_name);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("filename"), filename, l_filename);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("type"), type, l_type);
+    add_assoc_long(&zupload_file, "size", length);
+    add_assoc_long(&zupload_file, "offset", offset);
+    add_next_index_zval(zupload_files, &zupload_file);
 
     RETURN_TRUE;
 }
@@ -1760,27 +1750,26 @@ static PHP_METHOD(swoole_http_client_coro, addData)
         Z_PARAM_STRING(filename, l_filename)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (type == NULL)
+    if (l_type == 0)
     {
         type = (char *) "application/octet-stream";
         l_type = strlen(type);
     }
-    if (filename == NULL)
+    if (l_filename == 0)
     {
         filename = name;
         l_filename = l_name;
     }
 
     zval *zupload_files = sw_zend_read_property_array(swoole_http_client_coro_ce_ptr, getThis(), ZEND_STRL("uploadFiles"), 1);
-    zval *zupload_file;
-    SW_MAKE_STD_ZVAL(zupload_file);
-    array_init(zupload_file);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("content"), data, l_data);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("name"), name, l_name);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("filename"), filename, l_filename);
-    add_assoc_stringl_ex(zupload_file, ZEND_STRL("type"), type, l_type);
-    add_assoc_long(zupload_file, "size", l_data);
-    add_next_index_zval(zupload_files, zupload_file);
+    zval zupload_file;
+    array_init(&zupload_file);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("content"), data, l_data);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("name"), name, l_name);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("filename"), filename, l_filename);
+    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("type"), type, l_type);
+    add_assoc_long(&zupload_file, "size", l_data);
+    add_next_index_zval(zupload_files, &zupload_file);
 
     RETURN_TRUE;
 }
@@ -1834,8 +1823,8 @@ static PHP_METHOD(swoole_http_client_coro, post)
 static PHP_METHOD(swoole_http_client_coro, download)
 {
     http_client* phc = swoole_get_phc(getThis());
-    char *uri = NULL;
-    size_t uri_len = 0;
+    char *uri;
+    size_t uri_len;
     zval *download_file;
     zend_long offset = 0;
 
@@ -1868,7 +1857,7 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
 static PHP_METHOD(swoole_http_client_coro, push)
 {
     http_client* phc = swoole_get_phc(getThis());
-    zval *zdata = NULL;
+    zval *zdata;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
     zend_bool fin = 1;
 

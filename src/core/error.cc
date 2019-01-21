@@ -38,153 +38,159 @@ const char* swstrerror(enum swErrorCode code)
     switch(code)
     {
     case SW_ERROR_MALLOC_FAIL:
-        return "malloc fail";
+        return "Malloc fail";
     case SW_ERROR_SYSTEM_CALL_FAIL:
-        return "system call fail";
+        return "System call fail";
     case SW_ERROR_PHP_FATAL_ERROR:
-        return "php fatal error";
+        return "PHP fatal error";
     case SW_ERROR_NAME_TOO_LONG:
-        return "name too long";
+        return "Name too long";
     case SW_ERROR_INVALID_PARAMS:
-        return "invalid params";
+        return "Invalid params";
     case SW_ERROR_QUEUE_FULL:
-        return "queue full";
+        return "Queue full";
     case SW_ERROR_FILE_NOT_EXIST:
-        return "file not exist";
+        return "File not exist";
     case SW_ERROR_FILE_TOO_LARGE:
-        return "file too large";
+        return "File too large";
     case SW_ERROR_FILE_EMPTY:
-        return "file empty";
+        return "File empty";
     case SW_ERROR_DNSLOOKUP_DUPLICATE_REQUEST:
-        return "dnslookup duplicate request";
+        return "DNS Lookup duplicate request";
     case SW_ERROR_DNSLOOKUP_RESOLVE_FAILED:
-        return "dnslookup resolve failed";
+        return "DNS Lookup resolve failed";
     case SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT:
-        return "dnslookup resolve timeout";
+        return "DNS Lookup resolve timeout";
     case SW_ERROR_BAD_IPV6_ADDRESS:
-        return "bad ipv6 address";
+        return "Bad ipv6 address";
     case SW_ERROR_UNREGISTERED_SIGNAL:
-        return "unregistered signal";
+        return "Unregistered signal";
     case SW_ERROR_SESSION_CLOSED_BY_SERVER:
-        return "session closed by server";
+        return "Session closed by server";
     case SW_ERROR_SESSION_CLOSED_BY_CLIENT:
-        return "session closed by client";
+        return "Session closed by client";
     case SW_ERROR_SESSION_CLOSING:
-        return "session closing";
+        return "Session closing";
     case SW_ERROR_SESSION_CLOSED:
-        return "session closed";
+        return "Session closed";
     case SW_ERROR_SESSION_NOT_EXIST:
-        return "session not exist";
+        return "Session not exist";
     case SW_ERROR_SESSION_INVALID_ID:
-        return "session invalid id";
+        return "Session invalid id";
     case SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA:
-        return "session discard timeout data";
+        return "Session discard timeout data";
     case SW_ERROR_OUTPUT_BUFFER_OVERFLOW:
-        return "output buffer overflow";
+        return "Output buffer overflow";
     case SW_ERROR_SSL_NOT_READY:
-        return "ssl not ready";
+        return "SSL not ready";
     case SW_ERROR_SSL_CANNOT_USE_SENFILE:
-        return "ssl cannot use senfile";
+        return "SSL cannot use senfile";
     case SW_ERROR_SSL_EMPTY_PEER_CERTIFICATE:
-        return "ssl empty peer certificate";
+        return "SSL empty peer certificate";
     case SW_ERROR_SSL_VEFIRY_FAILED:
-        return "ssl vefiry failed";
+        return "SSL vefiry failed";
     case SW_ERROR_SSL_BAD_CLIENT:
-        return "ssl bad client";
+        return "SSL bad client";
     case SW_ERROR_SSL_BAD_PROTOCOL:
-        return "ssl bad protocol";
+        return "SSL bad protocol";
     case SW_ERROR_PACKAGE_LENGTH_TOO_LARGE:
-        return "package length too large";
+        return "Package length too large";
     case SW_ERROR_DATA_LENGTH_TOO_LARGE:
-        return "data length too large";
+        return "Data length too large";
     case SW_ERROR_TASK_PACKAGE_TOO_BIG:
-        return "task package too big";
+        return "Task package too big";
     case SW_ERROR_TASK_DISPATCH_FAIL:
-        return "task dispatch fail";
+        return "Task dispatch fail";
     case SW_ERROR_HTTP2_STREAM_ID_TOO_BIG:
-        return "http2 stream id too big";
+        return "Http2 stream id too big";
     case SW_ERROR_HTTP2_STREAM_NO_HEADER:
-        return "http2 stream no header";
+        return "Http2 stream no header";
     case SW_ERROR_HTTP2_STREAM_NOT_FOUND:
-        return "http2 stream not found";
+        return "Http2 stream not found";
     case SW_ERROR_AIO_BAD_REQUEST:
-        return "aio bad request";
+        return "Aio bad request";
     case SW_ERROR_AIO_CANCELED:
-        return "aio canceled";
+        return "Aio canceled";
     case SW_ERROR_CLIENT_NO_CONNECTION:
-        return "client no connection";
+        return "Client no connection";
     case SW_ERROR_SOCKET_CLOSED:
-        return "socket closed";
+        return "Socket closed";
     case SW_ERROR_SOCKS5_UNSUPPORT_VERSION:
-        return "socks5 unsupport version";
+        return "Socks5 unsupport version";
     case SW_ERROR_SOCKS5_UNSUPPORT_METHOD:
-        return "socks5 unsupport method";
+        return "Socks5 unsupport method";
     case SW_ERROR_SOCKS5_AUTH_FAILED:
-        return "socks5 auth failed";
+        return "Socks5 auth failed";
     case SW_ERROR_SOCKS5_SERVER_ERROR:
-        return "socks5 server error";
+        return "Socks5 server error";
     case SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR:
-        return "http proxy handshake error";
+        return "Http proxy handshake error";
     case SW_ERROR_HTTP_INVALID_PROTOCOL:
-        return "http invalid protocol";
+        return "Http invalid protocol";
     case SW_ERROR_WEBSOCKET_BAD_CLIENT:
-        return "websocket bad client";
+        return "Websocket bad client";
     case SW_ERROR_WEBSOCKET_BAD_OPCODE:
-        return "websocket bad opcode";
+        return "Websocket bad opcode";
     case SW_ERROR_WEBSOCKET_UNCONNECTED:
-        return "websocket unconnected";
+        return "Websocket unconnected";
     case SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED:
-        return "websocket handshake failed";
+        return "Websocket handshake failed";
     case SW_ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT:
-        return "server must created before client";
+        return "Server must created before client";
     case SW_ERROR_SERVER_TOO_MANY_SOCKET:
-        return "server too many socket";
+        return "Server too many socket";
     case SW_ERROR_SERVER_WORKER_TERMINATED:
-        return "server worker terminated";
+        return "Server worker terminated";
     case SW_ERROR_SERVER_INVALID_LISTEN_PORT:
-        return "server invalid listen port";
+        return "Server invalid listen port";
     case SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT:
-        return "server too many listen port";
+        return "Server too many listen port";
     case SW_ERROR_SERVER_PIPE_BUFFER_FULL:
-        return "server pipe buffer full";
+        return "Server pipe buffer full";
     case SW_ERROR_SERVER_NO_IDLE_WORKER:
-        return "server no idle worker";
+        return "Server no idle worker";
     case SW_ERROR_SERVER_ONLY_START_ONE:
-        return "server only start one";
+        return "Server only start one";
     case SW_ERROR_SERVER_SEND_IN_MASTER:
-        return "server send in master";
+        return "Server send in master";
     case SW_ERROR_SERVER_INVALID_REQUEST:
-        return "server invalid request";
+        return "Server invalid request";
     case SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT:
-        return "server worker exit timeout";
+        return "Server worker exit timeout";
     case SW_ERROR_CO_OUT_OF_COROUTINE:
-        return "coroutine out of coroutine";
+        return "Coroutine out of coroutine";
     case SW_ERROR_CO_HAS_BEEN_BOUND:
-        return "coroutine has been bound";
+        return "Coroutine has been bound";
     case SW_ERROR_CO_MUTEX_DOUBLE_UNLOCK:
-        return "coroutine mutex double unlock";
+        return "Coroutine mutex double unlock";
     case SW_ERROR_CO_BLOCK_OBJECT_LOCKED:
-        return "coroutine block object locked";
+        return "Coroutine block object locked";
     case SW_ERROR_CO_BLOCK_OBJECT_WAITING:
-        return "coroutine block object waiting";
+        return "Coroutine block object waiting";
     case SW_ERROR_CO_YIELD_FAILED:
-        return "coroutine yield failed";
+        return "Coroutine yield failed";
     case SW_ERROR_CO_GETCONTEXT_FAILED:
-        return "coroutine getcontext failed";
+        return "Coroutine getcontext failed";
     case SW_ERROR_CO_SWAPCONTEXT_FAILED:
-        return "coroutine swapcontext failed";
+        return "Coroutine swapcontext failed";
     case SW_ERROR_CO_MAKECONTEXT_FAILED:
-        return "coroutine makecontext failed";
+        return "Coroutine makecontext failed";
     case SW_ERROR_CO_IOCPINIT_FAILED:
-        return "coroutine iocpinit failed";
+        return "Coroutine iocpinit failed";
     case SW_ERROR_CO_PROTECT_STACK_FAILED:
-        return "coroutine protect stack failed";
+        return "Coroutine protect stack failed";
     case SW_ERROR_CO_STD_THREAD_LINK_ERROR:
-        return "coroutine std thread link error";
+        return "Coroutine std thread link error";
     case SW_ERROR_CO_DISABLED_MULTI_THREAD:
-        return "coroutine disabled multi thread";
-    default: 
-        return "Unknown error";
+        return "Coroutine disabled multi thread";
+    default:
+        static char buffer[32];
+#ifndef __MACH__
+        snprintf(buffer, sizeof(buffer), "Unknown error %d", code);
+#else
+        snprintf(buffer, sizeof(buffer), "Unknown error: %d", code);
+#endif
+        return buffer;
     }
 /*}}}*/
 }

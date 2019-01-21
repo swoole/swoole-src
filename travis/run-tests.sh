@@ -2,12 +2,14 @@
 __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
+[ -z "${SWOOLE_BRANCH}" ] && export SWOOLE_BRANCH="master"
+
 #-------------PHPT-------------
 cd ${__DIR__} && cd ../tests/
 
 # initialization
 echo "\n⭐️ Initialization for tests...\n"
-php ./init
+./init
 echo "\n"
 
 # debug
@@ -21,34 +23,55 @@ do
     fi
 done
 
-# run tests @params($1=list_file, $2=timeout)
-run_tests()
-{
+# run tests @params($1=list_file, $1=options)
+run_tests(){
     ./start.sh \
-    --set-timeout ${2} \
-    --show-slow 1000 \
-    --show-diff \
+    "`tr '\n' ' ' < ${1} | xargs`" \
     -w ${1} \
-    "`tr '\n' ' ' < ${1}`"
+    ${2}
 }
 
-for dir in "swoole_*"
+has_failures(){
+    cat tests.list
+}
+
+should_exit_with_error(){
+    if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
+        set +e
+        find ./ -type f -name "*.mem"
+        set -e
+    else
+        has_failures
+    fi
+}
+
+touch tests.list
+trap "rm -f tests.list; echo ''; echo '⌛ Done on '`date "+%Y-%m-%d %H:%M:%S"`;" EXIT
+
+echo "\n🌵️️ Current branch is ${SWOOLE_BRANCH}\n"
+if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
+    dir="base"
+    options="-m"
+else
+    dir="swoole_*"
+    options=""
+fi
+echo "${dir}" > tests.list
+for i in 1 2 3 4 5
 do
-    echo "${dir}" > tests.list
-    for i in 1 2 3 4 5
-    do
-        if [ "`cat tests.list`" ]; then
-            if [ ${i} -gt "1" ]; then
-                sleep ${i}
-                echo "\n😮 Retry failed tests#${i}:\n"
-            fi
-            cat tests.list
-            run_tests tests.list "`echo | expr ${i} \* 10`"
-        else
-            break
+    if [ "`has_failures`" ]; then
+        if [ ${i} -gt "1" ]; then
+            sleep ${i}
+            echo "\n😮 Retry failed tests#${i}:\n"
         fi
-    done
-    if [ "`cat tests.list`" ]; then
-        exit 255
+        cat tests.list
+        timeout=`echo | expr ${i} \* 15 + 15`
+        options="${options} --set-timeout ${timeout}"
+        run_tests tests.list "${options}"
+    else
+        break
     fi
 done
+if [ "`should_exit_with_error`" ]; then
+    exit 255
+fi

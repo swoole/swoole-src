@@ -51,7 +51,10 @@ void swoole::set_dns_cache_capacity(size_t capacity)
 
 void swoole::clear_dns_cache()
 {
-    dns_cache->clear();
+    if (dns_cache)
+    {
+        dns_cache->clear();
+    }
 }
 
 extern "C"
@@ -68,13 +71,13 @@ int swoole_coroutine_socket(int domain, int type, int protocol)
     {
         return socket(domain, type, protocol);
     }
-    Socket *sock = new Socket(domain, type, protocol);
-    if (sock->socket == nullptr)
+    Socket *socket = new Socket(domain, type, protocol);
+    if (socket->socket == nullptr)
     {
-        delete sock;
+        delete socket;
         return -1;
     }
-    return sock->socket->fd;
+    return socket->socket->fd;
 }
 
 ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags)
@@ -89,15 +92,7 @@ ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags
         goto _no_coro;
     }
     Socket *socket = (Socket *) conn->object;
-    ssize_t retval = socket->send(buf, len);
-    if (retval < 0)
-    {
-        return -1;
-    }
-    else
-    {
-        return retval;
-    }
+    return socket->send(buf, len);
 }
 
 ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags)
@@ -112,15 +107,7 @@ ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags
         goto _no_coro;
     }
     Socket *socket = (Socket *) conn->object;
-    ssize_t retval = socket->sendmsg(msg, flags);
-    if (retval < 0)
-    {
-        return -1;
-    }
-    else
-    {
-        return retval;
-    }
+    return socket->sendmsg(msg, flags);
 }
 
 ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags)
@@ -135,15 +122,7 @@ ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags)
         goto _no_coro;
     }
     Socket *socket = (Socket *) conn->object;
-    ssize_t retval = socket->recvmsg(msg, flags);
-    if (retval < 0)
-    {
-        return -1;
-    }
-    else
-    {
-        return retval;
-    }
+    return socket->recvmsg(msg, flags);
 }
 
 ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags)
@@ -158,22 +137,13 @@ ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags)
         goto _no_coro;
     }
     Socket *socket = (Socket *) conn->object;
-    ssize_t retval;
     if (flags & MSG_PEEK)
     {
-        retval = socket->peek(buf, len);
+        return socket->peek(buf, len);
     }
     else
     {
-        retval = socket->recv(buf, len);
-    }
-    if (retval < 0)
-    {
-        return -1;
-    }
-    else
-    {
-        return retval;
+        return socket->recv(buf, len);
     }
 }
 
@@ -188,11 +158,8 @@ int swoole_coroutine_close(int fd)
     {
         goto _no_coro;
     }
-    else
-    {
-        delete (Socket *) conn->object;
-        return 0;
-    }
+    Socket *socket = (Socket *) conn->object;
+    return socket->close() ? 0 : -1;
 }
 
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
@@ -207,14 +174,7 @@ int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t 
         goto _no_coro;
     }
     Socket *socket = (Socket *) conn->object;
-    if (socket->connect(addr, addrlen) == false)
-    {
-        return -1;
-    }
-    else
-    {
-        return 0;
-    }
+    return socket->connect(addr, addrlen) ? 0 : -1;
 }
 
 int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout)
@@ -380,7 +340,7 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode)
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return SW_ERR;
+        return -1;
     }
     ((Coroutine *) ev.object)->yield();
     return ev.ret;
@@ -413,7 +373,7 @@ ssize_t swoole_coroutine_read(int fd, void *buf, size_t count)
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return SW_ERR;
+        return -1;
     }
     ((Coroutine *) ev.object)->yield();
     return ev.ret;
@@ -446,7 +406,7 @@ ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count)
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return SW_ERR;
+        return -1;
     }
     ((Coroutine *) ev.object)->yield();
     return ev.ret;
@@ -472,7 +432,7 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence)
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return SW_ERR;
+        return -1;
     }
     ((Coroutine *) ev.object)->yield();
     return ev.ret;
@@ -497,7 +457,7 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf)
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return SW_ERR;
+        return -1;
     }
     ((Coroutine *) ev.object)->yield();
     return ev.ret;
@@ -521,7 +481,7 @@ int swoole_coroutine_unlink(const char *pathname)
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return SW_ERR;
+        return -1;
     }
     ((Coroutine *) ev.object)->yield();
     return ev.ret;
@@ -546,7 +506,7 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf)
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return SW_ERR;
+        return -1;
     }
     ((Coroutine *) ev.object)->yield();
     return ev.ret;
@@ -571,7 +531,7 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode)
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return SW_ERR;
+        return -1;
     }
     ((Coroutine *) ev.object)->yield();
     return ev.ret;
@@ -595,7 +555,7 @@ int swoole_coroutine_rmdir(const char *pathname)
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return SW_ERR;
+        return -1;
     }
     ((Coroutine *) ev.object)->yield();
     return ev.ret;
@@ -620,7 +580,7 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath)
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return SW_ERR;
+        return -1;
     }
     ((Coroutine *) ev.object)->yield();
     return ev.ret;
@@ -645,7 +605,7 @@ int swoole_coroutine_access(const char *pathname, int mode)
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return SW_ERR;
+        return -1;
     }
     ((Coroutine *) ev.object)->yield();
     return ev.ret;
@@ -670,7 +630,7 @@ int swoole_coroutine_flock(int fd, int operation)
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return SW_ERR;
+        return -1;
     }
     ((Coroutine *) ev.object)->yield();
     return ev.ret;

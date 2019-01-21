@@ -206,7 +206,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 
         if (reactor->timeout_msec < 0)
         {
-            timeout.tv_sec = SW_MAX_UINT;
+            timeout.tv_sec = UINT_MAX;
             timeout.tv_usec = 0;
         }
         else

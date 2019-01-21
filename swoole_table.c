@@ -283,7 +283,7 @@ void swoole_table_column_free(swTableColumn *col)
 
 PHP_METHOD(swoole_table, __construct)
 {
-    long table_size;
+    zend_long table_size;
     double conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|d", &table_size, &conflict_proportion) == FAILURE)
@@ -405,18 +405,19 @@ static PHP_METHOD(swoole_table, set)
         }
         else if (col->type == SW_TABLE_STRING)
         {
-            convert_to_string(v);
-            swTableRow_set_value(row, col, Z_STRVAL_P(v), Z_STRLEN_P(v));
+            zend_string *str = zval_get_string(v);
+            swTableRow_set_value(row, col, ZSTR_VAL(str), ZSTR_LEN(str));
+            zend_string_release(str);
         }
         else if (col->type == SW_TABLE_FLOAT)
         {
-            convert_to_double(v);
-            swTableRow_set_value(row, col, &Z_DVAL_P(v), 0);
+            double _value = zval_get_double(v);
+            swTableRow_set_value(row, col, &_value, 0);
         }
         else
         {
-            convert_to_long(v);
-            swTableRow_set_value(row, col, &Z_LVAL_P(v), 0);
+            long _value = zval_get_long(v);
+            swTableRow_set_value(row, col, &_value, 0);
         }
     }
     (void) ktype;
@@ -479,8 +480,7 @@ static PHP_METHOD(swoole_table, incr)
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
         if (incrby)
         {
-            convert_to_double(incrby);
-            set_value += Z_DVAL_P(incrby);
+            set_value += zval_get_double(incrby);
         }
         else
         {
@@ -495,8 +495,7 @@ static PHP_METHOD(swoole_table, incr)
         memcpy(&set_value, row->data + column->index, column->size);
         if (incrby)
         {
-            convert_to_long(incrby);
-            set_value += Z_LVAL_P(incrby);
+            set_value += zval_get_long(incrby);
         }
         else
         {
@@ -557,8 +556,7 @@ static PHP_METHOD(swoole_table, decr)
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
         if (decrby)
         {
-            convert_to_double(decrby);
-            set_value -= Z_DVAL_P(decrby);
+            set_value -= zval_get_double(decrby);
         }
         else
         {
@@ -573,8 +571,7 @@ static PHP_METHOD(swoole_table, decr)
         memcpy(&set_value, row->data + column->index, column->size);
         if (decrby)
         {
-            convert_to_long(decrby);
-            set_value -= Z_LVAL_P(decrby);
+            set_value -= zval_get_long(decrby);
         }
         else
         {
@@ -590,7 +587,6 @@ static PHP_METHOD(swoole_table, get)
 {
     char *key;
     size_t keylen;
-
     char *field = NULL;
     size_t field_len = 0;
 
@@ -627,7 +623,6 @@ static PHP_METHOD(swoole_table, offsetGet)
 {
     char *key;
     size_t keylen;
-
     char *field = NULL;
     size_t field_len = 0;
 
@@ -644,24 +639,23 @@ static PHP_METHOD(swoole_table, offsetGet)
         RETURN_FALSE;
     }
 
-    zval *value;
-    SW_MAKE_STD_ZVAL(value);
+    zval value;
 
     swTableRow *row = swTableRow_get(table, key, keylen, &_rowlock);
     if (!row)
     {
-        array_init(value);
+        array_init(&value);
     }
     else
     {
-        php_swoole_table_row2array(table, row, value);
+        php_swoole_table_row2array(table, row, &value);
     }
     swTableRow_unlock(_rowlock);
 
     object_init_ex(return_value, swoole_table_row_ce_ptr);
-    zend_update_property(swoole_table_row_ce_ptr, return_value, ZEND_STRL("value"), value);
+    zend_update_property(swoole_table_row_ce_ptr, return_value, ZEND_STRL("value"), &value);
     zend_update_property_stringl(swoole_table_row_ce_ptr, return_value, ZEND_STRL("key"), key, keylen);
-    zval_ptr_dtor(value);
+    zval_ptr_dtor(&value);
     swoole_set_object(return_value, table);
 }
 
@@ -901,18 +895,19 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     }
     if (col->type == SW_TABLE_STRING)
     {
-        convert_to_string(value);
+        zend_string *str = zval_get_string(value);
         swTableRow_set_value(row, col, Z_STRVAL_P(value), Z_STRLEN_P(value));
+        zend_string_release(str);
     }
     else if (col->type == SW_TABLE_FLOAT)
     {
-        convert_to_double(value);
-        swTableRow_set_value(row, col, &Z_DVAL_P(value), 0);
+        double _value = zval_get_double(value);
+        swTableRow_set_value(row, col, &_value, 0);
     }
     else
     {
-        convert_to_long(value);
-        swTableRow_set_value(row, col, &Z_LVAL_P(value), 0);
+        long _value = zval_get_long(value);
+        swTableRow_set_value(row, col, &_value, 0);
     }
     swTableRow_unlock(_rowlock);
 

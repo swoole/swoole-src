@@ -146,14 +146,14 @@ static sw_inline int swoole_redis_is_message_command(char *command, int command_
 
 static sw_inline void redis_execute_connect_callback(swRedisClient *redis, int success)
 {
-    zval *result, *retval;
-    SW_MAKE_STD_ZVAL(result);
-    ZVAL_BOOL(result, success);
+    zval *retval;
 
     zval args[2];
     zval *zcallback = sw_zend_read_property(swoole_redis_ce_ptr, redis->object, ZEND_STRL("onConnect"), 0);
+
     args[0] = *redis->object;
-    args[1] = *result;
+    ZVAL_BOOL(&args[1], success);
+
     redis->connecting = 1;
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) != SUCCESS)
     {
@@ -167,7 +167,6 @@ static sw_inline void redis_execute_connect_callback(swRedisClient *redis, int s
     {
         zval_ptr_dtor(retval);
     }
-    zval_ptr_dtor(result);
     redis->connecting = 0;
 }
 
@@ -228,23 +227,22 @@ static PHP_METHOD(swoole_redis, __construct)
          */
         if (php_swoole_array_get_value(vht, "timeout", ztmp))
         {
-            convert_to_double(ztmp);
-            redis->timeout = (double) Z_DVAL_P(ztmp);
+            redis->timeout = zval_get_double(ztmp);
         }
         /**
          * password
          */
         if (php_swoole_array_get_value(vht, "password", ztmp))
         {
-            convert_to_string(ztmp);
-            if (Z_STRLEN_P(ztmp) >= 1 << 8)
+            zend_string *str = zval_get_string(ztmp);
+            if (ZSTR_LEN(str) >= 1 << 8)
             {
                 swoole_php_fatal_error(E_WARNING, "redis password is too long.");
             }
-            else if (Z_STRLEN_P(ztmp) > 0)
+            else if (ZSTR_LEN(str) > 0)
             {
-                redis->password = estrdup(Z_STRVAL_P(ztmp));
-                redis->password_len = Z_STRLEN_P(ztmp);
+                redis->password = estrndup(ZSTR_VAL(str), ZSTR_LEN(str));
+                redis->password_len = ZSTR_LEN(str);
             }
         }
         /**
@@ -252,14 +250,13 @@ static PHP_METHOD(swoole_redis, __construct)
          */
         if (php_swoole_array_get_value(vht, "database", ztmp))
         {
-            convert_to_long(ztmp);
-            if (Z_LVAL_P(ztmp) > 1 << 8)
+            if (zval_get_long(ztmp) > 1 << 8)
             {
                 swoole_php_fatal_error(E_WARNING, "redis database number is too big.");
             }
             else
             {
-                redis->database = (int8_t) Z_LVAL_P(ztmp);
+                redis->database = (int8_t) zval_get_long(ztmp);
             }
         }
     }
@@ -320,7 +317,7 @@ static PHP_METHOD(swoole_redis, connect)
 
     if (host_len == 0)
     {
-        swoole_php_error(E_ERROR, "redis server host is empty.");
+        swoole_php_fatal_error(E_WARNING, "redis server host is empty.");
         RETURN_FALSE;
     }
 
@@ -560,9 +557,10 @@ static PHP_METHOD(swoole_redis, __call)
         redis->state = SWOOLE_REDIS_STATE_SUBSCRIBE;
 
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)
-            convert_to_string(value);
-            argvlen[i] = (size_t) Z_STRLEN_P(value);
-            argv[i] = estrndup(Z_STRVAL_P(value), Z_STRLEN_P(value));
+            zend_string *str = zval_get_string(value);
+            argvlen[i] = ZSTR_LEN(str);
+            argv[i] = estrndup(ZSTR_VAL(str), ZSTR_LEN(str));
+            zend_string_release(str);
             if (i == argc)
             {
                 break;
@@ -607,10 +605,10 @@ static PHP_METHOD(swoole_redis, __call)
             {
                 break;
             }
-
-            convert_to_string(value);
-            argvlen[i] = (size_t) Z_STRLEN_P(value);
-            argv[i] = estrndup(Z_STRVAL_P(value), Z_STRLEN_P(value));
+            zend_string *str = zval_get_string(value);
+            argvlen[i] = ZSTR_LEN(str);
+            argv[i] = estrndup(ZSTR_VAL(str), ZSTR_LEN(str));
+            zend_string_release(str);
             i++;
         SW_HASHTABLE_FOREACH_END();
 
@@ -789,10 +787,9 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
     zend_bool is_subscribe = 0;
     char *callback_type;
     swRedisClient *redis = c->ev.data;
-    zval *result, *retval, *callback;
-    SW_MAKE_STD_ZVAL(result);
+    zval result, *retval, *callback;
 
-    swoole_redis_parse_result(redis, result, reply);
+    swoole_redis_parse_result(redis, &result, reply);
 
     if (redis->state == SWOOLE_REDIS_STATE_SUBSCRIBE)
     {
@@ -814,7 +811,7 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
 
     zval args[2];
     args[0] = *redis->object;
-    args[1] = *result;
+    args[1] = result;
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL) != SUCCESS)
     {
@@ -828,7 +825,7 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
     {
         zval_ptr_dtor(retval);
     }
-    zval_ptr_dtor(result);
+    zval_ptr_dtor(&result);
     if (!is_subscribe)
     {
         sw_zval_free(callback);
@@ -913,9 +910,7 @@ static int swoole_redis_onError(swReactor *reactor, swEvent *event)
     if (!ZVAL_IS_NULL(zcallback))
     {
         const redisAsyncContext *c = redis->context;
-        zval *result;
-        SW_MAKE_STD_ZVAL(result);
-        ZVAL_BOOL(result, 0);
+
         zend_update_property_long(swoole_redis_ce_ptr, redis->object, ZEND_STRL("errCode"), c->err);
         zend_update_property_string(swoole_redis_ce_ptr, redis->object, ZEND_STRL("errMsg"), c->errstr);
 
@@ -923,8 +918,10 @@ static int swoole_redis_onError(swReactor *reactor, swEvent *event)
 
         zval *retval = NULL;
         zval args[2];
+
         args[0] = *redis->object;
-        args[1] = *result;
+        ZVAL_BOOL(&args[1], 0);
+
         redis->connecting = 1;
         if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) != SUCCESS)
         {
@@ -938,8 +935,6 @@ static int swoole_redis_onError(swReactor *reactor, swEvent *event)
         {
             zval_ptr_dtor(retval);
         }
-        zval_ptr_dtor(result);
-
         redis->connecting = 0;
         retval = NULL;
         zval *zobject = redis->object;
