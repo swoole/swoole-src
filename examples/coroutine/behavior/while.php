@@ -1,14 +1,17 @@
 <?php
+Swoole\Coroutine::set([
+    'max_death_ms' => 5000,
+]);
 $s = microtime(1);
 echo "start\n";
-
 go(function () {
     echo "coro start\n";
     $x = 5;
     $i = 0;
     while(!0) {
         $i ++;
-        sleep(0.1);
+        echo "$i\n";
+        sleep(1);
     }
 });
 

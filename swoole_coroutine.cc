@@ -31,8 +31,9 @@ double PHPCoroutine::socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
 php_coro_task PHPCoroutine::main_task = {0};
 
 static user_opcode_handler_t ori_jumpnz_handler = NULL;
+static user_opcode_handler_t ori_jump_handler = NULL;
 
-static int coro_jumpnz_handler(zend_execute_data *execute_data)
+static int coro_common_handler(zend_execute_data *execute_data)
 {
     EG(vm_interrupt) = 1;
     return ZEND_USER_OPCODE_DISPATCH;
@@ -47,6 +48,17 @@ static void interrupt_callback(void *data)
     }
 }
 
+static void try_reset_opcode()
+{
+    ori_jumpnz_handler = zend_get_user_opcode_handler(ZEND_JMPNZ);
+    ori_jump_handler = zend_get_user_opcode_handler(ZEND_JMP);
+    if (!ori_jumpnz_handler && !ori_jump_handler)
+    {
+        zend_set_user_opcode_handler(ZEND_JMPNZ, coro_common_handler);
+        zend_set_user_opcode_handler(ZEND_JMP, coro_common_handler);
+    }
+}
+
 void PHPCoroutine::interrupt(zend_execute_data *execute_data)
 {
     if (orig_interrupt_function)
@@ -54,18 +66,16 @@ void PHPCoroutine::interrupt(zend_execute_data *execute_data)
         orig_interrupt_function(execute_data);
     }
     php_coro_task *task = PHPCoroutine::get_current_task();
-    if (task && task->co)
+    if (task && task->co && task->co->is_schedulable())
     {
         if (unlikely(!PHPCoroutine::is_in()))
         {
             swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
         }
-        if (task->co->is_schedulable())
-        {
-            PHPCoroutine::on_yield(task);
-            SwooleG.main_reactor->defer(SwooleG.main_reactor, interrupt_callback, (void *)task->co);
-            task->co->yield_naked();
-        }
+
+        PHPCoroutine::on_yield(task);
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, interrupt_callback, (void *)task->co);
+        task->co->yield_naked();
     }
 }
 
@@ -77,8 +87,8 @@ void PHPCoroutine::init()
 
     orig_interrupt_function = zend_interrupt_function;
     zend_interrupt_function = PHPCoroutine::interrupt;
-    ori_jumpnz_handler = zend_get_user_opcode_handler(ZEND_JMPNZ);
-    zend_set_user_opcode_handler(ZEND_JMPNZ, coro_jumpnz_handler);
+
+    try_reset_opcode();
 }
 
 inline void PHPCoroutine::vm_stack_init(void)

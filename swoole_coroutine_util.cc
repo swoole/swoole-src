@@ -412,6 +412,13 @@ static PHP_METHOD(swoole_coroutine_util, set)
         convert_to_long(v);
         set_dns_cache_capacity((size_t) Z_LVAL_P(v));
     }
+    if (php_swoole_array_get_value(vht, "max_death_ms", v))
+    {
+        zend_long max_death_ms;
+        convert_to_long(v);
+        max_death_ms = Z_LVAL_P(v);
+        Coroutine::set_max_death_ms(max_death_ms);
+    }
     zval_ptr_dtor(zset);
 }
 

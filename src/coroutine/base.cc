@@ -24,8 +24,7 @@ size_t Coroutine::call_stack_size = 0;
 Coroutine* Coroutine::call_stack[SW_MAX_CORO_NESTING_LEVEL];
 long Coroutine::last_cid = 0;
 uint64_t Coroutine::peak_num = 0;
-uint32_t Coroutine::jumpnz_times_flag = 1000;
-time_t Coroutine::schedule_time_flag = 10;
+time_t Coroutine::max_death_msec = 0;
 coro_php_yield_t  Coroutine::on_yield = nullptr;
 coro_php_resume_t Coroutine::on_resume = nullptr;
 coro_php_close_t  Coroutine::on_close = nullptr;
@@ -103,9 +102,8 @@ void Coroutine::close()
 
 bool Coroutine::is_schedulable()
 {
-    jumpnz_times ++;
-    time_t now = (int)time(NULL);
-    return (jumpnz_times >= Coroutine::jumpnz_times_flag) && (now - last_schedule_time > Coroutine::schedule_time_flag);
+    int64_t now_msec = swTimer_get_relative_msec();
+    return (Coroutine::max_death_msec) > 0 && (now_msec - last_schedule_msec > Coroutine::max_death_msec);
 }
 
 Coroutine* Coroutine::get_current()

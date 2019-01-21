@@ -87,8 +87,7 @@ public:
 
     inline void mark_schedule()
     {
-        last_schedule_time = (int)time(NULL);
-        jumpnz_times = 0;
+        last_schedule_msec = swTimer_get_absolute_msec();
     }
 
     inline void set_task(void *_task)
@@ -114,13 +113,6 @@ public:
     static void set_on_resume(coro_php_resume_t func);
     static void set_on_close(coro_php_close_t func);
 
-
-    static inline void set_schedule(int time_interval, uint32_t jumpnz_times)
-    {
-        schedule_time_flag = time_interval;
-        jumpnz_times_flag = jumpnz_times;
-    }
-
     static inline size_t get_stack_size()
     {
         return stack_size;
@@ -129,6 +121,12 @@ public:
     static inline void set_stack_size(size_t size)
     {
         stack_size = SW_MEM_ALIGNED_SIZE_EX(MIN(size, SW_CORO_MAX_STACK_SIZE), SW_CORO_STACK_ALIGNED_SIZE);
+    }
+
+    static inline void set_max_death_ms(long max_ms)
+    {
+
+        max_death_msec = max_ms;
     }
 
 #ifdef SW_LOG_TRACE_OPEN
@@ -162,16 +160,13 @@ protected:
     static coro_php_yield_t  on_yield;  /* before php yield coro */
     static coro_php_resume_t on_resume; /* before php resume coro */
     static coro_php_close_t  on_close;  /* before php close coro */
-    static time_t schedule_time_flag ;
-    static uint32_t jumpnz_times_flag;
+    static time_t max_death_msec ;
 
     sw_coro_state state = SW_CORO_INIT;
     long cid;
     void *task = nullptr;
     Context ctx;
-
-    time_t last_schedule_time;
-    uint32_t jumpnz_times;
+    int64_t last_schedule_msec;
 
     Coroutine(coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)
@@ -179,8 +174,7 @@ protected:
         cid = ++last_cid;
         coroutines[cid] = this;
         call_stack[call_stack_size++] = this;
-        last_schedule_time = (int)time(NULL);
-        jumpnz_times = 0;
+        last_schedule_msec = swTimer_get_absolute_msec();
         if (count() > peak_num)
         {
             peak_num = count();

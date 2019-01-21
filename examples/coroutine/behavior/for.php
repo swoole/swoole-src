@@ -1,4 +1,7 @@
 <?php
+Swoole\Coroutine::set([
+    'max_death_ms' => 5000,
+]);
 echo "start\n";
 go(function () {
     echo "coro start\n";
