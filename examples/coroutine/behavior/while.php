@@ -5,12 +5,23 @@ Swoole\Coroutine::set([
 $s = microtime(1);
 echo "start\n";
 go(function () {
-    echo "coro start\n";
+    echo "coro 1  start\n";
     $x = 5;
     $i = 0;
     while(!0) {
         $i ++;
-        echo "$i\n";
+        echo "coro 1 $i\n";
+        sleep(1);
+    }
+});
+
+go(function () {
+    echo "coro 2  start\n";
+    $x = 5;
+    $i = 0;
+    while(1) {
+        $i ++;
+        echo "coro 2 $i\n";
         sleep(1);
     }
 });

@@ -102,7 +102,7 @@ void Coroutine::close()
 
 bool Coroutine::is_schedulable()
 {
-    int64_t now_msec = swTimer_get_relative_msec();
+    int64_t now_msec = swTimer_get_absolute_msec();
     return (Coroutine::max_death_msec) > 0 && (now_msec - last_schedule_msec > Coroutine::max_death_msec);
 }
 
