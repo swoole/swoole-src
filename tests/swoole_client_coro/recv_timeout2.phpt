@@ -17,7 +17,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $retData = @$cli->recv();
         assert($retData == false);
         assert($cli->errCode == SOCKET_ETIMEDOUT);
-        assert(microtime(true) - $s < 1);
+        assert(approximate(0.5, microtime(true) - $s));
     });
     swoole_event_wait();
     $pm->kill();
