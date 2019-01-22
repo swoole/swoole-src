@@ -706,7 +706,6 @@ void swServer_init(swServer *serv)
     serv->worker_num = SW_CPU_NUM;
     serv->max_connection = MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
 
-    serv->max_request = 0;
     serv->max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
     //http server
@@ -714,10 +713,6 @@ void swServer_init(swServer *serv)
     serv->http_compression = 1;
     serv->http_compression_level = 1; // Z_BEST_SPEED
     serv->upload_tmp_dir = sw_strdup("/tmp");
-
-    //heartbeat check
-    serv->heartbeat_idle_time = SW_HEARTBEAT_IDLE;
-    serv->heartbeat_check_interval = SW_HEARTBEAT_CHECK;
 
     serv->buffer_input_size = SW_BUFFER_INPUT_SIZE;
     serv->buffer_output_size = SW_BUFFER_OUTPUT_SIZE;

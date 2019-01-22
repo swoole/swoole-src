@@ -32,9 +32,6 @@ extern "C" {
 #define SW_REACTOR_NUM             SW_CPU_NUM
 #define SW_WORKER_NUM              (SW_CPU_NUM*2)
 
-#define SW_HEARTBEAT_IDLE          0   //心跳存活最大时间
-#define SW_HEARTBEAT_CHECK         0   //心跳定时侦测时间
-
 enum swServer_event_type
 {
     //networking socket
