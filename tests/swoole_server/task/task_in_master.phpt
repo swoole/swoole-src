@@ -21,7 +21,7 @@ $pm->childFunc = function () use ($pm)
         'task_worker_num' => 2,
         'log_file' => '/dev/null',
     ));
-    $serv->on("workerstart", function (\swoole_server $serv)  use ($pm)
+    $serv->on("start", function (\swoole_server $serv)  use ($pm)
     {
         $serv->task(['type' => 'array', 'value' => 'master']);
     });
