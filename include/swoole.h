@@ -180,11 +180,14 @@ typedef unsigned long ulong_t;
 #include "array.h"
 #include "error.h"
 
+#define SW_MAX(A, B)           ((A) > (B) ? (A) : (B))
+#define SW_MIN(A, B)           ((A) < (B) ? (A) : (B))
+
 #ifndef MAX
-#define MAX(A, B)              ((A) > (B) ? (A) : (B))
+#define MAX(A, B)              SW_MAX(A, B)
 #endif
 #ifndef MIN
-#define MIN(A, B)              ((A) < (B) ? (A) : (B))
+#define MIN(A, B)              SW_MIN(A, B)
 #endif
 
 #ifdef SW_DEBUG

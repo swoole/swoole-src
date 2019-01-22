@@ -704,7 +704,7 @@ void swServer_init(swServer *serv)
     serv->dispatch_mode = SW_DISPATCH_FDMOD;
 
     serv->worker_num = SW_CPU_NUM;
-    serv->max_connection = MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
+    serv->max_connection = SW_MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
 
     serv->max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
