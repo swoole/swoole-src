@@ -723,7 +723,7 @@ PHP_FUNCTION(swoole_event_cycle)
 {
     if (!SwooleG.main_reactor)
     {
-        swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot swoole_event_defer.");
+        swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot swoole_event_cycle.");
         RETURN_FALSE;
     }
 
