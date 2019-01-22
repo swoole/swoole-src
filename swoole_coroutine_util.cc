@@ -507,6 +507,7 @@ static void aio_onReadCompleted(swAio_event *event)
 
     if (event->error == 0)
     {
+        // TODO: Optimization: reduce memory copy
         ZVAL_STRINGL(&result, (char* )event->buf, event->ret);
     }
     else
@@ -521,6 +522,7 @@ static void aio_onReadCompleted(swAio_event *event)
     {
         zval_ptr_dtor(retval);
     }
+    zval_ptr_dtor(&result);
     efree(event->buf);
     efree(context);
 }
