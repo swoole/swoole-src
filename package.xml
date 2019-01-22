@@ -36,8 +36,8 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-01-18</date>
-    <time>13:00:00</time>
+    <date>2019-01-22</date>
+    <time>18:00:00</time>
     <version>
         <release>4.2.12</release>
         <api>4.0</api>
@@ -70,6 +70,8 @@
             <file role="src" name="benchmark/aio.php" />
             <file role="src" name="benchmark/async.php" />
             <file role="src" name="benchmark/benchmark.php" />
+            <file role="src" name="benchmark/co_switch.go" />
+            <file role="src" name="benchmark/co_switch.php" />
             <file role="src" name="benchmark/coroutine.php" />
             <file role="src" name="benchmark/eof_server.php" />
             <file role="src" name="benchmark/http.go" />
@@ -553,10 +555,10 @@
             <file role="src" name="src/reactor/select.c" />
             <file role="src" name="src/server/base.c" />
             <file role="src" name="src/server/manager.c" />
-            <file role="src" name="src/server/master.c" />
+            <file role="src" name="src/server/master.cc" />
             <file role="src" name="src/server/port.c" />
             <file role="src" name="src/server/process.c" />
-            <file role="src" name="src/server/reactor_process.c" />
+            <file role="src" name="src/server/reactor_process.cc" />
             <file role="src" name="src/server/reactor_thread.c" />
             <file role="src" name="src/server/task_worker.c" />
             <file role="src" name="src/server/worker.c" />
@@ -591,7 +593,7 @@
             <file role="src" name="swoole_postgresql_coro.cc" />
             <file role="src" name="swoole_postgresql_coro.h" />
             <file role="src" name="swoole_process.cc" />
-            <file role="src" name="swoole_process_pool.c" />
+            <file role="src" name="swoole_process_pool.cc" />
             <file role="src" name="swoole_redis.c" />
             <file role="src" name="swoole_redis_coro.cc" />
             <file role="src" name="swoole_redis_server.cc" />
@@ -1132,6 +1134,7 @@
             <file role="test" name="tests/swoole_mysql_coro/big_data.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/bug_0814.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/err_instead_of_eof.phpt" />
+            <file role="test" name="tests/swoole_mysql_coro/escape.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/fetch.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/fetch_mode.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/fetch_mode_twice.phpt" />
@@ -1347,6 +1350,10 @@
             <file role="test" name="tests/swoole_server/task/task_callback.phpt" />
             <file role="test" name="tests/swoole_server/task/task_co.phpt" />
             <file role="test" name="tests/swoole_server/task/task_enable_coroutine.phpt" />
+            <file role="test" name="tests/swoole_server/task/task_in_manager.phpt" />
+            <file role="test" name="tests/swoole_server/task/task_in_master.phpt" />
+            <file role="test" name="tests/swoole_server/task/task_in_task_worker.phpt" />
+            <file role="test" name="tests/swoole_server/task/task_in_user_process.phpt" />
             <file role="test" name="tests/swoole_server/task/task_ipc_mode_2.phpt" />
             <file role="test" name="tests/swoole_server/task/task_ipc_mode_3.phpt" />
             <file role="test" name="tests/swoole_server/task/task_max_request.phpt" />
@@ -1375,6 +1382,7 @@
             <file role="test" name="tests/swoole_socket_coro/getsockname.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recv_timeout.phpt" />
             <file role="test" name="tests/swoole_socket_coro/sendto.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/shutdown.phpt" />
             <file role="test" name="tests/swoole_socket_coro/tcp-c10k.phpt" />
             <file role="test" name="tests/swoole_table/big_size.phpt" />
             <file role="test" name="tests/swoole_table/bug_2263.phpt" />

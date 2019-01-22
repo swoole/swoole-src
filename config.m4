@@ -470,10 +470,10 @@ if test "$PHP_SWOOLE" != "no"; then
         src/reactor/select.c \
         src/server/base.c \
         src/server/manager.c \
-        src/server/master.c \
+        src/server/master.cc \
         src/server/port.c \
         src/server/process.c \
-        src/server/reactor_process.c \
+        src/server/reactor_process.cc \
         src/server/reactor_thread.c \
         src/server/task_worker.c \
         src/server/worker.c \
@@ -501,7 +501,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_mysql_coro.cc \
         swoole_postgresql_coro.cc \
         swoole_process.cc \
-        swoole_process_pool.c \
+        swoole_process_pool.cc \
         swoole_redis.c \
         swoole_redis_coro.cc \
         swoole_redis_server.cc \

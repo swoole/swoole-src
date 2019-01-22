@@ -649,7 +649,7 @@ typedef struct _swConnection
     /**
      * memory buffer size;
      */
-    int buffer_size;
+    uint32_t buffer_size;
 
     /**
      * upgarde websocket

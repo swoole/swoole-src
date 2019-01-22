@@ -93,7 +93,7 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
     args[0] = *zobject;
     ZVAL_LONG(&args[1], worker_id);
 
-    process_pool_property *pp = swoole_get_property(zobject, 0);
+    process_pool_property *pp = (process_pool_property *) swoole_get_property(zobject, 0);
     if (pp->onWorkerStart == NULL)
     {
         return;
@@ -131,7 +131,7 @@ static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, u
     args[0] = *zobject;
     ZVAL_STRINGL(&args[1], data, length);
 
-    process_pool_property *pp = swoole_get_property(zobject, 0);
+    process_pool_property *pp = (process_pool_property *) swoole_get_property(zobject, 0);
 
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onMessage, &retval, 2, args, 0, NULL)  == FAILURE)
     {
@@ -157,7 +157,7 @@ static void php_swoole_process_pool_onWorkerStop(swProcessPool *pool, int worker
     args[0] = *zobject;
     ZVAL_LONG(&args[1], worker_id);
 
-    process_pool_property *pp = swoole_get_property(zobject, 0);
+    process_pool_property *pp = (process_pool_property *) swoole_get_property(zobject, 0);
     if (pp->onWorkerStop == NULL)
     {
         return;
@@ -223,7 +223,7 @@ static PHP_METHOD(swoole_process_pool, __construct)
         RETURN_FALSE;
     }
 
-    swProcessPool *pool = emalloc(sizeof(swProcessPool));
+    swProcessPool *pool = (swProcessPool *) emalloc(sizeof(swProcessPool));
     if (swProcessPool_create(pool, worker_num, 0, (key_t) msgq_key, ipc_type) < 0)
     {
         zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "failed to create process pool");
@@ -241,7 +241,7 @@ static PHP_METHOD(swoole_process_pool, __construct)
 
     pool->ptr = sw_zval_dup(getThis());
 
-    process_pool_property *pp = emalloc(sizeof(process_pool_property));
+    process_pool_property *pp = (process_pool_property *) emalloc(sizeof(process_pool_property));
     bzero(pp, sizeof(process_pool_property));
     swoole_set_property(getThis(), 0, pp);
     swoole_set_object(getThis(), pool);
@@ -253,7 +253,7 @@ static PHP_METHOD(swoole_process_pool, on)
     size_t l_name;
     zval *callback;
 
-    swProcessPool *pool = swoole_get_object(getThis());
+    swProcessPool *pool = (swProcessPool *) swoole_get_object(getThis());
 
     if (pool->started > 0)
     {
@@ -271,7 +271,7 @@ static PHP_METHOD(swoole_process_pool, on)
         RETURN_FALSE;
     }
 
-    process_pool_property *pp = swoole_get_property(getThis(), 0);
+    process_pool_property *pp = (process_pool_property *) swoole_get_property(getThis(), 0);
 
     if (strncasecmp("WorkerStart", name, l_name) == 0)
     {
@@ -325,7 +325,7 @@ static PHP_METHOD(swoole_process_pool, listen)
     zend_long port = 0;
     zend_long backlog = 2048;
 
-    swProcessPool *pool = swoole_get_object(getThis());
+    swProcessPool *pool = (swProcessPool *) swoole_get_object(getThis());
 
     if (pool->started > 0)
     {
@@ -368,7 +368,7 @@ static PHP_METHOD(swoole_process_pool, write)
         RETURN_FALSE;
     }
 
-    swProcessPool *pool = swoole_get_object(getThis());
+    swProcessPool *pool = (swProcessPool *) swoole_get_object(getThis());
     if (pool->ipc_mode != SW_IPC_SOCKET)
     {
         swoole_php_fatal_error(E_WARNING, "unsupported ipc type[%d].", pool->ipc_mode);
@@ -383,14 +383,14 @@ static PHP_METHOD(swoole_process_pool, write)
 
 static PHP_METHOD(swoole_process_pool, start)
 {
-    swProcessPool *pool = swoole_get_object(getThis());
+    swProcessPool *pool = (swProcessPool *) swoole_get_object(getThis());
     if (pool->started)
     {
         swoole_php_fatal_error(E_WARNING, "process pool is started. unable to execute swoole_process_pool->start.");
         RETURN_FALSE;
     }
 
-    process_pool_property *pp = swoole_get_property(getThis(), 0);
+    process_pool_property *pp = (process_pool_property *) swoole_get_property(getThis(), 0);
 
     SwooleG.use_signalfd = 0;
 
@@ -460,12 +460,12 @@ static PHP_METHOD(swoole_process_pool, __destruct)
 {
     SW_PREVENT_USER_DESTRUCT;
 
-    swProcessPool *pool = swoole_get_object(getThis());
+    swProcessPool *pool = (swProcessPool *) swoole_get_object(getThis());
     efree(pool->ptr);
     efree(pool);
     swoole_set_object(getThis(), NULL);
 
-    process_pool_property *pp = swoole_get_property(getThis(), 0);
+    process_pool_property *pp = (process_pool_property *) swoole_get_property(getThis(), 0);
     if (pp->onWorkerStart)
     {
         zval_ptr_dtor(pp->onWorkerStart);
