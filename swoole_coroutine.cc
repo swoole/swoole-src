@@ -95,8 +95,9 @@ void PHPCoroutine::init()
     Coroutine::set_on_yield(on_yield);
     Coroutine::set_on_resume(on_resume);
     Coroutine::set_on_close(on_close);
-
+#ifdef SW_CORO_DEATH_LOOP_PROTECTION
     try_reset_opcode();
+#endif
 }
 
 inline void PHPCoroutine::vm_stack_init(void)

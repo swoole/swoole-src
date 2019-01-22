@@ -97,7 +97,7 @@ public:
     inline bool is_schedulable()
     {
         loop_times ++;
-        if ((Coroutine::max_death_msec) > 0 && (last_schedule_msec > 0) && loop_times >= loop_threshold)
+        if (Coroutine::max_death_msec > 0 && last_schedule_msec > 0 && loop_threshold > 0 && loop_times >= loop_threshold)
         {
             int64_t now_msec = swTimer_get_absolute_msec();
             return (now_msec - last_schedule_msec > Coroutine::max_death_msec);
@@ -142,8 +142,13 @@ public:
 
     static inline void set_max_death_ms(long max_ms)
     {
-
         max_death_msec = max_ms;
+    }
+
+    static inline void set_loop_threshold(long threshold)
+    {
+
+        loop_threshold = threshold;
     }
 
 #ifdef SW_LOG_TRACE_OPEN

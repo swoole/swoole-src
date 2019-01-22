@@ -411,6 +411,14 @@ static PHP_METHOD(swoole_coroutine_util, set)
             Coroutine::set_max_death_ms(_value);
         }
     }
+    if (php_swoole_array_get_value(vht, "death_loop_threshold", v))
+    {
+        long _value = zval_get_long(v);
+        if (_value)
+        {
+            Coroutine::set_loop_threshold(_value);
+        }
+    }
     zval_ptr_dtor(zset);
 }
 

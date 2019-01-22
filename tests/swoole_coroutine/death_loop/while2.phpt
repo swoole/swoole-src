@@ -12,6 +12,7 @@ require __DIR__ . '/../../include/skipif.inc';
 <?php
 Swoole\Coroutine::set([
     'max_death_ms' => 2000,
+    'death_loop_threshold' => 20,
 ]);
 $exit = false;
 echo "start\n";

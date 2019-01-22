@@ -12,6 +12,7 @@ swoole_coroutine: do-while with opcache enable
 <?php
 Swoole\Coroutine::set([
     'max_death_ms' => 2000,
+    'death_loop_threshold' => 20,
 ]);
 $exit = false;
 echo "start\n";
