@@ -67,6 +67,8 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
 {
     bzero(pool, sizeof(swProcessPool));
 
+    int i;
+
     pool->worker_num = worker_num;
     pool->max_request = max_request;
 
@@ -105,7 +107,6 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
         }
 
         swPipe *pipe;
-        int i;
         for (i = 0; i < worker_num; i++)
         {
             pipe = &pool->pipes[i];
@@ -147,6 +148,11 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
     if (ipc_mode > SW_IPC_NONE)
     {
         pool->main_loop = swProcessPool_worker_loop;
+    }
+
+    for (i = 0; i < worker_num; i++)
+    {
+        pool->workers[i].pool = pool;
     }
 
     return SW_OK;
@@ -211,12 +217,16 @@ int swProcessPool_start(swProcessPool *pool)
         pool->workers[i].pool = pool;
         pool->workers[i].id = pool->start_id + i;
         pool->workers[i].type = pool->type;
+    }
 
+    for (i = 0; i < pool->worker_num; i++)
+    {
         if (swProcessPool_spawn(pool, &(pool->workers[i])) < 0)
         {
             return SW_ERR;
         }
     }
+
     return SW_OK;
 }
 

@@ -1888,6 +1888,26 @@ int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker);
 int swProcessPool_del_worker(swProcessPool *pool, swWorker *worker);
 int swProcessPool_get_max_request(swProcessPool *pool);
 
+static sw_inline void swProcessPool_set_start_id(swProcessPool *pool, int start_id)
+{
+    int i;
+    pool->start_id = start_id;
+    for (i = 0; i < pool->worker_num; i++)
+    {
+        pool->workers[i].id = pool->start_id + i;
+    }
+}
+
+static sw_inline void swProcessPool_set_type(swProcessPool *pool, int type)
+{
+    int i;
+    pool->type = type;
+    for (i = 0; i < pool->worker_num; i++)
+    {
+        pool->workers[i].type = pool->start_id + i;
+    }
+}
+
 static sw_inline swWorker* swProcessPool_get_worker(swProcessPool *pool, int worker_id)
 {
     return &(pool->workers[worker_id - pool->start_id]);
