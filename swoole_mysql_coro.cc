@@ -1374,12 +1374,6 @@ static PHP_METHOD(swoole_mysql_coro, escape)
         RETURN_FALSE;
     }
 
-    if (str.length <= 0)
-    {
-        swoole_php_fatal_error(E_WARNING, "String is empty.");
-        RETURN_FALSE;
-    }
-
     mysql_client *client = (mysql_client *) swoole_get_object(getThis());
     if (!client)
     {
