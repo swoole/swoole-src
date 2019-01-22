@@ -42,12 +42,6 @@ typedef enum
     SW_CORO_END,
 } sw_coro_state;
 
-typedef enum
-{
-    SW_CORO_YIELD = 0,
-    SW_CORO_RESUME,
-} sw_coro_action;
-
 typedef void (*coro_php_create_t)();
 typedef void (*coro_php_yield_t)(void*);
 typedef void (*coro_php_resume_t)(void*);
@@ -69,7 +63,7 @@ public:
     void yield_naked();
 
     void close();
-    bool is_schedulable();
+
 
     inline sw_coro_state get_state()
     {
@@ -91,16 +85,16 @@ public:
         return ctx.end;
     }
 
-    inline void mark_schedule(sw_coro_action action)
+    inline void mark_schedule()
     {
-        if (action == SW_CORO_YIELD)
-        {
-            last_schedule_msec = swTimer_get_absolute_msec();
-        }
-        else
-        {
-            last_schedule_msec = 0;
-        }
+        last_schedule_msec = swTimer_get_absolute_msec();
+    }
+
+    inline bool is_schedulable()
+    {
+        int64_t now_msec = swTimer_get_absolute_msec();
+        return (Coroutine::max_death_msec) > 0 && (last_schedule_msec > 0) \
+                && (now_msec - last_schedule_msec > Coroutine::max_death_msec);
     }
 
     inline void set_task(void *_task)
@@ -121,7 +115,7 @@ public:
     static swString* read_file(const char *file, int lock);
     static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
-    static time_t max_death_msec ;
+    static time_t max_death_msec;
 
     static void set_on_yield(coro_php_yield_t func);
     static void set_on_resume(coro_php_resume_t func);

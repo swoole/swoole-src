@@ -50,7 +50,7 @@ void Coroutine::yield()
         Coroutine::on_yield(task);
     }
     Coroutine::call_stack_size--;
-    mark_schedule(SW_CORO_YIELD);
+    mark_schedule();
     ctx.SwapOut();
 }
 
@@ -61,7 +61,7 @@ void Coroutine::resume()
     {
         Coroutine::on_resume(task);
     }
-    mark_schedule(SW_CORO_RESUME);
+    mark_schedule();
     Coroutine::call_stack[Coroutine::call_stack_size++] = this;
     ctx.SwapIn();
     if (ctx.end)
@@ -74,14 +74,14 @@ void Coroutine::yield_naked()
 {
     state = SW_CORO_WAITING;
     Coroutine::call_stack_size--;
-    mark_schedule(SW_CORO_YIELD);
+    mark_schedule();
     ctx.SwapOut();
 }
 
 void Coroutine::resume_naked()
 {
     state = SW_CORO_RUNNING;
-    mark_schedule(SW_CORO_RESUME);
+    mark_schedule();
     Coroutine::call_stack[Coroutine::call_stack_size++] = this;
     ctx.SwapIn();
     if (ctx.end)
@@ -100,13 +100,6 @@ void Coroutine::close()
     Coroutine::call_stack_size--;
     Coroutine::coroutines.erase(cid);
     delete this;
-}
-
-bool Coroutine::is_schedulable()
-{
-    int64_t now_msec = swTimer_get_absolute_msec();
-    return (Coroutine::max_death_msec) > 0 && (last_schedule_msec > 0) \
-            && (now_msec - last_schedule_msec > Coroutine::max_death_msec);
 }
 
 Coroutine* Coroutine::get_current()

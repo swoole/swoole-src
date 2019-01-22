@@ -405,10 +405,11 @@ static PHP_METHOD(swoole_coroutine_util, set)
     }
     if (php_swoole_array_get_value(vht, "max_death_ms", v))
     {
-        zend_long max_death_ms;
-        convert_to_long(v);
-        max_death_ms = Z_LVAL_P(v);
-        Coroutine::set_max_death_ms(max_death_ms);
+        long _value = zval_get_long(v);
+        if (_value)
+        {
+            Coroutine::set_max_death_ms(_value);
+        }
     }
     zval_ptr_dtor(zset);
 }
