@@ -87,14 +87,22 @@ public:
 
     inline void mark_schedule()
     {
-        last_schedule_msec = swTimer_get_absolute_msec();
+        if (loop_times >= loop_threshold)
+        {
+            loop_times = 0;
+            last_schedule_msec = swTimer_get_absolute_msec();
+        }
     }
 
     inline bool is_schedulable()
     {
-        int64_t now_msec = swTimer_get_absolute_msec();
-        return (Coroutine::max_death_msec) > 0 && (last_schedule_msec > 0) \
-                && (now_msec - last_schedule_msec > Coroutine::max_death_msec);
+        loop_times ++;
+        if ((Coroutine::max_death_msec) > 0 && (last_schedule_msec > 0) && loop_times >= loop_threshold)
+        {
+            int64_t now_msec = swTimer_get_absolute_msec();
+            return (now_msec - last_schedule_msec > Coroutine::max_death_msec);
+        }
+        return false;
     }
 
     inline void set_task(void *_task)
@@ -115,7 +123,8 @@ public:
     static swString* read_file(const char *file, int lock);
     static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
-    static time_t max_death_msec;
+    static long max_death_msec;
+    static long loop_threshold;
 
     static void set_on_yield(coro_php_yield_t func);
     static void set_on_resume(coro_php_resume_t func);
@@ -174,6 +183,7 @@ protected:
     void *task = nullptr;
     Context ctx;
     int64_t last_schedule_msec;
+    long loop_times;
 
     Coroutine(coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)
@@ -182,6 +192,7 @@ protected:
         coroutines[cid] = this;
         call_stack[call_stack_size++] = this;
         last_schedule_msec = swTimer_get_absolute_msec();
+        loop_times = 0;
         if (count() > peak_num)
         {
             peak_num = count();
