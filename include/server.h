@@ -112,6 +112,7 @@ enum swTaskType
     SW_TASK_WAITALL    = 16, //for taskWaitAll
     SW_TASK_COROUTINE  = 32, //coroutine
     SW_TASK_PEEK       = 64, //peek
+    SW_TASK_NOREPLY    = 128, //don't reply
 };
 
 typedef struct _swReactorThread

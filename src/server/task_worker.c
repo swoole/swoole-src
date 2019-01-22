@@ -286,6 +286,11 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
         swWarn("task/finish is not supported in onPipeMessage callback.");
         return SW_ERR;
     }
+    if (swTask_type(current_task) & SW_TASK_NOREPLY)
+    {
+        swWarn("task->finish() can only be used in the worker process.");
+        return SW_ERR;
+    }
 
     uint16_t source_worker_id = current_task->info.from_id;
     swWorker *worker = swServer_get_worker(serv, source_worker_id);

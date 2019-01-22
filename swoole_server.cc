@@ -754,19 +754,16 @@ static sw_inline int php_swoole_check_task_param(swServer *serv, int dst_worker_
         swoole_php_fatal_error(E_WARNING, "task method can't be executed, please set 'task_worker_num' > 0.");
         return SW_ERR;
     }
-
     if (dst_worker_id >= serv->task_worker_num)
     {
         swoole_php_fatal_error(E_WARNING, "worker_id must be less than serv->task_worker_num.");
         return SW_ERR;
     }
-
-    if (!swIsWorker())
+    if (swIsTaskWorker())
     {
-        swoole_php_fatal_error(E_WARNING, "task method can only be used in the worker process.");
+        swoole_php_fatal_error(E_WARNING, "Server->task() cannot use in the task-worker.");
         return SW_ERR;
     }
-
     return SW_OK;
 }
 
@@ -3376,6 +3373,11 @@ static PHP_METHOD(swoole_server, taskwait)
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
     }
+    if (!swIsWorker())
+    {
+        swoole_php_fatal_error(E_WARNING, "taskwait method can only be used in the worker process.");
+        RETURN_FALSE;
+    }
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|dl", &data, &timeout, &dst_worker_id) == FAILURE)
     {
@@ -3463,6 +3465,11 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
     if (unlikely(!serv->gs->start))
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
+        RETURN_FALSE;
+    }
+    if (!swIsWorker())
+    {
+        swoole_php_fatal_error(E_WARNING, "taskWaitMulti method can only be used in the worker process.");
         RETURN_FALSE;
     }
 
@@ -3612,6 +3619,12 @@ static PHP_METHOD(swoole_server, taskCo)
         RETURN_FALSE;
     }
 
+    if (!swIsWorker())
+    {
+        swoole_php_fatal_error(E_WARNING, "taskCo method can only be used in the worker process.");
+        RETURN_FALSE;
+    }
+
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|d", &tasks, &timeout) == FAILURE)
     {
         RETURN_FALSE;
@@ -3729,18 +3742,16 @@ static PHP_METHOD(swoole_server, task)
         RETURN_FALSE;
     }
 
-    if (callback && !ZVAL_IS_NULL(callback))
+    if (!swIsWorker())
     {
-#ifdef PHP_SWOOLE_CHECK_CALLBACK
-        char *func_name = NULL;
-        if (!sw_zend_is_callable(callback, 0, &func_name))
+        swTask_type(&buf) |= SW_TASK_NOREPLY;
+    }
+    else if (callback)
+    {
+        if (!php_swoole_is_callable(callback))
         {
-            swoole_php_fatal_error(E_WARNING, "function '%s' is not callable", func_name);
-            efree(func_name);
-            return;
+            RETURN_FALSE;
         }
-        efree(func_name);
-#endif
         swTask_type(&buf) |= SW_TASK_CALLBACK;
         Z_TRY_ADDREF_P(callback);
         task_callbacks[buf.info.fd] = sw_zval_dup(callback);
