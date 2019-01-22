@@ -33,8 +33,6 @@ void swTaskWorker_init(swServer *serv)
     pool->onTask = swTaskWorker_onTask;
     pool->onWorkerStart = swTaskWorker_onStart;
     pool->onWorkerStop = swTaskWorker_onStop;
-    pool->type = SW_PROCESS_TASKWORKER;
-    pool->start_id = serv->worker_num;
     /**
      * Make the task worker support asynchronous
      */

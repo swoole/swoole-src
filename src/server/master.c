@@ -384,11 +384,16 @@ int swServer_create_task_worker(swServer *serv)
         ipc_mode = SW_IPC_UNIXSOCK;
     }
 
-    if (swProcessPool_create(&serv->gs->task_workers, serv->task_worker_num, serv->task_max_request, key, ipc_mode) < 0)
+    swProcessPool *pool = &serv->gs->task_workers;
+    if (swProcessPool_create(pool, serv->task_worker_num, serv->task_max_request, key, ipc_mode) < 0)
     {
         swWarn("[Master] create task_workers failed.");
         return SW_ERR;
     }
+
+    swProcessPool_set_start_id(pool, serv->worker_num);
+    swProcessPool_set_type(pool, SW_PROCESS_TASKWORKER);
+
     if (ipc_mode == SW_IPC_SOCKET)
     {
         char sockfile[sizeof(struct sockaddr_un)];
