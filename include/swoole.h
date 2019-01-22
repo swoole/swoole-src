@@ -1904,7 +1904,7 @@ static sw_inline void swProcessPool_set_type(swProcessPool *pool, int type)
     pool->type = type;
     for (i = 0; i < pool->worker_num; i++)
     {
-        pool->workers[i].type = pool->start_id + i;
+        pool->workers[i].type = type;
     }
 }
 
