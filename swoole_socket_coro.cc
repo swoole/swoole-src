@@ -509,7 +509,7 @@ static PHP_METHOD(swoole_socket_coro, close)
     sock->socket = SW_BAD_SOCKET;
     if (!ret)
     {
-        zend_update_property_long(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
+        zend_update_property_long(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), errno);
     }
     RETURN_BOOL(ret);
 }
