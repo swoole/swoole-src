@@ -33,8 +33,6 @@ void swTaskWorker_init(swServer *serv)
     pool->onTask = swTaskWorker_onTask;
     pool->onWorkerStart = swTaskWorker_onStart;
     pool->onWorkerStop = swTaskWorker_onStop;
-    pool->type = SW_PROCESS_TASKWORKER;
-    pool->start_id = serv->worker_num;
     /**
      * Make the task worker support asynchronous
      */
@@ -286,6 +284,11 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
     if (current_task->info.type == SW_EVENT_PIPE_MESSAGE)
     {
         swWarn("task/finish is not supported in onPipeMessage callback.");
+        return SW_ERR;
+    }
+    if (swTask_type(current_task) & SW_TASK_NOREPLY)
+    {
+        swWarn("task->finish() can only be used in the worker process.");
         return SW_ERR;
     }
 

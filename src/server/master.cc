@@ -42,7 +42,7 @@ char sw_error[SW_ERROR_MSG_SIZE];
 static void swServer_disable_accept(swReactor *reactor)
 {
     swListenPort *ls;
-    swServer *serv = reactor->ptr;
+    swServer *serv = (swServer *) reactor->ptr;
 
     LL_FOREACH(serv->listen_list, ls)
     {
@@ -58,7 +58,7 @@ static void swServer_disable_accept(swReactor *reactor)
 void swServer_enable_accept(swReactor *reactor)
 {
     swListenPort *ls;
-    swServer *serv = reactor->ptr;
+    swServer *serv = (swServer *) reactor->ptr;
 
     LL_FOREACH(serv->listen_list, ls)
     {
@@ -88,10 +88,10 @@ void swServer_close_port(swServer *serv, enum swBool_type only_stream_port)
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
-    swServer *serv = reactor->ptr;
+    swServer *serv = (swServer *) reactor->ptr;
     swReactor *sub_reactor;
     swSocketAddress client_addr;
-    swListenPort *listen_host = serv->connection_list[event->fd].object;
+    swListenPort *listen_host = (swListenPort *) serv->connection_list[event->fd].object;
 
     int new_fd = 0, reactor_id = 0, i;
 
@@ -121,7 +121,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         swTrace("[Master] Accept new connection. maxfd=%d|reactor_id=%d|conn=%d", swServer_get_maxfd(serv), reactor->id, new_fd);
 
         //too many connection
-        if (new_fd >= serv->max_connection)
+        if (new_fd >= (int) serv->max_connection)
         {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "Too many connections [now: %d].", new_fd);
             close(new_fd);
@@ -345,7 +345,7 @@ swString** swServer_create_worker_buffer(swServer *serv)
         buffer_num = serv->reactor_num + serv->dgram_port_num;
     }
 
-    swString **buffers = sw_malloc(sizeof(swString*) * buffer_num);
+    swString **buffers = (swString **) sw_malloc(sizeof(swString*) * buffer_num);
     if (buffers == NULL)
     {
         swError("malloc for worker buffer_input failed.");
@@ -384,11 +384,16 @@ int swServer_create_task_worker(swServer *serv)
         ipc_mode = SW_IPC_UNIXSOCK;
     }
 
-    if (swProcessPool_create(&serv->gs->task_workers, serv->task_worker_num, serv->task_max_request, key, ipc_mode) < 0)
+    swProcessPool *pool = &serv->gs->task_workers;
+    if (swProcessPool_create(pool, serv->task_worker_num, serv->task_max_request, key, ipc_mode) < 0)
     {
         swWarn("[Master] create task_workers failed.");
         return SW_ERR;
     }
+
+    swProcessPool_set_start_id(pool, serv->worker_num);
+    swProcessPool_set_type(pool, SW_PROCESS_TASKWORKER);
+
     if (ipc_mode == SW_IPC_SOCKET)
     {
         char sockfile[sizeof(struct sockaddr_un)];
@@ -594,7 +599,7 @@ int swServer_start(swServer *serv)
     serv->notify = swServer_tcp_notify;
     serv->feedback = swServer_tcp_feedback;
 
-    serv->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
+    serv->workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
     if (serv->workers == NULL)
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "gmalloc[server->workers] failed.");
@@ -622,8 +627,8 @@ int swServer_start(swServer *serv)
      */
     if (serv->task_worker_num > 0 && serv->worker_num > 0)
     {
-        serv->task_result = sw_shm_calloc(serv->worker_num, sizeof(swEventData));
-        serv->task_notify = sw_calloc(serv->worker_num, sizeof(swPipe));
+        serv->task_result = (swEventData *) sw_shm_calloc(serv->worker_num, sizeof(swEventData));
+        serv->task_notify = (swPipe *) sw_calloc(serv->worker_num, sizeof(swPipe));
         for (i = 0; i < serv->worker_num; i++)
         {
             if (swPipeNotify_auto(&serv->task_notify[i], 1, 0))
@@ -699,9 +704,8 @@ void swServer_init(swServer *serv)
     serv->dispatch_mode = SW_DISPATCH_FDMOD;
 
     serv->worker_num = SW_CPU_NUM;
-    serv->max_connection = MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
+    serv->max_connection = SW_MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
 
-    serv->max_request = 0;
     serv->max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
     //http server
@@ -709,10 +713,6 @@ void swServer_init(swServer *serv)
     serv->http_compression = 1;
     serv->http_compression_level = 1; // Z_BEST_SPEED
     serv->upload_tmp_dir = sw_strdup("/tmp");
-
-    //heartbeat check
-    serv->heartbeat_idle_time = SW_HEARTBEAT_IDLE;
-    serv->heartbeat_check_interval = SW_HEARTBEAT_CHECK;
 
     serv->buffer_input_size = SW_BUFFER_INPUT_SIZE;
     serv->buffer_output_size = SW_BUFFER_OUTPUT_SIZE;
@@ -724,12 +724,12 @@ void swServer_init(swServer *serv)
     /**
      * alloc shared memory
      */
-    serv->stats = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
+    serv->stats = (swServerStats *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
     if (serv->stats == NULL)
     {
         swError("[Master] Fatal Error: failed to allocate memory for swServer->stats.");
     }
-    serv->gs = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
+    serv->gs = (swServerGS *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
     if (serv->gs == NULL)
     {
         swError("[Master] Fatal Error: failed to allocate memory for swServer->gs.");
@@ -746,7 +746,7 @@ int swServer_create(swServer *serv)
      */
     swServer_master_update_time(serv);
 
-    serv->session_list = sw_shm_calloc(SW_SESSION_LIST_SIZE, sizeof(swSession));
+    serv->session_list = (swSession *) sw_shm_calloc(SW_SESSION_LIST_SIZE, sizeof(swSession));
     if (serv->session_list == NULL)
     {
         swError("sw_shm_calloc(%ld) for session_list failed", SW_SESSION_LIST_SIZE * sizeof(swSession));
@@ -925,7 +925,7 @@ static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_
 
     _send.info.fd = session_id;
     _send.info.type = SW_EVENT_TCP;
-    _send.data = data;
+    _send.data = (char*) data;
     _send.length = length;
     return factory->finish(factory, &_send) < 0 ? SW_ERR : SW_OK;
 }
@@ -936,7 +936,7 @@ static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_
 int swServer_master_send(swServer *serv, swSendData *_send)
 {
     uint32_t session_id = _send->info.fd;
-    void *_send_data = _send->data;
+    char *_send_data = _send->data;
     uint32_t _send_length = _send->length;
 
     swConnection *conn;
@@ -1050,10 +1050,9 @@ int swServer_master_send(swServer *serv, swSendData *_send)
                 goto buffer_send;
             }
 
-            int n;
+            ssize_t n;
 
-            direct_send:
-            n = swConnection_send(conn, _send_data, _send_length, 0);
+            direct_send: n = swConnection_send(conn, _send_data, _send_length, 0);
             if (n == _send_length)
             {
                 return SW_OK;
@@ -1133,7 +1132,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
         }
 
         int _length = _send_length;
-        void* _pos = _send_data;
+        char* _pos = _send_data;
         int _n;
 
         //buffer enQueue
@@ -1255,7 +1254,7 @@ SW_API void swServer_call_hook(swServer *serv, enum swServer_hook_type type, voi
 
     while (node)
     {
-        func = node->data;
+        func = (swCallback) node->data;
         func(arg);
         node = node->next;
     }
@@ -1342,7 +1341,7 @@ void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
 
 int swServer_add_worker(swServer *serv, swWorker *worker)
 {
-    swUserWorker_node *user_worker = sw_malloc(sizeof(swUserWorker_node));
+    swUserWorker_node *user_worker = (swUserWorker_node *) sw_malloc(sizeof(swUserWorker_node));
     if (!user_worker)
     {
         return SW_ERR;
@@ -1385,11 +1384,11 @@ SW_API int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCal
     }
     if (push_back)
     {
-        return swLinkedList_append(serv->hooks[type], func);
+        return swLinkedList_append(serv->hooks[type], (void*) func);
     }
     else
     {
-        return swLinkedList_prepend(serv->hooks[type], func);
+        return swLinkedList_prepend(serv->hooks[type], (void*) func);
     }
 }
 
@@ -1437,7 +1436,7 @@ int swserver_add_systemd_socket(swServer *serv)
 
     for (sock = SW_SYSTEMD_FDS_START; sock < SW_SYSTEMD_FDS_START + n; sock++)
     {
-        swListenPort *ls = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenPort));
+        swListenPort *ls = (swListenPort *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenPort));
         if (ls == NULL)
         {
             swWarn("alloc failed.");
@@ -1571,7 +1570,7 @@ swListenPort* swServer_add_port(swServer *serv, int type, const char *host, int 
         return NULL;
     }
 
-    swListenPort *ls = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenPort));
+    swListenPort *ls = (swListenPort *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenPort));
     if (ls == NULL)
     {
         swError("alloc failed");
@@ -1811,7 +1810,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
 
     swSession *session;
     sw_spinlock(&serv->gs->spinlock);
-    int i;
+    uint32_t i;
     uint32_t session_id = serv->gs->session_round;
     //get session id
     for (i = 0; i < serv->max_connection; i++)

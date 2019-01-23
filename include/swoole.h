@@ -180,11 +180,14 @@ typedef unsigned long ulong_t;
 #include "array.h"
 #include "error.h"
 
+#define SW_MAX(A, B)           ((A) > (B) ? (A) : (B))
+#define SW_MIN(A, B)           ((A) < (B) ? (A) : (B))
+
 #ifndef MAX
-#define MAX(A, B)              ((A) > (B) ? (A) : (B))
+#define MAX(A, B)              SW_MAX(A, B)
 #endif
 #ifndef MIN
-#define MIN(A, B)              ((A) < (B) ? (A) : (B))
+#define MIN(A, B)              SW_MIN(A, B)
 #endif
 
 #ifdef SW_DEBUG
@@ -649,7 +652,7 @@ typedef struct _swConnection
     /**
      * memory buffer size;
      */
-    int buffer_size;
+    uint32_t buffer_size;
 
     /**
      * upgarde websocket
@@ -1887,6 +1890,26 @@ int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int 
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker);
 int swProcessPool_del_worker(swProcessPool *pool, swWorker *worker);
 int swProcessPool_get_max_request(swProcessPool *pool);
+
+static sw_inline void swProcessPool_set_start_id(swProcessPool *pool, int start_id)
+{
+    int i;
+    pool->start_id = start_id;
+    for (i = 0; i < pool->worker_num; i++)
+    {
+        pool->workers[i].id = pool->start_id + i;
+    }
+}
+
+static sw_inline void swProcessPool_set_type(swProcessPool *pool, int type)
+{
+    int i;
+    pool->type = type;
+    for (i = 0; i < pool->worker_num; i++)
+    {
+        pool->workers[i].type = type;
+    }
+}
 
 static sw_inline swWorker* swProcessPool_get_worker(swProcessPool *pool, int worker_id)
 {

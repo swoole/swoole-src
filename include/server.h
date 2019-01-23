@@ -32,9 +32,6 @@ extern "C" {
 #define SW_REACTOR_NUM             SW_CPU_NUM
 #define SW_WORKER_NUM              (SW_CPU_NUM*2)
 
-#define SW_HEARTBEAT_IDLE          0   //心跳存活最大时间
-#define SW_HEARTBEAT_CHECK         0   //心跳定时侦测时间
-
 enum swServer_event_type
 {
     //networking socket
@@ -112,6 +109,7 @@ enum swTaskType
     SW_TASK_WAITALL    = 16, //for taskWaitAll
     SW_TASK_COROUTINE  = 32, //coroutine
     SW_TASK_PEEK       = 64, //peek
+    SW_TASK_NOREPLY    = 128, //don't reply
 };
 
 typedef struct _swReactorThread

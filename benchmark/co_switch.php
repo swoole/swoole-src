@@ -21,4 +21,4 @@ go(function () use ($cid) {
 
 $e = microtime(true);
 echo "switch " . N . " times, takes " . round(($e - $s) * 1000, 2) . "ms\n";
-echo "switch time =  " . (($e - $s) / N * (1000 * 1000 * 1000)) . "ns\n";
+echo "switch time =  " . round(($e - $s) / N * (1000 * 1000 * 1000), 2) . "ns\n";

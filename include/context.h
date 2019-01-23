@@ -23,10 +23,6 @@
 #include <sys/mman.h>
 #endif
 
-#ifdef USE_VALGRIND
-#include <valgrind/valgrind.h>
-#endif
-
 typedef void (*coroutine_func_t)(void*);
 
 namespace swoole
