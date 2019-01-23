@@ -28,6 +28,7 @@ double PHPCoroutine::socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double PHPCoroutine::socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
 php_coro_task PHPCoroutine::main_task = {0};
 
+#ifdef SW_CORO_DEATH_LOOP_PROTECTION
 static user_opcode_handler_t ori_jump_handler = NULL;
 static user_opcode_handler_t ori_jumpz_handler = NULL;
 static user_opcode_handler_t ori_jumpnz_handler = NULL;
@@ -59,6 +60,7 @@ static void interrupt_callback(void *data)
 #define ZEND_JMPZ_EX                          46
 #define ZEND_JMPNZ_EX                         47
  */
+
 static void try_reset_opcode()
 {
     ori_jump_handler = zend_get_user_opcode_handler(ZEND_JMP);
@@ -89,6 +91,7 @@ void PHPCoroutine::interrupt(zend_execute_data *execute_data)
         task->co->yield_naked();
     }
 }
+#endif
 
 void PHPCoroutine::init()
 {
