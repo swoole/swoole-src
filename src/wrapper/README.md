@@ -1,26 +1,17 @@
-cpp-swoole
+Swoole C++ library
 ==========
-C++ wrapper for libswoole.
 
 
-Install swoole
+Build libswoole.so
 ------
 ```shell
 git clone https://github.com/swoole/swoole-src.git
+cd swoole-src
 phpize
 ./configure
 cmake .
-#cmake -DCMAKE_INSTALL_PREFIX=/opt/swoole .
-sudo make install
-```
-
-Build libswoole_cpp.so
-------
-```shell
-cmake .
-#cmake -DCMAKE_INSTALL_PREFIX=/opt/swoole .
-make
-sudo make install
+make -j
+export SWOOLE_DIR=/path/to/your/swoole-src
 ```
 
 Build example server
