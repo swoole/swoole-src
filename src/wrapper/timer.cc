@@ -20,135 +20,134 @@ using namespace std;
 
 namespace swoole
 {
-    Timer::Timer(long ms)
-    {
-        id = Timer::add(ms, this, true);
-        interval = true;
-    }
+Timer::Timer(long ms)
+{
+    id = Timer::add(ms, this, true);
+    interval = true;
+}
 
-    Timer::Timer(long ms, bool _interval)
-    {
-        id = Timer::add(ms, this, _interval);
-        interval = _interval;
-    }
+Timer::Timer(long ms, bool _interval)
+{
+    id = Timer::add(ms, this, _interval);
+    interval = _interval;
+}
 
-    void Timer::_onAfter(swTimer *timer, swTimer_node *tnode)
+void Timer::_onAfter(swTimer *timer, swTimer_node *tnode)
+{
+    timer->_current_id = tnode->id;
+    Timer *_this = (Timer *) tnode->data;
+    _this->callback();
+    timer->_current_id = -1;
+    Timer::del(tnode);
+}
+
+void Timer::_onTick(swTimer *timer, swTimer_node *tnode)
+{
+    timer->_current_id = tnode->id;
+    Timer *_this = (Timer *) tnode->data;
+    _this->callback();
+    timer->_current_id = -1;
+    if (tnode->remove)
     {
-        timer->_current_id = tnode->id;
-        Timer *_this = (Timer *) tnode->data;
-        _this->callback();
-        timer->_current_id = -1;
         Timer::del(tnode);
     }
+}
 
-    void Timer::_onTick(swTimer *timer, swTimer_node *tnode)
+long Timer::add(int ms, Timer *object, bool tick)
+{
+    if (SwooleG.serv && swIsMaster())
     {
-        timer->_current_id = tnode->id;
-        Timer *_this = (Timer *) tnode->data;
-        _this->callback();
-        timer->_current_id = -1;
-        if (tnode->remove)
-        {
-            Timer::del(tnode);
-        }
+        swWarn("cannot use timer in master process.");
+        return SW_ERR;
+    }
+    if (ms > 86400000)
+    {
+        swWarn("The given parameters is too big.");
+        return SW_ERR;
+    }
+    if (ms <= 0)
+    {
+        swWarn("Timer must be greater than 0");
+        return SW_ERR;
     }
 
-    long Timer::add(int ms, Timer *object, bool tick)
+    if (!swIsTaskWorker())
     {
-        if (SwooleG.serv && swIsMaster())
-        {
-            swWarn("cannot use timer in master process.");
-            return SW_ERR;
-        }
-        if (ms > 86400000)
-        {
-            swWarn("The given parameters is too big.");
-            return SW_ERR;
-        }
-        if (ms <= 0)
-        {
-            swWarn("Timer must be greater than 0");
-            return SW_ERR;
-        }
-
-        if (!swIsTaskWorker())
-        {
-            check_reactor();
-        }
-        swTimerCallback timer_func;
-        if (tick)
-        {
-            timer_func = Timer::_onTick;
-        }
-        else
-        {
-            timer_func =  Timer::_onAfter;
-        }
-
-        swTimer_node *tnode = swTimer_add(&SwooleG.timer, ms, tick, (void *) object, timer_func);
-        if (tnode == NULL)
-        {
-            swWarn("addtimer failed.");
-            return SW_ERR;
-        }
-        else
-        {
-            object->setNode(tnode);
-            timer_map[tnode->id] = object;
-            return tnode->id;
-        }
+        check_reactor();
+    }
+    swTimerCallback timer_func;
+    if (tick)
+    {
+        timer_func = Timer::_onTick;
+    }
+    else
+    {
+        timer_func = Timer::_onAfter;
     }
 
-    bool Timer::del(swTimer_node *tnode)
+    swTimer_node *tnode = swTimer_add(&SwooleG.timer, ms, tick, (void *) object, timer_func);
+    if (tnode == NULL)
     {
-        if (!SwooleG.timer.set)
-        {
-            swWarn("no timer");
-            return false;
-        }
-        if (timer_map.erase(tnode->id) == 0)
-        {
-            return false;
-        }
-        if (Timer::del(tnode) < 0)
-        {
-            return false;
-        }
-        else
-        {
-            swTimer_del(&SwooleG.timer, tnode);
-            return true;
-        }
+        swWarn("addtimer failed.");
+        return SW_ERR;
+    }
+    else
+    {
+        object->setNode(tnode);
+        timer_map[tnode->id] = object;
+        return tnode->id;
+    }
+}
+
+bool Timer::del(swTimer_node *tnode)
+{
+    if (!SwooleG.timer.set)
+    {
+        swWarn("no timer");
+        return false;
+    }
+    if (timer_map.erase(tnode->id) == 0)
+    {
+        return false;
+    }
+    if (Timer::del(tnode) < 0)
+    {
+        return false;
+    }
+    else
+    {
+        swTimer_del(&SwooleG.timer, tnode);
+        return true;
+    }
+}
+
+bool Timer::clear(long id)
+{
+    map<long, Timer *>::iterator iter = timer_map.find(id);
+    if (iter == timer_map.end())
+    {
+        return false;
     }
 
-    bool Timer::clear(long id)
+    swTimer_node *tnode = iter->second->getNode();
+    if (tnode->id == SwooleG.timer._current_id)
     {
-        map<long, Timer *>::iterator iter  = timer_map.find(id);
-        if (iter == timer_map.end())
-        {
-            return false;
-        }
-
-        swTimer_node *tnode = iter->second->getNode();
-        if (tnode->id == SwooleG.timer._current_id)
-        {
-            tnode->remove = 1;
-            return true;
-        }
-        else
-        {
-            return Timer::del(tnode);
-        }
+        tnode->remove = 1;
+        return true;
     }
-
-
-    bool Timer::exists(long id)
+    else
     {
-        if (!SwooleG.timer.set)
-        {
-            swWarn("no timer");
-            return false;
-        }
-        return timer_map.find(id) == timer_map.end();
+        return Timer::del(tnode);
     }
+}
+
+bool Timer::exists(long id)
+{
+    if (!SwooleG.timer.set)
+    {
+        swWarn("no timer");
+        return false;
+    }
+    return timer_map.find(id) == timer_map.end();
+}
 }
