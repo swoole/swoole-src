@@ -52,7 +52,7 @@ static int swReactorTimer_init(long exec_msec)
     return SW_OK;
 }
 
-static int swTimer_init(long msec)
+int swTimer_init(long msec)
 {
     if (swTimer_now(&SwooleG.timer.basetime) < 0)
     {
