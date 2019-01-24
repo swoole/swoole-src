@@ -2073,7 +2073,6 @@ struct _swTimer
     int (*set)(swTimer *timer, long exec_msec);
 };
 
-int swTimer_init(long msec);
 swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
 int swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);

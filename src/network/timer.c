@@ -16,6 +16,8 @@
 
 #include "swoole.h"
 
+static int swTimer_init(long msec);
+
 int swTimer_now(struct timeval *time)
 {
 #if defined(SW_USE_MONOTONIC_TIME) && defined(CLOCK_MONOTONIC)
@@ -52,7 +54,7 @@ static int swReactorTimer_init(long exec_msec)
     return SW_OK;
 }
 
-int swTimer_init(long msec)
+static int swTimer_init(long msec)
 {
     if (swTimer_now(&SwooleG.timer.basetime) < 0)
     {
