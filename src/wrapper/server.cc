@@ -258,6 +258,7 @@ int Server::task(DataBuffer &data, int dst_worker_id)
     }
 
     swEventData buf;
+    bzero(&buf.info, sizeof(buf.info));
     if (check_task_param(dst_worker_id) < 0)
     {
         return false;
