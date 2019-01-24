@@ -272,8 +272,10 @@ static size_t socket_read(php_stream *stream, char *buf, size_t count)
     }
 
     nr_bytes = sock->recv(buf, count);
-    stream->eof = (nr_bytes == 0 || nr_bytes == -1);
-
+    /**
+     * sock->errCode != ETIMEDOUT : Compatible with sync blocking IO
+     */
+    stream->eof = (nr_bytes == 0 || (nr_bytes == -1 && sock->errCode != ETIMEDOUT && swConnection_error(sock->errCode) == SW_CLOSE));
     if (nr_bytes > 0)
     {
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), nr_bytes, 0);
@@ -548,7 +550,6 @@ static inline int socket_recvfrom(Socket *sock, char *buf, size_t buflen, zend_s
         php_sockaddr_storage sa;
         socklen_t sl = sizeof(sa);
         ret = sock->recvfrom(buf, buflen, (struct sockaddr*) &sa, &sl);
-        ret = (ret == SOCK_CONN_ERR) ? -1 : ret;
         if (sl)
         {
             php_network_populate_name_from_sockaddr((struct sockaddr*) &sa, sl, textaddr, addr, addrlen);
@@ -569,7 +570,6 @@ static inline int socket_recvfrom(Socket *sock, char *buf, size_t buflen, zend_s
     else
     {
         ret = sock->recv(buf, buflen);
-        ret = (ret == SOCK_CONN_ERR) ? -1 : ret;
     }
 
     return ret;
@@ -788,7 +788,9 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
             add_assoc_zval((zval *)ptrparam, "crypto", &tmp);
         }
 #endif
+        add_assoc_bool((zval * )ptrparam, "timed_out", sock->errCode == ETIMEDOUT);
         add_assoc_bool((zval * )ptrparam, "eof", stream->eof);
+        add_assoc_bool((zval * )ptrparam, "blocked", 1);
         break;
 
     case PHP_STREAM_OPTION_READ_TIMEOUT:
