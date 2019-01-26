@@ -108,6 +108,8 @@ void swoole_init(void)
     }
 #endif
 
+    SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
+
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == NULL)
     {

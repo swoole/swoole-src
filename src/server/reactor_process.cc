@@ -32,7 +32,7 @@ static uint32_t heartbeat_check_lasttime = 0;
 int swReactorProcess_create(swServer *serv)
 {
     serv->reactor_num = serv->worker_num;
-    serv->connection_list = sw_calloc(serv->max_connection, sizeof(swConnection));
+    serv->connection_list = (swConnection *) sw_calloc(serv->max_connection, sizeof(swConnection));
     if (serv->connection_list == NULL)
     {
         swSysError("calloc[2](%d) failed.", (int )(serv->max_connection * sizeof(swConnection)));
@@ -146,7 +146,7 @@ int swReactorProcess_start(swServer *serv)
      */
     if (serv->user_worker_list)
     {
-        serv->user_workers = sw_malloc(serv->user_worker_num * sizeof(swWorker));
+        serv->user_workers = (swWorker *) sw_malloc(serv->user_worker_num * sizeof(swWorker));
         if (serv->user_workers == NULL)
         {
             swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "gmalloc[server->user_workers] failed.");
@@ -208,7 +208,7 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
 {
     swEventData task;
     swSendData _send;
-    swServer *serv = reactor->ptr;
+    swServer *serv = (swServer *) reactor->ptr;
     swFactory *factory = &serv->factory;
     swString *buffer_output;
 
@@ -252,7 +252,7 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 {
-    swServer *serv = pool->ptr;
+    swServer *serv = (swServer *) pool->ptr;
 
     SwooleG.process_type = SW_PROCESS_WORKER;
     SwooleG.pid = getpid();
@@ -274,7 +274,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swServer_worker_init(serv, worker);
 
     int n_buffer = serv->worker_num + serv->task_worker_num + serv->user_worker_num;
-    SwooleWG.buffer_output = sw_malloc(sizeof(swString*) * n_buffer);
+    SwooleWG.buffer_output = (swString **) sw_malloc(sizeof(swString*) * n_buffer);
     if (SwooleWG.buffer_output == NULL)
     {
         swError("malloc for SwooleWG.buffer_output failed.");
@@ -296,7 +296,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swReactor *reactor;
     if (!SwooleG.main_reactor)
     {
-        reactor = sw_malloc(sizeof(swReactor));
+        reactor = (swReactor *) sw_malloc(sizeof(swReactor));
         if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
         {
             return SW_ERR;
@@ -444,7 +444,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 static int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
 {
     int fd = event->fd;
-    swServer *serv = reactor->ptr;
+    swServer *serv = (swServer *) reactor->ptr;
     swConnection *conn = swServer_connection_get(serv, fd);
     if (conn == NULL || conn->active == 0)
     {
@@ -550,8 +550,8 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
 
 static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
-    swReactor *reactor = tnode->data;
-    swServer *serv = reactor->ptr;
+    swReactor *reactor = (swReactor *) tnode->data;
+    swServer *serv = (swServer *) reactor->ptr;
     swEvent notify_ev;
     swConnection *conn;
 

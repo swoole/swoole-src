@@ -1,5 +1,5 @@
 --TEST--
-swoole_server:
+swoole_server: getSocket
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

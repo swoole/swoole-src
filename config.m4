@@ -470,10 +470,10 @@ if test "$PHP_SWOOLE" != "no"; then
         src/reactor/select.c \
         src/server/base.c \
         src/server/manager.c \
-        src/server/master.c \
+        src/server/master.cc \
         src/server/port.c \
         src/server/process.c \
-        src/server/reactor_process.c \
+        src/server/reactor_process.cc \
         src/server/reactor_thread.c \
         src/server/task_worker.c \
         src/server/worker.c \
@@ -501,7 +501,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_mysql_coro.cc \
         swoole_postgresql_coro.cc \
         swoole_process.cc \
-        swoole_process_pool.c \
+        swoole_process_pool.cc \
         swoole_redis.c \
         swoole_redis_coro.cc \
         swoole_redis_server.cc \
@@ -637,6 +637,7 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/src/server)
     PHP_ADD_BUILD_DIR($ext_builddir/src/protocol)
     PHP_ADD_BUILD_DIR($ext_builddir/src/coroutine)
+    PHP_ADD_BUILD_DIR($ext_builddir/src/wrapper)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)

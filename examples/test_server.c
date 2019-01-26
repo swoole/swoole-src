@@ -134,25 +134,26 @@ int my_onPacket(swServer *serv, swEventData *req)
     if (req->info.type == SW_EVENT_UDP)
     {
         inet_ntop(AF_INET6, &packet->info.addr.inet_v4.sin_addr, address, sizeof(address));
-        data = packet->data;
-        length = packet->length;
         port = ntohs(packet->info.addr.inet_v4.sin_port);
     }
     //udp ipv6
     else if (req->info.type == SW_EVENT_UDP6)
     {
         inet_ntop(AF_INET6, &packet->info.addr.inet_v6.sin6_addr, address, sizeof(address));
-        data = packet->data;
-        length = packet->length;
         port = ntohs(packet->info.addr.inet_v6.sin6_port);
     }
     //unix dgram
     else if (req->info.type == SW_EVENT_UNIX_DGRAM)
     {
         strcpy(address, packet->info.addr.un.sun_path);
-        data = packet->data;
-        length = packet->length;
     }
+    else
+    {
+        assert(0);
+    }
+
+    data = packet->data;
+    length = packet->length;
 
     printf("Packet[client=%s:%d, %d bytes]: data=%*s\n", address, port, length, length, data);
 

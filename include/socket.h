@@ -153,7 +153,7 @@ public:
     inline void set_err(enum swErrorCode e)
     {
         errCode = errno = e;
-        errMsg = swstrerror(e);
+        errMsg = swoole_strerror(e);
     }
 
     inline double get_timeout()

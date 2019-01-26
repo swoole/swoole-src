@@ -1150,7 +1150,7 @@ PHP_FUNCTION(swoole_strerror)
     }
     else if (error_type == SW_STRERROR_SWOOLE || (swoole_errno > SW_ERROR_START && swoole_errno < SW_ERROR_END))
     {
-        snprintf(error_msg, sizeof(error_msg) - 1, "%s", swstrerror(swoole_errno));
+        snprintf(error_msg, sizeof(error_msg) - 1, "%s", swoole_strerror(swoole_errno));
     }
     else
     {

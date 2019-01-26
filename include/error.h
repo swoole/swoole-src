@@ -19,6 +19,9 @@
 
 enum swErrorCode
 {
+    /**
+     * Prevent repetition with errno [syscall error]
+     */
     SW_ERROR_START = 500,
 
     /**
@@ -141,7 +144,7 @@ enum swErrorCode
     SW_ERROR_END
 };
 
-const char* swstrerror(enum swErrorCode code);
+const char* swoole_strerror(enum swErrorCode code);
 void swoole_throw_error(enum swErrorCode code);
 
 #endif /* SW_ERRNO_H_ */

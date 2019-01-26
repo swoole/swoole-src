@@ -32,7 +32,7 @@ public:
 };
 }
 
-const char* swstrerror(enum swErrorCode code)
+const char* swoole_strerror(enum swErrorCode code)
 {
     /* swstrerror {{{*/
     switch(code)
