@@ -250,7 +250,7 @@ typedef struct
 {
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
-} php_defer_fci;
+} php_swoole_fci;
 //---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
 
@@ -947,6 +947,33 @@ static sw_inline int sw_call_function_anyway(zend_fcall_info *fci, zend_fcall_in
         EG(exception) = exception;
     }
     return ret;
+}
+
+static sw_inline void sw_fci_params_persist(zend_fcall_info *fci)
+{
+    if (fci->param_count > 0)
+    {
+        uint32_t i;
+        zval *params = (zval *) ecalloc(fci->param_count, sizeof(zval));
+        for (i = 0; i < fci->param_count; i++)
+        {
+            ZVAL_COPY(&params[i], &fci->params[i]);
+        }
+        fci->params = params;
+    }
+}
+
+static sw_inline void sw_fci_params_discard(zend_fcall_info *fci)
+{
+    if (fci->param_count > 0)
+    {
+        uint32_t i;
+        for (i = 0; i < fci->param_count; i++)
+        {
+            zval_ptr_dtor(&fci->params[i]);
+        }
+        efree(fci->params);
+    }
 }
 
 static sw_inline void sw_fci_cache_persist(zend_fcall_info_cache *fci_cache)

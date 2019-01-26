@@ -1399,16 +1399,16 @@ PHP_FUNCTION(swoole_coroutine_exec)
 
 static void coro_onDefer(void *data)
 {
-    php_defer_fci *defer_fci = (php_defer_fci *) data;
-    zval _retval, *retval = &_retval;
+    php_swoole_fci *defer_fci = (php_swoole_fci *) data;
+    zval retval;
 
-    defer_fci->fci.retval = retval;
+    defer_fci->fci.retval = &retval;
     if (sw_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "defer callback handler error.");
         return;
     }
-    zval_ptr_dtor(retval);
+    zval_ptr_dtor(&retval);
     sw_fci_cache_discard(&defer_fci->fci_cache);
     efree(defer_fci);
 }
@@ -1417,16 +1417,15 @@ PHP_FUNCTION(swoole_coroutine_defer)
 {
     zend_fcall_info fci = empty_fcall_info;
     zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
-    php_defer_fci *defer_fci;
+    php_swoole_fci *defer_fci;
 
     PHPCoroutine::check();
 
-    ZEND_PARSE_PARAMETERS_START(1, -1)
+    ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_FUNC(fci, fci_cache)
-        Z_PARAM_VARIADIC('*', fci.params, fci.param_count)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    defer_fci = (php_defer_fci *) emalloc(sizeof(php_defer_fci));
+    defer_fci = (php_swoole_fci *) emalloc(sizeof(php_swoole_fci));
     defer_fci->fci = fci;
     defer_fci->fci_cache = fci_cache;
     sw_fci_cache_persist(&defer_fci->fci_cache);
