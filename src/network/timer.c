@@ -81,6 +81,7 @@ static int swTimer_init(long msec)
     SwooleG.timer.round = 0;
     SwooleG.timer.initialized = 1;
 
+
     if (SwooleG.main_reactor == NULL)
     {
         return swSystemTimer_init(msec);
@@ -164,7 +165,7 @@ swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, 
     return tnode;
 }
 
-int swTimer_del(swTimer *timer, swTimer_node *tnode)
+enum swBool_type swTimer_del(swTimer *timer, swTimer_node *tnode)
 {
     if (unlikely(tnode->remove))
     {
@@ -178,7 +179,7 @@ int swTimer_del(swTimer *timer, swTimer_node *tnode)
     }
     if (unlikely(swHashMap_del_int(timer->map, tnode->id) < 0))
     {
-        return SW_ERR;
+        return SW_FALSE;
     }
     if (tnode->heap_node)
     {

@@ -2074,7 +2074,7 @@ struct _swTimer
 };
 
 swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
-int swTimer_del(swTimer *timer, swTimer_node *node);
+enum swBool_type swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);
 int swTimer_select(swTimer *timer);
 int swTimer_now(struct timeval *time);
