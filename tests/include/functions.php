@@ -770,7 +770,7 @@ class ProcessManager
         if (!is_array($code)) {
             $code = [$code];
         }
-        assert(in_array($this->childStatus, $code));
+        assert(in_array($this->childStatus, $code), "unexpected exit code {$this->childStatus}");
     }
 }
 

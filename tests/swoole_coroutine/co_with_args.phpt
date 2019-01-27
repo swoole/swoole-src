@@ -47,8 +47,8 @@ $php_args = [
     false,
     1,
     1.1,
-    'exit',
-    ['exit' => 'ok'],
+    str_repeat('exit', 1),
+    array_merge(['exit' => 'ok'], []),
     (object)['exit' => 'ok'],
     STDIN,
     0
