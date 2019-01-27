@@ -569,7 +569,7 @@ PHP_FUNCTION(swoole_event_set)
 
     if (!SwooleG.main_reactor)
     {
-        swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot swoole_event_set.");
+        swoole_php_fatal_error(E_WARNING, "reactor is not ready, cannot call swoole_event_set.");
         RETURN_FALSE;
     }
 
@@ -666,7 +666,7 @@ PHP_FUNCTION(swoole_event_del)
 
     if (!SwooleG.main_reactor)
     {
-        swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot swoole_event_del.");
+        swoole_php_fatal_error(E_WARNING, "reactor is not ready, cannot call swoole_event_del.");
         RETURN_FALSE;
     }
 
@@ -723,7 +723,7 @@ PHP_FUNCTION(swoole_event_cycle)
 {
     if (!SwooleG.main_reactor)
     {
-        swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot swoole_event_defer.");
+        swoole_php_fatal_error(E_WARNING, "reactor is not ready, cannot call swoole_event_cycle.");
         RETURN_FALSE;
     }
 
