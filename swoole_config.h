@@ -30,7 +30,7 @@
 #define SW_ERROR_MSG_SIZE          8192
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) // for swoole_file_get_contents
 #define SW_MAX_LISTEN_PORT         60000
-#define SW_MAX_CONNECTION          10000
+#define SW_MAX_CONNECTION          100000
 #define SW_MAX_CONCURRENT_TASK     1024
 #define SW_STACK_BUFFER_SIZE       65536
 
