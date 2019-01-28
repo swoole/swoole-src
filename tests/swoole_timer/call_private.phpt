@@ -28,8 +28,8 @@ fork_exec(function () {
 
 ?>
 --EXPECTF--
-Fatal error: swoole_timer_after(): function 'Test::not_exist' is not callable in %s/tests/swoole_timer/call_private.php on line 12
+Warning: swoole_timer_after() expects parameter 2 to be a valid callback, class 'Test' does not have a method 'not_exist' in %s/tests/swoole_timer/call_private.php on line 12
 
-Fatal error: swoole_timer_after(): function 'Test::foo' is not callable in %s/tests/swoole_timer/call_private.php on line 15
+Warning: swoole_timer_after() expects parameter 2 to be a valid callback, cannot access private method Test::foo() in %s/tests/swoole_timer/call_private.php on line 15
 
-Fatal error: swoole_timer_after(): function 'Test::bar' is not callable in %s/tests/swoole_timer/call_private.php on line 18
+Warning: swoole_timer_after() expects parameter 2 to be a valid callback, cannot access private method Test::bar() in %s/tests/swoole_timer/call_private.php on line 18
