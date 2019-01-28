@@ -50,7 +50,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_get, 0, 0, 1)
     ZEND_ARG_INFO(0, field)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_exist, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_exists, 0, 0, 1)
     ZEND_ARG_INFO(0, key)
 ZEND_END_ARG_INFO()
 
@@ -93,7 +93,7 @@ static PHP_METHOD(swoole_table, create);
 static PHP_METHOD(swoole_table, set);
 static PHP_METHOD(swoole_table, get);
 static PHP_METHOD(swoole_table, del);
-static PHP_METHOD(swoole_table, exist);
+static PHP_METHOD(swoole_table, exists);
 static PHP_METHOD(swoole_table, incr);
 static PHP_METHOD(swoole_table, decr);
 static PHP_METHOD(swoole_table, count);
@@ -126,7 +126,8 @@ static const zend_function_entry swoole_table_methods[] =
     PHP_ME(swoole_table, get,         arginfo_swoole_table_get, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, count,       arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, del,         arginfo_swoole_table_del, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, exist,       arginfo_swoole_table_exist, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, exists,      arginfo_swoole_table_exists, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_table, exist, exists, arginfo_swoole_table_exists, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, incr,        arginfo_swoole_table_incr, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, decr,        arginfo_swoole_table_decr, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, getMemorySize,    arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
@@ -659,7 +660,7 @@ static PHP_METHOD(swoole_table, offsetGet)
     swoole_set_object(return_value, table);
 }
 
-static PHP_METHOD(swoole_table, exist)
+static PHP_METHOD(swoole_table, exists)
 {
     char *key;
     size_t keylen;
@@ -691,7 +692,7 @@ static PHP_METHOD(swoole_table, exist)
 
 static PHP_METHOD(swoole_table, offsetExists)
 {
-    ZEND_MN(swoole_table_exist)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    ZEND_MN(swoole_table_exists)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
 static PHP_METHOD(swoole_table, del)

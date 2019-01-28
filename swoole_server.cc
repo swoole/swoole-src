@@ -96,7 +96,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendwait, 0, 0, 2)
     ZEND_ARG_INFO(0, send_data)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_exist, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_exists, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
@@ -271,7 +271,7 @@ static PHP_METHOD(swoole_server, stats);
 static PHP_METHOD(swoole_server, bind);
 static PHP_METHOD(swoole_server, sendto);
 static PHP_METHOD(swoole_server, sendwait);
-static PHP_METHOD(swoole_server, exist);
+static PHP_METHOD(swoole_server, exists);
 static PHP_METHOD(swoole_server, protect);
 static PHP_METHOD(swoole_server, close);
 static PHP_METHOD(swoole_server, confirm);
@@ -325,7 +325,8 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, send, arginfo_swoole_server_send, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, sendto, arginfo_swoole_server_sendto, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, sendwait, arginfo_swoole_server_sendwait, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, exist, arginfo_swoole_server_exist, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, exists, arginfo_swoole_server_exists, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_server, exist, exists, arginfo_swoole_server_exists, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, protect, arginfo_swoole_server_protect, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, sendfile, arginfo_swoole_server_sendfile, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, close, arginfo_swoole_server_close, ZEND_ACC_PUBLIC)
@@ -353,7 +354,6 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_FALIAS(after, swoole_timer_after, arginfo_swoole_timer_after)
     PHP_FALIAS(tick, swoole_timer_tick, arginfo_swoole_timer_tick)
     PHP_FALIAS(clearTimer, swoole_timer_clear, arginfo_swoole_timer_clear)
-    PHP_FALIAS(delTimer, swoole_timer_clear, arginfo_swoole_timer_clear)
     PHP_FALIAS(defer, swoole_event_defer, arginfo_swoole_event_defer)
     //process
     PHP_ME(swoole_server, sendMessage, arginfo_swoole_server_sendMessage, ZEND_ACC_PUBLIC)
@@ -4104,7 +4104,7 @@ static PHP_METHOD(swoole_server, sendwait)
     SW_CHECK_RETURN(serv->sendwait(serv, fd, data, length));
 }
 
-static PHP_METHOD(swoole_server, exist)
+static PHP_METHOD(swoole_server, exists)
 {
     zend_long fd;
 
@@ -4331,7 +4331,7 @@ static PHP_METHOD(swoole_connection_iterator, offsetExists)
     {
         RETURN_FALSE;
     }
-    sw_zend_call_method_with_1_params(&zobject, swoole_server_ce_ptr, NULL, "exist", &retval, zfd);
+    sw_zend_call_method_with_1_params(&zobject, swoole_server_ce_ptr, NULL, "exists", &retval, zfd);
     if (retval)
     {
         RETVAL_BOOL(Z_BVAL_P(retval));
