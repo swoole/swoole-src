@@ -200,7 +200,6 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
     if (cb->data)
     {
         argc = 2;
-        Z_TRY_ADDREF_P(cb->data);
         args[1] = *cb->data;
     }
 
