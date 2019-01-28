@@ -1208,7 +1208,7 @@ ssize_t Socket::recv_packet()
         retval = recv(read_buffer->str + read_buffer->length, header_len - read_buffer->length);
         if (retval <= 0)
         {
-            return 0;
+            return retval;
         }
         else
         {
