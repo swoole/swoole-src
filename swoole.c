@@ -199,6 +199,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_timer_tick, arginfo_swoole_timer_tick)
     PHP_FE(swoole_timer_exists, arginfo_swoole_timer_exists)
     PHP_FE(swoole_timer_clear, arginfo_swoole_timer_clear)
+    PHP_FALIAS(swoole_timer_del, swoole_timer_clear, arginfo_swoole_timer_clear)
     /*------swoole_async_io------*/
     PHP_FE(swoole_async_set, arginfo_swoole_async_set)
     PHP_FE(swoole_async_read, arginfo_swoole_async_read)
@@ -233,6 +234,7 @@ static const zend_function_entry swoole_timer_methods[] =
     ZEND_FENTRY(after, ZEND_FN(swoole_timer_after), arginfo_swoole_timer_after, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exists, ZEND_FN(swoole_timer_exists), arginfo_swoole_timer_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(clear, ZEND_FN(swoole_timer_clear), arginfo_swoole_timer_clear, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(del, ZEND_FN(swoole_timer_clear), arginfo_swoole_timer_clear, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 

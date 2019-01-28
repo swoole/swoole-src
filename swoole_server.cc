@@ -353,6 +353,7 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_FALIAS(after, swoole_timer_after, arginfo_swoole_timer_after)
     PHP_FALIAS(tick, swoole_timer_tick, arginfo_swoole_timer_tick)
     PHP_FALIAS(clearTimer, swoole_timer_clear, arginfo_swoole_timer_clear)
+    PHP_FALIAS(delTimer, swoole_timer_clear, arginfo_swoole_timer_clear)
     PHP_FALIAS(defer, swoole_event_defer, arginfo_swoole_event_defer)
     //process
     PHP_ME(swoole_server, sendMessage, arginfo_swoole_server_sendMessage, ZEND_ACC_PUBLIC)
