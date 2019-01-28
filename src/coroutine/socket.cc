@@ -364,10 +364,17 @@ void Socket::set_timer(timer_levels _timer_level, double _timeout)
     {
         _timeout = timeout;
     }
-    if (!timer && _timeout > 0)
+    if (!timer)
     {
         timer_level = _timer_level;
-        timer = swTimer_add(&SwooleG.timer, (long) (_timeout * 1000), 0, this, timer_callback);
+        if (_timeout > 0)
+        {
+            timer = swTimer_add(&SwooleG.timer, (long) (_timeout * 1000), 0, this, timer_callback);
+        }
+        else if (_timeout < 0)
+        {
+            timer = (swTimer_node *) -1;
+        }
     }
 }
 
@@ -375,7 +382,10 @@ void Socket::del_timer(timer_levels _timer_level)
 {
     if (timer && _timer_level == timer_level)
     {
-        swTimer_del(&SwooleG.timer, timer);
+        if (timer != (swTimer_node *) -1)
+        {
+            swTimer_del(&SwooleG.timer, timer);
+        }
         timer = nullptr;
     }
 }
