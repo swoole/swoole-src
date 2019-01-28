@@ -647,7 +647,7 @@ static PHP_METHOD(swoole_websocket_server, exist)
         //not websocket port
         if (port && !port->open_websocket_protocol)
         {
-            RETURN_TRUE;
+            RETURN_FALSE;
         }
     }
     //have not handshake
