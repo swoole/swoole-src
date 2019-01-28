@@ -406,7 +406,6 @@ void php_swoole_register_shutdown_function_prepend(char *function);
 void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_event_exit();
-long php_swoole_add_timer(long ms, zval *callback, zval *param, int persistent);
 void php_swoole_clear_all_timer();
 void php_swoole_register_callback(swServer *serv);
 void php_swoole_trace_check(void *arg);
@@ -488,8 +487,6 @@ void php_swoole_onBufferEmpty(swServer *, swDataHead *);
 ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *data);
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
-void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
-void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
 zend_bool php_swoole_signal_isset_handler(int signo);
 void php_swoole_event_onDefer(void *_cb);
 

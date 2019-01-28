@@ -2032,6 +2032,7 @@ typedef struct _swTimer swTimer;
 typedef struct _swTimer_node swTimer_node;
 
 typedef void (*swTimerCallback)(swTimer *, swTimer_node *);
+typedef void (*swTimerDtor)(swTimer_node *);
 
 struct _swTimer_node
 {
@@ -2075,6 +2076,7 @@ struct _swTimer
 
 swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
 enum swBool_type swTimer_del(swTimer *timer, swTimer_node *node);
+enum swBool_type swTimer_del_ex(swTimer *timer, swTimer_node *node, swTimerDtor dtor);
 void swTimer_free(swTimer *timer);
 int swTimer_select(swTimer *timer);
 int swTimer_now(struct timeval *time);
