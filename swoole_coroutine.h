@@ -64,6 +64,7 @@ struct php_coro_task
     swoole::Coroutine *co;
     std::stack<defer_task *> *defer_tasks;
     php_coro_task *origin_task;
+    long pcid;
 };
 
 struct php_coro_args
@@ -121,6 +122,12 @@ public:
     static inline long get_cid()
     {
         return likely(active) ? Coroutine::get_current_cid() : -1;
+    }
+
+    static inline long get_pcid()
+    {
+        php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
+        return likely(task) ? task->pcid : -1;
     }
 
     static inline uint64_t get_max_num()

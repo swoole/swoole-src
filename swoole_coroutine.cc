@@ -264,8 +264,9 @@ void PHPCoroutine::create_func(void *arg)
     task->output_ptr = NULL;
     task->co = Coroutine::get_current();
     task->co->set_task((void *) task);
-    task->origin_task = origin_task;
     task->defer_tasks = nullptr;
+    task->origin_task = origin_task;
+    task->pcid = Coroutine::get_cid(origin_task->co);
 
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
