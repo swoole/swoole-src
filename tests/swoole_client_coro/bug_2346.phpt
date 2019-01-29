@@ -23,15 +23,14 @@ $pm->parentFunc = function () use ($pm) {
             assert(@!$client->recv(0.2));
             assert($client->errCode === SOCKET_ETIMEDOUT);
             assert(approximate(0.2, microtime(true) - $s));
-
             // -1 & 0.3
             go(function () use ($client) {
                 co::sleep(0.3);
                 $client->close();
             });
-            assert(@$client->recv(-1) === ''); // connection closed
+            assert(@!$client->recv(-1)); // connection closed
+            assert($client->errCode === SOCKET_ECONNRESET);
             assert(approximate(0.5, microtime(true) - $s));
-
             // canceled
             echo "DONE\n";
         }
