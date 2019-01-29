@@ -1,17 +1,26 @@
 --TEST--
-swoole_feature: cross_close: client
+swoole_feature: cross_close: full duplex
 --SKIPIF--
 <?php require __DIR__ . '/../../include/config.php'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
+
+ini_set('swoole.display_errors', false); // TODO: remove it
+
+function set_socket_buffer_size($php_socket, int $size)
+{
+    socket_set_option($php_socket, SOL_SOCKET, SO_SNDBUF, $size);
+    socket_set_option($php_socket, SOL_SOCKET, SO_RCVBUF, $size);
+}
+
 $pm = new ProcessManager();
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $cli = new Co\Client(SWOOLE_SOCK_TCP);
         assert($cli->connect('127.0.0.1', $pm->getFreePort()));
         assert($cli->connected);
-        echo "RECV\n";
+        set_socket_buffer_size($cli->getSocket(), 8192);
         go(function () use ($pm, $cli) {
             Co::sleep(0.001);
             echo "CLOSE\n";
@@ -19,12 +28,19 @@ $pm->parentFunc = function () use ($pm) {
             $pm->kill();
             echo "DONE\n";
         });
-        assert(!($ret = @$cli->recv(-1)));
-        if ($ret === false) {
-            assert($cli->errCode === SOCKET_ECONNRESET);
-        }
-        echo "CLOSED\n";
-        assert(!$cli->connected);
+        go(function () use ($cli) {
+            echo "SEND\n";
+            $size = 16 * 1024 * 1024;
+            assert($cli->send(str_repeat('S', $size)) < $size);
+            assert(!$cli->connected);
+            echo "SEND CLOSED\n";
+        });
+        go(function () use ($cli) {
+            echo "RECV\n";
+            assert(!$cli->recv(-1));
+            assert(!$cli->connected);
+            echo "RECV CLOSED\n";
+        });
     });
 };
 $pm->childFunc = function () use ($pm) {
@@ -47,7 +63,9 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+SEND
 RECV
 CLOSE
-CLOSED
+SEND CLOSED
+RECV CLOSED
 DONE

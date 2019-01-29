@@ -1,31 +1,43 @@
 --TEST--
-swoole_feature: cross_close: client
+swoole_feature: cross_close: full duplex and close by server
 --SKIPIF--
 <?php require __DIR__ . '/../../include/config.php'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
+
+ini_set('swoole.display_errors', false); // TODO: remove it
+
+function set_socket_buffer_size($php_socket, int $size)
+{
+    socket_set_option($php_socket, SOL_SOCKET, SO_SNDBUF, $size);
+    socket_set_option($php_socket, SOL_SOCKET, SO_RCVBUF, $size);
+}
+
 $pm = new ProcessManager();
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $cli = new Co\Client(SWOOLE_SOCK_TCP);
         assert($cli->connect('127.0.0.1', $pm->getFreePort()));
         assert($cli->connected);
-        echo "RECV\n";
-        go(function () use ($pm, $cli) {
-            Co::sleep(0.001);
-            echo "CLOSE\n";
-            $cli->close();
-            $pm->kill();
-            echo "DONE\n";
+        set_socket_buffer_size($cli->getSocket(), 65536);
+        go(function () use ($cli) {
+            echo "SEND\n";
+            $size = 16 * 1024 * 1024;
+            assert($cli->send(str_repeat('S', $size)) < $size);
+            assert($cli->errCode === SOCKET_EPIPE);
+            echo "SEND CLOSED\n";
         });
-        assert(!($ret = @$cli->recv(-1)));
-        if ($ret === false) {
+        go(function () use ($cli) {
+            echo "RECV\n";
+            assert(!$cli->recv(-1));
             assert($cli->errCode === SOCKET_ECONNRESET);
-        }
-        echo "CLOSED\n";
-        assert(!$cli->connected);
+            echo "RECV CLOSED\n";
+        });
+        $pm->wakeup();
     });
+    Swoole\Event::wait();
+    echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
     go(function () use ($pm) {
@@ -34,9 +46,10 @@ $pm->childFunc = function () use ($pm) {
         assert($server->listen());
         go(function () use ($pm, $server) {
             if (assert(($conn = $server->accept()) && $conn instanceof Co\Socket)) {
-                switch_process();
-                co::sleep(5);
+                $pm->wait();
+                echo "CLOSE\n";
                 $conn->close();
+                switch_process();
             }
             $server->close();
         });
@@ -46,8 +59,10 @@ $pm->childFunc = function () use ($pm) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECT--
+--EXPECTF--
+SEND
 RECV
 CLOSE
-CLOSED
+%s CLOSED
+%s CLOSED
 DONE
