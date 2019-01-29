@@ -343,7 +343,13 @@ static PHP_METHOD(swoole_exit_exception, getStatus)
 
 static PHP_METHOD(swoole_coroutine_util, exists)
 {
-    RETURN_BOOL(Coroutine::get_current() != nullptr);
+    zend_long cid;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(cid)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    RETURN_BOOL(Coroutine::get_by_cid(cid) != nullptr);
 }
 
 static PHP_METHOD(swoole_coroutine_util, yield)
