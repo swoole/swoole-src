@@ -1726,9 +1726,8 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("type"), type, l_type);
     add_assoc_long(&zupload_file, "size", length);
     add_assoc_long(&zupload_file, "offset", offset);
-    add_next_index_zval(zupload_files, &zupload_file);
 
-    RETURN_TRUE;
+    RETURN_BOOL(add_next_index_zval(zupload_files, &zupload_file) == SUCCESS);
 }
 
 static PHP_METHOD(swoole_http_client_coro, addData)
@@ -1769,9 +1768,8 @@ static PHP_METHOD(swoole_http_client_coro, addData)
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("filename"), filename, l_filename);
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("type"), type, l_type);
     add_assoc_long(&zupload_file, "size", l_data);
-    add_next_index_zval(zupload_files, &zupload_file);
 
-    RETURN_TRUE;
+    RETURN_BOOL(add_next_index_zval(zupload_files, &zupload_file) == SUCCESS);
 }
 
 static PHP_METHOD(swoole_http_client_coro, execute)

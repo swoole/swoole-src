@@ -952,7 +952,7 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
     i->serv = serv;
     swoole_set_object(&connection_iterator, i);
 
-    add_next_index_zval(server_port_list.zports, port_object);
+    (void) add_next_index_zval(server_port_list.zports, port_object);
 
     return port_object;
 }
@@ -1504,7 +1504,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
             swoole_php_fatal_error(E_WARNING, "task[%d] is invalid.", task_id);
             goto _fail;
         }
-        add_index_zval(result, task_index, zdata);
+        (void) add_index_zval(result, task_index, zdata);
         efree(zdata);
         task_coroutine_map.erase(task_id);
 
@@ -3594,7 +3594,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
                 break;
             }
         }
-        add_index_zval(return_value, j, zdata);
+        (void) add_index_zval(return_value, j, zdata);
         efree(zdata);
         _next:
         content->offset += sizeof(swDataHead) + result->info.len;

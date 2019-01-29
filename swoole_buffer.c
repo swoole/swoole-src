@@ -211,9 +211,9 @@ static PHP_METHOD(swoole_buffer, substr)
     {
         length = buffer->length - offset;
     }
-    if (offset + length > buffer->length)
+    if (length + offset > buffer->length)
     {
-        swoole_php_error(E_WARNING, "offset(%ld, %ld) is out of bounds.", offset, length);
+        swoole_php_error(E_WARNING, "offset(" ZEND_LONG_FMT ", " ZEND_LONG_FMT ") is out of bounds.", offset, length);
         RETURN_FALSE;
     }
     if (remove)

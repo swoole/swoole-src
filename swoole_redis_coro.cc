@@ -2301,7 +2301,7 @@ static PHP_METHOD(swoole_redis_coro, set)
             SW_REDIS_COMMAND_ARGV_FILL(exp_type, (size_t ) strlen(exp_type))
 
             char str[32];
-            sprintf(str, "%ld", expire);
+            sprintf(str, ZEND_LONG_FMT, expire);
             SW_REDIS_COMMAND_ARGV_FILL(str, (size_t ) strlen(str))
         }
     }
@@ -2311,7 +2311,7 @@ static PHP_METHOD(swoole_redis_coro, set)
         SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
 
         char str[32];
-        sprintf(str, "%ld", expire);
+        sprintf(str, ZEND_LONG_FMT, expire);
         SW_REDIS_COMMAND_ARGV_FILL(str, (size_t ) strlen(str))
 
         SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_value)
@@ -3515,9 +3515,9 @@ static PHP_METHOD(swoole_redis_coro, zRangeByLex)
         SW_REDIS_COMMAND_ARGV_FILL("LIMIT", 5)
         char buf[32];
         size_t buf_len;
-        buf_len = sprintf(buf, "%ld", offset);
+        buf_len = sprintf(buf, ZEND_LONG_FMT, offset);
         SW_REDIS_COMMAND_ARGV_FILL(buf, buf_len)
-        buf_len = sprintf(buf, "%ld", count);
+        buf_len = sprintf(buf, ZEND_LONG_FMT, count);
         SW_REDIS_COMMAND_ARGV_FILL(buf, buf_len)
     }
 
@@ -3569,9 +3569,9 @@ static PHP_METHOD(swoole_redis_coro, zRevRangeByLex)
         SW_REDIS_COMMAND_ARGV_FILL("LIMIT", 5)
         char buf[32];
         size_t buf_len;
-        buf_len = sprintf(buf, "%ld", offset);
+        buf_len = sprintf(buf, ZEND_LONG_FMT, offset);
         SW_REDIS_COMMAND_ARGV_FILL(buf, buf_len)
-        buf_len = sprintf(buf, "%ld", count);
+        buf_len = sprintf(buf, ZEND_LONG_FMT, count);
         SW_REDIS_COMMAND_ARGV_FILL(buf, buf_len)
     }
 
@@ -4332,7 +4332,7 @@ static PHP_METHOD(swoole_redis_coro, eval)
     SW_REDIS_COMMAND_ARGV_FILL(script, script_len)
 
     char keys_num_str[32] = {0};
-    sprintf(keys_num_str, "%ld", keys_num);
+    sprintf(keys_num_str, ZEND_LONG_FMT, keys_num);
     SW_REDIS_COMMAND_ARGV_FILL(keys_num_str, strlen(keys_num_str));
 
     if (params_ht)
@@ -4581,7 +4581,7 @@ static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_va
         for (j = 0; j < (int) reply->elements; j++)
         {
             swoole_redis_coro_parse_result(redis, val, reply->element[j]);
-            add_next_index_zval(return_value, val);
+            (void) add_next_index_zval(return_value, val);
         }
         break;
 

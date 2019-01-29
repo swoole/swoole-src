@@ -481,7 +481,7 @@ static PHP_METHOD(swoole_redis_server, format)
     }
     else
     {
-        swoole_php_error(E_WARNING, "Unknown type[%ld]", type);
+        swoole_php_error(E_WARNING, "Unknown type[" ZEND_LONG_FMT "]", type);
         RETURN_FALSE;
     }
 }
