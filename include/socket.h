@@ -20,6 +20,7 @@
 #include "coroutine.h"
 #include "connection.h"
 #include "socks5.h"
+
 #include <string>
 
 namespace swoole
@@ -27,14 +28,6 @@ namespace swoole
 class Socket
 {
 public:
-    enum timer_levels
-    {
-        TIMER_LV_NORMAL,
-        TIMER_LV_MULTI,
-        TIMER_LV_PACKET,
-        TIMER_LV_GLOBAL
-    };
-
     swConnection *socket = nullptr;
     enum swSocket_type type;
     int sock_domain = 0;
@@ -66,8 +59,6 @@ public:
     Socket(int _fd, Socket *socket);
     Socket(int _fd, enum swSocket_type _type);
     ~Socket();
-    void set_timer(timer_levels _timer_level = TIMER_LV_NORMAL, double _timeout = 0);
-    void del_timer(timer_levels _timer_level = TIMER_LV_NORMAL);
     bool connect(std::string host, int port, int flags = 0);
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
@@ -76,14 +67,14 @@ public:
     bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
+    ssize_t send(const void *__buf, size_t __n);
     ssize_t read(void *__buf, size_t __n);
     ssize_t write(const void *__buf, size_t __n);
-    ssize_t send(const void *__buf, size_t __n);
-    ssize_t sendmsg(const struct msghdr *msg, int flags);
     ssize_t recvmsg(struct msghdr *msg, int flags);
+    ssize_t sendmsg(const struct msghdr *msg, int flags);
     ssize_t recv_all(void *__buf, size_t __n);
     ssize_t send_all(const void *__buf, size_t __n);
-    ssize_t recv_packet();
+    ssize_t recv_packet(double timeout = 0);
     Socket* accept();
     bool bind(std::string address, int port = 0);
     bool listen(int backlog = 0);
@@ -117,25 +108,28 @@ public:
         return socket ? socket->fd : -1;
     }
 
-    inline long has_bound()
+    inline bool has_bound()
     {
-        return coroutine ? coroutine->get_cid() : 0;
+        return read_co || write_co;
     }
 
-    inline void check_bind()
+    inline Coroutine* get_bound_co(enum swEvent_type event)
     {
-        long cid = has_bound();
-        if (unlikely(cid))
+        if (likely(event & SW_EVENT_READ))
         {
-            swoole_error_log(
-                SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
-                "Socket#%d has already been bound to another coroutine#%ld, "
-                "reading or writing of the same socket in multiple coroutines at the same time is not allowed.\n",
-                socket->fd, cid
-            );
-            set_err(SW_ERROR_CO_HAS_BEEN_BOUND);
-            exit(255);
+            return read_co;
         }
+        if (event & SW_EVENT_WRITE)
+        {
+            return write_co;
+        }
+        return nullptr;
+    }
+
+    inline long get_bound_cid(enum swEvent_type event = SW_EVENT_RDWR)
+    {
+        Coroutine *co = get_bound_co(event);
+        return co ? co->get_cid() : 0;
     }
 
     inline void set_err(int e)
@@ -208,16 +202,21 @@ public:
     }
 
 protected:
-    Coroutine* coroutine = nullptr;
     swReactor *reactor = nullptr;
+    Coroutine *read_co = nullptr;
+    Coroutine *write_co = nullptr;
+#ifdef SW_USE_OPENSSL
+    enum swEvent_type want_event = SW_EVENT_NULL;
+#endif
 
     std::string host;
     int port = 0;
     std::string bind_address;
     int bind_port = 0;
-    timer_levels timer_level = TIMER_LV_NORMAL;
-    swTimer_node *timer = nullptr;
+
     double timeout = -1;
+    swTimer_node *read_timer = nullptr;
+    swTimer_node *write_timer = nullptr;
 
     bool shutdown_read = false;
     bool shutdown_write = false;
@@ -226,30 +225,9 @@ protected:
 #endif
 
     static void timer_callback(swTimer *timer, swTimer_node *tnode);
-    static int event_callback(swReactor *reactor, swEvent *event);
-
-    bool socks5_handshake();
-    bool http_proxy_handshake();
-
-    inline void yield()
-    {
-        Coroutine *co = Coroutine::get_current();
-        if (unlikely(!co))
-        {
-            swError("Socket::yield() must be called in the coroutine.");
-        }
-        set_err(0);
-        set_timer();
-        coroutine = co;
-        co->yield();
-        coroutine = nullptr;
-        del_timer();
-    }
-
-    inline void resume()
-    {
-        coroutine->resume();
-    }
+    static int readable_event_callback(swReactor *reactor, swEvent *event);
+    static int writable_event_callback(swReactor *reactor, swEvent *event);
+    static int error_event_callback(swReactor *reactor, swEvent *event);
 
     inline void init_members()
     {
@@ -258,47 +236,30 @@ protected:
         protocol.package_body_offset = 0;
         protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
     }
-
-    inline void init_sock_type(enum swSocket_type _type)
-    {
-        type = _type;
-        switch (type)
-        {
-        case SW_SOCK_TCP6:
-            sock_domain = AF_INET6;
-            sock_type = SOCK_STREAM;
-            break;
-        case SW_SOCK_UNIX_STREAM:
-            sock_domain = AF_UNIX;
-            sock_type = SOCK_STREAM;
-            break;
-        case SW_SOCK_UDP:
-            sock_domain = AF_INET;
-            sock_type = SOCK_DGRAM;
-            break;
-        case SW_SOCK_UDP6:
-            sock_domain = AF_INET6;
-            sock_type = SOCK_DGRAM;
-            break;
-        case SW_SOCK_UNIX_DGRAM:
-            sock_domain = AF_UNIX;
-            sock_type = SOCK_DGRAM;
-            break;
-        case SW_SOCK_TCP:
-        default:
-            sock_domain = AF_INET;
-            sock_type = SOCK_STREAM;
-            break;
-        }
-    }
-
+    inline void init_sock_type(enum swSocket_type _type);
     inline void init_sock();
-
     inline void init_sock(int _fd);
 
-    inline bool is_available()
+    bool add_event(const enum swEvent_type event);
+    bool wait_event(const enum swEvent_type event, const void **__buf = nullptr, size_t __n = 0);
+    void trigger_event(const enum swEvent_type event);
+
+    inline bool is_available(enum swEvent_type event)
     {
-        check_bind();
+        if (event != SW_EVENT_NULL)
+        {
+            long cid = get_bound_cid(event);
+            if (unlikely(cid))
+            {
+                swoole_error_log(
+                    SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
+                    "Socket#%d has already been bound to another coroutine#%ld, "
+                    "%s of the same socket in multiple coroutines at the same time is not allowed.\n",
+                    socket->fd, cid, (event == SW_EVENT_READ ? "reading" : (SW_EVENT_WRITE ? "writing" : "reading or writing"))
+                );
+                exit(255);
+            }
+        }
         if (unlikely(socket->closed))
         {
             set_err(ECONNRESET);
@@ -309,6 +270,10 @@ protected:
 
     inline bool should_be_break()
     {
+        if (socket->closed)
+        {
+            return true;
+        }
         switch (errCode)
         {
         case ETIMEDOUT:
@@ -319,68 +284,51 @@ protected:
         }
     }
 
-    inline bool wait_event(int event)
-    {
-        if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | event) < 0)
-        {
-            set_err(errno);
-            return false;
-        }
-        return true;
-    }
+    // TODO: move to client.cc
+    bool socks5_handshake();
+    bool http_proxy_handshake();
 
-    inline bool wait_readable()
+    class timer
     {
-#ifdef SW_USE_OPENSSL
-        if (socket->ssl && socket->ssl_want_write)
+    public:
+        timer(swTimer_node **timer_pp, double timeout, void *data, swTimerCallback callback) :
+            timer_pp(timer_pp), timeout(timeout), data(data), callback(callback)
         {
-            if (unlikely(!is_available() || !wait_event(SW_EVENT_WRITE)))
+        }
+        bool operator ()()
+        {
+            if (timeout != 0 && !*timer_pp)
             {
-                return false;
+                enabled = true;
+                if (timeout > 0)
+                {
+                    *timer_pp = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, data, callback);
+                    return *timer_pp != nullptr;
+                }
+                else // if (timeout < 0)
+                {
+                    *timer_pp = (swTimer_node *) -1;
+                }
+            }
+            return true;
+        }
+        ~timer()
+        {
+            if (enabled && *timer_pp)
+            {
+                if (*timer_pp != (swTimer_node *) -1)
+                {
+                    swTimer_del(&SwooleG.timer, *timer_pp);
+                }
+                *timer_pp = nullptr;
             }
         }
-        else
-#endif
-        if (unlikely(!wait_event(SW_EVENT_READ)))
-        {
-            return false;
-        }
-        yield();
-        return !should_be_break();
-    }
-
-    inline void copy_to_write_buffer(const void **__buf, size_t __n)
-    {
-        if (*__buf != get_write_buffer()->str)
-        {
-            swString_clear(write_buffer);
-            swString_append_ptr(write_buffer, (const char *) *__buf, __n);
-            *__buf = write_buffer->str;
-        }
-    }
-
-    inline bool wait_writeable(const void **__buf = nullptr, size_t __n = 0)
-    {
-#ifdef SW_USE_OPENSSL
-        if (socket->ssl && socket->ssl_want_read)
-        {
-            if (unlikely(!is_available() || !wait_event(SW_EVENT_READ)))
-            {
-                return false;
-            }
-        }
-        else
-#endif
-        if (unlikely(!wait_event(SW_EVENT_WRITE)))
-        {
-            return false;
-        }
-        if (__n > 0)
-        {
-            copy_to_write_buffer(__buf, __n);
-        }
-        yield();
-        return !should_be_break();
-    }
+    private:
+        bool enabled = false;
+        swTimer_node** timer_pp;
+        double timeout;
+        void *data;
+        swTimerCallback callback;
+    };
 };
 };

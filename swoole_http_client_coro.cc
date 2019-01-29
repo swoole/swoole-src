@@ -48,10 +48,70 @@ static const swoole_http_parser_settings http_parser_settings =
     http_parser_on_message_complete
 };
 
+class http_socket: public Socket
+{
+public:
+    http_socket(swSocket_type socket_type) :
+            Socket(socket_type)
+    {
+    }
+    bool recv_http_response(const swoole_http_parser_settings *settings, void *data, double timeout = 0)
+    {
+        ssize_t retval = 0;
+        size_t total_bytes = 0, parsed_n = 0;
+        swString *buffer = get_read_buffer();
+        timer timer(&read_timer, timeout == 0 ? this->timeout : timeout, this, timer_callback);
+        if (unlikely(!timer()))
+        {
+            return false;
+        }
+        // re-init http response parser
+        swoole_http_parser_init(&parser, PHP_HTTP_RESPONSE);
+        parser.data = data;
+        do
+        {
+            if (unlikely(parser.state == s_dead))
+            {
+                set_err(EPROTO);
+                return false;
+            }
+            retval = recv(buffer->str, buffer->size);
+            if (retval > 0)
+            {
+                total_bytes += retval;
+                parsed_n = swoole_http_parser_execute(&parser, settings, buffer->str, retval);
+                swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d.", parsed_n, retval, total_bytes, parser.state != s_start_res);
+            }
+            else
+            {
+                if (retval == 0)
+                {
+                    set_err(ECONNRESET);
+                    if (total_bytes > 0 && !swoole_http_should_keep_alive(&parser))
+                    {
+                        http_parser_on_message_complete(&parser);
+                        return true;
+                    }
+                }
+                return false;
+            }
+        } while (parser.state != s_start_res);
+        // websocket stick package
+        if (parser.upgrade && retval > parsed_n + 1 + SW_WEBSOCKET_HEADER_LEN)
+        {
+            buffer->length = retval - parsed_n - 1;
+            memmove(buffer->str, buffer->str + parsed_n + 1, buffer->length);
+        }
+        return true;
+    }
+private:
+    swoole_http_parser parser = {0};
+};
+
 class http_client
 {
     private:
-    Socket* socket = nullptr;
+    http_socket* socket = nullptr;
     swSocket_type socket_type = SW_SOCK_TCP;
 
     public:
@@ -72,7 +132,6 @@ class http_client
     std::string uri;
 
     /* response parse */
-    swoole_http_parser parser = {0};
     char *tmp_header_field_name = nullptr;
     int tmp_header_field_name_len = 0;
     swString *body = nullptr;
@@ -89,7 +148,6 @@ class http_client
     bool websocket = false;            // if upgrade successfully
     bool gzip = false;               // enable gzip
     bool chunked = false;            // Transfer-Encoding: chunked
-    bool completed = false;          // response parse over
     bool websocket_mask = false;     // enable websocket mask
     bool is_download = false;        // save http response to file
     int download_file_fd = 0;
@@ -281,7 +339,7 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
 
     add_assoc_stringl_ex(zheaders, header_name, http->tmp_header_field_name_len, (char *) at, length);
 
-    if (http->parser.status_code == SW_HTTP_SWITCHING_PROTOCOLS && strcmp(header_name, "upgrade") == 0 && strncasecmp(at, "websocket", length) == 0)
+    if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && strcmp(header_name, "upgrade") == 0 && strncasecmp(at, "websocket", length) == 0)
     {
         http->websocket = true;
     }
@@ -317,7 +375,6 @@ static int http_parser_on_headers_complete(swoole_http_parser *parser)
     if (http->chunked == 0 && parser->content_length == -1)
     {
         enum flags { F_CONNECTION_CLOSE = 1 << 2 };
-        http->state = HTTP_CLIENT_STATE_WAIT_CLOSE;
         parser->flags |= F_CONNECTION_CLOSE;
     }
     if (http->method == SW_HTTP_HEAD || parser->status_code == SW_HTTP_NO_CONTENT)
@@ -374,12 +431,8 @@ static int http_parser_on_message_complete(swoole_http_parser *parser)
     }
 
 #ifdef SW_HAVE_ZLIB
-    if (http->gzip && http->body->length > 0)
+    if (http->gzip && http->body->length > 0 && http->uncompress_response())
     {
-        if (!http->uncompress_response())
-        {
-            return 0;
-        }
         zend_update_property_stringl(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("body"), SW_STRINGL(http->gzip_buffer));
     }
     else
@@ -388,10 +441,8 @@ static int http_parser_on_message_complete(swoole_http_parser *parser)
         zend_update_property_stringl(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("body"), SW_STRINGL(http->body));
     }
 
-    http->completed = 1;
-
     //http status code
-    zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), http->parser.status_code);
+    zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), parser->status_code);
 
     if (parser->upgrade)
     {
@@ -437,10 +488,6 @@ http_client::http_client(zval* zobject, std::string host, zend_long port, zend_b
         return;
     }
 #endif
-
-    // init http response parser
-    swoole_http_parser_init(&parser, PHP_HTTP_RESPONSE);
-    parser.data = this;
 
     _zobject = *zobject;
     // TODO: zend_read_property cache here (strong type properties)
@@ -545,7 +592,7 @@ void http_client::check_bind()
 {
     if (socket)
     {
-        PHPCoroutine::check_bind("http client", socket->has_bound());
+        PHPCoroutine::check_bind("http client", socket->get_bound_cid());
     }
 }
 
@@ -601,7 +648,7 @@ bool http_client::connect()
 {
     if (!socket)
     {
-        socket = new Socket(socket_type);
+        socket = new http_socket(socket_type);
         if (unlikely(socket->socket == nullptr))
         {
             swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
@@ -1195,10 +1242,6 @@ bool http_client::exec(std::string uri)
 
 bool http_client::recv(double timeout)
 {
-    long parsed_n = 0;
-    ssize_t total_bytes = 0, retval = 0;
-    swString *buffer;
-
     check_bind();
 
     if (!wait)
@@ -1212,79 +1255,32 @@ bool http_client::recv(double timeout)
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         return false;
     }
-
-    buffer = socket->get_read_buffer();
-    socket->set_timer(Socket::TIMER_LV_GLOBAL, timeout);
-    while (completed == 0)
+    if (!socket->recv_http_response(&http_parser_settings, this, timeout == 0 ? this->timeout : timeout))
     {
-        retval = socket->recv(buffer->str, buffer->size);
-        if (retval > 0)
+        zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
+        zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
+        if (socket->errCode == ETIMEDOUT)
         {
-            total_bytes += retval;
-            parsed_n = swoole_http_parser_execute(&parser, &http_parser_settings, buffer->str, retval);
-            swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d.", parsed_n, retval, total_bytes, completed);
-            if (unlikely(parser.state == s_dead && !completed))
-            {
-                socket->set_err(EPROTO);
-                goto _error;
-            }
-            if (parsed_n >= 0)
-            {
-                continue;
-            }
-        }
-        else if (retval == 0 && state == HTTP_CLIENT_STATE_WAIT_CLOSE)
-        {
-            http_parser_on_message_complete(&parser);
-            break;
+            zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
         }
         else
         {
-            _error:
-            // IO error
-            socket->del_timer(Socket::TIMER_LV_GLOBAL);
-            if (retval == 0)
-            {
-                // TODO: move to Client::recv
-                socket->set_err(ECONNRESET);
-            }
-            zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
-            zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
-            if (socket->errCode == ETIMEDOUT)
-            {
-                zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
-            }
-            else
-            {
-                zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
-            }
-            close();
-            return false;
+            zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         }
+        close();
+        return false;
     }
-    socket->del_timer(Socket::TIMER_LV_GLOBAL);
-
     /**
      * TODO: Sec-WebSocket-Accept check
      */
     if (websocket)
     {
-        state = HTTP_CLIENT_STATE_UPGRADE;
         socket->open_length_check = 1;
         socket->protocol.get_package_length = swWebSocket_get_package_length;
         socket->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN;
-        /**
-         * websocket message queue
-         */
-        if (retval > parsed_n + 3)
-        {
-            buffer->length = retval - parsed_n - 1;
-            memmove(buffer->str, buffer->str + parsed_n + 1, buffer->length);
-        }
     }
-
     // handler keep alive
-    if (!keep_alive && state != HTTP_CLIENT_STATE_WAIT_CLOSE && !websocket)
+    if (!keep_alive && !websocket)
     {
         close();
     }
@@ -1310,9 +1306,7 @@ void http_client::recv(zval *zframe, double timeout)
         return;
     }
 
-    socket->set_timer(Socket::TIMER_LV_GLOBAL, timeout);
-    ssize_t retval = socket->recv_packet();
-    socket->del_timer(Socket::TIMER_LV_GLOBAL);
+    ssize_t retval = socket->recv_packet(timeout);
     if (retval <= 0)
     {
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
@@ -1393,8 +1387,6 @@ bool http_client::push(zval *zdata, zend_long opcode, bool fin)
 void http_client::reset()
 {
     wait = false;
-    state = HTTP_CLIENT_STATE_READY;
-    completed = false;
     // clear
 #ifdef SW_HAVE_ZLIB
     if (gzip)
@@ -1472,7 +1464,6 @@ static void swoole_http_client_coro_free_object(zend_object *object)
     http_client_coro *hcc_t = swoole_http_client_coro_fetch_object(object);
     if (hcc_t->phc)
     {
-        hcc_t->phc->close();
         delete hcc_t->phc;
         hcc_t->phc = nullptr;
     }
