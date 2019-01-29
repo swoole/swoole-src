@@ -255,7 +255,7 @@ protected:
                     SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
                     "Socket#%d has already been bound to another coroutine#%ld, "
                     "%s of the same socket in multiple coroutines at the same time is not allowed.\n",
-                    socket->fd, cid, (event == SW_EVENT_READ ? "reading" : (SW_EVENT_WRITE ? "writing" : "reading or writing"))
+                    socket->fd, cid, (event == SW_EVENT_READ ? "reading" : (event == SW_EVENT_WRITE ? "writing" : "reading or writing"))
                 );
                 exit(255);
             }

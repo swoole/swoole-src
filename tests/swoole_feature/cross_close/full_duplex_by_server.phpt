@@ -59,10 +59,10 @@ $pm->childFunc = function () use ($pm) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECT--
+--EXPECTF--
 SEND
 RECV
 CLOSE
-SEND CLOSED
-RECV CLOSED
+%s CLOSED
+%s CLOSED
 DONE

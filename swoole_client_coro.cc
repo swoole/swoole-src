@@ -750,7 +750,7 @@ static PHP_METHOD(swoole_client_coro, send)
     }
     else
     {
-        if (ret < data_len && cli->errCode)
+        if ((ret < 0 || (size_t) ret < data_len) && cli->errCode)
         {
             swoole_php_sys_error(E_WARNING, "expected sent %zu bytes to fd #%d but actually %zu bytes.", data_len, cli->socket->fd, ret);
             zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = cli->errCode));
