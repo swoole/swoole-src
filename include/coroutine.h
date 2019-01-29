@@ -129,7 +129,7 @@ public:
         return coroutines.size();
     }
 
-    static uint64_t get_peak_num()
+    static inline uint64_t get_peak_num()
     {
         return peak_num;
     }

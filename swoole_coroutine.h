@@ -106,29 +106,29 @@ public:
     static void yield_m(zval *return_value, php_coro_context *sw_php_context);
     static int resume_m(php_coro_context *sw_current_context, zval *retval, zval *coro_retval);
 
-    static void init()
+    static inline void init()
     {
         Coroutine::set_on_yield(on_yield);
         Coroutine::set_on_resume(on_resume);
         Coroutine::set_on_close(on_close);
     }
 
-    static bool is_in()
+    static inline bool is_in()
     {
         return active && Coroutine::get_current();
     }
 
-    static long get_cid()
+    static inline long get_cid()
     {
         return likely(active) ? Coroutine::get_current_cid() : -1;
     }
 
-    static uint64_t get_max_num()
+    static inline uint64_t get_max_num()
     {
         return max_num;
     }
 
-    static void set_max_num(uint64_t n)
+    static inline void set_max_num(uint64_t n)
     {
         max_num = n;
     }
