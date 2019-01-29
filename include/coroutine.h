@@ -112,12 +112,10 @@ public:
         stack_size = SW_MEM_ALIGNED_SIZE_EX(MIN(size, SW_CORO_MAX_STACK_SIZE), SW_CORO_STACK_ALIGNED_SIZE);
     }
 
-#ifdef SW_LOG_TRACE_OPEN
     static inline long get_cid(Coroutine* co)
     {
         return co ? co->get_cid() : -1;
     }
-#endif
 
     static inline long get_last_cid()
     {
