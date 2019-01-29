@@ -1526,29 +1526,39 @@ bool Socket::shutdown(int __how)
     {
         errno = ENOTCONN;
     }
-    else if (::shutdown(socket->fd, __how) == 0 || errno == ENOTCONN)
+    else
     {
-        if (errno == ENOTCONN)
+#ifdef SW_USE_OPENSSL
+        if (socket->ssl)
         {
-            // connection reset by server side
-            __how = SHUT_RDWR;
+            SSL_set_quiet_shutdown(socket->ssl, 1);
+            SSL_shutdown(socket->ssl);
         }
-        switch (__how)
+#endif
+        if (::shutdown(socket->fd, __how) == 0 || errno == ENOTCONN)
         {
-        case SHUT_RD:
-            shutdown_read = true;
-            break;
-        case SHUT_WR:
-            shutdown_write = true;
-            break;
-        default:
-            shutdown_read = shutdown_write = true;
+            if (errno == ENOTCONN)
+            {
+                // connection reset by server side
+                __how = SHUT_RDWR;
+            }
+            switch (__how)
+            {
+            case SHUT_RD:
+                shutdown_read = true;
+                break;
+            case SHUT_WR:
+                shutdown_write = true;
+                break;
+            default:
+                shutdown_read = shutdown_write = true;
+            }
+            if (shutdown_read && shutdown_write)
+            {
+                socket->active = 0;
+            }
+            return true;
         }
-        if (shutdown_read && shutdown_write)
-        {
-            socket->active = 0;
-        }
-        return true;
     }
     set_err(errno);
     return false;
