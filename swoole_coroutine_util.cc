@@ -205,7 +205,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_FE_END
 };
 
-static const zend_function_entry iterator_methods[] =
+static const zend_function_entry swoole_coroutine_iterator_methods[] =
 {
     PHP_ME(swoole_coroutine_iterator, rewind,      arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_coroutine_iterator, next,        arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
@@ -234,7 +234,7 @@ enum sw_exit_flags
 
 static int coro_exit_handler(zend_execute_data *execute_data)
 {
-    zval ex;
+    zval zexception;
     zend_object *obj;
     zend_long flags = 0;
     if (PHPCoroutine::is_in())
@@ -283,10 +283,10 @@ static int coro_exit_handler(zend_execute_data *execute_data)
             ZVAL_NULL(exit_status);
         }
         obj = zend_throw_error_exception(swoole_exit_exception_ce_ptr, "swoole exit.", 0, E_ERROR);
-        ZVAL_OBJ(&ex, obj);
-        zend_update_property_long(swoole_exit_exception_ce_ptr, &ex, ZEND_STRL("flags"), flags);
+        ZVAL_OBJ(&zexception, obj);
+        zend_update_property_long(swoole_exit_exception_ce_ptr, &zexception, ZEND_STRL("flags"), flags);
         Z_TRY_ADDREF_P(exit_status);
-        zend_update_property(swoole_exit_exception_ce_ptr, &ex, ZEND_STRL("status"), exit_status);
+        zend_update_property(swoole_exit_exception_ce_ptr, &zexception, ZEND_STRL("status"), exit_status);
     }
 
     return ZEND_USER_OPCODE_DISPATCH;
@@ -301,7 +301,7 @@ void swoole_coroutine_util_init(int module_number)
     SWOOLE_SET_CLASS_CLONEABLE(swoole_coroutine_util, zend_class_clone_deny);
     SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_util, zend_class_unset_property_deny);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", iterator_methods);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", swoole_coroutine_iterator_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_coroutine_iterator, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_coroutine_iterator, zend_class_clone_deny);
     SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_iterator, zend_class_unset_property_deny);
