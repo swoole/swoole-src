@@ -132,7 +132,7 @@ sw_inline php_coro_task* PHPCoroutine::get_current_task()
     php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
     if (!task)
     {
-        task = &PHPCoroutine::main_task;
+        task = &main_task;
     }
     return task;
 }
@@ -142,9 +142,9 @@ sw_inline php_coro_task* PHPCoroutine::get_current_task()
  */
 sw_inline php_coro_task* PHPCoroutine::get_and_save_current_task()
 {
-    php_coro_task *task = PHPCoroutine::get_current_task();
-    PHPCoroutine::save_vm_stack(task);
-    PHPCoroutine::save_og(task);
+    php_coro_task *task = get_current_task();
+    save_vm_stack(task);
+    save_og(task);
     return task;
 }
 
@@ -152,18 +152,18 @@ void PHPCoroutine::on_yield(void *arg)
 {
     php_coro_task *task = (php_coro_task *) arg;
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield from cid=%ld to cid=%ld", Coroutine::get_cid(task->co), Coroutine::get_cid(task->origin_task->co));
-    PHPCoroutine::save_vm_stack(task);
-    PHPCoroutine::save_og(task);
-    PHPCoroutine::restore_vm_stack(task->origin_task);
-    PHPCoroutine::restore_og(task->origin_task);
+    save_vm_stack(task);
+    save_og(task);
+    restore_vm_stack(task->origin_task);
+    restore_og(task->origin_task);
 }
 
 void PHPCoroutine::on_resume(void *arg)
 {
     php_coro_task *task = (php_coro_task *) arg;
-    task->origin_task = PHPCoroutine::get_and_save_current_task();
-    PHPCoroutine::restore_vm_stack(task);
-    PHPCoroutine::restore_og(task);
+    task->origin_task = get_and_save_current_task();
+    restore_vm_stack(task);
+    restore_og(task);
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", Coroutine::get_cid(task->origin_task->co), Coroutine::get_cid(task->co));
 }
 
@@ -190,9 +190,9 @@ void PHPCoroutine::on_close(void *arg)
         php_output_deactivate();
         php_output_activate();
     }
-    PHPCoroutine::vm_stack_destroy();
-    PHPCoroutine::restore_og(origin_task);
-    PHPCoroutine::restore_vm_stack(origin_task);
+    vm_stack_destroy();
+    restore_og(origin_task);
+    restore_vm_stack(origin_task);
 
     swTraceLog(
         SW_TRACE_COROUTINE, "coro close cid=%ld and resume to %ld, %zu remained. usage size: %zu. malloc size: %zu",
@@ -218,7 +218,7 @@ void PHPCoroutine::create_func(void *arg)
         GC_ADDREF(fci_cache.object);
     }
 
-    PHPCoroutine::vm_stack_init();
+    vm_stack_init();
     call = (zend_execute_data *) (EG(vm_stack_top));
     task = (php_coro_task *) EG(vm_stack_top);
     EG(vm_stack_top) = (zval *) ((char *) call + PHP_CORO_TASK_SLOT * sizeof(zval));
@@ -260,7 +260,7 @@ void PHPCoroutine::create_func(void *arg)
     EG(exception_class) = NULL;
     EG(exception) = NULL;
 
-    PHPCoroutine::save_vm_stack(task);
+    save_vm_stack(task);
     task->output_ptr = NULL;
     task->co = Coroutine::get_current();
     task->co->set_task((void *) task);
@@ -329,7 +329,7 @@ void PHPCoroutine::create_func(void *arg)
 long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv)
 {
     zend_uchar type;
-    if (unlikely(PHPCoroutine::active == 0))
+    if (unlikely(!active))
     {
         if (zend_get_module_started("xdebug") == SUCCESS)
         {
@@ -337,9 +337,9 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
         }
         php_swoole_check_reactor();
         // PHPCoroutine::enable_hook(SW_HOOK_ALL); // TODO: enable it in version 4.3.0
-        PHPCoroutine::active = 1;
+        active = true;
     }
-    if (unlikely(Coroutine::count() >= PHPCoroutine::max_num))
+    if (unlikely(Coroutine::count() >= max_num))
     {
         swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %zu.", (uintmax_t) Coroutine::count());
         return SW_CORO_ERR_LIMIT;
@@ -360,14 +360,14 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
     php_coro_args.fci_cache = fci_cache;
     php_coro_args.argv = argv;
     php_coro_args.argc = argc;
-    php_coro_args.origin_task = PHPCoroutine::get_and_save_current_task();
+    php_coro_args.origin_task = get_and_save_current_task();
 
-    return Coroutine::create(PHPCoroutine::create_func, (void*) &php_coro_args);
+    return Coroutine::create(create_func, (void*) &php_coro_args);
 }
 
 void PHPCoroutine::defer(swCallback cb, void *data)
 {
-    php_coro_task *task = PHPCoroutine::get_current_task();
+    php_coro_task *task = get_current_task();
     if (task->defer_tasks == nullptr)
     {
         task->defer_tasks = new std::stack<defer_task *>;
@@ -402,21 +402,21 @@ void PHPCoroutine::check_bind(const char *name, long bind_cid)
 
 void PHPCoroutine::yield_m(zval *return_value, php_coro_context *sw_current_context)
 {
-    if (unlikely(!PHPCoroutine::is_in()))
+    if (unlikely(!is_in()))
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }
-    php_coro_task *task = PHPCoroutine::get_current_task();
+    php_coro_task *task = get_current_task();
     sw_current_context->current_coro_return_value_ptr = return_value;
     sw_current_context->current_task = task;
-    PHPCoroutine::on_yield(task);
+    on_yield(task);
     task->co->yield_naked();
 }
 
 int PHPCoroutine::resume_m(php_coro_context *sw_current_context, zval *retval, zval *coro_retval)
 {
     php_coro_task *task = sw_current_context->current_task;
-    PHPCoroutine::on_resume(task);
+    on_resume(task);
     if (EG(current_execute_data)->prev_execute_data->opline->result_type != IS_UNUSED && retval)
     {
         ZVAL_COPY(sw_current_context->current_coro_return_value_ptr, retval);
