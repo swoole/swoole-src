@@ -634,12 +634,6 @@ static void sleep_timeout_callback(swTimer *timer, swTimer_node *tnode)
     ((Coroutine *) tnode->data)->resume();
 }
 
-static void sleep_cancel_callback(void *data)
-{
-    swTimer_node* tnode = (swTimer_node *) data;
-    swTimer_del(&SwooleG.timer, tnode);
-}
-
 double Coroutine::sleep(double sec)
 {
     Coroutine* co = Coroutine::get_current();
@@ -648,9 +642,11 @@ double Coroutine::sleep(double sec)
     {
         return sec;
     }
-    if (unlikely(!co->yield(sleep_cancel_callback, tnode)))
+    else if (unlikely(!co->yield_c()))
     {
-        return (tnode->exec_msec - swTimer_get_relative_msec()) / 1000;
+        sec = (tnode->exec_msec - swTimer_get_relative_msec()) / 1000;
+        swTimer_del(&SwooleG.timer, tnode);
+        return sec;
     }
     return 0;
 }

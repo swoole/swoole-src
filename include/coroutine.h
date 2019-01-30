@@ -52,14 +52,15 @@ void clear_dns_cache();
 class Coroutine
 {
 public:
-    void resume();
     void yield();
+    void resume();
 
     bool yield(sw_coro_on_swap_t on_cancel, void *data = nullptr);
+    bool yield_c();
     bool cancel();
 
-    void resume_naked();
     void yield_naked();
+    void resume_naked();
 
     void close();
 
