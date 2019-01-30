@@ -641,19 +641,25 @@ static void sleep_timeout_callback(swTimer *timer, swTimer_node *tnode)
     ((Coroutine *) tnode->data)->resume();
 }
 
-bool Coroutine::sleep(double sec)
+static void sleep_cancel_callback(void *data)
+{
+    swTimer_node* tnode = (swTimer_node *) data;
+    swTimer_del(&SwooleG.timer, tnode);
+}
+
+double Coroutine::sleep(double sec)
 {
     Coroutine* co = Coroutine::get_current();
     swTimer_node* tnode = swTimer_add(&SwooleG.timer, (long) (sec * 1000), 0, co, sleep_timeout_callback);
     if (unlikely(!tnode))
     {
-        return false;
+        return sec;
     }
-    co->yield([](void *data) {
-        swTimer_node* tnode = (swTimer_node *) data;
-        swTimer_del(&SwooleG.timer, tnode);
-    }, tnode);
-    return true;
+    if (unlikely(!co->yield(sleep_cancel_callback, tnode)))
+    {
+        return (tnode->exec_msec - swTimer_get_relative_msec()) / 1000;
+    }
+    return 0;
 }
 
 swString* Coroutine::read_file(const char *file, int lock)

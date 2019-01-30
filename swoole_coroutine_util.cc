@@ -649,12 +649,12 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
         Z_PARAM_DOUBLE(seconds)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (seconds <= 0)
+    if (UNEXPECTED(seconds <= 0))
     {
         swoole_php_fatal_error(E_WARNING, "Timer must be greater than 0");
         RETURN_FALSE;
     }
-    RETURN_BOOL(Coroutine::sleep(seconds));
+    RETURN_DOUBLE(Coroutine::sleep(seconds));
 }
 
 static void aio_onReadCompleted(swAio_event *event)

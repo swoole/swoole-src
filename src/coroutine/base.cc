@@ -73,7 +73,7 @@ bool Coroutine::yield(sw_coro_on_swap_t on_cancel, void *data)
     canceled = false;
     yield();
     cancelable = false;
-    if (canceled)
+    if (unlikely(canceled))
     {
         on_cancel(data);
         if (this->on_cancel)
