@@ -16,7 +16,7 @@ $yield = go(function () {
 });
 
 $sleep = go(function () {
-    if (($ret = Co::sleep(1)) === 0) {
+    if (($ret = Co::sleep(1)) == 0) {
         echo "normal termination\n";
     } else {
         echo "time left {$ret}s\n";
