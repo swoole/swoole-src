@@ -743,7 +743,7 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
     }
 
     swAio_event ev;
-    aio_task task ;
+    aio_task task;
 
     bzero(&ev, sizeof(swAio_event));
     if (hostname.size() < SW_IP_MAX_LENGTH)
@@ -772,7 +772,7 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
     ev.callback = aio_onDNSCompleted;
 
     swAio_event *event = swAio_dispatch2(&ev);
-    swTimer_node* timer = nullptr;
+    swTimer_node *timer = nullptr;
     if (timeout > 0)
     {
         timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, event, aio_onDNSTimeout);
