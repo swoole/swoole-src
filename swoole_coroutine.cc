@@ -200,6 +200,14 @@ void PHPCoroutine::on_close(void *arg)
     );
 }
 
+static void sw_zend_error_helper(int type, const char *filename, const uint32_t lineno, const char *format, ...)
+{
+    va_list va;
+    va_start(va, format);
+    zend_error_cb(type, filename, lineno, format, va);
+    va_end(va);
+}
+
 static void php_coro_warn_exception(long cid)
 {
     zval zexception, ztmp;
