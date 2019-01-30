@@ -24,9 +24,9 @@ size_t Coroutine::call_stack_size = 0;
 Coroutine* Coroutine::call_stack[SW_MAX_CORO_NESTING_LEVEL];
 long Coroutine::last_cid = 0;
 uint64_t Coroutine::peak_num = 0;
-coro_php_yield_t  Coroutine::on_yield = nullptr;
-coro_php_resume_t Coroutine::on_resume = nullptr;
-coro_php_close_t  Coroutine::on_close = nullptr;
+sw_coro_on_swap_t Coroutine::on_yield = nullptr;
+sw_coro_on_swap_t Coroutine::on_resume = nullptr;
+sw_coro_on_swap_t Coroutine::on_close = nullptr;
 
 std::unordered_map<long, Coroutine*> Coroutine::coroutines;
 
@@ -151,17 +151,17 @@ void Coroutine::print_list()
     }
 }
 
-void Coroutine::set_on_yield(coro_php_yield_t func)
+void Coroutine::set_on_yield(sw_coro_on_swap_t func)
 {
     on_yield = func;
 }
 
-void Coroutine::set_on_resume(coro_php_resume_t func)
+void Coroutine::set_on_resume(sw_coro_on_swap_t func)
 {
     on_resume = func;
 }
 
-void Coroutine::set_on_close(coro_php_close_t func)
+void Coroutine::set_on_close(sw_coro_on_swap_t func)
 {
     on_close = func;
 }

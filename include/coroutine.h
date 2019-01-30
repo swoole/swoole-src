@@ -41,10 +41,7 @@ typedef enum
     SW_CORO_END,
 } sw_coro_state;
 
-typedef void (*coro_php_create_t)();
-typedef void (*coro_php_yield_t)(void*);
-typedef void (*coro_php_resume_t)(void*);
-typedef void (*coro_php_close_t)(void*);
+typedef void (*sw_coro_on_swap_t)(void*);
 
 namespace swoole
 {
@@ -98,9 +95,9 @@ public:
     static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
 
-    static void set_on_yield(coro_php_yield_t func);
-    static void set_on_resume(coro_php_resume_t func);
-    static void set_on_close(coro_php_close_t func);
+    static void set_on_yield(sw_coro_on_swap_t func);
+    static void set_on_resume(sw_coro_on_swap_t func);
+    static void set_on_close(sw_coro_on_swap_t func);
 
     static inline size_t get_stack_size()
     {
@@ -138,9 +135,9 @@ protected:
     static Coroutine* call_stack[SW_MAX_CORO_NESTING_LEVEL];
     static long last_cid;
     static uint64_t peak_num;
-    static coro_php_yield_t  on_yield;  /* before php yield coro */
-    static coro_php_resume_t on_resume; /* before php resume coro */
-    static coro_php_close_t  on_close;  /* before php close coro */
+    static sw_coro_on_swap_t  on_yield;  /* before php yield coro */
+    static sw_coro_on_swap_t  on_resume; /* before php resume coro */
+    static sw_coro_on_swap_t  on_close;  /* before php close coro */
 
     sw_coro_state state = SW_CORO_INIT;
     long cid;
