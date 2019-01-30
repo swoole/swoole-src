@@ -32,7 +32,7 @@ go(function () {
 --EXPECTF--
 closed
 
-Fatal error: Uncaught Exception: something wrong in %s:%d
+Warning: [Coroutine#1] Uncaught Exception: something wrong in %s:%d
 Stack trace:
 #0 {main}
   thrown in %s on line %d

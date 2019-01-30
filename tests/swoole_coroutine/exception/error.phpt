@@ -11,12 +11,14 @@ go(function () {
     co::sleep(.001);
     echo "after sleep\n";
 });
-echo "end\n";
+echo "\nend\n";
 ?>
 --EXPECTF--
 start
 
-Fatal error: Uncaught Exception: coro Exception %s
+Warning: [Coroutine#1] Uncaught Exception: coro Exception %s
 Stack trace:
 #0 {main}
   thrown in %s/tests/swoole_coroutine/exception/error.php on line 5
+
+end

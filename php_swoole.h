@@ -1035,6 +1035,15 @@ static sw_inline char* sw_http_build_query(zval *zdata, size_t *length, smart_st
     return formstr->s->val;
 }
 
+static sw_inline void sw_zend_error_helper(int type, const char *filename, const uint32_t lineno, const char *format, ...)
+{
+    va_list va;
+
+    va_start(va, format);
+    zend_error_cb(type, filename, lineno, format, va);
+    va_end(va);
+}
+
 static sw_inline void sw_get_debug_print_backtrace(swString *buffer, zend_long options, zend_long limit)
 {
     zval _fcn, *fcn = &_fcn, args[2], *retval = NULL;

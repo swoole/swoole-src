@@ -15,7 +15,7 @@
   +----------------------------------------------------------------------+
  */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 #include "swoole_coroutine.h"
 
 using namespace swoole;
@@ -200,6 +200,25 @@ void PHPCoroutine::on_close(void *arg)
     );
 }
 
+static void php_coro_warn_exception(long cid)
+{
+    zval zexception, ztmp;
+    zend_object *exception = EG(exception);
+
+    EG(exception) = NULL;
+    ZVAL_OBJ(&zexception, exception);
+    zend_call_method_with_0_params(&zexception, exception->ce, &exception->ce->__tostring, "__tostring", &ztmp);
+    sw_zend_error_helper(
+        E_WARNING,
+        zend::string(sw_zend_read_property(zend_ce_exception, &zexception, ZEND_STRL("file"), 1)).val(),
+        zval_get_long(sw_zend_read_property(zend_ce_exception, &zexception, ZEND_STRL("line"), 1)),
+        "[Coroutine#%ld] Uncaught %s\n  thrown", cid, zend::string(&ztmp).val()
+    );
+    zval_ptr_dtor(&ztmp);
+    GC_SET_REFCOUNT(exception, 1);
+    OBJ_RELEASE(exception);
+}
+
 void PHPCoroutine::create_func(void *arg)
 {
     int i;
@@ -322,7 +341,14 @@ void PHPCoroutine::create_func(void *arg)
 
     if (UNEXPECTED(EG(exception)))
     {
-        zend_exception_error(EG(exception), E_ERROR);
+        if (UNEXPECTED(!instanceof_function(EG(exception)->ce, zend_ce_exception)))
+        {
+            zend_exception_error(EG(exception), E_ERROR);
+        }
+        else
+        {
+            php_coro_warn_exception(task->co->get_cid());
+        }
     }
 }
 
