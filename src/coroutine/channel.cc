@@ -22,38 +22,38 @@ using namespace swoole;
 
 void Channel::timer_callback(swTimer *timer, swTimer_node *tnode)
 {
-    timer_msg_t *msg = (timer_msg_t *) tnode->data;
+    msg_t *msg = (msg_t *) tnode->data;
     msg->error = true;
     msg->timer = nullptr;
-    if (msg->type == CONSUMER)
-    {
-        msg->chan->consumer_remove(msg->co);
-    }
-    else
-    {
-        msg->chan->producer_remove(msg->co);
-    }
+    msg->chan->remove(msg->type, msg->co);
     msg->co->resume();
 }
 
-void Channel::yield(enum opcode type)
+void Channel::cancel_callback(void *data)
+{
+    msg_t *msg = (msg_t *) data;
+    msg->error = true;
+    msg->chan->remove(msg->type, msg->co);
+}
+
+bool Channel::wait(msg_t *msg)
 {
     Coroutine *co = Coroutine::get_current();
     if (unlikely(!co))
     {
         swError("Channel::yield() must be called in the coroutine.");
     }
-    if (type == PRODUCER)
+    if (msg->type == PRODUCER)
     {
         producer_queue.push_back(co);
         swTraceLog(SW_TRACE_CHANNEL, "producer cid=%ld", co->get_cid());
     }
-    else
+    else // if (msg.type == CONSUMER)
     {
         consumer_queue.push_back(co);
         swTraceLog(SW_TRACE_CHANNEL, "consumer cid=%ld", co->get_cid());
     }
-    co->yield();
+    return co->yield(cancel_callback, msg) && !msg->error && !closed;
 }
 
 void* Channel::pop(double timeout)
@@ -64,25 +64,8 @@ void* Channel::pop(double timeout)
     }
     if (is_empty() || !consumer_queue.empty())
     {
-        timer_msg_t msg;
-        msg.error = false;
-        msg.timer = NULL;
-        if (timeout > 0)
-        {
-            long msec = (long) (timeout * 1000);
-            msg.chan = this;
-            msg.type = CONSUMER;
-            msg.co = Coroutine::get_current();
-            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, timer_callback);
-        }
-
-        yield(CONSUMER);
-
-        if (msg.timer)
-        {
-            swTimer_del(&SwooleG.timer, msg.timer);
-        }
-        if (msg.error || closed)
+        msg_t msg(this, CONSUMER, timeout);
+        if (unlikely(!wait(&msg)))
         {
             return nullptr;
         }
@@ -111,25 +94,8 @@ bool Channel::push(void *data, double timeout)
     }
     if (is_full() || !producer_queue.empty())
     {
-        timer_msg_t msg;
-        msg.error = false;
-        msg.timer = NULL;
-        if (timeout > 0)
-        {
-            long msec = (long) (timeout * 1000);
-            msg.chan = this;
-            msg.type = PRODUCER;
-            msg.co = Coroutine::get_current();
-            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, timer_callback);
-        }
-
-        yield(PRODUCER);
-
-        if (msg.timer)
-        {
-            swTimer_del(&SwooleG.timer, msg.timer);
-        }
-        if (msg.error || closed)
+        msg_t msg(this, PRODUCER, timeout);
+        if (unlikely(!wait(&msg)))
         {
             return false;
         }
