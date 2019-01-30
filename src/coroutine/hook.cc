@@ -641,15 +641,15 @@ static void sleep_timeout(swTimer *timer, swTimer_node *tnode)
     ((Coroutine *) tnode->data)->resume();
 }
 
-int Coroutine::sleep(double sec)
+bool Coroutine::sleep(double sec)
 {
     Coroutine* co = Coroutine::get_current();
-    if (swTimer_add(&SwooleG.timer, (long) (sec * 1000), 0, co, sleep_timeout) == NULL)
+    if (unlikely(swTimer_add(&SwooleG.timer, (long) (sec * 1000), 0, co, sleep_timeout) == NULL))
     {
-        return -1;
+        return false;
     }
     co->yield();
-    return 0;
+    return true;
 }
 
 swString* Coroutine::read_file(const char *file, int lock)

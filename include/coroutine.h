@@ -90,7 +90,7 @@ public:
     static void print_list();
 
     static long create(coroutine_func_t fn, void* args = nullptr);
-    static int sleep(double sec);
+    static bool sleep(double sec);
     static swString* read_file(const char *file, int lock);
     static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);

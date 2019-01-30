@@ -1127,7 +1127,7 @@ static PHP_FUNCTION(_sleep)
     if (num >= 0.001 && PHPCoroutine::is_in())
     {
         php_swoole_check_reactor();
-        RETURN_LONG(Coroutine::sleep((double ) num) < 0 ? num : 0);
+        RETURN_LONG(Coroutine::sleep((double) num) ? 0 : num);
     }
     else
     {
