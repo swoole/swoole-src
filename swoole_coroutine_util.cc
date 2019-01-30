@@ -623,7 +623,10 @@ static sw_inline void coro_throw(INTERNAL_FUNCTION_PARAMETERS, bool silent)
         zval_ptr_dtor(&tmp);
         sw_free(message);
     }
-    Z_ADDREF_P(zexception);
+    else
+    {
+        Z_ADDREF_P(zexception);
+    }
     PHPCoroutine::set_exception(Z_OBJ_P(zexception), silent);
     co->cancel();
     RETURN_TRUE;
