@@ -661,7 +661,6 @@ void php_swoole_process_clean()
     if (SwooleG.timer.initialized)
     {
         swTimer_free(&SwooleG.timer);
-        bzero(&SwooleG.timer, sizeof(SwooleG.timer));
     }
 
     swSignal_clear();

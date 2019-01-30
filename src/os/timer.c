@@ -23,9 +23,8 @@ static int swSystemTimer_set(swTimer *timer, long new_interval);
 /**
  * create timer
  */
-int swSystemTimer_init(int interval)
+int swSystemTimer_init(swTimer *timer, int interval)
 {
-    swTimer *timer = &SwooleG.timer;
     timer->lasttime = interval;
     if (swSystemTimer_signal_set(timer, interval) < 0)
     {

@@ -2059,6 +2059,7 @@ struct _swTimer
 {
     /*--------------signal timer--------------*/
     uint8_t initialized;
+    swReactor *reactor;
     swHeap *heap;
     swHashMap *map;
     uint32_t num;
@@ -2067,9 +2068,9 @@ struct _swTimer
     long _next_id;
     long _current_id;
     long _next_msec;
-    /*-----------------for EventTimer-------------------*/
+    /*---------------event timer--------------*/
     struct timeval basetime;
-    /*--------------------------------------------------*/
+    /*----------------------------------------*/
     int (*set)(swTimer *timer, long exec_msec);
 };
 
@@ -2085,9 +2086,8 @@ static sw_inline swTimer_node* swTimer_get(swTimer *timer, long id)
     return (swTimer_node*) swHashMap_find_int(timer->map, id);
 }
 
-int swSystemTimer_init(int msec);
+int swSystemTimer_init(swTimer *timer, int msec);
 void swSystemTimer_signal_handler(int sig);
-int swSystemTimer_event_handler(swReactor *reactor, swEvent *event);
 //--------------------------------------------------------------
 //Share Memory
 typedef struct
