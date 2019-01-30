@@ -28,6 +28,7 @@ double PHPCoroutine::socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double PHPCoroutine::socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
 php_coro_task PHPCoroutine::main_task = {0};
 zend_object* PHPCoroutine::exception = nullptr;
+bool PHPCoroutine::shutdown = false;
 
 inline void PHPCoroutine::vm_stack_init(void)
 {
@@ -168,10 +169,6 @@ void PHPCoroutine::on_resume(void *arg)
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", Coroutine::get_cid(task->origin_task->co), Coroutine::get_cid(task->co));
 }
 
-static void php_coro_exception_swap_origin(zval zexception)
-{
-}
-
 void PHPCoroutine::on_cancel(void *arg)
 {
     if (exception)
@@ -179,6 +176,7 @@ void PHPCoroutine::on_cancel(void *arg)
         zval zexception, ztmp;
         zend_class_entry *ce = exception->ce;
         ZVAL_OBJ(&zexception, exception);
+        exception = nullptr;
         // swap origin
         zend_update_property(ce, &zexception, ZEND_STRL("originCid"), sw_zend_read_property(zend_ce_exception, &zexception, ZEND_STRL("cid"), 1));
         zend_update_property(ce, &zexception, ZEND_STRL("originFile"), sw_zend_read_property(zend_ce_exception, &zexception, ZEND_STRL("file"), 1));
@@ -195,7 +193,6 @@ void PHPCoroutine::on_cancel(void *arg)
         Z_SET_REFCOUNT(ztmp, 0);
         zend_update_property(zend_ce_exception, &zexception, ZEND_STRL("trace"), &ztmp);
         zend_throw_exception_object(&zexception);
-        exception = nullptr;
     }
 }
 
@@ -232,7 +229,7 @@ void PHPCoroutine::on_close(void *arg)
     );
 }
 
-static void sw_zend_error_helper(int type, const char *filename, const uint32_t lineno, const char *format, ...)
+static void php_error_helper(int type, const char *filename, const uint32_t lineno, const char *format, ...)
 {
     va_list va;
     va_start(va, format);
@@ -240,7 +237,13 @@ static void sw_zend_error_helper(int type, const char *filename, const uint32_t 
     va_end(va);
 }
 
-static void php_coro_warn_exception(long cid)
+static sw_inline void php_destroy_exception_object(zend_object *exception)
+{
+    GC_SET_REFCOUNT(exception, 1);
+    OBJ_RELEASE(exception);
+}
+
+static void php_convert_exception_to_warning(long cid)
 {
     zval zexception, ztmp;
     zend_object *exception = EG(exception);
@@ -248,15 +251,14 @@ static void php_coro_warn_exception(long cid)
     EG(exception) = NULL;
     ZVAL_OBJ(&zexception, exception);
     zend_call_method_with_0_params(&zexception, exception->ce, &exception->ce->__tostring, "__tostring", &ztmp);
-    sw_zend_error_helper(
+    php_error_helper(
         E_WARNING,
         zend::string(sw_zend_read_property(zend_ce_exception, &zexception, ZEND_STRL("file"), 1)).val(),
         zval_get_long(sw_zend_read_property(zend_ce_exception, &zexception, ZEND_STRL("line"), 1)),
         "[Coroutine#%ld] Uncaught %s\n  thrown", cid, zend::string(&ztmp).val()
     );
     zval_ptr_dtor(&ztmp);
-    GC_SET_REFCOUNT(exception, 1);
-    OBJ_RELEASE(exception);
+    php_destroy_exception_object(exception);
 }
 
 void PHPCoroutine::create_func(void *arg)
@@ -385,9 +387,15 @@ void PHPCoroutine::create_func(void *arg)
         {
             zend_exception_error(EG(exception), E_ERROR);
         }
+        else if (!shutdown)
+        {
+            php_convert_exception_to_warning(task->co->get_cid());
+        }
         else
         {
-            php_coro_warn_exception(task->co->get_cid());
+            php_destroy_exception_object(EG(exception));
+            EG(exception) = NULL;
+            shutdown = false;
         }
     }
 }

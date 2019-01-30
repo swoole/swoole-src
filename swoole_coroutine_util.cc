@@ -77,6 +77,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_throw, 0, 0, 1)
     ZEND_ARG_INFO(0, exception)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_shutdown, 0, 0, 1)
+    ZEND_ARG_INFO(0, cid)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_exec, 0, 0, 1)
     ZEND_ARG_INFO(0, command)
 ZEND_END_ARG_INFO()
@@ -145,6 +149,7 @@ static PHP_METHOD(swoole_coroutine_util, resume);
 static PHP_METHOD(swoole_coroutine_util, cancel);
 static PHP_METHOD(swoole_coroutine_util, wasCancelled);
 static PHP_METHOD(swoole_coroutine_util, throw);
+static PHP_METHOD(swoole_coroutine_util, shutdown);
 static PHP_METHOD(swoole_coroutine_util, stats);
 static PHP_METHOD(swoole_coroutine_util, getCid);
 static PHP_METHOD(swoole_coroutine_util, getPcid);
@@ -212,6 +217,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_ME(swoole_coroutine_util, cancel, arginfo_swoole_coroutine_cancel, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, wasCancelled, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, throw, arginfo_swoole_coroutine_throw, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, shutdown, arginfo_swoole_coroutine_shutdown, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, stats, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getCid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine_util, getuid, getCid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -577,15 +583,18 @@ static PHP_METHOD(swoole_coroutine_util, wasCancelled)
     RETURN_BOOL(co && co->was_cancelled());
 }
 
-static PHP_METHOD(swoole_coroutine_util, throw)
+static sw_inline void coro_throw(INTERNAL_FUNCTION_PARAMETERS, bool silent)
 {
     zend_long cid;
     zval _zexception, *zexception = nullptr;
 
-    ZEND_PARSE_PARAMETERS_START(1, 2)
+    ZEND_PARSE_PARAMETERS_START(1, silent ? 1: 2)
         Z_PARAM_LONG(cid)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_OBJECT_OF_CLASS(zexception, zend_ce_exception)
+        if (!silent)
+        {
+            Z_PARAM_OPTIONAL
+            Z_PARAM_OBJECT_OF_CLASS(zexception, zend_ce_exception)
+        }
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Coroutine* co = Coroutine::get_by_cid(cid);
@@ -612,8 +621,19 @@ static PHP_METHOD(swoole_coroutine_util, throw)
         sw_free(message);
     }
     Z_ADDREF_P(zexception);
-    PHPCoroutine::set_exception(Z_OBJ_P(zexception));
-    RETURN_BOOL(co->cancel());
+    PHPCoroutine::set_exception(Z_OBJ_P(zexception), silent);
+    co->cancel();
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_coroutine_util, throw)
+{
+    coro_throw(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
+}
+
+static PHP_METHOD(swoole_coroutine_util, shutdown)
+{
+    coro_throw(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
 }
 
 static PHP_METHOD(swoole_coroutine_util, stats)

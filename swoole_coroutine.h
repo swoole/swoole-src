@@ -148,9 +148,10 @@ public:
         return exception;
     }
 
-    static inline void set_exception(zend_object *e)
+    static inline void set_exception(zend_object *e, bool silent = false)
     {
         exception = e;
+        shutdown = silent;
     }
 
 protected:
@@ -158,6 +159,7 @@ protected:
     static uint64_t max_num;
     static php_coro_task main_task;
     static zend_object *exception;
+    static bool shutdown;
 
     static inline void vm_stack_init(void);
     static inline void vm_stack_destroy(void);
