@@ -636,7 +636,7 @@ int swoole_coroutine_flock(int fd, int operation)
     return ev.ret;
 }
 
-static void sleep_timeout(swTimer *timer, swTimer_node *tnode)
+static void sleep_timeout_callback(swTimer *timer, swTimer_node *tnode)
 {
     ((Coroutine *) tnode->data)->resume();
 }
@@ -644,11 +644,15 @@ static void sleep_timeout(swTimer *timer, swTimer_node *tnode)
 bool Coroutine::sleep(double sec)
 {
     Coroutine* co = Coroutine::get_current();
-    if (unlikely(swTimer_add(&SwooleG.timer, (long) (sec * 1000), 0, co, sleep_timeout) == NULL))
+    swTimer_node* tnode = swTimer_add(&SwooleG.timer, (long) (sec * 1000), 0, co, sleep_timeout_callback);
+    if (unlikely(!tnode))
     {
         return false;
     }
-    co->yield();
+    co->yield([](void *data) {
+        swTimer_node* tnode = (swTimer_node *) data;
+        swTimer_del(&SwooleG.timer, tnode);
+    }, tnode);
     return true;
 }
 

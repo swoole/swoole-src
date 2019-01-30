@@ -27,6 +27,7 @@ uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
 double PHPCoroutine::socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double PHPCoroutine::socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
 php_coro_task PHPCoroutine::main_task = {0};
+zend_object* PHPCoroutine::exception = nullptr;
 
 inline void PHPCoroutine::vm_stack_init(void)
 {
@@ -165,6 +166,37 @@ void PHPCoroutine::on_resume(void *arg)
     restore_vm_stack(task);
     restore_og(task);
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", Coroutine::get_cid(task->origin_task->co), Coroutine::get_cid(task->co));
+}
+
+static void php_coro_exception_swap_origin(zval zexception)
+{
+}
+
+void PHPCoroutine::on_cancel(void *arg)
+{
+    if (exception)
+    {
+        zval zexception, ztmp;
+        zend_class_entry *ce = exception->ce;
+        ZVAL_OBJ(&zexception, exception);
+        // swap origin
+        zend_update_property(ce, &zexception, ZEND_STRL("originCid"), sw_zend_read_property(zend_ce_exception, &zexception, ZEND_STRL("cid"), 1));
+        zend_update_property(ce, &zexception, ZEND_STRL("originFile"), sw_zend_read_property(zend_ce_exception, &zexception, ZEND_STRL("file"), 1));
+        zend_update_property(ce, &zexception, ZEND_STRL("originLine"), sw_zend_read_property(zend_ce_exception, &zexception, ZEND_STRL("line"), 1));
+        zend_update_property(ce, &zexception, ZEND_STRL("originTrace"), sw_zend_read_property(zend_ce_exception, &zexception, ZEND_STRL("trace"), 1));
+        ZVAL_LONG(&ztmp, Coroutine::get_current_cid());
+        zend_update_property(zend_ce_exception, &zexception, ZEND_STRL("cid"), &ztmp);
+        ZVAL_STRING(&ztmp, zend_get_executed_filename());
+        zend_update_property(zend_ce_exception, &zexception, ZEND_STRL("file"), &ztmp);
+        zval_ptr_dtor(&ztmp);
+        ZVAL_LONG(&ztmp, zend_get_executed_lineno());
+        zend_update_property(zend_ce_exception, &zexception, ZEND_STRL("line"), &ztmp);
+        zend_fetch_debug_backtrace(&ztmp, 0, 0, 0);
+        Z_SET_REFCOUNT(ztmp, 0);
+        zend_update_property(zend_ce_exception, &zexception, ZEND_STRL("trace"), &ztmp);
+        zend_throw_exception_object(&zexception);
+        exception = nullptr;
+    }
 }
 
 void PHPCoroutine::on_close(void *arg)

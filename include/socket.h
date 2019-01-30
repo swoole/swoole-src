@@ -225,6 +225,7 @@ protected:
 #endif
 
     static void timer_callback(swTimer *timer, swTimer_node *tnode);
+    static void cancel_callback(void *data);
     static int readable_event_callback(swReactor *reactor, swEvent *event);
     static int writable_event_callback(swReactor *reactor, swEvent *event);
     static int error_event_callback(swReactor *reactor, swEvent *event);
@@ -283,6 +284,14 @@ protected:
             return false;
         }
     }
+
+#ifdef SW_USE_OPENSSL
+    // maybe read_co and write_co are all waiting for the same event when we use SSL
+    inline bool should_be_remove()
+    {
+        return (want_event == SW_EVENT_NULL) || !(read_co && write_co);
+    }
+#endif
 
     // TODO: move to client.cc
     bool socks5_handshake();

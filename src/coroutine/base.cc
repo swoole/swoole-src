@@ -25,6 +25,7 @@ Coroutine* Coroutine::call_stack[SW_MAX_CORO_NESTING_LEVEL];
 long Coroutine::last_cid = 0;
 uint64_t Coroutine::peak_num = 0;
 sw_coro_on_swap_t Coroutine::on_yield = nullptr;
+sw_coro_on_swap_t Coroutine::on_cancel = nullptr;
 sw_coro_on_swap_t Coroutine::on_resume = nullptr;
 sw_coro_on_swap_t Coroutine::on_close = nullptr;
 
@@ -64,6 +65,36 @@ void Coroutine::resume()
     {
         close();
     }
+}
+
+bool Coroutine::yield(sw_coro_on_swap_t on_cancel, void *data)
+{
+    cancelable = true;
+    canceled = false;
+    yield();
+    cancelable = false;
+    if (canceled)
+    {
+        on_cancel(data);
+        if (this->on_cancel)
+        {
+            this->on_cancel(task);
+        }
+        return false;
+    }
+    return true;
+}
+
+bool Coroutine::cancel()
+{
+    if (!cancelable)
+    {
+        SwooleG.error = SW_ERROR_CO_NONCANCELABLE_OPERATION;
+        return false;
+    }
+    canceled = true;
+    resume();
+    return true;
 }
 
 void Coroutine::yield_naked()
@@ -116,7 +147,12 @@ long Coroutine::get_current_cid()
 Coroutine* Coroutine::get_by_cid(long cid)
 {
     auto i = coroutines.find(cid);
-    return likely(i != coroutines.end()) ? i->second : nullptr;
+    if (likely(i != coroutines.end()))
+    {
+        return i->second;
+    }
+    SwooleG.error = SW_ERROR_CO_NOT_EXIST;
+    return nullptr;
 }
 
 void* Coroutine::get_task_by_cid(long cid)
@@ -159,6 +195,11 @@ void Coroutine::set_on_yield(sw_coro_on_swap_t func)
 void Coroutine::set_on_resume(sw_coro_on_swap_t func)
 {
     on_resume = func;
+}
+
+void Coroutine::set_on_cancel(sw_coro_on_swap_t func)
+{
+    on_cancel = func;
 }
 
 void Coroutine::set_on_close(sw_coro_on_swap_t func)

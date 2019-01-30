@@ -2,8 +2,10 @@
 
 #include "coroutine.h"
 #include "socket.h"
-#include "zend_vm.h"
+
+#include "zend_builtin_functions.h"
 #include "zend_closures.h"
+#include "zend_vm.h"
 
 #include <stack>
 
@@ -111,6 +113,7 @@ public:
     {
         Coroutine::set_on_yield(on_yield);
         Coroutine::set_on_resume(on_resume);
+        Coroutine::set_on_cancel(on_cancel);
         Coroutine::set_on_close(on_close);
     }
 
@@ -140,10 +143,21 @@ public:
         max_num = n;
     }
 
+    static inline zend_object* get_exception()
+    {
+        return exception;
+    }
+
+    static inline void set_exception(zend_object *e)
+    {
+        exception = e;
+    }
+
 protected:
     static bool active;
     static uint64_t max_num;
     static php_coro_task main_task;
+    static zend_object *exception;
 
     static inline void vm_stack_init(void);
     static inline void vm_stack_destroy(void);
@@ -155,6 +169,7 @@ protected:
     static inline php_coro_task* get_and_save_current_task();
     static void on_yield(void *arg);
     static void on_resume(void *arg);
+    static void on_cancel(void *arg);
     static void on_close(void *arg);
     static void create_func(void *arg);
 };

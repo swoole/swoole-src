@@ -33,6 +33,30 @@ void Socket::timer_callback(swTimer *timer, swTimer_node *tnode)
     }
 }
 
+void Socket::cancel_callback(void *data)
+{
+    Coroutine *co = Coroutine::get_current();
+    Socket *socket = (Socket *) data;
+    socket->set_err(ECANCELED);
+#ifdef SW_USE_OPENSSL
+    if (likely(socket->should_be_remove()))
+#endif
+    {
+        if (likely(co == socket->read_co))
+        {
+            swReactor_remove_read_event(socket->reactor, socket->socket->fd);
+        }
+        else if (co == socket->write_co)
+        {
+            swReactor_remove_write_event(socket->reactor, socket->socket->fd);
+        }
+        else
+        {
+            assert(0);
+        }
+    }
+}
+
 int Socket::readable_event_callback(swReactor *reactor, swEvent *event)
 {
     Socket *socket = (Socket *) event->socket->object;
@@ -119,12 +143,12 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
     {
     case SW_EVENT_READ:
         read_co = co;
-        read_co->yield();
+        read_co->yield(cancel_callback, this);
         read_co = nullptr;
         break;
     case SW_EVENT_WRITE:
         write_co = co;
-        write_co->yield();
+        write_co->yield(cancel_callback, this);
         write_co = nullptr;
         break;
     default:
@@ -189,7 +213,7 @@ void Socket::trigger_event(const enum swEvent_type event)
         }
     }
 #ifdef SW_USE_OPENSSL
-    if (likely((want_event == SW_EVENT_NULL) || (want_event && !(read_co && write_co))))
+    if (likely(should_be_remove()))
 #endif
     {
         if (likely(event == SW_EVENT_READ))

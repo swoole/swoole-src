@@ -155,6 +155,8 @@ const char* swoole_strerror(enum swErrorCode code)
         return "Server send in master";
     case SW_ERROR_SERVER_INVALID_REQUEST:
         return "Server invalid request";
+    case SW_ERROR_SERVER_CONNECT_FAIL:
+        return "Server connect fail";
     case SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT:
         return "Server worker exit timeout";
     case SW_ERROR_CO_OUT_OF_COROUTINE:
@@ -183,6 +185,12 @@ const char* swoole_strerror(enum swErrorCode code)
         return "Coroutine std thread link error";
     case SW_ERROR_CO_DISABLED_MULTI_THREAD:
         return "Coroutine disabled multi thread";
+    case SW_ERROR_CO_NOT_EXIST:
+        return "Coroutine not exist";
+    case SW_ERROR_CO_NONCANCELABLE_OPERATION:
+        return "Coroutine noncancelable operation";
+    case SW_ERROR_CO_INTERRUPTED_BY_EXCEPTION:
+        return "Coroutine interrupted by exception";
     default:
         static char buffer[32];
 #ifndef __MACH__

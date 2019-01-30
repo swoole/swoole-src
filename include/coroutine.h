@@ -55,6 +55,9 @@ public:
     void resume();
     void yield();
 
+    bool yield(sw_coro_on_swap_t on_cancel, void *data = nullptr);
+    bool cancel();
+
     void resume_naked();
     void yield_naked();
 
@@ -80,6 +83,16 @@ public:
         task = _task;
     }
 
+    inline bool is_cancelable()
+    {
+        return cancelable;
+    }
+
+    inline bool was_cancelled()
+    {
+        return canceled;
+    }
+
     static std::unordered_map<long, Coroutine*> coroutines;
 
     static Coroutine* get_current();
@@ -97,6 +110,7 @@ public:
 
     static void set_on_yield(sw_coro_on_swap_t func);
     static void set_on_resume(sw_coro_on_swap_t func);
+    static void set_on_cancel(sw_coro_on_swap_t func);
     static void set_on_close(sw_coro_on_swap_t func);
 
     static inline size_t get_stack_size()
@@ -135,14 +149,17 @@ protected:
     static Coroutine* call_stack[SW_MAX_CORO_NESTING_LEVEL];
     static long last_cid;
     static uint64_t peak_num;
-    static sw_coro_on_swap_t  on_yield;  /* before php yield coro */
-    static sw_coro_on_swap_t  on_resume; /* before php resume coro */
-    static sw_coro_on_swap_t  on_close;  /* before php close coro */
+    static sw_coro_on_swap_t  on_yield;  /* before yield coro */
+    static sw_coro_on_swap_t  on_resume; /* before resume coro */
+    static sw_coro_on_swap_t  on_cancel; /* after cancel coro */
+    static sw_coro_on_swap_t  on_close;  /* before close coro */
 
     sw_coro_state state = SW_CORO_INIT;
     long cid;
     void *task = nullptr;
     Context ctx;
+    bool cancelable = false;
+    bool canceled = false;
 
     Coroutine(coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)

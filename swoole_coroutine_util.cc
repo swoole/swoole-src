@@ -60,12 +60,21 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_create, 0, 0, 1)
     ZEND_ARG_VARIADIC_INFO(0, params)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_exists, 0, 0, 1)
+    ZEND_ARG_INFO(0, cid)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_resume, 0, 0, 1)
     ZEND_ARG_INFO(0, cid)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_exists, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_cancel, 0, 0, 1)
     ZEND_ARG_INFO(0, cid)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_throw, 0, 0, 1)
+    ZEND_ARG_INFO(0, cid)
+    ZEND_ARG_INFO(0, exception)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_exec, 0, 0, 1)
@@ -133,6 +142,9 @@ static PHP_METHOD(swoole_coroutine_util, set);
 static PHP_METHOD(swoole_coroutine_util, exists);
 static PHP_METHOD(swoole_coroutine_util, yield);
 static PHP_METHOD(swoole_coroutine_util, resume);
+static PHP_METHOD(swoole_coroutine_util, cancel);
+static PHP_METHOD(swoole_coroutine_util, wasCancelled);
+static PHP_METHOD(swoole_coroutine_util, throw);
 static PHP_METHOD(swoole_coroutine_util, stats);
 static PHP_METHOD(swoole_coroutine_util, getCid);
 static PHP_METHOD(swoole_coroutine_util, getPcid);
@@ -155,6 +167,12 @@ static PHP_METHOD(swoole_coroutine_iterator, key);
 static PHP_METHOD(swoole_coroutine_iterator, valid);
 static PHP_METHOD(swoole_coroutine_iterator, __destruct);
 
+static PHP_METHOD(swoole_coroutine_exception, getCid);
+static PHP_METHOD(swoole_coroutine_exception, getOriginCid);
+static PHP_METHOD(swoole_coroutine_exception, getOriginFile);
+static PHP_METHOD(swoole_coroutine_exception, getOriginLine);
+static PHP_METHOD(swoole_coroutine_exception, getOriginTrace);
+
 static PHP_METHOD(swoole_exit_exception, getFlags);
 static PHP_METHOD(swoole_exit_exception, getStatus);
 
@@ -167,6 +185,10 @@ static zend_object_handlers swoole_coroutine_util_handlers;
 static zend_class_entry swoole_coroutine_iterator_ce;
 static zend_class_entry *swoole_coroutine_iterator_ce_ptr;
 static zend_object_handlers swoole_coroutine_iterator_handlers;
+
+static zend_class_entry swoole_coroutine_exception_ce;
+static zend_class_entry *swoole_coroutine_exception_ce_ptr;
+static zend_object_handlers swoole_coroutine_exception_handlers;
 
 static zend_class_entry swoole_exit_exception_ce;
 static zend_class_entry *swoole_exit_exception_ce_ptr;
@@ -187,6 +209,9 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_ME(swoole_coroutine_util, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine_util, suspend, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, resume, arginfo_swoole_coroutine_resume, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, cancel, arginfo_swoole_coroutine_cancel, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, wasCancelled, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, throw, arginfo_swoole_coroutine_throw, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, stats, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getCid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine_util, getuid, getCid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -217,12 +242,31 @@ static const zend_function_entry swoole_coroutine_iterator_methods[] =
     PHP_FE_END
 };
 
+static const zend_function_entry swoole_coroutine_exception_methods[] = {
+    PHP_ME(swoole_coroutine_exception, getCid,         arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_coroutine_exception, getOriginCid,   arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_coroutine_exception, getOriginFile,  arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_coroutine_exception, getOriginLine,  arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_coroutine_exception, getOriginTrace, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+
 static const zend_function_entry swoole_exit_exception_methods[] =
 {
-    PHP_ME(swoole_exit_exception, getFlags, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_exit_exception, getFlags,  arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_exit_exception, getStatus, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
+
+static zend_object *swoole_coroutine_exception_create_object(zend_class_entry *ce)
+{
+    zval zexception;
+    zend_object *object = zend_ce_exception->create_object(ce);
+    object->handlers = &swoole_exit_exception_handlers;
+    ZVAL_OBJ(&zexception, object);
+    zend_update_property_long(swoole_coroutine_exception_ce_ptr, &zexception, ZEND_STRL("cid"), Coroutine::get_current_cid());
+    return object;
+}
 
 static user_opcode_handler_t ori_exit_handler = NULL;
 
@@ -310,6 +354,14 @@ void swoole_coroutine_util_init(int module_number)
     zend_class_implements(swoole_coroutine_iterator_ce_ptr, 1, zend_ce_countable);
 #endif
 
+    SWOOLE_INIT_CLASS_ENTRY_EX(swoole_coroutine_exception, "Swoole\\Coroutine\\Exception", "swoole_coroutine_exception", "Co\\Exception", swoole_coroutine_exception_methods, swoole_exception);
+    SWOOLE_SET_CLASS_CREATE(swoole_coroutine_exception, swoole_coroutine_exception_create_object);
+    zend_declare_property_long(swoole_coroutine_exception_ce_ptr, ZEND_STRL("cid"), 0, ZEND_ACC_PROTECTED);
+    zend_declare_property_long(swoole_coroutine_exception_ce_ptr, ZEND_STRL("originCid"), 0, ZEND_ACC_PROTECTED);
+    zend_declare_property_string(swoole_coroutine_exception_ce_ptr, ZEND_STRL("originFile"), "", ZEND_ACC_PROTECTED);
+    zend_declare_property_long(swoole_coroutine_exception_ce_ptr, ZEND_STRL("originLine"), 0, ZEND_ACC_PROTECTED);
+    zend_declare_property_null(swoole_coroutine_exception_ce_ptr, ZEND_STRL("originTrace"), ZEND_ACC_PROTECTED);
+
     SWOOLE_DEFINE(DEFAULT_MAX_CORO_NUM);
     SWOOLE_DEFINE(MAX_CORO_NUM_LIMIT);
     SWOOLE_DEFINE(MAX_CORO_NESTING_LEVEL);
@@ -318,8 +370,10 @@ void swoole_coroutine_util_init(int module_number)
     SWOOLE_DEFINE(CORO_RUNNING);
     SWOOLE_DEFINE(CORO_END);
 
-    //prohibit exit in coroutine
+    // prohibit exit in coroutine or server
     SWOOLE_INIT_CLASS_ENTRY_EX(swoole_exit_exception, "Swoole\\ExitException", NULL, NULL, swoole_exit_exception_methods, swoole_exception);
+    zend_declare_property_long(swoole_exit_exception_ce_ptr, ZEND_STRL("flags"), SW_EXIT_IN_COROUTINE, ZEND_ACC_PROTECTED);
+    zend_declare_property_null(swoole_exit_exception_ce_ptr, ZEND_STRL("status"), ZEND_ACC_PROTECTED);
 
     SWOOLE_DEFINE(EXIT_IN_COROUTINE);
     SWOOLE_DEFINE(EXIT_IN_SERVER);
@@ -331,9 +385,34 @@ void swoole_coroutine_util_init(int module_number)
     }
 }
 
+static PHP_METHOD(swoole_coroutine_exception, getCid)
+{
+    RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("cid"), 0), 1, 0);
+}
+
+static PHP_METHOD(swoole_coroutine_exception, getOriginCid)
+{
+    RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("originCid"), 0), 1, 0);
+}
+
+static PHP_METHOD(swoole_coroutine_exception, getOriginFile)
+{
+    RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("originFile"), 0), 1, 0);
+}
+
+static PHP_METHOD(swoole_coroutine_exception, getOriginLine)
+{
+    RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("originLine"), 0), 1, 0);
+}
+
+static PHP_METHOD(swoole_coroutine_exception, getOriginTrace)
+{
+    RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("originTrace"), 0), 1, 0);
+}
+
 static PHP_METHOD(swoole_exit_exception, getFlags)
 {
-    RETURN_LONG(Z_LVAL_P(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("flags"), 1)));
+    RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("flags"), 0), 1, 0);
 }
 
 static PHP_METHOD(swoole_exit_exception, getStatus)
@@ -478,6 +557,63 @@ static PHP_METHOD(swoole_coroutine_util, resume)
     user_yield_coros.erase(cid);
     co->resume();
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_coroutine_util, cancel)
+{
+    zend_long cid;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(cid)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    Coroutine* co = Coroutine::get_by_cid(cid);
+    RETURN_BOOL(co && co->cancel());
+}
+
+static PHP_METHOD(swoole_coroutine_util, wasCancelled)
+{
+    Coroutine* co = Coroutine::get_current();
+    RETURN_BOOL(co && co->was_cancelled());
+}
+
+static PHP_METHOD(swoole_coroutine_util, throw)
+{
+    zend_long cid;
+    zval _zexception, *zexception = nullptr;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_LONG(cid)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_OBJECT_OF_CLASS(zexception, zend_ce_exception)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    Coroutine* co = Coroutine::get_by_cid(cid);
+    if (!co)
+    {
+        RETURN_FALSE;
+    }
+    if (!co->is_cancelable())
+    {
+        SwooleG.error = SW_ERROR_CO_NONCANCELABLE_OPERATION;
+        RETURN_FALSE;
+    }
+    if (!zexception)
+    {
+        zval tmp;
+        zexception = &_zexception;
+        char *message = swoole_string_format(64, "the coroutine was interrupted by an exception from cid#%ld.", Coroutine::get_current_cid());
+        object_init_ex(zexception, swoole_coroutine_exception_ce_ptr);
+        ZVAL_LONG(&tmp, SW_ERROR_CO_INTERRUPTED_BY_EXCEPTION);
+        zend_update_property_ex(swoole_coroutine_exception_ce_ptr, zexception, ZSTR_KNOWN(ZEND_STR_CODE), &tmp);
+        ZVAL_STRING(&tmp, message);
+        zend_update_property_ex(swoole_coroutine_exception_ce_ptr, zexception, ZSTR_KNOWN(ZEND_STR_MESSAGE), &tmp);
+        zval_ptr_dtor(&tmp);
+        sw_free(message);
+    }
+    Z_ADDREF_P(zexception);
+    PHPCoroutine::set_exception(Z_OBJ_P(zexception));
+    RETURN_BOOL(co->cancel());
 }
 
 static PHP_METHOD(swoole_coroutine_util, stats)
