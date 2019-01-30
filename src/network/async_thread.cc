@@ -324,23 +324,23 @@ static int swAio_init()
 
 int swAio_dispatch(const swAio_event *request)
 {
-    if (unlikely(!SwooleAIO.init))
-    {
-        swAio_init();
-    }
-    SwooleAIO.task_num++;
-    async_event *event = pool->dispatch(request);
-    return event->task_id;
+    return swAio_dispatch_ex(request, NULL);
 }
 
-swAio_event* swAio_dispatch2(const swAio_event *request)
+int swAio_dispatch_ex(const swAio_event *request, swAio_event **copy)
 {
+    async_event *event;
     if (unlikely(!SwooleAIO.init))
     {
         swAio_init();
     }
     SwooleAIO.task_num++;
-    return pool->dispatch(request);
+    event = pool->dispatch(request);
+    if (copy)
+    {
+        *copy = event;
+    }
+    return event->task_id;
 }
 
 void swAio_free(void)

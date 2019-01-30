@@ -19,9 +19,10 @@ TEST(network_aio_thread, dispatch)
 
     for (int i = 0; i < 1000; ++i)
     {
-        auto ret = swAio_dispatch2(&event);
-        ASSERT_EQ(ret->object, event.object);
-        ASSERT_NE(ret->task_id, event.task_id);
+        swAio_event *event_copy;
+        swAio_dispatch_ex(&event, &event_copy);
+        ASSERT_EQ(event_copy->object, event.object);
+        ASSERT_NE(event_copy->task_id, event.task_id);
     }
 
     time_t start = time(nullptr);

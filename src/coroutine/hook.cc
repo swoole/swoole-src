@@ -300,10 +300,6 @@ static void aio_onWriteFileCompleted(swAio_event *event)
 
 static void aio_onDNSCompleted(swAio_event *event)
 {
-    if (event->canceled)
-    {
-        return;
-    }
     aio_task *task = (aio_task *) event->object;
     task->event->ret = event->ret;
     task->event->error = event->error;
@@ -320,6 +316,15 @@ static void aio_onDNSTimeout(swTimer *timer, swTimer_node *tnode)
     ((Coroutine *) task->co)->resume();
 }
 
+static void aio_onCancel(void *data)
+{
+    swAio_event *event = (swAio_event *) data;
+    aio_task *task = (aio_task *) event->object;
+    event->canceled = 1;
+    task->event->ret = -1;
+    task->event->error = ECANCELED;
+}
+
 int swoole_coroutine_open(const char *pathname, int flags, mode_t mode)
 {
     if (unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current()))
@@ -327,7 +332,7 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode)
         return open(pathname, flags, mode);
     }
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(ev));
     ev.buf = (void*) pathname;
     ev.offset = mode;
@@ -337,12 +342,11 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return -1;
     }
-    ((Coroutine *) ev.object)->yield();
+    ((Coroutine *) ev.object)->yield(aio_onCancel, ev2);
     return ev.ret;
 }
 
@@ -360,7 +364,7 @@ ssize_t swoole_coroutine_read(int fd, void *buf, size_t count)
         return socket->read(buf, count);
     }
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(ev));
     ev.fd = fd;
     ev.buf = buf;
@@ -370,12 +374,11 @@ ssize_t swoole_coroutine_read(int fd, void *buf, size_t count)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return -1;
     }
-    ((Coroutine *) ev.object)->yield();
+    ((Coroutine *) ev.object)->yield(aio_onCancel, ev2);
     return ev.ret;
 }
 
@@ -393,7 +396,7 @@ ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count)
         return socket->write(buf, count);
     }
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(ev));
     ev.fd = fd;
     ev.buf = (void*) buf;
@@ -403,12 +406,11 @@ ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return -1;
     }
-    ((Coroutine *) ev.object)->yield();
+    ((Coroutine *) ev.object)->yield(aio_onCancel, ev2);
     return ev.ret;
 }
 
@@ -419,7 +421,7 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence)
         return lseek(fd, offset, whence);
     }
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(ev));
     ev.fd = fd;
     ev.offset = offset;
@@ -429,12 +431,11 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return -1;
     }
-    ((Coroutine *) ev.object)->yield();
+    ((Coroutine *) ev.object)->yield(aio_onCancel, ev2);
     return ev.ret;
 }
 
@@ -445,7 +446,7 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf)
         return fstat(fd, statbuf);
     }
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(ev));
     ev.fd = fd;
     ev.buf = (void*) statbuf;
@@ -454,12 +455,11 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return -1;
     }
-    ((Coroutine *) ev.object)->yield();
+    ((Coroutine *) ev.object)->yield(aio_onCancel, ev2);
     return ev.ret;
 }
 
@@ -470,7 +470,7 @@ int swoole_coroutine_unlink(const char *pathname)
         return unlink(pathname);
     }
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(ev));
     ev.buf = (void*) pathname;
     ev.handler = handler_unlink;
@@ -478,12 +478,11 @@ int swoole_coroutine_unlink(const char *pathname)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return -1;
     }
-    ((Coroutine *) ev.object)->yield();
+    ((Coroutine *) ev.object)->yield(aio_onCancel, ev2);
     return ev.ret;
 }
 
@@ -494,7 +493,7 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf)
         return statvfs(path, buf);
     }
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(ev));
     ev.buf = (void*) path;
     ev.offset = (off_t) buf;
@@ -503,12 +502,11 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return -1;
     }
-    ((Coroutine *) ev.object)->yield();
+    ((Coroutine *) ev.object)->yield(aio_onCancel, ev2);
     return ev.ret;
 }
 
@@ -519,7 +517,7 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode)
         return mkdir(pathname, mode);
     }
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(ev));
     ev.buf = (void*) pathname;
     ev.offset = mode;
@@ -528,12 +526,11 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return -1;
     }
-    ((Coroutine *) ev.object)->yield();
+    ((Coroutine *) ev.object)->yield(aio_onCancel, ev2);
     return ev.ret;
 }
 
@@ -544,7 +541,7 @@ int swoole_coroutine_rmdir(const char *pathname)
         return rmdir(pathname);
     }
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(ev));
     ev.buf = (void*) pathname;
     ev.handler = handler_rmdir;
@@ -552,12 +549,11 @@ int swoole_coroutine_rmdir(const char *pathname)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return -1;
     }
-    ((Coroutine *) ev.object)->yield();
+    ((Coroutine *) ev.object)->yield(aio_onCancel, ev2);
     return ev.ret;
 }
 
@@ -568,7 +564,7 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath)
         return rename(oldpath, newpath);
     }
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(ev));
     ev.buf = (void*) oldpath;
     ev.offset = (off_t) newpath;
@@ -577,12 +573,11 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return -1;
     }
-    ((Coroutine *) ev.object)->yield();
+    ((Coroutine *) ev.object)->yield(aio_onCancel, ev2);
     return ev.ret;
 }
 
@@ -593,7 +588,7 @@ int swoole_coroutine_access(const char *pathname, int mode)
         return access(pathname, mode);
     }
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(ev));
     ev.buf = (void*) pathname;
     ev.offset = mode;
@@ -602,12 +597,11 @@ int swoole_coroutine_access(const char *pathname, int mode)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return -1;
     }
-    ((Coroutine *) ev.object)->yield();
+    ((Coroutine *) ev.object)->yield(aio_onCancel, ev2);
     return ev.ret;
 }
 
@@ -618,7 +612,7 @@ int swoole_coroutine_flock(int fd, int operation)
         return flock(fd, operation);
     }
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(ev));
     ev.fd = fd;
     ev.flags = operation;
@@ -627,12 +621,11 @@ int swoole_coroutine_flock(int fd, int operation)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return -1;
     }
-    ((Coroutine *) ev.object)->yield();
+    ((Coroutine *) ev.object)->yield(aio_onCancel, ev2);
     return ev.ret;
 }
 
@@ -666,7 +659,7 @@ swString* Coroutine::read_file(const char *file, int lock)
 {
     aio_task task;
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(swAio_event));
 
     task.co = Coroutine::get_current();
@@ -679,12 +672,11 @@ swString* Coroutine::read_file(const char *file, int lock)
     ev.callback = aio_onReadFileCompleted;
     ev.req = (void*) file;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return NULL;
     }
-    task.co->yield();
+    task.co->yield(aio_onCancel, ev2);
     if (ev.error == 0)
     {
         swString *str = (swString *) sw_malloc(sizeof(swString));
@@ -703,7 +695,7 @@ ssize_t Coroutine::write_file(const char *file, char *buf, size_t length, int lo
 {
     aio_task task;
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(swAio_event));
 
     task.co = Coroutine::get_current();
@@ -719,12 +711,11 @@ ssize_t Coroutine::write_file(const char *file, char *buf, size_t length, int lo
     ev.req = (void*) file;
     ev.flags = flags;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return -1;
     }
-    task.co->yield();
+    task.co->yield(aio_onCancel, ev2);
     if (ev.error != 0)
     {
         SwooleG.error = ev.error;
@@ -752,7 +743,7 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
         }
     }
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     aio_task task ;
 
     bzero(&ev, sizeof(swAio_event));
@@ -781,13 +772,13 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
     ev.handler = swAio_handler_gethostbyname;
     ev.callback = aio_onDNSCompleted;
 
-    swAio_event *event = swAio_dispatch2(&ev);
+    swAio_dispatch_ex(&ev, &ev2);
     swTimer_node* timer = nullptr;
     if (timeout > 0)
     {
-        timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, event, aio_onDNSTimeout);
+        timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, ev2, aio_onDNSTimeout);
     }
-    task.co->yield();
+    task.co->yield(aio_onCancel, ev2);
     if (timer)
     {
         swTimer_del(&SwooleG.timer, timer);
@@ -836,7 +827,7 @@ DIR *swoole_coroutine_opendir(const char *name)
         return opendir(name);
     }
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(ev));
     ev.buf = (void*) name;
     ev.handler = handler_opendir;
@@ -844,8 +835,7 @@ DIR *swoole_coroutine_opendir(const char *name)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return nullptr;
     }
@@ -860,7 +850,7 @@ struct dirent *swoole_coroutine_readdir(DIR *dirp)
         return readdir(dirp);
     }
 
-    swAio_event ev;
+    swAio_event ev, *ev2;
     bzero(&ev, sizeof(ev));
     ev.buf = (void*) dirp;
     ev.handler = handler_readdir;
@@ -868,8 +858,7 @@ struct dirent *swoole_coroutine_readdir(DIR *dirp)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    if (swAio_dispatch_ex(&ev, &ev2) < 0)
     {
         return nullptr;
     }
