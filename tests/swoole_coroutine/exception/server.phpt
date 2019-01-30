@@ -31,7 +31,7 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Warning: [Coroutine#2] Uncaught Exception: whoops in %s/swoole_coroutine/exception/exception.php:21
+Warning: [Coroutine#2] Uncaught Exception: whoops in %s/tests/swoole_coroutine/exception/server.php:21
 Stack trace:
 #0 {main}
-  thrown in %s/swoole_coroutine/exception/exception.php on line 21
+  thrown in %s/tests/swoole_coroutine/exception/server.php on line 21

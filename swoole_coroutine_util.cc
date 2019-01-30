@@ -617,9 +617,9 @@ static sw_inline void coro_throw(INTERNAL_FUNCTION_PARAMETERS, bool silent)
         char *message = swoole_string_format(64, "the coroutine was interrupted by an exception from cid#%ld.", Coroutine::get_current_cid());
         object_init_ex(zexception, swoole_coroutine_exception_ce_ptr);
         ZVAL_LONG(&tmp, SW_ERROR_CO_INTERRUPTED_BY_EXCEPTION);
-        zend_update_property_ex(swoole_coroutine_exception_ce_ptr, zexception, ZSTR_KNOWN(ZEND_STR_CODE), &tmp);
+        zend_update_property(swoole_coroutine_exception_ce_ptr, zexception, ZEND_STRL("code"), &tmp);
         ZVAL_STRING(&tmp, message);
-        zend_update_property_ex(swoole_coroutine_exception_ce_ptr, zexception, ZSTR_KNOWN(ZEND_STR_MESSAGE), &tmp);
+        zend_update_property(swoole_coroutine_exception_ce_ptr, zexception, ZEND_STRL("message"), &tmp);
         zval_ptr_dtor(&tmp);
         sw_free(message);
     }
