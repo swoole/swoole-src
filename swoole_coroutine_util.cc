@@ -426,30 +426,6 @@ static PHP_METHOD(swoole_exit_exception, getStatus)
     RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("status"), 1), 1, 0);
 }
 
-static PHP_METHOD(swoole_coroutine_util, exists)
-{
-    zend_long cid;
-
-    ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_LONG(cid)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    RETURN_BOOL(Coroutine::get_by_cid(cid) != nullptr);
-}
-
-static PHP_METHOD(swoole_coroutine_util, yield)
-{
-    Coroutine* co = Coroutine::get_current();
-    if (unlikely(!co))
-    {
-        swoole_php_fatal_error(E_ERROR, "can not yield outside coroutine");
-        RETURN_FALSE;
-    }
-    user_yield_coros[co->get_cid()] = co;
-    co->yield();
-    RETURN_TRUE;
-}
-
 static PHP_METHOD(swoole_coroutine_util, set)
 {
     zval *zset = NULL;
@@ -542,6 +518,30 @@ PHP_FUNCTION(swoole_coroutine_create)
     {
         RETURN_FALSE;
     }
+}
+
+static PHP_METHOD(swoole_coroutine_util, exists)
+{
+    zend_long cid;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(cid)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    RETURN_BOOL(Coroutine::get_by_cid(cid) != nullptr);
+}
+
+static PHP_METHOD(swoole_coroutine_util, yield)
+{
+    Coroutine* co = Coroutine::get_current();
+    if (unlikely(!co))
+    {
+        swoole_php_fatal_error(E_ERROR, "can not yield outside coroutine");
+        RETURN_FALSE;
+    }
+    user_yield_coros[co->get_cid()] = co;
+    co->yield();
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_coroutine_util, resume)
