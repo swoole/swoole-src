@@ -540,8 +540,11 @@ static PHP_METHOD(swoole_coroutine_util, yield)
         RETURN_FALSE;
     }
     user_yield_coros[co->get_cid()] = co;
-    co->yield();
-    RETURN_TRUE;
+    RETURN_BOOL(
+        co->yield([](void *data) {
+            user_yield_coros.erase(((Coroutine *) data)->get_cid());
+        }, co)
+    );
 }
 
 static PHP_METHOD(swoole_coroutine_util, resume)
