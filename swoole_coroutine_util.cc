@@ -147,7 +147,7 @@ static PHP_METHOD(swoole_coroutine_util, exists);
 static PHP_METHOD(swoole_coroutine_util, yield);
 static PHP_METHOD(swoole_coroutine_util, resume);
 static PHP_METHOD(swoole_coroutine_util, cancel);
-static PHP_METHOD(swoole_coroutine_util, wasCancelled);
+static PHP_METHOD(swoole_coroutine_util, isCancelled);
 static PHP_METHOD(swoole_coroutine_util, throw);
 static PHP_METHOD(swoole_coroutine_util, shutdown);
 static PHP_METHOD(swoole_coroutine_util, stats);
@@ -215,7 +215,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_MALIAS(swoole_coroutine_util, suspend, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, resume, arginfo_swoole_coroutine_resume, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, cancel, arginfo_swoole_coroutine_cancel, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, wasCancelled, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, isCancelled, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, throw, arginfo_swoole_coroutine_throw, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, shutdown, arginfo_swoole_coroutine_shutdown, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, stats, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -581,7 +581,7 @@ static PHP_METHOD(swoole_coroutine_util, cancel)
     RETURN_BOOL(co && co->cancel());
 }
 
-static PHP_METHOD(swoole_coroutine_util, wasCancelled)
+static PHP_METHOD(swoole_coroutine_util, isCancelled)
 {
     Coroutine* co = Coroutine::get_current();
     RETURN_BOOL(co && co->was_cancelled());

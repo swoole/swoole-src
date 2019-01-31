@@ -10,7 +10,7 @@ Co::cancel(go(function () {
     $ret = Co::sleep(1);
     assert(is_double($ret));
     assert(time_approximate(1, $ret));
-    var_dump(Co::wasCancelled());
+    var_dump(Co::isCancelled());
 }));
 
 Co::shutdown(go(function () {

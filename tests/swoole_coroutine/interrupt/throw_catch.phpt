@@ -26,7 +26,7 @@ $sleep = go(function () {
         assert($e->getOriginFile() === __FILE__);
         assert($e->getOriginLine() === $GLOBALS['THROW_LINE'] + 1);
         assert($e->getOriginTrace()[0]['function'] === 'co_throw');
-        assert(Co::wasCancelled());
+        assert(Co::isCancelled());
         echo "{$e->getMessage()}\n";
     }
 });
@@ -44,7 +44,7 @@ $socket_io = go(function () {
         assert($e->getOriginFile() === __FILE__);
         assert($e->getOriginLine() === $GLOBALS['THROW_LINE'] + 2);
         assert($e->getOriginTrace()[0]['function'] === 'co_throw');
-        assert(Co::wasCancelled());
+        assert(Co::isCancelled());
         echo "{$e->getMessage()}\n";
     }
 });

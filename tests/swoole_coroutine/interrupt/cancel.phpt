@@ -10,7 +10,7 @@ $yield = go(function () {
     if (Co::yield()) {
         echo "resume back\n";
     } else {
-        assert(Co::wasCancelled());
+        assert(Co::isCancelled());
         echo "yield operation was canceled\n";
     }
 });
@@ -18,7 +18,7 @@ $yield = go(function () {
 $sleep = go(function () {
     if (($ret = Co::sleep(1)) === true) {
         echo "normal termination\n";
-    } elseif (Co::wasCancelled()) {
+    } elseif (Co::isCancelled()) {
         assert(is_double($ret));
         assert(time_approximate(1, $ret));
         echo "timer was canceled\n";
@@ -30,7 +30,7 @@ $sleep = go(function () {
 $dns_lookup = go(function () {
     if (Co::gethostbyname('www.swoole.com')) {
         echo "dns loopup ok\n";
-    } elseif (Co::wasCancelled()) {
+    } elseif (Co::isCancelled()) {
         echo "dns lookup was canceled\n";
     } else {
         echo "dns lookup failed\n";
@@ -41,7 +41,7 @@ $socket_io = go(function () {
     $socket = new  Co\Socket(AF_INET, SOCK_DGRAM, 0);
     if ($socket->recvfrom($peer, 1)) {
         echo "recv from ok\n";
-    } elseif (Co::wasCancelled()) {
+    } elseif (Co::isCancelled()) {
         echo "socket io was canceled\n";
     } else {
         echo "recv from failed\n";
@@ -51,7 +51,7 @@ $socket_io = go(function () {
 $file_io = go(function () {
     if (file_get_contents(__FILE__) === Co::readFile(__FILE__)) {
         echo "read file ok\n";
-    } elseif (Co::wasCancelled()) {
+    } elseif (Co::isCancelled()) {
         echo "file io was canceled\n";
     } else {
         echo "read file failed\n";
