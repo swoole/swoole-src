@@ -214,7 +214,7 @@ static bool client_coro_close(zval *zobject)
     if (cli)
     {
         zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), 0);
-        if (!cli->has_bound())
+        if (!cli->get_bound_cid())
         {
 #ifdef SWOOLE_SOCKETS_SUPPORT
             zval *zsocket = (zval *) swoole_get_property(zobject, client_property_socket);
@@ -694,7 +694,7 @@ static PHP_METHOD(swoole_client_coro, connect)
         sw_coro_socket_set(cli, zset);
     }
 
-    PHPCoroutine::check_bind("client", cli->has_bound());
+    PHPCoroutine::check_bind("client", cli->get_bound_cid());
     cli->set_timeout(timeout == 0 ? PHPCoroutine::socket_connect_timeout : timeout);
     if (!cli->connect(host, port, sock_flag))
     {
@@ -737,20 +737,24 @@ static PHP_METHOD(swoole_client_coro, send)
 
     //clear errno
     SwooleG.error = 0;
-    PHPCoroutine::check_bind("client", cli->has_bound());
+    PHPCoroutine::check_bind("client", cli->get_bound_cid());
     double persistent_timeout = cli->get_timeout();
     cli->set_timeout(timeout);
-    int ret = cli->send_all(data, data_len);
+    ssize_t ret = cli->send_all(data, data_len);
     cli->set_timeout(persistent_timeout);
     if (ret < 0)
     {
-        swoole_php_sys_error(E_WARNING, "failed to send(%d) %zu bytes.", cli->socket->fd, data_len);
-        SwooleG.error = cli->errCode;
-        zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
+        swoole_php_sys_error(E_WARNING, "failed to send %zu bytes to fd#%d.", data_len, cli->socket->fd);
+        zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = cli->errCode));
         RETVAL_FALSE;
     }
     else
     {
+        if ((ret < 0 || (size_t) ret < data_len) && cli->errCode)
+        {
+            swoole_php_sys_error(E_WARNING, "expected sent %zu bytes to fd #%d but actually %zu bytes.", data_len, cli->socket->fd, ret);
+            zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = cli->errCode));
+        }
         RETURN_LONG(ret);
     }
 }
@@ -784,7 +788,7 @@ static PHP_METHOD(swoole_client_coro, sendto)
         }
         cli->socket->active = 1;
     }
-    PHPCoroutine::check_bind("client", cli->has_bound());
+    PHPCoroutine::check_bind("client", cli->get_bound_cid());
     SW_CHECK_RETURN(cli->sendto(ip, port, data, len));
 }
 
@@ -816,7 +820,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     }
 
     zend_string *retval = zend_string_alloc(length + 1, 0);
-    PHPCoroutine::check_bind("client", cli->has_bound());
+    PHPCoroutine::check_bind("client", cli->get_bound_cid());
     // cli->set_timeout(timeout, true); TODO
     ssize_t n_bytes = cli->recvfrom(retval->val, length);
     if (n_bytes < 0)
@@ -867,13 +871,12 @@ static PHP_METHOD(swoole_client_coro, sendfile)
     }
     //clear errno
     SwooleG.error = 0;
-    PHPCoroutine::check_bind("client", cli->has_bound());
+    PHPCoroutine::check_bind("client", cli->get_bound_cid());
     int ret = cli->sendfile(file, offset, length);
     if (ret < 0)
     {
-        SwooleG.error = errno;
-        swoole_php_error(E_WARNING, "sendfile() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
-        zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
+        swoole_php_error(E_WARNING, "sendfile() failed. Error: %s [%d]", cli->errMsg, (SwooleG.error = cli->errCode));
+        zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
         RETVAL_FALSE;
     }
     else
@@ -896,13 +899,11 @@ static PHP_METHOD(swoole_client_coro, recv)
     {
         RETURN_FALSE;
     }
-    PHPCoroutine::check_bind("client", cli->has_bound());
+    PHPCoroutine::check_bind("client", cli->get_bound_cid());
     ssize_t retval ;
     if (cli->open_length_check || cli->open_eof_check)
     {
-        cli->set_timer(Socket::TIMER_LV_GLOBAL, timeout);
-        retval = cli->recv_packet();
-        cli->del_timer(Socket::TIMER_LV_GLOBAL);
+        retval = cli->recv_packet(timeout);
         if (retval > 0)
         {
             RETVAL_STRINGL(cli->read_buffer->str, retval);
@@ -917,7 +918,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         cli->set_timeout(persistent_timeout);
         if (retval > 0)
         {
-            result->val[retval] = 0;
+            result->val[retval] = '\0';
             result->len = retval;
             RETURN_STR(result);
         }
@@ -928,9 +929,8 @@ static PHP_METHOD(swoole_client_coro, recv)
     }
     if (retval < 0)
     {
-        SwooleG.error = cli->errCode;
-        swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
-        zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
+        swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", cli->errMsg, (SwooleG.error = cli->errCode));
+        zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
         RETURN_FALSE;
     }
     else if (retval == 0)
@@ -961,9 +961,8 @@ static PHP_METHOD(swoole_client_coro, peek)
     ret = cli->peek(buf, buf_len);
     if (ret < 0)
     {
-        SwooleG.error = errno;
-        swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
-        zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
+        swoole_php_error(E_WARNING, "peek() failed. Error: %s [%d]", cli->errMsg, (SwooleG.error = cli->errCode));
+        zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
         efree(buf);
         RETURN_FALSE;
     }
@@ -1120,7 +1119,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
     {
         sw_coro_socket_set_ssl(cli, zset);
     }
-    PHPCoroutine::check_bind("client", cli->has_bound());
+    PHPCoroutine::check_bind("client", cli->get_bound_cid());
     if (cli->ssl_handshake() == false)
     {
         RETURN_FALSE;

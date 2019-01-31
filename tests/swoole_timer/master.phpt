@@ -10,7 +10,7 @@ const RES_FILE = __DIR__.'/result.txt';
 file_put_contents(RES_FILE, "");
 
 //设置等待10秒
-$pm->setWaitTimeout(10);
+$pm->setWaitTimeout(-1);
 
 $pm->parentFunc = function ($pid) use ($pm)
 {

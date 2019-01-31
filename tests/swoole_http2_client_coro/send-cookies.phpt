@@ -3,7 +3,7 @@ swoole_http2_client_coro: nghttp2 big data with ssl
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-if (strpos(@`nghttpd --version`, 'nghttp2') === false) {
+if (strpos(`nghttpd --version 2>&1`, 'nghttp2') === false) {
     skip('no nghttpd');
 }
 ?>

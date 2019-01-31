@@ -34,23 +34,22 @@ std::unordered_map<long, Coroutine*> Coroutine::coroutines;
 
 long Coroutine::create(coroutine_func_t fn, void* args)
 {
-    if (unlikely(Coroutine::call_stack_size == SW_MAX_CORO_NESTING_LEVEL))
+    if (unlikely(call_stack_size == SW_MAX_CORO_NESTING_LEVEL))
     {
         swWarn("reaches the max coroutine nesting level %d", SW_MAX_CORO_NESTING_LEVEL);
         return SW_CORO_ERR_LIMIT;
     }
-    Coroutine *co = new Coroutine(fn, args);
-    return co->run();
+    return (new Coroutine(fn, args))->run();
 }
 
 void Coroutine::yield()
 {
     state = SW_CORO_WAITING;
-    if (Coroutine::on_yield)
+    if (on_yield)
     {
-        Coroutine::on_yield(task);
+        on_yield(task);
     }
-    Coroutine::call_stack_size--;
+    call_stack_size--;
 #ifdef SW_CORO_DEATH_LOOP_PROTECTION
     mark_schedule();
 #endif
@@ -60,14 +59,14 @@ void Coroutine::yield()
 void Coroutine::resume()
 {
     state = SW_CORO_RUNNING;
-    if (Coroutine::on_resume)
+    if (on_resume)
     {
-        Coroutine::on_resume(task);
+        on_resume(task);
     }
 #ifdef SW_CORO_DEATH_LOOP_PROTECTION
     mark_schedule();
 #endif
-    Coroutine::call_stack[Coroutine::call_stack_size++] = this;
+    Coroutine::call_stack[call_stack_size++] = this;
     ctx.SwapIn();
     if (ctx.end)
     {
@@ -78,7 +77,7 @@ void Coroutine::resume()
 void Coroutine::yield_naked()
 {
     state = SW_CORO_WAITING;
-    Coroutine::call_stack_size--;
+    call_stack_size--;
 #ifdef SW_CORO_DEATH_LOOP_PROTECTION
     mark_schedule();
 #endif
@@ -91,7 +90,7 @@ void Coroutine::resume_naked()
 #ifdef SW_CORO_DEATH_LOOP_PROTECTION
     mark_schedule();
 #endif
-    Coroutine::call_stack[Coroutine::call_stack_size++] = this;
+    Coroutine::call_stack[call_stack_size++] = this;
     ctx.SwapIn();
     if (ctx.end)
     {
@@ -102,54 +101,47 @@ void Coroutine::resume_naked()
 void Coroutine::close()
 {
     state = SW_CORO_END;
-    if (Coroutine::on_close)
+    if (on_close)
     {
-        Coroutine::on_close(task);
+        on_close(task);
     }
-    Coroutine::call_stack_size--;
-    Coroutine::coroutines.erase(cid);
+    call_stack_size--;
+    coroutines.erase(cid);
     delete this;
 }
 
 Coroutine* Coroutine::get_current()
 {
-    return likely(Coroutine::call_stack_size > 0) ? Coroutine::call_stack[Coroutine::call_stack_size - 1] : nullptr;
+    return likely(call_stack_size > 0) ? call_stack[call_stack_size - 1] : nullptr;
 }
 
 void* Coroutine::get_current_task()
 {
-    Coroutine* co = Coroutine::get_current();
+    Coroutine* co = get_current();
     return likely(co) ? co->get_task() : nullptr;
 }
 
 long Coroutine::get_current_cid()
 {
-    Coroutine* co = Coroutine::get_current();
+    Coroutine* co = get_current();
     return likely(co) ? co->get_cid() : -1;
 }
 
 Coroutine* Coroutine::get_by_cid(long cid)
 {
-    auto coroutine_iterator = Coroutine::coroutines.find(cid);
-    if (coroutine_iterator == Coroutine::coroutines.end())
-    {
-        return nullptr;
-    }
-    else
-    {
-        return coroutine_iterator->second;
-    }
+    auto i = coroutines.find(cid);
+    return likely(i != coroutines.end()) ? i->second : nullptr;
 }
 
 void* Coroutine::get_task_by_cid(long cid)
 {
-    Coroutine *co = Coroutine::get_by_cid(cid);
+    Coroutine *co = get_by_cid(cid);
     return likely(co) ? co->get_task() : nullptr;
 }
 
 void Coroutine::print_list()
 {
-    for (auto i = Coroutine::coroutines.begin(); i != Coroutine::coroutines.end(); i++)
+    for (auto i = coroutines.begin(); i != coroutines.end(); i++)
     {
         const char *state;
         switch(i->second->state){
@@ -175,17 +167,17 @@ void Coroutine::print_list()
 
 void Coroutine::set_on_yield(coro_php_yield_t func)
 {
-    Coroutine::on_yield = func;
+    on_yield = func;
 }
 
 void Coroutine::set_on_resume(coro_php_resume_t func)
 {
-    Coroutine::on_resume = func;
+    on_resume = func;
 }
 
 void Coroutine::set_on_close(coro_php_close_t func)
 {
-    Coroutine::on_close = func;
+    on_close = func;
 }
 
 /**

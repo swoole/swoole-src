@@ -250,7 +250,7 @@ typedef struct
 {
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
-} php_defer_fci;
+} php_swoole_fci;
 //---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
 
@@ -406,7 +406,6 @@ void php_swoole_register_shutdown_function_prepend(char *function);
 void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_event_exit();
-long php_swoole_add_timer(long ms, zval *callback, zval *param, int persistent);
 void php_swoole_clear_all_timer();
 void php_swoole_register_callback(swServer *serv);
 void php_swoole_trace_check(void *arg);
@@ -488,8 +487,6 @@ void php_swoole_onBufferEmpty(swServer *, swDataHead *);
 ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *data);
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
-void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
-void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
 zend_bool php_swoole_signal_isset_handler(int signo);
 void php_swoole_event_onDefer(void *_cb);
 
@@ -947,6 +944,33 @@ static sw_inline int sw_call_function_anyway(zend_fcall_info *fci, zend_fcall_in
         EG(exception) = exception;
     }
     return ret;
+}
+
+static sw_inline void sw_fci_params_persist(zend_fcall_info *fci)
+{
+    if (fci->param_count > 0)
+    {
+        uint32_t i;
+        zval *params = (zval *) ecalloc(fci->param_count, sizeof(zval));
+        for (i = 0; i < fci->param_count; i++)
+        {
+            ZVAL_COPY(&params[i], &fci->params[i]);
+        }
+        fci->params = params;
+    }
+}
+
+static sw_inline void sw_fci_params_discard(zend_fcall_info *fci)
+{
+    if (fci->param_count > 0)
+    {
+        uint32_t i;
+        for (i = 0; i < fci->param_count; i++)
+        {
+            zval_ptr_dtor(&fci->params[i]);
+        }
+        efree(fci->params);
+    }
 }
 
 static sw_inline void sw_fci_cache_persist(zend_fcall_info_cache *fci_cache)

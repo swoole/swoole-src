@@ -151,14 +151,19 @@ function tcp_type_length(string $type = 'n'): int
     return $map[$type] ?? 0;
 }
 
-function tcp_length(string $head, string $type = 'n'): int
+function tcp_head(int $length, string $type = 'n') : string
 {
-    return unpack($type, $head)[1];
+    return pack($type, $length);
 }
 
 function tcp_pack(string $data, string $type = 'n'): string
 {
     return pack($type, strlen($data)) . $data;
+}
+
+function tcp_length(string $head, string $type = 'n'): int
+{
+    return unpack($type, $head)[1];
 }
 
 function tcp_unpack(string $data, string $type = 'n'): string
@@ -178,7 +183,7 @@ function var_dump_return(...$data): string
 
 function get_safe_random(int $length = 32, $original = false): string
 {
-    $raw = base64_encode(openssl_random_pseudo_bytes($original ? $length : $length * 2));
+    $raw = base64_encode(RandStr::getBytes($original ? $length : $length * 2));
     if (!$original) {
         $raw = substr(str_replace(['/', '+', '='], '', $raw), 0, $length);
     }
@@ -610,7 +615,7 @@ class ProcessManager
     protected $atomic;
     protected $alone = false;
     protected $freePorts = [];
-    protected $randomData = [];
+    protected $randomData = [[]];
 
     /**
      * wait wakeup 1s default
@@ -681,17 +686,29 @@ class ProcessManager
         return $this->freePorts[$index];
     }
 
-    public function initRandomData($size, $len = 32)
+    public function initRandomData(int $size, int $len = 32)
     {
-        for ($n = $size; $n--;) {
-            $this->randomData[] = get_safe_random($len);
+        $this->initRandomDataEx(1, $size, $len);
+    }
+
+    public function getRandomData(): string
+    {
+        return $this->getRandomDataEx(0);
+    }
+
+    public function initRandomDataEx(int $block_num, int $size, int $len)
+    {
+        for ($b = 0; $b < $block_num; $b++) {
+            for ($n = $size; $n--;) {
+                $this->randomData[$b][] = get_safe_random($len);
+            }
         }
     }
 
-    public function getRandomData($index = null): string
+    public function getRandomDataEx(int $block_id)
     {
-        if (!empty($this->randomData)) {
-            return array_shift($this->randomData);
+        if (!empty($this->randomData[$block_id])) {
+            return array_shift($this->randomData[$block_id]);
         } else {
             throw new \RuntimeException('Out of the bound');
         }
@@ -770,7 +787,7 @@ class ProcessManager
         if (!is_array($code)) {
             $code = [$code];
         }
-        assert(in_array($this->childStatus, $code));
+        assert(in_array($this->childStatus, $code), "unexpected exit code {$this->childStatus}");
     }
 }
 

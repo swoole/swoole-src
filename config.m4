@@ -637,6 +637,7 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/src/server)
     PHP_ADD_BUILD_DIR($ext_builddir/src/protocol)
     PHP_ADD_BUILD_DIR($ext_builddir/src/coroutine)
+    PHP_ADD_BUILD_DIR($ext_builddir/src/wrapper)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)

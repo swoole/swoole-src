@@ -48,7 +48,7 @@ static zend_class_entry *swoole_websocket_closeframe_ce_ptr;
 static zend_object_handlers swoole_websocket_closeframe_handlers;
 
 static PHP_METHOD(swoole_websocket_server, push);
-static PHP_METHOD(swoole_websocket_server, exist);
+static PHP_METHOD(swoole_websocket_server, exists);
 static PHP_METHOD(swoole_websocket_server, isEstablished);
 static PHP_METHOD(swoole_websocket_server, pack);
 static PHP_METHOD(swoole_websocket_server, unpack);
@@ -80,7 +80,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_unpack, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_exist, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_exists, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
@@ -93,19 +93,20 @@ ZEND_END_ARG_INFO()
 
 const zend_function_entry swoole_websocket_server_methods[] =
 {
-    PHP_ME(swoole_websocket_server, push,           arginfo_swoole_websocket_server_push, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_websocket_server, disconnect,     arginfo_swoole_websocket_server_disconnect, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_websocket_server, exist,          arginfo_swoole_websocket_server_exist, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_websocket_server, isEstablished,  arginfo_swoole_websocket_server_isEstablished, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_websocket_server, pack,           arginfo_swoole_websocket_server_pack, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_websocket_server, unpack,         arginfo_swoole_websocket_server_unpack, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_websocket_server, push,              arginfo_swoole_websocket_server_push,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, disconnect,        arginfo_swoole_websocket_server_disconnect,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, exists,            arginfo_swoole_websocket_server_exists,         ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_websocket_server, exist, exists, arginfo_swoole_websocket_server_exists,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, isEstablished,     arginfo_swoole_websocket_server_isEstablished, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, pack,              arginfo_swoole_websocket_server_pack,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_websocket_server, unpack,            arginfo_swoole_websocket_server_unpack,        ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
 const zend_function_entry swoole_websocket_frame_methods[] =
 {
-    PHP_ME(swoole_websocket_frame, __toString,      arginfo_swoole_websocket_frame_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_websocket_server, pack,           arginfo_swoole_websocket_server_pack, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_websocket_frame, __toString,      arginfo_swoole_websocket_frame_void,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, pack,           arginfo_swoole_websocket_server_pack,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_websocket_server, unpack,         arginfo_swoole_websocket_server_unpack, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
@@ -614,7 +615,7 @@ static PHP_METHOD(swoole_websocket_server, unpack)
     php_swoole_websocket_frame_unpack(&buffer, return_value);
 }
 
-static PHP_METHOD(swoole_websocket_server, exist)
+static PHP_METHOD(swoole_websocket_server, exists)
 {
     zend_long fd;
 

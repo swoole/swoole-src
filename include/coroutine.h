@@ -21,7 +21,6 @@
 
 #include <string>
 #include <unordered_map>
-#include <queue>
 
 #define SW_CORO_STACK_ALIGNED_SIZE (4 * 1024)
 #define SW_CORO_MAX_STACK_SIZE     (16 * 1024 * 1024)
@@ -63,7 +62,6 @@ public:
     void yield_naked();
 
     void close();
-
 
     inline sw_coro_state get_state()
     {
@@ -109,6 +107,7 @@ public:
     {
         task = _task;
     }
+
     static std::unordered_map<long, Coroutine*> coroutines;
 
     static Coroutine* get_current();
@@ -151,12 +150,10 @@ public:
         loop_threshold = threshold;
     }
 
-#ifdef SW_LOG_TRACE_OPEN
     static inline long get_cid(Coroutine* co)
     {
         return co ? co->get_cid() : -1;
     }
-#endif
 
     static inline long get_last_cid()
     {
@@ -168,7 +165,7 @@ public:
         return coroutines.size();
     }
 
-    static uint64_t get_peak_num()
+    static inline uint64_t get_peak_num()
     {
         return peak_num;
     }

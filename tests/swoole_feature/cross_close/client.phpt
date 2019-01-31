@@ -19,7 +19,10 @@ $pm->parentFunc = function () use ($pm) {
             $pm->kill();
             echo "DONE\n";
         });
-        assert($cli->recv(-1) === '');
+        assert(!($ret = @$cli->recv(-1)));
+        if ($ret === false) {
+            assert($cli->errCode === SOCKET_ECONNRESET);
+        }
         echo "CLOSED\n";
         assert(!$cli->connected);
     });

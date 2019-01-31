@@ -206,7 +206,7 @@ static PHP_METHOD(swoole_mmap, open)
     void *addr = mmap(NULL, size, PROT_WRITE | PROT_READ, MAP_SHARED, fd, offset);
     if (addr == MAP_FAILED)
     {
-        swoole_php_sys_error(E_WARNING, "mmap(%ld) failed.", size);
+        swoole_php_sys_error(E_WARNING, "mmap(" ZEND_LONG_FMT ") failed.", size);
         close(fd);
         RETURN_FALSE;
     }

@@ -306,11 +306,13 @@ enum swBool_type
 
 enum swEvent_type
 {
-    SW_EVENT_DEAULT = 256,
-    SW_EVENT_READ = 1u << 9,
-    SW_EVENT_WRITE = 1u << 10,
-    SW_EVENT_ERROR = 1u << 11,
-    SW_EVENT_ONCE = 1u << 12,
+    SW_EVENT_NULL   = 0,
+    SW_EVENT_DEAULT = 1u << 8,
+    SW_EVENT_READ   = 1u << 9,
+    SW_EVENT_WRITE  = 1u << 10,
+    SW_EVENT_RDWR   = SW_EVENT_READ | SW_EVENT_WRITE,
+    SW_EVENT_ERROR  = 1u << 11,
+    SW_EVENT_ONCE   = 1u << 12,
 };
 
 enum swPipe_type
@@ -2032,6 +2034,13 @@ typedef struct _swTimer swTimer;
 typedef struct _swTimer_node swTimer_node;
 
 typedef void (*swTimerCallback)(swTimer *, swTimer_node *);
+typedef void (*swTimerDtor)(swTimer_node *);
+
+enum swTimer_type
+{
+    SW_TIMER_TYPE_KERNEL,
+    SW_TIMER_TYPE_PHP,
+};
 
 struct _swTimer_node
 {
@@ -2042,17 +2051,8 @@ struct _swTimer_node
     int64_t interval;
     uint64_t round;
     long id;
-    int type;                 //0 normal node 1 node for client_coro
+    enum swTimer_type type;
     uint8_t remove;
-};
-
-enum swTimer_type
-{
-    SW_TIMER_TYPE_KERNEL,
-    SW_TIMER_TYPE_PHP,
-    SW_TIMER_TYPE_CORO_READ,
-    SW_TIMER_TYPE_CORO_WRITE,
-    SW_TIMER_TYPE_CORO_ALL,
 };
 
 struct _swTimer
@@ -2074,7 +2074,8 @@ struct _swTimer
 };
 
 swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
-int swTimer_del(swTimer *timer, swTimer_node *node);
+enum swBool_type swTimer_del(swTimer *timer, swTimer_node *node);
+enum swBool_type swTimer_del_ex(swTimer *timer, swTimer_node *node, swTimerDtor dtor);
 void swTimer_free(swTimer *timer);
 int swTimer_select(swTimer *timer);
 int swTimer_now(struct timeval *time);

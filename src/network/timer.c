@@ -16,6 +16,8 @@
 
 #include "swoole.h"
 
+static int swTimer_init(long msec);
+
 int swTimer_now(struct timeval *time)
 {
 #if defined(SW_USE_MONOTONIC_TIME) && defined(CLOCK_MONOTONIC)
@@ -162,13 +164,13 @@ swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, 
     return tnode;
 }
 
-int swTimer_del(swTimer *timer, swTimer_node *tnode)
+enum swBool_type swTimer_del_ex(swTimer *timer, swTimer_node *tnode, swTimerDtor dtor)
 {
-    if (unlikely(tnode->remove))
+    if (unlikely(!tnode || tnode->remove))
     {
         return SW_FALSE;
     }
-    if (SwooleG.timer._current_id > 0 && tnode->id == SwooleG.timer._current_id)
+    if (unlikely(SwooleG.timer._current_id > 0 && tnode->id == SwooleG.timer._current_id))
     {
         tnode->remove = 1;
         swTraceLog(SW_TRACE_TIMER, "set-remove: id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, tnode->round, timer->num);
@@ -176,13 +178,16 @@ int swTimer_del(swTimer *timer, swTimer_node *tnode)
     }
     if (unlikely(swHashMap_del_int(timer->map, tnode->id) < 0))
     {
-        return SW_ERR;
+        return SW_FALSE;
     }
     if (tnode->heap_node)
     {
-        //remove from min-heap
         swHeap_remove(timer->heap, tnode->heap_node);
         sw_free(tnode->heap_node);
+    }
+    if (dtor)
+    {
+        dtor(tnode);
     }
     timer->num--;
     swTraceLog(SW_TRACE_TIMER, "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, tnode->round, timer->num);
@@ -190,11 +195,15 @@ int swTimer_del(swTimer *timer, swTimer_node *tnode)
     return SW_TRUE;
 }
 
+enum swBool_type swTimer_del(swTimer *timer, swTimer_node *tnode)
+{
+    return swTimer_del_ex(timer, tnode, NULL);
+}
+
 int swTimer_select(swTimer *timer)
 {
     swTimer_node *tnode = NULL;
     swHeap_node *tmp;
-    long timer_id;
     int64_t now_msec = swTimer_get_relative_msec();
 
     if (unlikely(now_msec < 0))
@@ -211,7 +220,7 @@ int swTimer_select(swTimer *timer)
             break;
         }
 
-        timer_id = timer->_current_id = tnode->id;
+        timer->_current_id = tnode->id;
         if (!tnode->remove)
         {
             swTraceLog(SW_TRACE_TIMER, "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, tnode->round, timer->num - 1);
@@ -232,7 +241,7 @@ int swTimer_select(swTimer *timer)
 
         timer->num--;
         swHeap_pop(timer->heap);
-        swHashMap_del_int(timer->map, timer_id);
+        swHashMap_del_int(timer->map, tnode->id);
         sw_free(tnode);
     }
 

@@ -96,7 +96,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendwait, 0, 0, 2)
     ZEND_ARG_INFO(0, send_data)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_exist, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_exists, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
@@ -271,7 +271,7 @@ static PHP_METHOD(swoole_server, stats);
 static PHP_METHOD(swoole_server, bind);
 static PHP_METHOD(swoole_server, sendto);
 static PHP_METHOD(swoole_server, sendwait);
-static PHP_METHOD(swoole_server, exist);
+static PHP_METHOD(swoole_server, exists);
 static PHP_METHOD(swoole_server, protect);
 static PHP_METHOD(swoole_server, close);
 static PHP_METHOD(swoole_server, confirm);
@@ -325,7 +325,8 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, send, arginfo_swoole_server_send, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, sendto, arginfo_swoole_server_sendto, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, sendwait, arginfo_swoole_server_sendwait, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, exist, arginfo_swoole_server_exist, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, exists, arginfo_swoole_server_exists, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_server, exist, exists, arginfo_swoole_server_exists, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, protect, arginfo_swoole_server_protect, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, sendfile, arginfo_swoole_server_sendfile, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, close, arginfo_swoole_server_close, ZEND_ACC_PUBLIC)
@@ -951,7 +952,7 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
     i->serv = serv;
     swoole_set_object(&connection_iterator, i);
 
-    add_next_index_zval(server_port_list.zports, port_object);
+    (void) add_next_index_zval(server_port_list.zports, port_object);
 
     return port_object;
 }
@@ -1503,7 +1504,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
             swoole_php_fatal_error(E_WARNING, "task[%d] is invalid.", task_id);
             goto _fail;
         }
-        add_index_zval(result, task_index, zdata);
+        (void) add_index_zval(result, task_index, zdata);
         efree(zdata);
         task_coroutine_map.erase(task_id);
 
@@ -2337,7 +2338,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(SwooleG.chroot);
         }
-        SwooleG.chroot = zend::string_dup(v);
+        SwooleG.chroot = zend::string::dup(v);
     }
     //user
     if (php_swoole_array_get_value(vht, "user", v))
@@ -2346,7 +2347,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(SwooleG.user);
         }
-        SwooleG.user = zend::string_dup(v);
+        SwooleG.user = zend::string::dup(v);
     }
     //group
     if (php_swoole_array_get_value(vht, "group", v))
@@ -2355,7 +2356,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(SwooleG.group);
         }
-        SwooleG.group = zend::string_dup(v);
+        SwooleG.group = zend::string::dup(v);
     }
     //daemonize
     if (php_swoole_array_get_value(vht, "daemonize", v))
@@ -2383,7 +2384,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(serv->pid_file);
         }
-        serv->pid_file = zend::string_dup(v);
+        serv->pid_file = zend::string::dup(v);
     }
     //reactor thread num
     if (php_swoole_array_get_value(vht, "reactor_num", v))
@@ -2473,7 +2474,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(SwooleG.log_file);
         }
-        SwooleG.log_file = zend::string_dup(v);
+        SwooleG.log_file = zend::string::dup(v);
     }
     //log_level
     if (php_swoole_array_get_value(vht, "log_level", v))
@@ -3593,7 +3594,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
                 break;
             }
         }
-        add_index_zval(return_value, j, zdata);
+        (void) add_index_zval(return_value, j, zdata);
         efree(zdata);
         _next:
         content->offset += sizeof(swDataHead) + result->info.len;
@@ -4103,7 +4104,7 @@ static PHP_METHOD(swoole_server, sendwait)
     SW_CHECK_RETURN(serv->sendwait(serv, fd, data, length));
 }
 
-static PHP_METHOD(swoole_server, exist)
+static PHP_METHOD(swoole_server, exists)
 {
     zend_long fd;
 
@@ -4330,7 +4331,7 @@ static PHP_METHOD(swoole_connection_iterator, offsetExists)
     {
         RETURN_FALSE;
     }
-    sw_zend_call_method_with_1_params(&zobject, swoole_server_ce_ptr, NULL, "exist", &retval, zfd);
+    sw_zend_call_method_with_1_params(&zobject, swoole_server_ce_ptr, NULL, "exists", &retval, zfd);
     if (retval)
     {
         RETVAL_BOOL(Z_BVAL_P(retval));

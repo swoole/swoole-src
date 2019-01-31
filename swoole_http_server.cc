@@ -2074,12 +2074,12 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
     if (file_stat.st_size <= offset)
     {
-        swoole_php_error(E_WARNING, "parameter $offset[%ld] exceeds the file size.", offset);
+        swoole_php_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] exceeds the file size.", offset);
         RETURN_FALSE;
     }
     if (length > file_stat.st_size - offset)
     {
-        swoole_php_sys_error(E_WARNING, "parameter $length[%ld] exceeds the file size.", length);
+        swoole_php_sys_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] exceeds the file size.", length);
         RETURN_FALSE;
     }
     if (length == 0)

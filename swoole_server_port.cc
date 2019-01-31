@@ -455,7 +455,7 @@ static PHP_METHOD(swoole_server_port, set)
             {
                 sw_free(port->ssl_config.ciphers);
             }
-            port->ssl_config.ciphers = zend::string_dup(v);
+            port->ssl_config.ciphers = zend::string::dup(v);
         }
         if (php_swoole_array_get_value(vht, "ssl_ecdh_curve", v))
         {
@@ -464,7 +464,7 @@ static PHP_METHOD(swoole_server_port, set)
             {
                 sw_free(port->ssl_config.ecdh_curve);
             }
-            port->ssl_config.ecdh_curve = zend::string_dup(v);
+            port->ssl_config.ecdh_curve = zend::string::dup(v);
         }
         if (php_swoole_array_get_value(vht, "ssl_dhparam", v))
         {
@@ -472,7 +472,7 @@ static PHP_METHOD(swoole_server_port, set)
             {
                 sw_free(port->ssl_config.dhparam);
             }
-            port->ssl_config.dhparam = zend::string_dup(v);
+            port->ssl_config.dhparam = zend::string::dup(v);
         }
         //    if ((v = zend_hash_str_find(vht, ZEND_STRL("ssl_session_cache"))))
         //    {
