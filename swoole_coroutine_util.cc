@@ -687,7 +687,19 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
         swoole_php_fatal_error(E_WARNING, "Timer must be greater than 0");
         RETURN_FALSE;
     }
-    RETURN_DOUBLE(Coroutine::sleep(seconds));
+    seconds = Coroutine::sleep(seconds);
+    if (EXPECTED(seconds) == 0)
+    {
+        RETURN_TRUE;
+    }
+    if (UNEXPECTED(seconds < 0))
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        RETURN_DOUBLE(seconds);
+    }
 }
 
 static void aio_onReadCompleted(swAio_event *event)

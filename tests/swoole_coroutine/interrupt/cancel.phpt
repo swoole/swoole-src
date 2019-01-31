@@ -16,15 +16,14 @@ $yield = go(function () {
 });
 
 $sleep = go(function () {
-    if (($ret = Co::sleep(1)) == 0) {
+    if (($ret = Co::sleep(1)) === true) {
         echo "normal termination\n";
+    } elseif (Co::wasCancelled()) {
+        assert(is_double($ret));
+        assert(time_approximate(1, $ret));
+        echo "timer was canceled\n";
     } else {
-        echo "time left {$ret}s\n";
-        if (Co::wasCancelled()) {
-            echo "timer was canceled\n";
-        } else {
-            echo "create timer error\n";
-        }
+        echo "create timer error\n";
     }
 });
 
@@ -69,7 +68,6 @@ echo 'cancel file io ' . (Co::cancel($file_io) ? 'ok' : 'failed') . "\n";
 --EXPECT--
 yield operation was canceled
 cancel yield ok
-time left 1s
 timer was canceled
 cancel sleep ok
 dns lookup was canceled

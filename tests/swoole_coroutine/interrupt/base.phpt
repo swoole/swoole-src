@@ -7,7 +7,9 @@ swoole_coroutine: interrupt: base
 require __DIR__ . '/../../include/bootstrap.php';
 
 Co::cancel(go(function () {
-    var_dump(Co::sleep(1));
+    $ret = Co::sleep(1);
+    assert(is_double($ret));
+    assert(time_approximate(1, $ret));
     var_dump(Co::wasCancelled());
 }));
 
@@ -26,7 +28,6 @@ Co::throw(go(function () {
 
 ?>
 --EXPECTF--
-float(1)
 bool(true)
 object(Swoole\Coroutine\Exception)#1 (12) {
   ["message":protected]=>
@@ -34,11 +35,11 @@ object(Swoole\Coroutine\Exception)#1 (12) {
   ["string":"Exception":private]=>
   string(%d) ""
   ["code":protected]=>
-  int(10016)
+  int(%d)
   ["file":protected]=>
   string(%d) "%s/tests/swoole_coroutine/interrupt/base.php"
   ["line":protected]=>
-  int(16)
+  int(%d)
   ["trace":"Exception":private]=>
   array(1) {
     [0]=>
@@ -46,7 +47,7 @@ object(Swoole\Coroutine\Exception)#1 (12) {
       ["file"]=>
       string(%d) "%s/tests/swoole_coroutine/interrupt/base.php"
       ["line"]=>
-      int(16)
+      int(%d)
       ["function"]=>
       string(%d) "yield"
       ["class"]=>
@@ -61,13 +62,13 @@ object(Swoole\Coroutine\Exception)#1 (12) {
   ["previous":"Exception":private]=>
   NULL
   ["cid":protected]=>
-  int(3)
+  int(%d)
   ["originCid":protected]=>
   int(-1)
   ["originFile":protected]=>
   string(%d) "%s/tests/swoole_coroutine/interrupt/base.php"
   ["originLine":protected]=>
-  int(20)
+  int(%d)
   ["originTrace":protected]=>
   array(1) {
     [0]=>
@@ -75,7 +76,7 @@ object(Swoole\Coroutine\Exception)#1 (12) {
       ["file"]=>
       string(%d) "%s/tests/swoole_coroutine/interrupt/base.php"
       ["line"]=>
-      int(20)
+      int(%d)
       ["function"]=>
       string(%d) "throw"
       ["class"]=>
@@ -85,7 +86,7 @@ object(Swoole\Coroutine\Exception)#1 (12) {
       ["args"]=>
       array(1) {
         [0]=>
-        int(3)
+        int(%d)
       }
     }
   }

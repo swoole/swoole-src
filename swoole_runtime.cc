@@ -1127,7 +1127,12 @@ static PHP_FUNCTION(_sleep)
     if (num >= 0.001 && PHPCoroutine::is_in())
     {
         php_swoole_check_reactor();
-        RETURN_LONG((long) Coroutine::sleep((double) num));
+        num = (long) Coroutine::sleep((double) num);
+        if (UNEXPECTED(num < 0))
+        {
+            RETURN_FALSE;
+        }
+        RETURN_LONG(num);
     }
     else
     {
@@ -1178,11 +1183,25 @@ static PHP_FUNCTION(_time_nanosleep)
         php_error_docref(NULL, E_WARNING, "The nanoseconds value must be greater than 0");
         RETURN_FALSE;
     }
-    double _time = (double) tv_sec + (double) tv_nsec / 1000000000.00;
-    if (_time >= 0.001 && PHPCoroutine::is_in())
+    double seconds = (double) tv_sec + (double) tv_nsec / 1000000000.00;
+    if (seconds >= 0.001 && PHPCoroutine::is_in())
     {
         php_swoole_check_reactor();
-        Coroutine::sleep(_time);
+        seconds = Coroutine::sleep(seconds);
+        if (EXPECTED(seconds == 0))
+        {
+            RETURN_TRUE;
+        }
+        else if (UNEXPECTED(seconds < 0))
+        {
+            RETURN_FALSE;
+        }
+        else
+        {
+            array_init(return_value);
+            add_assoc_long_ex(return_value, ZEND_STRL("seconds"), (zend_long) seconds);
+            add_assoc_long_ex(return_value, ZEND_STRL("nanoseconds"),(zend_long) (seconds - (zend_long) seconds) * 1000000000);
+        }
     }
     else
     {
@@ -1203,6 +1222,7 @@ static PHP_FUNCTION(_time_nanosleep)
         else if (errno == EINVAL)
         {
             swoole_php_error(E_WARNING, "nanoseconds was not in the range 0 to 999 999 999 or seconds was negative");
+            RETURN_FALSE;
         }
     }
 }
@@ -1241,7 +1261,7 @@ static PHP_FUNCTION(_time_sleep_until)
     if (_time >= 0.001 && PHPCoroutine::is_in())
     {
         php_swoole_check_reactor();
-        Coroutine::sleep(_time);
+        RETURN_BOOL(Coroutine::sleep(_time) == 0);
     }
     else
     {
