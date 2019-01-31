@@ -644,7 +644,7 @@ double Coroutine::sleep(double sec)
     }
     else if (unlikely(!co->yield_c()))
     {
-        sec = (tnode->exec_msec - swTimer_get_relative_msec()) / 1000;
+        sec = (double) (tnode->exec_msec - swTimer_get_relative_msec()) / 1000;
         swTimer_del(&SwooleG.timer, tnode);
         return sec;
     }
