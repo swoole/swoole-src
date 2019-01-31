@@ -5,77 +5,51 @@ swoole_coroutine: c_stack_size
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-echo "default 2M\n";
-var_dump(co::stats());
+// echo "default 2M\n";
+$info = co::stats();
+assert($info['c_stack_size'] == 2097152);
+assert($info['coroutine_num'] == 0);
+assert($info['coroutine_peak_num'] == 0);
+
 co::set(['c_stack_size' => 1024 * 1024]);
 for ($n = 100; $n--;) {
     go(function () { co::sleep(0.001); });
 }
-echo "1M\n";
-var_dump(co::stats());
+// echo "1M\n";
+$info = co::stats();
+assert($info['c_stack_size'] == 1024 * 1024);
+assert($info['coroutine_num'] == 100);
+assert($info['coroutine_peak_num'] == 100);
+
 co::set(['c_stack_size' => 1]); // will be aligned
 for ($n = 100; $n--;) {
     go(function () { co::sleep(0.001); });
 }
-echo "4K\n";
-var_dump(co::stats());
+// echo "4K\n";
+$info = co::stats();
+assert($info['c_stack_size'] == 4096);
+assert($info['coroutine_num'] == 200);
+assert($info['coroutine_peak_num'] == 200);
+
 co::set(['c_stack_size' => 1024 * 1024 * 1024]); // will be limit
 for ($n = 100; $n--;) {
     go(function () { co::sleep(0.001); });
 }
-echo "16M\n";
-var_dump(co::stats());
+// echo "16M\n";
+$info = co::stats();
+assert($info['c_stack_size'] == 16 * 1024 * 1024);
+assert($info['coroutine_num'] == 300);
+assert($info['coroutine_peak_num'] == 300);
+
 co::set(['c_stack_size' => -1]); // will be limit
 for ($n = 100; $n--;) {
     go(function () { co::sleep(0.001); });
 }
-echo "16M\n";
-var_dump(co::stats());
+// echo "16M\n";
+$info = co::stats();
+assert($info['c_stack_size'] == 16 * 1024 * 1024);
+assert($info['coroutine_num'] == 400);
+assert($info['coroutine_peak_num'] == 400);
 ?>
 --EXPECTF--
 
-default 2M
-array(3) {
-  ["c_stack_size"]=>
-  int(2097152)
-  ["coroutine_num"]=>
-  int(0)
-  ["coroutine_peak_num"]=>
-  int(0)
-}
-1M
-array(3) {
-  ["c_stack_size"]=>
-  int(1048576)
-  ["coroutine_num"]=>
-  int(100)
-  ["coroutine_peak_num"]=>
-  int(100)
-}
-4K
-array(3) {
-  ["c_stack_size"]=>
-  int(4096)
-  ["coroutine_num"]=>
-  int(200)
-  ["coroutine_peak_num"]=>
-  int(200)
-}
-16M
-array(3) {
-  ["c_stack_size"]=>
-  int(16777216)
-  ["coroutine_num"]=>
-  int(300)
-  ["coroutine_peak_num"]=>
-  int(300)
-}
-16M
-array(3) {
-  ["c_stack_size"]=>
-  int(16777216)
-  ["coroutine_num"]=>
-  int(400)
-  ["coroutine_peak_num"]=>
-  int(400)
-}
