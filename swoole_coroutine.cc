@@ -127,20 +127,10 @@ inline void PHPCoroutine::restore_og(php_coro_task *task)
     }
 }
 
-sw_inline php_coro_task* PHPCoroutine::get_current_task()
-{
-    php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
-    if (!task)
-    {
-        task = &main_task;
-    }
-    return task;
-}
-
 /**
  * create & resume ^ close
  */
-sw_inline php_coro_task* PHPCoroutine::get_and_save_current_task()
+inline php_coro_task* PHPCoroutine::get_and_save_current_task()
 {
     php_coro_task *task = get_current_task();
     save_vm_stack(task);
