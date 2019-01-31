@@ -136,7 +136,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_statvfs, 0, 0, 1)
     ZEND_ARG_INFO(0, path)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getBackTrace, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getBackTrace, 0, 0, 0)
     ZEND_ARG_INFO(0, cid)
     ZEND_ARG_INFO(0, options)
     ZEND_ARG_INFO(0, limit)
@@ -1407,22 +1407,25 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
 
 static PHP_METHOD(swoole_coroutine_util, getBackTrace)
 {
-    zend_long cid;
+    zend_long cid = 0;
     zend_long options = DEBUG_BACKTRACE_PROVIDE_OBJECT;
     zend_long limit = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|ll", &cid, &options, &limit) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-    if (cid == PHPCoroutine::get_cid())
+    ZEND_PARSE_PARAMETERS_START(0, 3)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(cid)
+        Z_PARAM_LONG(options)
+        Z_PARAM_LONG(limit)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (!cid || cid == PHPCoroutine::get_cid())
     {
         zend_fetch_debug_backtrace(return_value, 0, options, limit);
     }
     else
     {
-        php_coro_task *task = (php_coro_task *) Coroutine::get_task_by_cid(cid);
-        if (task == NULL)
+        php_coro_task *task = (php_coro_task *) PHPCoroutine::get_task_by_cid(cid);
+        if (UNEXPECTED(!task))
         {
             RETURN_FALSE;
         }
