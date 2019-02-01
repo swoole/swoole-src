@@ -1325,13 +1325,13 @@ ssize_t Socket::recv_packet(double timeout)
         uint32_t header_len = protocol.package_length_offset + protocol.package_length_size;
         if (read_buffer->length > 0)
         {
-            if (read_buffer->length < header_len)
+            if (read_buffer->length >= header_len || protocol.package_length_type == '\0')
             {
-                goto _recv_header;
+                goto _get_length;
             }
             else
             {
-                goto _get_length;
+                goto _recv_header;
             }
         }
 
@@ -1380,7 +1380,7 @@ ssize_t Socket::recv_packet(double timeout)
         {
             //unprocessed data
             read_buffer->length -= buf_len;
-            read_buffer->offset = buf_len;
+            read_buffer->offset += buf_len;
             return buf_len;
         }
 

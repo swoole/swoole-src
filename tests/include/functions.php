@@ -627,6 +627,7 @@ class ProcessManager
     protected $atomic;
     protected $alone = false;
     protected $freePorts = [];
+    protected $randomFunc = 'get_safe_random';
     protected $randomData = [[]];
 
     /**
@@ -698,21 +699,27 @@ class ProcessManager
         return $this->freePorts[$index];
     }
 
+    public function setRandomFunc($func)
+    {
+        $this->randomFunc = $func;
+    }
+
     public function initRandomData(int $size, int $len = 32)
     {
         $this->initRandomDataEx(1, $size, $len);
     }
 
-    public function getRandomData(): string
+    public function getRandomData()
     {
         return $this->getRandomDataEx(0);
     }
 
-    public function initRandomDataEx(int $block_num, int $size, int $len)
+    public function initRandomDataEx(int $block_num, int $size, ...$arguments)
     {
+        $func = $this->randomFunc;
         for ($b = 0; $b < $block_num; $b++) {
             for ($n = $size; $n--;) {
-                $this->randomData[$b][] = get_safe_random($len);
+                $this->randomData[$b][] = $func(...$arguments);
             }
         }
     }

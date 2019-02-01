@@ -6,7 +6,7 @@ swoole_client_coro: (length protocol) no body
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-const N = 1000;
+const N = MAX_REQUESTS * 10;
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
