@@ -165,8 +165,8 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
 #ifdef SW_USE_OPENSSL
     // maybe read_co and write_co are all waiting for the same event when we use SSL
     if (likely(want_event == SW_EVENT_NULL || !has_bound()))
-    {
 #endif
+    {
         if (likely(added_event == SW_EVENT_READ))
         {
             swReactor_remove_read_event(reactor, socket->fd);
