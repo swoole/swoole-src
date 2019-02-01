@@ -1855,6 +1855,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             }
 
             _active_close:
+            client->state = SW_MYSQL_STATE_QUERY;
             swoole_mysql_coro_close(zobject);
 
             if (!client->cid)
@@ -1880,7 +1881,6 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             {
                 zval_ptr_dtor(retval);
             }
-            client->state = SW_MYSQL_STATE_QUERY;
             return SW_OK;
         }
         else
