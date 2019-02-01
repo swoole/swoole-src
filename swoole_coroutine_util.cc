@@ -629,7 +629,7 @@ static int co_socket_onReadable(swReactor *reactor, swEvent *event)
         sock->timer = NULL;
     }
 
-    int n = read(sock->fd, sock->buf->val, sock->nbytes);
+    int n = read(sock->fd, ZSTR_VAL(sock->buf), sock->nbytes);
     if (n < 0)
     {
         ZVAL_FALSE(&result);
@@ -642,8 +642,8 @@ static int co_socket_onReadable(swReactor *reactor, swEvent *event)
     }
     else
     {
-        sock->buf->val[n] = 0;
-        sock->buf->len = n;
+        ZSTR_VAL(sock->buf)[n] = 0;
+        ZSTR_LEN(sock->buf) = n;
         ZVAL_STR(&result, sock->buf);
     }
     int ret = PHPCoroutine::resume_m(context, &result, retval);

@@ -482,7 +482,7 @@ static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *c
                         http->cli->http_proxy->user, http->cli->http_proxy->l_password,
                         http->cli->http_proxy->password);
                 zend_string *str = php_base64_encode((const unsigned char *) _buf1, _n1);
-                int _n2 = sw_snprintf(_buf2, sizeof(_buf2), "Basic %*s", (int)str->len, str->val);
+                int _n2 = sw_snprintf(_buf2, sizeof(_buf2), "Basic %*s", (int)ZSTR_LEN(str), ZSTR_VAL(str));
                 zend_string_free(str);
                 add_assoc_stringl_ex(zsend_header, ZEND_STRL("Proxy-Authorization"), _buf2, _n2);
             }

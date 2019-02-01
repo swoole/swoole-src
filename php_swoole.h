@@ -694,7 +694,7 @@ static sw_inline void sw_zval_free(zval *val)
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, _val) zend_string *_foreach_key;\
     ZEND_HASH_FOREACH_STR_KEY_VAL(ht, _foreach_key, _val); \
     if (!_foreach_key) {k = NULL; klen = 0; ktype = 0;} \
-    else {k = _foreach_key->val, klen=_foreach_key->len; ktype = 1;} {
+    else {k = ZSTR_VAL(_foreach_key), klen=ZSTR_LEN(_foreach_key); ktype = 1;} {
 #define SW_HASHTABLE_FOREACH_END()                 } ZEND_HASH_FOREACH_END();
 
 static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong value)
@@ -787,9 +787,9 @@ static sw_inline int sw_zend_register_class_alias(const char *name, size_t name_
     zend_string *_interned_name = zend_new_interned_string(_name);
 
 #if PHP_VERSION_ID >= 70300
-    return zend_register_class_alias_ex(_interned_name->val, _interned_name->len, ce, 1);
+    return zend_register_class_alias_ex(ZSTR_VAL(_interned_name), ZSTR_LEN(_interned_name), ce, 1);
 #else
-    return zend_register_class_alias_ex(_interned_name->val, _interned_name->len, ce);
+    return zend_register_class_alias_ex(ZSTR_VAL(_interned_name), ZSTR_LEN(_interned_name), ce);
 #endif
 }
 
@@ -861,7 +861,7 @@ static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
 {
     zend_string *key = NULL;
     int ret = zend_is_callable(cb, a, &key);
-    char *tmp = estrndup(key->val, key->len);
+    char *tmp = estrndup(ZSTR_VAL(key), ZSTR_LEN(key));
     zend_string_release(key);
     *name = tmp;
     return ret;
@@ -891,7 +891,7 @@ static sw_inline int sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint
 {
     zend_string *key = NULL;
     int ret = zend_is_callable_ex(zcallable, NULL, check_flags, &key, fci_cache, error);
-    char *tmp = estrndup(key->val, key->len);
+    char *tmp = estrndup(ZSTR_VAL(key), ZSTR_LEN(key));
     zend_string_release(key);
     *callable_name = tmp;
     return ret;
@@ -1002,7 +1002,7 @@ static sw_inline void sw_fci_cache_discard(zend_fcall_info_cache *fci_cache)
 static sw_inline char* sw_php_format_date(char *format, size_t format_len, time_t ts, int localtime)
 {
     zend_string *time = php_format_date(format, format_len, ts, localtime);
-    char *return_str = estrndup(time->val, time->len);
+    char *return_str = estrndup(ZSTR_VAL(time), ZSTR_LEN(time));
     zend_string_release(time);
     return return_str;
 }
@@ -1010,8 +1010,8 @@ static sw_inline char* sw_php_format_date(char *format, size_t format_len, time_
 static sw_inline char* sw_php_url_encode(char *value, size_t value_len, int* exten)
 {
     zend_string *str = php_url_encode(value, value_len);
-    *exten = str->len;
-    char *return_str = estrndup(str->val, str->len);
+    *exten = ZSTR_LEN(str);
+    char *return_str = estrndup(ZSTR_VAL(str), ZSTR_LEN(str));
     zend_string_release(str);
     return return_str;
 }

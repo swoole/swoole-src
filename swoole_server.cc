@@ -657,8 +657,8 @@ int php_swoole_task_pack(swEventData *task, zval *data)
         if (SWOOLE_G(fast_serialize))
         {
             serialized_string = php_swoole_serialize(data);
-            task_data_str = serialized_string->val;
-            task_data_len = serialized_string->len;
+            task_data_str = ZSTR_VAL(serialized_string);
+            task_data_len = ZSTR_LEN(serialized_string);
         }
         else
 #endif
@@ -671,8 +671,8 @@ int php_swoole_task_pack(swEventData *task, zval *data)
             {
                 return -1;
             }
-            task_data_str = serialized_data.s->val;
-            task_data_len = serialized_data.s->len;
+            task_data_str = ZSTR_VAL(serialized_data.s);
+            task_data_len = ZSTR_LEN(serialized_data.s);
         }
     }
     else
@@ -1178,8 +1178,8 @@ static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *curre
         if (SWOOLE_G(fast_serialize))
         {
             serialized_string = php_swoole_serialize(data);
-            data_str = serialized_string->val;
-            data_len = serialized_string->len;
+            data_str = ZSTR_VAL(serialized_string);
+            data_len = ZSTR_LEN(serialized_string);
         }
         else
 #endif
@@ -1187,8 +1187,8 @@ static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *curre
             PHP_VAR_SERIALIZE_INIT(var_hash);
             php_var_serialize(&serialized_data, data, &var_hash);
             PHP_VAR_SERIALIZE_DESTROY(var_hash);
-            data_str = serialized_data.s->val;
-            data_len = serialized_data.s->len;
+            data_str = ZSTR_VAL(serialized_data.s);
+            data_len = ZSTR_LEN(serialized_data.s);
         }
     }
     else

@@ -822,7 +822,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     zend_string *retval = zend_string_alloc(length + 1, 0);
     PHPCoroutine::check_bind("client", cli->get_bound_cid());
     // cli->set_timeout(timeout, true); TODO
-    ssize_t n_bytes = cli->recvfrom(retval->val, length);
+    ssize_t n_bytes = cli->recvfrom(ZSTR_VAL(retval), length);
     if (n_bytes < 0)
     {
         zend_string_free(retval);
@@ -914,12 +914,12 @@ static PHP_METHOD(swoole_client_coro, recv)
         zend_string *result = zend_string_alloc(SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string), 0);
         double persistent_timeout = cli->get_timeout();
         cli->set_timeout(timeout);
-        retval = cli->recv(result->val, SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string));
+        retval = cli->recv(ZSTR_VAL(result), SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string));
         cli->set_timeout(persistent_timeout);
         if (retval > 0)
         {
-            result->val[retval] = '\0';
-            result->len = retval;
+            ZSTR_VAL(result)[retval] = '\0';
+            ZSTR_LEN(result) = retval;
             RETURN_STR(result);
         }
         else
