@@ -14,8 +14,6 @@ using namespace std;
 void Socket::timer_callback(swTimer *timer, swTimer_node *tnode)
 {
     Socket *socket = (Socket *) tnode->data;
-    swTraceLog(SW_TRACE_SOCKET, "socket[%d] timeout", socket->socket->fd);
-    socket->reactor->del(socket->reactor, socket->socket->fd);
     socket->set_err(ETIMEDOUT);
     if (likely(tnode == socket->read_timer))
     {
@@ -36,21 +34,56 @@ void Socket::timer_callback(swTimer *timer, swTimer_node *tnode)
 int Socket::readable_event_callback(swReactor *reactor, swEvent *event)
 {
     Socket *socket = (Socket *) event->socket->object;
-    socket->trigger_event(SW_EVENT_READ);
+    socket->set_err(0);
+#ifdef SW_USE_OPENSSL
+    if (unlikely(socket->want_event != SW_EVENT_NULL))
+    {
+        if (socket->want_event == SW_EVENT_READ)
+        {
+            socket->write_co->resume();
+        }
+    }
+    else
+#endif
+    {
+        socket->read_co->resume();
+    }
     return SW_OK;
 }
 
 int Socket::writable_event_callback(swReactor *reactor, swEvent *event)
 {
     Socket *socket = (Socket *) event->socket->object;
-    socket->trigger_event(SW_EVENT_WRITE);
+    socket->set_err(0);
+#ifdef SW_USE_OPENSSL
+    if (unlikely(socket->want_event != SW_EVENT_NULL))
+    {
+        if (socket->want_event == SW_EVENT_WRITE)
+        {
+            socket->read_co->resume();
+        }
+    }
+    else
+#endif
+    {
+        socket->write_co->resume();
+    }
     return SW_OK;
 }
 
 int Socket::error_event_callback(swReactor *reactor, swEvent *event)
 {
     Socket *socket = (Socket *) event->socket->object;
-    socket->trigger_event(SW_EVENT_ERROR);
+    if (socket->write_co)
+    {
+        socket->set_err(0);
+        socket->write_co->resume();
+    }
+    if (socket->read_co)
+    {
+        socket->set_err(0);
+        socket->read_co->resume();
+    }
     return SW_OK;
 }
 
@@ -59,7 +92,7 @@ bool Socket::add_event(const enum swEvent_type event)
     bool ret = true;
     if (likely(!(socket->events & event)))
     {
-        if (socket->events == 0)
+        if (socket->removed)
         {
             ret = reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | event) == SW_OK;
         }
@@ -74,6 +107,7 @@ bool Socket::add_event(const enum swEvent_type event)
 
 bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_t __n)
 {
+    enum swEvent_type added_event = event;
     Coroutine *co = Coroutine::get_current();
     if (unlikely(!co))
     {
@@ -94,6 +128,7 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
         {
             return false;
         }
+        added_event = want_event;
     }
     else
 #endif
@@ -103,109 +138,54 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
     }
     swTraceLog(
         SW_TRACE_SOCKET, "socket#%d blongs to cid#%ld is waiting for %s event",
-        socket->fd, co->get_cid(), (const char *)
+        socket->fd, co->get_cid(),
 #ifdef SW_USE_OPENSSL
-        (want_event != SW_EVENT_NULL) ? (want_event == SW_EVENT_READ ? "SSL READ" : "SSL WRITE") :
+        socket->ssl_want_read ? "SSL READ" : socket->ssl_want_write ? "SSL WRITE" :
 #endif
-        (event == SW_EVENT_READ ? "READ" : "WRITE")
+        event == SW_EVENT_READ ? "READ" : "WRITE"
     );
-    if (unlikely(event == SW_EVENT_WRITE && __n > 0 && *__buf != get_write_buffer()->str))
+    if (likely(event == SW_EVENT_READ))
     {
-        swString_clear(write_buffer);
-        swString_append_ptr(write_buffer, (const char *) *__buf, __n);
-        *__buf = write_buffer->str;
-    }
-    switch (event)
-    {
-    case SW_EVENT_READ:
         read_co = co;
         read_co->yield();
         read_co = nullptr;
-        break;
-    case SW_EVENT_WRITE:
+    }
+    else // if (event == SW_EVENT_WRITE)
+    {
+        if (unlikely(__n > 0 && *__buf != get_write_buffer()->str))
+        {
+            swString_clear(write_buffer);
+            swString_append_ptr(write_buffer, (const char *) *__buf, __n);
+            *__buf = write_buffer->str;
+        }
         write_co = co;
         write_co->yield();
         write_co = nullptr;
-        break;
-    default:
-        assert(0);
     }
 #ifdef SW_USE_OPENSSL
-    want_event = SW_EVENT_NULL;
+    // maybe read_co and write_co are all waiting for the same event when we use SSL
+    if (likely(want_event == SW_EVENT_NULL || !has_bound()))
+    {
 #endif
-    return !should_be_break();
-}
-
-void Socket::trigger_event(const enum swEvent_type event)
-{
-    Coroutine* co = nullptr;
-    if (unlikely(event == SW_EVENT_ERROR))
-    {
-        reactor->del(reactor, socket->fd);
-        if (write_co)
-        {
-            write_co->resume();
-        }
-        if (read_co)
-        {
-            read_co->resume();
-        }
-        return;
-    }
-#ifdef SW_USE_OPENSSL
-    if (unlikely(want_event != SW_EVENT_NULL))
-    {
-        // ignore
-        if (event != want_event)
-        {
-            return;
-        }
-        // reverse
-        switch (want_event)
-        {
-        case SW_EVENT_WRITE:
-            co = read_co;
-            break;
-        case SW_EVENT_READ:
-            co = write_co;
-            break;
-        default:
-            assert(0);
-        }
-    }
-    else
-#endif
-    {
-        switch (event)
-        {
-        case SW_EVENT_READ:
-            co = read_co;
-            break;
-        case SW_EVENT_WRITE:
-            co = write_co;
-            break;
-        default:
-            assert(0);
-        }
-    }
-#ifdef SW_USE_OPENSSL
-    if (likely((want_event == SW_EVENT_NULL) || (want_event && !(read_co && write_co))))
-#endif
-    {
-        if (likely(event == SW_EVENT_READ))
+        if (likely(added_event == SW_EVENT_READ))
         {
             swReactor_remove_read_event(reactor, socket->fd);
         }
-        else if (event == SW_EVENT_WRITE)
+        else // if (added_event == SW_EVENT_WRITE)
         {
             swReactor_remove_write_event(reactor, socket->fd);
         }
     }
+#ifdef SW_USE_OPENSSL
+    want_event = SW_EVENT_NULL;
+#endif
     swTraceLog(
         SW_TRACE_SOCKET, "socket#%d blongs to cid#%ld trigger %s event",
-        socket->fd, co->get_cid(), (const char * ) (event == SW_EVENT_READ ? "READ" : "WRITE")
+        socket->fd, co->get_cid(), socket->closed ? "CLOSE" :
+        errCode ? errCode == ETIMEDOUT ? "TIMEOUT" : "ERROR" :
+        added_event == SW_EVENT_READ ? "READ" : "WRITE"
     );
-    co->resume();
+    return !socket->closed && !errCode;
 }
 
 bool Socket::socks5_handshake()
@@ -1582,8 +1562,16 @@ bool Socket::close()
         {
             socket->closed = 1;
         }
-        set_err(ECONNRESET);
-        trigger_event(SW_EVENT_ERROR);
+        if (write_co)
+        {
+            set_err(ECONNRESET);
+            write_co->resume();
+        }
+        if (read_co)
+        {
+            set_err(ECONNRESET);
+            read_co->resume();
+        }
     }
     else
     {

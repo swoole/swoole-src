@@ -153,7 +153,7 @@ protected:
         cid = ++last_cid;
         coroutines[cid] = this;
         call_stack[call_stack_size++] = this;
-        if (count() > peak_num)
+        if (unlikely(count() > peak_num))
         {
             peak_num = count();
         }
