@@ -312,6 +312,24 @@ static PHP_METHOD(swoole_server_port, set)
             RETURN_FALSE;
         }
     }
+    //package length offset
+    if (php_swoole_array_get_value(vht, "package_length_offset", v))
+    {
+        port->protocol.package_length_offset = (int) zval_get_long(v);
+        if (port->protocol.package_length_offset > SW_IPC_BUFFER_SIZE)
+        {
+            swoole_php_fatal_error(E_ERROR, "'package_length_offset' value is too large.");
+        }
+    }
+    //package body start
+    if (php_swoole_array_get_value(vht, "package_body_offset", v) || php_swoole_array_get_value(vht, "package_body_start", v))
+    {
+        port->protocol.package_body_offset = (int) zval_get_long(v);
+        if (port->protocol.package_body_offset > SW_IPC_BUFFER_SIZE)
+        {
+            swoole_php_fatal_error(E_ERROR, "'package_body_offset' value is too large.");
+        }
+    }
     //length function
     if (php_swoole_array_get_value(vht, "package_length_func", v))
     {
@@ -343,24 +361,6 @@ static PHP_METHOD(swoole_server_port, set)
         port->protocol.package_length_size = 0;
         port->protocol.package_length_type = '\0';
         port->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
-    }
-    //package length offset
-    if (php_swoole_array_get_value(vht, "package_length_offset", v))
-    {
-        port->protocol.package_length_offset = (int) zval_get_long(v);
-        if (port->protocol.package_length_offset > SW_IPC_BUFFER_SIZE)
-        {
-            swoole_php_fatal_error(E_ERROR, "'package_length_offset' value is too large.");
-        }
-    }
-    //package body start
-    if (php_swoole_array_get_value(vht, "package_body_offset", v) || php_swoole_array_get_value(vht, "package_body_start", v))
-    {
-        port->protocol.package_body_offset = (int) zval_get_long(v);
-        if (port->protocol.package_body_offset > SW_IPC_BUFFER_SIZE)
-        {
-            swoole_php_fatal_error(E_ERROR, "'package_body_offset' value is too large.");
-        }
     }
     /**
      * package max length

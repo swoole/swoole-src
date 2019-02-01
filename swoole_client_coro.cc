@@ -351,6 +351,16 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
             return;
         }
     }
+    //package length offset
+    if (php_swoole_array_get_value(vht, "package_length_offset", v))
+    {
+        cli->protocol.package_length_offset = (int) zval_get_long(v);
+    }
+    //package body start
+    if (php_swoole_array_get_value(vht, "package_body_offset", v))
+    {
+        cli->protocol.package_body_offset = (int) zval_get_long(v);
+    }
     //length function
     if (php_swoole_array_get_value(vht, "package_length_func", v))
     {
@@ -383,16 +393,6 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
         cli->protocol.package_length_size = 0;
         cli->protocol.package_length_type = '\0';
         cli->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
-    }
-    //package length offset
-    if (php_swoole_array_get_value(vht, "package_length_offset", v))
-    {
-        cli->protocol.package_length_offset = (int) zval_get_long(v);
-    }
-    //package body start
-    if (php_swoole_array_get_value(vht, "package_body_offset", v))
-    {
-        cli->protocol.package_body_offset = (int) zval_get_long(v);
     }
     /**
      * package max length
