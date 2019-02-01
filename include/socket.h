@@ -242,7 +242,6 @@ protected:
 
     bool add_event(const enum swEvent_type event);
     bool wait_event(const enum swEvent_type event, const void **__buf = nullptr, size_t __n = 0);
-    void trigger_event(const enum swEvent_type event);
 
     inline bool is_available(enum swEvent_type event)
     {
@@ -266,22 +265,6 @@ protected:
             return false;
         }
         return true;
-    }
-
-    inline bool should_be_break()
-    {
-        if (socket->closed)
-        {
-            return true;
-        }
-        switch (errCode)
-        {
-        case ETIMEDOUT:
-        case ECANCELED:
-            return true;
-        default:
-            return false;
-        }
     }
 
     // TODO: move to client.cc

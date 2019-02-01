@@ -57,11 +57,14 @@ static sw_inline int swoole_futex_wait(sw_atomic_t *atomic, double timeout)
     {
         ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, NULL, NULL, 0);
     }
-    if (ret == SW_OK)
+    if (ret == SW_OK && sw_atomic_cmp_set(atomic, 1, 0))
     {
-        sw_atomic_cmp_set(atomic, 1, 0);
+        return SW_OK;
     }
-    return ret;
+    else
+    {
+        return SW_ERR;
+    }
 }
 
 static sw_inline int swoole_futex_wakeup(sw_atomic_t *atomic, int n)

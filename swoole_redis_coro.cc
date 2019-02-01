@@ -848,8 +848,8 @@ ZEND_END_ARG_INFO()
         PHP_VAR_SERIALIZE_DESTROY(s_ht); \
     } else { \
         zend_string *convert_str = zval_get_string(_val); \
-        argvlen[i] = convert_str->len; \
-        argv[i] = estrndup(convert_str->val, convert_str->len); \
+        argvlen[i] = ZSTR_LEN(convert_str); \
+        argv[i] = estrndup(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str)); \
         zend_string_release(convert_str); \
     } \
     i++;
@@ -1301,7 +1301,7 @@ static sw_inline void sw_redis_command_var_key(INTERNAL_FUNCTION_PARAMETERS, con
         zval *value;
         SW_HASHTABLE_FOREACH_START(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0]), value)
             zend_string *convert_str = zval_get_string(value);
-            SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+            SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
             zend_string_release(convert_str);
         SW_HASHTABLE_FOREACH_END();
         if (has_timeout)
@@ -1324,7 +1324,7 @@ static sw_inline void sw_redis_command_var_key(INTERNAL_FUNCTION_PARAMETERS, con
         for (j = 0; j < tail; ++j)
         {
             zend_string *convert_str = zval_get_string(&z_args[j]);
-            SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+            SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
             zend_string_release(convert_str);
         }
         if(has_timeout) {
@@ -1377,7 +1377,7 @@ static sw_inline void sw_redis_command_key_var_val(INTERNAL_FUNCTION_PARAMETERS,
     SW_REDIS_COMMAND_ALLOC_ARGV
     SW_REDIS_COMMAND_ARGV_FILL(cmd, cmd_len)
     zend_string *convert_str = zval_get_string(&z_args[0]);
-    SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+    SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
     zend_string_release(convert_str);
     for (j = 1; j < argc - 1; ++j)
     {
@@ -2239,10 +2239,10 @@ static PHP_METHOD(swoole_redis_coro, set)
         ZEND_HASH_FOREACH_KEY_VAL(kt, idx, zkey, v)
         {
             /* Detect PX or EX argument and validate timeout */
-            if (!exp_type && zkey && IS_EX_PX_ARG(zkey->val))
+            if (!exp_type && zkey && IS_EX_PX_ARG(ZSTR_VAL(zkey)))
             {
                 /* Set expire type */
-                exp_type = zkey->val;
+                exp_type = ZSTR_VAL(zkey);
 
                 /* Try to extract timeout */
                 if (Z_TYPE_P(v) == IS_LONG)
@@ -2421,7 +2421,7 @@ static PHP_METHOD(swoole_redis_coro, mGet)
     SW_REDIS_COMMAND_ARGV_FILL("MGET", 4)
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(z_args), value)
         zend_string *convert_str = zval_get_string(value);
-        SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
         zend_string_release(convert_str);
     SW_HASHTABLE_FOREACH_END();
 
@@ -2533,7 +2533,7 @@ static PHP_METHOD(swoole_redis_coro, hDel)
     for (j = 0; j < argc-1; ++j)
     {
         zend_string *convert_str = zval_get_string(&z_args[j]);
-        SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
         zend_string_release(convert_str);
     }
     efree(z_args);
@@ -2755,11 +2755,11 @@ static PHP_METHOD(swoole_redis_coro, blPop)
         zval *value;
         SW_HASHTABLE_FOREACH_START(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0]), value)
             zend_string *convert_str = zval_get_string(value);
-            SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+            SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
             zend_string_release(convert_str);
         SW_HASHTABLE_FOREACH_END();
         zend_string *convert_str = zval_get_string(&z_args[1]);
-        SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
         zend_string_release(convert_str);
     }
     else
@@ -2768,7 +2768,7 @@ static PHP_METHOD(swoole_redis_coro, blPop)
         for (j = 0; j < argc - 1; ++j)
         {
             zend_string *convert_str = zval_get_string(&z_args[j]);
-            SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+            SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
             zend_string_release(convert_str);
         }
     }
@@ -2807,11 +2807,11 @@ static PHP_METHOD(swoole_redis_coro, brPop)
         zval *value;
         SW_HASHTABLE_FOREACH_START(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0]), value)
             zend_string *convert_str = zval_get_string(value);
-            SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+            SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
             zend_string_release(convert_str);
         SW_HASHTABLE_FOREACH_END();
         zend_string *convert_str = zval_get_string(&z_args[1]);
-        SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
         zend_string_release(convert_str);
     }
     else
@@ -2820,7 +2820,7 @@ static PHP_METHOD(swoole_redis_coro, brPop)
         for (j = 0; j < argc - 1; ++j)
         {
             zend_string *convert_str = zval_get_string(&z_args[j]);
-            SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+            SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
             zend_string_release(convert_str);
         }
     }
@@ -2970,7 +2970,7 @@ static PHP_METHOD(swoole_redis_coro, pfadd)
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(z_arr), value) {
         zend_string *convert_str = zval_get_string(value);
-        SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len);
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str));
         zend_string_release(convert_str);
     } SW_HASHTABLE_FOREACH_END()
 
@@ -3005,14 +3005,14 @@ static PHP_METHOD(swoole_redis_coro, pfcount)
         zval *value;
         SW_HASHTABLE_FOREACH_START(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0]), value)
             zend_string *convert_str = zval_get_string(value);
-            SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+            SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
             zend_string_release(convert_str);
         SW_HASHTABLE_FOREACH_END()
     }
     else
     {
         zend_string *convert_str = zval_get_string(&z_args[0]);
-        SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
         zend_string_release(convert_str);
     }
     efree(z_args);
@@ -3044,7 +3044,7 @@ static PHP_METHOD(swoole_redis_coro, pfmerge)
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(z_arr), value) {
         zend_string *convert_str = zval_get_string(value);
-        SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len);
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str));
         zend_string_release(convert_str);
     } SW_HASHTABLE_FOREACH_END()
 
@@ -3303,7 +3303,7 @@ static PHP_METHOD(swoole_redis_coro, zUnion)
     zval *value;
     SW_HASHTABLE_FOREACH_START(ht_keys, value)
         zend_string *convert_str = zval_get_string(value);
-        SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
         zend_string_release(convert_str);
     SW_HASHTABLE_FOREACH_END();
 
@@ -3420,7 +3420,7 @@ static PHP_METHOD(swoole_redis_coro, zInter)
     zval *value;
     SW_HASHTABLE_FOREACH_START(ht_keys, value)
         zend_string *convert_str = zval_get_string(value);
-        SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
         zend_string_release(convert_str);
     SW_HASHTABLE_FOREACH_END();
 
@@ -3876,7 +3876,7 @@ static PHP_METHOD(swoole_redis_coro, hMGet)
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
     SW_HASHTABLE_FOREACH_START(ht_chan, value)
         zend_string *convert_str = zval_get_string(value);
-        SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
         zend_string_release(convert_str);
     SW_HASHTABLE_FOREACH_END();
     redis_request(redis, argc, argv, argvlen, return_value);
@@ -4152,7 +4152,7 @@ static PHP_METHOD(swoole_redis_coro, bitOp)
     SW_REDIS_COMMAND_ARGV_FILL(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[0]), SW_REDIS_COMMAND_ARGS_STRLEN(z_args[0]))
     for(j = 1; j < argc - 1; j++) {
         zend_string *convert_str = zval_get_string(&z_args[j]);
-        SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
         zend_string_release(convert_str);
     }
 
@@ -4226,7 +4226,7 @@ static sw_inline void redis_subscribe(INTERNAL_FUNCTION_PARAMETERS, const char *
     zval *value;
     SW_HASHTABLE_FOREACH_START(ht_chan, value)
         zend_string *convert_str = zval_get_string(value);
-        SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
         zend_string_release(convert_str);
     SW_HASHTABLE_FOREACH_END();
 
@@ -4293,8 +4293,8 @@ static PHP_METHOD(swoole_redis_coro, request)
             break;
         }
         zend_string *convert_str = zval_get_string(value);
-        argvlen[i] = convert_str->len;
-        argv[i] = estrndup(convert_str->val, convert_str->len);
+        argvlen[i] = ZSTR_LEN(convert_str);
+        argv[i] = estrndup(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str));
         zend_string_release(convert_str);
         i++;
     SW_HASHTABLE_FOREACH_END();
@@ -4340,7 +4340,7 @@ static PHP_METHOD(swoole_redis_coro, eval)
         zval *param;
         SW_HASHTABLE_FOREACH_START(params_ht, param)
             zend_string *param_str = zval_get_string(param);
-            SW_REDIS_COMMAND_ARGV_FILL(param_str->val, param_str->len)
+            SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(param_str), ZSTR_LEN(param_str))
             zend_string_release(param_str);
         SW_HASHTABLE_FOREACH_END();
     }
@@ -4386,7 +4386,7 @@ static PHP_METHOD(swoole_redis_coro, evalSha)
         zval *param;
         SW_HASHTABLE_FOREACH_START(params_ht, param)
             zend_string *param_str = zval_get_string(param);
-            SW_REDIS_COMMAND_ARGV_FILL(param_str->val, param_str->len)
+            SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(param_str), ZSTR_LEN(param_str))
             zend_string_release(param_str);
         SW_HASHTABLE_FOREACH_END();
     }
@@ -4439,7 +4439,7 @@ static PHP_METHOD(swoole_redis_coro, script)
             for (; j < argc; j++)
             {
                 zend_string *z_arg_str = zval_get_string(&z_args[j]);
-                SW_REDIS_COMMAND_ARGV_FILL(z_arg_str->val, z_arg_str->len)
+                SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(z_arg_str), ZSTR_LEN(z_arg_str))
                 zend_string_release(z_arg_str);
             }
 

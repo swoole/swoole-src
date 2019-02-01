@@ -897,7 +897,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     if (col->type == SW_TABLE_STRING)
     {
         zend_string *str = zval_get_string(value);
-        swTableRow_set_value(row, col, Z_STRVAL_P(value), Z_STRLEN_P(value));
+        swTableRow_set_value(row, col, ZSTR_VAL(str), ZSTR_LEN(str));
         zend_string_release(str);
     }
     else if (col->type == SW_TABLE_FLOAT)

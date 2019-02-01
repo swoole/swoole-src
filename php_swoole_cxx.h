@@ -45,12 +45,12 @@ public:
 
     inline char* val()
     {
-        return str->val;
+        return ZSTR_VAL(str);
     }
 
     inline size_t len()
     {
-        return str->len;
+        return ZSTR_LEN(str);
     }
 
     ~string()

@@ -304,7 +304,7 @@ static PHP_METHOD(swoole_memory_pool_slice, write)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     MemorySlice *info = (MemorySlice *) swoole_get_object(getThis());
-    size = data->len;
+    size = ZSTR_LEN(data);
     if (size > info->size)
     {
         swoole_php_error(E_WARNING, "data is too large:" ZEND_LONG_FMT ".", size);
@@ -316,7 +316,7 @@ static PHP_METHOD(swoole_memory_pool_slice, write)
         RETURN_FALSE;
     }
 
-    memcpy((char *) info->memory + offset, data->val, size);
+    memcpy((char *) info->memory + offset, ZSTR_VAL(data), size);
 
     RETURN_TRUE;
 }

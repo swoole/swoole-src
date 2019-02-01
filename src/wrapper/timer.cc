@@ -110,15 +110,7 @@ bool Timer::del(swTimer_node *tnode)
     {
         return false;
     }
-    if (Timer::del(tnode) < 0)
-    {
-        return false;
-    }
-    else
-    {
-        swTimer_del(&SwooleG.timer, tnode);
-        return true;
-    }
+    return swTimer_del(&SwooleG.timer, tnode) == SW_TRUE;
 }
 
 bool Timer::clear(long id)
