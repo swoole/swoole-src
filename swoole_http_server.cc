@@ -53,6 +53,8 @@ extern "C"
 #include "thirdparty/picohttpparser/picohttpparser.h"
 #endif
 
+#define enable_zero_copy 0
+
 using namespace swoole;
 
 swString *swoole_http_buffer;
@@ -1538,8 +1540,12 @@ static PHP_METHOD(swoole_http_response, write)
     swString_append_ptr(swoole_http_buffer, http_body.str, http_body.length);
     swString_append_ptr(swoole_http_buffer, ZEND_STRL("\r\n"));
     sw_free(hex_string);
-
+#ifdef enable_zero_copy
+    int ret = serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length,MSG_ZEROCOPY);
+ #else
     int ret = serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
+ #endif
+  
 #ifdef SW_COROUTINE
     if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
     {
