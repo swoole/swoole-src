@@ -2774,8 +2774,8 @@ static PHP_METHOD(swoole_server, on)
     }
 
     char *func_name = NULL;
-    zend_fcall_info_cache *func_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
-    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL))
+    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, fci_cache, NULL))
     {
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;
@@ -2815,8 +2815,12 @@ static PHP_METHOD(swoole_server, on)
         property_name[l_property_name] = '\0';
         zend_update_property(swoole_server_ce_ptr, getThis(), property_name, l_property_name, cb);
         php_sw_server_callbacks[i] = sw_zend_read_property(swoole_server_ce_ptr, getThis(), property_name, l_property_name, 0);
-        php_sw_server_caches[i] = func_cache;
         sw_copy_to_stack(php_sw_server_callbacks[i], _php_sw_server_callbacks[i]);
+        if (php_sw_server_caches[i])
+        {
+             efree(php_sw_server_caches[i]);
+        }
+        php_sw_server_caches[i] = fci_cache;
         break;
     }
 
@@ -2824,8 +2828,9 @@ static PHP_METHOD(swoole_server, on)
     {
         zval *port_object = server_port_list.zobjects[0];
         zval *retval = NULL;
-        Z_TRY_ADDREF_P(port_object);
+        efree(fci_cache);
         sw_zend_call_method_with_2_params(&port_object, swoole_server_port_ce_ptr, NULL, "on", &retval, name, cb);
+        RETURN_BOOL(zval_is_true(retval));
     }
     else
     {

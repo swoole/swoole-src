@@ -511,8 +511,8 @@ static PHP_METHOD(swoole_server_port, on)
     }
 
     char *func_name = NULL;
-    zend_fcall_info_cache *func_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
-    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL))
+    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, fci_cache, NULL))
     {
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;
@@ -549,24 +549,29 @@ static PHP_METHOD(swoole_server_port, on)
         zend_update_property(swoole_server_port_ce_ptr, getThis(), property_name, l_property_name, cb);
         property->callbacks[i] = sw_zend_read_property(swoole_server_port_ce_ptr, getThis(), property_name, l_property_name, 0);
         sw_copy_to_stack(property->callbacks[i], property->_callbacks[i]);
+        if (property->caches[i])
+        {
+            efree(property->caches[i]);
+        }
+        property->caches[i] = fci_cache;
 
-        if (i == SW_SERVER_CB_onConnect && serv->onConnect == NULL)
+        if (i == SW_SERVER_CB_onConnect && !serv->onConnect)
         {
             serv->onConnect = php_swoole_onConnect;
         }
-        else if (i == SW_SERVER_CB_onPacket && serv->onPacket == NULL)
+        else if (i == SW_SERVER_CB_onPacket && !serv->onPacket)
         {
             serv->onPacket = php_swoole_onPacket;
         }
-        else if (i == SW_SERVER_CB_onClose && serv->onClose == NULL)
+        else if (i == SW_SERVER_CB_onClose && !serv->onClose)
         {
             serv->onClose = php_swoole_onClose;
         }
-        else if (i == SW_SERVER_CB_onBufferFull && serv->onBufferFull == NULL)
+        else if (i == SW_SERVER_CB_onBufferFull && !serv->onBufferFull)
         {
             serv->onBufferFull = php_swoole_onBufferFull;
         }
-        else if (i == SW_SERVER_CB_onBufferEmpty && serv->onBufferEmpty == NULL)
+        else if (i == SW_SERVER_CB_onBufferEmpty && !serv->onBufferEmpty)
         {
             serv->onBufferEmpty = php_swoole_onBufferEmpty;
         }
@@ -574,14 +579,13 @@ static PHP_METHOD(swoole_server_port, on)
         {
             serv->onReceive = php_swoole_http_onReceive;
         }
-        property->caches[i] = func_cache;
         break;
     }
 
     if (l_property_name == 0)
     {
         swoole_php_error(E_WARNING, "unknown event types[%s]", name);
-        efree(func_cache);
+        efree(fci_cache);
         RETURN_FALSE;
     }
     RETURN_TRUE;
