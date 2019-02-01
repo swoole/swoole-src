@@ -69,6 +69,7 @@ static php_stream_ops socket_ops
 typedef struct
 {
     php_netstream_data_t stream;
+    double timeout;
     Socket *socket;
 } php_swoole_netstream_data_t;
 
@@ -270,7 +271,10 @@ static size_t socket_read(php_stream *stream, char *buf, size_t count)
     {
         return 0;
     }
-
+    if (!abstract->timeout && FG(default_socket_timeout) > 0)
+    {
+        sock->set_timeout((double) FG(default_socket_timeout));
+    }
     nr_bytes = sock->recv(buf, count);
     /**
      * sock->errCode != ETIMEDOUT : Compatible with sync blocking IO
@@ -740,6 +744,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
     Socket *sock = (Socket*) abstract->socket;
+    struct timeval default_timeout = { 0, 0 };
     switch (option)
     {
     case PHP_STREAM_OPTION_XPORT_API:
@@ -794,7 +799,9 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         break;
 
     case PHP_STREAM_OPTION_READ_TIMEOUT:
-        sock->set_timeout((struct timeval*) ptrparam);
+        default_timeout = *(struct timeval*) ptrparam;
+        abstract->timeout = (double) default_timeout.tv_sec + ((double) default_timeout.tv_usec / 1000 / 1000);
+        sock->set_timeout(abstract->timeout);
         break;
 #ifdef SW_USE_OPENSSL
     case PHP_STREAM_OPTION_CRYPTO_API:
