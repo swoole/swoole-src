@@ -9,12 +9,6 @@ $pm = new ProcessManager;
 $pm->setRandomFunc('mt_rand');
 $pm->initRandomDataEx(1, MAX_REQUESTS, 0, 65535);
 $pm->parentFunc = function () use ($pm) {
-
-    Co::set([
-        'log_level' => SWOOLE_LOG_DEBUG,
-        'trace_flags' => SWOOLE_TRACE_ALL ^ SWOOLE_TRACE_EVENT,
-    ]);
-
     go(function () use ($pm) {
         $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $client->set([
