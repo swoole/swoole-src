@@ -133,9 +133,9 @@ function content_hook_replace(string $content, array $kv_map): string
     return $content;
 }
 
-function tcp_type_length(string $type = 'n'): int
+function tcp_length_types(): array
 {
-    static $map = [
+    return [
         'c' => 1,
         'C' => 1,
         's' => 2,
@@ -147,8 +147,20 @@ function tcp_type_length(string $type = 'n'): int
         'N' => 4,
         'V' => 4,
     ];
+}
 
-    return $map[$type] ?? 0;
+function tcp_type_length(string $type = 'n'): int
+{
+    $map = tcp_length_types();
+    if (strlen($type) === 1) {
+        return $map[$type] ?? 0;
+    } else {
+        $len = 0;
+        for ($n = 0; $n < strlen($type); $n++) {
+            $len += $map[$type{$n}] ?? 0;
+        }
+        return $len;
+    }
 }
 
 function tcp_head(int $length, string $type = 'n') : string
