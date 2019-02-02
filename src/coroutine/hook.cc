@@ -814,29 +814,33 @@ struct coro_poll_task
 
 static std::unordered_map<int, coro_poll_task *> coro_poll_task_map;
 
+static inline void socket_poll_clean(coro_poll_task *task)
+{
+    swReactor *reactor = SwooleG.main_reactor;
+    for (auto i = task->fds->begin(); i != task->fds->end(); i++)
+    {
+        coro_poll_task_map.erase(i->second.fd);
+        if (reactor->del(reactor, i->second.fd) < 0)
+        {
+            //TODO print error log
+            continue;
+        }
+    }
+}
+
 static void socket_poll_timeout(swTimer *timer, swTimer_node *tnode)
 {
     coro_poll_task *task = (coro_poll_task *) tnode->data;
     task->timer = nullptr;
     task->success = false;
+    socket_poll_clean(task);
     task->co->resume();
 }
 
 static void socket_poll_completed(void *data)
 {
     coro_poll_task *task = (coro_poll_task *) data;
-    swReactor *reactor = SwooleG.main_reactor;
-    for (auto i = task->fds->begin(); i != task->fds->end(); i++)
-    {
-        if (reactor->del(reactor, i->second.fd) < 0)
-        {
-            continue;
-        }
-        else
-        {
-            coro_poll_task_map.erase(i->second.fd);
-        }
-    }
+    socket_poll_clean(task);
     task->co->resume();
 }
 
