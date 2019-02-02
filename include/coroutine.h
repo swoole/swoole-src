@@ -52,6 +52,22 @@ void set_dns_cache_expire(time_t expire);
 void set_dns_cache_capacity(size_t capacity);
 void clear_dns_cache();
 
+struct socket_poll_fd
+{
+    int fd;
+    int16_t events;
+    int16_t revents;
+    void *ptr;
+
+    socket_poll_fd(int _fd, int16_t _event, void *_ptr)
+    {
+        fd = _fd;
+        events = _event;
+        ptr = _ptr;
+        revents = 0;
+    }
+};
+
 class Coroutine
 {
 public:
@@ -97,6 +113,7 @@ public:
     static swString* read_file(const char *file, int lock);
     static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
+    static bool socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout);
 
     static void set_on_yield(coro_php_yield_t func);
     static void set_on_resume(coro_php_resume_t func);
