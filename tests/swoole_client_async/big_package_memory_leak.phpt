@@ -6,6 +6,8 @@ swoole_client_async: big_package_memory_leak
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
+ini_set('swoole.display_errors', false);
+
 $tcp_server = __DIR__ . "/../include/memoryleak/tcp_client_memory_leak/tcp_serv.php";
 $closeServer = start_server($tcp_server, '127.0.0.1', 9001);
 
