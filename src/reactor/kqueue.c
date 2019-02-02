@@ -382,6 +382,10 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                 {
                     swWarn("unknown event filter[%d].", object->events[i].filter);
                 }
+                if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE))
+                {
+                    reactor->del(reactor, event.fd);
+                }
             }
         }
 
