@@ -1441,9 +1441,12 @@ static PHP_FUNCTION(_stream_select)
         }
     }
 
+    /**
+     * timeout
+     */
     if (!Coroutine::socket_poll(fds, timeout))
     {
-        RETURN_FALSE;
+        RETURN_LONG(0);
     }
 
     if (r_array != NULL)
