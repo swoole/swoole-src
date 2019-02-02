@@ -353,10 +353,10 @@ static PHP_METHOD(swoole_server_port, set)
             }
             efree(func_name);
             port->protocol.get_package_length = php_swoole_length_func;
-            if (cli->protocol.private_data)
+            if (port->protocol.private_data)
             {
-                zval_ptr_dtor((zval *)cli->protocol.private_data);
-                efree(cli->protocol.private_data);
+                zval_ptr_dtor((zval *)port->protocol.private_data);
+                efree(port->protocol.private_data);
             }
             Z_TRY_ADDREF_P(v);
             port->protocol.private_data = sw_zval_dup(v);
