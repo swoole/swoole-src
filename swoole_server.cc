@@ -2451,6 +2451,11 @@ static PHP_METHOD(swoole_server, set)
             }
             efree(func_name);
             sw_fci_cache_persist(fci_cache);
+            if (serv->private_data_3)
+            {
+                sw_fci_cache_discard((zend_fcall_info_cache *) serv->private_data_3);
+                efree(serv->private_data_3);
+            }
             serv->private_data_3 = (void *) fci_cache;
             c_dispatch_func = php_swoole_dispatch_func;
             break;
@@ -2528,6 +2533,10 @@ static PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "request_slowlog_file", v))
     {
         zend::string str_v(v);
+        if (serv->request_slowlog_file)
+        {
+            fclose(serv->request_slowlog_file);
+        }
         serv->request_slowlog_file = fopen(str_v.val(), "a+");
         if (serv->request_slowlog_file == NULL)
         {
@@ -2639,6 +2648,10 @@ static PHP_METHOD(swoole_server, set)
             }
         }
         serv->cpu_affinity_available_num = available_num;
+        if (serv->cpu_affinity_available)
+        {
+            sw_free(serv->cpu_affinity_available);
+        }
         serv->cpu_affinity_available = available_cpu;
     }
     //paser x-www-form-urlencoded form data
@@ -2692,18 +2705,15 @@ static PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "document_root", v))
     {
         zend::string str_v(v);
-
         if (str_v.len() >= PATH_MAX)
         {
             swoole_php_fatal_error(E_ERROR, "The length of document_root must be less than %d.", PATH_MAX);
             return;
         }
-
         if (serv->document_root)
         {
             sw_free(serv->document_root);
         }
-
         serv->document_root = sw_strndup(str_v.val(), str_v.len());
         if (serv->document_root[str_v.len() - 1] == '/')
         {

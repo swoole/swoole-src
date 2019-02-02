@@ -570,6 +570,11 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
             }
             efree(func_name);
             cli->protocol.get_package_length = php_swoole_length_func;
+            if (cli->protocol.private_data)
+            {
+                zval_ptr_dtor((zval *)cli->protocol.private_data);
+                efree(cli->protocol.private_data);
+            }
             Z_TRY_ADDREF_P(v);
             cli->protocol.private_data = sw_zval_dup(v);
             break;
