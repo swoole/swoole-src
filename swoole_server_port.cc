@@ -64,16 +64,16 @@ void swoole_server_port_init(int module_number)
     SWOOLE_SET_CLASS_CLONEABLE(swoole_server_port, zend_class_clone_deny);
     SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_port, zend_class_unset_property_deny);
 
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onClose"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onPacket"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onBufferFull"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onRequest"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onHandShake"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onMessage"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onOpen"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onClose"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onPacket"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onBufferFull"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onRequest"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onHandShake"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onMessage"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onOpen"), ZEND_ACC_PRIVATE);
 
     zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_port_ce_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);

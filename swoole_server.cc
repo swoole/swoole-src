@@ -487,12 +487,6 @@ void swoole_server_init(int module_number)
     zend_class_implements(swoole_connection_iterator_ce_ptr, 1, zend_ce_countable);
 #endif
 
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onClose"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onPacket"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onBufferFull"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onStart"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onShutdown"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onWorkerStart"), ZEND_ACC_PRIVATE);
