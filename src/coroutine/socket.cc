@@ -1378,9 +1378,9 @@ ssize_t Socket::recv_packet(double timeout)
         }
         else if ((size_t) buf_len < read_buffer->length)
         {
-            //unprocessed data
+            //unprocessed data (offset will always be zero)
             read_buffer->length -= buf_len;
-            read_buffer->offset += buf_len;
+            read_buffer->offset = buf_len;
             return buf_len;
         }
 
