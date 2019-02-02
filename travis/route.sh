@@ -15,9 +15,14 @@ if [ "${TRAVIS_BRANCH}" = "alpine" ]; then
     export PHP_VERSION="${PHP_VERSION}-alpine"
 fi
 
+echo "\n🗻 With PHP version ${PHP_VERSION} on ${TRAVIS_BRANCH} brach"
+
 check_docker_dependency(){
     if [ "`docker -v 2>&1 | grep "version"`"x = ""x ]; then
         echo "\n❌ Docker not found!"
+        exit 255
+    elif [ "`docker ps 2>&1 | grep Cannot`"x != ""x ]; then
+        echo "\n❌ Docker is not running!"
         exit 255
     else
         which "docker-compose" > /dev/null
