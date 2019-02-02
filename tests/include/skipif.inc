@@ -88,6 +88,7 @@ function skip_if_no_http2()
 function skip_if_no_top()
 {
     skip_if_darwin();
+    skip_if_alpine_linux();
     if (stripos(`top help 2>&1`, 'usage') === false) {
         skip('no top');
     }
@@ -97,6 +98,13 @@ function skip_if_darwin()
 {
     if (stripos(PHP_OS, 'Darwin') !== false) {
         skip('not support on darwin');
+    }
+}
+
+function skip_if_alpine_linux()
+{
+    if (strpos(`apk 2>&1`, 'apk-tools') !== false) {
+        skip('not support on alpine liunx');
     }
 }
 

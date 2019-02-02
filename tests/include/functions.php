@@ -38,6 +38,23 @@ function top(int $pid)
     return $top;
 }
 
+function kill_process_by_name(string $name)
+{
+    shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_alpine_linux() ? '1' : '2') . '}\' | xargs kill');
+}
+
+function get_process_pid_by_name(string $name): bool
+{
+    return (int)shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_alpine_linux() ? '1' : '2') . '}\'');
+}
+
+function is_alpine_linux(): bool
+{
+    static $bool;
+    $bool = $bool ?? strpos(`apk 2>&1`, 'apk-tools') !== false;
+    return $bool;
+}
+
 function get_one_free_port()
 {
     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);

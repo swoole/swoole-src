@@ -29,6 +29,7 @@ $pm->childFunc = function () use ($pm) {
             $process->write(str_repeat('A', 8192));
             assert($process == true);
         }
+        switch_process();
         echo "worker end\n";
         $pm->wakeup();
     });

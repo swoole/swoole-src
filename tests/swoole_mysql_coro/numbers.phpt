@@ -39,7 +39,9 @@ go(function () {
         assert($e->getCode() === 2054); // not support auth plugin
     }
 
-    assert($r_strong1 === $r_strong2);
+    if (!is_alpine_linux()) {
+        assert($r_strong1 === $r_strong2);
+    }
     var_dump($r_strong2);
 });
 ?>
