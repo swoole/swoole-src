@@ -54,14 +54,12 @@ void clear_dns_cache();
 
 struct socket_poll_fd
 {
-    int fd;
     int16_t events;
     int16_t revents;
     void *ptr;
 
-    socket_poll_fd(int _fd, int16_t _event, void *_ptr)
+    socket_poll_fd(int16_t _event, void *_ptr)
     {
-        fd = _fd;
         events = _event;
         ptr = _ptr;
         revents = 0;

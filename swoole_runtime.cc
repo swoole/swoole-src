@@ -1296,7 +1296,7 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, s
         if (i == fds.end())
         {
             zval_add_ref(elem);
-            fds.emplace(make_pair(sock, socket_poll_fd(sock, event, elem)));
+            fds.emplace(make_pair(sock, socket_poll_fd(event, elem)));
         }
         else
         {
@@ -1465,7 +1465,12 @@ static PHP_FUNCTION(_stream_select)
     for (auto i = fds.begin(); i != fds.end(); i++)
     {
         zval *sock = (zval *) i->second.ptr;
+        ZVAL_DEREF(sock);
         int revents = i->second.revents;
+        if (revents == 0)
+        {
+            continue;
+        }
         if ((revents & SW_EVENT_READ) && r_array)
         {
             add_next_index_zval(r_array, sock);
@@ -1478,11 +1483,7 @@ static PHP_FUNCTION(_stream_select)
         {
             add_next_index_zval(e_array, sock);
         }
-        if (revents)
-        {
-            retval++;
-        }
-        ZVAL_DEREF(sock);
+        retval++;
     }
 
     RETURN_LONG(retval);

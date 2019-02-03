@@ -819,8 +819,8 @@ static inline void socket_poll_clean(coro_poll_task *task)
     swReactor *reactor = SwooleG.main_reactor;
     for (auto i = task->fds->begin(); i != task->fds->end(); i++)
     {
-        coro_poll_task_map.erase(i->second.fd);
-        if (reactor->del(reactor, i->second.fd) < 0)
+        coro_poll_task_map.erase(i->first);
+        if (reactor->del(reactor, i->first) < 0)
         {
             //TODO print error log
             continue;
@@ -892,13 +892,13 @@ bool Coroutine::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double
 
     for (auto i = fds.begin(); i != fds.end(); i++)
     {
-        if (reactor->add(reactor, i->second.fd, i->second.events | SW_FD_CORO_POLL) < 0)
+        if (reactor->add(reactor, i->first, i->second.events | SW_FD_CORO_POLL) < 0)
         {
             continue;
         }
         else
         {
-            coro_poll_task_map[i->second.fd] = &task;
+            coro_poll_task_map[i->first] = &task;
         }
     }
 
