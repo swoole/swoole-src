@@ -271,6 +271,10 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                         swSysError("[Reactor#%d] select event[type=ERROR, fd=%d] handler fail.", reactor->id, event.fd);
                     }
                 }
+                if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE))
+                {
+                    reactor->del(reactor, event.fd);
+                }
             }
         }
         if (reactor->onFinish != NULL)

@@ -277,25 +277,35 @@ enum swReturnType
 //-------------------------------------------------------------------------------
 enum swFd_type
 {
-    SW_FD_TCP             = 0, //tcp socket
-    SW_FD_LISTEN          = 1, //server socket
-    SW_FD_CLOSE           = 2, //socket closed
-    SW_FD_ERROR           = 3, //socket error
-    SW_FD_UDP             = 4, //udp socket
-    SW_FD_PIPE            = 5, //pipe
-    SW_FD_STREAM          = 6, //stream socket
-    SW_FD_WRITE           = 7, //fd can write
-    SW_FD_TIMER           = 8, //timer fd
-    SW_FD_AIO             = 9, //linux native aio
-    SW_FD_CORO_SOCKET     = 10, //CoroSocket
-    SW_FD_SIGNAL          = 11, //signalfd
-    SW_FD_DNS_RESOLVER    = 12, //dns resolver
-    SW_FD_INOTIFY         = 13, //server socket
-    SW_FD_CHAN_PIPE       = 14, //channel pipe
-    SW_FD_USER            = 15, //SW_FD_USER or SW_FD_USER+n: for custom event
-    SW_FD_ARES            = 16, //c-ares
-    SW_FD_STREAM_CLIENT   = 17, //swClient stream
-    SW_FD_DGRAM_CLIENT    = 18, //swClient dgram
+    SW_FD_TCP, //tcp socket
+    SW_FD_LISTEN,//server socket
+    SW_FD_CLOSE,//socket closed
+    SW_FD_ERROR,//socket error
+    SW_FD_UDP,//udp socket
+    SW_FD_PIPE,//pipe
+    SW_FD_STREAM,//stream socket
+    SW_FD_WRITE,//fd can write
+    SW_FD_AIO,//aio
+    /**
+     * Coroutine Socket
+     */
+    SW_FD_CORO_SOCKET,
+    /**
+     * socket poll fd [coroutine::socket_poll]
+     */
+    SW_FD_CORO_POLL,
+    SW_FD_SIGNAL, //signalfd
+    SW_FD_DNS_RESOLVER,//dns resolver
+    /**
+     * c-ares
+     */
+    SW_FD_ARES,
+    /**
+     * SW_FD_USER or SW_FD_USER+n: for custom event
+     */
+    SW_FD_USER,
+    SW_FD_STREAM_CLIENT,
+    SW_FD_DGRAM_CLIENT,
 };
 
 enum swBool_type
