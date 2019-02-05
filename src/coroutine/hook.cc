@@ -804,6 +804,114 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
     }
 }
 
+struct coro_poll_task
+{
+    swTimer_node *timer;
+    Coroutine *co;
+    std::unordered_map<int, socket_poll_fd> *fds;
+    bool success;
+};
+
+static std::unordered_map<int, coro_poll_task *> coro_poll_task_map;
+
+static inline void socket_poll_clean(coro_poll_task *task)
+{
+    swReactor *reactor = SwooleG.main_reactor;
+    for (auto i = task->fds->begin(); i != task->fds->end(); i++)
+    {
+        coro_poll_task_map.erase(i->first);
+        if (reactor->del(reactor, i->first) < 0)
+        {
+            //TODO print error log
+            continue;
+        }
+    }
+}
+
+static void socket_poll_timeout(swTimer *timer, swTimer_node *tnode)
+{
+    coro_poll_task *task = (coro_poll_task *) tnode->data;
+    task->timer = nullptr;
+    task->success = false;
+    socket_poll_clean(task);
+    task->co->resume();
+}
+
+static void socket_poll_completed(void *data)
+{
+    coro_poll_task *task = (coro_poll_task *) data;
+    socket_poll_clean(task);
+    task->co->resume();
+}
+
+static inline void socket_poll_trigger_event(swReactor *reactor, int fd, enum swEvent_type event)
+{
+    coro_poll_task *task = coro_poll_task_map[fd];
+    auto i = task->fds->find(fd);
+    i->second.revents |= event;
+    if (task->timer)
+    {
+        swTimer_del(&SwooleG.timer, task->timer);
+        task->timer = nullptr;
+        task->success = true;
+        reactor->defer(reactor, socket_poll_completed, task);
+    }
+}
+
+static int socket_poll_read_callback(swReactor *reactor, swEvent *event)
+{
+    socket_poll_trigger_event(reactor, event->fd, SW_EVENT_READ);
+    return SW_OK;
+}
+
+static int socket_poll_write_callback(swReactor *reactor, swEvent *event)
+{
+    socket_poll_trigger_event(reactor, event->fd, SW_EVENT_WRITE);
+    return SW_OK;
+}
+
+static int socket_poll_error_callback(swReactor *reactor, swEvent *event)
+{
+    socket_poll_trigger_event(reactor, event->fd, SW_EVENT_ERROR);
+    return SW_OK;
+}
+
+bool Coroutine::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout)
+{
+    swReactor *reactor = SwooleG.main_reactor;
+    if (unlikely(!swReactor_handle_isset(reactor, SW_FD_CORO_POLL)))
+    {
+        reactor->setHandle(reactor, SW_FD_CORO_POLL | SW_EVENT_READ, socket_poll_read_callback);
+        reactor->setHandle(reactor, SW_FD_CORO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
+        reactor->setHandle(reactor, SW_FD_CORO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
+    }
+
+    coro_poll_task task;
+    task.fds = &fds;
+    task.co = Coroutine::get_current();
+
+    for (auto i = fds.begin(); i != fds.end(); i++)
+    {
+        if (reactor->add(reactor, i->first, i->second.events | SW_FD_CORO_POLL) < 0)
+        {
+            continue;
+        }
+        else
+        {
+            coro_poll_task_map[i->first] = &task;
+        }
+    }
+
+    if (timeout > 0)
+    {
+        task.timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, &task, socket_poll_timeout);
+    }
+
+    task.co->yield();
+
+    return task.success;
+}
+
 #if 0
 static void handler_opendir(swAio_event *event)
 {
