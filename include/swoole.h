@@ -1726,7 +1726,7 @@ static sw_inline int swReactor_event_error(int fdtype)
 
 static sw_inline int swReactor_fdtype(int fdtype)
 {
-    return fdtype & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR);
+    return fdtype & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR) & (~SW_EVENT_ONCE);
 }
 
 static sw_inline int swReactor_events(int fdtype)
