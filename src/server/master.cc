@@ -1520,8 +1520,7 @@ int swServer_add_systemd_socket(swServer *serv)
         //dgram socket, setting socket buffer size
         if (swSocket_is_dgram(ls->type))
         {
-            setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &ls->socket_buffer_size, sizeof(int));
-            setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &ls->socket_buffer_size, sizeof(int));
+            swSocket_set_buffer_size(sock, ls->socket_buffer_size);
         }
         //O_NONBLOCK & O_CLOEXEC
         swoole_fcntl_set_option(sock, 1, 1);
@@ -1617,8 +1616,7 @@ swListenPort* swServer_add_port(swServer *serv, int type, const char *host, int 
     //dgram socket, setting socket buffer size
     if (swSocket_is_dgram(ls->type))
     {
-        setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &ls->socket_buffer_size, sizeof(int));
-        setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &ls->socket_buffer_size, sizeof(int));
+        swSocket_set_buffer_size(sock, ls->socket_buffer_size);
     }
     //O_NONBLOCK & O_CLOEXEC
     swoole_fcntl_set_option(sock, 1, 1);
