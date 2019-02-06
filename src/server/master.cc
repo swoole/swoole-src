@@ -1395,7 +1395,7 @@ SW_API int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCal
 /**
  * Return the number of ports successfully
  */
-int swserver_add_systemd_socket(swServer *serv)
+int swServer_add_systemd_socket(swServer *serv)
 {
     char *e = getenv("LISTEN_PID");
     if (!e)
