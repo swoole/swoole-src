@@ -1768,7 +1768,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     if (ls->open_tcp_nodelay && ls->type != SW_SOCK_UNIX_STREAM)
     {
         int sockopt = 1;
-        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) < 0)
+        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) != 0)
         {
             swSysError("setsockopt(TCP_NODELAY) failed.");
         }
@@ -1778,7 +1778,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     //socket recv buffer size
     if (ls->kernel_socket_recv_buffer_size > 0)
     {
-        if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &ls->kernel_socket_recv_buffer_size, sizeof(int)))
+        if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &ls->kernel_socket_recv_buffer_size, sizeof(int)) != 0)
         {
             swSysError("setsockopt(SO_RCVBUF, %d) failed.", ls->kernel_socket_recv_buffer_size);
         }
@@ -1787,7 +1787,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     //socket send buffer size
     if (ls->kernel_socket_send_buffer_size > 0)
     {
-        if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &ls->kernel_socket_send_buffer_size, sizeof(int)) < 0)
+        if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &ls->kernel_socket_send_buffer_size, sizeof(int)) != 0)
         {
             swSysError("setsockopt(SO_SNDBUF, %d) failed.", ls->kernel_socket_send_buffer_size);
         }
