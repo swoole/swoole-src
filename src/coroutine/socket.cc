@@ -568,8 +568,8 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
         }
         else
         {
-            timer timer(&write_timer, timeout, this, timer_callback);
-            if (!timer() || !wait_event(SW_EVENT_WRITE))
+            Timer timer(&write_timer, timeout, this, timer_callback);
+            if (!timer.create() || !wait_event(SW_EVENT_WRITE))
             {
                 if (socket->closed)
                 {
@@ -766,10 +766,10 @@ ssize_t Socket::recv(void *__buf, size_t __n)
         return -1;
     }
     ssize_t retval;
-    timer timer(&read_timer, timeout, this, timer_callback);
+    Timer timer(&read_timer, timeout, this, timer_callback);
     do {
         retval = swConnection_recv(socket, __buf, __n, 0);
-    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer() && wait_event(SW_EVENT_READ));
+    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.create() && wait_event(SW_EVENT_READ));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -781,10 +781,10 @@ ssize_t Socket::send(const void *__buf, size_t __n)
         return -1;
     }
     ssize_t retval;
-    timer timer(&write_timer, timeout, this, timer_callback);
+    Timer timer(&write_timer, timeout, this, timer_callback);
     do {
         retval = swConnection_send(socket, (void *) __buf, __n, 0);
-    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer() && wait_event(SW_EVENT_WRITE));
+    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.create() && wait_event(SW_EVENT_WRITE));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -796,10 +796,10 @@ ssize_t Socket::read(void *__buf, size_t __n)
         return -1;
     }
     ssize_t retval;
-    timer timer(&read_timer, timeout, this, timer_callback);
+    Timer timer(&read_timer, timeout, this, timer_callback);
     do {
         retval = ::read(socket->fd, __buf, __n);
-    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer() && wait_event(SW_EVENT_READ));
+    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.create() && wait_event(SW_EVENT_READ));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -811,10 +811,10 @@ ssize_t Socket::write(const void *__buf, size_t __n)
         return -1;
     }
     ssize_t retval;
-    timer timer(&write_timer, timeout, this, timer_callback);
+    Timer timer(&write_timer, timeout, this, timer_callback);
     do {
         retval = ::write(socket->fd, (void *) __buf, __n);
-    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer() && wait_event(SW_EVENT_WRITE));
+    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.create() && wait_event(SW_EVENT_WRITE));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -826,8 +826,8 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
         return -1;
     }
     ssize_t retval, total_bytes = 0;
-    timer timer(&read_timer, timeout, this, timer_callback);
-    if (unlikely(!timer()))
+    Timer timer(&read_timer, timeout, this, timer_callback);
+    if (unlikely(!timer.create()))
     {
         return -1;
     }
@@ -858,8 +858,8 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
         return -1;
     }
     ssize_t retval, total_bytes = 0;
-    timer timer(&write_timer, timeout, this, timer_callback);
-    if (unlikely(!timer()))
+    Timer timer(&write_timer, timeout, this, timer_callback);
+    if (unlikely(!timer.create()))
     {
         return -1;
     }
@@ -893,10 +893,10 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
         return -1;
     }
     ssize_t retval;
-    timer timer(&read_timer, timeout, this, timer_callback);
+    Timer timer(&read_timer, timeout, this, timer_callback);
     do {
         retval = ::recvmsg(socket->fd, msg, flags);
-    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer() && wait_event(SW_EVENT_READ));
+    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.create() && wait_event(SW_EVENT_READ));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -908,10 +908,10 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags)
         return -1;
     }
     ssize_t retval;
-    timer timer(&write_timer, timeout, this, timer_callback);
+    Timer timer(&write_timer, timeout, this, timer_callback);
     do {
         retval = ::sendmsg(socket->fd, msg, flags);
-    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer() && wait_event(SW_EVENT_WRITE));
+    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.create() && wait_event(SW_EVENT_WRITE));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -1039,8 +1039,8 @@ Socket* Socket::accept()
     int conn = swSocket_accept(socket->fd, &client_addr);
     if (conn < 0 && errno == EAGAIN)
     {
-        timer timer(&read_timer, timeout, this, timer_callback);
-        if (!timer() || !wait_event(SW_EVENT_READ))
+        Timer timer(&read_timer, timeout, this, timer_callback);
+        if (!timer.create() || !wait_event(SW_EVENT_READ))
         {
             return nullptr;
         }
@@ -1129,8 +1129,8 @@ bool Socket::ssl_handshake()
         }
         if (socket->ssl_state == SW_SSL_STATE_WAIT_STREAM)
         {
-            timer timer(&read_timer, timeout, this, timer_callback);
-            if (!timer() || !wait_event(SW_EVENT_READ))
+            Timer timer(&read_timer, timeout, this, timer_callback);
+            if (!timer.create() || !wait_event(SW_EVENT_READ))
             {
                 return false;
             }
@@ -1154,11 +1154,11 @@ bool Socket::ssl_handshake()
 bool Socket::ssl_accept()
 {
     int retval;
-    timer timer(&read_timer, timeout, this, timer_callback);
+    Timer timer(&read_timer, timeout, this, timer_callback);
     open_ssl = true;
     do {
         retval = swSSL_accept(socket);
-    } while (retval == SW_WAIT && timer() && wait_event(SW_EVENT_READ));
+    } while (retval == SW_WAIT && timer.create() && wait_event(SW_EVENT_READ));
     return retval == SW_READY;
 }
 
@@ -1206,7 +1206,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         length = offset + length;
     }
 
-    timer timer(&read_timer, timeout, this, timer_callback);
+    Timer timer(&read_timer, timeout, this, timer_callback);
     int n, sendn;
     while ((size_t) offset < length)
     {
@@ -1238,7 +1238,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
             ::close(file_fd);
             return false;
         }
-        if (!timer() || !wait_event(SW_EVENT_WRITE))
+        if (!timer.create() || !wait_event(SW_EVENT_WRITE))
         {
             ::close(file_fd);
             return false;
@@ -1286,10 +1286,10 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr* _addr, sockle
         return -1;
     }
     ssize_t retval;
-    timer timer(&read_timer, timeout, this, timer_callback);
+    Timer timer(&read_timer, timeout, this, timer_callback);
     do {
         retval = ::recvfrom(socket->fd, __buf, __n, 0, _addr, _socklen);
-    } while (retval < 0 && ((errno == EINTR) || (swConnection_error(errno) == SW_WAIT && timer() && wait_event(SW_EVENT_READ))));
+    } while (retval < 0 && ((errno == EINTR) || (swConnection_error(errno) == SW_WAIT && timer.create() && wait_event(SW_EVENT_READ))));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -1306,9 +1306,9 @@ ssize_t Socket::recv_packet(double timeout)
 
     ssize_t buf_len = SW_BUFFER_SIZE_STD;
     ssize_t retval;
-    timer timer(&read_timer, timeout == 0 ? this->timeout : timeout, this, timer_callback);
+    Timer timer(&read_timer, timeout == 0 ? this->timeout : timeout, this, timer_callback);
 
-    if (unlikely(!timer()))
+    if (unlikely(!timer.create()))
     {
         return -1;
     }

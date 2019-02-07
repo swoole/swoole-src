@@ -271,14 +271,14 @@ protected:
     bool socks5_handshake();
     bool http_proxy_handshake();
 
-    class timer
+    class Timer
     {
     public:
-        timer(swTimer_node **timer_pp, double timeout, void *data, swTimerCallback callback) :
+        Timer(swTimer_node **timer_pp, double timeout, void *data, swTimerCallback callback) :
             timer_pp(timer_pp), timeout(timeout), data(data), callback(callback)
         {
         }
-        bool operator ()()
+        bool create()
         {
             if (timeout != 0 && !*timer_pp)
             {
@@ -295,7 +295,7 @@ protected:
             }
             return true;
         }
-        ~timer()
+        ~Timer()
         {
             if (enabled && *timer_pp)
             {
