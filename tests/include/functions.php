@@ -731,6 +731,11 @@ class ProcessManager
         return $this->getRandomDataEx(0);
     }
 
+    public function getRandomDataSize(): int
+    {
+        return $this->getRandomDataSizeEx(0);
+    }
+
     public function initRandomDataEx(int $block_num, int $size, ...$arguments)
     {
         $func = $this->randomFunc;
@@ -748,6 +753,11 @@ class ProcessManager
         } else {
             throw new \RuntimeException('Out of the bound');
         }
+    }
+
+    public function getRandomDataSizeEx(int $block_id): int
+    {
+        return count($this->randomData[$block_id]);
     }
 
     public function runChildFunc()
