@@ -827,13 +827,11 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
     }
     ssize_t retval, total_bytes = 0;
     Timer timer(&read_timer, timeout, this, timer_callback);
-    if (unlikely(!timer.create()))
-    {
-        return -1;
-    }
     while (true)
     {
-        retval = recv((char *) __buf + total_bytes, __n - total_bytes);
+        do {
+            retval = swConnection_recv(socket, (char *) __buf + total_bytes, __n - total_bytes, 0);
+        } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.create() && wait_event(SW_EVENT_READ));
         if (retval <= 0)
         {
             if (total_bytes == 0)
@@ -848,6 +846,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
             break;
         }
     }
+    set_err(retval < 0 ? errno : 0);
     return total_bytes;
 }
 
@@ -859,13 +858,11 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     }
     ssize_t retval, total_bytes = 0;
     Timer timer(&write_timer, timeout, this, timer_callback);
-    if (unlikely(!timer.create()))
-    {
-        return -1;
-    }
     while (true)
     {
-        retval = send((char *) __buf + total_bytes, __n - total_bytes);
+        do {
+            retval = swConnection_send(socket, (char *) __buf + total_bytes, __n - total_bytes, 0);
+        } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.create() && wait_event(SW_EVENT_WRITE));
         if (retval <= 0)
         {
             if (total_bytes == 0)
@@ -880,6 +877,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
             break;
         }
     }
+    set_err(retval < 0 ? errno : 0);
     return total_bytes;
 }
 
