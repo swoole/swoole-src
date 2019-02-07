@@ -256,7 +256,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
         struct linger linger;
         linger.l_onoff = 1;
         linger.l_linger = 0;
-        if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) == -1)
+        if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) != 0)
         {
             swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
         }

@@ -1314,14 +1314,15 @@ ssize_t Socket::recv_packet(double timeout)
     }
     get_read_buffer();
 
+    //unprocessed data
+    if (read_buffer->offset > 0)
+    {
+        memmove(read_buffer->str, read_buffer->str + read_buffer->offset, read_buffer->length);
+        read_buffer->offset = 0;
+    }
+
     if (open_length_check)
     {
-        //unprocessed data
-        if (read_buffer->offset > 0)
-        {
-            memmove(read_buffer->str, read_buffer->str + read_buffer->offset, read_buffer->length);
-            read_buffer->offset = 0;
-        }
         uint32_t header_len = protocol.package_length_offset + protocol.package_length_size;
         if (read_buffer->length > 0)
         {
@@ -1454,7 +1455,7 @@ ssize_t Socket::recv_packet(double timeout)
                 if (read_buffer->length > (uint32_t) eof)
                 {
                     read_buffer->length -= eof;
-                    memmove(read_buffer->str, read_buffer->str + eof, read_buffer->length);
+                    read_buffer->offset += eof;
                 }
                 else
                 {

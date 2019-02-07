@@ -649,7 +649,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
         if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
         {
             value = 1;
-            if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)
+            if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) != 0)
             {
                 swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
             }
