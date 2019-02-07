@@ -70,7 +70,6 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
     zval args[1];
     php_reactor_fd *fd = event->socket->object;
 
-
     args[0] = *fd->socket;
 
     if (sw_call_user_function_ex(EG(function_table), NULL, fd->cb_read, &retval, 1, args, 0, NULL) == FAILURE)

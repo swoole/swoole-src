@@ -1,29 +1,10 @@
 #include "wrapper/server.hpp"
 #include "wrapper/timer.hpp"
+#include "api.h"
 #include <iostream>
 
 using namespace std;
 using namespace swoole;
-
-class MyTimer : Timer
-{
-public:
-    MyTimer(long ms, bool interval) :
-            Timer(ms, interval)
-    {
-
-    }
-
-    MyTimer(long ms) :
-            Timer(ms)
-    {
-
-    }
-
-protected:
-    virtual void callback(void);
-    int count = 0;
-};
 
 class MyServer : public Server
 {
@@ -47,9 +28,6 @@ public:
 
     virtual void onTask(int task_id, int src_worker_id, const DataBuffer &data);
     virtual void onFinish(int task_id, const DataBuffer &data);
-
-protected:
-    MyTimer *timer;
 };
 
 void MyServer::onReceive(int fd, const DataBuffer &data)
@@ -77,7 +55,7 @@ void MyServer::onReceive(int fd, const DataBuffer &data)
 
 void MyServer::onPacket(const DataBuffer &data, ClientInfo &clientInfo)
 {
-    printf("recv, length=%d, str=%s, client=%s:%d\n", data.length,  (char *) data.buffer, clientInfo.address, clientInfo.port);
+    printf("recv, length=%ld, str=%s, client=%s:%d\n", data.length,  (char *) data.buffer, clientInfo.address, clientInfo.port);
     char resp_data[SW_BUFFER_SIZE_STD];
     int n = snprintf(resp_data, SW_BUFFER_SIZE_STD, (char *) "Server: %*s\n", (int) data.length, (char *) data.buffer);
     auto sent_data =  DataBuffer(resp_data, n);
@@ -118,26 +96,27 @@ void MyServer::onStart()
     printf("server start\n");
 }
 
-void MyServer::onWorkerStart(int worker_id)
+static void timer1(swTimer *timer, swTimer_node *tnode)
 {
-    //timer = new MyTimer(1000);
-}
-
-void MyTimer::callback()
-{
+    static int count = 0;
     printf("#%d\thello world\n", count);
     if (count > 9)
     {
-        this->clear();
+        swoole_timer_clear(tnode->id);
     }
     count++;
+}
+
+void MyServer::onWorkerStart(int worker_id)
+{
+//    swoole_timer_tick(1000, timer1, nullptr);
 }
 
 int main(int argc, char **argv)
 {
     if (argc < 2)
     {
-        MyTimer t(1000);
+        swoole_timer_tick(1000, timer1, nullptr);
         event_wait();
     }
     else

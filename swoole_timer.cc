@@ -169,7 +169,7 @@ PHP_FUNCTION(swoole_timer_clear)
 
 PHP_FUNCTION(swoole_timer_exists)
 {
-    if (!SwooleG.timer.set)
+    if (!SwooleG.timer.initialized)
     {
         RETURN_FALSE;
     }
