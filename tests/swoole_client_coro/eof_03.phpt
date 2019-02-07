@@ -12,7 +12,7 @@ go(function () {
         'open_eof_check' => true,
         'package_eof' => "\r\n",
     ]);
-    $client->connect('smtp.qq.com', 25);
+    $client->connect('smtp.qq.com', 25, 5);
     go(function () use ($client) {
         $n = 9;
         while ($n--) {
