@@ -199,7 +199,7 @@ bool Socket::socks5_handshake()
      */
     swSocks5_pack(buf, socks5_proxy->username == NULL ? 0x00 : 0x02);
     socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
-    if (send(buf, 3) <= 0)
+    if (send(buf, 3) != 3)
     {
         return false;
     }
@@ -223,6 +223,8 @@ bool Socket::socks5_handshake()
     //authenticate request
     if (method == SW_SOCKS5_METHOD_AUTH)
     {
+        size_t buf_len = ctx->l_username + ctx->l_password + 3;
+
         buf[0] = 0x01;
         buf[1] = ctx->l_username;
 
@@ -234,7 +236,7 @@ bool Socket::socks5_handshake()
 
         ctx->state = SW_SOCKS5_STATE_AUTH;
 
-        if (send(ctx->buf, ctx->l_username + ctx->l_password + 3) < 0)
+        if (send(ctx->buf, buf_len) != buf_len)
         {
             return false;
         }
@@ -257,12 +259,15 @@ bool Socket::socks5_handshake()
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_AUTH_FAILED, "SOCKS username/password authentication failed.");
             return false;
         }
-        goto send_connect_request;
+        goto _send_connect_request;
     }
     //send connect request
     else
     {
-        send_connect_request: buf[0] = SW_SOCKS5_VERSION_CODE;
+        _send_connect_request:
+        size_t buf_len = ctx->l_target_host + 7;
+
+        buf[0] = SW_SOCKS5_VERSION_CODE;
         buf[1] = 0x01;
         buf[2] = 0x00;
 
@@ -270,6 +275,7 @@ bool Socket::socks5_handshake()
 
         if (ctx->dns_tunnel)
         {
+
             buf[3] = 0x03;
             buf[4] = ctx->l_target_host;
             buf += 5;
@@ -278,7 +284,7 @@ bool Socket::socks5_handshake()
             buf += ctx->l_target_host;
             *(uint16_t *) buf = htons(ctx->target_port);
 
-            if (send(ctx->buf, ctx->l_target_host + 7) < 0)
+            if (send(ctx->buf, buf_len) != 0)
             {
                 return false;
             }
@@ -291,7 +297,7 @@ bool Socket::socks5_handshake()
             buf += 4;
             *(uint16_t *) buf = htons(ctx->target_port);
 
-            if (send(ctx->buf, ctx->l_target_host + 7) < 0)
+            if (send(ctx->buf, buf_len) < 0)
             {
                 return false;
             }
@@ -327,8 +333,7 @@ bool Socket::socks5_handshake()
         }
         else
         {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_SERVER_ERROR, "Socks5 server error, reason :%s.",
-                    swSocks5_strerror(result));
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_SERVER_ERROR, "Socks5 server error, reason :%s.", swSocks5_strerror(result));
             return false;
         }
     }
@@ -363,7 +368,7 @@ bool Socket::http_proxy_handshake()
         );
     }
 
-    if (send(http_proxy->buf, n) <= 0)
+    if (send(http_proxy->buf, n) != n)
     {
         return false;
     }
