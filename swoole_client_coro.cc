@@ -934,7 +934,10 @@ static PHP_METHOD(swoole_client_coro, recv)
     }
     if (retval < 0)
     {
-        swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", cli->errMsg, (SwooleG.error = cli->errCode));
+        if (cli->errCode != 60)
+        {
+            swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", cli->errMsg, (SwooleG.error = cli->errCode));
+        }
         zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
         RETURN_FALSE;
     }
