@@ -20,40 +20,40 @@
 
 using namespace swoole;
 
-static void channel_pop_timeout(swTimer *timer, swTimer_node *tnode)
+void Channel::timer_callback(swTimer *timer, swTimer_node *tnode)
 {
-    timeout_msg_t *msg = (timeout_msg_t *) tnode->data;
+    timer_msg_t *msg = (timer_msg_t *) tnode->data;
     msg->error = true;
     msg->timer = nullptr;
-    msg->chan->remove(msg->co);
-    coroutine_resume(msg->co);
+    if (msg->type == CONSUMER)
+    {
+        msg->chan->consumer_remove(msg->co);
+    }
+    else
+    {
+        msg->chan->producer_remove(msg->co);
+    }
+    msg->co->resume();
 }
 
-Channel::Channel(size_t _capacity)
+void Channel::yield(enum opcode type)
 {
-    capacity = _capacity;
-    closed = false;
-}
-
-void Channel::yield(enum channel_op type)
-{
-    int _cid = coroutine_get_current_cid();
-    if (_cid == -1)
+    Coroutine *co = Coroutine::get_current();
+    if (unlikely(!co))
     {
         swError("Channel::yield() must be called in the coroutine.");
     }
-    coroutine_t *co = coroutine_get_by_id(_cid);
     if (type == PRODUCER)
     {
         producer_queue.push_back(co);
-        swDebug("producer[%d]", coroutine_get_cid(co));
+        swTraceLog(SW_TRACE_CHANNEL, "producer cid=%ld", co->get_cid());
     }
     else
     {
         consumer_queue.push_back(co);
-        swDebug("consumer[%d]", coroutine_get_cid(co));
+        swTraceLog(SW_TRACE_CHANNEL, "consumer cid=%ld", co->get_cid());
     }
-    coroutine_yield(co);
+    co->yield();
 }
 
 void* Channel::pop(double timeout)
@@ -62,30 +62,30 @@ void* Channel::pop(double timeout)
     {
         return nullptr;
     }
-    timeout_msg_t msg;
-    msg.error = false;
-    if (timeout > 0)
+    if (is_empty() || !consumer_queue.empty())
     {
-        int msec = (int) (timeout * 1000);
-        msg.chan = this;
-        msg.co = coroutine_get_by_id(coroutine_get_current_cid());
-        msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_pop_timeout);
-    }
-    else
-    {
+        timer_msg_t msg;
+        msg.error = false;
         msg.timer = NULL;
-    }
-    if (is_empty() || consumer_queue.size() > 0)
-    {
+        if (timeout > 0)
+        {
+            long msec = (long) (timeout * 1000);
+            msg.chan = this;
+            msg.type = CONSUMER;
+            msg.co = Coroutine::get_current();
+            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, timer_callback);
+        }
+
         yield(CONSUMER);
-    }
-    if (msg.timer)
-    {
-        swTimer_del(&SwooleG.timer, msg.timer);
-    }
-    if (msg.error || closed || data_queue.size() == 0)
-    {
-        return nullptr;
+
+        if (msg.timer)
+        {
+            swTimer_del(&SwooleG.timer, msg.timer);
+        }
+        if (msg.error || closed)
+        {
+            return nullptr;
+        }
     }
     /**
      * pop data
@@ -95,40 +95,57 @@ void* Channel::pop(double timeout)
     /**
      * notify producer
      */
-    if (producer_queue.size() > 0)
+    if (!producer_queue.empty())
     {
-        coroutine_t *co = pop_coroutine(PRODUCER);
-        coroutine_resume(co);
+        Coroutine *co = pop_coroutine(PRODUCER);
+        co->resume();
     }
     return data;
 }
 
-bool Channel::push(void *data)
+bool Channel::push(void *data, double timeout)
 {
     if (closed)
     {
         return false;
     }
-    if (is_full() || producer_queue.size() > 0)
+    if (is_full() || !producer_queue.empty())
     {
+        timer_msg_t msg;
+        msg.error = false;
+        msg.timer = NULL;
+        if (timeout > 0)
+        {
+            long msec = (long) (timeout * 1000);
+            msg.chan = this;
+            msg.type = PRODUCER;
+            msg.co = Coroutine::get_current();
+            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, timer_callback);
+        }
+
         yield(PRODUCER);
-    }
-    if (closed)
-    {
-        return false;
+
+        if (msg.timer)
+        {
+            swTimer_del(&SwooleG.timer, msg.timer);
+        }
+        if (msg.error || closed)
+        {
+            return false;
+        }
     }
     /**
      * push data
      */
     data_queue.push(data);
-    swDebug("push data, count=%ld", length());
+    swTraceLog(SW_TRACE_CHANNEL, "push data to channel, count=%ld", length());
     /**
      * notify consumer
      */
-    if (consumer_queue.size() > 0)
+    if (!consumer_queue.empty())
     {
-        coroutine_t *co = pop_coroutine(CONSUMER);
-        coroutine_resume(co);
+        Coroutine *co = pop_coroutine(CONSUMER);
+        co->resume();
     }
     return true;
 }
@@ -139,17 +156,17 @@ bool Channel::close()
     {
         return false;
     }
-    swDebug("closed");
+    swTraceLog(SW_TRACE_CHANNEL, "channel closed");
     closed = true;
-    while (producer_queue.size() > 0)
+    while (!producer_queue.empty())
     {
-        coroutine_t *co = pop_coroutine(PRODUCER);
-        coroutine_resume(co);
+        Coroutine *co = pop_coroutine(PRODUCER);
+        co->resume();
     }
-    while (consumer_queue.size() > 0)
+    while (!consumer_queue.empty())
     {
-        coroutine_t *co = pop_coroutine(CONSUMER);
-        coroutine_resume(co);
+        Coroutine *co = pop_coroutine(CONSUMER);
+        co->resume();
     }
     return true;
 }

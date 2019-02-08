@@ -22,4 +22,3 @@ go(function () use ($c1) {
 --EXPECT--
 pop ret:'chan-1' error:0
 chan push ret:true error:0
-

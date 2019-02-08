@@ -106,12 +106,15 @@ enum mysql_read_state
 
 enum mysql_error_code
 {
+    // FIXME: if it should be bigger than SW_ABORT?
+    // may be in conflict with SW_xxx err code.
     SW_MYSQL_ERR_PROTOCOL_ERROR = 1,
     SW_MYSQL_ERR_BUFFER_OVERSIZE,
     SW_MYSQL_ERR_PACKET_CORRUPT,
     SW_MYSQL_ERR_WANT_READ,
     SW_MYSQL_ERR_WANT_WRITE,
     SW_MYSQL_ERR_UNKNOWN_ERROR,
+
     SW_MYSQL_ERR_MYSQL_ERROR,
     SW_MYSQL_ERR_SERVER_LOST,
     SW_MYSQL_ERR_BAD_PORT,
@@ -339,11 +342,10 @@ typedef struct
     ulong_t num_column;
     ulong_t index_column;
     uint32_t num_row;
-    uint8_t wait_recv;
     uint8_t response_type;
     uint32_t packet_length :24;
     uint32_t packet_number :8;
-    uint32_t error_code;
+    int32_t  error_code;
     uint32_t warnings;
     uint16_t status_code;
     char status_msg[6];
@@ -361,7 +363,7 @@ typedef struct _mysql_client
     zend_bool suspending;
     mysql_io_status iowait;
     zval *result;
-    int cid;
+    long cid;
 #endif
     uint8_t state;
     uint32_t switch_check :1; /* check if server request auth switch */
@@ -385,8 +387,12 @@ typedef struct _mysql_client
     zval _object;
     zval _onClose;
 
+    size_t want_length;
     off_t check_offset;
     mysql_response_t response; /* single response */
+
+    // for stored procedure
+    zval* tmp_result;
 
 } mysql_client;
 
@@ -409,6 +415,17 @@ typedef struct _mysql_client
 #define SW_MYSQL_PART_KEY_FLAG           16384
 #define SW_MYSQL_GROUP_FLAG              32768
 #define SW_MYSQL_NUM_FLAG                32768
+
+#define SW_MYSQL_PACKET_OK   0x0
+#define SW_MYSQL_PACKET_NULL 0xfb
+#define SW_MYSQL_PACKET_EOF  0xfe
+#define SW_MYSQL_PACKET_ERR  0xff
+
+/* int<3>	payload_length + int<1>	sequence_id */
+#define SW_MYSQL_PACKET_HEADER_SIZE   4
+#define SW_MYSQL_PACKET_EOF_MAX_SIZE  9
+#define SW_MYSQL_MAX_PACKET_BODY_SIZE 0x00ffffff
+#define SW_MYSQL_MAX_PACKET_SIZE      (SW_MYSQL_PACKET_HEADER_SIZE + SW_MYSQL_MAX_PACKET_BODY_SIZE)
 
 #define mysql_uint2korr(A)  (uint16_t) (((uint16_t) ((zend_uchar) (A)[0])) +\
                                ((uint16_t) ((zend_uchar) (A)[1]) << 8))
@@ -470,14 +487,34 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len);
 int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector);
 int mysql_parse_rsa(mysql_connector *connector, char *buf, int len);
 int mysql_auth_switch(mysql_connector *connector, char *buf, int len);
-int mysql_request(swString *sql, swString *buffer);
-int mysql_prepare(swString *sql, swString *buffer);
+int mysql_request_pack(swString *sql, swString *buffer);
+int mysql_prepare_pack(swString *sql, swString *buffer);
 int mysql_response(mysql_client *client);
 int mysql_is_over(mysql_client *client);
 
 #ifdef SW_MYSQL_DEBUG
 void mysql_client_info(mysql_client *client);
 void mysql_column_info(mysql_field *field);
+#define swMysqlPacketDump(packet, len, title) \
+    do { \
+        unsigned int of = 0; \
+        swDebug("+----------+------------+-------------------------------------------------------+"); \
+        swDebug("| P#%-6d | L%-9zu | %-10zu %42s |", (packet)[3], mysql_uint3korr(packet), len, title); \
+        swDebug("+----------+------------+-----------+-----------+------------+------------------+"); \
+        for (of = 0; of < len; of += 16) { \
+            char hex[16*3+1]; \
+            char str[16+1]; \
+            int i, hof = 0, sof = 0; \
+            for (i = of ; i < of + 16 && i < len ; i++) { \
+                hof += sprintf(hex+hof, "%02x ", (packet)[i] & 0xff); \
+                sof += sprintf(str+sof, "%c", isprint((int)(packet)[i]) ? (packet)[i] : '.'); \
+            } \
+            swDebug("| %08x | %-48s| %-16s |", of, hex, str); \
+        } \
+        swDebug("+----------+------------+-----------+-----------+------------+------------------+"); \
+    } while(0)
+#else
+#define swMysqlPacketDump(packet, len, title)
 #endif
 
 static sw_inline void mysql_pack_length(int length, char *buf)
@@ -487,7 +524,7 @@ static sw_inline void mysql_pack_length(int length, char *buf)
     buf[0] = length;
 }
 
-static sw_inline int mysql_lcb_ll(char *m, ulong_t *r, char *nul, int len)
+static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, uint32_t len)
 {
     if (len < 1)
     {
@@ -558,14 +595,6 @@ static sw_inline int mysql_write_lcb(char *p, long val)
         mysql_int8store(p, val);
         return 9;
     }
-}
-
-static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, int len)
-{
-    ulong_t val = 0;
-    int retcode = mysql_lcb_ll(m, &val, nul, len);
-    *r = val;
-    return retcode;
 }
 
 int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback);

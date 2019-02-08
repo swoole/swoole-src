@@ -43,6 +43,18 @@ static int _lock = 0;
 
 static void swSignal_async_handler(int signo);
 
+char* swSignal_str(int sig)
+{
+    static char buf[64];
+    snprintf(buf, sizeof(buf), "%s", strsignal(sig));
+    if (strchr(buf, ':') == 0)
+    {
+        size_t len = strlen(buf);
+        snprintf(buf + len, sizeof(buf) - len, ": %d", sig);
+    }
+    return buf;
+}
+
 /**
  * clear all singal
  */
@@ -149,7 +161,7 @@ void swSignal_callback(int signo)
     swSignalHandler callback = signals[signo].handler;
     if (!callback)
     {
-        swWarn("signal[%d] callback is null.", signo);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT, swSignal_str(signo));
         return;
     }
     callback(signo);
@@ -292,13 +304,12 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
         }
         else
         {
-            swWarn("signal[%d] callback is null.", siginfo.ssi_signo);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT, swSignal_str(siginfo.ssi_signo));
         }
     }
 
     return SW_OK;
 }
-
 #endif
 
 #ifdef HAVE_KQUEUE

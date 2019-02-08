@@ -11,7 +11,7 @@ parent_child(function ($pid)
 {
     usleep(100000);
     $client = new \swoole_client(SWOOLE_SOCK_UNIX_DGRAM, SWOOLE_SOCK_SYNC);
-    $r = $client->connect(UNIXSOCK_SERVER_PATH, 0, -1);
+    $r = $client->connect(UNIXSOCK_PATH, 0, -1);
     if ($r === false)
     {
         echo "ERROR";
@@ -22,13 +22,13 @@ parent_child(function ($pid)
     $client->close();
 }, function ()
 {
-    $serv = new \swoole_server(UNIXSOCK_SERVER_PATH, 0, SWOOLE_PROCESS, SWOOLE_UNIX_DGRAM);
+    $serv = new \swoole_server(UNIXSOCK_PATH, 0, SWOOLE_PROCESS, SWOOLE_UNIX_DGRAM);
     $serv->set(["worker_num" => 1, 'log_file' => '/dev/null', 'daemonize' => true]);
     $serv->on("WorkerStart", function (\swoole_server $serv)
     {
         swoole_timer_after(1000, function () use ($serv)
         {
-            @unlink(UNIXSOCK_SERVER_PATH);
+            @unlink(UNIXSOCK_PATH);
             $serv->shutdown();
         });
     });
@@ -41,4 +41,3 @@ parent_child(function ($pid)
 ?>
 --EXPECT--
 SUCCESS
-

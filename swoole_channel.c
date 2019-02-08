@@ -18,7 +18,6 @@
 
 
 #include "php_swoole.h"
-#include "swoole_coroutine.h"
 
 static PHP_METHOD(swoole_channel, __construct);
 static PHP_METHOD(swoole_channel, __destruct);
@@ -28,7 +27,8 @@ static PHP_METHOD(swoole_channel, peek);
 static PHP_METHOD(swoole_channel, stats);
 
 static zend_class_entry swoole_channel_ce;
-zend_class_entry *swoole_channel_class_entry_ptr;
+zend_class_entry *swoole_channel_ce_ptr;
+static zend_object_handlers swoole_channel_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_construct, 0, 0, 1)
     ZEND_ARG_INFO(0, size)
@@ -54,9 +54,10 @@ static const zend_function_entry swoole_channel_methods[] =
 
 void swoole_channel_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_channel_ce, "swoole_channel", "Swoole\\Channel", swoole_channel_methods);
-    swoole_channel_class_entry_ptr = zend_register_internal_class(&swoole_channel_ce);
-    SWOOLE_CLASS_ALIAS(swoole_channel, "Swoole\\Channel");
+    SWOOLE_INIT_CLASS_ENTRY(swoole_channel, "Swoole\\Channel", "swoole_channel", NULL, swoole_channel_methods);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_channel, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_channel, zend_class_clone_deny);
+    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_channel, zend_class_unset_property_deny);
 }
 
 static PHP_METHOD(swoole_channel, __construct)
@@ -76,7 +77,7 @@ static PHP_METHOD(swoole_channel, __construct)
     swChannel *chan = swChannel_new(size, SW_BUFFER_SIZE_STD, SW_CHAN_LOCK | SW_CHAN_SHM);
     if (chan == NULL)
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "failed to create channel.", SW_ERROR_MALLOC_FAIL);
+        zend_throw_exception(swoole_exception_ce_ptr, "failed to create channel.", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     swoole_set_object(getThis(), chan);

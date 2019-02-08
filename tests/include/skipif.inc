@@ -40,10 +40,24 @@ function skip_php_version_between($a, $b)
     }
 }
 
+function skip_if_not_debug_version()
+{
+    if (!SWOOLE_DEBUG) {
+        skip('only in swoole debug version');
+    }
+}
+
 function skip_if_class_not_exist(string $class_name)
 {
     if (!class_exists($class_name, false)) {
         skip("{$class_name} not exist");
+    }
+}
+
+function skip_if_file_not_exist(string $filename)
+{
+    if (!file_exists($filename)) {
+        skip("file {$filename} is not exist");
     }
 }
 
@@ -54,24 +68,43 @@ function skip_if_no_ssl()
     }
 }
 
-function skip_if_no_async_redis()
+function skip_if_openssl_version_lower_than($version = '1.0.0')
 {
-    if (!class_exists("swoole_redis", false)) {
-        skip('no async redis');
+    skip_if_no_ssl();
+    $exist = preg_match('/openssl => openssl ([\d\.]+)/i', `php --ri swoole`, $match);
+    assert($exist);
+    if (version_compare($match[1], $version, '<')) {
+        skip("openssl version {$match[1]} is lower than {$version}");
     }
 }
 
 function skip_if_no_http2()
 {
-    if (!class_exists("swoole_http2_reqeust", false)) {
+    if (!class_exists("swoole_http2_request", false)) {
         skip('no http2');
+    }
+}
+
+function skip_if_no_top()
+{
+    skip_if_darwin();
+    skip_if_alpine_linux();
+    if (stripos(`top help 2>&1`, 'usage') === false) {
+        skip('no top');
     }
 }
 
 function skip_if_darwin()
 {
     if (stripos(PHP_OS, 'Darwin') !== false) {
-        skip("no darwin");
+        skip('not support on darwin');
+    }
+}
+
+function skip_if_alpine_linux()
+{
+    if (strpos(`apk 2>&1`, 'apk-tools') !== false) {
+        skip('not support on alpine liunx');
     }
 }
 
@@ -80,6 +113,11 @@ function skip_if_no_process_affinity()
     if (!method_exists(swoole_process::class, 'setaffinity')) {
         skip('no process affinity');
     }
+}
+
+function skip_if_in_valgrind(string $reason = 'valgrind is too slow')
+{
+    skip($reason, getenv('USE_ZEND_ALLOC') === '0');
 }
 
 function skip_if_in_travis(string $reason = 'not support in travis')
@@ -122,7 +160,7 @@ function skip_if_pdo_not_support_mysql8()
             );
         } catch (\PDOException $e) {
             if ($e->getCode() === 2054) {
-                skip('pdo auth not support.');
+                skip('pdo auth not support');
             }
         }
     }
@@ -135,30 +173,25 @@ function skip_if_not_mysql8()
         '/caching_sha2_password/',
         $r = curlGet('http://' . MYSQL_SERVER_HOST . ':' . MYSQL_SERVER_PORT))
     ) {
-        skip('require mysql8.');
+        skip('require mysql8');
     }
-    var_dump($r);
 }
 
 function skip_deprecated()
 {
-    skip('it\'s the deprecated.', file_exists('/.travisenv'), SWOOLE_COLOR_WHITE);
+    skip('it\'s the deprecated', file_exists('/.travisenv'), SWOOLE_COLOR_WHITE);
 }
 
 (function () {
+    global $argv;
+    skip_php_version_lower_than('7.0');
+    if (!getenv('PHPT') && substr($argv[0], -4) === '.php') {
+        skip('please read ' . dirname(dirname(__FILE__)) . '/README.md and try again');
+    }
     if (preg_match('#\/(swoole_[^\/]+)\/#', $_SERVER['SCRIPT_FILENAME'], $dir)) {
         $dir = $dir[1];
-        if (stripos($dir, 'redis') !== false) {
-            skip_if_no_async_redis();
-        } elseif (stripos($dir, 'http2') !== false) {
+        if (stripos($dir, 'http2') !== false) {
             skip_if_no_http2();
-        } // it should be removed after php73 released
-        elseif (PHP_VERSION_ID === 70300 && version_compare(PHP_VERSION, '7.3.0RC5', '<')) {
-            // it should be removed after php73 released
-            if (stripos($dir, 'runtime') !== false || stripos($dir, 'serialize') !== false) {
-                skip('unsupported php dev version');
-            }
         }
-        skip_php_version_lower_than('7.0');
     }
 })();

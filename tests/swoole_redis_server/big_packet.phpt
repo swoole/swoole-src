@@ -1,9 +1,7 @@
 --TEST--
 swoole_redis_server: test big packet
 --SKIPIF--
-<?php require  __DIR__ . '/../include/skipif.inc';
-skip_if_no_async_redis();
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

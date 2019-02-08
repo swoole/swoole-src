@@ -154,7 +154,7 @@ static sw_inline void swHttp2_init_settings(swHttp2_settings *settings)
     settings->window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
     settings->max_concurrent_streams = SW_HTTP2_MAX_MAX_CONCURRENT_STREAMS;
     settings->max_frame_size = SW_HTTP2_MAX_MAX_FRAME_SIZE;
-    settings->max_header_list_size = SW_HTTP2_MAX_MAX_HEADER_LIST_SIZE;
+    settings->max_header_list_size = SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE;
 }
 
 /**

@@ -12,11 +12,11 @@ go(function () {
     assert($res && $redis->errCode === 0 && $redis->errMsg === '');
     $res = $redis->hIncrBy('foo', 'bar', 123);
     assert(!$res);
-    var_dump($redis->errCode, $redis->errMsg);
+    assert($redis->errType === SWOOLE_REDIS_ERR_OTHER);
+    var_dump($redis->errMsg);
     $res = $redis->set('foo', 'baz');
     assert($res && $redis->errCode === 0 && $redis->errMsg === '');
 });
 ?>
 --EXPECT--
-int(2)
 string(65) "WRONGTYPE Operation against a key holding the wrong kind of value"

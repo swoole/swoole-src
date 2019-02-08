@@ -16,8 +16,7 @@
 
 #include "swoole.h"
 
-static int swReactorTimer_init(long msec);
-static int swReactorTimer_set(swTimer *timer, long exec_msec);
+static int swTimer_init(long msec);
 
 int swTimer_now(struct timeval *time)
 {
@@ -37,6 +36,21 @@ int swTimer_now(struct timeval *time)
         return SW_ERR;
     }
 #endif
+    return SW_OK;
+}
+
+static int swReactorTimer_set(swTimer *timer, long exec_msec)
+{
+    SwooleG.main_reactor->timeout_msec = exec_msec;
+    return SW_OK;
+}
+
+static int swReactorTimer_init(long exec_msec)
+{
+    SwooleG.main_reactor->check_timer = SW_TRUE;
+    SwooleG.main_reactor->timeout_msec = exec_msec;
+    SwooleG.timer.set = swReactorTimer_set;
+    SwooleG.timer.initialized = 1;
     return SW_OK;
 }
 
@@ -69,14 +83,12 @@ static int swTimer_init(long msec)
 
     if (SwooleG.main_reactor == NULL)
     {
-        swSystemTimer_init(msec);
+        return swSystemTimer_init(msec);
     }
     else
     {
-        swReactorTimer_init(msec);
+        return swReactorTimer_init(msec);
     }
-
-    return SW_OK;
 }
 
 void swTimer_free(swTimer *timer)
@@ -88,43 +100,28 @@ void swTimer_free(swTimer *timer)
     timer->set(timer, -1);
 }
 
-static int swReactorTimer_init(long exec_msec)
-{
-    SwooleG.main_reactor->check_timer = SW_TRUE;
-    SwooleG.main_reactor->timeout_msec = exec_msec;
-    SwooleG.timer.set = swReactorTimer_set;
-    SwooleG.timer.initialized = 1;
-    return SW_OK;
-}
-
-static int swReactorTimer_set(swTimer *timer, long exec_msec)
-{
-    SwooleG.main_reactor->timeout_msec = exec_msec;
-    return SW_OK;
-}
-
-swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data, swTimerCallback callback)
+swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback)
 {
     if (unlikely(SwooleG.timer.initialized == 0))
     {
         swTimer_init(_msec);
     }
 
-    if (_msec <= 0 || _msec > INT_MAX)
+    if (unlikely(_msec <= 0))
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "_msec value[%d] is invalid.", _msec);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "_msec value[%ld] is invalid.", _msec);
         return NULL;
     }
 
     swTimer_node *tnode = sw_malloc(sizeof(swTimer_node));
-    if (!tnode)
+    if (unlikely(!tnode))
     {
         swSysError("malloc(%ld) failed.", sizeof(swTimer_node));
         return NULL;
     }
 
     int64_t now_msec = swTimer_get_relative_msec();
-    if (now_msec < 0)
+    if (unlikely(now_msec < 0))
     {
         sw_free(tnode);
         return NULL;
@@ -150,57 +147,71 @@ swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data, s
         tnode->id = 1;
         timer->_next_id = 2;
     }
-    timer->num++;
 
     tnode->heap_node = swHeap_push(timer->heap, tnode->exec_msec, tnode);
-    if (tnode->heap_node == NULL)
+    if (unlikely(tnode->heap_node == NULL))
     {
         sw_free(tnode);
         return NULL;
     }
-    swTrace("id=%ld, exec_msec=%" PRId64 ", msec=%d, round=%" PRIu64, tnode->id, tnode->exec_msec, _msec, tnode->round);
-    swHashMap_add_int(timer->map, tnode->id, tnode);
+    if (unlikely(swHashMap_add_int(timer->map, tnode->id, tnode) != SW_OK))
+    {
+        sw_free(tnode);
+        return NULL;
+    }
+    timer->num++;
+    swTraceLog(SW_TRACE_TIMER, "id=%ld, exec_msec=%" PRId64 ", msec=%ld, round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, _msec, tnode->round, timer->num);
     return tnode;
 }
 
-int swTimer_del(swTimer *timer, swTimer_node *tnode)
+enum swBool_type swTimer_del_ex(swTimer *timer, swTimer_node *tnode, swTimerDtor dtor)
 {
-    if (tnode->remove)
+    if (unlikely(!tnode || tnode->remove))
     {
         return SW_FALSE;
     }
-    if (SwooleG.timer._current_id > 0 && tnode->id == SwooleG.timer._current_id)
+    if (unlikely(SwooleG.timer._current_id > 0 && tnode->id == SwooleG.timer._current_id))
     {
         tnode->remove = 1;
+        swTraceLog(SW_TRACE_TIMER, "set-remove: id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, tnode->round, timer->num);
         return SW_TRUE;
     }
-    if (swHashMap_del_int(timer->map, tnode->id) < 0)
+    if (unlikely(swHashMap_del_int(timer->map, tnode->id) < 0))
     {
-        return SW_ERR;
+        return SW_FALSE;
     }
     if (tnode->heap_node)
     {
-        //remove from min-heap
         swHeap_remove(timer->heap, tnode->heap_node);
         sw_free(tnode->heap_node);
     }
+    if (dtor)
+    {
+        dtor(tnode);
+    }
+    timer->num--;
+    swTraceLog(SW_TRACE_TIMER, "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, tnode->round, timer->num);
     sw_free(tnode);
-    timer->num --;
     return SW_TRUE;
+}
+
+enum swBool_type swTimer_del(swTimer *timer, swTimer_node *tnode)
+{
+    return swTimer_del_ex(timer, tnode, NULL);
 }
 
 int swTimer_select(swTimer *timer)
 {
+    swTimer_node *tnode = NULL;
+    swHeap_node *tmp;
     int64_t now_msec = swTimer_get_relative_msec();
-    if (now_msec < 0)
+
+    if (unlikely(now_msec < 0))
     {
         return SW_ERR;
     }
 
-    swTimer_node *tnode = NULL;
-    swHeap_node *tmp;
-    long timer_id;
-
+    swTraceLog(SW_TRACE_TIMER, "timer msec=%" PRId64 ", round=%" PRId64, now_msec, timer->round);
     while ((tmp = swHeap_top(timer->heap)))
     {
         tnode = tmp->data;
@@ -209,9 +220,10 @@ int swTimer_select(swTimer *timer)
             break;
         }
 
-        timer_id = timer->_current_id = tnode->id;
+        timer->_current_id = tnode->id;
         if (!tnode->remove)
         {
+            swTraceLog(SW_TRACE_TIMER, "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, tnode->round, timer->num - 1);
             tnode->callback(timer, tnode);
         }
         timer->_current_id = -1;
@@ -229,7 +241,7 @@ int swTimer_select(swTimer *timer)
 
         timer->num--;
         swHeap_pop(timer->heap);
-        swHashMap_del_int(timer->map, timer_id);
+        swHashMap_del_int(timer->map, tnode->id);
         sw_free(tnode);
     }
 
@@ -248,5 +260,6 @@ int swTimer_select(swTimer *timer)
         timer->set(timer, next_msec);
     }
     timer->round++;
+
     return SW_OK;
 }

@@ -19,7 +19,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm, $data_list) {
     $clients = [];
     for ($c = MAX_CONCURRENCY_LOW; $c--;) {
-        $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
+        $cli = @new swoole_http_client('127.0.0.1', $pm->getFreePort());
         $cli->set(['timeout' => -1]);
         global $data_list;
         $cli->data_list = $data_list;
@@ -46,7 +46,7 @@ $pm->parentFunc = function (int $pid) use ($pm, $data_list) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), mt_rand(0, 1) ? SWOOLE_BASE : SWOOLE_PROCESS);
+    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $serv->set([
         'worker_num' => 1,
         'log_file' => TEST_LOG_FILE,

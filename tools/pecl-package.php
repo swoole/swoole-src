@@ -21,7 +21,30 @@ function check_source_ver(string $expect_ver, $source_file)
         );
         return;
     }
+
     $source_ver = $matches['ver'];
+
+    // auto fixed sub version values
+    if (strpos($source_content, 'SWOOLE_MAJOR_VERSION') !== false) {
+        list($major, $minor, $release, $extra) = preg_split('/[.-]/', $source_ver, 4);
+        $source_content = preg_replace(
+            '/^(\#define[ ]+SWOOLE_VERSION_ID[ ]+)\d+$/m',
+            '${1}' . sprintf('%d%02d%02d', $major, $minor, $release),
+            $source_content
+        );
+        (function (&$source_content, $replacements) {
+            foreach ($replacements as $replacement) {
+                $regex = '/^(\#define[ ]+SWOOLE_' . $replacement[0] . '_VERSION[ ]+' . (is_numeric($replacement[1]) ? ')\d+()$' : '")[^"]*("$)') . '/m';
+                $source_content = preg_replace(
+                    $regex, '${1}' . $replacement[1] . '${2}',
+                    $source_content,
+                    1
+                );
+            }
+        })($source_content, [['MAJOR', $major], ['MINOR', $minor], ['RELEASE', $release], ['EXTRA', $extra]]);
+        file_put_contents($source_file, $source_content);
+    }
+
     if (!preg_match('/^\d+?\.\d+?\.\d+?$/', $source_ver)) {
         $is_release_ver = false;
         swoole_warn("SWOOLE_VERSION v{$source_ver} is not a release version number in {$source_file}.");
@@ -33,10 +56,17 @@ function check_source_ver(string $expect_ver, $source_file)
         case -1: // <
             {
                 if ($replaced) {
+                    _replaced_error:
                     swoole_error("Fix version number failed in {$source_file}");
                 }
                 swoole_warn("SWOOLE_VERSION v{$source_ver} will be replaced to v{$expect_ver} in {$source_file}.");
-                $source_content = preg_replace($source_ver_regex, '$1${2}' . $expect_ver . '$4', $source_content, 1);
+                $source_content = preg_replace(
+                    $source_ver_regex, '$1${2}' . $expect_ver . '$4',
+                    $source_content, 1, $replaced
+                );
+                if (!$replaced) {
+                    goto _replaced_error;
+                }
                 file_put_contents($source_file, $source_content);
                 $replaced = true;
                 goto _check;
@@ -144,6 +174,17 @@ $content = str_replace($dir_tag, $dir_tag . $space . implode("{$space}", $file_l
 if (!$success) {
     swoole_error('Replace new content failed!');
 }
+date_default_timezone_set('Asia/Shanghai');
+$date_tag = date('Y-m-d');
+$content = preg_replace('/(<date\>)\d+?-\d+?-\d+?(<\/date>)/', '${1}' . $date_tag . '${2}', $content, $success);
+if (!$success) {
+    swoole_error('Replace date tag failed!');
+}
+$time_tag = date('H', time() + 3600) . ':00:00';
+$content = preg_replace('/(<time\>)\d+?:\d+?:\d+?(<\/time>)/', '${1}' . $time_tag . '${2}', $content, $success);
+if (!$success) {
+    swoole_error('Replace time tag failed!');
+}
 if (!file_put_contents(__DIR__ . '/../package.xml', $content)) {
     swoole_error('Output package successful!');
 }
@@ -155,8 +196,10 @@ if (preg_match('/Warning/i', $package)) {
     swoole_log("{$warn}\n", SWOOLE_COLOR_MAGENTA);
 }
 // check package status
-if (!preg_match('/Package swoole-[\d.]+\.tgz done/', $package)) {
+if (!preg_match('/Package (?<filename>swoole-[\d.]+\.tgz) done/', $package, $matches)) {
     swoole_error($package);
 } else {
-    swoole_success($package);
+    $file_name = $matches['filename'];
+    $file_size = file_size("{$root_dir}/{$file_name}");
+    swoole_success("Package {$file_name} ({$file_size}) done");
 }

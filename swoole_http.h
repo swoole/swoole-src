@@ -27,6 +27,9 @@ extern "C"
 #include "thirdparty/swoole_http_parser.h"
 #include "thirdparty/multipart_parser.h"
 
+#ifdef SW_HAVE_ZLIB
+#include <zlib.h>
+#endif
 #ifdef SW_USE_HTTP2
 #include <nghttp2/nghttp2.h>
 #endif
@@ -114,10 +117,6 @@ typedef struct
     uint32_t upgrade :1;
     uint32_t detached :1;
 
-    uint32_t request_read :1;
-    uint32_t current_header_name_allocated :1;
-    uint32_t content_sender_initialized :1;
-
 #ifdef SW_HAVE_ZLIB
     int8_t compression_level;
     int8_t compression_method;
@@ -138,7 +137,6 @@ typedef struct
     char *current_input_name;
     char *current_form_data_name;
     size_t current_form_data_name_len;
-    char *current_form_data_value;
     zval *current_multipart_header;
 
 } http_context;
@@ -147,8 +145,8 @@ typedef struct
 /**
  * WebSocket
  */
-int swoole_websocket_onMessage(swEventData *);
-int swoole_websocket_onHandshake(swListenPort *port, http_context *);
+int swoole_websocket_onMessage(swServer *serv, swEventData *);
+int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_context *);
 void swoole_websocket_onOpen(http_context *);
 void swoole_websocket_onRequest(http_context *);
 
@@ -161,8 +159,8 @@ int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int
 
 #define swoole_http_server_array_init(name, class)    SW_MAKE_STD_ZVAL(z##name);\
 array_init(z##name);\
-zend_update_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), z##name);\
-ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), 0);\
+zend_update_property(swoole_http_##class##_ce_ptr, z##class##_object, ZEND_STRL(#name), z##name);\
+ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_ce_ptr, z##class##_object, ZEND_STRL(#name), 0);\
 sw_copy_to_stack(ctx->class.z##name, ctx->class._z##name);\
 zval_ptr_dtor(z##name);\
 z##name = ctx->class.z##name;
@@ -179,21 +177,27 @@ int swoole_http2_do_response(http_context *ctx, swString *body);
 void swoole_http2_free(swConnection *conn);
 #endif
 
-extern zend_class_entry swoole_http_server_ce;
-extern zend_class_entry *swoole_http_server_class_entry_ptr;
-
-extern zend_class_entry swoole_http_response_ce;
-extern zend_class_entry *swoole_http_response_class_entry_ptr;
-
-extern zend_class_entry swoole_http_request_ce;
-extern zend_class_entry *swoole_http_request_class_entry_ptr;
+extern zend_class_entry *swoole_http_server_ce_ptr;
+extern zend_class_entry *swoole_http_response_ce_ptr;
+extern zend_class_entry *swoole_http_request_ce_ptr;
 
 extern swString *swoole_http_buffer;
+
 #ifdef SW_HAVE_ZLIB
 extern swString *swoole_zlib_buffer;
 int swoole_http_response_compress(swString *body, int method, int level);
 void swoole_http_get_compression_method(http_context *ctx, const char *accept_encoding, size_t length);
 const char* swoole_http_get_content_encoding(http_context *ctx);
+
+static sw_inline voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
+{
+    return (voidpf) safe_emalloc(items, size, 0);
+}
+
+static sw_inline void php_zlib_free(voidpf opaque, voidpf address)
+{
+    efree((void* )address);
+}
 #endif
 
 static sw_inline int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *set_cookie_headers)

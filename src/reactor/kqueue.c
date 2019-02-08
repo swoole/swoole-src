@@ -65,7 +65,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
     swReactorKqueue *reactor_object = sw_malloc(sizeof(swReactorKqueue));
     if (reactor_object == NULL)
     {
-        swTrace("[swReactorKqueueCreate] malloc[0] fail\n");
+        swWarn("[swReactorKqueueCreate] malloc[0] fail\n");
         return SW_ERR;
     }
     bzero(reactor_object, sizeof(swReactorKqueue));
@@ -76,7 +76,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
 
     if (reactor_object->events == NULL)
     {
-        swTrace("[swReactorKqueueCreate] malloc[1] fail\n");
+        swWarn("[swReactorKqueueCreate] malloc[1] fail\n");
         return SW_ERR;
     }
     //kqueue create
@@ -84,7 +84,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
     reactor_object->epfd = kqueue();
     if (reactor_object->epfd < 0)
     {
-        swTrace("[swReactorKqueueCreate] kqueue_create[0] fail\n");
+        swWarn("[swReactorKqueueCreate] kqueue_create[0] fail\n");
         return SW_ERR;
     }
 
@@ -250,7 +250,7 @@ static int swReactorKqueue_del(swReactor *reactor, int fd)
         }
     }
 
-    swTrace("[THREAD #%d]EP=%d|FD=%d", SwooleTG.id, this->epfd, fd);
+    swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]EP=%d|FD=%d", SwooleTG.id, this->epfd, fd);
     reactor->event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
     swReactor_del(reactor, fd);
     return SW_OK;
@@ -280,7 +280,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         }
     }
 
-    reactor->start = 1;
+    swReactor_before_wait(reactor);
 
     while (reactor->running > 0)
     {
@@ -302,10 +302,9 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         n = kevent(object->epfd, NULL, 0, object->events, object->event_max, t_ptr);
         if (n < 0)
         {
-            swTrace("kqueue error.EP=%d | Errno=%d\n", object->epfd, errno);
             if (swReactor_error(reactor) < 0)
             {
-                swWarn("Kqueue[#%d] Error: %s[%d]", reactor->id, strerror(errno), errno);
+                swWarn("kqueue[#%d].EP=%d | Error: %s[%d]", reactor->id, object->epfd, strerror(errno), errno);
                 return SW_ERR;
             }
             else
@@ -374,13 +373,18 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                         }
                         else
                         {
-                            swWarn("signal[%d] callback is null.", sw_signal->signo);
+                            swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT,
+                                    swSignal_str(sw_signal->signo));
                         }
                     }
                 }
                 else
                 {
                     swWarn("unknown event filter[%d].", object->events[i].filter);
+                }
+                if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE))
+                {
+                    reactor->del(reactor, event.fd);
                 }
             }
         }

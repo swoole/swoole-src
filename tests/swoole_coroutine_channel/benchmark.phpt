@@ -11,11 +11,11 @@ $time = [];
 $time['splQueue'] = microtime(true);
 $queue = new SplQueue;
 for ($i = MAX_LOOPS; $i--;) {
-    $queue->push($i);
+    $queue->enqueue($i);
 }
 $i = MAX_LOOPS;
 while (!$queue->isEmpty()) {
-    assert((--$i) === $queue->shift());
+    assert((--$i) === $queue->dequeue());
 }
 $time['splQueue'] = microtime(true) - $time['splQueue'];
 
@@ -56,9 +56,6 @@ swoole_event_wait();
 var_dump($time);
 $diff = $time['channel_raw'] - $time['splQueue'];
 var_dump($diff);
-if (!IS_IN_TRAVIS) {
-    assert($diff <= 0 || $diff < $time['splQueue'] * 0.15); // faster than splQueue or 15% diff
-}
 ?>
 --EXPECTF--
 array(3) {

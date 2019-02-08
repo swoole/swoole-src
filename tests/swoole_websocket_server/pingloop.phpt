@@ -49,7 +49,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
     echo "DONE";
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), mt_rand(0, 1) ? SWOOLE_BASE : SWOOLE_PROCESS);
+    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $serv->set([
         'worker_num' => 1,
         'log_file' => '/dev/null'
@@ -69,7 +69,7 @@ $pm->childFunc = function () use ($pm) {
         $server->after(PING_LOOP * PING_INTERVAL, function () use ($pm, $server, $timer_id) {
             $server->clearTimer($timer_id);
             foreach ($server->connections as $fd) {
-                $server->push($fd, new swoole_websocket_close_frame);
+                $server->push($fd, new swoole_websocket_closeframe);
             }
         });
         $pm->wakeup();

@@ -27,10 +27,6 @@
 #endif
 #endif
 
-#ifdef SW_COROUTINE
-#include "coroutine.h"
-#endif
-
 static void swReactor_onTimeout_and_Finish(swReactor *reactor);
 static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);
@@ -163,7 +159,7 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
         }
     }
     //not server, the event loop is empty
-    if (SwooleG.serv == NULL && swReactor_empty(reactor))
+    if ((SwooleG.serv == NULL || swIsUserWorker()) && swReactor_empty(reactor))
     {
         reactor->running = 0;
     }
@@ -396,21 +392,7 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
     //remove EPOLLOUT event
     if (swBuffer_empty(buffer))
     {
-        if (socket->events & SW_EVENT_READ)
-        {
-            socket->events &= (~SW_EVENT_WRITE);
-            if (reactor->set(reactor, fd, socket->fdtype | socket->events) < 0)
-            {
-                swSysError("reactor->set(%d, SW_EVENT_READ) failed.", fd);
-            }
-        }
-        else
-        {
-            if (reactor->del(reactor, fd) < 0)
-            {
-                swSysError("reactor->del(%d) failed.", fd);
-            }
-        }
+        swReactor_remove_write_event(reactor, fd);
     }
 
     return SW_OK;
@@ -421,7 +403,7 @@ int swReactor_wait_write_buffer(swReactor *reactor, int fd)
     swConnection *conn = swReactor_get(reactor, fd);
     swEvent event;
 
-    if (conn->out_buffer)
+    if (!swBuffer_empty(conn->out_buffer))
     {
         swSetBlock(fd);
         event.fd = fd;

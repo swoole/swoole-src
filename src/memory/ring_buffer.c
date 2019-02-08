@@ -36,7 +36,7 @@ typedef struct
     char data[0];
 } swRingBuffer_item;
 
-static void swRingBuffer_destory(swMemoryPool *pool);
+static void swRingBuffer_destroy(swMemoryPool *pool);
 static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size);
 static void swRingBuffer_free(swMemoryPool *pool, void *ptr);
 
@@ -70,7 +70,7 @@ swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared)
     mem = (char *) mem + sizeof(swMemoryPool);
 
     pool->object = object;
-    pool->destroy = swRingBuffer_destory;
+    pool->destroy = swRingBuffer_destroy;
     pool->free = swRingBuffer_free;
     pool->alloc = swRingBuffer_alloc;
 
@@ -198,7 +198,7 @@ static void swRingBuffer_free(swMemoryPool *pool, void *ptr)
     sw_atomic_fetch_add(free_count, 1);
 }
 
-static void swRingBuffer_destory(swMemoryPool *pool)
+static void swRingBuffer_destroy(swMemoryPool *pool)
 {
     swRingBuffer *object = pool->object;
     if (object->shared)

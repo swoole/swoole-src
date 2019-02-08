@@ -694,11 +694,6 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
 
     if (cli->wait_dns)
     {
-        if (SwooleAIO.init == 0)
-        {
-            swAio_init();
-        }
-
         swAio_event ev;
         bzero(&ev, sizeof(swAio_event));
 
@@ -761,7 +756,7 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         }
         if (timeout > 0)
         {
-            cli->timer = swTimer_add(&SwooleG.timer, (int) (timeout * 1000), 0, cli, swClient_onTimeout);
+            cli->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, cli, swClient_onTimeout);
         }
         return SW_OK;
     }
@@ -1519,7 +1514,7 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
             if (cli->open_ssl)
             {
                 cli->http_proxy->state = SW_HTTP_PROXY_STATE_HANDSHAKE;
-                int n = snprintf(cli->http_proxy->buf, sizeof (cli->http_proxy->buf), "CONNECT %s:%d HTTP/1.1\r\n\r\n", cli->http_proxy->target_host, cli->http_proxy->target_port);
+                int n = sw_snprintf(cli->http_proxy->buf, sizeof (cli->http_proxy->buf), "CONNECT %s:%d HTTP/1.1\r\n\r\n", cli->http_proxy->target_host, cli->http_proxy->target_port);
                 return cli->send(cli, cli->http_proxy->buf, n, 0);
             }
 #endif
@@ -1564,18 +1559,3 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-void swoole_open_remote_debug(void)
-{
-    swClient debug_client;
-    swClient_create(&debug_client, SW_SOCK_UDP, 0);
-
-    if (debug_client.connect(&debug_client, SW_DEBUG_SERVER_HOST, SW_DEBUG_SERVER_PORT, -1, 1) < 0)
-    {
-        swWarn("connect to remote_debug_server[%s:%d] failed.", SW_DEBUG_SERVER_HOST, SW_DEBUG_SERVER_PORT);
-        SwooleG.debug_fd = 1;
-    }
-    else
-    {
-        SwooleG.debug_fd = debug_client.socket->fd;
-    }
-}

@@ -175,7 +175,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
         }
     }
 
-    reactor->start = 1;
+    swReactor_before_wait(reactor);
 
     while (reactor->running > 0)
     {
@@ -206,7 +206,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 
         if (reactor->timeout_msec < 0)
         {
-            timeout.tv_sec = SW_MAX_UINT;
+            timeout.tv_sec = UINT_MAX;
             timeout.tv_usec = 0;
         }
         else
@@ -270,6 +270,10 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                     {
                         swSysError("[Reactor#%d] select event[type=ERROR, fd=%d] handler fail.", reactor->id, event.fd);
                     }
+                }
+                if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE))
+                {
+                    reactor->del(reactor, event.fd);
                 }
             }
         }

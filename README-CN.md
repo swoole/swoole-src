@@ -57,6 +57,14 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 你可以在一个事件循环上创建多个服务：TCP，HTTP，Websocket和HTTP2，并且能轻松承载上万请求。
 
 ```php
+function tcp_pack(string $data): string
+{
+    return pack('n', strlen($data)) . $data;
+}
+function tcp_unpack(string $data): string
+{
+    return substr($data, 2, unpack('n', substr($data, 0, 2))[1]);
+}
 $tcp_options = [
     'open_length_check' => true,
     'package_length_type' => 'n',
@@ -103,7 +111,7 @@ go(function () {
     // http2
     $http2_client = new Swoole\Coroutine\Http2\Client('localhost', 9501);
     $http2_client->connect();
-    $http2_request = new Swoole\Http2\Reuqest;
+    $http2_request = new Swoole\Http2\Request;
     $http2_request->method = 'POST';
     $http2_request->data = 'Swoole Http2';
     $http2_client->send($http2_request);
@@ -199,7 +207,7 @@ go(function () {
     // Channel: OK! I will be responsible for scheduling.
     $channel = new Swoole\Coroutine\Channel;
     go(function () use ($channel) {
-        // Coroutine A: Ok! I will show you
+        // Coroutine A: Ok! I will show you the github addr info
         $addr_info = Co::getaddrinfo('github.com');
         $channel->push(['A', json_encode($addr_info, JSON_PRETTY_PRINT)]);
     });
@@ -479,7 +487,7 @@ make && sudo make install
 ## 💎 框架 & 组件
 
 - [**Swoft**](https://github.com/swoft-cloud) 是一个现代化的面向切面的高性能协程全栈组件化框架
-- [**Easyswoole**](https://github.com/swoft-cloud) 是一个极简的高性能的框架, 让代码开发就好像写`echo "hello world"`一样简单
+- [**Easyswoole**](https://www.easyswoole.com) 是一个极简的高性能的框架, 让代码开发就好像写`echo "hello world"`一样简单
 - [**Saber**](https://github.com/swlib/saber) 是一个人性化的高性能HTTP客户端组件，几乎拥有一切你可以想象的强大功能
 
 ## 🛠 开发 & 讨论

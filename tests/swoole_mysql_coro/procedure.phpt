@@ -38,11 +38,11 @@ SQL;
 
     $db->connect($server);
 
-    for ($n = MAX_REQUESTS; $n--;) {
-        if ($db->query($clear) && $db->query($procedure)) {
+    if ($db->query($clear) && $db->query($procedure)) {
+        $stmt = $db->prepare('CALL reply(?)');
+        for ($n = MAX_REQUESTS; $n--;) {
             //SWOOLE
             $_map = $map;
-            $stmt = $db->prepare('CALL reply(?)');
             $res = $stmt->execute(['hello mysql!']);
             do {
                 assert(current($res[0]) === array_shift($_map));

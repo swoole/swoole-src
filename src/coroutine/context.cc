@@ -15,9 +15,14 @@
 */
 
 #include "swoole.h"
-#include "context.h"
 
 #ifndef SW_NO_USE_ASM_CONTEXT
+
+#include "context.h"
+
+#ifdef USE_VALGRIND
+#include <valgrind/valgrind.h>
+#endif
 
 using namespace swoole;
 
@@ -26,7 +31,7 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
 {
     protect_page_ = 0;
     end = false;
-    swap_ctx_ = NULL;
+    swap_ctx_ = nullptr;
 
     stack_ = (char*) sw_malloc(stack_size_);
     swTraceLog(SW_TRACE_COROUTINE, "alloc stack: size=%u, ptr=%p.", stack_size_, stack_);
@@ -56,7 +61,7 @@ Context::~Context()
         {
             unprotect_stack(stack_, protect_page_);
         }
-#if defined(USE_VALGRIND)
+#ifdef USE_VALGRIND
         VALGRIND_STACK_DEREGISTER(valgrind_stack_id);
 #endif
         sw_free(stack_);

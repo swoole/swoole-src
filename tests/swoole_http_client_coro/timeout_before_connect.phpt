@@ -14,27 +14,30 @@ go(function () {
         'Host' => $host
     ];
 
-    $cli1 = new Swoole\Coroutine\Http\Client($host, 80);
+    $cli1 = new Swoole\Coroutine\Http\Client($host, 443, true);
     $cli1->setHeaders($requestHeaders);
     $cli1->set(['timeout' => 0.001]);
     $cli1->setDefer(true);
-    $cli1->get('/');
+    assert($cli1->get('/') === false);
     assert($cli1->recv() === false);
+    assert($cli1->errCode === SOCKET_ETIMEDOUT);
+    assert($cli1->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
 
-    $cli2 = new Swoole\Coroutine\Http\Client($host, 80);
+    $cli2 = new Swoole\Coroutine\Http\Client($host, 443, true);
     $cli2->setHeaders($requestHeaders);
     $cli2->setDefer(true);
 
-    $cli1->get('/');
-    $cli2->get('/');
+    assert($cli1->get('/') === false);
+    assert($cli2->get('/') === true);
 
-    $retval = $cli1->recv();
-    assert($retval === false);
+    assert($cli1->recv() === false);
     assert($cli2->recv() === true);
-    assert($cli1->statusCode === -2);
-    if (!assert($cli2->statusCode === 200)) {
-        var_dump($cli2);
-    }
+
+    assert($cli1->errCode === SOCKET_ETIMEDOUT);
+    assert($cli1->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
+
+    assert($cli2->errCode === 0);
+    assert($cli2->statusCode === 200 && strpos($cli2->body, 'tencent') !== false);
 });
 swoole_event::wait();
 ?>

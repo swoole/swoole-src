@@ -140,48 +140,42 @@ int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size);
 static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
     ssize_t total_bytes = 0;
-    _recv:
-#ifdef SW_USE_OPENSSL
-    if (conn->ssl)
+
+    do
     {
-        ssize_t retval = 0;
-        while ((size_t) total_bytes < __n)
+#ifdef SW_USE_OPENSSL
+        if (conn->ssl)
         {
-            retval = swSSL_recv(conn, ((char*)__buf) + total_bytes, __n - total_bytes);
-            if (retval <= 0)
+            ssize_t retval = 0;
+            while ((size_t) total_bytes < __n)
             {
-                if (total_bytes == 0)
+                retval = swSSL_recv(conn, ((char*)__buf) + total_bytes, __n - total_bytes);
+                if (retval <= 0)
                 {
-                    total_bytes = retval;
-                }
-                break;
-            }
-            else
-            {
-                total_bytes += retval;
-                if (!(conn->nonblock || (__flags & MSG_WAITALL)))
-                {
+                    if (total_bytes == 0)
+                    {
+                        total_bytes = retval;
+                    }
                     break;
+                }
+                else
+                {
+                    total_bytes += retval;
+                    if (!(conn->nonblock || (__flags & MSG_WAITALL)))
+                    {
+                        break;
+                    }
                 }
             }
         }
-    }
-    else
+        else
 #endif
-    {
-        total_bytes = recv(conn->fd, __buf, __n, __flags);
+        {
+            total_bytes = recv(conn->fd, __buf, __n, __flags);
+        }
     }
+    while (total_bytes < 0 && errno == EINTR);
 
-    if (total_bytes < 0 && errno == EINTR)
-    {
-        goto _recv;
-    }
-    else
-    {
-        goto _return;
-    }
-
-    _return:
 #ifdef SW_DEBUG
     if (total_bytes > 0)
     {
@@ -189,7 +183,7 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
     }
 #endif
 
-    swDebug("recv %ld/%ld bytes, errno=%d", total_bytes, __n, errno);
+    swTraceLog(SW_TRACE_SOCKET, "recv %ld/%ld bytes, errno=%d", total_bytes, __n, errno);
 
     return total_bytes;
 }
@@ -200,36 +194,30 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
 static sw_inline ssize_t swConnection_send(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
     ssize_t retval;
-    _send:
+
+    do
+    {
 #ifdef SW_USE_OPENSSL
-    if (conn->ssl)
-    {
-        retval = swSSL_send(conn, __buf, __n);
-    }
-    else
-    {
-        retval = send(conn->fd, __buf, __n, __flags);
-    }
-#else
-    retval = send(conn->fd, __buf, __n, __flags);
+        if (conn->ssl)
+        {
+            retval = swSSL_send(conn, __buf, __n);
+        }
+        else
 #endif
-
-    if (retval < 0 && errno == EINTR)
-    {
-        goto _send;
+        {
+            retval = send(conn->fd, __buf, __n, __flags);
+        }
     }
-    else
-    {
-        goto _return;
-    }
+    while (retval < 0 && errno == EINTR);
 
-    _return:
 #ifdef SW_DEBUG
     if (retval > 0)
     {
         conn->total_send_bytes += retval;
     }
 #endif
+
+    swTraceLog(SW_TRACE_SOCKET, "send %ld/%ld bytes, errno=%d", retval, __n, errno);
 
     return retval;
 }
@@ -241,6 +229,7 @@ static sw_inline ssize_t swConnection_send(swConnection *conn, void *__buf, size
 static sw_inline ssize_t swConnection_peek(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
     int retval;
+    __flags |= MSG_PEEK;
     _peek:
 #ifdef SW_USE_OPENSSL
     if (conn->ssl)
@@ -248,12 +237,10 @@ static sw_inline ssize_t swConnection_peek(swConnection *conn, void *__buf, size
         retval = SSL_peek(conn->ssl, __buf, __n);
     }
     else
+#endif
     {
         retval = recv(conn->fd, __buf, __n, __flags);
     }
-#else
-    retval = recv(conn->fd, __buf, __n, __flags);
-#endif
 
     if (retval < 0 && errno == EINTR)
     {

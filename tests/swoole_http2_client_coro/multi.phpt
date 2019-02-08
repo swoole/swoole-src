@@ -14,7 +14,7 @@ go(function () {
     ]);
     $cli->connect();
 
-    $req = new swoole_http2_request;
+    $req = new Swoole\Http2\Request;
     $req->path = '/terms/privacy';
     $req->headers = [
         'Host' => $domain,

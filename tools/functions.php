@@ -13,15 +13,29 @@ define('SWOOLE_COLOR_MAGENTA', 5);
 define('SWOOLE_COLOR_CYAN', 6);
 define('SWOOLE_COLOR_WHITE', 7);
 
-function space(int $length): string
+$_space = function(int $length = 4): string
 {
     return str_repeat(' ', $length);
+};
+
+function space(...$args): string
+{
+    global $_space;
+    return $_space(...$args);
 }
 
 function swoole_log(string $content, int $color = 0)
 {
     echo ($color ? "\033[3{$color}m{$content}\033[0m" : $content) . "\n";
+}
 
+function swoole_check(bool $is_ok, string $output)
+{
+    if ($is_ok) {
+        swoole_ok("{$output} OK!");
+    } else {
+        swoole_error("{$output} Failed!");
+    }
 }
 
 function swoole_warn(string ...$args)
@@ -77,6 +91,14 @@ function scan_dir(string $dir, callable $filter = null): array
         return $f{0} !== '.';
     });
     return array_values($filter ? array_filter($files, $filter) : $files);
+}
+
+function file_size(string $filename, int $decimals = 2)
+{
+    $bytes = filesize($filename);
+    $sz = 'BKMGTP';
+    $factor = (int)floor((strlen($bytes) - 1) / 3);
+    return sprintf("%.{$decimals}f", $bytes / pow(1024, $factor)) . $sz{$factor};
 }
 
 function swoole_git_files(): array

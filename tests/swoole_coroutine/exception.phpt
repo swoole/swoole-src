@@ -25,11 +25,7 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Fatal error: Uncaught Exception: whoops in %s:%d
+Fatal error: Uncaught Exception: whoops in %s/tests/swoole_coroutine/exception.php:15
 Stack trace:
 #0 {main}
-  thrown in %s on line %d
-[%s]	ERROR	zm_deactivate_swoole (ERROR 503): Fatal error: Uncaught Exception: whoops in %s:%d
-Stack trace:
-#0 {main}
-  thrown in %s on line %d.
+  thrown in %s/tests/swoole_coroutine/exception.php on line 15

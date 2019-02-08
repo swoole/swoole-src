@@ -17,6 +17,44 @@
  +----------------------------------------------------------------------+
  */
 
+function switch_process()
+{
+    usleep((USE_VALGRIND ? 100 : 1) * 1000);
+}
+
+function clear_php()
+{
+    `ps -A | grep php | grep -v phpstorm | grep -v 'run-tests' | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1`;
+}
+
+function top(int $pid)
+{
+    if (IS_MAC_OS || stripos(`top help 2>&1`, 'usage') === false) {
+        return false;
+    }
+    $top = `top -b -n 1 -p {$pid}`;
+    $top = explode("\n", $top);
+    $top = array_combine(preg_split('/\s+/', trim($top[6])), preg_split('/\s+/', trim($top[7])));
+    return $top;
+}
+
+function kill_process_by_name(string $name)
+{
+    shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_alpine_linux() ? '1' : '2') . '}\' | xargs kill');
+}
+
+function get_process_pid_by_name(string $name): bool
+{
+    return (int)shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_alpine_linux() ? '1' : '2') . '}\'');
+}
+
+function is_alpine_linux(): bool
+{
+    static $bool;
+    $bool = $bool ?? strpos(`apk 2>&1`, 'apk-tools') !== false;
+    return $bool;
+}
+
 function get_one_free_port()
 {
     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
@@ -36,17 +74,53 @@ function get_one_free_port()
     return $port;
 }
 
-function httpCoroGet(string $uri)
+function approximate($expect, $actual, float $ratio = 0.1): bool
+{
+    $ret = $actual * (1 - $ratio) < $expect && $actual * (1 + $ratio) > $expect;
+    if (!$ret) {
+        trigger_error("approximate: expect {$expect}, but got {$actual}\n", E_USER_WARNING);
+    }
+    return $ret;
+}
+
+function time_approximate($expect, $actual, float $ratio = 0.1)
+{
+    return USE_VALGRIND || approximate($expect, $actual, $ratio);
+}
+
+function array_random(array $array)
+{
+    return $array[mt_rand(0, count($array) - 1)];
+}
+
+function phpt_echo(...$args)
+{
+    global $argv;
+    if (substr($argv[0], -5) === '.phpt') {
+        foreach ($args as $arg) {
+            echo $arg;
+        }
+    }
+}
+
+function phpt_var_dump(...$args)
+{
+    global $argv;
+    if (substr($argv[0], -5) === '.phpt') {
+        var_dump(...$args);
+    }
+}
+
+function httpCoroGet(string $uri, array $options = [])
 {
     $url_info = parse_url($uri);
     $domain = $url_info['host'];
     $path = $url_info['path'] ?? null ?: '/';
     $port = (int)($url_info['port'] ?? null ?: 80);
     $cli = new Swoole\Coroutine\Http\Client($domain, $port, $port == 443);
-    $cli->set(['timeout' => 5]);
+    $cli->set($options + ['timeout' => 5]);
     $cli->setHeaders(['Host' => $domain]);
     $cli->get($path);
-
     return $cli->body;
 }
 
@@ -68,9 +142,17 @@ function curlGet($url, $gzip = true)
     return $output;
 }
 
-function tcp_type_length(string $type = 'n'): int
+function content_hook_replace(string $content, array $kv_map): string
 {
-    static $map = [
+    foreach ($kv_map as $key => $val) {
+        $content = str_replace("{{{$key}}}", $val, $content);
+    }
+    return $content;
+}
+
+function tcp_length_types(): array
+{
+    return [
         'c' => 1,
         'C' => 1,
         's' => 2,
@@ -82,18 +164,35 @@ function tcp_type_length(string $type = 'n'): int
         'N' => 4,
         'V' => 4,
     ];
-
-    return $map[$type] ?? 0;
 }
 
-function tcp_length(string $head, string $type = 'n'): int
+function tcp_type_length(string $type = 'n'): int
 {
-    return unpack($type, $head)[1];
+    $map = tcp_length_types();
+    if (strlen($type) === 1) {
+        return $map[$type] ?? 0;
+    } else {
+        $len = 0;
+        for ($n = 0; $n < strlen($type); $n++) {
+            $len += $map[$type{$n}] ?? 0;
+        }
+        return $len;
+    }
+}
+
+function tcp_head(int $length, string $type = 'n') : string
+{
+    return pack($type, $length);
 }
 
 function tcp_pack(string $data, string $type = 'n'): string
 {
     return pack($type, strlen($data)) . $data;
+}
+
+function tcp_length(string $head, string $type = 'n'): int
+{
+    return unpack($type, $head)[1];
 }
 
 function tcp_unpack(string $data, string $type = 'n'): string
@@ -113,40 +212,11 @@ function var_dump_return(...$data): string
 
 function get_safe_random(int $length = 32, $original = false): string
 {
-    $raw = base64_encode(openssl_random_pseudo_bytes($original ? $length : $length * 2));
+    $raw = base64_encode(RandStr::getBytes($original ? $length : $length * 2));
     if (!$original) {
         $raw = substr(str_replace(['/', '+', '='], '', $raw), 0, $length);
     }
     return $raw;
-}
-
-function swoole_php_fork($func, $out = false) {
-	$process = new swoole_process($func, $out);
-	$pid = $process->start();
-
-    register_shutdown_function(
-        function ($pid, $process)
-        {
-            swoole_process::kill($pid);
-            $process->wait();
-        },
-        $pid, $process
-    );
-
-	return $process;
-}
-
-function swoole_unittest_fork($func)
-{
-    $process = new swoole_process($func, false, false);
-    $process->start();
-
-    return $process;
-}
-
-function swoole_unittest_wait()
-{
-    return swoole_process::wait();
 }
 
 function makeTcpClient($host, $port, callable $onConnect = null, callable $onReceive = null)
@@ -247,11 +317,11 @@ function kill_self_and_descendant($pid)
  * @param int $sig
  */
 function killself_in_syncmode($lifetime = 1000, $sig = SIGKILL) {
-    $proc = new \swoole_process(function(\swoole_process $proc) use($lifetime, $sig) {
+    $proc = new Swoole\Process(function(Swoole\Process $proc) use($lifetime, $sig) {
         $pid = $proc->pop();
         $proc->freeQueue();
         usleep($lifetime * 1000);
-        \swoole_process::kill($pid, $sig);
+        Swoole\Process::kill($pid, $sig);
         $proc->exit();
     }, true);
     $proc->useQueue();
@@ -574,97 +644,147 @@ class ProcessManager
     protected $atomic;
     protected $alone = false;
     protected $freePorts = [];
+    protected $randomFunc = 'get_safe_random';
+    protected $randomData = [[]];
+
+    /**
+     * wait wakeup 1s default
+     */
+    protected $waitTimeout = 1.0;
 
     public $parentFunc;
     public $childFunc;
     public $async = false;
 
     protected $childPid;
-    protected $childStatus;
+    protected $childStatus = 255;
     protected $parentFirst = false;
 
-    function __construct()
+    public function __construct()
     {
-        $this->atomic = new swoole_atomic(0);
+        $this->atomic = new Swoole\Atomic(0);
     }
 
-    function setParent(callable $func)
+    public function setParent(callable $func)
     {
         $this->parentFunc = $func;
     }
 
-    function parentFirst()
+    public function parentFirst()
     {
         $this->parentFirst = true;
     }
 
-    function childFirst()
+    public function childFirst()
     {
         $this->parentFirst = false;
     }
 
-    function setChild(callable $func)
+    public function setChild(callable $func)
     {
         $this->childFunc = $func;
     }
 
-    //等待信息
-    function wait()
+    public function setWaitTimeout(int $value)
     {
-        $this->atomic->wait();
+        $this->waitTimeout = $value;
+    }
+
+    //等待信息
+    public function wait()
+    {
+        return $this->atomic->wait($this->waitTimeout);
     }
 
     //唤醒等待的进程
-    function wakeup()
+    public function wakeup()
     {
-        $this->atomic->wakeup();
+        return $this->atomic->wakeup();
     }
 
-    function runParentFunc($pid = 0)
+    public function runParentFunc($pid = 0)
     {
-        return call_user_func($this->parentFunc, $pid);
+        if (!$this->parentFunc) {
+            return (function () { $this->kill(); })();
+        } else {
+            return call_user_func($this->parentFunc, $pid);
+        }
     }
 
-    function getFreePort(int $index = 0)
+    public function getFreePort(int $index = 0)
     {
         return $this->freePorts[$index];
     }
 
-    function runChildFunc()
+    public function setRandomFunc($func)
+    {
+        $this->randomFunc = $func;
+    }
+
+    public function initRandomData(int $size, int $len = 32)
+    {
+        $this->initRandomDataEx(1, $size, $len);
+    }
+
+    public function getRandomData()
+    {
+        return $this->getRandomDataEx(0);
+    }
+
+    public function getRandomDataSize(): int
+    {
+        return $this->getRandomDataSizeEx(0);
+    }
+
+    public function initRandomDataEx(int $block_num, int $size, ...$arguments)
+    {
+        $func = $this->randomFunc;
+        for ($b = 0; $b < $block_num; $b++) {
+            for ($n = $size; $n--;) {
+                $this->randomData[$b][] = $func(...$arguments);
+            }
+        }
+    }
+
+    public function getRandomDataEx(int $block_id)
+    {
+        if (!empty($this->randomData[$block_id])) {
+            return array_shift($this->randomData[$block_id]);
+        } else {
+            throw new \RuntimeException('Out of the bound');
+        }
+    }
+
+    public function getRandomDataSizeEx(int $block_id): int
+    {
+        return count($this->randomData[$block_id]);
+    }
+
+    public function runChildFunc()
     {
         return call_user_func($this->childFunc);
     }
 
-    function fork($func)
-    {
-        $pid = pcntl_fork();
-        if ($pid > 0)
-        {
-            return $pid;
-        }
-        elseif ($pid < 0)
-        {
-            return false;
-        }
-        else
-        {
-            call_user_func($func);
-            exit;
-        }
-    }
-
     /**
-     * 杀死子进程
+     *  Kill Child Process
      */
-    function kill()
+    public function kill()
     {
-        if (!$this->alone && $this->childPid)
-        {
-            swoole_process::kill($this->childPid);
+        if (!defined('PCNTL_ESRCH')) {
+            define('PCNTL_ESRCH', 3);
+        }
+        if (!$this->alone && $this->childPid) {
+            $ret = @Swoole\Process::kill($this->childPid);
+            if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
+                $ret = @Swoole\Process::kill($this->childPid, SIGKILL);
+            }
+            if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
+                exit('KILL CHILD PROCESS ERROR');
+            }
         }
     }
 
-    function initFreePorts(int $num = 1)
+    public function initFreePorts(int $num = 1)
     {
         if (empty($this->freePorts)) {
             for ($i = $num; $i--;) {
@@ -673,68 +793,47 @@ class ProcessManager
         }
     }
 
-    function run()
+    public function run()
     {
         global $argv, $argc;
-        if ($argc > 1)
-        {
-            if ($argv[1] == 'child')
-            {
+        if ($argc > 1) {
+            if ($argv[1] == 'child') {
                 $this->freePorts = [9501];
                 $this->alone = true;
                 return $this->runChildFunc();
-            }
-            elseif ($argv[1] == 'parent')
-            {
+            } elseif ($argv[1] == 'parent') {
                 $this->freePorts = [9501];
                 $this->alone = true;
                 return $this->runParentFunc();
             }
         }
         $this->initFreePorts();
-        $pid = pcntl_fork();
-        if ($this->parentFirst)
-        {
-            $this->atomic->set(0);
-        }
-        if ($pid < 0)
-        {
-            echo "ERROR";
-            exit;
-        }
-        //子进程
-        elseif ($pid === 0)
-        {
-            //等待父进程
-            if ($this->parentFirst)
-            {
+        $childProcess = new Swoole\Process(function () {
+            if ($this->parentFirst) {
                 $this->wait();
             }
             $this->runChildFunc();
             exit;
+        });
+        if (!$childProcess || !$childProcess->start()) {
+            exit("ERROR: CAN NOT CREATE PROCESS\n");
         }
-        //父进程
-        else
-        {
-            $this->childPid = $pid;
-            //子进程优先运行，父进程进入等待状态
-            if (!$this->parentFirst)
-            {
-                $this->wait();
-            }
-            $this->runParentFunc($pid);
-            // if ($this->async)
-            // {
-            swoole_event_wait();
-            // }
-            pcntl_waitpid($pid, $status);
-            $this->childStatus = $status;
+        if (!$this->parentFirst) {
+            $this->wait();
         }
+        $this->runParentFunc($this->childPid = $childProcess->pid);
+        Swoole\Event::wait();
+        $waitInfo = Swoole\Process::wait(true);
+        $this->childStatus = $waitInfo['code'];
+        return true;
     }
 
-    function expectExitCode($code = 0)
+    public function expectExitCode($code = 0)
     {
-        assert(pcntl_wexitstatus($this->childStatus) == $code);
+        if (!is_array($code)) {
+            $code = [$code];
+        }
+        assert(in_array($this->childStatus, $code), "unexpected exit code {$this->childStatus}");
     }
 }
 

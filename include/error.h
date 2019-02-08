@@ -20,6 +20,11 @@
 enum swErrorCode
 {
     /**
+     * Prevent repetition with errno [syscall error]
+     */
+    SW_ERROR_START = 500,
+
+    /**
      * common error
      */
     SW_ERROR_MALLOC_FAIL = 501,
@@ -34,7 +39,9 @@ enum swErrorCode
     SW_ERROR_FILE_EMPTY,
     SW_ERROR_DNSLOOKUP_DUPLICATE_REQUEST,
     SW_ERROR_DNSLOOKUP_RESOLVE_FAILED,
+    SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT,
     SW_ERROR_BAD_IPV6_ADDRESS,
+    SW_ERROR_UNREGISTERED_SIGNAL,
 
     /**
      * connection error
@@ -73,7 +80,8 @@ enum swErrorCode
     /**
      * AIO
      */
-    SW_ERROR_AIO_BAD_REQUEST   = 4001,
+    SW_ERROR_AIO_BAD_REQUEST = 4001,
+    SW_ERROR_AIO_CANCELED,
 
     /**
      * Client & Socket
@@ -104,9 +112,10 @@ enum swErrorCode
     SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT,
     SW_ERROR_SERVER_PIPE_BUFFER_FULL,
     SW_ERROR_SERVER_NO_IDLE_WORKER,
-
     SW_ERROR_SERVER_ONLY_START_ONE,
     SW_ERROR_SERVER_SEND_IN_MASTER,
+    SW_ERROR_SERVER_INVALID_REQUEST,
+    SW_ERROR_SERVER_CONNECT_FAIL,
 
     /**
      * Process exit timeout, forced to end.
@@ -131,8 +140,11 @@ enum swErrorCode
     SW_ERROR_CO_PROTECT_STACK_FAILED,
     SW_ERROR_CO_STD_THREAD_LINK_ERROR,
     SW_ERROR_CO_DISABLED_MULTI_THREAD,
+
+    SW_ERROR_END
 };
 
+const char* swoole_strerror(enum swErrorCode code);
 void swoole_throw_error(enum swErrorCode code);
 
 #endif /* SW_ERRNO_H_ */

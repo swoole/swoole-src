@@ -70,7 +70,7 @@ $pm->parentFunc = function ($pid) use ($pm)
     //echo "send ".TestServer::PKG_NUM." packet sucess, send $bytes bytes\n";
     $client->close();
 
-    sleep(0.1);
+    usleep(1);
     swoole_process::kill($pid);
 };
 

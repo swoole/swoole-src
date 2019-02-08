@@ -26,7 +26,7 @@ $pm->childFunc = function () use ($pm)
     $serv = new swoole_server('127.0.0.1', $pm->getFreePort());
     $serv->set(array(
         "worker_num" => 1,
-        'task_worker_num' => 2,
+        'task_worker_num' => 1,
         'log_file' => '/dev/null',
     ));
     $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)

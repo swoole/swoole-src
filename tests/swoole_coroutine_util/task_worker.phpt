@@ -24,7 +24,7 @@ $pm->childFunc = function () use ($pm)
         "worker_num" => 1,
         'task_worker_num' => 2,
         'log_file' => '/dev/null',
-        'task_async' => true
+        'task_enable_coroutine' => true
     ));
     $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
     {
@@ -34,12 +34,10 @@ $pm->childFunc = function () use ($pm)
         $serv->task([$fd, 'sleep']);
     });
 
-    $serv->on('task', function (swoole_server $serv, $task_id, $worker_id, $data) {
-        list($fd) = $data;
-        go(function() use ($fd, $serv) {
-            co::sleep(0.2);
-            $serv->send($fd, "sleep\r\n\r\n");
-        });
+    $serv->on('task', function (swoole_server $serv, $task) {
+        list($fd) = $task->data;
+        co::sleep(0.2);
+        $serv->send($fd, "sleep\r\n\r\n");
     });
 
     $serv->on('finish', function (swoole_server $serv, $fd, $rid, $data)

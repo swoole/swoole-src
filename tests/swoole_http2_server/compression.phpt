@@ -15,19 +15,20 @@ $pm->parentFunc = function ($pid) use ($pm) {
         ]);
         $cli->connect();
 
-        $req = new swoole_http2_request;
-        $req->path = '/';
-        $req->headers = [
-            'Host' => $domain,
-            "User-Agent" => 'Chrome/49.0.2587.3',
-            'Accept' => 'text/html,application/xhtml+xml,application/xml',
-            'Accept-encoding' => 'gzip'
-        ];
-
-        assert($cli->send($req));
-        $response = $cli->recv();
-        assert($response->statusCode === 200);
-        assert(md5_file(__DIR__ . '/../../README.md') === md5($response->data));
+        $req = new Swoole\Http2\Request;
+            $req->path = '/';
+            $req->headers = [
+                'Host' => $domain,
+                "User-Agent" => 'Chrome/49.0.2587.3',
+                'Accept' => 'text/html,application/xhtml+xml,application/xml',
+                'Accept-encoding' => 'gzip'
+            ];
+        for ($n = MAX_REQUESTS; $n--;) {
+            assert($cli->send($req));
+            $response = $cli->recv();
+            assert($response->statusCode === 200);
+            assert(md5_file(__DIR__ . '/../../README.md') === md5($response->data));
+        }
         $pm->kill();
     });
     swoole_event::wait();

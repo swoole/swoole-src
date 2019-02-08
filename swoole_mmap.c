@@ -33,7 +33,8 @@ static int mmap_stream_close(php_stream *stream, int close_handle);
 static PHP_METHOD(swoole_mmap, open);
 
 static zend_class_entry swoole_mmap_ce;
-zend_class_entry *swoole_mmap_class_entry_ptr;
+zend_class_entry *swoole_mmap_ce_ptr;
+static zend_object_handlers swoole_mmap_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mmap_open, 0, 0, 1)
     ZEND_ARG_INFO(0, filename)
@@ -124,7 +125,7 @@ static int mmap_stream_seek(php_stream *stream, off_t offset, int whence, off_t 
             *newoffset = (off_t) -1;
             return -1;
         }
-        res->ptr += offset;
+        res->ptr = res->memory + res->size + offset;
         *newoffset = res->ptr - res->memory;
         return 0;
     default:
@@ -146,24 +147,25 @@ static int mmap_stream_close(php_stream *stream, int close_handle)
 
 void swoole_mmap_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_mmap_ce, "swoole_mmap", "Swoole\\Mmap", swoole_mmap_methods);
-    swoole_mmap_class_entry_ptr = zend_register_internal_class(&swoole_mmap_ce);
-    SWOOLE_CLASS_ALIAS(swoole_mmap, "Swoole\\Mmap");
+    SWOOLE_INIT_CLASS_ENTRY(swoole_mmap, "Swoole\\Mmap", "swoole_mmap", NULL, swoole_mmap_methods);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_mmap, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_mmap, zend_class_clone_deny);
+    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_mmap, zend_class_unset_property_deny);
 }
 
 static PHP_METHOD(swoole_mmap, open)
 {
     char *filename;
     size_t l_filename;
-    long offset = 0;
-    long size = -1;
+    zend_long size = -1;
+    zend_long offset = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &filename, &l_filename, &size, &offset) == FAILURE)
     {
         RETURN_FALSE;
     }
 
-    if (l_filename <= 0)
+    if (l_filename == 0)
     {
         swoole_php_fatal_error(E_WARNING, "file name is required.");
         RETURN_FALSE;
@@ -204,7 +206,7 @@ static PHP_METHOD(swoole_mmap, open)
     void *addr = mmap(NULL, size, PROT_WRITE | PROT_READ, MAP_SHARED, fd, offset);
     if (addr == MAP_FAILED)
     {
-        swoole_php_sys_error(E_WARNING, "mmap(%ld) failed.", size);
+        swoole_php_sys_error(E_WARNING, "mmap(" ZEND_LONG_FMT ") failed.", size);
         close(fd);
         RETURN_FALSE;
     }

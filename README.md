@@ -57,6 +57,14 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 You can create multiple services on the single event loop: TCP, HTTP, Websocket and HTTP2, and easily handle thousands of requests.
 
 ```php
+function tcp_pack(string $data): string
+{
+    return pack('n', strlen($data)) . $data;
+}
+function tcp_unpack(string $data): string
+{
+    return substr($data, 2, unpack('n', substr($data, 0, 2))[1]);
+}
 $tcp_options = [
     'open_length_check' => true,
     'package_length_type' => 'n',
@@ -104,7 +112,7 @@ go(function () {
     // http2
     $http2_client = new Swoole\Coroutine\Http2\Client('localhost', 9501);
     $http2_client->connect();
-    $http2_request = new Swoole\Http2\Reuqest;
+    $http2_request = new Swoole\Http2\Request;
     $http2_request->method = 'POST';
     $http2_request->data = 'Swoole Http2';
     $http2_client->send($http2_request);
@@ -200,7 +208,7 @@ go(function () {
     // Channel: OK! I will be responsible for scheduling.
     $channel = new Swoole\Coroutine\Channel;
     go(function () use ($channel) {
-        // Coroutine A: Ok! I will show you
+        // Coroutine A: Ok! I will show you the github addr info
         $addr_info = Co::getaddrinfo('github.com');
         $channel->push(['A', json_encode($addr_info, JSON_PRETTY_PRINT)]);
     });
@@ -439,7 +447,7 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 pecl install swoole
 ```
 
-### 2. Install from source (recommand)
+### 2. Install from source (recommended)
 
 ```shell
 git clone https://github.com/swoole/swoole-src.git && \
@@ -474,7 +482,7 @@ After compiling and installing to the system successfully, you need to add a new
 ## 💎 Frameworks & Components
 
 - [**Swoft**](https://github.com/swoft-cloud) is a modern, high-performance AOP and coroutine PHP framework.
-- [**Easyswoole**](https://github.com/swoft-cloud) is a simple, high-performance PHP framework, based on Swoole, which makes using Swoole as easy as `echo "hello world"`.
+- [**Easyswoole**](https://www.easyswoole.com) is a simple, high-performance PHP framework, based on Swoole, which makes using Swoole as easy as `echo "hello world"`.
 - [**Saber**](https://github.com/swlib/saber) Is a human-friendly, high-performance HTTP client component that has almost everything you can imagine.
 
 ## 🛠 Develop & Discussion

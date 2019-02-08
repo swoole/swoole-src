@@ -7,7 +7,6 @@ swoole_coroutine_channel: type test
 require __DIR__ . '/../include/bootstrap.php';
 
 $exit_status_list = [
-    'undef',
     null,
     1,
     1.1,
@@ -33,7 +32,7 @@ go(function () use ($chan, $exit_status_list)
     foreach ($exit_status_list as $_val)
     {
         $val = $chan->pop();
-        assert($val == $_val);
+        assert($val === $_val);
     }
 });
 

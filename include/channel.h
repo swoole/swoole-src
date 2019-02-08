@@ -1,48 +1,54 @@
 #pragma once
 
 #include "swoole.h"
-#include "context.h"
 #include "coroutine.h"
-#include <string>
-#include <iostream>
-#include <list>
-#include <queue>
+
 #include <sys/stat.h>
 
-namespace swoole {
+#include <iostream>
+#include <string>
+#include <list>
+#include <queue>
 
-enum channel_op
+namespace swoole
 {
-    PRODUCER = 1,
-    CONSUMER = 2,
-};
-
-class Channel;
-
-struct notify_msg_t
-{
-    Channel *chan;
-    enum channel_op type;
-};
-
-struct timeout_msg_t
-{
-    Channel *chan;
-    coroutine_t *co;
-    bool error;
-    swTimer_node *timer;
-};
-
 class Channel
 {
-private:
-    std::list<coroutine_t *> producer_queue;
-    std::list<coroutine_t *> consumer_queue;
-    std::queue<void *> data_queue;
-    size_t capacity;
-
 public:
-    bool closed;
+    enum opcode
+    {
+        PRODUCER = 1,
+        CONSUMER = 2,
+    };
+
+    struct timer_msg_t
+    {
+        Channel *chan;
+        enum opcode type;
+        Coroutine *co;
+        bool error;
+        swTimer_node *timer;
+    };
+
+    void* pop(double timeout = -1);
+    bool push(void *data, double timeout = -1);
+    bool close();
+
+    Channel(size_t _capacity = 1) :
+            capacity(_capacity)
+    {
+    }
+
+    ~Channel()
+    {
+        SW_ASSERT(producer_queue.empty() && consumer_queue.empty());
+    }
+
+    inline bool is_closed()
+    {
+        return closed;
+    }
+
     inline bool is_empty()
     {
         return data_queue.size() == 0;
@@ -68,14 +74,6 @@ public:
         return producer_queue.size();
     }
 
-    inline void remove(coroutine_t *co)
-    {
-        consumer_queue.remove(co);
-    }
-
-    /**
-     * No coroutine scheduling
-     */
     inline void* pop_data()
     {
         if (data_queue.size() == 0)
@@ -87,29 +85,43 @@ public:
         return data;
     }
 
-    inline coroutine_t* pop_coroutine(enum channel_op type)
+protected:
+    size_t capacity = 1;
+    bool closed = false;
+    std::list<Coroutine *> producer_queue;
+    std::list<Coroutine *> consumer_queue;
+    std::queue<void *> data_queue;
+
+    static void timer_callback(swTimer *timer, swTimer_node *tnode);
+
+    void yield(enum opcode type);
+
+    inline void consumer_remove(Coroutine *co)
     {
-        coroutine_t* co;
+        consumer_queue.remove(co);
+    }
+
+    inline void producer_remove(Coroutine *co)
+    {
+        producer_queue.remove(co);
+    }
+
+    inline Coroutine* pop_coroutine(enum opcode type)
+    {
+        Coroutine* co;
         if (type == PRODUCER)
         {
             co = producer_queue.front();
             producer_queue.pop_front();
-            swDebug("resume producer[%d]", coroutine_get_cid(co));
+            swTraceLog(SW_TRACE_CHANNEL, "resume producer cid=%ld", co->get_cid());
         }
-        else
+        else // if (type == CONSUMER)
         {
             co = consumer_queue.front();
             consumer_queue.pop_front();
-            swDebug("resume consumer[%d]", coroutine_get_cid(co));
+            swTraceLog(SW_TRACE_CHANNEL, "resume consumer cid=%ld", co->get_cid());
         }
         return co;
     }
-
-    Channel(size_t _capacity);
-    void yield(enum channel_op type);
-    void* pop(double timeout = 0);
-    bool push(void *data);
-    bool close();
 };
-
 };

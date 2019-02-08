@@ -191,8 +191,8 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
 $http->on('request', function ($req, $resp) {
     $uri = $req->server['request_uri'];
     if ($uri == '/favicon.ico') {
-    	$req->status(404);
-        $req->end();
+    	$resp->status(404);
+        $resp->end();
     }
 	elseif ($uri == '/chunk') {
     	chunk($req, $resp);

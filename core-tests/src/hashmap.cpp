@@ -1,5 +1,8 @@
 #include "tests.h"
 
+#include <map>
+#include <unordered_map>
+
 typedef struct
 {
     int fd;

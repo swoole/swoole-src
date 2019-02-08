@@ -28,14 +28,14 @@ file_put_contents($config_w32, $output);
 swoole_ok('Generate config.w32 ok!');
 
 // cmake
-$cmake_lists = __DIR__ . '/../CMakeLists.txt';
-$cmake_lists_content = file_get_contents($cmake_lists);
-$output = space(4) . implode("\n" . space(4), $source_list) . "\n";
-$output = preg_replace('/(set\(SOURCE_FILES\n)[^)]+\)/', "$1{$output})", $cmake_lists_content, 1, $count);
-if ($count !== 1) {
-    swoole_error('Update source files in CMakeLists.txt error!');
-}
-file_put_contents($cmake_lists, $output);
-swoole_ok('Generate CMakeLists.txt ok!');
+// $cmake_lists = __DIR__ . '/../CMakeLists.txt';
+// $cmake_lists_content = file_get_contents($cmake_lists);
+// $output = space(4) . implode("\n" . space(4), $source_list) . "\n";
+// $output = preg_replace('/(set\(SOURCE_FILES\n)[^)]+\)/', "$1{$output})", $cmake_lists_content, 1, $count);
+// if ($count !== 1) {
+//     swoole_error('Update source files in CMakeLists.txt error!');
+// }
+// file_put_contents($cmake_lists, $output);
+// swoole_ok('Generate CMakeLists.txt ok!');
 
 swoole_success('Config generator successfully done!');

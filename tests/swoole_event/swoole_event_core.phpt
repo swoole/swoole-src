@@ -45,4 +45,3 @@ echo "SUCCESS";
 ?>
 --EXPECT--
 SUCCESS
-

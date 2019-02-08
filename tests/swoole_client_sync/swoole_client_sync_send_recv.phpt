@@ -15,10 +15,10 @@ $client->connect(UDP_SERVER_HOST, UDP_SERVER_PORT);
 
 $data = "UdpSendto";
 $client->send($data);
-
+usleep(100 * 1000);
 $message = $client->recv();
 echo "FromServer:$message\n";
-echo "SUCCESS";
+echo "SUCCESS\n";
 
 ?>
 --EXPECTF--

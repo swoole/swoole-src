@@ -11,6 +11,8 @@ go(function () {
             $main = go(function () {
                 $coros = Co::listCoroutines();
                 Co::yield();
+                $coros = iterator_to_array($coros);
+                sort($coros);
                 foreach ($coros as $cid) {
                     var_dump($cid);
                     var_dump(Co::getBackTrace($cid));
@@ -33,16 +35,67 @@ go(function () {
         });
     });
 });
+swoole_event_wait();
 ?>
 --EXPECTF--
 int(1)
-array(0) {
+array(1) {
+  [0]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(31)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#2 (0) {
+      }
+    }
+  }
 }
 int(2)
-array(0) {
+array(1) {
+  [0]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(30)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#3 (0) {
+      }
+    }
+  }
 }
 int(3)
-array(0) {
+array(1) {
+  [0]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(29)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#6 (1) {
+        ["static"]=>
+        array(1) {
+          ["main"]=>
+          int(4)
+        }
+      }
+    }
+  }
 }
 int(4)
 array(1) {
@@ -51,7 +104,7 @@ array(1) {
     ["file"]=>
     string(%d) "%s"
     ["line"]=>
-    int(11)
+    int(13)
     ["function"]=>
     string(12) "getBackTrace"
     ["class"]=>
@@ -66,7 +119,27 @@ array(1) {
   }
 }
 int(5)
-array(0) {
+array(1) {
+  [0]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(28)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#10 (1) {
+        ["static"]=>
+        array(1) {
+          ["main"]=>
+          int(4)
+        }
+      }
+    }
+  }
 }
 int(6)
 array(1) {
@@ -75,7 +148,7 @@ array(1) {
     ["file"]=>
     string(%d) "%s"
     ["line"]=>
-    int(16)
+    int(18)
     ["function"]=>
     string(5) "sleep"
     ["class"]=>
@@ -96,7 +169,7 @@ array(1) {
     ["file"]=>
     string(%d) "%s"
     ["line"]=>
-    int(19)
+    int(21)
     ["function"]=>
     string(8) "readFile"
     ["class"]=>
@@ -117,7 +190,7 @@ array(1) {
     ["file"]=>
     string(%d) "%s"
     ["line"]=>
-    int(22)
+    int(24)
     ["function"]=>
     string(11) "getaddrinfo"
     ["class"]=>
@@ -138,7 +211,7 @@ array(1) {
     ["file"]=>
     string(%d) "%s"
     ["line"]=>
-    int(25)
+    int(27)
     ["function"]=>
     string(6) "resume"
     ["class"]=>

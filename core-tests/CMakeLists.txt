@@ -1,8 +1,13 @@
 cmake_minimum_required(VERSION 2.8)
 project(core_tests)
-set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_BUILD_TYPE Released)
 set(CMAKE_CXX_STANDARD 11)
 file(GLOB_RECURSE SOURCE_FILES FOLLOW_SYMLINKS src/*.cpp)
+
+option(USE_CARES "test cares" OFF)
+if(USE_CARES)
+    add_definitions(-DSW_USE_CARES)
+endif(USE_CARES)
 
 add_definitions(-DHAVE_CONFIG_H)
 

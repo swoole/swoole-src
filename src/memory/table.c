@@ -143,7 +143,7 @@ int swTableColumn_add(swTable *table, char *name, int len, int type, int size)
     }
     col->index = table->item_size;
     table->item_size += col->size;
-    table->column_num ++;
+    ++table->column_num;
     return swHashMap_add(table->columns, name, len, col);
 }
 
@@ -462,7 +462,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
         {
             tmp = tmp->next;
             row->next = tmp->next;
-            memcpy(row->key, tmp->key, strlen(tmp->key));
+            memcpy(row->key, tmp->key, strlen(tmp->key) + 1);
             memcpy(row->data, tmp->data, table->item_size);
         }
         if (prev)

@@ -116,6 +116,15 @@ if ((substr(PHP_OS, 0, 3) == "WIN") && empty($environment["SystemRoot"])) {
     $environment["SystemRoot"] = getenv("SystemRoot");
 }
 
+// swoole patch (persistent config)
+{
+    $environment['HAS_NETSTAT'] = $environment['HAS_NETSTAT'] ?? (stripos(`netstat --help 2>&1`, 'usage') ? '1' : '0');
+    if ($environment['HAS_NETSTAT']) {
+        $environment['MYSQL_SERVER_PATH'] = $environment['MYSQL_SERVER_PATH'] ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*mysqld?\.sock'`) ?: null);
+        $environment['REDIS_SERVER_PATH'] = $environment['REDIS_SERVER_PATH'] ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*redis.*\.sock'`) ?: null);
+    }
+}
+
 // Don't ever guess at the PHP executable location.
 // Require the explicit specification.
 // Otherwise we could end up testing the wrong file!
@@ -531,6 +540,12 @@ foreach($cfgtypes as $type) {
         $cfg[$type][$file] = false;
     }
 }
+
+// swoole patch: show diff by default
+$cfg['show']['diff'] = true;
+$cfg['show']['mem'] = true;
+$cfg['show']['slow'] = true;
+$slow_min_ms = 1000;
 
 if (getenv('TEST_PHP_ARGS')) {
 
@@ -2705,14 +2720,22 @@ function show_result($result, $tested, $tested_file, $extra = '', $temp_filename
     global $html_output, $html_file, $temp_target, $temp_urlbase, $line_length, $SHOW_ONLY_GROUPS;
 
     // swoole patch: color print
-    if ($result == 'PASS') {
-        $color = SWOOLE_COLOR_GREEN;
-    } elseif ($result == 'LEAK' || $result == 'BORK') {
-        $color = SWOOLE_COLOR_MAGENTA;
-    } elseif ($result == 'SKIP') {
-        $color = SWOOLE_COLOR_YELLOW;
-    } else {
-        $color = SWOOLE_COLOR_RED;
+    switch ($result) {
+        case 'PASS':
+            $color = SWOOLE_COLOR_GREEN;
+            break;
+        case 'LEAK':
+            $result = 'ERROR';
+            $color = SWOOLE_COLOR_MAGENTA;
+            break;
+        case 'BORK':
+            $color = SWOOLE_COLOR_BLUE;
+            break;
+        case 'SKIP':
+            $color = SWOOLE_COLOR_YELLOW;
+            break;
+        default:
+            $color = SWOOLE_COLOR_RED;
     }
     $result = "\033[3{$color}m[$result]\033[0m";
 

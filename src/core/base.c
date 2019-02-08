@@ -68,8 +68,6 @@ void swoole_init(void)
 
     SwooleG.pid = getpid();
 
-    SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
-
 #ifdef SW_DEBUG
     SwooleG.log_level = 0;
     SwooleG.trace_flags = 0x7fffffff;
@@ -96,20 +94,21 @@ void swoole_init(void)
     swMutex_create(&SwooleGS->lock_2, 1);
     swMutex_create(&SwooleG.lock, 0);
 
-#ifdef _WIN32
     SwooleG.max_sockets = 1024;
-#else
+#ifndef _WIN32
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {
         swWarn("getrlimit() failed. Error: %s[%d]", strerror(errno), errno);
-        SwooleG.max_sockets = 1024;
     }
     else
     {
-        SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
+        SwooleG.max_sockets = MAX((uint32_t) rlmt.rlim_cur, 1024);
+        SwooleG.max_sockets = MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
 #endif
+
+    SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
 
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == NULL)
@@ -234,7 +233,7 @@ int swoole_mkdir_recursive(const char *dir)
         swWarn("mkdir(%s) failed. Path exceeds the limit of %d characters.", dir, PATH_MAX - 1);
         return -1;
     }
-    strncpy(tmp, dir, len + 1);
+    strncpy(tmp, dir, PATH_MAX);
 
     if (dir[len - 1] != '/')
     {
@@ -777,6 +776,27 @@ void swBreakPoint()
 
 }
 
+size_t sw_snprintf(char *buf, size_t size, const char *format, ...)
+{
+    int ret;
+    va_list args;
+
+    va_start(args, format);
+    ret = vsnprintf(buf, size, format, args);
+    va_end(args);
+    if (unlikely(ret < 0))
+    {
+        ret = 0;
+        buf[0] = '\0';
+    }
+    else if (unlikely(ret >= size))
+    {
+        ret = size - 1;
+        buf[ret] = '\0';
+    }
+    return ret;
+}
+
 void swoole_ioctl_set_block(int sock, int nonblock)
 {
     int ret;
@@ -1207,7 +1227,7 @@ SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg)
     }
 }
 
-int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream)
+int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream)
 {
     pid_t child_pid;
     int fds[2];
@@ -1268,21 +1288,20 @@ int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream)
 char* swoole_string_format(size_t n, const char *format, ...)
 {
     char *buf = sw_malloc(n);
-    if (buf == NULL)
+    if (buf)
     {
-        return NULL;
-    }
-
-    va_list _va_list;
-    va_start(_va_list, format);
-
-    if (vsnprintf(buf, n, format, _va_list) < 0)
-    {
+        int ret;
+        va_list va_list;
+        va_start(va_list, format);
+        ret = vsnprintf(buf, n, format, va_list);
+        va_end(va_list);
+        if (ret >= 0)
+        {
+            return buf;
+        }
         sw_free(buf);
-        return NULL;
     }
-
-    return buf;
+    return NULL;
 }
 
 #ifdef HAVE_EXECINFO

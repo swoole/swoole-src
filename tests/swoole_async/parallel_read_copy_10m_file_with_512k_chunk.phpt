@@ -13,5 +13,3 @@ parallel_read_copy($chunk, 10);
 ?>
 --EXPECT--
 SUCCESS
-
---CLEAN--

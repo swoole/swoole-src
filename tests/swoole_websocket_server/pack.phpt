@@ -22,7 +22,7 @@ for ($i = 1000; $i--;) {
     // pack them
     if (mt_rand(0, 1) || $opcode === WEBSOCKET_OPCODE_CLOSE) {
         if ($opcode === WEBSOCKET_OPCODE_CLOSE) {
-            $frame = new swoole_websocket_close_frame;
+            $frame = new swoole_websocket_closeframe;
             $frame->code = $code;
             $frame->reason = $data;
         } else {
