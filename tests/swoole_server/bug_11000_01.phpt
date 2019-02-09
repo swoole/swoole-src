@@ -22,7 +22,7 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-array(8) {
+array(9) {
   ["start_time"]=>
   int(%d)
   ["connection_num"]=>
@@ -36,6 +36,8 @@ array(8) {
   ["request_count"]=>
   int(0)
   ["worker_request_count"]=>
+  int(0)
+  ["worker_dispatch_count"]=>
   int(0)
   ["coroutine_num"]=>
   int(0)

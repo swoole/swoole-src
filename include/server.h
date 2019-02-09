@@ -1029,7 +1029,7 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_free(swServer *serv);
 int swReactorThread_close(swReactor *reactor, int fd);
 int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length);
-int swReactorThread_send2worker(swServer *serv, void *data, int len, uint16_t target_worker_id);
+int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, int len);
 
 int swReactorProcess_create(swServer *serv);
 int swReactorProcess_start(swServer *serv);
