@@ -295,6 +295,15 @@ void sw_coro_socket_set(Socket *cli, zval *zset)
 
     vht = Z_ARRVAL_P(zset);
 
+    // timeout
+    if (php_swoole_array_get_value(vht, "timeout", v))
+    {
+        cli->set_timeout(zval_get_double(v));
+    }
+    else
+    {
+        cli->set_timeout(PHPCoroutine::socket_connect_timeout);
+    }
     //buffer: eof check
     if (php_swoole_array_get_value(vht, "open_eof_check", v))
     {
@@ -700,6 +709,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     }
 
     PHPCoroutine::check_bind("client", cli->get_bound_cid());
+    double persistent_timeout = cli->get_timeout();
     cli->set_timeout(timeout == 0 ? PHPCoroutine::socket_connect_timeout : timeout);
     if (!cli->connect(host, port, sock_flag))
     {
@@ -710,7 +720,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     }
     else
     {
-        cli->set_timeout(timeout == 0 ? PHPCoroutine::socket_timeout : timeout);
+        cli->set_timeout(timeout == 0 ? persistent_timeout : timeout);
         zend_update_property_bool(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("connected"), 1);
         RETURN_TRUE;
     }
