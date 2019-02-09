@@ -1066,8 +1066,11 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
         swAio_free();
     }
 
+    swoole_async_shutdown();
+
     SwooleWG.reactor_wait_onexit = 0;
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;
+
     return SUCCESS;
 }
 

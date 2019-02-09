@@ -386,6 +386,9 @@ void swoole_serialize_init(int module_number);
 #endif
 void swoole_memory_pool_init(int module_number);
 
+//RSHUTDOWN
+void swoole_async_shutdown();
+
 void php_swoole_process_clean();
 int php_swoole_process_start(swWorker *process, zval *zobject);
 
