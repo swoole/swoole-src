@@ -1816,6 +1816,12 @@ static sw_inline void swReactor_del(swReactor *reactor, int fd)
     socket->removed = 1;
 }
 
+static sw_inline int swReactor_exists(swReactor *reactor, int fd)
+{
+    swConnection *socket = swReactor_get(reactor, fd);
+    return !socket->removed && socket->events;
+}
+
 int swReactor_onWrite(swReactor *reactor, swEvent *ev);
 int swReactor_close(swReactor *reactor, int fd);
 int swReactor_write(swReactor *reactor, int fd, void *buf, int n);
@@ -2138,6 +2144,8 @@ typedef struct
     swString **buffer_input;
     swString **buffer_output;
     swWorker *worker;
+    time_t exit_time;
+    swTimer_node *timer;
 
 } swWorkerG;
 

@@ -36,7 +36,6 @@ static void swManager_signal_handler(int sig);
 static pid_t swManager_spawn_worker(swFactory *factory, int worker_id);
 static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status);
 
-
 static swManagerProcess ManagerProcess;
 
 static void swManager_onTimer(swTimer *timer, swTimer_node *tnode)
