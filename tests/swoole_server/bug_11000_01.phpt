@@ -22,7 +22,7 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-array(8) {
+array(9) {
   ["start_time"]=>
   int(%d)
   ["connection_num"]=>
