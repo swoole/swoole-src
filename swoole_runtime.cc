@@ -378,7 +378,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
 {
     char *host = NULL;
     int portno = 0;
-    int ret;
+    int ret = 0;
     char *ip_address = NULL;
 
     if (unlikely(sock->socket == nullptr))
@@ -405,6 +405,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     {
         return -1;
     }
+    double persistent_timeout = sock->get_timeout();
     if (xparam->inputs.timeout)
     {
         sock->set_timeout(xparam->inputs.timeout);
@@ -418,10 +419,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
         }
         ret = -1;
     }
-    else
-    {
-        ret = 0;
-    }
+    sock->set_timeout(persistent_timeout);
     if (ip_address)
     {
         efree(ip_address);
