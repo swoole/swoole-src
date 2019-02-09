@@ -54,13 +54,14 @@ public:
     http_socket(swSocket_type socket_type) :
             Socket(socket_type)
     {
+        this->set_timeout(PHPCoroutine::socket_timeout);
     }
     bool recv_http_response(const swoole_http_parser_settings *settings, void *data, double timeout = 0)
     {
         ssize_t retval = 0;
         size_t total_bytes = 0, parsed_n = 0;
         swString *buffer = get_read_buffer();
-        Timer timer(&read_timer, timeout, this, timer_callback);
+        Timer timer(&read_timer, timeout == 0 ? this->timeout : timeout, this, timer_callback);
         if (unlikely(!timer.create()))
         {
             return false;
