@@ -42,7 +42,7 @@ static void swProcessPool_killTimeout(swTimer *timer, swTimer_node *tnode)
         if (i >= pool->reload_worker_i)
         {
             reload_worker_pid = pool->reload_workers[i].pid;
-            if (kill(reload_worker_pid, 0 == -1))
+            if (kill(reload_worker_pid, 0) == -1)
             {
                 continue;
             }

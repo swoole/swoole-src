@@ -178,7 +178,7 @@ static int swWorker_onStreamRead(swReactor *reactor, swEvent *event)
 
     if (!event->socket->recv_buffer)
     {
-        buffer = swLinkedList_shift(serv->buffer_pool);
+        buffer = (swString *) swLinkedList_shift(serv->buffer_pool);
         if (buffer == NULL)
         {
             buffer = swString_new(8192);
@@ -269,7 +269,7 @@ static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEvent
 
 int swWorker_onTask(swFactory *factory, swEventData *task)
 {
-    swServer *serv = factory->ptr;
+    swServer *serv = (swServer *) factory->ptr;
     swString *package = NULL;
 
 #ifdef SW_USE_OPENSSL
@@ -609,7 +609,7 @@ void swWorker_try_to_exit()
 
     while (1)
     {
-        if (SwooleG.main_reactor->event_num == expect_event_num)
+        if (SwooleG.main_reactor->can_exit() == expect_event_num)
         {
             SwooleG.main_reactor->running = 0;
             SwooleG.running = 0;
@@ -654,7 +654,7 @@ void swWorker_clean(void)
  */
 int swWorker_loop(swFactory *factory, int worker_id)
 {
-    swServer *serv = factory->ptr;
+    swServer *serv = (swServer *) factory->ptr;
 
 #ifndef SW_WORKER_USE_SIGNALFD
     SwooleG.use_signalfd = 0;
@@ -759,7 +759,7 @@ int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, in
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 {
     swEventData task;
-    swServer *serv = reactor->ptr;
+    swServer *serv = (swServer *) reactor->ptr;
     swFactory *factory = &serv->factory;
     int ret;
 

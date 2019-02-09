@@ -58,7 +58,7 @@ static void swManager_killTimeout(swTimer *timer, swTimer_node *tnode)
         if (i >= ManagerProcess.reload_worker_i)
         {
             reload_worker_pid = ManagerProcess.reload_workers[i].pid;
-            if (kill(reload_worker_pid, 0 == -1))
+            if (kill(reload_worker_pid, 0) == -1)
             {
                 continue;
             }
