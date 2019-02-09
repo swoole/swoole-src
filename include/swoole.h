@@ -1604,6 +1604,7 @@ struct _swWorker
     time_t start_time;
     time_t request_time;
 
+    long dispatch_count;
     long request_count;
 
 	/**

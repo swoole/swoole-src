@@ -423,12 +423,9 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
     return SW_OK;
 }
 
-int swReactorThread_send2worker(swServer *serv, void *data, int len, uint16_t target_worker_id)
+int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, int len)
 {
-    assert(target_worker_id < serv->worker_num);
-
     int ret = -1;
-    swWorker *worker = &(serv->workers[target_worker_id]);
 
     //reactor thread
     if (SwooleTG.type == SW_THREAD_REACTOR)
