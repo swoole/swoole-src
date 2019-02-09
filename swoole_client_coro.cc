@@ -144,6 +144,7 @@ void swoole_client_coro_init(int module_number)
     SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_client_coro, zend_class_unset_property_deny);
 
     zend_declare_property_long(swoole_client_coro_ce_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_client_coro_ce_ptr, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_client_coro_ce_ptr, ZEND_STRL("sock"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_client_coro_ce_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_client_coro_ce_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
@@ -166,9 +167,8 @@ static sw_inline Socket* client_get_ptr(zval *zobject, bool silent = false)
     {
         if (!silent)
         {
-            SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
-            zend_update_property_long(swoole_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error);
-            swoole_php_error(E_WARNING, "client is not connected to server.");
+            zend_update_property_long(swoole_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SW_ERROR_CLIENT_NO_CONNECTION);
+            zend_update_property_string(swoole_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), swoole_strerror(SW_ERROR_CLIENT_NO_CONNECTION));
         }
         return nullptr;
     }
@@ -190,6 +190,7 @@ static Socket* client_coro_new(zval *zobject, int port)
     {
         swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
         zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), errno);
+        zend_update_property_string(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errMsg"), strerror(errno));
         delete cli;
         return NULL;
     }
@@ -683,12 +684,11 @@ static PHP_METHOD(swoole_client_coro, connect)
     Socket *cli = (Socket *) swoole_get_object(getThis());
     if (cli)
     {
-        swoole_php_error(E_WARNING, "connection to the server has already been established.");
         RETURN_FALSE;
     }
 
     cli = client_coro_new(getThis(), (int) port);
-    if (cli == NULL)
+    if (!cli)
     {
         RETURN_FALSE;
     }
@@ -703,8 +703,8 @@ static PHP_METHOD(swoole_client_coro, connect)
     cli->set_timeout(timeout == 0 ? PHPCoroutine::socket_connect_timeout : timeout);
     if (!cli->connect(host, port, sock_flag))
     {
-        swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int )port, cli->errMsg, cli->errCode);
         zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
+        zend_update_property_string(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), cli->errMsg);
         client_coro_close(getThis());
         RETURN_FALSE;
     }
@@ -740,8 +740,6 @@ static PHP_METHOD(swoole_client_coro, send)
         RETURN_FALSE;
     }
 
-    //clear errno
-    SwooleG.error = 0;
     PHPCoroutine::check_bind("client", cli->get_bound_cid(SW_EVENT_WRITE));
     double persistent_timeout = cli->get_timeout();
     cli->set_timeout(timeout);
@@ -749,16 +747,16 @@ static PHP_METHOD(swoole_client_coro, send)
     cli->set_timeout(persistent_timeout);
     if (ret < 0)
     {
-        swoole_php_sys_error(E_WARNING, "failed to send %zu bytes to fd#%d.", data_len, cli->socket->fd);
-        zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = cli->errCode));
+        zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
+        zend_update_property_string(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), cli->errMsg);
         RETVAL_FALSE;
     }
     else
     {
-        if ((ret < 0 || (size_t) ret < data_len) && cli->errCode)
+        if ((size_t) ret < data_len && cli->errCode)
         {
-            swoole_php_sys_error(E_WARNING, "expected sent %zu bytes to fd #%d but actually %zu bytes.", data_len, cli->socket->fd, ret);
-            zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = cli->errCode));
+            zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
+            zend_update_property_string(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), cli->errMsg);
         }
         RETURN_LONG(ret);
     }
@@ -779,7 +777,6 @@ static PHP_METHOD(swoole_client_coro, sendto)
 
     if (len == 0)
     {
-        swoole_php_error(E_WARNING, "data to send is empty.");
         RETURN_FALSE;
     }
 
@@ -787,7 +784,7 @@ static PHP_METHOD(swoole_client_coro, sendto)
     if (!cli)
     {
         cli = client_coro_new(getThis(), (int) port);
-        if (cli == NULL)
+        if (!cli)
         {
             RETURN_FALSE;
         }
@@ -809,7 +806,6 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
 
     if (length <= 0)
     {
-        swoole_php_error(E_WARNING, "invalid length.");
         RETURN_FALSE;
     }
 
@@ -817,7 +813,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     if (!cli)
     {
         cli = client_coro_new(getThis());
-        if (cli == NULL)
+        if (!cli)
         {
             RETURN_FALSE;
         }
@@ -826,7 +822,6 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
 
     zend_string *retval = zend_string_alloc(length + 1, 0);
     PHPCoroutine::check_bind("client", cli->get_bound_cid(SW_EVENT_READ));
-    // cli->set_timeout(timeout, true); TODO
     ssize_t n_bytes = cli->recvfrom(ZSTR_VAL(retval), length);
     if (n_bytes < 0)
     {
@@ -871,17 +866,16 @@ static PHP_METHOD(swoole_client_coro, sendfile)
     //only stream socket can sendfile
     if (!(cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6 || cli->type == SW_SOCK_UNIX_STREAM))
     {
-        swoole_php_error(E_WARNING, "dgram socket cannot use sendfile.");
+        zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), EINVAL);
+        zend_update_property_string(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), "dgram socket cannot use sendfile.");
         RETURN_FALSE;
     }
-    //clear errno
-    SwooleG.error = 0;
     PHPCoroutine::check_bind("client", cli->get_bound_cid(SW_EVENT_WRITE));
     int ret = cli->sendfile(file, offset, length);
     if (ret < 0)
     {
-        swoole_php_error(E_WARNING, "sendfile() failed. Error: %s [%d]", cli->errMsg, (SwooleG.error = cli->errCode));
         zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
+        zend_update_property_string(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), cli->errMsg);
         RETVAL_FALSE;
     }
     else
@@ -934,8 +928,8 @@ static PHP_METHOD(swoole_client_coro, recv)
     }
     if (retval < 0)
     {
-        swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", cli->errMsg, (SwooleG.error = cli->errCode));
         zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
+        zend_update_property_string(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), cli->errMsg);
         RETURN_FALSE;
     }
     else if (retval == 0)
@@ -961,13 +955,12 @@ static PHP_METHOD(swoole_client_coro, peek)
         RETURN_FALSE;
     }
 
-    SwooleG.error = 0;
     buf = (char *) emalloc(buf_len + 1);
     ret = cli->peek(buf, buf_len);
     if (ret < 0)
     {
-        swoole_php_error(E_WARNING, "peek() failed. Error: %s [%d]", cli->errMsg, (SwooleG.error = cli->errCode));
         zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
+        zend_update_property_string(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), cli->errMsg);
         efree(buf);
         RETURN_FALSE;
     }
