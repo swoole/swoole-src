@@ -37,6 +37,8 @@ array(8) {
   int(0)
   ["worker_request_count"]=>
   int(0)
+  ["worker_dispatch_count"]=>
+  int(0)
   ["coroutine_num"]=>
   int(0)
 }
