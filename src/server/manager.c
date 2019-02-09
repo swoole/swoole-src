@@ -527,7 +527,7 @@ static pid_t swManager_spawn_worker(swFactory *factory, int worker_id)
     pid_t pid;
     int ret;
 
-    pid = fork();
+    pid = swoole_fork();
 
     //fork() failed
     if (pid < 0)
@@ -665,7 +665,7 @@ pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker)
 
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
 {
-    pid_t pid = fork();
+    pid_t pid = swoole_fork();
 
     if (pid < 0)
     {

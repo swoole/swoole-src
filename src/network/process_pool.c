@@ -386,7 +386,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
 
 pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker)
 {
-    pid_t pid = fork();
+    pid_t pid = swoole_fork();
     int ret_code = 0;
 
     switch (pid)

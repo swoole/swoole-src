@@ -39,7 +39,6 @@ void swWorker_free(swWorker *worker)
 
 void swWorker_signal_init(void)
 {
-    swSignal_clear();
     /**
      * use user settings
      */
@@ -399,19 +398,6 @@ void swWorker_onStart(swServer *serv)
         SwooleG.enable_coroutine = 1;
     }
 
-    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-    if (SwooleG.memory_pool == NULL)
-    {
-        printf("[Worker] Fatal Error: global memory allocation failure.");
-        exit(1);
-    }
-
-    if (SwooleG.timer.initialized)
-    {
-        swTimer_free(&SwooleG.timer);
-        bzero(&SwooleG.timer, sizeof(SwooleG.timer));
-    }
-
     int is_root = !geteuid();
     struct passwd *passwd = NULL;
     struct group *group = NULL;
@@ -676,7 +662,6 @@ int swWorker_loop(swFactory *factory, int worker_id)
 
     //worker_id
     SwooleWG.id = worker_id;
-    SwooleG.pid = getpid();
 
     swWorker *worker = swServer_get_worker(serv, worker_id);
     swServer_worker_init(serv, worker);
