@@ -163,6 +163,50 @@ void swoole_clean(void)
     }
 }
 
+pid_t swoole_fork()
+{
+    pid_t pid = fork();
+    if (pid == 0)
+    {
+        /**
+         * [!!!] All timers and event loops must be cleaned up after fork
+         */
+        if (SwooleG.timer.initialized)
+        {
+            swTimer_free(&SwooleG.timer);
+            bzero(&SwooleG.timer, sizeof(SwooleG.timer));
+        }
+        /**
+         * reset SwooleG.memory_pool
+         */
+        SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
+        if (SwooleG.memory_pool == NULL)
+        {
+            printf("[Worker] Fatal Error: global memory allocation failure.");
+            exit(1);
+        }
+        /**
+         * reset eventLoop
+         */
+        if (SwooleG.main_reactor)
+        {
+            SwooleG.main_reactor->free(SwooleG.main_reactor);
+            SwooleG.main_reactor = NULL;
+            swTraceLog(SW_TRACE_PHP, "destroy reactor");
+        }
+        /**
+         * reset signal handler
+         */
+        swSignal_clear();
+        /**
+         * reset global struct
+         */
+        bzero(&SwooleWG, sizeof(SwooleWG));
+        SwooleG.pid = getpid();
+    }
+    return pid;
+}
+
 uint64_t swoole_hash_key(char *str, int str_len)
 {
     uint64_t hash = 5381;

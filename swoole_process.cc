@@ -658,13 +658,6 @@ zend_bool php_swoole_signal_isset_handler(int signo)
 
 void php_swoole_process_clean()
 {
-    if (SwooleG.timer.initialized)
-    {
-        swTimer_free(&SwooleG.timer);
-        bzero(&SwooleG.timer, sizeof(SwooleG.timer));
-    }
-
-    swSignal_clear();
     int i;
     for (i = 0; i < SW_SIGNO_MAX; i++)
     {
@@ -674,26 +667,6 @@ void php_swoole_process_clean()
             signal_callback[i] = NULL;
         }
     }
-
-    /**
-     * Close EventLoop
-     */
-    if (SwooleG.main_reactor)
-    {
-        SwooleG.main_reactor->free(SwooleG.main_reactor);
-        SwooleG.main_reactor = NULL;
-        swTraceLog(SW_TRACE_PHP, "destroy reactor");
-    }
-
-    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-    if (SwooleG.memory_pool == NULL)
-    {
-        printf("[Process] Fatal Error: global memory allocation failure.");
-        exit(1);
-    }
-
-    bzero(&SwooleWG, sizeof(SwooleWG));
-    SwooleG.pid = getpid();
 
     if (SwooleG.process_type != SW_PROCESS_USERWORKER)
     {
@@ -790,7 +763,7 @@ static PHP_METHOD(swoole_process, start)
         RETURN_FALSE;
     }
 
-    pid_t pid = fork();
+    pid_t pid = swoole_fork();
     if (pid < 0)
     {
         swoole_php_fatal_error(E_WARNING, "fork() failed. Error: %s[%d]", strerror(errno), errno);

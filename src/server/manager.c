@@ -36,7 +36,6 @@ static void swManager_signal_handler(int sig);
 static pid_t swManager_spawn_worker(swFactory *factory, int worker_id);
 static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status);
 
-
 static swManagerProcess ManagerProcess;
 
 static void swManager_onTimer(swTimer *timer, swTimer_node *tnode)
@@ -58,7 +57,7 @@ static void swManager_killTimeout(swTimer *timer, swTimer_node *tnode)
         if (i >= ManagerProcess.reload_worker_i)
         {
             reload_worker_pid = ManagerProcess.reload_workers[i].pid;
-            if (kill(reload_worker_pid, 0 == -1))
+            if (kill(reload_worker_pid, 0) == -1)
             {
                 continue;
             }
@@ -528,7 +527,7 @@ static pid_t swManager_spawn_worker(swFactory *factory, int worker_id)
     pid_t pid;
     int ret;
 
-    pid = fork();
+    pid = swoole_fork();
 
     //fork() failed
     if (pid < 0)
@@ -666,7 +665,7 @@ pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker)
 
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
 {
-    pid_t pid = fork();
+    pid_t pid = swoole_fork();
 
     if (pid < 0)
     {

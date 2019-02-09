@@ -39,7 +39,6 @@ void swWorker_free(swWorker *worker)
 
 void swWorker_signal_init(void)
 {
-    swSignal_clear();
     /**
      * use user settings
      */
@@ -178,7 +177,7 @@ static int swWorker_onStreamRead(swReactor *reactor, swEvent *event)
 
     if (!event->socket->recv_buffer)
     {
-        buffer = swLinkedList_shift(serv->buffer_pool);
+        buffer = (swString *) swLinkedList_shift(serv->buffer_pool);
         if (buffer == NULL)
         {
             buffer = swString_new(8192);
@@ -269,7 +268,7 @@ static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEvent
 
 int swWorker_onTask(swFactory *factory, swEventData *task)
 {
-    swServer *serv = factory->ptr;
+    swServer *serv = (swServer *) factory->ptr;
     swString *package = NULL;
 
 #ifdef SW_USE_OPENSSL
@@ -399,13 +398,6 @@ void swWorker_onStart(swServer *serv)
         SwooleG.enable_coroutine = 1;
     }
 
-    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-    if (SwooleG.memory_pool == NULL)
-    {
-        printf("[Worker] Fatal Error: global memory allocation failure.");
-        exit(1);
-    }
-
     int is_root = !geteuid();
     struct passwd *passwd = NULL;
     struct group *group = NULL;
@@ -456,7 +448,7 @@ void swWorker_onStart(swServer *serv)
         }
     }
 
-    int i;
+    uint32_t i;
     for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
         swWorker *worker = swServer_get_worker(serv, i);
@@ -563,7 +555,8 @@ void swWorker_stop(swWorker *worker)
 
     try_to_exit:
     SwooleWG.wait_exit = 1;
-    swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, NULL, swWorker_onTimeout);
+    SwooleWG.timer = swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, NULL, swWorker_onTimeout);
+    SwooleWG.exit_time = serv->gs->now;
 
     swWorker_try_to_exit();
 }
@@ -579,15 +572,6 @@ void swWorker_try_to_exit()
 {
     swWorker *worker = SwooleWG.worker;
     swServer *serv = (swServer *) worker->pool->ptr;
-
-    int expect_event_num = SwooleG.use_signalfd ? 1 : 0;
-
-    if (SwooleAIO.init && SwooleAIO.task_num == 0)
-    {
-        swAio_free();
-    }
-
-    swDNSResolver_free();
 
     //close all client connections
     if (serv->factory_mode == SW_MODE_BASE)
@@ -607,9 +591,14 @@ void swWorker_try_to_exit()
 
     uint8_t call_worker_exit_func = 0;
 
+    if (SwooleWG.timer)
+    {
+        swTimer_del(&SwooleG.timer, SwooleWG.timer);
+    }
+
     while (1)
     {
-        if (SwooleG.main_reactor->event_num == expect_event_num)
+        if (swReactor_empty(SwooleG.main_reactor))
         {
             SwooleG.main_reactor->running = 0;
             SwooleG.running = 0;
@@ -621,6 +610,15 @@ void swWorker_try_to_exit()
                 serv->onWorkerExit(serv, SwooleWG.id);
                 call_worker_exit_func = 1;
                 continue;
+            }
+            int remaining_time = serv->max_wait_time - (serv->gs->now - SwooleWG.exit_time);
+            if (remaining_time <= 0)
+            {
+                swWorker_onTimeout(nullptr, nullptr);
+            }
+            else
+            {
+                SwooleWG.timer = swTimer_add(&SwooleG.timer, (long) (remaining_time * 1000), 0, NULL, swWorker_onTimeout);
             }
         }
         break;
@@ -654,7 +652,7 @@ void swWorker_clean(void)
  */
 int swWorker_loop(swFactory *factory, int worker_id)
 {
-    swServer *serv = factory->ptr;
+    swServer *serv = (swServer *) factory->ptr;
 
 #ifndef SW_WORKER_USE_SIGNALFD
     SwooleG.use_signalfd = 0;
@@ -664,12 +662,11 @@ int swWorker_loop(swFactory *factory, int worker_id)
 
     //worker_id
     SwooleWG.id = worker_id;
-    SwooleG.pid = getpid();
 
     swWorker *worker = swServer_get_worker(serv, worker_id);
     swServer_worker_init(serv, worker);
 
-    SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
+    SwooleG.main_reactor = (swReactor *) sw_malloc(sizeof(swReactor));
     if (SwooleG.main_reactor == NULL)
     {
         swError("[Worker] malloc for reactor failed.");
@@ -759,7 +756,7 @@ int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, in
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 {
     swEventData task;
-    swServer *serv = reactor->ptr;
+    swServer *serv = (swServer *) reactor->ptr;
     swFactory *factory = &serv->factory;
     int ret;
 

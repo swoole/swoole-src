@@ -16,12 +16,12 @@ $pm->parentFunc = function () use ($pm) {
     echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm, $reloaded) {
-    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'log_file' => '/dev/null',
         'worker_num' => mt_rand(2, swoole_cpu_num() * 2),
         'max_wait_time' => 5,
-        'reload_async' => true
+        'reload_async' => true,
     ]);
     $server->on('WorkerStart', function (Swoole\Server $server, int $worker_id) use ($pm, $reloaded) {
         if ($worker_id === 0) {
@@ -32,13 +32,12 @@ $pm->childFunc = function () use ($pm, $reloaded) {
                         Co::sleep(0.1);
                         echo "{$n}\n";
                     }
+                    echo "RELOADED\n";
+                    $pm->wakeup();
                 });
                 echo "RELOAD\n";
                 $reloaded->set(1);
                 assert($server->reload());
-            } else {
-                echo "RELOADED\n";
-                $pm->wakeup();
             }
         }
     });

@@ -264,6 +264,11 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     sw_free(request->domain);
     sw_free(request);
 
+    if (swHashMap_count(request_map) == 0)
+    {
+        SwooleG.main_reactor->del(SwooleG.main_reactor, resolver_socket->socket->fd);
+    }
+
     return SW_OK;
 }
 
@@ -388,11 +393,17 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
             resolver_socket = NULL;
             return SW_ERR;
         }
+    }
+
+    if (!swReactor_handle_isset(SwooleG.main_reactor, SW_FD_DNS_RESOLVER))
+    {
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_DNS_RESOLVER, swDNSResolver_onReceive);
-        if (SwooleG.main_reactor->add(SwooleG.main_reactor, resolver_socket->socket->fd, SW_FD_DNS_RESOLVER))
-        {
-            goto do_close;
-        }
+    }
+
+    if (!swReactor_exists(SwooleG.main_reactor, resolver_socket->socket->fd)
+            && SwooleG.main_reactor->add(SwooleG.main_reactor, resolver_socket->socket->fd, SW_FD_DNS_RESOLVER) < 0)
+    {
+        goto do_close;
     }
 
     if (resolver_socket->send(resolver_socket, (char *) packet, steps, 0) < 0)
