@@ -1049,7 +1049,7 @@ bool http_client::send()
             SW_HASHTABLE_FOREACH_END();
         }
 
-        if (socket->send_all(http_client_buffer->str, http_client_buffer->length) != http_client_buffer->length)
+        if (socket->send_all(http_client_buffer->str, http_client_buffer->length) != (ssize_t) http_client_buffer->length)
         {
             goto _send_fail;
         }
@@ -1114,7 +1114,7 @@ bool http_client::send()
                     swString_append_ptr(http_client_buffer, header_buf, n);
                     swString_append_ptr(http_client_buffer, Z_STRVAL_P(zcontent), Z_STRLEN_P(zcontent));
                     swString_append_ptr(http_client_buffer, "\r\n", 2);
-                    if (socket->send_all(http_client_buffer->str, http_client_buffer->length) != http_client_buffer->length)
+                    if (socket->send_all(http_client_buffer->str, http_client_buffer->length) != (ssize_t) http_client_buffer->length)
                     {
                         goto _send_fail;
                     }
@@ -1199,7 +1199,7 @@ bool http_client::send()
         http_client_buffer->length, (int) http_client_buffer->length, http_client_buffer->str
     );
 
-    if (socket->send_all(http_client_buffer->str, http_client_buffer->length) != http_client_buffer->length)
+    if (socket->send_all(http_client_buffer->str, http_client_buffer->length) != (ssize_t) http_client_buffer->length)
     {
        _send_fail:
        zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error = errno);
@@ -1354,7 +1354,7 @@ bool http_client::push(zval *zdata, zend_long opcode, bool fin)
         return false;
     }
 
-    if (socket->send_all(http_client_buffer->str, http_client_buffer->length) != http_client_buffer->length)
+    if (socket->send_all(http_client_buffer->str, http_client_buffer->length) != (ssize_t) http_client_buffer->length)
     {
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error = socket->errCode);
         zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), strerror(SwooleG.error));

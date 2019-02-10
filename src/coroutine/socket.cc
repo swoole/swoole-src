@@ -223,7 +223,7 @@ bool Socket::socks5_handshake()
     //authenticate request
     if (method == SW_SOCKS5_METHOD_AUTH)
     {
-        size_t buf_len = ctx->l_username + ctx->l_password + 3;
+        ssize_t buf_len = ctx->l_username + ctx->l_password + 3;
 
         buf[0] = 0x01;
         buf[1] = ctx->l_username;
