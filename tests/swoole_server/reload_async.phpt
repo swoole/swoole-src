@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: reload in base mode
+swoole_server: reload async
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -16,7 +16,7 @@ $pm->parentFunc = function () use ($pm) {
     echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm, $reloaded) {
-    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $server->set([
         'log_file' => '/dev/null',
         'worker_num' => mt_rand(2, swoole_cpu_num() * 2),
