@@ -277,8 +277,10 @@ static PHP_METHOD(swoole_socket_coro, accept)
 
     swoole_get_socket_coro(sock, getThis());
 
+    double persistent_timeout = sock->socket->get_read_timeout();
     sock->socket->set_read_timeout(timeout);
     Socket *conn = sock->socket->accept();
+    sock->socket->set_read_timeout(persistent_timeout);
     if (conn)
     {
         zend_object *client = swoole_socket_coro_create_object(swoole_socket_coro_ce_ptr);
@@ -348,8 +350,10 @@ static PHP_METHOD(swoole_socket_coro, recv)
     swoole_get_socket_coro(sock, getThis());
 
     zend_string *buf = zend_string_alloc(length, 0);
+    double persistent_timeout = sock->socket->get_read_timeout();
     sock->socket->set_read_timeout(timeout);
     ssize_t bytes = sock->socket->recv(ZSTR_VAL(buf), length);
+    sock->socket->set_read_timeout(persistent_timeout);
     if (bytes < 0)
     {
         zend_update_property_long(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
@@ -383,8 +387,10 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
     swoole_get_socket_coro(sock, getThis());
 
     zend_string *buf = zend_string_alloc(SW_BUFFER_SIZE_BIG, 0);
+    double persistent_timeout = sock->socket->get_read_timeout();
     sock->socket->set_read_timeout(timeout);
     ssize_t bytes = sock->socket->recvfrom(ZSTR_VAL(buf), SW_BUFFER_SIZE_BIG);
+    sock->socket->set_read_timeout(persistent_timeout);
     if (bytes < 0)
     {
         zend_update_property_long(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
@@ -435,8 +441,10 @@ static PHP_METHOD(swoole_socket_coro, send)
 
     swoole_get_socket_coro(sock, getThis());
 
+    double persistent_timeout = sock->socket->get_write_timeout();
     sock->socket->set_write_timeout(timeout);
     ssize_t retval = sock->socket->send(data, l_data);
+    sock->socket->set_write_timeout(persistent_timeout);
     if (retval < 0)
     {
         zend_update_property_long(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
