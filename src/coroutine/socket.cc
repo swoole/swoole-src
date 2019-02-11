@@ -1209,7 +1209,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         length = offset + length;
     }
 
-    Timer timer(&read_timer, read_timeout, this, timer_callback);
+    Timer timer(&write_timer, write_timeout, this, timer_callback);
     int n, sendn;
     while ((size_t) offset < length)
     {
