@@ -919,7 +919,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         double persistent_timeout = cli->get_read_timeout();
         cli->set_read_timeout(timeout);
         retval = cli->recv(ZSTR_VAL(result), SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string));
-        cli->set_timeout(persistent_timeout);
+        cli->set_read_timeout(persistent_timeout);
         if (retval > 0)
         {
             ZSTR_VAL(result)[retval] = '\0';
