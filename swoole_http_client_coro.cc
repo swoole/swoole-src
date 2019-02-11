@@ -656,8 +656,7 @@ bool http_client::connect()
         set();
 
         // connect
-        double persistent_timeout = socket->get_timeout();
-        socket->set_timeout(connect_timeout);
+        socket->set_connect_timeout(connect_timeout);
         if (!socket->connect(host, port))
         {
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
@@ -666,7 +665,6 @@ bool http_client::connect()
             close();
             return false;
         }
-        socket->set_timeout(persistent_timeout);
         reconnected_count = 0;
         zend_update_property_bool(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("connected"), 1);
         if (!body)
