@@ -84,6 +84,7 @@ typedef struct
     int fd;
     uint32_t refcount;
 } open_file;
+
 static std::unordered_map<std::string, open_file> open_write_files;
 static std::unordered_map<std::string, dns_cache*> request_cache_map;
 
@@ -104,6 +105,14 @@ void swoole_async_init(int module_number)
     bzero(&SwooleAIO, sizeof(SwooleAIO));
     SwooleAIO.min_thread_count = SW_AIO_THREAD_MIN_NUM;
     SwooleAIO.max_thread_count = SW_AIO_THREAD_MAX_NUM;
+}
+
+void swoole_async_shutdown()
+{
+    for(auto i = request_cache_map.begin(); i != request_cache_map.end(); i++)
+    {
+        efree(i->second);
+    }
 }
 
 static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, void *data)
@@ -1174,6 +1183,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
     {
         RETURN_FALSE;
     }
+
     PHPCoroutine::check();
     if (Z_TYPE_P(domain) != IS_STRING)
     {

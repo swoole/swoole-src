@@ -114,7 +114,6 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
 
 static void swTaskWorker_signal_init(swProcessPool *pool)
 {
-    swSignal_clear();
     /**
      * use user settings
      */
@@ -135,7 +134,6 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 {
     swServer *serv = pool->ptr;
     SwooleWG.id = worker_id;
-    SwooleG.pid = getpid();
 
     if (serv->factory_mode == SW_MODE_BASE)
     {

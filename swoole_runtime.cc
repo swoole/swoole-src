@@ -31,6 +31,7 @@ static PHP_FUNCTION(_sleep);
 static PHP_FUNCTION(_usleep);
 static PHP_FUNCTION(_time_nanosleep);
 static PHP_FUNCTION(_time_sleep_until);
+static PHP_FUNCTION(_stream_select);
 }
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam);
@@ -69,6 +70,7 @@ static php_stream_ops socket_ops
 typedef struct
 {
     php_netstream_data_t stream;
+    double read_timeout;
     Socket *socket;
 } php_swoole_netstream_data_t;
 
@@ -111,6 +113,8 @@ static zend_function *ori_time_sleep_until;
 static zif_handler ori_time_sleep_until_handler;
 static zend_function *ori_gethostbyname;
 static zif_handler ori_gethostbyname_handler;
+static zend_function *ori_stream_select;
+static zif_handler ori_stream_select_handler;
 
 extern "C"
 {
@@ -265,12 +269,11 @@ static size_t socket_read(php_stream *stream, char *buf, size_t count)
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
     Socket *sock = (Socket*) abstract->socket;
     ssize_t nr_bytes = 0;
-
     if (!sock)
     {
         return 0;
     }
-
+    sock->set_timeout(abstract->read_timeout);
     nr_bytes = sock->recv(buf, count);
     /**
      * sock->errCode != ETIMEDOUT : Compatible with sync blocking IO
@@ -375,7 +378,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
 {
     char *host = NULL;
     int portno = 0;
-    int ret;
+    int ret = 0;
     char *ip_address = NULL;
 
     if (unlikely(sock->socket == nullptr))
@@ -402,6 +405,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     {
         return -1;
     }
+    double persistent_timeout = sock->get_timeout();
     if (xparam->inputs.timeout)
     {
         sock->set_timeout(xparam->inputs.timeout);
@@ -415,10 +419,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
         }
         ret = -1;
     }
-    else
-    {
-        ret = 0;
-    }
+    sock->set_timeout(persistent_timeout);
     if (ip_address)
     {
         efree(ip_address);
@@ -740,6 +741,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
     Socket *sock = (Socket*) abstract->socket;
+    struct timeval default_timeout = { 0, 0 };
     switch (option)
     {
     case PHP_STREAM_OPTION_XPORT_API:
@@ -794,7 +796,8 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         break;
 
     case PHP_STREAM_OPTION_READ_TIMEOUT:
-        sock->set_timeout((struct timeval*) ptrparam);
+        default_timeout = *(struct timeval*) ptrparam;
+        abstract->read_timeout = (double) default_timeout.tv_sec + ((double) default_timeout.tv_usec / 1000 / 1000);
         break;
 #ifdef SW_USE_OPENSSL
     case PHP_STREAM_OPTION_CRYPTO_API:
@@ -917,6 +920,7 @@ static php_stream *socket_create(
     abstract->socket = sock;
     abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
     abstract->stream.socket = sock->get_fd();
+    abstract->read_timeout = (double)FG(default_socket_timeout);
 
     persistent_id = nullptr;//prevent stream api in user level using pconnect to persist the socket
     stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
@@ -972,6 +976,12 @@ bool PHPCoroutine::enable_hook(int flags)
         {
             ori_time_sleep_until_handler =  ori_time_sleep_until->internal_function.handler;
             ori_time_sleep_until->internal_function.handler = PHP_FN(_time_sleep_until);
+        }
+        ori_stream_select = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("stream_select"));
+        if (ori_stream_select)
+        {
+            ori_stream_select_handler =  ori_stream_select->internal_function.handler;
+            ori_stream_select->internal_function.handler = PHP_FN(_stream_select);
         }
     }
     if (flags & SW_HOOK_BLOCKING_FUNCTION)
@@ -1045,6 +1055,10 @@ bool PHPCoroutine::disable_hook()
         if (ori_time_sleep_until)
         {
             ori_time_sleep_until->internal_function.handler = ori_time_sleep_until_handler;
+        }
+        if (ori_stream_select)
+        {
+            ori_stream_select->internal_function.handler = ori_stream_select_handler;
         }
     }
     if (hook_flags & SW_HOOK_BLOCKING_FUNCTION)
@@ -1259,4 +1273,216 @@ static PHP_FUNCTION(_time_sleep_until)
         }
     }
     RETURN_TRUE;
+}
+
+static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, socket_poll_fd> &fds, int event)
+{
+    zval *elem;
+    if (Z_TYPE_P(stream_array) != IS_ARRAY)
+    {
+        return;
+    }
+
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(stream_array), elem)
+    {
+        php_socket_t sock = swoole_convert_to_fd(elem);
+        if (sock < 0)
+        {
+            continue;
+        }
+        auto i = fds.find(sock);
+        if (i == fds.end())
+        {
+            zval_add_ref(elem);
+            fds.emplace(make_pair(sock, socket_poll_fd(event, elem)));
+        }
+        else
+        {
+            i->second.events |= event;
+        }
+    } ZEND_HASH_FOREACH_END();
+}
+
+static int stream_array_emulate_read_fd_set(zval *stream_array)
+{
+    zval *elem, *dest_elem, new_array;
+    php_stream *stream;
+    int ret = 0;
+
+    if (Z_TYPE_P(stream_array) != IS_ARRAY)
+    {
+        return 0;
+    }
+
+    ZVAL_NEW_ARR(&new_array);
+    zend_hash_init(Z_ARRVAL(new_array), zend_hash_num_elements(Z_ARRVAL_P(stream_array)), NULL, ZVAL_PTR_DTOR, 0);
+
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(stream_array), elem)
+    {
+        ZVAL_DEREF(elem);
+        php_stream_from_zval_no_verify(stream, elem);
+        if (stream == NULL)
+        {
+            continue;
+        }
+        if ((stream->writepos - stream->readpos) > 0)
+        {
+            /* allow readable non-descriptor based streams to participate in stream_select.
+             * Non-descriptor streams will only "work" if they have previously buffered the
+             * data.  Not ideal, but better than nothing.
+             * This branch of code also allows blocking streams with buffered data to
+             * operate correctly in stream_select.
+             * */
+            dest_elem = zend_hash_next_index_insert(Z_ARRVAL(new_array), elem);
+            if (dest_elem)
+            {
+                zval_add_ref(dest_elem);
+            }
+            ret++;
+            continue;
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    if (ret > 0)
+    {
+        /* destroy old array and add new one */
+        zend_array_destroy(Z_ARR_P(stream_array));
+        Z_ARR_P(stream_array) = Z_ARR(new_array);
+    }
+    else
+    {
+        zend_array_destroy(Z_ARR(new_array));
+    }
+
+    return ret;
+}
+
+static PHP_FUNCTION(_stream_select)
+{
+    zval *r_array, *w_array, *e_array;
+    zend_long sec, usec = 0;
+    zend_bool secnull;
+    int retval = 0;
+
+    if (!PHPCoroutine::is_in())
+    {
+        RETURN_FALSE;
+    }
+
+    php_swoole_check_reactor();
+
+    ZEND_PARSE_PARAMETERS_START(4, 5)
+        Z_PARAM_ARRAY_EX(r_array, 1, 1)
+        Z_PARAM_ARRAY_EX(w_array, 1, 1)
+        Z_PARAM_ARRAY_EX(e_array, 1, 1)
+        Z_PARAM_LONG_EX(sec, secnull, 1, 0)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(usec)
+    ZEND_PARSE_PARAMETERS_END();
+
+    std::unordered_map<int, socket_poll_fd> fds;
+
+    if (r_array != NULL)
+    {
+        stream_array_to_fd_set(r_array, fds, SW_EVENT_READ);
+    }
+
+    if (w_array != NULL)
+    {
+        stream_array_to_fd_set(w_array, fds, SW_EVENT_WRITE);
+    }
+
+    if (e_array != NULL)
+    {
+        stream_array_to_fd_set(e_array, fds, SW_EVENT_ERROR);
+    }
+
+    if (fds.size() == 0)
+    {
+        php_error_docref(NULL, E_WARNING, "No stream arrays were passed");
+        RETURN_FALSE;
+    }
+
+    double timeout = 0;
+    if (!secnull)
+    {
+        if (sec < 0)
+        {
+            php_error_docref(NULL, E_WARNING, "The seconds parameter must be greater than 0");
+            RETURN_FALSE
+        }
+        else if (usec < 0)
+        {
+            php_error_docref(NULL, E_WARNING, "The microseconds parameter must be greater than 0");
+            RETURN_FALSE
+        }
+        timeout = sec + (usec / 1000000);
+    }
+
+    /* slight hack to support buffered data; if there is data sitting in the
+     * read buffer of any of the streams in the read array, let's pretend
+     * that we selected, but return only the readable sockets */
+    if (r_array != NULL)
+    {
+        retval = stream_array_emulate_read_fd_set(r_array);
+        if (retval > 0)
+        {
+            if (w_array != NULL)
+            {
+                zend_hash_clean(Z_ARRVAL_P(w_array));
+            }
+            if (e_array != NULL)
+            {
+                zend_hash_clean(Z_ARRVAL_P(e_array));
+            }
+            RETURN_LONG(retval);
+        }
+    }
+
+    /**
+     * timeout
+     */
+    if (!Coroutine::socket_poll(fds, timeout))
+    {
+        RETURN_LONG(0);
+    }
+
+    if (r_array != NULL)
+    {
+        zend_hash_clean(Z_ARRVAL_P(r_array));
+    }
+    if (w_array != NULL)
+    {
+        zend_hash_clean(Z_ARRVAL_P(w_array));
+    }
+    if (e_array != NULL)
+    {
+        zend_hash_clean(Z_ARRVAL_P(e_array));
+    }
+
+    for (auto i = fds.begin(); i != fds.end(); i++)
+    {
+        zval *sock = (zval *) i->second.ptr;
+        ZVAL_DEREF(sock);
+        int revents = i->second.revents;
+        if (revents == 0)
+        {
+            continue;
+        }
+        if ((revents & SW_EVENT_READ) && r_array)
+        {
+            add_next_index_zval(r_array, sock);
+        }
+        if ((revents & SW_EVENT_WRITE) && w_array)
+        {
+            add_next_index_zval(w_array, sock);
+        }
+        if ((revents & SW_EVENT_ERROR) && e_array)
+        {
+            add_next_index_zval(e_array, sock);
+        }
+        retval++;
+    }
+
+    RETURN_LONG(retval);
 }

@@ -54,14 +54,15 @@ public:
     http_socket(swSocket_type socket_type) :
             Socket(socket_type)
     {
+        this->set_timeout(PHPCoroutine::socket_timeout);
     }
     bool recv_http_response(const swoole_http_parser_settings *settings, void *data, double timeout = 0)
     {
         ssize_t retval = 0;
         size_t total_bytes = 0, parsed_n = 0;
         swString *buffer = get_read_buffer();
-        timer timer(&read_timer, timeout == 0 ? this->timeout : timeout, this, timer_callback);
-        if (unlikely(!timer()))
+        Timer timer(&read_timer, timeout == 0 ? this->timeout : timeout, this, timer_callback);
+        if (unlikely(!timer.create()))
         {
             return false;
         }
@@ -127,7 +128,6 @@ class http_client
     uint8_t ssl = false;
 #endif
     double connect_timeout = PHPCoroutine::socket_connect_timeout;
-    double timeout = PHPCoroutine::socket_timeout;
     int8_t method = SW_HTTP_GET;       // method
     std::string uri;
 
@@ -145,7 +145,7 @@ class http_client
     uint8_t reconnect_interval = 1;
     uint8_t reconnected_count = 0;
     bool keep_alive = true;          // enable default
-    bool websocket = false;            // if upgrade successfully
+    bool websocket = false;          // if upgrade successfully
     bool gzip = false;               // enable gzip
     bool chunked = false;            // Transfer-Encoding: chunked
     bool websocket_mask = false;     // enable websocket mask
@@ -608,16 +608,7 @@ void http_client::set(zval *zset = nullptr)
         php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
         // will be set immediately
         vht = Z_ARRVAL_P(zset);
-        if (php_swoole_array_get_value(vht, "timeout", ztmp))
-        {
-            // backward compatibility
-            timeout = connect_timeout = zval_get_double(ztmp);
-            if (socket)
-            {
-                socket->set_timeout(timeout);
-            }
-        }
-        if (php_swoole_array_get_value(vht, "connect_timeout", ztmp))
+        if (php_swoole_array_get_value(vht, "connect_timeout", ztmp) || php_swoole_array_get_value(vht, "timeout", ztmp) /* backward compatibility */)
         {
             connect_timeout = zval_get_double(ztmp);
         }
@@ -665,6 +656,7 @@ bool http_client::connect()
         set();
 
         // connect
+        double persistent_timeout = socket->get_timeout();
         socket->set_timeout(connect_timeout);
         if (!socket->connect(host, port))
         {
@@ -674,17 +666,13 @@ bool http_client::connect()
             close();
             return false;
         }
-        else
-        {
-            reconnected_count = 0;
-            socket->set_timeout(timeout);
-            zend_update_property_bool(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("connected"), 1);
-        }
-
+        socket->set_timeout(persistent_timeout);
+        reconnected_count = 0;
+        zend_update_property_bool(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("connected"), 1);
         if (!body)
         {
             body = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
-            if (body == NULL)
+            if (!body)
             {
                 swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
                 return false;
@@ -1061,7 +1049,7 @@ bool http_client::send()
             SW_HASHTABLE_FOREACH_END();
         }
 
-        if (socket->send(http_client_buffer->str, http_client_buffer->length) < 0)
+        if (socket->send_all(http_client_buffer->str, http_client_buffer->length) != (ssize_t) http_client_buffer->length)
         {
             goto _send_fail;
         }
@@ -1126,7 +1114,7 @@ bool http_client::send()
                     swString_append_ptr(http_client_buffer, header_buf, n);
                     swString_append_ptr(http_client_buffer, Z_STRVAL_P(zcontent), Z_STRLEN_P(zcontent));
                     swString_append_ptr(http_client_buffer, "\r\n", 2);
-                    if (socket->send(http_client_buffer->str, http_client_buffer->length) < 0)
+                    if (socket->send_all(http_client_buffer->str, http_client_buffer->length) != (ssize_t) http_client_buffer->length)
                     {
                         goto _send_fail;
                     }
@@ -1136,7 +1124,7 @@ bool http_client::send()
                  */
                 else
                 {
-                    if (socket->send(header_buf, n) < 0)
+                    if (socket->send_all(header_buf, n) != n)
                     {
                         goto _send_fail;
                     }
@@ -1144,7 +1132,7 @@ bool http_client::send()
                     {
                         goto _send_fail;
                     }
-                    if (socket->send("\r\n", 2) < 0)
+                    if (socket->send_all("\r\n", 2) != 2)
                     {
                         goto _send_fail;
                     }
@@ -1153,7 +1141,7 @@ bool http_client::send()
         }
 
         n = sw_snprintf(header_buf, sizeof(header_buf), "--%*s--\r\n", (int)(sizeof(boundary_str) - 1), boundary_str);
-        if (socket->send(header_buf, n) < 0)
+        if (socket->send_all(header_buf, n) != n)
         {
             goto _send_fail;
         }
@@ -1211,7 +1199,7 @@ bool http_client::send()
         http_client_buffer->length, (int) http_client_buffer->length, http_client_buffer->str
     );
 
-    if (socket->send(http_client_buffer->str, http_client_buffer->length) < 0)
+    if (socket->send_all(http_client_buffer->str, http_client_buffer->length) != (ssize_t) http_client_buffer->length)
     {
        _send_fail:
        zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error = errno);
@@ -1255,18 +1243,14 @@ bool http_client::recv(double timeout)
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         return false;
     }
-    if (!socket->recv_http_response(&http_parser_settings, this, timeout == 0 ? this->timeout : timeout))
+    if (!socket->recv_http_response(&http_parser_settings, this, timeout))
     {
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
         zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
-        if (socket->errCode == ETIMEDOUT)
-        {
-            zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
-        }
-        else
-        {
-            zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
-        }
+        zend_update_property_long(
+            swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"),
+            socket->errCode == ETIMEDOUT ? HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT : HTTP_CLIENT_ESTATUS_SERVER_RESET
+        );
         close();
         return false;
     }
@@ -1370,7 +1354,7 @@ bool http_client::push(zval *zdata, zend_long opcode, bool fin)
         return false;
     }
 
-    if (socket->send(http_client_buffer->str, http_client_buffer->length) < 0)
+    if (socket->send_all(http_client_buffer->str, http_client_buffer->length) != (ssize_t) http_client_buffer->length)
     {
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error = socket->errCode);
         zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), strerror(SwooleG.error));
@@ -1863,7 +1847,7 @@ static PHP_METHOD(swoole_http_client_coro, push)
 static PHP_METHOD(swoole_http_client_coro, recv)
 {
     http_client *phc = swoole_get_phc(getThis());
-    double timeout = phc->timeout;
+    double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL

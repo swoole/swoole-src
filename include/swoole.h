@@ -86,11 +86,11 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 /*----------------------------------------------------------------------------*/
 
 #define SWOOLE_MAJOR_VERSION      4
-#define SWOOLE_MINOR_VERSION      2
-#define SWOOLE_RELEASE_VERSION    13
+#define SWOOLE_MINOR_VERSION      3
+#define SWOOLE_RELEASE_VERSION    0
 #define SWOOLE_EXTRA_VERSION      "alpha"
-#define SWOOLE_VERSION            "4.2.13-alpha"
-#define SWOOLE_VERSION_ID         40213
+#define SWOOLE_VERSION            "4.3.0-alpha"
+#define SWOOLE_VERSION_ID         40300
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -277,25 +277,35 @@ enum swReturnType
 //-------------------------------------------------------------------------------
 enum swFd_type
 {
-    SW_FD_TCP             = 0, //tcp socket
-    SW_FD_LISTEN          = 1, //server socket
-    SW_FD_CLOSE           = 2, //socket closed
-    SW_FD_ERROR           = 3, //socket error
-    SW_FD_UDP             = 4, //udp socket
-    SW_FD_PIPE            = 5, //pipe
-    SW_FD_STREAM          = 6, //stream socket
-    SW_FD_WRITE           = 7, //fd can write
-    SW_FD_TIMER           = 8, //timer fd
-    SW_FD_AIO             = 9, //linux native aio
-    SW_FD_CORO_SOCKET     = 10, //CoroSocket
-    SW_FD_SIGNAL          = 11, //signalfd
-    SW_FD_DNS_RESOLVER    = 12, //dns resolver
-    SW_FD_INOTIFY         = 13, //server socket
-    SW_FD_CHAN_PIPE       = 14, //channel pipe
-    SW_FD_USER            = 15, //SW_FD_USER or SW_FD_USER+n: for custom event
-    SW_FD_ARES            = 16, //c-ares
-    SW_FD_STREAM_CLIENT   = 17, //swClient stream
-    SW_FD_DGRAM_CLIENT    = 18, //swClient dgram
+    SW_FD_TCP, //tcp socket
+    SW_FD_LISTEN,//server socket
+    SW_FD_CLOSE,//socket closed
+    SW_FD_ERROR,//socket error
+    SW_FD_UDP,//udp socket
+    SW_FD_PIPE,//pipe
+    SW_FD_STREAM,//stream socket
+    SW_FD_WRITE,//fd can write
+    SW_FD_AIO,//aio
+    /**
+     * Coroutine Socket
+     */
+    SW_FD_CORO_SOCKET,
+    /**
+     * socket poll fd [coroutine::socket_poll]
+     */
+    SW_FD_CORO_POLL,
+    SW_FD_SIGNAL, //signalfd
+    SW_FD_DNS_RESOLVER,//dns resolver
+    /**
+     * c-ares
+     */
+    SW_FD_ARES,
+    /**
+     * SW_FD_USER or SW_FD_USER+n: for custom event
+     */
+    SW_FD_USER,
+    SW_FD_STREAM_CLIENT,
+    SW_FD_DGRAM_CLIENT,
 };
 
 enum swBool_type
@@ -1347,6 +1357,7 @@ static sw_inline int swSocket_is_stream(uint8_t type)
 
 void swoole_init(void);
 void swoole_clean(void);
+pid_t swoole_fork();
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
@@ -1594,6 +1605,7 @@ struct _swWorker
     time_t start_time;
     time_t request_time;
 
+    long dispatch_count;
     long request_count;
 
 	/**
@@ -1726,7 +1738,7 @@ static sw_inline int swReactor_event_error(int fdtype)
 
 static sw_inline int swReactor_fdtype(int fdtype)
 {
-    return fdtype & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR);
+    return fdtype & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR) & (~SW_EVENT_ONCE);
 }
 
 static sw_inline int swReactor_events(int fdtype)
@@ -1803,6 +1815,12 @@ static sw_inline void swReactor_del(swReactor *reactor, int fd)
     swConnection *socket = swReactor_get(reactor, fd);
     socket->events = 0;
     socket->removed = 1;
+}
+
+static sw_inline int swReactor_exists(swReactor *reactor, int fd)
+{
+    swConnection *socket = swReactor_get(reactor, fd);
+    return !socket->removed && socket->events;
 }
 
 int swReactor_onWrite(swReactor *reactor, swEvent *ev);
@@ -2127,6 +2145,8 @@ typedef struct
     swString **buffer_input;
     swString **buffer_output;
     swWorker *worker;
+    time_t exit_time;
+    swTimer_node *timer;
 
 } swWorkerG;
 

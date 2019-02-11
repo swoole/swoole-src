@@ -359,7 +359,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
 
     //SO_REUSEADDR option
     int option = 1;
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) != 0)
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed.", sock);
     }
@@ -367,7 +367,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
 #ifdef HAVE_REUSEPORT
     if (SwooleG.reuse_port)
     {
-        if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
+        if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) != 0)
         {
             swSysError("setsockopt(SO_REUSEPORT) failed.");
             SwooleG.reuse_port = 0;
@@ -433,12 +433,12 @@ int swSocket_bind(int sock, int type, char *host, int *port)
 
 int swSocket_set_buffer_size(int fd, int buffer_size)
 {
-    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(buffer_size)) < 0)
+    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(buffer_size)) != 0)
     {
         swSysError("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed.", fd, buffer_size);
         return SW_ERR;
     }
-    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &buffer_size, sizeof(buffer_size)) < 0)
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &buffer_size, sizeof(buffer_size)) != 0)
     {
         swSysError("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed.", fd, buffer_size);
         return SW_ERR;

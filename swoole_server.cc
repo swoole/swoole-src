@@ -487,12 +487,6 @@ void swoole_server_init(int module_number)
     zend_class_implements(swoole_connection_iterator_ce_ptr, 1, zend_ce_countable);
 #endif
 
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onClose"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onPacket"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onBufferFull"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onStart"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onShutdown"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onWorkerStart"), ZEND_ACC_PRIVATE);
@@ -657,8 +651,8 @@ int php_swoole_task_pack(swEventData *task, zval *data)
         if (SWOOLE_G(fast_serialize))
         {
             serialized_string = php_swoole_serialize(data);
-            task_data_str = serialized_string->val;
-            task_data_len = serialized_string->len;
+            task_data_str = ZSTR_VAL(serialized_string);
+            task_data_len = ZSTR_LEN(serialized_string);
         }
         else
 #endif
@@ -671,8 +665,8 @@ int php_swoole_task_pack(swEventData *task, zval *data)
             {
                 return -1;
             }
-            task_data_str = serialized_data.s->val;
-            task_data_len = serialized_data.s->len;
+            task_data_str = ZSTR_VAL(serialized_data.s);
+            task_data_len = ZSTR_LEN(serialized_data.s);
         }
     }
     else
@@ -1178,8 +1172,8 @@ static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *curre
         if (SWOOLE_G(fast_serialize))
         {
             serialized_string = php_swoole_serialize(data);
-            data_str = serialized_string->val;
-            data_len = serialized_string->len;
+            data_str = ZSTR_VAL(serialized_string);
+            data_len = ZSTR_LEN(serialized_string);
         }
         else
 #endif
@@ -1187,8 +1181,8 @@ static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *curre
             PHP_VAR_SERIALIZE_INIT(var_hash);
             php_var_serialize(&serialized_data, data, &var_hash);
             PHP_VAR_SERIALIZE_DESTROY(var_hash);
-            data_str = serialized_data.s->val;
-            data_len = serialized_data.s->len;
+            data_str = ZSTR_VAL(serialized_data.s);
+            data_len = ZSTR_LEN(serialized_data.s);
         }
     }
     else
@@ -2230,7 +2224,7 @@ static PHP_METHOD(swoole_server, __construct)
 
     if (serv_port == 0 && strcasecmp(serv_host, "SYSTEMD") == 0)
     {
-        if (swserver_add_systemd_socket(serv) <= 0)
+        if (swServer_add_systemd_socket(serv) <= 0)
         {
             swoole_php_fatal_error(E_ERROR, "failed to add systemd socket.");
             return;
@@ -2457,6 +2451,11 @@ static PHP_METHOD(swoole_server, set)
             }
             efree(func_name);
             sw_fci_cache_persist(fci_cache);
+            if (serv->private_data_3)
+            {
+                sw_fci_cache_discard((zend_fcall_info_cache *) serv->private_data_3);
+                efree(serv->private_data_3);
+            }
             serv->private_data_3 = (void *) fci_cache;
             c_dispatch_func = php_swoole_dispatch_func;
             break;
@@ -2534,6 +2533,10 @@ static PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "request_slowlog_file", v))
     {
         zend::string str_v(v);
+        if (serv->request_slowlog_file)
+        {
+            fclose(serv->request_slowlog_file);
+        }
         serv->request_slowlog_file = fopen(str_v.val(), "a+");
         if (serv->request_slowlog_file == NULL)
         {
@@ -2645,6 +2648,10 @@ static PHP_METHOD(swoole_server, set)
             }
         }
         serv->cpu_affinity_available_num = available_num;
+        if (serv->cpu_affinity_available)
+        {
+            sw_free(serv->cpu_affinity_available);
+        }
         serv->cpu_affinity_available = available_cpu;
     }
     //paser x-www-form-urlencoded form data
@@ -2698,18 +2705,15 @@ static PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "document_root", v))
     {
         zend::string str_v(v);
-
         if (str_v.len() >= PATH_MAX)
         {
             swoole_php_fatal_error(E_ERROR, "The length of document_root must be less than %d.", PATH_MAX);
             return;
         }
-
         if (serv->document_root)
         {
             sw_free(serv->document_root);
         }
-
         serv->document_root = sw_strndup(str_v.val(), str_v.len());
         if (serv->document_root[str_v.len() - 1] == '/')
         {
@@ -2774,8 +2778,8 @@ static PHP_METHOD(swoole_server, on)
     }
 
     char *func_name = NULL;
-    zend_fcall_info_cache *func_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
-    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL))
+    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, fci_cache, NULL))
     {
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;
@@ -2815,8 +2819,12 @@ static PHP_METHOD(swoole_server, on)
         property_name[l_property_name] = '\0';
         zend_update_property(swoole_server_ce_ptr, getThis(), property_name, l_property_name, cb);
         php_sw_server_callbacks[i] = sw_zend_read_property(swoole_server_ce_ptr, getThis(), property_name, l_property_name, 0);
-        php_sw_server_caches[i] = func_cache;
         sw_copy_to_stack(php_sw_server_callbacks[i], _php_sw_server_callbacks[i]);
+        if (php_sw_server_caches[i])
+        {
+             efree(php_sw_server_caches[i]);
+        }
+        php_sw_server_caches[i] = fci_cache;
         break;
     }
 
@@ -2824,8 +2832,9 @@ static PHP_METHOD(swoole_server, on)
     {
         zval *port_object = server_port_list.zobjects[0];
         zval *retval = NULL;
-        Z_TRY_ADDREF_P(port_object);
+        efree(fci_cache);
         sw_zend_call_method_with_2_params(&port_object, swoole_server_port_ce_ptr, NULL, "on", &retval, name, cb);
+        RETURN_BOOL(zval_is_true(retval));
     }
     else
     {
@@ -3268,6 +3277,7 @@ static PHP_METHOD(swoole_server, stats)
     if (SwooleWG.worker)
     {
         add_assoc_long_ex(return_value, ZEND_STRL("worker_request_count"), SwooleWG.worker->request_count);
+        add_assoc_long_ex(return_value, ZEND_STRL("worker_dispatch_count"), SwooleWG.worker->dispatch_count);
     }
 
     if (serv->task_ipc_mode > SW_TASK_IPC_UNIXSOCK && serv->gs->task_workers.queue)

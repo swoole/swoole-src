@@ -807,7 +807,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     if (type != SW_SOCK_UNIX_STREAM)
     {
         int tcp_nodelay = 1;
-        if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) == -1)
+        if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) != 0)
         {
             swoole_php_sys_error(E_WARNING, "setsockopt(%d, IPPROTO_TCP, TCP_NODELAY) failed.", cli->socket->fd);
         }
@@ -1855,6 +1855,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             }
 
             _active_close:
+            client->state = SW_MYSQL_STATE_QUERY;
             swoole_mysql_coro_close(zobject);
 
             if (!client->cid)
@@ -1880,7 +1881,6 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             {
                 zval_ptr_dtor(retval);
             }
-            client->state = SW_MYSQL_STATE_QUERY;
             return SW_OK;
         }
         else

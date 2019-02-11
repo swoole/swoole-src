@@ -350,7 +350,7 @@ bool Server::sendfile(int fd, string &file, off_t offset, size_t length)
     }
     if (file_stat.st_size <= offset)
     {
-        swWarn("file[offset=%ld] is empty.", offset);
+        swWarn("file[offset=%jd] is empty.", (intmax_t) offset);
         return false;
     }
     return serv.sendfile(&serv, fd, (char *) file.c_str(), file.length(), offset, length) == SW_OK;

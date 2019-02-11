@@ -277,6 +277,10 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
                         swWarn("poll[POLLERR] handler failed. fd=%d. Error: %s[%d]", event.fd, strerror(errno), errno);
                     }
                 }
+                if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE))
+                {
+                    reactor->del(reactor, event.fd);
+                }
             }
         }
         if (reactor->onFinish != NULL)

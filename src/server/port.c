@@ -107,7 +107,7 @@ int swPort_listen(swListenPort *ls)
 #ifdef TCP_DEFER_ACCEPT
     if (ls->tcp_defer_accept)
     {
-        if (setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, (const void*) &ls->tcp_defer_accept, sizeof(int)) < 0)
+        if (setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, (const void*) &ls->tcp_defer_accept, sizeof(int)) != 0)
         {
             swSysError("setsockopt(TCP_DEFER_ACCEPT) failed.");
         }
@@ -117,7 +117,7 @@ int swPort_listen(swListenPort *ls)
 #ifdef TCP_FASTOPEN
     if (ls->tcp_fastopen)
     {
-        if (setsockopt(sock, IPPROTO_TCP, TCP_FASTOPEN, (const void*) &ls->tcp_fastopen, sizeof(int)) < 0)
+        if (setsockopt(sock, IPPROTO_TCP, TCP_FASTOPEN, (const void*) &ls->tcp_fastopen, sizeof(int)) != 0)
         {
             swSysError("setsockopt(TCP_FASTOPEN) failed.");
         }
@@ -127,7 +127,7 @@ int swPort_listen(swListenPort *ls)
 #ifdef SO_KEEPALIVE
     if (ls->open_tcp_keepalive == 1)
     {
-        if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &option, sizeof(option)) < 0)
+        if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &option, sizeof(option)) != 0)
         {
             swSysError("setsockopt(SO_KEEPALIVE) failed.");
         }

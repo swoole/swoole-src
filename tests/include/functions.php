@@ -38,6 +38,23 @@ function top(int $pid)
     return $top;
 }
 
+function kill_process_by_name(string $name)
+{
+    shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_alpine_linux() ? '1' : '2') . '}\' | xargs kill');
+}
+
+function get_process_pid_by_name(string $name): bool
+{
+    return (int)shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_alpine_linux() ? '1' : '2') . '}\'');
+}
+
+function is_alpine_linux(): bool
+{
+    static $bool;
+    $bool = $bool ?? strpos(`apk 2>&1`, 'apk-tools') !== false;
+    return $bool;
+}
+
 function get_one_free_port()
 {
     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
@@ -133,9 +150,9 @@ function content_hook_replace(string $content, array $kv_map): string
     return $content;
 }
 
-function tcp_type_length(string $type = 'n'): int
+function tcp_length_types(): array
 {
-    static $map = [
+    return [
         'c' => 1,
         'C' => 1,
         's' => 2,
@@ -147,8 +164,20 @@ function tcp_type_length(string $type = 'n'): int
         'N' => 4,
         'V' => 4,
     ];
+}
 
-    return $map[$type] ?? 0;
+function tcp_type_length(string $type = 'n'): int
+{
+    $map = tcp_length_types();
+    if (strlen($type) === 1) {
+        return $map[$type] ?? 0;
+    } else {
+        $len = 0;
+        for ($n = 0; $n < strlen($type); $n++) {
+            $len += $map[$type{$n}] ?? 0;
+        }
+        return $len;
+    }
 }
 
 function tcp_head(int $length, string $type = 'n') : string
@@ -615,6 +644,7 @@ class ProcessManager
     protected $atomic;
     protected $alone = false;
     protected $freePorts = [];
+    protected $randomFunc = 'get_safe_random';
     protected $randomData = [[]];
 
     /**
@@ -686,21 +716,32 @@ class ProcessManager
         return $this->freePorts[$index];
     }
 
+    public function setRandomFunc($func)
+    {
+        $this->randomFunc = $func;
+    }
+
     public function initRandomData(int $size, int $len = 32)
     {
         $this->initRandomDataEx(1, $size, $len);
     }
 
-    public function getRandomData(): string
+    public function getRandomData()
     {
         return $this->getRandomDataEx(0);
     }
 
-    public function initRandomDataEx(int $block_num, int $size, int $len)
+    public function getRandomDataSize(): int
     {
+        return $this->getRandomDataSizeEx(0);
+    }
+
+    public function initRandomDataEx(int $block_num, int $size, ...$arguments)
+    {
+        $func = $this->randomFunc;
         for ($b = 0; $b < $block_num; $b++) {
             for ($n = $size; $n--;) {
-                $this->randomData[$b][] = get_safe_random($len);
+                $this->randomData[$b][] = $func(...$arguments);
             }
         }
     }
@@ -712,6 +753,11 @@ class ProcessManager
         } else {
             throw new \RuntimeException('Out of the bound');
         }
+    }
+
+    public function getRandomDataSizeEx(int $block_id): int
+    {
+        return count($this->randomData[$block_id]);
     }
 
     public function runChildFunc()

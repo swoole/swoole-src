@@ -8,18 +8,18 @@ __DIR__=$(cd "$(dirname "$0")";pwd)
 cd ${__DIR__} && cd ../tests/
 
 # initialization
-echo "\n⭐️ Initialization for tests...\n"
+echo "" && echo "⭐️ Initialization for tests..." && echo ""
 ./init
-echo "\n"
+echo ""
 
 # debug
 for debug_file in ${__DIR__}/debug/*.php
 do
     if test -f "${debug_file}";then
         debug_file_basename="`basename ${debug_file}`"
-        echo "\n====== RUN ${debug_file_basename} ======\n"
+        echo "" && echo "====== RUN ${debug_file_basename} ======" && echo ""
         php "${debug_file}"
-        echo "\n========================================\n"
+        echo "" && echo "========================================" && echo ""
     fi
 done
 
@@ -48,7 +48,7 @@ should_exit_with_error(){
 touch tests.list
 trap "rm -f tests.list; echo ''; echo '⌛ Done on '`date "+%Y-%m-%d %H:%M:%S"`;" EXIT
 
-echo "\n🌵️️ Current branch is ${SWOOLE_BRANCH}\n"
+echo "" && echo "🌵️️ Current branch is ${SWOOLE_BRANCH}" && echo ""
 if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
     dir="base"
     options="-m"
@@ -62,7 +62,7 @@ do
     if [ "`has_failures`" ]; then
         if [ ${i} -gt "1" ]; then
             sleep ${i}
-            echo "\n😮 Retry failed tests#${i}:\n"
+            echo "" && echo "😮 Retry failed tests#${i}:" && echo ""
         fi
         cat tests.list
         timeout=`echo | expr ${i} \* 15 + 15`

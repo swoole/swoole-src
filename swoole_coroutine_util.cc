@@ -123,7 +123,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_statvfs, 0, 0, 1)
     ZEND_ARG_INFO(0, path)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getBackTrace, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getBackTrace, 0, 0, 0)
     ZEND_ARG_INFO(0, cid)
     ZEND_ARG_INFO(0, options)
     ZEND_ARG_INFO(0, limit)
@@ -508,6 +508,7 @@ static PHP_METHOD(swoole_coroutine_util, stats)
     add_assoc_long_ex(return_value, ZEND_STRL("c_stack_size"), Coroutine::get_stack_size());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_peak_num"), Coroutine::get_peak_num());
+    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_last_cid"), Coroutine::get_last_cid());
 }
 
 static PHP_METHOD(swoole_coroutine_util, getCid)
@@ -645,7 +646,7 @@ static int co_socket_onReadable(swReactor *reactor, swEvent *event)
         sock->timer = NULL;
     }
 
-    int n = read(sock->fd, sock->buf->val, sock->nbytes);
+    int n = read(sock->fd, ZSTR_VAL(sock->buf), sock->nbytes);
     if (n < 0)
     {
         ZVAL_FALSE(&result);
@@ -658,8 +659,8 @@ static int co_socket_onReadable(swReactor *reactor, swEvent *event)
     }
     else
     {
-        sock->buf->val[n] = 0;
-        sock->buf->len = n;
+        ZSTR_VAL(sock->buf)[n] = 0;
+        ZSTR_LEN(sock->buf) = n;
         ZVAL_STR(&result, sock->buf);
     }
     int ret = PHPCoroutine::resume_m(context, &result, retval);
@@ -1249,22 +1250,25 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
 
 static PHP_METHOD(swoole_coroutine_util, getBackTrace)
 {
-    zend_long cid;
+    zend_long cid = 0;
     zend_long options = DEBUG_BACKTRACE_PROVIDE_OBJECT;
     zend_long limit = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|ll", &cid, &options, &limit) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-    if (cid == PHPCoroutine::get_cid())
+    ZEND_PARSE_PARAMETERS_START(0, 3)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(cid)
+        Z_PARAM_LONG(options)
+        Z_PARAM_LONG(limit)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (!cid || cid == PHPCoroutine::get_cid())
     {
         zend_fetch_debug_backtrace(return_value, 0, options, limit);
     }
     else
     {
-        php_coro_task *task = (php_coro_task *) Coroutine::get_task_by_cid(cid);
-        if (task == NULL)
+        php_coro_task *task = (php_coro_task *) PHPCoroutine::get_task_by_cid(cid);
+        if (UNEXPECTED(!task))
         {
             RETURN_FALSE;
         }

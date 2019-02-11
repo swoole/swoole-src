@@ -242,7 +242,6 @@ protected:
 
     bool add_event(const enum swEvent_type event);
     bool wait_event(const enum swEvent_type event, const void **__buf = nullptr, size_t __n = 0);
-    void trigger_event(const enum swEvent_type event);
 
     inline bool is_available(enum swEvent_type event)
     {
@@ -268,34 +267,18 @@ protected:
         return true;
     }
 
-    inline bool should_be_break()
-    {
-        if (socket->closed)
-        {
-            return true;
-        }
-        switch (errCode)
-        {
-        case ETIMEDOUT:
-        case ECANCELED:
-            return true;
-        default:
-            return false;
-        }
-    }
-
     // TODO: move to client.cc
     bool socks5_handshake();
     bool http_proxy_handshake();
 
-    class timer
+    class Timer
     {
     public:
-        timer(swTimer_node **timer_pp, double timeout, void *data, swTimerCallback callback) :
+        Timer(swTimer_node **timer_pp, double timeout, void *data, swTimerCallback callback) :
             timer_pp(timer_pp), timeout(timeout), data(data), callback(callback)
         {
         }
-        bool operator ()()
+        bool create()
         {
             if (timeout != 0 && !*timer_pp)
             {
@@ -312,7 +295,7 @@ protected:
             }
             return true;
         }
-        ~timer()
+        ~Timer()
         {
             if (enabled && *timer_pp)
             {

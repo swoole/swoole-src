@@ -634,7 +634,7 @@ int swServer_start(swServer *serv);
 swListenPort* swServer_add_port(swServer *serv, int type, const char *host, int port);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
-int swserver_add_systemd_socket(swServer *serv);
+int swServer_add_systemd_socket(swServer *serv);
 int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback func, int push_back);
 void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg);
 
@@ -1029,7 +1029,7 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_free(swServer *serv);
 int swReactorThread_close(swReactor *reactor, int fd);
 int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length);
-int swReactorThread_send2worker(swServer *serv, void *data, int len, uint16_t target_worker_id);
+int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, int len);
 
 int swReactorProcess_create(swServer *serv);
 int swReactorProcess_start(swServer *serv);

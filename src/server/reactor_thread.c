@@ -256,7 +256,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
         struct linger linger;
         linger.l_onoff = 1;
         linger.l_linger = 0;
-        if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) == -1)
+        if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) != 0)
         {
             swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
         }
@@ -423,12 +423,9 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
     return SW_OK;
 }
 
-int swReactorThread_send2worker(swServer *serv, void *data, int len, uint16_t target_worker_id)
+int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, int len)
 {
-    assert(target_worker_id < serv->worker_num);
-
     int ret = -1;
-    swWorker *worker = &(serv->workers[target_worker_id]);
 
     //reactor thread
     if (SwooleTG.type == SW_THREAD_REACTOR)

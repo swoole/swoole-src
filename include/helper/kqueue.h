@@ -27,6 +27,7 @@ struct kevent
 
 #define EVFILT_READ         1
 #define EVFILT_WRITE        2
+#define EVFILT_SIGNAL       3
 
 #define EV_ADD              2
 #define EV_DELETE           4

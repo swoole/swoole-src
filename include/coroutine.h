@@ -52,6 +52,20 @@ void set_dns_cache_expire(time_t expire);
 void set_dns_cache_capacity(size_t capacity);
 void clear_dns_cache();
 
+struct socket_poll_fd
+{
+    int16_t events;
+    int16_t revents;
+    void *ptr;
+
+    socket_poll_fd(int16_t _event, void *_ptr)
+    {
+        events = _event;
+        ptr = _ptr;
+        revents = 0;
+    }
+};
+
 class Coroutine
 {
 public:
@@ -124,6 +138,7 @@ public:
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
     static long max_death_msec;
     static long loop_threshold;
+    static bool socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout);
 
     static void set_on_yield(coro_php_yield_t func);
     static void set_on_resume(coro_php_resume_t func);
@@ -195,7 +210,7 @@ protected:
         call_stack[call_stack_size++] = this;
         last_schedule_msec = swTimer_get_absolute_msec();
         loop_times = 0;
-        if (count() > peak_num)
+        if (unlikely(count() > peak_num))
         {
             peak_num = count();
         }

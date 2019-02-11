@@ -228,24 +228,25 @@ static sw_inline ssize_t swConnection_send(swConnection *conn, void *__buf, size
  */
 static sw_inline ssize_t swConnection_peek(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
-    int retval;
+    ssize_t retval;
     __flags |= MSG_PEEK;
-    _peek:
+    do
+    {
 #ifdef SW_USE_OPENSSL
-    if (conn->ssl)
-    {
-        retval = SSL_peek(conn->ssl, __buf, __n);
-    }
-    else
+        if (conn->ssl)
+        {
+            retval = SSL_peek(conn->ssl, __buf, __n);
+        }
+        else
 #endif
-    {
-        retval = recv(conn->fd, __buf, __n, __flags);
+        {
+            retval = recv(conn->fd, __buf, __n, __flags);
+        }
     }
+    while (retval < 0 && errno == EINTR);
 
-    if (retval < 0 && errno == EINTR)
-    {
-        goto _peek;
-    }
+    swTraceLog(SW_TRACE_SOCKET, "peek %ld/%ld bytes, errno=%d", retval, __n, errno);
+
     return retval;
 }
 

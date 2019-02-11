@@ -536,6 +536,16 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
             return;
         }
     }
+    //package length offset
+    if (php_swoole_array_get_value(vht, "package_length_offset", v))
+    {
+        cli->protocol.package_length_offset = (int) zval_get_long(v);
+    }
+    //package body start
+    if (php_swoole_array_get_value(vht, "package_body_offset", v))
+    {
+        cli->protocol.package_body_offset = (int) zval_get_long(v);
+    }
     //length function
     if (php_swoole_array_get_value(vht, "package_length_func", v))
     {
@@ -560,6 +570,11 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
             }
             efree(func_name);
             cli->protocol.get_package_length = php_swoole_length_func;
+            if (cli->protocol.private_data)
+            {
+                zval_ptr_dtor((zval *)cli->protocol.private_data);
+                efree(cli->protocol.private_data);
+            }
             Z_TRY_ADDREF_P(v);
             cli->protocol.private_data = sw_zval_dup(v);
             break;
@@ -568,16 +583,6 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
         cli->protocol.package_length_size = 0;
         cli->protocol.package_length_type = '\0';
         cli->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
-    }
-    //package length offset
-    if (php_swoole_array_get_value(vht, "package_length_offset", v))
-    {
-        cli->protocol.package_length_offset = (int) zval_get_long(v);
-    }
-    //package body start
-    if (php_swoole_array_get_value(vht, "package_body_offset", v))
-    {
-        cli->protocol.package_body_offset = (int) zval_get_long(v);
     }
     /**
      * package max length
@@ -644,7 +649,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
         if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
         {
             value = 1;
-            if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)
+            if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) != 0)
             {
                 swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
             }

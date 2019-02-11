@@ -64,16 +64,16 @@ void swoole_server_port_init(int module_number)
     SWOOLE_SET_CLASS_CLONEABLE(swoole_server_port, zend_class_clone_deny);
     SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_port, zend_class_unset_property_deny);
 
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onClose"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onPacket"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onBufferFull"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onRequest"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onHandShake"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onMessage"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onOpen"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onClose"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onPacket"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onBufferFull"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onRequest"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onHandShake"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onMessage"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onOpen"), ZEND_ACC_PRIVATE);
 
     zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_port_ce_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
@@ -312,6 +312,24 @@ static PHP_METHOD(swoole_server_port, set)
             RETURN_FALSE;
         }
     }
+    //package length offset
+    if (php_swoole_array_get_value(vht, "package_length_offset", v))
+    {
+        port->protocol.package_length_offset = (int) zval_get_long(v);
+        if (port->protocol.package_length_offset > SW_IPC_BUFFER_SIZE)
+        {
+            swoole_php_fatal_error(E_ERROR, "'package_length_offset' value is too large.");
+        }
+    }
+    //package body start
+    if (php_swoole_array_get_value(vht, "package_body_offset", v) || php_swoole_array_get_value(vht, "package_body_start", v))
+    {
+        port->protocol.package_body_offset = (int) zval_get_long(v);
+        if (port->protocol.package_body_offset > SW_IPC_BUFFER_SIZE)
+        {
+            swoole_php_fatal_error(E_ERROR, "'package_body_offset' value is too large.");
+        }
+    }
     //length function
     if (php_swoole_array_get_value(vht, "package_length_func", v))
     {
@@ -335,6 +353,11 @@ static PHP_METHOD(swoole_server_port, set)
             }
             efree(func_name);
             port->protocol.get_package_length = php_swoole_length_func;
+            if (port->protocol.private_data)
+            {
+                zval_ptr_dtor((zval *)port->protocol.private_data);
+                efree(port->protocol.private_data);
+            }
             Z_TRY_ADDREF_P(v);
             port->protocol.private_data = sw_zval_dup(v);
             break;
@@ -343,24 +366,6 @@ static PHP_METHOD(swoole_server_port, set)
         port->protocol.package_length_size = 0;
         port->protocol.package_length_type = '\0';
         port->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
-    }
-    //package length offset
-    if (php_swoole_array_get_value(vht, "package_length_offset", v))
-    {
-        port->protocol.package_length_offset = (int) zval_get_long(v);
-        if (port->protocol.package_length_offset > SW_IPC_BUFFER_SIZE)
-        {
-            swoole_php_fatal_error(E_ERROR, "'package_length_offset' value is too large.");
-        }
-    }
-    //package body start
-    if (php_swoole_array_get_value(vht, "package_body_offset", v) || php_swoole_array_get_value(vht, "package_body_start", v))
-    {
-        port->protocol.package_body_offset = (int) zval_get_long(v);
-        if (port->protocol.package_body_offset > SW_IPC_BUFFER_SIZE)
-        {
-            swoole_php_fatal_error(E_ERROR, "'package_body_offset' value is too large.");
-        }
     }
     /**
      * package max length
@@ -511,8 +516,8 @@ static PHP_METHOD(swoole_server_port, on)
     }
 
     char *func_name = NULL;
-    zend_fcall_info_cache *func_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
-    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL))
+    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, fci_cache, NULL))
     {
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;
@@ -549,24 +554,29 @@ static PHP_METHOD(swoole_server_port, on)
         zend_update_property(swoole_server_port_ce_ptr, getThis(), property_name, l_property_name, cb);
         property->callbacks[i] = sw_zend_read_property(swoole_server_port_ce_ptr, getThis(), property_name, l_property_name, 0);
         sw_copy_to_stack(property->callbacks[i], property->_callbacks[i]);
+        if (property->caches[i])
+        {
+            efree(property->caches[i]);
+        }
+        property->caches[i] = fci_cache;
 
-        if (i == SW_SERVER_CB_onConnect && serv->onConnect == NULL)
+        if (i == SW_SERVER_CB_onConnect && !serv->onConnect)
         {
             serv->onConnect = php_swoole_onConnect;
         }
-        else if (i == SW_SERVER_CB_onPacket && serv->onPacket == NULL)
+        else if (i == SW_SERVER_CB_onPacket && !serv->onPacket)
         {
             serv->onPacket = php_swoole_onPacket;
         }
-        else if (i == SW_SERVER_CB_onClose && serv->onClose == NULL)
+        else if (i == SW_SERVER_CB_onClose && !serv->onClose)
         {
             serv->onClose = php_swoole_onClose;
         }
-        else if (i == SW_SERVER_CB_onBufferFull && serv->onBufferFull == NULL)
+        else if (i == SW_SERVER_CB_onBufferFull && !serv->onBufferFull)
         {
             serv->onBufferFull = php_swoole_onBufferFull;
         }
-        else if (i == SW_SERVER_CB_onBufferEmpty && serv->onBufferEmpty == NULL)
+        else if (i == SW_SERVER_CB_onBufferEmpty && !serv->onBufferEmpty)
         {
             serv->onBufferEmpty = php_swoole_onBufferEmpty;
         }
@@ -574,14 +584,13 @@ static PHP_METHOD(swoole_server_port, on)
         {
             serv->onReceive = php_swoole_http_onReceive;
         }
-        property->caches[i] = func_cache;
         break;
     }
 
     if (l_property_name == 0)
     {
         swoole_php_error(E_WARNING, "unknown event types[%s]", name);
-        efree(func_cache);
+        efree(fci_cache);
         RETURN_FALSE;
     }
     RETURN_TRUE;

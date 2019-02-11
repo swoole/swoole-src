@@ -42,7 +42,7 @@ static void swProcessPool_killTimeout(swTimer *timer, swTimer_node *tnode)
         if (i >= pool->reload_worker_i)
         {
             reload_worker_pid = pool->reload_workers[i].pid;
-            if (kill(reload_worker_pid, 0 == -1))
+            if (kill(reload_worker_pid, 0) == -1)
             {
                 continue;
             }
@@ -386,7 +386,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
 
 pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker)
 {
-    pid_t pid = fork();
+    pid_t pid = swoole_fork();
     int ret_code = 0;
 
     switch (pid)

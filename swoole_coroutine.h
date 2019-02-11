@@ -114,6 +114,17 @@ public:
         return active && Coroutine::get_current();
     }
 
+    static inline php_coro_task* get_current_task()
+    {
+        php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
+        return task ? task : &main_task;
+    }
+
+    static inline php_coro_task* get_task_by_cid(long cid)
+    {
+        return cid == -1 ? &main_task : (php_coro_task *) Coroutine::get_task_by_cid(cid);
+    }
+
     static inline long get_cid()
     {
         return likely(active) ? Coroutine::get_current_cid() : -1;
@@ -146,7 +157,6 @@ protected:
     static inline void restore_vm_stack(php_coro_task *task);
     static inline void save_og(php_coro_task *task);
     static inline void restore_og(php_coro_task *task);
-    static inline php_coro_task* get_current_task();
     static inline php_coro_task* get_and_save_current_task();
     static void on_yield(void *arg);
     static void on_resume(void *arg);

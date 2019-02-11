@@ -39,7 +39,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk)
         if (conn->tcp_nodelay)
         {
             int tcp_nodelay = 0;
-            if (setsockopt(conn->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) == -1)
+            if (setsockopt(conn->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) != 0)
             {
                 swWarn("setsockopt(TCP_NODELAY) failed. Error: %s[%d]", strerror(errno), errno);
             }
@@ -110,7 +110,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk)
         if (conn->tcp_nodelay)
         {
             int value = 1;
-            if (setsockopt(conn->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &value, sizeof(int)) == -1)
+            if (setsockopt(conn->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &value, sizeof(int)) != 0)
             {
                 swWarn("setsockopt(TCP_NODELAY) failed. Error: %s[%d]", strerror(errno), errno);
             }
