@@ -365,7 +365,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     {
         buffer->length += n;
 
-        if (request->method == 0 && swHttpRequest_get_protocol(request) < 0)
+        _parse: if (request->method == 0 && swHttpRequest_get_protocol(request) < 0)
         {
             if (request->excepted == 0 && request->buffer->length < SW_HTTP_HEADER_MAX_SIZE)
             {
@@ -432,7 +432,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             if (swHttpRequest_get_header_info(request) < 0)
             {
                 /* the request is really no body */
-                if (buffer->length == request->header_length)
+                if (buffer->length >= request->header_length)
                 {
                     /**
                      * send static file content directly in the reactor thread
@@ -442,7 +442,17 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                         /**
                          * dynamic request, dispatch to worker
                          */
-                        swReactorThread_dispatch(conn, buffer->str, buffer->length);
+                        swReactorThread_dispatch(conn, buffer->str, request->header_length);
+                        /**
+                         * http pipeline, multi request
+                         */
+                        if (buffer->length > request->header_length)
+                        {
+                            memmove(buffer->str, buffer->str + request->header_length, buffer->length - request->header_length);
+                            buffer->length -= request->header_length;
+                            swHttpRequest_clean(request);
+                            goto _parse;
+                        }
                     }
                     swHttpRequest_free(conn);
                     return SW_OK;
