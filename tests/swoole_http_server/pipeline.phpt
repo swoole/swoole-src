@@ -36,6 +36,7 @@ HTTP;
     while (1) {
         $data = $client->recv();
         if (!$data) {
+            echo "ERROR\n";
             break;
         }
         $html .= $data;
@@ -45,8 +46,8 @@ HTTP;
     }
 
     $pm->kill();
-    $resps = explode("\r\n\r\n", $html);
-    assert(count($resps) == N + 1);
+    assert(substr_count($html, "HTTP/1.1 200 OK") == N);
+    assert(substr_count($html, "swoole-http-server") == N);
 };
 
 $pm->childFunc = function () use ($pm) {
