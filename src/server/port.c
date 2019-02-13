@@ -446,7 +446,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                         /**
                          * http pipeline, multi request
                          */
-                        if (buffer->length > request->header_length)
+                        if (conn->active && buffer->length > request->header_length)
                         {
                             memmove(buffer->str, buffer->str + request->header_length, buffer->length - request->header_length);
                             buffer->length -= request->header_length;
