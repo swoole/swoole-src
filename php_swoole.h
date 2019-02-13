@@ -371,7 +371,12 @@ void swoole_mysql_init(int module_number TSRMLS_DC);
 void swoole_mmap_init(int module_number TSRMLS_DC);
 void swoole_channel_init(int module_number TSRMLS_DC);
 #if PHP_MAJOR_VERSION == 7
+
 void swoole_serialize_init(int module_number TSRMLS_DC);
+#if PHP_VERSION_ID < 70400
+#define SW_USE_FAST_SERIALIZE 1
+#endif
+
 #endif
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
