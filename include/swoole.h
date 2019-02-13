@@ -357,6 +357,15 @@ enum swSocket_type
     SW_SOCK_UNIX_STREAM  =  6,  //unix sock stream
 };
 
+//-------------------------------------------------------------------------------
+enum swTimeout_type
+{
+    SW_TIMEOUT_CONNECT      =  1u << 1,
+    SW_TIMEOUT_READ         =  1u << 2,
+    SW_TIMEOUT_WRITE        =  1u << 3,
+    SW_TIMEOUT_ALL          =  0xff,
+};
+
 #define SW_SOCK_SSL            (1u << 9)
 //-------------------------------------------------------------------------------
 enum swLog_level
@@ -2157,7 +2166,7 @@ typedef struct
     swString **buffer_output;
     swWorker *worker;
     time_t exit_time;
-    swTimer_node *timer;
+    swTimer_node *exit_timer;
 
 } swWorkerG;
 

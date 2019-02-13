@@ -61,7 +61,7 @@ public:
         ssize_t retval = 0;
         size_t total_bytes = 0, parsed_n = 0;
         swString *buffer = get_read_buffer();
-        Timer timer(&read_timer, timeout == 0 ? this->timeout : timeout, this, timer_callback);
+        Timer timer(&read_timer, timeout == 0 ? this->read_timeout : timeout, this, timer_callback);
         if (unlikely(!timer.create()))
         {
             return false;
@@ -655,7 +655,7 @@ bool http_client::connect()
         set();
 
         // connect
-        socket->set_connect_timeout(connect_timeout);
+        socket->set_timeout(connect_timeout, SW_TIMEOUT_CONNECT);
         if (!socket->connect(host, port))
         {
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);

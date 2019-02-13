@@ -447,7 +447,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                         /**
                          * http pipeline, multi request
                          */
-                        if (buffer->length > request->header_length)
+                        if (conn->active && buffer->length > request->header_length)
                         {
                             swString_sub(buffer, request->header_length, 0);
                             swHttpRequest_clean(request);

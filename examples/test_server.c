@@ -133,7 +133,7 @@ int my_onPacket(swServer *serv, swEventData *req)
     //udp ipv4
     if (req->info.type == SW_EVENT_UDP)
     {
-        inet_ntop(AF_INET6, &packet->info.addr.inet_v4.sin_addr, address, sizeof(address));
+        inet_ntop(AF_INET, &packet->info.addr.inet_v4.sin_addr, address, sizeof(address));
         port = ntohs(packet->info.addr.inet_v4.sin_port);
     }
     //udp ipv6

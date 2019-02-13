@@ -1100,7 +1100,7 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
     zval *zcallback = ps->callback;
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
+        swoole_php_fatal_error(E_WARNING, "swoole_async::exec callback error");
     }
     sw_zval_free(zcallback);
 
