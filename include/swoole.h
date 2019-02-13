@@ -200,7 +200,7 @@ typedef unsigned long ulong_t;
 /*-----------------------------------Memory------------------------------------*/
 
 #define SW_MEM_ALIGNED_SIZE(size) \
-        SW_MM_ALIGNED_SIZE_EX(size, 8)
+        SW_MEM_ALIGNED_SIZE_EX(size, 8)
 #define SW_MEM_ALIGNED_SIZE_EX(size, alignment) \
         (((size) + ((alignment) - 1LL)) & ~((alignment) - 1LL))
 
