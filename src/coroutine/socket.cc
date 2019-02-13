@@ -1,5 +1,4 @@
 #include "socket.h"
-#include "coroutine.h"
 #include "async.h"
 #include "buffer.h"
 #include "base64.h"
