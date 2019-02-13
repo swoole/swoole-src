@@ -1697,8 +1697,11 @@ static PHP_METHOD(swoole_client, close)
     {
         if (cli->keep)
         {
-            queue<swClient *> *q = long_connections[string(cli->server_str, cli->server_strlen)];
-            q->push(cli);
+            auto i = long_connections.find(string(cli->server_str, cli->server_strlen));
+            if (i != long_connections.end())
+            {
+                i->second->push(cli);
+            }
         }
         //unset object
         swoole_set_object(getThis(), NULL);
