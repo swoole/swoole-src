@@ -776,6 +776,17 @@ static sw_inline int swString_extend_align(swString *str, size_t _new_size)
     return swString_extend(str, align_size);
 }
 
+static sw_inline void swString_sub(swString *str, off_t start, size_t length)
+{
+    char *from = str->str + start + (start >= 0 ? 0 : str->length);
+    str->length = length != 0 ? length : str->length - start;
+    str->offset = 0;
+    if (likely(str->length > 0))
+    {
+        memmove(str->str, from, str->length);
+    }
+}
+
 //------------------------------Base--------------------------------
 enum _swEventData_flag
 {

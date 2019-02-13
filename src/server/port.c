@@ -365,7 +365,8 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     {
         buffer->length += n;
 
-        _parse: if (request->method == 0 && swHttpRequest_get_protocol(request) < 0)
+        _parse:
+        if (request->method == 0 && swHttpRequest_get_protocol(request) < 0)
         {
             if (request->excepted == 0 && request->buffer->length < SW_HTTP_HEADER_MAX_SIZE)
             {
@@ -448,8 +449,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                          */
                         if (buffer->length > request->header_length)
                         {
-                            memmove(buffer->str, buffer->str + request->header_length, buffer->length - request->header_length);
-                            buffer->length -= request->header_length;
+                            swString_sub(buffer, request->header_length, 0);
                             swHttpRequest_clean(request);
                             goto _parse;
                         }

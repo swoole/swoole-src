@@ -91,16 +91,7 @@ static void swoole_buffer_recycle(swString *buffer)
     {
         return;
     }
-
-    long length;
-    length = buffer->length - buffer->offset;
-    if (length > 0)
-    {
-        memmove(buffer->str, buffer->str + buffer->offset, length);
-    }
-
-    buffer->offset = 0;
-    buffer->length = length;
+    swString_sub(buffer, buffer->offset, 0);
 }
 
 static PHP_METHOD(swoole_buffer, __construct)

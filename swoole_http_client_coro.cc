@@ -100,8 +100,7 @@ public:
         // websocket stick package
         if (parser.upgrade && (size_t) retval > parsed_n + 1 + SW_WEBSOCKET_HEADER_LEN)
         {
-            buffer->length = retval - parsed_n - 1;
-            memmove(buffer->str, buffer->str + parsed_n + 1, buffer->length);
+            swString_sub(buffer, parsed_n + 1, retval - parsed_n - 1);
         }
         return true;
     }
