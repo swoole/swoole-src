@@ -2155,7 +2155,7 @@ typedef struct
     swString **buffer_output;
     swWorker *worker;
     time_t exit_time;
-    swTimer_node *timer;
+    swTimer_node *exit_timer;
 
 } swWorkerG;
 
