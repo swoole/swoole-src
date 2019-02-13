@@ -24,8 +24,8 @@ $pm->childFunc = function () use ($pm, $reloaded) {
         'reload_async' => true,
     ]);
     $server->on('WorkerStart', function (Swoole\Server $server, int $worker_id) use ($pm, $reloaded) {
-        if ($worker_id === 0) {
-            usleep(100 * 1000); // wait for the other processed
+        if ($worker_id === ($server->setting['worker_num'] -1)) {
+            usleep(500 * 1000); // wait for the other processed
             if ($reloaded->get() != 1) {
                 go(function () use ($pm) {
                     for ($n = 1; $n <= 5; $n++) {

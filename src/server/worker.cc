@@ -555,7 +555,6 @@ void swWorker_stop(swWorker *worker)
 
     try_to_exit:
     SwooleWG.wait_exit = 1;
-    SwooleWG.exit_timer = swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, NULL, swWorker_onTimeout);
     SwooleWG.exit_time = serv->gs->now;
 
     swWorker_try_to_exit();
