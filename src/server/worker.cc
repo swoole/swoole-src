@@ -565,6 +565,7 @@ static void swWorker_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     SwooleG.running = 0;
     SwooleG.main_reactor->running = 0;
+    SwooleWG.exit_timer = nullptr;
     swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced to terminate.");
 }
 

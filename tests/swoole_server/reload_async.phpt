@@ -18,7 +18,7 @@ $pm->parentFunc = function () use ($pm) {
 $pm->childFunc = function () use ($pm, $reloaded) {
     $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
-        'log_file' => '/dev/null',
+//        'log_file' => '/dev/null',
         'worker_num' => mt_rand(2, swoole_cpu_num() * 2),
         'max_wait_time' => 5,
         'reload_async' => true,
