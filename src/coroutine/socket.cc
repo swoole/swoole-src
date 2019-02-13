@@ -1309,7 +1309,7 @@ ssize_t Socket::recv_packet(double timeout)
 
     ssize_t buf_len = SW_BUFFER_SIZE_STD;
     ssize_t retval;
-    Timer timer(&read_timer, timeout == 0 ? this->read_timeout : timeout, this, timer_callback);
+    Timer timer(&read_timer, timeout == 0 ? read_timeout : timeout, this, timer_callback);
 
     if (unlikely(!timer.create()))
     {

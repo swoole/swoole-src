@@ -150,14 +150,25 @@ public:
         errMsg = swoole_strerror(e);
     }
 
-    /* set connect read write all timeout */
-    inline void set_timeout(double timeout)
+    /* set connect read write timeout */
+    inline void set_timeout(double timeout, enum swTimeout_type type = SW_TIMEOUT_ALL)
     {
         if (timeout == 0)
         {
             return;
         }
-        this->timeout = this->connect_timeout = this->read_timeout = this->write_timeout = timeout;
+        if (type & SW_TIMEOUT_CONNECT)
+        {
+            connect_timeout = timeout;
+        }
+        if (type & SW_TIMEOUT_READ)
+        {
+            read_timeout = timeout;
+        }
+        if (type & SW_TIMEOUT_WRITE)
+        {
+            write_timeout = timeout;
+        }
     }
 
     inline void set_timeout(struct timeval *timeout)
@@ -165,51 +176,21 @@ public:
         set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000));
     }
 
-    inline double get_timeout()
+    inline double get_timeout(enum swTimeout_type type = SW_TIMEOUT_ALL)
     {
-        return timeout;
-    }
-
-    inline void set_connect_timeout(double connect_timeout)
-    {
-        if (connect_timeout == 0)
+        if (type & SW_TIMEOUT_CONNECT)
         {
-            return;
+            return connect_timeout;
         }
-        this->connect_timeout = connect_timeout;
-    }
-
-    inline double get_connect_timeout()
-    {
-        return connect_timeout;
-    }
-
-    inline void set_read_timeout(double read_timeout)
-    {
-        if (read_timeout == 0)
+        if (type & SW_TIMEOUT_READ)
         {
-            return;
+            return read_timeout;
         }
-        this->read_timeout = read_timeout;
-    }
-
-    inline double get_read_timeout()
-    {
-        return read_timeout;
-    }
-
-    inline void set_write_timeout(double write_timeout)
-    {
-        if (write_timeout == 0)
+        if (type & SW_TIMEOUT_WRITE)
         {
-            return;
+            return write_timeout;
         }
-        this->write_timeout = write_timeout;
-    }
-
-    inline double get_write_timeout()
-    {
-        return write_timeout;
+        return -1;
     }
 
     inline bool set_tcp_nodelay(int value)
@@ -257,7 +238,6 @@ protected:
     std::string bind_address;
     int bind_port = 0;
 
-    double timeout = -1;
     double connect_timeout = -1;
     double read_timeout = -1;
     double write_timeout = -1;

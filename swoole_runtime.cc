@@ -273,7 +273,7 @@ static size_t socket_read(php_stream *stream, char *buf, size_t count)
     {
         return 0;
     }
-    sock->set_read_timeout(abstract->read_timeout);
+    sock->set_timeout(abstract->read_timeout, SW_TIMEOUT_READ);
     nr_bytes = sock->recv(buf, count);
     /**
      * sock->errCode != ETIMEDOUT : Compatible with sync blocking IO
