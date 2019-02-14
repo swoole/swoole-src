@@ -25,8 +25,6 @@ Coroutine* Coroutine::call_stack[SW_MAX_CORO_NESTING_LEVEL];
 long Coroutine::last_cid = 0;
 uint64_t Coroutine::peak_num = 0;
 long Coroutine::max_exec_msec = 0;
-long Coroutine::tick_threshold = 0;
-long Coroutine::tick_threshold_init = 0;
 coro_php_yield_t  Coroutine::on_yield = nullptr;
 coro_php_resume_t Coroutine::on_resume = nullptr;
 coro_php_close_t  Coroutine::on_close = nullptr;

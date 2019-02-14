@@ -41,6 +41,12 @@ typedef enum
     SW_CORO_END,
 } sw_coro_state;
 
+typedef enum
+{
+    SW_CORO_NONE = 0,
+    SW_CORO_ACTIVE,
+} sw_coro_flag;
+
 typedef void (*coro_php_create_t)();
 typedef void (*coro_php_yield_t)(void*);
 typedef void (*coro_php_resume_t)(void*);
@@ -99,24 +105,18 @@ public:
 
     inline void mark_schedule()
     {
-        if (tick_times >= tick_threshold)
+        if (mark_flag == SW_CORO_ACTIVE)
         {
-            tick_times = 0;
+            mark_flag = SW_CORO_NONE;
             last_schedule_msec = swTimer_get_absolute_msec();
         }
     }
 
     inline bool is_schedulable(int tick_count)
     {
-        tick_times ++;
-        if (tick_threshold_init == 0)
+        if (Coroutine::max_exec_msec > 0 && last_schedule_msec > 0)
         {
-            tick_threshold_init = 1;
-            tick_threshold = tick_count;
-        }
-        tick_threshold = tick_count;
-        if (Coroutine::max_exec_msec > 0 && last_schedule_msec > 0 && tick_count > 0 && tick_times >= tick_threshold)
-        {
+            mark_flag = SW_CORO_ACTIVE;
             int64_t now_msec = swTimer_get_absolute_msec();
             return (now_msec - last_schedule_msec > Coroutine::max_exec_msec);
         }
@@ -143,8 +143,6 @@ public:
     static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
     static long max_exec_msec;
-    static long tick_threshold;
-    static long tick_threshold_init;
     static bool socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout);
 
     static void set_on_yield(coro_php_yield_t func);
@@ -201,7 +199,7 @@ protected:
     void *task = nullptr;
     Context ctx;
     int64_t last_schedule_msec;
-    long tick_times;
+    sw_coro_flag mark_flag;
 
     Coroutine(coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)
@@ -210,7 +208,7 @@ protected:
         coroutines[cid] = this;
         call_stack[call_stack_size++] = this;
         last_schedule_msec = swTimer_get_absolute_msec();
-        tick_times = 0;
+        mark_flag = SW_CORO_NONE;
         if (unlikely(count() > peak_num))
         {
             peak_num = count();
