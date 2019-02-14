@@ -246,7 +246,7 @@ static inline long http_fast_parse(swoole_http_parser *parser, char *data, size_
 #endif
 
 static PHP_METHOD(swoole_http_request, getData);
-static PHP_METHOD(swoole_http_request, rawcontent);
+static PHP_METHOD(swoole_http_request, rawContent);
 static PHP_METHOD(swoole_http_request, __destruct);
 
 static PHP_METHOD(swoole_http_response, write);
@@ -413,7 +413,7 @@ static const multipart_parser_settings mt_parser_settings =
 
 const zend_function_entry swoole_http_request_methods[] =
 {
-    PHP_ME(swoole_http_request, rawcontent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, rawContent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, getData, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
@@ -1398,7 +1398,7 @@ void php_swoole_http_server_before_start(swServer *serv, zval *zobject)
     zend_hash_init(SG(rfc1867_uploaded_files), 8, NULL, NULL, 0);
 }
 
-static PHP_METHOD(swoole_http_request, rawcontent)
+static PHP_METHOD(swoole_http_request, rawContent)
 {
     http_context *ctx = http_get_context(getThis(), 0);
     if (!ctx)
