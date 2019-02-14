@@ -469,7 +469,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/reactor/poll.c \
         src/reactor/select.c \
         src/server/base.c \
-        src/server/manager.c \
+        src/server/manager.cc \
         src/server/master.cc \
         src/server/port.c \
         src/server/process.c \
