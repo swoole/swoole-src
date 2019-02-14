@@ -16,6 +16,7 @@
  */
 
 #include "php_swoole.h"
+#include "main/php_ticks.h"
 #include "swoole_coroutine.h"
 
 using namespace swoole;
@@ -28,20 +29,6 @@ double PHPCoroutine::socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double PHPCoroutine::socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
 php_coro_task PHPCoroutine::main_task = {0};
 
-#ifdef SW_CORO_DEATH_LOOP_PROTECTION
-static user_opcode_handler_t ori_jump_handler = NULL;
-static user_opcode_handler_t ori_jumpz_handler = NULL;
-static user_opcode_handler_t ori_jumpnz_handler = NULL;
-static user_opcode_handler_t ori_jumpznz_handler = NULL;
-static user_opcode_handler_t ori_jumpz_ex_handler = NULL;
-static user_opcode_handler_t ori_jumpnz_ex_handler = NULL;
-
-static int coro_common_handler(zend_execute_data *execute_data)
-{
-    PHPCoroutine::interrupt(execute_data);
-    return ZEND_USER_OPCODE_DISPATCH;
-}
-
 static void interrupt_callback(void *data)
 {
     Coroutine *co = (Coroutine *)data;
@@ -51,56 +38,23 @@ static void interrupt_callback(void *data)
     }
 }
 
-/*
- *
-#define ZEND_JMP                              42
-#define ZEND_JMPZ                             43
-#define ZEND_JMPNZ                            44
-#define ZEND_JMPZNZ                           45
-#define ZEND_JMPZ_EX                          46
-#define ZEND_JMPNZ_EX                         47
- */
-
-static void try_reset_opcode()
-{
-    ori_jump_handler = zend_get_user_opcode_handler(ZEND_JMP);
-    ori_jumpz_handler = zend_get_user_opcode_handler(ZEND_JMPZ);
-    ori_jumpnz_handler = zend_get_user_opcode_handler(ZEND_JMPNZ);
-    ori_jumpznz_handler = zend_get_user_opcode_handler(ZEND_JMPZNZ);
-    ori_jumpz_ex_handler = zend_get_user_opcode_handler(ZEND_JMPZ_EX);
-    ori_jumpnz_ex_handler = zend_get_user_opcode_handler(ZEND_JMPNZ_EX);
-    if (!ori_jump_handler && !ori_jumpz_handler && !ori_jumpnz_handler && \
-            !ori_jumpznz_handler && !ori_jumpz_ex_handler && !ori_jumpnz_ex_handler)
-    {
-        zend_set_user_opcode_handler(ZEND_JMP, coro_common_handler);
-        zend_set_user_opcode_handler(ZEND_JMPZ, coro_common_handler);
-        zend_set_user_opcode_handler(ZEND_JMPNZ, coro_common_handler);
-        zend_set_user_opcode_handler(ZEND_JMPZNZ, coro_common_handler);
-        zend_set_user_opcode_handler(ZEND_JMPZ_EX, coro_common_handler);
-        zend_set_user_opcode_handler(ZEND_JMPNZ_EX, coro_common_handler);
-    }
-}
-
-void PHPCoroutine::interrupt(zend_execute_data *execute_data)
+static void sw_tick(int tick_count, void *arg)
 {
     php_coro_task *task = PHPCoroutine::get_current_task();
-    if (task && task->co && task->co->is_schedulable())
+    if (task && task->co && task->co->is_schedulable(tick_count))
     {
         PHPCoroutine::on_yield(task);
         SwooleG.main_reactor->defer(SwooleG.main_reactor, interrupt_callback, (void *)task->co);
         task->co->yield_naked();
     }
 }
-#endif
 
 void PHPCoroutine::init()
 {
     Coroutine::set_on_yield(on_yield);
     Coroutine::set_on_resume(on_resume);
     Coroutine::set_on_close(on_close);
-#ifdef SW_CORO_DEATH_LOOP_PROTECTION
-    try_reset_opcode();
-#endif
+    php_add_tick_function(sw_tick, NULL);
 }
 
 inline void PHPCoroutine::vm_stack_init(void)

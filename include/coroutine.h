@@ -99,20 +99,26 @@ public:
 
     inline void mark_schedule()
     {
-        if (loop_times >= loop_threshold)
+        if (tick_times >= tick_threshold)
         {
-            loop_times = 0;
             last_schedule_msec = swTimer_get_absolute_msec();
         }
     }
 
-    inline bool is_schedulable()
+    inline bool is_schedulable(int tick_count)
     {
-        loop_times ++;
-        if (Coroutine::max_death_msec > 0 && last_schedule_msec > 0 && loop_threshold > 0 && loop_times >= loop_threshold)
+        tick_times ++;
+        if (tick_threshold_init == 0)
         {
+            tick_threshold_init = 1;
+            tick_threshold = tick_count;
+        }
+        tick_threshold = tick_count;
+        if (Coroutine::max_exec_msec > 0 && last_schedule_msec > 0 && tick_count > 0 && tick_times >= tick_threshold)
+        {
+            tick_times = 0;
             int64_t now_msec = swTimer_get_absolute_msec();
-            return (now_msec - last_schedule_msec > Coroutine::max_death_msec);
+            return (now_msec - last_schedule_msec > Coroutine::max_exec_msec);
         }
         return false;
     }
@@ -136,8 +142,9 @@ public:
     static swString* read_file(const char *file, int lock);
     static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
-    static long max_death_msec;
-    static long loop_threshold;
+    static long max_exec_msec;
+    static long tick_threshold;
+    static long tick_threshold_init;
     static bool socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout);
 
     static void set_on_yield(coro_php_yield_t func);
@@ -154,15 +161,9 @@ public:
         stack_size = SW_MEM_ALIGNED_SIZE_EX(MIN(size, SW_CORO_MAX_STACK_SIZE), SW_CORO_STACK_ALIGNED_SIZE);
     }
 
-    static inline void set_max_death_ms(long max_ms)
+    static inline void set_max_exec_msec(long max_msec)
     {
-        max_death_msec = max_ms;
-    }
-
-    static inline void set_loop_threshold(long threshold)
-    {
-
-        loop_threshold = threshold;
+        max_exec_msec = max_msec;
     }
 
     static inline long get_cid(Coroutine* co)
@@ -200,7 +201,7 @@ protected:
     void *task = nullptr;
     Context ctx;
     int64_t last_schedule_msec;
-    long loop_times;
+    long tick_times;
 
     Coroutine(coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)
@@ -209,7 +210,7 @@ protected:
         coroutines[cid] = this;
         call_stack[call_stack_size++] = this;
         last_schedule_msec = swTimer_get_absolute_msec();
-        loop_times = 0;
+        tick_times = 0;
         if (unlikely(count() > peak_num))
         {
             peak_num = count();
