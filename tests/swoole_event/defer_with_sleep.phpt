@@ -20,7 +20,7 @@ swoole_event_defer(function () {
 swoole_event_wait();
 ?>
 --EXPECT--
-timer [1]
 defer [1]
+timer [1]
 defer [2]
 timer [2]

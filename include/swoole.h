@@ -1564,7 +1564,7 @@ struct _swReactor
 
     int (*write)(swReactor *, int, void *, int);
     int (*close)(swReactor *, int);
-    int (*defer)(swReactor *, swCallback, void *);
+    void (*defer)(swReactor *, swCallback, void *);
 };
 
 typedef struct _swWorker swWorker;
@@ -1841,6 +1841,11 @@ static sw_inline int swReactor_exists(swReactor *reactor, int fd)
 {
     swConnection *socket = swReactor_get(reactor, fd);
     return !socket->removed && socket->events;
+}
+
+static sw_inline int swReactor_get_timeout_msec(swReactor *reactor)
+{
+    return reactor->defer_tasks ? 0 : reactor->timeout_msec;
 }
 
 int swReactor_onWrite(swReactor *reactor, swEvent *ev);
