@@ -101,8 +101,8 @@ int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle
 
 int swReactor_empty(swReactor *reactor)
 {
-    //timer
-    if (SwooleG.timer.num > 0)
+    //timer, defer tasks
+    if (SwooleG.timer.num > 0 || reactor->defer_tasks)
     {
         return SW_FALSE;
     }
@@ -150,13 +150,9 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
         reactor->idle_task.callback(reactor->idle_task.data);
     }
     //server worker
-    swWorker *worker = SwooleWG.worker;
-    if (worker != NULL)
+    if (SwooleWG.worker && SwooleWG.wait_exit == 1)
     {
-        if (SwooleWG.wait_exit == 1)
-        {
-            swWorker_try_to_exit();
-        }
+        swWorker_try_to_exit();
     }
     //not server, the event loop is empty
     if ((SwooleG.serv == NULL || swIsUserWorker()) && swReactor_empty(reactor))

@@ -200,7 +200,7 @@ typedef unsigned long ulong_t;
 /*-----------------------------------Memory------------------------------------*/
 
 #define SW_MEM_ALIGNED_SIZE(size) \
-        SW_MM_ALIGNED_SIZE_EX(size, 8)
+        SW_MEM_ALIGNED_SIZE_EX(size, 8)
 #define SW_MEM_ALIGNED_SIZE_EX(size, alignment) \
         (((size) + ((alignment) - 1LL)) & ~((alignment) - 1LL))
 
@@ -355,6 +355,15 @@ enum swSocket_type
     SW_SOCK_UDP6         =  4,
     SW_SOCK_UNIX_DGRAM   =  5,  //unix sock dgram
     SW_SOCK_UNIX_STREAM  =  6,  //unix sock stream
+};
+
+//-------------------------------------------------------------------------------
+enum swTimeout_type
+{
+    SW_TIMEOUT_CONNECT      =  1u << 1,
+    SW_TIMEOUT_READ         =  1u << 2,
+    SW_TIMEOUT_WRITE        =  1u << 3,
+    SW_TIMEOUT_ALL          =  0xff,
 };
 
 #define SW_SOCK_SSL            (1u << 9)
@@ -774,6 +783,17 @@ static sw_inline int swString_extend_align(swString *str, size_t _new_size)
         align_size *= 2;
     }
     return swString_extend(str, align_size);
+}
+
+static sw_inline void swString_sub(swString *str, off_t start, size_t length)
+{
+    char *from = str->str + start + (start >= 0 ? 0 : str->length);
+    str->length = length != 0 ? length : str->length - start;
+    str->offset = 0;
+    if (likely(str->length > 0))
+    {
+        memmove(str->str, from, str->length);
+    }
 }
 
 //------------------------------Base--------------------------------
@@ -1544,7 +1564,7 @@ struct _swReactor
 
     int (*write)(swReactor *, int, void *, int);
     int (*close)(swReactor *, int);
-    int (*defer)(swReactor *, swCallback, void *);
+    void (*defer)(swReactor *, swCallback, void *);
 };
 
 typedef struct _swWorker swWorker;
@@ -1821,6 +1841,11 @@ static sw_inline int swReactor_exists(swReactor *reactor, int fd)
 {
     swConnection *socket = swReactor_get(reactor, fd);
     return !socket->removed && socket->events;
+}
+
+static sw_inline int swReactor_get_timeout_msec(swReactor *reactor)
+{
+    return reactor->defer_tasks ? 0 : reactor->timeout_msec;
 }
 
 int swReactor_onWrite(swReactor *reactor, swEvent *ev);
@@ -2146,7 +2171,7 @@ typedef struct
     swString **buffer_output;
     swWorker *worker;
     time_t exit_time;
-    swTimer_node *timer;
+    swTimer_node *exit_timer;
 
 } swWorkerG;
 

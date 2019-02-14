@@ -273,7 +273,7 @@ static size_t socket_read(php_stream *stream, char *buf, size_t count)
     {
         return 0;
     }
-    sock->set_timeout(abstract->read_timeout);
+    sock->set_timeout(abstract->read_timeout, SW_TIMEOUT_READ);
     nr_bytes = sock->recv(buf, count);
     /**
      * sock->errCode != ETIMEDOUT : Compatible with sync blocking IO
@@ -405,7 +405,6 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     {
         return -1;
     }
-    double persistent_timeout = sock->get_timeout();
     if (xparam->inputs.timeout)
     {
         sock->set_timeout(xparam->inputs.timeout);
@@ -419,7 +418,6 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
         }
         ret = -1;
     }
-    sock->set_timeout(persistent_timeout);
     if (ip_address)
     {
         efree(ip_address);

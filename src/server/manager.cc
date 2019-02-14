@@ -47,44 +47,55 @@ static void swManager_onTimer(swTimer *timer, swTimer_node *tnode)
     }
 }
 
-static void swManager_killTimeout(swTimer *timer, swTimer_node *tnode)
+static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode)
 {
     int i;
-    pid_t reload_worker_pid = 0;
-    ManagerProcess.reloading = 0;
-    for (i = 0; i < ManagerProcess.reload_worker_num; i++)
+    swServer *serv = (swServer *) SwooleG.serv;
+    swWorker *workers = (swWorker *) tnode->data;
+
+    for (i = 0; i < serv->worker_num; i++)
     {
-        if (i >= ManagerProcess.reload_worker_i)
+        pid_t pid = workers[i].pid;
+        if (kill(pid, 0) == -1)
         {
-            reload_worker_pid = ManagerProcess.reload_workers[i].pid;
-            if (kill(reload_worker_pid, 0) == -1)
-            {
-                continue;
-            }
-            if (kill(reload_worker_pid, SIGKILL) < 0)
-            {
-                swSysError("kill(%d, SIGKILL) [%d] failed.", ManagerProcess.reload_workers[i].pid, i);
-            }
-            else
-            {
-                swWarn("kill(%d, SIGKILL) [%d].", ManagerProcess.reload_workers[i].pid, i);
-            }
+            continue;
+        }
+        if (kill(pid, SIGKILL) < 0)
+        {
+            swSysError("kill(%d, SIGKILL) [%d] failed.", pid, i);
+        }
+        else
+        {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
+                    "[Manager] Worker#%d[pid=%d] exit timeout, forced kill.", workers[i].id, pid);
         }
     }
-    errno = 0;
-    ManagerProcess.reload_worker_i = 0;
-    ManagerProcess.reload_init = 0;
+    sw_free(workers);
+}
+
+static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int n)
+{
+    /**
+     * separate old workers, free memory in the timer
+     */
+    swWorker *reload_workers = (swWorker *) sw_malloc(sizeof(swWorker) * n);
+    memcpy(reload_workers, workers, sizeof(swWorker) * n);
+    if (serv->max_wait_time)
+    {
+        swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, reload_workers, swManager_kill_timeout_process);
+    }
 }
 
 //create worker child proccess
 int swManager_start(swFactory *factory)
 {
-    swFactoryProcess *object = factory->object;
+    swFactoryProcess *object = (swFactoryProcess *) factory->object;
+    swServer *serv = (swServer *) factory->ptr;
+
     int i;
     pid_t pid;
-    swServer *serv = factory->ptr;
 
-    object->pipes = sw_calloc(serv->worker_num, sizeof(swPipe));
+    object->pipes = (swPipe *) sw_calloc(serv->worker_num, sizeof(swPipe));
     if (object->pipes == NULL)
     {
         swError("malloc[worker_pipes] failed. Error: %s [%d]", strerror(errno), errno);
@@ -129,7 +140,7 @@ int swManager_start(swFactory *factory)
     //User Worker Process
     if (serv->user_worker_num > 0)
     {
-        serv->user_workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->user_worker_num * sizeof(swWorker));
+        serv->user_workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->user_worker_num * sizeof(swWorker));
         if (serv->user_workers == NULL)
         {
             swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "gmalloc[server->user_workers] failed.");
@@ -254,7 +265,7 @@ static int swManager_loop(swFactory *factory)
 
     memset(&ManagerProcess, 0, sizeof(ManagerProcess));
 
-    swServer *serv = factory->ptr;
+    swServer *serv = (swServer *) factory->ptr;
 
     if (serv->hooks[SW_SERVER_HOOK_MANAGER_START])
     {
@@ -266,7 +277,7 @@ static int swManager_loop(swFactory *factory)
         serv->onManagerStart(serv);
     }
 
-    ManagerProcess.reload_workers = sw_calloc(serv->worker_num + serv->task_worker_num, sizeof(swWorker));
+    ManagerProcess.reload_workers = (swWorker *) sw_calloc(serv->worker_num + serv->task_worker_num, sizeof(swWorker));
     if (ManagerProcess.reload_workers == NULL)
     {
         swError("malloc[reload_workers] failed");
@@ -342,16 +353,17 @@ static int swManager_loop(swFactory *factory)
                 {
                     ManagerProcess.reload_init = 1;
                     memcpy(ManagerProcess.reload_workers, serv->workers, sizeof(swWorker) * serv->worker_num);
-                    if (serv->max_wait_time)
-                    {
-                        swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, NULL, swManager_killTimeout);
-                    }
+
+                    swManager_add_timeout_killer(serv, serv->workers, serv->worker_num);
+
                     ManagerProcess.reload_worker_num = serv->worker_num;
                     if (serv->task_worker_num > 0)
                     {
                         memcpy(ManagerProcess.reload_workers + serv->worker_num, serv->gs->task_workers.workers,
                                 sizeof(swWorker) * serv->task_worker_num);
                         ManagerProcess.reload_worker_num += serv->task_worker_num;
+
+                        swManager_add_timeout_killer(serv, serv->gs->task_workers.workers, serv->task_worker_num);
                     }
 
                     ManagerProcess.reload_all_worker = 0;
@@ -385,10 +397,7 @@ static int swManager_loop(swFactory *factory)
                 if (ManagerProcess.reload_init == 0)
                 {
                     memcpy(ManagerProcess.reload_workers, serv->gs->task_workers.workers, sizeof(swWorker) * serv->task_worker_num);
-                    if (serv->max_wait_time)
-                    {
-                        swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, &ManagerProcess, swManager_killTimeout);
-                    }
+                    swManager_add_timeout_killer(serv, serv->gs->task_workers.workers, serv->task_worker_num);
                     ManagerProcess.reload_worker_num = serv->task_worker_num;
                     ManagerProcess.reload_worker_i = 0;
                     ManagerProcess.reload_init = 1;
@@ -442,7 +451,7 @@ static int swManager_loop(swFactory *factory)
             //task worker
             if (serv->gs->task_workers.map)
             {
-                exit_worker = swHashMap_find_int(serv->gs->task_workers.map, pid);
+                exit_worker = (swWorker *) swHashMap_find_int(serv->gs->task_workers.map, pid);
                 if (exit_worker != NULL)
                 {
                     if (WIFSTOPPED(status) && exit_worker->tracer)
@@ -477,7 +486,7 @@ static int swManager_loop(swFactory *factory)
             reload_worker_pid = ManagerProcess.reload_workers[ManagerProcess.reload_worker_i].pid;
             if (kill(reload_worker_pid, SIGTERM) < 0)
             {
-                if (errno == ECHILD)
+                if (errno == ECHILD || errno == ESRCH)
                 {
                     ManagerProcess.reload_worker_i++;
                     goto kill_worker;
@@ -599,7 +608,7 @@ int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status)
 
     if (serv->gs->task_workers.map)
     {
-        exit_worker = swHashMap_find_int(serv->gs->task_workers.map, pid);
+        exit_worker = (swWorker *) swHashMap_find_int(serv->gs->task_workers.map, pid);
         if (exit_worker)
         {
             swManager_check_exit_status(serv, exit_worker->id, pid, status);
@@ -609,7 +618,7 @@ int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status)
 
     if (serv->user_worker_map)
     {
-        exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
+        exit_worker = (swWorker *) swHashMap_find_int(serv->user_worker_map, pid);
         if (exit_worker != NULL)
         {
             swManager_check_exit_status(serv, exit_worker->id, pid, status);
@@ -633,7 +642,7 @@ void swManager_kill_user_worker(swServer *serv)
     //kill user process
     while (1)
     {
-        user_worker = swHashMap_each_int(serv->user_worker_map, &key);
+        user_worker = (swWorker *) swHashMap_each_int(serv->user_worker_map, &key);
         //hashmap empty
         if (user_worker == NULL)
         {
@@ -645,7 +654,7 @@ void swManager_kill_user_worker(swServer *serv)
     //wait user process
     while (1)
     {
-        user_worker = swHashMap_each_int(serv->user_worker_map, &key);
+        user_worker = (swWorker *) swHashMap_each_int(serv->user_worker_map, &key);
         //hashmap empty
         if (user_worker == NULL)
         {

@@ -2242,8 +2242,8 @@ static PHP_METHOD(swoole_http_response, status)
     ctx->response.status = http_status;
     if (reason_len > 0)
     {
-        ctx->response.reason = (char *) emalloc(32);
-        strncpy(ctx->response.reason, reason, 32 - 1);
+        ctx->response.reason = (char *) emalloc(SW_MEM_ALIGNED_SIZE(reason_len + 1));
+        strncpy(ctx->response.reason, reason, reason_len);
     }
 }
 

@@ -555,7 +555,6 @@ void swWorker_stop(swWorker *worker)
 
     try_to_exit:
     SwooleWG.wait_exit = 1;
-    SwooleWG.timer = swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, NULL, swWorker_onTimeout);
     SwooleWG.exit_time = serv->gs->now;
 
     swWorker_try_to_exit();
@@ -565,6 +564,7 @@ static void swWorker_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     SwooleG.running = 0;
     SwooleG.main_reactor->running = 0;
+    SwooleWG.exit_timer = nullptr;
     swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced to terminate.");
 }
 
@@ -591,9 +591,10 @@ void swWorker_try_to_exit()
 
     uint8_t call_worker_exit_func = 0;
 
-    if (SwooleWG.timer)
+    if (SwooleWG.exit_timer)
     {
-        swTimer_del(&SwooleG.timer, SwooleWG.timer);
+        swTimer_del(&SwooleG.timer, SwooleWG.exit_timer);
+        SwooleWG.exit_timer = nullptr;
     }
 
     while (1)
@@ -618,7 +619,7 @@ void swWorker_try_to_exit()
             }
             else
             {
-                SwooleWG.timer = swTimer_add(&SwooleG.timer, (long) (remaining_time * 1000), 0, NULL, swWorker_onTimeout);
+                SwooleWG.exit_timer = swTimer_add(&SwooleG.timer, (long) (remaining_time * 1000), 0, NULL, swWorker_onTimeout);
             }
         }
         break;
@@ -653,12 +654,6 @@ void swWorker_clean(void)
 int swWorker_loop(swFactory *factory, int worker_id)
 {
     swServer *serv = (swServer *) factory->ptr;
-
-#ifndef SW_WORKER_USE_SIGNALFD
-    SwooleG.use_signalfd = 0;
-#elif defined(HAVE_SIGNALFD)
-    SwooleG.use_signalfd = 1;
-#endif
 
     //worker_id
     SwooleWG.id = worker_id;

@@ -61,8 +61,8 @@ public:
         ssize_t retval = 0;
         size_t total_bytes = 0, parsed_n = 0;
         swString *buffer = get_read_buffer();
-        Timer timer(&read_timer, timeout == 0 ? this->timeout : timeout, this, timer_callback);
-        if (unlikely(!timer.create()))
+        Timer timer(&read_timer, timeout == 0 ? this->read_timeout : timeout, this, timer_callback);
+        if (unlikely(!timer.start()))
         {
             return false;
         }
@@ -100,8 +100,7 @@ public:
         // websocket stick package
         if (parser.upgrade && (size_t) retval > parsed_n + 1 + SW_WEBSOCKET_HEADER_LEN)
         {
-            buffer->length = retval - parsed_n - 1;
-            memmove(buffer->str, buffer->str + parsed_n + 1, buffer->length);
+            swString_sub(buffer, parsed_n + 1, retval - parsed_n - 1);
         }
         return true;
     }
@@ -656,8 +655,7 @@ bool http_client::connect()
         set();
 
         // connect
-        double persistent_timeout = socket->get_timeout();
-        socket->set_timeout(connect_timeout);
+        socket->set_timeout(connect_timeout, SW_TIMEOUT_CONNECT);
         if (!socket->connect(host, port))
         {
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
@@ -666,7 +664,6 @@ bool http_client::connect()
             close();
             return false;
         }
-        socket->set_timeout(persistent_timeout);
         reconnected_count = 0;
         zend_update_property_bool(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("connected"), 1);
         if (!body)

@@ -150,23 +150,47 @@ public:
         errMsg = swoole_strerror(e);
     }
 
-    inline double get_timeout()
-    {
-        return timeout;
-    }
-
-    inline void set_timeout(double timeout)
+    /* set connect read write timeout */
+    inline void set_timeout(double timeout, enum swTimeout_type type = SW_TIMEOUT_ALL)
     {
         if (timeout == 0)
         {
             return;
         }
-        this->timeout = timeout;
+        if (type & SW_TIMEOUT_CONNECT)
+        {
+            connect_timeout = timeout;
+        }
+        if (type & SW_TIMEOUT_READ)
+        {
+            read_timeout = timeout;
+        }
+        if (type & SW_TIMEOUT_WRITE)
+        {
+            write_timeout = timeout;
+        }
     }
 
     inline void set_timeout(struct timeval *timeout)
     {
         set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000));
+    }
+
+    inline double get_timeout(enum swTimeout_type type = SW_TIMEOUT_ALL)
+    {
+        if (type & SW_TIMEOUT_CONNECT)
+        {
+            return connect_timeout;
+        }
+        if (type & SW_TIMEOUT_READ)
+        {
+            return read_timeout;
+        }
+        if (type & SW_TIMEOUT_WRITE)
+        {
+            return write_timeout;
+        }
+        return -1;
     }
 
     inline bool set_tcp_nodelay(int value)
@@ -214,7 +238,9 @@ protected:
     std::string bind_address;
     int bind_port = 0;
 
-    double timeout = -1;
+    double connect_timeout = -1;
+    double read_timeout = -1;
+    double write_timeout = -1;
     swTimer_node *read_timer = nullptr;
     swTimer_node *write_timer = nullptr;
 
@@ -278,7 +304,7 @@ protected:
             timer_pp(timer_pp), timeout(timeout), data(data), callback(callback)
         {
         }
-        bool create()
+        bool start()
         {
             if (timeout != 0 && !*timer_pp)
             {
