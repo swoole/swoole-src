@@ -44,7 +44,7 @@ swoole\runtime::enableCoroutine();
 
 foreach ($files as $k => $v)
 {
-    go(function () use ($v, $k, $chan) {
+    go(function () use ($v, $k) {
         $content = readfile_co($v['file']);
         assert(md5($content) == $v['hash']);
     });

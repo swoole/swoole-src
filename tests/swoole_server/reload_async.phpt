@@ -21,15 +21,16 @@ $pm->parentFunc = function () use ($pm) {
 $pm->childFunc = function () use ($pm, $reloaded, $workerCounter) {
     $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
-        'log_file' => '/dev/null',
-        'worker_num' => 2,
-        'max_wait_time' => 5,
+//        'log_file' => '/dev/null',
+        'worker_num' => rand(2, swoole_cpu_num() * 2),
+        'max_wait_time' => 10,
         'reload_async' => true,
         'enable_coroutine' => false,
     ]);
     $server->on('WorkerStart', function (Swoole\Server $server, int $worker_id) use ($pm, $reloaded, $workerCounter) {
         $workerCounter->add(1);
         if ($worker_id === 0 and $reloaded->get() != 1) {
+            $reloaded->set(1);
             while ($workerCounter->get() < $server->setting['worker_num']) {
                 usleep(10000);
             }
@@ -42,7 +43,6 @@ $pm->childFunc = function () use ($pm, $reloaded, $workerCounter) {
                 $pm->wakeup();
             });
             echo "RELOAD\n";
-            $reloaded->set(1);
             assert($server->reload());
         }
     });
