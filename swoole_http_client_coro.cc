@@ -62,7 +62,7 @@ public:
         size_t total_bytes = 0, parsed_n = 0;
         swString *buffer = get_read_buffer();
         Timer timer(&read_timer, timeout == 0 ? this->read_timeout : timeout, this, timer_callback);
-        if (unlikely(!timer.create()))
+        if (unlikely(!timer.start()))
         {
             return false;
         }
