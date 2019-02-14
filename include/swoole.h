@@ -200,7 +200,7 @@ typedef unsigned long ulong_t;
 /*-----------------------------------Memory------------------------------------*/
 
 #define SW_MEM_ALIGNED_SIZE(size) \
-        SW_MM_ALIGNED_SIZE_EX(size, 8)
+        SW_MEM_ALIGNED_SIZE_EX(size, 8)
 #define SW_MEM_ALIGNED_SIZE_EX(size, alignment) \
         (((size) + ((alignment) - 1LL)) & ~((alignment) - 1LL))
 
@@ -783,6 +783,17 @@ static sw_inline int swString_extend_align(swString *str, size_t _new_size)
         align_size *= 2;
     }
     return swString_extend(str, align_size);
+}
+
+static sw_inline void swString_sub(swString *str, off_t start, size_t length)
+{
+    char *from = str->str + start + (start >= 0 ? 0 : str->length);
+    str->length = length != 0 ? length : str->length - start;
+    str->offset = 0;
+    if (likely(str->length > 0))
+    {
+        memmove(str->str, from, str->length);
+    }
 }
 
 //------------------------------Base--------------------------------

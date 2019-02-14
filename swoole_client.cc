@@ -1381,8 +1381,7 @@ static PHP_METHOD(swoole_client, recv)
 
                 if ((int) buffer->length > eof)
                 {
-                    buffer->length -= eof;
-                    memmove(buffer->str, buffer->str + eof, buffer->length);
+                    swString_sub(buffer, eof, 0);
                 }
                 else
                 {
