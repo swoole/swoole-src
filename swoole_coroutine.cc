@@ -16,7 +16,6 @@
  */
 
 #include "php_swoole.h"
-#include "main/php_ticks.h"
 #include "swoole_coroutine.h"
 
 using namespace swoole;
@@ -29,6 +28,9 @@ double PHPCoroutine::socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double PHPCoroutine::socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
 php_coro_task PHPCoroutine::main_task = {0};
 
+#ifdef SW_CORO_TICK_SCHEDULE
+static user_opcode_handler_t ori_tick_handler = NULL;
+
 static void interrupt_callback(void *data)
 {
     Coroutine *co = (Coroutine *)data;
@@ -38,7 +40,7 @@ static void interrupt_callback(void *data)
     }
 }
 
-static void sw_tick(int tick_count, void *arg)
+static void sw_tick(uint32_t tick_count)
 {
     php_coro_task *task = PHPCoroutine::get_current_task();
     if (task && task->co && task->co->is_schedulable(tick_count))
@@ -49,12 +51,35 @@ static void sw_tick(int tick_count, void *arg)
     }
 }
 
+static int coro_tick_handler(zend_execute_data *execute_data)
+{
+    uint32_t tick_count = execute_data->opline->extended_value;
+    if ((uint32_t)++EG(ticks_count) >= tick_count) {
+        EG(ticks_count) = 0;
+        sw_tick(tick_count);
+    }
+    execute_data->opline ++;
+    return ZEND_USER_OPCODE_CONTINUE;
+}
+
+static void try_reset_opcode()
+{
+    ori_tick_handler = zend_get_user_opcode_handler(ZEND_TICKS);
+    if (!ori_tick_handler)
+    {
+        zend_set_user_opcode_handler(ZEND_TICKS, coro_tick_handler);
+    }
+}
+#endif
+
 void PHPCoroutine::init()
 {
     Coroutine::set_on_yield(on_yield);
     Coroutine::set_on_resume(on_resume);
     Coroutine::set_on_close(on_close);
-    php_add_tick_function(sw_tick, NULL);
+#ifdef SW_CORO_TICK_SCHEDULE
+    try_reset_opcode();
+#endif
 }
 
 inline void PHPCoroutine::vm_stack_init(void)
