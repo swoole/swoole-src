@@ -13,7 +13,7 @@ go(function () use (&$flag, $max_msec){
     echo "coro 1 start to loop for $max_msec msec\n";
     $i = 0;
     while($flag) {
-        echo "$i\n";
+//         echo "$i\n";
         $i ++;
     }
     echo "coro 1 can exit\n";
@@ -27,4 +27,3 @@ go(function () use (&$flag){
     $flag = false;
 });
 echo "end\n";
-swoole_event_wait();
