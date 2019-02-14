@@ -47,33 +47,43 @@ static void swManager_onTimer(swTimer *timer, swTimer_node *tnode)
     }
 }
 
-static void swManager_killTimeout(swTimer *timer, swTimer_node *tnode)
+static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode)
 {
     int i;
-    pid_t reload_worker_pid = 0;
-    ManagerProcess.reloading = 0;
-    for (i = 0; i < ManagerProcess.reload_worker_num; i++)
+    swServer *serv = SwooleG.serv;
+    swWorker *workers = tnode->data;
+
+    for (i = 0; i < serv->worker_num; i++)
     {
-        if (i >= ManagerProcess.reload_worker_i)
+        pid_t pid = workers[i].pid;
+        if (kill(pid, 0) == -1)
         {
-            reload_worker_pid = ManagerProcess.reload_workers[i].pid;
-            if (kill(reload_worker_pid, 0) == -1)
-            {
-                continue;
-            }
-            if (kill(reload_worker_pid, SIGKILL) < 0)
-            {
-                swSysError("kill(%d, SIGKILL) [%d] failed.", ManagerProcess.reload_workers[i].pid, i);
-            }
-            else
-            {
-                swWarn("kill(%d, SIGKILL) [%d].", ManagerProcess.reload_workers[i].pid, i);
-            }
+            continue;
+        }
+        if (kill(pid, SIGKILL) < 0)
+        {
+            swSysError("kill(%d, SIGKILL) [%d] failed.", pid, i);
+        }
+        else
+        {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
+                    "[Manager] Worker#%d[pid=%d] exit timeout, forced kill.", workers[i].id, pid);
         }
     }
-    errno = 0;
-    ManagerProcess.reload_worker_i = 0;
-    ManagerProcess.reload_init = 0;
+    sw_free(workers);
+}
+
+static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int n)
+{
+    /**
+     * separate old workers, free memory in the timer
+     */
+    swWorker *reload_workers = sw_malloc(sizeof(swWorker) * n);
+    memcpy(reload_workers, serv->workers, sizeof(swWorker) * n);
+    if (serv->max_wait_time)
+    {
+        swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, reload_workers, swManager_kill_timeout_process);
+    }
 }
 
 //create worker child proccess
@@ -342,16 +352,17 @@ static int swManager_loop(swFactory *factory)
                 {
                     ManagerProcess.reload_init = 1;
                     memcpy(ManagerProcess.reload_workers, serv->workers, sizeof(swWorker) * serv->worker_num);
-                    if (serv->max_wait_time)
-                    {
-                        swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, NULL, swManager_killTimeout);
-                    }
+
+                    swManager_add_timeout_killer(serv, serv->workers, serv->worker_num);
+
                     ManagerProcess.reload_worker_num = serv->worker_num;
                     if (serv->task_worker_num > 0)
                     {
                         memcpy(ManagerProcess.reload_workers + serv->worker_num, serv->gs->task_workers.workers,
                                 sizeof(swWorker) * serv->task_worker_num);
                         ManagerProcess.reload_worker_num += serv->task_worker_num;
+
+                        swManager_add_timeout_killer(serv, serv->gs->task_workers.workers, serv->task_worker_num);
                     }
 
                     ManagerProcess.reload_all_worker = 0;
@@ -385,10 +396,7 @@ static int swManager_loop(swFactory *factory)
                 if (ManagerProcess.reload_init == 0)
                 {
                     memcpy(ManagerProcess.reload_workers, serv->gs->task_workers.workers, sizeof(swWorker) * serv->task_worker_num);
-                    if (serv->max_wait_time)
-                    {
-                        swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, &ManagerProcess, swManager_killTimeout);
-                    }
+                    swManager_add_timeout_killer(serv, serv->gs->task_workers.workers, serv->task_worker_num);
                     ManagerProcess.reload_worker_num = serv->task_worker_num;
                     ManagerProcess.reload_worker_i = 0;
                     ManagerProcess.reload_init = 1;

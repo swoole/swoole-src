@@ -655,12 +655,6 @@ int swWorker_loop(swFactory *factory, int worker_id)
 {
     swServer *serv = (swServer *) factory->ptr;
 
-#ifndef SW_WORKER_USE_SIGNALFD
-    SwooleG.use_signalfd = 0;
-#elif defined(HAVE_SIGNALFD)
-    SwooleG.use_signalfd = 1;
-#endif
-
     //worker_id
     SwooleWG.id = worker_id;
 
