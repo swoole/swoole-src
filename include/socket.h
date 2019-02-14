@@ -304,7 +304,7 @@ protected:
             timer_pp(timer_pp), timeout(timeout), data(data), callback(callback)
         {
         }
-        bool create()
+        bool start()
         {
             if (timeout != 0 && !*timer_pp)
             {
