@@ -101,8 +101,8 @@ int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle
 
 int swReactor_empty(swReactor *reactor)
 {
-    //timer
-    if (SwooleG.timer.num > 0)
+    //timer, defer tasks
+    if (SwooleG.timer.num > 0 || reactor->defer_tasks)
     {
         return SW_FALSE;
     }

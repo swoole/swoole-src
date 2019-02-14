@@ -29,23 +29,21 @@ $pm->childFunc = function () use ($pm, $reloaded, $workerCounter) {
     ]);
     $server->on('WorkerStart', function (Swoole\Server $server, int $worker_id) use ($pm, $reloaded, $workerCounter) {
         $workerCounter->add(1);
-        if ($worker_id === 0) {
-            while($workerCounter->get() < $server->setting['worker_num']) {
+        if ($worker_id === 0 and $reloaded->get() != 1) {
+            while ($workerCounter->get() < $server->setting['worker_num']) {
                 usleep(10000);
             }
-            if ($reloaded->get() != 1) {
-                go(function () use ($pm) {
-                    for ($n = 1; $n <= 5; $n++) {
-                        Co::sleep(0.1);
-                        echo "{$n}\n";
-                    }
-                    echo "RELOADED\n";
-                    $pm->wakeup();
-                });
-                echo "RELOAD\n";
-                $reloaded->set(1);
-                assert($server->reload());
-            }
+            go(function () use ($pm) {
+                for ($n = 1; $n <= 5; $n++) {
+                    Co::sleep(0.1);
+                    echo "{$n}\n";
+                }
+                echo "RELOADED\n";
+                $pm->wakeup();
+            });
+            echo "RELOAD\n";
+            $reloaded->set(1);
+            assert($server->reload());
         }
     });
     $server->on('Receive', function () { });
