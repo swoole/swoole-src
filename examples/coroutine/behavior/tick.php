@@ -14,12 +14,6 @@ go(function () use (&$flag, $max_msec){
     $i = 0;
     while($flag) {
         $i ++;
-        $a = $i;
-        $a = $i;
-        $a = $i;
-        $a = $i;
-        $a = $i;
-//         sleep(0.5);
     }
     echo "coro 1 can exit\n";
 });
