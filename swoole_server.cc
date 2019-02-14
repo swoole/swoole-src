@@ -34,11 +34,9 @@ using namespace swoole;
 typedef struct
 {
     int current_fd;
-    int max_fd;
     uint32_t session_id;
     swServer *serv;
     swListenPort *port;
-    int end;
     int index;
 } swConnectionIterator;
 
@@ -942,8 +940,8 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
 
     swConnectionIterator *i = (swConnectionIterator *) emalloc(sizeof(swConnectionIterator));
     bzero(i, sizeof(swConnectionIterator));
-    i->port = port;
     i->serv = serv;
+    i->port = port;
     swoole_set_object(&connection_iterator, i);
 
     (void) add_next_index_zval(server_port_list.zports, port_object);
@@ -4264,6 +4262,7 @@ static PHP_METHOD(swoole_server, stop)
 static PHP_METHOD(swoole_connection_iterator, rewind)
 {
     swConnectionIterator *itearator = (swConnectionIterator *) swoole_get_object(getThis());
+    itearator->index = 0;
     itearator->current_fd = swServer_get_minfd(itearator->serv);
 }
 
