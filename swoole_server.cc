@@ -3738,7 +3738,7 @@ static PHP_METHOD(swoole_server, task)
         Z_PARAM_ZVAL(data)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(dst_worker_id)
-        Z_PARAM_ZVAL(callback)
+        Z_PARAM_ZVAL_EX(callback, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (php_swoole_check_task_param(serv, dst_worker_id) < 0)
