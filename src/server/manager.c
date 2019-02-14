@@ -79,7 +79,7 @@ static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int 
      * separate old workers, free memory in the timer
      */
     swWorker *reload_workers = sw_malloc(sizeof(swWorker) * n);
-    memcpy(reload_workers, serv->workers, sizeof(swWorker) * n);
+    memcpy(reload_workers, workers, sizeof(swWorker) * n);
     if (serv->max_wait_time)
     {
         swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, reload_workers, swManager_kill_timeout_process);
@@ -485,7 +485,7 @@ static int swManager_loop(swFactory *factory)
             reload_worker_pid = ManagerProcess.reload_workers[ManagerProcess.reload_worker_i].pid;
             if (kill(reload_worker_pid, SIGTERM) < 0)
             {
-                if (errno == ECHILD)
+                if (errno == ECHILD || errno == ESRCH)
                 {
                     ManagerProcess.reload_worker_i++;
                     goto kill_worker;
