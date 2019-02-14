@@ -94,6 +94,7 @@ public:
     static double socket_connect_timeout;
     static double socket_timeout;
 
+    static void init();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(swCallback cb, void *data);
 
@@ -103,18 +104,13 @@ public:
     static bool enable_hook(int flags);
     static bool disable_hook();
 
+    static void on_yield(void *arg);
+
     // TODO: remove old coro APIs (Manual)
     static void yield_m(zval *return_value, php_coro_context *sw_php_context);
     static int resume_m(php_coro_context *sw_current_context, zval *retval, zval *coro_retval);
 
-    static inline void init()
-    {
-        Coroutine::set_on_yield(on_yield);
-        Coroutine::set_on_resume(on_resume);
-        Coroutine::set_on_close(on_close);
-    }
-
-    static inline bool is_in()
+    static bool is_in()
     {
         return active && Coroutine::get_current();
     }
@@ -163,7 +159,6 @@ protected:
     static inline void save_og(php_coro_task *task);
     static inline void restore_og(php_coro_task *task);
     static inline php_coro_task* get_and_save_current_task();
-    static void on_yield(void *arg);
     static void on_resume(void *arg);
     static void on_close(void *arg);
     static void create_func(void *arg);

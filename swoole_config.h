@@ -253,6 +253,7 @@
 #define SW_DEFAULT_C_STACK_SIZE          (2 *1024 * 1024)
 #define SW_MAX_CORO_NUM_LIMIT            9223372036854775807LL
 #define SW_MAX_CORO_NESTING_LEVEL        128
+#define SW_CORO_TICK_SCHEDULE            1
 
 #define SW_CORO_SWAP_BAILOUT
 // #define SW_CORO_ZEND_TRY

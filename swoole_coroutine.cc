@@ -16,6 +16,7 @@
  */
 
 #include "php_swoole.h"
+#include "main/php_ticks.h"
 #include "swoole_coroutine.h"
 
 using namespace swoole;
@@ -27,6 +28,34 @@ uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
 double PHPCoroutine::socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double PHPCoroutine::socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
 php_coro_task PHPCoroutine::main_task = {0};
+
+static void interrupt_callback(void *data)
+{
+    Coroutine *co = (Coroutine *)data;
+    if (co && !co->is_end())
+    {
+        co->resume();
+    }
+}
+
+static void sw_tick(int tick_count, void *arg)
+{
+    php_coro_task *task = PHPCoroutine::get_current_task();
+    if (task && task->co && task->co->is_schedulable(tick_count))
+    {
+        PHPCoroutine::on_yield(task);
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, interrupt_callback, (void *)task->co);
+        task->co->yield_naked();
+    }
+}
+
+void PHPCoroutine::init()
+{
+    Coroutine::set_on_yield(on_yield);
+    Coroutine::set_on_resume(on_resume);
+    Coroutine::set_on_close(on_close);
+    php_add_tick_function(sw_tick, NULL);
+}
 
 inline void PHPCoroutine::vm_stack_init(void)
 {

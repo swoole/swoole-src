@@ -41,6 +41,12 @@ typedef enum
     SW_CORO_END,
 } sw_coro_state;
 
+typedef enum
+{
+    SW_CORO_NONE = 0,
+    SW_CORO_ACTIVE,
+} sw_coro_schedule_flag;
+
 typedef void (*coro_php_create_t)();
 typedef void (*coro_php_yield_t)(void*);
 typedef void (*coro_php_resume_t)(void*);
@@ -92,6 +98,31 @@ public:
         return task;
     }
 
+    inline bool is_end()
+    {
+        return ctx.end;
+    }
+
+    inline void mark_schedule()
+    {
+        if (schedule_flag == SW_CORO_ACTIVE)
+        {
+            schedule_flag = SW_CORO_NONE;
+            last_schedule_msec = swTimer_get_absolute_msec();
+        }
+    }
+
+    inline bool is_schedulable(int tick_count)
+    {
+        if (tick_count > 0 && Coroutine::max_exec_msec > 0)
+        {
+            schedule_flag = SW_CORO_ACTIVE;
+            int64_t now_msec = swTimer_get_absolute_msec();
+            return (now_msec - last_schedule_msec > Coroutine::max_exec_msec);
+        }
+        return false;
+    }
+
     inline void set_task(void *_task)
     {
         task = _task;
@@ -111,6 +142,7 @@ public:
     static swString* read_file(const char *file, int lock);
     static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
+    static long max_exec_msec;
     static bool socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout);
 
     static void set_on_yield(coro_php_yield_t func);
@@ -125,6 +157,11 @@ public:
     static inline void set_stack_size(size_t size)
     {
         stack_size = SW_MEM_ALIGNED_SIZE_EX(MIN(size, SW_CORO_MAX_STACK_SIZE), SW_CORO_STACK_ALIGNED_SIZE);
+    }
+
+    static inline void set_max_exec_msec(long max_msec)
+    {
+        max_exec_msec = max_msec;
     }
 
     static inline long get_cid(Coroutine* co)
@@ -161,6 +198,8 @@ protected:
     long cid;
     void *task = nullptr;
     Context ctx;
+    int64_t last_schedule_msec;
+    sw_coro_schedule_flag schedule_flag;
 
     Coroutine(coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)
@@ -168,6 +207,8 @@ protected:
         cid = ++last_cid;
         coroutines[cid] = this;
         call_stack[call_stack_size++] = this;
+        last_schedule_msec = swTimer_get_absolute_msec();
+        schedule_flag = SW_CORO_NONE;
         if (unlikely(count() > peak_num))
         {
             peak_num = count();

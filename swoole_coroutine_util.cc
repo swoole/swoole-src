@@ -420,6 +420,14 @@ static PHP_METHOD(swoole_coroutine_util, set)
     {
         set_dns_cache_capacity((size_t) zval_get_long(v));
     }
+    if (php_swoole_array_get_value(vht, "max_exec_msec", v))
+    {
+        long _value = zval_get_long(v);
+        if (_value)
+        {
+            Coroutine::set_max_exec_msec(_value);
+        }
+    }
     zval_ptr_dtor(zset);
 }
 

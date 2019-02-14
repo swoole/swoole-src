@@ -24,6 +24,7 @@ size_t Coroutine::call_stack_size = 0;
 Coroutine* Coroutine::call_stack[SW_MAX_CORO_NESTING_LEVEL];
 long Coroutine::last_cid = 0;
 uint64_t Coroutine::peak_num = 0;
+long Coroutine::max_exec_msec = 0;
 coro_php_yield_t  Coroutine::on_yield = nullptr;
 coro_php_resume_t Coroutine::on_resume = nullptr;
 coro_php_close_t  Coroutine::on_close = nullptr;
@@ -48,6 +49,9 @@ void Coroutine::yield()
         on_yield(task);
     }
     call_stack_size--;
+#ifdef SW_CORO_TICK_SCHEDULE
+    mark_schedule();
+#endif
     ctx.SwapOut();
 }
 
@@ -58,7 +62,10 @@ void Coroutine::resume()
     {
         on_resume(task);
     }
-    call_stack[call_stack_size++] = this;
+#ifdef SW_CORO_TICK_SCHEDULE
+    mark_schedule();
+#endif
+    Coroutine::call_stack[call_stack_size++] = this;
     ctx.SwapIn();
     if (ctx.end)
     {
@@ -70,13 +77,19 @@ void Coroutine::yield_naked()
 {
     state = SW_CORO_WAITING;
     call_stack_size--;
+#ifdef SW_CORO_TICK_SCHEDULE
+    mark_schedule();
+#endif
     ctx.SwapOut();
 }
 
 void Coroutine::resume_naked()
 {
     state = SW_CORO_RUNNING;
-    call_stack[call_stack_size++] = this;
+#ifdef SW_CORO_TICK_SCHEDULE
+    mark_schedule();
+#endif
+    Coroutine::call_stack[call_stack_size++] = this;
     ctx.SwapIn();
     if (ctx.end)
     {
