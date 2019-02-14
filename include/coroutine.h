@@ -101,6 +101,7 @@ public:
     {
         if (tick_times >= tick_threshold)
         {
+            tick_times = 0;
             last_schedule_msec = swTimer_get_absolute_msec();
         }
     }
@@ -116,7 +117,6 @@ public:
         tick_threshold = tick_count;
         if (Coroutine::max_exec_msec > 0 && last_schedule_msec > 0 && tick_count > 0 && tick_times >= tick_threshold)
         {
-            tick_times = 0;
             int64_t now_msec = swTimer_get_absolute_msec();
             return (now_msec - last_schedule_msec > Coroutine::max_exec_msec);
         }

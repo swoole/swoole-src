@@ -1,20 +1,25 @@
 <?php
-declare(ticks=1);
+declare(ticks=10000);
 
+$max_msec = 10;
 Swoole\Coroutine::set([
-    'max_exec_msec' => 10,
+    'max_exec_msec' => $max_msec,
 ]);
 
 $s = microtime(1);
 echo "start\n";
 $flag = 1;
-go(function () use (&$flag){
-    echo "coro 1 start\n";
+go(function () use (&$flag, $max_msec){
+    echo "coro 1 start to loop for $max_msec msec\n";
     $i = 0;
     while($flag) {
         $i ++;
-        echo "$i\n";
-        sleep(0.5);
+        $a = $i;
+        $a = $i;
+        $a = $i;
+        $a = $i;
+        $a = $i;
+//         sleep(0.5);
     }
     echo "coro 1 can exit\n";
 });
