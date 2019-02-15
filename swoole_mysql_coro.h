@@ -19,6 +19,8 @@
 #ifndef SWOOLE_MYSQL_H_
 #define SWOOLE_MYSQL_H_
 
+#include "php_swoole.h"
+
 BEGIN_EXTERN_C()
 
 #ifdef SW_USE_MYSQLND
