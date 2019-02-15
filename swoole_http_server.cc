@@ -508,10 +508,10 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
             klen = i - j + 1;
             if (klen >= SW_HTTP_COOKIE_KEYLEN)
             {
-                swWarn("cookie key is too large.");
+                swWarn("cookie[%.*s...] name length %d is exceed the max name len %d.", 8, (char *) at + j, klen, SW_HTTP_COOKIE_KEYLEN);
                 return;
             }
-            memcpy(keybuf, at + j, klen - 1);
+            memcpy(keybuf, (char *) at + j, klen - 1);
             keybuf[klen - 1] = 0;
 
             j = i + 1;
@@ -522,7 +522,7 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
             vlen = i - j;
             if (vlen >= SW_HTTP_COOKIE_VALLEN)
             {
-                swWarn("cookie value is too large.");
+            swWarn("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d.", keybuf, 8, (char *) at + j, vlen, SW_HTTP_COOKIE_VALLEN);
                 return;
             }
             memcpy(valbuf, (char *) at + j, vlen);
@@ -556,13 +556,13 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
         vlen = i - j;
         if (klen >= SW_HTTP_COOKIE_KEYLEN)
         {
-            swWarn("cookie key is too large.");
+            swWarn("cookie[%.*s...] name length %d is exceed the max name len %d.", 8, keybuf, klen, SW_HTTP_COOKIE_KEYLEN);
             return;
         }
         keybuf[klen - 1] = 0;
         if (vlen >= SW_HTTP_COOKIE_VALLEN)
         {
-            swWarn("cookie value is too large.");
+            swWarn("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d.", keybuf, 8, (char *) at + j, vlen, SW_HTTP_COOKIE_VALLEN);
             return;
         }
         memcpy(valbuf, (char *) at + j, vlen);
