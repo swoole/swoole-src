@@ -2145,6 +2145,8 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
     if (url_encode && value_len)
     {
         encoded_value = sw_php_url_encode(value, value_len, &encoded_value_len);
+    } else {
+        encoded_value_len = value_len;
     }
 
     int cookie_size = name_len + encoded_value_len + path_len + domain_len + 100;
