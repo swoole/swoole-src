@@ -610,7 +610,7 @@ static ssize_t mysql_decode_row(mysql_client *client, char *buf, uint32_t packet
         // WARNING: data may be longer than single packet (0x00fffff => 16M)
         if (unlikely(len > packet_length - read_n))
         {
-            mysql_big_data_info mbdi = { len, n_buf - read_n, packet_length - read_n, buf + read_n, 0, 0 };
+            mysql_big_data_info mbdi = { len, n_buf - read_n, packet_length - (uint32_t) read_n, buf + read_n, 0, 0 };
             if ((zstring = mysql_decode_big_data(&mbdi)))
             {
                 read_n += mbdi.ext_header_len;
@@ -954,7 +954,7 @@ static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint32_
             if (unlikely(len > packet_length - read_n))
             {
                 zend_string *zstring;
-                mysql_big_data_info mbdi = { len, n_buf - read_n, packet_length - read_n, buf + read_n, 0, 0 };
+                mysql_big_data_info mbdi = { len, n_buf - read_n, packet_length - (uint32_t) read_n, buf + read_n, 0, 0 };
                 if ((zstring = mysql_decode_big_data(&mbdi)))
                 {
                     zval _zdata, *zdata = &_zdata;
