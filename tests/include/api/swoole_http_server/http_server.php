@@ -245,9 +245,7 @@ class HttpServer
         }
 
         if ($uri === "/code") {
-            swoole_async_readfile(__FILE__, function($filename, $contents) use($response) {
-                $response->end(highlight_string($contents, true));
-            });
+            $response->end(highlight_string(file_get_contents(__FILE__), true));
             return;
         }
 
