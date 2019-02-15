@@ -240,8 +240,8 @@ static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid
     if (status != 0)
     {
         swWarn(
-            "worker#%d abnormal exit, status=%d, signal=%d" "%s",
-            worker_id, WEXITSTATUS(status), WTERMSIG(status),
+            "worker#%d[pid=%d] abnormal exit, status=%d, signal=%d" "%s",
+            worker_id, pid, WEXITSTATUS(status), WTERMSIG(status),
             WTERMSIG(status) == SIGSEGV ? "\n" SWOOLE_BUG_REPORT : ""
         );
         if (serv->onWorkerError != NULL)

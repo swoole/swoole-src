@@ -6,10 +6,8 @@ swoole_server: dispatch_mode = 7 [stream]
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$port = get_one_free_port();
-
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($pm, $port)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     if (!$client->connect('127.0.0.1', $pm->getFreePort(), 0.5, 0))
@@ -40,13 +38,13 @@ $pm->parentFunc = function ($pid) use ($pm, $port)
             $sendn = $chunk_size;
         }
         $client->send(substr($_serialize_data, $i * $chunk_size, $sendn));
-        usleep(10000);
+        usleep(rand(1000, 10000));
     }
     echo $client->recv();
     swoole_process::kill($pid);
 };
 
-$pm->childFunc = function () use ($pm, $port)
+$pm->childFunc = function () use ($pm)
 {
     $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set(array(
