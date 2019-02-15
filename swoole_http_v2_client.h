@@ -25,13 +25,6 @@
 
 #define HTTP2_CLIENT_HOST_HEADER_INDEX   3
 
-#ifdef SW_HAVE_ZLIB
-#include <zlib.h>
-BEGIN_EXTERN_C()
-extern int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int length);
-END_EXTERN_C()
-#endif
-
 typedef struct
 {
     uint32_t stream_id;
