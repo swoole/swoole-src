@@ -253,12 +253,6 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
         pipe_socket->buffer_size = INT_MAX;
     }
 
-#ifdef HAVE_SIGNALFD
-    if (SwooleG.use_signalfd)
-    {
-        swSignalfd_setup(SwooleG.main_reactor);
-    }
-#endif
     //main loop
     return SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
 }
