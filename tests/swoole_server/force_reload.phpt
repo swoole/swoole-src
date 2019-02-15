@@ -58,10 +58,10 @@ $pm->run();
 [%s]	WARNING	swManager_kill_timeout_process (ERROR 9012): [Manager] Worker#%d[pid=%d] exit timeout, forced kill.
 [%s]	WARNING	swManager_kill_timeout_process (ERROR 9012): [Manager] Worker#%d[pid=%d] exit timeout, forced kill.
 [%s]	WARNING	swManager_kill_timeout_process (ERROR 9012): [Manager] Worker#%d[pid=%d] exit timeout, forced kill.
-[%s]	WARNING	swManager_check_exit_status: worker#%d abnormal exit, status=0, signal=9
-[%s]	WARNING	swManager_check_exit_status: worker#%d abnormal exit, status=0, signal=9
-[%s]	WARNING	swManager_check_exit_status: worker#%d abnormal exit, status=0, signal=9
-[%s]	WARNING	swManager_check_exit_status: worker#%d abnormal exit, status=0, signal=9
+[%s]	WARNING	swManager_check_exit_status: worker#%d[pid=%d] abnormal exit, status=0, signal=9
+[%s]	WARNING	swManager_check_exit_status: worker#%d[pid=%d] abnormal exit, status=0, signal=9
+[%s]	WARNING	swManager_check_exit_status: worker#%d[pid=%d] abnormal exit, status=0, signal=9
+[%s]	WARNING	swManager_check_exit_status: worker#%d[pid=%d] abnormal exit, status=0, signal=9
 %d [%d] start
 %d [%d] start
 %d [%d] start

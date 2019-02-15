@@ -470,6 +470,13 @@ void swWorker_onStart(swServer *serv)
     SwooleWG.worker->status = SW_WORKER_IDLE;
     sw_shm_protect(serv->session_list, PROT_READ);
 
+#ifdef HAVE_SIGNALFD
+    if (SwooleG.use_signalfd && SwooleG.main_reactor)
+    {
+        swSignalfd_setup(SwooleG.main_reactor);
+    }
+#endif
+
     swServer_worker_start(serv, SwooleWG.worker);
 }
 
@@ -711,12 +718,6 @@ int swWorker_loop(swFactory *factory, int worker_id)
 
     swWorker_onStart(serv);
 
-#ifdef HAVE_SIGNALFD
-    if (SwooleG.use_signalfd)
-    {
-        swSignalfd_setup(SwooleG.main_reactor);
-    }
-#endif
     //main loop
     SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
     //clear pipe buffer

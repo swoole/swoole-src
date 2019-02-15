@@ -19,6 +19,8 @@
 #ifndef SWOOLE_MYSQL_H_
 #define SWOOLE_MYSQL_H_
 
+#include "php_swoole.h"
+
 BEGIN_EXTERN_C()
 
 #ifdef SW_USE_MYSQLND
@@ -489,8 +491,6 @@ int mysql_parse_rsa(mysql_connector *connector, char *buf, int len);
 int mysql_auth_switch(mysql_connector *connector, char *buf, int len);
 int mysql_request_pack(swString *sql, swString *buffer);
 int mysql_prepare_pack(swString *sql, swString *buffer);
-int mysql_response(mysql_client *client);
-int mysql_is_over(mysql_client *client);
 
 #ifdef SW_MYSQL_DEBUG
 void mysql_client_info(mysql_client *client);
@@ -597,7 +597,23 @@ static sw_inline int mysql_write_lcb(char *p, long val)
     }
 }
 
-int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback);
+static sw_inline int mysql_ensure_packet(char *buf, int n_buf)
+{
+    if (n_buf < SW_MYSQL_PACKET_HEADER_SIZE)
+    {
+        return SW_ERR;
+    }
+
+    uint32_t packet_length = mysql_uint3korr(buf);
+
+    // Ensure that we've received the complete packet
+    if (n_buf < SW_MYSQL_PACKET_HEADER_SIZE + packet_length)
+    {
+        return SW_ERR;
+    }
+
+    return SW_OK;
+}
 
 END_EXTERN_C()
 

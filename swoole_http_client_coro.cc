@@ -24,7 +24,7 @@
 
 using namespace swoole;
 
-extern swString *http_client_buffer;
+swString *http_client_buffer;
 
 extern bool php_swoole_client_coro_socket_free(Socket *cli);
 
@@ -1498,6 +1498,20 @@ void swoole_http_client_coro_init(int module_number)
     SWOOLE_DEFINE_NS(HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
     SWOOLE_DEFINE_NS(HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
     SWOOLE_DEFINE_NS(HTTP_CLIENT_ESTATUS_SERVER_RESET);
+
+    http_client_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
+    if (!http_client_buffer)
+    {
+        swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
+    }
+
+#ifdef SW_HAVE_ZLIB
+    swoole_zlib_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
+    if (!swoole_zlib_buffer)
+    {
+        swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
+    }
+#endif
 }
 
 static PHP_METHOD(swoole_http_client_coro, __construct)

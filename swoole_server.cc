@@ -3755,7 +3755,7 @@ static PHP_METHOD(swoole_server, task)
     {
         swTask_type(&buf) |= SW_TASK_NOREPLY;
     }
-    else if (callback)
+    else if (callback && !ZVAL_IS_NULL(callback))
     {
         if (!php_swoole_is_callable(callback))
         {
