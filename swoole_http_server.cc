@@ -2142,8 +2142,8 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
         swoole_http_server_array_init(cookie, response);
     }
 
-    int cookie_size = name_len + value_len + path_len + domain_len + 100;
-    char *cookie = (char *) emalloc(cookie_size), *encoded_value = NULL, *date = NULL;
+    int cookie_size = name_len /* + value_len */ + path_len + domain_len + 100;
+    char *cookie = NULL, *date = NULL;
 
     if (name_len > 0 && strpbrk(name, "=,; \t\r\n\013\014") != NULL)
     {
@@ -2152,6 +2152,7 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
     }
     if (value_len == 0)
     {
+        cookie = (char *) emalloc(cookie_size);
         date = sw_php_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0);
         snprintf(cookie, cookie_size, "%s=deleted; expires=%s", name, date);
         efree(date);
@@ -2160,10 +2161,20 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
     {
         if (url_encode)
         {
+            char *encoded_value;
             int encoded_value_len;
             encoded_value = sw_php_url_encode(value, value_len, &encoded_value_len);
+            cookie_size += encoded_value_len;
+            cookie = (char *) emalloc(cookie_size);
+            snprintf(cookie, cookie_size, "%s=%s", name, encoded_value);
+            efree(encoded_value);
         }
-        snprintf(cookie, cookie_size, "%s=%s", name, encoded_value ? encoded_value : value);
+        else
+        {
+            cookie_size += value_len;
+            cookie = (char *) emalloc(cookie_size);
+            snprintf(cookie, cookie_size, "%s=%s", name, value);
+        }
         if (expires > 0)
         {
             strlcat(cookie, "; expires=", cookie_size);
@@ -2174,10 +2185,6 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
                 swoole_php_error(E_WARNING, "Expiry date can't be a year greater than 9999");
                 efree(date);
                 efree(cookie);
-                if (encoded_value)
-                {
-                    efree(encoded_value);
-                }
                 RETURN_FALSE;
             }
             strlcat(cookie, date, cookie_size);
@@ -2204,10 +2211,6 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
     }
     add_next_index_stringl(zcookie, cookie, strlen(cookie));
     efree(cookie);
-    if (encoded_value)
-    {
-        efree(encoded_value);
-    }
     RETURN_TRUE;
 }
 
