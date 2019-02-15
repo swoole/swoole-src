@@ -24,6 +24,9 @@ $pm->parentFunc = function () use ($pm) {
 };
 $pm->childFunc = function () use ($pm) {
     $http = new swoole_http_server('0.0.0.0', $pm->getFreePort());
+    $http->set(array(
+        'log_file' => '/dev/null',
+    ));
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response) {
         $response->cookie('name', COOKIE);
         $response->end();
