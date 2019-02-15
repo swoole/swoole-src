@@ -55,6 +55,10 @@
 #include "client.h"
 #include "async.h"
 
+#ifdef SW_HAVE_ZLIB
+#include <zlib.h>
+#endif
+
 BEGIN_EXTERN_C()
 #include <ext/date/php_date.h>
 #include <ext/standard/url.h>
@@ -412,6 +416,10 @@ void php_swoole_sha1(const char *str, int _len, unsigned char *digest);
 
 int php_swoole_task_pack(swEventData *task, zval *data);
 zval* php_swoole_task_unpack(swEventData *task_result);
+
+#ifdef SW_HAVE_ZLIB
+int php_swoole_zlib_uncompress(z_stream *stream, swString *buffer, char *body, int length);
+#endif
 
 static sw_inline void* swoole_get_object_by_handle(uint32_t handle)
 {

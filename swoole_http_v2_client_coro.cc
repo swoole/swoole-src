@@ -190,6 +190,65 @@ void swoole_http2_client_coro_init(int module_number)
     SWOOLE_DEFINE(HTTP2_ERROR_INADEQUATE_SECURITY);
 }
 
+#ifdef SW_HAVE_ZLIB
+int php_swoole_zlib_uncompress(z_stream *stream, swString *buffer, char *body, int length)
+{
+    int status = 0;
+
+    stream->avail_in = length;
+    stream->next_in = (Bytef *) body;
+    stream->total_in = 0;
+    stream->total_out = 0;
+
+#if 0
+    printf(SW_START_LINE"\nstatus=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld\n", status,
+            stream->avail_in, stream->avail_out, stream->total_in, stream->total_out);
+#endif
+
+    swString_clear(buffer);
+
+    while (1)
+    {
+        stream->avail_out = buffer->size - buffer->length;
+        stream->next_out = (Bytef *) (buffer->str + buffer->length);
+
+        status = inflate(stream, Z_SYNC_FLUSH);
+
+#if 0
+        printf("status=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld,\tlength=%ld\n", status,
+                stream->avail_in, stream->avail_out, stream->total_in, stream->total_out, buffer->length);
+#endif
+        if (status >= 0)
+        {
+            buffer->length = stream->total_out;
+        }
+        if (status == Z_STREAM_END)
+        {
+            return SW_OK;
+        }
+        else if (status == Z_OK)
+        {
+            if (buffer->length + 4096 >= buffer->size)
+            {
+                if (swString_extend(buffer, buffer->size * 2) < 0)
+                {
+                    return SW_ERR;
+                }
+            }
+            if (stream->avail_in == 0)
+            {
+                return SW_OK;
+            }
+        }
+        else
+        {
+            return SW_ERR;
+        }
+    }
+    return SW_ERR;
+}
+#endif
+
 static PHP_METHOD(swoole_http2_client_coro, __construct)
 {
     char *host;
@@ -658,7 +717,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
 #ifdef SW_HAVE_ZLIB
             if (stream->gzip)
             {
-                if (http_response_uncompress(&stream->gzip_stream, stream->gzip_buffer, buf, length) == SW_ERR)
+                if (php_swoole_zlib_uncompress(&stream->gzip_stream, stream->gzip_buffer, buf, length) == SW_ERR)
                 {
                     return;
                 }
