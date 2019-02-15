@@ -481,7 +481,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/wrapper/server.cc \
         src/wrapper/timer.cc \
         swoole.c \
-        swoole_async.cc \
+        swoole_async_coro.cc \
         swoole_atomic.c \
         swoole_buffer.c \
         swoole_channel.c \
@@ -491,7 +491,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_coroutine.cc \
         swoole_coroutine_util.cc \
         swoole_event.c \
-        swoole_http_client.c \
         swoole_http_client_coro.cc \
         swoole_http_server.cc \
         swoole_http_v2_client_coro.cc \
@@ -500,12 +499,10 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_memory_pool.c \
         swoole_mmap.c \
         swoole_msgqueue.c \
-        swoole_mysql.c \
         swoole_mysql_coro.cc \
         swoole_postgresql_coro.cc \
         swoole_process.cc \
         swoole_process_pool.cc \
-        swoole_redis.c \
         swoole_redis_coro.cc \
         swoole_redis_server.cc \
         swoole_ringqueue.c \
@@ -619,7 +616,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
 
-    PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h])
+    PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h])
 
     PHP_REQUIRE_CXX()
     
