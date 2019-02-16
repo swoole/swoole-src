@@ -810,8 +810,6 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_mmap_init(module_number);
     swoole_channel_init(module_number);
     swoole_channel_coro_init(module_number);
-    swoole_ringqueue_init(module_number);
-    swoole_msgqueue_init(module_number);
 #ifdef SW_USE_HTTP2
     swoole_http2_client_coro_init(module_number);
 #endif
@@ -820,7 +818,6 @@ PHP_MINIT_FUNCTION(swoole)
 #else
     SWOOLE_G(fast_serialize) = 0;
 #endif
-    swoole_memory_pool_init(module_number);
     swoole_redis_server_init(module_number);
 
     SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);

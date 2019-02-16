@@ -341,8 +341,6 @@ PHP_FUNCTION(swoole_fast_serialize);
 PHP_FUNCTION(swoole_unserialize);
 #endif
 
-void swoole_destroy_table(zend_resource *rsrc);
-
 void swoole_server_init(int module_number);
 void swoole_server_port_init(int module_number);
 void swoole_async_coro_init(int module_number);
@@ -372,13 +370,10 @@ void swoole_websocket_init(int module_number);
 void swoole_buffer_init(int module_number);
 void swoole_mmap_init(int module_number);
 void swoole_channel_init(int module_number);
-void swoole_ringqueue_init(int module_number);
-void swoole_msgqueue_init(int module_number);
 void swoole_channel_coro_init(int module_number);
 #ifdef SW_USE_FAST_SERIALIZE
 void swoole_serialize_init(int module_number);
 #endif
-void swoole_memory_pool_init(int module_number);
 
 //RSHUTDOWN
 void swoole_async_coro_shutdown();

@@ -496,16 +496,13 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_http_v2_client_coro.cc \
         swoole_http_v2_server.cc \
         swoole_lock.c \
-        swoole_memory_pool.c \
         swoole_mmap.c \
-        swoole_msgqueue.c \
         swoole_mysql_coro.cc \
         swoole_postgresql_coro.cc \
         swoole_process.cc \
         swoole_process_pool.cc \
         swoole_redis_coro.cc \
         swoole_redis_server.cc \
-        swoole_ringqueue.c \
         swoole_runtime.cc \
         swoole_serialize.c \
         swoole_server.cc \
