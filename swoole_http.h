@@ -215,7 +215,7 @@ static sw_inline int http_parse_set_cookies(const char *at, size_t length, zval 
         swWarn("cookie key format is wrong.");
         return SW_ERR;
     }
-    add_assoc_stringl_ex(set_cookie_headers, at, klen, at, length);
+    add_assoc_stringl_ex(set_cookie_headers, at, klen, (char *) at, length);
     // val
     p+=1;
     eof = (char*) memchr(p, ';', length);
