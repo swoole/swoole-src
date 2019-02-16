@@ -633,9 +633,7 @@
             <file role="src" name="swoole_http_v2_client_coro.cc" />
             <file role="src" name="swoole_http_v2_server.cc" />
             <file role="src" name="swoole_lock.c" />
-            <file role="src" name="swoole_memory_pool.c" />
             <file role="src" name="swoole_mmap.c" />
-            <file role="src" name="swoole_msgqueue.c" />
             <file role="src" name="swoole_mysql_coro.cc" />
             <file role="src" name="swoole_mysql_coro.h" />
             <file role="src" name="swoole_postgresql_coro.cc" />
@@ -644,7 +642,6 @@
             <file role="src" name="swoole_process_pool.cc" />
             <file role="src" name="swoole_redis_coro.cc" />
             <file role="src" name="swoole_redis_server.cc" />
-            <file role="src" name="swoole_ringqueue.c" />
             <file role="src" name="swoole_runtime.cc" />
             <file role="src" name="swoole_serialize.c" />
             <file role="src" name="swoole_serialize.h" />
@@ -1085,7 +1082,6 @@
             <file role="test" name="tests/swoole_http_server/upload_03.phpt" />
             <file role="test" name="tests/swoole_lock/mutex.phpt" />
             <file role="test" name="tests/swoole_lock/trylock.phpt" />
-            <file role="test" name="tests/swoole_memory_pool/free_1.phpt" />
             <file role="test" name="tests/swoole_mmap/base.phpt" />
             <file role="test" name="tests/swoole_mmap/fseek.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/aborted_clients.phpt" />
