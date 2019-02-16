@@ -313,7 +313,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_rollback, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_prepare, 0, 0, 1)
-    ZEND_ARG_INFO(0, query)
+    ZEND_ARG_INFO(0, statement)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
