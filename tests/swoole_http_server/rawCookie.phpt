@@ -8,7 +8,6 @@ skip_if_in_valgrind();
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/../include/api/swoole_http_client/simple_http_client.php';
 
 $simple_http_server = __DIR__ . "/../include/api/swoole_http_server/simple_http_server.php";
 
