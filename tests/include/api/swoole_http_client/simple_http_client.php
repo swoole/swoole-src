@@ -59,87 +59,7 @@ function testUri($host, $port, callable $fin = null)
     assert($ok);
 }
 
-function testHttpGet($host, $port, array $query, callable $fin = null)
-{
-    $httpClient = makeHttpClient($host, $port);
 
-    $queryStr = http_build_query($query);
-    $ok = $httpClient->get("/get?$queryStr", function (\swoole_http_client $httpClient) use ($query, $fin, $queryStr)
-    {
-        assert($httpClient->statusCode === 200);
-        assert($httpClient->errCode === 0);
-        if ($queryStr === "")
-        {
-            assert($httpClient->body === "null");
-        }
-        else
-        {
-            $ret = json_decode($httpClient->body, true);
-            assert(arrayEqual($ret, $query, false));
-        }
-        if ($fin)
-        {
-            $fin($httpClient);
-        }
-    });
-    assert($ok);
-}
-
-
-function testPost($host, $port, array $query, callable $fin = null)
-{
-    $httpClient = makeHttpClient($host, $port);
-
-    $ok = $httpClient->post("/post", $query, function(\swoole_http_client $httpClient) use($query, $fin) {
-        assert($httpClient->statusCode === 200);
-        assert($httpClient->errCode === 0);
-        // $httpClient->headers;
-        $ret = json_decode($httpClient->body, true);
-        assert(arrayEqual($ret, $query, false));
-        if ($fin) {
-            $fin($httpClient);
-        }
-    });
-    assert($ok);
-}
-
-
-function testMethod($host, $port, $method, $data = null, callable $fin = null)
-{
-    $httpClient = makeHttpClient($host, $port);
-
-    $ok = $httpClient->setMethod($method);
-    assert($ok);
-    if ($data) {
-        $httpClient->setData($data);
-    }
-    $ok = $httpClient->execute("/method", function(\swoole_http_client $httpClient) use($method, $fin) {
-        assert($httpClient->statusCode === 200);
-        assert($httpClient->errCode === 0);
-        assert($httpClient->body === $method);
-        if ($fin) {
-            $fin($httpClient);
-        }
-    });
-    assert($ok);
-}
-
-function testCookie($host, $port, callable $fin = null)
-{
-    $httpClient = makeHttpClient($host, $port);
-    $ok = $httpClient->setCookies(["hello" => "world"]);
-    assert($ok);
-
-    $ok = $httpClient->get("/cookie", function(\swoole_http_client $httpClient) use($fin) {
-        assert($httpClient->statusCode === 200);
-        assert($httpClient->errCode === 0);
-        assert($httpClient->body === "{\"hello\":\"world\"}");
-        if ($fin) {
-            $fin($httpClient);
-        }
-    });
-    assert($ok);
-}
 
 // setCookies 已经加入类型限制
 function testCookieCore($host, $port, callable $fin = null)
@@ -272,40 +192,6 @@ function testSendfile($host, $port, callable $fin = null)
     assert($ok);
 }
 
-function testRawCookie($host, $port, $cookie, callable $fin = null)
-{
-    $httpClient = makeHttpClient($host, $port);
-    $httpClient->setMethod("POST");
-    $httpClient->setData($cookie);
-    $ok = $httpClient->execute("/rawcookie", function(\swoole_http_client $httpClient) use($fin) {
-        assert($httpClient->statusCode === 200);
-        assert($httpClient->errCode === 0);
-        if ($fin) {
-            $fin($httpClient);
-        }
-    });
-    assert($ok);
-}
-
-
-function testRawcontent($host, $port, $data, callable $fin = null)
-{
-    $httpClient = makeHttpClient($host, $port);
-    if ($data !== false) {
-        $httpClient->setData($data);
-    }
-
-    $httpClient->setMethod("POST");
-
-    $ok = $httpClient->execute("/rawcontent", function(\swoole_http_client $httpClient) use($fin, $data) {
-        assert($httpClient->statusCode === 200);
-        assert($httpClient->errCode === 0);
-        if ($fin) {
-            $fin($httpClient);
-        }
-    });
-    assert($ok);
-}
 
 function testExecute($host, $port, $method, $data, callable $fin = null)
 {

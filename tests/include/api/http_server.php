@@ -61,9 +61,8 @@ $http->on('request', function ($request, swoole_http_response $response) use ($p
     elseif ($route == '/gzip')
     {
         $response->gzip(5);
-        Swoole\Async::readFile(__DIR__ . '/../../../README.md', function ($file, $content) use ($response) {
-            $response->end($content);
-        });
+        $content = co::readFile(__DIR__ . '/../../../README.md');
+        $response->end($content);
         return;
     }
     else

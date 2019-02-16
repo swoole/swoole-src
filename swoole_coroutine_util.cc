@@ -420,6 +420,10 @@ static PHP_METHOD(swoole_coroutine_util, set)
     {
         set_dns_cache_capacity((size_t) zval_get_long(v));
     }
+    if (php_swoole_array_get_value(vht, "display_errors", v))
+    {
+        SWOOLE_G(display_errors) = zval_is_true(v);
+    }
     zval_ptr_dtor(zset);
 }
 
