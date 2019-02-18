@@ -6,7 +6,7 @@ swoole_http_client_coro: error handler
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
-    $domain = 'www.httpbin.org';
+    $domain = 'httpbin.org';
     $cli = new Swoole\Coroutine\Http\Client($domain, 443, true);
     $cli->set([
         'timeout' => 10,
