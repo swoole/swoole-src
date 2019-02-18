@@ -2114,6 +2114,7 @@ struct _swTimer
     struct timeval basetime;
     /*--------------------------------------------------*/
     int (*set)(swTimer *timer, long exec_msec);
+    void (*free)(swTimer *timer);
 };
 
 swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
