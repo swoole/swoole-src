@@ -180,8 +180,8 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_errno, arginfo_swoole_void)
     PHP_FE(swoole_hashcode, arginfo_swoole_hashcode)
     PHP_FE(swoole_get_mime_type, arginfo_swoole_get_mime_type)
-    PHP_FE(swoole_call_user_shutdown_begin, arginfo_swoole_void)
     PHP_FE(swoole_clear_dns_cache, arginfo_swoole_void)
+    PHP_FE(swoole_internal_call_user_shutdown_begin, arginfo_swoole_void)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -952,7 +952,7 @@ PHP_MINFO_FUNCTION(swoole)
 PHP_RINIT_FUNCTION(swoole)
 {
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
-    php_swoole_register_shutdown_function("swoole_call_user_shutdown_begin");
+    php_swoole_register_shutdown_function("swoole_internal_call_user_shutdown_begin");
     SwooleG.running = 1;
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_END;
     return SUCCESS;
@@ -1221,10 +1221,19 @@ PHP_FUNCTION(swoole_get_local_mac)
 #endif
 }
 
-PHP_FUNCTION(swoole_call_user_shutdown_begin)
+PHP_FUNCTION(swoole_internal_call_user_shutdown_begin)
 {
-    SWOOLE_G(req_status) = PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN;
-    RETURN_TRUE;
+    if (SWOOLE_G(req_status) == PHP_SWOOLE_RINIT_END)
+    {
+
+        SWOOLE_G(req_status) = PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN;
+        RETURN_TRUE;
+    }
+    else
+    {
+        php_error_docref(NULL, E_WARNING, "can not call this function in user level.");
+        RETURN_FALSE;
+    }
 }
 
 /*
