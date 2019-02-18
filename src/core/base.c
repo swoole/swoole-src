@@ -174,7 +174,6 @@ pid_t swoole_fork()
         if (SwooleG.timer.initialized)
         {
             swTimer_free(&SwooleG.timer);
-            bzero(&SwooleG.timer, sizeof(SwooleG.timer));
         }
         /**
          * reset SwooleG.memory_pool

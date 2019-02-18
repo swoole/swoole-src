@@ -60,7 +60,6 @@ static int swReactorTimer_init(long exec_msec)
     SwooleG.main_reactor->timeout_msec = exec_msec;
     SwooleG.timer.set = swReactorTimer_set;
     SwooleG.timer.free = swReactorTimer_free;
-    SwooleG.timer.initialized = 1;
     return SW_OK;
 }
 
@@ -89,23 +88,36 @@ static int swTimer_init(long msec)
     SwooleG.timer._next_msec = msec;
     SwooleG.timer._next_id = 1;
     SwooleG.timer.round = 0;
-    SwooleG.timer.initialized = 1;
 
+    int retval;
     if (SwooleG.main_reactor == NULL)
     {
-        return swSystemTimer_init(msec);
+        retval = swSystemTimer_init(msec);
     }
     else
     {
-        return swReactorTimer_init(msec);
+        retval = swReactorTimer_init(msec);
     }
+    if (retval == SW_OK)
+    {
+        SwooleG.timer.initialized = 1;
+    }
+    else
+    {
+        swTimer_free(&SwooleG.timer);
+    }
+    return retval;
 }
 
 void swTimer_free(swTimer *timer)
 {
     swHeap_free(timer->heap);
     swHashMap_free(timer->map);
-    timer->free(timer);
+    if (timer->free)
+    {
+        timer->free(timer);
+    }
+    bzero(&SwooleG.timer, sizeof(SwooleG.timer));
 }
 
 swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback)
