@@ -1554,6 +1554,7 @@ bool Socket::close()
         if (socket->closed)
         {
             // close operation is in processing
+            set_err(EINPROGRESS);
             return false;
         }
         if (socket->active)
