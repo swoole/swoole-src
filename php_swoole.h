@@ -503,7 +503,6 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool display_errors;
     zend_bool cli;
     zend_bool use_shortname;
-    zend_bool fast_serialize;
     zend_bool enable_coroutine;
     long socket_buffer_size;
     php_swoole_req_status req_status;

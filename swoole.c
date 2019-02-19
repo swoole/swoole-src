@@ -264,10 +264,6 @@ STD_ZEND_INI_BOOLEAN("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, d
  */
 STD_ZEND_INI_BOOLEAN("swoole.use_shortname", "On", PHP_INI_SYSTEM, OnUpdateBool, use_shortname, zend_swoole_globals, swoole_globals)
 /**
- * enable swoole serialize
- */
-STD_ZEND_INI_BOOLEAN("swoole.fast_serialize", "Off", PHP_INI_ALL, OnUpdateBool, fast_serialize, zend_swoole_globals, swoole_globals)
-/**
  * unix socket buffer size
  */
 STD_PHP_INI_ENTRY("swoole.unixsock_buffer_size", ZEND_TOSTR(SW_SOCKET_BUFFER_SIZE), PHP_INI_ALL, OnUpdateLong, socket_buffer_size, zend_swoole_globals, swoole_globals)
@@ -279,7 +275,6 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
     swoole_globals->use_shortname = 1;
-    swoole_globals->fast_serialize = 0;
     swoole_globals->rshutdown_functions = NULL;
 }
 
@@ -815,8 +810,6 @@ PHP_MINIT_FUNCTION(swoole)
 #endif
 #ifdef SW_USE_FAST_SERIALIZE
     swoole_serialize_init(module_number);
-#else
-    SWOOLE_G(fast_serialize) = 0;
 #endif
     swoole_redis_server_init(module_number);
 
