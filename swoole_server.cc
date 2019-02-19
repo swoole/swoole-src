@@ -622,9 +622,6 @@ int php_swoole_task_pack(swEventData *task, zval *data)
 {
     smart_str serialized_data = { 0 };
     php_serialize_data_t var_hash;
-#ifdef SW_USE_FAST_SERIALIZE
-    zend_string *serialized_string = NULL;
-#endif
 
     task->info.type = SW_EVENT_TASK;
     //field fd save task_id
@@ -645,27 +642,16 @@ int php_swoole_task_pack(swEventData *task, zval *data)
         //serialize
         swTask_type(task) |= SW_TASK_SERIALIZE;
 
-#ifdef SW_USE_FAST_SERIALIZE
-        if (SWOOLE_G(fast_serialize))
-        {
-            serialized_string = php_swoole_serialize(data);
-            task_data_str = ZSTR_VAL(serialized_string);
-            task_data_len = ZSTR_LEN(serialized_string);
-        }
-        else
-#endif
-        {
-            PHP_VAR_SERIALIZE_INIT(var_hash);
-            php_var_serialize(&serialized_data, data, &var_hash);
-            PHP_VAR_SERIALIZE_DESTROY(var_hash);
+        PHP_VAR_SERIALIZE_INIT(var_hash);
+        php_var_serialize(&serialized_data, data, &var_hash);
+        PHP_VAR_SERIALIZE_DESTROY(var_hash);
 
-            if (!serialized_data.s)
-            {
-                return -1;
-            }
-            task_data_str = ZSTR_VAL(serialized_data.s);
-            task_data_len = ZSTR_LEN(serialized_data.s);
+        if (!serialized_data.s)
+        {
+            return -1;
         }
+        task_data_str = ZSTR_VAL(serialized_data.s);
+        task_data_len = ZSTR_LEN(serialized_data.s);
     }
     else
     {
@@ -687,17 +673,7 @@ int php_swoole_task_pack(swEventData *task, zval *data)
         memcpy(task->data, task_data_str, task_data_len);
         task->info.len = task_data_len;
     }
-
-#ifdef SW_USE_FAST_SERIALIZE
-    if (SWOOLE_G(fast_serialize) && serialized_string)
-    {
-        zend_string_release(serialized_string);
-    }
-    else
-#endif
-    {
-        smart_str_free(&serialized_data);
-    }
+    smart_str_free(&serialized_data);
     return task->info.fd;
 }
 
@@ -794,42 +770,20 @@ zval* php_swoole_task_unpack(swEventData *task_result)
     {
         result_unserialized_data = sw_malloc_zval();
 
-#ifdef SW_USE_FAST_SERIALIZE
-        if (SWOOLE_G(fast_serialize))
+        PHP_VAR_UNSERIALIZE_INIT(var_hash);
+        //unserialize success
+        if (php_var_unserialize(*&result_unserialized_data, (const unsigned char **) &result_data_str,
+                (const unsigned char *) (result_data_str + result_data_len), &var_hash))
         {
-            if (php_swoole_unserialize(result_data_str, result_data_len, result_unserialized_data, NULL, 0))
-            {
-                result_data = result_unserialized_data;
-            }
-            else
-            {
-                result_data = sw_malloc_zval();
-                ZVAL_STRINGL(result_data, result_data_str, result_data_len);
-            }
+            result_data = result_unserialized_data;
         }
+        //failed
         else
-#endif
         {
-            PHP_VAR_UNSERIALIZE_INIT(var_hash);
-            //unserialize success
-            if (php_var_unserialize(
-                    *&result_unserialized_data,
-                    (const unsigned char **) &result_data_str,
-                    (const unsigned char *) (result_data_str + result_data_len),
-                    &var_hash
-                )
-            )
-            {
-                result_data = result_unserialized_data;
-            }
-            //failed
-            else
-            {
-                result_data = sw_malloc_zval();
-                ZVAL_STRINGL(result_data, result_data_str, result_data_len);
-            }
-            PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
+            result_data = sw_malloc_zval();
+            ZVAL_STRINGL(result_data, result_data_str, result_data_len);
         }
+        PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
     }
     else
     {
@@ -1157,31 +1111,19 @@ static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *curre
     char *data_str;
     int data_len = 0;
     int ret;
-#ifdef SW_USE_FAST_SERIALIZE
-    zend_string *serialized_string = NULL;
-#endif
 
     //need serialize
     if (Z_TYPE_P(data) != IS_STRING)
     {
         //serialize
         flags |= SW_TASK_SERIALIZE;
-#ifdef SW_USE_FAST_SERIALIZE
-        if (SWOOLE_G(fast_serialize))
-        {
-            serialized_string = php_swoole_serialize(data);
-            data_str = ZSTR_VAL(serialized_string);
-            data_len = ZSTR_LEN(serialized_string);
-        }
-        else
-#endif
-        {
-            PHP_VAR_SERIALIZE_INIT(var_hash);
-            php_var_serialize(&serialized_data, data, &var_hash);
-            PHP_VAR_SERIALIZE_DESTROY(var_hash);
-            data_str = ZSTR_VAL(serialized_data.s);
-            data_len = ZSTR_LEN(serialized_data.s);
-        }
+
+        PHP_VAR_SERIALIZE_INIT(var_hash);
+        php_var_serialize(&serialized_data, data, &var_hash);
+        PHP_VAR_SERIALIZE_DESTROY(var_hash);
+        data_str = ZSTR_VAL(serialized_data.s);
+        data_len = ZSTR_LEN(serialized_data.s);
+
     }
     else
     {
@@ -1190,17 +1132,7 @@ static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *curre
     }
 
     ret = swTaskWorker_finish(serv, data_str, data_len, flags, current_task);
-
-#ifdef SW_USE_FAST_SERIALIZE
-    if (SWOOLE_G(fast_serialize) && serialized_string)
-    {
-        zend_string_release(serialized_string);
-    }
-    else
-#endif
-    {
-        smart_str_free(&serialized_data);
-    }
+    smart_str_free(&serialized_data);
     return ret;
 }
 
