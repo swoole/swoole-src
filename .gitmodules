@@ -1,6 +1,3 @@
-[submodule "thirdparty/nghttp2"]
-	path = thirdparty/nghttp2
-	url = https://github.com/nghttp2/nghttp2.git
 [submodule "thirdparty/picohttpparser"]
 	path = thirdparty/picohttpparser
 	url = https://github.com/h2o/picohttpparser.git

@@ -136,14 +136,6 @@ extern swoole_object_array swoole_objects;
 #define SWOOLE_SOCKETS_SUPPORT
 #endif
 
-#ifdef SW_USE_HTTP2
-#if !defined(HAVE_NGHTTP2)
-#error "Enable http2 support, require nghttp2 library."
-#else
-#include <nghttp2/nghttp2ver.h>
-#endif
-#endif
-
 #if PHP_VERSION_ID < 70400
 #define SW_USE_FAST_SERIALIZE 1
 #endif
