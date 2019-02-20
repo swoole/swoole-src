@@ -1989,18 +1989,54 @@ static PHP_METHOD(swoole_http_response, end)
         }
 #endif
         http_build_header(ctx, getThis(), swoole_http_buffer, http_body.length);
+
+        char *send_body_str;
+        size_t send_body_len;
+
         if (http_body.length > 0)
         {
 #ifdef SW_HAVE_ZLIB
             if (ctx->enable_compression)
             {
-                swString_append(swoole_http_buffer, swoole_zlib_buffer);
+                send_body_str = swoole_zlib_buffer->str;
+                send_body_len = swoole_zlib_buffer->length;
             }
             else
 #endif
             {
-                swString_append(swoole_http_buffer, &http_body);
+                send_body_str = http_body.str;
+                send_body_len = http_body.length;
             }
+            /**
+             *
+             */
+#ifdef SW_HTTP_SEND_TWICE
+            if (send_body_len < SwooleG.pagesize)
+#endif
+            {
+                if (swString_append_ptr(swoole_http_buffer, send_body_str, send_body_len) < 0)
+                {
+                    ctx->send_header = 0;
+                    RETURN_FALSE;
+                }
+            }
+#ifdef SW_HTTP_SEND_TWICE
+            else
+            {
+                ret = serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
+                if (ret < 0)
+                {
+                    ctx->send_header = 0;
+                    RETURN_FALSE;
+                }
+                ret = serv->send(serv, ctx->fd, send_body_str, send_body_len);
+                if (ret < 0)
+                {
+                    RETURN_FALSE;
+                }
+                goto _skip_copy;
+            }
+#endif
         }
 
         ret = serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
@@ -2011,6 +2047,9 @@ static PHP_METHOD(swoole_http_response, end)
         }
     }
 
+#ifdef SW_HTTP_SEND_TWICE
+    _skip_copy:
+#endif
     if (ctx->upgrade)
     {
         swConnection *conn = swWorker_get_connection(serv, ctx->fd);
