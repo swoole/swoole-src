@@ -493,14 +493,15 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
             {
                 continue;
             }
+            zend::string _value(value);
             if (strncasecmp("host", key, keylen) == 0)
             {
-                http2_add_header(&nv[HTTP2_CLIENT_HOST_HEADER_INDEX], ZEND_STRL(":authority"), Z_STRVAL_P(value), Z_STRLEN_P(value));
+                http2_add_header(&nv[HTTP2_CLIENT_HOST_HEADER_INDEX], ZEND_STRL(":authority"), _value.val(), _value.len());
                 find_host = 1;
             }
             else
             {
-                http2_add_header(&nv[index++], key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
+                http2_add_header(&nv[index++], key, keylen, _value.val(), _value.len());
             }
         }
         SW_HASHTABLE_FOREACH_END();
