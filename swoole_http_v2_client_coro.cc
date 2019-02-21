@@ -21,6 +21,8 @@
 #include "swoole_coroutine.h"
 #include "swoole_http_v2_client.h"
 
+#include <vector>
+
 using namespace swoole;
 
 static zend_class_entry swoole_http2_client_coro_ce;
@@ -486,6 +488,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
         char *key = NULL;
         uint32_t keylen = 0;
         int type;
+        std::vector<zend::string_ptr> zstr_list;
 
         SW_HASHTABLE_FOREACH_START2(ht, key, keylen, type, value)
         {
@@ -493,16 +496,17 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
             {
                 continue;
             }
-            zend::string _value(value);
+            zend_string *zstr = zval_get_string(value);
             if (strncasecmp("host", key, keylen) == 0)
             {
-                http2_add_header(&nv[HTTP2_CLIENT_HOST_HEADER_INDEX], ZEND_STRL(":authority"), _value.val(), _value.len());
+                http2_add_header(&nv[HTTP2_CLIENT_HOST_HEADER_INDEX], ZEND_STRL(":authority"), ZSTR_VAL(zstr), ZSTR_LEN(zstr));
                 find_host = 1;
             }
             else
             {
-                http2_add_header(&nv[index++], key, keylen, _value.val(), _value.len());
+                http2_add_header(&nv[index++], key, keylen, ZSTR_VAL(zstr), ZSTR_LEN(zstr));
             }
+            zstr_list.emplace_back(zend::string_ptr(zstr));
         }
         SW_HASHTABLE_FOREACH_END();
         (void)type;
