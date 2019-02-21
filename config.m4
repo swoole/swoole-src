@@ -48,9 +48,6 @@ PHP_ARG_WITH(cares_dir, dir of c-ares,
 PHP_ARG_WITH(openssl_dir, dir of openssl,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
-PHP_ARG_WITH(nghttp2_dir, dir of nghttp2,
-[  --with-nghttp2-dir[=DIR]    Include nghttp2 support], no, no)
-
 PHP_ARG_WITH(phpx_dir, dir of php-x,
 [  --with-phpx-dir[=DIR]       Include PHP-X support], no, no)
 
@@ -242,7 +239,6 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
     AC_CHECK_LIB(pq, PQconnectdb, AC_DEFINE(HAVE_POSTGRESQL, 1, [have postgresql]))
     AC_CHECK_LIB(cares, ares_library_init, AC_DEFINE(HAVE_CARES, 1, [have c-ares]))
-    AC_CHECK_LIB(nghttp2, nghttp2_hd_inflate_new, AC_DEFINE(HAVE_NGHTTP2, 1, [have nghttp2]))
 
     AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
         AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
@@ -356,13 +352,8 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
-    if test "$PHP_HTTP2" = "yes" || test "$PHP_NGHTTP2_DIR" != "no"; then
-	    if test "$PHP_NGHTTP2_DIR" != "no"; then
-	        PHP_ADD_INCLUDE("${PHP_NGHTTP2_DIR}/include")
-	        PHP_ADD_LIBRARY_WITH_PATH(nghttp2, "${PHP_NGHTTP2_DIR}/${PHP_LIBDIR}")
-	    fi
+    if test "$PHP_HTTP2" = "yes"; then
         AC_DEFINE(SW_USE_HTTP2, 1, [enable HTTP2 support])
-        PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
     fi
 
     if test "$PHP_MYSQLND" = "yes"; then
@@ -481,7 +472,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/wrapper/server.cc \
         src/wrapper/timer.cc \
         swoole.c \
-        swoole_async.cc \
+        swoole_async_coro.cc \
         swoole_atomic.c \
         swoole_buffer.c \
         swoole_channel.c \
@@ -491,24 +482,18 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_coroutine.cc \
         swoole_coroutine_util.cc \
         swoole_event.c \
-        swoole_http_client.c \
         swoole_http_client_coro.cc \
         swoole_http_server.cc \
         swoole_http_v2_client_coro.cc \
         swoole_http_v2_server.cc \
         swoole_lock.c \
-        swoole_memory_pool.c \
         swoole_mmap.c \
-        swoole_msgqueue.c \
-        swoole_mysql.c \
         swoole_mysql_coro.cc \
         swoole_postgresql_coro.cc \
         swoole_process.cc \
         swoole_process_pool.cc \
-        swoole_redis.c \
         swoole_redis_coro.cc \
         swoole_redis_server.cc \
-        swoole_ringqueue.c \
         swoole_runtime.cc \
         swoole_serialize.c \
         swoole_server.cc \
@@ -533,7 +518,15 @@ if test "$PHP_SWOOLE" != "no"; then
         thirdparty/hiredis/hiredis.c \
         thirdparty/hiredis/net.c \
         thirdparty/hiredis/read.c \
-        thirdparty/hiredis/sds.c"
+        thirdparty/hiredis/sds.c \
+        thirdparty/http2/nghttp2_hd.c \
+        thirdparty/http2/nghttp2_rcbuf.c \
+        thirdparty/http2/nghttp2_helper.c \
+        thirdparty/http2/nghttp2_buf.c \
+        thirdparty/http2/nghttp2_mem.c \
+        thirdparty/http2/nghttp2_hd_huffman.c \
+        thirdparty/http2/nghttp2_hd_huffman_data.c \
+        "
 
     SW_NO_USE_ASM_CONTEXT="no"
     SW_ASM_DIR="thirdparty/boost/asm/"
@@ -619,7 +612,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
 
-    PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h])
+    PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h])
 
     PHP_REQUIRE_CXX()
     
@@ -642,6 +635,7 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/src/coroutine)
     PHP_ADD_BUILD_DIR($ext_builddir/src/wrapper)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/http2)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)
 fi

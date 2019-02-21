@@ -508,10 +508,10 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
             klen = i - j + 1;
             if (klen >= SW_HTTP_COOKIE_KEYLEN)
             {
-                swWarn("cookie key is too large.");
+                swWarn("cookie[%.*s...] name length %d is exceed the max name len %d.", 8, (char *) at + j, klen, SW_HTTP_COOKIE_KEYLEN);
                 return;
             }
-            memcpy(keybuf, at + j, klen - 1);
+            memcpy(keybuf, (char *) at + j, klen - 1);
             keybuf[klen - 1] = 0;
 
             j = i + 1;
@@ -522,7 +522,7 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
             vlen = i - j;
             if (vlen >= SW_HTTP_COOKIE_VALLEN)
             {
-                swWarn("cookie value is too large.");
+            swWarn("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d.", keybuf, 8, (char *) at + j, vlen, SW_HTTP_COOKIE_VALLEN);
                 return;
             }
             memcpy(valbuf, (char *) at + j, vlen);
@@ -556,13 +556,13 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
         vlen = i - j;
         if (klen >= SW_HTTP_COOKIE_KEYLEN)
         {
-            swWarn("cookie key is too large.");
+            swWarn("cookie[%.*s...] name length %d is exceed the max name len %d.", 8, keybuf, klen, SW_HTTP_COOKIE_KEYLEN);
             return;
         }
         keybuf[klen - 1] = 0;
         if (vlen >= SW_HTTP_COOKIE_VALLEN)
         {
-            swWarn("cookie value is too large.");
+            swWarn("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d.", keybuf, 8, (char *) at + j, vlen, SW_HTTP_COOKIE_VALLEN);
             return;
         }
         memcpy(valbuf, (char *) at + j, vlen);
@@ -1935,7 +1935,7 @@ static PHP_METHOD(swoole_http_response, end)
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
-        Z_PARAM_ZVAL(zdata)
+        Z_PARAM_ZVAL_EX(zdata, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = http_get_context(getThis(), 0);
@@ -1989,18 +1989,54 @@ static PHP_METHOD(swoole_http_response, end)
         }
 #endif
         http_build_header(ctx, getThis(), swoole_http_buffer, http_body.length);
+
+        char *send_body_str;
+        size_t send_body_len;
+
         if (http_body.length > 0)
         {
 #ifdef SW_HAVE_ZLIB
             if (ctx->enable_compression)
             {
-                swString_append(swoole_http_buffer, swoole_zlib_buffer);
+                send_body_str = swoole_zlib_buffer->str;
+                send_body_len = swoole_zlib_buffer->length;
             }
             else
 #endif
             {
-                swString_append(swoole_http_buffer, &http_body);
+                send_body_str = http_body.str;
+                send_body_len = http_body.length;
             }
+            /**
+             *
+             */
+#ifdef SW_HTTP_SEND_TWICE
+            if (send_body_len < SwooleG.pagesize)
+#endif
+            {
+                if (swString_append_ptr(swoole_http_buffer, send_body_str, send_body_len) < 0)
+                {
+                    ctx->send_header = 0;
+                    RETURN_FALSE;
+                }
+            }
+#ifdef SW_HTTP_SEND_TWICE
+            else
+            {
+                ret = serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
+                if (ret < 0)
+                {
+                    ctx->send_header = 0;
+                    RETURN_FALSE;
+                }
+                ret = serv->send(serv, ctx->fd, send_body_str, send_body_len);
+                if (ret < 0)
+                {
+                    RETURN_FALSE;
+                }
+                goto _skip_copy;
+            }
+#endif
         }
 
         ret = serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
@@ -2011,6 +2047,9 @@ static PHP_METHOD(swoole_http_response, end)
         }
     }
 
+#ifdef SW_HTTP_SEND_TWICE
+    _skip_copy:
+#endif
     if (ctx->upgrade)
     {
         swConnection *conn = swWorker_get_connection(serv, ctx->fd);
@@ -2142,8 +2181,8 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
         swoole_http_server_array_init(cookie, response);
     }
 
-    int cookie_size = name_len + value_len + path_len + domain_len + 100;
-    char *cookie = (char *) emalloc(cookie_size), *encoded_value = NULL, *date = NULL;
+    int cookie_size = name_len /* + value_len */ + path_len + domain_len + 100;
+    char *cookie = NULL, *date = NULL;
 
     if (name_len > 0 && strpbrk(name, "=,; \t\r\n\013\014") != NULL)
     {
@@ -2152,6 +2191,7 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
     }
     if (value_len == 0)
     {
+        cookie = (char *) emalloc(cookie_size);
         date = sw_php_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0);
         snprintf(cookie, cookie_size, "%s=deleted; expires=%s", name, date);
         efree(date);
@@ -2160,10 +2200,20 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
     {
         if (url_encode)
         {
+            char *encoded_value;
             int encoded_value_len;
             encoded_value = sw_php_url_encode(value, value_len, &encoded_value_len);
+            cookie_size += encoded_value_len;
+            cookie = (char *) emalloc(cookie_size);
+            snprintf(cookie, cookie_size, "%s=%s", name, encoded_value);
+            efree(encoded_value);
         }
-        snprintf(cookie, cookie_size, "%s=%s", name, encoded_value ? encoded_value : value);
+        else
+        {
+            cookie_size += value_len;
+            cookie = (char *) emalloc(cookie_size);
+            snprintf(cookie, cookie_size, "%s=%s", name, value);
+        }
         if (expires > 0)
         {
             strlcat(cookie, "; expires=", cookie_size);
@@ -2174,10 +2224,6 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
                 swoole_php_error(E_WARNING, "Expiry date can't be a year greater than 9999");
                 efree(date);
                 efree(cookie);
-                if (encoded_value)
-                {
-                    efree(encoded_value);
-                }
                 RETURN_FALSE;
             }
             strlcat(cookie, date, cookie_size);
@@ -2204,10 +2250,6 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
     }
     add_next_index_stringl(zcookie, cookie, strlen(cookie));
     efree(cookie);
-    if (encoded_value)
-    {
-        efree(encoded_value);
-    }
     RETURN_TRUE;
 }
 

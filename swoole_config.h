@@ -207,6 +207,7 @@
 #define SW_HTTP_RFC850_DATE              "%A, %d-%b-%y %T GMT"
 #define SW_HTTP_ASCTIME_DATE             "%a %b %e %T %Y"
 // #define SW_HTTP_100_CONTINUE
+#define SW_HTTP_SEND_TWICE
 
 /**
  * HTTP2 Protocol

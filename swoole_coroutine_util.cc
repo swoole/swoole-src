@@ -420,6 +420,10 @@ static PHP_METHOD(swoole_coroutine_util, set)
     {
         set_dns_cache_capacity((size_t) zval_get_long(v));
     }
+    if (php_swoole_array_get_value(vht, "display_errors", v))
+    {
+        SWOOLE_G(display_errors) = zval_is_true(v);
+    }
     if (php_swoole_array_get_value(vht, "max_exec_msec", v))
     {
         long _value = zval_get_long(v);
@@ -449,7 +453,7 @@ PHP_FUNCTION(swoole_coroutine_create)
     if (unlikely(SWOOLE_G(req_status) == PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN))
     {
         zend_function *func = (zend_function *) EG(current_execute_data)->prev_execute_data->func;
-        if (unlikely(memcmp(ZSTR_VAL(func->common.function_name), ZEND_STRS("__destruct")) == 0))
+        if (func->common.function_name && unlikely(memcmp(ZSTR_VAL(func->common.function_name), ZEND_STRS("__destruct")) == 0))
         {
             swoole_php_fatal_error(E_ERROR, "can not use coroutine in __destruct after php_request_shutdown");
             RETURN_FALSE;

@@ -399,40 +399,43 @@ enum swWorker_status
 
 #define swWarn(str,...)          if (SW_LOG_WARNING >= SwooleG.log_level){\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: " str,__func__,##__VA_ARGS__);\
-    swLog_put(SW_LOG_WARNING, sw_error);\
+    size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: " str,__func__,##__VA_ARGS__);\
+    SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_errror_len);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 
 #define swNotice(str,...)        if (SW_LOG_NOTICE >= SwooleG.log_level){\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
-    swLog_put(SW_LOG_NOTICE, sw_error);\
+    size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
+    SwooleG.write_log(SW_LOG_NOTICE, sw_error, _sw_errror_len);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 
-#define swError(str,...)       SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
-    swLog_put(SW_LOG_ERROR, sw_error);\
+#define swError(str,...)       do{\
+    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+    size_t _sw_errror_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
+    SwooleG.write_log(SW_LOG_ERROR, sw_error, _sw_errror_len);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
-    exit(1)
+    exit(1);\
+    }while(0)
 
 #define swSysError(str,...)  do{SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str " Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
-    swLog_put(SW_LOG_ERROR, sw_error);\
+    size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str " Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
+    SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_errror_len);\
     SwooleG.error=errno;\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}while(0)
 
 #define swoole_error_log(level, __errno, str, ...)      do{SwooleG.error=__errno;\
     if (level >= SwooleG.log_level){\
-    snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERROR %d): " str,__func__,__errno,##__VA_ARGS__);\
-    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    swLog_put(level, sw_error);\
-    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}}while(0)
+        size_t _sw_errror_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERROR %d): " str,__func__,__errno,##__VA_ARGS__);\
+        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+        SwooleG.write_log(level, sw_error, _sw_errror_len);\
+        SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
+    }} while(0)
 
 #ifdef SW_DEBUG
 #define swDebug(str,...) if (SW_LOG_DEBUG >= SwooleG.log_level){\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__);\
-    swLog_put(SW_LOG_DEBUG, sw_error);\
+    size_t _sw_errror_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__);\
+    SwooleG.write_log(SW_LOG_DEBUG, sw_error, _sw_errror_len);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 #else
 #define swDebug(str,...)
@@ -454,7 +457,7 @@ enum swTraceType
     SW_TRACE_LENGTH_PROTOCOL  = 1u << 12,
     SW_TRACE_CLOSE            = 1u << 13,
     SW_TRACE_HTTP_CLIENT      = 1u << 14,
-    SW_TRACE_COROUTINE        = 1u << 15,
+    //skip
     SW_TRACE_REDIS_CLIENT     = 1u << 16,
     SW_TRACE_MYSQL_CLIENT     = 1u << 17,
     SW_TRACE_AIO              = 1u << 18,
@@ -463,16 +466,21 @@ enum swTraceType
     SW_TRACE_CHANNEL          = 1u << 21,
     SW_TRACE_TIMER            = 1u << 22,
     SW_TRACE_SOCKET           = 1u << 23,
+    /**
+     * Coroutine
+     */
+    SW_TRACE_COROUTINE        = 1u << 24,
+    SW_TRACE_CONTEXT          = 1u << 25,
 };
 
 #ifdef SW_LOG_TRACE_OPEN
 #define swTraceLog(what,str,...)      if (SW_LOG_TRACE >= SwooleG.log_level && (what & SwooleG.trace_flags)) {\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__);\
-    swLog_put(SW_LOG_TRACE, sw_error);\
+    size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__);\
+    SwooleG.write_log(SW_LOG_TRACE, sw_error, _sw_errror_len);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 #else
-#define swTraceLog(id,str,...)
+#define swTraceLog(what,str,...)
 #endif
 
 #define swTrace(str,...)       swTraceLog(SW_TRACE_NORMAL, str, ##__VA_ARGS__)
@@ -1179,7 +1187,7 @@ enum swProcessType
 
 //----------------------tool function---------------------
 int swLog_init(char *logfile);
-void swLog_put(int level, char *cnt);
+void swLog_put(int level, char *content, size_t length);
 void swLog_free(void);
 #define sw_log(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);swLog_put(SW_LOG_INFO, sw_error);}
 
@@ -2114,6 +2122,7 @@ struct _swTimer
     struct timeval basetime;
     /*--------------------------------------------------*/
     int (*set)(swTimer *timer, long exec_msec);
+    void (*free)(swTimer *timer);
 };
 
 swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
@@ -2228,6 +2237,8 @@ typedef struct
     uint32_t log_level;
     char *log_file;
     uint32_t trace_flags;
+
+    void (*write_log)(int level, char *content, size_t len);
 
     uint16_t cpu_num;
 

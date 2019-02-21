@@ -55,6 +55,10 @@
 #include "client.h"
 #include "async.h"
 
+#ifdef SW_HAVE_ZLIB
+#include <zlib.h>
+#endif
+
 BEGIN_EXTERN_C()
 #include <ext/date/php_date.h>
 #include <ext/standard/url.h>
@@ -130,14 +134,6 @@ extern swoole_object_array swoole_objects;
 #ifdef SW_SOCKETS
 #include "ext/sockets/php_sockets.h"
 #define SWOOLE_SOCKETS_SUPPORT
-#endif
-
-#ifdef SW_USE_HTTP2
-#if !defined(HAVE_NGHTTP2)
-#error "Enable http2 support, require nghttp2 library."
-#else
-#include <nghttp2/nghttp2ver.h>
-#endif
 #endif
 
 #if PHP_VERSION_ID < 70400
@@ -282,8 +278,8 @@ PHP_FUNCTION(swoole_cpu_num);
 PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_get_local_ip);
 PHP_FUNCTION(swoole_get_local_mac);
-PHP_FUNCTION(swoole_call_user_shutdown_begin);
 PHP_FUNCTION(swoole_clear_dns_cache);
+PHP_FUNCTION(swoole_internal_call_user_shutdown_begin);
 //---------------------------------------------------------
 //                  Coroutine API
 //---------------------------------------------------------
@@ -306,17 +302,10 @@ PHP_FUNCTION(swoole_event_dispatch);
 PHP_FUNCTION(swoole_event_isset);
 PHP_FUNCTION(swoole_client_select);
 //---------------------------------------------------------
-//                  async
+//                  async[coro]
 //---------------------------------------------------------
-PHP_FUNCTION(swoole_async_read);
-PHP_FUNCTION(swoole_async_write);
-PHP_FUNCTION(swoole_async_close);
-PHP_FUNCTION(swoole_async_readfile);
-PHP_FUNCTION(swoole_async_writefile);
-PHP_FUNCTION(swoole_async_dns_lookup);
-PHP_FUNCTION(swoole_async_dns_lookup_coro);
 PHP_FUNCTION(swoole_async_set);
-PHP_METHOD(swoole_async, exec);
+PHP_FUNCTION(swoole_async_dns_lookup_coro);
 //---------------------------------------------------------
 //                  timer
 //---------------------------------------------------------
@@ -344,11 +333,9 @@ PHP_FUNCTION(swoole_fast_serialize);
 PHP_FUNCTION(swoole_unserialize);
 #endif
 
-void swoole_destroy_table(zend_resource *rsrc);
-
 void swoole_server_init(int module_number);
 void swoole_server_port_init(int module_number);
-void swoole_async_init(int module_number);
+void swoole_async_coro_init(int module_number);
 void swoole_table_init(int module_number);
 void swoole_runtime_init(int module_number);
 void swoole_lock_init(int module_number);
@@ -364,8 +351,6 @@ void swoole_mysql_coro_init(int module_number);
 void swoole_http_client_coro_init(int module_number);
 void swoole_coroutine_util_init(int module_number);
 void swoole_coroutine_util_destroy();
-void swoole_http_client_init(int module_number);
-void swoole_redis_init(int module_number);
 void swoole_redis_server_init(int module_number);
 void swoole_process_init(int module_number);
 void swoole_process_pool_init(int module_number);
@@ -375,19 +360,15 @@ void swoole_http2_client_coro_init(int module_number);
 #endif
 void swoole_websocket_init(int module_number);
 void swoole_buffer_init(int module_number);
-void swoole_mysql_init(int module_number);
 void swoole_mmap_init(int module_number);
 void swoole_channel_init(int module_number);
-void swoole_ringqueue_init(int module_number);
-void swoole_msgqueue_init(int module_number);
 void swoole_channel_coro_init(int module_number);
 #ifdef SW_USE_FAST_SERIALIZE
 void swoole_serialize_init(int module_number);
 #endif
-void swoole_memory_pool_init(int module_number);
 
 //RSHUTDOWN
-void swoole_async_shutdown();
+void swoole_async_coro_shutdown();
 
 void php_swoole_process_clean();
 int php_swoole_process_start(swWorker *process, zval *zobject);
@@ -422,6 +403,10 @@ void php_swoole_sha1(const char *str, int _len, unsigned char *digest);
 
 int php_swoole_task_pack(swEventData *task, zval *data);
 zval* php_swoole_task_unpack(swEventData *task_result);
+
+#ifdef SW_HAVE_ZLIB
+int php_swoole_zlib_uncompress(z_stream *stream, swString *buffer, char *body, int length);
+#endif
 
 static sw_inline void* swoole_get_object_by_handle(uint32_t handle)
 {
@@ -509,9 +494,7 @@ void php_swoole_class_unset_property_deny(zval *zobject, zval *member, void **ca
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool display_errors;
     zend_bool cli;
-    zend_bool use_namespace;
     zend_bool use_shortname;
-    zend_bool fast_serialize;
     zend_bool enable_coroutine;
     long socket_buffer_size;
     php_swoole_req_status req_status;

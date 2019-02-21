@@ -19,6 +19,7 @@
 
 static int swSystemTimer_signal_set(swTimer *timer, long interval);
 static int swSystemTimer_set(swTimer *timer, long new_interval);
+static void swSystemTimer_free(swTimer *timer);
 
 /**
  * create timer
@@ -33,6 +34,7 @@ int swSystemTimer_init(int interval)
     }
     swSignal_add(SIGALRM, swSystemTimer_signal_handler);
     timer->set = swSystemTimer_set;
+    timer->free = swSystemTimer_free;
     return SW_OK;
 }
 
@@ -81,20 +83,20 @@ void swSystemTimer_free(swTimer *timer)
     swSystemTimer_signal_set(timer, -1);
 }
 
-static long current_interval = 0;
+static long _next_msec = 0;
 
-static int swSystemTimer_set(swTimer *timer, long new_interval)
+static int swSystemTimer_set(swTimer *timer, long exec_msec)
 {
-    if (new_interval == current_interval)
+    if (exec_msec == _next_msec)
     {
         return SW_OK;
     }
-    if (new_interval == 0)
+    if (exec_msec == 0)
     {
-        new_interval = 1;
+        exec_msec = 1;
     }
-    current_interval = new_interval;
-    return swSystemTimer_signal_set(timer, new_interval);
+    _next_msec = exec_msec;
+    return swSystemTimer_signal_set(timer, exec_msec);
 }
 
 void swSystemTimer_signal_handler(int sig)
