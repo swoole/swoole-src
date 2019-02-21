@@ -283,7 +283,7 @@ bool Socket::socks5_handshake()
             buf += ctx->l_target_host;
             *(uint16_t *) buf = htons(ctx->target_port);
 
-            if (send(ctx->buf, buf_len) != 0)
+            if (send(ctx->buf, buf_len) != buf_len)
             {
                 return false;
             }
@@ -296,7 +296,7 @@ bool Socket::socks5_handshake()
             buf += 4;
             *(uint16_t *) buf = htons(ctx->target_port);
 
-            if (send(ctx->buf, buf_len) < 0)
+            if (send(ctx->buf, buf_len) != buf_len)
             {
                 return false;
             }
@@ -1554,6 +1554,7 @@ bool Socket::close()
         if (socket->closed)
         {
             // close operation is in processing
+            set_err(EINPROGRESS);
             return false;
         }
         if (socket->active)
