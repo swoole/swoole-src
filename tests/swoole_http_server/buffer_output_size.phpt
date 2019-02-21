@@ -29,7 +29,7 @@ $pm->childFunc = function () use ($pm) {
         'buffer_output_size' => BUFFER_OUTPUT_SIZE,
     ]);
     $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($server) {
-        $length = $request->server['request_uri'] === '/full' ? BUFFER_OUTPUT_SIZE : BUFFER_OUTPUT_SIZE - HTTP_HEADER_SIZE;
+        $length = $request->server['request_uri'] === '/full' ? BUFFER_OUTPUT_SIZE + 4096 : BUFFER_OUTPUT_SIZE - HTTP_HEADER_SIZE;
         $response->end(str_repeat(RANDOM_CHAR, $length));
     });
     $server->start();
