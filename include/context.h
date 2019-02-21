@@ -81,6 +81,9 @@ public:
     bool SwapIn();
     bool SwapOut();
     static void context_func(void* arg);
+#ifdef SW_LOG_TRACE_OPEN
+    ssize_t get_stack_usage();
+#endif
 public:
     bool end;
 
