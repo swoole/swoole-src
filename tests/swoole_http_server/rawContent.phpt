@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: rawcontent
+swoole_http_server: raw-content
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -8,7 +8,6 @@ skip_if_in_valgrind();
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/../include/api/swoole_http_client/simple_http_client.php';
 
 $payload = str_repeat('A', rand(1024, 65536));
 $pm = new ProcessManager;

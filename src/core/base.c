@@ -51,6 +51,7 @@ void swoole_init(void)
     sw_errno = 0;
 
     SwooleG.log_fd = STDOUT_FILENO;
+    SwooleG.write_log = swLog_put;
 
 #ifdef _WIN32
     SYSTEM_INFO info;
@@ -174,7 +175,6 @@ pid_t swoole_fork()
         if (SwooleG.timer.initialized)
         {
             swTimer_free(&SwooleG.timer);
-            bzero(&SwooleG.timer, sizeof(SwooleG.timer));
         }
         /**
          * reset SwooleG.memory_pool
@@ -822,23 +822,23 @@ void swBreakPoint()
 
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...)
 {
-    int ret;
+    size_t retval;
     va_list args;
 
     va_start(args, format);
-    ret = vsnprintf(buf, size, format, args);
+    retval = vsnprintf(buf, size, format, args);
     va_end(args);
-    if (unlikely(ret < 0))
+    if (unlikely(retval < 0))
     {
-        ret = 0;
+        retval = 0;
         buf[0] = '\0';
     }
-    else if (unlikely(ret >= size))
+    else if (unlikely(retval >= size))
     {
-        ret = size - 1;
-        buf[ret] = '\0';
+        retval = size - 1;
+        buf[retval] = '\0';
     }
-    return ret;
+    return retval;
 }
 
 void swoole_ioctl_set_block(int sock, int nonblock)

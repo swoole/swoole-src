@@ -30,8 +30,9 @@ extern "C"
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
 #endif
+
 #ifdef SW_USE_HTTP2
-#include <nghttp2/nghttp2.h>
+#include "thirdparty/http2/nghttp2.h"
 #endif
 
 enum http_header_flag

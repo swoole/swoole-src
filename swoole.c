@@ -180,8 +180,8 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_errno, arginfo_swoole_void)
     PHP_FE(swoole_hashcode, arginfo_swoole_hashcode)
     PHP_FE(swoole_get_mime_type, arginfo_swoole_get_mime_type)
-    PHP_FE(swoole_call_user_shutdown_begin, arginfo_swoole_void)
     PHP_FE(swoole_clear_dns_cache, arginfo_swoole_void)
+    PHP_FE(swoole_internal_call_user_shutdown_begin, arginfo_swoole_void)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -264,10 +264,6 @@ STD_ZEND_INI_BOOLEAN("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, d
  */
 STD_ZEND_INI_BOOLEAN("swoole.use_shortname", "On", PHP_INI_SYSTEM, OnUpdateBool, use_shortname, zend_swoole_globals, swoole_globals)
 /**
- * enable swoole serialize
- */
-STD_ZEND_INI_BOOLEAN("swoole.fast_serialize", "Off", PHP_INI_ALL, OnUpdateBool, fast_serialize, zend_swoole_globals, swoole_globals)
-/**
  * unix socket buffer size
  */
 STD_PHP_INI_ENTRY("swoole.unixsock_buffer_size", ZEND_TOSTR(SW_SOCKET_BUFFER_SIZE), PHP_INI_ALL, OnUpdateLong, socket_buffer_size, zend_swoole_globals, swoole_globals)
@@ -279,7 +275,6 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
     swoole_globals->use_shortname = 1;
-    swoole_globals->fast_serialize = 0;
     swoole_globals->rshutdown_functions = NULL;
 }
 
@@ -810,17 +805,12 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_mmap_init(module_number);
     swoole_channel_init(module_number);
     swoole_channel_coro_init(module_number);
-    swoole_ringqueue_init(module_number);
-    swoole_msgqueue_init(module_number);
 #ifdef SW_USE_HTTP2
     swoole_http2_client_coro_init(module_number);
 #endif
 #ifdef SW_USE_FAST_SERIALIZE
     swoole_serialize_init(module_number);
-#else
-    SWOOLE_G(fast_serialize) = 0;
 #endif
-    swoole_memory_pool_init(module_number);
     swoole_redis_server_init(module_number);
 
     SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
@@ -955,7 +945,7 @@ PHP_MINFO_FUNCTION(swoole)
 PHP_RINIT_FUNCTION(swoole)
 {
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
-    php_swoole_register_shutdown_function("swoole_call_user_shutdown_begin");
+    php_swoole_register_shutdown_function("swoole_internal_call_user_shutdown_begin");
     SwooleG.running = 1;
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_END;
     return SUCCESS;
@@ -1224,10 +1214,19 @@ PHP_FUNCTION(swoole_get_local_mac)
 #endif
 }
 
-PHP_FUNCTION(swoole_call_user_shutdown_begin)
+PHP_FUNCTION(swoole_internal_call_user_shutdown_begin)
 {
-    SWOOLE_G(req_status) = PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN;
-    RETURN_TRUE;
+    if (SWOOLE_G(req_status) == PHP_SWOOLE_RINIT_END)
+    {
+
+        SWOOLE_G(req_status) = PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN;
+        RETURN_TRUE;
+    }
+    else
+    {
+        php_error_docref(NULL, E_WARNING, "can not call this function in user level.");
+        RETURN_FALSE;
+    }
 }
 
 /*
