@@ -91,6 +91,9 @@ void Coroutine::close()
     {
         on_close(task);
     }
+#ifdef SW_LOG_TRACE_OPEN
+    swTraceLog(SW_TRACE_CONTEXT, "coroutine#%ld stack memroy use less than %ld bytes.", get_cid(), ctx.get_stack_usage());
+#endif
     call_stack_size--;
     coroutines.erase(cid);
     delete this;
