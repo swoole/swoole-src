@@ -41,12 +41,6 @@ typedef enum
     SW_CORO_END,
 } sw_coro_state;
 
-typedef enum
-{
-    SW_CORO_NONE = 0,
-    SW_CORO_ACTIVE,
-} sw_coro_schedule_flag;
-
 typedef void (*coro_php_create_t)();
 typedef void (*coro_php_yield_t)(void*);
 typedef void (*coro_php_resume_t)(void*);
@@ -103,22 +97,21 @@ public:
         return ctx.end;
     }
 
-    inline void mark_schedule()
+    inline void record_schedule_time(bool _is_schedule = false)
     {
-        if (schedule_flag == SW_CORO_ACTIVE)
+        if (is_schedule || _is_schedule)
         {
-            schedule_flag = SW_CORO_NONE;
+            is_schedule = false;
             last_schedule_msec = swTimer_get_absolute_msec();
         }
     }
 
-    inline bool is_schedulable(int tick_count)
+    inline bool is_schedulable()
     {
-        if (tick_count > 0 && Coroutine::max_exec_msec > 0)
+        if (Coroutine::max_exec_msec > 0)
         {
-            schedule_flag = SW_CORO_ACTIVE;
-            int64_t now_msec = swTimer_get_absolute_msec();
-            return (now_msec - last_schedule_msec > Coroutine::max_exec_msec);
+            is_schedule = true;
+            return (swTimer_get_absolute_msec() - last_schedule_msec > Coroutine::max_exec_msec);
         }
         return false;
     }
@@ -199,7 +192,7 @@ protected:
     void *task = nullptr;
     Context ctx;
     int64_t last_schedule_msec;
-    sw_coro_schedule_flag schedule_flag;
+    bool is_schedule;
 
     Coroutine(coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)
@@ -208,7 +201,7 @@ protected:
         coroutines[cid] = this;
         call_stack[call_stack_size++] = this;
         last_schedule_msec = swTimer_get_absolute_msec();
-        schedule_flag = SW_CORO_NONE;
+        is_schedule = false;
         if (unlikely(count() > peak_num))
         {
             peak_num = count();

@@ -36,6 +36,7 @@ static void interrupt_callback(void *data)
     Coroutine *co = (Coroutine *)data;
     if (co && !co->is_end())
     {
+        swTraceLog(SW_TRACE_COROUTINE,"interrupt_callback cid=%ld ", co->get_cid());
         co->resume();
     }
 }
@@ -43,7 +44,7 @@ static void interrupt_callback(void *data)
 static void sw_tick(uint32_t tick_count)
 {
     php_coro_task *task = PHPCoroutine::get_current_task();
-    if (task && task->co && task->co->is_schedulable(tick_count))
+    if (task && task->co && tick_count > 0 && task->co->is_schedulable())
     {
         PHPCoroutine::on_yield(task);
         SwooleG.main_reactor->defer(SwooleG.main_reactor, interrupt_callback, (void *)task->co);
@@ -136,6 +137,7 @@ inline void PHPCoroutine::save_vm_stack(php_coro_task *task)
     task->error_handling = EG(error_handling);
     task->exception_class = EG(exception_class);
     task->exception = EG(exception);
+    task->ticks_count = EG(ticks_count);
     SW_SAVE_EG_SCOPE(task->scope);
 }
 
@@ -154,6 +156,7 @@ inline void PHPCoroutine::restore_vm_stack(php_coro_task *task)
     EG(error_handling) = task->error_handling;
     EG(exception_class) = task->exception_class;
     EG(exception) = task->exception;
+    EG(ticks_count) = task->ticks_count;
     SW_SET_EG_SCOPE(task->scope);
 }
 

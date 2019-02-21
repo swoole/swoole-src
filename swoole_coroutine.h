@@ -60,6 +60,7 @@ struct php_coro_task
     zend_class_entry *exception_class;
     zend_object *exception;
     zend_output_globals *output_ptr;
+    int ticks_count;
     SW_DECLARE_EG_SCOPE(scope);
     swoole::Coroutine *co;
     std::stack<defer_task *> *defer_tasks;

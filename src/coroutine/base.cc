@@ -50,7 +50,7 @@ void Coroutine::yield()
     }
     call_stack_size--;
 #ifdef SW_CORO_TICK_SCHEDULE
-    mark_schedule();
+    record_schedule_time();
 #endif
     ctx.SwapOut();
 }
@@ -63,7 +63,7 @@ void Coroutine::resume()
         on_resume(task);
     }
 #ifdef SW_CORO_TICK_SCHEDULE
-    mark_schedule();
+    record_schedule_time(true);
 #endif
     Coroutine::call_stack[call_stack_size++] = this;
     ctx.SwapIn();
@@ -78,7 +78,7 @@ void Coroutine::yield_naked()
     state = SW_CORO_WAITING;
     call_stack_size--;
 #ifdef SW_CORO_TICK_SCHEDULE
-    mark_schedule();
+    record_schedule_time();
 #endif
     ctx.SwapOut();
 }
@@ -87,7 +87,7 @@ void Coroutine::resume_naked()
 {
     state = SW_CORO_RUNNING;
 #ifdef SW_CORO_TICK_SCHEDULE
-    mark_schedule();
+    record_schedule_time(true);
 #endif
     Coroutine::call_stack[call_stack_size++] = this;
     ctx.SwapIn();
