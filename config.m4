@@ -60,9 +60,6 @@ PHP_ARG_WITH(libpq_dir, dir of libpq,
 PHP_ARG_ENABLE(asan, whether to enable asan,
 [  --enable-asan             Enable asan], no, no)
 
-PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
-[  --enable-picohttpparser   Experimental: Do you have picohttpparser?], no, no)
-
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
     haveext=$[PHP_]translit($1,a-z_-,A-Z__)
@@ -506,11 +503,6 @@ if test "$PHP_SWOOLE" != "no"; then
     thirdparty/swoole_http_parser.c \
     thirdparty/multipart_parser.c"
 
-    if test "$PHP_PICOHTTPPARSER" = "yes"; then
-        AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])
-        swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
-    fi
-
     swoole_source_file="$swoole_source_file \
         thirdparty/hiredis/async.c \
         thirdparty/hiredis/hiredis.c \
@@ -615,11 +607,6 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_REQUIRE_CXX()
     
     CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations -std=c++11"
-
-    if test "$PHP_PICOHTTPPARSER" = "yes"; then
-        PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/picohttpparser)
-    fi
 
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)

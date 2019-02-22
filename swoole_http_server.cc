@@ -49,10 +49,6 @@ extern "C"
 #include "http2.h"
 #endif
 
-#ifdef SW_USE_PICOHTTPPARSER
-#include "thirdparty/picohttpparser/picohttpparser.h"
-#endif
-
 using namespace swoole;
 
 swString *swoole_http_buffer;
@@ -60,16 +56,6 @@ swString *swoole_http_buffer;
 swString *swoole_zlib_buffer;
 #endif
 swString *swoole_http_form_data_buffer;
-
-enum http_global_flag
-{
-    HTTP_GLOBAL_GET       = 1u << 1,
-    HTTP_GLOBAL_POST      = 1u << 2,
-    HTTP_GLOBAL_COOKIE    = 1u << 3,
-    HTTP_GLOBAL_REQUEST   = 1u << 4,
-    HTTP_GLOBAL_SERVER    = 1u << 5,
-    HTTP_GLOBAL_FILES     = 1u << 6,
-};
 
 enum http_upload_errno
 {
@@ -175,75 +161,6 @@ static inline char* http_trim_double_quote(char *ptr, int *len)
     }
     return tmp;
 }
-
-#ifdef SW_USE_PICOHTTPPARSER
-enum flags
-{
-    F_CONNECTION_KEEP_ALIVE = 1 << 1,
-    F_CONNECTION_CLOSE = 1 << 2,
-};
-
-static inline long http_fast_parse(swoole_http_parser *parser, char *data, size_t length)
-{
-    http_context *ctx = (http_context *) parser->data;
-    const char *method;
-    size_t method_len;
-    int minor_version;
-    struct phr_header headers[64];
-    size_t num_headers = sizeof(headers) / sizeof(headers[0]);
-    const char *path;
-    size_t path_len;
-
-    int n = phr_parse_request(data, length, &method, &method_len, &path, &path_len, &minor_version, headers, &num_headers, 0);
-    if (n < 0)
-    {
-        return SW_ERR;
-    }
-
-    char *p = memchr(path, '?', path_len);
-    if (p)
-    {
-        http_request_on_path(parser, path, p - path);
-        http_request_on_query_string(parser, p + 1, path + path_len - p - 1);
-    }
-    else
-    {
-        http_request_on_path(parser, path, path_len);
-    }
-
-    int i;
-    for (i = 0; i < num_headers; i++)
-    {
-        if (strncasecmp(headers[i].name, "Connection", headers[i].name_len) == 0
-                && strncasecmp(headers[i].value, "keep-alive", headers[i].value_len) == 0)
-        {
-            parser->flags |= F_CONNECTION_KEEP_ALIVE;
-        }
-        else
-        {
-            parser->flags |= F_CONNECTION_CLOSE;
-        }
-        if (http_request_on_header_field(parser, headers[i].name, headers[i].name_len) < 0)
-        {
-            return SW_ERR;
-        }
-        if (http_request_on_header_value(parser, headers[i].value, headers[i].value_len) < 0)
-        {
-            return SW_ERR;
-        }
-    }
-    parser->method = swHttp_get_method(method, method_len) - 1;
-    parser->http_major = 1;
-    parser->http_minor = minor_version;
-    ctx->request.version = 100 + minor_version;
-    if (n < length)
-    {
-        http_request_on_body(parser, data + n, length - n);
-    }
-    http_request_on_headers_complete(parser);
-    return SW_OK;
-}
-#endif
 
 static PHP_METHOD(swoole_http_request, getData);
 static PHP_METHOD(swoole_http_request, rawContent);
