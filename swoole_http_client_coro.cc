@@ -56,19 +56,24 @@ public:
     {
         this->set_timeout(PHPCoroutine::socket_timeout);
     }
+
     bool recv_http_response(const swoole_http_parser_settings *settings, void *data, double timeout = 0)
     {
         ssize_t retval = 0;
         size_t total_bytes = 0, parsed_n = 0;
         swString *buffer = get_read_buffer();
-        Timer timer(&read_timer, timeout == 0 ? this->read_timeout : timeout, this, timer_callback);
-        if (unlikely(!timer.start()))
-        {
-            return false;
-        }
+
         // re-init http response parser
         swoole_http_parser_init(&parser, PHP_HTTP_RESPONSE);
         parser.data = data;
+
+        double read_timeout = get_timeout(SW_TIMEOUT_READ);
+        double startup_time;
+        if (read_timeout > 0)
+        {
+            startup_time = swoole_microtime();
+        }
+
         do
         {
             if (unlikely(parser.state == s_dead))
@@ -82,6 +87,14 @@ public:
                 total_bytes += retval;
                 parsed_n = swoole_http_parser_execute(&parser, settings, buffer->str, retval);
                 swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d.", parsed_n, retval, total_bytes, parser.state != s_start_res);
+                /**
+                 * total timeout
+                 */
+                if (read_timeout > 0 && swoole_microtime() - startup_time > read_timeout)
+                {
+                    set_err(ETIMEDOUT);
+                    return false;
+                }
             }
             else
             {
@@ -399,7 +412,7 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
             {
                 return -1;
             }
-            if (swoole_sync_writefile(http->download_file_fd, SW_STRINGL(http->gzip_buffer)) != http->gzip_buffer->length)
+            if (swoole_coroutine_write(http->download_file_fd, SW_STRINGL(http->gzip_buffer)) != (ssize_t) http->gzip_buffer->length)
             {
                 return -1;
             }
@@ -407,7 +420,7 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
         else
 #endif
         {
-            if (swoole_sync_writefile(http->download_file_fd, SW_STRINGL(http->body)) != http->body->length)
+            if (swoole_coroutine_write(http->download_file_fd, SW_STRINGL(http->body)) != (ssize_t) http->body->length)
             {
                 return -1;
             }
@@ -630,7 +643,7 @@ void http_client::set(zval *zset = nullptr)
     }
     if (socket)
     {
-        sw_coro_socket_set(socket, zset ? zset : zsettings);
+        php_swoole_socket_set(socket, zset ? zset : zsettings);
     }
 }
 

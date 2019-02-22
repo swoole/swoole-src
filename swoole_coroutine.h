@@ -173,4 +173,4 @@ protected:
 /**
  * TODO: move to php socket
  */
-void sw_coro_socket_set(swoole::Socket *cli, zval *zset);
+void php_swoole_socket_set(swoole::Socket *cli, zval *zset);

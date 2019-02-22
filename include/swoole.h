@@ -356,16 +356,6 @@ enum swSocket_type
     SW_SOCK_UNIX_DGRAM   =  5,  //unix sock dgram
     SW_SOCK_UNIX_STREAM  =  6,  //unix sock stream
 };
-
-//-------------------------------------------------------------------------------
-enum swTimeout_type
-{
-    SW_TIMEOUT_CONNECT      =  1u << 1,
-    SW_TIMEOUT_READ         =  1u << 2,
-    SW_TIMEOUT_WRITE        =  1u << 3,
-    SW_TIMEOUT_ALL          =  0xff,
-};
-
 #define SW_SOCK_SSL            (1u << 9)
 //-------------------------------------------------------------------------------
 enum swLog_level
