@@ -96,7 +96,7 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
     }
 
     //write to file
-    if (swoole_sync_writefile(tmp_fd, data, data_len) <= 0)
+    if (swoole_sync_writefile(tmp_fd, data, data_len) != data_len)
     {
         swWarn("write to tmpfile failed.");
         return SW_ERR;
@@ -377,7 +377,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
                     memcpy(buf.data, data, data_len);
                 }
                 //write to tmpfile
-                if (swoole_sync_writefile(fd, &buf, sizeof(buf.info) + buf.info.len) < 0)
+                if (swoole_sync_writefile(fd, &buf, sizeof(buf.info) + buf.info.len) != sizeof(buf.info) + buf.info.len)
                 {
                     swSysError("write(%s, %ld) failed.", _tmpfile, sizeof(buf.info) + buf.info.len);
                 }

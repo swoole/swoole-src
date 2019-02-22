@@ -399,7 +399,7 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
             {
                 return -1;
             }
-            if (swoole_sync_writefile(http->download_file_fd, SW_STRINGL(http->gzip_buffer)) < 0)
+            if (swoole_sync_writefile(http->download_file_fd, SW_STRINGL(http->gzip_buffer)) != http->gzip_buffer->length)
             {
                 return -1;
             }
@@ -407,7 +407,7 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
         else
 #endif
         {
-            if (swoole_sync_writefile(http->download_file_fd, SW_STRINGL(http->body)) < 0)
+            if (swoole_sync_writefile(http->download_file_fd, SW_STRINGL(http->body)) != http->body->length)
             {
                 return -1;
             }

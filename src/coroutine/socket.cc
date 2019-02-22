@@ -264,7 +264,7 @@ bool Socket::socks5_handshake()
     else
     {
         _send_connect_request:
-        size_t buf_len = ctx->l_target_host + 7;
+        ssize_t buf_len = ctx->l_target_host + 7;
 
         buf[0] = SW_SOCKS5_VERSION_CODE;
         buf[1] = 0x01;

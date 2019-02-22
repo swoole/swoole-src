@@ -377,10 +377,10 @@ char* swoole_dec2hex(int value, int base)
     return sw_strndup(ptr, end - ptr);
 }
 
-int swoole_sync_writefile(int fd, const void *data, size_t len)
+size_t swoole_sync_writefile(int fd, const void *data, size_t len)
 {
-    int n = 0;
-    int count = len, towrite, written = 0;
+    ssize_t n = 0;
+    size_t count = len, towrite, written = 0;
 
     while (count > 0)
     {
@@ -706,10 +706,10 @@ int swoole_file_put_contents(char *filename, char *content, size_t length)
     return SW_OK;
 }
 
-int swoole_sync_readfile(int fd, void *buf, int len)
+size_t swoole_sync_readfile(int fd, void *buf, size_t len)
 {
-    int n = 0;
-    int count = len, toread, readn = 0;
+    ssize_t n = 0;
+    size_t count = len, toread, readn = 0;
 
     while (count > 0)
     {

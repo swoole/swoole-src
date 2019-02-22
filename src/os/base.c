@@ -352,7 +352,7 @@ void swAio_handler_read_file(swAio_event *event)
         {
             goto _error;
         }
-        int readn = swoole_sync_readfile(fd, event->buf, (int) file_stat.st_size);
+        size_t readn = swoole_sync_readfile(fd, event->buf, file_stat.st_size);
         event->ret = readn;
     }
     /**
@@ -385,7 +385,7 @@ void swAio_handler_write_file(swAio_event *event)
         close(fd);
         return;
     }
-    int written = swoole_sync_writefile(fd, event->buf, event->nbytes);
+    size_t written = swoole_sync_writefile(fd, event->buf, event->nbytes);
     if (event->flags & SW_AIO_WRITE_FSYNC)
     {
         if (fsync(fd) < 0)
