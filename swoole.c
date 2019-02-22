@@ -802,8 +802,6 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_http_server_init(module_number);
     swoole_buffer_init(module_number);
     swoole_websocket_init(module_number);
-    swoole_mmap_init(module_number);
-    swoole_channel_init(module_number);
     swoole_channel_coro_init(module_number);
 #ifdef SW_USE_HTTP2
     swoole_http2_client_coro_init(module_number);

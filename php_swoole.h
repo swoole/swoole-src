@@ -360,7 +360,6 @@ void swoole_http2_client_coro_init(int module_number);
 #endif
 void swoole_websocket_init(int module_number);
 void swoole_buffer_init(int module_number);
-void swoole_mmap_init(int module_number);
 void swoole_channel_init(int module_number);
 void swoole_channel_coro_init(int module_number);
 #ifdef SW_USE_FAST_SERIALIZE

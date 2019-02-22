@@ -475,7 +475,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_async_coro.cc \
         swoole_atomic.c \
         swoole_buffer.c \
-        swoole_channel.c \
         swoole_channel_coro.cc \
         swoole_client.cc \
         swoole_client_coro.cc \
@@ -487,7 +486,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_http_v2_client_coro.cc \
         swoole_http_v2_server.cc \
         swoole_lock.c \
-        swoole_mmap.c \
         swoole_mysql_coro.cc \
         swoole_postgresql_coro.cc \
         swoole_process.cc \

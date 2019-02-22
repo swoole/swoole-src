@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: http redirect
+swoole_coroutine: http redirect
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

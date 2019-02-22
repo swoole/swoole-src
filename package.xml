@@ -36,8 +36,8 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-02-16</date>
-    <time>21:00:00</time>
+    <date>2019-02-22</date>
+    <time>19:00:00</time>
     <version>
         <release>4.2.13</release>
         <api>4.0</api>
@@ -121,6 +121,7 @@
             <file role="src" name="benchmark/http.js" />
             <file role="src" name="benchmark/http.php" />
             <file role="src" name="benchmark/http2.go" />
+            <file role="src" name="benchmark/larger_payload.php" />
             <file role="src" name="benchmark/length_server.php" />
             <file role="src" name="benchmark/post.big.data" />
             <file role="src" name="benchmark/post.data" />
@@ -160,19 +161,11 @@
             <file role="src" name="core-tests/src/ringbuffer.cpp" />
             <file role="src" name="core-tests/src/server.cpp" />
             <file role="src" name="core-tests/src/thread_pool.cpp" />
-            <file role="doc" name="examples/async/dns_lookup.php" />
-            <file role="doc" name="examples/async/exec.php" />
-            <file role="doc" name="examples/async/read.php" />
-            <file role="doc" name="examples/async/readfile.php" />
-            <file role="doc" name="examples/async/write.php" />
-            <file role="doc" name="examples/async/writefile.php" />
             <file role="doc" name="examples/atomic/long.php" />
             <file role="doc" name="examples/atomic/test.php" />
             <file role="doc" name="examples/atomic/wait.php" />
             <file role="doc" name="examples/buffer.php" />
             <file role="doc" name="examples/c10k.php" />
-            <file role="doc" name="examples/channel.php" />
-            <file role="doc" name="examples/channel/leader_follower.php" />
             <file role="doc" name="examples/client/async.php" />
             <file role="doc" name="examples/client/get_socket.php" />
             <file role="doc" name="examples/client/long_tcp.php" />
@@ -302,7 +295,6 @@
             <file role="doc" name="examples/http/server.php" />
             <file role="doc" name="examples/http/test.txt" />
             <file role="doc" name="examples/http/upload_file.php" />
-            <file role="doc" name="examples/http2/client.php" />
             <file role="doc" name="examples/http2/server.php" />
             <file role="doc" name="examples/ipv6/tcp_client.php" />
             <file role="doc" name="examples/ipv6/tcp_server.php" />
@@ -315,17 +307,9 @@
             <file role="doc" name="examples/length/server.php" />
             <file role="doc" name="examples/lock/lock.php" />
             <file role="doc" name="examples/memory/pool.php" />
-            <file role="doc" name="examples/mmap/mmap.php" />
             <file role="doc" name="examples/multi_port_server.php" />
             <file role="doc" name="examples/multicast/client.php" />
             <file role="doc" name="examples/multicast/server.php" />
-            <file role="doc" name="examples/mysql/mysqli_prepare.php" />
-            <file role="doc" name="examples/mysql/pdo_prepare.php" />
-            <file role="doc" name="examples/mysql/pdo_prepare2.php" />
-            <file role="doc" name="examples/mysql/prepare.php" />
-            <file role="doc" name="examples/mysql/real_async.php" />
-            <file role="doc" name="examples/mysql/sync.php" />
-            <file role="doc" name="examples/mysql/transaction.php" />
             <file role="doc" name="examples/mysql_proxy_server.php" />
             <file role="doc" name="examples/namespace/README.md" />
             <file role="doc" name="examples/namespace/atomic.php" />
@@ -362,13 +346,8 @@
             <file role="doc" name="examples/proxy_sync.php" />
             <file role="doc" name="examples/recv_1m_client.php" />
             <file role="doc" name="examples/recv_file.php" />
-            <file role="doc" name="examples/redis/client.php" />
-            <file role="doc" name="examples/redis/predis.php" />
-            <file role="doc" name="examples/redis/server.php" />
-            <file role="doc" name="examples/redis/subscribe.php" />
             <file role="doc" name="examples/redis_pool.php" />
             <file role="doc" name="examples/reflection_test.php" />
-            <file role="doc" name="examples/ringqueue.php" />
             <file role="doc" name="examples/runtime/coroutine.php" />
             <file role="doc" name="examples/runtime/file.php" />
             <file role="doc" name="examples/runtime/gethostbyname.php" />
@@ -616,7 +595,6 @@
             <file role="src" name="swoole_async_coro.cc" />
             <file role="src" name="swoole_atomic.c" />
             <file role="src" name="swoole_buffer.c" />
-            <file role="src" name="swoole_channel.c" />
             <file role="src" name="swoole_channel_coro.cc" />
             <file role="src" name="swoole_client.cc" />
             <file role="src" name="swoole_client_coro.cc" />
@@ -633,7 +611,6 @@
             <file role="src" name="swoole_http_v2_client_coro.cc" />
             <file role="src" name="swoole_http_v2_server.cc" />
             <file role="src" name="swoole_lock.c" />
-            <file role="src" name="swoole_mmap.c" />
             <file role="src" name="swoole_mysql_coro.cc" />
             <file role="src" name="swoole_mysql_coro.h" />
             <file role="src" name="swoole_postgresql_coro.cc" />
@@ -671,21 +648,6 @@
             <file role="test" name="tests/include/api/swoole_client/opcode_client.php" />
             <file role="test" name="tests/include/api/swoole_client/simple_client.php" />
             <file role="test" name="tests/include/api/swoole_client/socket_free.php" />
-            <file role="test" name="tests/include/api/swoole_http_client/connect_host_not_found.php" />
-            <file role="test" name="tests/include/api/swoole_http_client/connect_port_not_listen.php" />
-            <file role="test" name="tests/include/api/swoole_http_client/connect_timeout.php" />
-            <file role="test" name="tests/include/api/swoole_http_client/http_request_connect_timeout.php" />
-            <file role="test" name="tests/include/api/swoole_http_client/meomry_leak.php" />
-            <file role="test" name="tests/include/api/swoole_http_client/on_error_close.php" />
-            <file role="test" name="tests/include/api/swoole_http_client/on_receive_core.php" />
-            <file role="test" name="tests/include/api/swoole_http_client/simple_http_client.php" />
-            <file role="test" name="tests/include/api/swoole_http_client/simple_http_client_test.php" />
-            <file role="test" name="tests/include/api/swoole_http_client/simple_https_client.php" />
-            <file role="test" name="tests/include/api/swoole_http_client/simple_https_client_test.php" />
-            <file role="test" name="tests/include/api/swoole_http_client/swoole_http_client_RST.php" />
-            <file role="test" name="tests/include/api/swoole_http_client/swoole_http_client_simple.php" />
-            <file role="test" name="tests/include/api/swoole_http_client/uaf_client.php" />
-            <file role="test" name="tests/include/api/swoole_http_client/uaf_server.js" />
             <file role="test" name="tests/include/api/swoole_http_server/htf_swoole20_https_server.php" />
             <file role="test" name="tests/include/api/swoole_http_server/http_server.php" />
             <file role="test" name="tests/include/api/swoole_http_server/http_server_without_response.php" />
@@ -703,24 +665,6 @@
             <file role="test" name="tests/include/api/swoole_http_server/localhost-ssl/server.pem" />
             <file role="test" name="tests/include/api/swoole_http_server/simple_http_server.php" />
             <file role="test" name="tests/include/api/swoole_http_server/simple_https_server.php" />
-            <file role="test" name="tests/include/api/swoole_mysql/mysqli.php" />
-            <file role="test" name="tests/include/api/swoole_mysql/query_without_connect.php" />
-            <file role="test" name="tests/include/api/swoole_mysql/swoole_mysql_connect_timeout.php" />
-            <file role="test" name="tests/include/api/swoole_mysql/swoole_mysql_connect_twice.php" />
-            <file role="test" name="tests/include/api/swoole_mysql/swoole_mysql_init.php" />
-            <file role="test" name="tests/include/api/swoole_mysql/swoole_mysql_memory_leak.php" />
-            <file role="test" name="tests/include/api/swoole_mysql/swoole_mysql_on_check.php" />
-            <file role="test" name="tests/include/api/swoole_mysql/swoole_mysql_query_multi_filed.php" />
-            <file role="test" name="tests/include/api/swoole_mysql/swoole_mysql_query_same_filed.php" />
-            <file role="test" name="tests/include/api/swoole_mysql/swoole_mysql_recursive_query.php" />
-            <file role="test" name="tests/include/api/swoole_mysql/swoole_mysql_refcout.php" />
-            <file role="test" name="tests/include/api/swoole_mysql/swoole_mysql_sql_syntax_error.php" />
-            <file role="test" name="tests/include/api/swoole_redis/connect_timeout.php" />
-            <file role="test" name="tests/include/api/swoole_redis/doublefree_client.php" />
-            <file role="test" name="tests/include/api/swoole_redis/doublefree_server.php" />
-            <file role="test" name="tests/include/api/swoole_redis/redis_server_without_response.php" />
-            <file role="test" name="tests/include/api/swoole_redis/redis_test.php" />
-            <file role="test" name="tests/include/api/swoole_redis/simple_redis.php" />
             <file role="test" name="tests/include/api/swoole_server/TestServer.php" />
             <file role="test" name="tests/include/api/swoole_server/manager_process_exit.log" />
             <file role="test" name="tests/include/api/swoole_server/multi_protocol_server.php" />
@@ -739,7 +683,6 @@
             <file role="test" name="tests/include/api/swoole_timer/invalid_args.php" />
             <file role="test" name="tests/include/api/swoole_timer/multi_timer.php" />
             <file role="test" name="tests/include/api/swoole_timer/register_shutdown_priority.php" />
-            <file role="test" name="tests/include/api/swoole_utils/swoole_utils.php" />
             <file role="test" name="tests/include/api/swoole_websocket_server/send_large_request_data.php" />
             <file role="test" name="tests/include/api/swoole_websocket_server/send_small_request_data.php" />
             <file role="test" name="tests/include/api/swoole_websocket_server/swoole_websocket_server.php" />
@@ -773,8 +716,6 @@
             <file role="test" name="tests/swoole_buffer/buffer_recycle.phpt" />
             <file role="test" name="tests/swoole_buffer/buffer_substr.phpt" />
             <file role="test" name="tests/swoole_buffer/construct_buffer.phpt" />
-            <file role="test" name="tests/swoole_channel/basic.phpt" />
-            <file role="test" name="tests/swoole_channel/push_pop_stats.phpt" />
             <file role="test" name="tests/swoole_client_async/big_package_memory_leak.phpt" />
             <file role="test" name="tests/swoole_client_async/buffer_full.phpt" />
             <file role="test" name="tests/swoole_client_async/connect_dns.phpt" />
@@ -812,6 +753,7 @@
             <file role="test" name="tests/swoole_client_coro/length_04.phpt" />
             <file role="test" name="tests/swoole_client_coro/length_protocol_func.phpt" />
             <file role="test" name="tests/swoole_client_coro/length_types.phpt" />
+            <file role="test" name="tests/swoole_client_coro/read_and_write.phpt" />
             <file role="test" name="tests/swoole_client_coro/recv_timeout.phpt" />
             <file role="test" name="tests/swoole_client_coro/recv_timeout2.phpt" />
             <file role="test" name="tests/swoole_client_coro/recvfrom.phpt" />
@@ -844,6 +786,8 @@
             <file role="test" name="tests/swoole_client_sync/swoole_client_send_recv.phpt" />
             <file role="test" name="tests/swoole_client_sync/swoole_client_sync_send_recv.phpt" />
             <file role="test" name="tests/swoole_client_sync/udp_client_sendto.phpt" />
+            <file role="test" name="tests/swoole_coroutine/before_create_server_1.phpt" />
+            <file role="test" name="tests/swoole_coroutine/before_create_server_2.phpt" />
             <file role="test" name="tests/swoole_coroutine/c_stack_size.phpt" />
             <file role="test" name="tests/swoole_coroutine/call_not_exists_func.phpt" />
             <file role="test" name="tests/swoole_coroutine/call_user_func_array.phpt" />
@@ -923,6 +867,7 @@
             <file role="test" name="tests/swoole_coroutine_channel/hybird_chan.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/hybird_chan2.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/hybird_chan3.phpt" />
+            <file role="test" name="tests/swoole_coroutine_channel/lock.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/pool.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/pop_timeout1.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/pop_timeout2.phpt" />
@@ -995,6 +940,7 @@
             <file role="test" name="tests/swoole_global/unset_deny.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/goaway.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/headers.phpt" />
+            <file role="test" name="tests/swoole_http2_client_coro/issues_2374.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/multi.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/no-gzip.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/post.phpt" />
@@ -1082,8 +1028,6 @@
             <file role="test" name="tests/swoole_http_server/upload_03.phpt" />
             <file role="test" name="tests/swoole_lock/mutex.phpt" />
             <file role="test" name="tests/swoole_lock/trylock.phpt" />
-            <file role="test" name="tests/swoole_mmap/base.phpt" />
-            <file role="test" name="tests/swoole_mmap/fseek.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/aborted_clients.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/big_big_data.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/big_data.phpt" />
@@ -1117,6 +1061,8 @@
             <file role="test" name="tests/swoole_mysql_coro/wrong_password.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/z_reset.phpt" />
             <file role="test" name="tests/swoole_process/alarm.phpt" />
+            <file role="test" name="tests/swoole_process/coro/ipc.phpt" />
+            <file role="test" name="tests/swoole_process/coro/start.phpt" />
             <file role="test" name="tests/swoole_process/echo.py" />
             <file role="test" name="tests/swoole_process/msgq_capacity.phpt" />
             <file role="test" name="tests/swoole_process/process_exec.phpt" />
@@ -1354,6 +1300,7 @@
             <file role="test" name="tests/swoole_table/foreach.phpt" />
             <file role="test" name="tests/swoole_table/int.phpt" />
             <file role="test" name="tests/swoole_table/key_value.phpt" />
+            <file role="test" name="tests/swoole_table/negative.phpt" />
             <file role="test" name="tests/swoole_table/row.phpt" />
             <file role="test" name="tests/swoole_timer/bug_2342.phpt" />
             <file role="test" name="tests/swoole_timer/call_private.phpt" />
@@ -1474,6 +1421,19 @@
             <file role="src" name="thirdparty/hiredis/sdsalloc.h" />
             <file role="src" name="thirdparty/hiredis/test.c" />
             <file role="src" name="thirdparty/hiredis/win32.h" />
+            <file role="src" name="thirdparty/http2/nghttp2.h" />
+            <file role="src" name="thirdparty/http2/nghttp2_buf.c" />
+            <file role="src" name="thirdparty/http2/nghttp2_buf.h" />
+            <file role="src" name="thirdparty/http2/nghttp2_hd.c" />
+            <file role="src" name="thirdparty/http2/nghttp2_hd.h" />
+            <file role="src" name="thirdparty/http2/nghttp2_hd_huffman.c" />
+            <file role="src" name="thirdparty/http2/nghttp2_hd_huffman.h" />
+            <file role="src" name="thirdparty/http2/nghttp2_hd_huffman_data.c" />
+            <file role="src" name="thirdparty/http2/nghttp2_helper.c" />
+            <file role="src" name="thirdparty/http2/nghttp2_mem.c" />
+            <file role="src" name="thirdparty/http2/nghttp2_mem.h" />
+            <file role="src" name="thirdparty/http2/nghttp2_rcbuf.c" />
+            <file role="src" name="thirdparty/http2/nghttp2_rcbuf.h" />
             <file role="src" name="thirdparty/multipart_parser.c" />
             <file role="src" name="thirdparty/multipart_parser.h" />
             <file role="src" name="thirdparty/php_streams_int.h" />
