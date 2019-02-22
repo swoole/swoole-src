@@ -2,6 +2,8 @@
 
 #include "php_swoole.h"
 
+SW_API bool php_swoole_export_socket(zval *object, int fd, enum swSocket_type type);
+
 namespace zend
 {
 class string

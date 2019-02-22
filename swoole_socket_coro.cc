@@ -191,6 +191,26 @@ void swoole_socket_coro_init(int module_number)
     SWOOLE_INIT_CLASS_ENTRY_EX(swoole_socket_coro_exception, "Swoole\\Coroutine\\Socket\\Exception", NULL, "Co\\Socket\\Exception", NULL, swoole_exception);
 }
 
+SW_API bool php_swoole_export_socket(zval *object, int fd, enum swSocket_type type)
+{
+    object_init_ex(object, swoole_socket_coro_ce_ptr);
+    socket_coro *sock = (socket_coro *) swoole_socket_coro_fetch_object(Z_OBJ_P(object));
+    php_swoole_check_reactor();
+
+    sock->socket = new Socket(fd, type);
+    if (UNEXPECTED(sock->socket->socket == nullptr))
+    {
+        delete sock->socket;
+        sock->socket = nullptr;
+        return false;
+    }
+    else
+    {
+        sock->socket->set_timeout(PHPCoroutine::socket_timeout);
+        return true;
+    }
+}
+
 static PHP_METHOD(swoole_socket_coro, __construct)
 {
     zend_long domain, type, protocol = IPPROTO_IP;
@@ -443,7 +463,7 @@ static PHP_METHOD(swoole_socket_coro, send)
 
     double persistent_timeout = sock->socket->get_timeout(SW_TIMEOUT_WRITE);
     sock->socket->set_timeout(timeout, SW_TIMEOUT_WRITE);
-    ssize_t retval = sock->socket->send(data, l_data);
+    ssize_t retval = sock->socket->send_all(data, l_data);
     sock->socket->set_timeout(persistent_timeout, SW_TIMEOUT_WRITE);
     if (retval < 0)
     {

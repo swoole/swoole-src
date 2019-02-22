@@ -1599,20 +1599,24 @@ struct _swWorker
 	swMsgQueue *queue;
 #endif
 
-	/**
-	 * redirect stdout to pipe_master
-	 */
-	uint8_t redirect_stdout;
+    /**
+     * redirect stdout to pipe_master
+     */
+    uint8_t redirect_stdout :1;
 
-	/**
+    /**
      * redirect stdin to pipe_worker
      */
-    uint8_t redirect_stdin;
+    uint8_t redirect_stdin :1;
 
     /**
      * redirect stderr to pipe_worker
      */
-    uint8_t redirect_stderr;
+    uint8_t redirect_stderr :1;
+    /**
+     * enable coroutine
+     */
+    uint8_t enable_coroutine :1;
 
 	/**
 	 * worker status, IDLE or BUSY
