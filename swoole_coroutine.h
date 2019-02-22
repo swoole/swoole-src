@@ -170,7 +170,3 @@ protected:
 };
 }
 
-/**
- * TODO: move to php socket
- */
-void php_swoole_socket_set(swoole::Socket *cli, zval *zset);
