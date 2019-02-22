@@ -259,7 +259,6 @@ static PHP_METHOD(swoole_http_response, header);
 static PHP_METHOD(swoole_http_response, initHeader);
 static PHP_METHOD(swoole_http_response, detach);
 static PHP_METHOD(swoole_http_response, create);
-static PHP_METHOD(swoole_http_response, gzip);
 #ifdef SW_USE_HTTP2
 static PHP_METHOD(swoole_http_response, trailer);
 #endif
@@ -328,10 +327,6 @@ static sw_inline const char* http_get_method_name(int method)
 }
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_gzip, 0, 0, 0)
-    ZEND_ARG_INFO(0, compress_level)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_status, 0, 0, 1)
@@ -425,7 +420,6 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, cookie, arginfo_swoole_http_response_cookie, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, rawcookie, arginfo_swoole_http_response_cookie, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, status, arginfo_swoole_http_response_status, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, gzip, arginfo_swoole_http_response_gzip, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, header, arginfo_swoole_http_response_header, ZEND_ACC_PUBLIC)
 #ifdef SW_USE_HTTP2
     PHP_ME(swoole_http_response, trailer, arginfo_swoole_http_response_trailer, ZEND_ACC_PUBLIC)
@@ -2409,12 +2403,6 @@ static PHP_METHOD(swoole_http_response, trailer)
     }
 }
 #endif
-
-static PHP_METHOD(swoole_http_response, gzip)
-{
-    swoole_php_error(E_DEPRECATED, "gzip() is deprecated, use option[http_compression] instead.");
-    RETURN_FALSE;
-}
 
 static PHP_METHOD(swoole_http_response, detach)
 {
