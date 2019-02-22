@@ -1341,7 +1341,7 @@ int swoole_type_size(char type);
 int swoole_mkdir_recursive(const char *dir);
 char* swoole_dirname(char *file);
 void swoole_dump_ascii(char *data, int size);
-int swoole_sync_writefile(int fd, void *data, int len);
+int swoole_sync_writefile(int fd, const void *data, size_t len);
 int swoole_sync_readfile(int fd, void *buf, int len);
 swString* swoole_sync_readfile_eof(int fd);
 int swoole_rand(int min, int max);

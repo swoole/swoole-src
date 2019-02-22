@@ -377,7 +377,7 @@ char* swoole_dec2hex(int value, int base)
     return sw_strndup(ptr, end - ptr);
 }
 
-int swoole_sync_writefile(int fd, void *data, int len)
+int swoole_sync_writefile(int fd, const void *data, size_t len)
 {
     int n = 0;
     int count = len, towrite, written = 0;
