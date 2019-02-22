@@ -26,6 +26,8 @@ bool PHPCoroutine::active = false;
 uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
 double PHPCoroutine::socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double PHPCoroutine::socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
+bool PHPCoroutine::tick_init = false;
+uint32_t PHPCoroutine::max_exec_msec = 0;
 php_coro_task PHPCoroutine::main_task = {0};
 
 #ifdef SW_CORO_TICK_SCHEDULE
@@ -44,7 +46,7 @@ static void interrupt_callback(void *data)
 static void sw_tick(uint32_t tick_count)
 {
     php_coro_task *task = PHPCoroutine::get_current_task();
-    if (task && task->co && tick_count > 0 && task->co->is_schedulable())
+    if (task && task->co && tick_count > 0 && PHPCoroutine::is_schedulable(task))
     {
         PHPCoroutine::on_yield(task);
         SwooleG.main_reactor->defer(SwooleG.main_reactor, interrupt_callback, (void *)task->co);
@@ -209,6 +211,12 @@ void PHPCoroutine::on_resume(void *arg)
 {
     php_coro_task *task = (php_coro_task *) arg;
     task->origin_task = get_and_save_current_task();
+#ifdef SW_CORO_TICK_SCHEDULE
+    if (PHPCoroutine::tick_init)
+    {
+        task->last_msec = swTimer_get_absolute_msec();
+    }
+#endif
     restore_vm_stack(task);
     restore_og(task);
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", Coroutine::get_cid(task->origin_task->co), Coroutine::get_cid(task->co));
@@ -314,6 +322,9 @@ void PHPCoroutine::create_func(void *arg)
     task->defer_tasks = nullptr;
     task->origin_task = origin_task;
     task->pcid = Coroutine::get_cid(origin_task->co);
+#ifdef SW_CORO_TICK_SCHEDULE
+    task->last_msec = swTimer_get_absolute_msec();
+#endif
 
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",

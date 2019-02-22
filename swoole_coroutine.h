@@ -66,6 +66,9 @@ struct php_coro_task
     std::stack<defer_task *> *defer_tasks;
     php_coro_task *origin_task;
     long pcid;
+#ifdef SW_CORO_TICK_SCHEDULE
+    int64_t last_msec;
+#endif
 };
 
 struct php_coro_args
@@ -94,6 +97,8 @@ class PHPCoroutine
 public:
     static double socket_connect_timeout;
     static double socket_timeout;
+    static uint32_t max_exec_msec;
+    static bool tick_init;
 
     static void init();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
@@ -147,6 +152,26 @@ public:
     {
         max_num = n;
     }
+#ifdef SW_CORO_TICK_SCHEDULE
+    static inline void set_max_exec_msec(long max_msec)
+    {
+        max_exec_msec = max_msec;
+    }
+
+    static inline bool is_schedulable(php_coro_task *task)
+    {
+
+        if (max_exec_msec > 0)
+        {
+            if (!tick_init)
+            {
+                tick_init = true;
+            }
+            return (swTimer_get_absolute_msec() - task->last_msec > max_exec_msec);
+        }
+        return false;
+    }
+#endif
 
 protected:
     static bool active;

@@ -97,25 +97,6 @@ public:
         return ctx.end;
     }
 
-    inline void record_schedule_time(bool _is_schedule = false)
-    {
-        if (is_schedule || _is_schedule)
-        {
-            is_schedule = false;
-            last_schedule_msec = swTimer_get_absolute_msec();
-        }
-    }
-
-    inline bool is_schedulable()
-    {
-        if (Coroutine::max_exec_msec > 0)
-        {
-            is_schedule = true;
-            return (swTimer_get_absolute_msec() - last_schedule_msec > Coroutine::max_exec_msec);
-        }
-        return false;
-    }
-
     inline void set_task(void *_task)
     {
         task = _task;
@@ -152,11 +133,6 @@ public:
         stack_size = SW_MEM_ALIGNED_SIZE_EX(MIN(size, SW_CORO_MAX_STACK_SIZE), SW_CORO_STACK_ALIGNED_SIZE);
     }
 
-    static inline void set_max_exec_msec(long max_msec)
-    {
-        max_exec_msec = max_msec;
-    }
-
     static inline long get_cid(Coroutine* co)
     {
         return co ? co->get_cid() : -1;
@@ -191,8 +167,6 @@ protected:
     long cid;
     void *task = nullptr;
     Context ctx;
-    int64_t last_schedule_msec;
-    bool is_schedule;
 
     Coroutine(coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)
@@ -200,8 +174,6 @@ protected:
         cid = ++last_cid;
         coroutines[cid] = this;
         call_stack[call_stack_size++] = this;
-        last_schedule_msec = swTimer_get_absolute_msec();
-        is_schedule = false;
         if (unlikely(count() > peak_num))
         {
             peak_num = count();

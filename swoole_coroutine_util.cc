@@ -429,7 +429,7 @@ static PHP_METHOD(swoole_coroutine_util, set)
         long _value = zval_get_long(v);
         if (_value)
         {
-            Coroutine::set_max_exec_msec(_value);
+            PHPCoroutine::set_max_exec_msec(_value);
         }
     }
     zval_ptr_dtor(zset);
