@@ -20,13 +20,17 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 $pm->childFunc = function () use ($pm) {
     @unlink(TEST_LOG_FILE);
-    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'log_file' => TEST_LOG_FILE,
-        'pid_file' => TEST_PID_FILE
+        'pid_file' => TEST_PID_FILE,
+        'worker_num' => 1,
     ]);
-    $server->on('WorkerStart', function (Swoole\Server $server, $worker_id) use ($pm) { $pm->wakeup(); });
-    $server->on('Receive', function (Swoole\Server $server, $fd, $reactorId, $data) { });
+    $server->on('WorkerStart', function (Swoole\Server $server, $worker_id) use ($pm) {
+        $pm->wakeup();
+    });
+    $server->on('Receive', function (Swoole\Server $server, $fd, $reactorId, $data) {
+    });
     $server->start();
 };
 $pm->childFirst();
