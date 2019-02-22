@@ -1,7 +1,9 @@
 <?php
 define('PORT', 9501);
 
-$http = new swoole_http_server('127.0.0.1', PORT);
+$http = new swoole_http_server('127.0.0.1', PORT, SWOOLE_BASE);
+
+$http->set(['worker_num' => 1, 'enable_coroutine' => false, ]);
 
 $http->on('start', function ($server) {
     echo 'Swoole http server is started at 127.0.0.1 on port ' . PORT;

@@ -283,7 +283,7 @@ bool Socket::socks5_handshake()
             buf += ctx->l_target_host;
             *(uint16_t *) buf = htons(ctx->target_port);
 
-            if (send(ctx->buf, buf_len) != 0)
+            if (send(ctx->buf, buf_len) != buf_len)
             {
                 return false;
             }
@@ -296,7 +296,7 @@ bool Socket::socks5_handshake()
             buf += 4;
             *(uint16_t *) buf = htons(ctx->target_port);
 
-            if (send(ctx->buf, buf_len) < 0)
+            if (send(ctx->buf, buf_len) != buf_len)
             {
                 return false;
             }
@@ -788,7 +788,7 @@ ssize_t Socket::send(const void *__buf, size_t __n)
     Timer timer(&write_timer, write_timeout, this, timer_callback);
     do {
         retval = swConnection_send(socket, (void *) __buf, __n, 0);
-    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
+    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -818,7 +818,7 @@ ssize_t Socket::write(const void *__buf, size_t __n)
     Timer timer(&write_timer, write_timeout, this, timer_callback);
     do {
         retval = ::write(socket->fd, (void *) __buf, __n);
-    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
+    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -836,7 +836,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
         do {
             retval = swConnection_recv(socket, (char *) __buf + total_bytes, __n - total_bytes, 0);
         } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
-        if (retval <= 0)
+        if (unlikely(retval <= 0))
         {
             if (total_bytes == 0)
             {
@@ -866,8 +866,8 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     {
         do {
             retval = swConnection_send(socket, (char *) __buf + total_bytes, __n - total_bytes, 0);
-        } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
-        if (retval <= 0)
+        } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n));
+        if (unlikely(retval <= 0))
         {
             if (total_bytes == 0)
             {
@@ -885,9 +885,6 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     return total_bytes;
 }
 
-/**
- * Notice: you must use non-global buffer here (or else it may be changed after yield)
- */
 ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
 {
     if (unlikely(!is_available(SW_EVENT_READ)))
@@ -903,6 +900,9 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
     return retval;
 }
 
+/**
+ * Notice: you must use non-global buffer here (or else it may be changed after yield)
+ */
 ssize_t Socket::sendmsg(const struct msghdr *msg, int flags)
 {
     if (unlikely(!is_available(SW_EVENT_WRITE)))
@@ -1554,6 +1554,7 @@ bool Socket::close()
         if (socket->closed)
         {
             // close operation is in processing
+            set_err(EINPROGRESS);
             return false;
         }
         if (socket->active)

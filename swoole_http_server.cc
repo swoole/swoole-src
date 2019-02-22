@@ -2032,6 +2032,8 @@ static PHP_METHOD(swoole_http_response, end)
                 ret = serv->send(serv, ctx->fd, send_body_str, send_body_len);
                 if (ret < 0)
                 {
+                    serv->close(serv, ctx->fd, 0);
+                    swoole_http_context_free(ctx);
                     RETURN_FALSE;
                 }
                 goto _skip_copy;

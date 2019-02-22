@@ -1341,7 +1341,7 @@ int swoole_type_size(char type);
 int swoole_mkdir_recursive(const char *dir);
 char* swoole_dirname(char *file);
 void swoole_dump_ascii(char *data, int size);
-int swoole_sync_writefile(int fd, void *data, int len);
+int swoole_sync_writefile(int fd, const void *data, size_t len);
 int swoole_sync_readfile(int fd, void *buf, int len);
 swString* swoole_sync_readfile_eof(int fd);
 int swoole_rand(int min, int max);
@@ -1599,20 +1599,24 @@ struct _swWorker
 	swMsgQueue *queue;
 #endif
 
-	/**
-	 * redirect stdout to pipe_master
-	 */
-	uint8_t redirect_stdout;
+    /**
+     * redirect stdout to pipe_master
+     */
+    uint8_t redirect_stdout :1;
 
-	/**
+    /**
      * redirect stdin to pipe_worker
      */
-    uint8_t redirect_stdin;
+    uint8_t redirect_stdin :1;
 
     /**
      * redirect stderr to pipe_worker
      */
-    uint8_t redirect_stderr;
+    uint8_t redirect_stderr :1;
+    /**
+     * enable coroutine
+     */
+    uint8_t enable_coroutine :1;
 
 	/**
 	 * worker status, IDLE or BUSY
