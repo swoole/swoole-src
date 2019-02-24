@@ -431,7 +431,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
     return ret;
 }
 
-int swSocket_set_buffer_size(int fd, int buffer_size)
+int swSocket_set_buffer_size(int fd, uint32_t buffer_size)
 {
     if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(buffer_size)) != 0)
     {

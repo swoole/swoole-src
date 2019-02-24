@@ -1426,7 +1426,7 @@ int swSocket_wait(int fd, int timeout_ms, int events);
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
 ssize_t swSocket_sendto_blocking(int, void *, size_t, int, struct sockaddr *, socklen_t);
-int swSocket_set_buffer_size(int fd, int buffer_size);
+int swSocket_set_buffer_size(int fd, uint32_t buffer_size);
 ssize_t swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
 ssize_t swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
 ssize_t swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t len);
