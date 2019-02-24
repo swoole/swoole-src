@@ -515,30 +515,28 @@ void Socket::init_sock(int _fd)
 Socket::Socket(int _domain, int _type, int _protocol) :
         sock_domain(_domain), sock_type(_type), sock_protocol(_protocol)
 {
-    init_members();
     type = get_type(_domain, _type, _protocol);
     init_sock();
+    init_options();
 }
 
 Socket::Socket(enum swSocket_type _type)
 {
-    init_members();
     init_sock_type(_type);
     init_sock();
+    init_options();
 }
 
 Socket::Socket(int _fd, enum swSocket_type _type)
 {
-    init_members();
     init_sock_type(_type);
     init_sock(_fd);
     socket->active = 1;
+    init_options();
 }
 
 Socket::Socket(int _fd, Socket *server_sock)
 {
-    init_members();
-
     sock_domain = server_sock->sock_domain;
     sock_type = server_sock->sock_type;
 
@@ -551,6 +549,7 @@ Socket::Socket(int _fd, Socket *server_sock)
     socket->removed = 1;
     socket->active = 1;
     socket->fdtype = SW_FD_CORO_SOCKET;
+    init_options();
 }
 
 bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)

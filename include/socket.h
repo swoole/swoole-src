@@ -202,7 +202,7 @@ public:
 
     inline bool set_tcp_nodelay(int value)
     {
-        if (!(type == SW_SOCK_TCP || type == SW_SOCK_TCP6))
+        if (type != SW_SOCK_TCP && type != SW_SOCK_TCP6)
         {
             return false;
         }
@@ -262,16 +262,17 @@ private:
     static int writable_event_callback(swReactor *reactor, swEvent *event);
     static int error_event_callback(swReactor *reactor, swEvent *event);
 
-    inline void init_members()
+    inline void init_sock_type(enum swSocket_type _type);
+    inline void init_sock();
+    inline void init_sock(int fd);
+    inline void init_options()
     {
+        set_tcp_nodelay(1);
         protocol.package_length_type = 'N';
         protocol.package_length_size = 4;
         protocol.package_body_offset = 0;
         protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
     }
-    inline void init_sock_type(enum swSocket_type _type);
-    inline void init_sock();
-    inline void init_sock(int _fd);
 
     bool add_event(const enum swEvent_type event);
     bool wait_event(const enum swEvent_type event, const void **__buf = nullptr, size_t __n = 0);
