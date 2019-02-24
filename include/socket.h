@@ -200,15 +200,11 @@ public:
         return -1;
     }
 
-    inline bool set_tcp_nodelay(int value)
+    inline bool set_option(int level, int optname, int optval)
     {
-        if (type != SW_SOCK_TCP && type != SW_SOCK_TCP6)
+        if (setsockopt(socket->fd, level, optname, &optval, sizeof(optval)) != 0)
         {
-            return false;
-        }
-        if (setsockopt(get_fd(), IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)
-        {
-            swSysError("setsockopt(%d, TCP_NODELAY) failed.", get_fd());
+            swSysError("setsockopt(%d, %d, %d, %d) failed.", socket->fd, level, optname, optval);
             return false;
         }
         return true;
@@ -267,7 +263,7 @@ private:
     inline void init_sock(int fd);
     inline void init_options()
     {
-        set_tcp_nodelay(1);
+        set_option(IPPROTO_TCP, TCP_NODELAY, 1);
         protocol.package_length_type = 'N';
         protocol.package_length_size = 4;
         protocol.package_body_offset = 0;
