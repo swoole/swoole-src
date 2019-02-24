@@ -643,7 +643,7 @@ void http_client::set(zval *zset = nullptr)
     }
     if (socket)
     {
-        php_swoole_socket_set(socket, zset ? zset : zsettings);
+        php_swoole_client_set(socket, zset ? zset : zsettings);
     }
 }
 

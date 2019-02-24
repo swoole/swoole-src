@@ -100,7 +100,7 @@ static PHP_METHOD(swoole_client_coro, getsockname);
 static PHP_METHOD(swoole_client_coro, getpeername);
 static PHP_METHOD(swoole_client_coro, close);
 
-static void sw_coro_socket_set_ssl(Socket *cli, zval *zset);
+static void php_swoole_socket_set_ssl(Socket *cli, zval *zset);
 static Socket* client_coro_new(zval *zobject, int port = 0);
 bool php_swoole_client_coro_socket_free(Socket *cli);
 
@@ -286,19 +286,69 @@ bool php_swoole_client_coro_socket_free(Socket *cli)
     return cli->close();
 }
 
-void php_swoole_socket_set(Socket *cli, zval *zset)
+void php_swoole_client_set(Socket *cli, zval *zset)
 {
-    HashTable *vht;
+    HashTable *vht = Z_ARRVAL_P(zset);
     zval *v;
-    int value = 1;
-
-    vht = Z_ARRVAL_P(zset);
-
-    // timeout
+    /**
+     * timeout
+     */
     if (php_swoole_array_get_value(vht, "timeout", v))
     {
         cli->set_timeout(zval_get_double(v));
     }
+    /**
+     * bind port
+     */
+    if (php_swoole_array_get_value(vht, "bind_port", v))
+    {
+        int bind_port = (int) zval_get_long(v);
+        /**
+         * bind address
+         */
+        if (php_swoole_array_get_value(vht, "bind_address", v))
+        {
+            zend::string str_v(v);
+            swSocket_bind(cli->socket->fd, cli->type, str_v.val(), &bind_port);
+        }
+    }
+    /**
+     * socket send/recv buffer size
+     */
+    if (php_swoole_array_get_value(vht, "socket_buffer_size", v))
+    {
+        zend_long size = zval_get_long(v);
+        if (size <= 0)
+        {
+            swWarn("socket buffer size must be greater than 0");
+        }
+        else
+        {
+            cli->set_option(SOL_SOCKET, SO_RCVBUF, size) && cli->set_option(SOL_SOCKET, SO_SNDBUF, size);
+        }
+    }
+    /**
+     * client: tcp_nodelay
+     */
+    if (php_swoole_array_get_value(vht, "open_tcp_nodelay", v))
+    {
+        if (cli->type == SW_SOCK_TCP || cli->type != SW_SOCK_TCP6)
+        {
+            cli->set_option(IPPROTO_TCP, TCP_NODELAY, zval_is_true(v));
+        }
+    }
+    /**
+     * ssl
+     */
+#ifdef SW_USE_OPENSSL
+    if (cli->open_ssl)
+    {
+        php_swoole_socket_set_ssl(cli, zset);
+    }
+#endif
+    /**
+     * about protocol...
+     */
     //buffer: eof check
     if (php_swoole_array_get_value(vht, "open_eof_check", v))
     {
@@ -416,46 +466,6 @@ void php_swoole_socket_set(Socket *cli, zval *zset)
         cli->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
     }
     /**
-     * socket send/recv buffer size
-     */
-    if (php_swoole_array_get_value(vht, "socket_buffer_size", v))
-    {
-        value = (int) zval_get_long(v);
-        if (value <= 0)
-        {
-            value = INT_MAX;
-        }
-        swSocket_set_buffer_size(cli->socket->fd, value);
-        cli->socket->buffer_size = value;
-    }
-    /**
-     * bind port
-     */
-    if (php_swoole_array_get_value(vht, "bind_port", v))
-    {
-        int bind_port = (int) zval_get_long(v);
-        /**
-         * bind address
-         */
-        if (php_swoole_array_get_value(vht, "bind_address", v))
-        {
-            zend::string str_v(v);
-            swSocket_bind(cli->socket->fd, cli->type, str_v.val(), &bind_port);
-        }
-    }
-    /**
-     * client: tcp_nodelay
-     */
-    if (php_swoole_array_get_value(vht, "open_tcp_nodelay", v))
-    {
-        cli->set_tcp_nodelay(zval_is_true(v));
-    }
-    else
-    {
-        cli->set_tcp_nodelay(1);
-    }
-
-    /**
      * socks5 proxy
      */
     if (php_swoole_array_get_value(vht, "socks5_host", v))
@@ -523,19 +533,10 @@ void php_swoole_socket_set(Socket *cli, zval *zset)
             swoole_php_fatal_error(E_WARNING, "http_proxy_port should not be null.");
         }
     }
-    /**
-     * ssl
-     */
-#ifdef SW_USE_OPENSSL
-    if (cli->open_ssl)
-    {
-        sw_coro_socket_set_ssl(cli, zset);
-    }
-#endif
 }
 
 #ifdef SW_USE_OPENSSL
-static void sw_coro_socket_set_ssl(Socket *cli, zval *zset)
+static void php_swoole_socket_set_ssl(Socket *cli, zval *zset)
 {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *v;
@@ -658,7 +659,7 @@ static PHP_METHOD(swoole_client_coro, set)
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
     if (cli)
     {
-        php_swoole_socket_set(cli, zset);
+        php_swoole_client_set(cli, zset);
     }
     RETURN_TRUE;
 }
@@ -700,7 +701,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     zval *zset = sw_zend_read_property(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
     if (zset && ZVAL_IS_ARRAY(zset))
     {
-        php_swoole_socket_set(cli, zset);
+        php_swoole_client_set(cli, zset);
     }
 
     PHPCoroutine::check_bind("client", cli->get_bound_cid());
@@ -1119,7 +1120,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
     zval *zset = sw_zend_read_property(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 0);
     if (ZVAL_IS_ARRAY(zset))
     {
-        sw_coro_socket_set_ssl(cli, zset);
+        php_swoole_socket_set_ssl(cli, zset);
     }
     PHPCoroutine::check_bind("client", cli->get_bound_cid());
     if (cli->ssl_handshake() == false)
