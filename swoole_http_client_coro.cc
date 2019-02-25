@@ -67,12 +67,7 @@ public:
         swoole_http_parser_init(&parser, PHP_HTTP_RESPONSE);
         parser.data = data;
 
-        double read_timeout = get_timeout(SW_TIMEOUT_READ);
-        double startup_time;
-        if (read_timeout > 0)
-        {
-            startup_time = swoole_microtime();
-        }
+        timeout_controller tc(this, SW_TIMEOUT_READ);
 
         do
         {
@@ -87,10 +82,8 @@ public:
                 total_bytes += retval;
                 parsed_n = swoole_http_parser_execute(&parser, settings, buffer->str, retval);
                 swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d.", parsed_n, retval, total_bytes, parser.state != s_start_res);
-                /**
-                 * total timeout
-                 */
-                if (read_timeout > 0 && swoole_microtime() - startup_time > read_timeout)
+
+                if (tc.has_timed_out())
                 {
                     set_err(ETIMEDOUT);
                     return false;
