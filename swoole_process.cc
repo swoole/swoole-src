@@ -74,7 +74,7 @@ zend_class_entry *swoole_process_ce_ptr;
 static zend_object_handlers swoole_process_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_construct, 0, 0, 1)
-    ZEND_ARG_INFO(0, callback)
+    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
     ZEND_ARG_INFO(0, redirect_stdin_and_stdout)
     ZEND_ARG_INFO(0, pipe_type)
 ZEND_END_ARG_INFO()
