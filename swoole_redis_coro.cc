@@ -2124,7 +2124,11 @@ static PHP_METHOD(swoole_redis_coro, recv)
 {
     SW_REDIS_COMMAND_CHECK
 
-    if (!redis->defer && !redis->session.subscribe)
+    if (UNEXPECTED(!redis->context))
+    {
+        RETURN_FALSE;
+    }
+    if (UNEXPECTED(!redis->defer && !redis->session.subscribe))
     {
         swoole_php_fatal_error(E_WARNING, "you should not use recv without defer or subscribe.");
         RETURN_FALSE;
