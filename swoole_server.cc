@@ -68,6 +68,20 @@ static unordered_map<int, zval*> task_callbacks;
 static unordered_map<int, swTaskCo*> task_coroutine_map;
 static unordered_map<int, list<php_coro_context *> *> send_coroutine_map;
 
+static unordered_map<string, int> server_event_map({
+    { "start", SW_SERVER_CB_onStart },
+    { "shutdown", SW_SERVER_CB_onShutdown },
+    { "workerstart", SW_SERVER_CB_onWorkerStart },
+    { "workerstop", SW_SERVER_CB_onWorkerStop },
+    { "task", SW_SERVER_CB_onTask },
+    { "finish", SW_SERVER_CB_onFinish },
+    { "workerexit", SW_SERVER_CB_onWorkerExit },
+    { "workererror", SW_SERVER_CB_onWorkerError },
+    { "managerstart", SW_SERVER_CB_onManagerStart },
+    { "managerstop", SW_SERVER_CB_onManagerStop },
+    { "pipemessage", SW_SERVER_CB_onPipeMessage },
+});
+
 // arginfo server
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -144,6 +158,10 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_on, 0, 0, 2)
     ZEND_ARG_INFO(0, event_name)
     ZEND_ARG_CALLABLE_INFO(0, callback, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_getCallback, 0, 0, 1)
+    ZEND_ARG_INFO(0, event_name)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_listen, 0, 0, 3)
@@ -258,6 +276,7 @@ static PHP_METHOD(swoole_server, __construct);
 static PHP_METHOD(swoole_server, __destruct);
 static PHP_METHOD(swoole_server, set);
 static PHP_METHOD(swoole_server, on);
+static PHP_METHOD(swoole_server, getCallback);
 static PHP_METHOD(swoole_server, listen);
 static PHP_METHOD(swoole_server, sendMessage);
 static PHP_METHOD(swoole_server, addProcess);
@@ -318,6 +337,7 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, listen, arginfo_swoole_server_listen, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_server, addlistener, listen, arginfo_swoole_server_listen, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, on, arginfo_swoole_server_on, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, getCallback, arginfo_swoole_server_getCallback, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, set, arginfo_swoole_server_set, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, start, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, send, arginfo_swoole_server_send, ZEND_ACC_PUBLIC)
@@ -485,17 +505,17 @@ void swoole_server_init(int module_number)
     zend_class_implements(swoole_connection_iterator_ce_ptr, 1, zend_ce_countable);
 #endif
 
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onStart"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onShutdown"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onWorkerStart"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onWorkerStop"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onWorkerExit"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onWorkerError"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onTask"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onFinish"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onManagerStart"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onManagerStop"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("onPipeMessage"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("on_start"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("on_shutdown"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("on_workerstart"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("on_workerstop"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("on_workerexit"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("on_workererror"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("on_task"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("on_finish"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("on_managerstart"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("on_managerstop"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("on_pipemessage"), ZEND_ACC_PRIVATE);
 
     zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_server_ce_ptr, ZEND_STRL("connections"), ZEND_ACC_PUBLIC);
@@ -2716,49 +2736,13 @@ static PHP_METHOD(swoole_server, on)
     }
     efree(func_name);
 
-    convert_to_string(name);
+    zend::string _event_name_ori(name);
+    zend::string _event_name_tolower(zend_string_tolower(_event_name_ori.get()));
 
-    const char *callback_name[PHP_SWOOLE_SERVER_CALLBACK_NUM] = {
-        "Start",
-        "Shutdown",
-        "WorkerStart",
-        "WorkerStop",
-        "Task",
-        "Finish",
-        "WorkerExit",
-        "WorkerError",
-        "ManagerStart",
-        "ManagerStop",
-        "PipeMessage",
-    };
+    string _event_name_std = _event_name_tolower.toStdString();
 
-    int i;
-    char property_name[128];
-    int l_property_name = 0;
-    memcpy(property_name, "on", 2);
-
-    for (i = 0; i < PHP_SWOOLE_SERVER_CALLBACK_NUM; i++)
-    {
-        if (strncasecmp(callback_name[i], Z_STRVAL_P(name), Z_STRLEN_P(name)) != 0)
-        {
-            continue;
-        }
-
-        memcpy(property_name + 2, callback_name[i], Z_STRLEN_P(name));
-        l_property_name = Z_STRLEN_P(name) + 2;
-        property_name[l_property_name] = '\0';
-        zend_update_property(swoole_server_ce_ptr, getThis(), property_name, l_property_name, cb);
-        php_sw_server_callbacks[i] = sw_zend_read_property(swoole_server_ce_ptr, getThis(), property_name, l_property_name, 0);
-        sw_copy_to_stack(php_sw_server_callbacks[i], _php_sw_server_callbacks[i]);
-        if (php_sw_server_caches[i])
-        {
-             efree(php_sw_server_caches[i]);
-        }
-        php_sw_server_caches[i] = fci_cache;
-        break;
-    }
-
-    if (l_property_name == 0)
+    auto i = server_event_map.find(_event_name_std);
+    if (i == server_event_map.end())
     {
         zval *port_object = server_port_list.zobjects[0];
         zval *retval = NULL;
@@ -2768,8 +2752,37 @@ static PHP_METHOD(swoole_server, on)
     }
     else
     {
-        RETURN_TRUE;
+        string property_name = string("on_") + _event_name_std;
+        zend_update_property(swoole_server_ce_ptr, getThis(), property_name.c_str(), property_name.length(), cb);
+        int event_type = i->second;
+
+        php_sw_server_callbacks[event_type] = sw_zend_read_property(swoole_server_ce_ptr, getThis(), property_name.c_str(), property_name.length(), 0);
+        sw_copy_to_stack(php_sw_server_callbacks[event_type], _php_sw_server_callbacks[event_type]);
+        if (php_sw_server_caches[event_type])
+        {
+            efree(php_sw_server_caches[event_type]);
+        }
+        php_sw_server_caches[event_type] = fci_cache;
+
+        RETURN_TRUE
     }
+}
+
+static PHP_METHOD(swoole_server, getCallback)
+{
+    zval *name;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &name) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    zend::string _event_name_ori(name);
+    zend::string _event_name_tolower(zend_string_tolower(_event_name_ori.get()));
+    string _event_name_std = _event_name_tolower.toStdString();
+
+    string property_name = string("on_") + _event_name_std;
+    zval rv, *property = zend_read_property(swoole_server_ce_ptr, getThis(), property_name.c_str(), property_name.length(), 1, &rv);
+    RETURN_ZVAL(property, 1, 0);
 }
 
 static PHP_METHOD(swoole_server, listen)
