@@ -57,6 +57,16 @@ public:
         return ZSTR_LEN(str);
     }
 
+    zend_string* get()
+    {
+        return str;
+    }
+
+    std::string toStdString()
+    {
+        return std::string(val(), len());
+    }
+
     ~string()
     {
         if (str)

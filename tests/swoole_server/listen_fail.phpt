@@ -1,5 +1,5 @@
 --TEST--
-swoole_server:
+swoole_server: listen fail
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

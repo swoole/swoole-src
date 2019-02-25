@@ -347,4 +347,50 @@ private:
         swTimerCallback callback;
     };
 };
+
+class timeout_controller
+{
+public:
+    timeout_controller(Socket *sock, enum swTimeout_type type = SW_TIMEOUT_READ)
+    {
+        sock_ = sock;
+        type_ = type;
+        timeout = sock->get_timeout(type);
+        if (timeout > 0)
+        {
+            startup_time = swoole_microtime();
+        }
+    }
+
+    inline bool has_timed_out()
+    {
+        if (timeout <= 0)
+        {
+            return false;
+        }
+        double used_time = swoole_microtime() - startup_time;
+        if (used_time > timeout)
+        {
+            return true;
+        }
+        else
+        {
+            sock_->set_timeout(timeout - used_time, type_);
+            return false;
+        }
+    }
+
+    ~timeout_controller()
+    {
+        if (timeout > 0)
+        {
+            sock_->set_timeout(timeout, type_);
+        }
+    }
+private:
+    Socket *sock_;
+    enum swTimeout_type type_;
+    double startup_time;
+    double timeout;
+};
 };
