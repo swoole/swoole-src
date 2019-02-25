@@ -263,7 +263,10 @@ private:
     inline void init_sock(int fd);
     inline void init_options()
     {
-        set_option(IPPROTO_TCP, TCP_NODELAY, 1);
+        if (type == SW_SOCK_TCP || type == SW_SOCK_TCP6)
+        {
+            set_option(IPPROTO_TCP, TCP_NODELAY, 1);
+        }
         protocol.package_length_type = 'N';
         protocol.package_length_size = 4;
         protocol.package_body_offset = 0;
