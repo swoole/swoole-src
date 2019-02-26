@@ -27,7 +27,6 @@ extern "C"
 {
 static PHP_METHOD(swoole_runtime, enableStrictMode);
 static PHP_METHOD(swoole_runtime, enableCoroutine);
-static PHP_METHOD(swoole_runtime, addHook);
 static PHP_FUNCTION(_sleep);
 static PHP_FUNCTION(_usleep);
 static PHP_FUNCTION(_time_nanosleep);
