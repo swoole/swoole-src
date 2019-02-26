@@ -6,7 +6,7 @@ swoole_server: getCallback
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$serv = new swoole_server('127.0.0.1', TCP_SERVER_PORT);
+$serv = new swoole_server('127.0.0.1');
 
 $serv->on("start", function ($server) {
 
