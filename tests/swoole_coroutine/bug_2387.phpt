@@ -11,11 +11,11 @@ require_once __DIR__.'/../include/api/bug_2387/MysqlPool.php';
 use App\MysqlPool;
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($pm)
+$pm->parentFunc = function () use ($pm)
 {
     $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/list");
     assert(!empty($data));
-    swoole_process::kill($pid);
+    $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm)
@@ -40,7 +40,7 @@ $pm->childFunc = function () use ($pm)
         'log_level' => SWOOLE_LOG_DEBUG,
     ]);
 
-    $httpServer->on('WorkerStart', function (Swoole\Http\Server $server) use ($config, $pm) {
+    $httpServer->on('WorkerStart', function (Swoole\Http\Server $server) use ($pm, $config) {
         try {
             MysqlPool::getInstance($config);
         } catch (\Exception $e) {
@@ -54,7 +54,6 @@ $pm->childFunc = function () use ($pm)
     });
 
     $httpServer->on('request', function ($request, $response) {
-
         if ($request->server['path_info'] == '/list') {
             go(function () use ($request, $response) {
                 try {
@@ -70,7 +69,6 @@ $pm->childFunc = function () use ($pm)
                     $response->end($e->getMessage());
                 }
             });
-            return;
         }
     });
 

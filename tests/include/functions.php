@@ -693,12 +693,18 @@ class ProcessManager
     //等待信息
     public function wait()
     {
+        if ($this->alone) {
+            return false;
+        }
         return $this->atomic->wait($this->waitTimeout);
     }
 
     //唤醒等待的进程
     public function wakeup()
     {
+        if ($this->alone) {
+            return false;
+        }
         return $this->atomic->wakeup();
     }
 
