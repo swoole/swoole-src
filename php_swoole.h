@@ -368,6 +368,7 @@ void swoole_serialize_init(int module_number);
 
 //RSHUTDOWN
 void swoole_async_coro_shutdown();
+void swoole_redis_server_shutdown();
 
 void php_swoole_process_clean();
 int php_swoole_process_start(swWorker *process, zval *zobject);
