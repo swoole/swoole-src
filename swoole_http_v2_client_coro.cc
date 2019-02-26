@@ -481,6 +481,8 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
     //Host
     index++;
 
+    std::vector<zend::string_ptr> zstr_list;
+
     if (Z_TYPE_P(zheaders) == IS_ARRAY)
     {
         HashTable *ht = Z_ARRVAL_P(zheaders);
@@ -488,7 +490,6 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
         char *key = NULL;
         uint32_t keylen = 0;
         int type;
-        std::vector<zend::string_ptr> zstr_list;
 
         SW_HASHTABLE_FOREACH_START2(ht, key, keylen, type, value)
         {

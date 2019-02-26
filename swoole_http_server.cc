@@ -860,6 +860,7 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
         while (*c == '\r' && *(c + 1) == '\n')
         {
             c += 2;
+            length -= 2;
         }
         size_t n = multipart_parser_execute(multipart_parser, c, length);
         if (n != length)
