@@ -452,6 +452,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
     zval *zheaders = sw_zend_read_property(swoole_http2_request_ce_ptr, req, ZEND_STRL("headers"), 0);
     zval *zcookies = sw_zend_read_property(swoole_http2_request_ce_ptr, req, ZEND_STRL("cookies"), 0);
     nghttp2_nv *nv = (nghttp2_nv *) ecalloc(sizeof(nghttp2_nv), 8 + (ZVAL_IS_ARRAY(zheaders) ? php_swoole_array_length(zheaders) : 0));
+    std::vector<zend::string_ptr> zstr_list;
 
     http2_client_property *hcc = (http2_client_property *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
     if (Z_TYPE_P(zmethod) != IS_STRING || Z_STRLEN_P(zmethod) == 0)
@@ -480,8 +481,6 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
     }
     //Host
     index++;
-
-    std::vector<zend::string_ptr> zstr_list;
 
     if (Z_TYPE_P(zheaders) == IS_ARRAY)
     {
@@ -523,7 +522,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
         http2_client_add_cookie(nv, &index, zcookies);
     }
 
-    ssize_t rv = SW_ERR;;
+    ssize_t rv = SW_ERR;
     size_t buflen = nghttp2_hd_deflate_bound(hcc->deflater, nv, index);
     if (buflen > hcc->remote_settings.max_header_list_size)
     {
