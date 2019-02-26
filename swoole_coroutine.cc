@@ -407,7 +407,9 @@ int PHPCoroutine::resume_m(php_coro_context *sw_current_context, zval *retval, z
 {
     php_coro_task *task = sw_current_context->current_task;
     on_resume(task);
-    if (EG(current_execute_data)->prev_execute_data->opline->result_type != IS_UNUSED && retval)
+    if (retval && EG(current_execute_data)->prev_execute_data
+            && EG(current_execute_data)->prev_execute_data->opline
+            && EG(current_execute_data)->prev_execute_data->opline->result_type != IS_UNUSED)
     {
         ZVAL_COPY(sw_current_context->current_coro_return_value_ptr, retval);
     }
