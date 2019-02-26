@@ -15,6 +15,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 {
     $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/list");
     assert(!empty($data));
+    assert(count(json_decode($data, true)) > 0);
     swoole_process::kill($pid);
 };
 
@@ -35,11 +36,9 @@ $pm->childFunc = function () use ($pm)
 
     $httpServer = new Swoole\Http\Server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE);
     $httpServer->set([
-        //"daemonize" => true,
         'worker_num' => 1,
         'log_level' => SWOOLE_LOG_DEBUG,
     ]);
-
     $httpServer->on('WorkerStart', function (Swoole\Http\Server $server) use ($config, $pm) {
         try {
             MysqlPool::getInstance($config);
@@ -62,7 +61,7 @@ $pm->childFunc = function () use ($pm)
                     $mysql = $pool->get();
                     defer(function () use ($mysql) {
                         MysqlPool::getInstance()->put($mysql);
-                        echo "当前可用连接数：" . MysqlPool::getInstance()->getLength() . PHP_EOL;
+                        echo "size = ". MysqlPool::getInstance()->getLength() . PHP_EOL;
                     });
                     $result = $mysql->query("show tables");
                     $response->end(json_encode($result));
@@ -81,3 +80,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+size = 3
