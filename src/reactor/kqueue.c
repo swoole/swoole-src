@@ -324,7 +324,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
             {
                 reactor->onTimeout(reactor);
             }
-            continue;
+            SW_REACTOR_CONTINUE;
         }
 
         for (i = 0; i < n; i++)
@@ -399,10 +399,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         {
             reactor->onFinish(reactor);
         }
-        if (reactor->once)
-        {
-            break;
-        }
+        SW_REACTOR_CONTINUE;
     }
     return 0;
 }
