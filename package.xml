@@ -36,8 +36,8 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-02-22</date>
-    <time>19:00:00</time>
+    <date>2019-02-26</date>
+    <time>11:00:00</time>
     <version>
         <release>4.2.13</release>
         <api>4.0</api>
@@ -1129,6 +1129,7 @@
             <file role="test" name="tests/swoole_redis_coro/subscribe_punsubscribe.phpt" />
             <file role="test" name="tests/swoole_redis_coro/subscribe_reconnect.phpt" />
             <file role="test" name="tests/swoole_redis_coro/timeout.phpt" />
+            <file role="test" name="tests/swoole_redis_coro/unconnected.phpt" />
             <file role="test" name="tests/swoole_redis_coro/unixsocket.phpt" />
             <file role="test" name="tests/swoole_redis_coro/unsubscribe.phpt" />
             <file role="test" name="tests/swoole_redis_coro/unsubscribe_all.phpt" />
@@ -1211,6 +1212,7 @@
             <file role="test" name="tests/swoole_server/exist.phpt" />
             <file role="test" name="tests/swoole_server/force_reload.phpt" />
             <file role="test" name="tests/swoole_server/force_reload2.phpt" />
+            <file role="test" name="tests/swoole_server/getCallback.phpt" />
             <file role="test" name="tests/swoole_server/getClientInfo.phpt" />
             <file role="test" name="tests/swoole_server/getClientList.phpt" />
             <file role="test" name="tests/swoole_server/getLastError.phpt" />

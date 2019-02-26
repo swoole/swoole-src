@@ -1179,7 +1179,6 @@ enum swProcessType
 int swLog_init(char *logfile);
 void swLog_put(int level, char *content, size_t length);
 void swLog_free(void);
-#define sw_log(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);swLog_put(SW_LOG_INFO, sw_error);}
 
 uint64_t swoole_hash_key(char *str, int str_len);
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v);

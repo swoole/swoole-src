@@ -184,12 +184,12 @@ int my_onPacket(swServer *serv, swEventData *req)
 
 void my_onStart(swServer *serv)
 {
-    sw_log("Server is running");
+    swNotice("Server is running");
 }
 
 void my_onShutdown(swServer *serv)
 {
-    sw_log("Server is shutdown\n");
+    swNotice("Server is shutdown");
 }
 
 void my_onConnect(swServer *serv, swDataHead *info)
