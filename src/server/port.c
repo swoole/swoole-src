@@ -374,7 +374,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             }
             swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "get protocol failed.");
 #ifdef SW_HTTP_BAD_REQUEST_TIP
-            if (swConnection_send(conn, SW_STRL(SW_HTTP_BAD_REQUEST_TIP), 0) < 0)
+            _bad_request: if (swConnection_send(conn, SW_STRL(SW_HTTP_BAD_REQUEST_TIP), 0) < 0)
             {
                 swSysError("send() failed.");
             }
@@ -390,6 +390,11 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 #ifdef SW_USE_HTTP2
         else if (request->method == SW_HTTP_PRI)
         {
+            if (unlikely(!port->open_http2_protocol))
+            {
+                goto _bad_request;
+            }
+
             conn->http2_stream = 1;
             swHttp2_send_setting_frame(protocol, conn);
             if (n == sizeof(SW_HTTP2_PRI_STRING) - 1)
