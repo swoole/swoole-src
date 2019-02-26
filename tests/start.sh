@@ -34,7 +34,6 @@ elif [ "${1}"x == "base"x ]; then
     swoole_function \
     swoole_global \
     swoole_lock \
-    swoole_memory_pool \
     swoole_process \
     swoole_process_pool \
     swoole_table \
