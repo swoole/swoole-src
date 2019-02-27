@@ -36,8 +36,8 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-02-26</date>
-    <time>11:00:00</time>
+    <date>2019-02-27</date>
+    <time>18:00:00</time>
     <version>
         <release>4.2.13</release>
         <api>4.0</api>
@@ -144,7 +144,6 @@
             <file role="src" name="core-tests/include/tests.h" />
             <file role="src" name="core-tests/run.sh" />
             <file role="src" name="core-tests/server/tcp.php" />
-            <file role="src" name="core-tests/src/cares.cpp" />
             <file role="src" name="core-tests/src/client.cpp" />
             <file role="src" name="core-tests/src/coroutine/base.cpp" />
             <file role="src" name="core-tests/src/coroutine/channel.cpp" />
@@ -544,7 +543,6 @@
             <file role="src" name="src/memory/shared_memory.c" />
             <file role="src" name="src/memory/table.c" />
             <file role="src" name="src/network/async_thread.cc" />
-            <file role="src" name="src/network/cares.cc" />
             <file role="src" name="src/network/client.c" />
             <file role="src" name="src/network/connection.c" />
             <file role="src" name="src/network/dns.c" />
@@ -632,6 +630,8 @@
             <file role="test" name="tests/CONTRIBUTION" />
             <file role="test" name="tests/README.md" />
             <file role="test" name="tests/clean" />
+            <file role="test" name="tests/include/api/bug_2387/DbWrapper.php" />
+            <file role="test" name="tests/include/api/bug_2387/MysqlPool.php" />
             <file role="test" name="tests/include/api/http_server.php" />
             <file role="test" name="tests/include/api/ssl-ca/ca-cert.pem" />
             <file role="test" name="tests/include/api/ssl-ca/ca-key.pem" />
@@ -788,6 +788,7 @@
             <file role="test" name="tests/swoole_client_sync/udp_client_sendto.phpt" />
             <file role="test" name="tests/swoole_coroutine/before_create_server_1.phpt" />
             <file role="test" name="tests/swoole_coroutine/before_create_server_2.phpt" />
+            <file role="test" name="tests/swoole_coroutine/bug_2387.phpt" />
             <file role="test" name="tests/swoole_coroutine/c_stack_size.phpt" />
             <file role="test" name="tests/swoole_coroutine/call_not_exists_func.phpt" />
             <file role="test" name="tests/swoole_coroutine/call_user_func_array.phpt" />
@@ -907,6 +908,7 @@
             <file role="test" name="tests/swoole_event/defer.phpt" />
             <file role="test" name="tests/swoole_event/defer_with_sleep.phpt" />
             <file role="test" name="tests/swoole_event/defer_without_io.phpt" />
+            <file role="test" name="tests/swoole_event/dispatch.phpt" />
             <file role="test" name="tests/swoole_event/swoole_event.phpt" />
             <file role="test" name="tests/swoole_event/swoole_event_core.phpt" />
             <file role="test" name="tests/swoole_event/swoole_event_del.phpt" />
@@ -1015,6 +1017,7 @@
             <file role="test" name="tests/swoole_http_server/rawContent.phpt" />
             <file role="test" name="tests/swoole_http_server/rawCookie.phpt" />
             <file role="test" name="tests/swoole_http_server/redirect.phpt" />
+            <file role="test" name="tests/swoole_http_server/send_yield.phpt" />
             <file role="test" name="tests/swoole_http_server/sendfile.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler.phpt" />
             <file role="test" name="tests/swoole_http_server/task/enable_coroutine.phpt" />
@@ -1135,6 +1138,7 @@
             <file role="test" name="tests/swoole_redis_coro/unsubscribe_all.phpt" />
             <file role="test" name="tests/swoole_redis_coro/unsubscribe_not_all.phpt" />
             <file role="test" name="tests/swoole_redis_server/big_packet.phpt" />
+            <file role="test" name="tests/swoole_redis_server/getHandler.phpt" />
             <file role="test" name="tests/swoole_runtime/accept.phpt" />
             <file role="test" name="tests/swoole_runtime/accept_timeout.phpt" />
             <file role="test" name="tests/swoole_runtime/block.phpt" />

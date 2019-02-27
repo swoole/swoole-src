@@ -577,7 +577,7 @@ static zend_string* mysql_decode_big_data(mysql_big_data_info *mbdi)
 
 static ssize_t mysql_decode_row(mysql_client *client, char *buf, uint32_t packet_length, size_t n_buf)
 {
-    int i;
+    uint32_t i;
     int tmp_len;
     ulong_t len;
     char nul;
@@ -608,7 +608,7 @@ static ssize_t mysql_decode_row(mysql_client *client, char *buf, uint32_t packet
         read_n += tmp_len;
 
         // WARNING: data may be longer than single packet (0x00fffff => 16M)
-        if (unlikely(len > packet_length - read_n))
+        if (unlikely(len > (uint32_t) (packet_length - read_n)))
         {
             mysql_big_data_info mbdi = { len, n_buf - read_n, packet_length - (uint32_t) read_n, buf + read_n, 0, 0 };
             if ((zstring = mysql_decode_big_data(&mbdi)))
@@ -861,7 +861,7 @@ static void mysql_decode_year(char *buf, char *result)
 
 static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint32_t packet_length, size_t n_buf)
 {
-    int i;
+    uint32_t i;
     int tmp_len;
     ulong_t len = 0;
     char nul;
@@ -951,7 +951,7 @@ static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint32_
             }
             read_n += tmp_len;
             // WARNING: data may be longer than single packet (0x00fffff => 16M)
-            if (unlikely(len > packet_length - read_n))
+            if (unlikely(len > (uint32_t) (packet_length - read_n)))
             {
                 zend_string *zstring;
                 mysql_big_data_info mbdi = { len, n_buf - read_n, packet_length - (uint32_t) read_n, buf + read_n, 0, 0 };
@@ -1170,7 +1170,7 @@ static void mysql_columns_free(mysql_client *client)
 {
     if (client->response.columns)
     {
-        int i;
+        uint32_t i;
         for (i = 0; i < client->response.num_column; i++)
         {
             if (client->response.columns[i].buffer)
@@ -1231,9 +1231,9 @@ static int mysql_parse_prepare_result(mysql_client *client, char *buf, size_t n_
     return SW_OK;
 }
 
-static int mysql_decode_field(char *buf, int len, mysql_field *col)
+static int mysql_decode_field(char *buf, size_t len, mysql_field *col)
 {
-    int i;
+    uint32_t i;
     ulong_t size;
     char nul;
     char *wh;
@@ -1648,7 +1648,7 @@ static int mysql_is_over(mysql_client *client)
     {
         swTraceLog(SW_TRACE_MYSQL_CLIENT, "check packet from %jd, remaining=%jd", (intmax_t) client->check_offset, (intmax_t) remaining_size);
         p = buffer->str + client->check_offset; // where to start checking now
-        if (unlikely(buffer->length < client->check_offset + SW_MYSQL_PACKET_HEADER_SIZE))
+        if (unlikely(buffer->length < (size_t) client->check_offset + SW_MYSQL_PACKET_HEADER_SIZE))
         {
             client->want_length = client->check_offset + SW_MYSQL_PACKET_HEADER_SIZE;
             break; // header incomplete
@@ -1664,7 +1664,7 @@ static int mysql_is_over(mysql_client *client)
         }
 
         client->check_offset += (SW_MYSQL_PACKET_HEADER_SIZE + packet_length); // add header length + packet length
-        if (client->check_offset >= buffer->length) // if false: more packets exist, skip the current one
+        if ((size_t) client->check_offset >= buffer->length) // if false: more packets exist, skip the current one
         {
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "check the last packet, length=%u", packet_length);
             switch ((uint8_t) p[0])
@@ -1911,7 +1911,7 @@ int mysql_get_charset(char *name)
     return -1;
 }
 
-int mysql_get_result(mysql_connector *connector, char *buf, int len)
+int mysql_get_result(mysql_connector *connector, char *buf, size_t len)
 {
     char *tmp = buf;
     uint32_t packet_length = mysql_uint3korr(tmp);
@@ -2057,7 +2057,7 @@ string[$len]   auth-plugin-data-part-2 ($len=MAX(13, length of auth-plugin-data 
 string[NUL]    auth-plugin name
   }
  */
-int mysql_handshake(mysql_connector *connector, char *buf, int len)
+int mysql_handshake(mysql_connector *connector, char *buf, size_t len)
 {
     char *tmp = buf;
     int next_state = SW_MYSQL_HANDSHAKE_WAIT_RESULT; // ret is the next handshake state
@@ -2070,7 +2070,7 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
 
     request.packet_length = mysql_uint3korr(tmp);
     //continue to wait for data
-    if (len < SW_MYSQL_PACKET_HEADER_SIZE + request.packet_length)
+    if (len < (uint32_t) (SW_MYSQL_PACKET_HEADER_SIZE + request.packet_length))
     {
         return 0;
     }
@@ -2220,7 +2220,7 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
 
 // we may need it one day but now
 // we can reply the every auth plugin requirement on the first handshake
-int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
+int mysql_auth_switch(mysql_connector *connector, char *buf, size_t len)
 {
     char *tmp = buf;
     if ((uint8_t) tmp[4] != SW_MYSQL_PACKET_EOF)
@@ -2250,7 +2250,7 @@ int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
     // string[NUL]    plugin name
     char auth_plugin_name[32];
     int auth_plugin_name_len = 0;
-    int i;
+    uint32_t i;
     for (i = 0; i < packet_length; i++)
     {
         auth_plugin_name[auth_plugin_name_len] = tmp[auth_plugin_name_len];
@@ -2331,7 +2331,7 @@ int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector)
 #ifdef SW_MYSQL_RSA_SUPPORT
 //  Caching sha2 authentication. Public key request and send encrypted password
 // http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::AuthSwitchResponse
-int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
+int mysql_parse_rsa(mysql_connector *connector, char *buf, size_t len)
 {
     // clear
     connector->packet_length = 0;
