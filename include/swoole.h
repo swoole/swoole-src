@@ -1793,6 +1793,8 @@ static inline void swReactor_before_wait(swReactor *reactor)
     reactor->start = 1;
 }
 
+#define SW_REACTOR_CONTINUE   if (reactor->once) {break;} else {continue;}
+
 int swReactor_empty(swReactor *reactor);
 
 void swReactor_defer_task_create(swReactor *reactor);
