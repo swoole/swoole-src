@@ -1,5 +1,5 @@
 --TEST--
-swoole_mysql_coro: call_user_func_array
+swoole_coroutine: call_user_func_array
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
