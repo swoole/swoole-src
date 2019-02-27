@@ -3195,6 +3195,7 @@ static PHP_METHOD(swoole_server, resume)
 
 static PHP_METHOD(swoole_server, stats)
 {
+    int i;
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
@@ -3215,6 +3216,19 @@ static PHP_METHOD(swoole_server, stats)
     {
         tasking_num = serv->stats->tasking_num = 0;
     }
+
+    uint16_t worker_num = serv->task_worker_num + serv->worker_num + serv->user_worker_num;
+    uint16_t idle_worker_num = 0;
+    add_assoc_long_ex(return_value, ZEND_STRL("worker_num"), worker_num);
+    for (i = 0; i < worker_num; i++)
+    {
+        swWorker *worker = swServer_get_worker(serv, i);
+        if (worker->status == SW_WORKER_IDLE)
+        {
+            idle_worker_num ++;
+        }
+    }
+    add_assoc_long_ex(return_value, ZEND_STRL("idle_worker_num"), idle_worker_num);
     add_assoc_long_ex(return_value, ZEND_STRL("tasking_num"), tasking_num);
     add_assoc_long_ex(return_value, ZEND_STRL("request_count"), serv->stats->request_count);
     if (SwooleWG.worker)
