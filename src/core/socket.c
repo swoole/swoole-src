@@ -160,7 +160,7 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
         else
         {
             sw_free(event_list);
-            return ret;
+            return SW_OK;
         }
     }
     sw_free(event_list);
