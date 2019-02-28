@@ -111,7 +111,7 @@ function phpt_var_dump(...$args)
     }
 }
 
-function httpCoroGet(string $uri, array $options = [])
+function _httpGet(string $uri, array $options = [])
 {
     $url_info = parse_url($uri);
     $domain = $url_info['host'];
@@ -121,7 +121,22 @@ function httpCoroGet(string $uri, array $options = [])
     $cli->set($options + ['timeout' => 5]);
     $cli->setHeaders(['Host' => $domain]);
     $cli->get($path);
-    return $cli->body;
+    return $cli;
+}
+
+function httpGetStatusCode(string $uri, array $options = [])
+{
+    return _httpGet($uri, $options)->statusCode;
+}
+
+function httpGetHeaders(string $uri, array $options = [])
+{
+    return _httpGet($uri, $options)->headers;
+}
+
+function httpGetBody(string $uri, array $options = [])
+{
+    return _httpGet($uri, $options)->body;
 }
 
 function curlGet($url, $gzip = true)
