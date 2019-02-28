@@ -1027,6 +1027,9 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             if (PHPCoroutine::create(fci_cache, 2, args) < 0)
             {
                 swoole_php_error(E_WARNING, "create Http onRequest coroutine error.");
+#ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
+                serv->send(serv, fd, (char *) SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
+#endif
                 serv->close(serv, fd, 0);
             }
         }
