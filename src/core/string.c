@@ -182,7 +182,7 @@ int swString_extend(swString *str, size_t new_size)
 
 char* swString_alloc(swString *str, size_t __size)
 {
-    if (str->length + __size < str->size)
+    if (str->length + __size > str->size)
     {
         if (swString_extend_align(str, str->length + __size) < 0)
         {
