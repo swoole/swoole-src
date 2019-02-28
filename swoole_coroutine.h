@@ -63,7 +63,6 @@ struct php_coro_task
     SW_DECLARE_EG_SCOPE(scope);
     swoole::Coroutine *co;
     std::stack<defer_task *> *defer_tasks;
-    php_coro_task *origin_task;
     long pcid;
 };
 
@@ -72,7 +71,6 @@ struct php_coro_args
     zend_fcall_info_cache *fci_cache;
     zval *argv;
     uint32_t argc;
-    php_coro_task *origin_task;
 };
 
 // TODO: remove php coro context
@@ -125,6 +123,12 @@ public:
         return task ? task : &main_task;
     }
 
+    static inline php_coro_task* get_origin_task(php_coro_task *task)
+    {
+        Coroutine *co = task->co->get_origin();
+        return co ? (php_coro_task *) co->get_task() : &main_task;
+    }
+
     static inline php_coro_task* get_task_by_cid(long cid)
     {
         return cid == -1 ? &main_task : (php_coro_task *) Coroutine::get_task_by_cid(cid);
@@ -162,7 +166,8 @@ protected:
     static inline void restore_vm_stack(php_coro_task *task);
     static inline void save_og(php_coro_task *task);
     static inline void restore_og(php_coro_task *task);
-    static inline php_coro_task* get_and_save_current_task();
+    static inline void save_task(php_coro_task *task);
+    static inline void restore_task(php_coro_task *task);
     static void on_yield(void *arg);
     static void on_resume(void *arg);
     static void on_close(void *arg);
