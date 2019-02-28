@@ -190,25 +190,23 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
 bool Socket::socks5_handshake()
 {
     swSocks5 *ctx = socks5_proxy;
-    char *buf = ctx->buf;
-    int n;
+    char *p;
+    ssize_t n;
+    uchar version, method, result;
 
-    /**
-     * handshake
-     */
-    swSocks5_pack(buf, socks5_proxy->username == NULL ? 0x00 : 0x02);
+    swSocks5_pack(ctx->buf, socks5_proxy->l_username > 0 ? 0x02 : 0x00);
     socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
-    if (send(buf, 3) != 3)
+    if (send(ctx->buf, 3) != 3)
     {
         return false;
     }
-    n = recv(buf, sizeof(ctx->buf));
+    n = recv(ctx->buf, sizeof(ctx->buf));
     if (n <= 0)
     {
         return false;
     }
-    uchar version = buf[0];
-    uchar method = buf[1];
+    version = ctx->buf[0];
+    method = ctx->buf[1];
     if (version != SW_SOCKS5_VERSION_CODE)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported.");
@@ -219,122 +217,117 @@ bool Socket::socks5_handshake()
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method not supported.");
         return SW_ERR;
     }
-    //authenticate request
+    // authentication
     if (method == SW_SOCKS5_METHOD_AUTH)
     {
-        ssize_t buf_len = ctx->l_username + ctx->l_password + 3;
-
-        buf[0] = 0x01;
-        buf[1] = ctx->l_username;
-
-        buf += 2;
-        memcpy(buf, ctx->username, ctx->l_username);
-        buf += ctx->l_username;
-        buf[0] = ctx->l_password;
-        memcpy(buf + 1, ctx->password, ctx->l_password);
-
+        p = ctx->buf;
+        // username
+        p[0] = 0x01;
+        p[1] = ctx->l_username;
+        p += 2;
+        if (ctx->l_username > 0)
+        {
+            memcpy(p, ctx->username, ctx->l_username);
+            p += ctx->l_username;
+        }
+        // password
+        p[0] = ctx->l_password;
+        p += 1;
+        if (ctx->l_password > 0)
+        {
+            memcpy(p, ctx->password, ctx->l_password);
+            p += ctx->l_password;
+        }
+        // auth request
         ctx->state = SW_SOCKS5_STATE_AUTH;
-
-        if (send(ctx->buf, buf_len) != buf_len)
+        if (send(ctx->buf, p - ctx->buf) != p - ctx->buf)
         {
             return false;
         }
-
-        n = recv(buf, sizeof(ctx->buf));
+        // auth response
+        n = recv(ctx->buf, sizeof(ctx->buf));
         if (n <= 0)
         {
             return false;
         }
-
-        uchar version = buf[0];
-        uchar status = buf[1];
+        uchar version = ctx->buf[0];
+        uchar status = ctx->buf[1];
         if (version != 0x01)
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported.");
             return false;
         }
-        if (status != 0)
+        if (status != 0x00)
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_AUTH_FAILED, "SOCKS username/password authentication failed.");
             return false;
         }
-        goto _send_connect_request;
     }
-    //send connect request
+
+    // send connect request
+    ctx->state = SW_SOCKS5_STATE_CONNECT;
+    p = ctx->buf;
+    p[0] = SW_SOCKS5_VERSION_CODE;
+    p[1] = 0x01;
+    p[2] = 0x00;
+    p += 3;
+    if (ctx->dns_tunnel)
+    {
+        p[0] = 0x03;
+        p[1] = ctx->l_target_host;
+        p += 2;
+        memcpy(p, ctx->target_host, ctx->l_target_host);
+        sw_free(ctx->target_host);
+        ctx->target_host = nullptr;
+        p += ctx->l_target_host;
+        *(uint16_t *) p = htons(ctx->target_port);
+        p += 2;
+        if (send(ctx->buf, p - ctx->buf) != p - ctx->buf)
+        {
+            return false;
+        }
+    }
     else
     {
-        _send_connect_request:
-        ssize_t buf_len = ctx->l_target_host + 7;
-
-        buf[0] = SW_SOCKS5_VERSION_CODE;
-        buf[1] = 0x01;
-        buf[2] = 0x00;
-
-        ctx->state = SW_SOCKS5_STATE_CONNECT;
-
-        if (ctx->dns_tunnel)
-        {
-
-            buf[3] = 0x03;
-            buf[4] = ctx->l_target_host;
-            buf += 5;
-            memcpy(buf, ctx->target_host, ctx->l_target_host);
-            sw_free(ctx->target_host);
-            buf += ctx->l_target_host;
-            *(uint16_t *) buf = htons(ctx->target_port);
-
-            if (send(ctx->buf, buf_len) != buf_len)
-            {
-                return false;
-            }
-        }
-        else
-        {
-            buf[3] = 0x01;
-            buf += 4;
-            *(uint32_t *) buf = htons(ctx->l_target_host);
-            buf += 4;
-            *(uint16_t *) buf = htons(ctx->target_port);
-
-            if (send(ctx->buf, buf_len) != buf_len)
-            {
-                return false;
-            }
-        }
-
-        /**
-         * response
-         */
-        buf = ctx->buf;
-        n = recv(buf, sizeof(ctx->buf));
-        if (n <= 0)
+        p[0] = 0x01;
+        p += 1;
+        *(uint32_t *) p = htons(ctx->l_target_host);
+        p += 4;
+        *(uint16_t *) p = htons(ctx->target_port);
+        p += 2;
+        if (send(ctx->buf, p - ctx->buf) != p - ctx->buf)
         {
             return false;
         }
-
-        uchar version = buf[0];
-        if (version != SW_SOCKS5_VERSION_CODE)
-        {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported.");
-            return false;
-        }
-        uchar result = buf[1];
+    }
+    // recv response
+    n = recv(ctx->buf, sizeof(ctx->buf));
+    if (n <= 0)
+    {
+        return false;
+    }
+    version = ctx->buf[0];
+    if (version != SW_SOCKS5_VERSION_CODE)
+    {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported.");
+        return false;
+    }
+    result = ctx->buf[1];
 #if 0
-        uchar reg = buf[2];
-        uchar type = buf[3];
-        uint32_t ip = *(uint32_t *) (buf + 4);
-        uint16_t port = *(uint16_t *) (buf + 8);
+    uchar reg = buf[2];
+    uchar type = buf[3];
+    uint32_t ip = *(uint32_t *) (buf + 4);
+    uint16_t port = *(uint16_t *) (buf + 8);
 #endif
-        if (result == 0)
-        {
-            ctx->state = SW_SOCKS5_STATE_READY;
-            return true;
-        }
-        else
-        {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_SERVER_ERROR, "Socks5 server error, reason :%s.", swSocks5_strerror(result));
-            return false;
-        }
+    if (result == 0)
+    {
+        ctx->state = SW_SOCKS5_STATE_READY;
+        return true;
+    }
+    else
+    {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_SERVER_ERROR, "Socks5 server error, reason: %s.", swSocks5_strerror(result));
+        return false;
     }
 }
 
