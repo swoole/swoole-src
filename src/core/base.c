@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include "atomic.h"
+#include "coroutine_c_api.h"
 
 #include <stdarg.h>
 
@@ -166,6 +167,11 @@ void swoole_clean(void)
 
 pid_t swoole_fork()
 {
+    if (swoole_coroutine_is_in())
+    {
+        swError("must be forked outside the coroutine.");
+        return -1;
+    }
     pid_t pid = fork();
     if (pid == 0)
     {

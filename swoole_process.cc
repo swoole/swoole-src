@@ -793,12 +793,6 @@ static PHP_METHOD(swoole_process, start)
         RETURN_FALSE;
     }
 
-    if (PHPCoroutine::is_in())
-    {
-        swoole_php_fatal_error(E_ERROR, "must be forked outside the coroutine.");
-        RETURN_FALSE;
-    }
-
     pid_t pid = swoole_fork();
     if (pid < 0)
     {
