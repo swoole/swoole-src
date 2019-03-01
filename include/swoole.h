@@ -719,11 +719,11 @@ typedef struct _swProtocol
 } swProtocol;
 typedef ssize_t (*swProtocol_length_function)(struct _swProtocol *, swConnection *, char *, uint32_t);
 //------------------------------String--------------------------------
-#define swoole_tolower(c)      (u_char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
-#define swoole_toupper(c)      (u_char) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
+#define swoole_tolower(c)      (uchar) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
+#define swoole_toupper(c)      (uchar) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 
-uint32_t swoole_utf8_decode(u_char **p, size_t n);
-size_t swoole_utf8_length(u_char *p, size_t n);
+uint32_t swoole_utf8_decode(uchar **p, size_t n);
+size_t swoole_utf8_length(uchar *p, size_t n);
 void swoole_random_string(char *buf, size_t size);
 const char* swoole_get_mime_type(const char *file);
 
