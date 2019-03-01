@@ -64,6 +64,7 @@ struct php_coro_task
     swoole::Coroutine *co;
     std::stack<defer_task *> *defer_tasks;
     long pcid;
+    zend_object *context;
 };
 
 struct php_coro_args
