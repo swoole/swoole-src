@@ -1049,7 +1049,11 @@ static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint32_
         case SW_MYSQL_TYPE_FLOAT:
             row.mfloat = *(float *) (buf + read_n);
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%.7f", field->name, row.mfloat);
+#if PHP_VERSION_ID >= 70011
             row.mdouble = _php_math_round(row.mfloat, 5, PHP_ROUND_HALF_DOWN);
+#else
+            row.mdouble = row.mfloat;
+#endif
             add_assoc_double(row_array, field->name, row.mdouble);
             len = sizeof(row.mfloat);
             break;
