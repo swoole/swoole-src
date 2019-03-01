@@ -151,7 +151,7 @@ void PHPCoroutine::on_yield(void *arg)
 void PHPCoroutine::on_resume(void *arg)
 {
     php_coro_task *task = (php_coro_task *) arg;
-    php_coro_task *current_task = get_current_task();
+    php_coro_task *current_task = get_task();
     save_task(current_task);
     restore_task(task);
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", Coroutine::get_current_cid(), task->co->get_cid());
@@ -346,14 +346,14 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
     php_coro_args.fci_cache = fci_cache;
     php_coro_args.argv = argv;
     php_coro_args.argc = argc;
-    save_task(get_current_task());
+    save_task(get_task());
 
     return Coroutine::create(create_func, (void*) &php_coro_args);
 }
 
 void PHPCoroutine::defer(swCallback cb, void *data)
 {
-    php_coro_task *task = get_current_task();
+    php_coro_task *task = get_task();
     if (task->defer_tasks == nullptr)
     {
         task->defer_tasks = new std::stack<defer_task *>;
@@ -392,7 +392,7 @@ void PHPCoroutine::yield_m(zval *return_value, php_coro_context *sw_current_cont
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }
-    php_coro_task *task = get_current_task();
+    php_coro_task *task = get_task();
     sw_current_context->current_coro_return_value_ptr = return_value;
     sw_current_context->current_task = task;
     on_yield(task);

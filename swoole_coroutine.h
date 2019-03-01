@@ -117,7 +117,18 @@ public:
         return active && Coroutine::get_current();
     }
 
-    static inline php_coro_task* get_current_task()
+    static inline long get_cid()
+    {
+        return likely(active) ? Coroutine::get_current_cid() : -1;
+    }
+
+    static inline long get_pcid()
+    {
+        php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
+        return likely(task) ? task->pcid : -1;
+    }
+
+    static inline php_coro_task* get_task()
     {
         php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
         return task ? task : &main_task;
@@ -132,17 +143,6 @@ public:
     static inline php_coro_task* get_task_by_cid(long cid)
     {
         return cid == -1 ? &main_task : (php_coro_task *) Coroutine::get_task_by_cid(cid);
-    }
-
-    static inline long get_cid()
-    {
-        return likely(active) ? Coroutine::get_current_cid() : -1;
-    }
-
-    static inline long get_pcid()
-    {
-        php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
-        return likely(task) ? task->pcid : -1;
     }
 
     static inline uint64_t get_max_num()
