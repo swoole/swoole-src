@@ -17,6 +17,7 @@
 #include "server.h"
 #include "http.h"
 #include "connection.h"
+#include "async.h"
 
 static int swServer_start_check(swServer *serv);
 static void swServer_signal_handler(int sig);
@@ -270,7 +271,6 @@ static int swServer_start_check(swServer *serv)
             ls->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
         }
     }
-
 #ifdef SW_USE_OPENSSL
     /**
      * OpenSSL thread-safe
@@ -280,6 +280,8 @@ static int swServer_start_check(swServer *serv)
         swSSL_init_thread_safety();
     }
 #endif
+    // check aio threads
+    swAio_free();
 
     return SW_OK;
 }
