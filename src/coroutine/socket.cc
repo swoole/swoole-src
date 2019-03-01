@@ -78,7 +78,8 @@ int Socket::error_event_callback(swReactor *reactor, swEvent *event)
         socket->set_err(0);
         socket->write_co->resume();
     }
-    if (socket->read_co)
+    // Notice: socket maybe deleted in write coroutine
+    if (!event->socket->removed && socket->read_co)
     {
         socket->set_err(0);
         socket->read_co->resume();
