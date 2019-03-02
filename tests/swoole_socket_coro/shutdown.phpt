@@ -14,7 +14,7 @@ go(function () use ($randoms) {
     assert($server->listen(512));
     $conn = $server->accept();
     assert($conn);
-    assert($conn instanceof Swoole\Coroutine\Socket);
+    Assert::isInstanceOf($conn, Swoole\Coroutine\Socket::class);
     assert($conn->recv() === array_shift($randoms));
     assert($conn->send(array_shift($randoms)) > 0);
     $conn->close();
@@ -27,7 +27,7 @@ go(function () use ($randoms) {
     assert($socket->recv() === array_shift($randoms));
     assert($socket->shutdown(STREAM_SHUT_WR));
     for ($n = MAX_REQUESTS; $n--;) {
-        assert($socket->send(array_shift($randoms)) === false);
+        Assert::false($socket->send(array_shift($randoms)));
         assert($socket->errCode === SOCKET_EPIPE);
     }
     assert($socket->shutdown(STREAM_SHUT_RD));

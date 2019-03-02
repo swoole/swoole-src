@@ -15,7 +15,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $cli->send(pack('N', strlen($data)) . $data);
         $s = microtime(true);
         $retData = @$cli->recv();
-        assert($retData == false);
+        Assert::false($retData);
         assert($cli->errCode == SOCKET_ETIMEDOUT);
         assert(approximate(0.5, microtime(true) - $s));
     });

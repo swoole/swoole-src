@@ -14,7 +14,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     assert($r);
     $client->send(pack('N', filesize(TEST_IMAGE)));
     $data = @$client->recv();
-    assert($data == false);
+    Assert::false($data);
     assert($client->errCode == SOCKET_EAGAIN);
     $client->close();
     $pm->kill();

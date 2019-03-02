@@ -42,7 +42,7 @@ assert($large_arr_data == $un_data);
 // error array data
 $data_out = substr($data, 0, 8192);
 $err_data = @swoole_serialize::unpack($data_out);
-assert($err_data == false);
+Assert::false($err_data);
 ?>
 DONE
 --EXPECTF--

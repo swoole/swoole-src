@@ -7,7 +7,7 @@ swoole_buffer: read and write swoole_buffer
 require __DIR__ . '/../include/bootstrap.php';
 
 $buffer = new swoole_buffer();
-assert($buffer instanceof swoole_buffer);
+Assert::isInstanceOf($buffer, swoole_buffer::class);
 
 $new_size = 256;
 $expand_ret = $buffer->expand($new_size);

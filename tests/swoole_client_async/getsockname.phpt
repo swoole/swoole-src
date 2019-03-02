@@ -15,7 +15,7 @@ suicide(5000);
 $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 
 $cli->on("connect", function(swoole_client $cli) {
-    assert($cli->isConnected() === true);
+    Assert::true($cli->isConnected());
 
     $i = $cli->getsockname();
     assert($i !== false);

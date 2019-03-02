@@ -247,7 +247,7 @@ function makeTcpClient($host, $port, callable $onConnect = null, callable $onRec
     ]));
     $cli->on("connect", function (\swoole_client $cli) use ($onConnect)
     {
-        assert($cli->isConnected() === true);
+        Assert::true($cli->isConnected());
         if ($onConnect)
         {
             $onConnect($cli);
@@ -276,7 +276,7 @@ function makeTcpClient_without_protocol($host, $port, callable $onConnect = null
     $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
     $cli->on("connect", function (\swoole_client $cli) use ($onConnect)
     {
-        assert($cli->isConnected() === true);
+        Assert::true($cli->isConnected());
         if ($onConnect)
         {
             $onConnect($cli);

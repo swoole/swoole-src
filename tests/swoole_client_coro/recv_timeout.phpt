@@ -16,7 +16,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $data = str_repeat('A', 1025);
         $cli->send(pack('N', strlen($data)) . $data);
         $retData = @$cli->recv(0.5);
-        assert($retData == false);
+        Assert::false($retData);
         assert($cli->errCode == SOCKET_ETIMEDOUT);
     });
     swoole_event_wait();

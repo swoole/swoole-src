@@ -16,7 +16,7 @@ go(function () use ($chan) {
     $read_list = [$chan];
     $write_list = null;
     $result = chan::select($read_list, $write_list, 0.1);
-    assert($result == false);
+    Assert::false($result);
 });
 
 swoole_event::wait();

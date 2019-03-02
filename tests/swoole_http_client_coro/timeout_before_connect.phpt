@@ -19,8 +19,8 @@ go(function () {
     $cli1->setHeaders($requestHeaders);
     $cli1->set(['timeout' => 0.001]);
     $cli1->setDefer(true);
-    assert($cli1->get('/') === false);
-    assert($cli1->recv() === false);
+    Assert::false($cli1->get('/'));
+    Assert::false($cli1->recv());
     assert($cli1->errCode === SOCKET_ETIMEDOUT);
     assert($cli1->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
 
@@ -28,10 +28,10 @@ go(function () {
     $cli2->setHeaders($requestHeaders);
     $cli2->setDefer(true);
 
-    assert($cli1->get('/') === false);
-    assert($cli2->get('/') === true);
-    assert($cli1->recv() === false);
-    assert($cli2->recv() === true);
+    Assert::false($cli1->get('/'));
+    Assert::true($cli2->get('/'));
+    Assert::false($cli1->recv());
+    Assert::true($cli2->recv());
 
     assert($cli1->errCode === SOCKET_ETIMEDOUT);
     assert($cli1->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED);

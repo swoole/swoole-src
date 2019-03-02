@@ -13,7 +13,7 @@ go(function () {
         $chan->push("data");
     });
     assert($chan->pop(0.001) == "data");
-    assert($chan->pop(0.001) == false);
+    Assert::false($chan->pop(0.001));
 });
 
 swoole_event::wait();

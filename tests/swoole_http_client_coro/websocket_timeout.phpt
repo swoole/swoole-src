@@ -21,11 +21,11 @@ $pm->parentFunc = function ($pid) use ($pm) {
         echo $cli->recv()->data;
         $cli->push('hello server');
 
-        assert($cli->recv(.1) == false);
+        Assert::false($cli->recv(.1));
         assert($cli->errCode == SOCKET_ETIMEDOUT);
         $cli->errCode = 0;
 
-        assert($cli->recv(.1) == false);
+        Assert::false($cli->recv(.1));
         assert($cli->errCode == SOCKET_ETIMEDOUT);
     });
     swoole_event::wait();

@@ -24,7 +24,7 @@ $pm->childFunc = function () use ($pm)
 
     $serv->on("WorkerStart", function (\swoole_server $serv, $wid) use ($pm) {
         if ($serv->taskworker) {
-            assert(@$serv->task(['type' => 'array', 'value' => 'task worker']) === false);
+            Assert::false(@$serv->task(['type' => 'array', 'value' => 'task worker']));
             $pm->wakeup();
         }
     });

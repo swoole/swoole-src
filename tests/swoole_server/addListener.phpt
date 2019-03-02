@@ -16,7 +16,7 @@ $pm->parentFunc = function ($pid)
     $cli = new \swoole_client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_ASYNC);
 
     $cli->on("connect", function (\swoole_client $cli) {
-        assert($cli->isConnected() === true);
+        Assert::true($cli->isConnected());
         $cli->send("test");
     });
 

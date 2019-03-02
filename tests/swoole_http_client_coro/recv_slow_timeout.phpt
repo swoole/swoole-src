@@ -37,7 +37,7 @@ $pm->childFunc = function () use ($pm) {
         assert($server->listen());
         while ($client = $server->accept()) {
             go(function () use ($server, $client) {
-                assert($client instanceof Swoole\Coroutine\Socket);
+                Assert::isInstanceOf($client, Swoole\Coroutine\Socket::class);
                 $data =
                     "HTTP/1.1 200 OK\r\n" .
                     "Connection: keep-alive\r\n" .

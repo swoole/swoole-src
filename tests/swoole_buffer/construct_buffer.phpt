@@ -8,13 +8,13 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $buffer = new swoole_buffer();
 
-assert($buffer instanceof swoole_buffer);
+Assert::isInstanceOf($buffer, swoole_buffer::class);
 
 echo "capacity:" . $buffer->capacity . "\n";
 echo "length:" . $buffer->length . "\n";
 
 $ret = $buffer->read(0, 10);
-assert($ret == false);
+Assert::false($ret);
 
  ?>
 --EXPECT--

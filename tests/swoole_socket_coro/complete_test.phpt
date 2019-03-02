@@ -9,7 +9,7 @@ $pm = new ProcessManager;
 $port = get_one_free_port();
 $pm->parentFunc = function ($pid) use ($pm, $port) {
     $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, 0);
-    assert($socket instanceof Swoole\Coroutine\Socket);
+    Assert::isInstanceOf($socket, Swoole\Coroutine\Socket::class);
     assert($socket->errCode === 0);
     go(function () use ($socket, $port) {
         assert($socket->connect('localhost', $port));
@@ -36,7 +36,7 @@ $pm->childFunc = function () use ($pm, $port) {
     assert($socket->listen(128));
     go(function () use ($socket, $pm) {
         $client = $socket->accept();
-        assert($client instanceof Swoole\Coroutine\Socket);
+        Assert::isInstanceOf($client, Swoole\Coroutine\Socket::class);
         $i = 0;
         while (true) {
             $client_data = $client->recv(1024, 0.1);

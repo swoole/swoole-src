@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $redis = new Swoole\Coroutine\Redis;
     $redis->setDefer(true);
-    assert($redis->recv() === false);
+    Assert::false($redis->recv());
     echo "DONE\n";
 });
 ?>

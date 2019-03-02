@@ -36,7 +36,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
     go(function () use ($pm, $ready) {
         global $connections;
         for ($c = 0; $c < MAX_CONCURRENCY; $c++) {
-            assert($ready->pop() === true);
+            Assert::true($ready->pop());
         }
         $cli = new Co\Http\Client('127.0.0.1', $pm->getFreePort());
         if (assert($cli->upgrade('/'))) {

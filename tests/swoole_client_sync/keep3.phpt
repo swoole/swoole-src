@@ -11,14 +11,14 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     $client1 = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_KEEP | SWOOLE_SYNC);
     $r = $client1->connect(TCP_SERVER_HOST, $pm->getFreePort(), 0.5);
-    assert($r === true);
+    Assert::true($r);
     $client1->send("hello");
     echo $client1->recv();
     $client1->close();
 
     $client2 = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_KEEP | SWOOLE_SYNC);
     $r = $client2->connect(TCP_SERVER_HOST, $pm->getFreePort(), 0.5);
-    assert($r === true);
+    Assert::true($r);
     $client2->send("hello");
     echo $client2->recv();
     $client2->close();

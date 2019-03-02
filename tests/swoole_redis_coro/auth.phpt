@@ -15,12 +15,12 @@ if (!$redis->auth(REDIS_SERVER_PWD)) {
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $redis = new Swoole\Coroutine\Redis;
-    assert($redis->getAuth() === false);
+    Assert::false($redis->getAuth());
     assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
-    assert($redis->getAuth() === false);
+    Assert::false($redis->getAuth());
     assert(!$redis->auth(get_safe_random()));
     assert($redis->errCode === SOCKET_EINVAL);
-    assert($redis->getAuth() === false);
+    Assert::false($redis->getAuth());
     assert($redis->auth(REDIS_SERVER_PWD));
     assert($redis->getAuth() === REDIS_SERVER_PWD);
     // auth by connect

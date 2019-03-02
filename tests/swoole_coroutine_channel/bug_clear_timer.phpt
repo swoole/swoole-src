@@ -21,7 +21,7 @@ require __DIR__ . '/../include/bootstrap.php';
 //     ];
 //     $write = [];
 //     $ret = chan::select($read, $write, 0.1);
-//     assert($ret === true);
+//     Assert::true($ret);
 //     assert(count($read) === 1);
 // });
 ?>

@@ -28,7 +28,7 @@ if (pcntl_fork() === 0) {
 
     $cli->on("connect", function(swoole_client $cli) {
         swoole_timer_clear($cli->timeo_id);
-        assert($cli->isConnected() === true);
+        Assert::true($cli->isConnected());
         $cli->send(str_repeat("\0", 1024));
     });
 
@@ -52,7 +52,7 @@ if (pcntl_fork() === 0) {
     $cli->timeo_id = swoole_timer_after(1000, function() use($cli) {
         debug_log("connect timeout");
         $cli->close();
-        assert($cli->isConnected() === false);
+        Assert::false($cli->isConnected());
     });
     exit();
 }

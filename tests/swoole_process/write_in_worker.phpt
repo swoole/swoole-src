@@ -27,7 +27,7 @@ $pm->childFunc = function () use ($pm) {
         usleep(1);
         for ($i = 0; $i < 1024; $i++) {
             $process->write(str_repeat('A', 8192));
-            assert($process == true);
+            Assert::true($process);
         }
         switch_process();
         echo "worker end\n";

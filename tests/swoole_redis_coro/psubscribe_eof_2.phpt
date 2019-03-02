@@ -32,9 +32,9 @@ go(function () use ($sock, $port) {
     assert($val[0] == 'psubscribe' && $val[1] == 'channel1');
 
     $val = $redis->recv();
-    assert($val === false);
+    Assert::false($val);
 
-    assert($redis->connected === false);
+    Assert::false($redis->connected);
     assert($redis->errType === SWOOLE_REDIS_ERR_EOF);
 
     $redis->close();

@@ -12,7 +12,7 @@ go(function () {
     assert($sock->listen(512));
     $conn = $sock->accept();
     assert($conn);
-    assert($conn instanceof Swoole\Coroutine\Socket);
+    Assert::isInstanceOf($conn, Swoole\Coroutine\Socket::class);
 
     $data = $conn->recv();
     $json = json_decode($data, true);

@@ -11,8 +11,8 @@ go(function () {
     echo "connect [1]\n";
     $redis->connect('192.0.0.1', 6379);
     echo "close [1]\n";
-    assert($redis->connected === false);
-    assert($redis->close() === false);
+    Assert::false($redis->connected);
+    Assert::false($redis->close());
 });
 
 swoole_event::wait();

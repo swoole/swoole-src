@@ -20,7 +20,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
             'Accept' => '*/*'
         ]);
         $ret = $cli->get('/');
-        assert($ret == true);
+        Assert::true($ret);
         assert($cli->statusCode == 200);
         assert(strlen($cli->body) > 1024 * 5);
         $pm->kill();

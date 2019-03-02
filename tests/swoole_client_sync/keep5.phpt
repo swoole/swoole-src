@@ -13,12 +13,12 @@ $pm->parentFunc = function () use ($pm) {
     $client1 = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_KEEP | SWOOLE_SYNC);
     $client1->id="id";
     $r = @$client1->connect(TCP_SERVER_HOST, $pm->getFreePort(), 0.5);
-    assert($r === true);
+    Assert::true($r);
 
     $client2 = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_KEEP | SWOOLE_SYNC);
     $client2->id="id";
     $r = @$client2->connect(TCP_SERVER_HOST, $pm->getFreePort(), 0.5);
-    assert($r === true);
+    Assert::true($r);
 
     assert($client1->sock != $client2->sock);
 

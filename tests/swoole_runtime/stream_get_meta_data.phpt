@@ -18,9 +18,9 @@ function test($port) {
         $content = fread($fp, 1024);
         assert($content === "");
         $res = stream_get_meta_data($fp);
-        assert($res['eof'] === false);
-        assert($res['blocked'] === true);
-        assert($res['timed_out'] === true);
+        Assert::false($res['eof']);
+        Assert::true($res['blocked']);
+        Assert::true($res['timed_out']);
         fclose($fp);
     }
 }

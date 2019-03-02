@@ -7,7 +7,7 @@ swoole_process: ctor
 require __DIR__ . '/../include/bootstrap.php';
 
 $proc = new \swoole_process(function() {
-    assert(false);
+    Assert::true(false, 'never here');
 });
 unset($proc);
 echo "SUCCESS";

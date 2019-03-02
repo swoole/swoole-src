@@ -53,7 +53,7 @@ for ($i = 1000; $i--;) {
     if ($opcode === WEBSOCKET_OPCODE_CLOSE) {
         assert($unpacked->code === $code);
         assert($unpacked->reason === $data);
-        assert($unpacked->finish === true);
+        Assert::true($unpacked->finish);
     } else {
         assert($unpacked->data === $data);
         assert($unpacked->opcode === $opcode);

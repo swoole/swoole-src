@@ -24,8 +24,8 @@ go(function () use ($sock, $port) {
         $val = $redis->psubscribe(['test.*']);
         assert($val);
         $val = $redis->recv();
-        assert($val === false);
-        assert($redis->connected === false);
+        Assert::false($val);
+        Assert::false($redis->connected);
         assert(in_array($redis->errType, [SWOOLE_REDIS_ERR_IO, SWOOLE_REDIS_ERR_EOF], true));
         if ($redis->errType === SWOOLE_REDIS_ERR_IO) {
             assert($redis->errCode === SOCKET_ECONNRESET);
