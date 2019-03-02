@@ -20,7 +20,7 @@ $proc = new \swoole_process(function($childProc) {
 
 $pid = $proc->start();
 $count = trim(`ps aux|grep $name|grep -v grep|wc -l`);
-assert($count == 1);
+Assert::eq($count, 1);
 \swoole_process::kill($pid, SIGKILL);
 
 \swoole_process::wait(true);

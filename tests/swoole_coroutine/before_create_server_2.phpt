@@ -12,7 +12,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
     assert(!empty($data));
-    assert($data == SECRET);
+    Assert::eq($data, SECRET);
     $pm->kill();
 };
 

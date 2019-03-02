@@ -10,7 +10,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
 {
     $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
-    assert(md5_file(__DIR__ . '/../../README.md') == md5($data));
+    Assert::eq(md5_file(__DIR__ . '/../../README.md'), md5($data));
     swoole_process::kill($pid);
 };
 

@@ -34,8 +34,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $bytes += strlen($r);
         $data .= $r;
     }
-    assert($bytes == $N);
-    assert(md5_file(TEST_IMAGE) == md5($data));
+    Assert::eq($bytes, $N);
+    Assert::eq(md5_file(TEST_IMAGE), md5($data));
     $pm->kill();
 };
 

@@ -26,8 +26,8 @@ go(function () {
     if (!assert(is_array($ret = $stmt->fetch()) && !empty($ret))) {
         echo "FETCH2 ERROR#{$stmt->errno}: {$stmt->error}\n";
     }
-    assert($stmt->fetch() === null);
-    assert($stmt->fetchAll() === null);
+    Assert::eq($stmt->fetch(), null);
+    Assert::eq($stmt->fetchAll(), null);
 });
 ?>
 --EXPECT--

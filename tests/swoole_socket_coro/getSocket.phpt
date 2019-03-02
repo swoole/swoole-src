@@ -9,7 +9,7 @@ Swoole\Runtime::enableCoroutine();
 go(function () {
     $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, 0);
     var_dump($socket->getSocket());
-    assert($socket->getSocket() === $socket->getSocket());
+    Assert::eq($socket->getSocket(), $socket->getSocket());
 });
 ?>
 --EXPECTF--

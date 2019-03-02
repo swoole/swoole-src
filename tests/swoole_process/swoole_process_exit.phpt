@@ -12,7 +12,7 @@ $proc = new \swoole_process(function(\swoole_process $proc) {
 $pid = $proc->start();
 
 $i = \swoole_process::wait(true);
-assert($i["code"] === 9);
+Assert::eq($i["code"], 9);
 
 echo "SUCCESS";
 ?>

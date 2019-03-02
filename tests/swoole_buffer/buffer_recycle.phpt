@@ -14,12 +14,12 @@ $data_len = strlen($data);
 
 #写入数据
 $write_len = $buffer->write(0, $data);
-assert($data_len === $write_len);
+Assert::eq($data_len, $write_len);
 
 //获得数据
 $str = $buffer->substr(0, $data_len, true);
 $buffer->recycle();
-assert($buffer->length == 0);
+Assert::eq($buffer->length, 0);
 
 echo "SUCCESS";
 

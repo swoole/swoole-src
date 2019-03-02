@@ -33,8 +33,8 @@ $pm->parentFunc = function (int $pid) use ($pm, $data_list) {
                 $frame = $cli->recv();
                 list($id, $opcode) = explode('|', $frame->data, 3);
                 assert($frame->finish);
-                assert($frame->opcode === (int)$opcode);
-                assert($frame->data === $cli_data_list[$id]);
+                Assert::eq($frame->opcode, (int)$opcode);
+                Assert::eq($frame->data, $cli_data_list[$id]);
                 unset($cli_data_list[$id]);
                 if (empty($cli_data_list)) {
                     break;

@@ -33,10 +33,10 @@ $pm->parentFunc = function () use ($pm) {
     /**@var $counter Swoole\Atomic[] */
     $total = $counter['worker']->get() - $worker_num;
     $expect = $random * $worker_num;
-    assert($total === $expect, "[worker reload {$total} but expect {$expect}]");
+    Assert::eq($total, $expect, "[worker reload {$total} but expect {$expect}]");
 
     // $total = $counter['task_worker']->get() - 1;
-    // assert($total === $random * 2, "[task worker reload {$total} but expect {$random}]");
+    // Assert::eq($total, $random * 2, "[task worker reload {$total} but expect {$random}]");
 
     $log = file_get_contents(TEST_LOG_FILE);
     $log = trim(preg_replace('/.+?\s+?NOTICE\s+?.+/', '', $log));

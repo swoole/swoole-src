@@ -15,7 +15,7 @@ $pm->childFunc = function () use ($pm) {
         echo "process start\n";
         for ($i = 0; $i < 1024; $i++) {
             $data = $process->read();
-            assert(strlen($data) == 8192);
+            Assert::eq(strlen($data), 8192);
         }
         echo "process end\n";
     });

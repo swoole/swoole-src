@@ -15,7 +15,7 @@ for ($i = MAX_LOOPS; $i--;) {
 }
 $i = MAX_LOOPS;
 while (!$queue->isEmpty()) {
-    assert((--$i) === $queue->dequeue());
+    Assert::eq((--$i), $queue->dequeue());
 }
 $time['splQueue'] = microtime(true) - $time['splQueue'];
 
@@ -28,7 +28,7 @@ go(function () use (&$time) {
     }
     $i = MAX_LOOPS;
     while (!$chan->isEmpty()) {
-        assert((--$i) === $chan->pop());
+        Assert::eq((--$i), $chan->pop());
     }
     $time['channel_raw'] = microtime(true) - $time['channel_raw'];
 });
@@ -46,7 +46,7 @@ go(function () use (&$time, $chan) {
 go(function () use (&$time, $chan) {
     $i = MAX_LOOPS;
     while (($ret = $chan->pop()) !== false) {
-        assert((--$i) === $ret);
+        Assert::eq((--$i), $ret);
     }
     $time['channel_scheduler'] = microtime(true) - $time['channel_scheduler'];
     $chan->close();

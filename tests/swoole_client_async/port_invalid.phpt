@@ -25,7 +25,7 @@ $cli->on("close", function (swoole_client $cli) {
 });
 
 Assert::false(@$cli->connect("www.baidu.com", null, 2.0));
-assert(swoole_last_error() == SWOOLE_ERROR_INVALID_PARAMS);
+Assert::eq(swoole_last_error(), SWOOLE_ERROR_INVALID_PARAMS);
 
 swoole_event::wait();
 ?>

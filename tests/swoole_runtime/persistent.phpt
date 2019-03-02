@@ -22,7 +22,7 @@ $timer_id = Swoole\Timer::tick(1000 / MAX_CONCURRENCY_MID, function () use (&$ma
     $redis = new Redis();
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
     assert($redis->set('foo', 'bar'));
-    assert($redis->get('foo') === 'bar');
+    Assert::eq($redis->get('foo'), 'bar');
     $map[] = $redis;
 });
 
@@ -33,12 +33,12 @@ go(function () use ($timer_id, &$map) {
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
     $info = (array)$redis->info('clients');
     phpt_var_dump($info);
-    assert($info['connected_clients'] === count($map) + 1, var_dump_return($info));
+    Assert::eq($info['connected_clients'], count($map) + 1, var_dump_return($info));
     $map = []; // destruct
     usleep(100);
     $info = (array)$redis->info('clients');
     phpt_var_dump($info);
-    assert($info['connected_clients'] === 1, var_dump_return($info));
+    Assert::eq($info['connected_clients'], 1, var_dump_return($info));
     echo "DONE\n";
 });
 

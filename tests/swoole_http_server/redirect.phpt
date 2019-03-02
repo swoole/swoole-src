@@ -10,7 +10,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
     assert(!empty($data));
-    assert(md5($data) === md5_file(TEST_IMAGE));
+    Assert::eq(md5($data), md5_file(TEST_IMAGE));
     $pm->kill();
 };
 

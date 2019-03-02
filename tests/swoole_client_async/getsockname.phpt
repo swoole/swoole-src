@@ -19,7 +19,7 @@ $cli->on("connect", function(swoole_client $cli) {
 
     $i = $cli->getsockname();
     assert($i !== false);
-    assert($i["host"] === '127.0.0.1');
+    Assert::eq($i["host"], '127.0.0.1');
 
     $cli->close();
 });

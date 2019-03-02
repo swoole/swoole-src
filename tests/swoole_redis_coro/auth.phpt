@@ -19,15 +19,15 @@ go(function () {
     assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
     Assert::false($redis->getAuth());
     assert(!$redis->auth(get_safe_random()));
-    assert($redis->errCode === SOCKET_EINVAL);
+    Assert::eq($redis->errCode, SOCKET_EINVAL);
     Assert::false($redis->getAuth());
     assert($redis->auth(REDIS_SERVER_PWD));
-    assert($redis->getAuth() === REDIS_SERVER_PWD);
+    Assert::eq($redis->getAuth(), REDIS_SERVER_PWD);
     // auth by connect
     $redis = new Swoole\Coroutine\Redis(['password' => REDIS_SERVER_PWD]);
     assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
     assert($redis->set('foo', $random = get_safe_random()));
-    assert($redis->get('foo') === $random);
+    Assert::eq($redis->get('foo'), $random);
     // auth failed when connect
     $redis = new Swoole\Coroutine\Redis(['password' =>  get_safe_random()]);
     assert(!$redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));

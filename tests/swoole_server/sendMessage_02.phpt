@@ -31,7 +31,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $list[] = intval($data);
     }
     sort($list);
-    assert($list == range(0, 6));
+    Assert::eq($list, range(0, 6));
     $pm->kill();
 };
 

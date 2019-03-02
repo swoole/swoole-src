@@ -15,8 +15,8 @@ go(function () {
     assert($ret);
 
     $ret = $redis->recv();
-    assert($ret[0] == 'psubscribe');
-    assert($ret[1] == 'channel1');
+    Assert::eq($ret[0], 'psubscribe');
+    Assert::eq($ret[1], 'channel1');
 
     $ret = $redis->getDefer();
     assert(!$ret);
@@ -31,8 +31,8 @@ go(function () {
     assert($ret);
 
     $ret = $redis->recv();
-    assert($ret[0] == 'punsubscribe');
-    assert($ret[1] == 'channel1');
+    Assert::eq($ret[0], 'punsubscribe');
+    Assert::eq($ret[1], 'channel1');
 
     $ret = $redis->getDefer();
     assert(!$ret);

@@ -23,7 +23,7 @@ $pm->parentFunc = function () use ($pm) {
         $redis->setOptions(['reconnect' => false]);
         for ($n = MAX_REQUESTS; $n--;) {
             $ret = $redis->set('random_val', $random = get_safe_random(128));
-            assert($n === MAX_REQUESTS ? $ret : !$ret);
+            Assert::eq($n, MAX_REQUESTS ? $ret : !$ret);
             $ret = $redis->get('random_val');
             assert($n === MAX_REQUESTS ? ($ret && $ret === $random) : !$ret);
         }

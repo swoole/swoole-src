@@ -39,12 +39,12 @@ $pm->parentFunc = function (int $pid) use ($pm) {
                         assert(0, 'never hear.');
                 }
             }
-            assert($loop === PING_LOOP);
+            Assert::eq($loop, PING_LOOP);
         });
     }
     swoole_event_wait();
     global $count;
-    assert($count === PING_LOOP * MAX_CONCURRENCY_MID);
+    Assert::eq($count, PING_LOOP * MAX_CONCURRENCY_MID);
     $pm->kill();
     echo "DONE";
 };
@@ -76,7 +76,7 @@ $pm->childFunc = function () use ($pm) {
     });
     $serv->on('open', function ($server, $req) { });
     $serv->on('message', function ($server, swoole_websocket_frame $frame) {
-        assert($frame->opcode === WEBSOCKET_OPCODE_PONG);
+        Assert::eq($frame->opcode, WEBSOCKET_OPCODE_PONG);
     });
     $serv->on('close', function ($server, $fd) { });
     $serv->start();

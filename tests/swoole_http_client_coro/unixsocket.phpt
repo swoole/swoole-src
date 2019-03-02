@@ -14,7 +14,7 @@ $pm->parentFunc = function () use ($pm) {
             $client = new Swoole\Coroutine\Http\Client('unix:' . str_repeat('/', mt_rand(0, 2)) . UNIXSOCK_PATH);
             for ($n = MAX_REQUESTS; $n--;) {
                 assert($client->get('/'));
-                assert($client->body === 'Hello Swoole!');
+                Assert::eq($client->body, 'Hello Swoole!');
             }
         });
     }

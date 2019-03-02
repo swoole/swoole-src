@@ -14,10 +14,10 @@ go(function () {
     assert($redis->set('foo', $random1 = get_safe_random()));
     $foo = $redis->get('foo');
     assert($foo !== $random0);
-    assert($foo === $random1);
+    Assert::eq($foo, $random1);
     assert($redis->select(0));
     $foo = $redis->get('foo');
-    assert($foo === $random0);
+    Assert::eq($foo, $random0);
     assert($foo !== $random1);
     assert($redis->select(1));
 
@@ -28,7 +28,7 @@ go(function () {
 
     $foo = $redis->get('foo');
     assert($foo !== $random0);
-    assert($foo === $random1);
+    Assert::eq($foo, $random1);
 
     echo "DONE\n";
 });

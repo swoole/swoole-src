@@ -16,8 +16,8 @@ $pm->parentFunc = function () use ($pm) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         for ($n = MAX_REQUESTS; $n--;) {
             assert($cli->get('/'));
-            assert($cli->statusCode === 200);
-            assert($cli->cookies['foo'] === $pm->getRandomData());
+            Assert::eq($cli->statusCode, 200);
+            Assert::eq($cli->cookies['foo'], $pm->getRandomData());
         }
     });
     Swoole\Event::wait();
@@ -30,7 +30,7 @@ $pm->childFunc = function () use ($pm) {
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm) {
         static $pre_cookie;
         if ($pre_cookie) {
-            assert($request->cookie['foo'] === $pre_cookie);
+            Assert::eq($request->cookie['foo'], $pre_cookie);
         }
         $response->cookie('foo', $pre_cookie = $pm->getRandomData(), time() + 60 * 30, '/');
         $response->end();

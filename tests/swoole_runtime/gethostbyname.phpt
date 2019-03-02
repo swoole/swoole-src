@@ -10,7 +10,7 @@ $ip1 = gethostbyname($host);
 Swoole\Runtime::enableCoroutine();
 go(function () use($ip1, $host) {
     $ip2 = gethostbyname($host);
-    assert($ip1 == $ip2);
+    Assert::eq($ip1, $ip2);
 });
 ?>
 --EXPECTF--

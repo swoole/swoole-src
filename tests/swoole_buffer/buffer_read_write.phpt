@@ -14,7 +14,7 @@ $data_len = strlen($data);
 
 #write to swoole_buffer
 $write_len = $buffer->write(0, $data);
-assert($data_len === $write_len);
+Assert::eq($data_len, $write_len);
 
 #read some byte
 $read_str = $buffer->read(0, $data_len);

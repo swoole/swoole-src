@@ -19,8 +19,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $s = microtime(true) - $s;
         phpt_var_dump($s, $cli);
         if (assert(!$ret)) {
-            assert($cli->errCode === SOCKET_ETIMEDOUT);
-            assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
+            Assert::eq($cli->errCode, SOCKET_ETIMEDOUT);
+            Assert::eq($cli->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
             assert(time_approximate(1, $s));
         }
         $cli->close();

@@ -17,7 +17,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             $ret = $cli->push("hello");
             assert($ret);
             $frame = $cli->recv();
-            assert($frame->data == "Swoole: hello");
+            Assert::eq($frame->data, "Swoole: hello");
         }
         $pm->kill();
     });

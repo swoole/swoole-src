@@ -9,7 +9,7 @@ require __DIR__ . '/../include/bootstrap.php';
 $macs = swoole_get_local_mac();
 assert(is_array($macs));
 foreach ($macs as $mac) {
-    assert(filter_var($mac, FILTER_VALIDATE_MAC) === $mac);
+    Assert::eq(filter_var($mac, FILTER_VALIDATE_MAC), $mac);
 }
 
 ?>

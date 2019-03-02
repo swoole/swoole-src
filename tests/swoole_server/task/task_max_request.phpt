@@ -61,8 +61,8 @@ $process = new Swoole\Process(function() {
 $process->start();
 
 Swoole\Process::wait();
-assert($counter1->get() == 4000);
-assert($counter2->get() == 4000);
+Assert::eq($counter1->get(), 4000);
+Assert::eq($counter2->get(), 4000);
 assert($counter3->get() > 15);
 echo "DONE\n";
 ?>

@@ -31,7 +31,7 @@ go(function () {
     foreach ($response->set_cookie_headers as $set_cookie_header) {
         $cookie = explode(';', $set_cookie_header, 2)[0];
         list($key, $value) = explode('=', $cookie, 2);
-        assert($response->cookies[$key] === $value);
+        Assert::eq($response->cookies[$key], $value);
     }
 });
 ?>

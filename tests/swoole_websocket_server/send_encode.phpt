@@ -27,8 +27,8 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count, $data_list) {
                 /**@var $frame swoole_websocket_frame */
                 list($id, $opcode) = explode('|', $frame->data, 3);
                 assert($frame->finish);
-                assert($frame->opcode === (int)$opcode);
-                assert($frame->data === $data_list[$id]);
+                Assert::eq($frame->opcode, (int)$opcode);
+                Assert::eq($frame->data, $data_list[$id]);
                 if (assert(isset($data_list[$id]))) {
                     unset($data_list[$id]);
                 }
@@ -42,7 +42,7 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count, $data_list) {
         });
     }
     swoole_event_wait();
-    assert($count === 0);
+    Assert::eq($count, 0);
     echo "complete\n";
     $pm->kill();
 };

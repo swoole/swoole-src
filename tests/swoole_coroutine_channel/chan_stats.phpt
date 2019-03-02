@@ -13,13 +13,13 @@ go(function () use ($chan) {
     $chan->push(2);
     $chan->push("hello world");
     $chan->push([1, 3, 4, 4, 6]);
-    assert($chan->stats()['queue_num'] == 4);
+    Assert::eq($chan->stats()['queue_num'], 4);
 
     $chan->pop();
     $chan->pop();
     $chan->pop();
     $chan->pop();
-    assert($chan->stats()['queue_num'] == 0);
+    Assert::eq($chan->stats()['queue_num'], 0);
 });
 
 swoole_event::wait();

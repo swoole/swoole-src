@@ -19,7 +19,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             $ret = $cli->push($ping);
             assert($ret);
             $pong = $cli->recv();
-            assert($pong->opcode == WEBSOCKET_OPCODE_PONG);
+            Assert::eq($pong->opcode, WEBSOCKET_OPCODE_PONG);
         }
         $pm->kill();
     });

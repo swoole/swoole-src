@@ -11,7 +11,7 @@ $pm->parentFunc = function () use ($pm) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cookie = '123_,; abc';
         assert($cli->get('/?cookie=' . urlencode($cookie)));
-        assert($cli->statusCode === 200);
+        Assert::eq($cli->statusCode, 200);
         assert($cli->set_cookie_headers ===
             [
                 'cookie1' => 'cookie1=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT',

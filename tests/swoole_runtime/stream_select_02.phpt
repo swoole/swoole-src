@@ -16,7 +16,7 @@ go(function () {
         $w_array = $e_array = null;
         $s = microtime(true);
         $n = stream_select($r_array, $w_array, $e_array, 1);
-        assert($n == 0);
+        Assert::eq($n, 0);
         assert(microtime(true) - $s > 0.99);
     }
 });

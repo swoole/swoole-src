@@ -13,7 +13,7 @@ go(function(){
             'password' => MYSQL_SERVER_PWD,
             'database' => MYSQL_SERVER_DB
         ]);
-        assert($mysql->escape("") === "");
+        Assert::eq($mysql->escape(""), "");
 });
 ?>
 --EXPECT--

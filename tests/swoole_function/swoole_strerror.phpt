@@ -20,9 +20,9 @@ echo swoole_strerror(SWOOLE_ERROR_FILE_NOT_EXIST) . "\n";
 if (!is_alpine_linux()) {
     $unknown = swoole_strerror(SWOOLE_ERROR_MALLOC_FAIL - 1);
     $sw_unknown = swoole_strerror(SWOOLE_ERROR_MALLOC_FAIL - 1, SWOOLE_STRERROR_SWOOLE);
-    assert($unknown === $sw_unknown);
+    Assert::eq($unknown, $sw_unknown);
 } else {
-    assert(swoole_strerror(SWOOLE_ERROR_MALLOC_FAIL - 1) === 'No error information');
+    Assert::eq(swoole_strerror(SWOOLE_ERROR_MALLOC_FAIL - 1), 'No error information');
 }
 ?>
 --EXPECT--

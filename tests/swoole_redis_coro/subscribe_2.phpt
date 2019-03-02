@@ -27,7 +27,7 @@ go(function () {
         });
 
         $val = $redis->recv();
-        assert($val and $val[0] == 'message' and $val[1] == $channel and $val[2] == 'test' . $channel);
+        Assert::eq($val and $val[0], 'message' and $val[1] == $channel and $val[2] == 'test' . $channel);
     }
 
     $redis->close();

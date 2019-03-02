@@ -11,8 +11,8 @@ $serv->on("shutdown", function ($server) { });
 Assert::isInstanceOf($serv->getCallback("start"), Closure::class);
 assert(is_callable($serv->getCallback("start")));
 $cb = $serv->getCallback("start");
-assert($cb === $serv->getCallback("start"));
-assert($serv->getCallback("Receive") === null);
+Assert::eq($cb, $serv->getCallback("start"));
+Assert::eq($serv->getCallback("Receive"), null);
 echo "DONE\n"
 ?>
 --EXPECT--

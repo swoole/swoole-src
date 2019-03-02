@@ -14,10 +14,10 @@ go(function () {
     ]);
     $cli->setHeaders(['Host' => $host]);
     $cli->get('/');
-    assert($cli->statusCode === 200);
+    Assert::eq($cli->statusCode, 200);
 
     Assert::true($cli->get('/contract.shtml'));
-    assert($cli->statusCode === 200);
+    Assert::eq($cli->statusCode, 200);
 
     // failed clear
     $cli->set([

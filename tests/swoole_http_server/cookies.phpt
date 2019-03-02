@@ -60,7 +60,7 @@ $pm->parentFunc = function ($pid) use ($pm, $cookies) {
     list(, $_respCookieStr) = explode("\r\n\r\n", $data);
 
     $respCookie = json_decode($_respCookieStr, true);
-    assert($respCookie == $cookies);
+    Assert::eq($respCookie, $cookies);
 
     swoole_process::kill($pid);
 };

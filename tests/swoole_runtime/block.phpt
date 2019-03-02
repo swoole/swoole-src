@@ -22,7 +22,7 @@ for ($i = 5; $i--;) {
     $pdo = $pdo_map[$i];
     go(function () use ($pdo) {
         $pdo->exec("SELECT sleep(0.1)");
-        assert($pdo->errorCode() === PDO::ERR_NONE);
+        Assert::eq($pdo->errorCode(), PDO::ERR_NONE);
     });
 }
 swoole_event_wait();

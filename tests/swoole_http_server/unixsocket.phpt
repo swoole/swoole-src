@@ -17,7 +17,7 @@ $pm->parentFunc = function () use ($pm) {
                 $client->send("GET / HTTP/1.1\r\n\r\n");
                 list($headers, $body) = explode("\r\n\r\n", @$client->recv());
                 assert(count(explode("\n", $headers)) >= 5);
-                assert($body === 'Hello Swoole!');
+                Assert::eq($body, 'Hello Swoole!');
             }
         });
     }

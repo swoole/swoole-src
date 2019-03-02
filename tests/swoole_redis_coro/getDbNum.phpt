@@ -11,28 +11,28 @@ go(function () {
     Assert::false($redis->getDBNum());
     assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
     // connected but not selected
-    assert($redis->getDBNum() === 0);
+    Assert::eq($redis->getDBNum(), 0);
     // select and success
     Assert::true($redis->select(1));
-    assert($redis->getDBNum() === 1);
+    Assert::eq($redis->getDBNum(), 1);
     // select but failed
     Assert::false($redis->select(-1));
-    assert($redis->errCode === SOCKET_EINVAL);
+    Assert::eq($redis->errCode, SOCKET_EINVAL);
     Assert::false($redis->select(1001));
-    assert($redis->errCode === SOCKET_EINVAL);
-    assert($redis->getDBNum() === 1);
+    Assert::eq($redis->errCode, SOCKET_EINVAL);
+    Assert::eq($redis->getDBNum(), 1);
 
     $redis = new Swoole\Coroutine\Redis(['database' => 1]);
     // connected but not selected
     Assert::false($redis->getDBNum());
     assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
     // connected but not selected
-    assert($redis->getDBNum() === 1);
+    Assert::eq($redis->getDBNum(), 1);
     // set database but failed
     $redis = new Swoole\Coroutine\Redis(['database' => 1001]);
     Assert::false($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
     Assert::false($redis->getDBNum());
-    assert($redis->errCode === SOCKET_EINVAL);
+    Assert::eq($redis->errCode, SOCKET_EINVAL);
     echo "DONE\n";
 });
 ?>

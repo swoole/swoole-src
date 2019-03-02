@@ -30,7 +30,7 @@ $pm->parentFunc = function () use ($pm) {
         $data = $client->recv();
         $client->close();
         if (assert(!empty($data))) {
-            assert((int)explode("\r\n\r\n", $data)[1] === $len);
+            Assert::eq((int)explode("\r\n\r\n", $data)[1], $len);
         }
         $pm->kill();
         echo "DONE\n";

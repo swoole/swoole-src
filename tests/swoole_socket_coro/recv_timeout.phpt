@@ -16,7 +16,7 @@ $pm->parentFunc = function ($pid) use ($pm, $port)
         $conn->send(json_encode(['data' => 'hello']));
         $ret = $conn->recv(1024, 0.2);
         Assert::false($ret);
-        assert($conn->errCode == SOCKET_ETIMEDOUT);
+        Assert::eq($conn->errCode, SOCKET_ETIMEDOUT);
     });
     swoole_event_wait();
     $pm->kill();
