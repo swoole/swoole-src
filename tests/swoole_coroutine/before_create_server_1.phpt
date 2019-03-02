@@ -1,7 +1,11 @@
 --TEST--
 swoole_coroutine: http redirect
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_deprecated();
+// not support fork in coroutine
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

@@ -81,8 +81,8 @@ array(1) {
   ["exit"]=>
   string(2) "ok"
 }
-object(stdClass)#1 (1) {
+object(stdClass)#%d (%d) {
   ["exit"]=>
   string(2) "ok"
 }
-resource(1) of type (stream)
+resource(%d) of type (stream)

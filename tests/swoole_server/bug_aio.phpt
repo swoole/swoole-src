@@ -9,7 +9,7 @@ define('__FILE_CONTENTS__', file_get_contents(__FILE__));
 $pm = new ProcessManager;
 $pm->setWaitTimeout(1);
 $pm->parentFunc = function () use ($pm) {
-    $pm->kill();
+    $pm->kill(true);
     echo "DONE\n";
     exit;
 };

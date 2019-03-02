@@ -51,7 +51,7 @@ array(1) {
     ["args"]=>
     array(1) {
       [0]=>
-      object(Closure)#2 (0) {
+      object(Closure)#%d (%d) {
       }
     }
   }
@@ -69,7 +69,7 @@ array(1) {
     ["args"]=>
     array(1) {
       [0]=>
-      object(Closure)#3 (0) {
+      object(Closure)#%d (%d) {
       }
     }
   }
@@ -87,7 +87,7 @@ array(1) {
     ["args"]=>
     array(1) {
       [0]=>
-      object(Closure)#6 (1) {
+      object(Closure)#%d (%d) {
         ["static"]=>
         array(1) {
           ["main"]=>
@@ -131,7 +131,7 @@ array(1) {
     ["args"]=>
     array(1) {
       [0]=>
-      object(Closure)#10 (1) {
+      object(Closure)#%d (%d) {
         ["static"]=>
         array(1) {
           ["main"]=>

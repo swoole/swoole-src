@@ -26,12 +26,10 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-object(Swoole\Http\Request)#%d (10) {
+object(Swoole\Http\Request)#%d (%d) {
   ["fd"]=>
   int(1)
-  ["streamId"]=>
-  int(0)
-  ["header"]=>
+  %s"header"]=>
   array(3) {
     ["host"]=>
     string(15) "%s"
@@ -76,7 +74,7 @@ object(Swoole\Http\Request)#%d (10) {
   ["tmpfiles"]=>
   NULL
 }
-object(Swoole\Http\Response)#%d (4) {
+object(Swoole\Http\Response)#%d (%d) {
   ["fd"]=>
   int(1)
   ["header"]=>

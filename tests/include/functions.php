@@ -791,18 +791,16 @@ class ProcessManager
     /**
      *  Kill Child Process
      */
-    public function kill()
+    public function kill(bool $force = false)
     {
         if (!defined('PCNTL_ESRCH')) {
             define('PCNTL_ESRCH', 3);
         }
         if (!$this->alone && $this->childPid) {
-            $ret = @Swoole\Process::kill($this->childPid);
-            if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
-                $ret = @Swoole\Process::kill($this->childPid, SIGKILL);
-            }
-            if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
-                exit('KILL CHILD PROCESS ERROR');
+            if ($force || (!@Swoole\Process::kill($this->childPid) && swoole_errno() !== PCNTL_ESRCH)) {
+                if (!@Swoole\Process::kill($this->childPid, SIGKILL) && swoole_errno() !== PCNTL_ESRCH) {
+                    exit('KILL CHILD PROCESS ERROR');
+                }
             }
         }
     }
