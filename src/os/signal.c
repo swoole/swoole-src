@@ -321,7 +321,7 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
     {
         int fd;
     } *reactor_obj = reactor->object;
-    int new_event_num;
+    uint32_t new_event_num;
     // clear signal
     if (handler == NULL)
     {
@@ -355,7 +355,7 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
     {
         if (unlikely(handler))
         {
-            swWarn("kevent set signal[%d] error", signo);
+            swWarn("kevent set signal[%d] error, errno=%d", signo, errno);
         }
         return;
     }
