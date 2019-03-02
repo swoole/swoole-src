@@ -342,7 +342,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
-    if test "$PHP_HTTP2" = "yes"; then
+    if test "$PHP_HTTP2" = "yes" || test "$PHP_NGHTTP2_DIR" != "no"; then
         AC_DEFINE(SW_USE_HTTP2, 1, [enable HTTP2 support])
     fi
 
