@@ -17,6 +17,8 @@
  +----------------------------------------------------------------------+
  */
 
+require_once __DIR__ . '/config.php';
+
 function switch_process()
 {
     usleep((USE_VALGRIND ? 100 : 1) * 1000);

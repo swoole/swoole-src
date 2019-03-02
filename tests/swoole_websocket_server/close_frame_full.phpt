@@ -5,7 +5,6 @@ swoole_websocket_server: websocket server send and recv close frame full test
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/../include/lib/class.websocket_client.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
     for ($c = MAX_CONCURRENCY_LOW; $c--;) {
