@@ -281,7 +281,10 @@ static int swServer_start_check(swServer *serv)
     }
 #endif
     // check aio threads
-    swAio_free();
+    if (SwooleAIO.init)
+    {
+        swError("can not create server after using async file operation");
+    }
 
     return SW_OK;
 }
