@@ -254,6 +254,7 @@ void PHPCoroutine::create_func(void *arg)
     task->co->set_task((void *) task);
     task->defer_tasks = nullptr;
     task->pcid = task->co->get_origin_cid();
+    task->context = nullptr;
 
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
@@ -306,11 +307,15 @@ void PHPCoroutine::create_func(void *arg)
         task->defer_tasks = nullptr;
     }
 
+    // resources release
     zval_ptr_dtor(retval);
-
     if (fci_cache.object)
     {
         OBJ_RELEASE(fci_cache.object);
+    }
+    if (task->context)
+    {
+        OBJ_RELEASE(task->context);
     }
 
     if (UNEXPECTED(EG(exception)))
