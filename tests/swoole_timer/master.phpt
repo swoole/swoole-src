@@ -5,68 +5,56 @@ swoole_timer: timer in master
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$pm = new ProcessManager;
-const RES_FILE = __DIR__.'/result.txt';
+const RES_FILE = __DIR__ . '/result.txt';
 file_put_contents(RES_FILE, "");
+register_shutdown_function(function () {
+    @unlink(RES_FILE);
+});
 
-//设置等待10秒
+$pm = new ProcessManager;
 $pm->setWaitTimeout(-1);
-
-$pm->parentFunc = function ($pid) use ($pm)
-{
+$pm->parentFunc = function ($pid) use ($pm) {
     $fp = fopen(RES_FILE, "rw");
-    while(!feof($fp)) {
+    while (!feof($fp)) {
         $line = fgets($fp);
         if ($line) {
             echo $line;
         }
     }
-    unlink(RES_FILE);
+    if (IS_MAC_OS) {
+        $pm->kill();
+    }
 };
-
-$pm->childFunc = function () use ($pm)
-{
-    ini_set('swoole.display_errors', 'Off');
-    $serv = new swoole_server("0.0.0.0", $pm->getFreePort());
-
-    $serv->set(array(
+$pm->childFunc = function () use ($pm) {
+    $server = new Swoole\Server("0.0.0.0", $pm->getFreePort());
+    $server->set([
         'worker_num' => 1,
         'log_file' => '/dev/null',
-    ));
-
-    $serv->on('start', function ($serv) use ($pm) {
-
+    ]);
+    $server->on('start', function (Swoole\Server $server) use ($pm) {
         file_put_contents(RES_FILE, "start\n", FILE_APPEND);
-
-        $id = swoole_timer_tick(300, function () {
+        $id = Swoole\Timer::tick(30, function () {
             file_put_contents(RES_FILE, "timer 1\n", FILE_APPEND);
         });
-
-        swoole_timer_after(900, function () use ($id, $serv, $pm) {
+        Swoole\Timer::after(90, function () use ($id, $server, $pm) {
             file_put_contents(RES_FILE, "timer 2\n", FILE_APPEND);
-            swoole_timer_clear($id);
-
-            swoole_timer_tick(200, function ($id) use ($serv, $pm) {
+            Swoole\Timer::clear($id);
+            Swoole\Timer::tick(10, function ($id) use ($server, $pm) {
                 static $i = 0;
                 file_put_contents(RES_FILE, "timer 3\n", FILE_APPEND);
-                $i ++;
+                $i++;
                 if ($i > 4) {
                     file_put_contents(RES_FILE, "end\n", FILE_APPEND);
-                    swoole_timer_clear($id);
+                    Swoole\Timer::clear($id);
                     $pm->wakeup();
-                    $serv->shutdown();
+                    $server->shutdown();
                 }
             });
         });
     });
-
-    $serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
-
-    });
-
-    $serv->start();
+    $server->on('receive', function () { });
+    $server->start();
 };
-
 $pm->childFirst();
 $pm->run();
 ?>
