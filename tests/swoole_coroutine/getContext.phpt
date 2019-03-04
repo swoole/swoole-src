@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: c_stack_size
+swoole_coroutine: getContext
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -16,10 +16,10 @@ function func(callable $fn, ...$args)
 
 /**
  * Compatibility for lower version
- * @param object $object
+ * @param object|Resource $object
  * @return int
  */
-function php_object_id(object $object)
+function php_object_id($object)
 {
     static $id = 0;
     static $map = [];
