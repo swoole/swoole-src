@@ -17,7 +17,6 @@
 #include "server.h"
 #include "http.h"
 #include "connection.h"
-#include "async.h"
 
 static int swServer_start_check(swServer *serv);
 static void swServer_signal_handler(int sig);
@@ -280,11 +279,6 @@ static int swServer_start_check(swServer *serv)
         swSSL_init_thread_safety();
     }
 #endif
-    // check aio threads
-    if (SwooleAIO.init)
-    {
-        swError("can not create server after using async file operation");
-    }
 
     return SW_OK;
 }

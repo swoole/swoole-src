@@ -21,8 +21,10 @@
 #include "socket.h"
 #include "coroutine_c_api.h"
 #include "async.h"
+
 #include "zend_builtin_functions.h"
 #include "ext/standard/file.h"
+#include "ext/spl/spl_array.h"
 
 #include <sys/file.h>
 #include <sys/statvfs.h>
@@ -65,6 +67,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_resume, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_exists, 0, 0, 1)
+    ZEND_ARG_INFO(0, cid)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getContext, 0, 0, 0)
     ZEND_ARG_INFO(0, cid)
 ZEND_END_ARG_INFO()
 
@@ -136,6 +142,7 @@ static PHP_METHOD(swoole_coroutine_util, resume);
 static PHP_METHOD(swoole_coroutine_util, stats);
 static PHP_METHOD(swoole_coroutine_util, getCid);
 static PHP_METHOD(swoole_coroutine_util, getPcid);
+static PHP_METHOD(swoole_coroutine_util, getContext);
 static PHP_METHOD(swoole_coroutine_util, list);
 static PHP_METHOD(swoole_coroutine_util, sleep);
 static PHP_METHOD(swoole_coroutine_util, fread);
@@ -168,6 +175,9 @@ static zend_class_entry swoole_coroutine_iterator_ce;
 static zend_class_entry *swoole_coroutine_iterator_ce_ptr;
 static zend_object_handlers swoole_coroutine_iterator_handlers;
 
+static zend_class_entry swoole_coroutine_context_ce;
+static zend_class_entry *swoole_coroutine_context_ce_ptr;
+
 static zend_class_entry swoole_exit_exception_ce;
 static zend_class_entry *swoole_exit_exception_ce_ptr;
 static zend_object_handlers swoole_exit_exception_handlers;
@@ -191,6 +201,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_ME(swoole_coroutine_util, getCid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine_util, getuid, getCid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getPcid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, getContext, arginfo_swoole_coroutine_getContext, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, sleep, arginfo_swoole_coroutine_sleep, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, fread, arginfo_swoole_coroutine_fread, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, fgets, arginfo_swoole_coroutine_fgets, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -205,7 +216,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_FE_END
 };
 
-static const zend_function_entry iterator_methods[] =
+static const zend_function_entry swoole_coroutine_iterator_methods[] =
 {
     PHP_ME(swoole_coroutine_iterator, rewind,      arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_coroutine_iterator, next,        arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
@@ -214,6 +225,11 @@ static const zend_function_entry iterator_methods[] =
     PHP_ME(swoole_coroutine_iterator, valid,       arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_coroutine_iterator, count,       arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_coroutine_iterator, __destruct,  arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+
+static const zend_function_entry swoole_coroutine_context_methods[] =
+{
     PHP_FE_END
 };
 
@@ -296,12 +312,12 @@ void swoole_coroutine_util_init(int module_number)
 {
     PHPCoroutine::init();
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util, "Swoole\\Coroutine", "swoole_coroutine", "Co", swoole_coroutine_util_methods);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util, "Swoole\\Coroutine", NULL, "Co", swoole_coroutine_util_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_coroutine_util, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_coroutine_util, zend_class_clone_deny);
     SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_util, zend_class_unset_property_deny);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", iterator_methods);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", swoole_coroutine_iterator_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_coroutine_iterator, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_coroutine_iterator, zend_class_clone_deny);
     SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_iterator, zend_class_unset_property_deny);
@@ -309,6 +325,8 @@ void swoole_coroutine_util_init(int module_number)
 #ifdef SW_HAVE_COUNTABLE
     zend_class_implements(swoole_coroutine_iterator_ce_ptr, 1, zend_ce_countable);
 #endif
+
+    SWOOLE_INIT_CLASS_ENTRY_BASE(swoole_coroutine_context, "Swoole\\Coroutine\\Context", NULL, "Co\\Context", swoole_coroutine_context_methods, spl_ce_ArrayObject);
 
     SWOOLE_DEFINE(DEFAULT_MAX_CORO_NUM);
     SWOOLE_DEFINE(MAX_CORO_NUM_LIMIT);
@@ -506,6 +524,29 @@ static PHP_METHOD(swoole_coroutine_util, getCid)
 static PHP_METHOD(swoole_coroutine_util, getPcid)
 {
     RETURN_LONG(PHPCoroutine::get_pcid());
+}
+
+static PHP_METHOD(swoole_coroutine_util, getContext)
+{
+    zend_long cid = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(cid)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    php_coro_task *task = (php_coro_task *) (EXPECTED(cid == 0) ? Coroutine::get_current_task() : Coroutine::get_task_by_cid(cid));
+    if (UNEXPECTED(!task))
+    {
+        RETURN_NULL();
+    }
+    if (UNEXPECTED(!task->context))
+    {
+        object_init_ex(return_value, swoole_coroutine_context_ce_ptr);
+        task->context = Z_OBJ_P(return_value);
+    }
+    GC_ADDREF(task->context);
+    ZVAL_OBJ(return_value, task->context);
 }
 
 int php_coroutine_reactor_can_exit(swReactor *reactor)

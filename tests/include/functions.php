@@ -839,6 +839,9 @@ class ProcessManager
         if (!$childProcess || !$childProcess->start()) {
             exit("ERROR: CAN NOT CREATE PROCESS\n");
         }
+        register_shutdown_function(function () {
+            $this->kill();
+        });
         if (!$this->parentFirst) {
             $this->wait();
         }
