@@ -7,12 +7,8 @@ swoole_server: bug aio
 require __DIR__ . '/../include/bootstrap.php';
 define('__FILE_CONTENTS__', file_get_contents(__FILE__));
 $pm = new ProcessManager;
-$pm->setWaitTimeout(1);
-$pm->parentFunc = function () use ($pm) {
-    $pm->kill();
-    echo "DONE\n";
-    exit;
-};
+$pm->setWaitTimeout(0);
+$pm->parentFunc = function () { };
 $pm->childFunc = function () use ($pm) {
     go(function () {
         assert(Co::readFile(__FILE__) === __FILE_CONTENTS__); // will be discarded
@@ -33,6 +29,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-read file
-read file ok
-DONE
+[%s]	ERROR	can not create server after using async file operation

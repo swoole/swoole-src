@@ -19,7 +19,7 @@
 
 function switch_process()
 {
-    usleep((USE_VALGRIND ? 100 : 1) * 1000);
+    usleep((USE_VALGRIND ? 100 : 10) * 1000);
 }
 
 function clear_php()
@@ -708,7 +708,7 @@ class ProcessManager
     //等待信息
     public function wait()
     {
-        if ($this->alone) {
+        if ($this->alone || $this->waitTimeout == 0) {
             return false;
         }
         return $this->atomic->wait($this->waitTimeout);
