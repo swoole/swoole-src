@@ -165,7 +165,7 @@ int swManager_start(swFactory *factory)
         return SW_ERR;
     }
 
-    pid = fork();
+    pid = swoole_fork();
     switch (pid)
     {
     //fork manager process
