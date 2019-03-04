@@ -3,8 +3,7 @@ swoole_coroutine: http redirect
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_deprecated();
-// not support fork in coroutine
+skip_unsupported();
 ?>
 --FILE--
 <?php
@@ -15,7 +14,7 @@ define('SECRET', RandStr::getBytes(rand(1024, 8192)));
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
-    assert(!empty($data));
+    Assert::notEmpty($data);
     Assert::eq($data, SECRET);
     $pm->kill();
 };

@@ -288,13 +288,19 @@ void PHPCoroutine::create_func(void *arg)
 
     if (task->defer_tasks)
     {
-        std::stack<defer_task *> *tasks = task->defer_tasks;
+        std::stack<php_swoole_fci *> *tasks = task->defer_tasks;
         while (!tasks->empty())
         {
-            defer_task *task = tasks->top();
+            php_swoole_fci *defer_fci = tasks->top();
             tasks->pop();
-            task->callback(task->data);
-            delete task;
+            defer_fci->fci.param_count = 1;
+            defer_fci->fci.params = retval;
+            if (UNEXPECTED(sw_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) == FAILURE))
+            {
+                swoole_php_fatal_error(E_WARNING, "defer callback handler error.");
+            }
+            sw_fci_cache_discard(&defer_fci->fci_cache);
+            efree(defer_fci);
         }
         delete task->defer_tasks;
         task->defer_tasks = nullptr;
@@ -351,14 +357,14 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
     return Coroutine::create(create_func, (void*) &php_coro_args);
 }
 
-void PHPCoroutine::defer(swCallback cb, void *data)
+void PHPCoroutine::defer(php_swoole_fci *fci)
 {
     php_coro_task *task = get_task();
     if (task->defer_tasks == nullptr)
     {
-        task->defer_tasks = new std::stack<defer_task *>;
+        task->defer_tasks = new std::stack<php_swoole_fci *>;
     }
-    task->defer_tasks->push(new defer_task(cb, data));
+    task->defer_tasks->push(fci);
 }
 
 void PHPCoroutine::check()

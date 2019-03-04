@@ -1191,10 +1191,10 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
             proc_terminate($proc, 9);
             return $data;
         } else if ($n > 0) {
-            if ($captureStdOut) {
-                $line = fread($pipes[1], 8192);
-            } elseif ($captureStdErr) {
+            if ($captureStdErr) {
                 $line = fread($pipes[2], 8192);
+            } elseif ($captureStdOut) {
+                $line = fread($pipes[1], 8192);
             } else {
                 $line = '';
             }

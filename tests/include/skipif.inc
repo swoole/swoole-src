@@ -182,6 +182,11 @@ function skip_deprecated()
     skip('it\'s the deprecated', file_exists('/.travisenv'), SWOOLE_COLOR_WHITE);
 }
 
+function skip_unsupported()
+{
+    skip('the test cannot continue to work for some implementation reasons');
+}
+
 (function () {
     global $argv;
     skip_php_version_lower_than('7.0');
