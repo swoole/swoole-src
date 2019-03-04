@@ -1432,22 +1432,6 @@ PHP_FUNCTION(swoole_coroutine_exec)
     swString_free(buffer);
 }
 
-static void coro_onDefer(void *data)
-{
-    php_swoole_fci *defer_fci = (php_swoole_fci *) data;
-    zval retval;
-
-    defer_fci->fci.retval = &retval;
-    if (sw_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) == FAILURE)
-    {
-        swoole_php_fatal_error(E_WARNING, "defer callback handler error.");
-        return;
-    }
-    zval_ptr_dtor(&retval);
-    sw_fci_cache_discard(&defer_fci->fci_cache);
-    efree(defer_fci);
-}
-
 PHP_FUNCTION(swoole_coroutine_defer)
 {
     zend_fcall_info fci = empty_fcall_info;
@@ -1464,5 +1448,5 @@ PHP_FUNCTION(swoole_coroutine_defer)
     defer_fci->fci = fci;
     defer_fci->fci_cache = fci_cache;
     sw_fci_cache_persist(&defer_fci->fci_cache);
-    PHPCoroutine::defer(coro_onDefer, defer_fci);
+    PHPCoroutine::defer(defer_fci);
 }
