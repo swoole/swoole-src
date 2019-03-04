@@ -36,18 +36,6 @@ enum sw_coro_hook_type
     SW_HOOK_ALL = 0x7fffffff,
 };
 
-struct defer_task
-{
-    swCallback callback;
-    void *data;
-
-    defer_task(swCallback _callback, void *_data):
-        callback(_callback), data(_data)
-    {
-
-    }
-};
-
 struct php_coro_task
 {
     JMP_BUF *bailout;
@@ -62,7 +50,7 @@ struct php_coro_task
     zend_output_globals *output_ptr;
     SW_DECLARE_EG_SCOPE(scope);
     swoole::Coroutine *co;
-    std::stack<defer_task *> *defer_tasks;
+    std::stack<php_swoole_fci *> *defer_tasks;
     long pcid;
 };
 
@@ -93,7 +81,7 @@ public:
     static double socket_timeout;
 
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
-    static void defer(swCallback cb, void *data);
+    static void defer(php_swoole_fci *fci);
 
     static void check();
     static void check_bind(const char *name, long bind_cid);

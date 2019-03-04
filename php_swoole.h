@@ -916,13 +916,21 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
 
 static sw_inline int sw_call_function_anyway(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache)
 {
+    zval retval;
     zend_object* exception = EG(exception);
-    ZEND_ASSERT(fci->retval);
     if (exception)
     {
         EG(exception) = NULL;
     }
+    if (!fci->retval)
+    {
+        fci->retval = &retval;
+    }
     int ret = zend_call_function(fci, fci_cache);
+    if (fci->retval == &retval)
+    {
+        zval_ptr_dtor(&retval);
+    }
     if (exception)
     {
         EG(exception) = exception;
