@@ -36,11 +36,11 @@ swChannel* swChannel_new(size_t size, int maxlen, int flags)
         /**
          * overflow space
          */
-        mem = sw_shm_malloc(size + sizeof(swChannel) + maxlen);
+        mem = sw_shm_malloc(size + sizeof(swChannel) + maxlen + sizeof(swChannel_item));
     }
     else
     {
-        mem = sw_malloc(size + sizeof(swChannel) + maxlen);
+        mem = sw_malloc(size + sizeof(swChannel) + maxlen + sizeof(swChannel_item));
     }
 
     if (mem == NULL)
