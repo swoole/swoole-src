@@ -699,7 +699,7 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 
 /* PHP 7 class declaration macros */
 
-#define SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, parent_ce_ptr) \
+#define SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_ce_ptr) \
     INIT_CLASS_ENTRY(module##_ce, namespaceName, methods); \
     module##_ce_ptr = zend_register_internal_class_ex(&module##_ce, parent_ce_ptr); \
     if (snake_name) { \
@@ -710,16 +710,16 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     }
 
 #define SWOOLE_INIT_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
-    SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, NULL); \
+    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, NULL); \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 
 #define SWOOLE_INIT_CLASS_ENTRY_EX(module, namespaceName, snake_name, shortName, methods, parent_module) \
-    SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce_ptr); \
+    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce_ptr); \
     memcpy(&module##_handlers, &parent_module##_handlers, sizeof(zend_object_handlers));
 
 #define SWOOLE_INIT_EXCEPTION_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
     INIT_CLASS_ENTRY(module##_ce, namespaceName, methods); \
-    SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, zend_exception_get_default()); \
+    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, zend_exception_get_default()); \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers)); \
     SWOOLE_SET_CLASS_CLONEABLE(module, zend_class_clone_deny);
 
