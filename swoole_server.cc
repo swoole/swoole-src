@@ -2976,29 +2976,21 @@ static PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
 
-    if (serv->have_dgram_sock && Z_TYPE_P(zfd) == IS_STRING)
+    //UNIX DGRAM SOCKET
+    if (serv->have_dgram_sock && Z_TYPE_P(zfd) == IS_STRING && Z_STRVAL_P(zfd)[0] == '/')
     {
-        if (server_socket == -1)
-        {
-            server_socket = dgram_server_socket;
-        }
-        //UNIX DGRAM SOCKET
-        if (Z_STRVAL_P(zfd)[0] == '/')
-        {
-            struct sockaddr_un addr_un;
-            memcpy(addr_un.sun_path, Z_STRVAL_P(zfd), Z_STRLEN_P(zfd));
-            addr_un.sun_family = AF_UNIX;
-            addr_un.sun_path[Z_STRLEN_P(zfd)] = 0;
-            ret = swSocket_sendto_blocking(server_socket, data, length, 0, (struct sockaddr *) &addr_un, sizeof(addr_un));
-            SW_CHECK_RETURN(ret);
-        }
-        else
-        {
-            goto _convert;
-        }
+        struct sockaddr_un addr_un;
+        memcpy(addr_un.sun_path, Z_STRVAL_P(zfd), Z_STRLEN_P(zfd));
+        addr_un.sun_family = AF_UNIX;
+        addr_un.sun_path[Z_STRLEN_P(zfd)] = 0;
+        ret = swSocket_sendto_blocking(
+            server_socket == -1 ? dgram_server_socket : server_socket,
+            data, length, 0,
+            (struct sockaddr *) &addr_un, sizeof(addr_un)
+        );
+        SW_CHECK_RETURN(ret);
     }
 
-    _convert:
     fd = zval_get_long(zfd);
     if (UNEXPECTED((int) fd <= 0))
     {
