@@ -2942,7 +2942,7 @@ static PHP_METHOD(swoole_server, start)
 static PHP_METHOD(swoole_server, send)
 {
     int ret;
-
+    zend_long fd;
     zval *zfd;
     zval *zdata;
     zend_long server_socket = -1;
@@ -2960,6 +2960,12 @@ static PHP_METHOD(swoole_server, send)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(server_socket)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (UNEXPECTED(ZVAL_IS_NULL(zfd)))
+    {
+        swoole_php_fatal_error(E_WARNING, "fd can not be null.");
+        RETURN_FALSE;
+    }
 
     char *data;
     size_t length = php_swoole_get_send_data(zdata, &data);
@@ -2992,9 +2998,13 @@ static PHP_METHOD(swoole_server, send)
         }
     }
 
-    uint32_t fd;
-    _convert: fd = (uint32_t) zval_get_long(zfd);
-
+    _convert:
+    fd = zval_get_long(zfd);
+    if (UNEXPECTED((int) fd <= 0))
+    {
+        swoole_php_fatal_error(E_WARNING, "invalid fd[" ZEND_LONG_FMT "].", fd);
+        RETURN_FALSE;
+    }
     ret = serv->send(serv, fd, data, length);
     if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
     {
@@ -3005,7 +3015,6 @@ static PHP_METHOD(swoole_server, send)
     {
         SW_CHECK_RETURN(ret);
     }
-
 }
 
 static PHP_METHOD(swoole_server, sendto)
