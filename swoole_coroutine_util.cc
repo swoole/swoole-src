@@ -546,7 +546,7 @@ static PHP_METHOD(swoole_coroutine_util, getContext)
         task->context = Z_OBJ_P(return_value);
     }
     GC_ADDREF(task->context);
-    ZVAL_OBJ(return_value, task->context);
+    RETURN_OBJ(task->context);
 }
 
 int php_coroutine_reactor_can_exit(swReactor *reactor)
