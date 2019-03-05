@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include "atomic.h"
+#include "async.h"
 #include "coroutine_c_api.h"
 
 #include <stdarg.h>
@@ -170,6 +171,11 @@ pid_t swoole_fork()
     if (swoole_coroutine_is_in())
     {
         swError("must be forked outside the coroutine.");
+        return -1;
+    }
+    if (SwooleAIO.init)
+    {
+        swError("can not create server after using async file operation");
         return -1;
     }
     pid_t pid = fork();
