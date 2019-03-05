@@ -1,5 +1,5 @@
 --TEST--
-Swoole\Server: invalid fd
+swoole_server: invalid fd
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
