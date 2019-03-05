@@ -28,7 +28,7 @@ struct process
 {
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
-    zval zsocket;
+    zend_object *zsocket;
     int pipe_type;
 };
 
@@ -360,9 +360,9 @@ static PHP_METHOD(swoole_process, __destruct)
     }
     php::process *proc = (php::process *) process->ptr2;
     sw_fci_cache_discard(&proc->fci_cache);
-    if (!Z_ISUNDEF(proc->zsocket))
+    if (proc->zsocket)
     {
-        zval_dtor(&proc->zsocket);
+        OBJ_RELEASE(proc->zsocket);
     }
     efree(proc);
     efree(process);
@@ -914,20 +914,17 @@ static PHP_METHOD(swoole_process, exportSocket)
         swoole_php_fatal_error(E_WARNING, "no pipe, cannot export stream.");
         RETURN_FALSE;
     }
-
     php::process *proc = (php::process *) process->ptr2;
-    if (!Z_ISUNDEF(proc->zsocket))
+    if (!proc->zsocket)
     {
-        RETURN_ZVAL(&proc->zsocket, 1, 0);
+        proc->zsocket = php_swoole_export_socket_ex(process->pipe, proc->pipe_type == php::PIPE_TYPE_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM);
+        if (!proc->zsocket)
+        {
+            RETURN_FALSE;
+        }
     }
-
-    if (!php_swoole_export_socket(&proc->zsocket, process->pipe,
-            proc->pipe_type == php::PIPE_TYPE_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM))
-    {
-        RETURN_FALSE
-    }
-
-    RETURN_ZVAL(&proc->zsocket, 1, 0);
+    GC_ADDREF(proc->zsocket);
+    RETURN_OBJ(proc->zsocket);
 }
 
 static PHP_METHOD(swoole_process, push)
