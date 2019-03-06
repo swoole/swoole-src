@@ -130,6 +130,10 @@ static zend_class_entry swoole_http_client_coro_ce;
 zend_class_entry *swoole_http_client_coro_ce_ptr;
 static zend_object_handlers swoole_http_client_coro_handlers;
 
+static zend_class_entry swoole_http_client_coro_exception_ce;
+zend_class_entry *swoole_http_client_coro_exception_ce_ptr;
+static zend_object_handlers swoole_http_client_coro_exception_handlers;
+
 typedef struct
 {
     http_client* phc;
@@ -398,12 +402,6 @@ static int http_parser_on_message_complete(swoole_http_parser *parser)
 
 http_client::http_client(zval* zobject, std::string host, zend_long port, zend_bool ssl)
 {
-    // check host
-    if (host.length() == 0)
-    {
-        swoole_php_fatal_error(E_WARNING, "host is empty.");
-        return;
-    }
     if (host.compare(0, 6, "unix:/", 0, 6) == 0)
     {
         host = host.substr(sizeof("unix:") - 1);
@@ -422,14 +420,7 @@ http_client::http_client(zval* zobject, std::string host, zend_long port, zend_b
     this->port = port;
 #ifdef SW_USE_OPENSSL
     this->ssl = ssl;
-#else
-    if (ssl)
-    {
-        swoole_php_fatal_error(E_ERROR, "Need to use `--enable-openssl` to support ssl when compiling swoole.");
-        return;
-    }
 #endif
-
     _zobject = *zobject;
     // TODO: zend_read_property cache here (strong type properties)
 }
@@ -1490,6 +1481,8 @@ void swoole_http_client_coro_init(int module_number)
     zend_declare_property_null(swoole_http_client_coro_ce_ptr, ZEND_STRL("cookies"), ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_http_client_coro_ce_ptr, ZEND_STRL("body"), "", ZEND_ACC_PUBLIC);
 
+    SWOOLE_INIT_CLASS_ENTRY_EX(swoole_http_client_coro_exception, "Swoole\\Coroutine\\Http\\Client\\Exception", NULL, "Co\\Http\\Client\\Exception", NULL, swoole_exception);
+
     SWOOLE_DEFINE_NS(HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
     SWOOLE_DEFINE_NS(HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
     SWOOLE_DEFINE_NS(HTTP_CLIENT_ESTATUS_SERVER_RESET);
@@ -1528,6 +1521,23 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
     zend_update_property_stringl(swoole_http_client_coro_ce_ptr, getThis(), ZEND_STRL("host"), host, host_len);
     zend_update_property_long(swoole_http_client_coro_ce_ptr,getThis(), ZEND_STRL("port"), port);
     zend_update_property_bool(swoole_http_client_coro_ce_ptr,getThis(), ZEND_STRL("ssl"), ssl);
+    // check host
+    if (host_len == 0)
+    {
+        zend_throw_exception_ex(swoole_http_client_coro_exception_ce_ptr, EINVAL, "host is empty.");
+        RETURN_FALSE;
+    }
+    // check ssl
+#ifndef SW_USE_OPENSSL
+    if (ssl)
+    {
+        zend_throw_exception_ex(
+            swoole_http_client_coro_exception_ce_ptr,
+            EINVAL, "Need to use `--enable-openssl` to support ssl when compiling swoole."
+        );
+        RETURN_FALSE;
+    }
+#endif
     hcc_t->phc = new http_client(getThis(), std::string(host, host_len), port, ssl);
 }
 
