@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 #include "swoole_coroutine.h"
 #include "socket.h"
 
@@ -983,20 +983,14 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     zval *zobject = redis->zobject;
     redisContext *context;
     Socket *socket;
-    zval *zhost, *zport, *ztmp;
-    char *host, *pwd;
-    size_t host_len, pwd_len;
-    zend_long port;
     struct timeval tv;
+    zval *ztmp;
+    zval *zhost = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("host"), 0);
+    zval *zport = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("port"), 0);
+    zend::string host(zhost);
+    zend_long port = zval_get_long(zport);
 
-    zhost = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("host"), 0);
-    zport = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("port"), 0);
-    convert_to_string(zhost);
-    host = Z_STRVAL_P(zhost);
-    host_len = Z_STRLEN_P(zhost);
-    port = zval_get_long(zport);
-
-    if (host_len == 0)
+    if (host.len() == 0)
     {
         swoole_php_fatal_error(E_WARNING, "The host is empty.");
         return false;
@@ -1007,14 +1001,14 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
         context = redis->context;
         if (
             context->connection_type == REDIS_CONN_TCP &&
-            strcmp(context->tcp.host, host) == 0 && context->tcp.port == port
+            strcmp(context->tcp.host, host.val()) == 0 && context->tcp.port == port
         )
         {
             return true;
         }
         else if (
             context->connection_type == REDIS_CONN_UNIX &&
-            (strstr(host, context->unix_sock.path) - host) + strlen(context->unix_sock.path) == host_len
+            (strstr(host.val(), context->unix_sock.path) - host.val()) + strlen(context->unix_sock.path) == host.len()
         )
         {
             return true;
@@ -1032,9 +1026,9 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
         tv.tv_sec = redis->connect_timeout;
         tv.tv_usec = (redis->connect_timeout - (double) tv.tv_sec) * 1000 * 1000;
     }
-    if (strncasecmp(host, ZEND_STRL("unix:/")) == 0)
+    if (strncasecmp(host.val(), ZEND_STRL("unix:/")) == 0)
     {
-        context = redisConnectUnixWithTimeout(host + 5 + strspn(host + 5, "/") - 1, tv);
+        context = redisConnectUnixWithTimeout(host.val() + 5 + strspn(host.val() + 5, "/") - 1, tv);
     }
     else
     {
@@ -1043,7 +1037,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
             swoole_php_fatal_error(E_WARNING, "The port " ZEND_LONG_FMT " is invalid.", port);
             return false;
         }
-        context = redisConnectWithTimeout(host, (int) port, tv);
+        context = redisConnectWithTimeout(host.val(), (int) port, tv);
     }
 
     redis->context = context;
@@ -1084,10 +1078,8 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
 
     if (php_swoole_array_get_value(vht, "password", ztmp))
     {
-        convert_to_string(ztmp);
-        pwd = Z_STRVAL_P(ztmp);
-        pwd_len = Z_STRLEN_P(ztmp);
-        if (pwd_len > 0 && !redis_auth(redis, pwd, pwd_len))
+        zend::string passowrd(ztmp);
+        if (passowrd.len() > 0 && !redis_auth(redis, passowrd.val(), passowrd.len()))
         {
             swoole_redis_coro_close(redis);
             return false;
