@@ -10,6 +10,10 @@
 using namespace swoole;
 using namespace std;
 
+double Socket::default_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
+double Socket::default_read_timeout    = SW_DEFAULT_SOCKET_READ_TIMEOUT;
+double Socket::default_write_timeout   = SW_DEFAULT_SOCKET_WRITE_TIMEOUT;
+
 void Socket::timer_callback(swTimer *timer, swTimer_node *tnode)
 {
     Socket *socket = (Socket *) tnode->data;

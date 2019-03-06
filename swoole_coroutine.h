@@ -10,9 +10,6 @@
 #define SW_DEFAULT_MAX_CORO_NUM              3000
 #define SW_DEFAULT_PHP_STACK_PAGE_SIZE       8192
 
-#define SW_DEFAULT_SOCKET_CONNECT_TIMEOUT    1
-#define SW_DEFAULT_SOCKET_TIMEOUT            -1
-
 #define SWOG ((zend_output_globals *) &OG(handlers))
 
 typedef enum
@@ -78,9 +75,6 @@ namespace swoole
 class PHPCoroutine
 {
 public:
-    static double socket_connect_timeout;
-    static double socket_timeout;
-
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(php_swoole_fci *fci);
 

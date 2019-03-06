@@ -199,7 +199,6 @@ void swoole_socket_coro_init(int module_number)
 static void sw_inline php_swoole_init_socket(zval *zobject, socket_coro *sock)
 {
     zend_update_property_long(swoole_socket_coro_ce_ptr, zobject, ZEND_STRL("fd"), sock->socket->get_fd());
-    sock->socket->set_timeout(PHPCoroutine::socket_timeout);
 }
 
 SW_API bool php_swoole_export_socket(zval *zobject, int fd, enum swSocket_type type)
@@ -302,7 +301,7 @@ static PHP_METHOD(swoole_socket_coro, listen)
 
 static PHP_METHOD(swoole_socket_coro, accept)
 {
-    double timeout = PHPCoroutine::socket_timeout;
+    double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
@@ -335,7 +334,7 @@ static PHP_METHOD(swoole_socket_coro, connect)
     char *host;
     size_t l_host;
     zend_long port = 0;
-    double timeout = PHPCoroutine::socket_connect_timeout;
+    double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
         Z_PARAM_STRING(host, l_host)
@@ -359,17 +358,14 @@ static PHP_METHOD(swoole_socket_coro, connect)
             RETURN_FALSE;
         }
     }
-
-    sock->socket->set_timeout(timeout);
-    bool ret = sock->socket->connect(std::string(host, l_host), port);
-    sock->socket->set_timeout(PHPCoroutine::socket_timeout);
-    RETURN_BOOL(ret);
+    sock->socket->set_timeout(timeout, SW_TIMEOUT_CONNECT);
+    RETURN_BOOL(sock->socket->connect(std::string(host, l_host), port));
 }
 
 static sw_inline void swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, bool all)
 {
     zend_long length = SW_BUFFER_SIZE_BIG;
-    double timeout = PHPCoroutine::socket_timeout;
+    double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
         Z_PARAM_OPTIONAL
@@ -422,7 +418,7 @@ static sw_inline void swoole_socket_coro_send(INTERNAL_FUNCTION_PARAMETERS, cons
 {
     char *data;
     size_t length;
-    double timeout = PHPCoroutine::socket_timeout;
+    double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_STRING(data, length)
@@ -460,7 +456,7 @@ static PHP_METHOD(swoole_socket_coro, sendAll)
 static PHP_METHOD(swoole_socket_coro, recvfrom)
 {
     zval *peername;
-    double timeout = PHPCoroutine::socket_timeout;
+    double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_ZVAL_EX(peername, 0, 1)

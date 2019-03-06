@@ -394,7 +394,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     }
     if (xparam->inputs.timeout)
     {
-        sock->set_timeout(xparam->inputs.timeout);
+        sock->set_timeout(xparam->inputs.timeout, SW_TIMEOUT_CONNECT);
     }
     if (sock->connect(host, portno) == false)
     {
@@ -465,7 +465,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
 
     if (timeout)
     {
-        sock->set_timeout(timeout);
+        sock->set_timeout(timeout, SW_TIMEOUT_READ);
     }
 
     Socket *clisock = sock->accept();

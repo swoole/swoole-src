@@ -285,7 +285,7 @@ PHP_FUNCTION(swoole_async_set)
 PHP_FUNCTION(swoole_async_dns_lookup_coro)
 {
     zval *domain;
-    double timeout = PHPCoroutine::socket_connect_timeout;
+    double timeout = Socket::default_connect_timeout;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|d", &domain, &timeout) == FAILURE)
     {
         RETURN_FALSE;

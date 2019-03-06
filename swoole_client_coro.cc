@@ -307,6 +307,18 @@ void php_swoole_client_set(Socket *cli, zval *zset)
     {
         cli->set_timeout(zval_get_double(v));
     }
+    if (php_swoole_array_get_value(vht, "connect_timeout", v))
+    {
+        cli->set_timeout(zval_get_double(v), SW_TIMEOUT_CONNECT);
+    }
+    if (php_swoole_array_get_value(vht, "read_timeout", v))
+    {
+        cli->set_timeout(zval_get_double(v), SW_TIMEOUT_READ);
+    }
+    if (php_swoole_array_get_value(vht, "write_timeout", v))
+    {
+        cli->set_timeout(zval_get_double(v), SW_TIMEOUT_WRITE);
+    }
     /**
      * bind port
      */
@@ -717,7 +729,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     }
 
     PHPCoroutine::check_bind("client", cli->get_bound_cid());
-    cli->set_timeout(timeout == 0 ? PHPCoroutine::socket_connect_timeout : timeout);
+    cli->set_timeout(timeout, SW_TIMEOUT_CONNECT);
     if (!cli->connect(host, port, sock_flag))
     {
         zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
@@ -725,12 +737,9 @@ static PHP_METHOD(swoole_client_coro, connect)
         client_coro_close(getThis());
         RETURN_FALSE;
     }
-    else
-    {
-        cli->set_timeout(timeout == 0 ? PHPCoroutine::socket_timeout : timeout);
-        zend_update_property_bool(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("connected"), 1);
-        RETURN_TRUE;
-    }
+    cli->set_timeout(timeout, SW_TIMEOUT_RDWR);
+    zend_update_property_bool(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("connected"), 1);
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_client_coro, send)

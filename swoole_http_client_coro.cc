@@ -48,78 +48,8 @@ static const swoole_http_parser_settings http_parser_settings =
     http_parser_on_message_complete
 };
 
-class http_socket: public Socket
-{
-public:
-    http_socket(swSocket_type socket_type) :
-            Socket(socket_type)
-    {
-        this->set_timeout(PHPCoroutine::socket_timeout);
-    }
-
-    bool recv_http_response(const swoole_http_parser_settings *settings, void *data, double timeout = 0)
-    {
-        ssize_t retval = 0;
-        size_t total_bytes = 0, parsed_n = 0;
-        swString *buffer = get_read_buffer();
-
-        // re-init http response parser
-        swoole_http_parser_init(&parser, PHP_HTTP_RESPONSE);
-        parser.data = data;
-
-        timeout_controller tc(this, SW_TIMEOUT_READ);
-
-        do
-        {
-            if (unlikely(parser.state == s_dead))
-            {
-                set_err(EPROTO);
-                return false;
-            }
-            retval = recv(buffer->str, buffer->size);
-            if (likely(retval > 0))
-            {
-                total_bytes += retval;
-                parsed_n = swoole_http_parser_execute(&parser, settings, buffer->str, retval);
-                swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d.", parsed_n, retval, total_bytes, parser.state != s_start_res);
-
-                if (tc.has_timed_out())
-                {
-                    set_err(ETIMEDOUT);
-                    return false;
-                }
-            }
-            else
-            {
-                if (retval == 0)
-                {
-                    set_err(ECONNRESET);
-                    if (total_bytes > 0 && !swoole_http_should_keep_alive(&parser))
-                    {
-                        http_parser_on_message_complete(&parser);
-                        return true;
-                    }
-                }
-                return false;
-            }
-        } while (parser.state != s_start_res);
-        // websocket stick package
-        if (parser.upgrade && (size_t) retval > parsed_n + 1 + SW_WEBSOCKET_HEADER_LEN)
-        {
-            swString_sub(buffer, parsed_n + 1, retval - parsed_n - 1);
-        }
-        return true;
-    }
-private:
-    swoole_http_parser parser = {0};
-};
-
 class http_client
 {
-    private:
-    http_socket* socket = nullptr;
-    swSocket_type socket_type = SW_SOCK_TCP;
-
     public:
     /* states */
     http_client_state state = HTTP_CLIENT_STATE_WAIT;
@@ -132,7 +62,7 @@ class http_client
 #ifdef SW_USE_OPENSSL
     uint8_t ssl = false;
 #endif
-    double connect_timeout = PHPCoroutine::socket_connect_timeout;
+    double connect_timeout = Socket::default_connect_timeout;
     int8_t method = SW_HTTP_GET;       // method
     std::string uri;
 
@@ -183,11 +113,17 @@ class http_client
     bool exec(std::string uri);
     bool recv(double timeout = 0);
     void recv(zval *zframe, double timeout = 0);
+    bool recv_http_response(double timeout = 0);
     bool upgrade(std::string uri);
     bool push(zval *zdata, zend_long opcode = WEBSOCKET_OPCODE_TEXT, bool _fin = true);
     bool close();
 
     ~http_client();
+
+private:
+    Socket* socket = nullptr;
+    swSocket_type socket_type = SW_SOCK_TCP;
+    swoole_http_parser parser = {0};
 };
 
 static zend_class_entry swoole_http_client_coro_ce;
@@ -644,7 +580,7 @@ bool http_client::connect()
 {
     if (!socket)
     {
-        socket = new http_socket(socket_type);
+        socket = new Socket(socket_type);
         if (unlikely(socket->socket == nullptr))
         {
             swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
@@ -1246,7 +1182,7 @@ bool http_client::recv(double timeout)
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         return false;
     }
-    if (!socket->recv_http_response(&http_parser_settings, this, timeout))
+    if (!recv_http_response(timeout))
     {
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
         zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
@@ -1311,6 +1247,59 @@ void http_client::recv(zval *zframe, double timeout)
         msg.str = socket->get_read_buffer()->str;
         php_swoole_websocket_frame_unpack(&msg, zframe);
     }
+}
+
+bool http_client::recv_http_response(double timeout)
+{
+    ssize_t retval = 0;
+    size_t total_bytes = 0, parsed_n = 0;
+    swString *buffer = socket->get_read_buffer();
+
+    // re-init http response parser
+    swoole_http_parser_init(&parser, PHP_HTTP_RESPONSE);
+    parser.data = this;
+
+    timeout_controller tc(socket, SW_TIMEOUT_READ);
+    do
+    {
+        if (unlikely(parser.state == s_dead))
+        {
+            socket->set_err(EPROTO);
+            return false;
+        }
+        retval = socket->recv(buffer->str, buffer->size);
+        if (likely(retval > 0))
+        {
+            total_bytes += retval;
+            parsed_n = swoole_http_parser_execute(&parser, &http_parser_settings, buffer->str, retval);
+            swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d.", parsed_n, retval, total_bytes, parser.state != s_start_res);
+
+            if (tc.has_timed_out())
+            {
+                socket->set_err(ETIMEDOUT);
+                return false;
+            }
+        }
+        else
+        {
+            if (retval == 0)
+            {
+                socket->set_err(ECONNRESET);
+                if (total_bytes > 0 && !swoole_http_should_keep_alive(&parser))
+                {
+                    http_parser_on_message_complete(&parser);
+                    return true;
+                }
+            }
+            return false;
+        }
+    } while (parser.state != s_start_res);
+    // websocket stick package
+    if (parser.upgrade && (size_t) retval > parsed_n + 1 + SW_WEBSOCKET_HEADER_LEN)
+    {
+        swString_sub(buffer, parsed_n + 1, retval - parsed_n - 1);
+    }
+    return true;
 }
 
 bool http_client::upgrade(std::string uri)

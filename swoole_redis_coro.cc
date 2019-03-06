@@ -1067,8 +1067,8 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     }
 
     swSetNonBlock(context->fd);
+    socket->set_timeout(redis->timeout, SW_TIMEOUT_RDWR);
     redis->reconnected_count = 0;
-    socket->set_timeout(redis->timeout);
     zend_update_property_bool(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("connected"), 1);
     zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("sock"), context->fd);
 
@@ -1949,7 +1949,7 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
             Socket *socket = swoole_redis_coro_get_socket(redis->context);
             if (socket)
             {
-                socket->set_timeout(redis->timeout);
+                socket->set_timeout(redis->timeout, SW_TIMEOUT_RDWR);
             }
         }
     }
@@ -1988,8 +1988,8 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 
     swoole_set_object(getThis(), redis);
 
-    redis->connect_timeout = PHPCoroutine::socket_connect_timeout;
-    redis->timeout = PHPCoroutine::socket_timeout;
+    redis->connect_timeout = Socket::default_connect_timeout;
+    redis->timeout = Socket::default_read_timeout;
     redis->reconnect_interval = 1;
 
     // settings init

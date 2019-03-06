@@ -23,6 +23,10 @@
 
 #include <string>
 
+#define SW_DEFAULT_SOCKET_CONNECT_TIMEOUT    1
+#define SW_DEFAULT_SOCKET_READ_TIMEOUT      -1
+#define SW_DEFAULT_SOCKET_WRITE_TIMEOUT     -1
+
 namespace swoole
 {
 enum swTimeout_type
@@ -30,11 +34,16 @@ enum swTimeout_type
     SW_TIMEOUT_CONNECT      =  1u << 1,
     SW_TIMEOUT_READ         =  1u << 2,
     SW_TIMEOUT_WRITE        =  1u << 3,
+    SW_TIMEOUT_RDWR         =  SW_TIMEOUT_READ & SW_TIMEOUT_WRITE,
     SW_TIMEOUT_ALL          =  0xff,
 };
 class Socket
 {
 public:
+    static double default_connect_timeout;
+    static double default_read_timeout;
+    static double default_write_timeout;
+
     swConnection *socket = nullptr;
     enum swSocket_type type;
     int sock_domain = 0;
@@ -178,9 +187,9 @@ public:
         }
     }
 
-    inline void set_timeout(struct timeval *timeout)
+    inline void set_timeout(struct timeval *timeout, enum swTimeout_type type = SW_TIMEOUT_ALL)
     {
-        set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000));
+        set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000), type);
     }
 
     inline double get_timeout(enum swTimeout_type type = SW_TIMEOUT_ALL)
@@ -241,9 +250,9 @@ private:
     std::string bind_address;
     int bind_port = 0;
 
-    double connect_timeout = -1;
-    double read_timeout = -1;
-    double write_timeout = -1;
+    double connect_timeout = default_connect_timeout;
+    double read_timeout = default_read_timeout;
+    double write_timeout = default_write_timeout;
     swTimer_node *read_timer = nullptr;
     swTimer_node *write_timer = nullptr;
 

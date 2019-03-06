@@ -24,8 +24,6 @@ using namespace swoole;
 
 bool PHPCoroutine::active = false;
 uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
-double PHPCoroutine::socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
-double PHPCoroutine::socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
 php_coro_task PHPCoroutine::main_task = {0};
 
 inline void PHPCoroutine::vm_stack_init(void)
