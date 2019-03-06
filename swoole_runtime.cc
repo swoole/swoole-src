@@ -1344,15 +1344,16 @@ static int stream_array_emulate_read_fd_set(zval *stream_array)
 
 static PHP_FUNCTION(_stream_select)
 {
+    if (!PHPCoroutine::is_in())
+    {
+        ori_stream_select_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        return;
+    }
+
     zval *r_array, *w_array, *e_array;
     zend_long sec, usec = 0;
     zend_bool secnull;
     int retval = 0;
-
-    if (!PHPCoroutine::is_in())
-    {
-        RETURN_FALSE;
-    }
 
     php_swoole_check_reactor();
 
