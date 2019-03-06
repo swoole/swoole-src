@@ -233,29 +233,16 @@ static size_t socket_write(php_stream *stream, const char *buf, size_t count)
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
     Socket *sock = (Socket*) abstract->socket;
-    int didwrite;
+    ssize_t didwrite;
     if (!sock)
     {
         return 0;
     }
-
     didwrite = sock->send_all(buf, count);
-    if (didwrite <= 0)
-    {
-        int err = sock->errCode;
-        char *estr;
-
-        estr = php_socket_strerror(err, NULL, 0);
-        php_error_docref(NULL, E_NOTICE, "send of " ZEND_LONG_FMT " bytes failed with errno=%d %s", (zend_long) count,
-                err, estr);
-        efree(estr);
-    }
-
     if (didwrite > 0)
     {
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), didwrite, 0);
     }
-
     if (didwrite < 0)
     {
         didwrite = 0;
