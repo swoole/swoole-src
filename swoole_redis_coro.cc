@@ -2003,7 +2003,7 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 
     if (zset)
     {
-        swoole_redis_coro_set_options(redis, zset);
+        swoole_redis_coro_set_options(redis, zset, true);
     }
 }
 
