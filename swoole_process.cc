@@ -485,12 +485,12 @@ static PHP_METHOD(swoole_process, kill)
         RETURN_FALSE;
     }
 
-    int ret = kill((int) pid, (int) sig);
+    int ret = swKill((int) pid, (int) sig);
     if (ret < 0)
     {
         if (!(sig == 0 && errno == ESRCH))
         {
-            swoole_php_error(E_WARNING, "kill(%d, %d) failed. Error: %s[%d]", (int) pid, (int) sig, strerror(errno), errno);
+            swoole_php_error(E_WARNING, "swKill(%d, %d) failed. Error: %s[%d]", (int) pid, (int) sig, strerror(errno), errno);
         }
         RETURN_FALSE;
     }
@@ -787,7 +787,7 @@ static PHP_METHOD(swoole_process, start)
 {
     swWorker *process = (swWorker *) swoole_get_object(getThis());
 
-    if (process->pid > 0 && kill(process->pid, 0) == 0)
+    if (swKill(process->pid, 0) == 0)
     {
         swoole_php_fatal_error(E_WARNING, "process has already been started.");
         RETURN_FALSE;
