@@ -105,7 +105,7 @@ class http_client
 
     public:
 #ifdef SW_HAVE_ZLIB
-    bool init_compression(http_compress_method method);
+    bool init_compression(enum http_compress_method method);
     bool uncompress_response();
 #endif
     void check_bind();
@@ -1250,28 +1250,15 @@ bool http_client::recv_http_response(double timeout)
     swoole_http_parser_init(&parser, PHP_HTTP_RESPONSE);
     parser.data = this;
 
-    timeout_controller tc(socket, SW_TIMEOUT_READ);
-    do
+    if (timeout == 0)
     {
-        if (unlikely(parser.state == s_dead))
-        {
-            socket->set_err(EPROTO);
-            return false;
-        }
+        timeout = socket->get_timeout(SW_TIMEOUT_READ);
+    }
+    Socket::timeout_controller tc(socket, timeout, SW_TIMEOUT_READ);
+    while (true)
+    {
         retval = socket->recv(buffer->str, buffer->size);
-        if (likely(retval > 0))
-        {
-            total_bytes += retval;
-            parsed_n = swoole_http_parser_execute(&parser, &http_parser_settings, buffer->str, retval);
-            swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d.", parsed_n, retval, total_bytes, parser.state != s_start_res);
-
-            if (tc.has_timed_out())
-            {
-                socket->set_err(ETIMEDOUT);
-                return false;
-            }
-        }
-        else
+        if (unlikely(retval <= 0))
         {
             if (retval == 0)
             {
@@ -1284,13 +1271,29 @@ bool http_client::recv_http_response(double timeout)
             }
             return false;
         }
-    } while (parser.state != s_start_res);
-    // websocket stick package
-    if (parser.upgrade && (size_t) retval > parsed_n + 1 + SW_WEBSOCKET_HEADER_LEN)
-    {
-        swString_sub(buffer, parsed_n + 1, retval - parsed_n - 1);
+        total_bytes += retval;
+        parsed_n = swoole_http_parser_execute(&parser, &http_parser_settings, buffer->str, retval);
+        swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d.", parsed_n, retval, total_bytes, parser.state == s_start_res);
+        if (parser.state == s_start_res)
+        {
+            // websocket stick package
+            if (parser.upgrade && (size_t) retval > parsed_n + 1 + SW_WEBSOCKET_HEADER_LEN)
+            {
+                swString_sub(buffer, parsed_n + 1, retval - parsed_n - 1);
+            }
+            return true;
+        }
+        if (unlikely(parser.state == s_dead))
+        {
+            socket->set_err(EPROTO);
+            return false;
+        }
+        if (unlikely(tc.has_timedout()))
+        {
+            socket->set_err(ETIMEDOUT);
+            return false;
+        }
     }
-    return true;
 }
 
 bool http_client::upgrade(std::string uri)
