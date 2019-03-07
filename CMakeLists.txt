@@ -2,7 +2,7 @@ PROJECT(libswoole)
 
 ENABLE_LANGUAGE(ASM)
 SET(SWOOLE_VERSION 4.3.0)
-SET(SWOOLE_CLFLAGS pthread rt dl ssl crypt crypto nghttp2)
+SET(SWOOLE_CLFLAGS pthread rt dl ssl crypt crypto)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
