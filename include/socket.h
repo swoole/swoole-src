@@ -34,7 +34,7 @@ enum swTimeout_type
     SW_TIMEOUT_CONNECT      =  1u << 1,
     SW_TIMEOUT_READ         =  1u << 2,
     SW_TIMEOUT_WRITE        =  1u << 3,
-    SW_TIMEOUT_RDWR         =  SW_TIMEOUT_READ & SW_TIMEOUT_WRITE,
+    SW_TIMEOUT_RDWR         =  SW_TIMEOUT_READ | SW_TIMEOUT_WRITE,
     SW_TIMEOUT_ALL          =  0xff,
 };
 class Socket
