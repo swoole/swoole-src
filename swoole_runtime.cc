@@ -1123,9 +1123,8 @@ static PHP_FUNCTION(_sleep)
         RETURN_FALSE;
     }
 
-    if (num >= SW_TIMER_MIN_SEC && PHPCoroutine::is_in())
+    if (num >= SW_TIMER_MIN_SEC && Coroutine::get_current())
     {
-        php_swoole_check_reactor();
         RETURN_LONG(Coroutine::sleep((double ) num) < 0 ? num : 0);
     }
     else
@@ -1148,9 +1147,8 @@ static PHP_FUNCTION(_usleep)
     }
     double _time = (double) num / 1000000;
 
-    if (_time >= SW_TIMER_MIN_SEC && PHPCoroutine::is_in())
+    if (_time >= SW_TIMER_MIN_SEC && Coroutine::get_current())
     {
-        php_swoole_check_reactor();
         Coroutine::sleep((double) num / 1000000);
     }
     else
@@ -1178,9 +1176,8 @@ static PHP_FUNCTION(_time_nanosleep)
         RETURN_FALSE;
     }
     double _time = (double) tv_sec + (double) tv_nsec / 1000000000.00;
-    if (_time >= SW_TIMER_MIN_SEC && PHPCoroutine::is_in())
+    if (_time >= SW_TIMER_MIN_SEC && Coroutine::get_current())
     {
-        php_swoole_check_reactor();
         Coroutine::sleep(_time);
     }
     else
@@ -1237,9 +1234,8 @@ static PHP_FUNCTION(_time_sleep_until)
     php_req.tv_nsec = (long) ((c_ts - php_req.tv_sec) * 1000000000.00);
 
     double _time = (double) php_req.tv_sec + (double) php_req.tv_nsec / 1000000000.00;
-    if (_time >= SW_TIMER_MIN_SEC && PHPCoroutine::is_in())
+    if (_time >= SW_TIMER_MIN_SEC && Coroutine::get_current())
     {
-        php_swoole_check_reactor();
         Coroutine::sleep(_time);
     }
     else
@@ -1344,7 +1340,7 @@ static int stream_array_emulate_read_fd_set(zval *stream_array)
 
 static PHP_FUNCTION(_stream_select)
 {
-    if (!PHPCoroutine::is_in())
+    if (!Coroutine::get_current())
     {
         ori_stream_select_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
         return;
@@ -1354,8 +1350,6 @@ static PHP_FUNCTION(_stream_select)
     zend_long sec, usec = 0;
     zend_bool secnull;
     int retval = 0;
-
-    php_swoole_check_reactor();
 
     ZEND_PARSE_PARAMETERS_START(4, 5)
         Z_PARAM_ARRAY_EX(r_array, 1, 1)

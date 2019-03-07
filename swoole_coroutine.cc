@@ -372,7 +372,7 @@ void PHPCoroutine::defer(php_swoole_fci *fci)
 
 void PHPCoroutine::check()
 {
-    if (unlikely(!is_in()))
+    if (unlikely(!Coroutine::get_current()))
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }
@@ -397,7 +397,7 @@ void PHPCoroutine::check_bind(const char *name, long bind_cid)
 
 void PHPCoroutine::yield_m(zval *return_value, php_coro_context *sw_current_context)
 {
-    if (unlikely(!is_in()))
+    if (unlikely(!Coroutine::get_current()))
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }

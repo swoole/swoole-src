@@ -253,7 +253,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     zval ex;
     zend_object *obj;
     zend_long flags = 0;
-    if (PHPCoroutine::is_in())
+    if (Coroutine::get_current())
     {
         flags |= SW_EXIT_IN_COROUTINE;
     }

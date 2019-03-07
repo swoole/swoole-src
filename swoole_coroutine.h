@@ -95,11 +95,6 @@ public:
         Coroutine::set_on_close(on_close);
     }
 
-    static inline bool is_in()
-    {
-        return active && Coroutine::get_current();
-    }
-
     static inline long get_cid()
     {
         return likely(active) ? Coroutine::get_current_cid() : -1;
