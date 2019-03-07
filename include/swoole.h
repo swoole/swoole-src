@@ -1443,9 +1443,11 @@ static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
 
 static sw_inline int swKill(pid_t __pid, int __sig)
 {
-    int ret;
-    do { ret = kill(__pid, __sig); } while (ret < 0 && errno == EINTR);
-    return ret;
+    if (__pid <= 0)
+    {
+        return -1;
+    }
+    return kill(__pid, __sig);
 }
 #endif
 
