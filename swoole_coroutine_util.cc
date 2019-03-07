@@ -329,7 +329,7 @@ void swoole_coroutine_util_init(int module_number)
     SWOOLE_INIT_CLASS_ENTRY_BASE(swoole_coroutine_context, "Swoole\\Coroutine\\Context", NULL, "Co\\Context", swoole_coroutine_context_methods, spl_ce_ArrayObject);
 
     SWOOLE_DEFINE(DEFAULT_MAX_CORO_NUM);
-    SWOOLE_DEFINE(MAX_CORO_NUM_LIMIT);
+    SWOOLE_DEFINE(CORO_MAX_NUM_LIMIT);
     SWOOLE_DEFINE(CORO_INIT);
     SWOOLE_DEFINE(CORO_WAITING);
     SWOOLE_DEFINE(CORO_RUNNING);
