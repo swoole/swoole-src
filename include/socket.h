@@ -313,10 +313,10 @@ private:
     bool socks5_handshake();
     bool http_proxy_handshake();
 
-    class Timer
+    class timer_controller
     {
     public:
-        Timer(swTimer_node **timer_pp, double timeout, void *data, swTimerCallback callback) :
+        timer_controller(swTimer_node **timer_pp, double timeout, void *data, swTimerCallback callback) :
             timer_pp(timer_pp), timeout(timeout), data(data), callback(callback)
         {
         }
@@ -337,7 +337,7 @@ private:
             }
             return true;
         }
-        ~Timer()
+        ~timer_controller()
         {
             if (enabled && *timer_pp)
             {
