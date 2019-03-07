@@ -1,7 +1,7 @@
 --TEST--
 swoole_feature: cross_close: full duplex and close by server
 --SKIPIF--
-<?php require __DIR__ . '/../../include/config.php'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

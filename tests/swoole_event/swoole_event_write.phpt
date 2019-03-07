@@ -1,6 +1,7 @@
 --TEST--
 swoole_event: swoole_event_write
-
+--SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

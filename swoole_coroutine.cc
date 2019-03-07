@@ -24,8 +24,6 @@ using namespace swoole;
 
 bool PHPCoroutine::active = false;
 uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
-double PHPCoroutine::socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
-double PHPCoroutine::socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
 php_coro_task PHPCoroutine::main_task = {0};
 
 inline void PHPCoroutine::vm_stack_init(void)
@@ -374,7 +372,7 @@ void PHPCoroutine::defer(php_swoole_fci *fci)
 
 void PHPCoroutine::check()
 {
-    if (unlikely(!is_in()))
+    if (unlikely(!Coroutine::get_current()))
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }
@@ -399,7 +397,7 @@ void PHPCoroutine::check_bind(const char *name, long bind_cid)
 
 void PHPCoroutine::yield_m(zval *return_value, php_coro_context *sw_current_context)
 {
-    if (unlikely(!is_in()))
+    if (unlikely(!Coroutine::get_current()))
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }

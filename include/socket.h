@@ -23,6 +23,10 @@
 
 #include <string>
 
+#define SW_DEFAULT_SOCKET_CONNECT_TIMEOUT    1
+#define SW_DEFAULT_SOCKET_READ_TIMEOUT      -1
+#define SW_DEFAULT_SOCKET_WRITE_TIMEOUT     -1
+
 namespace swoole
 {
 enum swTimeout_type
@@ -30,11 +34,16 @@ enum swTimeout_type
     SW_TIMEOUT_CONNECT      =  1u << 1,
     SW_TIMEOUT_READ         =  1u << 2,
     SW_TIMEOUT_WRITE        =  1u << 3,
+    SW_TIMEOUT_RDWR         =  SW_TIMEOUT_READ & SW_TIMEOUT_WRITE,
     SW_TIMEOUT_ALL          =  0xff,
 };
 class Socket
 {
 public:
+    static double default_connect_timeout;
+    static double default_read_timeout;
+    static double default_write_timeout;
+
     swConnection *socket = nullptr;
     enum swSocket_type type;
     int sock_domain = 0;
@@ -178,9 +187,9 @@ public:
         }
     }
 
-    inline void set_timeout(struct timeval *timeout)
+    inline void set_timeout(struct timeval *timeout, enum swTimeout_type type = SW_TIMEOUT_ALL)
     {
-        set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000));
+        set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000), type);
     }
 
     inline double get_timeout(enum swTimeout_type type = SW_TIMEOUT_ALL)
@@ -241,9 +250,9 @@ private:
     std::string bind_address;
     int bind_port = 0;
 
-    double connect_timeout = -1;
-    double read_timeout = -1;
-    double write_timeout = -1;
+    double connect_timeout = default_connect_timeout;
+    double read_timeout = default_read_timeout;
+    double write_timeout = default_write_timeout;
     swTimer_node *read_timer = nullptr;
     swTimer_node *write_timer = nullptr;
 
@@ -304,10 +313,10 @@ private:
     bool socks5_handshake();
     bool http_proxy_handshake();
 
-    class Timer
+    class timer_controller
     {
     public:
-        Timer(swTimer_node **timer_pp, double timeout, void *data, swTimerCallback callback) :
+        timer_controller(swTimer_node **timer_pp, double timeout, void *data, swTimerCallback callback) :
             timer_pp(timer_pp), timeout(timeout), data(data), callback(callback)
         {
         }
@@ -328,7 +337,7 @@ private:
             }
             return true;
         }
-        ~Timer()
+        ~timer_controller()
         {
             if (enabled && *timer_pp)
             {
@@ -346,51 +355,65 @@ private:
         void *data;
         swTimerCallback callback;
     };
-};
 
-class timeout_controller
-{
 public:
-    timeout_controller(Socket *sock, enum swTimeout_type type = SW_TIMEOUT_READ)
+    class timeout_setter
     {
-        sock_ = sock;
-        type_ = type;
-        timeout = sock->get_timeout(type);
-        if (timeout > 0)
+    public:
+        timeout_setter(Socket *socket, double timeout, const enum swTimeout_type type) :
+            socket(socket), timeout(timeout), type(type)
         {
-            startup_time = swoole_microtime();
+            SW_ASSERT(type == SW_TIMEOUT_CONNECT || type == SW_TIMEOUT_READ || type == SW_TIMEOUT_WRITE);
+            original_timeout = socket->get_timeout(type);
+            if (timeout == 0)
+            {
+                this->timeout = original_timeout;
+            }
+            else if (timeout != original_timeout)
+            {
+                socket->set_timeout(timeout, type);
+            }
         }
-    }
-
-    inline bool has_timed_out()
-    {
-        if (timeout <= 0)
+        ~timeout_setter()
         {
+            if (timeout != original_timeout)
+            {
+                socket->set_timeout(original_timeout, type);
+            }
+        }
+    protected:
+        Socket *socket;
+        double timeout;
+        enum swTimeout_type type;
+        double original_timeout;
+    };
+
+    class timeout_controller: public timeout_setter
+    {
+    public:
+        timeout_controller(Socket *socket, double timeout, const enum swTimeout_type type) :
+                timeout_setter(socket, timeout, type)
+        {
+            if (timeout > 0)
+            {
+                startup_time = swoole_microtime();
+            }
+        }
+        inline bool has_timedout()
+        {
+            if (timeout > 0)
+            {
+                double used_time = swoole_microtime() - startup_time;
+                if (timeout - used_time < SW_TIMER_MIN_SEC)
+                {
+                    return true;
+                }
+                socket->set_timeout(timeout - used_time, type);
+            }
             return false;
         }
-        double used_time = swoole_microtime() - startup_time;
-        if (used_time > timeout)
-        {
-            return true;
-        }
-        else
-        {
-            sock_->set_timeout(timeout - used_time, type_);
-            return false;
-        }
-    }
-
-    ~timeout_controller()
-    {
-        if (timeout > 0)
-        {
-            sock_->set_timeout(timeout, type_);
-        }
-    }
-private:
-    Socket *sock_;
-    enum swTimeout_type type_;
-    double startup_time;
-    double timeout;
+    protected:
+        double startup_time;
+    };
 };
 };

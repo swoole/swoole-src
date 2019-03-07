@@ -19,11 +19,14 @@
 #include "swoole.h"
 #include "context.h"
 
+#include <limits.h>
+
 #include <string>
 #include <unordered_map>
 
 #define SW_CORO_STACK_ALIGNED_SIZE (4 * 1024)
 #define SW_CORO_MAX_STACK_SIZE     (16 * 1024 * 1024)
+#define SW_CORO_MAX_NUM_LIMIT      LONG_MAX
 
 // TODO: remove it
 typedef enum

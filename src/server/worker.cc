@@ -557,7 +557,7 @@ void swWorker_stop(swWorker *worker)
     }
     else
     {
-        kill(serv->gs->manager_pid, SIGIO);
+        swKill(serv->gs->manager_pid, SIGIO);
     }
 
     try_to_exit:

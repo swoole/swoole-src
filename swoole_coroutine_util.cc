@@ -253,7 +253,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     zval ex;
     zend_object *obj;
     zend_long flags = 0;
-    if (PHPCoroutine::is_in())
+    if (Coroutine::get_current())
     {
         flags |= SW_EXIT_IN_COROUTINE;
     }
@@ -329,7 +329,7 @@ void swoole_coroutine_util_init(int module_number)
     SWOOLE_INIT_CLASS_ENTRY_BASE(swoole_coroutine_context, "Swoole\\Coroutine\\Context", NULL, "Co\\Context", swoole_coroutine_context_methods, spl_ce_ArrayObject);
 
     SWOOLE_DEFINE(DEFAULT_MAX_CORO_NUM);
-    SWOOLE_DEFINE(MAX_CORO_NUM_LIMIT);
+    SWOOLE_DEFINE(CORO_MAX_NUM_LIMIT);
     SWOOLE_DEFINE(CORO_INIT);
     SWOOLE_DEFINE(CORO_WAITING);
     SWOOLE_DEFINE(CORO_RUNNING);
@@ -392,7 +392,6 @@ static PHP_METHOD(swoole_coroutine_util, set)
         Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    php_swoole_array_separate(zset);
     vht = Z_ARRVAL_P(zset);
     if (php_swoole_array_get_value(vht, "max_coroutine", v))
     {
@@ -401,24 +400,27 @@ static PHP_METHOD(swoole_coroutine_util, set)
     }
     if (php_swoole_array_get_value(vht, "c_stack_size", v) || php_swoole_array_get_value(vht, "stack_size", v))
     {
-        zend_long c_stack_size = zval_get_long(v);
-        Coroutine::set_stack_size(c_stack_size);
+        Coroutine::set_stack_size(zval_get_long(v));
     }
     if (php_swoole_array_get_value(vht, "socket_connect_timeout", v))
     {
-        double _value = zval_get_double(v);
-        if (_value)
-        {
-            PHPCoroutine::socket_connect_timeout = _value;
-        }
+        double t = zval_get_double(v);
+        if (t != 0) { Socket::default_connect_timeout = t; }
     }
     if (php_swoole_array_get_value(vht, "socket_timeout", v))
     {
-        double _value = zval_get_double(v);
-        if (_value)
-        {
-            PHPCoroutine::socket_timeout = _value;
-        }
+        double t = zval_get_double(v);
+        if (t != 0) { Socket::default_read_timeout = Socket::default_write_timeout = t; }
+    }
+    if (php_swoole_array_get_value(vht, "socket_read_timeout", v))
+    {
+        double t = zval_get_double(v);
+        if (t != 0) { Socket::default_read_timeout = t; }
+    }
+    if (php_swoole_array_get_value(vht, "socket_write_timeout", v))
+    {
+        double t = zval_get_double(v);
+        if (t != 0) { Socket::default_write_timeout = t; }
     }
     if (php_swoole_array_get_value(vht, "log_level", v))
     {
@@ -441,7 +443,6 @@ static PHP_METHOD(swoole_coroutine_util, set)
     {
         SWOOLE_G(display_errors) = zval_is_true(v);
     }
-    zval_ptr_dtor(zset);
 }
 
 PHP_FUNCTION(swoole_clear_dns_cache)

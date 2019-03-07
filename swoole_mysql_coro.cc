@@ -2964,7 +2964,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     else
     {
-        connector->timeout = PHPCoroutine::socket_connect_timeout;
+        connector->timeout = Socket::default_connect_timeout;
     }
     if (php_swoole_array_get_value(_ht, "charset", value))
     {
@@ -3116,7 +3116,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
 
     PHPCoroutine::check_bind("mysql client", client->cid);
 
-    double timeout = PHPCoroutine::socket_timeout;
+    double timeout = Socket::default_read_timeout;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
     {
@@ -3232,7 +3232,7 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
     }
     else
     {
-        double timeout = PHPCoroutine::socket_timeout;
+        double timeout = Socket::default_read_timeout;
         if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
         {
             RETURN_FALSE;
@@ -3348,7 +3348,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
 
     PHPCoroutine::check_bind("mysql client", client->cid);
 
-    double timeout = PHPCoroutine::socket_timeout;
+    double timeout = Socket::default_read_timeout;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
     {
@@ -3419,7 +3419,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
         RETURN_FALSE;
     }
 
-    double timeout = PHPCoroutine::socket_timeout;
+    double timeout = Socket::default_read_timeout;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ad", &params, &timeout) == FAILURE)
     {

@@ -1443,9 +1443,11 @@ static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
 
 static sw_inline int swKill(pid_t __pid, int __sig)
 {
-    int ret;
-    do { ret = kill(__pid, __sig); } while (ret < 0 && errno == EINTR);
-    return ret;
+    if (__pid <= 0)
+    {
+        return -1;
+    }
+    return kill(__pid, __sig);
 }
 #endif
 
@@ -2073,6 +2075,8 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString *buffer);
 
 //--------------------------------timer------------------------------
+#define SW_TIMER_MIN_MS  1
+#define SW_TIMER_MIN_SEC 0.001
 #define SW_TIMER_MAX_MS  LONG_MAX
 #define SW_TIMER_MAX_SEC (LONG_MAX / 1000)
 

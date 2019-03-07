@@ -235,7 +235,7 @@ static void swSignalfd_set(int signo, swSignalHandler handler)
     }
     if (signal_fd > 0)
     {
-        sigprocmask(SIG_BLOCK, &signalfd_mask, NULL);
+        sigprocmask(SIG_SETMASK, &signalfd_mask, NULL);
         signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
     }
 }

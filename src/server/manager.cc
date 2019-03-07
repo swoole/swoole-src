@@ -62,13 +62,13 @@ static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode)
     for (i = 0; i < reload_info->reload_worker_num; i++)
     {
         pid_t pid = workers[i].pid;
-        if (kill(pid, 0) == -1)
+        if (swKill(pid, 0) == -1)
         {
             continue;
         }
-        if (kill(pid, SIGKILL) < 0)
+        if (swKill(pid, SIGKILL) < 0)
         {
-            swSysError("kill(%d, SIGKILL) [%d] failed.", pid, i);
+            swSysError("swKill(%d, SIGKILL) [%d] failed.", pid, i);
         }
         else
         {
@@ -381,9 +381,9 @@ static int swManager_loop(swFactory *factory)
                     {
                         for (i = 0; i < serv->worker_num; i++)
                         {
-                            if (kill(ManagerProcess.reload_workers[i].pid, SIGTERM) < 0)
+                            if (swKill(ManagerProcess.reload_workers[i].pid, SIGTERM) < 0)
                             {
-                                swSysError("kill(%d, SIGTERM) [%d] failed.", ManagerProcess.reload_workers[i].pid, i);
+                                swSysError("swKill(%d, SIGTERM) [%d] failed.", ManagerProcess.reload_workers[i].pid, i);
                             }
                         }
                         ManagerProcess.reload_worker_i = serv->worker_num;
@@ -494,14 +494,14 @@ static int swManager_loop(swFactory *factory)
                 continue;
             }
             reload_worker_pid = ManagerProcess.reload_workers[ManagerProcess.reload_worker_i].pid;
-            if (kill(reload_worker_pid, SIGTERM) < 0)
+            if (swKill(reload_worker_pid, SIGTERM) < 0)
             {
                 if (errno == ECHILD || errno == ESRCH)
                 {
                     ManagerProcess.reload_worker_i++;
                     goto kill_worker;
                 }
-                swSysError("kill(%d, SIGTERM) [%d] failed.", ManagerProcess.reload_workers[ManagerProcess.reload_worker_i].pid, ManagerProcess.reload_worker_i);
+                swSysError("swKill(%d, SIGTERM) [%d] failed.", ManagerProcess.reload_workers[ManagerProcess.reload_worker_i].pid, ManagerProcess.reload_worker_i);
             }
         }
     }
@@ -512,7 +512,7 @@ static int swManager_loop(swFactory *factory)
     for (i = 0; i < serv->worker_num; i++)
     {
         swTrace("[Manager]kill worker processor");
-        kill(serv->workers[i].pid, SIGTERM);
+        swKill(serv->workers[i].pid, SIGTERM);
     }
     //kill and wait task process
     if (serv->task_worker_num > 0)
@@ -658,7 +658,7 @@ void swManager_kill_user_worker(swServer *serv)
         {
             break;
         }
-        kill(user_worker->pid, SIGTERM);
+        swKill(user_worker->pid, SIGTERM);
     }
 
     //wait user process
