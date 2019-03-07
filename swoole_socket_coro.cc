@@ -310,7 +310,7 @@ static PHP_METHOD(swoole_socket_coro, accept)
 
     swoole_get_socket_coro(sock, getThis());
 
-    Socket::timeout_setter(sock->socket, timeout, SW_TIMEOUT_READ);
+    Socket::timeout_setter ts(sock->socket, timeout, SW_TIMEOUT_READ);
     Socket *conn = sock->socket->accept();
     if (conn)
     {
@@ -356,7 +356,7 @@ static PHP_METHOD(swoole_socket_coro, connect)
             RETURN_FALSE;
         }
     }
-    Socket::timeout_setter(sock->socket, timeout, SW_TIMEOUT_CONNECT);
+    Socket::timeout_setter ts(sock->socket, timeout, SW_TIMEOUT_CONNECT);
     RETURN_BOOL(sock->socket->connect(std::string(host, l_host), port));
 }
 
@@ -379,7 +379,7 @@ static sw_inline void swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, bool
     swoole_get_socket_coro(sock, getThis());
 
     zend_string *buf = zend_string_alloc(length, 0);
-    Socket::timeout_setter(sock->socket, timeout, SW_TIMEOUT_READ);
+    Socket::timeout_setter ts(sock->socket, timeout, SW_TIMEOUT_READ);
     ssize_t bytes = all ? sock->socket->recv_all(ZSTR_VAL(buf), length) : sock->socket->recv(ZSTR_VAL(buf), length);
     if (UNEXPECTED(bytes < 0))
     {
@@ -424,7 +424,7 @@ static sw_inline void swoole_socket_coro_send(INTERNAL_FUNCTION_PARAMETERS, cons
 
     swoole_get_socket_coro(sock, getThis());
 
-    Socket::timeout_setter(sock->socket, timeout, SW_TIMEOUT_WRITE);
+    Socket::timeout_setter ts(sock->socket, timeout, SW_TIMEOUT_WRITE);
     ssize_t retval = all ? sock->socket->send_all(data, length) : sock->socket->send(data, length);
     if (UNEXPECTED(retval < 0))
     {
@@ -461,7 +461,7 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
     swoole_get_socket_coro(sock, getThis());
 
     zend_string *buf = zend_string_alloc(SW_BUFFER_SIZE_BIG, 0);
-    Socket::timeout_setter(sock->socket, timeout, SW_TIMEOUT_READ);
+    Socket::timeout_setter ts(sock->socket, timeout, SW_TIMEOUT_READ);
     ssize_t bytes = sock->socket->recvfrom(ZSTR_VAL(buf), SW_BUFFER_SIZE_BIG);
     if (bytes < 0)
     {
