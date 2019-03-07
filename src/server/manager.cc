@@ -31,6 +31,12 @@ typedef struct
     swWorker *reload_workers;
 } swManagerProcess;
 
+typedef struct
+{
+    uint32_t reload_worker_num;
+    swWorker *workers;
+} swReloadWorker;
+
 static int swManager_loop(swFactory *factory);
 static void swManager_signal_handler(int sig);
 static pid_t swManager_spawn_worker(swFactory *factory, int worker_id);
@@ -49,11 +55,11 @@ static void swManager_onTimer(swTimer *timer, swTimer_node *tnode)
 
 static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode)
 {
-    int i;
-    swServer *serv = (swServer *) SwooleG.serv;
-    swWorker *workers = (swWorker *) tnode->data;
+    uint32_t i;
+    swReloadWorker *reload_info = (swReloadWorker *) tnode->data;
+    swWorker *workers = reload_info->workers;
 
-    for (i = 0; i < serv->worker_num; i++)
+    for (i = 0; i < reload_info->reload_worker_num; i++)
     {
         pid_t pid = workers[i].pid;
         if (kill(pid, 0) == -1)
@@ -71,6 +77,7 @@ static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode)
         }
     }
     sw_free(workers);
+    sw_free(reload_info);
 }
 
 static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int n)
@@ -79,10 +86,13 @@ static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int 
      * separate old workers, free memory in the timer
      */
     swWorker *reload_workers = (swWorker *) sw_malloc(sizeof(swWorker) * n);
+    swReloadWorker *reload_info = (swReloadWorker *) sw_malloc(sizeof(swReloadWorker));
     memcpy(reload_workers, workers, sizeof(swWorker) * n);
+    reload_info->reload_worker_num = n;
+    reload_info->workers = reload_workers;
     if (serv->max_wait_time)
     {
-        swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, reload_workers, swManager_kill_timeout_process);
+        swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, reload_info, swManager_kill_timeout_process);
     }
 }
 
