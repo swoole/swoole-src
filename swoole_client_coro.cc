@@ -767,10 +767,8 @@ static PHP_METHOD(swoole_client_coro, send)
     }
 
     PHPCoroutine::check_bind("client", cli->get_bound_cid(SW_EVENT_WRITE));
-    double persistent_timeout = cli->get_timeout(SW_TIMEOUT_WRITE);
-    cli->set_timeout(timeout, SW_TIMEOUT_WRITE);
+    Socket::timeout_setter(cli, timeout, SW_TIMEOUT_WRITE);
     ssize_t ret = cli->send_all(data, data_len);
-    cli->set_timeout(persistent_timeout, SW_TIMEOUT_WRITE);
     if (ret < 0)
     {
         zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
@@ -937,10 +935,8 @@ static PHP_METHOD(swoole_client_coro, recv)
     else
     {
         zend_string *result = zend_string_alloc(SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string), 0);
-        double persistent_timeout = cli->get_timeout(SW_TIMEOUT_READ);
-        cli->set_timeout(timeout, SW_TIMEOUT_READ);
+        Socket::timeout_setter(cli, timeout, SW_TIMEOUT_READ);
         retval = cli->recv(ZSTR_VAL(result), SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string));
-        cli->set_timeout(persistent_timeout, SW_TIMEOUT_READ);
         if (retval > 0)
         {
             ZSTR_VAL(result)[retval] = '\0';

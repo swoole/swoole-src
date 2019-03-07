@@ -357,30 +357,54 @@ private:
     };
 
 public:
-    class timeout_controller
+    class timeout_setter
     {
     public:
-        timeout_controller(Socket *socket, double timeout, const enum swTimeout_type type) :
-                socket(socket), timeout(timeout), type(type)
+        timeout_setter(Socket *socket, double timeout, const enum swTimeout_type type) :
+            socket(socket), timeout(timeout), type(type)
         {
             SW_ASSERT(type == SW_TIMEOUT_CONNECT || type == SW_TIMEOUT_READ || type == SW_TIMEOUT_WRITE);
             original_timeout = socket->get_timeout(type);
-            if (timeout != original_timeout)
+            if (timeout == 0)
+            {
+                this->timeout = original_timeout;
+            }
+            else if (timeout != original_timeout)
             {
                 socket->set_timeout(timeout, type);
             }
+        }
+        ~timeout_setter()
+        {
+            if (timeout != original_timeout)
+            {
+                socket->set_timeout(original_timeout, type);
+            }
+        }
+    protected:
+        Socket *socket;
+        double timeout;
+        enum swTimeout_type type;
+        double original_timeout;
+    };
+
+    class timeout_controller: public timeout_setter
+    {
+    public:
+        timeout_controller(Socket *socket, double timeout, const enum swTimeout_type type) :
+                timeout_setter(socket, timeout, type)
+        {
             if (timeout > 0)
             {
                 startup_time = swoole_microtime();
             }
         }
-
         inline bool has_timedout()
         {
             if (timeout > 0)
             {
                 double used_time = swoole_microtime() - startup_time;
-                if (used_time > timeout)
+                if (timeout - used_time < 0.001)
                 {
                     return true;
                 }
@@ -388,20 +412,7 @@ public:
             }
             return false;
         }
-
-        ~timeout_controller()
-        {
-            if (timeout != original_timeout)
-            {
-                socket->set_timeout(original_timeout, type);
-            }
-        }
-    private:
-        Socket *socket;
-        double timeout;
-        enum swTimeout_type type;
-
-        double original_timeout;
+    protected:
         double startup_time;
     };
 };
