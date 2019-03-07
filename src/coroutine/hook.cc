@@ -771,11 +771,6 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
     {
         ev.nbytes = hostname.size() + 1;
     }
-    ev.buf = sw_malloc(ev.nbytes);
-    if (!ev.buf)
-    {
-        return "";
-    }
 
     task.co = Coroutine::get_current();
     if (unlikely(!task.co))
@@ -783,8 +778,13 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_CO_OUT_OF_COROUTINE, "Socket::yield() must be called in the coroutine.");
         exit(255);
     }
-
     task.event = &ev;
+
+    ev.buf = sw_malloc(ev.nbytes);
+    if (!ev.buf)
+    {
+        return "";
+    }
 
     memcpy(ev.buf, hostname.c_str(), hostname.size());
     ((char *) ev.buf)[hostname.size()] = 0;
