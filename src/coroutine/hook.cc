@@ -644,6 +644,11 @@ static void sleep_timeout(swTimer *timer, swTimer_node *tnode)
 int Coroutine::sleep(double sec)
 {
     Coroutine* co = Coroutine::get_current();
+    if (unlikely(!co))
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_CO_OUT_OF_COROUTINE, "Socket::yield() must be called in the coroutine.");
+        exit(255);
+    }
     if (swTimer_add(&SwooleG.timer, (long) (sec * 1000), 0, co, sleep_timeout) == NULL)
     {
         return -1;
@@ -660,6 +665,12 @@ swString* Coroutine::read_file(const char *file, int lock)
     bzero(&ev, sizeof(swAio_event));
 
     task.co = Coroutine::get_current();
+    if (unlikely(!task.co))
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_CO_OUT_OF_COROUTINE, "Socket::yield() must be called in the coroutine.");
+        exit(255);
+    }
+
     task.event = &ev;
 
     ev.lock = lock ? 1 : 0;
@@ -697,6 +708,12 @@ ssize_t Coroutine::write_file(const char *file, char *buf, size_t length, int lo
     bzero(&ev, sizeof(swAio_event));
 
     task.co = Coroutine::get_current();
+    if (unlikely(!task.co))
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_CO_OUT_OF_COROUTINE, "Socket::yield() must be called in the coroutine.");
+        exit(255);
+    }
+
     task.event = &ev;
 
     ev.lock = lock ? 1 : 0;
@@ -761,6 +778,12 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
     }
 
     task.co = Coroutine::get_current();
+    if (unlikely(!task.co))
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_CO_OUT_OF_COROUTINE, "Socket::yield() must be called in the coroutine.");
+        exit(255);
+    }
+
     task.event = &ev;
 
     memcpy(ev.buf, hostname.c_str(), hostname.size());
@@ -889,6 +912,11 @@ bool Coroutine::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double
     coro_poll_task task;
     task.fds = &fds;
     task.co = Coroutine::get_current();
+    if (unlikely(!task.co))
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_CO_OUT_OF_COROUTINE, "Socket::yield() must be called in the coroutine.");
+        exit(255);
+    }
 
     for (auto i = fds.begin(); i != fds.end(); i++)
     {
