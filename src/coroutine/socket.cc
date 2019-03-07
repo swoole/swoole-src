@@ -115,7 +115,8 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
     Coroutine *co = Coroutine::get_current();
     if (unlikely(!co))
     {
-        swError("Socket::yield() must be called in the coroutine.");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_CO_OUT_OF_COROUTINE, "Socket::yield() must be called in the coroutine.");
+        exit(255);
     }
 #ifdef SW_USE_OPENSSL
     if (unlikely(socket->ssl && ((event == SW_EVENT_READ && socket->ssl_want_write) || (event == SW_EVENT_WRITE && socket->ssl_want_read))))
