@@ -1123,7 +1123,7 @@ static PHP_FUNCTION(_sleep)
         RETURN_FALSE;
     }
 
-    if (num >= 0.001 && PHPCoroutine::is_in())
+    if (num >= SW_TIMER_MIN_SEC && PHPCoroutine::is_in())
     {
         php_swoole_check_reactor();
         RETURN_LONG(Coroutine::sleep((double ) num) < 0 ? num : 0);
@@ -1148,7 +1148,7 @@ static PHP_FUNCTION(_usleep)
     }
     double _time = (double) num / 1000000;
 
-    if (_time >= 0.001 && PHPCoroutine::is_in())
+    if (_time >= SW_TIMER_MIN_SEC && PHPCoroutine::is_in())
     {
         php_swoole_check_reactor();
         Coroutine::sleep((double) num / 1000000);
@@ -1178,7 +1178,7 @@ static PHP_FUNCTION(_time_nanosleep)
         RETURN_FALSE;
     }
     double _time = (double) tv_sec + (double) tv_nsec / 1000000000.00;
-    if (_time >= 0.001 && PHPCoroutine::is_in())
+    if (_time >= SW_TIMER_MIN_SEC && PHPCoroutine::is_in())
     {
         php_swoole_check_reactor();
         Coroutine::sleep(_time);
@@ -1237,7 +1237,7 @@ static PHP_FUNCTION(_time_sleep_until)
     php_req.tv_nsec = (long) ((c_ts - php_req.tv_sec) * 1000000000.00);
 
     double _time = (double) php_req.tv_sec + (double) php_req.tv_nsec / 1000000000.00;
-    if (_time >= 0.001 && PHPCoroutine::is_in())
+    if (_time >= SW_TIMER_MIN_SEC && PHPCoroutine::is_in())
     {
         php_swoole_check_reactor();
         Coroutine::sleep(_time);

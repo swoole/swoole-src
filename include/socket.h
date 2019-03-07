@@ -404,7 +404,7 @@ public:
             if (timeout > 0)
             {
                 double used_time = swoole_microtime() - startup_time;
-                if (timeout - used_time < 0.001)
+                if (timeout - used_time < SW_TIMER_MIN_SEC)
                 {
                     return true;
                 }
