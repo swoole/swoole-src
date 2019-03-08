@@ -238,7 +238,8 @@ typedef unsigned long ulong_t;
 #endif
 
 /** always return less than size */
-size_t sw_snprintf(char *buf, size_t s, const char *format, ...);
+size_t sw_snprintf(char *buf, size_t size, const char *format, ...);
+size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 
 static sw_inline char* swoole_strdup(const char *s)
 {

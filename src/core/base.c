@@ -852,6 +852,23 @@ size_t sw_snprintf(char *buf, size_t size, const char *format, ...)
     return retval;
 }
 
+size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args)
+{
+    size_t retval;
+    retval = vsnprintf(buf, size, format, args);
+    if (unlikely(retval < 0))
+    {
+        retval = 0;
+        buf[0] = '\0';
+    }
+    else if (unlikely(retval >= size))
+    {
+        retval = size - 1;
+        buf[retval] = '\0';
+    }
+    return retval;
+}
+
 void swoole_ioctl_set_block(int sock, int nonblock)
 {
     int ret;
