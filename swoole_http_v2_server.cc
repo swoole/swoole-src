@@ -588,6 +588,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                         pathbuf[k_len] = 0;
                         add_assoc_stringl_ex(zserver, ZEND_STRL("query_string"), v_str, v_len);
                         add_assoc_stringl_ex(zserver, ZEND_STRL("request_uri"), pathbuf, k_len);
+                        add_assoc_stringl_ex(zserver, ZEND_STRL("path_info"), pathbuf, k_len);
 
                         zval *zget;
                         zval *zrequest_object = ctx->request.zobject;
@@ -601,6 +602,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                     else
                     {
                         add_assoc_stringl_ex(zserver, ZEND_STRL("request_uri"), (char *) nv.value, nv.valuelen);
+                        add_assoc_stringl_ex(zserver, ZEND_STRL("path_info"), (char *) nv.value, nv.valuelen);
                     }
                 }
                 else if (strncasecmp((char *) nv.name + 1, "authority", nv.namelen -1) == 0)
@@ -786,6 +788,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
             add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
             add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
+            add_assoc_long(zserver, "master_time", conn->last_time);
             add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
         }
         else
