@@ -16,6 +16,10 @@
 #include "php_swoole.h"
 #include "zend_variables.h"
 
+#if (HAVE_PCRE || HAVE_BUNDLED_PCRE) && !defined(COMPILE_DL_PCRE)
+#include "ext/pcre/php_pcre.h"
+#endif
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <net/if.h>
@@ -843,6 +847,10 @@ PHP_MINIT_FUNCTION(swoole)
 
     swoole_objects.size = SWOOLE_OBJECT_DEFAULT;
     swoole_objects.array = sw_calloc(swoole_objects.size, sizeof(void*));
+
+#if defined(PHP_PCRE_VERSION) && PHP_VERSION_ID >= 70300 && !defined(SW_DEBUG)
+    PCRE_G(jit) = 0;
+#endif
 
     return SUCCESS;
 }
