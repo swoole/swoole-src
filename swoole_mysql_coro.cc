@@ -403,8 +403,6 @@ static zend_object *swoole_mysql_coro_create_object(zend_class_entry *ce)
     object->handlers = &swoole_mysql_coro_handlers;
     object_properties_init(object, ce);
 
-    PHPCoroutine::check();
-
     mysql_client *client = (mysql_client *) emalloc(sizeof(mysql_client));
     bzero(client, sizeof(mysql_client));
     swoole_set_object_by_handle(object->handle, client);

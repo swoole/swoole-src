@@ -371,12 +371,7 @@ static PHP_METHOD(swoole_coroutine_util, exists)
 
 static PHP_METHOD(swoole_coroutine_util, yield)
 {
-    Coroutine* co = Coroutine::get_current();
-    if (unlikely(!co))
-    {
-        swoole_php_fatal_error(E_ERROR, "can not yield outside coroutine");
-        RETURN_FALSE;
-    }
+    Coroutine* co = Coroutine::get_current_safe();
     user_yield_coros[co->get_cid()] = co;
     co->yield();
     RETURN_TRUE;
@@ -557,8 +552,6 @@ int php_coroutine_reactor_can_exit(swReactor *reactor)
 
 static PHP_METHOD(swoole_coroutine_util, sleep)
 {
-    PHPCoroutine::check();
-
     double seconds;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -805,8 +798,6 @@ static void co_socket_write(int fd, char* str, size_t l_str, INTERNAL_FUNCTION_P
 
 static PHP_METHOD(swoole_coroutine_util, fread)
 {
-    PHPCoroutine::check();
-
     zval *handle;
     zend_long length = 0;
 
@@ -877,6 +868,7 @@ static PHP_METHOD(swoole_coroutine_util, fread)
 
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
+    php_swoole_check_reactor();
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
@@ -891,8 +883,6 @@ static PHP_METHOD(swoole_coroutine_util, fread)
 
 static PHP_METHOD(swoole_coroutine_util, fgets)
 {
-    PHPCoroutine::check();
-
     zval *handle;
     php_stream *stream;
 
@@ -957,6 +947,7 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
 
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
+    php_swoole_check_reactor();
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
@@ -972,8 +963,6 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
 
 static PHP_METHOD(swoole_coroutine_util, fwrite)
 {
-    PHPCoroutine::check();
-
     zval *handle;
     char *str;
     size_t l_str;
@@ -1033,6 +1022,7 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
 
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
+    php_swoole_check_reactor();
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
@@ -1047,8 +1037,6 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
 
 static PHP_METHOD(swoole_coroutine_util, readFile)
 {
-    PHPCoroutine::check();
-
     char *filename;
     size_t l_filename;
     zend_long flags = 0;
@@ -1073,8 +1061,6 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
 
 static PHP_METHOD(swoole_coroutine_util, writeFile)
 {
-    PHPCoroutine::check();
-
     char *filename;
     size_t l_filename;
     char *data;
@@ -1170,8 +1156,6 @@ static void coro_dns_onGetaddrinfoCompleted(swAio_event *event)
 
 PHP_FUNCTION(swoole_coroutine_gethostbyname)
 {
-    PHPCoroutine::check();
-
     char *domain_name;
     size_t l_domain_name;
     zend_long family = AF_INET;
@@ -1207,8 +1191,6 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname)
 
 static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
 {
-    PHPCoroutine::check();
-
     char *hostname;
     size_t l_hostname;
     zend_long family = AF_INET;
@@ -1268,6 +1250,7 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
         req->result = ecalloc(SW_DNS_HOST_BUFFER_SIZE, sizeof(struct sockaddr_in6));
     }
 
+    php_swoole_check_reactor();
     if (swAio_dispatch(&ev) < 0)
     {
         efree(ev.buf);
@@ -1363,8 +1346,6 @@ static PHP_METHOD(swoole_coroutine_util, list)
 
 static PHP_METHOD(swoole_coroutine_util, statvfs)
 {
-    PHPCoroutine::check();
-
     char *path;
     size_t l_path;
 
@@ -1406,7 +1387,6 @@ PHP_FUNCTION(swoole_coroutine_exec)
         RETURN_FALSE;
     }
 
-    PHPCoroutine::check();
     swoole_coroutine_signal_init();
     php_swoole_check_reactor();
 
@@ -1480,12 +1460,11 @@ PHP_FUNCTION(swoole_coroutine_defer)
     zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
     php_swoole_fci *defer_fci;
 
-    PHPCoroutine::check();
-
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_FUNC(fci, fci_cache)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    Coroutine::get_current_safe();
     defer_fci = (php_swoole_fci *) emalloc(sizeof(php_swoole_fci));
     defer_fci->fci = fci;
     defer_fci->fci_cache = fci_cache;

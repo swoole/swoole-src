@@ -165,8 +165,6 @@ static PHP_METHOD(swoole_channel_coro, __construct)
 
 static PHP_METHOD(swoole_channel_coro, push)
 {
-    PHPCoroutine::check();
-
     Channel *chan = swoole_get_channel(getThis());
     if (chan->is_closed())
     {
@@ -202,8 +200,6 @@ static PHP_METHOD(swoole_channel_coro, push)
 
 static PHP_METHOD(swoole_channel_coro, pop)
 {
-    PHPCoroutine::check();
-
     Channel *chan = swoole_get_channel(getThis());
     if (chan->is_closed())
     {

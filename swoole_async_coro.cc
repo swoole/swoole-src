@@ -291,7 +291,6 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
         RETURN_FALSE;
     }
 
-    PHPCoroutine::check();
     if (Z_TYPE_P(domain) != IS_STRING)
     {
         swoole_php_fatal_error(E_WARNING, "invalid domain name.");

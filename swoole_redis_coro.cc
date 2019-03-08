@@ -828,8 +828,8 @@ ZEND_END_ARG_INFO()
 #define IS_NX_XX_ARG(a) (IS_NX_ARG(a) || IS_XX_ARG(a))
 
 #define SW_REDIS_COMMAND_CHECK \
-    PHPCoroutine::check(); \
-    swRedisClient *redis = (swRedisClient *) swoole_get_redis_client(getThis());
+    Coroutine::get_current_safe(); \
+    swRedisClient *redis = swoole_get_redis_client(getThis());
 
 #define SW_REDIS_COMMAND_ARGV_FILL(str, str_len) \
     argvlen[i] = str_len; \
@@ -2010,13 +2010,12 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 static PHP_METHOD(swoole_redis_coro, connect)
 {
     zval *zobject = getThis();
-    swRedisClient *redis = swoole_get_redis_client(zobject);
     char *host = nullptr;
     size_t host_len = 0;
     zend_long port = 0;
     zend_bool serialize = 0;
 
-    PHPCoroutine::check();
+    SW_REDIS_COMMAND_CHECK
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lb", &host, &host_len, &port, &serialize) == FAILURE)
     {

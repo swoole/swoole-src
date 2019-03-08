@@ -134,6 +134,15 @@ public:
         return current;
     }
 
+    static inline Coroutine* get_current_safe()
+    {
+        if (unlikely(!current))
+        {
+            swFatalError("API must be called in the coroutine");
+        }
+        return current;
+    }
+
     static inline void* get_current_task()
     {
         return likely(current) ? current->get_task() : nullptr;

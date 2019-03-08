@@ -370,17 +370,9 @@ void PHPCoroutine::defer(php_swoole_fci *fci)
     task->defer_tasks->push(fci);
 }
 
-void PHPCoroutine::check()
-{
-    if (unlikely(!Coroutine::get_current()))
-    {
-        swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
-    }
-}
-
 void PHPCoroutine::check_bind(const char *name, long bind_cid)
 {
-    check();
+    Coroutine::get_current_safe();
     if (unlikely(bind_cid > 0))
     {
         swString *buffer = SwooleTG.buffer_stack;
@@ -398,10 +390,7 @@ void PHPCoroutine::check_bind(const char *name, long bind_cid)
 
 void PHPCoroutine::yield_m(zval *return_value, php_coro_context *sw_current_context)
 {
-    if (unlikely(!Coroutine::get_current()))
-    {
-        swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
-    }
+    Coroutine::get_current_safe();
     php_coro_task *task = get_task();
     sw_current_context->current_coro_return_value_ptr = return_value;
     sw_current_context->current_task = task;

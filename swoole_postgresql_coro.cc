@@ -155,7 +155,6 @@ void swoole_postgresql_coro_init(int module_number)
 
 static PHP_METHOD(swoole_postgresql_coro, __construct)
 {
-    PHPCoroutine::check();
     pg_object *pg = (pg_object *) emalloc(sizeof(pg_object));
     bzero(pg, sizeof(pg_object));
     pg->object = getThis();
@@ -173,6 +172,11 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
 
     pgsql = PQconnectStart(Z_STRVAL_P(conninfo));
     int fd =  PQsocket(pgsql);
+
+    if (unlikely(fd < 0))
+    {
+        RETURN_FALSE;
+    }
 
     php_swoole_check_reactor();
 
