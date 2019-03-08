@@ -1157,7 +1157,6 @@ typedef struct _swThreadParam
 	int pti;
 } swThreadParam;
 
-extern int16_t sw_errno;
 extern char sw_error[SW_ERROR_MSG_SIZE];
 
 enum swProcessType

@@ -50,7 +50,6 @@ void swoole_init(void)
 
     SwooleG.running = 1;
     SwooleG.enable_coroutine = 1;
-    sw_errno = 0;
 
     SwooleG.log_fd = STDOUT_FILENO;
     SwooleG.write_log = swLog_put;
