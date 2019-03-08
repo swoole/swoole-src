@@ -93,7 +93,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
     //there are remaining data
     if (length < buffer->length)
     {
-    	swString_pop_front(buffer, length);
+        swString_pop_front(buffer, length);
         swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%zu", count, buffer->length);
         goto _find_eof;
     }
