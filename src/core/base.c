@@ -37,6 +37,9 @@
 
 SwooleGS_t *SwooleGS;
 
+void (*swFatalError)(const char *str, ...);
+static void _swFatalError(const char *format, ...);
+
 void swoole_init(void)
 {
     if (SwooleG.running)
@@ -53,6 +56,7 @@ void swoole_init(void)
 
     SwooleG.log_fd = STDOUT_FILENO;
     SwooleG.write_log = swLog_put;
+    swFatalError = _swFatalError;
 
 #ifdef _WIN32
     SYSTEM_INFO info;
@@ -826,10 +830,7 @@ uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
 /**
  * for GDB
  */
-void swBreakPoint()
-{
-
-}
+void swBreakPoint() { }
 
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...)
 {
@@ -1414,3 +1415,17 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t)
 }
 #endif
 #endif
+
+static void _swFatalError(const char *format, ...)
+{
+    size_t retval;
+    va_list args;
+
+    SwooleGS->lock_2.lock(&SwooleGS->lock_2);
+    va_start(args, format);
+    retval = sw_vsnprintf(sw_error, SW_ERROR_MSG_SIZE, format, args);
+    va_end(args);
+    SwooleG.write_log(SW_LOG_ERROR, sw_error, retval);
+    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);
+    exit(255);
+}
