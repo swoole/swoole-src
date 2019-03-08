@@ -16,7 +16,7 @@
 
 #include "swoole.h"
 
-#define SW_LOG_BUFFER_SIZE 1024
+#define SW_LOG_BUFFER_SIZE  16384
 #define SW_LOG_DATE_STRLEN  64
 
 int swLog_init(char *logfile)
