@@ -384,6 +384,7 @@ void PHPCoroutine::check_bind(const char *name, long bind_cid)
     if (unlikely(bind_cid > 0))
     {
         swString *buffer = SwooleTG.buffer_stack;
+        swString_clear(buffer);
         sw_get_debug_print_backtrace(buffer, DEBUG_BACKTRACE_IGNORE_ARGS, 3);
         swoole_error_log(
             SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
