@@ -786,6 +786,17 @@ static sw_inline int swString_extend_align(swString *str, size_t _new_size)
     return swString_extend(str, align_size);
 }
 
+/**
+ * migrate data to head, [offset, length - offset] -> [0, length - offset]
+ */
+static sw_inline void swString_pop_front(swString *str, off_t offset)
+{
+    assert(offset < str->length);
+    str->length = str->length - offset;
+    str->offset = 0;
+    memmove(str->str, str->str + offset, str->length);
+}
+
 static sw_inline void swString_sub(swString *str, off_t start, size_t length)
 {
     char *from = str->str + start + (start >= 0 ? 0 : str->length);

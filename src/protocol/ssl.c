@@ -696,7 +696,8 @@ int swSSL_accept(swConnection *conn)
     }
     else if (err == SSL_ERROR_SSL)
     {
-        swWarn("bad SSL client[%s:%d].", swConnection_get_ip(conn), swConnection_get_port(conn));
+        int reason = ERR_GET_REASON(ERR_peek_error());
+        swWarn("bad SSL client[%s:%d], reason=%d.", swConnection_get_ip(conn), swConnection_get_port(conn), reason);
         return SW_ERROR;
     }
     //EOF was observed

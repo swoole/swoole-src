@@ -1381,7 +1381,7 @@ static PHP_METHOD(swoole_client, recv)
 
                 if ((int) buffer->length > eof)
                 {
-                    swString_sub(buffer, eof, 0);
+                    swString_pop_front(buffer, eof);
                 }
                 else
                 {

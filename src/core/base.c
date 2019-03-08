@@ -545,9 +545,9 @@ double swoole_microtime(void)
 void swoole_rtrim(char *str, int len)
 {
     int i;
-    for (i = len; i > 0; i--)
+    for (i = len; i > 0;)
     {
-        switch (str[i])
+        switch (str[--i])
         {
         case ' ':
         case '\0':

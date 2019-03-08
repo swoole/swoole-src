@@ -454,7 +454,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                          */
                         if (conn->active && buffer->length > request->header_length)
                         {
-                            swString_sub(buffer, request->header_length, 0);
+                            swString_pop_front(buffer, request->header_length);
                             swHttpRequest_clean(request);
                             goto _parse;
                         }

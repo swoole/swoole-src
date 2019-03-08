@@ -353,6 +353,11 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *dat
             swoole_php_fatal_error(E_WARNING, "invalid target worker-id[%d].", worker_id);
             worker_id = -1;
         }
+        zval_ptr_dtor(retval);
+    }
+    if (zdata)
+    {
+        zval_ptr_dtor(zdata);
     }
     SwooleG.lock.unlock(&SwooleG.lock);
     return worker_id;
