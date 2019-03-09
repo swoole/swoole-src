@@ -372,6 +372,8 @@ define('SWOOLE_COLOR_BLUE', 4);
 define('SWOOLE_COLOR_MAGENTA', 5);
 define('SWOOLE_COLOR_CYAN', 6);
 define('SWOOLE_COLOR_WHITE', 7);
+// swoole patch: os check
+define('SWOOLE_IS_ALPINE_LINUX', strpos(`apk 2>&1`, 'apk-tools') !== false);
 
 function save_or_mail_results()
 {
@@ -1191,12 +1193,23 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
             proc_terminate($proc, 9);
             return $data;
         } else if ($n > 0) {
-            if ($captureStdOut) {
-                $line = fread($pipes[1], 8192);
-            } elseif ($captureStdErr) {
-                $line = fread($pipes[2], 8192);
+            // swoole patch: fix blocking read
+            if (SWOOLE_IS_ALPINE_LINUX) {
+                if ($captureStdOut) {
+                    $line = fread($pipes[1], 8192);
+                } elseif ($captureStdErr) {
+                    $line = fread($pipes[2], 8192);
+                } else {
+                    $line = '';
+                }
             } else {
                 $line = '';
+                if ($captureStdOut && in_array($pipes[1], $r)) {
+                    $line .= fread($pipes[1], 8192);
+                }
+                if ($captureStdErr && in_array($pipes[2], $r)) {
+                    $line .= fread($pipes[2], 8192);
+                }
             }
             if (strlen($line) == 0) {
                 /* EOF */
