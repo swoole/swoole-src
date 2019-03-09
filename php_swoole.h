@@ -1039,7 +1039,8 @@ static sw_inline void sw_get_debug_print_backtrace(swString *buffer, zend_long o
     php_output_get_contents(retval);
     php_output_discard();
     swString_append_ptr(buffer, ZEND_STRL("Stack trace:\n"));
-    swString_append_ptr(buffer, Z_STRVAL_P(retval), Z_STRLEN_P(retval)-1); // trim \n
+    Z_STRVAL_P(retval)[Z_STRLEN_P(retval)-1] = '\0'; // replace \n to \0
+    swString_append_ptr(buffer, Z_STRVAL_P(retval), Z_STRLEN_P(retval));
     zval_ptr_dtor(retval);
 }
 
