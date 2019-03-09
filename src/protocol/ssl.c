@@ -514,7 +514,7 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
             }
 
             str = altname->d.dNSName;
-            swTrace("SSL subjectAltName: \"%*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
+            swTrace("SSL subjectAltName: \"%.*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
 
             if (swSSL_check_name(tls_host_name, str) == SW_OK)
             {
@@ -554,7 +554,7 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
         entry = X509_NAME_get_entry(sname, i);
         str = X509_NAME_ENTRY_get_data(entry);
 
-        swTrace("SSL commonName: \"%*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
+        swTrace("SSL commonName: \"%.*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
 
         if (swSSL_check_name(tls_host_name, str) == SW_OK)
         {

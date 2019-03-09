@@ -38,7 +38,7 @@ void MyServer::onReceive(int fd, const DataBuffer &data)
 
     int ret;
     char resp_data[SW_BUFFER_SIZE_STD];
-    int n = snprintf(resp_data, SW_BUFFER_SIZE_STD, (char *) "Server: %*s\n", (int) data.length, (char *) data.buffer);
+    int n = snprintf(resp_data, SW_BUFFER_SIZE_STD, (char *) "Server: %.*s\n", (int) data.length, (char *) data.buffer);
     ret = this->send(fd, resp_data, (uint32_t) n);
     if (ret < 0)
     {
@@ -57,7 +57,7 @@ void MyServer::onPacket(const DataBuffer &data, ClientInfo &clientInfo)
 {
     printf("recv, length=%ld, str=%s, client=%s:%d\n", data.length,  (char *) data.buffer, clientInfo.address, clientInfo.port);
     char resp_data[SW_BUFFER_SIZE_STD];
-    int n = snprintf(resp_data, SW_BUFFER_SIZE_STD, (char *) "Server: %*s\n", (int) data.length, (char *) data.buffer);
+    int n = snprintf(resp_data, SW_BUFFER_SIZE_STD, (char *) "Server: %.*s\n", (int) data.length, (char *) data.buffer);
     auto sent_data =  DataBuffer(resp_data, n);
     auto ip = string(clientInfo.address);
     auto ret = this->sendto(ip, clientInfo.port, sent_data);

@@ -341,14 +341,14 @@ bool Socket::http_proxy_handshake()
         char auth_buf[256];
         char encode_buf[512];
         n = sw_snprintf(
-            auth_buf, sizeof(auth_buf), "%*s:%*s",
+            auth_buf, sizeof(auth_buf), "%.*s:%.*s",
             http_proxy->l_user, http_proxy->user,
             http_proxy->l_password, http_proxy->password
         );
         swBase64_encode((unsigned char *) auth_buf, n, encode_buf);
         n = sw_snprintf(
             http_proxy->buf, sizeof(http_proxy->buf),
-            "CONNECT %*s:%d HTTP/1.1\r\nProxy-Authorization:Basic %s\r\n\r\n",
+            "CONNECT %.*s:%d HTTP/1.1\r\nProxy-Authorization:Basic %s\r\n\r\n",
             http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port, encode_buf
         );
     }
@@ -356,7 +356,7 @@ bool Socket::http_proxy_handshake()
     {
         n = sw_snprintf(
             http_proxy->buf, sizeof(http_proxy->buf),
-            "CONNECT %*s:%d HTTP/1.1\r\n\r\n",
+            "CONNECT %.*s:%d HTTP/1.1\r\n\r\n",
             http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port
         );
     }

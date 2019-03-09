@@ -102,7 +102,7 @@ int my_onReceive(swServer *serv, swEventData *req)
     swNotice("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d", g_receive_count, swConnection_get_ip(conn),
             swConnection_get_port(conn), req->data, req->info.len);
 
-    int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %*s\n", req->info.len, req->data);
+    int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s\n", req->info.len, req->data);
     ret = serv->send(serv, req->info.fd, resp_data, n);
     if (ret < 0)
     {
@@ -155,10 +155,10 @@ int my_onPacket(swServer *serv, swEventData *req)
     data = packet->data;
     length = packet->length;
 
-    swNotice("Packet[client=%s:%d, %d bytes]: data=%*s", address, port, length, length, data);
+    swNotice("Packet[client=%s:%d, %d bytes]: data=%.*s", address, port, length, length, data);
 
     char resp_data[SW_IPC_BUFFER_SIZE];
-    int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %*s", length, data);
+    int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s", length, data);
 
     //udp ipv4
     if (req->info.type == SW_EVENT_UDP)

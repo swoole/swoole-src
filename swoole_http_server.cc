@@ -1447,7 +1447,7 @@ static PHP_METHOD(swoole_http_response, write)
     swString_clear(swoole_http_buffer);
     char *hex_string = swoole_dec2hex(http_body.length, 16);
     int hex_len = strlen(hex_string);
-    //"%*s\r\n%*s\r\n", hex_len, hex_string, body.length, body.str
+    //"%.*s\r\n%.*s\r\n", hex_len, hex_string, body.length, body.str
     swString_append_ptr(swoole_http_buffer, hex_string, hex_len);
     swString_append_ptr(swoole_http_buffer, ZEND_STRL("\r\n"));
     swString_append_ptr(swoole_http_buffer, http_body.str, http_body.length);
@@ -1559,7 +1559,7 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
             if (!ZVAL_IS_NULL(value))
             {
                 zend::string str_value(value);
-                n = sw_snprintf(buf, l_buf, "%*s: %*s\r\n", keylen - 1, key, (int) str_value.len(), str_value.val());
+                n = sw_snprintf(buf, l_buf, "%.*s: %.*s\r\n", keylen - 1, key, (int) str_value.len(), str_value.val());
                 swString_append_ptr(response, buf, n);
             }
         }

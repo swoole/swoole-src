@@ -184,7 +184,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
 
     char _command[SW_REDIS_MAX_COMMAND_SIZE];
     command[command_len] = 0;
-    size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%*s", command_len, command);
+    size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%.*s", command_len, command);
     php_strtolower(_command, _command_len);
 
     zval args[2];
@@ -195,7 +195,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     if (i == redis_handlers.end())
     {
         char err_msg[256];
-        length = sw_snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%*s'\r\n", command_len, command);
+        length = sw_snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%.*s'\r\n", command_len, command);
         serv->send(serv, fd, err_msg, length);
         return SW_OK;
     }
@@ -214,7 +214,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         zval _retval, *retval = &_retval;
         if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
         {
-            swoole_php_error(E_WARNING, "redis server command '%*s' handler error.", command_len, command);
+            swoole_php_error(E_WARNING, "redis server command '%.*s' handler error.", command_len, command);
         }
         if (Z_TYPE_P(retval) == IS_STRING)
         {
@@ -367,7 +367,7 @@ static PHP_METHOD(swoole_redis_server, format)
         if (value)
         {
             convert_to_string(value);
-            length = sw_snprintf(message, sizeof(message), "+%*s\r\n", (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
+            length = sw_snprintf(message, sizeof(message), "+%.*s\r\n", (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
         }
         else
         {
@@ -380,7 +380,7 @@ static PHP_METHOD(swoole_redis_server, format)
         if (value)
         {
             convert_to_string(value);
-            length = sw_snprintf(message, sizeof(message), "-%*s\r\n", (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
+            length = sw_snprintf(message, sizeof(message), "-%.*s\r\n", (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
         }
         else
         {

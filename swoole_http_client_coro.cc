@@ -899,7 +899,7 @@ bool http_client::send()
         );
         n = sw_snprintf(
             header_buf,
-            sizeof(header_buf), "Content-Type: multipart/form-data; boundary=%*s\r\n",
+            sizeof(header_buf), "Content-Type: multipart/form-data; boundary=%.*s\r\n",
             (int)(sizeof(boundary_str) - 1), boundary_str
         );
         swString_append_ptr(http_client_buffer, header_buf, n);
@@ -1070,7 +1070,7 @@ bool http_client::send()
             SW_HASHTABLE_FOREACH_END();
         }
 
-        n = sw_snprintf(header_buf, sizeof(header_buf), "--%*s--\r\n", (int)(sizeof(boundary_str) - 1), boundary_str);
+        n = sw_snprintf(header_buf, sizeof(header_buf), "--%.*s--\r\n", (int)(sizeof(boundary_str) - 1), boundary_str);
         if (socket->send_all(header_buf, n) != n)
         {
             goto _send_fail;
