@@ -22,7 +22,7 @@ function fix_tests_in_this_dir(string $dir)
                 echo "{$dir}/{$file}\n";
             } else {
                 if ($dir_name !== $matches[1]) {
-                    swoole_ok("Fix title [{$dir_name}] to [{$matches[1]}] in {$dir}/{$file}");
+                    swoole_ok("Fix title from [{$matches[1]}] to [{$dir_name}] in {$dir}/{$file}");
                     $content = preg_replace(
                         '/(--TEST--\n)([^:]+?)(:)/',
                         '$1' . $dir_name . '$3',
