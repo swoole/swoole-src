@@ -1387,8 +1387,8 @@ PHP_FUNCTION(swoole_coroutine_exec)
         RETURN_FALSE;
     }
 
+    Coroutine::get_current_safe();
     swoole_coroutine_signal_init();
-    php_swoole_check_reactor();
 
     pid_t pid;
     int fd = swoole_shell_exec(command, &pid, get_error_stream);
