@@ -2149,6 +2149,12 @@ static sw_inline swTimer_node* swTimer_get(swTimer *timer, long id)
     return (swTimer_node*) swHashMap_find_int(timer->map, id);
 }
 
+static sw_inline swTimer_node* swTimer_get_ex(swTimer *timer, long id, enum swTimer_type type)
+{
+    swTimer_node* tnode = (swTimer_node*) swHashMap_find_int(timer->map, id);
+    return (tnode && tnode->type == type) ? tnode : NULL;
+}
+
 int swSystemTimer_init(int msec);
 void swSystemTimer_signal_handler(int sig);
 int swSystemTimer_event_handler(swReactor *reactor, swEvent *event);
