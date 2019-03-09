@@ -1559,7 +1559,7 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
             if (!ZVAL_IS_NULL(value))
             {
                 zend::string str_value(value);
-                n = sw_snprintf(buf, l_buf, "%.*s: %.*s\r\n", keylen, key, (int) str_value.len(), str_value.val());
+                n = sw_snprintf(buf, l_buf, "%.*s: %.*s\r\n", (int) keylen, key, (int) str_value.len(), str_value.val());
                 swString_append_ptr(response, buf, n);
             }
         }

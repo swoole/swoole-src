@@ -848,7 +848,8 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_objects.size = SWOOLE_OBJECT_DEFAULT;
     swoole_objects.array = sw_calloc(swoole_objects.size, sizeof(void*));
 
-#if defined(PHP_PCRE_VERSION) && PHP_VERSION_ID >= 70300 && !defined(SW_DEBUG)
+    // enable pcre.jit and use swoole extension on MacOS will lead to coredump, disable it temporarily
+#if defined(PHP_PCRE_VERSION) && PHP_VERSION_ID >= 70300 && __MACH__ && !defined(SW_DEBUG)
     PCRE_G(jit) = 0;
 #endif
 
