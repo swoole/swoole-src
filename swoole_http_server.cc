@@ -960,20 +960,21 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     }
     else
     {
-        zval _zrequest_object = *ctx->request.zobject, *zrequest_object = &_zrequest_object;
-        zval _zresponse_object = *ctx->response.zobject, *zresponse_object = &_zresponse_object;
+        zval args[2], *zrequest_object = &args[0], *zresponse_object = &args[1];
+        args[0] = *ctx->request.zobject;
+        args[1] = *ctx->response.zobject;
 
         ctx->keepalive = swoole_http_should_keep_alive(parser);
-        const char *method_name = http_get_method_name(parser->method);
 
-        add_assoc_string(zserver, "request_method", (char * ) method_name);
-        add_assoc_stringl(zserver, "request_uri", ctx->request.path, ctx->request.path_len);
-        add_assoc_stringl(zserver, "path_info", ctx->request.path, ctx->request.path_len);
+        add_assoc_string(zserver, "request_method", (char *) http_get_method_name(parser->method));
+
+        zend_string * zstr_path = zend_string_init(ctx->request.path, ctx->request.path_len, 0);
+        add_assoc_str_ex(zserver, ZEND_STRL("request_uri"), zstr_path);
+        GC_ADDREF(zstr_path);
+        add_assoc_str_ex(zserver, ZEND_STRL("path_info"), zstr_path);
+
         add_assoc_long_ex(zserver, ZEND_STRL("request_time"), serv->gs->now);
-
-        // Add REQUEST_TIME_FLOAT
-        double now_float = swoole_microtime();
-        add_assoc_double_ex(zserver, ZEND_STRL("request_time_float"), now_float);
+        add_assoc_double_ex(zserver, ZEND_STRL("request_time_float"), swoole_microtime());
 
         swConnection *conn = swWorker_get_connection(serv, fd);
         if (!conn)
@@ -1017,10 +1018,6 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
                 goto _free_object;
             }
         }
-
-        zval args[2];
-        args[0] = *zrequest_object;
-        args[1] = *zresponse_object;
 
         if (SwooleG.enable_coroutine)
         {
