@@ -88,6 +88,11 @@ function time_approximate($expect, $actual, float $ratio = 0.1)
     return USE_VALGRIND || approximate($expect, $actual, $ratio);
 }
 
+function ms_random(float $a, float $b)
+{
+    return mt_rand($a * 1000, $b * 1000) / 1000;
+}
+
 function array_random(array $array)
 {
     return $array[mt_rand(0, count($array) - 1)];
