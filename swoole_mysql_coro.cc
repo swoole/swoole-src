@@ -3419,10 +3419,11 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
 
     double timeout = Socket::default_read_timeout;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ad", &params, &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_EX(params, 1, 0)
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (stmt->buffer)
     {
