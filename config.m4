@@ -492,8 +492,8 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_websocket_server.cc"
 
     swoole_source_file="$swoole_source_file \
-    thirdparty/swoole_http_parser.c \
-    thirdparty/multipart_parser.c"
+        thirdparty/swoole_http_parser.c \
+        thirdparty/multipart_parser.c"
 
     swoole_source_file="$swoole_source_file \
         thirdparty/hiredis/async.c \
@@ -588,7 +588,13 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_REQUIRE_CXX()
     
-    CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations -std=c++11"
+    CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations"
+
+    if test "$SW_OS" = "CYGWIN" || test "$SW_OS" = "MINGW"; then 
+        CXXFLAGS="$CXXFLAGS -std=gnu++11"
+    else
+        CXXFLAGS="$CXXFLAGS -std=c++11"
+    fi
 
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)
