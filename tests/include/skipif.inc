@@ -47,10 +47,18 @@ function skip_if_not_debug_version()
     }
 }
 
-function skip_if_function_not_exist(string $func_name)
+function skip_if_constant_not_defined(string $constant_name)
 {
-    if (!function_exists($func_name)) {
-        skip("{$func_name} not exist");
+    require_once __DIR__ . '/config.php';
+    if (!defined($constant_name)) {
+        skip("{$constant_name} is not defined");
+    }
+}
+
+function skip_if_function_not_exist(string $function_name)
+{
+    if (!function_exists($function_name)) {
+        skip("{$function_name} not exist");
     }
 }
 

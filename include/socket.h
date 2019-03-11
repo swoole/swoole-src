@@ -268,7 +268,7 @@ private:
     static int error_event_callback(swReactor *reactor, swEvent *event);
 
     inline void init_sock_type(enum swSocket_type _type);
-    inline void init_sock();
+    inline bool init_sock();
     inline void init_sock(int fd);
     inline void init_options()
     {
