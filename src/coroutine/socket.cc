@@ -472,7 +472,6 @@ bool Socket::init_sock()
 #endif
     if (unlikely(_fd < 0))
     {
-        swWarn("Socket construct failed. Error: %s[%d]", strerror(errno), errno);
         return false;
     }
     init_sock(_fd);

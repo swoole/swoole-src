@@ -572,7 +572,7 @@ bool http_client::connect()
     if (!socket)
     {
         socket = new Socket(socket_type);
-        if (unlikely(socket->socket == nullptr))
+        if (UNEXPECTED(socket->socket == nullptr))
         {
             swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), errno);

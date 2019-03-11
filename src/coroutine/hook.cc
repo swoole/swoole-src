@@ -72,7 +72,7 @@ int swoole_coroutine_socket(int domain, int type, int protocol)
         return socket(domain, type, protocol);
     }
     Socket *socket = new Socket(domain, type, protocol);
-    if (socket->socket == nullptr)
+    if (unlikely(socket->socket == nullptr))
     {
         delete socket;
         return -1;

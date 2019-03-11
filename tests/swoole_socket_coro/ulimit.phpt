@@ -6,18 +6,26 @@ swoole_socket_coro: new socket failed
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 if ($argv[1] ?? '' === 'ulimit') {
-    for ($n = MAX_CONCURRENCY_LOW + 1; $n--;) {
-        $sockets[] = new Co\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    try {
+        for ($n = MAX_CONCURRENCY + 1; $n--;) {
+            $sockets[] = new Co\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+        }
+        echo 'never here' . PHP_EOL;
+    } catch (Co\Socket\Exception $e) {
+        assert($e->getCode() === SOCKET_EMFILE);
+        echo "DONE\n";
     }
 } else {
-    $n = MAX_CONCURRENCY_LOW;
+    $n = MAX_CONCURRENCY;
     $_SERVER['TEST_PHP_EXECUTABLE'] = $_SERVER['TEST_PHP_EXECUTABLE'] ?? 'php';
-    `ulimit -n {$n} && {$_SERVER['TEST_PHP_EXECUTABLE']} {$_SERVER['PHP_SELF']} ulimit`;
+    $dir = __DIR__;
+    file_put_contents(
+        '/tmp/ulimit.sh',
+        "ulimit -n {$n} && {$_SERVER['TEST_PHP_EXECUTABLE']} {$_SERVER['PHP_SELF']} ulimit"
+    );
+    echo shell_exec('/bin/sh /tmp/ulimit.sh');
+    @unlink('/tmp/ulimit.sh');
 }
 ?>
 --EXPECTF--
-PHP Fatal error:  Uncaught Swoole\Coroutine\Socket\Exception: new Socket() failed. Error: Too many open files [%d] in %s/tests/swoole_socket_coro/ulimit.php:%d
-Stack trace:
-#0 %s/tests/swoole_socket_coro/ulimit.php(%d): Swoole\Coroutine\Socket->__construct(%d, %d, %d)
-#1 {main}
-  thrown in %s/tests/swoole_socket_coro/ulimit.php on line %d
+DONE

@@ -368,7 +368,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     int ret = 0;
     char *ip_address = NULL;
 
-    if (unlikely(sock->socket == nullptr))
+    if (UNEXPECTED(sock->socket == nullptr))
     {
         return -1;
     }
@@ -886,7 +886,7 @@ static php_stream *socket_create(
         sock = new Socket(SW_SOCK_TCP);
     }
 
-    if (unlikely(sock->socket == nullptr))
+    if (UNEXPECTED(sock->socket == nullptr))
     {
         _failed:
         swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
