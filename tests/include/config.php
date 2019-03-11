@@ -52,6 +52,23 @@ define('REDIS_SERVER_PORT', 6379);
 define('REDIS_SERVER_PWD', 'root');
 define('REDIS_SERVER_DB', 0);
 
+/** ============== HttpBin ============== */
+if (IS_IN_TRAVIS) {
+    define('HTTPBIN_SERVER_HOST', 'httpbin');
+    define('HTTPBIN_SERVER_PORT', 80);
+    define('HTTPBIN_LOCALLY', true);
+} elseif (!empty($info = `docker ps | grep httpbin 2>&1`) &&
+    preg_match('/\s+?[^:]+:(\d+)->\d+\/tcp\s+/', $info, $matches) &&
+    is_numeric($matches[1])
+) {
+    define('HTTPBIN_SERVER_HOST', '127.0.0.1');
+    define('HTTPBIN_SERVER_PORT', (int)$matches[1]);
+    define('HTTPBIN_LOCALLY', true);
+} else {
+    define('HTTPBIN_SERVER_HOST', 'httpbin.org');
+    define('HTTPBIN_SERVER_PORT', 80);
+}
+
 /** =============== IP ================ */
 define('IP_REGEX', '/^(?:[\d]{1,3}\.){3}[\d]{1,3}$/');
 

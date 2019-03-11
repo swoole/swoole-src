@@ -37,3 +37,6 @@ services:
       - ./data/run/redis:/var/run/redis:rw
     sysctls:
         net.core.somaxconn: 65535
+  httpbin:
+    container_name: "httpbin"
+    image: "kennethreitz/httpbin"
