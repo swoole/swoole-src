@@ -57,7 +57,7 @@ if (IS_IN_TRAVIS) {
     define('HTTPBIN_SERVER_HOST', 'httpbin');
     define('HTTPBIN_SERVER_PORT', 80);
     define('HTTPBIN_LOCALLY', true);
-} elseif (!empty($info = `docker ps | grep httpbin 2>&1`) &&
+} elseif (!empty($info = `docker ps 2>&1 | grep httpbin 2>&1`) &&
     preg_match('/\s+?[^:]+:(\d+)->\d+\/tcp\s+/', $info, $matches) &&
     is_numeric($matches[1])
 ) {
