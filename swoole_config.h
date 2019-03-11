@@ -223,10 +223,13 @@
 #define SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE  SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE
 #define SW_HTTP2_MAX_MAX_HEADER_LIST_SIZE      UINT32_MAX
 
-#define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
-#define SW_HTTP_CLIENT_BOUNDARY_PREKEY   "----SwooleBoundary"
-#define SW_HTTP_FORM_DATA_FORMAT_STRING  "--%.*s\r\nContent-Disposition: form-data; name=\"%.*s\"\r\n\r\n"
-#define SW_HTTP_FORM_DATA_FORMAT_FILE    "--%.*s\r\nContent-Disposition: form-data; name=\"%.*s\"; filename=\"%.*s\"\r\nContent-Type: %.*s\r\n\r\n"
+#define SW_HTTP_CLIENT_USERAGENT             "swoole-http-client"
+#define SW_HTTP_CLIENT_BOUNDARY_PREKEY       "----SwooleBoundary"
+#define SW_HTTP_CLIENT_BOUNDARY_TOTAL_SIZE   39
+#define SW_HTTP_FORM_RAW_DATA_FMT            "--%.*s\r\nContent-Disposition: form-data; name=\"%.*s\"\r\n\r\n"
+#define SW_HTTP_FORM_RAW_DATA_FMT_LEN        8
+#define SW_HTTP_FORM_FILE_DATA_FMT           "--%.*s\r\nContent-Disposition: form-data; name=\"%.*s\"; filename=\"%.*s\"\r\nContent-Type: %.*s\r\n\r\n"
+#define SW_HTTP_FORM_FILE_DATA_FMT_LEN       16
 
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"

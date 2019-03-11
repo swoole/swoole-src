@@ -886,7 +886,7 @@ bool http_client::send()
     if (ZVAL_IS_ARRAY(zupload_files))
     {
         char header_buf[2048];
-        char boundary_str[39];
+        char boundary_str[SW_HTTP_CLIENT_BOUNDARY_TOTAL_SIZE];
         int n;
 
         has_upload_files = php_swoole_array_length(zupload_files) > 0;
@@ -916,9 +916,9 @@ bool http_client::send()
                     continue;
                 }
                 zend::string _value(value);
-                //strlen("%.*")*2 = 6
-                //header + body + CRLF
-                content_length += (sizeof(SW_HTTP_FORM_DATA_FORMAT_STRING) - 7) + (sizeof(boundary_str) - 1) + keylen + _value.len() + 2;
+                //strlen("%.*s")*2 = 8
+                //header + body + CRLF(2)
+                content_length += (sizeof(SW_HTTP_FORM_RAW_DATA_FMT) - SW_HTTP_FORM_RAW_DATA_FMT_LEN -1) + (sizeof(boundary_str) - 1) + keylen + _value.len() + 2;
             SW_HASHTABLE_FOREACH_END();
         }
 
@@ -950,9 +950,9 @@ bool http_client::send()
                 {
                     continue;
                 }
-                //strlen("%.*")*4 = 12
-                //header + body + CRLF
-                content_length += (sizeof(SW_HTTP_FORM_DATA_FORMAT_FILE) - 13) + (sizeof(boundary_str) - 1)
+                //strlen("%.*s")*4 = 16
+                //header + body + CRLF(2)
+                content_length += (sizeof(SW_HTTP_FORM_FILE_DATA_FMT) - SW_HTTP_FORM_FILE_DATA_FMT_LEN - 1) + (sizeof(boundary_str) - 1)
                         + Z_STRLEN_P(zname) + Z_STRLEN_P(zfilename) + Z_STRLEN_P(ztype) + Z_LVAL_P(zsize) + 2;
             SW_HASHTABLE_FOREACH_END();
         }
@@ -970,7 +970,7 @@ bool http_client::send()
                 zend::string _value(value);
                 n = sw_snprintf(
                     header_buf, sizeof(header_buf),
-                    SW_HTTP_FORM_DATA_FORMAT_STRING, (int)(sizeof(boundary_str) - 1),
+                    SW_HTTP_FORM_RAW_DATA_FMT, (int)(sizeof(boundary_str) - 1),
                     boundary_str, keylen, key
                 );
                 swString_append_ptr(http_client_buffer, header_buf, n);
@@ -1029,7 +1029,7 @@ bool http_client::send()
                  * part header
                  */
                 n = sw_snprintf(
-                    header_buf, sizeof(header_buf), SW_HTTP_FORM_DATA_FORMAT_FILE,
+                    header_buf, sizeof(header_buf), SW_HTTP_FORM_FILE_DATA_FMT,
                     (int) (sizeof(boundary_str) - 1), boundary_str,
                     (int) Z_STRLEN_P(zname), Z_STRVAL_P(zname),
                     (int) Z_STRLEN_P(zfilename), Z_STRVAL_P(zfilename),
