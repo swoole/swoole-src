@@ -47,6 +47,13 @@ function skip_if_not_debug_version()
     }
 }
 
+function skip_if_function_not_exist(string $func_name)
+{
+    if (!function_exists($func_name)) {
+        skip("{$func_name} not exist");
+    }
+}
+
 function skip_if_class_not_exist(string $class_name)
 {
     if (!class_exists($class_name, false)) {

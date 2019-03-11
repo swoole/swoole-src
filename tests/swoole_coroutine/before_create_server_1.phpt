@@ -4,6 +4,7 @@ swoole_coroutine: http redirect
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_unsupported();
+skip_if_function_not_exist('curl_init');
 ?>
 --FILE--
 <?php

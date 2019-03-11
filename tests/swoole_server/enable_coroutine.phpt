@@ -1,7 +1,10 @@
 --TEST--
 swoole_server: reload with enable_coroutine
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_function_not_exist('curl_init');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
