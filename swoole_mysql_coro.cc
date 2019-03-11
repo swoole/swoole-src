@@ -63,7 +63,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult);
 #define UTF8_MB4 "utf8mb4"
 #define UTF8_MB3 "utf8"
 
-#define DATETIME_MAX_SIZE  20
+#define DATETIME_MAX_SIZE  32
 
 typedef struct _mysql_big_data_info {
     // for used:
