@@ -463,7 +463,7 @@ void Socket::init_sock_type(enum swSocket_type _type)
     }
 }
 
-void Socket::init_sock()
+bool Socket::init_sock()
 {
 #ifdef SOCK_CLOEXEC
     int _fd = ::socket(sock_domain, sock_type | SOCK_CLOEXEC, sock_protocol);
@@ -473,9 +473,10 @@ void Socket::init_sock()
     if (unlikely(_fd < 0))
     {
         swWarn("Socket construct failed. Error: %s[%d]", strerror(errno), errno);
-        return;
+        return false;
     }
     init_sock(_fd);
+    return true;
 }
 
 void Socket::init_sock(int _fd)
@@ -510,14 +511,20 @@ Socket::Socket(int _domain, int _type, int _protocol) :
         sock_domain(_domain), sock_type(_type), sock_protocol(_protocol)
 {
     type = get_type(_domain, _type, _protocol);
-    init_sock();
+    if (unlikely(!init_sock()))
+    {
+        return;
+    }
     init_options();
 }
 
 Socket::Socket(enum swSocket_type _type)
 {
     init_sock_type(_type);
-    init_sock();
+    if (unlikely(!init_sock()))
+    {
+        return;
+    }
     init_options();
 }
 

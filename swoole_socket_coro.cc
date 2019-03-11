@@ -261,6 +261,7 @@ static PHP_METHOD(swoole_socket_coro, __construct)
             );
             delete sock->socket;
             sock->socket = nullptr;
+            RETURN_FALSE;
         }
         php_swoole_init_socket(getThis(), sock);
     }
