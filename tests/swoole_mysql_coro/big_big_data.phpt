@@ -52,7 +52,7 @@ SQL
         $max_allowed_packet = 64;
     }
     $pdo = new PDO(
-        "mysql:host=" . MYSQL_SERVER_HOST . "port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+        "mysql:host=" . MYSQL_SERVER_HOST . ";port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
         MYSQL_SERVER_USER, MYSQL_SERVER_PWD
     );
     $mysql_query = new Swoole\Coroutine\Mysql;

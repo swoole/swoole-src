@@ -14,7 +14,7 @@ $start = microtime(true);
 $pdo_map = [];
 for ($i = 5; $i--;) {
     $pdo_map[] = new PDO(
-        "mysql:host=" . MYSQL_SERVER_HOST . "port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+        "mysql:host=" . MYSQL_SERVER_HOST . ";port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
         MYSQL_SERVER_USER, MYSQL_SERVER_PWD
     );
 }
