@@ -471,7 +471,7 @@ void swWorker_onStart(swServer *serv)
     sw_shm_protect(serv->session_list, PROT_READ);
 
 #ifdef HAVE_SIGNALFD
-    if (SwooleG.use_signalfd && SwooleG.main_reactor)
+    if (SwooleG.use_signalfd && SwooleG.main_reactor && SwooleG.signal_fd == 0)
     {
         swSignalfd_setup(SwooleG.main_reactor);
     }
