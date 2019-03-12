@@ -625,7 +625,7 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
          */
         if (pool->use_msgqueue)
         {
-            n = swMsgQueue_pop(pool->queue, outbuf, sizeof(outbuf->mdata));
+            n = swMsgQueue_pop(pool->queue, outbuf, SW_MSGMAX);
             if (n < 0 && errno != EINTR)
             {
                 swSysError("[Worker#%d] msgrcv() failed.", worker->id);
