@@ -283,13 +283,13 @@ static PHP_METHOD(swoole_process, __construct)
     php::process *proc = (php::process *) emalloc(sizeof(php::process));
     bzero(proc, sizeof(php::process));
 
-    ZEND_PARSE_PARAMETERS_START(1, 4)
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
         Z_PARAM_FUNC(proc->fci, proc->fci_cache);
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(redirect_stdin_and_stdout)
         Z_PARAM_LONG(pipe_type)
         Z_PARAM_BOOL(enable_coroutine)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swWorker *process = (swWorker *) emalloc(sizeof(swWorker));
     bzero(process, sizeof(swWorker));

@@ -240,7 +240,7 @@ static PHP_METHOD(swoole_socket_coro, __construct)
 {
     zend_long domain, type, protocol = IPPROTO_IP;
 
-    ZEND_PARSE_PARAMETERS_START(2, 3)
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 2, 3)
         Z_PARAM_LONG(domain)
         Z_PARAM_LONG(type)
         Z_PARAM_OPTIONAL
