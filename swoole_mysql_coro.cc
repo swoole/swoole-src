@@ -806,7 +806,7 @@ static int mysql_decode_datetime(char *buf, char *result)
             s = *(uint8_t *) (buf + 7);
         }
     }
-    snprintf(result, DATETIME_MAX_SIZE, "%04d-%02d-%02d %02d:%02d:%02d", y, M, d, h, m, s);
+    snprintf(result, DATETIME_MAX_SIZE, "%.4u-%.2u-%.2u %.2u:%.2u:%.2u", y, M, d, h, m, s);
 
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "n=%d", n);
 
@@ -825,7 +825,7 @@ static int mysql_decode_time(char *buf, char *result)
         s = *(uint8_t *) (buf + 8);
     }
 
-    snprintf(result, DATETIME_MAX_SIZE, "%02d:%02d:%02d", h, m, s);
+    snprintf(result, DATETIME_MAX_SIZE, "%.2u:%.2u:%.2u", h, m, s);
 
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "n=%d", n);
 
@@ -844,7 +844,7 @@ static int mysql_decode_date(char *buf, char *result)
         M = *(uint8_t *) (buf + 3);
         d = *(uint8_t *) (buf + 4);
     }
-    snprintf(result, DATETIME_MAX_SIZE, "%04d-%02d-%02d", y, M, d);
+    snprintf(result, DATETIME_MAX_SIZE, "%.4u-%.2u-%.2u", y, M, d);
 
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "n=%d", n);
 
@@ -854,7 +854,7 @@ static int mysql_decode_date(char *buf, char *result)
 static void mysql_decode_year(char *buf, char *result)
 {
     uint16_t y = *(uint16_t *) (buf);
-    snprintf(result, DATETIME_MAX_SIZE, "%04d", y);
+    snprintf(result, DATETIME_MAX_SIZE, "%.4u", y);
 }
 
 static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint32_t packet_length, size_t n_buf)

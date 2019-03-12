@@ -73,7 +73,7 @@ void swLog_put(int level, char *content, size_t length)
     t = time(NULL);
     p = localtime(&t);
     size_t l_data_str = sw_snprintf(
-        date_str, SW_LOG_DATE_STRLEN, "%d-%02d-%02d %02d:%02d:%02d",
+        date_str, SW_LOG_DATE_STRLEN, "%d-%.2d-%.2d %.2d:%.2d:%.2d",
         p->tm_year + 1900, p->tm_mon + 1, p->tm_mday, p->tm_hour, p->tm_min, p->tm_sec
     );
 #if 0
