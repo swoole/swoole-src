@@ -15,7 +15,7 @@ $count = 0;
 function mysql_sleep(float $time)
 {
     $pdo = new PDO(
-        "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+        "mysql:host=" . MYSQL_SERVER_HOST . "port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
         MYSQL_SERVER_USER, MYSQL_SERVER_PWD
     );
     $pdo->exec("SELECT sleep({$time})");

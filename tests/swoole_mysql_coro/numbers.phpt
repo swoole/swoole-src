@@ -9,6 +9,7 @@ go(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [
         'host' => MYSQL_SERVER_HOST,
+        'port' => MYSQL_SERVER_PORT,
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB,
@@ -25,7 +26,7 @@ go(function () {
 
     try {
         $pdo = new PDO(
-            "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+            "mysql:host=" . MYSQL_SERVER_HOST . "port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
             MYSQL_SERVER_USER, MYSQL_SERVER_PWD
         );
         $r_string2 = $pdo->query('SELECT * FROM numbers')->fetchAll(PDO::FETCH_ASSOC);

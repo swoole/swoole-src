@@ -38,7 +38,7 @@ define('MYSQL_SERVER_PATH', getenv('MYSQL_SERVER_PATH') ?:
     (IS_IN_TRAVIS ? TRAVIS_DIR_PATH . '/data/run/mysqld/mysqld.sock' :
         (IS_MAC_OS ? '/tmp/mysql.sock' : '/var/run/mysqld/mysqld.sock')));
 define('MYSQL_SERVER_HOST', getenv('MYSQL_SERVER_HOST') ?: (IS_IN_TRAVIS ? 'mysql' : '127.0.0.1'));
-define('MYSQL_SERVER_PORT', getenv('MYSQL_SERVER_PORT') ?: 3306);
+define('MYSQL_SERVER_PORT', (int)(getenv('MYSQL_SERVER_PORT') ?: 3306));
 define('MYSQL_SERVER_USER', getenv('MYSQL_SERVER_USER') ?: 'root');
 define('MYSQL_SERVER_PWD', getenv('MYSQL_SERVER_PWD') ?: 'root');
 define('MYSQL_SERVER_DB', getenv('MYSQL_SERVER_DB') ?: 'test');
@@ -48,9 +48,9 @@ define('REDIS_SERVER_PATH', getenv('REDIS_SERVER_PATH') ?:
     (IS_IN_TRAVIS ? TRAVIS_DIR_PATH . '/data/run/redis/redis.sock' :
         (IS_MAC_OS ? '/tmp/redis.sock' : '/var/run/redis/redis-server.sock')));
 define('REDIS_SERVER_HOST', getenv('REDIS_SERVER_HOST') ?: (IS_IN_TRAVIS ? 'redis' : '127.0.0.1'));
-define('REDIS_SERVER_PORT', getenv('REDIS_SERVER_PORT') ?: 6379);
+define('REDIS_SERVER_PORT', (int)(getenv('REDIS_SERVER_PORT') ?: 6379));
 define('REDIS_SERVER_PWD', getenv('REDIS_SERVER_PWD') ?: 'root');
-define('REDIS_SERVER_DB', getenv('REDIS_SERVER_DB') ?: 0);
+define('REDIS_SERVER_DB', (int)(getenv('REDIS_SERVER_DB') ?: 0));
 
 /** ============== HttpBin ============== */
 if (IS_IN_TRAVIS) {
