@@ -156,8 +156,6 @@ static PHP_METHOD(swoole_channel_coro, __construct)
         capacity = 1;
     }
 
-    php_swoole_check_reactor();
-
     channel_coro *chan_t = swoole_channel_coro_fetch_object(Z_OBJ_P(getThis()));
     chan_t->chan = new Channel(capacity);
     zend_update_property_long(swoole_channel_coro_ce_ptr, getThis(), ZEND_STRL("capacity"), capacity);

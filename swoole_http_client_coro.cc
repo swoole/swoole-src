@@ -1520,7 +1520,6 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
         Z_PARAM_BOOL(ssl)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    php_swoole_check_reactor();
     zend_update_property_stringl(swoole_http_client_coro_ce_ptr, getThis(), ZEND_STRL("host"), host, host_len);
     zend_update_property_long(swoole_http_client_coro_ce_ptr,getThis(), ZEND_STRL("port"), port);
     zend_update_property_bool(swoole_http_client_coro_ce_ptr,getThis(), ZEND_STRL("ssl"), ssl);

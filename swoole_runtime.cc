@@ -860,8 +860,6 @@ static php_stream *socket_create(
         return php_socket_create(proto, protolen, resourcename, resourcenamelen, persistent_id, options, flags, timeout, context STREAMS_CC);
     }
 
-    php_swoole_check_reactor();
-
     if (strncmp(proto, "unix", protolen) == 0)
     {
         sock = new Socket(SW_SOCK_UNIX_STREAM);
