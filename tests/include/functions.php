@@ -57,20 +57,11 @@ function is_alpine_linux(): bool
 
 function get_one_free_port()
 {
-    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-    $ok = socket_bind($socket, "0.0.0.0", 0);
-    if (!$ok) {
-        return false;
-    }
-    $ok = socket_listen($socket);
-    if (!$ok) {
-        return false;
-    }
-    $ok = socket_getsockname($socket, $addr, $port);
-    if (!$ok) {
-        return false;
-    }
-    socket_close($socket);
+    $socket = new Co\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    $socket->bind('0.0.0.0');
+    $socket->listen();
+    $port = $socket->getsockname()['port'];
+    $socket->close();
     return $port;
 }
 

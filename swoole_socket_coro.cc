@@ -576,14 +576,12 @@ static PHP_METHOD(swoole_socket_coro, close)
 
 static PHP_METHOD(swoole_socket_coro, getsockname)
 {
-    swSocketAddress info;
+    swSocketAddress info = {{{0}}};
     char addr_str[INET6_ADDRSTRLEN + 1];
 
     swoole_get_socket_coro(sock, getThis());
 
-    memset(&info, 0, sizeof(info));
     info.len = sizeof(info.addr);
-    array_init(return_value);
 
     if (getsockname(sock->socket->get_fd(), (struct sockaddr *) &info.addr, &info.len) != 0)
     {
@@ -592,6 +590,7 @@ static PHP_METHOD(swoole_socket_coro, getsockname)
         RETURN_FALSE;
     }
 
+    array_init(return_value);
     switch (sock->socket->sock_domain)
     {
     case AF_INET6:
@@ -608,20 +607,20 @@ static PHP_METHOD(swoole_socket_coro, getsockname)
         add_assoc_string(return_value, "address", info.addr.un.sun_path);
         break;
     default:
-        swoole_php_error(E_WARNING, "Unsupported address family %d", sock->socket->sock_domain);
+        swoole_php_error(E_WARNING, "unsupported address family %d for socket#%d", sock->socket->sock_domain, sock->socket->get_fd());
+        sock->socket->set_err(EOPNOTSUPP);
+        swoole_socket_coro_sync_properties(getThis(), sock);
+        zval_ptr_dtor(return_value);
         RETURN_FALSE;
     }
 }
 
 static PHP_METHOD(swoole_socket_coro, getpeername)
 {
-    swSocketAddress info;
+    swSocketAddress info = {{{0}}};
     char addr_str[INET6_ADDRSTRLEN + 1];
 
     swoole_get_socket_coro(sock, getThis());
-
-    memset(&info, 0, sizeof(info));
-    array_init(return_value);
 
     if (getpeername(sock->socket->get_fd(), (struct sockaddr *) &info.addr, &info.len) != 0)
     {
@@ -630,6 +629,7 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
         RETURN_FALSE;
     }
 
+    array_init(return_value);
     switch (sock->socket->sock_domain)
     {
     case AF_INET6:
@@ -646,7 +646,10 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
         add_assoc_string(return_value, "address", info.addr.un.sun_path);
         break;
     default:
-        swoole_php_error(E_WARNING, "Unsupported address family %d", sock->socket->sock_domain);
+        swoole_php_error(E_WARNING, "unsupported address family %d for socket#%d", sock->socket->sock_domain, sock->socket->get_fd());
+        sock->socket->set_err(EOPNOTSUPP);
+        swoole_socket_coro_sync_properties(getThis(), sock);
+        zval_ptr_dtor(return_value);
         RETURN_FALSE;
     }
 }
