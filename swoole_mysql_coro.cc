@@ -2835,6 +2835,11 @@ static int swoole_mysql_coro_close(zval *zobject)
     }
 
     //clear connector
+    if (client->connector.timer)
+    {
+        swTimer_del(&SwooleG.timer, client->connector.timer);
+        client->connector.timer = NULL;
+    }
     if (client->connector.host)
     {
         efree(client->connector.host);
