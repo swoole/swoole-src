@@ -167,16 +167,14 @@ function skip_if_no_socks5_proxy()
 function skip_if_pdo_not_support_mysql8()
 {
     require_once __DIR__ . '/config.php';
-    if (IS_IN_TRAVIS) {
-        try {
-            new PDO(
-                "mysql:host=" . MYSQL_SERVER_HOST . ";port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
-                MYSQL_SERVER_USER, MYSQL_SERVER_PWD
-            );
-        } catch (\PDOException $e) {
-            if ($e->getCode() === 2054) {
-                skip('pdo auth not support');
-            }
+    try {
+        new PDO(
+            "mysql:host=" . MYSQL_SERVER_HOST . ";port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+            MYSQL_SERVER_USER, MYSQL_SERVER_PWD
+        );
+    } catch (\PDOException $e) {
+        if ($e->getCode() === 2054) {
+            skip('pdo auth not support');
         }
     }
 }
