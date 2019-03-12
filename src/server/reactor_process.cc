@@ -401,7 +401,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         return SW_ERR;
     }
 
-    swServer_worker_start(serv, worker);
+    swWorker_onStart(serv);
 
     /**
      * for heartbeat check
