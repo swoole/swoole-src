@@ -184,6 +184,7 @@ static Socket* client_coro_new(zval *zobject, int port)
         return NULL;
     }
 
+    php_swoole_check_reactor();
     Socket *cli = new Socket((enum swSocket_type) type);
     if (UNEXPECTED(cli->socket == nullptr))
     {

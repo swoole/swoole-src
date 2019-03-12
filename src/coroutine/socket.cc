@@ -488,6 +488,10 @@ void Socket::init_sock(int _fd)
     {
         reactor = SwooleG.main_reactor;
     }
+    if (unlikely(!reactor))
+    {
+        swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "operation not support (reactor is not ready)");
+    }
 
     socket = swReactor_get(reactor, _fd);
     bzero(socket, sizeof(swConnection));

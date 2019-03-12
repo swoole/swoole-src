@@ -571,6 +571,7 @@ bool http_client::connect()
 {
     if (!socket)
     {
+        php_swoole_check_reactor();
         socket = new Socket(socket_type);
         if (UNEXPECTED(socket->socket == nullptr))
         {

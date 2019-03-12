@@ -214,6 +214,7 @@ SW_API bool php_swoole_export_socket(zval *zobject, int fd, enum swSocket_type t
     zend_object *object = swoole_socket_coro_create_object(swoole_socket_coro_ce_ptr);
     socket_coro *sock = (socket_coro *) swoole_socket_coro_fetch_object(object);
 
+    php_swoole_check_reactor();
     sock->socket = new Socket(fd, type);
     if (UNEXPECTED(sock->socket->socket == nullptr))
     {
@@ -250,6 +251,7 @@ static PHP_METHOD(swoole_socket_coro, __construct)
 
     if (EXPECTED(!sock->socket))
     {
+        php_swoole_check_reactor();
         sock->socket = new Socket((int)domain, (int)type, (int)protocol);
         if (UNEXPECTED(sock->socket->socket == nullptr))
         {
