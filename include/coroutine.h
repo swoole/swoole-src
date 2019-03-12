@@ -25,6 +25,7 @@
 #include <unordered_map>
 
 #define SW_CORO_STACK_ALIGNED_SIZE (4 * 1024)
+#define SW_CORO_MIN_STACK_SIZE     (256  * 1024)
 #define SW_CORO_MAX_STACK_SIZE     (16 * 1024 * 1024)
 #define SW_CORO_MAX_NUM_LIMIT      LONG_MAX
 
@@ -172,7 +173,7 @@ public:
 
     static inline void set_stack_size(size_t size)
     {
-        stack_size = SW_MEM_ALIGNED_SIZE_EX(MIN(size, SW_CORO_MAX_STACK_SIZE), SW_CORO_STACK_ALIGNED_SIZE);
+        stack_size = SW_MEM_ALIGNED_SIZE_EX(MAX(SW_CORO_MIN_STACK_SIZE, MIN(size, SW_CORO_MAX_STACK_SIZE)), SW_CORO_STACK_ALIGNED_SIZE);
     }
 
     static inline long get_last_cid()
