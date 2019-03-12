@@ -117,7 +117,7 @@ static PHP_METHOD(swoole_buffer, __construct)
     swString *buffer = swString_new(size);
     if (buffer == NULL)
     {
-        zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "malloc(%ld) failed.", size);
+        zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "malloc(" ZEND_LONG_FMT ") failed.", size);
         RETURN_FALSE;
     }
 
