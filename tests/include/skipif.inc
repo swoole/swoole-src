@@ -26,14 +26,14 @@ function skip(string $reason, bool $is_skip = true, int $color = SWOOLE_COLOR_YE
     }
 }
 
-function skip_php_version_lower_than($require_version = '7.0')
+function skip_if_php_version_lower_than($require_version = '7.0')
 {
     if (version_compare(PHP_VERSION, $require_version, '<')) {
         skip('need php version >= ' . $require_version);
     }
 }
 
-function skip_php_version_between($a, $b)
+function skip_if_php_version_between($a, $b)
 {
     if (version_compare(PHP_VERSION, $a, '>=') && version_compare(PHP_VERSION, $b, '<=')) {
         skip("unsupported php version between {$a} and {$b}");
@@ -202,7 +202,7 @@ function skip_unsupported()
 
 (function () {
     global $argv;
-    skip_php_version_lower_than('7.0');
+    skip_if_php_version_lower_than('7.0');
     if (!getenv('PHPT') && substr($argv[0], -4) === '.php') {
         skip('please read ' . dirname(dirname(__FILE__)) . '/README.md and try again');
     }
