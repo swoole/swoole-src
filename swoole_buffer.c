@@ -96,12 +96,12 @@ static void swoole_buffer_recycle(swString *buffer)
 
 static PHP_METHOD(swoole_buffer, __construct)
 {
-    long size = SW_STRING_BUFFER_DEFAULT;
+    zend_long size = SW_STRING_BUFFER_DEFAULT;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &size) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(size)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (size < 1)
     {

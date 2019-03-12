@@ -2145,7 +2145,7 @@ static PHP_METHOD(swoole_server, __construct)
 
     if (SwooleG.serv != NULL)
     {
-        swoole_php_fatal_error(E_WARNING, "server is running. unable to create swoole_server.");
+        swoole_php_fatal_error(E_ERROR, "server is running. unable to create swoole_server.");
         RETURN_FALSE;
     }
 
@@ -2155,13 +2155,13 @@ static PHP_METHOD(swoole_server, __construct)
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lll", &serv_host, &host_len, &serv_port, &serv_mode, &sock_type) == FAILURE)
     {
         swoole_php_fatal_error(E_ERROR, "invalid swoole_server parameters.");
-        return;
+        RETURN_FALSE;
     }
 
     if (serv_mode != SW_MODE_BASE && serv_mode != SW_MODE_PROCESS)
     {
         swoole_php_fatal_error(E_ERROR, "invalid $mode parameters %d.", (int) serv_mode);
-        return;
+        RETURN_FALSE;
     }
     if (serv_mode == SW_MODE_BASE)
     {
@@ -2177,7 +2177,7 @@ static PHP_METHOD(swoole_server, __construct)
         if (swServer_add_systemd_socket(serv) <= 0)
         {
             swoole_php_fatal_error(E_ERROR, "failed to add systemd socket.");
-            return;
+            RETURN_FALSE;
         }
     }
     else
@@ -2190,7 +2190,7 @@ static PHP_METHOD(swoole_server, __construct)
                 "failed to listen server port[%s:" ZEND_LONG_FMT "]. Error: %s[%d].",
                 serv_host, serv_port, strerror(errno), errno
             );
-            return;
+            RETURN_FALSE;
         }
     }
 

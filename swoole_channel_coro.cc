@@ -147,10 +147,11 @@ static PHP_METHOD(swoole_channel_coro, __construct)
 {
     zend_long capacity = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &capacity) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(capacity)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     if (capacity <= 0)
     {
         capacity = 1;

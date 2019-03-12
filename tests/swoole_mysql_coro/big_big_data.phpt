@@ -4,6 +4,7 @@ swoole_mysql_coro: select huge data from db (10M~64M)
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_in_valgrind();
+skip_if_pdo_not_support_mysql8();
 ?>
 --FILE--
 <?php

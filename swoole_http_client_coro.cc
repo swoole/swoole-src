@@ -1514,7 +1514,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
     zend_long port = 80;
     zend_bool ssl = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 3)
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 3)
         Z_PARAM_STRING(host, host_len)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(port)
