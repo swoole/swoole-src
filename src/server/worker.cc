@@ -468,7 +468,11 @@ void swWorker_onStart(swServer *serv)
 
     SwooleWG.worker = swServer_get_worker(serv, SwooleWG.id);
     SwooleWG.worker->status = SW_WORKER_IDLE;
-    sw_shm_protect(serv->session_list, PROT_READ);
+
+    if (serv->factory_mode == SW_MODE_PROCESS)
+    {
+        sw_shm_protect(serv->session_list, PROT_READ);
+    }
 
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd && SwooleG.main_reactor && SwooleG.signal_fd == 0)
