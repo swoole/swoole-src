@@ -37,8 +37,7 @@
 
 SwooleGS_t *SwooleGS;
 
-void (*swFatalError)(const char *str, ...);
-static void _swFatalError(const char *format, ...);
+static void swoole_fatal_error(int code, const char *format, ...);
 
 void swoole_init(void)
 {
@@ -56,7 +55,7 @@ void swoole_init(void)
 
     SwooleG.log_fd = STDOUT_FILENO;
     SwooleG.write_log = swLog_put;
-    swFatalError = _swFatalError;
+    SwooleG.fatal_error = swoole_fatal_error;
 
 #ifdef _WIN32
     SYSTEM_INFO info;
@@ -1416,15 +1415,16 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t)
 #endif
 #endif
 
-static void _swFatalError(const char *format, ...)
+static void swoole_fatal_error(int code, const char *format, ...)
 {
-    size_t retval;
+    size_t retval = 0;
     va_list args;
 
-    SwooleGS->lock_2.lock(&SwooleGS->lock_2);
+    retval += sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "(ERROR %d): ", code);
     va_start(args, format);
-    retval = sw_vsnprintf(sw_error, SW_ERROR_MSG_SIZE, format, args);
+    retval += sw_vsnprintf(sw_error + retval, SW_ERROR_MSG_SIZE - retval, format, args);
     va_end(args);
+    SwooleGS->lock_2.lock(&SwooleGS->lock_2);
     SwooleG.write_log(SW_LOG_ERROR, sw_error, retval);
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);
     exit(255);

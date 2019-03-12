@@ -521,6 +521,25 @@ void php_swoole_register_shutdown_function_prepend(char *function)
 #endif
 }
 
+static void php_swoole_fatal_error(int code, const char *format, ...)
+{
+    swString *buffer = SwooleTG.buffer_stack;
+    const char *space, *class_name = get_active_class_name(&space);
+    va_list args;
+
+    swString_clear(buffer);
+    buffer->length += sw_snprintf(buffer->str, buffer->size, "(PHP Fatal Error: %d):\n%s%s%s: ", code, class_name, space, get_active_function_name());
+    va_start(args, format);
+    buffer->length += sw_vsnprintf(buffer->str + buffer->length, buffer->size - buffer->length, format, args);
+    va_end(args);
+    swString_append_ptr(buffer, SW_STRL("\n"));
+    sw_get_debug_print_backtrace(buffer, DEBUG_BACKTRACE_IGNORE_ARGS, 0);
+    SwooleGS->lock_2.lock(&SwooleGS->lock_2);
+    SwooleG.write_log(SW_LOG_ERROR, buffer->str, buffer->length);
+    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);
+    exit(255);
+}
+
 void swoole_call_rshutdown_function(void *arg)
 {
     if (SWOOLE_G(rshutdown_functions))
@@ -539,26 +558,6 @@ void swoole_call_rshutdown_function(void *arg)
 }
 
 swoole_object_array swoole_objects;
-
-static void php_swFatalError(const char *format, ...)
-{
-    swString *buffer = SwooleTG.buffer_stack;
-    const char *space;
-    const char *class_name = get_active_class_name(&space);
-    va_list args;
-
-    swString_clear(buffer);
-    buffer->length += sw_snprintf(buffer->str, buffer->size, "(PHP Fatal Error: %d):\n%s%s%s: ", SW_ERROR_CO_OUT_OF_COROUTINE, class_name, space, get_active_function_name());
-    va_start(args, format);
-    buffer->length += sw_vsnprintf(buffer->str + buffer->length, buffer->size - buffer->length, format, args);
-    va_end(args);
-    swString_append_ptr(buffer, SW_STRL("\n"));
-    sw_get_debug_print_backtrace(buffer, DEBUG_BACKTRACE_IGNORE_ARGS, 0);
-    SwooleGS->lock_2.lock(&SwooleGS->lock_2);
-    SwooleG.write_log(SW_LOG_ERROR, buffer->str, buffer->length);
-    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);
-    exit(255);
-}
 
 /* {{{ PHP_MINIT_FUNCTION
  */
@@ -801,7 +800,6 @@ PHP_MINIT_FUNCTION(swoole)
 
     //swoole init
     swoole_init();
-    swFatalError = php_swFatalError;
     if (!SWOOLE_G(enable_coroutine))
     {
         SwooleG.enable_coroutine = 0;
@@ -842,6 +840,7 @@ PHP_MINIT_FUNCTION(swoole)
 #endif
     swoole_redis_server_init(module_number);
 
+    SwooleG.fatal_error = php_swoole_fatal_error;
     SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
     SwooleG.dns_cache_refresh_time = 60;
 

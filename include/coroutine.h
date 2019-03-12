@@ -138,7 +138,7 @@ public:
     {
         if (unlikely(!current))
         {
-            swFatalError("API must be called in the coroutine");
+            swFatalError(SW_ERROR_CO_OUT_OF_COROUTINE, "API must be called in the coroutine");
         }
         return current;
     }

@@ -409,13 +409,13 @@ enum swWorker_status
     exit(1);\
     }while(0)
 
-SW_API extern void (*swFatalError)(const char *str, ...);
-
 #define swSysError(str,...)  do{SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
     size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str " Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
     SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_errror_len);\
     SwooleG.error=errno;\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}while(0)
+
+#define swFatalError(code, str,...) SwooleG.fatal_error(code, str, ##__VA_ARGS__)
 
 #define swoole_error_log(level, __errno, str, ...)      do{SwooleG.error=__errno;\
     if (level >= SwooleG.log_level){\
@@ -2258,6 +2258,7 @@ typedef struct
     uint32_t trace_flags;
 
     void (*write_log)(int level, char *content, size_t len);
+    void (*fatal_error)(int code, const char *str, ...);
 
     uint16_t cpu_num;
 
