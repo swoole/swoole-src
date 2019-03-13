@@ -3460,7 +3460,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
         RETURN_FALSE;
     }
 
-    int list_of_id[SW_MAX_CONCURRENT_TASK];
+    int list_of_id[SW_MAX_CONCURRENT_TASK] = {0};
 
     uint64_t notify;
     swEventData *task_result = &(serv->task_result[SwooleWG.id]);

@@ -94,7 +94,7 @@ $environment = $_ENV ?? array();
 //       detect and handle this case, or die or warn
 if (empty($environment)) {
     // not documented, but returns array of all environment variables
-    $environment = getenv();
+    $environment = @getenv();
 }
 if (empty($environment['TEMP'])) {
     $environment['TEMP'] = sys_get_temp_dir();
@@ -118,10 +118,11 @@ if ((substr(PHP_OS, 0, 3) == "WIN") && empty($environment["SystemRoot"])) {
 
 // swoole patch (persistent config)
 {
-    $environment['HAS_NETSTAT'] = $environment['HAS_NETSTAT'] ?? (stripos(`netstat --help 2>&1`, 'usage') ? '1' : '0');
+    $environment['PHPT'] = $environment['PHPT'] ?? getenv('PHPT');
+    $environment['HAS_NETSTAT'] = getenv('HAS_NETSTAT') ?? (stripos(`netstat --help 2>&1`, 'usage') ? '1' : '0');
     if ($environment['HAS_NETSTAT']) {
-        $environment['MYSQL_SERVER_PATH'] = $environment['MYSQL_SERVER_PATH'] ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*mysqld?\.sock'`) ?: null);
-        $environment['REDIS_SERVER_PATH'] = $environment['REDIS_SERVER_PATH'] ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*redis.*\.sock'`) ?: null);
+        $environment['MYSQL_SERVER_PATH'] = getenv('MYSQL_SERVER_PATH') ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*mysqld?\.sock'`) ?: null);
+        $environment['REDIS_SERVER_PATH'] = getenv('REDIS_SERVER_PATH') ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*redis.*\.sock'`) ?: null);
     }
 }
 

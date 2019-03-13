@@ -416,7 +416,16 @@ void *swRbtree_find(swRbtree *tree, uint32_t key)
 swRbtree* swRbtree_new()
 {
     swRbtree *rbtree = sw_malloc(sizeof(swRbtree));
+    if (rbtree == NULL)
+    {
+        return NULL;
+    }
     swRbtree_node *sentinel = sw_malloc(sizeof(swRbtree_node));
+    if (sentinel == NULL)
+    {
+        sw_free(rbtree);
+        return NULL;
+    }
 
     sentinel->color = 0;
     rbtree->root = sentinel;

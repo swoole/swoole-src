@@ -88,10 +88,10 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 
 #define SWOOLE_MAJOR_VERSION      4
 #define SWOOLE_MINOR_VERSION      3
-#define SWOOLE_RELEASE_VERSION    1
-#define SWOOLE_EXTRA_VERSION      ""
-#define SWOOLE_VERSION            "4.3.1"
-#define SWOOLE_VERSION_ID         40301
+#define SWOOLE_RELEASE_VERSION    2
+#define SWOOLE_EXTRA_VERSION      "alpha"
+#define SWOOLE_VERSION            "4.3.2-alpha"
+#define SWOOLE_VERSION_ID         40302
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -792,9 +792,11 @@ static sw_inline int swString_extend_align(swString *str, size_t _new_size)
  */
 static sw_inline void swString_pop_front(swString *str, off_t offset)
 {
-    assert(offset > 0 && (size_t) offset < str->length);
+    assert(offset >= 0 && (size_t ) offset <= str->length);
+    if (unlikely(offset == 0)) return;
     str->length = str->length - offset;
     str->offset = 0;
+    if (str->length == 0) return;
     memmove(str->str, str->str + offset, str->length);
 }
 

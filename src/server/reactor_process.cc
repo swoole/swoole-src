@@ -246,6 +246,38 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
+static int swReactorProcess_alloc_output_buffer(int n_buffer)
+{
+    SwooleWG.buffer_output = (swString **) sw_malloc(sizeof(swString*) * n_buffer);
+    if (SwooleWG.buffer_output == NULL)
+    {
+        swError("malloc for SwooleWG.buffer_output failed.");
+        return SW_ERR;
+    }
+
+    int i;
+    for (i = 0; i < n_buffer; i++)
+    {
+        SwooleWG.buffer_output[i] = swString_new(SW_BUFFER_SIZE_BIG);
+        if (SwooleWG.buffer_output[i] == NULL)
+        {
+            swError("buffer_output init failed.");
+            return SW_ERR;
+        }
+    }
+    return SW_OK;
+}
+
+static void swReactor_free_output_buffer(int n_buffer)
+{
+    int i;
+    for (i = 0; i < n_buffer; i++)
+    {
+        swString_free(SwooleWG.buffer_output[i]);
+    }
+    sw_free(SwooleWG.buffer_output);
+}
+
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 {
     swServer *serv = (swServer *) pool->ptr;
@@ -270,22 +302,9 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swServer_worker_init(serv, worker);
 
     int n_buffer = serv->worker_num + serv->task_worker_num + serv->user_worker_num;
-    SwooleWG.buffer_output = (swString **) sw_malloc(sizeof(swString*) * n_buffer);
-    if (SwooleWG.buffer_output == NULL)
+    if (swReactorProcess_alloc_output_buffer(n_buffer))
     {
-        swError("malloc for SwooleWG.buffer_output failed.");
         return SW_ERR;
-    }
-
-    int i;
-    for (i = 0; i < n_buffer; i++)
-    {
-        SwooleWG.buffer_output[i] = swString_new(SW_BUFFER_SIZE_BIG);
-        if (SwooleWG.buffer_output[i] == NULL)
-        {
-            swError("buffer_output init failed.");
-            return SW_ERR;
-        }
     }
 
     //create reactor
@@ -295,6 +314,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         reactor = (swReactor *) sw_malloc(sizeof(swReactor));
         if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
         {
+            swReactor_free_output_buffer(n_buffer);
             return SW_ERR;
         }
         SwooleG.main_reactor = reactor;
@@ -315,6 +335,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         {
             if (swReactorProcess_reuse_port(ls) < 0)
             {
+                swReactor_free_output_buffer(n_buffer);
                 return SW_ERR;
             }
         }
@@ -368,6 +389,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
         if (serv->task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
         {
+            int i;
             for (i = 0; i < serv->gs->task_workers.worker_num; i++)
             {
                 p = serv->gs->task_workers.workers[i].pipe_object;
@@ -398,6 +420,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
      */
     if ((update_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
     {
+        swReactor_free_output_buffer(n_buffer);
         return SW_ERR;
     }
 
