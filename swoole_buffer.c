@@ -83,6 +83,9 @@ void swoole_buffer_init(int module_number)
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_buffer, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_buffer, zend_class_clone_deny);
     SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_buffer, zend_class_unset_property_deny);
+
+    zend_declare_property_long(swoole_buffer_ce_ptr, ZEND_STRL("capacity"), SW_STRING_BUFFER_DEFAULT, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_buffer_ce_ptr, ZEND_STRL("length"), 0, ZEND_ACC_PUBLIC);
 }
 
 static void swoole_buffer_recycle(swString *buffer)
