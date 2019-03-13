@@ -182,12 +182,15 @@ function skip_if_pdo_not_support_mysql8()
 function skip_if_not_mysql8()
 {
     require_once __DIR__ . '/config.php';
-    if (!preg_match(
-        '/caching_sha2_password/',
-        $r = curlGet('http://' . MYSQL_SERVER_HOST . ':' . MYSQL_SERVER_PORT))
-    ) {
-        skip('require mysql8');
-    }
+    go(function () {
+        if (!preg_match(
+            '/caching_sha2_password/',
+            httpGetBody('http://' . MYSQL_SERVER_HOST . ':' . MYSQL_SERVER_PORT))
+        ) {
+            skip('require mysql8');
+        }
+    });
+    Swoole\Event::wait();
 }
 
 function skip_deprecated()

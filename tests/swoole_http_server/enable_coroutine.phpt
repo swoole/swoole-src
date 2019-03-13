@@ -1,33 +1,28 @@
 --TEST--
 swoole_http_server: enable_coroutine setting in server
 --SKIPIF--
-<?php
-require __DIR__ . '/../include/skipif.inc';
-skip_if_function_not_exist('curl_init');
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-
-use Swoole\Http\Request;
-use Swoole\Http\Response;
-
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($pm) {
-    echo curlGet("http://127.0.0.1:{$pm->getFreePort()}/") . "\n";
-    echo curlGet("http://127.0.0.1:{$pm->getFreePort()}/co") . "\n";
-    echo curlGet("http://127.0.0.1:{$pm->getFreePort()}/co") . "\n";
-    echo curlGet("http://127.0.0.1:{$pm->getFreePort()}/co") . "\n";
-    swoole_process::kill($pid);
+$pm->parentFunc = function () use ($pm) {
+    go(function () use ($pm) {
+        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/") . "\n";
+        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/co") . "\n";
+        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/co") . "\n";
+        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/co") . "\n";
+        $pm->kill();
+    });
 };
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort());
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort());
     $http->set([
         'enable_coroutine' => false, // close build-in coroutine
         'worker_num' => 1,
         'log_level' => -1
     ]);
-    $http->on("request", function (Request $request, Response $response) {
+    $http->on("request", function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->header("Content-Type", "text/plain");
         if ($request->server['request_uri'] == '/co') {
             go(function () use ($response) {

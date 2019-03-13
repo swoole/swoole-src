@@ -1,10 +1,7 @@
 --TEST--
 swoole_client_coro: tcp client with eof
 --SKIPIF--
-<?php
-require __DIR__ . '/../include/skipif.inc';
-skip_if_function_not_exist('curl_init');
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -12,11 +9,12 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->initFreePorts(2);
 
-$pm->parentFunc = function ($pid) use ($pm)
+$pm->parentFunc = function () use ($pm)
 {
-    $data = curlGet("http://127.0.0.1:{$pm->getFreePort(0)}/");
-    echo $data;
-    swoole_process::kill($pid);
+    go(function () use ($pm) {
+        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        $pm->kill();
+    });
 };
 
 $pm->childFunc = function () use ($pm)
