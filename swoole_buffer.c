@@ -41,7 +41,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_buffer_substr, 0, 0, 1)
     ZEND_ARG_INFO(0, offset)
     ZEND_ARG_INFO(0, length)
-    ZEND_ARG_INFO(0, seek)
+    ZEND_ARG_INFO(0, remove)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_buffer_write, 0, 0, 2)
