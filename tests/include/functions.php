@@ -141,7 +141,16 @@ function _httpGet(string $uri, array $options = [])
     $cli = new Swoole\Coroutine\Http\Client($domain, $port, $scheme === 'https' || $port == 443);
     $cli->set($options + ['timeout' => 5]);
     $cli->setHeaders(['Host' => $domain]);
-    $cli->get($path . $query);
+    $redirect_times = $options['redirect'] ?? 3;
+    while (true) {
+        $cli->get($path . $query);
+        if ($redirect_times-- && ($cli->headers['location'] ?? null) && $cli->headers['location']{0} === '/') {
+            $path = $cli->headers['location'];
+            $query = '';
+            continue;
+        }
+        break;
+    }
     return $cli;
 }
 
