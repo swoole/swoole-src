@@ -724,6 +724,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         content->offset += sizeof(swDataHead) + result->info.len;
     }
     unlink(_tmpfile);
+    swString_free(content);
     return retval;
 }
 
