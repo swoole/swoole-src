@@ -792,9 +792,11 @@ static sw_inline int swString_extend_align(swString *str, size_t _new_size)
  */
 static sw_inline void swString_pop_front(swString *str, off_t offset)
 {
-    assert(offset > 0 && (size_t) offset < str->length);
+    assert(offset >= 0 && (size_t ) offset <= str->length);
+    if (unlikely(offset == 0)) return;
     str->length = str->length - offset;
     str->offset = 0;
+    if (str->length == 0) return;
     memmove(str->str, str->str + offset, str->length);
 }
 
