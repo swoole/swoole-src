@@ -271,6 +271,7 @@ ssize_t swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32
 {
     struct sockaddr_un addr;
     bzero(&addr, sizeof(addr));
+    addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, dst_path, sizeof(addr.sun_path) - 1);
     return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
 }
@@ -431,7 +432,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
     return ret;
 }
 
-int swSocket_set_buffer_size(int fd, int buffer_size)
+int swSocket_set_buffer_size(int fd, uint32_t buffer_size)
 {
     if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(buffer_size)) != 0)
     {

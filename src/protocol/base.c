@@ -56,7 +56,8 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
 #endif
 
     int eof_pos;
-    _find_eof: if (buffer->length < protocol->package_eof_len)
+    _find_eof:
+    if (buffer->length < protocol->package_eof_len)
     {
         return SW_CONTINUE;
     }
@@ -92,30 +93,9 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
     //there are remaining data
     if (length < buffer->length)
     {
-        uint32_t remaining_length = buffer->length - length;
-        char *remaining_data = buffer->str + length;
-        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%d", count, remaining_length);
-
-        if (remaining_length > 0)
-        {
-            memmove(buffer->str, remaining_data, remaining_length);
-            buffer->length = remaining_length;
-            buffer->offset = 0;
-            goto _find_eof;
-        }
-        else
-        {
-#ifdef SW_USE_OPENSSL
-            if (conn->ssl)
-            {
-                return SW_CONTINUE;
-            }
-            else
-#endif
-            {
-                return SW_OK;
-            }
-        }
+        swString_pop_front(buffer, length);
+        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%zu", count, buffer->length);
+        goto _find_eof;
     }
     swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%ld, offset=%ld", buffer->length, buffer->size, (long)buffer->offset);
     swString_clear(buffer);
@@ -141,7 +121,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
     if (conn->skip_recv)
     {
         conn->skip_recv = 0;
-        goto do_get_length;
+        goto _do_get_length;
     }
 
     do_recv:
@@ -196,13 +176,10 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 }
                 conn->recv_wait = 0;
 
-                int remaining_length = buffer->length - buffer->offset;
-                if (remaining_length > 0)
+                if (buffer->length > buffer->offset)
                 {
-                    memmove(buffer->str, buffer->str + buffer->offset, remaining_length);
-                    buffer->offset = 0;
-                    buffer->length = remaining_length;
-                    goto do_get_length;
+                	swString_pop_front(buffer, buffer->offset);
+                    goto _do_get_length;
                 }
                 else
                 {
@@ -219,7 +196,8 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
         }
         else
         {
-            do_get_length: package_length = protocol->get_package_length(protocol, conn, buffer->str, buffer->length);
+            _do_get_length:
+            package_length = protocol->get_package_length(protocol, conn, buffer->str, buffer->length);
             //invalid package, close connection.
             if (package_length < 0)
             {

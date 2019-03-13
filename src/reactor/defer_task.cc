@@ -27,19 +27,12 @@ struct defer_task
 };
 
 static void do_defer_tasks(swReactor *reactor);
-static int add_defer_task(swReactor *reactor, swCallback callback, void *data);
-
-static void swReactor_defer_timer_callback(swTimer *timer, swTimer_node *tnode)
-{
-    defer_task *cb = (defer_task *) tnode->data;
-    cb->callback(cb->data);
-    delete cb;
-}
+static void add_defer_task(swReactor *reactor, swCallback callback, void *data);
 
 void swReactor_defer_task_create(swReactor *reactor)
 {
     reactor->defer = add_defer_task;
-    reactor->defer_tasks = new std::list<defer_task *>;
+    reactor->defer_tasks = nullptr;
     reactor->do_defer_tasks = do_defer_tasks;
 }
 
@@ -52,6 +45,11 @@ void swReactor_defer_task_destroy(swReactor *reactor)
 static void do_defer_tasks(swReactor *reactor)
 {
     list<defer_task *> *tasks = (list<defer_task *> *) reactor->defer_tasks;
+    if (!tasks)
+    {
+        return;
+    }
+    reactor->defer_tasks = nullptr;
     while (!tasks->empty())
     {
         defer_task *task = tasks->front();
@@ -59,21 +57,18 @@ static void do_defer_tasks(swReactor *reactor)
         task->callback(task->data);
         delete task;
     }
+    delete tasks;
 }
 
-static int add_defer_task(swReactor *reactor, swCallback callback, void *data)
+static void add_defer_task(swReactor *reactor, swCallback callback, void *data)
 {
     defer_task *new_task = new defer_task;
+    if (reactor->defer_tasks == nullptr)
+    {
+        reactor->defer_tasks = new std::list<defer_task *>;
+    }
     list<defer_task *> *tasks = (list<defer_task *> *) reactor->defer_tasks;
     new_task->callback = callback;
     new_task->data = data;
-    if (unlikely(reactor->start == 0))
-    {
-        swTimer_add(&SwooleG.timer, 1, 0, (void*) new_task, swReactor_defer_timer_callback);
-    }
-    else
-    {
-        tasks->push_back(new_task);
-    }
-    return SW_OK;
+    tasks->push_back(new_task);
 }

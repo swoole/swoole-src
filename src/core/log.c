@@ -16,7 +16,7 @@
 
 #include "swoole.h"
 
-#define SW_LOG_BUFFER_SIZE 1024
+#define SW_LOG_BUFFER_SIZE  16384
 #define SW_LOG_DATE_STRLEN  64
 
 int swLog_init(char *logfile)
@@ -39,7 +39,7 @@ void swLog_free(void)
     }
 }
 
-void swLog_put(int level, char *cnt)
+void swLog_put(int level, char *content, size_t length)
 {
     const char *level_str;
     char date_str[SW_LOG_DATE_STRLEN];
@@ -72,9 +72,12 @@ void swLog_put(int level, char *cnt)
     struct tm *p;
     t = time(NULL);
     p = localtime(&t);
-    snprintf(date_str, SW_LOG_DATE_STRLEN, "%d-%02d-%02d %02d:%02d:%02d", p->tm_year + 1900, p->tm_mon + 1, p->tm_mday, p->tm_hour, p->tm_min, p->tm_sec);
+    size_t l_data_str = sw_snprintf(
+        date_str, SW_LOG_DATE_STRLEN, "%d-%.2d-%.2d %.2d:%.2d:%.2d",
+        p->tm_year + 1900, p->tm_mon + 1, p->tm_mday, p->tm_hour, p->tm_min, p->tm_sec
+    );
 #if 0
-    snprintf(date_str + strlen(date_str), SW_LOG_DATE_STRLEN - strlen(date_str), " <%lf> ", swoole_microtime());
+    l_data_str = sw_snprintf(date_str + l_data_str, SW_LOG_DATE_STRLEN - l_data_str, " <%lf> ", swoole_microtime());
 #endif
 
     char process_flag = '@';
@@ -101,9 +104,9 @@ void swLog_put(int level, char *cnt)
         break;
     }
 
-    n = sw_snprintf(log_str, SW_LOG_BUFFER_SIZE, "[%s %c%d.%d]\t%s\t%s\n", date_str, process_flag, SwooleG.pid, process_id, level_str, cnt);
+    n = sw_snprintf(log_str, SW_LOG_BUFFER_SIZE, "[%.*s %c%d.%d]\t%s\t%.*s\n", l_data_str, date_str, process_flag, SwooleG.pid, process_id, level_str, (int) length, content);
     if (write(SwooleG.log_fd, log_str, n) < 0)
     {
-        printf("write(log_fd, size=%d) failed. Error: %s[%d].\nMessage: %s\n", n, strerror(errno), errno, log_str);
+        printf("write(log_fd, size=%d) failed. Error: %s[%d].\nMessage: %.*s\n", n, strerror(errno), errno, n, log_str);
     }
 }

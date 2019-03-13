@@ -750,7 +750,7 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
         close(tmp_file_fd);
         return NULL;
     }
-    if (swoole_sync_readfile(tmp_file_fd, SwooleTG.buffer_stack->str, _pkg.length) < 0)
+    if (swoole_sync_readfile(tmp_file_fd, SwooleTG.buffer_stack->str, _pkg.length) != _pkg.length)
     {
         close(tmp_file_fd);
         return NULL;
@@ -1029,7 +1029,7 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_free(swServer *serv);
 int swReactorThread_close(swReactor *reactor, int fd);
 int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length);
-int swReactorThread_send2worker(swServer *serv, void *data, int len, uint16_t target_worker_id);
+int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, int len);
 
 int swReactorProcess_create(swServer *serv);
 int swReactorProcess_start(swServer *serv);

@@ -109,7 +109,7 @@ pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options)
     }
 
     wait_task task;
-    task.co = Coroutine::get_current();
+    task.co = Coroutine::get_current_safe();
     waitpid_map[__pid] = &task;
     task.co->yield();
     *__stat_loc = task.status;
@@ -134,7 +134,7 @@ pid_t swoole_coroutine_wait(int *__stat_loc)
     }
 
     wait_task task;
-    task.co = Coroutine::get_current();
+    task.co = Coroutine::get_current_safe();
     wait_list.push(&task);
     task.co->yield();
     *__stat_loc = task.status;

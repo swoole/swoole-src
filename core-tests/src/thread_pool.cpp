@@ -1,3 +1,4 @@
+#ifndef __MACH__
 #include "tests.h"
 #include <sys/eventfd.h>
 
@@ -37,3 +38,5 @@ TEST(thread_pool, dispatch)
     ASSERT_EQ(swThreadPool_free(&pool), SW_OK);
     ASSERT_EQ(result, N);
 }
+#endif
+

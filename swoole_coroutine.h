@@ -10,9 +10,6 @@
 #define SW_DEFAULT_MAX_CORO_NUM              3000
 #define SW_DEFAULT_PHP_STACK_PAGE_SIZE       8192
 
-#define SW_DEFAULT_SOCKET_CONNECT_TIMEOUT    1
-#define SW_DEFAULT_SOCKET_TIMEOUT            -1
-
 #define SWOG ((zend_output_globals *) &OG(handlers))
 
 typedef enum
@@ -36,18 +33,6 @@ enum sw_coro_hook_type
     SW_HOOK_ALL = 0x7fffffff,
 };
 
-struct defer_task
-{
-    swCallback callback;
-    void *data;
-
-    defer_task(swCallback _callback, void *_data):
-        callback(_callback), data(_data)
-    {
-
-    }
-};
-
 struct php_coro_task
 {
     JMP_BUF *bailout;
@@ -62,9 +47,9 @@ struct php_coro_task
     zend_output_globals *output_ptr;
     SW_DECLARE_EG_SCOPE(scope);
     swoole::Coroutine *co;
-    std::stack<defer_task *> *defer_tasks;
-    php_coro_task *origin_task;
+    std::stack<php_swoole_fci *> *defer_tasks;
     long pcid;
+    zend_object *context;
 };
 
 struct php_coro_args
@@ -72,7 +57,6 @@ struct php_coro_args
     zend_fcall_info_cache *fci_cache;
     zval *argv;
     uint32_t argc;
-    php_coro_task *origin_task;
 };
 
 // TODO: remove php coro context
@@ -91,13 +75,9 @@ namespace swoole
 class PHPCoroutine
 {
 public:
-    static double socket_connect_timeout;
-    static double socket_timeout;
-
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
-    static void defer(swCallback cb, void *data);
+    static void defer(php_swoole_fci *fci);
 
-    static void check();
     static void check_bind(const char *name, long bind_cid);
 
     static bool enable_hook(int flags);
@@ -114,22 +94,6 @@ public:
         Coroutine::set_on_close(on_close);
     }
 
-    static inline bool is_in()
-    {
-        return active && Coroutine::get_current();
-    }
-
-    static inline php_coro_task* get_current_task()
-    {
-        php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
-        return task ? task : &main_task;
-    }
-
-    static inline php_coro_task* get_task_by_cid(long cid)
-    {
-        return cid == -1 ? &main_task : (php_coro_task *) Coroutine::get_task_by_cid(cid);
-    }
-
     static inline long get_cid()
     {
         return likely(active) ? Coroutine::get_current_cid() : -1;
@@ -139,6 +103,23 @@ public:
     {
         php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
         return likely(task) ? task->pcid : -1;
+    }
+
+    static inline php_coro_task* get_task()
+    {
+        php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
+        return task ? task : &main_task;
+    }
+
+    static inline php_coro_task* get_origin_task(php_coro_task *task)
+    {
+        Coroutine *co = task->co->get_origin();
+        return co ? (php_coro_task *) co->get_task() : &main_task;
+    }
+
+    static inline php_coro_task* get_task_by_cid(long cid)
+    {
+        return cid == -1 ? &main_task : (php_coro_task *) Coroutine::get_task_by_cid(cid);
     }
 
     static inline uint64_t get_max_num()
@@ -162,7 +143,8 @@ protected:
     static inline void restore_vm_stack(php_coro_task *task);
     static inline void save_og(php_coro_task *task);
     static inline void restore_og(php_coro_task *task);
-    static inline php_coro_task* get_and_save_current_task();
+    static inline void save_task(php_coro_task *task);
+    static inline void restore_task(php_coro_task *task);
     static void on_yield(void *arg);
     static void on_resume(void *arg);
     static void on_close(void *arg);
@@ -170,7 +152,3 @@ protected:
 };
 }
 
-/**
- * TODO: move to php socket
- */
-void sw_coro_socket_set(swoole::Socket *cli, zval *zset);

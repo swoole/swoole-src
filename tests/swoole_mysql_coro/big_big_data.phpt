@@ -4,6 +4,7 @@ swoole_mysql_coro: select huge data from db (10M~64M)
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_in_valgrind();
+skip_if_pdo_not_support_mysql8();
 ?>
 --FILE--
 <?php
@@ -16,6 +17,7 @@ go(function () {
     $mysql = new Swoole\Coroutine\Mysql;
     $mysql_server = [
         'host' => MYSQL_SERVER_HOST,
+        'port' => MYSQL_SERVER_PORT,
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB
@@ -51,7 +53,7 @@ SQL
         $max_allowed_packet = 64;
     }
     $pdo = new PDO(
-        "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+        "mysql:host=" . MYSQL_SERVER_HOST . ";port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
         MYSQL_SERVER_USER, MYSQL_SERVER_PWD
     );
     $mysql_query = new Swoole\Coroutine\Mysql;

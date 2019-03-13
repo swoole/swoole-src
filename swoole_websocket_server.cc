@@ -48,7 +48,6 @@ static zend_class_entry *swoole_websocket_closeframe_ce_ptr;
 static zend_object_handlers swoole_websocket_closeframe_handlers;
 
 static PHP_METHOD(swoole_websocket_server, push);
-static PHP_METHOD(swoole_websocket_server, exists);
 static PHP_METHOD(swoole_websocket_server, isEstablished);
 static PHP_METHOD(swoole_websocket_server, pack);
 static PHP_METHOD(swoole_websocket_server, unpack);
@@ -80,10 +79,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_unpack, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_exists, 0, 0, 1)
-    ZEND_ARG_INFO(0, fd)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_isEstablished, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
@@ -95,8 +90,6 @@ const zend_function_entry swoole_websocket_server_methods[] =
 {
     PHP_ME(swoole_websocket_server, push,              arginfo_swoole_websocket_server_push,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, disconnect,        arginfo_swoole_websocket_server_disconnect,    ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_websocket_server, exists,            arginfo_swoole_websocket_server_exists,         ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_websocket_server, exist, exists, arginfo_swoole_websocket_server_exists,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, isEstablished,     arginfo_swoole_websocket_server_isEstablished, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, pack,              arginfo_swoole_websocket_server_pack,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_websocket_server, unpack,            arginfo_swoole_websocket_server_unpack,        ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -613,50 +606,6 @@ static PHP_METHOD(swoole_websocket_server, unpack)
     }
 
     php_swoole_websocket_frame_unpack(&buffer, return_value);
-}
-
-static PHP_METHOD(swoole_websocket_server, exists)
-{
-    zend_long fd;
-
-    swServer *serv = (swServer *) swoole_get_object(getThis());
-    if (unlikely(!serv->gs->start))
-    {
-        php_error_docref(NULL, E_WARNING, "the server is not running.");
-        RETURN_FALSE;
-    }
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &fd) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-
-    swConnection *conn = swWorker_get_connection(serv, fd);
-    if (!conn)
-    {
-        RETURN_FALSE;
-    }
-    //connection is closed
-    if (conn->active == 0 || conn->closed)
-    {
-        RETURN_FALSE;
-    }
-    swConnection *server_sock = swServer_connection_get(serv, conn->from_fd);
-    if (server_sock)
-    {
-        swListenPort *port = (swListenPort *) server_sock->object;
-        //not websocket port
-        if (port && !port->open_websocket_protocol)
-        {
-            RETURN_TRUE;
-        }
-    }
-    //have not handshake
-    if (conn->websocket_status < WEBSOCKET_STATUS_ACTIVE)
-    {
-        RETURN_FALSE;
-    }
-    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_websocket_server, isEstablished)

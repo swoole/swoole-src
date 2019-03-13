@@ -30,8 +30,9 @@ extern "C"
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
 #endif
+
 #ifdef SW_USE_HTTP2
-#include <nghttp2/nghttp2.h>
+#include "thirdparty/http2/nghttp2.h"
 #endif
 
 enum http_header_flag
@@ -202,35 +203,29 @@ static sw_inline void php_zlib_free(voidpf opaque, voidpf address)
 
 static sw_inline int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *set_cookie_headers)
 {
-    size_t l_cookie = 0;
-    char *p = (char*) memchr(at, ';', length);
-    if (p)
-    {
-        l_cookie = p - at;
-    }
-    else
-    {
-        l_cookie = length;
-    }
-
+    size_t klen = 0, vlen = 0;
+    char *p, *eof;
+    // key
     p = (char*) memchr(at, '=', length);
-    size_t l_key = 0;
     if (p)
     {
-        l_key = p - at;
+        klen = p - at;
     }
-    if (l_key == 0 || l_key >= SW_HTTP_COOKIE_KEYLEN || l_key >= length - 1)
+    if (klen == 0 || klen >= SW_HTTP_COOKIE_KEYLEN || klen >= length - 1)
     {
         swWarn("cookie key format is wrong.");
         return SW_ERR;
     }
-
-    char keybuf[SW_HTTP_COOKIE_KEYLEN];
-    memcpy(keybuf, at, l_key);
-    keybuf[l_key] = '\0';
-    add_assoc_stringl_ex(cookies, keybuf, l_key, (char*) at + l_key + 1, l_cookie - l_key - 1);
-    add_assoc_stringl_ex(set_cookie_headers, keybuf, l_key, (char*) at, length);
-
+    add_assoc_stringl_ex(set_cookie_headers, at, klen, (char *) at, length);
+    // val
+    p+=1;
+    eof = (char*) memchr(p, ';', length);
+    if (!eof)
+    {
+        eof = (char *) at + length;
+    }
+    vlen = php_url_decode(p, eof - p);
+    add_assoc_stringl_ex(cookies, at, klen, p, vlen);
     return SW_OK;
 }
 

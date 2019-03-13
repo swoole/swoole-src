@@ -19,7 +19,7 @@
 
 function switch_process()
 {
-    usleep((USE_VALGRIND ? 100 : 1) * 1000);
+    usleep((USE_VALGRIND ? 100 : 10) * 1000);
 }
 
 function clear_php()
@@ -58,19 +58,26 @@ function is_alpine_linux(): bool
 function get_one_free_port()
 {
     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-    $ok = socket_bind($socket, "0.0.0.0", 0);
-    if (!$ok) {
+    if (!socket_bind($socket, "0.0.0.0", 0)) {
         return false;
     }
-    $ok = socket_listen($socket);
-    if (!$ok) {
+    if (!socket_listen($socket)) {
         return false;
     }
-    $ok = socket_getsockname($socket, $addr, $port);
-    if (!$ok) {
+    if (!socket_getsockname($socket, $addr, $port)) {
         return false;
     }
     socket_close($socket);
+    return $port;
+}
+
+function get_one_free_port_coro()
+{
+    $socket = new Co\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    $socket->bind('0.0.0.0');
+    $socket->listen();
+    $port = $socket->getsockname()['port'];
+    $socket->close();
     return $port;
 }
 
@@ -86,6 +93,18 @@ function approximate($expect, $actual, float $ratio = 0.1): bool
 function time_approximate($expect, $actual, float $ratio = 0.1)
 {
     return USE_VALGRIND || approximate($expect, $actual, $ratio);
+}
+
+function ms_random(float $a, float $b) : float
+{
+    return mt_rand($a * 1000, $b * 1000) / 1000;
+}
+
+function string_pop_front(string &$s, int $length): string
+{
+    $r = substr($s, 0, $length);
+    $s = substr($s, $length);
+    return $r;
 }
 
 function array_random(array $array)
@@ -111,7 +130,7 @@ function phpt_var_dump(...$args)
     }
 }
 
-function httpCoroGet(string $uri, array $options = [])
+function _httpGet(string $uri, array $options = [])
 {
     $url_info = parse_url($uri);
     $domain = $url_info['host'];
@@ -121,7 +140,22 @@ function httpCoroGet(string $uri, array $options = [])
     $cli->set($options + ['timeout' => 5]);
     $cli->setHeaders(['Host' => $domain]);
     $cli->get($path);
-    return $cli->body;
+    return $cli;
+}
+
+function httpGetStatusCode(string $uri, array $options = [])
+{
+    return _httpGet($uri, $options)->statusCode;
+}
+
+function httpGetHeaders(string $uri, array $options = [])
+{
+    return _httpGet($uri, $options)->headers;
+}
+
+function httpGetBody(string $uri, array $options = [])
+{
+    return _httpGet($uri, $options)->body;
 }
 
 function curlGet($url, $gzip = true)
@@ -516,7 +550,7 @@ function start_server($file, $host, $port, $redirect_file = "/dev/null", $ext1 =
 //        proc_terminate($handle, SIGTERM);
 //        @unlink($redirect_file);
 //    });
-    \swoole_async::set(['enable_coroutine' => false]); // need use exit
+    swoole_async_set(['enable_coroutine' => false]); // need use exit
     return function() use($handle, $redirect_file) {
         // @unlink($redirect_file);
         proc_terminate($handle, SIGTERM);
@@ -693,12 +727,18 @@ class ProcessManager
     //等待信息
     public function wait()
     {
+        if ($this->alone || $this->waitTimeout == 0) {
+            return false;
+        }
         return $this->atomic->wait($this->waitTimeout);
     }
 
     //唤醒等待的进程
     public function wakeup()
     {
+        if ($this->alone) {
+            return false;
+        }
         return $this->atomic->wakeup();
     }
 
@@ -818,6 +858,9 @@ class ProcessManager
         if (!$childProcess || !$childProcess->start()) {
             exit("ERROR: CAN NOT CREATE PROCESS\n");
         }
+        register_shutdown_function(function () {
+            $this->kill();
+        });
         if (!$this->parentFirst) {
             $this->wait();
         }

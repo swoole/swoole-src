@@ -579,6 +579,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                 {
                     char *pathbuf = SwooleTG.buffer_stack->str;
                     char *v_str = strchr((char *) nv.value, '?');
+                    zend_string *zstr_path;
                     if (v_str)
                     {
                         v_str++;
@@ -587,7 +588,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                         memcpy(pathbuf, nv.value, k_len);
                         pathbuf[k_len] = 0;
                         add_assoc_stringl_ex(zserver, ZEND_STRL("query_string"), v_str, v_len);
-                        add_assoc_stringl_ex(zserver, ZEND_STRL("request_uri"), pathbuf, k_len);
+                        zstr_path = zend_string_init(pathbuf, k_len, 0);
 
                         zval *zget;
                         zval *zrequest_object = ctx->request.zobject;
@@ -600,8 +601,11 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                     }
                     else
                     {
-                        add_assoc_stringl_ex(zserver, ZEND_STRL("request_uri"), (char *) nv.value, nv.valuelen);
+                        zstr_path = zend_string_init((char *) nv.value, nv.valuelen, 0);
                     }
+                    add_assoc_str_ex(zserver, ZEND_STRL("request_uri"), zstr_path);
+                    GC_ADDREF(zstr_path);
+                    add_assoc_str_ex(zserver, ZEND_STRL("path_info"), zstr_path);
                 }
                 else if (strncasecmp((char *) nv.name + 1, "authority", nv.namelen -1) == 0)
                 {
@@ -779,13 +783,13 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             zend_update_property_long(Z_OBJCE_P(zrequest_object), zrequest_object, ZEND_STRL("streamId"), stream_id);
 
             zval *zserver = ctx->request.zserver;
+
             add_assoc_long(zserver, "request_time", serv->gs->now);
-            // Add REQUEST_TIME_FLOAT
-            double now_float = swoole_microtime();
-            add_assoc_double(zserver, "request_time_float", now_float);
+            add_assoc_double(zserver, "request_time_float", swoole_microtime());
             add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
             add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
             add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
+            add_assoc_long(zserver, "master_time", conn->last_time);
             add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
         }
         else

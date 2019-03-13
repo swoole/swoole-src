@@ -42,17 +42,17 @@ static void swProcessPool_killTimeout(swTimer *timer, swTimer_node *tnode)
         if (i >= pool->reload_worker_i)
         {
             reload_worker_pid = pool->reload_workers[i].pid;
-            if (kill(reload_worker_pid, 0 == -1))
+            if (swKill(reload_worker_pid, 0) == -1)
             {
                 continue;
             }
-            if (kill(reload_worker_pid, SIGKILL) < 0)
+            if (swKill(reload_worker_pid, SIGKILL) < 0)
             {
-                swSysError("kill(%d, SIGKILL) [%d] failed.", pool->reload_workers[i].pid, i);
+                swSysError("swKill(%d, SIGKILL) [%d] failed.", pool->reload_workers[i].pid, i);
             }
             else
             {
-                swWarn("kill(%d, SIGKILL) [%d].", pool->reload_workers[i].pid, i);
+                swWarn("swKill(%d, SIGKILL) [%d].", pool->reload_workers[i].pid, i);
             }
         }
     }
@@ -368,7 +368,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
         worker = &pool->workers[i];
         if (swKill(worker->pid, SIGTERM) < 0)
         {
-            swSysError("kill(%d) failed.", worker->pid);
+            swSysError("swKill(%d) failed.", worker->pid);
             continue;
         }
     }
@@ -386,7 +386,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
 
 pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker)
 {
-    pid_t pid = fork();
+    pid_t pid = swoole_fork();
     int ret_code = 0;
 
     switch (pid)
@@ -625,7 +625,7 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
          */
         if (pool->use_msgqueue)
         {
-            n = swMsgQueue_pop(pool->queue, outbuf, sizeof(outbuf->mdata));
+            n = swMsgQueue_pop(pool->queue, outbuf, SW_MSGMAX);
             if (n < 0 && errno != EINTR)
             {
                 swSysError("[Worker#%d] msgrcv() failed.", worker->id);
@@ -829,7 +829,7 @@ int swProcessPool_wait(swProcessPool *pool)
                 continue;
             }
             reload_worker_pid = pool->reload_workers[pool->reload_worker_i].pid;
-            ret = kill(reload_worker_pid, SIGTERM);
+            ret = swKill(reload_worker_pid, SIGTERM);
             if (ret < 0)
             {
                 if (errno == ECHILD)
@@ -837,7 +837,7 @@ int swProcessPool_wait(swProcessPool *pool)
                     pool->reload_worker_i++;
                     goto kill_worker;
                 }
-                swSysError("[Manager]kill(%d) failed.", pool->reload_workers[pool->reload_worker_i].pid);
+                swSysError("[Manager]swKill(%d) failed.", pool->reload_workers[pool->reload_worker_i].pid);
                 continue;
             }
         }

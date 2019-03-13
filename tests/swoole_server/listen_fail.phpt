@@ -1,12 +1,12 @@
 --TEST--
-swoole_server:
+swoole_server: listen fail
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 //调高log_level
-Swoole\Async::set(['log_level' => -1]);
+Co::set(['log_level' => -1]);
 try
 {
     $serv = new swoole_server('192.0.0.1', 80);

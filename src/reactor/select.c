@@ -209,6 +209,11 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
             timeout.tv_sec = UINT_MAX;
             timeout.tv_usec = 0;
         }
+        else if (reactor->defer_tasks)
+        {
+            timeout.tv_sec = 0;
+            timeout.tv_usec = 0;
+        }
         else
         {
             timeout.tv_sec = reactor->timeout_msec / 1000;
@@ -230,7 +235,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
             {
                 reactor->onTimeout(reactor);
             }
-            continue;
+            SW_REACTOR_CONTINUE;
         }
         else
         {
@@ -281,10 +286,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
         {
             reactor->onFinish(reactor);
         }
-        if (reactor->once)
-        {
-            break;
-        }
+        SW_REACTOR_CONTINUE;
     }
     return SW_OK;
 }

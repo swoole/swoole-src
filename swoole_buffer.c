@@ -91,26 +91,17 @@ static void swoole_buffer_recycle(swString *buffer)
     {
         return;
     }
-
-    long length;
-    length = buffer->length - buffer->offset;
-    if (length > 0)
-    {
-        memmove(buffer->str, buffer->str + buffer->offset, length);
-    }
-
-    buffer->offset = 0;
-    buffer->length = length;
+    swString_pop_front(buffer, buffer->offset);
 }
 
 static PHP_METHOD(swoole_buffer, __construct)
 {
-    long size = SW_STRING_BUFFER_DEFAULT;
+    zend_long size = SW_STRING_BUFFER_DEFAULT;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &size) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(size)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (size < 1)
     {
@@ -126,7 +117,7 @@ static PHP_METHOD(swoole_buffer, __construct)
     swString *buffer = swString_new(size);
     if (buffer == NULL)
     {
-        zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "malloc(%ld) failed.", size);
+        zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "malloc(" ZEND_LONG_FMT ") failed.", size);
         RETURN_FALSE;
     }
 

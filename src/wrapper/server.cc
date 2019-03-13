@@ -191,7 +191,7 @@ static DataBuffer task_unpack(swEventData *task_result)
         else
         {
             void *_buffer = retval.alloc((size_t) _pkg.length);
-            if (swoole_sync_readfile(tmp_file_fd, _buffer, _pkg.length) > 0)
+            if (swoole_sync_readfile(tmp_file_fd, _buffer, _pkg.length) != _pkg.length)
             {
                 close(tmp_file_fd);
                 unlink(_pkg.tmpfile);

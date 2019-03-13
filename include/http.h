@@ -115,6 +115,12 @@ int swHttpRequest_get_protocol(swHttpRequest *request);
 int swHttpRequest_get_header_info(swHttpRequest *request);
 int swHttpRequest_get_header_length(swHttpRequest *request);
 void swHttpRequest_free(swConnection *conn);
+
+static inline void swHttpRequest_clean(swHttpRequest *request)
+{
+    memset(request, 0, offsetof(swHttpRequest, buffer));
+}
+
 #ifdef SW_HTTP_100_CONTINUE
 int swHttpRequest_has_expect_header(swHttpRequest *request);
 #endif

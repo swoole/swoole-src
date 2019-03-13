@@ -3,7 +3,7 @@ __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
 if [ ! -f "/.dockerenv" ]; then
-    echo "\n❌ This script is just for Docker env!"
+    echo "" && echo "❌ This script is just for Docker env!"
     exit
 fi
 
@@ -19,8 +19,8 @@ phpize > /dev/null && \
 --enable-sockets \
 --enable-mysqlnd \
 > /dev/null && \
-make -j > /dev/null | tee /tmp/compile.log && \
+make -j8 > /dev/null | tee /tmp/compile.log && \
 (test "`cat /tmp/compile.log`"x = ""x || exit 255) && \
-make install && \
+make install && echo "" && \
 docker-php-ext-enable swoole && \
-echo "swoole.fast_serialize=On" >> /usr/local/etc/php/conf.d/docker-php-ext-swoole-serialize.ini
+php --ri swoole

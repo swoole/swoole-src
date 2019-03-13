@@ -195,7 +195,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
     swEvent event;
     swReactorEpoll *object = reactor->object;
     swReactor_handle handle;
-    int i, n, ret, msec;
+    int i, n, ret;
 
     int reactor_id = reactor->id;
     int epoll_fd = object->epfd;
@@ -222,8 +222,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
         {
             reactor->onBegin(reactor);
         }
-        msec = reactor->timeout_msec;
-        n = epoll_wait(epoll_fd, events, max_event_num, msec);
+        n = epoll_wait(epoll_fd, events, max_event_num, swReactor_get_timeout_msec(reactor));
         if (n < 0)
         {
             if (swReactor_error(reactor) < 0)
@@ -242,7 +241,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             {
                 reactor->onTimeout(reactor);
             }
-            continue;
+            SW_REACTOR_CONTINUE;
         }
         for (i = 0; i < n; i++)
         {
@@ -297,10 +296,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
         {
             reactor->onFinish(reactor);
         }
-        if (reactor->once)
-        {
-            break;
-        }
+        SW_REACTOR_CONTINUE;
     }
     return 0;
 }

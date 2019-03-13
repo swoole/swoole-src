@@ -1,5 +1,7 @@
 --TEST--
 swoole_event: swoole_event_defer and sleep
+--SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -20,7 +22,7 @@ swoole_event_defer(function () {
 swoole_event_wait();
 ?>
 --EXPECT--
-timer [1]
 defer [1]
+timer [1]
 defer [2]
 timer [2]

@@ -26,14 +26,14 @@ function skip(string $reason, bool $is_skip = true, int $color = SWOOLE_COLOR_YE
     }
 }
 
-function skip_php_version_lower_than($require_version = '7.0')
+function skip_if_php_version_lower_than($require_version = '7.0')
 {
     if (version_compare(PHP_VERSION, $require_version, '<')) {
         skip('need php version >= ' . $require_version);
     }
 }
 
-function skip_php_version_between($a, $b)
+function skip_if_php_version_between($a, $b)
 {
     if (version_compare(PHP_VERSION, $a, '>=') && version_compare(PHP_VERSION, $b, '<=')) {
         skip("unsupported php version between {$a} and {$b}");
@@ -44,6 +44,21 @@ function skip_if_not_debug_version()
 {
     if (!SWOOLE_DEBUG) {
         skip('only in swoole debug version');
+    }
+}
+
+function skip_if_constant_not_defined(string $constant_name)
+{
+    require_once __DIR__ . '/config.php';
+    if (!defined($constant_name)) {
+        skip("{$constant_name} is not defined");
+    }
+}
+
+function skip_if_function_not_exist(string $function_name)
+{
+    if (!function_exists($function_name)) {
+        skip("{$function_name} not exist");
     }
 }
 
@@ -152,16 +167,14 @@ function skip_if_no_socks5_proxy()
 function skip_if_pdo_not_support_mysql8()
 {
     require_once __DIR__ . '/config.php';
-    if (IS_IN_TRAVIS) {
-        try {
-            new PDO(
-                "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
-                MYSQL_SERVER_USER, MYSQL_SERVER_PWD
-            );
-        } catch (\PDOException $e) {
-            if ($e->getCode() === 2054) {
-                skip('pdo auth not support');
-            }
+    try {
+        new PDO(
+            "mysql:host=" . MYSQL_SERVER_HOST . ";port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+            MYSQL_SERVER_USER, MYSQL_SERVER_PWD
+        );
+    } catch (\PDOException $e) {
+        if ($e->getCode() === 2054) {
+            skip('pdo auth not support');
         }
     }
 }
@@ -182,9 +195,14 @@ function skip_deprecated()
     skip('it\'s the deprecated', file_exists('/.travisenv'), SWOOLE_COLOR_WHITE);
 }
 
+function skip_unsupported()
+{
+    skip('the test cannot continue to work for some implementation reasons');
+}
+
 (function () {
     global $argv;
-    skip_php_version_lower_than('7.0');
+    skip_if_php_version_lower_than('7.0');
     if (!getenv('PHPT') && substr($argv[0], -4) === '.php') {
         skip('please read ' . dirname(dirname(__FILE__)) . '/README.md and try again');
     }

@@ -44,17 +44,13 @@ swoole\runtime::enableCoroutine();
 
 foreach ($files as $k => $v)
 {
-    go(function () use ($v, $k)
-    {
+    go(function () use ($v, $k) {
         $content = readfile_co($v['file']);
         assert(md5($content) == $v['hash']);
-        echo "$k\n";
     });
 }
 
 swoole_event_wait();
 ?>
 --EXPECT--
-0
-1
-2
+

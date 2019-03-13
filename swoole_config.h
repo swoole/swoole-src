@@ -27,7 +27,7 @@
 
 #define SW_MAX_FDTYPE              32   // 32 kinds of event
 #define SW_MAX_HOOK_TYPE           32
-#define SW_ERROR_MSG_SIZE          8192
+#define SW_ERROR_MSG_SIZE          16384
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) // for swoole_file_get_contents
 #define SW_MAX_LISTEN_PORT         60000
 #define SW_MAX_CONNECTION          100000
@@ -191,7 +191,6 @@
  * HTTP Protocol
  */
 #define SW_HTTP_SERVER_SOFTWARE          "swoole-http-server"
-#define SW_HTTP_BAD_REQUEST_TIP          "<h1>400 Bad Request</h1>\r\n"
 #define SW_HTTP_PARAM_MAX_NUM            128
 #define SW_HTTP_COOKIE_KEYLEN            128
 #define SW_HTTP_COOKIE_VALLEN            4096
@@ -207,6 +206,10 @@
 #define SW_HTTP_RFC850_DATE              "%A, %d-%b-%y %T GMT"
 #define SW_HTTP_ASCTIME_DATE             "%a %b %e %T %Y"
 // #define SW_HTTP_100_CONTINUE
+#define SW_HTTP_SEND_TWICE               1
+
+#define SW_HTTP_BAD_REQUEST_PACKET         "HTTP/1.1 400 Bad Request\r\n\r\n"
+#define SW_HTTP_SERVICE_UNAVAILABLE_PACKET "HTTP/1.1 503 Service Unavailable\r\n\r\n"
 
 /**
  * HTTP2 Protocol
@@ -220,10 +223,13 @@
 #define SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE  SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE
 #define SW_HTTP2_MAX_MAX_HEADER_LIST_SIZE      UINT32_MAX
 
-#define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
-#define SW_HTTP_CLIENT_BOUNDARY_PREKEY   "----SwooleBoundary"
-#define SW_HTTP_FORM_DATA_FORMAT_STRING  "--%*s\r\nContent-Disposition: form-data; name=\"%*s\"\r\n\r\n"
-#define SW_HTTP_FORM_DATA_FORMAT_FILE    "--%*s\r\nContent-Disposition: form-data; name=\"%*s\"; filename=\"%*s\"\r\nContent-Type: %*s\r\n\r\n"
+#define SW_HTTP_CLIENT_USERAGENT             "swoole-http-client"
+#define SW_HTTP_CLIENT_BOUNDARY_PREKEY       "----SwooleBoundary"
+#define SW_HTTP_CLIENT_BOUNDARY_TOTAL_SIZE   39
+#define SW_HTTP_FORM_RAW_DATA_FMT            "--%.*s\r\nContent-Disposition: form-data; name=\"%.*s\"\r\n\r\n"
+#define SW_HTTP_FORM_RAW_DATA_FMT_LEN        8
+#define SW_HTTP_FORM_FILE_DATA_FMT           "--%.*s\r\nContent-Disposition: form-data; name=\"%.*s\"; filename=\"%.*s\"\r\nContent-Type: %.*s\r\n\r\n"
+#define SW_HTTP_FORM_FILE_DATA_FMT_LEN       16
 
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
@@ -251,9 +257,6 @@
  * Coroutine
  */
 #define SW_DEFAULT_C_STACK_SIZE          (2 *1024 * 1024)
-#define SW_MAX_CORO_NUM_LIMIT            9223372036854775807LL
-#define SW_MAX_CORO_NESTING_LEVEL        128
-
 #define SW_CORO_SWAP_BAILOUT
 // #define SW_CORO_ZEND_TRY
 

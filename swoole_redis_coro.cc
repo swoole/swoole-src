@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 #include "swoole_coroutine.h"
 #include "socket.h"
 
@@ -828,8 +828,8 @@ ZEND_END_ARG_INFO()
 #define IS_NX_XX_ARG(a) (IS_NX_ARG(a) || IS_XX_ARG(a))
 
 #define SW_REDIS_COMMAND_CHECK \
-    PHPCoroutine::check(); \
-    swRedisClient *redis = (swRedisClient *) swoole_get_redis_client(getThis());
+    Coroutine::get_current_safe(); \
+    swRedisClient *redis = swoole_get_redis_client(getThis());
 
 #define SW_REDIS_COMMAND_ARGV_FILL(str, str_len) \
     argvlen[i] = str_len; \
@@ -983,20 +983,14 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     zval *zobject = redis->zobject;
     redisContext *context;
     Socket *socket;
-    zval *zhost, *zport, *ztmp;
-    char *host, *pwd;
-    size_t host_len, pwd_len;
-    zend_long port;
     struct timeval tv;
+    zval *ztmp;
+    zval *zhost = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("host"), 0);
+    zval *zport = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("port"), 0);
+    zend::string host(zhost);
+    zend_long port = zval_get_long(zport);
 
-    zhost = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("host"), 0);
-    zport = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("port"), 0);
-    convert_to_string(zhost);
-    host = Z_STRVAL_P(zhost);
-    host_len = Z_STRLEN_P(zhost);
-    port = zval_get_long(zport);
-
-    if (host_len == 0)
+    if (host.len() == 0)
     {
         swoole_php_fatal_error(E_WARNING, "The host is empty.");
         return false;
@@ -1007,14 +1001,14 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
         context = redis->context;
         if (
             context->connection_type == REDIS_CONN_TCP &&
-            strcmp(context->tcp.host, host) == 0 && context->tcp.port == port
+            strcmp(context->tcp.host, host.val()) == 0 && context->tcp.port == port
         )
         {
             return true;
         }
         else if (
             context->connection_type == REDIS_CONN_UNIX &&
-            (strstr(host, context->unix_sock.path) - host) + strlen(context->unix_sock.path) == host_len
+            (strstr(host.val(), context->unix_sock.path) - host.val()) + strlen(context->unix_sock.path) == host.len()
         )
         {
             return true;
@@ -1032,9 +1026,9 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
         tv.tv_sec = redis->connect_timeout;
         tv.tv_usec = (redis->connect_timeout - (double) tv.tv_sec) * 1000 * 1000;
     }
-    if (strncasecmp(host, ZEND_STRL("unix:/")) == 0)
+    if (strncasecmp(host.val(), ZEND_STRL("unix:/")) == 0)
     {
-        context = redisConnectUnixWithTimeout(host + 5 + strspn(host + 5, "/") - 1, tv);
+        context = redisConnectUnixWithTimeout(host.val() + 5 + strspn(host.val() + 5, "/") - 1, tv);
     }
     else
     {
@@ -1043,7 +1037,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
             swoole_php_fatal_error(E_WARNING, "The port " ZEND_LONG_FMT " is invalid.", port);
             return false;
         }
-        context = redisConnectWithTimeout(host, (int) port, tv);
+        context = redisConnectWithTimeout(host.val(), (int) port, tv);
     }
 
     redis->context = context;
@@ -1073,8 +1067,8 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     }
 
     swSetNonBlock(context->fd);
+    socket->set_timeout(redis->timeout, SW_TIMEOUT_RDWR);
     redis->reconnected_count = 0;
-    socket->set_timeout(redis->timeout);
     zend_update_property_bool(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("connected"), 1);
     zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("sock"), context->fd);
 
@@ -1084,10 +1078,8 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
 
     if (php_swoole_array_get_value(vht, "password", ztmp))
     {
-        convert_to_string(ztmp);
-        pwd = Z_STRVAL_P(ztmp);
-        pwd_len = Z_STRLEN_P(ztmp);
-        if (pwd_len > 0 && !redis_auth(redis, pwd, pwd_len))
+        zend::string passowrd(ztmp);
+        if (passowrd.len() > 0 && !redis_auth(redis, passowrd.val(), passowrd.len()))
         {
             swoole_redis_coro_close(redis);
             return false;
@@ -1957,7 +1949,7 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
             Socket *socket = swoole_redis_coro_get_socket(redis->context);
             if (socket)
             {
-                socket->set_timeout(redis->timeout);
+                socket->set_timeout(redis->timeout, SW_TIMEOUT_RDWR);
             }
         }
     }
@@ -1977,7 +1969,7 @@ static PHP_METHOD(swoole_redis_coro, __construct)
     zval *zsettings = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
     zval *zset = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(0, 1)
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
@@ -1996,8 +1988,8 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 
     swoole_set_object(getThis(), redis);
 
-    redis->connect_timeout = PHPCoroutine::socket_connect_timeout;
-    redis->timeout = PHPCoroutine::socket_timeout;
+    redis->connect_timeout = Socket::default_connect_timeout;
+    redis->timeout = Socket::default_read_timeout;
     redis->reconnect_interval = 1;
 
     // settings init
@@ -2011,20 +2003,19 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 
     if (zset)
     {
-        swoole_redis_coro_set_options(redis, zset);
+        swoole_redis_coro_set_options(redis, zset, true);
     }
 }
 
 static PHP_METHOD(swoole_redis_coro, connect)
 {
     zval *zobject = getThis();
-    swRedisClient *redis = swoole_get_redis_client(zobject);
     char *host = nullptr;
     size_t host_len = 0;
     zend_long port = 0;
     zend_bool serialize = 0;
 
-    PHPCoroutine::check();
+    SW_REDIS_COMMAND_CHECK
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lb", &host, &host_len, &port, &serialize) == FAILURE)
     {
@@ -2124,7 +2115,11 @@ static PHP_METHOD(swoole_redis_coro, recv)
 {
     SW_REDIS_COMMAND_CHECK
 
-    if (!redis->defer && !redis->session.subscribe)
+    if (UNEXPECTED(!redis->context))
+    {
+        RETURN_FALSE;
+    }
+    if (UNEXPECTED(!redis->defer && !redis->session.subscribe))
     {
         swoole_php_fatal_error(E_WARNING, "you should not use recv without defer or subscribe.");
         RETURN_FALSE;

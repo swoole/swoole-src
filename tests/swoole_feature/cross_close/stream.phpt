@@ -1,7 +1,7 @@
 --TEST--
 swoole_feature: cross_close: stream
 --SKIPIF--
-<?php require __DIR__ . '/../../include/config.php'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

@@ -10,6 +10,7 @@ go(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [
         'host' => MYSQL_SERVER_HOST,
+        'port' => MYSQL_SERVER_PORT,
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB

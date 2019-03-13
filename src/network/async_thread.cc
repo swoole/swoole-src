@@ -292,7 +292,7 @@ static int swAio_init()
     }
     if (!SwooleG.main_reactor)
     {
-        swWarn("No eventloop, cannot initialized");
+        swWarn("no event loop, cannot initialized");
         return SW_ERR;
     }
 

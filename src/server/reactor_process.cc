@@ -29,6 +29,11 @@ static int swReactorProcess_reuse_port(swListenPort *ls);
 
 static uint32_t heartbeat_check_lasttime = 0;
 
+static bool swServer_is_single(swServer *serv)
+{
+    return serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 && serv->user_worker_list == NULL;
+}
+
 int swReactorProcess_create(swServer *serv)
 {
     serv->reactor_num = serv->worker_num;
@@ -105,12 +110,8 @@ int swReactorProcess_start(swServer *serv)
     }
 
     //single worker
-    if (serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 && serv->user_worker_list == NULL)
+    if (swServer_is_single(serv))
     {
-        if (serv->onStart)
-        {
-            serv->onStart(serv);
-        }
         return swReactorProcess_loop(&serv->gs->event_workers, &serv->gs->event_workers.workers[0]);
     }
 
@@ -381,7 +382,16 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);
 
-    swTimer_node *heartbeat_timer = NULL, *update_timer;
+    //single server trigger onStart event
+    if (swServer_is_single(serv))
+    {
+        if (serv->onStart)
+        {
+            serv->onStart(serv);
+        }
+    }
+
+    swTimer_node *update_timer, *heartbeat_timer = NULL;
 
     /**
      * 1 second timer, update serv->gs->now
@@ -391,7 +401,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         return SW_ERR;
     }
 
-    swServer_worker_start(serv, worker);
+    swWorker_onStart(serv);
 
     /**
      * for heartbeat check

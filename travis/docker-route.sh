@@ -13,10 +13,9 @@ uname -a && echo ""
 php -v && echo ""
 
 # compile in docker
+echo "" && echo "📦 Compile test in docker..." && echo ""
 ./docker-compile.sh
 
-# swoole info
-php --ri swoole
-
 # run unit tests
+echo "" && echo "📋 PHP unit tests in docker..." && echo ""
 ./run-tests.sh

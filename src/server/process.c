@@ -54,7 +54,7 @@ static int swFactoryProcess_shutdown(swFactory *factory)
 
     if (swKill(serv->gs->manager_pid, SIGTERM) < 0)
     {
-        swSysError("kill(%d) failed.", serv->gs->manager_pid);
+        swSysError("swKill(%d) failed.", serv->gs->manager_pid);
     }
 
     if (swWaitpid(serv->gs->manager_pid, &status, 0) < 0)
@@ -164,11 +164,25 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
         task->info.from_fd = conn->from_fd;
     }
 
+    swWorker *worker = swServer_get_worker(serv, target_worker_id);
+
     //without data
     if (task->data == NULL)
     {
         task->info.flags = 0;
-        return swReactorThread_send2worker(serv, &task->info, sizeof(task->info), target_worker_id);
+        return swReactorThread_send2worker(serv, worker, &task->info, sizeof(task->info));
+    }
+
+    switch (task->info.type)
+    {
+    case SW_EVENT_TCP6:
+    case SW_EVENT_TCP:
+    case SW_EVENT_UNIX_STREAM:
+    case SW_EVENT_UDP:
+    case SW_EVENT_UDP6:
+    case SW_EVENT_UNIX_DGRAM:
+        worker->dispatch_count++;
+        break;
     }
 
     uint32_t send_n = task->length;
@@ -183,7 +197,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
         buf.info.flags = 0;
         buf.info.len = send_n;
         memcpy(buf.data, data, buf.info.len);
-        return swReactorThread_send2worker(serv, &buf, sizeof(buf.info) + buf.info.len, target_worker_id);
+        return swReactorThread_send2worker(serv, worker, &buf, sizeof(buf.info) + buf.info.len);
     }
 
     buf.info.flags = SW_EVENT_DATA_CHUNK;
@@ -207,7 +221,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
 
         swTrace("dispatch, type=%d|len=%d", buf.info.type, buf.info.len);
 
-        if (swReactorThread_send2worker(serv, &buf, sizeof(buf.info) + buf.info.len, target_worker_id) < 0)
+        if (swReactorThread_send2worker(serv, worker, &buf, sizeof(buf.info) + buf.info.len) < 0)
         {
             return SW_ERR;
         }

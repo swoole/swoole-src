@@ -9,6 +9,7 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $port = get_one_free_port();
 $pm->parentFunc = function () use ($pm) {
+    switch_process();
     $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
     $client->set([
         'open_eof_check' => true,

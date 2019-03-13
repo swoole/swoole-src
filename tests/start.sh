@@ -34,14 +34,13 @@ elif [ "${1}"x == "base"x ]; then
     swoole_function \
     swoole_global \
     swoole_lock \
-    swoole_memory_pool \
     swoole_process \
     swoole_process_pool \
     swoole_table \
     \
     swoole_coroutine \
     swoole_coroutine_util \
-    swoole_coroutine_channel \
+    swoole_channel_coro \
     swoole_client_coro \
     swoole_http_client_coro \
     swoole_http2_client_coro \

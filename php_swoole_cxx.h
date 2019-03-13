@@ -1,6 +1,11 @@
 #pragma once
 
 #include "php_swoole.h"
+#include "swoole_coroutine.h"
+
+SW_API bool php_swoole_export_socket(zval *object, int fd, enum swSocket_type type);
+SW_API zend_object* php_swoole_export_socket_ex(int fd, enum swSocket_type type);
+SW_API void php_swoole_client_set(swoole::Socket *cli, zval *zset);
 
 namespace zend
 {
@@ -51,6 +56,16 @@ public:
     inline size_t len()
     {
         return ZSTR_LEN(str);
+    }
+
+    zend_string* get()
+    {
+        return str;
+    }
+
+    std::string toStdString()
+    {
+        return std::string(val(), len());
     }
 
     ~string()

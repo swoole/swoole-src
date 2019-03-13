@@ -55,6 +55,10 @@
 #include "client.h"
 #include "async.h"
 
+#ifdef SW_HAVE_ZLIB
+#include <zlib.h>
+#endif
+
 BEGIN_EXTERN_C()
 #include <ext/date/php_date.h>
 #include <ext/standard/url.h>
@@ -130,14 +134,6 @@ extern swoole_object_array swoole_objects;
 #ifdef SW_SOCKETS
 #include "ext/sockets/php_sockets.h"
 #define SWOOLE_SOCKETS_SUPPORT
-#endif
-
-#ifdef SW_USE_HTTP2
-#if !defined(HAVE_NGHTTP2)
-#error "Enable http2 support, require nghttp2 library."
-#else
-#include <nghttp2/nghttp2ver.h>
-#endif
 #endif
 
 #if PHP_VERSION_ID < 70400
@@ -282,8 +278,8 @@ PHP_FUNCTION(swoole_cpu_num);
 PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_get_local_ip);
 PHP_FUNCTION(swoole_get_local_mac);
-PHP_FUNCTION(swoole_call_user_shutdown_begin);
 PHP_FUNCTION(swoole_clear_dns_cache);
+PHP_FUNCTION(swoole_internal_call_user_shutdown_begin);
 //---------------------------------------------------------
 //                  Coroutine API
 //---------------------------------------------------------
@@ -306,17 +302,10 @@ PHP_FUNCTION(swoole_event_dispatch);
 PHP_FUNCTION(swoole_event_isset);
 PHP_FUNCTION(swoole_client_select);
 //---------------------------------------------------------
-//                  async
+//                  async[coro]
 //---------------------------------------------------------
-PHP_FUNCTION(swoole_async_read);
-PHP_FUNCTION(swoole_async_write);
-PHP_FUNCTION(swoole_async_close);
-PHP_FUNCTION(swoole_async_readfile);
-PHP_FUNCTION(swoole_async_writefile);
-PHP_FUNCTION(swoole_async_dns_lookup);
-PHP_FUNCTION(swoole_async_dns_lookup_coro);
 PHP_FUNCTION(swoole_async_set);
-PHP_METHOD(swoole_async, exec);
+PHP_FUNCTION(swoole_async_dns_lookup_coro);
 //---------------------------------------------------------
 //                  timer
 //---------------------------------------------------------
@@ -344,11 +333,9 @@ PHP_FUNCTION(swoole_fast_serialize);
 PHP_FUNCTION(swoole_unserialize);
 #endif
 
-void swoole_destroy_table(zend_resource *rsrc);
-
 void swoole_server_init(int module_number);
 void swoole_server_port_init(int module_number);
-void swoole_async_init(int module_number);
+void swoole_async_coro_init(int module_number);
 void swoole_table_init(int module_number);
 void swoole_runtime_init(int module_number);
 void swoole_lock_init(int module_number);
@@ -364,8 +351,6 @@ void swoole_mysql_coro_init(int module_number);
 void swoole_http_client_coro_init(int module_number);
 void swoole_coroutine_util_init(int module_number);
 void swoole_coroutine_util_destroy();
-void swoole_http_client_init(int module_number);
-void swoole_redis_init(int module_number);
 void swoole_redis_server_init(int module_number);
 void swoole_process_init(int module_number);
 void swoole_process_pool_init(int module_number);
@@ -375,16 +360,15 @@ void swoole_http2_client_coro_init(int module_number);
 #endif
 void swoole_websocket_init(int module_number);
 void swoole_buffer_init(int module_number);
-void swoole_mysql_init(int module_number);
-void swoole_mmap_init(int module_number);
 void swoole_channel_init(int module_number);
-void swoole_ringqueue_init(int module_number);
-void swoole_msgqueue_init(int module_number);
 void swoole_channel_coro_init(int module_number);
 #ifdef SW_USE_FAST_SERIALIZE
 void swoole_serialize_init(int module_number);
 #endif
-void swoole_memory_pool_init(int module_number);
+
+//RSHUTDOWN
+void swoole_async_coro_shutdown();
+void swoole_redis_server_shutdown();
 
 void php_swoole_process_clean();
 int php_swoole_process_start(swWorker *process, zval *zobject);
@@ -419,6 +403,10 @@ void php_swoole_sha1(const char *str, int _len, unsigned char *digest);
 
 int php_swoole_task_pack(swEventData *task, zval *data);
 zval* php_swoole_task_unpack(swEventData *task_result);
+
+#ifdef SW_HAVE_ZLIB
+int php_swoole_zlib_uncompress(z_stream *stream, swString *buffer, char *body, int length);
+#endif
 
 static sw_inline void* swoole_get_object_by_handle(uint32_t handle)
 {
@@ -506,9 +494,7 @@ void php_swoole_class_unset_property_deny(zval *zobject, zval *member, void **ca
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool display_errors;
     zend_bool cli;
-    zend_bool use_namespace;
     zend_bool use_shortname;
-    zend_bool fast_serialize;
     zend_bool enable_coroutine;
     long socket_buffer_size;
     php_swoole_req_status req_status;
@@ -713,7 +699,7 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 
 /* PHP 7 class declaration macros */
 
-#define SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, parent_ce_ptr) \
+#define SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_ce_ptr) \
     INIT_CLASS_ENTRY(module##_ce, namespaceName, methods); \
     module##_ce_ptr = zend_register_internal_class_ex(&module##_ce, parent_ce_ptr); \
     if (snake_name) { \
@@ -724,16 +710,16 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     }
 
 #define SWOOLE_INIT_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
-    SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, NULL); \
+    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, NULL); \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 
 #define SWOOLE_INIT_CLASS_ENTRY_EX(module, namespaceName, snake_name, shortName, methods, parent_module) \
-    SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce_ptr); \
+    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce_ptr); \
     memcpy(&module##_handlers, &parent_module##_handlers, sizeof(zend_object_handlers));
 
 #define SWOOLE_INIT_EXCEPTION_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
     INIT_CLASS_ENTRY(module##_ce, namespaceName, methods); \
-    SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, zend_exception_get_default()); \
+    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, zend_exception_get_default()); \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers)); \
     SWOOLE_SET_CLASS_CLONEABLE(module, zend_class_clone_deny);
 
@@ -930,13 +916,21 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
 
 static sw_inline int sw_call_function_anyway(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache)
 {
+    zval retval;
     zend_object* exception = EG(exception);
-    ZEND_ASSERT(fci->retval);
     if (exception)
     {
         EG(exception) = NULL;
     }
+    if (!fci->retval)
+    {
+        fci->retval = &retval;
+    }
     int ret = zend_call_function(fci, fci_cache);
+    if (fci->retval == &retval)
+    {
+        zval_ptr_dtor(&retval);
+    }
     if (exception)
     {
         EG(exception) = exception;
@@ -1044,9 +1038,9 @@ static sw_inline void sw_get_debug_print_backtrace(swString *buffer, zend_long o
     zval_ptr_dtor(fcn);
     php_output_get_contents(retval);
     php_output_discard();
-    swString_clear(buffer);
     swString_append_ptr(buffer, ZEND_STRL("Stack trace:\n"));
-    swString_append_ptr(buffer, Z_STRVAL_P(retval), Z_STRLEN_P(retval)-1); // trim \n
+    Z_STRVAL_P(retval)[Z_STRLEN_P(retval)-1] = '\0'; // replace \n to \0
+    swString_append_ptr(buffer, Z_STRVAL_P(retval), Z_STRLEN_P(retval));
     zval_ptr_dtor(retval);
 }
 

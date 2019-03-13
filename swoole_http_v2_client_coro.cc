@@ -21,6 +21,8 @@
 #include "swoole_coroutine.h"
 #include "swoole_http_v2_client.h"
 
+#include <vector>
+
 using namespace swoole;
 
 static zend_class_entry swoole_http2_client_coro_ce;
@@ -190,6 +192,65 @@ void swoole_http2_client_coro_init(int module_number)
     SWOOLE_DEFINE(HTTP2_ERROR_INADEQUATE_SECURITY);
 }
 
+#ifdef SW_HAVE_ZLIB
+int php_swoole_zlib_uncompress(z_stream *stream, swString *buffer, char *body, int length)
+{
+    int status = 0;
+
+    stream->avail_in = length;
+    stream->next_in = (Bytef *) body;
+    stream->total_in = 0;
+    stream->total_out = 0;
+
+#if 0
+    printf(SW_START_LINE"\nstatus=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld\n", status,
+            stream->avail_in, stream->avail_out, stream->total_in, stream->total_out);
+#endif
+
+    swString_clear(buffer);
+
+    while (1)
+    {
+        stream->avail_out = buffer->size - buffer->length;
+        stream->next_out = (Bytef *) (buffer->str + buffer->length);
+
+        status = inflate(stream, Z_SYNC_FLUSH);
+
+#if 0
+        printf("status=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld,\tlength=%ld\n", status,
+                stream->avail_in, stream->avail_out, stream->total_in, stream->total_out, buffer->length);
+#endif
+        if (status >= 0)
+        {
+            buffer->length = stream->total_out;
+        }
+        if (status == Z_STREAM_END)
+        {
+            return SW_OK;
+        }
+        else if (status == Z_OK)
+        {
+            if (buffer->length + 4096 >= buffer->size)
+            {
+                if (swString_extend(buffer, buffer->size * 2) < 0)
+                {
+                    return SW_ERR;
+                }
+            }
+            if (stream->avail_in == 0)
+            {
+                return SW_OK;
+            }
+        }
+        else
+        {
+            return SW_ERR;
+        }
+    }
+    return SW_ERR;
+}
+#endif
+
 static PHP_METHOD(swoole_http2_client_coro, __construct)
 {
     char *host;
@@ -197,10 +258,12 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
     zend_long port = 80;
     zend_bool ssl = SW_FALSE;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lb", &host, &host_len, &port, &ssl) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 3)
+        Z_PARAM_STRING(host, host_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(port)
+        Z_PARAM_BOOL(ssl)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (host_len == 0)
     {
@@ -223,7 +286,7 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
     hcc->host = estrndup(host, host_len);
     hcc->host_len = host_len;
     hcc->port = port;
-    hcc->timeout = PHPCoroutine::socket_timeout;
+    hcc->timeout = Socket::default_read_timeout;
     swoole_set_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY, hcc);
 
     php_coro_context *context = (php_coro_context *) emalloc(sizeof(php_coro_context));
@@ -391,6 +454,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
     zval *zheaders = sw_zend_read_property(swoole_http2_request_ce_ptr, req, ZEND_STRL("headers"), 0);
     zval *zcookies = sw_zend_read_property(swoole_http2_request_ce_ptr, req, ZEND_STRL("cookies"), 0);
     nghttp2_nv *nv = (nghttp2_nv *) ecalloc(sizeof(nghttp2_nv), 8 + (ZVAL_IS_ARRAY(zheaders) ? php_swoole_array_length(zheaders) : 0));
+    std::vector<zend::string_ptr> zstr_list;
 
     http2_client_property *hcc = (http2_client_property *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
     if (Z_TYPE_P(zmethod) != IS_STRING || Z_STRLEN_P(zmethod) == 0)
@@ -434,15 +498,17 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
             {
                 continue;
             }
+            zend_string *zstr = zval_get_string(value);
             if (strncasecmp("host", key, keylen) == 0)
             {
-                http2_add_header(&nv[HTTP2_CLIENT_HOST_HEADER_INDEX], ZEND_STRL(":authority"), Z_STRVAL_P(value), Z_STRLEN_P(value));
+                http2_add_header(&nv[HTTP2_CLIENT_HOST_HEADER_INDEX], ZEND_STRL(":authority"), ZSTR_VAL(zstr), ZSTR_LEN(zstr));
                 find_host = 1;
             }
             else
             {
-                http2_add_header(&nv[index++], key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
+                http2_add_header(&nv[index++], key, keylen, ZSTR_VAL(zstr), ZSTR_LEN(zstr));
             }
+            zstr_list.emplace_back(zend::string_ptr(zstr));
         }
         SW_HASHTABLE_FOREACH_END();
         (void)type;
@@ -458,7 +524,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
         http2_client_add_cookie(nv, &index, zcookies);
     }
 
-    ssize_t rv = SW_ERR;;
+    ssize_t rv = SW_ERR;
     size_t buflen = nghttp2_hd_deflate_bound(hcc->deflater, nv, index);
     if (buflen > hcc->remote_settings.max_header_list_size)
     {
@@ -658,7 +724,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
 #ifdef SW_HAVE_ZLIB
             if (stream->gzip)
             {
-                if (http_response_uncompress(&stream->gzip_stream, stream->gzip_buffer, buf, length) == SW_ERR)
+                if (php_swoole_zlib_uncompress(&stream->gzip_stream, stream->gzip_buffer, buf, length) == SW_ERR)
                 {
                     return;
                 }

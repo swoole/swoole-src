@@ -158,12 +158,14 @@ PHP_FUNCTION(swoole_timer_clear)
     else
     {
         zend_long id;
+        swTimer_node *tnode;
 
         ZEND_PARSE_PARAMETERS_START(1, 1)
             Z_PARAM_LONG(id)
         ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-        RETURN_BOOL(swTimer_del_ex(&SwooleG.timer, swTimer_get(&SwooleG.timer, id), php_swoole_del_timer));
+        tnode = swTimer_get_ex(&SwooleG.timer, id, SW_TIMER_TYPE_PHP);
+        RETURN_BOOL(swTimer_del_ex(&SwooleG.timer, tnode, php_swoole_del_timer));
     }
 }
 

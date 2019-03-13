@@ -12,7 +12,7 @@ cd ${__DIR__} && cd ../ && \
 phpize --clean > /dev/null && \
 phpize > /dev/null && \
 ./configure > /dev/null && \
-make -j > /dev/null | tee /tmp/compile.log && \
+make -j8 > /dev/null | tee /tmp/compile.log && \
 (test "`cat /tmp/compile.log`"x = ""x || exit 255) && \
 make install && \
 echo "\n[swoole]\nextension=swoole.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini

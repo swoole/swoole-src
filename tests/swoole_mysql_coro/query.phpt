@@ -1,7 +1,10 @@
 --TEST--
 swoole_mysql_coro: mysql client
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_function_not_exist('curl_init');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -33,6 +36,7 @@ $pm->childFunc = function () use ($pm)
         $mysql = new Swoole\Coroutine\MySQL();
         $res = $mysql->connect([
             'host' => MYSQL_SERVER_HOST,
+            'port' => MYSQL_SERVER_PORT,
             'user' => MYSQL_SERVER_USER,
             'password' => MYSQL_SERVER_PWD,
             'database' => MYSQL_SERVER_DB

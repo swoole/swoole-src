@@ -12,7 +12,7 @@ $port = get_one_free_port();
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($port)
 {
-    Swoole\Async::set(['log_level' => 5, 'display_errors' => false]);
+    Co::set(['log_level' => 5, 'display_errors' => false]);
     $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
     $client->set(['socket_buffer_size' => 1 * 1024 * 1024,]);
     $client->buffer = array();

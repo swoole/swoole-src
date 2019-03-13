@@ -82,12 +82,12 @@ int main(int argc, char **argv)
 
 void my_onWorkerStart(swServer *serv, int worker_id)
 {
-    printf("WorkerStart[%d]PID=%d\n", worker_id, getpid());
+    swNotice("WorkerStart[%d]PID=%d", worker_id, getpid());
 }
 
 void my_onWorkerStop(swServer *serv, int worker_id)
 {
-    printf("WorkerStop[%d]PID=%d\n", worker_id, getpid());
+    swNotice("WorkerStop[%d]PID=%d", worker_id, getpid());
 }
 
 int my_onReceive(swServer *serv, swEventData *req)
@@ -99,18 +99,18 @@ int my_onReceive(swServer *serv, swEventData *req)
 
     swConnection *conn = swWorker_get_connection(serv, req->info.fd);
     swoole_rtrim(req->data, req->info.len);
-    printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count, swConnection_get_ip(conn),
+    swNotice("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d", g_receive_count, swConnection_get_ip(conn),
             swConnection_get_port(conn), req->data, req->info.len);
 
-    int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %*s\n", req->info.len, req->data);
+    int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s\n", req->info.len, req->data);
     ret = serv->send(serv, req->info.fd, resp_data, n);
     if (ret < 0)
     {
-        printf("send to client fail. errno=%d\n", errno);
+        swNotice("send to client fail. errno=%d", errno);
     }
     else
     {
-        printf("send %d bytes to client success. data=%s\n", n, resp_data);
+        swNotice("send %d bytes to client success. data=%s", n, resp_data);
     }
     return SW_OK;
 }
@@ -133,7 +133,7 @@ int my_onPacket(swServer *serv, swEventData *req)
     //udp ipv4
     if (req->info.type == SW_EVENT_UDP)
     {
-        inet_ntop(AF_INET6, &packet->info.addr.inet_v4.sin_addr, address, sizeof(address));
+        inet_ntop(AF_INET, &packet->info.addr.inet_v4.sin_addr, address, sizeof(address));
         port = ntohs(packet->info.addr.inet_v4.sin_port);
     }
     //udp ipv6
@@ -155,10 +155,10 @@ int my_onPacket(swServer *serv, swEventData *req)
     data = packet->data;
     length = packet->length;
 
-    printf("Packet[client=%s:%d, %d bytes]: data=%*s\n", address, port, length, length, data);
+    swNotice("Packet[client=%s:%d, %d bytes]: data=%.*s", address, port, length, length, data);
 
     char resp_data[SW_IPC_BUFFER_SIZE];
-    int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %*s", length, data);
+    int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s", length, data);
 
     //udp ipv4
     if (req->info.type == SW_EVENT_UDP)
@@ -178,11 +178,11 @@ int my_onPacket(swServer *serv, swEventData *req)
 
     if (ret < 0)
     {
-        printf("send to client fail. errno=%d\n", errno);
+        swNotice("send to client fail. errno=%d", errno);
     }
     else
     {
-        printf("send %d bytes to client success. data=%s\n", n, resp_data);
+        swNotice("send %d bytes to client success. data=%s", n, resp_data);
     }
 
     return SW_OK;
@@ -190,20 +190,20 @@ int my_onPacket(swServer *serv, swEventData *req)
 
 void my_onStart(swServer *serv)
 {
-    sw_log("Server is running");
+    swNotice("Server is running");
 }
 
 void my_onShutdown(swServer *serv)
 {
-    sw_log("Server is shutdown\n");
+    swNotice("Server is shutdown\n");
 }
 
 void my_onConnect(swServer *serv, swDataHead *info)
 {
-    printf("PID=%d\tConnect fd=%d|from_id=%d\n", getpid(), info->fd, info->from_id);
+    swNotice("PID=%d\tConnect fd=%d|from_id=%d", getpid(), info->fd, info->from_id);
 }
 
 void my_onClose(swServer *serv, swDataHead *info)
 {
-    printf("PID=%d\tClose fd=%d|from_id=%d\n", getpid(), info->fd, info->from_id);
+    swNotice("PID=%d\tClose fd=%d|from_id=%d", getpid(), info->fd, info->from_id);
 }

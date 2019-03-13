@@ -19,11 +19,15 @@
 #include "swoole.h"
 #include "context.h"
 
+#include <limits.h>
+
 #include <string>
 #include <unordered_map>
 
 #define SW_CORO_STACK_ALIGNED_SIZE (4 * 1024)
+#define SW_CORO_MIN_STACK_SIZE     (256  * 1024)
 #define SW_CORO_MAX_STACK_SIZE     (16 * 1024 * 1024)
+#define SW_CORO_MAX_NUM_LIMIT      LONG_MAX
 
 // TODO: remove it
 typedef enum
@@ -87,6 +91,16 @@ public:
         return cid;
     }
 
+    inline Coroutine* get_origin()
+    {
+        return origin;
+    }
+
+    inline long get_origin_cid()
+    {
+        return likely(origin) ? origin->get_cid() : -1;
+    }
+
     inline void* get_task()
     {
         return task;
@@ -99,14 +113,8 @@ public:
 
     static std::unordered_map<long, Coroutine*> coroutines;
 
-    static Coroutine* get_current();
-    static void* get_current_task();
-    static long get_current_cid();
-    static Coroutine* get_by_cid(long cid);
-    static void* get_task_by_cid(long cid);
     static void print_list();
 
-    static long create(coroutine_func_t fn, void* args = nullptr);
     static int sleep(double sec);
     static swString* read_file(const char *file, int lock);
     static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
@@ -117,6 +125,47 @@ public:
     static void set_on_resume(coro_php_resume_t func);
     static void set_on_close(coro_php_close_t func);
 
+    static inline long create(coroutine_func_t fn, void* args = nullptr)
+    {
+        return (new Coroutine(fn, args))->run();
+    }
+
+    static inline Coroutine* get_current()
+    {
+        return current;
+    }
+
+    static inline Coroutine* get_current_safe()
+    {
+        if (unlikely(!current))
+        {
+            swFatalError(SW_ERROR_CO_OUT_OF_COROUTINE, "API must be called in the coroutine");
+        }
+        return current;
+    }
+
+    static inline void* get_current_task()
+    {
+        return likely(current) ? current->get_task() : nullptr;
+    }
+
+    static inline long get_current_cid()
+    {
+        return likely(current) ? current->get_cid() : -1;
+    }
+
+    static inline Coroutine* get_by_cid(long cid)
+    {
+        auto i = coroutines.find(cid);
+        return likely(i != coroutines.end()) ? i->second : nullptr;
+    }
+
+    static inline void* get_task_by_cid(long cid)
+    {
+        Coroutine *co = get_by_cid(cid);
+        return likely(co) ? co->get_task() : nullptr;
+    }
+
     static inline size_t get_stack_size()
     {
         return stack_size;
@@ -124,12 +173,7 @@ public:
 
     static inline void set_stack_size(size_t size)
     {
-        stack_size = SW_MEM_ALIGNED_SIZE_EX(MIN(size, SW_CORO_MAX_STACK_SIZE), SW_CORO_STACK_ALIGNED_SIZE);
-    }
-
-    static inline long get_cid(Coroutine* co)
-    {
-        return co ? co->get_cid() : -1;
+        stack_size = SW_MEM_ALIGNED_SIZE_EX(MAX(SW_CORO_MIN_STACK_SIZE, MIN(size, SW_CORO_MAX_STACK_SIZE)), SW_CORO_STACK_ALIGNED_SIZE);
     }
 
     static inline long get_last_cid()
@@ -149,8 +193,7 @@ public:
 
 protected:
     static size_t stack_size;
-    static size_t call_stack_size;
-    static Coroutine* call_stack[SW_MAX_CORO_NESTING_LEVEL];
+    static Coroutine* current;
     static long last_cid;
     static uint64_t peak_num;
     static coro_php_yield_t  on_yield;  /* before php yield coro */
@@ -161,13 +204,13 @@ protected:
     long cid;
     void *task = nullptr;
     Context ctx;
+    Coroutine *origin;
 
     Coroutine(coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)
     {
         cid = ++last_cid;
         coroutines[cid] = this;
-        call_stack[call_stack_size++] = this;
         if (unlikely(count() > peak_num))
         {
             peak_num = count();
@@ -177,6 +220,8 @@ protected:
     inline long run()
     {
         long cid = this->cid;
+        origin = current;
+        current = this;
         ctx.SwapIn();
         if (ctx.end)
         {

@@ -16,6 +16,8 @@
 
 #include "swoole.h"
 #include "atomic.h"
+#include "async.h"
+#include "coroutine_c_api.h"
 
 #include <stdarg.h>
 
@@ -35,6 +37,8 @@
 
 SwooleGS_t *SwooleGS;
 
+static void swoole_fatal_error(int code, const char *format, ...);
+
 void swoole_init(void)
 {
     if (SwooleG.running)
@@ -48,9 +52,10 @@ void swoole_init(void)
 
     SwooleG.running = 1;
     SwooleG.enable_coroutine = 1;
-    sw_errno = 0;
 
     SwooleG.log_fd = STDOUT_FILENO;
+    SwooleG.write_log = swLog_put;
+    SwooleG.fatal_error = swoole_fatal_error;
 
 #ifdef _WIN32
     SYSTEM_INFO info;
@@ -161,6 +166,59 @@ void swoole_clean(void)
         SwooleG.memory_pool->destroy(SwooleG.memory_pool);
         bzero(&SwooleG, sizeof(SwooleG));
     }
+}
+
+pid_t swoole_fork()
+{
+    if (swoole_coroutine_is_in())
+    {
+        swError("must be forked outside the coroutine.");
+        return -1;
+    }
+    if (SwooleAIO.init)
+    {
+        swError("can not create server after using async file operation");
+        return -1;
+    }
+    pid_t pid = fork();
+    if (pid == 0)
+    {
+        /**
+         * [!!!] All timers and event loops must be cleaned up after fork
+         */
+        if (SwooleG.timer.initialized)
+        {
+            swTimer_free(&SwooleG.timer);
+        }
+        /**
+         * reset SwooleG.memory_pool
+         */
+        SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
+        if (SwooleG.memory_pool == NULL)
+        {
+            printf("[Worker] Fatal Error: global memory allocation failure.");
+            exit(1);
+        }
+        /**
+         * reset eventLoop
+         */
+        if (SwooleG.main_reactor)
+        {
+            SwooleG.main_reactor->free(SwooleG.main_reactor);
+            SwooleG.main_reactor = NULL;
+            swTraceLog(SW_TRACE_PHP, "destroy reactor");
+        }
+        /**
+         * reset signal handler
+         */
+        swSignal_clear();
+        /**
+         * reset global struct
+         */
+        bzero(&SwooleWG, sizeof(SwooleWG));
+        SwooleG.pid = getpid();
+    }
+    return pid;
 }
 
 uint64_t swoole_hash_key(char *str, int str_len)
@@ -333,10 +391,10 @@ char* swoole_dec2hex(int value, int base)
     return sw_strndup(ptr, end - ptr);
 }
 
-int swoole_sync_writefile(int fd, void *data, int len)
+size_t swoole_sync_writefile(int fd, const void *data, size_t len)
 {
-    int n = 0;
-    int count = len, towrite, written = 0;
+    ssize_t n = 0;
+    size_t count = len, towrite, written = 0;
 
     while (count > 0)
     {
@@ -486,9 +544,9 @@ double swoole_microtime(void)
 void swoole_rtrim(char *str, int len)
 {
     int i;
-    for (i = len; i > 0; i--)
+    for (i = len; i > 0;)
     {
-        switch (str[i])
+        switch (str[--i])
         {
         case ' ':
         case '\0':
@@ -662,10 +720,10 @@ int swoole_file_put_contents(char *filename, char *content, size_t length)
     return SW_OK;
 }
 
-int swoole_sync_readfile(int fd, void *buf, int len)
+size_t swoole_sync_readfile(int fd, void *buf, size_t len)
 {
-    int n = 0;
-    int count = len, toread, readn = 0;
+    ssize_t n = 0;
+    size_t count = len, toread, readn = 0;
 
     while (count > 0)
     {
@@ -771,30 +829,44 @@ uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
 /**
  * for GDB
  */
-void swBreakPoint()
-{
-
-}
+void swBreakPoint() { }
 
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...)
 {
-    int ret;
+    size_t retval;
     va_list args;
 
     va_start(args, format);
-    ret = vsnprintf(buf, size, format, args);
+    retval = vsnprintf(buf, size, format, args);
     va_end(args);
-    if (unlikely(ret < 0))
+    if (unlikely(retval < 0))
     {
-        ret = 0;
+        retval = 0;
         buf[0] = '\0';
     }
-    else if (unlikely(ret >= size))
+    else if (unlikely(retval >= size))
     {
-        ret = size - 1;
-        buf[ret] = '\0';
+        retval = size - 1;
+        buf[retval] = '\0';
     }
-    return ret;
+    return retval;
+}
+
+size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args)
+{
+    size_t retval;
+    retval = vsnprintf(buf, size, format, args);
+    if (unlikely(retval < 0))
+    {
+        retval = 0;
+        buf[0] = '\0';
+    }
+    else if (unlikely(retval >= size))
+    {
+        retval = size - 1;
+        buf[retval] = '\0';
+    }
+    return retval;
 }
 
 void swoole_ioctl_set_block(int sock, int nonblock)
@@ -1342,3 +1414,18 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t)
 }
 #endif
 #endif
+
+static void swoole_fatal_error(int code, const char *format, ...)
+{
+    size_t retval = 0;
+    va_list args;
+
+    retval += sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "(ERROR %d): ", code);
+    va_start(args, format);
+    retval += sw_vsnprintf(sw_error + retval, SW_ERROR_MSG_SIZE - retval, format, args);
+    va_end(args);
+    SwooleGS->lock_2.lock(&SwooleGS->lock_2);
+    SwooleG.write_log(SW_LOG_ERROR, sw_error, retval);
+    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);
+    exit(255);
+}

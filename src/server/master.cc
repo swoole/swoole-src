@@ -270,7 +270,6 @@ static int swServer_start_check(swServer *serv)
             ls->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
         }
     }
-
 #ifdef SW_USE_OPENSSL
     /**
      * OpenSSL thread-safe
@@ -1718,7 +1717,7 @@ static void swServer_signal_handler(int sig)
         }
         else
         {
-            kill(serv->gs->manager_pid, sig);
+            swKill(serv->gs->manager_pid, sig);
         }
         break;
     default:
@@ -1730,11 +1729,11 @@ static void swServer_signal_handler(int sig)
             for (i = 0; i < SwooleG.serv->worker_num + serv->task_worker_num + SwooleG.serv->user_worker_num; i++)
             {
                 worker = swServer_get_worker(SwooleG.serv, i);
-                kill(worker->pid, SIGRTMIN);
+                swKill(worker->pid, SIGRTMIN);
             }
             if (SwooleG.serv->factory_mode == SW_MODE_PROCESS)
             {
-                kill(serv->gs->manager_pid, SIGRTMIN);
+                swKill(serv->gs->manager_pid, SIGRTMIN);
             }
             swServer_reopen_log_file(SwooleG.serv);
         }

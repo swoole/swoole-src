@@ -96,7 +96,7 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
     }
 
     //write to file
-    if (swoole_sync_writefile(tmp_fd, data, data_len) <= 0)
+    if (swoole_sync_writefile(tmp_fd, data, data_len) != data_len)
     {
         swWarn("write to tmpfile failed.");
         return SW_ERR;
@@ -114,7 +114,6 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
 
 static void swTaskWorker_signal_init(swProcessPool *pool)
 {
-    swSignal_clear();
     /**
      * use user settings
      */
@@ -135,7 +134,6 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 {
     swServer *serv = pool->ptr;
     SwooleWG.id = worker_id;
-    SwooleG.pid = getpid();
 
     if (serv->factory_mode == SW_MODE_BASE)
     {
@@ -255,12 +253,6 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
         pipe_socket->buffer_size = INT_MAX;
     }
 
-#ifdef HAVE_SIGNALFD
-    if (SwooleG.use_signalfd)
-    {
-        swSignalfd_setup(SwooleG.main_reactor);
-    }
-#endif
     //main loop
     return SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
 }
@@ -385,7 +377,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
                     memcpy(buf.data, data, data_len);
                 }
                 //write to tmpfile
-                if (swoole_sync_writefile(fd, &buf, sizeof(buf.info) + buf.info.len) < 0)
+                if (swoole_sync_writefile(fd, &buf, sizeof(buf.info) + buf.info.len) != sizeof(buf.info) + buf.info.len)
                 {
                     swSysError("write(%s, %ld) failed.", _tmpfile, sizeof(buf.info) + buf.info.len);
                 }

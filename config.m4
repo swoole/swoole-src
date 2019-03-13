@@ -39,17 +39,8 @@ PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 PHP_ARG_ENABLE(coroutine-postgresql, enable coroutine postgresql support,
 [  --enable-coroutine-postgresql    Do you install postgresql?], no, no)
 
-PHP_ARG_ENABLE(cares, enable c-ares support,
-[  --enable-cares            Use cares?], no, no)
-
-PHP_ARG_WITH(cares_dir, dir of c-ares,
-[  --with-cares-dir[=DIR]      Include c-ares support], no, no)
-
 PHP_ARG_WITH(openssl_dir, dir of openssl,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
-
-PHP_ARG_WITH(nghttp2_dir, dir of nghttp2,
-[  --with-nghttp2-dir[=DIR]    Include nghttp2 support], no, no)
 
 PHP_ARG_WITH(phpx_dir, dir of php-x,
 [  --with-phpx-dir[=DIR]       Include PHP-X support], no, no)
@@ -62,9 +53,6 @@ PHP_ARG_WITH(libpq_dir, dir of libpq,
 
 PHP_ARG_ENABLE(asan, whether to enable asan,
 [  --enable-asan             Enable asan], no, no)
-
-PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
-[  --enable-picohttpparser   Experimental: Do you have picohttpparser?], no, no)
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
@@ -241,8 +229,6 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
     AC_CHECK_LIB(pq, PQconnectdb, AC_DEFINE(HAVE_POSTGRESQL, 1, [have postgresql]))
-    AC_CHECK_LIB(cares, ares_library_init, AC_DEFINE(HAVE_CARES, 1, [have c-ares]))
-    AC_CHECK_LIB(nghttp2, nghttp2_hd_inflate_new, AC_DEFINE(HAVE_NGHTTP2, 1, [have nghttp2]))
 
     AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
         AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
@@ -357,12 +343,7 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
     if test "$PHP_HTTP2" = "yes" || test "$PHP_NGHTTP2_DIR" != "no"; then
-	    if test "$PHP_NGHTTP2_DIR" != "no"; then
-	        PHP_ADD_INCLUDE("${PHP_NGHTTP2_DIR}/include")
-	        PHP_ADD_LIBRARY_WITH_PATH(nghttp2, "${PHP_NGHTTP2_DIR}/${PHP_LIBDIR}")
-	    fi
         AC_DEFINE(SW_USE_HTTP2, 1, [enable HTTP2 support])
-        PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
     fi
 
     if test "$PHP_MYSQLND" = "yes"; then
@@ -434,7 +415,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/memory/shared_memory.c \
         src/memory/table.c \
         src/network/async_thread.cc \
-        src/network/cares.cc \
         src/network/client.c \
         src/network/connection.c \
         src/network/dns.c \
@@ -469,46 +449,38 @@ if test "$PHP_SWOOLE" != "no"; then
         src/reactor/poll.c \
         src/reactor/select.c \
         src/server/base.c \
-        src/server/manager.c \
+        src/server/manager.cc \
         src/server/master.cc \
         src/server/port.c \
         src/server/process.c \
         src/server/reactor_process.cc \
         src/server/reactor_thread.c \
         src/server/task_worker.c \
-        src/server/worker.c \
+        src/server/worker.cc \
         src/wrapper/client.cc \
         src/wrapper/server.cc \
         src/wrapper/timer.cc \
         swoole.c \
-        swoole_async.cc \
+        swoole_async_coro.cc \
         swoole_atomic.c \
         swoole_buffer.c \
-        swoole_channel.c \
         swoole_channel_coro.cc \
         swoole_client.cc \
         swoole_client_coro.cc \
         swoole_coroutine.cc \
         swoole_coroutine_util.cc \
         swoole_event.c \
-        swoole_http_client.c \
         swoole_http_client_coro.cc \
         swoole_http_server.cc \
         swoole_http_v2_client_coro.cc \
         swoole_http_v2_server.cc \
         swoole_lock.c \
-        swoole_memory_pool.c \
-        swoole_mmap.c \
-        swoole_msgqueue.c \
-        swoole_mysql.c \
         swoole_mysql_coro.cc \
         swoole_postgresql_coro.cc \
         swoole_process.cc \
         swoole_process_pool.cc \
-        swoole_redis.c \
         swoole_redis_coro.cc \
         swoole_redis_server.cc \
-        swoole_ringqueue.c \
         swoole_runtime.cc \
         swoole_serialize.c \
         swoole_server.cc \
@@ -520,20 +492,23 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_websocket_server.cc"
 
     swoole_source_file="$swoole_source_file \
-    thirdparty/swoole_http_parser.c \
-    thirdparty/multipart_parser.c"
-
-    if test "$PHP_PICOHTTPPARSER" = "yes"; then
-        AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])
-        swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
-    fi
+        thirdparty/swoole_http_parser.c \
+        thirdparty/multipart_parser.c"
 
     swoole_source_file="$swoole_source_file \
         thirdparty/hiredis/async.c \
         thirdparty/hiredis/hiredis.c \
         thirdparty/hiredis/net.c \
         thirdparty/hiredis/read.c \
-        thirdparty/hiredis/sds.c"
+        thirdparty/hiredis/sds.c \
+        thirdparty/http2/nghttp2_hd.c \
+        thirdparty/http2/nghttp2_rcbuf.c \
+        thirdparty/http2/nghttp2_helper.c \
+        thirdparty/http2/nghttp2_buf.c \
+        thirdparty/http2/nghttp2_mem.c \
+        thirdparty/http2/nghttp2_hd_huffman.c \
+        thirdparty/http2/nghttp2_hd_huffman_data.c \
+        "
 
     SW_NO_USE_ASM_CONTEXT="no"
     SW_ASM_DIR="thirdparty/boost/asm/"
@@ -602,16 +577,6 @@ if test "$PHP_SWOOLE" != "no"; then
          LDFLAGS="$LDFLAGS -lboost_context"
     fi
 
-    if test "$PHP_CARES" != "no" || test "$PHP_CARES_DIR" != "no"; then
-        if test "$PHP_CARES_DIR" != "no"; then
-            PHP_ADD_LIBRARY_WITH_PATH(cares, "$PHP_CARES_DIR/lib")
-            PHP_ADD_INCLUDE([$PHP_CARES_DIR])
-        fi
-
-        AC_DEFINE(SW_USE_CARES, 1, [enable c-ares support])
-        PHP_ADD_LIBRARY(cares, 1, SWOOLE_SHARED_LIBADD)
-    fi
-
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared,,, cxx)
 
     PHP_ADD_INCLUDE([$ext_srcdir])
@@ -619,15 +584,16 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
 
-    PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h])
+    PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h])
 
     PHP_REQUIRE_CXX()
     
-    CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations -std=c++11"
+    CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations"
 
-    if test "$PHP_PICOHTTPPARSER" = "yes"; then
-        PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/picohttpparser)
+    if test "$SW_OS" = "CYGWIN" || test "$SW_OS" = "MINGW"; then 
+        CXXFLAGS="$CXXFLAGS -std=gnu++11"
+    else
+        CXXFLAGS="$CXXFLAGS -std=c++11"
     fi
 
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
@@ -642,6 +608,7 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/src/coroutine)
     PHP_ADD_BUILD_DIR($ext_builddir/src/wrapper)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/http2)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)
 fi

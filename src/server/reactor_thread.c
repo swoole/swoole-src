@@ -70,6 +70,10 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                 }
             }
             no_client_cert:
+            if (port->ssl_option.verify_peer)
+            {
+                return SW_ERR;
+            }
             if (serv->onConnect)
             {
                 serv->notify(serv, conn, SW_EVENT_CONNECT);
@@ -423,12 +427,9 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
     return SW_OK;
 }
 
-int swReactorThread_send2worker(swServer *serv, void *data, int len, uint16_t target_worker_id)
+int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, int len)
 {
-    assert(target_worker_id < serv->worker_num);
-
     int ret = -1;
-    swWorker *worker = &(serv->workers[target_worker_id]);
 
     //reactor thread
     if (SwooleTG.type == SW_THREAD_REACTOR)

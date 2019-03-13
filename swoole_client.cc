@@ -224,12 +224,12 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_on, 0, 0, 2)
     ZEND_ARG_INFO(0, event_name)
-    ZEND_ARG_INFO(0, callback)
+    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
 ZEND_END_ARG_INFO()
 
 #ifdef SW_USE_OPENSSL
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_enableSSL, 0, 0, 0)
-    ZEND_ARG_INFO(0, callback)
+    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
 ZEND_END_ARG_INFO()
 #endif
 
@@ -859,21 +859,14 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
     if (type & SW_FLAG_KEEP)
     {
         auto i = long_connections.find(conn_key);
-        queue<swClient*> *q;
-        if (i == long_connections.end())
+        if (i == long_connections.end() || i->second->empty())
         {
-            q = new queue<swClient*>;
-            long_connections[conn_key] = q;
-            _alloc: cli = (swClient*) pemalloc(sizeof(swClient), 1);
+            cli = (swClient*) pemalloc(sizeof(swClient), 1);
             goto create_socket;
         }
         else
         {
-            q = i->second;
-            if (q->empty())
-            {
-                goto _alloc;
-            }
+            queue<swClient*> *q = i->second;
             cli = q->front();
             q->pop();
             //try recv, check connection status
@@ -881,6 +874,8 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
             if (ret == 0 || (ret < 0 && swConnection_error(errno) == SW_CLOSE))
             {
                 cli->close(cli);
+                php_swoole_client_free(zobject, cli);
+                cli = (swClient*) pemalloc(sizeof(swClient), 1);
                 goto create_socket;
             }
             cli->reuse_count++;
@@ -1386,8 +1381,7 @@ static PHP_METHOD(swoole_client, recv)
 
                 if ((int) buffer->length > eof)
                 {
-                    buffer->length -= eof;
-                    memmove(buffer->str, buffer->str + eof, buffer->length);
+                    swString_pop_front(buffer, eof);
                 }
                 else
                 {
@@ -1697,7 +1691,18 @@ static PHP_METHOD(swoole_client, close)
     {
         if (cli->keep)
         {
-            queue<swClient *> *q = long_connections[string(cli->server_str, cli->server_strlen)];
+            string conn_key(cli->server_str, cli->server_strlen);
+            queue<swClient*> *q;
+            auto i = long_connections.find(conn_key);
+            if (i == long_connections.end())
+            {
+                q = new queue<swClient*>;
+                long_connections[conn_key] = q;
+            }
+            else
+            {
+                q = i->second;
+            }
             q->push(cli);
         }
         //unset object

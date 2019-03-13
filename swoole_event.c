@@ -715,7 +715,8 @@ PHP_FUNCTION(swoole_event_defer)
     defer->callback = &defer->_callback;
     memcpy(defer->callback, callback, sizeof(zval));
     Z_TRY_ADDREF_P(callback);
-    SW_CHECK_RETURN(SwooleG.main_reactor->defer(SwooleG.main_reactor, php_swoole_event_onDefer, defer));
+    SwooleG.main_reactor->defer(SwooleG.main_reactor, php_swoole_event_onDefer, defer);
+    RETURN_TRUE;
 }
 
 PHP_FUNCTION(swoole_event_cycle)

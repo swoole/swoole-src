@@ -514,7 +514,7 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
             }
 
             str = altname->d.dNSName;
-            swTrace("SSL subjectAltName: \"%*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
+            swTrace("SSL subjectAltName: \"%.*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
 
             if (swSSL_check_name(tls_host_name, str) == SW_OK)
             {
@@ -554,7 +554,7 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
         entry = X509_NAME_get_entry(sname, i);
         str = X509_NAME_ENTRY_get_data(entry);
 
-        swTrace("SSL commonName: \"%*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
+        swTrace("SSL commonName: \"%.*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
 
         if (swSSL_check_name(tls_host_name, str) == SW_OK)
         {
@@ -696,7 +696,8 @@ int swSSL_accept(swConnection *conn)
     }
     else if (err == SSL_ERROR_SSL)
     {
-        swWarn("bad SSL client[%s:%d].", swConnection_get_ip(conn), swConnection_get_port(conn));
+        int reason = ERR_GET_REASON(ERR_peek_error());
+        swWarn("bad SSL client[%s:%d], reason=%d.", swConnection_get_ip(conn), swConnection_get_port(conn), reason);
         return SW_ERROR;
     }
     //EOF was observed
