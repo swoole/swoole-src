@@ -28,7 +28,7 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Fatal error: Uncaught Exception: whoops in %s/tests/swoole_coroutine/exception.php:15
+Fatal error: Uncaught Exception: whoops in %s/tests/swoole_coroutine/exception.php:%d
 Stack trace:
 #0 {main}
-  thrown in %s/tests/swoole_coroutine/exception.php on line 15
+  thrown in %s/tests/swoole_coroutine/exception.php on line %d

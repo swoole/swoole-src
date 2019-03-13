@@ -36,9 +36,9 @@ object(Swoole\Http\Request)#%d (10) {
   ["header"]=>
   array(3) {
     ["host"]=>
-    string(15) "%s"
-    ["accept"]=>
-    string(3) "*/*"
+    string(%d) "%s"
+    ["connection"]=>
+    string(10) "keep-alive"
     ["accept-encoding"]=>
     string(4) "gzip"
   }

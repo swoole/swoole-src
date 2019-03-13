@@ -8,10 +8,12 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
-        assert(httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/") == $n);
-        $pm->kill();
+        for ($n = 0; $n > MAX_REQUESTS; $n++) {
+            assert(httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/") == $n);
+        }
     });
     Swoole\Event::wait();
+    $pm->kill();
     echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
