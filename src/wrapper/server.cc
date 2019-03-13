@@ -177,29 +177,8 @@ static int task_pack(swEventData *task, const DataBuffer &data)
 static DataBuffer task_unpack(swEventData *task_result)
 {
     DataBuffer retval;
-
-    if (swTask_type(task_result) & SW_TASK_TMPFILE)
-    {
-        swPackage_task _pkg;
-        memcpy(&_pkg, task_result->data, sizeof(_pkg));
-
-        int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);
-        if (tmp_file_fd < 0)
-        {
-            swSysError("open(%s) failed.", _pkg.tmpfile);
-        }
-        else
-        {
-            void *_buffer = retval.alloc((size_t) _pkg.length);
-            if (swoole_sync_readfile(tmp_file_fd, _buffer, _pkg.length) != _pkg.length)
-            {
-                close(tmp_file_fd);
-                unlink(_pkg.tmpfile);
-            }
-        }
-        return retval;
-    }
-    else
+    swString *result = swTaskWorker_large_unpack(task_result);
+    if (result)
     {
         retval.copy(task_result->data, (size_t) task_result->info.len);
     }
