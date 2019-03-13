@@ -82,6 +82,10 @@ static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode)
 
 static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int n)
 {
+    if (!serv->max_wait_time)
+    {
+        return;
+    }
     /**
      * separate old workers, free memory in the timer
      */
@@ -90,10 +94,8 @@ static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int 
     memcpy(reload_workers, workers, sizeof(swWorker) * n);
     reload_info->reload_worker_num = n;
     reload_info->workers = reload_workers;
-    if (serv->max_wait_time)
-    {
-        swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, reload_info, swManager_kill_timeout_process);
-    }
+
+    swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, reload_info, swManager_kill_timeout_process);
 }
 
 //create worker child proccess
