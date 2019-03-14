@@ -10,7 +10,7 @@ skip_if_no_process_affinity();
 require __DIR__ . '/../include/bootstrap.php';
 $r = Swoole\Process::setaffinity([0]);
 assert($r);
-if (swoole_cpu_num() === 1) {
+if (swoole_cpu_num() > 1) {
     $r = Swoole\Process::setaffinity([0, 1]);
     assert($r);
 }
