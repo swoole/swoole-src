@@ -675,6 +675,8 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         else
         {
             ZVAL_FALSE(&return_value);
+            http2_client_close(cli); //will trigger onClose and resume
+            return;
         }
         if (cli->timer)
         {
@@ -1424,7 +1426,6 @@ static PHP_METHOD(swoole_http2_client_coro, ping)
 {
     http2_client_property *hcc = (http2_client_property *) swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
     swClient *cli = hcc->client;
-    char *frame;
 
     if (!hcc->streams)
     {
@@ -1434,13 +1435,9 @@ static PHP_METHOD(swoole_http2_client_coro, ping)
         RETURN_FALSE;
     }
 
-    size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_PING_SIZE;
-    frame = (char *) emalloc(length);
-    bzero(frame, length);
-
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
     swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_NONE, 0);
     cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, 0);
-    efree(frame);
 
     double timeout = hcc->timeout;
     php_coro_context *context = (php_coro_context *) swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
