@@ -92,6 +92,7 @@ static PHP_METHOD(swoole_http2_client_coro, isStreamExist);
 static PHP_METHOD(swoole_http2_client_coro, send);
 static PHP_METHOD(swoole_http2_client_coro, write);
 static PHP_METHOD(swoole_http2_client_coro, recv);
+static PHP_METHOD(swoole_http2_client_coro, ping);
 static PHP_METHOD(swoole_http2_client_coro, goaway);
 static PHP_METHOD(swoole_http2_client_coro, close);
 
@@ -119,6 +120,7 @@ static const zend_function_entry swoole_http2_client_methods[] =
     PHP_ME(swoole_http2_client_coro, write,         arginfo_swoole_http2_client_coro_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, recv,          arginfo_swoole_http2_client_coro_recv, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, goaway,        arginfo_swoole_http2_client_coro_goaway, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, ping,        arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, close,         arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -663,10 +665,35 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     }
     case SW_HTTP2_TYPE_PING:
     {
-        swHttp2FrameTraceLog(recv, "ping");
-        swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
-        memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE, buf + SW_HTTP2_FRAME_HEADER_SIZE, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
-        cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, 0);
+        zval return_value;
+        zval *retval = NULL;
+        swHttp2FrameTraceLog(recv, "ACK");
+        if ((flags & SW_HTTP2_FLAG_ACK) && length == SW_HTTP2_FRAME_PING_PAYLOAD_SIZE)
+        {
+            ZVAL_TRUE(&return_value);
+        }
+        else
+        {
+            ZVAL_FALSE(&return_value);
+            http2_client_close(cli); //will trigger onClose and resume
+            return;
+        }
+        if (cli->timer)
+        {
+            swTimer_del(&SwooleG.timer, cli->timer);
+            cli->timer = NULL;
+        }
+        if (hcc->iowait != 0)
+        {
+            hcc->iowait = 0;
+            hcc->read_cid = 0;
+            php_coro_context *context = (php_coro_context *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
+            int ret = PHPCoroutine::resume_m(context, &return_value, retval);
+            if (ret == SW_CORO_ERR_END && retval)
+            {
+                zval_ptr_dtor(retval);
+            }
+        }
         return;
     }
     case SW_HTTP2_TYPE_GOAWAY:
@@ -1393,6 +1420,34 @@ static PHP_METHOD(swoole_http2_client_coro, write)
         RETURN_FALSE;
     }
     SW_CHECK_RETURN(http2_client_send_data(hcc, stream_id, data, end));
+}
+
+static PHP_METHOD(swoole_http2_client_coro, ping)
+{
+    http2_client_property *hcc = (http2_client_property *) swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
+    swClient *cli = hcc->client;
+
+    if (!hcc->streams)
+    {
+        zend_update_property_long(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION));
+        zend_update_property_string(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server.");
+        swoole_php_error(E_WARNING, "client is not connected to server.");
+        RETURN_FALSE;
+    }
+
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
+    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_NONE, 0);
+    cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, 0);
+
+    double timeout = hcc->timeout;
+    php_coro_context *context = (php_coro_context *) swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
+    if (timeout > 0)
+    {
+        cli->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, context, http2_client_onTimeout);
+    }
+    hcc->iowait = 1;
+    hcc->read_cid = PHPCoroutine::get_cid();
+    PHPCoroutine::yield_m(return_value, context);
 }
 
 /**
