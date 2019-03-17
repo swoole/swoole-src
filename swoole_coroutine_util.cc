@@ -1425,6 +1425,7 @@ PHP_FUNCTION(swoole_coroutine_exec)
     {
         ZVAL_STRINGL(&zdata, buffer->str, buffer->length);
     }
+    swString_free(buffer);
 
     int status;
     pid_t _pid = swoole_coroutine_waitpid(pid, &status, 0);
@@ -1440,8 +1441,6 @@ PHP_FUNCTION(swoole_coroutine_exec)
         zval_ptr_dtor(&zdata);
         RETVAL_FALSE;
     }
-
-    swString_free(buffer);
 }
 
 PHP_FUNCTION(swoole_coroutine_defer)
