@@ -268,6 +268,10 @@ void php_swoole_event_wait()
 #endif
         if (!swReactor_empty(SwooleG.main_reactor))
         {
+#ifdef EG_FLAGS_IN_SHUTDOWN
+            zend_bool in_shutdown = EG(flags) & EG_FLAGS_IN_SHUTDOWN;
+            EG(flags) &= ~EG_FLAGS_IN_SHUTDOWN;
+#endif
             SW_DECLARE_EG_SCOPE(scope);
             SW_SAVE_EG_SCOPE(scope);
             int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
@@ -276,6 +280,12 @@ void php_swoole_event_wait()
                 swoole_php_fatal_error(E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
             }
             SW_SET_EG_SCOPE(scope);
+#ifdef EG_FLAGS_IN_SHUTDOWN
+            if (in_shutdown)
+            {
+                EG(flags) |= EG_FLAGS_IN_SHUTDOWN;
+            }
+#endif
         }
         php_swoole_clear_all_timer();
         SwooleWG.reactor_exit = 1;
