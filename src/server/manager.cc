@@ -64,7 +64,6 @@ static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode)
         pid_t pid = workers[i].pid;
         if (swKill(pid, 0) == -1)
         {
-            swSysError("swKill(%d, 0) [%d] failed.", pid, i);
             continue;
         }
         if (swKill(pid, SIGKILL) < 0)
