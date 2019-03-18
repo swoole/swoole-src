@@ -1,10 +1,7 @@
 --TEST--
 swoole_coroutine: call_user_func_array
 --SKIPIF--
-<?php
-require __DIR__ . '/../include/skipif.inc';
-skip_if_function_not_exist('curl_init');
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -15,9 +12,11 @@ use App\MysqlPool;
 
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/list");
-    assert(!empty($data) && count(json_decode($data, true)) > 0);
-    $pm->kill();
+    go(function () use ($pm) {
+        $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/list");
+        assert(!empty($data) && count(json_decode($data, true)) > 0);
+        $pm->kill();
+    });
 };
 $pm->childFunc = function () use ($pm) {
     $config = [

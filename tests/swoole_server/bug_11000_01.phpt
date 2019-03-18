@@ -10,6 +10,7 @@ $pm->childFunc = function () {
     $port = get_one_free_port();
     $serv = new \swoole_server(TCP_SERVER_HOST, $port);
     $process = new \Swoole\Process(function ($process) use ($serv) {
+        usleep(10000);
         var_dump($serv->stats());
         $serv->shutdown();
     });

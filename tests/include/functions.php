@@ -133,13 +133,24 @@ function phpt_var_dump(...$args)
 function _httpGet(string $uri, array $options = [])
 {
     $url_info = parse_url($uri);
-    $domain = $url_info['host'];
+    $scheme = $url_info['scheme'] ?? 'http';
+    $domain = $url_info['host'] ?? '127.0.0.1';
     $path = $url_info['path'] ?? null ?: '/';
+    $query = $url_info['query'] ?? null ? "?{$url_info['query']}" : '';
     $port = (int)($url_info['port'] ?? null ?: 80);
-    $cli = new Swoole\Coroutine\Http\Client($domain, $port, $port == 443);
+    $cli = new Swoole\Coroutine\Http\Client($domain, $port, $scheme === 'https' || $port == 443);
     $cli->set($options + ['timeout' => 5]);
     $cli->setHeaders(['Host' => $domain]);
-    $cli->get($path);
+    $redirect_times = $options['redirect'] ?? 3;
+    while (true) {
+        $cli->get($path . $query);
+        if ($redirect_times-- && ($cli->headers['location'] ?? null) && $cli->headers['location']{0} === '/') {
+            $path = $cli->headers['location'];
+            $query = '';
+            continue;
+        }
+        break;
+    }
     return $cli;
 }
 
@@ -156,24 +167,6 @@ function httpGetHeaders(string $uri, array $options = [])
 function httpGetBody(string $uri, array $options = [])
 {
     return _httpGet($uri, $options)->body;
-}
-
-function curlGet($url, $gzip = true)
-{
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_HEADER, 0);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    if ($gzip)
-    {
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Accept-Encoding: gzip'));
-        curl_setopt($ch, CURLOPT_ENCODING, "gzip");
-    }
-    $output = curl_exec($ch);
-    curl_close($ch);
-    return $output;
 }
 
 function content_hook_replace(string $content, array $kv_map): string

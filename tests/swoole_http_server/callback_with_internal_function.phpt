@@ -1,18 +1,17 @@
 --TEST--
 swoole_http_server: http server callback use new object method
 --SKIPIF--
-<?php
-require __DIR__ . '/../include/skipif.inc';
-skip_if_function_not_exist('curl_init');
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    curlGet("http://127.0.0.1:{$pm->getFreePort()}");
-    $pm->kill();
+    go(function () use ($pm) {
+        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        $pm->kill();
+    });
 };
 
 $pm->childFunc = function () use ($pm) {
@@ -37,9 +36,9 @@ object(Swoole\Http\Request)#%d (10) {
   ["header"]=>
   array(3) {
     ["host"]=>
-    string(15) "%s"
-    ["accept"]=>
-    string(3) "*/*"
+    string(%d) "%s"
+    ["connection"]=>
+    string(10) "keep-alive"
     ["accept-encoding"]=>
     string(4) "gzip"
   }

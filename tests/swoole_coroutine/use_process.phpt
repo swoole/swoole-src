@@ -11,7 +11,7 @@ $pm = new ProcessManager();
 
 const SIZE = 8192 * 5;
 const TIMES = 10;
-$pm->parentFunc = function ($pid) use ($pm) {
+$pm->parentFunc = function () use ($pm) {
     $client = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $client->set([
         "open_eof_check" => true,
@@ -28,7 +28,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         assert(strlen($ret) == SIZE + 4);
     }
     $client->close();
-    swoole_process::kill($pid);
+    $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
