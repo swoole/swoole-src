@@ -76,6 +76,7 @@ static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode)
                     "[Manager] Worker#%d[pid=%d] exit timeout, forced kill.", workers[i].id, pid);
         }
     }
+    errno = 0;
     sw_free(workers);
     sw_free(reload_info);
 }
