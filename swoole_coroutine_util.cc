@@ -1395,10 +1395,10 @@ PHP_FUNCTION(swoole_coroutine_exec)
     }
 
     swSetNonBlock(fd);
-    Socket sock(fd, SW_SOCK_UNIX_STREAM);
+    Socket *socket = new Socket(fd, SW_SOCK_UNIX_STREAM);
     while (1)
     {
-        ssize_t retval = sock.read(buffer->str + buffer->length, buffer->size - buffer->length);
+        ssize_t retval = socket->read(buffer->str + buffer->length, buffer->size - buffer->length);
         if (retval > 0)
         {
             buffer->length += retval;
@@ -1415,6 +1415,7 @@ PHP_FUNCTION(swoole_coroutine_exec)
             break;
         }
     }
+    socket->close();
 
     zval zdata;
     if (buffer->length == 0)
@@ -1425,6 +1426,7 @@ PHP_FUNCTION(swoole_coroutine_exec)
     {
         ZVAL_STRINGL(&zdata, buffer->str, buffer->length);
     }
+    swString_free(buffer);
 
     int status;
     pid_t _pid = swoole_coroutine_waitpid(pid, &status, 0);
@@ -1440,8 +1442,6 @@ PHP_FUNCTION(swoole_coroutine_exec)
         zval_ptr_dtor(&zdata);
         RETVAL_FALSE;
     }
-
-    swString_free(buffer);
 }
 
 PHP_FUNCTION(swoole_coroutine_defer)

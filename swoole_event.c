@@ -268,7 +268,9 @@ void php_swoole_event_wait()
 #endif
         if (!swReactor_empty(SwooleG.main_reactor))
         {
-#ifdef EG_FLAGS_IN_SHUTDOWN
+            // Don't disable object slot reuse while running shutdown functions:
+            // https://github.com/php/php-src/commit/bd6eabd6591ae5a7c9ad75dfbe7cc575fa907eac
+#if defined(EG_FLAGS_IN_SHUTDOWN) && !defined(EG_FLAGS_OBJECT_STORE_NO_REUSE)
             zend_bool in_shutdown = EG(flags) & EG_FLAGS_IN_SHUTDOWN;
             EG(flags) &= ~EG_FLAGS_IN_SHUTDOWN;
 #endif
@@ -280,7 +282,7 @@ void php_swoole_event_wait()
                 swoole_php_fatal_error(E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
             }
             SW_SET_EG_SCOPE(scope);
-#ifdef EG_FLAGS_IN_SHUTDOWN
+#if defined(EG_FLAGS_IN_SHUTDOWN) && !defined(EG_FLAGS_OBJECT_STORE_NO_REUSE)
             if (in_shutdown)
             {
                 EG(flags) |= EG_FLAGS_IN_SHUTDOWN;
