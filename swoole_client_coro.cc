@@ -227,7 +227,11 @@ static bool client_coro_close(zval *zobject)
 #endif
             swoole_set_object(zobject, NULL);
         }
-        return php_swoole_client_coro_socket_free(cli);
+        if (php_swoole_client_coro_socket_free(cli))
+        {
+            delete cli;
+            return true;
+        }
     }
     return false;
 }

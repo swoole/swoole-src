@@ -1394,7 +1394,11 @@ bool http_client::close()
             this->websocket = false;
             this->socket = nullptr;
         }
-        return php_swoole_client_coro_socket_free(socket);
+        if (php_swoole_client_coro_socket_free(socket))
+        {
+            delete socket;
+            return true;
+        }
     }
     return false;
 }

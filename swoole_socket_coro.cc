@@ -166,7 +166,10 @@ static void swoole_socket_coro_free_object(zend_object *object)
 #endif
     if (sock->socket && sock->socket != SW_BAD_SOCKET)
     {
-        sock->socket->close();
+        if (sock->socket->close())
+        {
+            delete sock->socket;
+        }
     }
     zend_object_std_dtor(&sock->std);
 }
@@ -565,8 +568,12 @@ static PHP_METHOD(swoole_socket_coro, close)
     swoole_get_socket_coro(sock, getThis());
 
     bool ret = sock->socket->close();
-    sock->socket = SW_BAD_SOCKET;
-    if (!ret)
+    if (ret)
+    {
+        delete sock->socket;
+        sock->socket = SW_BAD_SOCKET;
+    }
+    else
     {
         zend_update_property_long(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), errno);
         zend_update_property_string(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), strerror(errno));

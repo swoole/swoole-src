@@ -1551,7 +1551,6 @@ bool Socket::shutdown(int __how)
 
 bool Socket::close()
 {
-    bool ret = true;
     if (has_bound())
     {
         if (socket->closed)
@@ -1562,7 +1561,7 @@ bool Socket::close()
         }
         if (socket->active)
         {
-            ret = shutdown();
+            shutdown();
         }
         if (!socket->closed)
         {
@@ -1578,15 +1577,20 @@ bool Socket::close()
             set_err(ECONNRESET);
             read_co->resume();
         }
+
+        return false;
     }
     else
     {
         int fd = socket->fd;
         socket->fd = -1;
-        delete this;
-        ret = ::close(fd) == 0;
+        if (::close(fd) < 0)
+        {
+            swSysError("close(%d) failed.", fd);
+            errCode = errno;
+        }
+        return true;
     }
-    return ret;
 }
 
 /**

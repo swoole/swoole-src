@@ -293,9 +293,16 @@ static int socket_close(php_stream *stream, int close_handle)
     }
     stream->abstract = NULL;
     Socket *sock = (Socket*) abstract->socket;
-    sock->close();
-    efree(abstract);
-    return 0;
+    if (sock->close())
+    {
+        delete sock;
+        efree(abstract);
+        return 0;
+    }
+    else
+    {
+        return -1;
+    }
 }
 
 enum

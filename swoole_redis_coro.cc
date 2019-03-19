@@ -966,9 +966,9 @@ static sw_inline bool swoole_redis_coro_close(swRedisClient *redis)
             redis->context = NULL;
             redis->session = { false, 0, false };
         }
-        if (socket)
+        if (socket && socket->close())
         {
-            return socket->close();
+            delete socket;
         }
     }
     return false;
