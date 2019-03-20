@@ -167,7 +167,7 @@ public:
     }
 
     /* set connect read write timeout */
-    inline void set_timeout(double timeout, enum swTimeout_type type = SW_TIMEOUT_ALL)
+    inline void set_timeout(double timeout, int type = SW_TIMEOUT_ALL)
     {
         if (timeout == 0)
         {
@@ -187,7 +187,7 @@ public:
         }
     }
 
-    inline void set_timeout(struct timeval *timeout, enum swTimeout_type type = SW_TIMEOUT_ALL)
+    inline void set_timeout(struct timeval *timeout, int type = SW_TIMEOUT_ALL)
     {
         set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000), type);
     }
@@ -198,11 +198,11 @@ public:
         {
             return connect_timeout;
         }
-        if (type & SW_TIMEOUT_READ)
+        else if (type & SW_TIMEOUT_READ)
         {
             return read_timeout;
         }
-        if (type & SW_TIMEOUT_WRITE)
+        else if (type & SW_TIMEOUT_WRITE)
         {
             return write_timeout;
         }

@@ -492,6 +492,10 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_websocket_server.cc"
 
     swoole_source_file="$swoole_source_file \
+        thirdparty/sockets/multicast.cc \
+        thirdparty/sockets/sendrecvmsg.cc \
+        thirdparty/sockets/conversions.cc \
+        thirdparty/sockets/sockaddr_conv.cc \
         thirdparty/swoole_http_parser.c \
         thirdparty/multipart_parser.c"
 
@@ -610,5 +614,6 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/http2)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/sockets)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)
 fi
