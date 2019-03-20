@@ -18,9 +18,9 @@
 
 #include "php_swoole_cxx.h"
 
-#ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
-#include "socket.h"
+#include "thirdparty/sockets/php_sockets_cxx.h"
+
 #include <string>
 
 using namespace swoole;
@@ -53,6 +53,8 @@ static PHP_METHOD(swoole_socket_coro, recvAll);
 static PHP_METHOD(swoole_socket_coro, sendAll);
 static PHP_METHOD(swoole_socket_coro, recvfrom);
 static PHP_METHOD(swoole_socket_coro, sendto);
+static PHP_METHOD(swoole_socket_coro, getOption);
+static PHP_METHOD(swoole_socket_coro, setOption);
 static PHP_METHOD(swoole_socket_coro, shutdown);
 static PHP_METHOD(swoole_socket_coro, close);
 static PHP_METHOD(swoole_socket_coro, getsockname);
@@ -101,6 +103,17 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_recvfrom, 0, 0, 1)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_getOption, 0, 0, 2)
+    ZEND_ARG_INFO(0, level)
+    ZEND_ARG_INFO(0, opt_name)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_setOption, 0, 0, 3)
+    ZEND_ARG_INFO(0, level)
+    ZEND_ARG_INFO(0, opt_name)
+    ZEND_ARG_INFO(0, opt_value)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_sendto, 0, 0, 3)
     ZEND_ARG_INFO(0, addr)
     ZEND_ARG_INFO(0, port)
@@ -127,6 +140,8 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, sendAll,     arginfo_swoole_socket_coro_send,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvfrom,    arginfo_swoole_socket_coro_recvfrom,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, sendto,      arginfo_swoole_socket_coro_sendto,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, getOption,   arginfo_swoole_socket_coro_getOption, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, setOption,   arginfo_swoole_socket_coro_setOption, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, shutdown,    arginfo_swoole_socket_coro_shutdown,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, close,       arginfo_swoole_void,                  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, getpeername, arginfo_swoole_void,                  ZEND_ACC_PUBLIC)
@@ -661,6 +676,238 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
     }
 }
 
+static PHP_METHOD(swoole_socket_coro, getOption)
+{
+    struct linger linger_val;
+    struct timeval tv;
+    socklen_t optlen;
+    int other_val;
+    zend_long level, optname;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ll", &level, &optname) == FAILURE)
+    {
+        return;
+    }
+
+    swoole_get_socket_coro(sock, getThis());
+
+    if (level == IPPROTO_IP)
+    {
+        switch (optname)
+        {
+        case IP_MULTICAST_IF:
+        {
+            struct in_addr if_addr;
+            unsigned int if_index;
+            optlen = sizeof(if_addr);
+            if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &if_addr, &optlen) != 0)
+            {
+                swoole_php_sys_error(E_WARNING, "getsockopt(%d, %ld, %ld)", sock->socket->get_fd(), level, optname);
+                RETURN_FALSE;
+            }
+            if (php_add4_to_if_index(&if_addr, sock->socket, &if_index) == SUCCESS)
+            {
+                RETURN_LONG((zend_long ) if_index);
+            }
+            else
+            {
+                RETURN_FALSE;
+            }
+        }
+        }
+    }
+    else if (level == IPPROTO_IPV6)
+    {
+        int ret = php_do_getsockopt_ipv6_rfc3542(sock->socket, level, optname, return_value);
+        if (ret == SUCCESS)
+        {
+            return;
+        }
+        else if (ret == FAILURE)
+        {
+            RETURN_FALSE;
+        } /* else continue */
+    }
+
+    /* sol_socket options and general case */
+    switch (optname)
+    {
+    case SO_LINGER:
+        optlen = sizeof(linger_val);
+
+        if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &linger_val, &optlen) != 0)
+        {
+            swoole_php_sys_error(E_WARNING, "getsockopt(%d, %ld, %ld)", sock->socket->get_fd(), level, optname);
+            RETURN_FALSE;
+        }
+
+        array_init(return_value);
+        add_assoc_long(return_value, "l_onoff", linger_val.l_onoff);
+        add_assoc_long(return_value, "l_linger", linger_val.l_linger);
+        break;
+
+    case SO_RCVTIMEO:
+    case SO_SNDTIMEO:
+        optlen = sizeof(tv);
+
+        if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &tv, &optlen) != 0)
+        {
+            swoole_php_sys_error(E_WARNING, "getsockopt(%d, %ld, %ld)", sock->socket->get_fd(), level, optname);
+            RETURN_FALSE;
+        }
+
+        array_init(return_value);
+
+        add_assoc_long(return_value, "sec", tv.tv_sec);
+        add_assoc_long(return_value, "usec", tv.tv_usec);
+        break;
+
+    default:
+        optlen = sizeof(other_val);
+
+        if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &other_val, &optlen) != 0)
+        {
+            swoole_php_sys_error(E_WARNING, "getsockopt(%d, %ld, %ld)", sock->socket->get_fd(), level, optname);
+            RETURN_FALSE;
+        }
+        if (optlen == 1)
+        {
+            other_val = *((unsigned char *) &other_val);
+        }
+
+        RETURN_LONG(other_val);
+        break;
+    }
+}
+
+static PHP_METHOD(swoole_socket_coro, setOption)
+{
+    zval *arg4;
+    struct linger lv;
+    int ov, optlen, retval;
+    struct timeval tv;
+    zend_long level, optname;
+    char *opt_ptr;
+    HashTable *opt_ht;
+    zval *l_onoff, *l_linger;
+    zval *sec, *usec;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "llz", &level, &optname, &arg4) == FAILURE)
+    {
+        return;
+    }
+
+    swoole_get_socket_coro(sock, getThis());
+
+#define HANDLE_SUBCALL(res) \
+    do { \
+        if (res == 1) { goto default_case; } \
+        else if (res == SUCCESS) { RETURN_TRUE; } \
+        else { RETURN_FALSE; } \
+    } while (0)
+
+    if (level == IPPROTO_IP)
+    {
+        int res = php_do_setsockopt_ip_mcast(sock->socket, level, optname, arg4);
+        HANDLE_SUBCALL(res);
+    }
+    else if (level == IPPROTO_IPV6)
+    {
+        int res = php_do_setsockopt_ipv6_mcast(sock->socket, level, optname, arg4);
+        if (res == 1)
+        {
+            res = php_do_setsockopt_ipv6_rfc3542(sock->socket, level, optname, arg4);
+        }
+        HANDLE_SUBCALL(res);
+    }
+
+    switch (optname) {
+        case SO_LINGER: {
+            const char l_onoff_key[] = "l_onoff";
+            const char l_linger_key[] = "l_linger";
+
+            convert_to_array_ex(arg4);
+            opt_ht = Z_ARRVAL_P(arg4);
+
+            if ((l_onoff = zend_hash_str_find(opt_ht, l_onoff_key, sizeof(l_onoff_key) - 1)) == NULL) {
+                php_error_docref(NULL, E_WARNING, "no key \"%s\" passed in optval", l_onoff_key);
+                RETURN_FALSE;
+            }
+            if ((l_linger = zend_hash_str_find(opt_ht, l_linger_key, sizeof(l_linger_key) - 1)) == NULL) {
+                php_error_docref(NULL, E_WARNING, "no key \"%s\" passed in optval", l_linger_key);
+                RETURN_FALSE;
+            }
+
+            convert_to_long_ex(l_onoff);
+            convert_to_long_ex(l_linger);
+
+            lv.l_onoff = (unsigned short)Z_LVAL_P(l_onoff);
+            lv.l_linger = (unsigned short)Z_LVAL_P(l_linger);
+
+        optlen = sizeof(lv);
+        opt_ptr = (char*) &lv;
+        break;
+        }
+
+        case SO_RCVTIMEO:
+        case SO_SNDTIMEO: {
+            const char sec_key[] = "sec";
+            const char usec_key[] = "usec";
+
+            convert_to_array_ex(arg4);
+            opt_ht = Z_ARRVAL_P(arg4);
+
+            if ((sec = zend_hash_str_find(opt_ht, sec_key, sizeof(sec_key) - 1)) == NULL) {
+                php_error_docref(NULL, E_WARNING, "no key \"%s\" passed in optval", sec_key);
+                RETURN_FALSE;
+            }
+            if ((usec = zend_hash_str_find(opt_ht, usec_key, sizeof(usec_key) - 1)) == NULL) {
+                php_error_docref(NULL, E_WARNING, "no key \"%s\" passed in optval", usec_key);
+                RETURN_FALSE;
+        }
+
+        convert_to_long_ex(sec);
+        convert_to_long_ex(usec);
+        tv.tv_sec = Z_LVAL_P(sec);
+        tv.tv_usec = Z_LVAL_P(usec);
+        sock->socket->set_timeout(&tv,
+                optname == SO_RCVTIMEO ? SW_TIMEOUT_READ : SW_TIMEOUT_CONNECT | SW_TIMEOUT_WRITE);
+        RETURN_TRUE;
+        break;
+        }
+#ifdef SO_BINDTODEVICE
+        case SO_BINDTODEVICE: {
+            if (Z_TYPE_P(arg4) == IS_STRING) {
+                opt_ptr = Z_STRVAL_P(arg4);
+                optlen = Z_STRLEN_P(arg4);
+            } else {
+                opt_ptr = "";
+                optlen = 0;
+            }
+            break;
+        }
+#endif
+
+    default:
+        default_case:
+        convert_to_long_ex(arg4);
+        ov = Z_LVAL_P(arg4);
+
+        optlen = sizeof(ov);
+        opt_ptr = (char*) &ov;
+        break;
+    }
+
+    retval = setsockopt(sock->socket->get_fd(), level, optname, opt_ptr, optlen);
+    if (retval != 0)
+    {
+        swoole_php_sys_error(E_WARNING, "setsockopt(%d) failed.", sock->socket->get_fd());
+        RETURN_FALSE
+    }
+
+    RETURN_TRUE;
+}
+
 #ifdef SWOOLE_SOCKETS_SUPPORT
 static PHP_METHOD(swoole_socket_coro, getSocket)
 {
@@ -681,5 +928,4 @@ static PHP_METHOD(swoole_socket_coro, getSocket)
     sock->resource = sw_zval_dup(return_value);
     Z_TRY_ADDREF_P(sock->resource);
 }
-#endif
 #endif
