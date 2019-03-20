@@ -970,6 +970,7 @@ static sw_inline bool swoole_redis_coro_close(swRedisClient *redis)
         {
             delete socket;
         }
+        return true;
     }
     return false;
 }

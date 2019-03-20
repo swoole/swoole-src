@@ -166,10 +166,9 @@ static void swoole_socket_coro_free_object(zend_object *object)
 #endif
     if (sock->socket && sock->socket != SW_BAD_SOCKET)
     {
-        if (sock->socket->close())
-        {
-            delete sock->socket;
-        }
+        assert(!sock->socket->has_bound());
+        sock->socket->close();
+        delete sock->socket;
     }
     zend_object_std_dtor(&sock->std);
 }
@@ -567,18 +566,18 @@ static PHP_METHOD(swoole_socket_coro, close)
 {
     swoole_get_socket_coro(sock, getThis());
 
-    bool ret = sock->socket->close();
-    if (ret)
+    bool can_be_deleted = sock->socket->close();
+    bool success = sock->socket->errCode == 0;
+    if (UNEXPECTED(!success))
+    {
+        swoole_socket_coro_sync_properties(getThis(), sock);
+    }
+    if (can_be_deleted)
     {
         delete sock->socket;
         sock->socket = SW_BAD_SOCKET;
     }
-    else
-    {
-        zend_update_property_long(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), errno);
-        zend_update_property_string(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), strerror(errno));
-    }
-    RETURN_BOOL(ret);
+    RETURN_BOOL(success);
 }
 
 static PHP_METHOD(swoole_socket_coro, getsockname)

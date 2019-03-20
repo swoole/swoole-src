@@ -26,7 +26,7 @@ using namespace swoole;
 
 swString *http_client_buffer;
 
-extern bool php_swoole_client_coro_socket_free(Socket *cli);
+extern void php_swoole_client_coro_socket_free(Socket *cli);
 
 static int http_parser_on_header_field(swoole_http_parser *parser, const char *at, size_t length);
 static int http_parser_on_header_value(swoole_http_parser *parser, const char *at, size_t length);
@@ -1394,11 +1394,8 @@ bool http_client::close()
             this->websocket = false;
             this->socket = nullptr;
         }
-        if (php_swoole_client_coro_socket_free(socket))
-        {
-            delete socket;
-            return true;
-        }
+        php_swoole_client_coro_socket_free(socket);
+        return true;
     }
     return false;
 }

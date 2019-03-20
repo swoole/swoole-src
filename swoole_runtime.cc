@@ -299,12 +299,18 @@ static int socket_close(php_stream *stream, int close_handle)
     {
         return FAILURE;
     }
+    /** set it null immediately */
     stream->abstract = NULL;
     Socket *sock = (Socket*) abstract->socket;
     if (UNEXPECTED(!sock))
     {
         return FAILURE;
     }
+    /**
+     * it's always successful (even if the destructor rule is violated)
+     * every calls passes through the hook function in PHP
+     * so there is unnecessary to worry about the null pointer.
+     */
     sock->close();
     delete sock;
     efree(abstract);

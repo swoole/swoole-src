@@ -102,7 +102,7 @@ static PHP_METHOD(swoole_client_coro, close);
 
 static void php_swoole_socket_set_ssl(Socket *cli, zval *zset);
 static Socket* client_coro_new(zval *zobject, int port = 0);
-bool php_swoole_client_coro_socket_free(Socket *cli);
+void php_swoole_client_coro_socket_free(Socket *cli);
 
 static const zend_function_entry swoole_client_coro_methods[] =
 {
@@ -227,11 +227,8 @@ static bool client_coro_close(zval *zobject)
 #endif
             swoole_set_object(zobject, NULL);
         }
-        if (php_swoole_client_coro_socket_free(cli))
-        {
-            delete cli;
-            return true;
-        }
+        php_swoole_client_coro_socket_free(cli);
+        return true;
     }
     return false;
 }
@@ -284,7 +281,7 @@ void php_swoole_client_coro_socket_free_http_proxy(Socket *cli)
     }
 }
 
-bool php_swoole_client_coro_socket_free(Socket *cli)
+void php_swoole_client_coro_socket_free(Socket *cli)
 {
     //FIXME: move to Socket method, we should not manage it externally
     if (!cli->has_bound())
@@ -298,7 +295,10 @@ bool php_swoole_client_coro_socket_free(Socket *cli)
             cli->protocol.private_data = nullptr;
         }
     }
-    return cli->close();
+    if (cli->close())
+    {
+        delete cli;
+    }
 }
 
 void php_swoole_client_set(Socket *cli, zval *zset)

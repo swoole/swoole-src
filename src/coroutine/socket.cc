@@ -1551,11 +1551,13 @@ bool Socket::shutdown(int __how)
 
 /**
  * @return bool (whether it can be freed)
+ * you can access errCode member to get error information
  */
 bool Socket::close()
 {
-    if (has_bound())
+    if (unlikely(has_bound()))
     {
+        int _errCode = 0;
         if (socket->closed)
         {
             // close operation is in processing
@@ -1565,6 +1567,7 @@ bool Socket::close()
         if (socket->active)
         {
             shutdown();
+            _errCode = errCode;
         }
         if (!socket->closed)
         {
@@ -1580,12 +1583,12 @@ bool Socket::close()
             set_err(ECONNRESET);
             read_co->resume();
         }
-
+        set_err(_errCode);
         return false;
     }
     else
     {
-        if (::close(socket->fd) < 0)
+        if (unlikely(::close(socket->fd) != 0))
         {
             swSysError("close(%d) failed.", socket->fd);
             set_err(errno);
@@ -1596,9 +1599,10 @@ bool Socket::close()
 }
 
 /**
- * Notice:
- * the destructor should only be called when the construct fails
- * If you want to safe release the socket, you should call Soskcet::close
+ * Warn:
+ * the destructor should only be called in following two cases:
+ * 1. construct failed
+ * 2. called close() and it return true
  */
 Socket::~Socket()
 {
@@ -1671,13 +1675,10 @@ Socket::~Socket()
     {
         unlink(socket->info.addr.un.sun_path);
     }
-    if (unlikely(socket->fd > 0))
+    SW_ASSERT(socket->removed);
+    if (unlikely(socket->fd > 0 && ::close(socket->fd) != 0))
     {
-        if (!socket->removed)
-        {
-            reactor->del(reactor, socket->fd);
-        }
-        ::close(socket->fd);
+        swSysError("close(%d) failed.", socket->fd);
     }
     bzero(socket, sizeof(swConnection));
     socket->fd = -1;
