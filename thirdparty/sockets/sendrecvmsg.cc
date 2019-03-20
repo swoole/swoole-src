@@ -38,7 +38,6 @@
 	} while (0)
 
 
-#if HAVE_IPV6
 int php_do_setsockopt_ipv6_rfc3542(swoole::Socket *php_sock, int level, int optname, zval *arg4)
 {
 	struct err_s	err = {0};
@@ -52,18 +51,6 @@ int php_do_setsockopt_ipv6_rfc3542(swoole::Socket *php_sock, int level, int optn
 	switch (optname) {
 #ifdef IPV6_PKTINFO
 	case IPV6_PKTINFO:
-#ifdef PHP_WIN32
-		if (Z_TYPE_P(arg4) == IS_ARRAY) {
-			php_error_docref0(NULL, E_WARNING, "Windows does not "
-					"support sticky IPV6_PKTINFO");
-			return FAILURE;
-		} else {
-			/* windows has no IPV6_RECVPKTINFO, and uses IPV6_PKTINFO
-			 * for the same effect. We define IPV6_RECVPKTINFO to be
-			 * IPV6_PKTINFO, so assume the assume user used IPV6_RECVPKTINFO */
-			return 1;
-		}
-#endif
 		opt_ptr = from_zval_run_conversions(arg4, php_sock, from_zval_write_in6_pktinfo,
 				sizeof(struct in6_pktinfo),	"in6_pktinfo", &allocations, &err);
 		if (err.has_error) {
@@ -131,45 +118,5 @@ int php_do_getsockopt_ipv6_rfc3542(swoole::Socket *php_sock, int level, int optn
 
 	return res == 0 ? SUCCESS : FAILURE;
 }
-#endif /* HAVE_IPV6 */
 
-void php_socket_sendrecvmsg_init(INIT_FUNC_ARGS)
-{
-	/* IPv6 ancillary data */
-#if defined(IPV6_RECVPKTINFO) && HAVE_IPV6
-	REGISTER_LONG_CONSTANT("IPV6_RECVPKTINFO",		IPV6_RECVPKTINFO,	CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("IPV6_PKTINFO",          IPV6_PKTINFO,       CONST_CS | CONST_PERSISTENT);
-#endif
-#if defined(IPV6_RECVHOPLIMIT) && HAVE_IPV6
-	REGISTER_LONG_CONSTANT("IPV6_RECVHOPLIMIT",		IPV6_RECVHOPLIMIT,	CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("IPV6_HOPLIMIT",         IPV6_HOPLIMIT,      CONST_CS | CONST_PERSISTENT);
-#endif
-	/* would require some effort:
-	REGISTER_LONG_CONSTANT("IPV6_RECVRTHDR",		IPV6_RECVRTHDR,		CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("IPV6_RECVHOPOPTS",		IPV6_RECVHOPOPTS,	CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("IPV6_RECVDSTOPTS",		IPV6_RECVDSTOPTS,	CONST_CS | CONST_PERSISTENT);
-	*/
-#if defined(IPV6_RECVTCLASS) && HAVE_IPV6
-	REGISTER_LONG_CONSTANT("IPV6_RECVTCLASS",		IPV6_RECVTCLASS,	CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("IPV6_TCLASS",			IPV6_TCLASS,		CONST_CS | CONST_PERSISTENT);
-#endif
-
-	/*
-	REGISTER_LONG_CONSTANT("IPV6_RTHDR",			IPV6_RTHDR,			CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("IPV6_HOPOPTS",			IPV6_HOPOPTS,		CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("IPV6_DSTOPTS",			IPV6_DSTOPTS,		CONST_CS | CONST_PERSISTENT);
-	*/
-
-#ifdef SCM_RIGHTS
-	REGISTER_LONG_CONSTANT("SCM_RIGHTS",			SCM_RIGHTS,			CONST_CS | CONST_PERSISTENT);
-#endif
-#ifdef SO_PASSCRED
-	REGISTER_LONG_CONSTANT("SCM_CREDENTIALS",		SCM_CREDENTIALS,	CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("SO_PASSCRED",			SO_PASSCRED,		CONST_CS | CONST_PERSISTENT);
-#endif
-
-#ifdef ZTS
-	ancillary_mutex = tsrm_mutex_alloc();
-#endif
-}
 

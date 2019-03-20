@@ -381,7 +381,6 @@ static void to_zval_read_uid_t(const char *data, zval *zv, res_context *ctx)
 	ZVAL_LONG(zv, (zend_long)ival);
 }
 
-#if HAVE_IPV6
 static void from_zval_write_sin6_addr(const zval *zaddr_str, char *addr6, ser_context *ctx)
 {
 	int					res;
@@ -420,7 +419,6 @@ static void to_zval_read_sin6_addr(const char *data, zval *zv, res_context *ctx)
 	Z_STRLEN_P(zv) = strlen(Z_STRVAL_P(zv));
 }
 
-#endif /* HAVE_IPV6 */
 
 /* CONVERSIONS for if_index */
 static void from_zval_write_ifindex(const zval *zv, char *uinteger, ser_context *ctx)
