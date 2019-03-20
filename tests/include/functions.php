@@ -81,6 +81,12 @@ function get_one_free_port_coro()
     return $port;
 }
 
+function set_socket_buffer_size($php_socket, int $size)
+{
+    socket_set_option($php_socket, SOL_SOCKET, SO_SNDBUF, $size);
+    socket_set_option($php_socket, SOL_SOCKET, SO_RCVBUF, $size);
+}
+
 function approximate($expect, $actual, float $ratio = 0.1): bool
 {
     $ret = $actual * (1 - $ratio) < $expect && $actual * (1 + $ratio) > $expect;
