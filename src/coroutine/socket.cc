@@ -1549,6 +1549,9 @@ bool Socket::shutdown(int __how)
     return false;
 }
 
+/**
+ * @return bool (whether it can be freed)
+ */
 bool Socket::close()
 {
     if (has_bound())
@@ -1582,13 +1585,12 @@ bool Socket::close()
     }
     else
     {
-        int fd = socket->fd;
-        socket->fd = -1;
-        if (::close(fd) < 0)
+        if (::close(socket->fd) < 0)
         {
-            swSysError("close(%d) failed.", fd);
-            errCode = errno;
+            swSysError("close(%d) failed.", socket->fd);
+            set_err(errno);
         }
+        socket->fd = -1;
         return true;
     }
 }
