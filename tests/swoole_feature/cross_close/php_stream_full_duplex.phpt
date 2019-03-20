@@ -1,35 +1,36 @@
 --TEST--
-swoole_feature: cross_close: full duplex
+swoole_feature: cross_close: full duplex (php stream)
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
+Swoole\Runtime::enableCoroutine();
 $pm = new ProcessManager();
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
-        $cli = new Co\Client(SWOOLE_SOCK_TCP);
-        assert($cli->connect('127.0.0.1', $pm->getFreePort()));
-        assert($cli->connected);
-        set_socket_buffer_size($cli->getSocket(), 8192);
+        $cli = stream_socket_client("tcp://127.0.0.1:{$pm->getFreePort()}", $errno, $errstr, 1);
+        assert(!$errno);
         go(function () use ($pm, $cli) {
             Co::sleep(0.001);
             echo "CLOSE\n";
-            $cli->close();
+            assert(fclose($cli));
+            // double close
+            assert(!@fclose($cli));
             $pm->kill();
             echo "DONE\n";
         });
         go(function () use ($cli) {
             echo "SEND\n";
-            $size = 16 * 1024 * 1024;
-            assert($cli->send(str_repeat('S', $size)) < $size);
-            assert(!$cli->connected);
+            $size = 64 * 1024 * 1024;
+            assert(fwrite($cli, str_repeat('S', $size)) < $size);
+            assert(!@fclose($cli));
             echo "SEND CLOSED\n";
         });
         go(function () use ($cli) {
             echo "RECV\n";
-            assert(!$cli->recv(-1));
-            assert(!$cli->connected);
+            assert(empty(fread($cli, 8192)));
+            assert(!@fclose($cli));
             echo "RECV CLOSED\n";
         });
     });

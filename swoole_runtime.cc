@@ -232,9 +232,13 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
 static size_t socket_write(php_stream *stream, const char *buf, size_t count)
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    if (UNEXPECTED(!abstract))
+    {
+        return 0;
+    }
     Socket *sock = (Socket*) abstract->socket;
     ssize_t didwrite;
-    if (!sock)
+    if (UNEXPECTED(!sock))
     {
         return 0;
     }
@@ -254,9 +258,13 @@ static size_t socket_write(php_stream *stream, const char *buf, size_t count)
 static size_t socket_read(php_stream *stream, char *buf, size_t count)
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    if (UNEXPECTED(!abstract))
+    {
+        return 0;
+    }
     Socket *sock = (Socket*) abstract->socket;
     ssize_t nr_bytes = 0;
-    if (!sock)
+    if (UNEXPECTED(!sock))
     {
         return 0;
     }
@@ -287,22 +295,20 @@ static int socket_flush(php_stream *stream)
 static int socket_close(php_stream *stream, int close_handle)
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
-    if (!abstract)
+    if (UNEXPECTED(!abstract))
     {
-        return 0;
+        return FAILURE;
     }
     stream->abstract = NULL;
     Socket *sock = (Socket*) abstract->socket;
-    if (sock->close())
+    if (UNEXPECTED(!sock))
     {
-        delete sock;
-        efree(abstract);
-        return 0;
+        return FAILURE;
     }
-    else
-    {
-        return -1;
-    }
+    sock->close();
+    delete sock;
+    efree(abstract);
+    return SUCCESS;
 }
 
 enum
@@ -327,8 +333,12 @@ enum
 static int socket_cast(php_stream *stream, int castas, void **ret)
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    if (UNEXPECTED(!abstract))
+    {
+        return FAILURE;
+    }
     Socket *sock = (Socket*) abstract->socket;
-    if (!sock)
+    if (UNEXPECTED(!sock))
     {
         return FAILURE;
     }
@@ -360,8 +370,12 @@ static int socket_cast(php_stream *stream, int castas, void **ret)
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb)
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    if (UNEXPECTED(!abstract))
+    {
+        return FAILURE;
+    }
     Socket *sock = (Socket*) abstract->socket;
-    if (!sock)
+    if (UNEXPECTED(!sock))
     {
         return FAILURE;
     }
@@ -377,7 +391,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
 
     if (UNEXPECTED(sock->socket == nullptr))
     {
-        return -1;
+        return FAILURE;
     }
 
     if (sock->type == SW_SOCK_TCP || sock->type == SW_SOCK_TCP6 || sock->type == SW_SOCK_UDP || sock->type == SW_SOCK_UDP6)
@@ -397,7 +411,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     }
     if (host == NULL)
     {
-        return -1;
+        return FAILURE;
     }
     if (xparam->inputs.timeout)
     {
@@ -488,7 +502,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
         {
             *error_string = php_socket_error_str(error);
         }
-        return -1;
+        return FAILURE;
     }
     else
     {
@@ -732,6 +746,10 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam)
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    if (UNEXPECTED(!abstract))
+    {
+        return FAILURE;
+    }
     Socket *sock = (Socket*) abstract->socket;
     struct timeval default_timeout = { 0, 0 };
     switch (option)
@@ -813,7 +831,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     default:
         break;
     }
-    return 0;
+    return SUCCESS;
 }
 
 static php_stream *php_socket_create(

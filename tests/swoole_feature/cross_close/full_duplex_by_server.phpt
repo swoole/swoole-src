@@ -5,7 +5,6 @@ swoole_feature: cross_close: full duplex and close by server
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
-
 $pm = new ProcessManager();
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
