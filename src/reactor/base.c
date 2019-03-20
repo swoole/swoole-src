@@ -184,7 +184,7 @@ static void swReactor_onFinish(swReactor *reactor)
 {
     swReactor_onTimeout_and_Finish(reactor);
     //check signal
-    if (reactor->singal_no)
+    if (unlikely(reactor->singal_no))
     {
         swSignal_callback(reactor->singal_no);
         reactor->singal_no = 0;
