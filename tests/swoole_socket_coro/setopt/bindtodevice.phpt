@@ -17,15 +17,10 @@ if (!function_exists("posix_getuid") || posix_getuid() != 0) {
 $socket = new Co\Socket(AF_INET, SOCK_STREAM, SOL_TCP);
 
 $retval_1 = $socket->setOption(SOL_SOCKET, SO_BINDTODEVICE, "lo");
-var_dump($retval_1);
+assert($retval_1 === true);
 
 $retval_2 =  $socket->setOption(SOL_SOCKET, SO_BINDTODEVICE, "ethIDONOTEXIST");
-var_dump($retval_2);
+assert($retval_2 === false);
 ?>
 --EXPECTF--
-bool(true)
-
-Warning: Swoole\Coroutine\Socket::setOption(): setsockopt(4) failed. Error: No such device[%d]. in %s on line %d
-bool(false)
---CREDITS--
-Damjan Cvetko, foreach.org
+Warning: Swoole\Coroutine\Socket::setOption(): setsockopt(%d) failed. Error: No such device[%d]. in %s on line %d
