@@ -126,41 +126,12 @@ void err_msg_dispose(struct err_s *err)
 		}
 	}
 }
+
 void allocations_dispose(zend_llist **allocations)
 {
 	zend_llist_destroy(*allocations);
 	efree(*allocations);
 	*allocations = NULL;
-}
-
-static unsigned from_array_iterate(const zval *arr,
-								   void (*func)(zval *elem, unsigned i, void **args, ser_context *ctx),
-								   void **args,
-								   ser_context *ctx)
-{
-	unsigned		i;
-	zval			*elem;
-	char			buf[sizeof("element #4294967295")];
-	char			*bufp = buf;
-
-	/* Note i starts at 1, not 0! */
-	i = 1;
-	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(arr), elem) {
-		if ((size_t)snprintf(buf, sizeof(buf), "element #%u", i) >= sizeof(buf)) {
-			memcpy(buf, "element", sizeof("element"));
-		}
-		zend_llist_add_element(&ctx->keys, &bufp);
-
-		func(elem, i, args, ctx);
-
-		zend_llist_remove_tail(&ctx->keys);
-		if (ctx->err.has_error) {
-			break;
-		}
-		i++;
-    } ZEND_HASH_FOREACH_END();
-
-    return i -1;
 }
 
 /* Generic Aggregated conversions */
@@ -224,158 +195,9 @@ static void to_zval_read_aggregation(const char *structure,
 	}
 }
 
-/* CONVERSIONS for integers */
-static zend_long from_zval_integer_common(const zval *arr_value, ser_context *ctx)
-{
-	zend_long ret = 0;
-	zval lzval;
-
-	ZVAL_NULL(&lzval);
-	if (Z_TYPE_P(arr_value) != IS_LONG) {
-		ZVAL_COPY(&lzval, (zval *)arr_value);
-		arr_value = &lzval;
-	}
-
-	switch (Z_TYPE_P(arr_value)) {
-	case IS_LONG:
-long_case:
-		ret = Z_LVAL_P(arr_value);
-		break;
-
-	/* if not long we're operating on lzval */
-	case IS_DOUBLE:
-double_case:
-		convert_to_long(&lzval);
-		goto long_case;
-
-	case IS_OBJECT:
-	case IS_STRING: {
-		zend_long lval;
-		double dval;
-
-		convert_to_string(&lzval);
-
-		switch (is_numeric_string(Z_STRVAL(lzval), Z_STRLEN(lzval), &lval, &dval, 0)) {
-		case IS_DOUBLE:
-		    zval_dtor(&lzval);
-			ZVAL_DOUBLE(&lzval, dval);
-			goto double_case;
-
-		case IS_LONG:
-		    zval_dtor(&lzval);
-			ZVAL_LONG(&lzval, lval);
-			goto long_case;
-		}
-
-		/* if we get here, we don't have a numeric string */
-		do_from_zval_err(ctx, "expected an integer, but got a non numeric "
-				"string (possibly from a converted object): '%s'", Z_STRVAL_P(arr_value));
-		break;
-	}
-
-	default:
-		do_from_zval_err(ctx, "%s", "expected an integer, either of a PHP "
-				"integer type or of a convertible type");
-		break;
-	}
-
-	zval_ptr_dtor(&lzval);
-
-	return ret;
-}
-void from_zval_write_int(const zval *arr_value, char *field, ser_context *ctx)
-{
-	zend_long lval;
-	int ival;
-
-	lval = from_zval_integer_common(arr_value, ctx);
-	if (ctx->err.has_error) {
-		return;
-	}
-
-	if (lval > INT_MAX || lval < INT_MIN) {
-		do_from_zval_err(ctx, "%s", "given PHP integer is out of bounds "
-				"for a native int");
-		return;
-	}
-
-	ival = (int)lval;
-	memcpy(field, &ival, sizeof(ival));
-}
-static void from_zval_write_pid_t(const zval *arr_value, char *field, ser_context *ctx)
-{
-	zend_long lval;
-	pid_t ival;
-
-	lval = from_zval_integer_common(arr_value, ctx);
-	if (ctx->err.has_error) {
-		return;
-	}
-
-	if (lval < 0 || (pid_t)lval != lval) { /* pid_t is signed */
-		do_from_zval_err(ctx, "%s", "given PHP integer is out of bounds "
-				"for a pid_t value");
-		return;
-	}
-
-	ival = (pid_t)lval;
-	memcpy(field, &ival, sizeof(ival));
-}
-static void from_zval_write_uid_t(const zval *arr_value, char *field, ser_context *ctx)
-{
-	zend_long lval;
-	uid_t ival;
-
-	lval = from_zval_integer_common(arr_value, ctx);
-	if (ctx->err.has_error) {
-		return;
-	}
-
-	/* uid_t can be signed or unsigned (generally unsigned) */
-	if ((uid_t)-1 > (uid_t)0) {
-		if (sizeof(zend_long) > sizeof(uid_t) && (lval < 0 || (uid_t)lval != lval)) {
-			do_from_zval_err(ctx, "%s", "given PHP integer is out of bounds "
-					"for a uid_t value");
-			return;
-		}
-	} else {
-		if (sizeof(zend_long) > sizeof(uid_t) && (uid_t)lval != lval) {
-			do_from_zval_err(ctx, "%s", "given PHP integer is out of bounds "
-					"for a uid_t value");
-			return;
-		}
-	}
-
-	ival = (uid_t)lval;
-	memcpy(field, &ival, sizeof(ival));
-}
-
-void to_zval_read_int(const char *data, zval *zv, res_context *ctx)
-{
-	int ival;
-	memcpy(&ival, data, sizeof(ival));
-
-	ZVAL_LONG(zv, (zend_long)ival);
-}
 static void to_zval_read_unsigned(const char *data, zval *zv, res_context *ctx)
 {
 	unsigned ival;
-	memcpy(&ival, data, sizeof(ival));
-
-	ZVAL_LONG(zv, (zend_long)ival);
-}
-
-
-static void to_zval_read_pid_t(const char *data, zval *zv, res_context *ctx)
-{
-	pid_t ival;
-	memcpy(&ival, data, sizeof(ival));
-
-	ZVAL_LONG(zv, (zend_long)ival);
-}
-static void to_zval_read_uid_t(const char *data, zval *zv, res_context *ctx)
-{
-	uid_t ival;
 	memcpy(&ival, data, sizeof(ival));
 
 	ZVAL_LONG(zv, (zend_long)ival);
@@ -482,46 +304,26 @@ static const field_descriptor descriptors_in6_pktinfo[] = {
 		{"ifindex", sizeof("ifindex"), 1, offsetof(struct in6_pktinfo, ipi6_ifindex), from_zval_write_ifindex, to_zval_read_unsigned},
 		{0}
 };
+
 void from_zval_write_in6_pktinfo(const zval *container, char *in6_pktinfo_c, ser_context *ctx)
 {
 	from_zval_write_aggregation(container, in6_pktinfo_c, descriptors_in6_pktinfo, ctx);
 }
+
 void to_zval_read_in6_pktinfo(const char *data, zval *zv, res_context *ctx)
 {
 	array_init_size(zv, 2);
 
 	to_zval_read_aggregation(data, zv, descriptors_in6_pktinfo, ctx);
 }
+
 #endif
-
-/* CONVERSIONS for struct ucred */
-#ifdef SO_PASSCRED
-static const field_descriptor descriptors_ucred[] = {
-		{"pid", sizeof("pid"), 1, offsetof(struct ucred, pid), from_zval_write_pid_t, to_zval_read_pid_t},
-		{"uid", sizeof("uid"), 1, offsetof(struct ucred, uid), from_zval_write_uid_t, to_zval_read_uid_t},
-		/* assume the type gid_t is the same as uid_t: */
-		{"gid", sizeof("gid"), 1, offsetof(struct ucred, gid), from_zval_write_uid_t, to_zval_read_uid_t},
-		{0}
-};
-void from_zval_write_ucred(const zval *container, char *ucred_c, ser_context *ctx)
-{
-	from_zval_write_aggregation(container, ucred_c, descriptors_ucred, ctx);
-}
-void to_zval_read_ucred(const char *data, zval *zv, res_context *ctx)
-{
-	array_init_size(zv, 3);
-
-	to_zval_read_aggregation(data, zv, descriptors_ucred, ctx);
-}
-#endif
-
 
 /* ENTRY POINT for conversions */
 static void free_from_zval_allocation(void *alloc_ptr_ptr)
 {
 	efree(*(void**)alloc_ptr_ptr);
 }
-
 
 void *from_zval_run_conversions(const zval *container, swoole::Socket *sock, from_zval_write_field *writer,
         size_t struct_size, const char *top_name, zend_llist **allocations /* out */, struct err_s *err /* in/out */)
@@ -566,6 +368,7 @@ void *from_zval_run_conversions(const zval *container, swoole::Socket *sock, fro
 
 	return structure;
 }
+
 zval *to_zval_run_conversions(const char *structure,
 							  to_zval_read_field *reader,
 							  const char *top_name,
