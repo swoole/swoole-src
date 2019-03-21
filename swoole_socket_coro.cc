@@ -596,18 +596,12 @@ static PHP_METHOD(swoole_socket_coro, close)
     }
 #endif
 
-    bool can_be_deleted = sock->socket->close();
-    bool success = sock->socket->errCode == 0;
-    if (UNEXPECTED(!success))
-    {
-        swoole_socket_coro_sync_properties(getThis(), sock);
-    }
-    if (can_be_deleted)
+    if (sock->socket->close())
     {
         delete sock->socket;
         sock->socket = SW_BAD_SOCKET;
     }
-    RETURN_BOOL(success);
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_socket_coro, getsockname)

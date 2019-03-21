@@ -1557,7 +1557,6 @@ bool Socket::close()
 {
     if (unlikely(has_bound()))
     {
-        int _errCode = 0;
         if (socket->closed)
         {
             // close operation is in processing
@@ -1567,7 +1566,6 @@ bool Socket::close()
         if (socket->active)
         {
             shutdown();
-            _errCode = errCode;
         }
         if (!socket->closed)
         {
@@ -1583,7 +1581,6 @@ bool Socket::close()
             set_err(ECONNRESET);
             read_co->resume();
         }
-        set_err(_errCode);
         return false;
     }
     else
@@ -1591,11 +1588,6 @@ bool Socket::close()
         if (unlikely(::close(socket->fd) != 0))
         {
             swSysError("close(%d) failed.", socket->fd);
-            set_err(errno);
-        }
-        else
-        {
-            set_err(0);
         }
         socket->fd = -1;
         return true;
