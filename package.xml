@@ -441,7 +441,6 @@
             <file role="src" name="include/atomic.h" />
             <file role="src" name="include/base64.h" />
             <file role="src" name="include/buffer.h" />
-            <file role="src" name="include/cares.h" />
             <file role="src" name="include/channel.h" />
             <file role="src" name="include/client.h" />
             <file role="src" name="include/connection.h" />
