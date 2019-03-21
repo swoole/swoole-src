@@ -13,7 +13,7 @@
             int _err = (errn); /* save value to avoid repeated calls to WSAGetLastError() on Windows */ \
             (socket)->errCode = _err; \
             if (_err != EAGAIN && _err != EWOULDBLOCK && _err != EINPROGRESS) { \
-                php_error_docref(NULL, E_WARNING, "%s [%d]: %s", msg, _err, sockets_strerror(_err)); \
+                php_error_docref(NULL, E_WARNING, "%s [%d]: %s", msg, _err, strerror(_err)); \
             } \
         } while (0)
 
