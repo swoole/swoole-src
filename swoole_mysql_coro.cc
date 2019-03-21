@@ -389,6 +389,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event);
 static int swoole_mysql_coro_onWrite(swReactor *reactor, swEvent *event);
 static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event);
 static void swoole_mysql_coro_onConnect(mysql_client *client);
+static void swoole_mysql_coro_onConnectTimeout(swTimer *timer, swTimer_node *tnode);
 static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode);
 static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback);
 static int mysql_response(mysql_client *client);
@@ -2429,7 +2430,7 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
 
     PHPCoroutine::check_bind("mysql client", client->cid);
 
-    if (!client->cli)
+    if (!client->cli || client->state == SW_MYSQL_STATE_CLOSED)
     {
         swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
         return SW_ERR;
@@ -3040,7 +3041,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         }
     }
 
-    int ret = cli->connect(cli, connector->host, connector->port, connector->timeout, 1);
+    int ret = cli->connect(cli, connector->host, connector->port, -1, 2);
     if ((ret < 0 && errno == EINPROGRESS) || ret == 0)
     {
         if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, PHP_SWOOLE_FD_MYSQL_CORO | SW_EVENT_WRITE) < 0)
@@ -3091,7 +3092,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 
     if (connector->timeout > 0)
     {
-        connector->timer = swTimer_add(&SwooleG.timer, (long) (connector->timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
+        connector->timer = swTimer_add(&SwooleG.timer, (long) (connector->timeout * 1000), 0, context, swoole_mysql_coro_onConnectTimeout);
     }
     client->cid = PHPCoroutine::get_cid();
     PHPCoroutine::yield_m(return_value, context);
@@ -3754,6 +3755,43 @@ static void swoole_mysql_coro_onConnect(mysql_client *client)
     }
 }
 
+static void swoole_mysql_coro_onConnectTimeout(swTimer *timer, swTimer_node *tnode)
+{
+    zval *result = sw_malloc_zval();;
+    zval *retval = NULL;
+    php_coro_context *ctx = (php_coro_context *) tnode->data;
+    zval _zobject = ctx->coro_params;
+    zval *zobject = & _zobject;
+
+    ZVAL_BOOL(result, 0);
+
+    mysql_client *client = (mysql_client *) swoole_get_object(zobject);
+
+    zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_error"), "connect timeout");
+    zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_errno"), ETIMEDOUT);
+
+    //timeout close conncttion
+    client->connector.timer = NULL;
+    swoole_mysql_coro_close(zobject);
+
+    if (client->defer && !client->suspending)
+    {
+        client->result = result;
+        return;
+    }
+    client->suspending = 0;
+    client->cid = 0;
+
+    int ret = PHPCoroutine::resume_m(ctx, result, retval);
+
+    if (ret == SW_CORO_ERR_END && retval)
+    {
+        zval_ptr_dtor(retval);
+    }
+
+    sw_zval_free(result);
+}
+
 static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     zval *result = sw_malloc_zval();;
@@ -3766,16 +3804,8 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     mysql_client *client = (mysql_client *) swoole_get_object(zobject);
 
-    if (client->handshake != SW_MYSQL_HANDSHAKE_COMPLETED)
-    {
-        zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_error"), "connect timeout");
-        zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_errno"), ETIMEDOUT);
-    }
-    else
-    {
-        zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("error"), "query timeout");
-        zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("errno"), ETIMEDOUT);
-    }
+    zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("error"), "query timeout");
+    zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("errno"), ETIMEDOUT);
 
     //timeout close conncttion
     client->timer = NULL;
