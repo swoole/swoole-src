@@ -3822,6 +3822,9 @@ static int swoole_mysql_coro_onWrite(swReactor *reactor, swEvent *event)
         SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, PHP_SWOOLE_FD_MYSQL_CORO | SW_EVENT_READ);
         //connected
         event->socket->active = 1;
+        client->connector.error_code = 0;
+        client->connector.error_msg = (char *) "";
+        client->connector.error_length = 0;
         client->handshake = SW_MYSQL_HANDSHAKE_WAIT_REQUEST;
     }
     else
@@ -3849,7 +3852,8 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client)
             swSysError("Read from socket[%d] failed.", cli->socket->fd);
             return SW_ERR;
         case SW_CLOSE:
-            _system_call_error: connector->error_code = errno;
+            _system_call_error:
+            connector->error_code = errno;
             connector->error_msg = strerror(errno);
             connector->error_length = strlen(connector->error_msg);
             swoole_mysql_coro_onConnect(client);
