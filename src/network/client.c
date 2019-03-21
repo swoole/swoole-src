@@ -547,7 +547,6 @@ static int swClient_close(swClient *cli)
 static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double timeout, int nonblock)
 {
     int ret, n;
-    char buf[1024];
 
     cli->timeout = timeout;
 
@@ -556,7 +555,7 @@ static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double
         return SW_ERR;
     }
 
-    if (nonblock == 1)
+    if (nonblock)
     {
         swSetNonBlock(cli->socket->fd);
     }
@@ -573,24 +572,32 @@ static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double
     while (1)
     {
 #ifdef HAVE_KQUEUE
-    	swSetNonBlock(cli->socket->fd);
-    	ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
-    	if (ret < 0)
-    	{
-    		if (errno != EINPROGRESS)
-    		{
-    			return SW_ERR;
-    		}
-    		if (swSocket_wait(cli->socket->fd, timeout > 0 ? (int) (timeout * 1000) : timeout, SW_EVENT_WRITE) < 0)
-    		{
-    			return SW_ERR;
-    		}
-    		else
-    		{
-    			swSetBlock(cli->socket->fd);
-    			ret = 0;
-    		}
-    	}
+        if (nonblock == 2)
+        {
+            // special case on MacOS
+            ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+        }
+        else
+        {
+            swSetNonBlock(cli->socket->fd);
+            ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+            if (ret < 0)
+            {
+                if (errno != EINPROGRESS)
+                {
+                    return SW_ERR;
+                }
+                if (swSocket_wait(cli->socket->fd, timeout > 0 ? (int) (timeout * 1000) : timeout, SW_EVENT_WRITE) < 0)
+                {
+                    return SW_ERR;
+                }
+                else
+                {
+                    swSetBlock(cli->socket->fd);
+                    ret = 0;
+                }
+            }
+        }
 #else
         ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
 #endif
@@ -611,6 +618,7 @@ static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double
         //socks5 proxy
         if (cli->socks5_proxy)
         {
+            char buf[1024];
             swSocks5_pack(buf, cli->socks5_proxy->username == NULL ? 0x00 : 0x02);
             if (cli->send(cli, buf, 3, 0) < 0)
             {
