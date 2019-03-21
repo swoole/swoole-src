@@ -51,7 +51,7 @@ typedef struct {
 	to_zval_read_field *to_zval;
 } field_descriptor;
 
-const struct key_value empty_key_value_list[] = {{0}};
+const struct key_value sw_empty_key_value_list[] = {{0}};
 
 /* ERRORS */
 static void do_from_to_zval_err(struct err_s *err,

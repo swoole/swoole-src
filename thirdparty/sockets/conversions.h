@@ -31,7 +31,7 @@ typedef void (from_zval_write_field)(const zval *arr_value, char *field, ser_con
 typedef void (to_zval_read_field)(const char *data, zval *zv, res_context *ctx);
 
 /* VARIABLE DECLARATIONS */
-extern const struct key_value empty_key_value_list[];
+extern const struct key_value sw_empty_key_value_list[];
 
 /* AUX FUNCTIONS */
 void err_msg_dispose(struct err_s *err);

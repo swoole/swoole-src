@@ -106,7 +106,7 @@ int php_do_getsockopt_ipv6_rfc3542(swoole::Socket *php_sock, int level, int optn
 	} else {
 		zval tmp;
 		zval *zv = to_zval_run_conversions(buffer, reader, "in6_pktinfo",
-				empty_key_value_list, &err, &tmp);
+				sw_empty_key_value_list, &err, &tmp);
 		if (err.has_error) {
 			err_msg_dispose(&err);
 			res = -1;
