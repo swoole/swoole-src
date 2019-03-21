@@ -1593,6 +1593,10 @@ bool Socket::close()
             swSysError("close(%d) failed.", socket->fd);
             set_err(errno);
         }
+        else
+        {
+            set_err(0);
+        }
         socket->fd = -1;
         return true;
     }

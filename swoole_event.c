@@ -446,6 +446,14 @@ php_socket* swoole_convert_to_socket(int sock)
     }
     return socket_object;
 }
+
+void swoole_php_socket_free(zval *zsocket)
+{
+    php_socket *php_sock;
+    SW_ZEND_FETCH_RESOURCE_NO_RETURN(php_sock, php_socket *, &zsocket, -1, NULL, php_sockets_le_socket());
+    php_sock->bsd_socket = -1;
+    sw_zval_free(zsocket);
+}
 #endif
 
 PHP_FUNCTION(swoole_event_add)

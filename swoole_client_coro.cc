@@ -221,7 +221,7 @@ static bool client_coro_close(zval *zobject)
             zval *zsocket = (zval *) swoole_get_property(zobject, client_property_socket);
             if (zsocket)
             {
-                sw_zval_free(zsocket);
+                swoole_php_socket_free(zsocket);
                 swoole_set_property(zobject, client_property_socket, NULL);
             }
 #endif

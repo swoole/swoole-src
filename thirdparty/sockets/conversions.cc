@@ -515,66 +515,6 @@ void to_zval_read_ucred(const char *data, zval *zv, res_context *ctx)
 }
 #endif
 
-/* CONVERSIONS for SCM_RIGHTS */
-#ifdef SCM_RIGHTS
-size_t calculate_scm_rights_space(const zval *arr, ser_context *ctx)
-{
-	int num_elems;
-
-	if (Z_TYPE_P(arr) != IS_ARRAY) {
-		do_from_zval_err(ctx, "%s", "expected an array here");
-		return (size_t)-1;
-	}
-
-	num_elems = zend_hash_num_elements(Z_ARRVAL_P(arr));
-	if (num_elems == 0) {
-		do_from_zval_err(ctx, "%s", "expected at least one element in this array");
-		return (size_t)-1;
-	}
-
-	return zend_hash_num_elements(Z_ARRVAL_P(arr)) * sizeof(int);
-}
-
-static void from_zval_write_fd_array_aux(zval *elem, unsigned i, void **args, ser_context *ctx)
-{
-    int *iarr = (int *) args[0];
-
-	if (Z_TYPE_P(elem) == IS_RESOURCE) {
-		php_stream *stream;
-		swoole::Socket *sock;
-
-		sock = (swoole::Socket *)zend_fetch_resource_ex(elem, NULL, php_sockets_le_socket());
-		if (sock) {
-			iarr[i] = sock->get_fd();
-			return;
-		}
-
-		stream = (php_stream *)zend_fetch_resource2_ex(elem, NULL, php_file_le_stream(), php_file_le_pstream());
-		if (stream == NULL) {
-			do_from_zval_err(ctx, "resource is not a stream or a socket");
-			return;
-		}
-
-		if (php_stream_cast(stream, PHP_STREAM_AS_FD, (void **)&iarr[i - 1],
-				REPORT_ERRORS) == FAILURE) {
-			do_from_zval_err(ctx, "cast stream to file descriptor failed");
-			return;
-		}
-	} else {
-		do_from_zval_err(ctx, "expected a resource variable");
-	}
-}
-void from_zval_write_fd_array(const zval *arr, char *int_arr, ser_context *ctx)
-{
-	if (Z_TYPE_P(arr) != IS_ARRAY) {
-		do_from_zval_err(ctx, "%s", "expected an array here");
-		return;
-	}
-
-   from_array_iterate(arr, &from_zval_write_fd_array_aux, (void**)&int_arr, ctx);
-}
-
-#endif
 
 /* ENTRY POINT for conversions */
 static void free_from_zval_allocation(void *alloc_ptr_ptr)
