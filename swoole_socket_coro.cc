@@ -176,10 +176,8 @@ static void swoole_socket_coro_free_object(zend_object *object)
 #ifdef SWOOLE_SOCKETS_SUPPORT
     if (sock->resource)
     {
-        php_socket *php_sock;
-        SW_ZEND_FETCH_RESOURCE_NO_RETURN(php_sock, php_socket *, &sock->resource, -1, NULL, php_sockets_le_socket());
-        php_sock->bsd_socket = -1;
-        sw_zval_free(sock->resource);
+        swoole_php_socket_free(sock->resource);
+        sock->resource = nullptr;
     }
 #endif
     if (sock->socket && sock->socket != SW_BAD_SOCKET)
@@ -589,6 +587,14 @@ static PHP_METHOD(swoole_socket_coro, shutdown)
 static PHP_METHOD(swoole_socket_coro, close)
 {
     swoole_get_socket_coro(sock, getThis());
+
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    if (sock->resource)
+    {
+        swoole_php_socket_free(sock->resource);
+        sock->resource = nullptr;
+    }
+#endif
 
     bool can_be_deleted = sock->socket->close();
     bool success = sock->socket->errCode == 0;

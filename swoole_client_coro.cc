@@ -221,10 +221,7 @@ static bool client_coro_close(zval *zobject)
             zval *zsocket = (zval *) swoole_get_property(zobject, client_property_socket);
             if (zsocket)
             {
-                php_socket *php_sock;
-                SW_ZEND_FETCH_RESOURCE_NO_RETURN(php_sock, php_socket *, &zsocket, -1, NULL, php_sockets_le_socket());
-                php_sock->bsd_socket = -1;
-                sw_zval_free(zsocket);
+                swoole_php_socket_free(zsocket);
                 swoole_set_property(zobject, client_property_socket, NULL);
             }
 #endif

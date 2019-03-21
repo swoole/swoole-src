@@ -453,6 +453,7 @@ void swoole_call_rshutdown_function(void *arg);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
 php_socket *swoole_convert_to_socket(int sock);
+void swoole_php_socket_free(zval *zsocket);
 #endif
 
 zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type);
