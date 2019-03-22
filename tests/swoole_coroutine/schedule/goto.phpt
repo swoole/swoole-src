@@ -1,7 +1,11 @@
 --TEST--
 swoole_coroutine: while tick 1000 
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; 
+if (!\co::isTickEnable()) {
+    skip("coroutine schdule tick was not compliled");
+}
+?>
 --FILE--
 <?php
 declare(ticks=1000);

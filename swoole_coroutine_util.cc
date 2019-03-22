@@ -147,6 +147,7 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo);
 static PHP_METHOD(swoole_coroutine_util, readFile);
 static PHP_METHOD(swoole_coroutine_util, writeFile);
 static PHP_METHOD(swoole_coroutine_util, getBackTrace);
+static PHP_METHOD(swoole_coroutine_util, isTickEnable);
 
 static PHP_METHOD(swoole_coroutine_iterator, count);
 static PHP_METHOD(swoole_coroutine_iterator, rewind);
@@ -204,6 +205,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_ME(swoole_coroutine_util, getaddrinfo, arginfo_swoole_coroutine_getaddrinfo, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, statvfs, arginfo_swoole_coroutine_statvfs, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getBackTrace, arginfo_swoole_coroutine_getBackTrace, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, isTickEnable, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, list, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine_util, listCoroutines, list, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
@@ -1289,6 +1291,14 @@ static PHP_METHOD(swoole_coroutine_util, getBackTrace)
         zend_fetch_debug_backtrace(return_value, 0, options, limit);
         EG(current_execute_data) = ex_backup;
     }
+}
+
+static PHP_METHOD(swoole_coroutine_util, isTickEnable)
+{
+#ifdef SW_CORO_TICK_SCHEDULE
+    RETURN_TRUE;
+#endif
+    RETURN_FALSE;
 }
 
 static PHP_METHOD(swoole_coroutine_util, list)
