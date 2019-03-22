@@ -28,7 +28,7 @@ php_coro_task PHPCoroutine::main_task = {0};
 bool PHPCoroutine::tick_init = false;
 uint32_t PHPCoroutine::max_exec_msec = 0;
 
-#ifdef SW_CORO_TICK_SCHEDULE
+#ifdef SW_CORO_SCHEDULE_TICK
 static user_opcode_handler_t ori_tick_handler = NULL;
 
 static void interrupt_callback(void *data)
@@ -78,7 +78,7 @@ void PHPCoroutine::init()
     Coroutine::set_on_yield(on_yield);
     Coroutine::set_on_resume(on_resume);
     Coroutine::set_on_close(on_close);
-#ifdef SW_CORO_TICK_SCHEDULE
+#ifdef SW_CORO_SCHEDULE_TICK
     try_reset_opcode();
 #endif
 }
@@ -211,7 +211,7 @@ void PHPCoroutine::on_resume(void *arg)
     php_coro_task *current_task = get_task();
     save_task(current_task);
     restore_task(task);
-#ifdef SW_CORO_TICK_SCHEDULE
+#ifdef SW_CORO_SCHEDULE_TICK
     if (PHPCoroutine::tick_init)
     {
         task->last_msec = swTimer_get_absolute_msec();
@@ -318,7 +318,7 @@ void PHPCoroutine::create_func(void *arg)
     task->defer_tasks = nullptr;
     task->pcid = task->co->get_origin_cid();
     task->context = nullptr;
-#ifdef SW_CORO_TICK_SCHEDULE
+#ifdef SW_CORO_SCHEDULE_TICK
     task->last_msec = swTimer_get_absolute_msec();
 #endif
 

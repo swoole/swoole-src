@@ -10,6 +10,12 @@
 #define SW_DEFAULT_MAX_CORO_NUM              3000
 #define SW_DEFAULT_PHP_STACK_PAGE_SIZE       8192
 
+#ifdef SW_CORO_SCHEDULE_TICK
+#define SW_CORO_SCHEDULE 1
+#else
+#define SW_CORO_SCHEDULE 0
+#endif
+
 #define SWOG ((zend_output_globals *) &OG(handlers))
 
 typedef enum
@@ -51,7 +57,7 @@ struct php_coro_task
     std::stack<php_swoole_fci *> *defer_tasks;
     long pcid;
     zend_object *context;
-#ifdef SW_CORO_TICK_SCHEDULE
+#ifdef SW_CORO_SCHEDULE_TICK
     int64_t last_msec;
 #endif
 };
@@ -134,7 +140,7 @@ public:
     {
         max_num = n;
     }
-#ifdef SW_CORO_TICK_SCHEDULE
+#ifdef SW_CORO_SCHEDULE_TICK
     static inline void set_max_exec_msec(long max_msec)
     {
         max_exec_msec = max_msec;

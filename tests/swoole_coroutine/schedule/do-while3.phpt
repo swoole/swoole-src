@@ -3,10 +3,10 @@ swoole_coroutine: do-while tick 10000
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
-if (!\co::isTickEnable()) {
+if (!SWOOLE_CORO_SCHEDULE) {
     skip("coroutine schdule tick was not compliled");
 }
-  ?>
+?>
 --FILE--
 <?php
 declare(ticks=10000);

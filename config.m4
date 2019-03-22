@@ -263,7 +263,7 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
     
     if test "$PHP_CORO_SCHEDULE" != "no"; then        
-        AC_DEFINE(SW_CORO_TICK_SCHEDULE, 1, [enable coro tick schedule])
+        AC_DEFINE(SW_CORO_SCHEDULE_TICK, 1, [enable coro tick schedule])
     fi
 
     if test "$PHP_TRACE_LOG" != "no"; then

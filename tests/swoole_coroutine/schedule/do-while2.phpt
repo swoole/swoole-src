@@ -2,15 +2,15 @@
 swoole_coroutine: do-while tick 1000 without opcache enable
 --SKIPIF--
 <?php
- require __DIR__ . '/../../include/skipif.inc'; 
- if (!\co::isTickEnable()) {
+require __DIR__ . '/../../include/skipif.inc'; 
+if (!SWOOLE_CORO_SCHEDULE) {
     skip("coroutine schdule tick was not compliled");
- }
- if (ini_get("opcache.enable_cli") == 1) 
- {
-    skip("has loaded opcache");
- }
- ?>
+}
+if (ini_get("opcache.enable_cli") == 1) 
+{
+   skip("has loaded opcache");
+}
+?>
 --FILE--
 <?php
 declare(ticks=1000);

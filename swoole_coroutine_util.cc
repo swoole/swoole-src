@@ -148,14 +148,6 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo);
 static PHP_METHOD(swoole_coroutine_util, readFile);
 static PHP_METHOD(swoole_coroutine_util, writeFile);
 static PHP_METHOD(swoole_coroutine_util, getBackTrace);
-static PHP_METHOD(swoole_coroutine_util, isTickEnable);
-
-static PHP_METHOD(swoole_coroutine_iterator, count);
-static PHP_METHOD(swoole_coroutine_iterator, rewind);
-static PHP_METHOD(swoole_coroutine_iterator, next);
-static PHP_METHOD(swoole_coroutine_iterator, current);
-static PHP_METHOD(swoole_coroutine_iterator, key);
-static PHP_METHOD(swoole_coroutine_iterator, valid);
 
 static PHP_METHOD(swoole_exit_exception, getFlags);
 static PHP_METHOD(swoole_exit_exception, getStatus);
@@ -168,7 +160,6 @@ static zend_object_handlers swoole_coroutine_util_handlers;
 
 static zend_class_entry swoole_coroutine_iterator_ce;
 static zend_class_entry *swoole_coroutine_iterator_ce_ptr;
-static zend_object_handlers swoole_coroutine_iterator_handlers;
 
 static zend_class_entry swoole_coroutine_context_ce;
 static zend_class_entry *swoole_coroutine_context_ce_ptr;
@@ -206,25 +197,8 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_ME(swoole_coroutine_util, getaddrinfo, arginfo_swoole_coroutine_getaddrinfo, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, statvfs, arginfo_swoole_coroutine_statvfs, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getBackTrace, arginfo_swoole_coroutine_getBackTrace, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, isTickEnable, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, list, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine_util, listCoroutines, list, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_FE_END
-};
-
-static const zend_function_entry swoole_coroutine_iterator_methods[] =
-{
-    PHP_ME(swoole_coroutine_iterator, rewind,      arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_iterator, next,        arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_iterator, current,     arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_iterator, key,         arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_iterator, valid,       arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_iterator, count,       arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
-    PHP_FE_END
-};
-
-static const zend_function_entry swoole_coroutine_context_methods[] =
-{
     PHP_FE_END
 };
 
@@ -312,17 +286,9 @@ void swoole_coroutine_util_init(int module_number)
     SWOOLE_SET_CLASS_CLONEABLE(swoole_coroutine_util, zend_class_clone_deny);
     SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_util, zend_class_unset_property_deny);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", swoole_coroutine_iterator_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_coroutine_iterator, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_coroutine_iterator, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_iterator, zend_class_unset_property_deny);
-    zend_class_implements(swoole_coroutine_iterator_ce_ptr, 1, zend_ce_iterator);
-#ifdef SW_HAVE_COUNTABLE
-    zend_class_implements(swoole_coroutine_iterator_ce_ptr, 1, zend_ce_countable);
-#endif
-    zend_declare_property_long(swoole_coroutine_iterator_ce_ptr, ZEND_STRL("index"), 0, ZEND_ACC_PRIVATE);
+    SWOOLE_INIT_CLASS_ENTRY_BASE(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", NULL, spl_ce_ArrayIterator);
 
-    SWOOLE_INIT_CLASS_ENTRY_BASE(swoole_coroutine_context, "Swoole\\Coroutine\\Context", NULL, "Co\\Context", swoole_coroutine_context_methods, spl_ce_ArrayObject);
+    SWOOLE_INIT_CLASS_ENTRY_BASE(swoole_coroutine_context, "Swoole\\Coroutine\\Context", NULL, "Co\\Context", NULL, spl_ce_ArrayObject);
 
     SWOOLE_DEFINE(DEFAULT_MAX_CORO_NUM);
     SWOOLE_DEFINE(CORO_MAX_NUM_LIMIT);
@@ -330,6 +296,7 @@ void swoole_coroutine_util_init(int module_number)
     SWOOLE_DEFINE(CORO_WAITING);
     SWOOLE_DEFINE(CORO_RUNNING);
     SWOOLE_DEFINE(CORO_END);
+    SWOOLE_DEFINE(CORO_SCHEDULE);
 
     //prohibit exit in coroutine
     SWOOLE_INIT_CLASS_ENTRY_EX(swoole_exit_exception, "Swoole\\ExitException", NULL, NULL, swoole_exit_exception_methods, swoole_exception);
@@ -434,7 +401,7 @@ static PHP_METHOD(swoole_coroutine_util, set)
     {
         SWOOLE_G(display_errors) = zval_is_true(v);
     }
-#ifdef SW_CORO_TICK_SCHEDULE
+#ifdef SW_CORO_SCHEDULE_TICK
     if (php_swoole_array_get_value(vht, "max_exec_msec", v))
     {
         long t = zval_get_long(v);
@@ -1294,62 +1261,23 @@ static PHP_METHOD(swoole_coroutine_util, getBackTrace)
     }
 }
 
-static PHP_METHOD(swoole_coroutine_util, isTickEnable)
-{
-#ifdef SW_CORO_TICK_SCHEDULE
-    RETURN_TRUE;
-#endif
-    RETURN_FALSE;
-}
-
 static PHP_METHOD(swoole_coroutine_util, list)
 {
+    zval zlist;
+    array_init(&zlist);
+    for (auto &co : Coroutine::coroutines) {
+        add_next_index_long(&zlist, co.second->get_cid());
+    }
     object_init_ex(return_value, swoole_coroutine_iterator_ce_ptr);
-}
-
-static PHP_METHOD(swoole_coroutine_iterator, rewind)
-{
-    zend_update_property_long(swoole_coroutine_iterator_ce_ptr, getThis(), ZEND_STRL("index"), 0);
-}
-
-static PHP_METHOD(swoole_coroutine_iterator, valid)
-{
-    zval *zindex = sw_zend_read_property(swoole_coroutine_iterator_ce_ptr, getThis(), ZEND_STRL("index"), 0);
-    RETURN_BOOL(Z_LVAL_P(zindex) < Coroutine::count());
-}
-
-static PHP_METHOD(swoole_coroutine_iterator, current)
-{
-    zval *zindex = sw_zend_read_property(swoole_coroutine_iterator_ce_ptr, getThis(), ZEND_STRL("index"), 0);
-    size_t i = Z_LVAL_P(zindex);
-    if (UNEXPECTED(i >= Coroutine::count()))
-    {
-        RETURN_NULL();
-    }
-    else
-    {
-        std::unordered_map<long, Coroutine*>::iterator iterator = Coroutine::coroutines.begin();
-        while (i--)
-        {
-            iterator++;
-        }
-        RETURN_LONG(iterator->second->get_cid());
-    }
-}
-
-static PHP_METHOD(swoole_coroutine_iterator, next)
-{
-    Z_LVAL_P(sw_zend_read_property(swoole_coroutine_iterator_ce_ptr, getThis(), ZEND_STRL("index"), 0))++;
-}
-
-PHP_METHOD(swoole_coroutine_iterator, key)
-{
-    RETURN_LONG(Z_LVAL_P(sw_zend_read_property(swoole_coroutine_iterator_ce_ptr, getThis(), ZEND_STRL("index"), 0)));
-}
-
-static PHP_METHOD(swoole_coroutine_iterator, count)
-{
-    RETURN_LONG(Coroutine::count());
+    zend_call_method_with_1_params(
+        return_value,
+        swoole_coroutine_iterator_ce_ptr,
+        &swoole_coroutine_iterator_ce_ptr->constructor,
+        (const char *) "__construct",
+        NULL,
+        &zlist
+    );
+    zval_ptr_dtor(&zlist);
 }
 
 static PHP_METHOD(swoole_coroutine_util, statvfs)

@@ -9,11 +9,11 @@ go(function () {
     go(function () {
         go(function () {
             $main = go(function () {
-                $coros = Co::listCoroutines();
                 Co::yield();
-                $coros = iterator_to_array($coros);
-                sort($coros);
-                foreach ($coros as $cid) {
+                // ......
+                $list = Co::list();
+                $list->asort();
+                foreach ($list as $cid) {
                     var_dump($cid);
                     var_dump(Co::getBackTrace($cid));
                 }
@@ -51,7 +51,7 @@ array(1) {
     ["args"]=>
     array(1) {
       [0]=>
-      object(Closure)#2 (0) {
+      object(Closure)#%d (0) {
       }
     }
   }
@@ -69,7 +69,7 @@ array(1) {
     ["args"]=>
     array(1) {
       [0]=>
-      object(Closure)#3 (0) {
+      object(Closure)#%d (0) {
       }
     }
   }
@@ -87,7 +87,7 @@ array(1) {
     ["args"]=>
     array(1) {
       [0]=>
-      object(Closure)#6 (1) {
+      object(Closure)#%d (1) {
         ["static"]=>
         array(1) {
           ["main"]=>
@@ -131,7 +131,7 @@ array(1) {
     ["args"]=>
     array(1) {
       [0]=>
-      object(Closure)#10 (1) {
+      object(Closure)#%d (1) {
         ["static"]=>
         array(1) {
           ["main"]=>
