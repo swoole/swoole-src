@@ -432,6 +432,13 @@ static PHP_METHOD(swoole_coroutine_util, set)
     {
         SWOOLE_G(display_errors) = zval_is_true(v);
     }
+#ifdef SW_CORO_TICK_SCHEDULE
+    if (php_swoole_array_get_value(vht, "max_exec_msec", v))
+    {
+        long t = zval_get_long(v);
+        if (t > 0) { PHPCoroutine::set_max_exec_msec(t); }
+    }
+#endif
 }
 
 PHP_FUNCTION(swoole_clear_dns_cache)

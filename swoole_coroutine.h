@@ -45,11 +45,15 @@ struct php_coro_task
     zend_class_entry *exception_class;
     zend_object *exception;
     zend_output_globals *output_ptr;
+    int ticks_count;
     SW_DECLARE_EG_SCOPE(scope);
     swoole::Coroutine *co;
     std::stack<php_swoole_fci *> *defer_tasks;
     long pcid;
     zend_object *context;
+#ifdef SW_CORO_TICK_SCHEDULE
+    int64_t last_msec;
+#endif
 };
 
 struct php_coro_args
@@ -75,6 +79,10 @@ namespace swoole
 class PHPCoroutine
 {
 public:
+    static uint32_t max_exec_msec;
+    static bool tick_init;
+
+    static void init();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(php_swoole_fci *fci);
 
@@ -83,16 +91,11 @@ public:
     static bool enable_hook(int flags);
     static bool disable_hook();
 
+    static void on_yield(void *arg);
+
     // TODO: remove old coro APIs (Manual)
     static void yield_m(zval *return_value, php_coro_context *sw_php_context);
     static int resume_m(php_coro_context *sw_current_context, zval *retval, zval *coro_retval);
-
-    static inline void init()
-    {
-        Coroutine::set_on_yield(on_yield);
-        Coroutine::set_on_resume(on_resume);
-        Coroutine::set_on_close(on_close);
-    }
 
     static inline long get_cid()
     {
@@ -131,6 +134,26 @@ public:
     {
         max_num = n;
     }
+#ifdef SW_CORO_TICK_SCHEDULE
+    static inline void set_max_exec_msec(long max_msec)
+    {
+        max_exec_msec = max_msec;
+    }
+
+    static inline bool is_schedulable(php_coro_task *task)
+    {
+
+        if (max_exec_msec > 0)
+        {
+            if (!tick_init)
+            {
+                tick_init = true;
+            }
+            return (swTimer_get_absolute_msec() - task->last_msec > max_exec_msec);
+        }
+        return false;
+    }
+#endif
 
 protected:
     static bool active;
@@ -145,7 +168,6 @@ protected:
     static inline void restore_og(php_coro_task *task);
     static inline void save_task(php_coro_task *task);
     static inline void restore_task(php_coro_task *task);
-    static void on_yield(void *arg);
     static void on_resume(void *arg);
     static void on_close(void *arg);
     static void create_func(void *arg);
