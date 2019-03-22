@@ -70,6 +70,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_exec, 0, 0, 1)
     ZEND_ARG_INFO(0, command)
+    ZEND_ARG_INFO(0, get_error_stream)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_sleep, 0, 0, 1)
@@ -1366,10 +1367,11 @@ PHP_FUNCTION(swoole_coroutine_exec)
     size_t command_len;
     zend_bool get_error_stream = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|b", &command, &command_len, &get_error_stream) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(command, command_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(get_error_stream)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (php_swoole_signal_isset_handler(SIGCHLD))
     {
