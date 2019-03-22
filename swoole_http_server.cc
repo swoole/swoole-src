@@ -2352,7 +2352,6 @@ static PHP_METHOD(swoole_http_response, create)
     sw_copy_to_stack(ctx->response.zobject, ctx->response._zobject);
 
     zend_update_property_long(swoole_http_response_ce_ptr, return_value, ZEND_STRL("fd"), ctx->fd);
-    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_http_response, redirect)
