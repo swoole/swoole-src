@@ -257,7 +257,6 @@
  * Coroutine
  */
 #define SW_DEFAULT_C_STACK_SIZE          (2 *1024 * 1024)
-#define SW_CORO_TICK_SCHEDULE            1
 #define SW_CORO_SWAP_BAILOUT
 // #define SW_CORO_ZEND_TRY
 

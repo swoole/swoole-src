@@ -43,7 +43,7 @@ static void interrupt_callback(void *data)
 
 static void sw_tick(uint32_t tick_count)
 {
-    php_coro_task *task = PHPCoroutine::get_current_task();
+    php_coro_task *task = PHPCoroutine::get_task();
     if (task && task->co && tick_count > 0 && PHPCoroutine::is_schedulable(task))
     {
         PHPCoroutine::on_yield(task);
@@ -208,15 +208,15 @@ void PHPCoroutine::on_yield(void *arg)
 void PHPCoroutine::on_resume(void *arg)
 {
     php_coro_task *task = (php_coro_task *) arg;
+    php_coro_task *current_task = get_task();
+    save_task(current_task);
+    restore_task(task);
 #ifdef SW_CORO_TICK_SCHEDULE
     if (PHPCoroutine::tick_init)
     {
         task->last_msec = swTimer_get_absolute_msec();
     }
 #endif
-    php_coro_task *current_task = get_task();
-    save_task(current_task);
-    restore_task(task);
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", Coroutine::get_current_cid(), task->co->get_cid());
 }
 
