@@ -24,16 +24,21 @@ class Exception
 {
 public:
     int code;
+    const char *msg;
 
-    Exception(enum swErrorCode _code)
+    Exception(int code) : code(code)
     {
-        code = _code;
+        msg = swoole_strerror(code);
     }
 };
 }
 
-const char* swoole_strerror(enum swErrorCode code)
+const char* swoole_strerror(int code)
 {
+    if (code < SW_ERROR_START)
+    {
+        return strerror(code);
+    }
     /* swstrerror {{{*/
     switch(code)
     {
@@ -195,7 +200,7 @@ const char* swoole_strerror(enum swErrorCode code)
 /*}}}*/
 }
 
-void swoole_throw_error(enum swErrorCode code)
+void swoole_throw_error(int code)
 {
     throw swoole::Exception(code);
 }
