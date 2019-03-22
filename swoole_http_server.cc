@@ -1332,7 +1332,7 @@ static PHP_METHOD(swoole_http_request, rawContent)
 #endif
     else
     {
-        RETURN_FALSE;
+        RETURN_EMPTY_STRING();
     }
 }
 
@@ -1473,12 +1473,7 @@ static PHP_METHOD(swoole_http_response, write)
 static http_context* http_get_context(zval *zobject, int check_end)
 {
     http_context *ctx = (http_context *) swoole_get_object(zobject);
-    if (!ctx)
-    {
-        swoole_php_fatal_error(E_WARNING, "Http request is finished.");
-        return NULL;
-    }
-    if (check_end && ctx->end)
+    if (!ctx || (check_end && ctx->end))
     {
         swoole_php_fatal_error(E_WARNING, "Http request is finished.");
         return NULL;
@@ -1826,18 +1821,17 @@ static PHP_METHOD(swoole_http_response, initHeader)
     {
         swoole_http_server_array_init(header, response);
     }
-
     zval *zcookie = sw_zend_read_property(swoole_http_response_ce_ptr, zresponse_object, ZEND_STRL("cookie"), 1);
     if (!ZVAL_IS_ARRAY(zcookie))
     {
         swoole_http_server_array_init(cookie, response);
     }
-
     zval *ztrailer = sw_zend_read_property(swoole_http_response_ce_ptr, zresponse_object, ZEND_STRL("trailer"), 1);
     if (!ZVAL_IS_ARRAY(ztrailer))
     {
         swoole_http_server_array_init(trailer, response);
     }
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_http_response, end)
@@ -2201,6 +2195,7 @@ static PHP_METHOD(swoole_http_response, status)
         ctx->response.reason = (char *) emalloc(SW_MEM_ALIGNED_SIZE(reason_len + 1));
         strncpy(ctx->response.reason, reason, reason_len);
     }
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_http_response, header)
@@ -2260,7 +2255,7 @@ static PHP_METHOD(swoole_http_response, header)
     {
         add_assoc_stringl_ex(zheader, k, klen, v, vlen);
     }
-
+    RETURN_TRUE;
 }
 
 #ifdef SW_USE_HTTP2
@@ -2319,6 +2314,7 @@ static PHP_METHOD(swoole_http_response, trailer)
     {
         add_assoc_stringl_ex(ztrailer, k, klen, v, vlen);
     }
+    RETURN_TRUE;
 }
 #endif
 
@@ -2356,6 +2352,7 @@ static PHP_METHOD(swoole_http_response, create)
     sw_copy_to_stack(ctx->response.zobject, ctx->response._zobject);
 
     zend_update_property_long(swoole_http_response_ce_ptr, return_value, ZEND_STRL("fd"), ctx->fd);
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_http_response, redirect)
@@ -2389,7 +2386,7 @@ static PHP_METHOD(swoole_http_response, redirect)
     ZVAL_STRINGL(&key, "Location", 8);
     sw_zend_call_method_with_2_params(getThis(), NULL, NULL, "header", return_value, &key, url);
     zval_ptr_dtor(&key);
-    if (!ZVAL_IS_NULL(return_value)) // TODO: return true
+    if (!Z_BVAL_P(return_value))
     {
         return;
     }
