@@ -124,7 +124,6 @@ public:
     static swString* read_file(const char *file, int lock);
     static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
-    static long max_exec_msec;
     static bool socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout);
 
     static void set_on_yield(coro_php_yield_t func);
