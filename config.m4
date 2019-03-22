@@ -21,6 +21,9 @@ PHP_ARG_ENABLE(debug-log, whether to enable debug log,
 PHP_ARG_ENABLE(trace-log, Whether to enable trace log,
 [  --enable-trace-log        Enable swoole trace log], no, no)
 
+PHP_ARG_ENABLE(coro-schedule, Whether to enable coroutine schedule by tick,
+[  --enable-coro-schedule    Enable swoole coroutine schedule by tick], no, no)
+
 PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets          Do you have sockets extension?], no, no)
 
@@ -257,6 +260,10 @@ if test "$PHP_SWOOLE" != "no"; then
     if test "$PHP_ASAN" != "no"; then
         PHP_DEBUG=1
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
+    fi
+    
+    if test "$PHP_CORO_SCHEDULE" != "no"; then        
+        AC_DEFINE(SW_CORO_SCHEDULE_TICK, 1, [enable coro tick schedule])
     fi
 
     if test "$PHP_TRACE_LOG" != "no"; then
