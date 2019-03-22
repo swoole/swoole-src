@@ -1820,11 +1820,7 @@ void swReactor_defer_task_destroy(swReactor *reactor);
 
 static sw_inline swConnection* swReactor_get(swReactor *reactor, int fd)
 {
-    if (reactor->thread)
-    {
-        return &reactor->socket_list[fd];
-    }
-    swConnection *socket = (swConnection*) swArray_alloc(reactor->socket_array, fd);
+    swConnection *socket = reactor->thread ? &reactor->socket_list[fd] : (swConnection*) swArray_alloc(reactor->socket_array, fd);
     if (socket && !socket->active)
     {
         socket->fd = fd;
