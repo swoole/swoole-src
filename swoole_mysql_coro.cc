@@ -21,6 +21,8 @@
 #include "swoole_coroutine.h"
 #include "swoole_mysql_coro.h"
 
+#include "error.h"
+
 // see mysqlnd 'L64' macro redefined
 #undef L64
 
@@ -3024,8 +3026,12 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     {
         swoole_php_fatal_error(E_WARNING, "swClient_create() failed. Error: %s [%d]", strerror(errno), errno);
         _failed:
-        zend_update_property_string(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("connect_error"), strerror(errno));
-        zend_update_property_long(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("connect_errno"), errno);
+        if (errno != 0)
+        {
+            SwooleG.error = errno;
+        }
+        zend_update_property_string(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("connect_error"), swoole_strerror(SwooleG.error));
+        zend_update_property_long(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("connect_errno"), SwooleG.error);
         efree(cli);
         zval_ptr_dtor(server_info);
         RETURN_FALSE;
@@ -3041,6 +3047,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         }
     }
 
+    errno = 0;
     int ret = cli->connect(cli, connector->host, connector->port, -1, 2);
     if ((ret < 0 && errno == EINPROGRESS) || ret == 0)
     {
