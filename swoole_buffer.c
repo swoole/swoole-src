@@ -41,7 +41,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_buffer_substr, 0, 0, 1)
     ZEND_ARG_INFO(0, offset)
     ZEND_ARG_INFO(0, length)
-    ZEND_ARG_INFO(0, seek)
+    ZEND_ARG_INFO(0, remove)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_buffer_write, 0, 0, 2)
@@ -83,6 +83,9 @@ void swoole_buffer_init(int module_number)
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_buffer, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_buffer, zend_class_clone_deny);
     SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_buffer, zend_class_unset_property_deny);
+
+    zend_declare_property_long(swoole_buffer_ce_ptr, ZEND_STRL("capacity"), SW_STRING_BUFFER_DEFAULT, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_buffer_ce_ptr, ZEND_STRL("length"), 0, ZEND_ACC_PUBLIC);
 }
 
 static void swoole_buffer_recycle(swString *buffer)
@@ -91,17 +94,17 @@ static void swoole_buffer_recycle(swString *buffer)
     {
         return;
     }
-    swString_sub(buffer, buffer->offset, 0);
+    swString_pop_front(buffer, buffer->offset);
 }
 
 static PHP_METHOD(swoole_buffer, __construct)
 {
-    long size = SW_STRING_BUFFER_DEFAULT;
+    zend_long size = SW_STRING_BUFFER_DEFAULT;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &size) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(size)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (size < 1)
     {
@@ -117,7 +120,7 @@ static PHP_METHOD(swoole_buffer, __construct)
     swString *buffer = swString_new(size);
     if (buffer == NULL)
     {
-        zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "malloc(%ld) failed.", size);
+        zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "malloc(" ZEND_LONG_FMT ") failed.", size);
         RETURN_FALSE;
     }
 

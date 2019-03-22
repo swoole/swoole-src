@@ -9,10 +9,12 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
 {
-    echo curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
-    echo curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
-    echo curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
-    swoole_process::kill($pid);
+    go(function () use ($pm) {
+        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        $pm->kill();
+    });
 };
 
 $count = 0;

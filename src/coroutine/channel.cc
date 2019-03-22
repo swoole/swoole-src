@@ -38,11 +38,7 @@ void Channel::timer_callback(swTimer *timer, swTimer_node *tnode)
 
 void Channel::yield(enum opcode type)
 {
-    Coroutine *co = Coroutine::get_current();
-    if (unlikely(!co))
-    {
-        swError("Channel::yield() must be called in the coroutine.");
-    }
+    Coroutine *co = Coroutine::get_current_safe();
     if (type == PRODUCER)
     {
         producer_queue.push_back(co);

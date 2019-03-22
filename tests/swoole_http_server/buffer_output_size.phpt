@@ -11,9 +11,9 @@ define('HTTP_HEADER_SIZE', pow(2, 8));
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
-        $response = httpCoroGet("http://127.0.0.1:{$pm->getFreePort()}", ['timeout' => 0.1]);
+        $response = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}", ['timeout' => 0.1]);
         assert(strrpos($response, RANDOM_CHAR) + 1 === BUFFER_OUTPUT_SIZE - HTTP_HEADER_SIZE);
-        $response = httpCoroGet("http://127.0.0.1:{$pm->getFreePort()}/full", ['timeout' => 0.1]);
+        $response = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/full", ['timeout' => 0.1]);
         assert(!$response);
         echo file_get_contents(TEST_LOG_FILE);
         $pm->kill();

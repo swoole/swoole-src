@@ -17,7 +17,7 @@ $pm->parentFunc = function ($pid) use ($pm)
             'package_length_offset' => 0,
             'package_body_offset' => 4,
         ]);
-        if (!$client->connect('127.0.0.1', $pm->getFreePort(), 0.5, 0))
+        if (!$client->connect('127.0.0.1', $pm->getFreePort(), 5, 0))
         {
             echo "Over flow. errno=" . $client->errCode;
             die("\n");

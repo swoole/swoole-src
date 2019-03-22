@@ -36,9 +36,11 @@ function test(string $host, int $port = 0)
 }
 
 go('test', REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-go('test', 'unix:' . str_repeat('/', mt_rand(1, 3)) . REDIS_SERVER_PATH);
+if (file_exists(REDIS_SERVER_PATH)) {
+    go('test', 'unix:' . str_repeat('/', mt_rand(1, 3)) . REDIS_SERVER_PATH);
+}
 
-swoole_event_wait();
+Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--

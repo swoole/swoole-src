@@ -93,7 +93,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
     //there are remaining data
     if (length < buffer->length)
     {
-        swString_sub(buffer, length, 0);
+        swString_pop_front(buffer, length);
         swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%zu", count, buffer->length);
         goto _find_eof;
     }
@@ -178,7 +178,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 
                 if (buffer->length > buffer->offset)
                 {
-                    swString_sub(buffer, buffer->offset, 0);
+                	swString_pop_front(buffer, buffer->offset);
                     goto _do_get_length;
                 }
                 else

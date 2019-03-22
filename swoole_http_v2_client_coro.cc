@@ -92,6 +92,7 @@ static PHP_METHOD(swoole_http2_client_coro, isStreamExist);
 static PHP_METHOD(swoole_http2_client_coro, send);
 static PHP_METHOD(swoole_http2_client_coro, write);
 static PHP_METHOD(swoole_http2_client_coro, recv);
+static PHP_METHOD(swoole_http2_client_coro, ping);
 static PHP_METHOD(swoole_http2_client_coro, goaway);
 static PHP_METHOD(swoole_http2_client_coro, close);
 
@@ -119,6 +120,7 @@ static const zend_function_entry swoole_http2_client_methods[] =
     PHP_ME(swoole_http2_client_coro, write,         arginfo_swoole_http2_client_coro_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, recv,          arginfo_swoole_http2_client_coro_recv, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, goaway,        arginfo_swoole_http2_client_coro_goaway, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, ping,        arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, close,         arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -258,10 +260,12 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
     zend_long port = 80;
     zend_bool ssl = SW_FALSE;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lb", &host, &host_len, &port, &ssl) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 3)
+        Z_PARAM_STRING(host, host_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(port)
+        Z_PARAM_BOOL(ssl)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (host_len == 0)
     {
@@ -284,7 +288,7 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
     hcc->host = estrndup(host, host_len);
     hcc->host_len = host_len;
     hcc->port = port;
-    hcc->timeout = PHPCoroutine::socket_timeout;
+    hcc->timeout = Socket::default_read_timeout;
     swoole_set_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY, hcc);
 
     php_coro_context *context = (php_coro_context *) emalloc(sizeof(php_coro_context));
@@ -452,6 +456,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
     zval *zheaders = sw_zend_read_property(swoole_http2_request_ce_ptr, req, ZEND_STRL("headers"), 0);
     zval *zcookies = sw_zend_read_property(swoole_http2_request_ce_ptr, req, ZEND_STRL("cookies"), 0);
     nghttp2_nv *nv = (nghttp2_nv *) ecalloc(sizeof(nghttp2_nv), 8 + (ZVAL_IS_ARRAY(zheaders) ? php_swoole_array_length(zheaders) : 0));
+    std::vector<zend::string_ptr> zstr_list;
 
     http2_client_property *hcc = (http2_client_property *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
     if (Z_TYPE_P(zmethod) != IS_STRING || Z_STRLEN_P(zmethod) == 0)
@@ -488,7 +493,6 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
         char *key = NULL;
         uint32_t keylen = 0;
         int type;
-        std::vector<zend::string_ptr> zstr_list;
 
         SW_HASHTABLE_FOREACH_START2(ht, key, keylen, type, value)
         {
@@ -522,7 +526,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
         http2_client_add_cookie(nv, &index, zcookies);
     }
 
-    ssize_t rv = SW_ERR;;
+    ssize_t rv = SW_ERR;
     size_t buflen = nghttp2_hd_deflate_bound(hcc->deflater, nv, index);
     if (buflen > hcc->remote_settings.max_header_list_size)
     {
@@ -661,10 +665,35 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     }
     case SW_HTTP2_TYPE_PING:
     {
-        swHttp2FrameTraceLog(recv, "ping");
-        swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
-        memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE, buf + SW_HTTP2_FRAME_HEADER_SIZE, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
-        cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, 0);
+        zval return_value;
+        zval *retval = NULL;
+        swHttp2FrameTraceLog(recv, "ACK");
+        if ((flags & SW_HTTP2_FLAG_ACK) && length == SW_HTTP2_FRAME_PING_PAYLOAD_SIZE)
+        {
+            ZVAL_TRUE(&return_value);
+        }
+        else
+        {
+            ZVAL_FALSE(&return_value);
+            http2_client_close(cli); //will trigger onClose and resume
+            return;
+        }
+        if (cli->timer)
+        {
+            swTimer_del(&SwooleG.timer, cli->timer);
+            cli->timer = NULL;
+        }
+        if (hcc->iowait != 0)
+        {
+            hcc->iowait = 0;
+            hcc->read_cid = 0;
+            php_coro_context *context = (php_coro_context *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
+            int ret = PHPCoroutine::resume_m(context, &return_value, retval);
+            if (ret == SW_CORO_ERR_END && retval)
+            {
+                zval_ptr_dtor(retval);
+            }
+        }
         return;
     }
     case SW_HTTP2_TYPE_GOAWAY:
@@ -1391,6 +1420,34 @@ static PHP_METHOD(swoole_http2_client_coro, write)
         RETURN_FALSE;
     }
     SW_CHECK_RETURN(http2_client_send_data(hcc, stream_id, data, end));
+}
+
+static PHP_METHOD(swoole_http2_client_coro, ping)
+{
+    http2_client_property *hcc = (http2_client_property *) swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
+    swClient *cli = hcc->client;
+
+    if (!hcc->streams)
+    {
+        zend_update_property_long(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION));
+        zend_update_property_string(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server.");
+        swoole_php_error(E_WARNING, "client is not connected to server.");
+        RETURN_FALSE;
+    }
+
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
+    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_NONE, 0);
+    cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, 0);
+
+    double timeout = hcc->timeout;
+    php_coro_context *context = (php_coro_context *) swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
+    if (timeout > 0)
+    {
+        cli->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, context, http2_client_onTimeout);
+    }
+    hcc->iowait = 1;
+    hcc->read_cid = PHPCoroutine::get_cid();
+    PHPCoroutine::yield_m(return_value, context);
 }
 
 /**

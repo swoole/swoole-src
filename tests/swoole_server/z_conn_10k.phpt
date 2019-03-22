@@ -3,6 +3,10 @@ swoole_server: 10k connections
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+require __DIR__ . '/../include/config.php';
+if ((int)`ulimit -n 2>&1` < MAX_CONCURRENCY_MID * MAX_REQUESTS) {
+    skip('ulimit -n failed');
+}
 ?>
 --FILE--
 <?php

@@ -235,7 +235,7 @@ static void swSignalfd_set(int signo, swSignalHandler handler)
     }
     if (signal_fd > 0)
     {
-        sigprocmask(SIG_BLOCK, &signalfd_mask, NULL);
+        sigprocmask(SIG_SETMASK, &signalfd_mask, NULL);
         signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
     }
 }
@@ -321,7 +321,7 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
     {
         int fd;
     } *reactor_obj = reactor->object;
-    int new_event_num;
+    uint32_t new_event_num;
     // clear signal
     if (handler == NULL)
     {
@@ -355,7 +355,7 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
     {
         if (unlikely(handler))
         {
-            swWarn("kevent set signal[%d] error", signo);
+            swWarn("kevent set signal[%d] error, errno=%d", signo, errno);
         }
         return;
     }

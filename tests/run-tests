@@ -94,7 +94,7 @@ $environment = $_ENV ?? array();
 //       detect and handle this case, or die or warn
 if (empty($environment)) {
     // not documented, but returns array of all environment variables
-    $environment = getenv();
+    $environment = @getenv();
 }
 if (empty($environment['TEMP'])) {
     $environment['TEMP'] = sys_get_temp_dir();
@@ -118,10 +118,11 @@ if ((substr(PHP_OS, 0, 3) == "WIN") && empty($environment["SystemRoot"])) {
 
 // swoole patch (persistent config)
 {
-    $environment['HAS_NETSTAT'] = $environment['HAS_NETSTAT'] ?? (stripos(`netstat --help 2>&1`, 'usage') ? '1' : '0');
+    $environment['PHPT'] = $environment['PHPT'] ?? getenv('PHPT');
+    $environment['HAS_NETSTAT'] = getenv('HAS_NETSTAT') ?? (stripos(`netstat --help 2>&1`, 'usage') ? '1' : '0');
     if ($environment['HAS_NETSTAT']) {
-        $environment['MYSQL_SERVER_PATH'] = $environment['MYSQL_SERVER_PATH'] ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*mysqld?\.sock'`) ?: null);
-        $environment['REDIS_SERVER_PATH'] = $environment['REDIS_SERVER_PATH'] ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*redis.*\.sock'`) ?: null);
+        $environment['MYSQL_SERVER_PATH'] = getenv('MYSQL_SERVER_PATH') ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*mysqld?\.sock'`) ?: null);
+        $environment['REDIS_SERVER_PATH'] = getenv('REDIS_SERVER_PATH') ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*redis.*\.sock'`) ?: null);
     }
 }
 
@@ -372,6 +373,8 @@ define('SWOOLE_COLOR_BLUE', 4);
 define('SWOOLE_COLOR_MAGENTA', 5);
 define('SWOOLE_COLOR_CYAN', 6);
 define('SWOOLE_COLOR_WHITE', 7);
+// swoole patch: os check
+define('SWOOLE_IS_ALPINE_LINUX', strpos(`apk 2>&1`, 'apk-tools') !== false);
 
 function save_or_mail_results()
 {
@@ -1191,12 +1194,23 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
             proc_terminate($proc, 9);
             return $data;
         } else if ($n > 0) {
-            if ($captureStdOut) {
-                $line = fread($pipes[1], 8192);
-            } elseif ($captureStdErr) {
-                $line = fread($pipes[2], 8192);
+            // swoole patch: fix blocking read
+            if (SWOOLE_IS_ALPINE_LINUX) {
+                if ($captureStdOut) {
+                    $line = fread($pipes[1], 8192);
+                } elseif ($captureStdErr) {
+                    $line = fread($pipes[2], 8192);
+                } else {
+                    $line = '';
+                }
             } else {
                 $line = '';
+                if ($captureStdOut && in_array($pipes[1], $r)) {
+                    $line .= fread($pipes[1], 8192);
+                }
+                if ($captureStdErr && in_array($pipes[2], $r)) {
+                    $line .= fread($pipes[2], 8192);
+                }
             }
             if (strlen($line) == 0) {
                 /* EOF */

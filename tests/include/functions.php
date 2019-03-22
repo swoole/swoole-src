@@ -19,7 +19,7 @@
 
 function switch_process()
 {
-    usleep((USE_VALGRIND ? 100 : 1) * 1000);
+    usleep((USE_VALGRIND ? 100 : 10) * 1000);
 }
 
 function clear_php()
@@ -58,20 +58,33 @@ function is_alpine_linux(): bool
 function get_one_free_port()
 {
     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-    $ok = socket_bind($socket, "0.0.0.0", 0);
-    if (!$ok) {
+    if (!socket_bind($socket, "0.0.0.0", 0)) {
         return false;
     }
-    $ok = socket_listen($socket);
-    if (!$ok) {
+    if (!socket_listen($socket)) {
         return false;
     }
-    $ok = socket_getsockname($socket, $addr, $port);
-    if (!$ok) {
+    if (!socket_getsockname($socket, $addr, $port)) {
         return false;
     }
     socket_close($socket);
     return $port;
+}
+
+function get_one_free_port_coro()
+{
+    $socket = new Co\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    $socket->bind('0.0.0.0');
+    $socket->listen();
+    $port = $socket->getsockname()['port'];
+    $socket->close();
+    return $port;
+}
+
+function set_socket_buffer_size($php_socket, int $size)
+{
+    socket_set_option($php_socket, SOL_SOCKET, SO_SNDBUF, $size);
+    socket_set_option($php_socket, SOL_SOCKET, SO_RCVBUF, $size);
 }
 
 function approximate($expect, $actual, float $ratio = 0.1): bool
@@ -86,6 +99,18 @@ function approximate($expect, $actual, float $ratio = 0.1): bool
 function time_approximate($expect, $actual, float $ratio = 0.1)
 {
     return USE_VALGRIND || approximate($expect, $actual, $ratio);
+}
+
+function ms_random(float $a, float $b) : float
+{
+    return mt_rand($a * 1000, $b * 1000) / 1000;
+}
+
+function string_pop_front(string &$s, int $length): string
+{
+    $r = substr($s, 0, $length);
+    $s = substr($s, $length);
+    return $r;
 }
 
 function array_random(array $array)
@@ -111,35 +136,43 @@ function phpt_var_dump(...$args)
     }
 }
 
-function httpCoroGet(string $uri, array $options = [])
+function _httpGet(string $uri, array $options = [])
 {
     $url_info = parse_url($uri);
-    $domain = $url_info['host'];
+    $scheme = $url_info['scheme'] ?? 'http';
+    $domain = $url_info['host'] ?? '127.0.0.1';
     $path = $url_info['path'] ?? null ?: '/';
+    $query = $url_info['query'] ?? null ? "?{$url_info['query']}" : '';
     $port = (int)($url_info['port'] ?? null ?: 80);
-    $cli = new Swoole\Coroutine\Http\Client($domain, $port, $port == 443);
+    $cli = new Swoole\Coroutine\Http\Client($domain, $port, $scheme === 'https' || $port == 443);
     $cli->set($options + ['timeout' => 5]);
     $cli->setHeaders(['Host' => $domain]);
-    $cli->get($path);
-    return $cli->body;
+    $redirect_times = $options['redirect'] ?? 3;
+    while (true) {
+        $cli->get($path . $query);
+        if ($redirect_times-- && ($cli->headers['location'] ?? null) && $cli->headers['location']{0} === '/') {
+            $path = $cli->headers['location'];
+            $query = '';
+            continue;
+        }
+        break;
+    }
+    return $cli;
 }
 
-function curlGet($url, $gzip = true)
+function httpGetStatusCode(string $uri, array $options = [])
 {
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_HEADER, 0);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    if ($gzip)
-    {
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Accept-Encoding: gzip'));
-        curl_setopt($ch, CURLOPT_ENCODING, "gzip");
-    }
-    $output = curl_exec($ch);
-    curl_close($ch);
-    return $output;
+    return _httpGet($uri, $options)->statusCode;
+}
+
+function httpGetHeaders(string $uri, array $options = [])
+{
+    return _httpGet($uri, $options)->headers;
+}
+
+function httpGetBody(string $uri, array $options = [])
+{
+    return _httpGet($uri, $options)->body;
 }
 
 function content_hook_replace(string $content, array $kv_map): string
@@ -693,12 +726,18 @@ class ProcessManager
     //等待信息
     public function wait()
     {
+        if ($this->alone || $this->waitTimeout == 0) {
+            return false;
+        }
         return $this->atomic->wait($this->waitTimeout);
     }
 
     //唤醒等待的进程
     public function wakeup()
     {
+        if ($this->alone) {
+            return false;
+        }
         return $this->atomic->wakeup();
     }
 
@@ -818,6 +857,9 @@ class ProcessManager
         if (!$childProcess || !$childProcess->start()) {
             exit("ERROR: CAN NOT CREATE PROCESS\n");
         }
+        register_shutdown_function(function () {
+            $this->kill();
+        });
         if (!$this->parentFirst) {
             $this->wait();
         }

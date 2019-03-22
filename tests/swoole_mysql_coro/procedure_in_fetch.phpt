@@ -9,6 +9,7 @@ go(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [
         'host' => MYSQL_SERVER_HOST,
+        'port' => MYSQL_SERVER_PORT,
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB,
@@ -56,7 +57,7 @@ SQL;
         $_map = $map;
         try {
             $pdo = new PDO(
-                "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+                "mysql:host=" . MYSQL_SERVER_HOST . ";port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
                 MYSQL_SERVER_USER, MYSQL_SERVER_PWD
             );
             $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);

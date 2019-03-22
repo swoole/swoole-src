@@ -63,7 +63,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult);
 #define UTF8_MB4 "utf8mb4"
 #define UTF8_MB3 "utf8"
 
-#define DATETIME_MAX_SIZE  20
+#define DATETIME_MAX_SIZE  32
 
 typedef struct _mysql_big_data_info {
     // for used:
@@ -389,6 +389,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event);
 static int swoole_mysql_coro_onWrite(swReactor *reactor, swEvent *event);
 static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event);
 static void swoole_mysql_coro_onConnect(mysql_client *client);
+static void swoole_mysql_coro_onConnectTimeout(swTimer *timer, swTimer_node *tnode);
 static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode);
 static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback);
 static int mysql_response(mysql_client *client);
@@ -402,8 +403,6 @@ static zend_object *swoole_mysql_coro_create_object(zend_class_entry *ce)
     object = zend_objects_new(ce);
     object->handlers = &swoole_mysql_coro_handlers;
     object_properties_init(object, ce);
-
-    PHPCoroutine::check();
 
     mysql_client *client = (mysql_client *) emalloc(sizeof(mysql_client));
     bzero(client, sizeof(mysql_client));
@@ -577,7 +576,7 @@ static zend_string* mysql_decode_big_data(mysql_big_data_info *mbdi)
 
 static ssize_t mysql_decode_row(mysql_client *client, char *buf, uint32_t packet_length, size_t n_buf)
 {
-    int i;
+    uint32_t i;
     int tmp_len;
     ulong_t len;
     char nul;
@@ -608,7 +607,7 @@ static ssize_t mysql_decode_row(mysql_client *client, char *buf, uint32_t packet
         read_n += tmp_len;
 
         // WARNING: data may be longer than single packet (0x00fffff => 16M)
-        if (unlikely(len > packet_length - read_n))
+        if (unlikely(len > (uint32_t) (packet_length - read_n)))
         {
             mysql_big_data_info mbdi = { len, n_buf - read_n, packet_length - (uint32_t) read_n, buf + read_n, 0, 0 };
             if ((zstring = mysql_decode_big_data(&mbdi)))
@@ -808,7 +807,7 @@ static int mysql_decode_datetime(char *buf, char *result)
             s = *(uint8_t *) (buf + 7);
         }
     }
-    snprintf(result, DATETIME_MAX_SIZE, "%04d-%02d-%02d %02d:%02d:%02d", y, M, d, h, m, s);
+    snprintf(result, DATETIME_MAX_SIZE, "%.4u-%.2u-%.2u %.2u:%.2u:%.2u", y, M, d, h, m, s);
 
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "n=%d", n);
 
@@ -827,7 +826,7 @@ static int mysql_decode_time(char *buf, char *result)
         s = *(uint8_t *) (buf + 8);
     }
 
-    snprintf(result, DATETIME_MAX_SIZE, "%02d:%02d:%02d", h, m, s);
+    snprintf(result, DATETIME_MAX_SIZE, "%.2u:%.2u:%.2u", h, m, s);
 
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "n=%d", n);
 
@@ -846,7 +845,7 @@ static int mysql_decode_date(char *buf, char *result)
         M = *(uint8_t *) (buf + 3);
         d = *(uint8_t *) (buf + 4);
     }
-    snprintf(result, DATETIME_MAX_SIZE, "%04d-%02d-%02d", y, M, d);
+    snprintf(result, DATETIME_MAX_SIZE, "%.4u-%.2u-%.2u", y, M, d);
 
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "n=%d", n);
 
@@ -856,12 +855,12 @@ static int mysql_decode_date(char *buf, char *result)
 static void mysql_decode_year(char *buf, char *result)
 {
     uint16_t y = *(uint16_t *) (buf);
-    snprintf(result, DATETIME_MAX_SIZE, "%04d", y);
+    snprintf(result, DATETIME_MAX_SIZE, "%.4u", y);
 }
 
 static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint32_t packet_length, size_t n_buf)
 {
-    int i;
+    uint32_t i;
     int tmp_len;
     ulong_t len = 0;
     char nul;
@@ -951,7 +950,7 @@ static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint32_
             }
             read_n += tmp_len;
             // WARNING: data may be longer than single packet (0x00fffff => 16M)
-            if (unlikely(len > packet_length - read_n))
+            if (unlikely(len > (uint32_t) (packet_length - read_n)))
             {
                 zend_string *zstring;
                 mysql_big_data_info mbdi = { len, n_buf - read_n, packet_length - (uint32_t) read_n, buf + read_n, 0, 0 };
@@ -1049,7 +1048,11 @@ static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint32_
         case SW_MYSQL_TYPE_FLOAT:
             row.mfloat = *(float *) (buf + read_n);
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%.7f", field->name, row.mfloat);
+#if PHP_VERSION_ID >= 70011
             row.mdouble = _php_math_round(row.mfloat, 5, PHP_ROUND_HALF_DOWN);
+#else
+            row.mdouble = row.mfloat;
+#endif
             add_assoc_double(row_array, field->name, row.mdouble);
             len = sizeof(row.mfloat);
             break;
@@ -1170,7 +1173,7 @@ static void mysql_columns_free(mysql_client *client)
 {
     if (client->response.columns)
     {
-        int i;
+        uint32_t i;
         for (i = 0; i < client->response.num_column; i++)
         {
             if (client->response.columns[i].buffer)
@@ -1231,9 +1234,9 @@ static int mysql_parse_prepare_result(mysql_client *client, char *buf, size_t n_
     return SW_OK;
 }
 
-static int mysql_decode_field(char *buf, int len, mysql_field *col)
+static int mysql_decode_field(char *buf, size_t len, mysql_field *col)
 {
-    int i;
+    uint32_t i;
     ulong_t size;
     char nul;
     char *wh;
@@ -1648,7 +1651,7 @@ static int mysql_is_over(mysql_client *client)
     {
         swTraceLog(SW_TRACE_MYSQL_CLIENT, "check packet from %jd, remaining=%jd", (intmax_t) client->check_offset, (intmax_t) remaining_size);
         p = buffer->str + client->check_offset; // where to start checking now
-        if (unlikely(buffer->length < client->check_offset + SW_MYSQL_PACKET_HEADER_SIZE))
+        if (unlikely(buffer->length < (size_t) client->check_offset + SW_MYSQL_PACKET_HEADER_SIZE))
         {
             client->want_length = client->check_offset + SW_MYSQL_PACKET_HEADER_SIZE;
             break; // header incomplete
@@ -1664,7 +1667,7 @@ static int mysql_is_over(mysql_client *client)
         }
 
         client->check_offset += (SW_MYSQL_PACKET_HEADER_SIZE + packet_length); // add header length + packet length
-        if (client->check_offset >= buffer->length) // if false: more packets exist, skip the current one
+        if ((size_t) client->check_offset >= buffer->length) // if false: more packets exist, skip the current one
         {
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "check the last packet, length=%u", packet_length);
             switch ((uint8_t) p[0])
@@ -1911,7 +1914,7 @@ int mysql_get_charset(char *name)
     return -1;
 }
 
-int mysql_get_result(mysql_connector *connector, char *buf, int len)
+int mysql_get_result(mysql_connector *connector, char *buf, size_t len)
 {
     char *tmp = buf;
     uint32_t packet_length = mysql_uint3korr(tmp);
@@ -2057,7 +2060,7 @@ string[$len]   auth-plugin-data-part-2 ($len=MAX(13, length of auth-plugin-data 
 string[NUL]    auth-plugin name
   }
  */
-int mysql_handshake(mysql_connector *connector, char *buf, int len)
+int mysql_handshake(mysql_connector *connector, char *buf, size_t len)
 {
     char *tmp = buf;
     int next_state = SW_MYSQL_HANDSHAKE_WAIT_RESULT; // ret is the next handshake state
@@ -2070,7 +2073,7 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
 
     request.packet_length = mysql_uint3korr(tmp);
     //continue to wait for data
-    if (len < SW_MYSQL_PACKET_HEADER_SIZE + request.packet_length)
+    if (len < (uint32_t) (SW_MYSQL_PACKET_HEADER_SIZE + request.packet_length))
     {
         return 0;
     }
@@ -2220,7 +2223,7 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
 
 // we may need it one day but now
 // we can reply the every auth plugin requirement on the first handshake
-int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
+int mysql_auth_switch(mysql_connector *connector, char *buf, size_t len)
 {
     char *tmp = buf;
     if ((uint8_t) tmp[4] != SW_MYSQL_PACKET_EOF)
@@ -2250,7 +2253,7 @@ int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
     // string[NUL]    plugin name
     char auth_plugin_name[32];
     int auth_plugin_name_len = 0;
-    int i;
+    uint32_t i;
     for (i = 0; i < packet_length; i++)
     {
         auth_plugin_name[auth_plugin_name_len] = tmp[auth_plugin_name_len];
@@ -2331,7 +2334,7 @@ int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector)
 #ifdef SW_MYSQL_RSA_SUPPORT
 //  Caching sha2 authentication. Public key request and send encrypted password
 // http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::AuthSwitchResponse
-int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
+int mysql_parse_rsa(mysql_connector *connector, char *buf, size_t len)
 {
     // clear
     connector->packet_length = 0;
@@ -2427,7 +2430,7 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
 
     PHPCoroutine::check_bind("mysql client", client->cid);
 
-    if (!client->cli)
+    if (!client->cli || client->state == SW_MYSQL_STATE_CLOSED)
     {
         swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
         return SW_ERR;
@@ -2833,6 +2836,11 @@ static int swoole_mysql_coro_close(zval *zobject)
     }
 
     //clear connector
+    if (client->connector.timer)
+    {
+        swTimer_del(&SwooleG.timer, client->connector.timer);
+        client->connector.timer = NULL;
+    }
     if (client->connector.host)
     {
         efree(client->connector.host);
@@ -2960,7 +2968,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     else
     {
-        connector->timeout = PHPCoroutine::socket_connect_timeout;
+        connector->timeout = Socket::default_connect_timeout;
     }
     if (php_swoole_array_get_value(_ht, "charset", value))
     {
@@ -3033,7 +3041,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         }
     }
 
-    int ret = cli->connect(cli, connector->host, connector->port, connector->timeout, 1);
+    int ret = cli->connect(cli, connector->host, connector->port, -1, 2);
     if ((ret < 0 && errno == EINPROGRESS) || ret == 0)
     {
         if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, PHP_SWOOLE_FD_MYSQL_CORO | SW_EVENT_WRITE) < 0)
@@ -3084,7 +3092,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 
     if (connector->timeout > 0)
     {
-        connector->timer = swTimer_add(&SwooleG.timer, (long) (connector->timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
+        connector->timer = swTimer_add(&SwooleG.timer, (long) (connector->timeout * 1000), 0, context, swoole_mysql_coro_onConnectTimeout);
     }
     client->cid = PHPCoroutine::get_cid();
     PHPCoroutine::yield_m(return_value, context);
@@ -3112,7 +3120,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
 
     PHPCoroutine::check_bind("mysql client", client->cid);
 
-    double timeout = PHPCoroutine::socket_timeout;
+    double timeout = Socket::default_read_timeout;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
     {
@@ -3228,7 +3236,7 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
     }
     else
     {
-        double timeout = PHPCoroutine::socket_timeout;
+        double timeout = Socket::default_read_timeout;
         if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
         {
             RETURN_FALSE;
@@ -3344,7 +3352,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
 
     PHPCoroutine::check_bind("mysql client", client->cid);
 
-    double timeout = PHPCoroutine::socket_timeout;
+    double timeout = Socket::default_read_timeout;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
     {
@@ -3415,12 +3423,13 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
         RETURN_FALSE;
     }
 
-    double timeout = PHPCoroutine::socket_timeout;
+    double timeout = Socket::default_read_timeout;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ad", &params, &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_EX(params, 1, 0)
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (stmt->buffer)
     {
@@ -3746,6 +3755,43 @@ static void swoole_mysql_coro_onConnect(mysql_client *client)
     }
 }
 
+static void swoole_mysql_coro_onConnectTimeout(swTimer *timer, swTimer_node *tnode)
+{
+    zval *result = sw_malloc_zval();;
+    zval *retval = NULL;
+    php_coro_context *ctx = (php_coro_context *) tnode->data;
+    zval _zobject = ctx->coro_params;
+    zval *zobject = & _zobject;
+
+    ZVAL_BOOL(result, 0);
+
+    mysql_client *client = (mysql_client *) swoole_get_object(zobject);
+
+    zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_error"), "connect timeout");
+    zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_errno"), ETIMEDOUT);
+
+    //timeout close conncttion
+    client->connector.timer = NULL;
+    swoole_mysql_coro_close(zobject);
+
+    if (client->defer && !client->suspending)
+    {
+        client->result = result;
+        return;
+    }
+    client->suspending = 0;
+    client->cid = 0;
+
+    int ret = PHPCoroutine::resume_m(ctx, result, retval);
+
+    if (ret == SW_CORO_ERR_END && retval)
+    {
+        zval_ptr_dtor(retval);
+    }
+
+    sw_zval_free(result);
+}
+
 static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     zval *result = sw_malloc_zval();;
@@ -3758,16 +3804,8 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     mysql_client *client = (mysql_client *) swoole_get_object(zobject);
 
-    if (client->handshake != SW_MYSQL_HANDSHAKE_COMPLETED)
-    {
-        zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_error"), "connect timeout");
-        zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_errno"), ETIMEDOUT);
-    }
-    else
-    {
-        zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("error"), "query timeout");
-        zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("errno"), ETIMEDOUT);
-    }
+    zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("error"), "query timeout");
+    zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("errno"), ETIMEDOUT);
 
     //timeout close conncttion
     client->timer = NULL;
@@ -3814,6 +3852,9 @@ static int swoole_mysql_coro_onWrite(swReactor *reactor, swEvent *event)
         SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, PHP_SWOOLE_FD_MYSQL_CORO | SW_EVENT_READ);
         //connected
         event->socket->active = 1;
+        client->connector.error_code = 0;
+        client->connector.error_msg = (char *) "";
+        client->connector.error_length = 0;
         client->handshake = SW_MYSQL_HANDSHAKE_WAIT_REQUEST;
     }
     else
@@ -3841,7 +3882,8 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client)
             swSysError("Read from socket[%d] failed.", cli->socket->fd);
             return SW_ERR;
         case SW_CLOSE:
-            _system_call_error: connector->error_code = errno;
+            _system_call_error:
+            connector->error_code = errno;
             connector->error_msg = strerror(errno);
             connector->error_length = strlen(connector->error_msg);
             swoole_mysql_coro_onConnect(client);

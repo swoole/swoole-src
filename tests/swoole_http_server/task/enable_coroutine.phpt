@@ -9,17 +9,19 @@ $randoms = [];
 for ($n = MAX_REQUESTS; $n--;) {
     $randoms[] = openssl_random_pseudo_bytes(mt_rand(0, 65536));
 }
-
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
-    for ($n = MAX_REQUESTS; $n--;) {
-        if (!assert(($res = curlGet("http://127.0.0.1:{$pm->getFreePort()}/task?n={$n}")) === 'OK')) {
-            echo "{$res}\n";
-            break;
+    go(function () use ($pm) {
+        for ($n = MAX_REQUESTS; $n--;) {
+            if (!assert(($res = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/task?n={$n}")) === 'OK')) {
+                echo "{$res}\n";
+                break;
+            }
         }
-    }
-    echo "DONE\n";
+    });
+    Swoole\Event::wait();
     $pm->kill();
+    echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
     $server = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);

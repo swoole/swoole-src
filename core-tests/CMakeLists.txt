@@ -4,11 +4,6 @@ project(core_tests)
 set(CMAKE_CXX_STANDARD 11)
 file(GLOB_RECURSE SOURCE_FILES FOLLOW_SYMLINKS src/*.cpp)
 
-option(USE_CARES "test cares" OFF)
-if(USE_CARES)
-    add_definitions(-DSW_USE_CARES)
-endif(USE_CARES)
-
 add_definitions(-DHAVE_CONFIG_H)
 
 link_directories($ENV{SWOOLE_DIR}/lib)

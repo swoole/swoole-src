@@ -29,6 +29,11 @@ extern "C"
 #include <poll.h>
 
 /**
+ * base
+ */
+uint8_t swoole_coroutine_is_in();
+
+/**
  * file
  */
 int swoole_coroutine_access(const char *pathname, int mode);

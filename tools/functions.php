@@ -1,4 +1,3 @@
-#!/usr/bin/env php
 <?php
 define('EMOJI_OK', '✅');
 define('EMOJI_SUCCESS', '🚀');

@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "config.h"
 #include "swoole.h"
 
 namespace swoole

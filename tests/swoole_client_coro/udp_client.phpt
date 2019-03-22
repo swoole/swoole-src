@@ -11,9 +11,10 @@ $pm->initFreePorts(2);
 
 $pm->parentFunc = function ($pid) use ($pm)
 {
-    $data = curlGet("http://127.0.0.1:{$pm->getFreePort(0)}/");
-    echo $data;
-    swoole_process::kill($pid);
+    go(function () use ($pm) {
+        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        $pm->kill();
+    });
 };
 
 $pm->childFunc = function () use ($pm)

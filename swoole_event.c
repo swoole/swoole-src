@@ -268,6 +268,12 @@ void php_swoole_event_wait()
 #endif
         if (!swReactor_empty(SwooleG.main_reactor))
         {
+            // Don't disable object slot reuse while running shutdown functions:
+            // https://github.com/php/php-src/commit/bd6eabd6591ae5a7c9ad75dfbe7cc575fa907eac
+#if defined(EG_FLAGS_IN_SHUTDOWN) && !defined(EG_FLAGS_OBJECT_STORE_NO_REUSE)
+            zend_bool in_shutdown = EG(flags) & EG_FLAGS_IN_SHUTDOWN;
+            EG(flags) &= ~EG_FLAGS_IN_SHUTDOWN;
+#endif
             SW_DECLARE_EG_SCOPE(scope);
             SW_SAVE_EG_SCOPE(scope);
             int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
@@ -276,6 +282,12 @@ void php_swoole_event_wait()
                 swoole_php_fatal_error(E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
             }
             SW_SET_EG_SCOPE(scope);
+#if defined(EG_FLAGS_IN_SHUTDOWN) && !defined(EG_FLAGS_OBJECT_STORE_NO_REUSE)
+            if (in_shutdown)
+            {
+                EG(flags) |= EG_FLAGS_IN_SHUTDOWN;
+            }
+#endif
         }
         php_swoole_clear_all_timer();
         SwooleWG.reactor_exit = 1;
@@ -433,6 +445,14 @@ php_socket* swoole_convert_to_socket(int sock)
         socket_object->blocking = !(t & O_NONBLOCK);
     }
     return socket_object;
+}
+
+void swoole_php_socket_free(zval *zsocket)
+{
+    php_socket *php_sock;
+    SW_ZEND_FETCH_RESOURCE_NO_RETURN(php_sock, php_socket *, &zsocket, -1, NULL, php_sockets_le_socket());
+    php_sock->bsd_socket = -1;
+    sw_zval_free(zsocket);
 }
 #endif
 

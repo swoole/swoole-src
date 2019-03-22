@@ -109,6 +109,7 @@ TEST(coroutine_socket, accept)
             bool retval = sock.connect("127.0.0.1", 9909, -1);
             ASSERT_EQ(retval, true);
             ASSERT_EQ(sock.errCode, 0);
+            sock.close();
         }
     });
 }

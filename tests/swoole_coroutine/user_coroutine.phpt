@@ -8,21 +8,21 @@ skip_if_in_travis('foreign network dns error');
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-
 use Swoole\Coroutine\Http\Client as HttpClient;
-
 $pm = new ProcessManager;
-$port = get_one_free_port();
-$pm->parentFunc = function ($pid) use ($port)
+$pm->parentFunc = function () use ($pm)
 {
-    $data = curlGet("http://127.0.0.1:{$port}/");
-    assert(strlen($data) > 1024);
-    swoole_process::kill($pid);
+    go(function () use ($pm) {
+        $data= httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        assert(strlen($data) > 1024);
+        $pm->kill();
+    });
+    Swoole\Event::wait();
+    echo "DONE\n";
 };
-
-$pm->childFunc = function () use ($pm, $port)
+$pm->childFunc = function () use ($pm)
 {
-    $http = new swoole_http_server('127.0.0.1', $port, SWOOLE_BASE);
+    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $http->set(array(
         'log_file' => '/dev/null'
     ));
@@ -63,8 +63,8 @@ $pm->childFunc = function () use ($pm, $port)
     });
     $http->start();
 };
-
 $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+DONE

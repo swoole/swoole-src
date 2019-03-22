@@ -17,19 +17,37 @@ class Test
 }
 
 fork_exec(function () {
-    swoole_timer_after(1, [Test::class, 'not_exist']);
+    Swoole\Timer::After(1, [Test::class, 'not_exist']);
 }, '/dev/stdout');
 fork_exec(function () {
-    swoole_timer_after(1, [Test::class, 'foo']);
+    Swoole\Timer::After(1, [Test::class, 'foo']);
 }, '/dev/stdout');
 fork_exec(function () {
-    swoole_timer_after(1, [new Test, 'bar']);
+    Swoole\Timer::After(1, [new Test, 'bar']);
 }, '/dev/stdout');
 
 ?>
 --EXPECTF--
-Warning: swoole_timer_after() expects parameter 2 to be a valid callback, class 'Test' does not have a method 'not_exist' in %s/tests/swoole_timer/call_private.php on line 12
+Fatal error: Uncaught TypeError: Argument 2 passed to Swoole\Timer::after() must be callable, array given in %s/tests/swoole_timer/call_private.php:12
+Stack trace:
+#0 %s/tests/swoole_timer/call_private.php(12): Swoole\Timer::after(1, Array)
+#1 %s/tests/include/functions.php(541): {closure}()
+#2 %s/tests/swoole_timer/call_private.php(13): fork_exec(Object(Closure), '/dev/stdout')
+#3 {main}
+  thrown in %s/tests/swoole_timer/call_private.php on line 12
 
-Warning: swoole_timer_after() expects parameter 2 to be a valid callback, cannot access private method Test::foo() in %s/tests/swoole_timer/call_private.php on line 15
+Fatal error: Uncaught TypeError: Argument 2 passed to Swoole\Timer::after() must be callable, array given in %s/tests/swoole_timer/call_private.php:15
+Stack trace:
+#0 %s/tests/swoole_timer/call_private.php(15): Swoole\Timer::after(1, Array)
+#1 %s/tests/include/functions.php(541): {closure}()
+#2 %s/tests/swoole_timer/call_private.php(16): fork_exec(Object(Closure), '/dev/stdout')
+#3 {main}
+  thrown in %s/tests/swoole_timer/call_private.php on line 15
 
-Warning: swoole_timer_after() expects parameter 2 to be a valid callback, cannot access private method Test::bar() in %s/tests/swoole_timer/call_private.php on line 18
+Fatal error: Uncaught TypeError: Argument 2 passed to Swoole\Timer::after() must be callable, array given in %s/tests/swoole_timer/call_private.php:18
+Stack trace:
+#0 %s/tests/swoole_timer/call_private.php(18): Swoole\Timer::after(1, Array)
+#1 %s/tests/include/functions.php(541): {closure}()
+#2 %s/tests/swoole_timer/call_private.php(19): fork_exec(Object(Closure), '/dev/stdout')
+#3 {main}
+  thrown in %s/tests/swoole_timer/call_private.php on line 18

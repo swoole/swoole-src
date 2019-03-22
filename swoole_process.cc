@@ -28,7 +28,7 @@ struct process
 {
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
-    zval zsocket;
+    zend_object *zsocket;
     int pipe_type;
 };
 
@@ -74,7 +74,7 @@ zend_class_entry *swoole_process_ce_ptr;
 static zend_object_handlers swoole_process_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_construct, 0, 0, 1)
-    ZEND_ARG_INFO(0, callback)
+    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
     ZEND_ARG_INFO(0, redirect_stdin_and_stdout)
     ZEND_ARG_INFO(0, pipe_type)
 ZEND_END_ARG_INFO()
@@ -283,13 +283,13 @@ static PHP_METHOD(swoole_process, __construct)
     php::process *proc = (php::process *) emalloc(sizeof(php::process));
     bzero(proc, sizeof(php::process));
 
-    ZEND_PARSE_PARAMETERS_START(1, 4)
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
         Z_PARAM_FUNC(proc->fci, proc->fci_cache);
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(redirect_stdin_and_stdout)
         Z_PARAM_LONG(pipe_type)
         Z_PARAM_BOOL(enable_coroutine)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swWorker *process = (swWorker *) emalloc(sizeof(swWorker));
     bzero(process, sizeof(swWorker));
@@ -360,9 +360,9 @@ static PHP_METHOD(swoole_process, __destruct)
     }
     php::process *proc = (php::process *) process->ptr2;
     sw_fci_cache_discard(&proc->fci_cache);
-    if (!Z_ISUNDEF(proc->zsocket))
+    if (proc->zsocket)
     {
-        zval_dtor(&proc->zsocket);
+        OBJ_RELEASE(proc->zsocket);
     }
     efree(proc);
     efree(process);
@@ -485,12 +485,12 @@ static PHP_METHOD(swoole_process, kill)
         RETURN_FALSE;
     }
 
-    int ret = kill((int) pid, (int) sig);
+    int ret = swKill((int) pid, (int) sig);
     if (ret < 0)
     {
         if (!(sig == 0 && errno == ESRCH))
         {
-            swoole_php_error(E_WARNING, "kill(%d, %d) failed. Error: %s[%d]", (int) pid, (int) sig, strerror(errno), errno);
+            swoole_php_error(E_WARNING, "swKill(%d, %d) failed. Error: %s[%d]", (int) pid, (int) sig, strerror(errno), errno);
         }
         RETURN_FALSE;
     }
@@ -787,15 +787,9 @@ static PHP_METHOD(swoole_process, start)
 {
     swWorker *process = (swWorker *) swoole_get_object(getThis());
 
-    if (process->pid > 0 && kill(process->pid, 0) == 0)
+    if (swKill(process->pid, 0) == 0)
     {
         swoole_php_fatal_error(E_WARNING, "process has already been started.");
-        RETURN_FALSE;
-    }
-
-    if (PHPCoroutine::is_in())
-    {
-        swoole_php_fatal_error(E_ERROR, "must be forked outside the coroutine.");
         RETURN_FALSE;
     }
 
@@ -920,20 +914,17 @@ static PHP_METHOD(swoole_process, exportSocket)
         swoole_php_fatal_error(E_WARNING, "no pipe, cannot export stream.");
         RETURN_FALSE;
     }
-
     php::process *proc = (php::process *) process->ptr2;
-    if (!Z_ISUNDEF(proc->zsocket))
+    if (!proc->zsocket)
     {
-        RETURN_ZVAL(&proc->zsocket, 1, 0);
+        proc->zsocket = php_swoole_export_socket_ex(process->pipe, proc->pipe_type == php::PIPE_TYPE_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM);
+        if (!proc->zsocket)
+        {
+            RETURN_FALSE;
+        }
     }
-
-    if (!php_swoole_export_socket(&proc->zsocket, process->pipe,
-            proc->pipe_type == php::PIPE_TYPE_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM))
-    {
-        RETURN_FALSE
-    }
-
-    RETURN_ZVAL(&proc->zsocket, 1, 0);
+    GC_ADDREF(proc->zsocket);
+    RETURN_OBJ(proc->zsocket);
 }
 
 static PHP_METHOD(swoole_process, push)

@@ -54,7 +54,7 @@ static int swFactoryProcess_shutdown(swFactory *factory)
 
     if (swKill(serv->gs->manager_pid, SIGTERM) < 0)
     {
-        swSysError("kill(%d) failed.", serv->gs->manager_pid);
+        swSysError("swKill(%d) failed.", serv->gs->manager_pid);
     }
 
     if (swWaitpid(serv->gs->manager_pid, &status, 0) < 0)

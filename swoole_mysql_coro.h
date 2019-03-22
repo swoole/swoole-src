@@ -236,8 +236,8 @@ enum mysql_server_status_flags
 
 typedef struct
 {
-    int packet_length;
-    int packet_number;
+    uint32_t packet_length :24;
+    uint32_t packet_number :8;
     uint8_t protocol_version;
     char *server_version;
     int connection_id;
@@ -483,12 +483,12 @@ typedef struct _mysql_client
 
 #define MYSQL_RESPONSE_BUFFER  (client->cmd == SW_MYSQL_COM_STMT_EXECUTE ? client->statement->buffer : client->buffer)
 
-int mysql_get_result(mysql_connector *connector, char *buf, int len);
+int mysql_get_result(mysql_connector *connector, char *buf, size_t len);
 int mysql_get_charset(char *name);
-int mysql_handshake(mysql_connector *connector, char *buf, int len);
+int mysql_handshake(mysql_connector *connector, char *buf, size_t len);
 int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector);
-int mysql_parse_rsa(mysql_connector *connector, char *buf, int len);
-int mysql_auth_switch(mysql_connector *connector, char *buf, int len);
+int mysql_parse_rsa(mysql_connector *connector, char *buf, size_t len);
+int mysql_auth_switch(mysql_connector *connector, char *buf, size_t len);
 int mysql_request_pack(swString *sql, swString *buffer);
 int mysql_prepare_pack(swString *sql, swString *buffer);
 
@@ -597,7 +597,7 @@ static sw_inline int mysql_write_lcb(char *p, long val)
     }
 }
 
-static sw_inline int mysql_ensure_packet(char *buf, int n_buf)
+static sw_inline int mysql_ensure_packet(char *buf, size_t n_buf)
 {
     if (n_buf < SW_MYSQL_PACKET_HEADER_SIZE)
     {

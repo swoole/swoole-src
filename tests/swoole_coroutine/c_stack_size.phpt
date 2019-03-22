@@ -5,41 +5,56 @@ swoole_coroutine: c_stack_size
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+
+const K = 1024;
+const M = K * 1024;
+const G = M * 1024;
+
 // echo "default 2M\n";
 $info = co::stats();
-assert($info['c_stack_size'] == 2097152);
+assert($info['c_stack_size'] == 2 * M);
 assert($info['coroutine_num'] == 0);
 assert($info['coroutine_peak_num'] == 0);
 
-co::set(['c_stack_size' => 1024 * 1024]);
+co::set(['c_stack_size' => 1 * M]);
 for ($n = 100; $n--;) {
     go(function () { co::sleep(0.001); });
 }
 // echo "1M\n";
 $info = co::stats();
-assert($info['c_stack_size'] == 1024 * 1024);
+assert($info['c_stack_size'] == M);
 assert($info['coroutine_num'] == 100);
 assert($info['coroutine_peak_num'] == 100);
 
-co::set(['c_stack_size' => 1]); // will be aligned
+co::set(['c_stack_size' => 1 * K]); // will be extend
 for ($n = 100; $n--;) {
     go(function () { co::sleep(0.001); });
 }
-// echo "4K\n";
+// echo "256K\n";
 $info = co::stats();
-assert($info['c_stack_size'] == 4096);
+assert($info['c_stack_size'] == 256 * K);
 assert($info['coroutine_num'] == 200);
 assert($info['coroutine_peak_num'] == 200);
 
-co::set(['c_stack_size' => 1024 * 1024 * 1024]); // will be limit
+co::set(['c_stack_size' => 511 * K]); // will be aligned
+for ($n = 100; $n--;) {
+    go(function () { co::sleep(0.001); });
+}
+// echo "512K\n";
+$info = co::stats();
+assert($info['c_stack_size'] == 512 * K);
+assert($info['coroutine_num'] == 300);
+assert($info['coroutine_peak_num'] == 300);
+
+co::set(['c_stack_size' => 1 * G]); // will be limit
 for ($n = 100; $n--;) {
     go(function () { co::sleep(0.001); });
 }
 // echo "16M\n";
 $info = co::stats();
-assert($info['c_stack_size'] == 16 * 1024 * 1024);
-assert($info['coroutine_num'] == 300);
-assert($info['coroutine_peak_num'] == 300);
+assert($info['c_stack_size'] == 16 * M);
+assert($info['coroutine_num'] == 400);
+assert($info['coroutine_peak_num'] == 400);
 
 co::set(['c_stack_size' => -1]); // will be limit
 for ($n = 100; $n--;) {
@@ -47,9 +62,10 @@ for ($n = 100; $n--;) {
 }
 // echo "16M\n";
 $info = co::stats();
-assert($info['c_stack_size'] == 16 * 1024 * 1024);
-assert($info['coroutine_num'] == 400);
-assert($info['coroutine_peak_num'] == 400);
+assert($info['c_stack_size'] == 16 * M);
+assert($info['coroutine_num'] == 500);
+assert($info['coroutine_peak_num'] == 500);
 ?>
+DONE
 --EXPECTF--
-
+DONE

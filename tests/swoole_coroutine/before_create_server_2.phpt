@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: http redirect
+swoole_coroutine: http redirect
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -10,10 +10,12 @@ define('SECRET', RandStr::getBytes(rand(1024, 8192)));
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
-    $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
-    assert(!empty($data));
-    assert($data == SECRET);
-    $pm->kill();
+    go(function () use ($pm) {
+        $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        assert(!empty($data));
+        assert($data == SECRET);
+        $pm->kill();
+    });
 };
 
 $pm->childFunc = function () use ($pm) {

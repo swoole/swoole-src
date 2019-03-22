@@ -9,7 +9,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
     for ($i = MAX_CONCURRENCY_LOW; $i--;) {
         go(function () use ($pm) {
-            $ret = httpCoroGet("http://127.0.0.1:{$pm->getFreePort()}");
+            $ret = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}");
             assert($ret === 'Hello Swoole!');
         });
     }

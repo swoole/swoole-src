@@ -5,19 +5,19 @@ swoole_coroutine_util: user yield and resume4
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-
-use Swoole\Coroutine as co;
-co::yield();
-$id = go(function(){
-    $id = co::getUid();
+Co::yield();
+$id = go(function () {
+    $id = Co::getUid();
     echo "start coro $id\n";
-    co::yield();
+    Co::yield();
     echo "resume coro $id\n";
 });
 echo "start to resume $id\n";
-co::resume($id);
+Co::resume($id);
 echo "main\n";
-
 ?>
 --EXPECTF--
-Fatal error: Swoole\Coroutine::yield(): can not yield outside coroutine %s
+[%s]	ERROR	(PHP Fatal Error: 10001):
+Swoole\Coroutine::yield: API must be called in the coroutine
+Stack trace:
+#0  Swoole\Coroutine::yield() called at [%s/tests/swoole_coroutine_util/resume4.php:%d]

@@ -360,7 +360,6 @@ void swoole_http2_client_coro_init(int module_number);
 #endif
 void swoole_websocket_init(int module_number);
 void swoole_buffer_init(int module_number);
-void swoole_mmap_init(int module_number);
 void swoole_channel_init(int module_number);
 void swoole_channel_coro_init(int module_number);
 #ifdef SW_USE_FAST_SERIALIZE
@@ -369,6 +368,7 @@ void swoole_serialize_init(int module_number);
 
 //RSHUTDOWN
 void swoole_async_coro_shutdown();
+void swoole_redis_server_shutdown();
 
 void php_swoole_process_clean();
 int php_swoole_process_start(swWorker *process, zval *zobject);
@@ -453,6 +453,7 @@ void swoole_call_rshutdown_function(void *arg);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
 php_socket *swoole_convert_to_socket(int sock);
+void swoole_php_socket_free(zval *zsocket);
 #endif
 
 zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type);
@@ -699,7 +700,7 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 
 /* PHP 7 class declaration macros */
 
-#define SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, parent_ce_ptr) \
+#define SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_ce_ptr) \
     INIT_CLASS_ENTRY(module##_ce, namespaceName, methods); \
     module##_ce_ptr = zend_register_internal_class_ex(&module##_ce, parent_ce_ptr); \
     if (snake_name) { \
@@ -710,16 +711,16 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     }
 
 #define SWOOLE_INIT_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
-    SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, NULL); \
+    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, NULL); \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 
 #define SWOOLE_INIT_CLASS_ENTRY_EX(module, namespaceName, snake_name, shortName, methods, parent_module) \
-    SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce_ptr); \
+    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce_ptr); \
     memcpy(&module##_handlers, &parent_module##_handlers, sizeof(zend_object_handlers));
 
 #define SWOOLE_INIT_EXCEPTION_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
     INIT_CLASS_ENTRY(module##_ce, namespaceName, methods); \
-    SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, zend_exception_get_default()); \
+    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, zend_exception_get_default()); \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers)); \
     SWOOLE_SET_CLASS_CLONEABLE(module, zend_class_clone_deny);
 
@@ -916,13 +917,21 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
 
 static sw_inline int sw_call_function_anyway(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache)
 {
+    zval retval;
     zend_object* exception = EG(exception);
-    ZEND_ASSERT(fci->retval);
     if (exception)
     {
         EG(exception) = NULL;
     }
+    if (!fci->retval)
+    {
+        fci->retval = &retval;
+    }
     int ret = zend_call_function(fci, fci_cache);
+    if (fci->retval == &retval)
+    {
+        zval_ptr_dtor(&retval);
+    }
     if (exception)
     {
         EG(exception) = exception;
@@ -1030,9 +1039,9 @@ static sw_inline void sw_get_debug_print_backtrace(swString *buffer, zend_long o
     zval_ptr_dtor(fcn);
     php_output_get_contents(retval);
     php_output_discard();
-    swString_clear(buffer);
     swString_append_ptr(buffer, ZEND_STRL("Stack trace:\n"));
-    swString_append_ptr(buffer, Z_STRVAL_P(retval), Z_STRLEN_P(retval)-1); // trim \n
+    Z_STRVAL_P(retval)[Z_STRLEN_P(retval)-1] = '\0'; // replace \n to \0
+    swString_append_ptr(buffer, Z_STRVAL_P(retval), Z_STRLEN_P(retval));
     zval_ptr_dtor(retval);
 }
 

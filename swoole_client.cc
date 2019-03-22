@@ -224,12 +224,12 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_on, 0, 0, 2)
     ZEND_ARG_INFO(0, event_name)
-    ZEND_ARG_INFO(0, callback)
+    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
 ZEND_END_ARG_INFO()
 
 #ifdef SW_USE_OPENSSL
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_enableSSL, 0, 0, 0)
-    ZEND_ARG_INFO(0, callback)
+    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
 ZEND_END_ARG_INFO()
 #endif
 
@@ -1381,7 +1381,7 @@ static PHP_METHOD(swoole_client, recv)
 
                 if ((int) buffer->length > eof)
                 {
-                    swString_sub(buffer, eof, 0);
+                    swString_pop_front(buffer, eof);
                 }
                 else
                 {

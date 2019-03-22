@@ -232,30 +232,21 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
 static size_t socket_write(php_stream *stream, const char *buf, size_t count)
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
-    Socket *sock = (Socket*) abstract->socket;
-    int didwrite;
-    if (!sock)
+    if (UNEXPECTED(!abstract))
     {
         return 0;
     }
-
-    didwrite = sock->send_all(buf, count);
-    if (didwrite <= 0)
+    Socket *sock = (Socket*) abstract->socket;
+    ssize_t didwrite;
+    if (UNEXPECTED(!sock))
     {
-        int err = sock->errCode;
-        char *estr;
-
-        estr = php_socket_strerror(err, NULL, 0);
-        php_error_docref(NULL, E_NOTICE, "send of " ZEND_LONG_FMT " bytes failed with errno=%d %s", (zend_long) count,
-                err, estr);
-        efree(estr);
+        return 0;
     }
-
+    didwrite = sock->send_all(buf, count);
     if (didwrite > 0)
     {
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), didwrite, 0);
     }
-
     if (didwrite < 0)
     {
         didwrite = 0;
@@ -267,9 +258,13 @@ static size_t socket_write(php_stream *stream, const char *buf, size_t count)
 static size_t socket_read(php_stream *stream, char *buf, size_t count)
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    if (UNEXPECTED(!abstract))
+    {
+        return 0;
+    }
     Socket *sock = (Socket*) abstract->socket;
     ssize_t nr_bytes = 0;
-    if (!sock)
+    if (UNEXPECTED(!sock))
     {
         return 0;
     }
@@ -300,15 +295,26 @@ static int socket_flush(php_stream *stream)
 static int socket_close(php_stream *stream, int close_handle)
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
-    if (!abstract)
+    if (UNEXPECTED(!abstract))
     {
-        return 0;
+        return FAILURE;
     }
+    /** set it null immediately */
     stream->abstract = NULL;
     Socket *sock = (Socket*) abstract->socket;
+    if (UNEXPECTED(!sock))
+    {
+        return FAILURE;
+    }
+    /**
+     * it's always successful (even if the destructor rule is violated)
+     * every calls passes through the hook function in PHP
+     * so there is unnecessary to worry about the null pointer.
+     */
     sock->close();
+    delete sock;
     efree(abstract);
-    return 0;
+    return SUCCESS;
 }
 
 enum
@@ -333,8 +339,12 @@ enum
 static int socket_cast(php_stream *stream, int castas, void **ret)
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    if (UNEXPECTED(!abstract))
+    {
+        return FAILURE;
+    }
     Socket *sock = (Socket*) abstract->socket;
-    if (!sock)
+    if (UNEXPECTED(!sock))
     {
         return FAILURE;
     }
@@ -366,8 +376,12 @@ static int socket_cast(php_stream *stream, int castas, void **ret)
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb)
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    if (UNEXPECTED(!abstract))
+    {
+        return FAILURE;
+    }
     Socket *sock = (Socket*) abstract->socket;
-    if (!sock)
+    if (UNEXPECTED(!sock))
     {
         return FAILURE;
     }
@@ -381,9 +395,9 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     int ret = 0;
     char *ip_address = NULL;
 
-    if (unlikely(sock->socket == nullptr))
+    if (UNEXPECTED(sock->socket == nullptr))
     {
-        return -1;
+        return FAILURE;
     }
 
     if (sock->type == SW_SOCK_TCP || sock->type == SW_SOCK_TCP6 || sock->type == SW_SOCK_UDP || sock->type == SW_SOCK_UDP6)
@@ -403,11 +417,11 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     }
     if (host == NULL)
     {
-        return -1;
+        return FAILURE;
     }
     if (xparam->inputs.timeout)
     {
-        sock->set_timeout(xparam->inputs.timeout);
+        sock->set_timeout(xparam->inputs.timeout, SW_TIMEOUT_CONNECT);
     }
     if (sock->connect(host, portno) == false)
     {
@@ -478,7 +492,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
 
     if (timeout)
     {
-        sock->set_timeout(timeout);
+        sock->set_timeout(timeout, SW_TIMEOUT_READ);
     }
 
     Socket *clisock = sock->accept();
@@ -494,7 +508,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
         {
             *error_string = php_socket_error_str(error);
         }
-        return -1;
+        return FAILURE;
     }
     else
     {
@@ -738,6 +752,10 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam)
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    if (UNEXPECTED(!abstract))
+    {
+        return FAILURE;
+    }
     Socket *sock = (Socket*) abstract->socket;
     struct timeval default_timeout = { 0, 0 };
     switch (option)
@@ -819,7 +837,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     default:
         break;
     }
-    return 0;
+    return SUCCESS;
 }
 
 static php_stream *php_socket_create(
@@ -873,8 +891,6 @@ static php_stream *socket_create(
         return php_socket_create(proto, protolen, resourcename, resourcenamelen, persistent_id, options, flags, timeout, context STREAMS_CC);
     }
 
-    php_swoole_check_reactor();
-
     if (strncmp(proto, "unix", protolen) == 0)
     {
         sock = new Socket(SW_SOCK_UNIX_STREAM);
@@ -899,7 +915,7 @@ static php_stream *socket_create(
         sock = new Socket(SW_SOCK_TCP);
     }
 
-    if (unlikely(sock->socket == nullptr))
+    if (UNEXPECTED(sock->socket == nullptr))
     {
         _failed:
         swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
@@ -1136,9 +1152,8 @@ static PHP_FUNCTION(_sleep)
         RETURN_FALSE;
     }
 
-    if (num >= 0.001 && PHPCoroutine::is_in())
+    if (num >= SW_TIMER_MIN_SEC && Coroutine::get_current())
     {
-        php_swoole_check_reactor();
         RETURN_LONG(Coroutine::sleep((double ) num) < 0 ? num : 0);
     }
     else
@@ -1161,9 +1176,8 @@ static PHP_FUNCTION(_usleep)
     }
     double _time = (double) num / 1000000;
 
-    if (_time >= 0.001 && PHPCoroutine::is_in())
+    if (_time >= SW_TIMER_MIN_SEC && Coroutine::get_current())
     {
-        php_swoole_check_reactor();
         Coroutine::sleep((double) num / 1000000);
     }
     else
@@ -1191,9 +1205,8 @@ static PHP_FUNCTION(_time_nanosleep)
         RETURN_FALSE;
     }
     double _time = (double) tv_sec + (double) tv_nsec / 1000000000.00;
-    if (_time >= 0.001 && PHPCoroutine::is_in())
+    if (_time >= SW_TIMER_MIN_SEC && Coroutine::get_current())
     {
-        php_swoole_check_reactor();
         Coroutine::sleep(_time);
     }
     else
@@ -1250,9 +1263,8 @@ static PHP_FUNCTION(_time_sleep_until)
     php_req.tv_nsec = (long) ((c_ts - php_req.tv_sec) * 1000000000.00);
 
     double _time = (double) php_req.tv_sec + (double) php_req.tv_nsec / 1000000000.00;
-    if (_time >= 0.001 && PHPCoroutine::is_in())
+    if (_time >= SW_TIMER_MIN_SEC && Coroutine::get_current())
     {
-        php_swoole_check_reactor();
         Coroutine::sleep(_time);
     }
     else
@@ -1357,17 +1369,16 @@ static int stream_array_emulate_read_fd_set(zval *stream_array)
 
 static PHP_FUNCTION(_stream_select)
 {
+    if (!Coroutine::get_current())
+    {
+        ori_stream_select_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        return;
+    }
+
     zval *r_array, *w_array, *e_array;
     zend_long sec, usec = 0;
     zend_bool secnull;
     int retval = 0;
-
-    if (!PHPCoroutine::is_in())
-    {
-        RETURN_FALSE;
-    }
-
-    php_swoole_check_reactor();
 
     ZEND_PARSE_PARAMETERS_START(4, 5)
         Z_PARAM_ARRAY_EX(r_array, 1, 1)

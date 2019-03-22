@@ -750,7 +750,7 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
         close(tmp_file_fd);
         return NULL;
     }
-    if (swoole_sync_readfile(tmp_file_fd, SwooleTG.buffer_stack->str, _pkg.length) < 0)
+    if (swoole_sync_readfile(tmp_file_fd, SwooleTG.buffer_stack->str, _pkg.length) != _pkg.length)
     {
         close(tmp_file_fd);
         return NULL;

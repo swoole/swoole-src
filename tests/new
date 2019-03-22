@@ -87,7 +87,7 @@ if ($deep < 1) {
     goto error_filename;
 }
 
-$template = file_get_contents(__DIR__ . '/template.phpt');
+$template = file_get_contents(__DIR__ . '/template');
 $replacement['dir_deep'] = str_repeat('/..', $deep);
 foreach ($replacement as $key => $value) {
     $template = str_replace("{{{$key}}}", $value, $template);

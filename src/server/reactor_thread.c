@@ -70,6 +70,10 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                 }
             }
             no_client_cert:
+            if (port->ssl_option.verify_peer)
+            {
+                return SW_ERR;
+            }
             if (serv->onConnect)
             {
                 serv->notify(serv, conn, SW_EVENT_CONNECT);
