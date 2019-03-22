@@ -971,13 +971,7 @@ static PHP_METHOD(swoole_client, __destruct)
     //no keep connection
     if (cli)
     {
-        zval *zobject = getThis();
-        zval *retval = NULL;
-        sw_zend_call_method_with_0_params(&zobject, swoole_client_ce_ptr, NULL, "close", &retval);
-        if (retval)
-        {
-            zval_ptr_dtor(retval);
-        }
+        sw_zend_call_method_with_0_params(getThis(), swoole_client_ce_ptr, NULL, "close", NULL);
     }
     //free memory
     client_callback *cb = (client_callback *) swoole_get_property(getThis(), client_property_callback);

@@ -816,23 +816,23 @@ static sw_inline zval* sw_zend_read_property_array(zend_class_entry *class_ptr, 
 
 //----------------------------------Function API------------------------------------
 
-#define sw_zend_call_method_with_0_params(obj, ptr, what, method, retval) \
-    zval __retval;\
-    zend_call_method_with_0_params(*obj, ptr, what, method, &__retval);\
-    if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
-    else *(retval) = &__retval;
+#if PHP_VERSION_ID < 80000
+#define SW_Z8_OBJ_P(zobj) zobj
+#else
+#define SW_Z8_OBJ_P(zobj) Z_OBJ_P(zobj)
+#endif
 
-#define sw_zend_call_method_with_1_params(obj, ptr, what, method, retval, v1)           \
-    zval __retval;\
-    zend_call_method_with_1_params(*obj, ptr, what, method, &__retval, v1);\
-    if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
-    else *(retval) = &__retval;
+/**
+ * Notice (sw_zend_call_method_with_%u_params): If you don't want to check the return value, please set retval to NULL
+ */
+#define sw_zend_call_method_with_0_params(zobj, obj_ce, fn_ptr_ptr, fn_name, retval) \
+        zend_call_method_with_0_params(SW_Z8_OBJ_P(zobj), obj_ce, fn_ptr_ptr, fn_name, retval)
 
-#define sw_zend_call_method_with_2_params(obj, ptr, what, method, retval, v1, v2)    \
-    zval __retval;\
-    zend_call_method_with_2_params(*obj, ptr, what, method, &__retval, v1, v2);\
-    if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
-    else *(retval) = &__retval;
+#define sw_zend_call_method_with_1_params(zobj, obj_ce, fn_ptr_ptr, fn_name, retval, v1) \
+        zend_call_method_with_1_params(SW_Z8_OBJ_P(zobj), obj_ce, fn_ptr_ptr, fn_name, retval, v1)
+
+#define sw_zend_call_method_with_2_params(zobj, obj_ce, fn_ptr_ptr, fn_name, retval, v1, v2) \
+        zend_call_method_with_2_params(SW_Z8_OBJ_P(zobj), obj_ce, fn_ptr_ptr, fn_name, retval, v1, v2)
 
 static sw_inline int sw_zend_function_max_num_args(zend_function *function)
 {

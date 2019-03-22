@@ -2385,18 +2385,15 @@ static PHP_METHOD(swoole_http_response, redirect)
         ctx->response.status = 302;
     }
 
-    //header
     zval key;
     ZVAL_STRINGL(&key, "Location", 8);
-    zend_call_method_with_2_params(getThis(), NULL, NULL, "header", return_value, &key, url);
+    sw_zend_call_method_with_2_params(getThis(), NULL, NULL, "header", return_value, &key, url);
     zval_ptr_dtor(&key);
-    if (!ZVAL_IS_NULL(return_value))
+    if (!ZVAL_IS_NULL(return_value)) // TODO: return true
     {
         return;
     }
-
-    //end
-    zend_call_method_with_0_params(getThis(), NULL, NULL, "end", return_value);
+    sw_zend_call_method_with_0_params(getThis(), NULL, NULL, "end", NULL);
 }
 
 static PHP_METHOD(swoole_http_response, __destruct)
@@ -2417,15 +2414,7 @@ static PHP_METHOD(swoole_http_response, __destruct)
             {
                 context->response.status = 500;
             }
-
-            zval *zobject = getThis();
-            zval *retval = NULL;
-            sw_zend_call_method_with_0_params(&zobject, swoole_http_response_ce_ptr, NULL, "end", &retval);
-            if (retval)
-            {
-                zval_ptr_dtor(retval);
-            }
-
+            sw_zend_call_method_with_0_params(getThis(), swoole_http_response_ce_ptr, NULL, "end", NULL);
             context = (http_context *) swoole_get_object(getThis());
             if (context)
             {

@@ -1261,7 +1261,7 @@ static PHP_METHOD(swoole_coroutine_util, list)
         add_next_index_long(&zlist, co.second->get_cid());
     }
     object_init_ex(return_value, swoole_coroutine_iterator_ce_ptr);
-    zend_call_method_with_1_params(
+    sw_zend_call_method_with_1_params(
         return_value,
         swoole_coroutine_iterator_ce_ptr,
         &swoole_coroutine_iterator_ce_ptr->constructor,

@@ -987,7 +987,6 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
 #endif
 
     int i;
-    zval *retval = NULL;
     zval *zport_object;
     zval *zport_setting;
     swListenPort *port;
@@ -1001,11 +1000,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
         if (zport_setting == NULL || ZVAL_IS_NULL(zport_setting))
         {
             Z_TRY_ADDREF_P(zport_object);
-            sw_zend_call_method_with_1_params(&zport_object, swoole_server_port_ce_ptr, NULL, "set", &retval, zsetting);
-            if (retval)
-            {
-                zval_ptr_dtor(retval);
-            }
+            sw_zend_call_method_with_1_params(zport_object, swoole_server_port_ce_ptr, NULL, "set", NULL, zsetting);
         }
     }
 
@@ -2695,13 +2690,12 @@ static PHP_METHOD(swoole_server, set)
         serv->message_queue_key = (uint64_t) zval_get_long(v);
     }
 
-    zval *retval = NULL;
     zval *port_object = server_port_list.zobjects[0];
 
     Z_TRY_ADDREF_P(port_object);
     Z_TRY_ADDREF_P(zset);
 
-    sw_zend_call_method_with_1_params(&port_object, swoole_server_port_ce_ptr, NULL, "set", &retval, zset);
+    sw_zend_call_method_with_1_params(port_object, swoole_server_port_ce_ptr, NULL, "set", NULL, zset);
 
     zval *zsetting = sw_zend_read_property_array(swoole_server_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
@@ -2745,10 +2739,10 @@ static PHP_METHOD(swoole_server, on)
     if (i == server_event_map.end())
     {
         zval *port_object = server_port_list.zobjects[0];
-        zval *retval = NULL;
+        zval retval;
         efree(fci_cache);
-        sw_zend_call_method_with_2_params(&port_object, swoole_server_port_ce_ptr, NULL, "on", &retval, name, cb);
-        RETURN_BOOL(zval_is_true(retval));
+        sw_zend_call_method_with_2_params(port_object, swoole_server_port_ce_ptr, NULL, "on", &retval, name, cb);
+        RETURN_BOOL(Z_BVAL_P(&retval));
     }
     else
     {
@@ -4294,35 +4288,28 @@ static PHP_METHOD(swoole_connection_iterator, offsetExists)
 {
     swConnectionIterator *i = (swConnectionIterator *) swoole_get_object(getThis());
     zval *zobject = (zval *) i->serv->ptr2;
-    zval *retval = NULL;
     zval *zfd;
+    zval retval;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zfd) == FAILURE)
     {
         RETURN_FALSE;
     }
-    sw_zend_call_method_with_1_params(&zobject, swoole_server_ce_ptr, NULL, "exists", &retval, zfd);
-    if (retval)
-    {
-        RETVAL_BOOL(Z_BVAL_P(retval));
-        zval_ptr_dtor(retval);
-    }
+    sw_zend_call_method_with_1_params(zobject, swoole_server_ce_ptr, NULL, "exists", &retval, zfd);
+    RETVAL_BOOL(Z_BVAL_P(&retval));
 }
 
 static PHP_METHOD(swoole_connection_iterator, offsetGet)
 {
     swConnectionIterator *i = (swConnectionIterator *) swoole_get_object(getThis());
     zval *zobject = (zval *) i->serv->ptr2;
-    zval *retval = NULL;
     zval *zfd;
+    zval retval;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zfd) == FAILURE)
     {
         RETURN_FALSE;
     }
-    sw_zend_call_method_with_1_params(&zobject, swoole_server_ce_ptr, NULL, "connection_info", &retval, zfd);
-    if (retval)
-    {
-        RETVAL_ZVAL(retval, 0, 0);
-    }
+    sw_zend_call_method_with_1_params(zobject, swoole_server_ce_ptr, NULL, "connection_info", &retval, zfd);
+    RETVAL_ZVAL(&retval, 0, 0);
 }
 
 static PHP_METHOD(swoole_connection_iterator, offsetSet)
