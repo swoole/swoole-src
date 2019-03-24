@@ -15,14 +15,14 @@ dnl  +----------------------------------------------------------------------+
 dnl  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
 dnl  +----------------------------------------------------------------------+
 
-PHP_ARG_ENABLE(debug-log, whether to enable debug log,
+PHP_ARG_ENABLE(debug-log, enable debug log,
 [  --enable-debug-log        Enable swoole debug log], no, no)
 
-PHP_ARG_ENABLE(trace-log, Whether to enable trace log,
+PHP_ARG_ENABLE(trace-log, enable trace log,
 [  --enable-trace-log        Enable swoole trace log], no, no)
 
-PHP_ARG_ENABLE(coro-schedule, Whether to enable coroutine schedule by tick,
-[  --enable-coro-schedule    Enable swoole coroutine schedule by tick], no, no)
+PHP_ARG_ENABLE(scheduler-tick, enable coroutine scheduler powered by tick,
+[  --enable-scheduler-tick    Enable swoole coroutine scheduler powered by tick], no, no)
 
 PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets          Do you have sockets extension?], no, no)
@@ -54,7 +54,7 @@ PHP_ARG_WITH(jemalloc_dir, dir of jemalloc,
 PHP_ARG_WITH(libpq_dir, dir of libpq,
 [  --with-libpq-dir[=DIR]      Include libpq support (requires libpq >= 9.5)], no, no)
 
-PHP_ARG_ENABLE(asan, whether to enable asan,
+PHP_ARG_ENABLE(asan, enable asan,
 [  --enable-asan             Enable asan], no, no)
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
@@ -261,9 +261,9 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_DEBUG=1
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
     fi
-    
-    if test "$PHP_CORO_SCHEDULE" != "no"; then        
-        AC_DEFINE(SW_CORO_SCHEDULE_TICK, 1, [enable coro tick schedule])
+
+    if test "$PHP_SCHEDULER_TICK" != "no"; then
+        AC_DEFINE(SW_CORO_SCHEDULER_TICK, 1, [enable coroutine scheduler powered by tick])
     fi
 
     if test "$PHP_TRACE_LOG" != "no"; then
@@ -598,10 +598,10 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h])
 
     PHP_REQUIRE_CXX()
-    
+
     CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations"
 
-    if test "$SW_OS" = "CYGWIN" || test "$SW_OS" = "MINGW"; then 
+    if test "$SW_OS" = "CYGWIN" || test "$SW_OS" = "MINGW"; then
         CXXFLAGS="$CXXFLAGS -std=gnu++11"
     else
         CXXFLAGS="$CXXFLAGS -std=c++11"

@@ -47,6 +47,14 @@ function skip_if_not_debug_version()
     }
 }
 
+function skip_if_ini_bool_equal_to(string $name, bool $value)
+{
+    if (((bool)ini_get($name)) === $value) {
+        $value = $value ? 'enable' : 'disable';
+        skip("{$name} is {$value}");
+    }
+}
+
 function skip_if_constant_not_defined(string $constant_name)
 {
     require_once __DIR__ . '/config.php';

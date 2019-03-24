@@ -1,14 +1,14 @@
 --TEST--
-swoole_coroutine: while tick 1000 
+swoole_coroutine: while tick 10000
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; 
-if (!SWOOLE_CORO_SCHEDULE) {
-    skip("coroutine schdule tick was not compliled");
-}
+<?php require __DIR__ . '/../../include/skipif.inc';
+skip_if_constant_not_defined('SWOOLE_CORO_SCHEDULER_TICK');
 ?>
 --FILE--
 <?php
-declare(ticks=1000);
+require __DIR__ . '/../../include/bootstrap.php';
+
+declare(ticks=10000);
 
 $max_msec = 10;
 Swoole\Coroutine::set([

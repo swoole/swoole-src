@@ -296,7 +296,9 @@ void swoole_coroutine_util_init(int module_number)
     SWOOLE_DEFINE(CORO_WAITING);
     SWOOLE_DEFINE(CORO_RUNNING);
     SWOOLE_DEFINE(CORO_END);
-    SWOOLE_DEFINE(CORO_SCHEDULE);
+#ifdef SW_CORO_SCHEDULER_TICK
+    SWOOLE_DEFINE(CORO_SCHEDULER_TICK);
+#endif
 
     //prohibit exit in coroutine
     SWOOLE_INIT_CLASS_ENTRY_EX(swoole_exit_exception, "Swoole\\ExitException", NULL, NULL, swoole_exit_exception_methods, swoole_exception);
@@ -401,10 +403,10 @@ static PHP_METHOD(swoole_coroutine_util, set)
     {
         SWOOLE_G(display_errors) = zval_is_true(v);
     }
-#ifdef SW_CORO_SCHEDULE_TICK
+#ifdef SW_CORO_SCHEDULER_TICK
     if (php_swoole_array_get_value(vht, "max_exec_msec", v))
     {
-        long t = zval_get_long(v);
+        long t = (long) zval_get_long(v);
         if (t > 0) { PHPCoroutine::set_max_exec_msec(t); }
     }
 #endif

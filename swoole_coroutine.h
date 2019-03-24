@@ -10,12 +10,6 @@
 #define SW_DEFAULT_MAX_CORO_NUM              3000
 #define SW_DEFAULT_PHP_STACK_PAGE_SIZE       8192
 
-#ifdef SW_CORO_SCHEDULE_TICK
-#define SW_CORO_SCHEDULE 1
-#else
-#define SW_CORO_SCHEDULE 0
-#endif
-
 #define SWOG ((zend_output_globals *) &OG(handlers))
 
 typedef enum
@@ -51,13 +45,13 @@ struct php_coro_task
     zend_class_entry *exception_class;
     zend_object *exception;
     zend_output_globals *output_ptr;
-    int ticks_count;
     SW_DECLARE_EG_SCOPE(scope);
     swoole::Coroutine *co;
     std::stack<php_swoole_fci *> *defer_tasks;
     long pcid;
     zend_object *context;
-#ifdef SW_CORO_SCHEDULE_TICK
+#ifdef SW_CORO_SCHEDULER_TICK
+    int ticks_count;
     int64_t last_msec;
 #endif
 };
@@ -85,9 +79,6 @@ namespace swoole
 class PHPCoroutine
 {
 public:
-    static uint32_t max_exec_msec;
-    static bool tick_init;
-
     static void init();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(php_swoole_fci *fci);
@@ -140,24 +131,23 @@ public:
     {
         max_num = n;
     }
-#ifdef SW_CORO_SCHEDULE_TICK
-    static inline void set_max_exec_msec(long max_msec)
+
+#ifdef SW_CORO_SCHEDULER_TICK
+#define SW_CORO_SCHEDULER_TICK_EXPECT(s)      likely(s)
+#define SW_CORO_SCHEDULER_TICK_UNEXPECT(s)    unlikely(s)
+
+    static void enable_scheduler_tick();
+    static void disable_scheduler_tick();
+
+    static inline void set_max_exec_msec(long msec)
     {
-        max_exec_msec = max_msec;
+        max_exec_msec = MAX(0, msec);
+        record_last_msec(get_task());
     }
 
     static inline bool is_schedulable(php_coro_task *task)
     {
-
-        if (max_exec_msec > 0)
-        {
-            if (!tick_init)
-            {
-                tick_init = true;
-            }
-            return (swTimer_get_absolute_msec() - task->last_msec > max_exec_msec);
-        }
-        return false;
+        return (swTimer_get_absolute_msec() - task->last_msec > max_exec_msec);
     }
 #endif
 
@@ -177,6 +167,23 @@ protected:
     static void on_resume(void *arg);
     static void on_close(void *arg);
     static void create_func(void *arg);
+
+#ifdef SW_CORO_SCHEDULER_TICK
+    static uint64_t max_exec_msec;
+    static user_opcode_handler_t ori_tick_handler;
+
+    static inline void interrupt_callback(void *data);
+    static inline void tick(uint32_t tick_count);
+    static inline int tick_handler(zend_execute_data *execute_data);
+
+    static inline void record_last_msec(php_coro_task *task)
+    {
+        if (SW_CORO_SCHEDULER_TICK_EXPECT(max_exec_msec > 0))
+        {
+            task->last_msec = swTimer_get_absolute_msec();
+        }
+    }
+#endif
 };
 }
 

@@ -1,13 +1,14 @@
 --TEST--
-swoole_coroutine: while tick 10000
+swoole_coroutine: do-while tick 10000
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; 
-if (!SWOOLE_CORO_SCHEDULE) {
-    skip("coroutine schdule tick was not compliled");
-}
+<?php
+require __DIR__ . '/../../include/skipif.inc';
+skip_if_constant_not_defined('SWOOLE_CORO_SCHEDULER_TICK');
 ?>
 --FILE--
 <?php
+require __DIR__ . '/../../include/bootstrap.php';
+
 declare(ticks=10000);
 
 $max_msec = 10;
@@ -18,19 +19,15 @@ Swoole\Coroutine::set([
 $start = microtime(1);
 echo "start\n";
 $flag = 1;
-go(function () use (&$flag) {
+go(function () use (&$flag, $max_msec){
     echo "coro 1 start to loop\n";
     $i = 0;
-    loop:
-    $i ++;
-    if (!$flag) {
-        goto end;
+    while($flag) {
+        $i ++;
     }
-    goto loop;
-    end:
     echo "coro 1 can exit\n";
 });
-
+    
 $end = microtime(1);
 $msec = ($end-$start) * 1000;
 assert(abs($msec-$max_msec) <= 2);

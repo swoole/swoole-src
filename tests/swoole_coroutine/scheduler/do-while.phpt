@@ -1,15 +1,16 @@
 --TEST--
-swoole_coroutine: while tick 10000
+swoole_coroutine: do-while tick 1000 with opcache enable
 --SKIPIF--
-<?php 
+<?php
 require __DIR__ . '/../../include/skipif.inc';
-if (!SWOOLE_CORO_SCHEDULE) {
-    skip("coroutine schdule tick was not compliled");
-}
+skip_if_constant_not_defined('SWOOLE_CORO_SCHEDULER_TICK');
+skip_if_ini_bool_equal_to('opcache.enable_cli', false);
 ?>
 --FILE--
 <?php
-declare(ticks=10000);
+require __DIR__ . '/../../include/bootstrap.php';
+
+declare(ticks=1000);
 
 $max_msec = 10;
 Swoole\Coroutine::set([

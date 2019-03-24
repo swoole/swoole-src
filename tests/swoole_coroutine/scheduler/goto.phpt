@@ -1,18 +1,13 @@
 --TEST--
-swoole_coroutine: do-while tick 1000 without opcache enable
+swoole_coroutine: while tick 1000 
 --SKIPIF--
-<?php
-require __DIR__ . '/../../include/skipif.inc'; 
-if (!SWOOLE_CORO_SCHEDULE) {
-    skip("coroutine schdule tick was not compliled");
-}
-if (ini_get("opcache.enable_cli") == 1) 
-{
-   skip("has loaded opcache");
-}
+<?php require __DIR__ . '/../../include/skipif.inc';
+skip_if_constant_not_defined('SWOOLE_CORO_SCHEDULER_TICK');
 ?>
 --FILE--
 <?php
+require __DIR__ . '/../../include/bootstrap.php';
+
 declare(ticks=1000);
 
 $max_msec = 10;
@@ -23,13 +18,16 @@ Swoole\Coroutine::set([
 $start = microtime(1);
 echo "start\n";
 $flag = 1;
-
 go(function () use (&$flag) {
     echo "coro 1 start to loop\n";
     $i = 0;
-    do {
-        $i ++;
-    } while ($flag);
+    loop:
+    $i ++;
+    if (!$flag) {
+        goto end;
+    }
+    goto loop;
+    end:
     echo "coro 1 can exit\n";
 });
 
