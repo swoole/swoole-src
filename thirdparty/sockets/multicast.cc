@@ -140,11 +140,12 @@ static int php_do_mcast_opt(Socket *php_sock, int level, int optname, zval *arg4
     int (*mcast_sreq_fun)(Socket *, int, struct sockaddr *, socklen_t, struct sockaddr *, socklen_t, unsigned);
 #endif
 
-    php_sockaddr_storage group =
-    { 0 };
-    php_sockaddr_storage source =
-    { 0 };
-    socklen_t glen = 0, slen = 0;
+    php_sockaddr_storage group = { 0 };
+    socklen_t glen = 0;
+#ifdef HAS_MCAST_EXT
+    php_sockaddr_storage source = { 0 };
+    socklen_t slen = 0;
+#endif
 
 	switch (optname) {
 	case PHP_MCAST_JOIN_GROUP:
@@ -445,8 +446,8 @@ static int _php_mcast_join_leave(
 			join ? MCAST_JOIN_GROUP : MCAST_LEAVE_GROUP, (char*)&greq,
 			sizeof(greq));
 #else
-	if (sock->type == AF_INET) {
-		struct ip_mreq mreq = {0};
+	if (sock->sock_type == AF_INET) {
+		struct ip_mreq mreq = {{0}};
 		struct in_addr addr;
 
 		assert(group_len == sizeof(struct sockaddr_in));
@@ -465,8 +466,8 @@ static int _php_mcast_join_leave(
 				sizeof(mreq));
 	}
 #if HAVE_IPV6
-	else if (sock->type == AF_INET6) {
-		struct ipv6_mreq mreq = {0};
+	else if (sock->sock_type == AF_INET6) {
+		struct ipv6_mreq mreq = {{{{0}}}};
 
 		assert(group_len == sizeof(struct sockaddr_in6));
 

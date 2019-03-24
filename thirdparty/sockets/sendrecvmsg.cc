@@ -40,7 +40,9 @@
 
 int php_do_setsockopt_ipv6_rfc3542(swoole::Socket *php_sock, int level, int optname, zval *arg4)
 {
+#ifdef IPV6_PKTINFO
 	struct err_s	err = {0};
+#endif
 	zend_llist		*allocations = NULL;
 	void			*opt_ptr;
 	socklen_t		optlen;
@@ -67,7 +69,9 @@ int php_do_setsockopt_ipv6_rfc3542(swoole::Socket *php_sock, int level, int optn
 	 * integer optval handling in the caller */
 	return 1;
 
+#ifdef IPV6_PKTINFO
 dosockopt:
+#endif
 	retval = setsockopt(php_sock->get_fd(), level, optname, opt_ptr, optlen);
 	if (retval != 0) {
 		PHP_SWOOLE_SOCKET_ERROR(php_sock, "unable to set socket option", errno);
