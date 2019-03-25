@@ -47,6 +47,7 @@ static PHP_METHOD(swoole_process_pool, listen);
 static PHP_METHOD(swoole_process_pool, write);
 static PHP_METHOD(swoole_process_pool, getProcess);
 static PHP_METHOD(swoole_process_pool, start);
+static PHP_METHOD(swoole_process_pool, shutdown);
 
 static const zend_function_entry swoole_process_pool_methods[] =
 {
@@ -57,6 +58,7 @@ static const zend_function_entry swoole_process_pool_methods[] =
     PHP_ME(swoole_process_pool, listen, arginfo_swoole_process_pool_listen, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, write, arginfo_swoole_process_pool_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, start, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, shutdown, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -82,6 +84,8 @@ void swoole_process_pool_init(int module_number)
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_process_pool, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_process_pool, zend_class_clone_deny);
     SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process_pool, zend_class_unset_property_deny);
+
+    zend_declare_property_long(swoole_process_pool_ce_ptr, ZEND_STRL("master_pid"), -1, ZEND_ACC_PUBLIC);
 }
 
 static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worker_id)
@@ -419,6 +423,8 @@ static PHP_METHOD(swoole_process_pool, start)
     pool->onWorkerStart = php_swoole_process_pool_onWorkerStart;
     pool->onWorkerStop = php_swoole_process_pool_onWorkerStop;
 
+    zend_update_property_long(swoole_process_pool_ce_ptr, getThis(), ZEND_STRL("master_pid"), getpid());
+
     if (swProcessPool_start(pool) < 0)
     {
         RETURN_FALSE;
@@ -454,6 +460,21 @@ static PHP_METHOD(swoole_process_pool, getProcess)
     }
 
     RETURN_ZVAL(current_process, 1, 0);
+}
+
+static PHP_METHOD(swoole_process_pool, shutdown)
+{
+    zval rv;
+    zval *retval = zend_read_property(swoole_process_pool_ce_ptr, getThis(), ZEND_STRL("master_pid"), 1, &rv);
+    long pid = zval_get_long(retval);
+    if (pid > 0)
+    {
+        RETURN_BOOL(kill(pid, SIGTERM) == 0);
+    }
+    else
+    {
+        RETURN_FALSE;
+    }
 }
 
 static PHP_METHOD(swoole_process_pool, __destruct)

@@ -1,10 +1,8 @@
 --TEST--
-swoole_process_pool: getProcess
+swoole_process_pool: master pid
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc';
-if (function_exists('msg_get_queue') == false) {
-    die("SKIP, no sysvmsg extension.");
-}
+<?php
+require __DIR__ . '/../include/skipif.inc';
 ?>
 --FILE--
 <?php
@@ -14,8 +12,7 @@ $pool = new Swoole\Process\Pool(1);
 $pid = posix_getpid();
 $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) use ($pid)
 {
-    $process = $pool->getProcess();
-    Assert::eq($process->pid, posix_getpid());
+    assert($pool->master_pid == $pid);
     posix_kill($pid, SIGTERM);
     sleep(20);
     echo "ERROR\n";
