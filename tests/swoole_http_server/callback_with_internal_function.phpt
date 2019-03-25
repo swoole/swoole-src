@@ -31,7 +31,7 @@ $pm->run();
 object(Swoole\Http\Request)#%d (%d) {
   ["fd"]=>
   int(1)
-  %s"header"]=>
+  %A"header"]=>
   array(3) {
     ["host"]=>
     string(%d) "%s"
