@@ -151,19 +151,13 @@ public:
     inline void set_err(int e)
     {
         errCode = errno = e;
-        errMsg = e ? strerror(e) : "";
+        errMsg = e ? swoole_strerror(e) : "";
     }
 
     inline void set_err(int e, const char *s)
     {
         errCode = errno = e;
         errMsg = s;
-    }
-
-    inline void set_err(enum swErrorCode e)
-    {
-        errCode = errno = e;
-        errMsg = swoole_strerror(e);
     }
 
     /* set connect read write timeout */
