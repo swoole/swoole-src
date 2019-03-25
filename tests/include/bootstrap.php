@@ -37,5 +37,12 @@ if (empty(getenv('SWOOLE_DEBUG')) && method_exists('Co', 'set')) {
         }
     }
     require $autoloader;
+
+    class Assert extends \Webmozart\Assert\Assert
+    {
+        protected static function reportInvalidArgument($message)
+        {
+            trigger_error($message, E_USER_WARNING);
+        }
+    }
 })();
-class_alias('Webmozart\Assert\Assert', 'Assert');
