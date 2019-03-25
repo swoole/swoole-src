@@ -889,7 +889,7 @@ static PHP_METHOD(swoole_socket_coro, setOption)
                 opt_ptr = Z_STRVAL_P(arg4);
                 optlen = Z_STRLEN_P(arg4);
             } else {
-                opt_ptr = "";
+                opt_ptr = (char *) "";
                 optlen = 0;
             }
             break;

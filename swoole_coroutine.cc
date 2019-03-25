@@ -27,7 +27,7 @@ uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
 php_coro_task PHPCoroutine::main_task = {0};
 
 #ifdef SW_CORO_SCHEDULER_TICK
-uint64_t PHPCoroutine::max_exec_msec = 0;
+int64_t PHPCoroutine::max_exec_msec = 0;
 user_opcode_handler_t PHPCoroutine::ori_tick_handler = NULL;
 
 inline void PHPCoroutine::interrupt_callback(void *data)

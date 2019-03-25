@@ -169,7 +169,7 @@ protected:
     static void create_func(void *arg);
 
 #ifdef SW_CORO_SCHEDULER_TICK
-    static uint64_t max_exec_msec;
+    static int64_t max_exec_msec;
     static user_opcode_handler_t ori_tick_handler;
 
     static inline void interrupt_callback(void *data);
