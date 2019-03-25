@@ -31,7 +31,7 @@ go(function () {
         $result = $statement->execute();
         if (assert(count($result) === $row_num)) {
             for ($n = 0; $n < $row_num; $n++) {
-                assert($result[$n]['content'] === $random[$n]);
+                Assert::eq($result[$n]['content'], $random[$n]);
             }
         }
         assert($db->query("DROP TABLE {$table_name}"));

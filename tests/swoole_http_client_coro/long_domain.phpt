@@ -22,7 +22,7 @@ function http_get(string $url)
         'Accept-Encoding' => 'gzip'
     ]);
     assert($cli->get('/'));
-    assert($cli->statusCode === 200);
+    Assert::eq($cli->statusCode, 200);
     assert(!empty($cli->body));
 }
 

@@ -28,8 +28,8 @@ $pm->parentFunc = function ($pid) use ($pm)
         {
             $data = $cli->recv();
             $header = unpack('nlen', $data);
-            assert(strlen($data) == 2);
-            assert($header['len'] == 2);
+            Assert::eq(strlen($data), 2);
+            Assert::eq($header['len'], 2);
         }
     });
     swoole_event_wait();
@@ -55,8 +55,8 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data)
     {
         $header = unpack('nlen', $data);
-        assert(strlen($data) == 2);
-        assert($header['len'] == 2);
+        Assert::eq(strlen($data), 2);
+        Assert::eq($header['len'], 2);
         $count = N;
         while($count--)
         {

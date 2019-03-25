@@ -12,8 +12,8 @@ go(function () {
         co::sleep(0.001);
         $chan->push("data");
     });
-    assert($chan->pop(0.001) == "data");
-    assert($chan->pop(0.001) == false);
+    Assert::eq($chan->pop(0.001), "data");
+    Assert::false($chan->pop(0.001));
 });
 
 swoole_event::wait();

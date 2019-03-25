@@ -14,12 +14,12 @@ $pm->parentFunc = function ($pid) use ($port)
     $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 
     $cli->on("connect", function (\swoole_client $cli) {
-        assert($cli->isConnected() === true);
+        Assert::true($cli->isConnected());
         $cli->send("test");
     });
 
     $cli->on("receive", function(\swoole_client $cli, $data){
-        assert($data == 'test');
+        Assert::eq($data, 'test');
         $cli->send('shutdown');
         $cli->close();
     });

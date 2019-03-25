@@ -18,7 +18,7 @@ go(function () use ($co_list) {
     co::sleep(.2);
     $coros = Co::listCoroutines();
     $list_2 = iterator_to_array($coros);
-    assert(array_values(array_diff($list_2, $co_list)) == [Co::getUid(),]);
+    Assert::eq(array_values(array_diff($list_2, $co_list)), [Co::getUid(),]);
 });
 
 swoole_event_wait();

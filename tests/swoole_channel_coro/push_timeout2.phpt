@@ -10,8 +10,8 @@ $chan = new \Swoole\Coroutine\Channel(1);
 
 go(function () use ($chan) {
     co::sleep(0.5);
-    assert($chan->pop(0.1) == 1);
-    assert($chan->pop(0.1) == 'swoole');
+    Assert::eq($chan->pop(0.1), 1);
+    Assert::eq($chan->pop(0.1), 'swoole');
 });
 
 go(function () use ($chan) {

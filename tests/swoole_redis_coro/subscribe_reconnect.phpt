@@ -15,8 +15,8 @@ go(function () {
     assert($ret);
 
     $ret = $redis->recv();
-    assert($ret[0] == 'subscribe');
-    assert($ret[1] == 'channel1');
+    Assert::eq($ret[0], 'subscribe');
+    Assert::eq($ret[1], 'channel1');
 
     $ret = $redis->set('a', '1');
     assert(!$ret);

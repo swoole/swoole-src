@@ -17,6 +17,8 @@
  +----------------------------------------------------------------------+
  */
 
+require_once __DIR__ . '/config.php';
+
 function switch_process()
 {
     usleep((USE_VALGRIND ? 100 : 10) * 1000);
@@ -263,7 +265,7 @@ function makeTcpClient($host, $port, callable $onConnect = null, callable $onRec
     ]));
     $cli->on("connect", function (\swoole_client $cli) use ($onConnect)
     {
-        assert($cli->isConnected() === true);
+        Assert::true($cli->isConnected());
         if ($onConnect)
         {
             $onConnect($cli);
@@ -292,7 +294,7 @@ function makeTcpClient_without_protocol($host, $port, callable $onConnect = null
     $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
     $cli->on("connect", function (\swoole_client $cli) use ($onConnect)
     {
-        assert($cli->isConnected() === true);
+        Assert::true($cli->isConnected());
         if ($onConnect)
         {
             $onConnect($cli);
@@ -319,7 +321,7 @@ function makeTcpClient_without_protocol($host, $port, callable $onConnect = null
 function opcode_encode($op, $data)
 {
     $r = json_encode([$op, $data]);
-    assert(json_last_error() === JSON_ERROR_NONE);
+    Assert::eq(json_last_error(), JSON_ERROR_NONE);
     return pack("N", strlen($r) + 4) . $r;
 }
 
@@ -327,7 +329,7 @@ function opcode_decode($raw)
 {
     $json = substr($raw, 4);
     $r = json_decode($json, true);
-    assert(json_last_error() === JSON_ERROR_NONE);
+    Assert::eq(json_last_error(), JSON_ERROR_NONE);
     assert(is_array($r) && count($r) === 2);
     return $r;
 }
@@ -807,18 +809,16 @@ class ProcessManager
     /**
      *  Kill Child Process
      */
-    public function kill()
+    public function kill(bool $force = false)
     {
         if (!defined('PCNTL_ESRCH')) {
             define('PCNTL_ESRCH', 3);
         }
         if (!$this->alone && $this->childPid) {
-            $ret = @Swoole\Process::kill($this->childPid);
-            if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
-                $ret = @Swoole\Process::kill($this->childPid, SIGKILL);
-            }
-            if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
-                exit('KILL CHILD PROCESS ERROR');
+            if ($force || (!@Swoole\Process::kill($this->childPid) && swoole_errno() !== PCNTL_ESRCH)) {
+                if (!@Swoole\Process::kill($this->childPid, SIGKILL) && swoole_errno() !== PCNTL_ESRCH) {
+                    exit('KILL CHILD PROCESS ERROR');
+                }
             }
         }
     }

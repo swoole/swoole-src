@@ -13,7 +13,6 @@ swoole\runtime::enableCoroutine();
 go(function () {
     include __DIR__."/a.inc";
     include __DIR__."/b.inc";
-    include __DIR__ . "/../../include/lib/class.websocket_client.php";
 });
 swoole_event_wait();
 ?>

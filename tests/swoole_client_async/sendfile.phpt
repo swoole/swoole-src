@@ -22,7 +22,7 @@ $pm->parentFunc = function ($pid) use ($port)
     {
         $cli->send(pack('N', 8) . 'shutdown');
         $cli->close();
-        assert($data === md5_file(TEST_IMAGE));
+        Assert::eq($data, md5_file(TEST_IMAGE));
     });
     $client->on("error", function($cli){
         echo "Connect failed\n";

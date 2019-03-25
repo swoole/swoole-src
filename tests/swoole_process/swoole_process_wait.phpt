@@ -9,23 +9,23 @@ require __DIR__ . '/../include/bootstrap.php';
 $proc = new \swoole_process(function() {});
 $pid = $proc->start();
 $info = \swoole_process::wait(true);
-assert($pid === $info["pid"]);
-assert($info["code"] === 0);
-assert($info["signal"] === 0);
+Assert::eq($pid, $info["pid"]);
+Assert::eq($info["code"], 0);
+Assert::eq($info["signal"], 0);
 
 $proc = new \swoole_process(function() { exit(1); });
 $pid = $proc->start();
 $info = \swoole_process::wait(true);
-assert($pid === $info["pid"]);
-assert($info["code"] === 1);
-assert($info["signal"] === 0);
+Assert::eq($pid, $info["pid"]);
+Assert::eq($info["code"], 1);
+Assert::eq($info["signal"], 0);
 
 $proc = new \swoole_process(function() { \swoole_process::kill(posix_getpid(), SIGTERM); });
 $pid = $proc->start();
 $info = \swoole_process::wait(true);
-assert($pid === $info["pid"]);
-assert($info["code"] === 0);
-assert($info["signal"] === SIGTERM);
+Assert::eq($pid, $info["pid"]);
+Assert::eq($info["code"], 0);
+Assert::eq($info["signal"], SIGTERM);
 
 echo "SUCCESS";
 ?>

@@ -16,7 +16,7 @@ go(function () {
 
     $ret = @$cli->recv();
     echo "recv ret:".var_export($ret,1)."\n";
-    assert($cli->errCode == SOCKET_ECONNREFUSED);
+    Assert::eq($cli->errCode, SOCKET_ECONNREFUSED);
     $cli->close();
 });
 ?>

@@ -19,8 +19,8 @@ go(function () {
         assert($val);
 
         $val = $redis->recv();
-        assert($val[0] == 'psubscribe');
-        assert($val[1] == $channel . '*');
+        Assert::eq($val[0], 'psubscribe');
+        Assert::eq($val[1], $channel . '*');
 
         $channel .= 'test';
 
@@ -30,7 +30,7 @@ go(function () {
         });
 
         $val = $redis->recv();
-        assert($val and $val[0] == 'pmessage');
+        Assert::eq($val and $val[0], 'pmessage');
     }
 
     $redis->close();

@@ -24,7 +24,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $data = "PKG-$i" . str_repeat('A', rand(100, 20000)) . "\r\n\r\n";
         $client->send($data);
         $ret = $client->recv();
-        assert($ret and strlen($ret) == strlen($data) + 8);
+        Assert::eq($ret and strlen($ret), strlen($data) + 8);
     }
     $client->close();
     global $counter;

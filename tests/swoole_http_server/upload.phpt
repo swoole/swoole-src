@@ -35,7 +35,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $res = curl_exec($ch);
     assert(!empty($res));
-    assert($res === md5_file($file));
+    Assert::eq($res, md5_file($file));
     curl_close($ch);
 
     swoole_process::kill($pid);

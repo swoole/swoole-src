@@ -30,7 +30,7 @@ SQL;
         $stmt = $db->prepare('CALL say(?)');
         for ($n = MAX_REQUESTS; $n--;) {
             $ret = $stmt->execute(['hello mysql!']);
-            assert(current($ret[0]) === 'You said: "hello mysql!"');
+            Assert::eq(current($ret[0]), 'You said: "hello mysql!"');
         }
     }
 });

@@ -13,7 +13,7 @@ co::create(function () {
     if ($fp)
     {
         $data = co::fread($fp);
-        assert(md5($data) == md5_file(TEST_IMAGE));
+        Assert::eq(md5($data), md5_file(TEST_IMAGE));
     }
     else
     {

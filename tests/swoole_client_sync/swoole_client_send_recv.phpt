@@ -10,7 +10,7 @@ $pm->parentFunc = function () use ($pm) {
     $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     assert($cli->connect('127.0.0.1', $pm->getFreePort()));
     $request = "GET / HTTP/1.1\r\n\r\n";
-    assert($cli->send($request) === strlen($request));
+    Assert::eq($cli->send($request), strlen($request));
     usleep(100 * 1000);
     $response = $cli->recv();
     assert($response && substr($response, 0, 4) === 'HTTP');

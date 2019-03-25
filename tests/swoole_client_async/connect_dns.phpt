@@ -9,14 +9,14 @@ require __DIR__ . '/../include/bootstrap.php';
 $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 
 $cli->on("connect", function (swoole_client $cli) {
-    assert($cli->isConnected() === true);
+    Assert::true($cli->isConnected());
     $cli->send("GET / HTTP/1.1\r\nHost: www.baidu.com\r\nUser-Agent: curl/7.50.1-DEV\r\nAccept: */*\r\n\r\n");
 });
 
 $cli->on("receive", function (swoole_client $cli, $data) {
     assert(strlen($data) > 0);
     $cli->close();
-    assert($cli->isConnected() === false);
+    Assert::false($cli->isConnected());
 });
 
 $cli->on("error", function (swoole_client $cli) {

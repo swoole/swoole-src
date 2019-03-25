@@ -12,14 +12,14 @@ go(function () {
     $s = microtime(true);
     $res = $redis->blpop(['test', 'test2'], 3);
     assert(!$res);
-    assert($redis->errCode === SOCKET_ETIMEDOUT);
+    Assert::eq($redis->errCode, SOCKET_ETIMEDOUT);
     $s = microtime(true) - $s;
     time_approximate(0.5, $s); // would not retry after timeout
 
     $s = microtime(true);
     $res = $redis->brpoplpush('test', 'test2', 3);
     assert(!$res);
-    assert($redis->errCode === SOCKET_ETIMEDOUT);
+    Assert::eq($redis->errCode, SOCKET_ETIMEDOUT);
     $s = microtime(true) - $s;
     time_approximate(0.5, $s); // would not retry after timeout
 
@@ -28,15 +28,15 @@ go(function () {
 
     $s = microtime(true);
     $res = $redis->blpop(['test', 'test2'], 1);
-    assert($res === null);
-    assert($redis->errCode === 0);
+    Assert::eq($res, null);
+    Assert::eq($redis->errCode, 0);
     $s = microtime(true) - $s;
     time_approximate(1, $s);
 
     $s = microtime(true);
     $res = $redis->brpoplpush('test', 'test2', 1);
-    assert($res === null);
-    assert($redis->errCode === 0);
+    Assert::eq($res, null);
+    Assert::eq($redis->errCode, 0);
     $s = microtime(true) - $s;
     time_approximate(1, $s);
 });

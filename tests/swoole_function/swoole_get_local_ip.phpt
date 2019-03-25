@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $ips = swoole_get_local_ip();
 foreach ($ips as $ip) {
-    assert(filter_var($ip, FILTER_VALIDATE_IP) === $ip);
+    Assert::eq(filter_var($ip, FILTER_VALIDATE_IP), $ip);
     assert(strstr($ip, ".", true) !== "127");
 }
 

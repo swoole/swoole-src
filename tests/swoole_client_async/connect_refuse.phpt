@@ -8,10 +8,10 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 $cli->on("connect", function(swoole_client $cli) {
-    assert(false);
+    Assert::true(false, 'never here');
 });
 $cli->on("receive", function(swoole_client $cli, $data) {
-    assert(false);
+    Assert::true(false, 'never here');
 });
 $cli->on("error", function(swoole_client $cli) { echo "error\n"; });
 $cli->on("close", function(swoole_client $cli) { echo "close\n"; });

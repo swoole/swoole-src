@@ -23,7 +23,7 @@ $pm->parentFunc = function ($pid) use ($pm)
     $client->send("SUCCESS");
     for($i=0; $i < 20; $i++) {
       $ret = $client->recv();
-      assert(strlen($ret) == SIZE +4);
+      Assert::eq(strlen($ret), SIZE +4);
     }
     $client->close();
     swoole_process::kill($pid);

@@ -13,7 +13,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
     $cli->on("connect", function (swoole_client $cli)
     {
-        assert($cli->isConnected() === true);
+        Assert::true($cli->isConnected());
         $r = $cli->sleep();
         assert($r);
         swoole_timer_after(200, function () use ($cli)
@@ -28,7 +28,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $recv_len = strlen($data);
         $cli->send(RandStr::gen(1024, RandStr::ALL));
         $cli->close();
-        assert($cli->isConnected() === false);
+        Assert::false($cli->isConnected());
     });
 
     $cli->on("error", function(swoole_client $cli) {

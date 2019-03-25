@@ -88,10 +88,10 @@ SQL
             });
             for ($i = 3; $i--;) {
                 list($from, $result) = $chan->pop(10);
-                assert($result['fid'] == $fid, var_dump_return($result));
-                assert($result['firmware'] === $firmware);
-                assert($result['f_md5'] === $f_md5);
-                assert($result['f_remark'] === $f_remark);
+                Assert::eq($result['fid'], $fid, var_dump_return($result));
+                Assert::eq($result['firmware'], $firmware);
+                Assert::eq($result['f_md5'], $f_md5);
+                Assert::eq($result['f_remark'], $f_remark);
                 phpt_var_dump($from, (strlen($firmware) / 1024 / 1024) . 'M');
             }
         }

@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
     $content = Co::readFile(TEST_IMAGE);
-    assert(md5_file(TEST_IMAGE) == md5($content));
+    Assert::eq(md5_file(TEST_IMAGE), md5($content));
 });
 ?>
 --EXPECT--

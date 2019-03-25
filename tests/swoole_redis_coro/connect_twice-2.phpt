@@ -34,7 +34,7 @@ $pm->childFunc = function () use ($pm)
         $redis = new Swoole\Coroutine\Redis();
         $res = $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
         $res2 = @$redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-        assert($res2 == true);
+        Assert::true($res2);
         if (!$res)
         {
             fail:
@@ -49,7 +49,7 @@ $pm->childFunc = function () use ($pm)
         if (!$ret) {
             goto fail;
         }
-        assert($ret == "value");
+        Assert::eq($ret, "value");
         if (strlen($ret) > 0) {
             $response->end("OK\n");
         }

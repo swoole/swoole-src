@@ -25,7 +25,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
                 }
             }
             if (co::stats()['coroutine_num'] === 1) {
-                assert($count === (MAX_CONCURRENCY * MAX_REQUESTS));
+                Assert::eq($count, (MAX_CONCURRENCY * MAX_REQUESTS));
                 $cli->push('max');
                 assert((int)$cli->recv()->data > 1);
             }

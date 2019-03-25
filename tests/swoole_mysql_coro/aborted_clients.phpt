@@ -14,12 +14,12 @@ go(function () {
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB
     ];
-    assert($db->connect($server) === true);
+    Assert::true($db->connect($server));
     $before_num = (int)$db->query('show status like "Aborted_clients"')[0]["Value"];
-    assert($db->close() === true);
-    assert($db->connect($server) === true);
+    Assert::true($db->close());
+    Assert::true($db->connect($server));
     $after_num = (int)$db->query('show status like "Aborted_clients"')[0]["Value"];
-    assert($after_num - $before_num === 0);
+    Assert::eq($after_num - $before_num, 0);
 });
 ?>
 --EXPECT--

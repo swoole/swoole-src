@@ -51,7 +51,7 @@ go(function () {
 
     // right implementation
     assert($db->connectRaw($server));
-    assert($db->query('select 1')[0][1] === 1);
+    Assert::eq($db->query('select 1')[0][1], 1);
 });
 
 ?>

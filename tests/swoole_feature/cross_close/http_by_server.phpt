@@ -12,8 +12,8 @@ $pm->parentFunc = function () use ($pm) {
         echo "GET\n";
         assert(!$http->get('/'));
         echo "CLOSED\n";
-        assert($http->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
-        assert($http->errCode === SOCKET_ECONNRESET);
+        Assert::eq($http->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
+        Assert::eq($http->errCode, SOCKET_ECONNRESET);
         assert(empty($http->body));
         $pm->kill();
     });

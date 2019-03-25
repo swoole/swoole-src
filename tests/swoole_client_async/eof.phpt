@@ -48,7 +48,7 @@ $pm->parentFunc = function ($pid) use ($port)
             assert($pkg != false);
             $_pkg = unserialize($pkg);
             assert(is_array($_pkg));
-            assert($_pkg['i'] == $i - 1100 - 1);
+            Assert::eq($_pkg['i'], $i - 1100 - 1);
             assert($_pkg['data'] <= 256 * 1024);
             if ($i == 2100) {
                 echo "SUCCESS\n";

@@ -51,13 +51,13 @@ for ($i = 1000; $i--;) {
 
     // verify
     if ($opcode === WEBSOCKET_OPCODE_CLOSE) {
-        assert($unpacked->code === $code);
-        assert($unpacked->reason === $data);
-        assert($unpacked->finish === true);
+        Assert::eq($unpacked->code, $code);
+        Assert::eq($unpacked->reason, $data);
+        Assert::true($unpacked->finish);
     } else {
-        assert($unpacked->data === $data);
-        assert($unpacked->opcode === $opcode);
-        assert($unpacked->finish === $finish);
+        Assert::eq($unpacked->data, $data);
+        Assert::eq($unpacked->opcode, $opcode);
+        Assert::eq($unpacked->finish, $finish);
     }
 }
 ?>

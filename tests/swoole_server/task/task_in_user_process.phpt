@@ -37,7 +37,7 @@ $pm->childFunc = function () use ($pm)
 
     $serv->on('task', function (swoole_server $serv, $task_id, $worker_id, $data) use($pm)
     {
-        assert($serv->finish("OK") === false);
+        Assert::false($serv->finish("OK"));
         $pm->wakeup();
     });
 

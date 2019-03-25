@@ -26,15 +26,15 @@ $pm->parentFunc = function ($pid) use ($pm) {
             }
             assert($cli->send($request));
             $response = $cli->recv();
-            assert($response->statusCode === 200);
-            assert(json_encode($request->headers) === $response->data);
+            Assert::eq($response->statusCode, 200);
+            Assert::eq(json_encode($request->headers), $response->data);
             unset(
                 $response->headers['server'],
                 $response->headers['date'],
                 $response->headers['content-type'],
                 $response->headers['content-length']
             );
-            assert($request->headers === $response->headers);
+            Assert::eq($request->headers, $response->headers);
         }
         for ($i = 32; $i--;) {
             $request->headers[md5(mt_rand(1, 65535))] = sha1(openssl_random_pseudo_bytes(32));

@@ -18,7 +18,7 @@ $pm->parentFunc = function () use ($pm) {
         // normal
         for ($n = MAX_REQUESTS; $n--;) {
             assert($cli->get('/'));
-            assert($cli->body === $pm->getRandomData());
+            Assert::eq($cli->body, $pm->getRandomData());
         }
 
         // failed when recv response
@@ -35,8 +35,8 @@ $pm->parentFunc = function () use ($pm) {
         $failed_time = microtime(true);
         for ($n = MAX_REQUESTS; $n--;) {
             assert(!$cli->get('/'));
-            assert($cli->errCode === SOCKET_ECONNREFUSED);
-            assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED, $cli->statusCode);
+            Assert::eq($cli->errCode, SOCKET_ECONNREFUSED);
+            Assert::eq($cli->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED, $cli->statusCode);
         }
         $failed_time = microtime(true) - $failed_time;
 

@@ -46,8 +46,8 @@ HTTP;
     }
 
     $pm->kill();
-    assert(substr_count($html, "HTTP/1.1 200 OK") == N);
-    assert(substr_count($html, "swoole-http-server") == N);
+    Assert::eq(substr_count($html, "HTTP/1.1 200 OK"), N);
+    Assert::eq(substr_count($html, "swoole-http-server"), N);
 };
 
 $pm->childFunc = function () use ($pm) {

@@ -12,7 +12,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         assert($cli->get('/'));
         echo "{$cli->statusCode}\n";
         assert(!isset($cli->headers['foo']));
-        assert($cli->headers['bar'] === 'Foo');
+        Assert::eq($cli->headers['bar'], 'Foo');
         echo "{$cli->body}\n";
         $pm->kill();
     });

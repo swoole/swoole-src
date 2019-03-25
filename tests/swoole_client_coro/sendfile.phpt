@@ -20,7 +20,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $data = $client->recv();
         $client->send(pack('N', 8) . 'shutdown');
         $client->close();
-        assert($data === md5_file(TEST_IMAGE));
+        Assert::eq($data, md5_file(TEST_IMAGE));
     });
     swoole_event::wait();
 };

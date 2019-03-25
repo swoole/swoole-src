@@ -5,10 +5,9 @@ swoole_websocket_server: websocket server disconnect
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/../include/lib/class.websocket_client.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
-    $cli = new WebsocketClient;
+    $cli = new Samtleben\WebsocketClient;
     $connected = $cli->connect('127.0.0.1', $pm->getFreePort(), '/');
     assert($connected);
     $response = $cli->sendRecv("shutdown");

@@ -5,7 +5,6 @@ swoole_websocket_server: websocket server send and recv close frame full test
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/../include/lib/class.websocket_client.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
     for ($c = MAX_CONCURRENCY_LOW; $c--;) {
@@ -23,13 +22,13 @@ $pm->parentFunc = function (int $pid) use ($pm) {
                 $cli->push($close_frame);
                 // recv the last close frame
                 $frame = $cli->recv();
-                assert($frame instanceof swoole_websocket_closeframe);
-                assert($frame->opcode === WEBSOCKET_OPCODE_CLOSE);
-                assert(md5($frame->code) === $frame->reason);
+                Assert::isInstanceOf($frame, swoole_websocket_closeframe::class);
+                Assert::eq($frame->opcode, WEBSOCKET_OPCODE_CLOSE);
+                Assert::eq(md5($frame->code), $frame->reason);
                 // connection closed
-                assert($cli->recv() === false);
-                assert($cli->connected === false);
-                assert($cli->errCode === 0); // connection close normally
+                Assert::false($cli->recv());
+                Assert::false($cli->connected);
+                Assert::eq($cli->errCode, 0); // connection close normally
             }
         });
     }
@@ -46,8 +45,8 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $serv->on('Message', function (swoole_websocket_server $serv, swoole_websocket_frame $frame) {
-        assert($frame instanceof swoole_websocket_closeframe);
-        assert($frame->opcode === WEBSOCKET_OPCODE_CLOSE);
+        Assert::isInstanceOf($frame, swoole_websocket_closeframe::class);
+        Assert::eq($frame->opcode, WEBSOCKET_OPCODE_CLOSE);
         if (mt_rand(0, 1)) {
             $serv->push($frame->fd, $frame);
         } else {

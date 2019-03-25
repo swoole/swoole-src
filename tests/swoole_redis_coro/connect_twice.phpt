@@ -12,16 +12,16 @@ go(function () {
     $redis = new Swoole\Coroutine\Redis();
     echo "connect [1]\n";
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-    assert($redis->connected === true);
+    Assert::true($redis->connected);
     echo "close [1]\n";
     $redis->close();
-    assert($redis->connected === false);
+    Assert::false($redis->connected);
     echo "connect [2]\n";
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-    assert($redis->connected === true);
+    Assert::true($redis->connected);
     echo "close [2]\n";
     $redis->close();
-    assert($redis->connected === false);
+    Assert::false($redis->connected);
 });
 
 swoole_event::wait();

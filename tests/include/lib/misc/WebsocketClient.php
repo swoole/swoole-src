@@ -1,7 +1,4 @@
 <?php
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
 /**
  * Very basic websocket client.
  * Supporting draft hybi-10.
@@ -10,12 +7,17 @@ error_reporting(E_ALL);
  * @version 2011-10-18
  */
 
+namespace Samtleben;
+
 class WebsocketClient
 {
 	private $_host;
 	private $_port;
 	private $_path;
 	private $_origin;
+    /**
+     * @var \Swoole\Client
+     */
 	private $_Socket = null;
 	private $_connected = false;
 
@@ -79,7 +81,7 @@ class WebsocketClient
 		}
 		$header.= "Sec-WebSocket-Version: 13\r\n";
 
-		$this->_Socket = new swoole_client(SWOOLE_TCP, SWOOLE_SOCK_SYNC);
+		$this->_Socket = new \Swoole\Client(SWOOLE_TCP, SWOOLE_SOCK_SYNC);
 		$this->_Socket->connect($host, $port, 1);
 		$this->_Socket->send($header."\r\n");
 		$response = $this->_Socket->recv(1500);

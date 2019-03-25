@@ -48,7 +48,7 @@ $pm->childFunc = function () use ($pm)
         if (!$ret) {
             goto fail;
         }
-        assert($ret == "value");
+        Assert::eq($ret, "value");
         if (strlen($ret) > 0) {
             $response->end("OK\n");
         }

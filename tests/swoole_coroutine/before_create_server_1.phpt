@@ -13,8 +13,8 @@ $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     go(function () use ($pm) {
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
-        assert(!empty($data));
-        assert($data == SECRET);
+        Assert::notEmpty($data);
+        Assert::eq($data, SECRET);
         $pm->kill();
     });
     Swoole\Event::wait();

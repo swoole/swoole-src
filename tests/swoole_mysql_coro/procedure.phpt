@@ -46,9 +46,9 @@ SQL;
             $_map = $map;
             $res = $stmt->execute(['hello mysql!']);
             do {
-                assert(current($res[0]) === array_shift($_map));
+                Assert::eq(current($res[0]), array_shift($_map));
             } while ($res = $stmt->nextResult());
-            assert($stmt->affected_rows === 1, 'get the affected rows failed!');
+            Assert::eq($stmt->affected_rows, 1, 'get the affected rows failed!');
             assert(empty($_map), 'there are some results lost!');
         }
     }

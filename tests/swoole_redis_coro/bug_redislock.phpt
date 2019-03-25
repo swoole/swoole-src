@@ -6,7 +6,7 @@ require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/../include/redis/redis_lock.php';
+require __DIR__ . '/../include/api/swoole_redis_coro/RedisLock.php';
 
 use RedisLockBug\RedisLock;
 use RedisLockBug\SQLPool;

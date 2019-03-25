@@ -18,9 +18,9 @@ go(function () {
 
     $db->connect($server);
     $stmt = $db->prepare('SELECT * FROM `userinfo` LIMIT 1');
-    assert($stmt->execute() === true);
-    assert($stmt->execute() === true);
-    assert($stmt->execute() === true);
+    Assert::true($stmt->execute());
+    Assert::true($stmt->execute());
+    Assert::true($stmt->execute());
     assert(is_array($stmt->fetchAll()));
 });
 ?>
