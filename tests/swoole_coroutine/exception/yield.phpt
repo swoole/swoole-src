@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: exception after yield
+swoole_coroutine/exception: exception after yield
 --SKIPIF--
 <?php require  __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

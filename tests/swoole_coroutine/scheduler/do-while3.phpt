@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: do-while tick 10000
+swoole_coroutine/scheduler: do-while tick 10000
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';

@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: ob_* in coroutine
+swoole_coroutine/output: ob_* in coroutine
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

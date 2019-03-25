@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: while tick 10000
+swoole_coroutine/scheduler: while tick 10000
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';
 skip_if_constant_not_defined('SWOOLE_CORO_SCHEDULER_TICK');

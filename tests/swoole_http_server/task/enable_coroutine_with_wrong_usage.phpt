@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: use async io and coroutine in task process
+swoole_http_server/task: use async io and coroutine in task process
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

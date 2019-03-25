@@ -1,6 +1,5 @@
 --TEST--
-swoole_coroutine_util: Co::writeFile
-
+swoole_coroutine_util: writeFile
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

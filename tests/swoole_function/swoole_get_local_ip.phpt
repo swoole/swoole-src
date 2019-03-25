@@ -1,6 +1,5 @@
 --TEST--
 swoole_function: get local ip
-
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

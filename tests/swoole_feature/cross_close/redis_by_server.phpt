@@ -1,5 +1,5 @@
 --TEST--
-swoole_feature: cross_close: redis closed by server
+swoole_feature/cross_close: redis closed by server
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

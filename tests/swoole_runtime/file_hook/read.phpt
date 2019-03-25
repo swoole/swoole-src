@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime: read file
+swoole_runtime/file_hook: read file
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';

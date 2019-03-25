@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime: Co::fread
+swoole_runtime/file_hook: fread
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';

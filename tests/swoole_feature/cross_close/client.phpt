@@ -1,5 +1,5 @@
 --TEST--
-swoole_feature: cross_close: client
+swoole_feature/cross_close: client
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

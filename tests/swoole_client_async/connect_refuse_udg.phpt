@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_async: connect refuse with unix dgram
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

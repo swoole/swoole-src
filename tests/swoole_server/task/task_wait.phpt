@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: taskwait in coroutine
+swoole_server/task: taskwait in coroutine
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

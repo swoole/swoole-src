@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: error
+swoole_coroutine/exception: error
 --SKIPIF--
 <?php require  __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

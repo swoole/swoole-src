@@ -1,6 +1,5 @@
 --TEST--
 swoole_timer: timer round control
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

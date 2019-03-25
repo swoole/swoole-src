@@ -1,5 +1,5 @@
 --TEST--
-swoole_feature: full_duplex: client
+swoole_feature/full_duplex: client
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

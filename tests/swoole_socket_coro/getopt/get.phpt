@@ -1,8 +1,8 @@
 --TEST--
-swoole_socket_coro: getOption
---SKIPIF--
+swoole_socket_coro/getopt: getOption
 --FILE--
 <?php
+require __DIR__ . '/../../include/bootstrap.php';
 
 $domain = AF_INET;
 $level = IPPROTO_IP;

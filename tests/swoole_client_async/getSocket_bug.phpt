@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_async: getSocket debug
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc';
 if (method_exists('swoole_client', 'getSocket') === false) {

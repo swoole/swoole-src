@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: do-while tick 1000 without opcache enable
+swoole_coroutine/scheduler: do-while tick 1000 without opcache enable
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';

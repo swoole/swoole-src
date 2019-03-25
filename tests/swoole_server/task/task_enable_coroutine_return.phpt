@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime: task enable coroutine with return value to finish
+swoole_server/task: task enable coroutine with return value to finish
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';

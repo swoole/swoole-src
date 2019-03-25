@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_async: async sendfile
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

@@ -1,6 +1,5 @@
 --TEST--
 swoole_server: max_request
-
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

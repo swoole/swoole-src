@@ -1,5 +1,5 @@
 --TEST--
-swoole_feature: cross_close: full duplex
+swoole_feature/cross_close: full duplex
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

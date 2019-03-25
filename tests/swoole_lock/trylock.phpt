@@ -1,6 +1,5 @@
 --TEST--
 swoole_lock: trylock
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

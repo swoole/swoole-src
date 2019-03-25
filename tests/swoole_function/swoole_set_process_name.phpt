@@ -1,6 +1,5 @@
 --TEST--
 swoole_function: set process name
-
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';

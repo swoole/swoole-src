@@ -1,6 +1,5 @@
 --TEST--
 swoole_server: (length protocol) recv 100k packet
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

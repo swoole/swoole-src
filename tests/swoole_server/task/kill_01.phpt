@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: kill task worker [SWOOLE_BASE]
+swoole_server/task: kill task worker [SWOOLE_BASE]
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';

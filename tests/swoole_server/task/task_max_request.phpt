@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: task_max_request
+swoole_server/task: task_max_request
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

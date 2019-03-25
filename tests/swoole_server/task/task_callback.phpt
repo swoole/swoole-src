@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: task callback
+swoole_server/task: task callback
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

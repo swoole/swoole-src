@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime: flock
+swoole_runtime/file_hook: flock
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

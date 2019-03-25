@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: task_ipc_mode = 2
+swoole_server/task: task_ipc_mode = 2
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

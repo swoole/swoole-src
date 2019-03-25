@@ -1,6 +1,5 @@
 --TEST--
-swoole_server: (length protocol) no body
-
+swoole_server/length: (length protocol) no body
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

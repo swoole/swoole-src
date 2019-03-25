@@ -1,5 +1,5 @@
 --TEST--
-swoole_feature: full_duplex: socket
+swoole_feature/full_duplex: socket
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_async: connect_host_not_found
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

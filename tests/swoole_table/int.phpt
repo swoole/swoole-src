@@ -1,6 +1,5 @@
 --TEST--
 swoole_table: int
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime: pdo in task and http response detach
+swoole_server/task: pdo in task and http response detach
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
