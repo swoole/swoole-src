@@ -18,6 +18,8 @@
 #include "php_swoole.h"
 #include "swoole_coroutine.h"
 
+#include "zend_modules.h"
+
 using namespace swoole;
 
 #define PHP_CORO_TASK_SLOT ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(php_coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
@@ -402,7 +404,7 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
 {
     if (unlikely(!active))
     {
-        if (zend_get_module_started("xdebug") == SUCCESS)
+        if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug")))
         {
             swoole_php_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
         }

@@ -30,10 +30,10 @@
 #include "php_streams.h"
 #include "php_network.h"
 
-#include "zend_interfaces.h"
-#include "zend_exceptions.h"
 #include "zend_variables.h"
+#include "zend_interfaces.h"
 #include "zend_closures.h"
+#include "zend_exceptions.h"
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
