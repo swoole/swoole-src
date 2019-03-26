@@ -18,7 +18,6 @@
 #include "php_swoole.h"
 
 #include "swoole_coroutine.h"
-#include "socket.h"
 #include "coroutine_c_api.h"
 #include "async.h"
 

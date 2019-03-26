@@ -16,7 +16,6 @@
 
 #include "php_swoole_cxx.h"
 #include "swoole_coroutine.h"
-#include "socket.h"
 
 #include "thirdparty/hiredis/hiredis.h"
 #include "thirdparty/hiredis/async.h"

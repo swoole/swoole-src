@@ -15,7 +15,6 @@
  */
 #include "php_swoole.h"
 #include "swoole_coroutine.h"
-#include "socket.h"
 
 #include <unordered_map>
 #include <initializer_list>
