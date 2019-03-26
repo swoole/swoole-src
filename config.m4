@@ -527,7 +527,9 @@ if test "$PHP_SWOOLE" != "no"; then
     AS_CASE([$host_cpu],
       [x86_64*], [SW_CPU="x86_64"],
       [x86*], [SW_CPU="x86"],
+      [i?86*], [SW_CPU="x86"],
       [arm*], [SW_CPU="arm"],
+      [aarch64*], [SW_CPU="arm64"],
       [arm64*], [SW_CPU="arm64"],
       [
         SW_NO_USE_ASM_CONTEXT="yes"
