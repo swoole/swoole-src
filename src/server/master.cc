@@ -1181,7 +1181,7 @@ static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
  */
 static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t filename_length, off_t offset, size_t length)
 {
-    if (session_id <= 0 || session_id > SW_MAX_SESSION_ID)
+    if (unlikely(session_id <= 0 || session_id > SW_MAX_SESSION_ID))
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%d].", session_id);
         return SW_ERR;
@@ -1189,11 +1189,31 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename,
 
     if (unlikely(swIsMaster()))
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER,
-                "can't send data to the connections in master process.");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't send data to the connections in master process.");
         return SW_ERR;
     }
 
+    char _buffer[SW_IPC_BUFFER_SIZE];
+    swSendFile_request *req = (swSendFile_request*) _buffer;
+
+    // file name size
+    if (unlikely(filename_length > SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1))
+    {
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "sendfile name[%.8s...] length %u is exceed the max name len %u.",
+            filename, filename_length, (uint32_t) (SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1)
+        );
+        return SW_ERR;
+    }
+    // string must be zero termination (for `state` system call)
+    do {
+        char *p = (char *) req->filename;
+        strncpy(p, filename, filename_length);
+        *(p + filename_length) = '\0';
+        filename = p;
+    } while (0);
+
+    // check state
     struct stat file_stat;
     if (stat(filename, &file_stat) < 0)
     {
@@ -1202,27 +1222,14 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename,
     }
     if (file_stat.st_size <= offset)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty.", (long)offset);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty.", (long) offset);
         return SW_ERR;
     }
-
-    swSendData send_data = {{0}};
-    char _buffer[SW_IPC_BUFFER_SIZE];
-    swSendFile_request *req = (swSendFile_request*) _buffer;
-
-    //file name size
-    if (filename_length > SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1)
-    {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "sendfile name too long. [MAX_LENGTH=%d]",
-                (int) (SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1));
-        return SW_ERR;
-    }
-
     req->offset = offset;
     req->length = length;
-    strncpy(req->filename, filename, filename_length);
-    req->filename[filename_length] = 0;
 
+    // construct send data
+    swSendData send_data = {{0}};
     send_data.info.fd = session_id;
     send_data.info.type = SW_EVENT_SENDFILE;
     send_data.length = sizeof(swSendFile_request) + filename_length + 1;
