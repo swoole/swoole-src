@@ -211,8 +211,7 @@ void swoole_process_init(int module_number)
     /**
      * 31 signal constants
      */
-    zval *zpcntl;
-    if (!(zpcntl = zend_hash_str_find(&module_registry, ZEND_STRL("pcntl"))))
+    if (!zend_hash_str_find(&module_registry, ZEND_STRL("pcntl")))
     {
         REGISTER_LONG_CONSTANT("SIGHUP", (long) SIGHUP, CONST_CS | CONST_PERSISTENT);
         REGISTER_LONG_CONSTANT("SIGINT", (long) SIGINT, CONST_CS | CONST_PERSISTENT);

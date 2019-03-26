@@ -18,8 +18,6 @@
 #include "php_swoole.h"
 #include "swoole_coroutine.h"
 
-#include "zend_modules.h"
-
 using namespace swoole;
 
 #define PHP_CORO_TASK_SLOT ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(php_coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
