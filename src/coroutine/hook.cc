@@ -187,7 +187,7 @@ int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t 
 
 int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout)
 {
-    if (unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current() || nfds != 1))
+    if (unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current() || nfds != 1 || timeout == 0))
     {
         _poll: return poll(fds, nfds, timeout);
     }
@@ -893,6 +893,29 @@ bool Coroutine::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double
         reactor->setHandle(reactor, SW_FD_CORO_POLL | SW_EVENT_READ, socket_poll_read_callback);
         reactor->setHandle(reactor, SW_FD_CORO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
         reactor->setHandle(reactor, SW_FD_CORO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
+    }
+
+    if (timeout == 0)
+    {
+        struct pollfd *event_list = (struct pollfd *) sw_calloc(fds.size(), sizeof(struct pollfd));
+        int j = 0;
+        for (auto i = fds.begin(); i != fds.end(); i++)
+        {
+            event_list[j].fd = i->first;
+            event_list[j].events = i->second.events;
+            j++;
+        }
+        int retval = ::poll(event_list, fds.size(), 0);
+        if (retval > 0)
+        {
+            for (int i = 0; i < fds.size(); i++)
+            {
+                auto _e = fds.find(event_list[i].fd);
+                _e->second.revents = event_list[i].revents;
+            }
+        }
+        sw_free(event_list);
+        return retval > 0;
     }
 
     coro_poll_task task;
