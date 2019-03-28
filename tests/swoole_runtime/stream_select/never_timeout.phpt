@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime: stream_select [never timeout]
+swoole_runtime/stream_select: never timeout
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
