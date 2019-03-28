@@ -317,9 +317,6 @@ int swoole_convert_to_fd(zval *zsocket)
     case IS_RESOURCE:
     {
         php_stream *stream;
-#ifdef SWOOLE_SOCKETS_SUPPORT
-        php_socket *php_sock;
-#endif
         if ((php_stream_from_zval_no_verify(stream, zsocket)))
         {
             if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void *) &fd, 1) == SUCCESS && fd >= 0)
@@ -380,14 +377,12 @@ int swoole_convert_to_fd(zval *zsocket)
 
 int swoole_convert_to_fd_ex(zval *zsocket, int *async)
 {
-    php_stream *stream;
-#ifdef SWOOLE_SOCKETS_SUPPORT
-    php_socket *php_sock;
-#endif
     int fd;
 
+    *async = 0;
     if (Z_TYPE_P(zsocket) == IS_RESOURCE)
     {
+        php_stream *stream;
         if ((php_stream_from_zval_no_verify(stream, zsocket)))
         {
             if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )&fd, 1) == SUCCESS && fd >= 0)
@@ -397,11 +392,15 @@ int swoole_convert_to_fd_ex(zval *zsocket, int *async)
             }
         }
 #ifdef SWOOLE_SOCKETS_SUPPORT
-        else if ((php_sock = (php_socket *) zend_fetch_resource_ex(zsocket, NULL, php_sockets_le_socket())))
+        else
         {
-            fd = php_sock->bsd_socket;
-            *async = 1;
-            return fd;
+            php_socket *php_sock;
+            if ((php_sock = (php_socket *) zend_fetch_resource_ex(zsocket, NULL, php_sockets_le_socket())))
+            {
+                fd = php_sock->bsd_socket;
+                *async = 1;
+                return fd;
+            }
         }
 #endif
     }
