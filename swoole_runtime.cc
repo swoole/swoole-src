@@ -74,7 +74,7 @@ typedef struct
 } php_swoole_netstream_data_t;
 
 static bool hook_init = false;
-static int hook_flags;
+static int hook_flags = 0;
 
 static struct
 {
@@ -135,14 +135,15 @@ void swoole_runtime_init(int module_number)
     SWOOLE_SET_CLASS_CLONEABLE(swoole_runtime, zend_class_clone_deny);
     SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_runtime, zend_class_unset_property_deny);
 
-    SWOOLE_DEFINE(HOOK_FILE);
-    SWOOLE_DEFINE(HOOK_SLEEP);
     SWOOLE_DEFINE(HOOK_TCP);
     SWOOLE_DEFINE(HOOK_UDP);
     SWOOLE_DEFINE(HOOK_UNIX);
     SWOOLE_DEFINE(HOOK_UDG);
     SWOOLE_DEFINE(HOOK_SSL);
     SWOOLE_DEFINE(HOOK_TLS);
+    SWOOLE_DEFINE(HOOK_FILE);
+    SWOOLE_DEFINE(HOOK_SLEEP);
+    SWOOLE_DEFINE(HOOK_STREAM_SELECT);
     SWOOLE_DEFINE(HOOK_BLOCKING_FUNCTION);
     SWOOLE_DEFINE(HOOK_ALL);
 }
@@ -990,6 +991,9 @@ bool PHPCoroutine::enable_hook(int flags)
             ori_time_sleep_until_handler =  ori_time_sleep_until->internal_function.handler;
             ori_time_sleep_until->internal_function.handler = PHP_FN(_time_sleep_until);
         }
+    }
+    if (flags & SW_HOOK_STREAM_SELECT)
+    {
         ori_stream_select = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("stream_select"));
         if (ori_stream_select)
         {
@@ -1069,6 +1073,9 @@ bool PHPCoroutine::disable_hook()
         {
             ori_time_sleep_until->internal_function.handler = ori_time_sleep_until_handler;
         }
+    }
+    if (hook_flags & SW_HOOK_STREAM_SELECT)
+    {
         if (ori_stream_select)
         {
             ori_stream_select->internal_function.handler = ori_stream_select_handler;
@@ -1107,34 +1114,41 @@ bool PHPCoroutine::disable_hook()
         php_stream_xport_register("tls", ori_factory.tls);
     }
 #endif
+    hook_flags = 0;
     return true;
 }
 
 static PHP_METHOD(swoole_runtime, enableCoroutine)
 {
+    zval *zenable = nullptr;
     zend_bool enable = 1;
     zend_long flags = SW_HOOK_ALL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|bl", &enable, &flags) == FAILURE)
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ZVAL(zenable)
+        Z_PARAM_LONG(flags)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (zenable)
     {
-        RETURN_FALSE;
+        if (Z_TYPE_P(zenable) == IS_LONG)
+        {
+            enable = (flags = Z_LVAL_P(zenable)) > 0;
+        }
+        else
+        {
+            enable = zval_is_true(zenable);
+        }
     }
 
     if (enable)
     {
-        if (hook_init)
-        {
-            RETURN_FALSE;
-        }
-        PHPCoroutine::enable_hook(flags);
+        RETURN_BOOL(PHPCoroutine::enable_hook(flags));
     }
     else
     {
-        if (!hook_init)
-        {
-            RETURN_FALSE;
-        }
-        PHPCoroutine::disable_hook();
+        RETURN_BOOL(PHPCoroutine::disable_hook());
     }
 }
 

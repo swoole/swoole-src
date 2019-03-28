@@ -21,16 +21,17 @@ typedef enum
 
 enum sw_coro_hook_type
 {
-    SW_HOOK_FILE = 1u << 1,
-    SW_HOOK_SLEEP = 1u << 2,
-    SW_HOOK_TCP = 1u << 3,
-    SW_HOOK_UDP = 1u << 4,
-    SW_HOOK_UNIX = 1u << 5,
-    SW_HOOK_UDG = 1u << 6,
-    SW_HOOK_SSL = 1u << 7,
-    SW_HOOK_TLS = 1u << 8,
-    SW_HOOK_BLOCKING_FUNCTION = 1u << 9,
-    SW_HOOK_ALL = 0x7fffffff,
+    SW_HOOK_TCP   = 1u << 1,
+    SW_HOOK_UDP   = 1u << 2,
+    SW_HOOK_UNIX  = 1u << 3,
+    SW_HOOK_UDG   = 1u << 4,
+    SW_HOOK_SSL   = 1u << 5,
+    SW_HOOK_TLS   = 1u << 6,
+    SW_HOOK_FILE  = 1u << 7,
+    SW_HOOK_SLEEP = 1u << 8,
+    SW_HOOK_STREAM_SELECT = 1u << 9,
+    SW_HOOK_BLOCKING_FUNCTION = 1u << 30,
+    SW_HOOK_ALL   = 0x7fffffff,
 };
 
 struct php_coro_task
