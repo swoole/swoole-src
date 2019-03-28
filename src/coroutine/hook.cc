@@ -903,7 +903,7 @@ bool Coroutine::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double
         {
             event_list[j].fd = i->first;
             event_list[j].events = i->second.events;
-            event_list[j].events = 0;
+            event_list[j].revents = 0;
             j++;
         }
         int retval = ::poll(event_list, fds.size(), 0);
@@ -912,7 +912,22 @@ bool Coroutine::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double
             for (size_t i = 0; i < fds.size(); i++)
             {
                 auto _e = fds.find(event_list[i].fd);
-                _e->second.revents = event_list[i].revents;
+                int16_t revents = event_list[i].revents;
+                int16_t sw_revents = 0;
+                if (revents & POLLIN)
+                {
+                    sw_revents |= SW_EVENT_READ;
+                }
+                if (revents & POLLOUT)
+                {
+                    sw_revents |= SW_EVENT_WRITE;
+                }
+                //ignore ERR and HUP, because event is already processed at IN and OUT handler.
+                if ((((revents & POLLERR) || (revents & POLLHUP)) && !((revents & POLLIN) || (revents & POLLOUT))))
+                {
+                    sw_revents |= SW_EVENT_ERROR;
+                }
+                _e->second.revents = sw_revents;
             }
         }
         sw_free(event_list);
