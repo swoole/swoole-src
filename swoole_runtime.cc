@@ -1411,7 +1411,7 @@ static PHP_FUNCTION(_stream_select)
         RETURN_FALSE;
     }
 
-    double timeout = 0;
+    double timeout = -1;
     if (!secnull)
     {
         if (sec < 0)
