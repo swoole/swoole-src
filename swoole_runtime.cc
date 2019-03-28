@@ -1438,7 +1438,7 @@ static PHP_FUNCTION(_stream_select)
             php_error_docref(NULL, E_WARNING, "The microseconds parameter must be greater than 0");
             RETURN_FALSE
         }
-        timeout = sec + (usec / 1000000);
+        timeout = (double) sec + ((double) usec / 1000000);
     }
 
     /* slight hack to support buffered data; if there is data sitting in the

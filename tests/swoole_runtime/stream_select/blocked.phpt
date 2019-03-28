@@ -1,10 +1,10 @@
 --TEST--
 swoole_runtime/stream_select: blocked
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 Swoole\Runtime::enableCoroutine();
 $fp1 = stream_socket_client("tcp://www.baidu.com:80", $errno, $errstr, 30);
 $fp2 = stream_socket_client("tcp://www.qq.com:80", $errno, $errstr, 30);

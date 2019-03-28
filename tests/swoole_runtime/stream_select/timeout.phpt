@@ -1,10 +1,10 @@
 --TEST--
 swoole_runtime/stream_select: timeout
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 Swoole\Runtime::enableCoroutine();
 go(function () {
     Swoole\Runtime::enableCoroutine();
@@ -15,10 +15,13 @@ go(function () {
         $r_array = [$fp1];
         $w_array = $e_array = null;
         $s = microtime(true);
-        $n = stream_select($r_array, $w_array, $e_array, 1);
+        $timeout = ms_random(0.1, 0.5);
+        $n = stream_select($r_array, $w_array, $e_array, 0, $timeout * 1000000);
         Assert::eq($n, 0);
-        assert(microtime(true) - $s > 0.99);
+        assert(time_approximate($timeout, microtime(true) - $s));
+        echo "SUCCESS\n";
     }
 });
 ?>
 --EXPECT--
+SUCCESS

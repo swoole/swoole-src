@@ -1,10 +1,10 @@
 --TEST--
 swoole_runtime/stream_select: never timeout
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 Swoole\Runtime::enableCoroutine();
 go(function () {
     $server1 = Co\TestServer::createHttpHelloWorld();
