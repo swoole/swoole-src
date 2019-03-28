@@ -857,7 +857,14 @@ static inline void socket_poll_trigger_event(swReactor *reactor, int fd, enum sw
 {
     coro_poll_task *task = coro_poll_task_map[fd];
     auto i = task->fds->find(fd);
-    i->second.revents |= event;
+    if ((i->second.events & SW_EVENT_READ) && !(i->second.events & SW_EVENT_ERROR))
+    {
+        i->second.revents |= SW_EVENT_READ;
+    }
+    else
+    {
+        i->second.revents |= event;
+    }
     if (task->timer)
     {
         swTimer_del(&SwooleG.timer, task->timer);

@@ -1319,6 +1319,7 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, s
         auto i = fds.find(sock);
         if (i == fds.end())
         {
+            zval_add_ref(elem);
             fds.emplace(make_pair(sock, socket_poll_fd(event, elem)));
         }
         else
@@ -1396,9 +1397,9 @@ static PHP_FUNCTION(_stream_select)
     int retval = 0;
 
     ZEND_PARSE_PARAMETERS_START(4, 5)
-        Z_PARAM_ARRAY_EX2(r_array, 1, 1, 0)
-        Z_PARAM_ARRAY_EX2(w_array, 1, 1, 0)
-        Z_PARAM_ARRAY_EX2(e_array, 1, 1, 0)
+        Z_PARAM_ARRAY_EX(r_array, 1, 1)
+        Z_PARAM_ARRAY_EX(w_array, 1, 1)
+        Z_PARAM_ARRAY_EX(e_array, 1, 1)
         Z_PARAM_LONG_EX(sec, secnull, 1, 0)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(usec)
