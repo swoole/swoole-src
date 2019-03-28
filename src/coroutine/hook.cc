@@ -908,7 +908,7 @@ bool Coroutine::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double
         int retval = ::poll(event_list, fds.size(), 0);
         if (retval > 0)
         {
-            for (int i = 0; i < fds.size(); i++)
+            for (size_t i = 0; i < fds.size(); i++)
             {
                 auto _e = fds.find(event_list[i].fd);
                 _e->second.revents = event_list[i].revents;

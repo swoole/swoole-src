@@ -1301,6 +1301,8 @@ static PHP_FUNCTION(_time_sleep_until)
 static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, socket_poll_fd> &fds, int event)
 {
     zval *elem;
+    php_socket_t sock;
+
     if (Z_TYPE_P(stream_array) != IS_ARRAY)
     {
         return;
@@ -1308,7 +1310,8 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, s
 
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(stream_array), elem)
     {
-        php_socket_t sock = swoole_convert_to_fd(elem);
+        ZVAL_DEREF(elem);
+        sock = swoole_convert_to_fd(elem);
         if (sock < 0)
         {
             continue;
@@ -1394,13 +1397,13 @@ static PHP_FUNCTION(_stream_select)
     int retval = 0;
 
     ZEND_PARSE_PARAMETERS_START(4, 5)
-        Z_PARAM_ARRAY_EX(r_array, 1, 1)
-        Z_PARAM_ARRAY_EX(w_array, 1, 1)
-        Z_PARAM_ARRAY_EX(e_array, 1, 1)
+        Z_PARAM_ARRAY_EX2(r_array, 1, 1, 0)
+        Z_PARAM_ARRAY_EX2(w_array, 1, 1, 0)
+        Z_PARAM_ARRAY_EX2(e_array, 1, 1, 0)
         Z_PARAM_LONG_EX(sec, secnull, 1, 0)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(usec)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     std::unordered_map<int, socket_poll_fd> fds;
 
