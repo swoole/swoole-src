@@ -815,10 +815,10 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
 
 struct coro_poll_task
 {
-    swTimer_node *timer;
-    Coroutine *co;
     std::unordered_map<int, socket_poll_fd> *fds;
-    bool success;
+    Coroutine *co = nullptr;
+    swTimer_node *timer = nullptr;
+    bool success = false;
 };
 
 static std::unordered_map<int, coro_poll_task *> coro_poll_task_map;
