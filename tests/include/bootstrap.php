@@ -29,12 +29,14 @@ if (empty(getenv('SWOOLE_DEBUG')) && method_exists('Co', 'set')) {
 // Components
 (function () {
     $autoloader = __DIR__ . '/lib/vendor/autoload.php';
+    $composer_dir = __DIR__ . '/lib';
     if (!file_exists($autoloader)) {
-        $composer_dir = __DIR__ . '/lib';
         $composer_info = `cd {$composer_dir} && composer install 2>&1`;
         if (!file_exists($autoloader)) {
             throw new RuntimeException('Composer install failed:' . PHP_EOL . $composer_info);
         }
+    } elseif (!IS_IN_TRAVIS) {
+        `cd {$composer_dir} && composer dump-autoload -o > /dev/null 2>&1`;
     }
     require $autoloader;
 
