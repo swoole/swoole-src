@@ -308,106 +308,104 @@ void php_swoole_event_exit()
     }
 }
 
-int swoole_convert_to_fd(zval *zfd)
+int swoole_convert_to_fd(zval *zsocket)
 {
-    php_stream *stream;
-    int socket_fd;
+    int fd = -1;
 
-#ifdef SWOOLE_SOCKETS_SUPPORT
-    php_socket *php_sock;
-#endif
-    if (Z_TYPE_P(zfd) == IS_RESOURCE)
+    switch (Z_TYPE_P(zsocket))
     {
-        if (SW_ZEND_FETCH_RESOURCE_NO_RETURN(stream, php_stream *, &zfd, -1, NULL, php_file_le_stream()))
+    case IS_RESOURCE:
+    {
+        php_stream *stream;
+#ifdef SWOOLE_SOCKETS_SUPPORT
+        php_socket *php_sock;
+#endif
+        if ((php_stream_from_zval_no_verify(stream, zsocket)))
         {
-            if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )&socket_fd, 1) != SUCCESS || socket_fd < 0)
+            if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void *) &fd, 1) == SUCCESS && fd >= 0)
             {
-                return SW_ERR;
+                return fd;
             }
         }
+#ifdef SWOOLE_SOCKETS_SUPPORT
         else
         {
-#ifdef SWOOLE_SOCKETS_SUPPORT
-            if (SW_ZEND_FETCH_RESOURCE_NO_RETURN(php_sock, php_socket *, &zfd, -1, NULL, php_sockets_le_socket()))
+            php_socket *php_sock;
+            if ((php_sock = (php_socket *) zend_fetch_resource_ex(zsocket, NULL, php_sockets_le_socket())))
             {
-                socket_fd = php_sock->bsd_socket;
-
+                fd = php_sock->bsd_socket;
+                return fd;
             }
-            else
-            {
-                swoole_php_fatal_error(E_WARNING, "fd argument must be either valid PHP stream or valid PHP socket resource");
-                return SW_ERR;
-            }
-#else
-            swoole_php_fatal_error(E_WARNING, "fd argument must be valid PHP stream resource");
-            return SW_ERR;
+        }
 #endif
-        }
-    }
-    else if (Z_TYPE_P(zfd) == IS_LONG)
-    {
-        socket_fd = Z_LVAL_P(zfd);
-        if (socket_fd < 0)
-        {
-            swoole_php_fatal_error(E_WARNING, "invalid file descriptor passed");
-            return SW_ERR;
-        }
-    }
-    else if (Z_TYPE_P(zfd) == IS_OBJECT)
-    {
-        zval *zsock = NULL;
-        if (instanceof_function(Z_OBJCE_P(zfd), swoole_client_ce_ptr))
-        {
-            zsock = sw_zend_read_property(Z_OBJCE_P(zfd), zfd, ZEND_STRL("sock"), 0);
-        }
-        else if (instanceof_function(Z_OBJCE_P(zfd), swoole_process_ce_ptr))
-        {
-            zsock = sw_zend_read_property(Z_OBJCE_P(zfd), zfd, ZEND_STRL("pipe"), 0);
-        }
-        if (zsock == NULL || ZVAL_IS_NULL(zsock))
-        {
-            swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client or swoole_process.");
-            return -1;
-        }
-        socket_fd = Z_LVAL_P(zsock);
-    }
-    else
-    {
-        return SW_ERR;
-    }
-    return socket_fd;
-}
-
-int swoole_convert_to_fd_ex(zval *zfd, int *async)
-{
-    php_stream *stream;
-    int fd;
-
-#ifdef SWOOLE_SOCKETS_SUPPORT
-    php_socket *php_sock;
-#endif
-
-    if (Z_TYPE_P(zfd) != IS_RESOURCE)
-    {
         swoole_php_fatal_error(E_WARNING, "fd argument must be either valid PHP stream or valid PHP socket resource");
         return SW_ERR;
     }
-    if (SW_ZEND_FETCH_RESOURCE_NO_RETURN(stream, php_stream *, &zfd, -1, NULL, php_file_le_stream()))
+    case IS_LONG:
     {
-        if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )&fd, 1) == SUCCESS && fd >= 0)
+        fd = Z_LVAL_P(zsocket);
+        if (fd < 0)
         {
-            *async = stream->wrapper->wops == php_plain_files_wrapper.wops ? 0 : 1;
+            swoole_php_fatal_error(E_WARNING, "invalid file descriptor#%d passed", fd);
+            return SW_ERR;
+        }
+        return fd;
+    }
+    case IS_OBJECT:
+    {
+        zval *zfd = NULL;
+        if (instanceof_function(Z_OBJCE_P(zsocket), swoole_socket_coro_ce_ptr))
+        {
+            zfd = sw_zend_read_property(Z_OBJCE_P(zsocket), zsocket, ZEND_STRL("fd"), 0);
+        }
+        else if (instanceof_function(Z_OBJCE_P(zsocket), swoole_client_ce_ptr))
+        {
+            zfd = sw_zend_read_property(Z_OBJCE_P(zsocket), zsocket, ZEND_STRL("sock"), 0);
+        }
+        else if (instanceof_function(Z_OBJCE_P(zsocket), swoole_process_ce_ptr))
+        {
+            zfd = sw_zend_read_property(Z_OBJCE_P(zsocket), zsocket, ZEND_STRL("pipe"), 0);
+        }
+        if (zfd == NULL || Z_TYPE_P(zfd) != IS_LONG)
+        {
+            return SW_ERR;
+        }
+        return Z_LVAL_P(zfd);
+    }
+    default:
+        swoole_php_fatal_error(E_WARNING, "invalid file descriptor passed");
+        return SW_ERR;
+    }
+}
+
+int swoole_convert_to_fd_ex(zval *zsocket, int *async)
+{
+    php_stream *stream;
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    php_socket *php_sock;
+#endif
+    int fd;
+
+    if (Z_TYPE_P(zsocket) == IS_RESOURCE)
+    {
+        if ((php_stream_from_zval_no_verify(stream, zsocket)))
+        {
+            if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )&fd, 1) == SUCCESS && fd >= 0)
+            {
+                *async = stream->wrapper->wops == php_plain_files_wrapper.wops ? 0 : 1;
+                return fd;
+            }
+        }
+#ifdef SWOOLE_SOCKETS_SUPPORT
+        else if ((php_sock = (php_socket *) zend_fetch_resource_ex(zsocket, NULL, php_sockets_le_socket())))
+        {
+            fd = php_sock->bsd_socket;
+            *async = 1;
             return fd;
         }
-    }
-#ifdef SWOOLE_SOCKETS_SUPPORT
-    else if (SW_ZEND_FETCH_RESOURCE_NO_RETURN(php_sock, php_socket *, &zfd, -1, NULL, php_sockets_le_socket()))
-    {
-        fd = php_sock->bsd_socket;
-        *async = 1;
-    }
 #endif
-    swoole_php_fatal_error(E_WARNING, "invalid file descriptor passed");
+    }
+    swoole_php_fatal_error(E_WARNING, "fd argument must be either valid PHP stream or valid PHP socket resource");
     return SW_ERR;
 }
 
@@ -450,7 +448,7 @@ php_socket* swoole_convert_to_socket(int sock)
 void swoole_php_socket_free(zval *zsocket)
 {
     php_socket *php_sock;
-    SW_ZEND_FETCH_RESOURCE_NO_RETURN(php_sock, php_socket *, &zsocket, -1, NULL, php_sockets_le_socket());
+    php_sock = (php_socket *) zend_fetch_resource_ex(zsocket, NULL, php_sockets_le_socket());
     php_sock->bsd_socket = -1;
     sw_zval_free(zsocket);
 }

@@ -26,7 +26,7 @@
 using namespace swoole;
 
 static zend_class_entry swoole_socket_coro_ce;
-static zend_class_entry *swoole_socket_coro_ce_ptr;
+zend_class_entry *swoole_socket_coro_ce_ptr;
 static zend_object_handlers swoole_socket_coro_handlers;
 
 static zend_class_entry swoole_socket_coro_exception_ce;

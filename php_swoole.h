@@ -250,12 +250,13 @@ typedef struct
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 
-extern zend_class_entry *swoole_process_ce_ptr;
+extern zend_class_entry *swoole_socket_coro_ce_ptr;
 extern zend_class_entry *swoole_client_ce_ptr;
 extern zend_class_entry *swoole_server_ce_ptr;
 extern zend_object_handlers swoole_server_handlers;
 extern zend_class_entry *swoole_connection_iterator_ce_ptr;
 extern zend_class_entry *swoole_buffer_ce_ptr;
+extern zend_class_entry *swoole_process_ce_ptr;
 extern zend_class_entry *swoole_http_server_ce_ptr;
 extern zend_object_handlers swoole_http_server_handlers;
 extern zend_class_entry *swoole_websocket_server_ce_ptr;
@@ -446,8 +447,8 @@ static sw_inline void swoole_set_property(zval *zobject, int property_id, void *
     swoole_set_property_by_handle(Z_OBJ_HANDLE_P(zobject), property_id, ptr);
 }
 
-int swoole_convert_to_fd(zval *zfd);
-int swoole_convert_to_fd_ex(zval *zfd, int *async);
+int swoole_convert_to_fd(zval *zsocket);
+int swoole_convert_to_fd_ex(zval *zsocket, int *async);
 int swoole_register_rshutdown_function(swCallback func, int push_back);
 void swoole_call_rshutdown_function(void *arg);
 
@@ -626,8 +627,6 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 // do not use sw_copy_to_stack(return_value, foo);
 #define sw_copy_to_stack(ptr, val) val = *(zval *) ptr, ptr = &val
 
-#define SW_ZEND_FETCH_RESOURCE_NO_RETURN(rsrc, rsrc_type, passed_id, default_id, resource_type_name, resource_type)        \
-        (rsrc = (rsrc_type) zend_fetch_resource(Z_RES_P(*passed_id), resource_type_name, resource_type))
 #define SW_ZEND_REGISTER_RESOURCE(return_value, result, le_result)  ZVAL_RES(return_value,zend_register_resource(result, le_result))
 
 static sw_inline zend_bool Z_BVAL_P(zval *v)
