@@ -1492,6 +1492,7 @@ static PHP_FUNCTION(_stream_select)
         {
             continue;
         }
+        SW_ASSERT((revents &= ((~SW_EVENT_READ) | (~SW_EVENT_WRITE) | (~SW_EVENT_ERROR))) == 0);
         if ((revents & SW_EVENT_READ) && r_array)
         {
             if (EXPECTED(add_next_index_zval(r_array, zsocket) == SUCCESS))

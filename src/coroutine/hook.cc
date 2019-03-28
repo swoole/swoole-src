@@ -903,6 +903,7 @@ bool Coroutine::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double
         {
             event_list[j].fd = i->first;
             event_list[j].events = i->second.events;
+            event_list[j].events = 0;
             j++;
         }
         int retval = ::poll(event_list, fds.size(), 0);
