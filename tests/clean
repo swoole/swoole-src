@@ -1,36 +1,30 @@
 #!/usr/bin/env php
 <?php
-$dirs = scandir(__DIR__);
-foreach ($dirs as $d)
+function clean($dir)
 {
-    if (substr($d, 0, 6) == 'swoole')
-    {
-        clean(__DIR__ . '/' . $d);
+    $files = scandir($dir);
+    foreach ($files as $file) {
+        $full_path = "{$dir}/{$file}";
+        if ($file{0} === '.') {
+            continue;
+        }
+        if (is_dir($full_path)) {
+            clean($full_path);
+            continue;
+        }
+        $extension = pathinfo($file, PATHINFO_EXTENSION);
+        if (in_array($extension, ['diff', 'exp', 'log', 'out', 'php', 'sh'], true)) {
+            if (is_file($full_path)) {
+                echo "DELETE: {$full_path}\n";
+                unlink($full_path);
+            }
+        }
     }
 }
 
-function clean($dir)
-{
-    $ignore_files = include __DIR__ . '/include/ignore_files.php';
-    $files = scandir($dir);
-    foreach ($files as $f)
-    {
-        if ($f == '.' or $f == '..')
-        {
-            continue;
-        }
-        if (is_dir($f))
-        {
-            clean($dir);
-        }
-        if (substr($f, -5) != '.phpt')
-        {
-            $file = $dir . '/' . $f;
-            if (is_file($file) and !in_array($dir . '/' . $f, $ignore_files))
-            {
-                echo "DELETE: ", $file, "\n";
-                unlink($file);
-            }
-        }
+$dirs = scandir(__DIR__);
+foreach ($dirs as $dir) {
+    if (strpos($dir, 'swoole_') === 0) {
+        clean(__DIR__ . '/' . $dir);
     }
 }
