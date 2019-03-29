@@ -141,9 +141,9 @@ void swoole_runtime_init(int module_number)
     SWOOLE_DEFINE(HOOK_UDG);
     SWOOLE_DEFINE(HOOK_SSL);
     SWOOLE_DEFINE(HOOK_TLS);
+    SWOOLE_DEFINE(HOOK_STREAM_SELECT);
     SWOOLE_DEFINE(HOOK_FILE);
     SWOOLE_DEFINE(HOOK_SLEEP);
-    SWOOLE_DEFINE(HOOK_STREAM_SELECT);
     SWOOLE_DEFINE(HOOK_BLOCKING_FUNCTION);
     SWOOLE_DEFINE(HOOK_ALL);
 }
@@ -951,205 +951,293 @@ bool PHPCoroutine::enable_hook(int flags)
     if (unlikely(enable_strict_mode))
     {
         swoole_php_fatal_error(E_ERROR, "unable to enable the coroutine mode after you enable the strict mode.");
-    }
-    if (hook_init)
-    {
         return false;
     }
-    hook_flags = flags;
-    hook_init = true;
-    HashTable *xport_hash = php_stream_xport_get_hash();
-
-    if (flags & SW_HOOK_FILE)
+    if (!hook_init)
     {
-        memcpy((void*) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-        memcpy((void*) &php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-    }
-    if (flags & SW_HOOK_SLEEP)
-    {
-        ori_sleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("sleep"));
-        if (ori_sleep)
-        {
-            ori_sleep_handler =  ori_sleep->internal_function.handler;
-            ori_sleep->internal_function.handler = PHP_FN(_sleep);
-        }
-        ori_usleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("usleep"));
-        if (ori_usleep)
-        {
-            ori_usleep_handler =  ori_usleep->internal_function.handler;
-            ori_usleep->internal_function.handler = PHP_FN(_usleep);
-        }
-        ori_time_nanosleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("time_nanosleep"));
-        if (ori_time_nanosleep)
-        {
-            ori_time_nanosleep_handler =  ori_time_nanosleep->internal_function.handler;
-            ori_time_nanosleep->internal_function.handler = PHP_FN(_time_nanosleep);
-        }
-        ori_time_sleep_until = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("time_sleep_until"));
-        if (ori_time_sleep_until)
-        {
-            ori_time_sleep_until_handler =  ori_time_sleep_until->internal_function.handler;
-            ori_time_sleep_until->internal_function.handler = PHP_FN(_time_sleep_until);
-        }
-    }
-    if (flags & SW_HOOK_STREAM_SELECT)
-    {
+        HashTable *xport_hash = php_stream_xport_get_hash();
+        // php_stream
+        ori_factory.tcp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tcp"));
+        ori_factory.udp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udp"));
+        ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("unix"));
+        ori_factory.udg = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udg"));
+#ifdef SW_USE_OPENSSL
+        ori_factory.ssl = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("ssl"));
+        ori_factory.tls = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tls"));
+#endif
         ori_stream_select = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("stream_select"));
-        if (ori_stream_select)
-        {
-            ori_stream_select_handler =  ori_stream_select->internal_function.handler;
-            ori_stream_select->internal_function.handler = PHP_FN(_stream_select);
-        }
-    }
-    if (flags & SW_HOOK_BLOCKING_FUNCTION)
-    {
+        ori_stream_select_handler = ori_stream_select->internal_function.handler;
+
+        // file
+        memcpy((void*) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+
+        // sleep
+        ori_sleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("sleep"));
+        ori_sleep_handler = ori_sleep->internal_function.handler;
+        ori_usleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("usleep"));
+        ori_usleep_handler = ori_usleep->internal_function.handler;
+        ori_time_nanosleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("time_nanosleep"));
+        ori_time_nanosleep_handler = ori_time_nanosleep->internal_function.handler;
+        ori_time_sleep_until = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("time_sleep_until"));
+        ori_time_sleep_until_handler = ori_time_sleep_until->internal_function.handler;
+
+        // blocking function
         ori_gethostbyname = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("gethostbyname"));
-        if (ori_gethostbyname)
-        {
-            ori_gethostbyname_handler =  ori_gethostbyname->internal_function.handler;
-            ori_gethostbyname->internal_function.handler = PHP_FN(swoole_coroutine_gethostbyname);
-        }
+        ori_gethostbyname_handler = ori_gethostbyname->internal_function.handler;
+
+        hook_init = true;
     }
+    // php_stream
     if (flags & SW_HOOK_TCP)
     {
-        ori_factory.tcp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tcp"));
-        php_stream_xport_register("tcp", socket_create);
+        if (!(hook_flags & SW_HOOK_TCP))
+        {
+            if (php_stream_xport_register("tcp", socket_create) != SUCCESS)
+            {
+                flags ^= SW_HOOK_TCP;
+            }
+        }
     }
-    if (flags & SW_HOOK_UNIX)
+    else
     {
-        ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("unix"));
-        php_stream_xport_register("unix", socket_create);
-    }
-    if (flags & SW_HOOK_UDG)
-    {
-        ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udg"));
-        php_stream_xport_register("udg", socket_create);
+        if (hook_flags & SW_HOOK_TCP)
+        {
+            php_stream_xport_register("tcp", ori_factory.tcp);
+        }
     }
     if (flags & SW_HOOK_UDP)
     {
-        ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udp"));
-        php_stream_xport_register("udp", socket_create);
+        if (!(hook_flags & SW_HOOK_UDP))
+        {
+            if (php_stream_xport_register("udp", socket_create) != SUCCESS)
+            {
+                flags ^= SW_HOOK_UDP;
+            }
+        }
+    }
+    else
+    {
+        if (hook_flags & SW_HOOK_UDP)
+        {
+            php_stream_xport_register("udp", ori_factory.udp);
+        }
+    }
+    if (flags & SW_HOOK_UNIX)
+    {
+        if (!(hook_flags & SW_HOOK_UNIX))
+        {
+            if (php_stream_xport_register("unix", socket_create) != SUCCESS)
+            {
+                flags ^= SW_HOOK_UNIX;
+            }
+        }
+    }
+    else
+    {
+        if (hook_flags & SW_HOOK_UNIX)
+        {
+            php_stream_xport_register("unix", ori_factory._unix);
+        }
+    }
+    if (flags & SW_HOOK_UDG)
+    {
+        if (!(hook_flags & SW_HOOK_UDG))
+        {
+            if (php_stream_xport_register("udg", socket_create) != SUCCESS)
+            {
+                flags ^= SW_HOOK_UDG;
+            }
+        }
+    }
+    else
+    {
+        if (hook_flags & SW_HOOK_UDG)
+        {
+            php_stream_xport_register("udg", ori_factory.udg);
+        }
     }
 #ifdef SW_USE_OPENSSL
     if (flags & SW_HOOK_SSL)
     {
-        ori_factory.ssl = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("ssl"));
-        php_stream_xport_register("ssl", socket_create);
+        if (!(hook_flags & SW_HOOK_SSL))
+        {
+            if (php_stream_xport_register("ssl", socket_create) != SUCCESS)
+            {
+                flags ^= SW_HOOK_SSL;
+            }
+        }
+    }
+    else
+    {
+        if (hook_flags & SW_HOOK_SSL)
+        {
+            php_stream_xport_register("ssl", ori_factory.ssl);
+        }
     }
     if (flags & SW_HOOK_TLS)
     {
-        ori_factory.tls = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tls"));
-        php_stream_xport_register("tls", socket_create);
+        if (!(hook_flags & SW_HOOK_TLS))
+        {
+            if (php_stream_xport_register("tls", socket_create) != SUCCESS)
+            {
+                flags ^= SW_HOOK_TLS;
+            }
+        }
+    }
+    else
+    {
+        if (hook_flags & SW_HOOK_TLS)
+        {
+            php_stream_xport_register("tls", ori_factory.tls);
+        }
     }
 #endif
+    if (flags & SW_HOOK_STREAM_SELECT)
+    {
+        if (!(hook_flags & SW_HOOK_STREAM_SELECT))
+        {
+            if (ori_stream_select)
+            {
+                ori_stream_select->internal_function.handler = PHP_FN(_stream_select);
+            }
+            else
+            {
+                flags ^= SW_HOOK_STREAM_SELECT;
+            }
+        }
+    }
+    else
+    {
+        if (hook_flags & SW_HOOK_STREAM_SELECT)
+        {
+            if (ori_stream_select)
+            {
+                ori_stream_select->internal_function.handler = ori_stream_select_handler;
+            }
+        }
+    }
+    // file
+    if (flags & SW_HOOK_FILE)
+    {
+        if (!(hook_flags & SW_HOOK_FILE))
+        {
+            memcpy((void*) &php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+        }
+    }
+    else
+    {
+        if (hook_flags & SW_HOOK_FILE)
+        {
+            memcpy((void*) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+        }
+    }
+    // sleep
+    if (flags & SW_HOOK_SLEEP)
+    {
+        if (!(hook_flags & SW_HOOK_SLEEP))
+        {
+            if (ori_sleep)
+            {
+                ori_sleep->internal_function.handler = PHP_FN(_sleep);
+            }
+            if (ori_usleep)
+            {
+                ori_usleep->internal_function.handler = PHP_FN(_usleep);
+            }
+            if (ori_time_nanosleep)
+            {
+                ori_time_nanosleep->internal_function.handler = PHP_FN(_time_nanosleep);
+            }
+            if (ori_time_sleep_until)
+            {
+                ori_time_sleep_until->internal_function.handler = PHP_FN(_time_sleep_until);
+            }
+        }
+    }
+    else
+    {
+        if (hook_flags & SW_HOOK_SLEEP)
+        {
+            if (ori_sleep)
+            {
+                ori_sleep->internal_function.handler = ori_sleep_handler;
+            }
+            if (ori_usleep)
+            {
+                ori_usleep->internal_function.handler = ori_usleep_handler;
+            }
+            if (ori_time_nanosleep)
+            {
+                ori_time_nanosleep->internal_function.handler = ori_time_nanosleep_handler;
+            }
+            if (ori_time_sleep_until)
+            {
+                ori_time_sleep_until->internal_function.handler = ori_time_sleep_until_handler;
+            }
+        }
+    }
+    // blocking function
+    if (flags & SW_HOOK_BLOCKING_FUNCTION)
+    {
+        if (!(hook_flags & SW_HOOK_BLOCKING_FUNCTION))
+        {
+            if (ori_gethostbyname)
+            {
+                ori_gethostbyname->internal_function.handler = PHP_FN(swoole_coroutine_gethostbyname);
+            }
+        }
+    }
+    else
+    {
+        if (hook_flags & SW_HOOK_BLOCKING_FUNCTION)
+        {
+            if (ori_gethostbyname)
+            {
+                ori_gethostbyname->internal_function.handler = ori_gethostbyname_handler;
+            }
+        }
+    }
+    hook_flags = flags;
     return true;
 }
 
 bool PHPCoroutine::disable_hook()
 {
-    if (!hook_init)
-    {
-        return false;
-    }
-    if (hook_flags & SW_HOOK_FILE)
-    {
-        memcpy((void*) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-    }
-    if (hook_flags & SW_HOOK_SLEEP)
-    {
-        if (ori_sleep)
-        {
-            ori_sleep->internal_function.handler = ori_sleep_handler;
-        }
-        if (ori_usleep)
-        {
-            ori_usleep->internal_function.handler = ori_usleep_handler;
-        }
-        if (ori_time_nanosleep)
-        {
-            ori_time_nanosleep->internal_function.handler = ori_time_nanosleep_handler;
-        }
-        if (ori_time_sleep_until)
-        {
-            ori_time_sleep_until->internal_function.handler = ori_time_sleep_until_handler;
-        }
-    }
-    if (hook_flags & SW_HOOK_STREAM_SELECT)
-    {
-        if (ori_stream_select)
-        {
-            ori_stream_select->internal_function.handler = ori_stream_select_handler;
-        }
-    }
-    if (hook_flags & SW_HOOK_BLOCKING_FUNCTION)
-    {
-        if (ori_gethostbyname)
-        {
-            ori_gethostbyname->internal_function.handler = ori_gethostbyname_handler;
-        }
-    }
-    if (hook_flags & SW_HOOK_TCP)
-    {
-        php_stream_xport_register("tcp", ori_factory.tcp);
-    }
-    if (hook_flags & SW_HOOK_UNIX)
-    {
-        php_stream_xport_register("unix", ori_factory._unix);
-    }
-    if (hook_flags & SW_HOOK_UDP)
-    {
-        php_stream_xport_register("udp", ori_factory.udp);
-    }
-    if (hook_flags & SW_HOOK_UDG)
-    {
-        php_stream_xport_register("udg", ori_factory.udg);
-    }
-#ifdef SW_USE_OPENSSL
-    if (hook_flags & SW_HOOK_SSL)
-    {
-        php_stream_xport_register("ssl", ori_factory.ssl);
-    }
-    if (hook_flags & SW_HOOK_TLS)
-    {
-        php_stream_xport_register("tls", ori_factory.tls);
-    }
-#endif
-    hook_flags = 0;
-    return true;
+    return enable_hook(0);
 }
 
 static PHP_METHOD(swoole_runtime, enableCoroutine)
 {
-    zval *zenable = nullptr;
-    zend_bool enable = 1;
+    zval *zflags = nullptr;
     zend_long flags = SW_HOOK_ALL;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
         Z_PARAM_OPTIONAL
-        Z_PARAM_ZVAL(zenable)
+        Z_PARAM_ZVAL(zflags) // or zenable
         Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (zenable)
+    if (zflags)
     {
-        if (Z_TYPE_P(zenable) == IS_LONG)
+        if (Z_TYPE_P(zflags) == IS_LONG)
         {
-            enable = (flags = Z_LVAL_P(zenable)) > 0;
+            flags = MAX(0, Z_LVAL_P(zflags));
+        }
+        else if (ZVAL_IS_BOOL(zflags))
+        {
+            if (!Z_BVAL_P(zflags))
+            {
+                flags = 0;
+            }
         }
         else
         {
-            enable = zval_is_true(zenable);
+            const char *space, *class_name = get_active_class_name(&space);
+            zend_type_error("%s%s%s() expects parameter %d to be %s, %s given", class_name, space, get_active_function_name(), 1, "bool or long", zend_zval_type_name(zflags));
         }
     }
 
-    if (enable)
-    {
-        RETURN_BOOL(PHPCoroutine::enable_hook(flags));
-    }
-    else
-    {
-        RETURN_BOOL(PHPCoroutine::disable_hook());
-    }
+    RETURN_BOOL(PHPCoroutine::enable_hook(flags));
 }
 
 static PHP_FUNCTION(_sleep)

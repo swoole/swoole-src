@@ -629,6 +629,13 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 
 #define SW_ZEND_REGISTER_RESOURCE(return_value, result, le_result)  ZVAL_RES(return_value,zend_register_resource(result, le_result))
 
+#ifndef ZVAL_IS_BOOL
+static sw_inline zend_bool ZVAL_IS_BOOL(zval *v)
+{
+    return Z_TYPE_P(v) == IS_TRUE || Z_TYPE_P(v) == IS_FALSE;
+}
+#endif
+
 static sw_inline zend_bool Z_BVAL_P(zval *v)
 {
     return Z_TYPE_P(v) == IS_TRUE;
