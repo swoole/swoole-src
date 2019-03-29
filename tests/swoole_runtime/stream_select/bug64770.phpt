@@ -33,7 +33,6 @@ go(function () {
                     break;
                 } else {
                     if ($n > 0) {
-                        var_dump($pipes);
                         $line = fread($pipes[1], 8192);
                         if (strlen($line) == 0) {
                             /* EOF */

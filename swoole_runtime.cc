@@ -13,7 +13,7 @@
   | Author:   Tianfeng Han  <mikan.tenny@gmail.com>                      |
   +----------------------------------------------------------------------+
  */
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 #include "swoole_coroutine.h"
 
 #include <unordered_map>
@@ -1301,6 +1301,8 @@ static PHP_FUNCTION(_time_sleep_until)
 static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, socket_poll_fd> &fds, int event)
 {
     zval *elem;
+    zend_ulong index;
+    zend_string *key;
     php_socket_t sock;
 
     if (Z_TYPE_P(stream_array) != IS_ARRAY)
@@ -1308,7 +1310,7 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, s
         return;
     }
 
-    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(stream_array), elem)
+    ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(stream_array), index, key, elem)
     {
         ZVAL_DEREF(elem);
         sock = swoole_convert_to_fd(elem);
@@ -1319,8 +1321,7 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, s
         auto i = fds.find(sock);
         if (i == fds.end())
         {
-            zval_add_ref(elem);
-            fds.emplace(make_pair(sock, socket_poll_fd(event, elem)));
+            fds.emplace(make_pair(sock, socket_poll_fd(event, new zend::array::key_value(index, key, elem))));
         }
         else
         {
@@ -1485,37 +1486,28 @@ static PHP_FUNCTION(_stream_select)
         zend_hash_clean(Z_ARRVAL_P(e_array));
     }
 
-    for (auto i = fds.begin(); i != fds.end(); i++)
+    for (auto &i : fds)
     {
-        zval *zsocket = (zval *) i->second.ptr;
-        int revents = i->second.revents;
-        if (revents == 0)
+        zend::array::key_value *kv = (zend::array::key_value *) i.second.ptr;
+        int revents = i.second.revents;
+        SW_ASSERT((revents & (~(SW_EVENT_READ |SW_EVENT_WRITE | SW_EVENT_ERROR))) == 0);
+        if (revents > 0)
         {
-            continue;
-        }
-        SW_ASSERT((revents &= (~(SW_EVENT_READ |SW_EVENT_WRITE | SW_EVENT_ERROR))) == 0);
-        if ((revents & SW_EVENT_READ) && r_array)
-        {
-            if (EXPECTED(add_next_index_zval(r_array, zsocket) == SUCCESS))
+            if ((revents & SW_EVENT_READ) && r_array)
             {
-                Z_TRY_ADDREF_P(zsocket);
+                kv->add_to(r_array);
             }
-        }
-        if ((revents & SW_EVENT_WRITE) && w_array)
-        {
-            if (EXPECTED(add_next_index_zval(w_array, zsocket) == SUCCESS))
+            if ((revents & SW_EVENT_WRITE) && w_array)
             {
-                Z_TRY_ADDREF_P(zsocket);
+                kv->add_to(w_array);
             }
-        }
-        if ((revents & SW_EVENT_ERROR) && e_array)
-        {
-            if (EXPECTED(add_next_index_zval(e_array, zsocket) == SUCCESS))
+            if ((revents & SW_EVENT_ERROR) && e_array)
             {
-                Z_TRY_ADDREF_P(zsocket);
+                kv->add_to(e_array);
             }
+            retval++;
         }
-        retval++;
+        delete kv;
     }
 
     RETURN_LONG(retval);
