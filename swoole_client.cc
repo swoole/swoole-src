@@ -922,15 +922,14 @@ static PHP_METHOD(swoole_client, __construct)
     char *id = NULL;
     size_t len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|ls", &type, &async, &id, &len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|bs", &type, &async, &id, &len) == FAILURE)
     {
         swoole_php_fatal_error(E_ERROR, "socket type param is required.");
         RETURN_FALSE;
     }
 
-    if (async == 1)
+    if (async)
     {
-        swoole_php_fatal_error(E_DEPRECATED, "async APIs will be removed in Swoole-v4.3.0, you should be using the coroutine APIs instead.");
         type |= SW_FLAG_ASYNC;
     }
 
