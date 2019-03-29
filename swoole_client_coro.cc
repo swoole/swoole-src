@@ -651,7 +651,12 @@ static PHP_METHOD(swoole_client_coro, __construct)
     int client_type = php_swoole_socktype(type);
     if (client_type < SW_SOCK_TCP || client_type > SW_SOCK_UNIX_STREAM)
     {
-        swoole_php_fatal_error(E_ERROR, "Unknown client type '%d'.", client_type);
+        const char *space, *class_name = get_active_class_name(&space);
+        zend_type_error(
+            "%s%s%s() expects parameter %d to be client type, unknown type " ZEND_LONG_FMT " given",
+            class_name, space, get_active_function_name(), 1, type
+        );
+        RETURN_FALSE;
     }
 
     zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("type"), type);
