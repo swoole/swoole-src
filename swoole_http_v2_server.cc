@@ -148,7 +148,7 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
             ret = nghttp2_hd_deflate_new(&deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
             if (ret != 0)
             {
-                swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init() failed with error: %s\n", nghttp2_strerror(ret));
+                swWarn("nghttp2_hd_deflate_init() failed with error: %s\n", nghttp2_strerror(ret));
                 return SW_ERR;
             }
             client->deflater = deflater;
@@ -164,7 +164,7 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
         rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, nv, index);
         if (rv < 0)
         {
-            swoole_php_error(E_WARNING, "nghttp2_hd_deflate_hd() failed with error: %s\n", nghttp2_strerror((int ) rv));
+            swWarn("nghttp2_hd_deflate_hd() failed with error: %s\n", nghttp2_strerror((int ) rv));
             efree(nv);
             return SW_ERR;
         }
@@ -340,7 +340,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
         ret = nghttp2_hd_deflate_new(&deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
         if (ret != 0)
         {
-            swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init() failed with error: %s\n", nghttp2_strerror(ret));
+            swWarn("nghttp2_hd_deflate_init() failed with error: %s\n", nghttp2_strerror(ret));
             goto _error;
         }
         client->deflater = deflater;
@@ -355,7 +355,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, nv, index);
     if (rv < 0)
     {
-        swoole_php_error(E_WARNING, "nghttp2_hd_deflate_hd() failed with error: %s\n", nghttp2_strerror((int ) rv));
+        swWarn("nghttp2_hd_deflate_hd() failed with error: %s\n", nghttp2_strerror((int ) rv));
         goto _error;
     }
 
@@ -529,7 +529,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
         int ret = nghttp2_hd_inflate_new(&inflater);
         if (ret != 0)
         {
-            swoole_php_error(E_WARNING, "nghttp2_hd_inflate_init() failed, Error: %s[%d].", nghttp2_strerror(ret), ret);
+            swWarn("nghttp2_hd_inflate_init() failed, Error: %s[%d].", nghttp2_strerror(ret), ret);
             return SW_ERR;
         }
         client->inflater = inflater;
@@ -556,8 +556,8 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
         rv = nghttp2_hd_inflate_hd(inflater, &nv, &inflate_flags, (uchar *) in, inlen, 1);
         if (rv < 0)
         {
-            swoole_php_error(E_WARNING, "inflate failed, Error: %s[%zd].", nghttp2_strerror(rv), rv);
-            return -1;
+            swWarn("inflate failed, Error: %s[%zd].", nghttp2_strerror(rv), rv);
+            return SW_ERR;
         }
 
         proclen = (size_t) rv;
@@ -626,7 +626,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                         if (boundary_len <= 0)
                         {
                             swWarn("invalid multipart/form-data body fd:%d.", ctx->fd);
-                            return 0;
+                            return SW_ERR;
                         }
                         swoole_http_parse_form_data(ctx, (char*) nv.value + nv.valuelen - boundary_len, boundary_len);
                         ctx->parser.data = ctx;
@@ -797,7 +797,10 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             ctx = stream->ctx;
         }
 
-        http2_parse_header(client, ctx, flags, buf, length);
+        if (http2_parse_header(client, ctx, flags, buf, length) < 0)
+        {
+            return SW_ERR;
+        }
 
         if (flags & SW_HTTP2_FLAG_END_STREAM)
         {
