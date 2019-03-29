@@ -819,6 +819,7 @@ struct coro_poll_task
     Coroutine *co = nullptr;
     swTimer_node *timer = nullptr;
     bool success = false;
+    bool wait = true;
 };
 
 static std::unordered_map<int, coro_poll_task *> coro_poll_task_map;
@@ -842,6 +843,7 @@ static void socket_poll_timeout(swTimer *timer, swTimer_node *tnode)
     coro_poll_task *task = (coro_poll_task *) tnode->data;
     task->timer = nullptr;
     task->success = false;
+    task->wait = false;
     socket_poll_clean(task);
     task->co->resume();
 }
@@ -865,11 +867,15 @@ static inline void socket_poll_trigger_event(swReactor *reactor, int fd, enum sw
     {
         i->second.revents |= event;
     }
-    if (task->timer)
+    if (task->wait)
     {
-        swTimer_del(&SwooleG.timer, task->timer);
-        task->timer = nullptr;
+        task->wait = false;
         task->success = true;
+        if (task->timer)
+        {
+            swTimer_del(&SwooleG.timer, task->timer);
+            task->timer = nullptr;
+        }
         reactor->defer(reactor, socket_poll_completed, task);
     }
 }
