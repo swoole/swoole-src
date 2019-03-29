@@ -865,13 +865,9 @@ static inline void socket_poll_trigger_event(swReactor *reactor, int fd, enum sw
         {
             i->second.revents |= SW_EVENT_READ;
         }
-        else if (i->second.events & SW_EVENT_WRITE)
+        if (i->second.events & SW_EVENT_WRITE)
         {
             i->second.revents |= SW_EVENT_WRITE;
-        }
-        else
-        {
-            assert(0);
         }
     }
     else
