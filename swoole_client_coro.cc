@@ -644,11 +644,9 @@ static PHP_METHOD(swoole_client_coro, __construct)
 {
     zend_long type = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &type) == FAILURE)
-    {
-        swoole_php_fatal_error(E_ERROR, "socket type param is required.");
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
+        Z_PARAM_LONG(type)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     int client_type = php_swoole_socktype(type);
     if (client_type < SW_SOCK_TCP || client_type > SW_SOCK_UNIX_STREAM)
