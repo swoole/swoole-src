@@ -1206,12 +1206,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename,
         return SW_ERR;
     }
     // string must be zero termination (for `state` system call)
-    do {
-        char *p = (char *) req->filename;
-        strncpy(p, filename, filename_length);
-        *(p + filename_length) = '\0';
-        filename = p;
-    } while (0);
+    (filename = strncpy((char *) req->filename, filename, filename_length))[filename_length] = '\0';
 
     // check state
     struct stat file_stat;
