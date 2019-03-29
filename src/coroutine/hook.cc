@@ -947,6 +947,7 @@ bool Coroutine::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double
         return retval > 0;
     }
 
+    size_t tasked_num = 0;
     coro_poll_task task;
     task.fds = &fds;
     task.co = Coroutine::get_current_safe();
@@ -960,7 +961,13 @@ bool Coroutine::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double
         else
         {
             coro_poll_task_map[i->first] = &task;
+            tasked_num++;
         }
+    }
+
+    if (unlikely(tasked_num == 0))
+    {
+        return false;
     }
 
     if (timeout > 0)
