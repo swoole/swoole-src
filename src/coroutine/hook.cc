@@ -859,9 +859,20 @@ static inline void socket_poll_trigger_event(swReactor *reactor, int fd, enum sw
 {
     coro_poll_task *task = coro_poll_task_map[fd];
     auto i = task->fds->find(fd);
-    if ((i->second.events & SW_EVENT_READ) && !(i->second.events & SW_EVENT_ERROR))
+    if (event == SW_EVENT_ERROR && !(i->second.events & SW_EVENT_ERROR))
     {
-        i->second.revents |= SW_EVENT_READ;
+        if (i->second.events & SW_EVENT_READ)
+        {
+            i->second.revents |= SW_EVENT_READ;
+        }
+        else if (i->second.events & SW_EVENT_WRITE)
+        {
+            i->second.revents |= SW_EVENT_WRITE;
+        }
+        else
+        {
+            assert(0);
+        }
     }
     else
     {
