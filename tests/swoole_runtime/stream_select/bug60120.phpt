@@ -38,8 +38,8 @@ go(function () {
             break;
         } elseif ($n === 0) {
             proc_terminate($process);
-
         }
+
         if ($w) {
             $written = fwrite($writePipes[0], substr($stdin, $stdinOffset), 8192);
             if (false !== $written) {

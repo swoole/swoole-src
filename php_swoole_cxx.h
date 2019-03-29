@@ -102,5 +102,45 @@ public:
 private:
     zend_string *str;
 };
-}
 
+namespace array
+{
+class key_value
+{
+public:
+    zend_ulong index;
+    zend_string *key;
+    zval zvalue;
+
+    key_value(zend_ulong _index, zend_string *_key, zval *_zvalue)
+    {
+        index = _index;
+        key = _key ? zend_string_copy(_key) : nullptr;
+        ZVAL_DEREF(_zvalue);
+        zvalue = *_zvalue;
+        Z_TRY_ADDREF(zvalue);
+    }
+
+    inline void add_to(zval *zarray)
+    {
+        HashTable *ht = Z_ARRVAL_P(zarray);
+        zval *dest_elem;
+        if (key) {
+            dest_elem = zend_hash_update(ht, key, &zvalue);
+        } else {
+            dest_elem = zend_hash_index_update(ht, index, &zvalue);
+        }
+        zval_add_ref(dest_elem);
+    }
+
+    ~key_value()
+    {
+        if (key)
+        {
+            zend_string_release(key);
+        }
+        zval_ptr_dtor(&zvalue);
+    }
+};
+}
+}
