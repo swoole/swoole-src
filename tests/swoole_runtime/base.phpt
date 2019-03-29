@@ -14,7 +14,7 @@ echo '2' . PHP_EOL;
 go(function () {
     $read = [fopen(__FILE__, 'r')];
     $n = stream_select($read, $write, $except, 1);
-    Assert::eq(1, $n);
+    Assert::eq($n, 1);
     Assert::count($read, 1);
     echo 'select' . PHP_EOL;
 });
@@ -23,7 +23,7 @@ Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL ^ SWOOLE_HOOK_FILE ^ SWOOLE_HOOK
 go(function () {
     $read = [fopen(__FILE__, 'r')];
     $n = stream_select($read, $write, $except, 1);
-    Assert::eq(1, $n);
+    Assert::eq($n, 1);
     Assert::count($read, 1);
     echo '4' . PHP_EOL;
 });
@@ -41,7 +41,7 @@ echo '6' . PHP_EOL;
 go(function () {
     $read = [fopen(__FILE__, 'r')];
     $n = stream_select($read, $write, $except, 1);
-    Assert::eq(1, $n);
+    Assert::eq($n, 1);
     Assert::count($read, 1);
     echo 'select' . PHP_EOL;
 });
@@ -57,4 +57,7 @@ Swoole\Runtime::enableCoroutine(false); // disable all
 5
 6
 7
-8
+select
+select
+sleep1
+sleep2

@@ -42,9 +42,14 @@ if (empty(getenv('SWOOLE_DEBUG')) && method_exists('Co', 'set')) {
 
     class Assert extends \Webmozart\Assert\Assert
     {
-        protected static function reportInvalidArgument($message)
+        public static function reportInvalidArgument($message)
         {
-            trigger_error($message, E_USER_WARNING);
+            $e = new RuntimeException($message);
+            $file = $e->getFile();
+            $line = $e->getLine();
+            $msg = $e->getMessage();
+            $trace = $e->getTraceAsString();
+            echo "\nAssert failed: {$msg} in {$file} on line {$line}\nStack trace: \n{$trace}\n";
         }
     }
 })();
