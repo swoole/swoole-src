@@ -1,5 +1,5 @@
 --TEST--
-1: Bug #64438 proc_open hangs with stdin/out with 4097+ bytes
+swoole_runtime/stream_select: Bug #64438 proc_open hangs with stdin/out with 4097+ bytes
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

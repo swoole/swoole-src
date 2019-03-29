@@ -1421,8 +1421,11 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, s
 static int stream_array_emulate_read_fd_set(zval *stream_array)
 {
     zval *elem, *dest_elem, new_array;
+    HashTable *ht;
     php_stream *stream;
     int ret = 0;
+    zend_ulong num_ind;
+    zend_string *key;
 
     if (Z_TYPE_P(stream_array) != IS_ARRAY)
     {
@@ -1430,9 +1433,10 @@ static int stream_array_emulate_read_fd_set(zval *stream_array)
     }
 
     ZVAL_NEW_ARR(&new_array);
-    zend_hash_init(Z_ARRVAL(new_array), zend_hash_num_elements(Z_ARRVAL_P(stream_array)), NULL, ZVAL_PTR_DTOR, 0);
+    ht = Z_ARRVAL(new_array);
+    zend_hash_init(ht, zend_hash_num_elements(Z_ARRVAL_P(stream_array)), NULL, ZVAL_PTR_DTOR, 0);
 
-    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(stream_array), elem)
+    ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(stream_array), num_ind, key, elem)
     {
         ZVAL_DEREF(elem);
         php_stream_from_zval_no_verify(stream, elem);
@@ -1448,11 +1452,8 @@ static int stream_array_emulate_read_fd_set(zval *stream_array)
              * This branch of code also allows blocking streams with buffered data to
              * operate correctly in stream_select.
              * */
-            dest_elem = zend_hash_next_index_insert(Z_ARRVAL(new_array), elem);
-            if (dest_elem)
-            {
-                zval_add_ref(dest_elem);
-            }
+            dest_elem = !key ? zend_hash_index_update(ht, num_ind, elem) : zend_hash_update(ht, key, elem);
+            zval_add_ref(dest_elem);
             ret++;
             continue;
         }
@@ -1462,11 +1463,11 @@ static int stream_array_emulate_read_fd_set(zval *stream_array)
     {
         /* destroy old array and add new one */
         zend_array_destroy(Z_ARR_P(stream_array));
-        Z_ARR_P(stream_array) = Z_ARR(new_array);
+        ZVAL_ARR(stream_array, ht);
     }
     else
     {
-        zend_array_destroy(Z_ARR(new_array));
+        zend_array_destroy(ht);
     }
 
     return ret;

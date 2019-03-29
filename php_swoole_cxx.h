@@ -124,13 +124,8 @@ public:
     inline void add_to(zval *zarray)
     {
         HashTable *ht = Z_ARRVAL_P(zarray);
-        zval *dest_elem;
-        if (key) {
-            dest_elem = zend_hash_update(ht, key, &zvalue);
-        } else {
-            dest_elem = zend_hash_index_update(ht, index, &zvalue);
-        }
-        zval_add_ref(dest_elem);
+        zval *dest_elem = !key ? zend_hash_index_update(ht, index, &zvalue) : zend_hash_update(ht, key, &zvalue);
+        Z_TRY_ADDREF_P(dest_elem);
     }
 
     ~key_value()
