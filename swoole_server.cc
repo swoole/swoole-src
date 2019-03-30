@@ -2885,7 +2885,7 @@ static PHP_METHOD(swoole_server, start)
     serv->onReceive = php_swoole_onReceive;
     if (is_websocket_server(zobject) || is_http_server(zobject))
     {
-        zval *zsetting = sw_zend_read_property_array(swoole_server_ce_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
+        zval *zsetting = sw_zend_read_property_array(swoole_server_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
         add_assoc_bool(zsetting, "open_http_protocol", 1);
         add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
         add_assoc_bool(zsetting, "open_eof_check", 0);

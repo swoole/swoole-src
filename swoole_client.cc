@@ -1156,12 +1156,12 @@ static PHP_METHOD(swoole_client, connect)
         }
         if (cli->async && cli->onError == NULL)
         {
-            php_swoole_client_free(getThis(), cli TSRMLS_CC);
+            php_swoole_client_free(getThis(), cli);
             zval_ptr_dtor(getThis());
         }
         if (!cli->async)
         {
-            php_swoole_client_free(getThis(), cli TSRMLS_CC);
+            php_swoole_client_free(getThis(), cli);
         }
         RETURN_FALSE;
     }
