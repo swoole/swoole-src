@@ -2890,8 +2890,6 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         Z_PARAM_ARRAY(server_info)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    php_swoole_array_separate(server_info);
-
     HashTable *_ht = Z_ARRVAL_P(server_info);
     zval *value;
 
