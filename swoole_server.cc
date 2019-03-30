@@ -2277,7 +2277,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(SwooleG.chroot);
         }
-        SwooleG.chroot = zend::string::dup(v);
+        SwooleG.chroot = zend::string(v).dup();
     }
     //user
     if (php_swoole_array_get_value(vht, "user", v))
@@ -2286,7 +2286,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(SwooleG.user);
         }
-        SwooleG.user = zend::string::dup(v);
+        SwooleG.user = zend::string(v).dup();
     }
     //group
     if (php_swoole_array_get_value(vht, "group", v))
@@ -2295,7 +2295,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(SwooleG.group);
         }
-        SwooleG.group = zend::string::dup(v);
+        SwooleG.group = zend::string(v).dup();
     }
     //daemonize
     if (php_swoole_array_get_value(vht, "daemonize", v))
@@ -2323,7 +2323,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(serv->pid_file);
         }
-        serv->pid_file = zend::string::dup(v);
+        serv->pid_file = zend::string(v).dup();
     }
     //reactor thread num
     if (php_swoole_array_get_value(vht, "reactor_num", v))
@@ -2418,7 +2418,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(SwooleG.log_file);
         }
-        SwooleG.log_file = zend::string::dup(v);
+        SwooleG.log_file = zend::string(v).dup();
     }
     //log_level
     if (php_swoole_array_get_value(vht, "log_level", v))
@@ -2638,7 +2638,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(serv->upload_tmp_dir);
         }
-        serv->upload_tmp_dir = sw_strndup(str_v.val(), str_v.len());
+        serv->upload_tmp_dir = str_v.dup();
     }
     /**
      * http static file handler
@@ -2659,7 +2659,7 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(serv->document_root);
         }
-        serv->document_root = sw_strndup(str_v.val(), str_v.len());
+        serv->document_root = str_v.dup();
         if (serv->document_root[str_v.len() - 1] == '/')
         {
             serv->document_root[str_v.len() - 1] = 0;
@@ -2733,7 +2733,7 @@ static PHP_METHOD(swoole_server, on)
     zend::string _event_name_ori(name);
     zend::string _event_name_tolower(zend_string_tolower(_event_name_ori.get()));
 
-    string _event_name_std = _event_name_tolower.toStdString();
+    string _event_name_std = _event_name_tolower.to_std_string();
 
     auto i = server_event_map.find(_event_name_std);
     if (i == server_event_map.end())
@@ -2772,7 +2772,7 @@ static PHP_METHOD(swoole_server, getCallback)
 
     zend::string _event_name_ori(name);
     zend::string _event_name_tolower(zend_string_tolower(_event_name_ori.get()));
-    string _event_name_std = _event_name_tolower.toStdString();
+    string _event_name_std = _event_name_tolower.to_std_string();
 
     string property_name = string("on_") + _event_name_std;
     zval rv, *property = zend_read_property(swoole_server_ce_ptr, getThis(), property_name.c_str(), property_name.length(), 1, &rv);

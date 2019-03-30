@@ -258,8 +258,11 @@ PHP_FUNCTION(swoole_async_set)
     }
     if (php_swoole_array_get_value(vht, "dns_server", v))
     {
-        zend::string str_v(v);
-        SwooleG.dns_server_v4 = sw_strndup(str_v.val(), str_v.len());
+        if (SwooleG.dns_server_v4)
+        {
+            sw_free(SwooleG.dns_server_v4);
+        }
+        SwooleG.dns_server_v4 = zend::string(v).dup();
     }
     if (php_swoole_array_get_value(vht, "use_async_resolver", v))
     {

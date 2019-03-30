@@ -411,34 +411,34 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset)
     }
     if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
     {
-        zend::string _v(v);
-        if (access(_v.val(), R_OK) < 0)
+        zend::string str_v(v);
+        if (access(str_v.val(), R_OK) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", _v.val());
+            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", str_v.val());
             return;
         }
-        cli->ssl_option.cert_file = sw_strdup(_v.val());
+        cli->ssl_option.cert_file = sw_strdup(str_v.val());
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", v))
     {
-        zend::string _v(v);
-        if (access(_v.val(), R_OK) < 0)
+        zend::string str_v(v);
+        if (access(str_v.val(), R_OK) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", _v.val());
+            swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", str_v.val());
             return;
         }
-        cli->ssl_option.key_file = sw_strdup(_v.val());
+        cli->ssl_option.key_file = sw_strdup(str_v.val());
     }
     if (php_swoole_array_get_value(vht, "ssl_passphrase", v))
     {
-        zend::string _v(v);
-        cli->ssl_option.passphrase = sw_strdup(_v.val());
+        zend::string str_v(v);
+        cli->ssl_option.passphrase = sw_strdup(str_v.val());
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (php_swoole_array_get_value(vht, "ssl_host_name", v))
     {
-        zend::string _v(v);
-        cli->ssl_option.tls_host_name = sw_strdup(_v.val());
+        zend::string str_v(v);
+        cli->ssl_option.tls_host_name = sw_strdup(str_v.val());
     }
 #endif
     if (php_swoole_array_get_value(vht, "ssl_verify_peer", v))
@@ -451,13 +451,13 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset)
     }
     if (php_swoole_array_get_value(vht, "ssl_cafile", v))
     {
-        zend::string _v(v);
-        cli->ssl_option.cafile = sw_strdup(_v.val());
+        zend::string str_v(v);
+        cli->ssl_option.cafile = sw_strdup(str_v.val());
     }
     if (php_swoole_array_get_value(vht, "ssl_capath", v))
     {
-        zend::string _v(v);
-        cli->ssl_option.capath = sw_strdup(_v.val());
+        zend::string str_v(v);
+        cli->ssl_option.capath = sw_strdup(str_v.val());
     }
     if (php_swoole_array_get_value(vht, "ssl_verify_depth", v))
     {
@@ -496,8 +496,8 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
     //package eof
     if (php_swoole_array_get_value(vht, "package_eof", v))
     {
-        zend::string _v(v);
-        cli->protocol.package_eof_len = _v.len();
+        zend::string str_v(v);
+        cli->protocol.package_eof_len = str_v.len();
         if (cli->protocol.package_eof_len == 0)
         {
             swoole_php_fatal_error(E_ERROR, "pacakge_eof cannot be an empty string");
@@ -509,7 +509,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
             return;
         }
         bzero(cli->protocol.package_eof, SW_DATA_EOF_MAXLEN);
-        memcpy(cli->protocol.package_eof, _v.val(), _v.len());
+        memcpy(cli->protocol.package_eof, str_v.val(), str_v.len());
     }
     //open mqtt protocol
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", v))
@@ -526,8 +526,8 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
     //package length size
     if (php_swoole_array_get_value(vht, "package_length_type", v))
     {
-        zend::string _v(v);
-        cli->protocol.package_length_type = _v.val()[0];
+        zend::string str_v(v);
+        cli->protocol.package_length_type = str_v.val()[0];
         cli->protocol.package_length_size = swoole_type_size(cli->protocol.package_length_type);
 
         if (cli->protocol.package_length_size == 0)
