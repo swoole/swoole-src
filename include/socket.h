@@ -253,6 +253,7 @@ private:
     bool shutdown_read = false;
     bool shutdown_write = false;
 #ifdef SW_USE_OPENSSL
+    std::string ssl_host_name;
     SSL_CTX *ssl_context = nullptr;
 #endif
 

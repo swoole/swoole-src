@@ -607,7 +607,15 @@ static void php_swoole_socket_set_ssl(Socket *cli, zval *zset)
     if (php_swoole_array_get_value(vht, "ssl_host_name", v))
     {
         zend::string str_v(v);
-        cli->ssl_option.tls_host_name = sw_strndup(str_v.val(), str_v.len());
+        if (str_v.len() > 0)
+        {
+            cli->ssl_option.disable_tls_host_name = 0;
+            cli->ssl_option.tls_host_name = sw_strndup(str_v.val(), str_v.len());
+        }
+        else // empty string or false...
+        {
+            cli->ssl_option.disable_tls_host_name = 1;
+        }
     }
 #endif
     if (php_swoole_array_get_value(vht, "ssl_verify_peer", v))
