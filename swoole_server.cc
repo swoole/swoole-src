@@ -911,6 +911,7 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
     zval connection_iterator;
     object_init_ex(&connection_iterator, swoole_connection_iterator_ce_ptr);
     zend_update_property(swoole_server_port_ce_ptr, port_object, ZEND_STRL("connections"), &connection_iterator);
+    zval_ptr_dtor(&connection_iterator);
 
     swConnectionIterator *i = (swConnectionIterator *) emalloc(sizeof(swConnectionIterator));
     bzero(i, sizeof(swConnectionIterator));
@@ -934,9 +935,8 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
         return;
     }
 
-    swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv->listen_list->host, (int) serv->listen_list->port, serv->factory_mode, (int) serv->listen_list->type);
+    swTraceLog(SW_TRACE_SERVER, "Create Swoole\\Server: host=%s, port=%d, mode=%d, type=%d", serv->listen_list->host, (int) serv->listen_list->port, serv->factory_mode, (int) serv->listen_list->type);
 
-    Z_TRY_ADDREF_P(zobject);
     serv->ptr2 = sw_zval_dup(zobject);
 
     if (serv->send_yield)
@@ -2194,6 +2194,7 @@ static PHP_METHOD(swoole_server, __construct)
     zval connection_iterator_object;
     object_init_ex(&connection_iterator_object, swoole_connection_iterator_ce_ptr);
     zend_update_property(swoole_server_ce_ptr, server_object, ZEND_STRL("connections"), &connection_iterator_object);
+    zval_ptr_dtor(&connection_iterator_object);
 
     swConnectionIterator *i = (swConnectionIterator *) emalloc(sizeof(swConnectionIterator));
     bzero(i, sizeof(swConnectionIterator));
@@ -2227,7 +2228,15 @@ static PHP_METHOD(swoole_server, __construct)
 
 static PHP_METHOD(swoole_server, __destruct)
 {
+    swServer *serv = (swServer *) swoole_get_object(getThis());
     int i;
+    zval *zobject;
+
+    if (serv->ptr2)
+    {
+        efree(serv->ptr2);
+        serv->ptr2 = NULL;
+    }
     for (i = 0; i < PHP_SWOOLE_SERVER_CALLBACK_NUM; i++)
     {
         if (php_sw_server_caches[i])
@@ -2236,25 +2245,21 @@ static PHP_METHOD(swoole_server, __destruct)
             php_sw_server_caches[i] = NULL;
         }
     }
-    zval *port_object;
     for (i = 0; i < server_port_list.num; i++)
     {
-        port_object = server_port_list.zobjects[i];
-        efree(port_object);
+        zobject = server_port_list.zobjects[i];
+        sw_zval_free(zobject);
         server_port_list.zobjects[i] = NULL;
     }
-
-    efree(server_port_list.zports);
+    sw_zval_free(server_port_list.zports);
     server_port_list.zports = NULL;
+
 }
 
 static PHP_METHOD(swoole_server, set)
 {
-    zval *zset = NULL;
-    zval *zobject = getThis();
+    zval *zobject = getThis(), *zset = NULL, *v;
     HashTable *vht;
-
-    zval *v;
 
     swServer *serv = (swServer *) swoole_get_object(zobject);
     if (serv->gs->start > 0)
@@ -2689,16 +2694,10 @@ static PHP_METHOD(swoole_server, set)
         serv->message_queue_key = (uint64_t) zval_get_long(v);
     }
 
-    zval *port_object = server_port_list.zobjects[0];
-
-    Z_TRY_ADDREF_P(port_object);
-    Z_TRY_ADDREF_P(zset);
-
-    sw_zend_call_method_with_1_params(port_object, swoole_server_port_ce_ptr, NULL, "set", NULL, zset);
+    sw_zend_call_method_with_1_params(server_port_list.zobjects[0], swoole_server_port_ce_ptr, NULL, "set", NULL, zset);
 
     zval *zsetting = sw_zend_read_property_array(swoole_server_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
-    zval_ptr_dtor(zset);
 
     RETURN_TRUE;
 }
