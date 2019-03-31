@@ -2887,7 +2887,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     zval *server_info;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_ARRAY(server_info)
+        Z_PARAM_ARRAY_EX(server_info, 0, 1)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     HashTable *_ht = Z_ARRVAL_P(server_info);
@@ -2915,7 +2915,6 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     else
     {
         zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "HOST parameter is required.", 11);
-        zval_ptr_dtor(server_info);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "port", value))
@@ -2935,7 +2934,6 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     else
     {
         zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "USER parameter is required.", 11);
-        zval_ptr_dtor(server_info);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "password", value))
@@ -2947,7 +2945,6 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     else
     {
         zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "PASSWORD parameter is required.", 11);
-        zval_ptr_dtor(server_info);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "database", value))
@@ -2959,7 +2956,6 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     else
     {
         zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "DATABASE parameter is required.", 11);
-        zval_ptr_dtor(server_info);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "timeout", value))
@@ -2979,7 +2975,6 @@ static PHP_METHOD(swoole_mysql_coro, connect)
             char buf[64];
             snprintf(buf, sizeof(buf), "unknown charset [%s].", str_charset.val());
             zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, buf, 11);
-            zval_ptr_dtor(server_info);
             RETURN_FALSE;
         }
     }
@@ -3031,7 +3026,6 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         zend_update_property_string(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("connect_error"), swoole_strerror(SwooleG.error));
         zend_update_property_long(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("connect_errno"), SwooleG.error);
         efree(cli);
-        zval_ptr_dtor(server_info);
         RETURN_FALSE;
     }
 
@@ -3060,7 +3054,6 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
 
     zend_update_property(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("serverInfo"), server_info);
-    zval_ptr_dtor(server_info);
     zend_update_property_long(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("sock"), cli->socket->fd);
 
     if (!client->buffer)

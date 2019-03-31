@@ -132,8 +132,6 @@ static PHP_METHOD(swoole_server_port, set)
         return;
     }
 
-    property->setting = zset;
-
     //backlog
     if (php_swoole_array_get_value(vht, "backlog", v))
     {
@@ -491,7 +489,7 @@ static PHP_METHOD(swoole_server_port, set)
 
     zval *zsetting = sw_zend_read_property_array(swoole_server_port_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
-    zval_ptr_dtor(zset);
+    property->zsetting = zsetting;
 }
 
 static PHP_METHOD(swoole_server_port, on)

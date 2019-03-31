@@ -280,7 +280,6 @@ PHP_FUNCTION(swoole_async_set)
         }
     }
 #endif
-    zval_ptr_dtor(zset);
 }
 
 PHP_FUNCTION(swoole_async_dns_lookup_coro)
