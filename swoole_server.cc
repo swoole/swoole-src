@@ -994,7 +994,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     zval *zport_object;
     zval *zport_setting;
     swListenPort *port;
-    zend_bool find_http_port = SW_FALSE;
+    bool find_http_port = false;
 
     for (i = 1; i < server_port_list.num; i++)
     {
@@ -1031,10 +1031,9 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
         {
             port->open_http_protocol = port->open_websocket_protocol || port->open_http2_protocol;
         }
-
-        if (port->open_websocket_protocol || port->open_http_protocol)
+        if (port->open_http_protocol)
         {
-            find_http_port = SW_TRUE;
+            find_http_port = true;
             if (port->open_websocket_protocol)
             {
                 if (!php_swoole_server_isset_callback(port, SW_SERVER_CB_onMessage))

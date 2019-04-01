@@ -1304,6 +1304,11 @@ void php_swoole_http_server_before_start(swServer *serv, zval *zobject)
     //for is_uploaded_file and move_uploaded_file
     ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));
     zend_hash_init(SG(rfc1867_uploaded_files), 8, NULL, NULL, 0);
+
+    if (!instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce_ptr))
+    {
+        swoole_php_error(E_WARNING, "use %s class and open http related protocols may lead to some errors (inconsistent class type)", ZSTR_VAL(Z_OBJCE_P(zobject)->name));
+    }
 }
 
 static PHP_METHOD(swoole_http_request, rawContent)
