@@ -22,9 +22,14 @@ public:
         str = zval_get_string(v);
     }
 
-    string(zend_string *v)
+    string(zend_string *&v)
     {
         str = zend_string_copy(v);
+    }
+
+    string(zend_string *&&v)
+    {
+        str = v;
     }
 
     void operator =(zval* v)
