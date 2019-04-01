@@ -204,9 +204,9 @@ static sw_inline void php_zlib_free(voidpf opaque, voidpf address)
 
 static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *set_cookie_headers)
 {
-    size_t key_len = 0, val_len = 0;
     const char *key = at;
-    char val[SW_HTTP_COOKIE_VALLEN];
+    zval val;
+    size_t key_len = 0, val_len = 0;
     const char *p, *eof = at + length;
     // key
     p = (char *) memchr(at, '=', length);
@@ -224,7 +224,7 @@ static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, 
         swWarn("cookie[%.8s...] name length %d is exceed the max name len %d.", key, key_len, SW_HTTP_COOKIE_KEYLEN);
         return SW_ERR;
     }
-    add_assoc_stringl_ex(set_cookie_headers, at, key_len, (char *) at, length);
+    add_assoc_stringl_ex(set_cookie_headers, key, key_len, (char *) at, length);
     // val
     p++;
     eof = (char*) memchr(p, ';', at + length - p);
@@ -235,12 +235,12 @@ static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, 
     val_len = eof - p;
     if (val_len > SW_HTTP_COOKIE_VALLEN)
     {
-        swWarn("cookie[%.*s]'s value[v=%.8s...] length %d is exceed the max value len %d.", (int) key_len, key, val, val_len, SW_HTTP_COOKIE_VALLEN);
+        swWarn("cookie[%.*s]'s value[v=%.8s...] length %d is exceed the max value len %d.", (int) key_len, key, p, val_len, SW_HTTP_COOKIE_VALLEN);
         return SW_ERR;
     }
-    memcpy(val, p , val_len);
-    val_len = php_url_decode(val, val_len);
-    add_assoc_stringl_ex(cookies, at, key_len, p, val_len);
+    ZVAL_STRINGL(&val, p, val_len);
+    Z_STRLEN(val) = php_url_decode(Z_STRVAL(val), val_len);
+    add_assoc_zval_ex(cookies, at, key_len, &val);
     return SW_OK;
 }
 

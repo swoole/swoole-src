@@ -2912,6 +2912,7 @@ static PHP_METHOD(swoole_server, start)
         swListenPort *ls = serv->listen_list;
         if (ls->open_http2_protocol)
         {
+            add_assoc_bool(zsetting, "open_http2_protocol", 1);
             protocol_flag |= SW_HTTP2_PROTOCOL;
         }
         if (ls->open_websocket_protocol || is_websocket_server(zobject))
