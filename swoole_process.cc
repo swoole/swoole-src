@@ -358,13 +358,17 @@ static PHP_METHOD(swoole_process, __destruct)
         efree(process->queue);
     }
     php::process *proc = (php::process *) process->ptr2;
-    sw_fci_cache_discard(&proc->fci_cache);
-    if (proc->zsocket)
+    if (proc)
     {
-        OBJ_RELEASE(proc->zsocket);
+        sw_fci_cache_discard(&proc->fci_cache);
+        efree(proc);
+
+        if (proc->zsocket)
+        {
+            OBJ_RELEASE(proc->zsocket);
+        }
+        efree(process);
     }
-    efree(proc);
-    efree(process);
 }
 
 static PHP_METHOD(swoole_process, wait)
