@@ -202,7 +202,6 @@ static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
 static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_length)
 {
     swServer *serv = SwooleG.serv;
-    size_t index = 0;
     zval *zheader = sw_zend_read_property(swoole_http_response_ce_ptr, ctx->response.zobject, ZEND_STRL("header"), 0);
     zval *zcookie = sw_zend_read_property(swoole_http_response_ce_ptr, ctx->response.zobject, ZEND_STRL("cookie"), 0);
     http2::headers headers(8 + php_swoole_array_length_safe(zheader) + php_swoole_array_length_safe(zcookie));

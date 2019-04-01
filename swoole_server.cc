@@ -924,6 +924,7 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
     zval_ptr_dtor(&connection_iterator);
 
     (void) add_next_index_zval(server_port_list.zports, port_object);
+    Z_TRY_ADDREF_P(port_object);
 
     return port_object;
 }
