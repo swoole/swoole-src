@@ -5,14 +5,16 @@ swoole_server: getCallback
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$serv = new Swoole\Server('127.0.0.1');
-$serv->on("start", function ($server) { });
-$serv->on("shutdown", function ($server) { });
-Assert::isInstanceOf($serv->getCallback("start"), Closure::class);
-assert(is_callable($serv->getCallback("start")));
-$cb = $serv->getCallback("start");
-Assert::eq($cb, $serv->getCallback("start"));
-Assert::eq($serv->getCallback("Receive"), null);
+$server = new Swoole\Server('127.0.0.1');
+$server->on('start', function ($server) { });
+$server->on('shutdown', function ($server) { });
+Assert::isInstanceOf($server->getCallback('start'), Closure::class);
+assert(is_callable($server->getCallback('start')));
+$cb = $server->getCallback('start');
+Assert::eq($cb, $server->getCallback('start'));
+Assert::eq($server->getCallback('Receive'), null);
+$server->on('receive', function () { });
+Assert::isInstanceOf($server->getCallback('receive'), Closure::class);
 echo "DONE\n"
 ?>
 --EXPECT--

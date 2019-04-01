@@ -20,14 +20,36 @@
 #include "swoole_coroutine.h"
 #endif
 
+using namespace std;
+using namespace swoole;
+
 static zend_class_entry swoole_server_port_ce;
 zend_class_entry *swoole_server_port_ce_ptr;
 static zend_object_handlers swoole_server_port_handlers;
+
+struct server_port_event {
+    enum php_swoole_server_port_callback_type type;
+    std::string name;
+    server_port_event(enum php_swoole_server_port_callback_type type, std::string &&name) : type(type) , name(name) { }
+};
+static unordered_map<string, server_port_event> server_port_event_map({
+    { "connect",     server_port_event(SW_SERVER_CB_onConnect,     "Connect") },
+    { "receive",     server_port_event(SW_SERVER_CB_onReceive,     "Receive") },
+    { "close",       server_port_event(SW_SERVER_CB_onClose,       "Close") },
+    { "packet",      server_port_event(SW_SERVER_CB_onPacket,      "Packet") },
+    { "bufferfull",  server_port_event(SW_SERVER_CB_onBufferFull,  "BufferFull") },
+    { "bufferempty", server_port_event(SW_SERVER_CB_onBufferEmpty, "BufferEmpty") },
+    { "request",     server_port_event(SW_SERVER_CB_onRequest,     "Request") },
+    { "handshake",   server_port_event(SW_SERVER_CB_onHandShake,   "Handshake") },
+    { "open",        server_port_event(SW_SERVER_CB_onOpen,        "Open") },
+    { "message",     server_port_event(SW_SERVER_CB_onMessage,     "Message") },
+});
 
 static PHP_METHOD(swoole_server_port, __construct);
 static PHP_METHOD(swoole_server_port, __destruct);
 static PHP_METHOD(swoole_server_port, on);
 static PHP_METHOD(swoole_server_port, set);
+static PHP_METHOD(swoole_server_port, getCallback);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
 static PHP_METHOD(swoole_server_port, getSocket);
@@ -45,12 +67,17 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_port_on, 0, 0, 2)
     ZEND_ARG_CALLABLE_INFO(0, callback, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_port_getCallback, 0, 0, 1)
+    ZEND_ARG_INFO(0, event_name)
+ZEND_END_ARG_INFO()
+
 const zend_function_entry swoole_server_port_methods[] =
 {
-    PHP_ME(swoole_server_port, __construct,     arginfo_swoole_void, ZEND_ACC_PRIVATE)
-    PHP_ME(swoole_server_port, __destruct,      arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server_port, set,             arginfo_swoole_server_port_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server_port, on,              arginfo_swoole_server_port_on, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, __construct,     arginfo_swoole_void,                    ZEND_ACC_PRIVATE)
+    PHP_ME(swoole_server_port, __destruct,      arginfo_swoole_void,                    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, set,             arginfo_swoole_server_port_set,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, on,              arginfo_swoole_server_port_on,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, getCallback,     arginfo_swoole_server_port_getCallback, ZEND_ACC_PUBLIC)
 #ifdef SWOOLE_SOCKETS_SUPPORT
     PHP_ME(swoole_server_port, getSocket,       arginfo_swoole_void, ZEND_ACC_PUBLIC)
 #endif
@@ -72,8 +99,8 @@ void swoole_server_port_init(int module_number)
     zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onRequest"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onHandShake"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onMessage"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onOpen"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onMessage"), ZEND_ACC_PRIVATE);
 
     zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_port_ce_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
@@ -86,7 +113,7 @@ void swoole_server_port_init(int module_number)
 
 static PHP_METHOD(swoole_server_port, __construct)
 {
-    swoole_php_fatal_error(E_ERROR, "please use the swoole_server->listen method.");
+    swoole_php_fatal_error(E_ERROR, "please use the Swoole\\Server->listen method.");
     return;
 }
 
@@ -590,6 +617,29 @@ static PHP_METHOD(swoole_server_port, on)
         RETURN_FALSE;
     }
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_server_port, getCallback)
+{
+    zval *name;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(name)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    zend::string _event_name_ori(name);
+    zend::string _event_name_tolower(zend_string_tolower(_event_name_ori.get()));
+    auto i = server_port_event_map.find(_event_name_tolower.to_std_string());
+    if (i != server_port_event_map.end())
+    {
+        string property_name = "on" + i->second.name;
+        zval rv, *property = zend_read_property(swoole_server_port_ce_ptr, getThis(), property_name.c_str(), property_name.length(), 1, &rv);
+        if (!ZVAL_IS_NULL(property))
+        {
+            RETURN_ZVAL(property, 1, 0);
+        }
+    }
+    RETURN_NULL();
 }
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
