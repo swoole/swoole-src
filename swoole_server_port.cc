@@ -265,7 +265,6 @@ static PHP_METHOD(swoole_server_port, set)
         if (port->open_websocket_protocol)
         {
             port->open_http_protocol = 1;
-            port->open_http2_protocol = 0;
         }
     }
     if (php_swoole_array_get_value(vht, "websocket_subprotocol", v))
@@ -287,6 +286,10 @@ static PHP_METHOD(swoole_server_port, set)
     if (php_swoole_array_get_value(vht, "open_http2_protocol", v))
     {
         port->open_http2_protocol = zval_is_true(v);
+        if (port->open_http2_protocol)
+        {
+            port->open_http_protocol = 1;
+        }
     }
 #endif
     //buffer: mqtt protocol

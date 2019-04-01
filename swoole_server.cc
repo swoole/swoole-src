@@ -1027,6 +1027,11 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
         }
 #endif
 
+        if (!port->open_http_protocol)
+        {
+            port->open_http_protocol = port->open_websocket_protocol || port->open_http2_protocol;
+        }
+
         if (port->open_websocket_protocol || port->open_http_protocol)
         {
             find_http_port = SW_TRUE;
