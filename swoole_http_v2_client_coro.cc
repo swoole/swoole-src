@@ -151,11 +151,11 @@ void swoole_http2_client_coro_init(int module_number)
     zend_declare_property_null(swoole_http2_client_coro_ce_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http2_client_coro_ce_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
 
-    zend_declare_property_null(swoole_http2_request_ce_ptr, ZEND_STRL("path"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http2_request_ce_ptr, ZEND_STRL("method"), ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_http2_request_ce_ptr, ZEND_STRL("path"), "", ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_http2_request_ce_ptr, ZEND_STRL("method"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http2_request_ce_ptr, ZEND_STRL("headers"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http2_request_ce_ptr, ZEND_STRL("cookies"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http2_request_ce_ptr, ZEND_STRL("data"), ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_http2_request_ce_ptr, ZEND_STRL("data"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_http2_request_ce_ptr, ZEND_STRL("pipeline"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http2_request_ce_ptr, ZEND_STRL("files"), ZEND_ACC_PUBLIC);
 

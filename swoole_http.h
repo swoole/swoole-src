@@ -198,35 +198,49 @@ static sw_inline voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
 
 static sw_inline void php_zlib_free(voidpf opaque, voidpf address)
 {
-    efree((void* )address);
+    efree((void *)address);
 }
 #endif
 
-static sw_inline int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *set_cookie_headers)
+static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *set_cookie_headers)
 {
-    size_t klen = 0, vlen = 0;
-    char *p, *eof;
+    size_t key_len = 0, val_len = 0;
+    const char *key = at;
+    char val[SW_HTTP_COOKIE_VALLEN];
+    const char *p, *eof = at + length;
     // key
-    p = (char*) memchr(at, '=', length);
+    p = (char *) memchr(at, '=', length);
     if (p)
     {
-        klen = p - at;
+        key_len = p - at;
     }
-    if (klen == 0 || klen >= SW_HTTP_COOKIE_KEYLEN || klen >= length - 1)
+    if (key_len == 0 || key_len >= length - 1)
     {
         swWarn("cookie key format is wrong.");
         return SW_ERR;
     }
-    add_assoc_stringl_ex(set_cookie_headers, at, klen, (char *) at, length);
+    if (key_len > SW_HTTP_COOKIE_KEYLEN)
+    {
+        swWarn("cookie[%.8s...] name length %d is exceed the max name len %d.", key, key_len, SW_HTTP_COOKIE_KEYLEN);
+        return SW_ERR;
+    }
+    add_assoc_stringl_ex(set_cookie_headers, at, key_len, (char *) at, length);
     // val
-    p+=1;
-    eof = (char*) memchr(p, ';', length);
+    p++;
+    eof = (char*) memchr(p, ';', at + length - p);
     if (!eof)
     {
-        eof = (char *) at + length;
+        eof = at + length;
     }
-    vlen = php_url_decode(p, eof - p);
-    add_assoc_stringl_ex(cookies, at, klen, p, vlen);
+    val_len = eof - p;
+    if (val_len > SW_HTTP_COOKIE_VALLEN)
+    {
+        swWarn("cookie[%.*s]'s value[v=%.8s...] length %d is exceed the max value len %d.", (int) key_len, key, val, val_len, SW_HTTP_COOKIE_VALLEN);
+        return SW_ERR;
+    }
+    memcpy(val, p , val_len);
+    val_len = php_url_decode(val, val_len);
+    add_assoc_stringl_ex(cookies, at, key_len, p, val_len);
     return SW_OK;
 }
 
