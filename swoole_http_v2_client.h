@@ -138,15 +138,4 @@ static sw_inline void http2_client_send_window_update(swClient *cli, int stream_
     cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE, 0);
 }
 
-static sw_inline void http2_add_header(nghttp2_nv *headers, const char *k, int kl, const char *v, int vl)
-{
-    k = zend_str_tolower_dup(k, kl); // auto to lower
-    headers->name = (uchar*) k;
-    headers->namelen = kl;
-    headers->value = (uchar*) v;
-    headers->valuelen = vl;
-
-    swTrace("k=%s, len=%d, v=%s, len=%d", k, kl, v, vl);
-}
-
 #endif
