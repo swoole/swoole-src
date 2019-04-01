@@ -890,16 +890,16 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
 static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
 {
     zval *port_object;
+
     port_object = sw_malloc_zval();
     object_init_ex(port_object, swoole_server_port_ce_ptr);
     server_port_list.zobjects[server_port_list.num++] = port_object;
 
-    swoole_server_port_property *property = (swoole_server_port_property *) emalloc(sizeof(swoole_server_port_property));
-    bzero(property, sizeof(swoole_server_port_property));
-    swoole_set_property(port_object, 0, property);
-    swoole_set_object(port_object, port);
+    swoole_server_port_property *property = (swoole_server_port_property *) ecalloc(1, sizeof(swoole_server_port_property));
     property->serv = serv;
     property->port = port;
+    swoole_set_property(port_object, 0, property);
+    swoole_set_object(port_object, port);
 
     port->ptr = property;
 
@@ -911,13 +911,12 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
     zval connection_iterator;
     object_init_ex(&connection_iterator, swoole_connection_iterator_ce_ptr);
     zend_update_property(swoole_server_port_ce_ptr, port_object, ZEND_STRL("connections"), &connection_iterator);
-    zval_ptr_dtor(&connection_iterator);
 
-    swConnectionIterator *i = (swConnectionIterator *) emalloc(sizeof(swConnectionIterator));
-    bzero(i, sizeof(swConnectionIterator));
+    swConnectionIterator *i = (swConnectionIterator *) ecalloc(1, sizeof(swConnectionIterator));
     i->serv = serv;
     i->port = port;
     swoole_set_object(&connection_iterator, i);
+    zval_ptr_dtor(&connection_iterator);
 
     (void) add_next_index_zval(server_port_list.zports, port_object);
 
