@@ -39,5 +39,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-[%s]	WARNING	swFactoryProcess_finish (ERROR %d): The length of data [%d] exceeds the output buffer size[%d], please use the sendfile, chunked transfer mode or adjust the buffer_output_size.
+[%s]	WARNING	swFactoryProcess_finish (ERRNO %d): The length of data [%d] exceeds the output buffer size[%d], please use the sendfile, chunked transfer mode or adjust the buffer_output_size.
 DONE

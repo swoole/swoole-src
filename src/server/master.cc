@@ -1677,7 +1677,7 @@ static void swServer_signal_handler(int sig)
         {
             SwooleG.running = 0;
         }
-        swNotice("Server is shutdown now.");
+        swInfo("Server is shutdown now.");
         break;
     case SIGALRM:
         swSystemTimer_signal_handler(SIGALRM);

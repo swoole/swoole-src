@@ -39,7 +39,7 @@ $pm->parentFunc = function () use ($pm) {
     Assert::eq($total, $expect, "[task worker reload {$total} but expect {$expect}]");
 
     $log = file_get_contents(TEST_LOG_FILE);
-    $log = trim(preg_replace('/.+?\s+?NOTICE\s+?.+/', '', $log));
+    $log = trim(preg_replace('/.+?\s+?INFO\s+?.+/', '', $log));
     if (!assert(empty($log))){
         var_dump($log);
     }
