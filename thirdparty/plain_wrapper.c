@@ -351,6 +351,9 @@ static int php_stdiop_close(php_stream *stream, int close_handle)
 				data->file = NULL;
 			}
 		} else if (data->fd != -1) {
+	        if (data->lock_flag) {
+	            swoole_coroutine_flock_ex(stream->orig_path, data->fd, LOCK_UN);
+	        }
 			ret = close(data->fd);
 			data->fd = -1;
 		} else {
@@ -569,7 +572,7 @@ static int php_stdiop_set_option(php_stream *stream, int option, int value, void
 				return 0;
 			}
 
-			if (!swoole_coroutine_flock(fd, value)) {
+			if (!swoole_coroutine_flock_ex(stream->orig_path, fd, value)) {
 				data->lock_flag = value;
 				return 0;
 			} else {

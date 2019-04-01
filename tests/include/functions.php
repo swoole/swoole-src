@@ -1060,3 +1060,15 @@ class TcpStat
         return $ret;
     }
 }
+
+function readfile_with_lock($file)
+{
+    $fp = fopen($file, "r+");
+    flock($fp, LOCK_SH);
+    $data = '';
+    while(!feof($fp)) {
+        $data .= fread($fp, 8192);
+    }
+    fclose($fp);
+    return $data;
+}
