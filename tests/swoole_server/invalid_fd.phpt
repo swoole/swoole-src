@@ -43,6 +43,6 @@ $pm->run();
 Warning: Swoole\Server::send(): fd can not be null. in %s/tests/swoole_server/invalid_fd.php on line %d
 
 Warning: Swoole\Server::send(): invalid fd[-1]. in %s/tests/swoole_server/invalid_fd.php on line %d
-[%s]	NOTICE	swReactorProcess_send2client (ERROR 1005): send %d byte failed, session#100 does not exist.
+[%s]	NOTICE	swReactorProcess_send2client (ERRNO 1005): send %d byte failed, session#100 does not exist.
 
 Warning: Swoole\Server::send(): invalid fd[9223372036854775807]. in %s/tests/swoole_server/invalid_fd.php on line %d%s

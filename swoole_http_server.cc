@@ -95,8 +95,6 @@ static int multipart_body_on_header_complete(multipart_parser* p);
 static int multipart_body_on_data_end(multipart_parser* p);
 
 static http_context* http_get_context(zval *zobject, int check_end);
-
-static void http_parse_cookie(zval *array, const char *at, size_t length);
 static void http_build_header(http_context *, zval *zobject, swString *response, int body_length);
 
 static inline void http_header_key_format(char *key, int length)
@@ -400,7 +398,7 @@ int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int
     return SW_OK;
 }
 
-static void http_parse_cookie(zval *array, const char *at, size_t length)
+void swoole_http_parse_cookie(zval *array, const char *at, size_t length)
 {
     char keybuf[SW_HTTP_COOKIE_KEYLEN];
     char valbuf[SW_HTTP_COOKIE_VALLEN];
@@ -433,7 +431,7 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
             vlen = i - j;
             if (vlen >= SW_HTTP_COOKIE_VALLEN)
             {
-            swWarn("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d.", keybuf, 8, (char *) at + j, vlen, SW_HTTP_COOKIE_VALLEN);
+                swWarn("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d.", keybuf, 8, (char *) at + j, vlen, SW_HTTP_COOKIE_VALLEN);
                 return;
             }
             memcpy(valbuf, (char *) at + j, vlen);
@@ -500,7 +498,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     {
         zval *zcookie;
         swoole_http_server_array_init(cookie, request);
-        http_parse_cookie(zcookie, at, length);
+        swoole_http_parse_cookie(zcookie, at, length);
         efree(header_name);
         return 0;
     }
@@ -621,7 +619,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 
         zval tmp_array;
         array_init(&tmp_array);
-        http_parse_cookie(&tmp_array, (char *) at + sizeof("form-data;") - 1, length - sizeof("form-data;") + 1);
+        swoole_http_parse_cookie(&tmp_array, (char *) at + sizeof("form-data;") - 1, length - sizeof("form-data;") + 1);
 
         zval *form_name;
         if (!(form_name = zend_hash_str_find(Z_ARRVAL(tmp_array), ZEND_STRL("name"))))
@@ -1306,6 +1304,11 @@ void php_swoole_http_server_before_start(swServer *serv, zval *zobject)
     //for is_uploaded_file and move_uploaded_file
     ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));
     zend_hash_init(SG(rfc1867_uploaded_files), 8, NULL, NULL, 0);
+
+    if (!instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce_ptr))
+    {
+        swoole_php_error(E_WARNING, "use %s class and open http related protocols may lead to some errors (inconsistent class type)", ZSTR_VAL(Z_OBJCE_P(zobject)->name));
+    }
 }
 
 static PHP_METHOD(swoole_http_request, rawContent)

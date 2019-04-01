@@ -673,7 +673,8 @@ static sw_inline void sw_zval_free(zval *val)
 
 //----------------------------------Array API------------------------------------
 
-#define php_swoole_array_length(array)      zend_hash_num_elements(Z_ARRVAL_P(array))
+#define php_swoole_array_length(zarray)      zend_hash_num_elements(Z_ARRVAL_P(zarray))
+#define php_swoole_array_length_safe(zarray) (ZVAL_IS_ARRAY(zarray) ? php_swoole_array_length(zarray) : 0)
 #define php_swoole_array_get_value(ht, str, v)     ((v = zend_hash_str_find(ht, str, sizeof(str)-1)) && !ZVAL_IS_NULL(v))
 
 #define SW_HASHTABLE_FOREACH_START(ht, _val) ZEND_HASH_FOREACH_VAL(ht, _val);  {

@@ -771,7 +771,7 @@ int swProcessPool_wait(swProcessPool *pool)
             {
                 if (pool->reload_init == 0)
                 {
-                    swNotice("reload workers.");
+                    swInfo("reload workers.");
                     pool->reload_init = 1;
                     memcpy(pool->reload_workers, pool->workers, sizeof(swWorker) * pool->worker_num);
                     if (pool->max_wait_time)

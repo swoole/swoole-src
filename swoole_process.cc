@@ -361,12 +361,11 @@ static PHP_METHOD(swoole_process, __destruct)
     if (proc)
     {
         sw_fci_cache_discard(&proc->fci_cache);
-        efree(proc);
-
         if (proc->zsocket)
         {
             OBJ_RELEASE(proc->zsocket);
         }
+        efree(proc);
         efree(process);
     }
 }
