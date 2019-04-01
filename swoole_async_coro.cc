@@ -212,8 +212,6 @@ PHP_FUNCTION(swoole_async_set)
         Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    php_swoole_array_separate(zset);
-
     vht = Z_ARRVAL_P(zset);
     if (php_swoole_array_get_value(vht, "enable_signalfd", v))
     {
@@ -258,8 +256,11 @@ PHP_FUNCTION(swoole_async_set)
     }
     if (php_swoole_array_get_value(vht, "dns_server", v))
     {
-        zend::string str_v(v);
-        SwooleG.dns_server_v4 = sw_strndup(str_v.val(), str_v.len());
+        if (SwooleG.dns_server_v4)
+        {
+            sw_free(SwooleG.dns_server_v4);
+        }
+        SwooleG.dns_server_v4 = zend::string(v).dup();
     }
     if (php_swoole_array_get_value(vht, "use_async_resolver", v))
     {
@@ -279,7 +280,6 @@ PHP_FUNCTION(swoole_async_set)
         }
     }
 #endif
-    zval_ptr_dtor(zset);
 }
 
 PHP_FUNCTION(swoole_async_dns_lookup_coro)

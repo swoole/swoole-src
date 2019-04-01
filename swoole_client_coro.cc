@@ -581,33 +581,60 @@ static void php_swoole_socket_set_ssl(Socket *cli, zval *zset)
     if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
     {
         zend::string str_v(v);
-        cli->ssl_option.cert_file = sw_strndup(str_v.val(), str_v.len());
-        if (access(cli->ssl_option.cert_file, R_OK) < 0)
+        if (cli->ssl_option.cert_file)
         {
-            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_option.cert_file);
-            return;
+            sw_free(cli->ssl_option.cert_file);
+        }
+        if (access(cli->ssl_option.cert_file, R_OK) == 0)
+        {
+            cli->ssl_option.cert_file = str_v.dup();
+        }
+        else
+        {
+            swoole_php_fatal_error(E_WARNING, "ssl cert file[%s] not found.", cli->ssl_option.cert_file);
         }
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", v))
     {
         zend::string str_v(v);
-        cli->ssl_option.key_file = sw_strndup(str_v.val(), str_v.len());
-        if (access(cli->ssl_option.key_file, R_OK) < 0)
+        if (cli->ssl_option.key_file)
         {
-            swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_option.key_file);
-            return;
+            sw_free(cli->ssl_option.key_file);
         }
+        if (access(cli->ssl_option.key_file, R_OK) == 0)
+        {
+            cli->ssl_option.key_file = str_v.dup();
+        }
+        else
+        {
+            swoole_php_fatal_error(E_WARNING, "ssl key file[%s] not found.", cli->ssl_option.key_file);
+        }
+    }
+    if (cli->ssl_option.cert_file && !cli->ssl_option.key_file)
+    {
+        swoole_php_fatal_error(E_WARNING, "ssl require key file.");
+    }
+    else if (cli->ssl_option.key_file && !cli->ssl_option.cert_file)
+    {
+        swoole_php_fatal_error(E_WARNING, "ssl require cert file.");
     }
     if (php_swoole_array_get_value(vht, "ssl_passphrase", v))
     {
-        zend::string str_v(v);
-        cli->ssl_option.passphrase = sw_strndup(str_v.val(), str_v.len());
+        if (cli->ssl_option.passphrase)
+        {
+            sw_free(cli->ssl_option.passphrase);
+        }
+        cli->ssl_option.passphrase = zend::string(v).dup();
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (php_swoole_array_get_value(vht, "ssl_host_name", v))
     {
-        zend::string str_v(v);
-        cli->ssl_option.tls_host_name = sw_strndup(str_v.val(), str_v.len());
+        if (cli->ssl_option.tls_host_name)
+        {
+            sw_free(cli->ssl_option.tls_host_name);
+        }
+        cli->ssl_option.tls_host_name = zend::string(v).dup();
+        cli->ssl_option.disable_tls_host_name = !cli->ssl_option.tls_host_name;
     }
 #endif
     if (php_swoole_array_get_value(vht, "ssl_verify_peer", v))
@@ -620,22 +647,23 @@ static void php_swoole_socket_set_ssl(Socket *cli, zval *zset)
     }
     if (php_swoole_array_get_value(vht, "ssl_cafile", v))
     {
-        zend::string str_v(v);
-        cli->ssl_option.cafile = sw_strndup(str_v.val(), str_v.len());
+        if (cli->ssl_option.cafile)
+        {
+            sw_free(cli->ssl_option.cafile);
+        }
+        cli->ssl_option.cafile = zend::string(v).dup();
     }
     if (php_swoole_array_get_value(vht, "ssl_capath", v))
     {
-        zend::string str_v(v);
-        cli->ssl_option.capath = sw_strndup(str_v.val(), str_v.len());
+        if (cli->ssl_option.capath)
+        {
+            sw_free( cli->ssl_option.capath);
+        }
+        cli->ssl_option.capath = zend::string(v).dup();
     }
     if (php_swoole_array_get_value(vht, "ssl_verify_depth", v))
     {
         cli->ssl_option.verify_depth = (int) zval_get_long(v);
-    }
-    if (cli->ssl_option.cert_file && !cli->ssl_option.key_file)
-    {
-        swoole_php_fatal_error(E_ERROR, "ssl require key file.");
-        return;
     }
 }
 #endif
@@ -644,16 +672,19 @@ static PHP_METHOD(swoole_client_coro, __construct)
 {
     zend_long type = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &type) == FAILURE)
-    {
-        swoole_php_fatal_error(E_ERROR, "socket type param is required.");
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
+        Z_PARAM_LONG(type)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     int client_type = php_swoole_socktype(type);
     if (client_type < SW_SOCK_TCP || client_type > SW_SOCK_UNIX_STREAM)
     {
-        swoole_php_fatal_error(E_ERROR, "Unknown client type '%d'.", client_type);
+        const char *space, *class_name = get_active_class_name(&space);
+        zend_type_error(
+            "%s%s%s() expects parameter %d to be client type, unknown type " ZEND_LONG_FMT " given",
+            class_name, space, get_active_function_name(), 1, type
+        );
+        RETURN_FALSE;
     }
 
     zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("type"), type);

@@ -656,6 +656,12 @@ bool Socket::connect(string _host, int _port, int flags)
 
             if (!inet_pton(AF_INET, host.c_str(), & socket->info.addr.inet_v4.sin_addr))
             {
+#ifdef SW_USE_OPENSSL
+                if (open_ssl)
+                {
+                    ssl_host_name = host;
+                }
+#endif
                 host = Coroutine::gethostbyname(host, AF_INET, connect_timeout);
                 if (host.empty())
                 {
@@ -678,6 +684,12 @@ bool Socket::connect(string _host, int _port, int flags)
 
             if (!inet_pton(AF_INET6, host.c_str(), &socket->info.addr.inet_v6.sin6_addr))
             {
+#ifdef SW_USE_OPENSSL
+                if (open_ssl)
+                {
+                    ssl_host_name = host;
+                }
+#endif
                 host = Coroutine::gethostbyname(host, AF_INET6, connect_timeout);
                 if (host.empty())
                 {
@@ -1122,6 +1134,10 @@ bool Socket::ssl_handshake()
     if (ssl_option.tls_host_name)
     {
         SSL_set_tlsext_host_name(socket->ssl, ssl_option.tls_host_name);
+    }
+    else if (!ssl_option.disable_tls_host_name && !ssl_host_name.empty())
+    {
+        SSL_set_tlsext_host_name(socket->ssl, ssl_host_name.c_str());
     }
 #endif
 

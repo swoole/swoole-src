@@ -1555,7 +1555,7 @@ static PHP_FUNCTION(_stream_select)
     }
 
     /**
-     * timeout
+     * timeout or add failed
      */
     if (!Coroutine::socket_poll(fds, timeout))
     {

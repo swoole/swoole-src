@@ -12,18 +12,6 @@ namespace zend
 class string
 {
 public:
-    static char* dup(zval *v)
-    {
-        string str(v);
-        return sw_strndup(str.val(), str.len());
-    }
-
-    static char* edup(zval *v)
-    {
-        string str(v);
-        return estrndup(str.val(), str.len());
-    }
-
     string()
     {
         str = nullptr;
@@ -34,9 +22,14 @@ public:
         str = zval_get_string(v);
     }
 
-    string(zend_string *v)
+    string(zend_string *&v)
     {
         str = zend_string_copy(v);
+    }
+
+    string(zend_string *&&v)
+    {
+        str = v;
     }
 
     void operator =(zval* v)
@@ -63,9 +56,19 @@ public:
         return str;
     }
 
-    std::string toStdString()
+    std::string to_std_string()
     {
         return std::string(val(), len());
+    }
+
+    char* dup()
+    {
+        return likely(len() > 0) ? sw_strndup(val(), len()) : nullptr;
+    }
+
+    char* edup()
+    {
+        return likely(len() > 0) ? estrndup(val(), len()) : nullptr;
     }
 
     ~string()

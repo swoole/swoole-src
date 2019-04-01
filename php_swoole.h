@@ -198,9 +198,9 @@ typedef struct
     zval *callbacks[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
     zend_fcall_info_cache *caches[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
     zval _callbacks[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
-    zval *setting;
     swServer *serv;
     swListenPort *port;
+    zval *zsetting;
 } swoole_server_port_property;
 //---------------------------------------------------------
 #define SW_FLAG_KEEP                        (1u << 12)
@@ -675,11 +675,6 @@ static sw_inline void sw_zval_free(zval *val)
 
 #define php_swoole_array_length(array)      zend_hash_num_elements(Z_ARRVAL_P(array))
 #define php_swoole_array_get_value(ht, str, v)     ((v = zend_hash_str_find(ht, str, sizeof(str)-1)) && !ZVAL_IS_NULL(v))
-#define php_swoole_array_separate(arr)       zval *_new_##arr;\
-    SW_MAKE_STD_ZVAL(_new_##arr);\
-    array_init(_new_##arr);\
-    php_array_merge(Z_ARRVAL_P(_new_##arr), Z_ARRVAL_P(arr));\
-    arr = _new_##arr;
 
 #define SW_HASHTABLE_FOREACH_START(ht, _val) ZEND_HASH_FOREACH_VAL(ht, _val);  {
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, _val) zend_string *_foreach_key;\

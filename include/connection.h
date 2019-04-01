@@ -41,6 +41,7 @@ typedef struct _swSSL_option
     char *passphrase;
     char *client_cert_file;
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+    uint8_t disable_tls_host_name :1;
     char *tls_host_name;
 #endif
     char *cafile;

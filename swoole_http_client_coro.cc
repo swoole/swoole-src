@@ -802,8 +802,8 @@ bool http_client::send()
             {
                 continue;
             }
-            zend::string _value(value);
-            if ((_value.len() == 0) || (strncasecmp(key, ZEND_STRL("Host")) == 0))
+            zend::string str_value(value);
+            if ((str_value.len() == 0) || (strncasecmp(key, ZEND_STRL("Host")) == 0))
             {
                 continue;
             }
@@ -821,7 +821,7 @@ bool http_client::send()
             {
                 header_flag |= HTTP_HEADER_ACCEPT_ENCODING;
             }
-            http_client_swString_append_headers(http_client_buffer, key, keylen, _value.val(), _value.len());
+            http_client_swString_append_headers(http_client_buffer, key, keylen, str_value.val(), str_value.len());
         SW_HASHTABLE_FOREACH_END();
     }
     else
@@ -860,8 +860,8 @@ bool http_client::send()
             {
                 continue;
             }
-            zend::string _value(value);
-            if (_value.len() == 0)
+            zend::string str_value(value);
+            if (str_value.len() == 0)
             {
                 continue;
             }
@@ -869,7 +869,7 @@ bool http_client::send()
             swString_append_ptr(http_client_buffer, "=", 1);
 
             int encoded_value_len;
-            encoded_value = sw_php_url_encode(_value.val(), _value.len(), &encoded_value_len);
+            encoded_value = sw_php_url_encode(str_value.val(), str_value.len(), &encoded_value_len);
             if (encoded_value)
             {
                 swString_append_ptr(http_client_buffer, encoded_value, encoded_value_len);
@@ -916,10 +916,10 @@ bool http_client::send()
                 {
                     continue;
                 }
-                zend::string _value(value);
+                zend::string str_value(value);
                 //strlen("%.*s")*2 = 8
                 //header + body + CRLF(2)
-                content_length += (sizeof(SW_HTTP_FORM_RAW_DATA_FMT) - SW_HTTP_FORM_RAW_DATA_FMT_LEN -1) + (sizeof(boundary_str) - 1) + keylen + _value.len() + 2;
+                content_length += (sizeof(SW_HTTP_FORM_RAW_DATA_FMT) - SW_HTTP_FORM_RAW_DATA_FMT_LEN -1) + (sizeof(boundary_str) - 1) + keylen + str_value.len() + 2;
             SW_HASHTABLE_FOREACH_END();
         }
 
@@ -968,14 +968,14 @@ bool http_client::send()
                 {
                     continue;
                 }
-                zend::string _value(value);
+                zend::string str_value(value);
                 n = sw_snprintf(
                     header_buf, sizeof(header_buf),
                     SW_HTTP_FORM_RAW_DATA_FMT, (int)(sizeof(boundary_str) - 1),
                     boundary_str, keylen, key
                 );
                 swString_append_ptr(http_client_buffer, header_buf, n);
-                swString_append_ptr(http_client_buffer, _value.val(), _value.len());
+                swString_append_ptr(http_client_buffer, str_value.val(), str_value.len());
                 swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
             SW_HASHTABLE_FOREACH_END();
         }

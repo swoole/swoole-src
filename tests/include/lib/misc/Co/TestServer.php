@@ -15,9 +15,11 @@ class TestServer
     /** @var Socket[] */
     protected $connections = [];
     /** @var callable */
+    protected $connectHandler = null;
+    /** @var callable */
     protected $dataHandler = null;
 
-    public static function create(string $host = '127.0.0.1', int $port = 0, int $backlog = 128): self
+    public static function createTcp(string $host = '127.0.0.1', int $port = 0, int $backlog = 128): self
     {
         return new self([
             'host' => $host,
@@ -26,9 +28,18 @@ class TestServer
         ]);
     }
 
+    public static function createTcpGreeting(...$args): self
+    {
+        $server = self::createTcp(...$args);
+        $server->setConnectHandler(function (Socket $conn) {
+            $conn->sendAll('Hello Swoole');
+        });
+        return $server;
+    }
+
     public static function createHttpHelloWorld(...$args): self
     {
-        $server = self::create(...$args);
+        $server = self::createTcp(...$args);
         $server->setDataHandler(function (Socket $conn, string $data) {
             if (strpos($data, 'HTTP/1.0') !== false || stripos($data, 'Connection: closed') !== false) {
                 $conn->keep_alive = false;
@@ -45,7 +56,11 @@ class TestServer
 
     public function __construct(array $options)
     {
-        $this->server = new Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+        $this->server = new Socket(
+            $options['domain'] ?? AF_INET,
+            $options['type'] ?? SOCK_STREAM,
+            $options['protocol'] ?? IPPROTO_IP
+        );
         if (!$this->server->bind($options['host'] ?? '127.0.0.1', $options['port'] ?? 9501)) {
             throw new RuntimeException("bind failed due to {$this->server->errMsg}");
         }
@@ -59,6 +74,11 @@ class TestServer
         return ($this->server->getsockname() ?: [])['port'] ?? 0;
     }
 
+    public function setConnectHandler(callable $handler)
+    {
+        $this->connectHandler = $handler;
+    }
+
     public function setDataHandler(callable $handler)
     {
         $this->dataHandler = $handler;
@@ -68,15 +88,23 @@ class TestServer
     {
         go(function () {
             while ($conn = $this->server->accept(-1)) {
-                $this->connections[] = $conn;
+                $this->connections[$conn->fd] = $conn;
                 go(function () use ($conn) {
-                    while ($data = $conn->recv(8192, -1)) {
-                        if ($this->dataHandler) {
-                            $handler = $this->dataHandler;
-                            $handler($conn, $data);
+                    defer(function () use ($conn) {
+                        unset($this->connections[$conn->fd]);
+                    });
+                    if ($handler = $this->connectHandler) {
+                        if ($handler($conn) === false) {
+                            return;
                         }
                     }
-                    $conn->close();
+                    while ($data = $conn->recv(8192, -1)) {
+                        if ($handler = $this->dataHandler) {
+                            if ($handler($conn, $data) === false) {
+                                return;
+                            }
+                        }
+                    }
                 });
             }
             foreach ($this->connections as $conn) {

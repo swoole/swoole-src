@@ -19,34 +19,41 @@ fi
 
 if [ -z "${1}" ]; then
     glob="swoole_*"
-elif [ "${1}"x == "base"x ]; then
-    args=${@}
-    glob="${args#* } \
-    swoole_atomic \
-    swoole_buffer \
-    swoole_event \
-    swoole_function \
-    swoole_global \
-    swoole_lock \
-    swoole_process \
-    swoole_process_pool \
-    swoole_table \
-    \
-    swoole_coroutine \
-    swoole_coroutine_util \
-    swoole_channel_coro \
-    swoole_client_coro \
-    swoole_http_client_coro \
-    swoole_http2_client_coro \
-    swoole_server \
-    swoole_http_server \
-    swoole_mysql_coro \
-    swoole_redis_coro \
-    swoole_redis_server \
-    swoole_socket_coro \
-    swoole_runtime"
 else
-    glob="$@"
+    if [ "${1}x" = "basex" ]; then
+        glob="\
+        swoole_atomic \
+        swoole_buffer \
+        swoole_event \
+        swoole_function \
+        swoole_global \
+        swoole_lock \
+        swoole_process \
+        swoole_process_pool \
+        swoole_table \
+        \
+        swoole_coroutine \
+        swoole_coroutine_util \
+        swoole_channel_coro \
+        swoole_client_coro \
+        swoole_http_client_coro \
+        swoole_http2_client_coro \
+        swoole_server \
+        swoole_http_server \
+        swoole_websocket_server \
+        swoole_mysql_coro \
+        swoole_redis_coro \
+        swoole_redis_server \
+        swoole_socket_coro \
+        swoole_runtime"
+        if [ ${#} -gt 1 ]; then
+            args="${@}"
+            args="${args#* }"
+            glob="${args} ${glob}"
+        fi
+    else
+        glob="$@"
+    fi
 fi
 
 PHPT=1 ${TEST_PHP_EXECUTABLE} -d "memory_limit=1024m" ${__DIR__}/run-tests ${glob}
