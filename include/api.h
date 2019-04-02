@@ -60,6 +60,11 @@ static inline int swoole_event_wait()
     return SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
 }
 
+static inline void swoole_event_defer(swCallback cb, void *private_data)
+{
+    SwooleG.main_reactor->defer(SwooleG.main_reactor, cb, private_data);
+}
+
 #ifdef __cplusplus
 }
 #endif
