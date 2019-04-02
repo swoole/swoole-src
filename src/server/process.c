@@ -116,6 +116,8 @@ static int swFactoryProcess_start(swFactory *factory)
     {
         if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0)
         {
+            sw_free(object->pipes);
+            object->pipes = NULL;
             return SW_ERR;
         }
         serv->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_MASTER);
