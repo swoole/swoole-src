@@ -294,7 +294,7 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
     socklen_t len = sizeof(SwooleG.error);
     if (getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &SwooleG.error, &len) < 0)
     {
-        swSysError("getsockopt(%d) failed", event->fd);
+        swSysWarn("getsockopt(%d) failed", event->fd);
         return SW_ERR;
     }
 

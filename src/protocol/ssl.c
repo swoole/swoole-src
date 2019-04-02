@@ -775,7 +775,7 @@ int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size)
         {
             if (swConnection_error(errno) == SW_ERROR)
             {
-                swSysError("write() failed.");
+                swSysWarn("write() failed.");
             }
         }
         else
@@ -787,7 +787,7 @@ int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size)
     }
     else
     {
-        swSysError("pread() failed.");
+        swSysWarn("pread() failed.");
         return SW_ERR;
     }
 }

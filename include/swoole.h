@@ -414,7 +414,7 @@ enum swWorker_status
         SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
     }
 
-#define swSysError(str,...) \
+#define swSysWarn(str,...) \
     do{\
         SwooleG.error = errno;\
         if (SW_LOG_ERROR >= SwooleG.log_level) {\

@@ -40,7 +40,7 @@ int swReactorProcess_create(swServer *serv)
     serv->connection_list = (swConnection *) sw_calloc(serv->max_connection, sizeof(swConnection));
     if (serv->connection_list == NULL)
     {
-        swSysError("calloc[2](%d) failed.", (int )(serv->max_connection * sizeof(swConnection)));
+        swSysWarn("calloc[2](%d) failed.", (int )(serv->max_connection * sizeof(swConnection)));
         return SW_ERR;
     }
     //create factry object
@@ -71,7 +71,7 @@ int swReactorProcess_start(swServer *serv)
             {
                 if (close(ls->sock) < 0)
                 {
-                    swSysError("close(%d) failed.", ls->sock);
+                    swSysWarn("close(%d) failed.", ls->sock);
                 }
                 continue;
             }
@@ -629,7 +629,7 @@ static int swReactorProcess_reuse_port(swListenPort *ls)
     int sock = swSocket_create(ls->type);
     if (sock < 0)
     {
-        swSysError("create socket failed.");
+        swSysWarn("create socket failed.");
         return SW_ERR;
     }
     //bind address and port

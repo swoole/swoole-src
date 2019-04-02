@@ -23,7 +23,7 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length
     int file_fd = open(filename, O_RDONLY);
     if (file_fd < 0)
     {
-        swSysError("open(%s) failed", filename);
+        swSysWarn("open(%s) failed", filename);
         return SW_ERR;
     }
 
@@ -32,7 +32,7 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length
         struct stat file_stat;
         if (fstat(file_fd, &file_stat) < 0)
         {
-            swSysError("fstat() failed");
+            swSysWarn("fstat() failed");
             close(file_fd);
             return SW_ERR;
         }
@@ -58,7 +58,7 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length
             if (n <= 0)
             {
                 close(file_fd);
-                swSysError("sendfile(%d, %s) failed.", sock, filename);
+                swSysWarn("sendfile(%d, %s) failed.", sock, filename);
                 return SW_ERR;
             }
             else
@@ -106,7 +106,7 @@ int swSocket_wait(int fd, int timeout_ms, int events)
         }
         else if (ret < 0 && errno != EINTR)
         {
-            swSysError("poll() failed");
+            swSysWarn("poll() failed");
             return SW_ERR;
         }
         else
@@ -153,7 +153,7 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
         }
         else if (ret < 0 && errno != EINTR)
         {
-            swSysError("poll() failed");
+            swSysWarn("poll() failed");
             sw_free(event_list);
             return SW_ERR;
         }
@@ -188,7 +188,7 @@ int swSocket_write_blocking(int __fd, void *__data, int __len)
             }
             else
             {
-                swSysError("write %d bytes failed.", __len);
+                swSysWarn("write %d bytes failed.", __len);
                 return SW_ERR;
             }
         }
@@ -370,7 +370,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
     {
         if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) != 0)
         {
-            swSysError("setsockopt(SO_REUSEPORT) failed.");
+            swSysWarn("setsockopt(SO_REUSEPORT) failed.");
             SwooleG.reuse_port = 0;
         }
     }
@@ -436,12 +436,12 @@ int swSocket_set_buffer_size(int fd, uint32_t buffer_size)
 {
     if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(buffer_size)) != 0)
     {
-        swSysError("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed.", fd, buffer_size);
+        swSysWarn("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed.", fd, buffer_size);
         return SW_ERR;
     }
     if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &buffer_size, sizeof(buffer_size)) != 0)
     {
-        swSysError("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed.", fd, buffer_size);
+        swSysWarn("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed.", fd, buffer_size);
         return SW_ERR;
     }
     return SW_OK;
@@ -456,13 +456,13 @@ int swSocket_set_timeout(int sock, double timeout)
     ret = setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (void *) &timeo, sizeof(timeo));
     if (ret < 0)
     {
-        swSysError("setsockopt(SO_SNDTIMEO) failed");
+        swSysWarn("setsockopt(SO_SNDTIMEO) failed");
         return SW_ERR;
     }
     ret = setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (void *) &timeo, sizeof(timeo));
     if (ret < 0)
     {
-        swSysError("setsockopt(SO_RCVTIMEO) failed");
+        swSysWarn("setsockopt(SO_RCVTIMEO) failed");
         return SW_ERR;
     }
     return SW_OK;

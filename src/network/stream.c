@@ -95,7 +95,7 @@ swStream* swStream_new(char *dst_host, int dst_port, int type)
 
     if (cli->connect(cli, dst_host, dst_port, -1, 0) < 0)
     {
-        swSysError("failed to connect to [%s:%d].", dst_host, dst_port);
+        swSysWarn("failed to connect to [%s:%d].", dst_host, dst_port);
         return NULL;
     }
     else

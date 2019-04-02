@@ -218,7 +218,7 @@ static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     }
     else
     {
-        swSysError("read(%d, %ld) failed.", event->fd, sizeof(task));
+        swSysWarn("read(%d, %ld) failed.", event->fd, sizeof(task));
         return SW_ERR;
     }
 }
@@ -379,7 +379,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
                 //write to tmpfile
                 if (swoole_sync_writefile(fd, &buf, sizeof(buf.info) + buf.info.len) != sizeof(buf.info) + buf.info.len)
                 {
-                    swSysError("write(%s, %ld) failed.", _tmpfile, sizeof(buf.info) + buf.info.len);
+                    swSysWarn("write(%s, %ld) failed.", _tmpfile, sizeof(buf.info) + buf.info.len);
                 }
                 sw_atomic_fetch_add(finish_count, 1);
                 close(fd);
@@ -426,7 +426,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
     }
     if (ret < 0)
     {
-        swSysError("TaskWorker: send result to worker failed");
+        swSysWarn("TaskWorker: send result to worker failed");
     }
     return ret;
 }

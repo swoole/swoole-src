@@ -296,14 +296,14 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
             {
                 if (reactor->set(reactor, fd, socket->fdtype | socket->events) < 0)
                 {
-                    swSysError("reactor->set(%d, SW_EVENT_WRITE) failed.", fd);
+                    swSysWarn("reactor->set(%d, SW_EVENT_WRITE) failed.", fd);
                 }
             }
             else
             {
                 if (reactor->add(reactor, fd, socket->fdtype | SW_EVENT_WRITE) < 0)
                 {
-                    swSysError("reactor->add(%d, SW_EVENT_WRITE) failed.", fd);
+                    swSysWarn("reactor->add(%d, SW_EVENT_WRITE) failed.", fd);
                 }
             }
 

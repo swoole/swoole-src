@@ -85,7 +85,7 @@ public:
             ssize_t n = read(_event->fd, events, sizeof(async_event*) * SW_AIO_EVENT_NUM);
             if (n < 0)
             {
-                swSysError("read() failed");
+                swSysWarn("read() failed");
                 return SW_ERR;
             }
             for (i = 0; i < n / (int) sizeof(async_event*); i++)
@@ -235,7 +235,7 @@ private:
                         }
                         else
                         {
-                            swSysError("sendto swoole_aio_pipe_write failed.");
+                            swSysWarn("sendto swoole_aio_pipe_write failed.");
                         }
                     }
                     break;

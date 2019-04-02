@@ -68,7 +68,7 @@ static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode)
         }
         if (swKill(pid, SIGKILL) < 0)
         {
-            swSysError("swKill(%d, SIGKILL) [%d] failed.", pid, i);
+            swSysWarn("swKill(%d, SIGKILL) [%d] failed.", pid, i);
         }
         else
         {
@@ -330,7 +330,7 @@ static int swManager_loop(swServer *serv)
             {
                 error: if (errno > 0 && errno != EINTR)
                 {
-                    swSysError("wait() failed.");
+                    swSysWarn("wait() failed.");
                 }
                 continue;
             }
@@ -362,7 +362,7 @@ static int swManager_loop(swServer *serv)
                         {
                             if (swKill(ManagerProcess.reload_workers[i].pid, SIGTERM) < 0)
                             {
-                                swSysError("swKill(%d, SIGTERM) [%d] failed.", ManagerProcess.reload_workers[i].pid, i);
+                                swSysWarn("swKill(%d, SIGTERM) [%d] failed.", ManagerProcess.reload_workers[i].pid, i);
                             }
                         }
                         ManagerProcess.reload_worker_i = serv->worker_num;
@@ -480,7 +480,7 @@ static int swManager_loop(swServer *serv)
                     ManagerProcess.reload_worker_i++;
                     goto kill_worker;
                 }
-                swSysError("swKill(%d, SIGTERM) [%d] failed.", ManagerProcess.reload_workers[ManagerProcess.reload_worker_i].pid, ManagerProcess.reload_worker_i);
+                swSysWarn("swKill(%d, SIGTERM) [%d] failed.", ManagerProcess.reload_workers[ManagerProcess.reload_worker_i].pid, ManagerProcess.reload_worker_i);
             }
         }
     }
@@ -503,7 +503,7 @@ static int swManager_loop(swServer *serv)
     {
         if (swWaitpid(serv->workers[i].pid, &status, 0) < 0)
         {
-            swSysError("waitpid(%d) failed.", serv->workers[i].pid);
+            swSysWarn("waitpid(%d) failed.", serv->workers[i].pid);
         }
     }
     //kill all user process
@@ -530,7 +530,7 @@ static pid_t swManager_spawn_worker(swServer *serv, int worker_id)
     //fork() failed
     if (pid < 0)
     {
-        swSysError("Fork Worker failed");
+        swSysWarn("Fork Worker failed");
         return SW_ERR;
     }
     //worker child processor
@@ -651,7 +651,7 @@ void swManager_kill_user_worker(swServer *serv)
         }
         if (swWaitpid(user_worker->pid, &__stat_loc, 0) < 0)
         {
-            swSysError("waitpid(%d) failed.", user_worker->pid);
+            swSysWarn("waitpid(%d) failed.", user_worker->pid);
         }
     }
 }
@@ -667,7 +667,7 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
 
     if (pid < 0)
     {
-        swSysError("Fork Worker failed");
+        swSysWarn("Fork Worker failed");
         return SW_ERR;
     }
     //child

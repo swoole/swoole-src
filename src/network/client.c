@@ -97,7 +97,7 @@ int swClient_create(swClient *cli, int type, int async)
 #endif
     if (sockfd < 0)
     {
-        swSysError("socket() failed");
+        swSysWarn("socket() failed");
         return SW_ERR;
     }
 
@@ -984,7 +984,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
 
         if (bind(cli->socket->fd, (struct sockaddr *) client_addr, sizeof(cli->socket->info.addr.un)) < 0)
         {
-            swSysError("bind(%s) failed.", client_addr->sun_path);
+            swSysWarn("bind(%s) failed.", client_addr->sun_path);
             return SW_ERR;
         }
     }
@@ -1338,7 +1338,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("Read from socket[%d] failed.", event->fd);
+            swSysWarn("Read from socket[%d] failed.", event->fd);
             return SW_OK;
         case SW_CLOSE:
             goto __close;
@@ -1497,7 +1497,7 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
     socklen_t len = sizeof(SwooleG.error);
     if (getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &SwooleG.error, &len) < 0)
     {
-        swSysError("getsockopt(%d) failed", event->fd);
+        swSysWarn("getsockopt(%d) failed", event->fd);
         return SW_ERR;
     }
 

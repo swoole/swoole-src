@@ -225,7 +225,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
         {
             if (swReactor_error(reactor) < 0)
             {
-                swSysError("select error");
+                swSysWarn("select error");
             }
             continue;
         }
@@ -253,7 +253,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                     ret = handle(reactor, &event);
                     if (ret < 0)
                     {
-                        swSysError("[Reactor#%d] select event[type=READ, fd=%d] handler fail.", reactor->id, event.fd);
+                        swSysWarn("[Reactor#%d] select event[type=READ, fd=%d] handler fail.", reactor->id, event.fd);
                     }
                 }
                 //write
@@ -263,7 +263,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                     ret = handle(reactor, &event);
                     if (ret < 0)
                     {
-                        swSysError("[Reactor#%d] select event[type=WRITE, fd=%d] handler fail.", reactor->id, event.fd);
+                        swSysWarn("[Reactor#%d] select event[type=WRITE, fd=%d] handler fail.", reactor->id, event.fd);
                     }
                 }
                 //error
@@ -273,7 +273,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                     ret = handle(reactor, &event);
                     if (ret < 0)
                     {
-                        swSysError("[Reactor#%d] select event[type=ERROR, fd=%d] handler fail.", reactor->id, event.fd);
+                        swSysWarn("[Reactor#%d] select event[type=ERROR, fd=%d] handler fail.", reactor->id, event.fd);
                     }
                 }
                 if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE))

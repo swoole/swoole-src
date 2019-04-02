@@ -449,7 +449,7 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
         if (sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set) < 0)
 #endif
         {
-            swSysError("sched_setaffinity() failed.");
+            swSysWarn("sched_setaffinity() failed.");
         }
     }
 #endif
@@ -788,12 +788,12 @@ int swServer_free(swServer *serv)
         swTraceLog(SW_TRACE_SERVER, "terminate heartbeat thread.");
         if (pthread_cancel(serv->heartbeat_pidt) < 0)
         {
-            swSysError("pthread_cancel(%ld) failed.", (ulong_t )serv->heartbeat_pidt);
+            swSysWarn("pthread_cancel(%ld) failed.", (ulong_t )serv->heartbeat_pidt);
         }
         //wait thread
         if (pthread_join(serv->heartbeat_pidt, NULL) < 0)
         {
-            swSysError("pthread_join(%ld) failed.", (ulong_t )serv->heartbeat_pidt);
+            swSysWarn("pthread_join(%ld) failed.", (ulong_t )serv->heartbeat_pidt);
         }
     }
     if (serv->factory_mode == SW_MODE_BASE)
@@ -853,7 +853,7 @@ int swServer_udp_send(swServer *serv, swSendData *resp)
     int ret = swSocket_sendto_blocking(sock, resp->data, resp->info.len, 0, (struct sockaddr*) &addr_in, sizeof(addr_in));
     if (ret < 0)
     {
-        swSysError("sendto to client[%s:%d] failed", inet_ntoa(addr_in.sin_addr), resp->info.from_id);
+        swSysWarn("sendto to client[%s:%d] failed", inet_ntoa(addr_in.sin_addr), resp->info.from_id);
     }
     return ret;
 }
@@ -1366,7 +1366,7 @@ static void swServer_master_update_time(swServer *serv)
     time_t now = time(NULL);
     if (now < 0)
     {
-        swSysError("get time failed");
+        swSysWarn("get time failed");
     }
     else
     {
@@ -1606,7 +1606,7 @@ swListenPort* swServer_add_port(swServer *serv, int type, const char *host, int 
     int sock = swSocket_create(ls->type);
     if (sock < 0)
     {
-        swSysError("create socket failed.");
+        swSysWarn("create socket failed.");
         return NULL;
     }
     //bind address and port
@@ -1770,7 +1770,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
         int sockopt = 1;
         if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) != 0)
         {
-            swSysError("setsockopt(TCP_NODELAY) failed.");
+            swSysWarn("setsockopt(TCP_NODELAY) failed.");
         }
         connection->tcp_nodelay = 1;
     }
@@ -1780,7 +1780,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     {
         if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &ls->kernel_socket_recv_buffer_size, sizeof(int)) != 0)
         {
-            swSysError("setsockopt(SO_RCVBUF, %d) failed.", ls->kernel_socket_recv_buffer_size);
+            swSysWarn("setsockopt(SO_RCVBUF, %d) failed.", ls->kernel_socket_recv_buffer_size);
         }
     }
 
@@ -1789,7 +1789,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     {
         if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &ls->kernel_socket_send_buffer_size, sizeof(int)) != 0)
         {
-            swSysError("setsockopt(SO_SNDBUF, %d) failed.", ls->kernel_socket_send_buffer_size);
+            swSysWarn("setsockopt(SO_SNDBUF, %d) failed.", ls->kernel_socket_send_buffer_size);
         }
     }
 

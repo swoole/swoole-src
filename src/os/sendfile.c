@@ -68,7 +68,7 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
     }
     else
     {
-        swSysError("sendfile failed");
+        swSysWarn("sendfile failed");
         return SW_ERR;
     }
     return SW_OK;
@@ -87,7 +87,7 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
         ret = write(out_fd, buf, n);
         if (ret < 0)
         {
-            swSysError("write() failed.");
+            swSysWarn("write() failed.");
         }
         else
         {
@@ -97,7 +97,7 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
     }
     else
     {
-        swSysError("pread() failed.");
+        swSysWarn("pread() failed.");
         return SW_ERR;
     }
 }

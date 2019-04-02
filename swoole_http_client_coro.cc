@@ -707,14 +707,14 @@ bool http_client::send()
         int fd = ::open(download_file_name, O_CREAT | O_WRONLY, 0664);
         if (fd < 0)
         {
-            swSysError("open(%s, O_CREAT | O_WRONLY) failed.", download_file_name);
+            swSysWarn("open(%s, O_CREAT | O_WRONLY) failed.", download_file_name);
             return SW_ERR;
         }
         if (download_offset == 0)
         {
             if (ftruncate(fd, 0) < 0)
             {
-                swSysError("ftruncate(%s) failed.", download_file_name);
+                swSysWarn("ftruncate(%s) failed.", download_file_name);
                 ::close(fd);
                 return SW_ERR;
             }
@@ -723,7 +723,7 @@ bool http_client::send()
         {
             if (lseek(fd, download_offset, SEEK_SET) < 0)
             {
-                swSysError("fseek(%s, %jd) failed.", download_file_name, (intmax_t) download_offset);
+                swSysWarn("fseek(%s, %jd) failed.", download_file_name, (intmax_t) download_offset);
                 ::close(fd);
                 return SW_ERR;
             }

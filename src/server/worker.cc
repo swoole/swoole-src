@@ -429,7 +429,7 @@ void swWorker_onStart(swServer *serv)
         {
             if (0 > chroot(SwooleG.chroot))
             {
-                swSysError("chroot to [%s] failed.", SwooleG.chroot);
+                swSysWarn("chroot to [%s] failed.", SwooleG.chroot);
             }
         }
         //set process group
@@ -437,7 +437,7 @@ void swWorker_onStart(swServer *serv)
         {
             if (setgid(group->gr_gid) < 0)
             {
-                swSysError("setgid to [%s] failed.", SwooleG.group);
+                swSysWarn("setgid to [%s] failed.", SwooleG.group);
             }
         }
         //set process user
@@ -445,7 +445,7 @@ void swWorker_onStart(swServer *serv)
         {
             if (setuid(passwd->pw_uid) < 0)
             {
-                swSysError("setuid to [%s] failed.", SwooleG.user);
+                swSysWarn("setuid to [%s] failed.", SwooleG.user);
             }
         }
     }

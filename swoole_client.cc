@@ -651,7 +651,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
             value = 1;
             if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) != 0)
             {
-                swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
+                swSysWarn("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
             }
         }
     }

@@ -100,7 +100,7 @@ int swPort_listen(swListenPort *ls)
     //listen stream socket
     if (listen(sock, ls->backlog) < 0)
     {
-        swSysError("listen(%s:%d, %d) failed", ls->host, ls->port, ls->backlog);
+        swSysWarn("listen(%s:%d, %d) failed", ls->host, ls->port, ls->backlog);
         return SW_ERR;
     }
 
@@ -109,7 +109,7 @@ int swPort_listen(swListenPort *ls)
     {
         if (setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, (const void*) &ls->tcp_defer_accept, sizeof(int)) != 0)
         {
-            swSysError("setsockopt(TCP_DEFER_ACCEPT) failed.");
+            swSysWarn("setsockopt(TCP_DEFER_ACCEPT) failed.");
         }
     }
 #endif
@@ -119,7 +119,7 @@ int swPort_listen(swListenPort *ls)
     {
         if (setsockopt(sock, IPPROTO_TCP, TCP_FASTOPEN, (const void*) &ls->tcp_fastopen, sizeof(int)) != 0)
         {
-            swSysError("setsockopt(TCP_FASTOPEN) failed.");
+            swSysWarn("setsockopt(TCP_FASTOPEN) failed.");
         }
     }
 #endif
@@ -129,7 +129,7 @@ int swPort_listen(swListenPort *ls)
     {
         if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &option, sizeof(option)) != 0)
         {
-            swSysError("setsockopt(SO_KEEPALIVE) failed.");
+            swSysWarn("setsockopt(SO_KEEPALIVE) failed.");
         }
 #ifdef TCP_KEEPIDLE
         setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, (void*) &ls->tcp_keepidle, sizeof(int));
@@ -235,7 +235,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("recv from connection#%d failed.", event->fd);
+            swSysWarn("recv from connection#%d failed.", event->fd);
             return SW_OK;
         case SW_CLOSE:
             conn->close_errno = errno;
@@ -345,7 +345,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("recv from connection#%d failed.", event->fd);
+            swSysWarn("recv from connection#%d failed.", event->fd);
             return SW_OK;
         case SW_CLOSE:
             conn->close_errno = errno;
@@ -791,7 +791,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
     {
         if (swSocket_tcp_nopush(conn->fd, 1) == -1)
         {
-            swSysError("swSocket_tcp_nopush() failed");
+            swSysWarn("swSocket_tcp_nopush() failed");
         }
         conn->tcp_nopush = 1;
     }

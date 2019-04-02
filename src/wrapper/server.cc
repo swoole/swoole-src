@@ -604,7 +604,7 @@ DataBuffer Server::taskwait(const DataBuffer &data, double timeout, int dst_work
         }
         else
         {
-            swSysError("taskwait failed");
+            swSysWarn("taskwait failed");
         }
     }
     return retval;
@@ -638,7 +638,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
     int _tmpfile_fd = swoole_tmpfile(_tmpfile);
     if (_tmpfile_fd < 0)
     {
-        swSysError("mktemp(%s) failed.", SW_TASK_TMP_FILE);
+        swSysWarn("mktemp(%s) failed.", SW_TASK_TMP_FILE);
         return retval;
     }
 
@@ -672,7 +672,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         }
         else
         {
-            swSysError("taskwait failed");
+            swSysWarn("taskwait failed");
             fail: retval[i] = DataBuffer();
             n_task--;
         }
@@ -692,7 +692,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         }
         else
         {
-            swSysError("taskwait failed.");
+            swSysWarn("taskwait failed.");
             unlink(_tmpfile);
             return retval;
         }

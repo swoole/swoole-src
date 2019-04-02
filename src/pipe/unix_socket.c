@@ -98,7 +98,7 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
     ret = socketpair(AF_UNIX, protocol, 0, object->socks);
     if (ret < 0)
     {
-        swSysError("socketpair() failed");
+        swSysWarn("socketpair() failed");
         sw_free(object);
         return SW_ERR;
     }

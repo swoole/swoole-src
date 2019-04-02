@@ -165,7 +165,7 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         }
         else
         {
-            swSysError("recvfrom(%d) failed.", fd);
+            swSysWarn("recvfrom(%d) failed.", fd);
             return ret;
         }
     }
@@ -261,7 +261,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
         linger.l_linger = 0;
         if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) != 0)
         {
-            swSysError("setsockopt(SO_LINGER) failed");
+            swSysWarn("setsockopt(SO_LINGER) failed");
         }
     }
 #endif
@@ -418,7 +418,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
         }
         else
         {
-            swSysError("read(worker_pipe) failed");
+            swSysWarn("read(worker_pipe) failed");
             return SW_ERR;
         }
     }
@@ -449,7 +449,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
             {
                 if (thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE) < 0)
                 {
-                    swSysError("reactor->set(%d, PIPE | READ | WRITE) failed.", pipe_fd);
+                    swSysWarn("reactor->set(%d, PIPE | READ | WRITE) failed.", pipe_fd);
                 }
                 goto append_pipe_buffer;
             }
@@ -550,7 +550,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         }
         if (ret < 0)
         {
-            swSysError("reactor->set(%d) failed.", ev->fd);
+            swSysWarn("reactor->set(%d) failed.", ev->fd);
         }
     }
 
@@ -1088,7 +1088,7 @@ static int swReactorThread_loop(swThreadParam *param)
 
         if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
         {
-            swSysError("pthread_setaffinity_np() failed.");
+            swSysWarn("pthread_setaffinity_np() failed.");
         }
     }
 #endif
@@ -1203,13 +1203,13 @@ void swReactorThread_free(swServer *serv)
         {
             cancel: if (pthread_cancel(thread->thread_id) < 0)
             {
-                swSysError("pthread_cancel(%ld) failed.", (long ) thread->thread_id);
+                swSysWarn("pthread_cancel(%ld) failed.", (long ) thread->thread_id);
             }
         }
         //wait thread
         if (pthread_join(thread->thread_id, NULL) != 0)
         {
-            swSysError("pthread_join(%ld) failed.", (long ) thread->thread_id);
+            swSysWarn("pthread_join(%ld) failed.", (long ) thread->thread_id);
         }
     }
 }

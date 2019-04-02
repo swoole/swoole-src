@@ -206,7 +206,7 @@ public:
     {
         if (setsockopt(socket->fd, level, optname, &optval, sizeof(optval)) != 0)
         {
-            swSysError("setsockopt(%d, %d, %d, %d) failed.", socket->fd, level, optname, optval);
+            swSysWarn("setsockopt(%d, %d, %d, %d) failed.", socket->fd, level, optname, optval);
             return false;
         }
         return true;

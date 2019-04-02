@@ -219,7 +219,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
         {
             if (swReactor_error(reactor) < 0)
             {
-                swSysError("poll error");
+                swSysWarn("poll error");
             }
             continue;
         }
@@ -248,7 +248,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
                     ret = handle(reactor, &event);
                     if (ret < 0)
                     {
-                        swSysError("poll[POLLIN] handler failed. fd=%d", event.fd);
+                        swSysWarn("poll[POLLIN] handler failed. fd=%d", event.fd);
                     }
                 }
                 //out
@@ -258,7 +258,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
                     ret = handle(reactor, &event);
                     if (ret < 0)
                     {
-                        swSysError("poll[POLLOUT] handler failed. fd=%d", event.fd);
+                        swSysWarn("poll[POLLOUT] handler failed. fd=%d", event.fd);
                     }
                 }
                 //error
@@ -273,7 +273,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
                     ret = handle(reactor, &event);
                     if (ret < 0)
                     {
-                        swSysError("poll[POLLERR] handler failed. fd=%d", event.fd);
+                        swSysWarn("poll[POLLERR] handler failed. fd=%d", event.fd);
                     }
                 }
                 if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE))

@@ -950,14 +950,14 @@ bool Socket::bind(std::string address, int port)
     int option = 1;
     if (::setsockopt(socket->fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
     {
-        swSysError("setsockopt(%d, SO_REUSEADDR) failed.", socket->fd);
+        swSysWarn("setsockopt(%d, SO_REUSEADDR) failed.", socket->fd);
     }
 #ifdef HAVE_REUSEPORT
     if (SwooleG.reuse_port)
     {
         if (::setsockopt(socket->fd, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
         {
-            swSysError("setsockopt(SO_REUSEPORT) failed.");
+            swSysWarn("setsockopt(SO_REUSEPORT) failed.");
             SwooleG.reuse_port = 0;
         }
     }
@@ -1073,7 +1073,7 @@ Socket* Socket::accept()
     Socket *client_sock = new Socket(conn, this);
     if (unlikely(client_sock->socket == nullptr))
     {
-        swSysError("new Socket() failed");
+        swSysWarn("new Socket() failed");
         set_err(errno);
         delete client_sock;
         return nullptr;
@@ -1208,7 +1208,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
     int file_fd = open(filename, O_RDONLY);
     if (file_fd < 0)
     {
-        swSysError("open(%s) failed.", filename);
+        swSysWarn("open(%s) failed.", filename);
         return false;
     }
 
@@ -1217,7 +1217,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         struct stat file_stat;
         if (::fstat(file_fd, &file_stat) < 0)
         {
-            swSysError("fstat(%s) failed.", filename);
+            swSysWarn("fstat(%s) failed.", filename);
             ::close(file_fd);
             return false;
         }
@@ -1256,7 +1256,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         }
         else if (errno != EAGAIN)
         {
-            swSysError("sendfile(%d, %s) failed.", socket->fd, filename);
+            swSysWarn("sendfile(%d, %s) failed.", socket->fd, filename);
             set_err(errno);
             ::close(file_fd);
             return false;
@@ -1605,7 +1605,7 @@ bool Socket::close()
     {
         if (unlikely(::close(socket->fd) != 0))
         {
-            swSysError("close(%d) failed.", socket->fd);
+            swSysWarn("close(%d) failed.", socket->fd);
         }
         socket->fd = -1;
         return true;
@@ -1692,7 +1692,7 @@ Socket::~Socket()
     SW_ASSERT(socket->removed);
     if (unlikely(socket->fd > 0 && ::close(socket->fd) != 0))
     {
-        swSysError("close(%d) failed.", socket->fd);
+        swSysWarn("close(%d) failed.", socket->fd);
     }
     bzero(socket, sizeof(swConnection));
     socket->fd = -1;

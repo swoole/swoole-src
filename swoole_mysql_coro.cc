@@ -3838,7 +3838,7 @@ static int swoole_mysql_coro_onWrite(swReactor *reactor, swEvent *event)
     socklen_t len = sizeof(SwooleG.error);
     if (getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &SwooleG.error, &len) < 0)
     {
-        swSysError("getsockopt(%d) failed", event->fd);
+        swSysWarn("getsockopt(%d) failed", event->fd);
         return SW_ERR;
     }
 
@@ -3877,7 +3877,7 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client)
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("Read from socket[%d] failed.", cli->socket->fd);
+            swSysWarn("Read from socket[%d] failed.", cli->socket->fd);
             return SW_ERR;
         case SW_CLOSE:
             _system_call_error:
@@ -4085,7 +4085,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 switch (swConnection_error(errno))
                 {
                 case SW_ERROR:
-                    swSysError("Read from socket[%d] failed.", event->fd);
+                    swSysWarn("Read from socket[%d] failed.", event->fd);
                     return SW_ERR;
                 case SW_CLOSE:
                     goto _close_fd;

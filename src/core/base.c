@@ -104,7 +104,7 @@ void swoole_init(void)
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {
-        swSysError("getrlimit() failed");
+        swSysWarn("getrlimit() failed");
     }
     else
     {
@@ -309,7 +309,7 @@ int swoole_mkdir_recursive(const char *dir)
             {
                 if (mkdir(tmp, 0755) == -1)
                 {
-                    swSysError("mkdir(%s) failed", tmp);
+                    swSysWarn("mkdir(%s) failed", tmp);
                     return -1;
                 }
             }
@@ -420,7 +420,7 @@ size_t swoole_sync_writefile(int fd, const void *data, size_t len)
             {
                 continue;
             }
-            swSysError("write(%d, %d) failed.", fd, towrite);
+            swSysWarn("write(%d, %d) failed.", fd, towrite);
             break;
         }
     }
@@ -470,7 +470,7 @@ int swoole_system_random(int min, int max)
 
     if (read(dev_random_fd, next_random_byte, bytes_to_read) < bytes_to_read)
     {
-        swSysError("read() from /dev/urandom failed.");
+        swSysWarn("read() from /dev/urandom failed.");
         return SW_ERR;
     }
     return min + (random_value % (max - min + 1));
@@ -572,7 +572,7 @@ int swoole_tmpfile(char *filename)
 
     if (tmp_fd < 0)
     {
-        swSysError("mkstemp(%s) failed.", filename);
+        swSysWarn("mkstemp(%s) failed.", filename);
         return SW_ERR;
     }
     else
@@ -601,7 +601,7 @@ long swoole_file_size(char *filename)
     struct stat file_stat;
     if (lstat(filename, &file_stat) < 0)
     {
-        swSysError("lstat(%s) failed.", filename);
+        swSysWarn("lstat(%s) failed.", filename);
         SwooleG.error = errno;
         return -1;
     }
@@ -634,7 +634,7 @@ swString* swoole_file_get_contents(char *filename)
     int fd = open(filename, O_RDONLY);
     if (fd < 0)
     {
-        swSysError("open(%s) failed", filename);
+        swSysWarn("open(%s) failed", filename);
         return NULL;
     }
     swString *content = swString_new(filesize);
@@ -658,7 +658,7 @@ swString* swoole_file_get_contents(char *filename)
             }
             else
             {
-                swSysError("pread(%d, %ld, %d) failed.", fd, filesize - readn, readn);
+                swSysWarn("pread(%d, %ld, %d) failed.", fd, filesize - readn, readn);
                 swString_free(content);
                 close(fd);
                 return NULL;
@@ -687,7 +687,7 @@ int swoole_file_put_contents(char *filename, char *content, size_t length)
     int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);
     if (fd < 0)
     {
-        swSysError("open(%s) failed.", filename);
+        swSysWarn("open(%s) failed.", filename);
         return SW_ERR;
     }
 
@@ -709,7 +709,7 @@ int swoole_file_put_contents(char *filename, char *content, size_t length)
             }
             else
             {
-                swSysError("write(%d, %d) failed.", fd, chunk_size);
+                swSysWarn("write(%d, %d) failed.", fd, chunk_size);
                 close(fd);
                 return -1;
             }
@@ -749,7 +749,7 @@ size_t swoole_sync_readfile(int fd, void *buf, size_t len)
             {
                 continue;
             }
-            swSysError("read() failed");
+            swSysWarn("read() failed");
             break;
         }
     }
@@ -880,7 +880,7 @@ void swoole_ioctl_set_block(int sock, int nonblock)
 
     if (ret < 0)
     {
-        swSysError("ioctl(%d, FIONBIO, %d) failed.", sock, nonblock);
+        swSysWarn("ioctl(%d, FIONBIO, %d) failed.", sock, nonblock);
     }
 }
 
@@ -898,7 +898,7 @@ void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
 
         if (opts < 0)
         {
-            swSysError("fcntl(%d, GETFL) failed.", sock);
+            swSysWarn("fcntl(%d, GETFL) failed.", sock);
         }
 
         if (nonblock)
@@ -918,7 +918,7 @@ void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
 
         if (ret < 0)
         {
-            swSysError("fcntl(%d, SETFL, opts) failed.", sock);
+            swSysWarn("fcntl(%d, SETFL, opts) failed.", sock);
         }
     }
 
@@ -933,7 +933,7 @@ void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
 
         if (opts < 0)
         {
-            swSysError("fcntl(%d, GETFL) failed.", sock);
+            swSysWarn("fcntl(%d, GETFL) failed.", sock);
         }
 
         if (cloexec)
@@ -953,7 +953,7 @@ void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
 
         if (ret < 0)
         {
-            swSysError("fcntl(%d, SETFD, opts) failed.", sock);
+            swSysWarn("fcntl(%d, SETFD, opts) failed.", sock);
         }
     }
 #endif
@@ -1310,7 +1310,7 @@ int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream)
 
     if ((child_pid = fork()) == -1)
     {
-        swSysError("fork() failed.");
+        swSysWarn("fork() failed.");
         close(fds[0]);
         close(fds[1]);
         return SW_ERR;

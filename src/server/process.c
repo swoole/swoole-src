@@ -62,12 +62,12 @@ static int swFactoryProcess_shutdown(swFactory *factory)
 
     if (swKill(serv->gs->manager_pid, SIGTERM) < 0)
     {
-        swSysError("swKill(%d) failed.", serv->gs->manager_pid);
+        swSysWarn("swKill(%d) failed.", serv->gs->manager_pid);
     }
 
     if (swWaitpid(serv->gs->manager_pid, &status, 0) < 0)
     {
-        swSysError("waitpid(%d) failed.", serv->gs->manager_pid);
+        swSysWarn("waitpid(%d) failed.", serv->gs->manager_pid);
     }
 
     return SW_OK;
@@ -459,7 +459,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     ret = swWorker_send2reactor(serv, &ev_data, sendn, session_id);
     if (ret < 0)
     {
-        swSysError("sendto to reactor failed");
+        swSysWarn("sendto to reactor failed");
     }
     return ret;
 }
