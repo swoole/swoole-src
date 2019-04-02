@@ -131,8 +131,6 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
     int fd = task->info.fd;
 
     int target_worker_id = swServer_worker_schedule(serv, fd, task);
-
-    //discard the data packet.
     if (target_worker_id < 0)
     {
         switch (target_worker_id)
