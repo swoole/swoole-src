@@ -1120,6 +1120,11 @@ static void http2_client_onClose(swClient *cli)
 {
     zval *zobject = (zval *) cli->object;
 
+    if (!cli->object)
+    {
+        return;
+    }
+
     zend_update_property_bool(swoole_http2_client_coro_ce_ptr, zobject, ZEND_STRL("connected"), 0);
     zend_update_property_long(swoole_http2_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error);
     zend_update_property_string(swoole_http2_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), swoole_strerror(SwooleG.error));
