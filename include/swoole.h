@@ -888,10 +888,6 @@ typedef struct _swDgramPacket
 typedef struct _swSendData
 {
     swDataHead info;
-    /**
-     * for big package
-     */
-    uint32_t length;
     char *data;
 } swSendData;
 

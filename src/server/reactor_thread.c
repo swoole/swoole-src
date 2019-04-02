@@ -58,8 +58,8 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                         task.info.fd = conn->fd;
                         task.info.type = SW_EVENT_CONNECT;
                         task.info.from_id = conn->from_id;
+                        task.info.len = ret;
                         task.data = SwooleTG.buffer_stack->str;
-                        task.length = ret;
                         factory->dispatch(factory, &task);
                         goto delay_receive;
                     }
@@ -111,8 +111,7 @@ static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint3
     }
     response.info.fd = conn->session_id;
     response.info.type = pkg_info->type;
-    response.info.len = 0;
-    response.length = length - sizeof(swDataHead);
+    response.info.len = length - sizeof(swDataHead);
     response.data = data + sizeof(swDataHead);
     swServer_master_send(SwooleG.serv, &response);
 }
@@ -189,7 +188,7 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
 #endif
 
     pkt->length = ret;
-    task.length = sizeof(*pkt) + ret;
+    task.info.len = sizeof(*pkt) + ret;
     task.data = (char*) pkt;
 
     if (factory->dispatch(factory, &task) < 0)
@@ -363,7 +362,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
             if (_send.info.from_fd == SW_RESPONSE_SMALL)
             {
                 _send.data = resp.data;
-                _send.length = resp.info.len;
+                _send.info.len = resp.info.len;
                 swServer_master_send(serv, &_send);
             }
             //use send shm
@@ -373,7 +372,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
                 worker = swServer_get_worker(serv, pkg_resp.worker_id);
 
                 _send.data = worker->send_shm;
-                _send.length = pkg_resp.length;
+                _send.info.len = pkg_resp.length;
 
 #if 0
                 struct
@@ -398,7 +397,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
                     return SW_ERR;
                 }
                 _send.data = data->str;
-                _send.length = data->length;
+                _send.info.len = data->length;
                 swServer_master_send(serv, &_send);
             }
             //reactor thread exit
@@ -1171,8 +1170,8 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     else
     {
         task.info.fd = conn->fd;
+        task.info.len = length;
         task.data = data;
-        task.length = length;
         return serv->factory.dispatch(&serv->factory, &task);
     }
 }

@@ -235,7 +235,7 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
             memcpy(&_send.info, &task.info, sizeof(_send.info));
             _send.info.type = SW_EVENT_TCP;
             _send.data = buffer_output->str;
-            _send.length = buffer_output->length;
+            _send.info.len = buffer_output->length;
             factory->finish(factory, &_send);
             swString_clear(buffer_output);
         }
@@ -512,15 +512,12 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
 {
     swServer *serv = (swServer *) factory->ptr;
     int session_id = _send->info.fd;
-    if (_send->length == 0)
-    {
-        _send->length = _send->info.len;
-    }
 
     swSession *session = swServer_get_session(serv, session_id);
     if (session->fd == 0)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send %d byte failed, session#%d does not exist.",  _send->length, session_id);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send %d byte failed, session#%d does not exist.",
+                _send->info.len, session_id);
         return SW_ERR;
     }
     //proxy
@@ -536,7 +533,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
             proxy_msg.info.from_id = SwooleWG.id;
             proxy_msg.info.type = SW_EVENT_PROXY_START;
 
-            size_t send_n = _send->length;
+            size_t send_n = _send->info.len;
             size_t offset = 0;
 
             while (send_n > 0)
@@ -560,7 +557,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
         else if (_send->info.type == SW_EVENT_SENDFILE)
         {
             memcpy(&proxy_msg.info, &_send->info, sizeof(proxy_msg.info));
-            memcpy(proxy_msg.data, _send->data, _send->length);
+            memcpy(proxy_msg.data, _send->data, _send->info.len);
             return swReactorProcess_send2worker(worker->pipe_master, &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
         }
         else

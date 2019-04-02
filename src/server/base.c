@@ -65,12 +65,12 @@ int swFactory_dispatch(swFactory *factory, swSendData *task)
         task->info.from_fd = conn->from_fd;
     }
     //with data
-    if (task->length > 0)
+    if (task->info.len > 0)
     {
         memcpy(&pkg.info, &task->info, sizeof(pkg.info));
         pkg.info.flags = SW_EVENT_DATA_PTR;
         bzero(&pkg.data, sizeof(pkg.data));
-        pkg.data.length = task->length;
+        pkg.data.length = task->info.len;
         pkg.data.str = task->data;
 
         return swWorker_onTask(factory, (swEventData*) &pkg);
