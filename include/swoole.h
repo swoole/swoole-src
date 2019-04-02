@@ -848,7 +848,7 @@ enum _swEventData_flag
 typedef struct _swDataHead
 {
     int fd;
-    uint16_t len;
+    uint32_t len;
     int16_t from_id;
     uint8_t type;
     uint8_t flags;
@@ -871,6 +871,12 @@ typedef struct _swEventData
     swDataHead info;
     char data[SW_IPC_BUFFER_SIZE];
 } swEventData;
+
+typedef struct _swSendBuffer
+{
+    swDataHead info;
+    char data[0];
+} swSendBuffer;
 
 typedef struct _swDgramPacket
 {

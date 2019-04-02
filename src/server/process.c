@@ -22,6 +22,7 @@
 typedef struct _swFactoryProcess
 {
     swPipe *pipes;
+    swSendBuffer *buffer;
 } swFactoryProcess;
 
 static int swFactoryProcess_start(swFactory *factory);
@@ -126,6 +127,23 @@ static int swFactoryProcess_start(swFactory *factory)
         swServer_store_pipe_fd(serv, serv->workers[i].pipe_object);
     }
 
+    int bufsize;
+    socklen_t _len = sizeof(bufsize);
+    /**
+     * Get the maximum ipc[unix socket with dgram] transmission length
+     */
+    if (getsockopt(serv->workers[0].pipe_master, SOL_SOCKET, SO_SNDBUF, &bufsize, &_len) != 0)
+    {
+        bufsize = SW_IPC_MAX_SIZE;
+    }
+    // - dgram header [32 byte]
+    serv->ipc_max_size = bufsize - 32;
+    object->buffer = sw_malloc(serv->ipc_max_size);
+    if (object->buffer == NULL)
+    {
+        swError("malloc[sndbuf] failed. Error: %s [%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
     /**
      * The manager process must be started first, otherwise it will have a thread fork
      */
@@ -155,6 +173,7 @@ static int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
  */
 static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
 {
+    swFactoryProcess *object = (swFactoryProcess *) factory->object;
     swServer *serv = (swServer *) factory->ptr;
     int fd = task->info.fd;
 
@@ -215,41 +234,42 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
 
     uint32_t send_n = task->length;
     uint32_t offset = 0;
-    swEventData buf;
     char *data = task->data;
+    swSendBuffer *buf = object->buffer;
+    uint32_t ipc_size = serv->ipc_max_size - sizeof(buf->info);
 
-    buf.info = task->info;
+    buf->info = task->info;
 
-    if (send_n <= SW_IPC_BUFFER_SIZE)
+    if (send_n <= ipc_size)
     {
-        buf.info.flags = 0;
-        buf.info.len = send_n;
-        memcpy(buf.data, data, buf.info.len);
-        return swReactorThread_send2worker(serv, worker, &buf, sizeof(buf.info) + buf.info.len);
+        buf->info.flags = 0;
+        buf->info.len = send_n;
+        memcpy(buf->data, data, buf->info.len);
+        return swReactorThread_send2worker(serv, worker, buf, sizeof(buf->info) + buf->info.len);
     }
 
-    buf.info.flags = SW_EVENT_DATA_CHUNK;
+    buf->info.flags = SW_EVENT_DATA_CHUNK;
 
     while (send_n > 0)
     {
-        if (send_n > SW_IPC_BUFFER_SIZE)
+        if (send_n > ipc_size)
         {
-            buf.info.len = SW_IPC_BUFFER_SIZE;
+            buf->info.len = ipc_size;
         }
         else
         {
-            buf.info.flags |= SW_EVENT_DATA_END;
-            buf.info.len = send_n;
+            buf->info.flags |= SW_EVENT_DATA_END;
+            buf->info.len = send_n;
         }
 
-        memcpy(buf.data, data + offset, buf.info.len);
+        memcpy(buf->data, data + offset, buf->info.len);
 
-        send_n -= buf.info.len;
-        offset += buf.info.len;
+        send_n -= buf->info.len;
+        offset += buf->info.len;
 
-        swTrace("dispatch, type=%d|len=%d", buf.info.type, buf.info.len);
+        swTrace("dispatch, type=%d|len=%d", buf->info.type, buf.info.len);
 
-        if (swReactorThread_send2worker(serv, worker, &buf, sizeof(buf.info) + buf.info.len) < 0)
+        if (swReactorThread_send2worker(serv, worker, &buf, sizeof(buf->info) + buf->info.len) < 0)
         {
             return SW_ERR;
         }

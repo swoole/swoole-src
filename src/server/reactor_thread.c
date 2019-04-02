@@ -1134,8 +1134,7 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     swServer *serv = SwooleG.serv;
     swSendData task;
 
-    task.info.len = 0;
-    task.info.flags = 0;
+    bzero(&task.info, sizeof(task.info));
     task.info.from_fd = conn->from_fd;
     task.info.from_id = conn->from_id;
     task.info.type = SW_EVENT_TCP;

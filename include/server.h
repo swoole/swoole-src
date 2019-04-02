@@ -481,6 +481,8 @@ struct _swServer
     uint32_t buffer_output_size;
     uint32_t buffer_input_size;
 
+    uint32_t ipc_max_size;
+
     void *ptr2;
     void *private_data_3;
 
