@@ -776,7 +776,7 @@ int swServer_free(swServer *serv)
     /**
      * shutdown workers
      */
-    if (serv->factory.shutdown != NULL)
+    if (serv->factory.shutdown)
     {
         serv->factory.shutdown(&(serv->factory));
     }
@@ -827,10 +827,12 @@ int swServer_free(swServer *serv)
     {
         close(SwooleG.null_fd);
     }
-    if (serv->stream_socket)
+    /**
+     * free worker pipe
+     */
+    if (serv->factory.free)
     {
-        unlink(serv->stream_socket);
-        sw_free(serv->stream_socket);
+        serv->factory.free(&serv->factory);
     }
     if (serv->gs->start > 0 && serv->onShutdown != NULL)
     {

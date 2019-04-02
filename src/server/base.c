@@ -17,6 +17,13 @@
 #include "swoole.h"
 #include "server.h"
 
+static int swFactory_start(swFactory *factory);
+static int swFactory_shutdown(swFactory *factory);
+static int swFactory_dispatch(swFactory *factory, swSendData *req);
+static int swFactory_notify(swFactory *factory, swDataHead *event);
+static int swFactory_end(swFactory *factory, int fd);
+static void swFactory_free(swFactory *factory);
+
 int swFactory_create(swFactory *factory)
 {
     factory->dispatch = swFactory_dispatch;
@@ -25,21 +32,23 @@ int swFactory_create(swFactory *factory)
     factory->shutdown = swFactory_shutdown;
     factory->end = swFactory_end;
     factory->notify = swFactory_notify;
+    factory->free = swFactory_free;
+
     return SW_OK;
 }
 
-int swFactory_start(swFactory *factory)
+static int swFactory_start(swFactory *factory)
 {
     SwooleWG.run_always = 1;
     return SW_OK;
 }
 
-int swFactory_shutdown(swFactory *factory)
+static int swFactory_shutdown(swFactory *factory)
 {
     return SW_OK;
 }
 
-int swFactory_dispatch(swFactory *factory, swSendData *task)
+static int swFactory_dispatch(swFactory *factory, swSendData *task)
 {
     swServer *serv = factory->ptr;
     factory->last_from_id = task->info.from_id;
@@ -85,7 +94,7 @@ int swFactory_dispatch(swFactory *factory, swSendData *task)
 /**
  * only stream fd
  */
-int swFactory_notify(swFactory *factory, swDataHead *info)
+static int swFactory_notify(swFactory *factory, swDataHead *info)
 {
     swServer *serv = factory->ptr;
     swConnection *conn = swServer_connection_get(serv, info->fd);
@@ -107,7 +116,7 @@ int swFactory_notify(swFactory *factory, swDataHead *info)
     return swWorker_onTask(factory, (swEventData *) info);
 }
 
-int swFactory_end(swFactory *factory, int fd)
+static int swFactory_end(swFactory *factory, int fd)
 {
     swServer *serv = factory->ptr;
     swSendData _send;
@@ -184,4 +193,9 @@ int swFactory_finish(swFactory *factory, swSendData *resp)
     {
         return SW_OK;
     }
+}
+
+static void swFactory_free(swFactory *factory)
+{
+
 }

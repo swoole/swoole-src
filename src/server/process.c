@@ -31,6 +31,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *data);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 static int swFactoryProcess_shutdown(swFactory *factory);
 static int swFactoryProcess_end(swFactory *factory, int fd);
+static void swFactoryProcess_free(swFactory *factory);
 
 int swFactoryProcess_create(swFactory *factory, int worker_num)
 {
@@ -49,6 +50,7 @@ int swFactoryProcess_create(swFactory *factory, int worker_num)
     factory->notify = swFactoryProcess_notify;
     factory->shutdown = swFactoryProcess_shutdown;
     factory->end = swFactoryProcess_end;
+    factory->free = swFactoryProcess_free;
 
     return SW_OK;
 }
@@ -68,12 +70,19 @@ static int swFactoryProcess_shutdown(swFactory *factory)
         swSysError("waitpid(%d) failed.", serv->gs->manager_pid);
     }
 
+    return SW_OK;
+}
+
+static void swFactoryProcess_free(swFactory *factory)
+{
+    swServer *serv = factory->ptr;
     swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
     sw_free(object->buffer);
 
     if (serv->stream_socket)
     {
         sw_free(serv->stream_socket);
+        unlink(serv->stream_socket);
         close(serv->stream_fd);
     }
 
@@ -82,8 +91,6 @@ static int swFactoryProcess_shutdown(swFactory *factory)
     {
         object->pipes[i].close(&object->pipes[i]);
     }
-
-    return SW_OK;
 }
 
 static int swFactoryProcess_start(swFactory *factory)
