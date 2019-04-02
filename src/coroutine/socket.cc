@@ -541,8 +541,10 @@ Socket::Socket(int _fd, enum swSocket_type _type)
 
 Socket::Socket(int _fd, Socket *server_sock)
 {
+    type = server_sock->type;
     sock_domain = server_sock->sock_domain;
     sock_type = server_sock->sock_type;
+    sock_protocol = server_sock->sock_protocol;
 
     reactor = server_sock->reactor;
     socket = swReactor_get(reactor, _fd);

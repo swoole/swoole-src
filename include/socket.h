@@ -72,7 +72,6 @@ public:
 
     Socket(int domain = AF_INET, int type = SOCK_STREAM, int protocol = IPPROTO_IP);
     Socket(enum swSocket_type type = SW_SOCK_TCP);
-    Socket(int _fd, Socket *socket);
     Socket(int _fd, enum swSocket_type _type);
     ~Socket();
     bool connect(std::string host, int port, int flags = 0);
@@ -262,6 +261,7 @@ private:
     static int writable_event_callback(swReactor *reactor, swEvent *event);
     static int error_event_callback(swReactor *reactor, swEvent *event);
 
+    Socket(int _fd, Socket *socket);
     inline void init_sock_type(enum swSocket_type _type);
     inline bool init_sock();
     inline void init_sock(int fd);
