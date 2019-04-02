@@ -435,22 +435,27 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 
 > As with any open source project, Swoole always provides the most reliable stability and the most powerful features in **the latest released version**. Please ensure as much as possible that you are using the latest version.
 
-### Requirements
+### 1. Binary package (beginners + dev-env)
 
-- Linux, OS X and basic Windows support (thanks to Cygwin)
+See our [download page](https://www.swoole.com/page/download)
+
+### Compilation Requirements
+
+- Linux, OS X or Cygwin, WSL
 - PHP 7.0.0 or later (The higher the version, the better the performance.)
 - GCC 4.8 or later
 
-### 1. Install via pecl (beginners)
+### 2. Install via pecl (beginners)
 
 ```shell
 pecl install swoole
 ```
 
-### 2. Install from source (recommended)
+### 3. Install from source (recommended)
+
+> Please download the source files from [Releases](https://github.com/swoole/swoole-src/releases)
 
 ```shell
-git clone https://github.com/swoole/swoole-src.git && \
 cd swoole-src && \
 phpize && \
 ./configure && \
@@ -465,11 +470,10 @@ After compiling and installing to the system successfully, you need to add a new
 
 > for example: `./configure --enable-openssl --enable-sockets`
 
-- `--enable-openssl`
+- `--enable-openssl` or `--with-openssl-dir=DIR`
 - `--enable-sockets`
-- `--enable-http2`, `--with-nghttp2-dir=/path/to` (need nghttp2)
-- `--enable-mysqlnd` (need mysqlnd)
-- `--enable-async-redis`, `--with-hiredis-dir=/path/to` (need hiredis, build-in in v4.2.6 or later)
+- `--enable-http2`
+- `--enable-mysqlnd` (need mysqlnd, it just for supporting `$mysql->escape` method)
 
 ### Upgrade
 
