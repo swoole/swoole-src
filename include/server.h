@@ -824,6 +824,20 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
 {
     uint32_t key;
 
+    if (serv->dispatch_func)
+    {
+        /**
+         * -1 : discard packet
+         * [TODO] -2 : close connection
+         * -3 : fallback to dispatch mode
+         */
+        int id = serv->dispatch_func(serv, swServer_connection_get(serv, fd), data);
+        if (id != -3)
+        {
+            return id;
+        }
+    }
+
     //polling mode
     if (serv->dispatch_mode == SW_DISPATCH_ROUND)
     {
@@ -871,11 +885,6 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
         {
             key = conn->uid;
         }
-    }
-    //schedule by dispatch function
-    else if (serv->dispatch_mode == SW_DISPATCH_USERFUNC)
-    {
-        return serv->dispatch_func(serv, swServer_connection_get(serv, fd), data);
     }
     //Preemptive distribution
     else
