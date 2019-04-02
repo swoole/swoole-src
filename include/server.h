@@ -833,13 +833,8 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
 
     if (serv->dispatch_func)
     {
-        /**
-         * -1 : discard packet
-         * [TODO] -2 : close connection
-         * -3 : fallback to dispatch mode
-         */
         int id = serv->dispatch_func(serv, swServer_connection_get(serv, fd), data);
-        if (id != -3)
+        if (id != SW_DISPATCH_RESULT_USERFUNC_FALLBACK)
         {
             return id;
         }

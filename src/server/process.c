@@ -135,11 +135,17 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
     //discard the data packet.
     if (target_worker_id < 0)
     {
-        /**
-         * -1 : discard packet
-         * [TODO] -2 : close connection
-         */
-        return SW_ERR;
+        switch (target_worker_id)
+        {
+            case SW_DISPATCH_RESULT_DISCARD_PACKET:
+                return SW_ERR;
+            case SW_DISPATCH_RESULT_CLOSE_CONNECTION:
+                // TODO: close connection
+                return SW_ERR;
+            default:
+                swWarn("invalid target worker id[%d]", target_worker_id);
+                return SW_ERR;
+        }
     }
 
     if (swEventData_is_stream(task->info.type))

@@ -382,6 +382,13 @@ enum swFactory_dispatch_mode
     SW_DISPATCH_STREAM   = 7,
 };
 
+enum swFactory_dispatch_result
+{
+    SW_DISPATCH_RESULT_DISCARD_PACKET    = -1,
+    SW_DISPATCH_RESULT_CLOSE_CONNECTION  = -2,
+    SW_DISPATCH_RESULT_USERFUNC_FALLBACK = -3,
+};
+
 enum swWorker_status
 {
     SW_WORKER_BUSY = 1,
