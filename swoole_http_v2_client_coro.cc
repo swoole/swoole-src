@@ -1119,7 +1119,11 @@ static void http2_client_onConnect(swClient *cli)
 static void http2_client_onClose(swClient *cli)
 {
     zval *zobject = (zval *) cli->object;
+
     zend_update_property_bool(swoole_http2_client_coro_ce_ptr, zobject, ZEND_STRL("connected"), 0);
+    zend_update_property_long(swoole_http2_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error);
+    zend_update_property_string(swoole_http2_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), swoole_strerror(SwooleG.error));
+
     php_swoole_client_free(zobject, cli);
 
     http2_client_property *hcc = (http2_client_property *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
