@@ -1073,7 +1073,7 @@ Socket* Socket::accept()
     Socket *client_sock = new Socket(conn, this);
     if (unlikely(client_sock->socket == nullptr))
     {
-        swWarn("new Socket() failed. Error: %s [%d]", strerror(errno), errno);
+        swSysError("new Socket() failed");
         set_err(errno);
         delete client_sock;
         return nullptr;

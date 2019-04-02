@@ -23,7 +23,7 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length
     int file_fd = open(filename, O_RDONLY);
     if (file_fd < 0)
     {
-        swWarn("open(%s) failed. Error: %s[%d]", filename, strerror(errno), errno);
+        swSysError("open(%s) failed", filename);
         return SW_ERR;
     }
 
@@ -32,7 +32,7 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length
         struct stat file_stat;
         if (fstat(file_fd, &file_stat) < 0)
         {
-            swWarn("fstat() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("fstat() failed");
             close(file_fd);
             return SW_ERR;
         }
@@ -106,7 +106,7 @@ int swSocket_wait(int fd, int timeout_ms, int events)
         }
         else if (ret < 0 && errno != EINTR)
         {
-            swWarn("poll() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("poll() failed");
             return SW_ERR;
         }
         else
@@ -153,7 +153,7 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
         }
         else if (ret < 0 && errno != EINTR)
         {
-            swWarn("poll() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("poll() failed");
             sw_free(event_list);
             return SW_ERR;
         }
@@ -456,13 +456,13 @@ int swSocket_set_timeout(int sock, double timeout)
     ret = setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (void *) &timeo, sizeof(timeo));
     if (ret < 0)
     {
-        swWarn("setsockopt(SO_SNDTIMEO) failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("setsockopt(SO_SNDTIMEO) failed");
         return SW_ERR;
     }
     ret = setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (void *) &timeo, sizeof(timeo));
     if (ret < 0)
     {
-        swWarn("setsockopt(SO_RCVTIMEO) failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("setsockopt(SO_RCVTIMEO) failed");
         return SW_ERR;
     }
     return SW_OK;

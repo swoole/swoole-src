@@ -97,7 +97,7 @@ static int swAio_onCompleted(swReactor *reactor, swEvent *event)
     int n = read(event->fd, events, sizeof(swAio_event*) * SW_AIO_EVENT_NUM);
     if (n < 0)
     {
-        swWarn("read() failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("read() failed");
         return SW_ERR;
     }
     for (i = 0; i < n / sizeof(swAio_event*); i++)
@@ -201,7 +201,7 @@ int swoole_daemon(int nochdir, int noclose)
 
     if (!nochdir && chdir("/") != 0)
     {
-        swWarn("chdir() failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("chdir() failed");
         return -1;
     }
 
@@ -210,14 +210,14 @@ int swoole_daemon(int nochdir, int noclose)
         int fd = open("/dev/null", O_RDWR);
         if (fd < 0)
         {
-            swWarn("open() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("open() failed");
             return -1;
         }
 
         if (dup2(fd, 0) < 0 || dup2(fd, 1) < 0 || dup2(fd, 2) < 0)
         {
             close(fd);
-            swWarn("dup2() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("dup2() failed");
             return -1;
         }
 
@@ -227,7 +227,7 @@ int swoole_daemon(int nochdir, int noclose)
     pid = fork();
     if (pid < 0)
     {
-        swWarn("fork() failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("fork() failed");
         return -1;
     }
     if (pid > 0)
@@ -236,7 +236,7 @@ int swoole_daemon(int nochdir, int noclose)
     }
     if (setsid() < 0)
     {
-        swWarn("setsid() failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("setsid() failed");
         return -1;
     }
     return 0;

@@ -459,7 +459,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     ret = swWorker_send2reactor(serv, &ev_data, sendn, session_id);
     if (ret < 0)
     {
-        swWarn("sendto to reactor failed. Error: %s [%d]", strerror(errno), errno);
+        swSysError("sendto to reactor failed");
     }
     return ret;
 }

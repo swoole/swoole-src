@@ -38,7 +38,7 @@ int swPipeBase_create(swPipe *p, int blocking)
     ret = pipe(object->pipes);
     if (ret < 0)
     {
-        swWarn("pipe() failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("pipe() failed");
         sw_free(object);
         return -1;
     }

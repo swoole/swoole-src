@@ -65,7 +65,7 @@ void swSignal_none(void)
     int ret = pthread_sigmask(SIG_BLOCK, &mask, NULL);
     if (ret < 0)
     {
-        swWarn("pthread_sigmask() failed. Error: %s[%d]", strerror(ret), ret);
+        swSysError("pthread_sigmask() failed");
     }
 }
 
@@ -247,13 +247,13 @@ int swSignalfd_setup(swReactor *reactor)
         signal_fd = signalfd(-1, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
         if (signal_fd < 0)
         {
-            swWarn("signalfd() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("signalfd() failed");
             return SW_ERR;
         }
         SwooleG.signal_fd = signal_fd;
         if (sigprocmask(SIG_BLOCK, &signalfd_mask, NULL) == -1)
         {
-            swWarn("sigprocmask() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("sigprocmask() failed");
             return SW_ERR;
         }
         reactor->setHandle(reactor, SW_FD_SIGNAL, swSignalfd_onSignal);
@@ -288,7 +288,7 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
     n = read(event->fd, &siginfo, sizeof(siginfo));
     if (n < 0)
     {
-        swWarn("read from signalfd failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("read from signalfd failed");
         return SW_OK;
     }
     if (siginfo.ssi_signo >=  SW_SIGNO_MAX)

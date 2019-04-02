@@ -89,7 +89,7 @@ int swThreadPool_run(swThreadPool *pool)
         pool->params[i].object = pool;
         if (pthread_create(&(swThreadPool_thread(pool,i)->tid), NULL, swThreadPool_loop, &pool->params[i]) < 0)
         {
-            swWarn("pthread_create failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("pthread_create failed");
             return SW_ERR;
         }
     }

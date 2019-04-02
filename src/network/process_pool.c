@@ -417,7 +417,7 @@ pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker)
         exit(ret_code);
         break;
     case -1:
-        swWarn("fork() failed. Error: %s [%d]", strerror(errno), errno);
+        swSysError("fork() failed");
         break;
         //parent
     default:
@@ -763,7 +763,7 @@ int swProcessPool_wait(swProcessPool *pool)
             {
                 if (errno > 0 && errno != EINTR)
                 {
-                    swWarn("[Manager] wait failed. Error: %s [%d]", strerror(errno), errno);
+                    swSysError("[Manager] wait failed");
                 }
                 continue;
             }
@@ -809,7 +809,7 @@ int swProcessPool_wait(swProcessPool *pool)
             new_pid = swProcessPool_spawn(pool, exit_worker);
             if (new_pid < 0)
             {
-                swWarn("Fork worker process failed. Error: %s [%d]", strerror(errno), errno);
+                swSysError("Fork worker process failed");
                 sw_free(pool->reload_workers);
                 return SW_ERR;
             }

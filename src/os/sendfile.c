@@ -68,7 +68,7 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
     }
     else
     {
-        swWarn("sendfile failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("sendfile failed");
         return SW_ERR;
     }
     return SW_OK;

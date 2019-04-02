@@ -853,8 +853,7 @@ int swServer_udp_send(swServer *serv, swSendData *resp)
     int ret = swSocket_sendto_blocking(sock, resp->data, resp->info.len, 0, (struct sockaddr*) &addr_in, sizeof(addr_in));
     if (ret < 0)
     {
-        swWarn("sendto to client[%s:%d] failed. Error: %s [%d]", inet_ntoa(addr_in.sin_addr), resp->info.from_id,
-                strerror(errno), errno);
+        swSysError("sendto to client[%s:%d] failed", inet_ntoa(addr_in.sin_addr), resp->info.from_id);
     }
     return ret;
 }
@@ -1367,7 +1366,7 @@ static void swServer_master_update_time(swServer *serv)
     time_t now = time(NULL);
     if (now < 0)
     {
-        swWarn("get time failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("get time failed");
     }
     else
     {

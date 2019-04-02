@@ -100,7 +100,7 @@ int swPort_listen(swListenPort *ls)
     //listen stream socket
     if (listen(sock, ls->backlog) < 0)
     {
-        swWarn("listen(%s:%d, %d) failed. Error: %s[%d]", ls->host, ls->port, ls->backlog, strerror(errno), errno);
+        swSysError("listen(%s:%d, %d) failed", ls->host, ls->port, ls->backlog);
         return SW_ERR;
     }
 
@@ -791,7 +791,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
     {
         if (swSocket_tcp_nopush(conn->fd, 1) == -1)
         {
-            swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("swSocket_tcp_nopush() failed");
         }
         conn->tcp_nopush = 1;
     }

@@ -604,7 +604,7 @@ DataBuffer Server::taskwait(const DataBuffer &data, double timeout, int dst_work
         }
         else
         {
-            swWarn("taskwait failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("taskwait failed");
         }
     }
     return retval;
@@ -672,7 +672,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         }
         else
         {
-            swWarn("taskwait failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("taskwait failed");
             fail: retval[i] = DataBuffer();
             n_task--;
         }

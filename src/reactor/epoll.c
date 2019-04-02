@@ -94,7 +94,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
     reactor_object->epfd = epoll_create(512);
     if (reactor_object->epfd < 0)
     {
-        swWarn("epoll_create failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("epoll_create failed");
         sw_free(reactor_object);
         return SW_ERR;
     }
@@ -227,7 +227,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
         {
             if (swReactor_error(reactor) < 0)
             {
-                swWarn("[Reactor#%d] epoll_wait failed. Error: %s[%d]", reactor_id, strerror(errno), errno);
+                swSysError("[Reactor#%d] epoll_wait failed", reactor_id);
                 return SW_ERR;
             }
             else

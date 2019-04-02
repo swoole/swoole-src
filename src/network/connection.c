@@ -41,7 +41,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk)
             int tcp_nodelay = 0;
             if (setsockopt(conn->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) != 0)
             {
-                swWarn("setsockopt(TCP_NODELAY) failed. Error: %s[%d]", strerror(errno), errno);
+                swSysError("setsockopt(TCP_NODELAY) failed");
             }
         }
         /**
@@ -49,7 +49,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk)
          */
         if (swSocket_tcp_nopush(conn->fd, 1) == -1)
         {
-            swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("swSocket_tcp_nopush() failed");
         }
         conn->tcp_nopush = 1;
     }
@@ -100,7 +100,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk)
          */
         if (swSocket_tcp_nopush(conn->fd, 0) == -1)
         {
-            swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("swSocket_tcp_nopush() failed");
         }
         conn->tcp_nopush = 0;
 
@@ -112,7 +112,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk)
             int value = 1;
             if (setsockopt(conn->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &value, sizeof(int)) != 0)
             {
-                swWarn("setsockopt(TCP_NODELAY) failed. Error: %s[%d]", strerror(errno), errno);
+                swSysError("setsockopt(TCP_NODELAY) failed");
             }
         }
 #endif
@@ -143,7 +143,7 @@ int swConnection_buffer_send(swConnection *conn)
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swWarn("send to fd[%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
+            swSysError("send to fd[%d] failed", conn->fd);
             break;
         case SW_CLOSE:
             conn->close_errno = errno;

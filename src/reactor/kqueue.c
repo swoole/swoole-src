@@ -310,7 +310,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         {
             if (swReactor_error(reactor) < 0)
             {
-                swWarn("kqueue[#%d].EP=%d | Error: %s[%d]", reactor->id, object->epfd, strerror(errno), errno);
+                swWarn("kqueue[#%d], epfd=%d", reactor->id, object->epfd);
                 return SW_ERR;
             }
             else

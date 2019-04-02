@@ -3838,7 +3838,7 @@ static int swoole_mysql_coro_onWrite(swReactor *reactor, swEvent *event)
     socklen_t len = sizeof(SwooleG.error);
     if (getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &SwooleG.error, &len) < 0)
     {
-        swWarn("getsockopt(%d) failed. Error: %s[%d]", event->fd, strerror(errno), errno);
+        swSysError("getsockopt(%d) failed", event->fd);
         return SW_ERR;
     }
 

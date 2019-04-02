@@ -28,7 +28,7 @@ int swCond_create(swCond *cond)
 {
     if (pthread_cond_init(&cond->_cond, NULL) < 0)
     {
-        swWarn("pthread_cond_init fail. Error: %s [%d]", strerror(errno), errno);
+        swSysError("pthread_cond_init fail");
         return SW_ERR;
     }
     if (swMutex_create(&cond->_lock, 0) < 0)

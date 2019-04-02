@@ -40,7 +40,7 @@ void event_wait(void)
         int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
         if (ret < 0)
         {
-            swWarn("reactor wait failed. Error: %s [%d]", strerror(errno), errno);
+            swSysError("reactor wait failed");
         }
     }
 }

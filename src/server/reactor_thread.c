@@ -261,7 +261,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
         linger.l_linger = 0;
         if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) != 0)
         {
-            swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("setsockopt(SO_LINGER) failed");
         }
     }
 #endif
@@ -418,7 +418,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
         }
         else
         {
-            swWarn("read(worker_pipe) failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("read(worker_pipe) failed");
             return SW_ERR;
         }
     }

@@ -25,7 +25,7 @@ swBuffer* swBuffer_new(int chunk_size)
     swBuffer *buffer = sw_malloc(sizeof(swBuffer));
     if (buffer == NULL)
     {
-        swWarn("malloc for buffer failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("malloc for buffer failed");
         return NULL;
     }
 
@@ -43,7 +43,7 @@ swBuffer_chunk *swBuffer_new_chunk(swBuffer *buffer, uint32_t type, uint32_t siz
     swBuffer_chunk *chunk = sw_malloc(sizeof(swBuffer_chunk));
     if (chunk == NULL)
     {
-        swWarn("malloc for chunk failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("malloc for chunk failed");
         return NULL;
     }
 
@@ -55,7 +55,7 @@ swBuffer_chunk *swBuffer_new_chunk(swBuffer *buffer, uint32_t type, uint32_t siz
         void *buf = sw_malloc(size);
         if (buf == NULL)
         {
-            swWarn("malloc(%d) for data failed. Error: %s[%d]", size, strerror(errno), errno);
+            swSysError("malloc(%d) for data failed", size);
             sw_free(chunk);
             return NULL;
         }

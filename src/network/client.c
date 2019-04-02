@@ -97,7 +97,7 @@ int swClient_create(swClient *cli, int type, int async)
 #endif
     if (sockfd < 0)
     {
-        swWarn("socket() failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("socket() failed");
         return SW_ERR;
     }
 
@@ -1497,7 +1497,7 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
     socklen_t len = sizeof(SwooleG.error);
     if (getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &SwooleG.error, &len) < 0)
     {
-        swWarn("getsockopt(%d) failed. Error: %s[%d]", event->fd, strerror(errno), errno);
+        swSysError("getsockopt(%d) failed", event->fd);
         return SW_ERR;
     }
 

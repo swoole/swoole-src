@@ -104,7 +104,7 @@ void swoole_init(void)
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {
-        swWarn("getrlimit() failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("getrlimit() failed");
     }
     else
     {
@@ -309,7 +309,7 @@ int swoole_mkdir_recursive(const char *dir)
             {
                 if (mkdir(tmp, 0755) == -1)
                 {
-                    swWarn("mkdir(%s) failed. Error: %s[%d]", tmp, strerror(errno), errno);
+                    swSysError("mkdir(%s) failed", tmp);
                     return -1;
                 }
             }
@@ -634,7 +634,7 @@ swString* swoole_file_get_contents(char *filename)
     int fd = open(filename, O_RDONLY);
     if (fd < 0)
     {
-        swWarn("open(%s) failed. Error: %s[%d]", filename, strerror(errno), errno);
+        swSysError("open(%s) failed", filename);
         return NULL;
     }
     swString *content = swString_new(filesize);
@@ -749,7 +749,7 @@ size_t swoole_sync_readfile(int fd, void *buf, size_t len)
             {
                 continue;
             }
-            swWarn("read() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("read() failed");
             break;
         }
     }

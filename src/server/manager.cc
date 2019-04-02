@@ -530,7 +530,7 @@ static pid_t swManager_spawn_worker(swServer *serv, int worker_id)
     //fork() failed
     if (pid < 0)
     {
-        swWarn("Fork Worker failed. Error: %s [%d]", strerror(errno), errno);
+        swSysError("Fork Worker failed");
         return SW_ERR;
     }
     //worker child processor
@@ -667,7 +667,7 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
 
     if (pid < 0)
     {
-        swWarn("Fork Worker failed. Error: %s [%d]", strerror(errno), errno);
+        swSysError("Fork Worker failed");
         return SW_ERR;
     }
     //child

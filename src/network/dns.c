@@ -98,7 +98,7 @@ static int swDNSResolver_get_server()
 
     if ((fp = fopen(SW_DNS_SERVER_CONF, "rt")) == NULL)
     {
-        swWarn("fopen("SW_DNS_SERVER_CONF") failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("fopen("SW_DNS_SERVER_CONF") failed");
         return SW_ERR;
     }
 

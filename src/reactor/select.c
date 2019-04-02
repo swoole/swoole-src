@@ -225,7 +225,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
         {
             if (swReactor_error(reactor) < 0)
             {
-                swWarn("select error. Error: %s[%d]", strerror(errno), errno);
+                swSysError("select error");
             }
             continue;
         }
