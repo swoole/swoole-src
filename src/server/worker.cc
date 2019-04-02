@@ -662,10 +662,8 @@ void swWorker_clean(void)
 /**
  * main loop [Worker]
  */
-int swWorker_loop(swFactory *factory, int worker_id)
+int swWorker_loop(swServer *serv, int worker_id)
 {
-    swServer *serv = (swServer *) factory->ptr;
-
     //worker_id
     SwooleWG.id = worker_id;
 

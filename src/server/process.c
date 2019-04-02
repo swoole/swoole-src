@@ -19,6 +19,11 @@
 
 #include <signal.h>
 
+typedef struct _swFactoryProcess
+{
+    swPipe *pipes;
+} swFactoryProcess;
+
 static int swFactoryProcess_start(swFactory *factory);
 static int swFactoryProcess_notify(swFactory *factory, swDataHead *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swSendData *data);
@@ -98,10 +103,31 @@ static int swFactoryProcess_start(swFactory *factory)
 
     serv->reactor_pipe_num = serv->worker_num / serv->reactor_num;
 
+    swFactoryProcess *object = serv->factory.object;
+
+    object->pipes = (swPipe *) sw_calloc(serv->worker_num, sizeof(swPipe));
+    if (object->pipes == NULL)
+    {
+        swError("malloc[worker_pipes] failed. Error: %s [%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
+
+    for (i = 0; i < serv->worker_num; i++)
+    {
+        if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0)
+        {
+            return SW_ERR;
+        }
+        serv->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_MASTER);
+        serv->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_WORKER);
+        serv->workers[i].pipe_object = &object->pipes[i];
+        swServer_store_pipe_fd(serv, serv->workers[i].pipe_object);
+    }
+
     /**
      * The manager process must be started first, otherwise it will have a thread fork
      */
-    if (swManager_start(factory) < 0)
+    if (swManager_start(serv) < 0)
     {
         swWarn("swFactoryProcess_manager_start failed.");
         return SW_ERR;

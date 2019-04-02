@@ -37,9 +37,9 @@ typedef struct
     swWorker *workers;
 } swReloadWorker;
 
-static int swManager_loop(swFactory *factory);
+static int swManager_loop(swServer *serv);
 static void swManager_signal_handler(int sig);
-static pid_t swManager_spawn_worker(swFactory *factory, int worker_id);
+static pid_t swManager_spawn_worker(swServer *serv, int worker_id);
 static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status);
 
 static swManagerProcess ManagerProcess;
@@ -100,32 +100,10 @@ static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int 
 }
 
 //create worker child proccess
-int swManager_start(swFactory *factory)
+int swManager_start(swServer *serv)
 {
-    swFactoryProcess *object = (swFactoryProcess *) factory->object;
-    swServer *serv = (swServer *) factory->ptr;
-
     int i;
     pid_t pid;
-
-    object->pipes = (swPipe *) sw_calloc(serv->worker_num, sizeof(swPipe));
-    if (object->pipes == NULL)
-    {
-        swError("malloc[worker_pipes] failed. Error: %s [%d]", strerror(errno), errno);
-        return SW_ERR;
-    }
-
-    for (i = 0; i < serv->worker_num; i++)
-    {
-        if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0)
-        {
-            return SW_ERR;
-        }
-        serv->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_MASTER);
-        serv->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_WORKER);
-        serv->workers[i].pipe_object = &object->pipes[i];
-        swServer_store_pipe_fd(serv, serv->workers[i].pipe_object);
-    }
 
     if (serv->task_worker_num > 0)
     {
@@ -202,7 +180,7 @@ int swManager_start(swFactory *factory)
          */
         for (i = 0; i < serv->worker_num; i++)
         {
-            pid = swManager_spawn_worker(factory, i);
+            pid = swManager_spawn_worker(serv, i);
             if (pid < 0)
             {
                 swError("fork() failed.");
@@ -234,7 +212,7 @@ int swManager_start(swFactory *factory)
 
         SwooleG.process_type = SW_PROCESS_MANAGER;
         SwooleG.pid = getpid();
-        exit(swManager_loop(factory));
+        exit(swManager_loop(serv));
         break;
 
         //master process
@@ -264,7 +242,7 @@ static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid
     }
 }
 
-static int swManager_loop(swFactory *factory)
+static int swManager_loop(swServer *serv)
 {
     int pid, new_pid;
     int i;
@@ -277,8 +255,6 @@ static int swManager_loop(swFactory *factory)
     SwooleG.enable_coroutine = 0;
 
     memset(&ManagerProcess, 0, sizeof(ManagerProcess));
-
-    swServer *serv = (swServer *) factory->ptr;
 
     if (serv->hooks[SW_SERVER_HOOK_MANAGER_START])
     {
@@ -332,7 +308,7 @@ static int swManager_loop(swFactory *factory)
                 }
                 else
                 {
-                    pid_t new_pid = swManager_spawn_worker(factory, msg.worker_id);
+                    pid_t new_pid = swManager_spawn_worker(serv, msg.worker_id);
                     if (new_pid > 0)
                     {
                         serv->workers[msg.worker_id].pid = new_pid;
@@ -446,7 +422,7 @@ static int swManager_loop(swFactory *factory)
 
                 while (1)
                 {
-                    new_pid = swManager_spawn_worker(factory, i);
+                    new_pid = swManager_spawn_worker(serv, i);
                     if (new_pid < 0)
                     {
                         SW_START_SLEEP;
@@ -544,7 +520,7 @@ static int swManager_loop(swFactory *factory)
     return SW_OK;
 }
 
-static pid_t swManager_spawn_worker(swFactory *factory, int worker_id)
+static pid_t swManager_spawn_worker(swServer *serv, int worker_id)
 {
     pid_t pid;
     int ret;
@@ -560,7 +536,7 @@ static pid_t swManager_spawn_worker(swFactory *factory, int worker_id)
     //worker child processor
     else if (pid == 0)
     {
-        ret = swWorker_loop(factory, worker_id);
+        ret = swWorker_loop(serv, worker_id);
         exit(ret);
     }
     //parent,add to writer
