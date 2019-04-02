@@ -273,11 +273,6 @@ struct _swFactory
     int (*end)(struct _swFactory *, int fd);
 };
 
-typedef struct _swFactoryProcess
-{
-    swPipe *pipes;
-} swFactoryProcess;
-
 typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);
 
 int swFactory_create(swFactory *factory);
@@ -1002,7 +997,7 @@ void swWorker_free(swWorker *worker);
 void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
 void swWorker_try_to_exit();
-int swWorker_loop(swFactory *factory, int worker_pti);
+int swWorker_loop(swServer *serv, int worker_pti);
 int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int fd);
 int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag);
 void swWorker_signal_handler(int signo);
@@ -1034,7 +1029,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
 int swReactorProcess_create(swServer *serv);
 int swReactorProcess_start(swServer *serv);
 
-int swManager_start(swFactory *factory);
+int swManager_start(swServer *serv);
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
 pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker);
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);
