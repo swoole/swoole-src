@@ -309,7 +309,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
         send_n -= buf->info.len;
         offset += buf->info.len;
 
-        swTrace("dispatch, type=%d|len=%d", buf->info.type, buf.info.len);
+        swTrace("dispatch, type=%d|len=%d", buf->info.type, buf->info.len);
 
         if (swReactorThread_send2worker(serv, worker, &buf, sizeof(buf->info) + buf->info.len) < 0)
         {
@@ -455,7 +455,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     send_to_reactor_thread: ev_data.info.from_id = conn->from_id;
     sendn = ev_data.info.len + sizeof(resp->info);
 
-    swTrace("[Worker] send: sendn=%d|type=%d|content=<<EOF\n%.*s\nEOF", sendn, resp->info.type, resp->length > 0 ? resp->length : resp->info.len, resp->data);
+    swTrace("[Worker] send: sendn=%d|type=%d|content=<<EOF\n%.*s\nEOF", sendn, resp->info.type, resp->info.len, resp->data);
     ret = swWorker_send2reactor(serv, &ev_data, sendn, session_id);
     if (ret < 0)
     {
