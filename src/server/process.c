@@ -22,7 +22,7 @@
 typedef struct _swFactoryProcess
 {
     swPipe *pipes;
-    swSendBuffer *buffer;
+    swSendBuffer **buffers;
 } swFactoryProcess;
 
 static int swFactoryProcess_start(swFactory *factory);
@@ -77,7 +77,14 @@ static void swFactoryProcess_free(swFactory *factory)
 {
     swServer *serv = factory->ptr;
     swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
-    sw_free(object->buffer);
+
+    int i;
+
+    for (i = 0; i < serv->reactor_num; i++)
+    {
+        sw_free(object->buffers[i]);
+    }
+    sw_free(object->buffers);
 
     if (serv->stream_socket)
     {
@@ -86,7 +93,6 @@ static void swFactoryProcess_free(swFactory *factory)
         close(serv->stream_fd);
     }
 
-    int i;
     for (i = 0; i < serv->worker_num; i++)
     {
         object->pipes[i].close(&object->pipes[i]);
@@ -131,7 +137,7 @@ static int swFactoryProcess_start(swFactory *factory)
     object->pipes = (swPipe *) sw_calloc(serv->worker_num, sizeof(swPipe));
     if (object->pipes == NULL)
     {
-        swError("malloc[worker_pipes] failed. Error: %s [%d]", strerror(errno), errno);
+        swError("malloc[pipes] failed. Error: %s [%d]", strerror(errno), errno);
         return SW_ERR;
     }
 
@@ -160,11 +166,23 @@ static int swFactoryProcess_start(swFactory *factory)
     }
     // - dgram header [32 byte]
     serv->ipc_max_size = bufsize - 32;
-    object->buffer = sw_malloc(serv->ipc_max_size);
-    if (object->buffer == NULL)
+    /**
+     * alloc memory
+     */
+    object->buffers = sw_calloc(serv->reactor_num, sizeof(swSendBuffer *));
+    if (object->buffers == NULL)
     {
-        swError("malloc[sndbuf] failed. Error: %s [%d]", strerror(errno), errno);
+        swError("malloc[buffers] failed. Error: %s [%d]", strerror(errno), errno);
         return SW_ERR;
+    }
+    for (i = 0; i < serv->reactor_num; i++)
+    {
+        object->buffers[i] = sw_malloc(serv->ipc_max_size);
+        if (object->buffers[i] == NULL)
+        {
+            swError("malloc[sndbuf][%d] failed. Error: %s [%d]", i, strerror(errno), errno);
+            return SW_ERR;
+        }
     }
     /**
      * The manager process must be started first, otherwise it will have a thread fork
@@ -256,7 +274,10 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
     uint32_t send_n = task->info.len;
     uint32_t offset = 0;
     char *data = task->data;
-    swSendBuffer *buf = object->buffer;
+    /**
+     * Multi-Threads
+     */
+    swSendBuffer *buf = object->buffers[SwooleTG.id];
     uint32_t ipc_size = serv->ipc_max_size - sizeof(buf->info);
 
     buf->info = task->info;
