@@ -1,9 +1,7 @@
 --TEST--
 swoole_http2_client_coro: cookies
 --SKIPIF--
-<?php
-require __DIR__ . '/../include/skipif.inc';
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -12,9 +10,7 @@ $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $cli = new Swoole\Coroutine\Http2\Client('127.0.0.1', $pm->getFreePort());
         $cli->connect();
-        $filename = pathinfo(__FILE__, PATHINFO_BASENAME);
         $request = new Swoole\Http2\Request;
-        $request->path = "/{$filename}";
         for ($n = MAX_REQUESTS; $n--;) {
             $request->cookies = [];
             for ($k = 32; $k--;) {
@@ -32,7 +28,6 @@ $pm->parentFunc = function () use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $http->set([
-        'worker_num' => 1,
         'log_file' => '/dev/null',
         'open_http2_protocol' => true
     ]);

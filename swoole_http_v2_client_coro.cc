@@ -151,13 +151,12 @@ void swoole_http2_client_coro_init(int module_number)
     zend_declare_property_null(swoole_http2_client_coro_ce_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http2_client_coro_ce_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
 
-    zend_declare_property_string(swoole_http2_request_ce_ptr, ZEND_STRL("path"), "", ZEND_ACC_PUBLIC);
-    zend_declare_property_string(swoole_http2_request_ce_ptr, ZEND_STRL("method"), "", ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_http2_request_ce_ptr, ZEND_STRL("path"), "/", ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_http2_request_ce_ptr, ZEND_STRL("method"), "GET", ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http2_request_ce_ptr, ZEND_STRL("headers"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http2_request_ce_ptr, ZEND_STRL("cookies"), ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_http2_request_ce_ptr, ZEND_STRL("data"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_http2_request_ce_ptr, ZEND_STRL("pipeline"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http2_request_ce_ptr, ZEND_STRL("files"), ZEND_ACC_PUBLIC);
 
     zend_declare_property_long(swoole_http2_response_ce_ptr, ZEND_STRL("streamId"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http2_response_ce_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
@@ -311,7 +310,7 @@ static PHP_METHOD(swoole_http2_client_coro, set)
     {
         RETURN_FALSE;
     }
-    zval *zsetting = sw_zend_read_property_array(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
+    zval *zsetting = sw_zend_read_property_array(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 0);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
     RETURN_TRUE;
 }
@@ -337,9 +336,9 @@ int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *s
         inlen -= 5;
     }
 
-    zval *zheaders = sw_zend_read_property_array(swoole_http2_response_ce_ptr, zresponse, ZEND_STRL("headers"), 1);
-    zval *zcookies = sw_zend_read_property_array(swoole_http2_response_ce_ptr, zresponse, ZEND_STRL("cookies"), 1);
-    zval *zset_cookie_headers = sw_zend_read_property_array(swoole_http2_response_ce_ptr, zresponse, ZEND_STRL("set_cookie_headers"), 1);
+    zval *zheaders = sw_zend_read_property_array(swoole_http2_response_ce_ptr, zresponse, ZEND_STRL("headers"), 0);
+    zval *zcookies = sw_zend_read_property_array(swoole_http2_response_ce_ptr, zresponse, ZEND_STRL("cookies"), 0);
+    zval *zset_cookie_headers = sw_zend_read_property_array(swoole_http2_response_ce_ptr, zresponse, ZEND_STRL("set_cookie_headers"), 0);
 
     ssize_t rv;
     for (;;)
@@ -837,11 +836,12 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
     swClient *cli = hcc->client;
     ssize_t length;
 
-    zval *zheaders = sw_zend_read_property_array(swoole_http2_request_ce_ptr, req, ZEND_STRL("headers"), 1);
-    zval *zpost_data = sw_zend_read_property(swoole_http2_request_ce_ptr, req, ZEND_STRL("data"), 1);
-    zval *zpipeline = sw_zend_read_property(swoole_http2_request_ce_ptr, req, ZEND_STRL("pipeline"), 1);
+    zval *zheaders = sw_zend_read_property_array(swoole_http2_request_ce_ptr, req, ZEND_STRL("headers"), 0);
+    zval *zdata = sw_zend_read_property(swoole_http2_request_ce_ptr, req, ZEND_STRL("data"), 0);
+    zval *zpipeline = sw_zend_read_property(swoole_http2_request_ce_ptr, req, ZEND_STRL("pipeline"), 0);
+    bool is_data_empty = !zend_is_true(zdata);
 
-    if (Z_TYPE_P(zpost_data) == IS_ARRAY)
+    if (Z_TYPE_P(zdata) == IS_ARRAY)
     {
         add_assoc_stringl_ex(zheaders, ZEND_STRL("content-type"), (char *) ZEND_STRL("application/x-www-form-urlencoded"));
     }
@@ -870,7 +870,7 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
     // add to map
     swHashMap_add_int(hcc->streams, stream->stream_id, stream);
 
-    if (ZVAL_IS_NULL(zpost_data))
+    if (is_data_empty)
     {
         //pipeline
         if (stream->type == SW_HTTP2_STREAM_PIPELINE)
@@ -895,7 +895,7 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
     /**
      * send body
      */
-    if (!ZVAL_IS_NULL(zpost_data))
+    if (!is_data_empty)
     {
         char *p;
         size_t len;
@@ -905,9 +905,9 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
         zend::string str_zpost_data;
 
         int flag = stream->type == SW_HTTP2_STREAM_PIPELINE ? 0 : SW_HTTP2_FLAG_END_STREAM;
-        if (Z_TYPE_P(zpost_data) == IS_ARRAY)
+        if (Z_TYPE_P(zdata) == IS_ARRAY)
         {
-            p = sw_http_build_query(zpost_data, &len, &formstr_s);
+            p = sw_http_build_query(zdata, &len, &formstr_s);
             if (p == NULL)
             {
                 swoole_php_error(E_WARNING, "http_build_query failed.");
@@ -916,7 +916,7 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
         }
         else
         {
-            str_zpost_data = zpost_data;
+            str_zpost_data = zdata;
             p = str_zpost_data.val();
             len = str_zpost_data.len();
         }
@@ -1239,7 +1239,7 @@ static PHP_METHOD(swoole_http2_client_coro, connect)
 
     zval *ztmp;
     HashTable *vht;
-    zval *zset = sw_zend_read_property(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
+    zval *zset = sw_zend_read_property(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 0);
     if (zset && ZVAL_IS_ARRAY(zset))
     {
         vht = Z_ARRVAL_P(zset);
