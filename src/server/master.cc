@@ -776,7 +776,7 @@ int swServer_free(swServer *serv)
     /**
      * shutdown workers
      */
-    if (serv->factory.shutdown != NULL)
+    if (serv->factory.shutdown)
     {
         serv->factory.shutdown(&(serv->factory));
     }
@@ -827,10 +827,12 @@ int swServer_free(swServer *serv)
     {
         close(SwooleG.null_fd);
     }
-    if (serv->stream_socket)
+    /**
+     * free worker pipe
+     */
+    if (serv->factory.free)
     {
-        unlink(serv->stream_socket);
-        sw_free(serv->stream_socket);
+        serv->factory.free(&serv->factory);
     }
     if (serv->gs->start > 0 && serv->onShutdown != NULL)
     {
@@ -925,7 +927,7 @@ static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_
     _send.info.fd = session_id;
     _send.info.type = SW_EVENT_TCP;
     _send.data = (char*) data;
-    _send.length = length;
+    _send.info.len = length;
     return factory->finish(factory, &_send) < 0 ? SW_ERR : SW_OK;
 }
 
@@ -936,7 +938,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
 {
     uint32_t session_id = _send->info.fd;
     char *_send_data = _send->data;
-    uint32_t _send_length = _send->length;
+    uint32_t _send_length = _send->info.len;
 
     swConnection *conn;
     if (_send->info.type != SW_EVENT_CLOSE)
@@ -1227,7 +1229,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename,
     swSendData send_data = {{0}};
     send_data.info.fd = session_id;
     send_data.info.type = SW_EVENT_SENDFILE;
-    send_data.length = sizeof(swSendFile_request) + filename_length + 1;
+    send_data.info.len = sizeof(swSendFile_request) + filename_length + 1;
     send_data.data = _buffer;
 
     return serv->factory.finish(&serv->factory, &send_data);

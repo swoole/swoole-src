@@ -343,7 +343,7 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *dat
     {
         // optimization: reduce memory copy
         zdata = &args[3];
-        ZVAL_STRINGL(zdata, data->data, data->length > SW_IPC_BUFFER_SIZE ? SW_IPC_BUFFER_SIZE : data->length);
+        ZVAL_STRINGL(zdata, data->data, data->info.len > SW_IPC_BUFFER_SIZE ? SW_IPC_BUFFER_SIZE : data->info.len);
     }
     if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, zdata ? 4 : 3, args) == FAILURE)
     {

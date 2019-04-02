@@ -752,7 +752,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
         }
         if (date_format && mktime(&tm3) - (int) timezone >= file_mtime)
         {
-            response.length = response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
+            response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
                     "HTTP/1.1 304 Not Modified\r\n"
                     "%s"
                     "Date: %s\r\n"
@@ -769,7 +769,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
         }
     }
 
-    response.length = response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
+    response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
             "HTTP/1.1 200 OK\r\n"
             "%s"
             "Content-Length: %ld\r\n"
@@ -802,7 +802,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
     buffer.length = file_stat.st_size;
 
     response.info.type = SW_EVENT_SENDFILE;
-    response.length = response.info.len = sizeof(swSendFile_request) + buffer.length + 1;
+    response.info.len = sizeof(swSendFile_request) + buffer.length + 1;
     response.data = (void*) &buffer;
 
     swServer_master_send(serv, &response);
@@ -811,7 +811,6 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
     if (!request->keep_alive)
     {
         response.info.type = SW_EVENT_CLOSE;
-        response.length = 0;
         response.data = NULL;
         swServer_master_send(serv, &response);
     }

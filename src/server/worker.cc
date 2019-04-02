@@ -29,6 +29,8 @@ static int swWorker_onStreamRead(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t length);
 static int swWorker_onStreamClose(swReactor *reactor, swEvent *event);
 
+static swSendBuffer *g_buffer = nullptr;
+
 void swWorker_free(swWorker *worker)
 {
     if (worker->send_shm)
@@ -716,6 +718,16 @@ int swWorker_loop(swServer *serv, int worker_id)
         serv->stream_protocol.package_max_length = INT_MAX;
         serv->stream_protocol.onPackage = swWorker_onStreamPackage;
         serv->buffer_pool = swLinkedList_new(0, NULL);
+        if (serv->buffer_pool == nullptr)
+        {
+            return SW_ERR;
+        }
+    }
+
+    g_buffer = (swSendBuffer *) sw_malloc(serv->ipc_max_size);
+    if (g_buffer == nullptr)
+    {
+        return SW_ERR;
     }
 
     swWorker_onStart(serv);
@@ -753,21 +765,20 @@ int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, in
  */
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 {
-    swEventData task;
     swServer *serv = (swServer *) reactor->ptr;
     swFactory *factory = &serv->factory;
     int ret;
 
     read_from_pipe:
 
-    if (read(event->fd, &task, sizeof(task)) > 0)
+    if (read(event->fd, g_buffer, serv->ipc_max_size) > 0)
     {
-        ret = swWorker_onTask(factory, &task);
+        ret = swWorker_onTask(factory, (swEventData *) g_buffer);
 #ifndef SW_WORKER_RECV_AGAIN
         /**
          * Big package
          */
-        if (task.info.flags & SW_EVENT_DATA_CHUNK)
+        if (g_buffer->info.flags & SW_EVENT_DATA_CHUNK)
 #endif
         {
             //no data

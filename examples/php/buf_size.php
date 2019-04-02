@@ -18,5 +18,5 @@ $n = $send_buf_size - 32;
 $ret_n = socket_write($socket, str_repeat('A', $n), $n);
 var_dump($ret_n);
 
-$ret_n = socket_read($fds[1], $n);
-var_dump($ret_n);
+$data = socket_read($fds[1], $n);
+var_dump(strlen($data));
