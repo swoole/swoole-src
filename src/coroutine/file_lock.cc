@@ -21,6 +21,7 @@
 #include "api.h"
 #include "coroutine_c_api.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/file.h>
 
@@ -31,87 +32,149 @@
 using namespace std;
 using namespace swoole;
 
-class file_lock_manager
+namespace swoole
+{
+class FileLock
 {
 public:
-    bool lock_ex = false;
-    bool lock_sh = false;
-    queue<Coroutine *> _queue;
+    static int lock(char *filename, int fd, int operation)
+    {
+        if (operation & LOCK_UN)
+        {
+            return unlock(filename, fd);
+        }
+
+        string key(filename);
+        auto i = lock_pool.find(key);
+        file_lock_manager* lm;
+        if (i == lock_pool.end())
+        {
+            lm = new file_lock_manager;
+            lock_pool[key] = lm;
+        }
+        else
+        {
+            lm = i->second;
+        }
+        if ((lm->lock_flag & LOCK_EX) || ((operation & LOCK_EX) && (lm->lock_flag & LOCK_SH)))
+        {
+            if (operation & LOCK_NB)
+            {
+                errno = EWOULDBLOCK;
+                return -1;
+            }
+
+            Coroutine *co = Coroutine::get_current();
+            lm->wait_list.emplace_back(co, operation);
+            co->yield();
+        }
+        int ret = 0;
+        if (!(lm->lock_flag & LOCK_SH))
+        {
+            ret = ::flock(fd, operation);
+        }
+        if (!ret)
+        {
+            if (operation & LOCK_SH)
+            {
+                lm->lock_flag = LOCK_SH;
+                lm->locking[Coroutine::get_current()] = LOCK_SH;
+                resume_first_lock_sh_coroutine(lm);
+            }
+            else
+            {
+                lm->lock_flag = LOCK_EX;
+                lm->locking[Coroutine::get_current()] = LOCK_EX;
+            }
+        }
+        else if (lm->lock_flag & LOCK_SH)
+        {
+            resume_first_lock_sh_coroutine(lm);
+        }
+        else if (!lm->lock_flag)
+        {
+            if (lm->wait_list.empty())
+            {
+                delete lm;
+                lock_pool.erase(i);
+            }
+            else
+            {
+                Coroutine *co = (lm->wait_list.front()).first;
+                lm->wait_list.pop_front();
+                co->resume();
+            }
+        }
+
+        return ret;
+    }
+
+private:
+    struct file_lock_manager
+    {
+        bool lock_flag = 0;
+        list<pair<Coroutine *, int>> wait_list;
+        unordered_map<Coroutine *, int> locking;
+    };
+    static unordered_map<string, file_lock_manager*> lock_pool;
+
+    static void resume_first_lock_sh_coroutine(file_lock_manager *lm)
+    {
+        for (auto p = lm->wait_list.begin(); p != lm->wait_list.end(); ++p)
+        {
+            if (p->second & LOCK_SH)
+            {
+                Coroutine *co = p->first;
+                lm->wait_list.erase(p);
+                co->resume();
+                break;
+            }
+        }
+    }
+
+    static int unlock(char *filename, int fd)
+    {
+        int ret = 0;
+
+        string key(filename);
+        auto i = lock_pool.find(key);
+        if (i != lock_pool.end())
+        {
+            file_lock_manager* lm = i->second;
+            Coroutine *co = Coroutine::get_current();
+            if (lm->locking.find(co) == lm->locking.end())
+            {
+                return ret;
+            }
+
+            if (lm->locking.size() > 1)
+            {
+                lm->locking.erase(co);
+                return ret;
+            }
+
+            ret = ::flock(fd, LOCK_UN);
+            if (!ret)
+            {
+                if (lm->wait_list.empty())
+                {
+                    delete lm;
+                    lock_pool.erase(i);
+                }
+                else
+                {
+                    lm->locking.erase(co);
+                    lm->lock_flag = 0;
+                    Coroutine *co = (lm->wait_list.front()).first;
+                    lm->wait_list.pop_front();
+                    co->resume();
+                }
+            }
+        }
+
+        return ret;
+    }
 };
-
-static unordered_map<string, file_lock_manager*> lock_pool;
-
-static int lock_ex(char *filename, int fd)
-{
-    string key(filename);
-    auto i = lock_pool.find(key);
-    file_lock_manager* lm;
-    if (i == lock_pool.end())
-    {
-        lm = new file_lock_manager;
-        lock_pool[key] = lm;
-    }
-    else
-    {
-        lm = i->second;
-    }
-    if (lm->lock_ex || lm->lock_sh)
-    {
-        Coroutine *co = Coroutine::get_current();
-        lm->_queue.push(co);
-        co->yield();
-    }
-    lm->lock_ex = true;
-    return ::flock(fd, LOCK_EX);
-}
-
-static int lock_sh(char *filename, int fd)
-{
-    string key(filename);
-    auto i = lock_pool.find(key);
-    file_lock_manager* lm;
-    if (i == lock_pool.end())
-    {
-        lm = new file_lock_manager;
-        lock_pool[key] = lm;
-    }
-    else
-    {
-        lm = i->second;
-    }
-    if (lm->lock_ex)
-    {
-        Coroutine *co = Coroutine::get_current();
-        lm->_queue.push(co);
-        co->yield();
-    }
-    lm->lock_sh = true;
-    return ::flock(fd, LOCK_SH);
-}
-
-static int lock_release(char *filename, int fd)
-{
-    string key(filename);
-    auto i = lock_pool.find(key);
-    if (i == lock_pool.end())
-    {
-        return ::flock(fd, LOCK_UN);
-    }
-    file_lock_manager* lm = i->second;
-    if (lm->_queue.empty())
-    {
-        delete lm;
-        lock_pool.erase(i);
-        return ::flock(fd, LOCK_UN);
-    }
-    else
-    {
-        Coroutine *co = lm->_queue.front();
-        lm->_queue.pop();
-        int retval = flock(fd, LOCK_UN);
-        co->resume();
-        return retval;
-    }
 }
 
 int swoole_coroutine_flock_ex(char *filename, int fd, int operation)
@@ -122,18 +185,5 @@ int swoole_coroutine_flock_ex(char *filename, int fd, int operation)
         return flock(fd, operation);
     }
 
-    switch (operation)
-    {
-    case LOCK_EX:
-        return lock_ex(filename, fd);
-    case LOCK_SH:
-        return lock_sh(filename, fd);
-    case LOCK_UN:
-        return lock_release(filename, fd);
-    default:
-        assert(0);
-        break;
-    }
-
-    return 0;
+    return FileLock::lock(filename, fd, operation);
 }
