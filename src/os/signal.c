@@ -155,7 +155,7 @@ void swSignal_callback(int signo)
 {
     if (signo >= SW_SIGNO_MAX)
     {
-        swWarn("signal[%d] numberis invalid.", signo);
+        swWarn("signal[%d] numberis invalid", signo);
         return;
     }
     swSignalHandler callback = signals[signo].handler;
@@ -171,7 +171,7 @@ swSignalHandler swSignal_get_handler(int signo)
 {
     if (signo >= SW_SIGNO_MAX)
     {
-        swWarn("signal[%d] numberis invalid.", signo);
+        swWarn("signal[%d] numberis invalid", signo);
         return NULL;
     }
     else
@@ -273,7 +273,7 @@ static void swSignalfd_clear()
     {
         if (sigprocmask(SIG_UNBLOCK, &signalfd_mask, NULL) < 0)
         {
-            swSysWarn("sigprocmask(SIG_UNBLOCK) failed.");
+            swSysWarn("sigprocmask(SIG_UNBLOCK) failed");
         }
         close(signal_fd);
         bzero(&signalfd_mask, sizeof(signalfd_mask));
@@ -293,7 +293,7 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
     }
     if (siginfo.ssi_signo >=  SW_SIGNO_MAX)
     {
-        swWarn("unknown signal[%d].", siginfo.ssi_signo);
+        swWarn("unknown signal[%d]", siginfo.ssi_signo);
         return SW_OK;
     }
     if (signals[siginfo.ssi_signo].active)

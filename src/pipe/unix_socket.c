@@ -90,7 +90,7 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
     swPipeUnsock *object = sw_malloc(sizeof(swPipeUnsock));
     if (object == NULL)
     {
-        swWarn("malloc() failed.");
+        swWarn("malloc() failed");
         return SW_ERR;
     }
     bzero(object, sizeof(swPipeUnsock));

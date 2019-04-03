@@ -735,7 +735,7 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
     int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);
     if (tmp_file_fd < 0)
     {
-        swSysWarn("open(%s) failed.", _pkg.tmpfile);
+        swSysWarn("open(%s) failed", _pkg.tmpfile);
         return NULL;
     }
     if (SwooleTG.buffer_stack->size < _pkg.length && swString_extend_align(SwooleTG.buffer_stack, _pkg.length) < 0)

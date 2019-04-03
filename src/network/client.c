@@ -122,7 +122,7 @@ int swClient_create(swClient *cli, int type, int async)
 
     if (!cli->socket)
     {
-        swWarn("malloc(%d) failed.", (int ) sizeof(swConnection));
+        swWarn("malloc(%d) failed", (int ) sizeof(swConnection));
         close(sockfd);
         return SW_ERR;
     }
@@ -686,7 +686,7 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
 
     if (!(cli->onConnect && cli->onError && cli->onClose))
     {
-        swWarn("onConnect/onError/onClose callback have not set.");
+        swWarn("onConnect/onError/onClose callback have not set");
         return SW_ERR;
     }
 
@@ -718,7 +718,7 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         ev.buf = sw_malloc(ev.nbytes);
         if (!ev.buf)
         {
-            swWarn("malloc failed.");
+            swWarn("malloc failed");
             return SW_ERR;
         }
 
@@ -786,7 +786,7 @@ static int swClient_tcp_pipe(swClient *cli, int write_fd, int flags)
 {
     if (!cli->async || cli->_sock_type != SOCK_STREAM)
     {
-        swWarn("only async tcp-client can use pipe method.");
+        swWarn("only async tcp-client can use pipe method");
         return SW_ERR;
     }
 
@@ -984,7 +984,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
 
         if (bind(cli->socket->fd, (struct sockaddr *) client_addr, sizeof(cli->socket->info.addr.un)) < 0)
         {
-            swSysWarn("bind(%s) failed.", client_addr->sun_path);
+            swSysWarn("bind(%s) failed", client_addr->sun_path);
             return SW_ERR;
         }
     }
@@ -1152,7 +1152,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
             }
             if (swClient_https_proxy_handshake(cli) < 0)
             {
-                swoole_error_log(SW_LOG_NOTICE, SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR, "failed to handshake with http proxy.");
+                swoole_error_log(SW_LOG_NOTICE, SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR, "failed to handshake with http proxy");
                 goto connect_fail;
             }
             else
@@ -1338,7 +1338,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysWarn("Read from socket[%d] failed.", event->fd);
+            swSysWarn("Read from socket[%d] failed", event->fd);
             return SW_OK;
         case SW_CLOSE:
             goto __close;

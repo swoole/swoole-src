@@ -62,12 +62,12 @@ static int swFactoryProcess_shutdown(swFactory *factory)
 
     if (swKill(serv->gs->manager_pid, SIGTERM) < 0)
     {
-        swSysWarn("swKill(%d) failed.", serv->gs->manager_pid);
+        swSysWarn("swKill(%d) failed", serv->gs->manager_pid);
     }
 
     if (swWaitpid(serv->gs->manager_pid, &status, 0) < 0)
     {
-        swSysWarn("waitpid(%d) failed.", serv->gs->manager_pid);
+        swSysWarn("waitpid(%d) failed", serv->gs->manager_pid);
     }
 
     return SW_OK;
@@ -189,7 +189,7 @@ static int swFactoryProcess_start(swFactory *factory)
      */
     if (swManager_start(serv) < 0)
     {
-        swWarn("swFactoryProcess_manager_start failed.");
+        swWarn("swFactoryProcess_manager_start failed");
         return SW_ERR;
     }
     factory->finish = swFactory_finish;
@@ -233,7 +233,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
         swConnection *conn = swServer_connection_get(serv, fd);
         if (conn == NULL || conn->active == 0)
         {
-            swWarn("dispatch[type=%d] failed, connection#%d is not active.", task->info.type, fd);
+            swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, fd);
             return SW_ERR;
         }
         //server active close, discard data.
@@ -336,7 +336,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_DATA_LENGTH_TOO_LARGE,
             "The length of data [%u] exceeds the output buffer size[%u], "
-            "please use the sendfile, chunked transfer mode or adjust the buffer_output_size.",
+            "please use the sendfile, chunked transfer mode or adjust the buffer_output_size",
             resp->info.len, serv->buffer_output_size
         );
         return SW_ERR;
@@ -354,13 +354,13 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     }
     if (!conn)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists.", session_id);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists", session_id);
         return SW_ERR;
     }
     else if ((conn->closed || conn->removed) && resp->info.type != SW_EVENT_CLOSE)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED,
-                "send %d byte failed, because connection[fd=%d] is closed.", resp->info.len, session_id);
+                "send %d byte failed, because connection[fd=%d] is closed", resp->info.len, session_id);
         return SW_ERR;
     }
     else if (conn->overflow)
@@ -371,7 +371,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         }
         else
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "send failed, connection[fd=%d] output buffer has been overflowed.", session_id);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "send failed, connection[fd=%d] output buffer has been overflowed", session_id);
         }
         return SW_ERR;
     }
@@ -487,7 +487,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     }
     else if (conn->closing)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "The connection[%d] is closing.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "The connection[%d] is closing", fd);
         return SW_ERR;
     }
     else if (conn->closed)

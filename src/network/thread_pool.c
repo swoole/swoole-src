@@ -70,7 +70,7 @@ int swThreadPool_dispatch(swThreadPool *pool, void *task, int task_len)
 
     if (ret < 0)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUEUE_FULL, "the queue of thread pool is full.");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUEUE_FULL, "the queue of thread pool is full");
         return SW_ERR;
     }
 

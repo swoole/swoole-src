@@ -235,7 +235,7 @@ private:
                         }
                         else
                         {
-                            swSysWarn("sendto swoole_aio_pipe_write failed.");
+                            swSysWarn("sendto swoole_aio_pipe_write failed");
                         }
                     }
                     break;
@@ -298,7 +298,7 @@ static int swAio_init()
 
     if (swMutex_create(&SwooleAIO.lock, 0) < 0)
     {
-        swWarn("create mutex lock error.");
+        swWarn("create mutex lock error");
         return SW_ERR;
     }
 

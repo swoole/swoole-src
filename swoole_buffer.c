@@ -108,7 +108,7 @@ static PHP_METHOD(swoole_buffer, __construct)
 
     if (size < 1)
     {
-        zend_throw_exception(swoole_exception_ce_ptr, "buffer size can't be less than 0.", SW_ERROR_INVALID_PARAMS);
+        zend_throw_exception(swoole_exception_ce_ptr, "buffer size can't be less than 0", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
     else if (size > SW_STRING_BUFFER_MAXLEN)
@@ -120,7 +120,7 @@ static PHP_METHOD(swoole_buffer, __construct)
     swString *buffer = swString_new(size);
     if (buffer == NULL)
     {
-        zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "malloc(" ZEND_LONG_FMT ") failed.", size);
+        zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "malloc(" ZEND_LONG_FMT ") failed", size);
         RETURN_FALSE;
     }
 
@@ -152,7 +152,7 @@ static PHP_METHOD(swoole_buffer, append)
     }
     if (str.length < 1)
     {
-        php_error_docref(NULL, E_WARNING, "string empty.");
+        php_error_docref(NULL, E_WARNING, "string empty");
         RETURN_FALSE;
     }
     swString *buffer = swoole_get_object(getThis());
@@ -207,7 +207,7 @@ static PHP_METHOD(swoole_buffer, substr)
     }
     if (length + offset > buffer->length)
     {
-        swoole_php_error(E_WARNING, "offset(" ZEND_LONG_FMT ", " ZEND_LONG_FMT ") is out of bounds.", offset, length);
+        swoole_php_error(E_WARNING, "offset(" ZEND_LONG_FMT ", " ZEND_LONG_FMT ") is out of bounds", offset, length);
         RETURN_FALSE;
     }
     if (remove)
@@ -243,7 +243,7 @@ static PHP_METHOD(swoole_buffer, write)
 
     if (str.length < 1)
     {
-        php_error_docref(NULL, E_WARNING, "string to write is empty.");
+        php_error_docref(NULL, E_WARNING, "string to write is empty");
         RETURN_FALSE;
     }
 
@@ -255,7 +255,7 @@ static PHP_METHOD(swoole_buffer, write)
     }
     if (offset < 0)
     {
-        php_error_docref(NULL, E_WARNING, "offset(%ld) is out of bounds.", offset);
+        php_error_docref(NULL, E_WARNING, "offset(%ld) is out of bounds", offset);
         RETURN_FALSE;
     }
 
@@ -302,7 +302,7 @@ static PHP_METHOD(swoole_buffer, read)
     }
     if (offset < 0)
     {
-        php_error_docref(NULL, E_WARNING, "offset(%ld) is out of bounds.", offset);
+        php_error_docref(NULL, E_WARNING, "offset(%ld) is out of bounds", offset);
         RETURN_FALSE;
     }
 

@@ -58,7 +58,7 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length
             if (n <= 0)
             {
                 close(file_fd);
-                swSysWarn("sendfile(%d, %s) failed.", sock, filename);
+                swSysWarn("sendfile(%d, %s) failed", sock, filename);
                 return SW_ERR;
             }
             else
@@ -188,7 +188,7 @@ int swSocket_write_blocking(int __fd, void *__data, int __len)
             }
             else
             {
-                swSysWarn("write %d bytes failed.", __len);
+                swSysWarn("write %d bytes failed", __len);
                 return SW_ERR;
             }
         }
@@ -244,7 +244,7 @@ ssize_t swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *d
     struct sockaddr_in addr;
     if (inet_aton(dst_ip, &addr.sin_addr) == 0)
     {
-        swWarn("ip[%s] is invalid.", dst_ip);
+        swWarn("ip[%s] is invalid", dst_ip);
         return SW_ERR;
     }
     addr.sin_family = AF_INET;
@@ -258,7 +258,7 @@ ssize_t swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *
     bzero(&addr, sizeof(addr));
     if (inet_pton(AF_INET6, dst_ip, &addr.sin6_addr) < 0)
     {
-        swWarn("ip[%s] is invalid.", dst_ip);
+        swWarn("ip[%s] is invalid", dst_ip);
         return SW_ERR;
     }
     addr.sin6_port = (uint16_t) htons(dst_port);
@@ -362,7 +362,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
     int option = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) != 0)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed.", sock);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed", sock);
     }
     //reuse port
 #ifdef HAVE_REUSEPORT
@@ -370,7 +370,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
     {
         if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) != 0)
         {
-            swSysWarn("setsockopt(SO_REUSEPORT) failed.");
+            swSysWarn("setsockopt(SO_REUSEPORT) failed");
             SwooleG.reuse_port = 0;
         }
     }
@@ -436,12 +436,12 @@ int swSocket_set_buffer_size(int fd, uint32_t buffer_size)
 {
     if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(buffer_size)) != 0)
     {
-        swSysWarn("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed.", fd, buffer_size);
+        swSysWarn("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, buffer_size);
         return SW_ERR;
     }
     if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &buffer_size, sizeof(buffer_size)) != 0)
     {
-        swSysWarn("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed.", fd, buffer_size);
+        swSysWarn("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed", fd, buffer_size);
         return SW_ERR;
     }
     return SW_OK;

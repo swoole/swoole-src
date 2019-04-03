@@ -84,13 +84,13 @@ void swoole_init(void)
     SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
     if (SwooleG.memory_pool == NULL)
     {
-        printf("[Master] Fatal Error: global memory allocation failure.");
+        printf("[Master] Fatal Error: global memory allocation failure");
         exit(1);
     }
     SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(SwooleGS_t));
     if (SwooleGS == NULL)
     {
-        printf("[Master] Fatal Error: failed to allocate memory for SwooleGS.");
+        printf("[Master] Fatal Error: failed to allocate memory for SwooleGS");
         exit(2);
     }
 
@@ -131,7 +131,7 @@ void swoole_init(void)
     //create tmp dir
     if (access(tmp_dir, R_OK) < 0 && swoole_mkdir_recursive(tmp_dir) < 0)
     {
-        swWarn("create task tmp dir(%s) failed.", tmp_dir);
+        swWarn("create task tmp dir(%s) failed", tmp_dir);
     }
     if (tmp_dir)
     {
@@ -172,7 +172,7 @@ pid_t swoole_fork()
 {
     if (swoole_coroutine_is_in())
     {
-        swError("must be forked outside the coroutine.");
+        swError("must be forked outside the coroutine");
         return -1;
     }
     if (SwooleAIO.init)
@@ -196,7 +196,7 @@ pid_t swoole_fork()
         SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
         if (SwooleG.memory_pool == NULL)
         {
-            printf("[Worker] Fatal Error: global memory allocation failure.");
+            printf("[Worker] Fatal Error: global memory allocation failure");
             exit(1);
         }
         /**
@@ -288,7 +288,7 @@ int swoole_mkdir_recursive(const char *dir)
 
     if (len + 1 > PATH_MAX) /* PATH_MAX limit includes string trailing null character */
     {
-        swWarn("mkdir(%s) failed. Path exceeds the limit of %d characters.", dir, PATH_MAX - 1);
+        swWarn("mkdir(%s) failed. Path exceeds the limit of %d characters", dir, PATH_MAX - 1);
         return -1;
     }
     strncpy(tmp, dir, PATH_MAX);
@@ -327,7 +327,7 @@ char* swoole_dirname(char *file)
     char *dirname = sw_strdup(file);
     if (dirname == NULL)
     {
-        swWarn("strdup() failed.");
+        swWarn("strdup() failed");
         return NULL;
     }
 
@@ -420,7 +420,7 @@ size_t swoole_sync_writefile(int fd, const void *data, size_t len)
             {
                 continue;
             }
-            swSysWarn("write(%d, %d) failed.", fd, towrite);
+            swSysWarn("write(%d, %d) failed", fd, towrite);
             break;
         }
     }
@@ -470,7 +470,7 @@ int swoole_system_random(int min, int max)
 
     if (read(dev_random_fd, next_random_byte, bytes_to_read) < bytes_to_read)
     {
-        swSysWarn("read() from /dev/urandom failed.");
+        swSysWarn("read() from /dev/urandom failed");
         return SW_ERR;
     }
     return min + (random_value % (max - min + 1));
@@ -572,7 +572,7 @@ int swoole_tmpfile(char *filename)
 
     if (tmp_fd < 0)
     {
-        swSysWarn("mkstemp(%s) failed.", filename);
+        swSysWarn("mkstemp(%s) failed", filename);
         return SW_ERR;
     }
     else
@@ -601,7 +601,7 @@ long swoole_file_size(char *filename)
     struct stat file_stat;
     if (lstat(filename, &file_stat) < 0)
     {
-        swSysWarn("lstat(%s) failed.", filename);
+        swSysWarn("lstat(%s) failed", filename);
         SwooleG.error = errno;
         return -1;
     }
@@ -622,12 +622,12 @@ swString* swoole_file_get_contents(char *filename)
     }
     else if (filesize == 0)
     {
-        swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "file[%s] is empty.", filename);
+        swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "file[%s] is empty", filename);
         return NULL;
     }
     else if (filesize > SW_MAX_FILE_CONTENT)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_TOO_LARGE, "file[%s] is too large.", filename);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_TOO_LARGE, "file[%s] is too large", filename);
         return NULL;
     }
 
@@ -658,7 +658,7 @@ swString* swoole_file_get_contents(char *filename)
             }
             else
             {
-                swSysWarn("pread(%d, %ld, %d) failed.", fd, filesize - readn, readn);
+                swSysWarn("pread(%d, %ld, %d) failed", fd, filesize - readn, readn);
                 swString_free(content);
                 close(fd);
                 return NULL;
@@ -675,19 +675,19 @@ int swoole_file_put_contents(char *filename, char *content, size_t length)
 {
     if (length <= 0)
     {
-        swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "content is empty.");
+        swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "content is empty");
         return SW_ERR;
     }
     if (length > SW_MAX_FILE_CONTENT)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_TOO_LARGE, "content is too large.");
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_TOO_LARGE, "content is too large");
         return SW_ERR;
     }
 
     int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);
     if (fd < 0)
     {
-        swSysWarn("open(%s) failed.", filename);
+        swSysWarn("open(%s) failed", filename);
         return SW_ERR;
     }
 
@@ -709,7 +709,7 @@ int swoole_file_put_contents(char *filename, char *content, size_t length)
             }
             else
             {
-                swSysWarn("write(%d, %d) failed.", fd, chunk_size);
+                swSysWarn("write(%d, %d) failed", fd, chunk_size);
                 close(fd);
                 return -1;
             }
@@ -880,7 +880,7 @@ void swoole_ioctl_set_block(int sock, int nonblock)
 
     if (ret < 0)
     {
-        swSysWarn("ioctl(%d, FIONBIO, %d) failed.", sock, nonblock);
+        swSysWarn("ioctl(%d, FIONBIO, %d) failed", sock, nonblock);
     }
 }
 
@@ -898,7 +898,7 @@ void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
 
         if (opts < 0)
         {
-            swSysWarn("fcntl(%d, GETFL) failed.", sock);
+            swSysWarn("fcntl(%d, GETFL) failed", sock);
         }
 
         if (nonblock)
@@ -918,7 +918,7 @@ void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
 
         if (ret < 0)
         {
-            swSysWarn("fcntl(%d, SETFL, opts) failed.", sock);
+            swSysWarn("fcntl(%d, SETFL, opts) failed", sock);
         }
     }
 
@@ -933,7 +933,7 @@ void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
 
         if (opts < 0)
         {
-            swSysWarn("fcntl(%d, GETFL) failed.", sock);
+            swSysWarn("fcntl(%d, GETFL) failed", sock);
         }
 
         if (cloexec)
@@ -953,7 +953,7 @@ void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
 
         if (ret < 0)
         {
-            swSysWarn("fcntl(%d, SETFD, opts) failed.", sock);
+            swSysWarn("fcntl(%d, SETFD, opts) failed", sock);
         }
     }
 #endif
@@ -1223,7 +1223,7 @@ int swoole_getaddrinfo(swRequest_getaddrinfo *req)
             memcpy((char *) buffer + (i * sizeof(struct sockaddr_in6)), ptr->ai_addr, sizeof(struct sockaddr_in6));
             break;
         default:
-            swWarn("unknown socket family[%d].", ptr->ai_family);
+            swWarn("unknown socket family[%d]", ptr->ai_family);
             break;
         }
         i++;
@@ -1250,7 +1250,7 @@ SW_API int swoole_add_function(const char *name, void* func)
     }
     if (swHashMap_find(SwooleG.functions, (char *) name, strlen(name)) != NULL)
     {
-        swWarn("Function '%s' has already been added.", name);
+        swWarn("Function '%s' has already been added", name);
         return SW_ERR;
     }
     return swHashMap_add(SwooleG.functions, (char *) name, strlen(name), func);
@@ -1310,7 +1310,7 @@ int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream)
 
     if ((child_pid = fork()) == -1)
     {
-        swSysWarn("fork() failed.");
+        swSysWarn("fork() failed");
         close(fds[0]);
         close(fds[1]);
         return SW_ERR;

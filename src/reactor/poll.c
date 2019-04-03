@@ -86,7 +86,7 @@ static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
 {
     if (swReactorPoll_exist(reactor, fd))
     {
-        swWarn("fd#%d is already exists.", fd);
+        swWarn("fd#%d is already exists", fd);
         return SW_ERR;
     }
 

@@ -123,11 +123,11 @@ extern swoole_object_array swoole_objects;
 
 #define swoole_php_fatal_error(level, fmt_str, ...) php_error_docref(NULL, level, (const char *) fmt_str, ##__VA_ARGS__)
 #define swoole_php_error(level, fmt_str, ...)       if (SWOOLE_G(display_errors)) swoole_php_fatal_error(level, fmt_str, ##__VA_ARGS__)
-#define swoole_php_sys_error(level, fmt_str, ...)   if (SWOOLE_G(display_errors)) swoole_php_error(level, fmt_str " Error: %s[%d].", ##__VA_ARGS__, strerror(errno), errno)
+#define swoole_php_sys_error(level, fmt_str, ...)   if (SWOOLE_G(display_errors)) swoole_php_error(level, fmt_str ", Error: %s[%d]", ##__VA_ARGS__, strerror(errno), errno)
 
 #ifdef SW_USE_OPENSSL
 #ifndef HAVE_OPENSSL
-#error "Enable openssl support, require openssl library."
+#error "Enable openssl support, require openssl library"
 #endif
 #endif
 
@@ -141,7 +141,7 @@ extern swoole_object_array swoole_objects;
 #endif
 
 #if PHP_MAJOR_VERSION < 7
-#error "require PHP version 7.0 or later."
+#error "require PHP version 7.0 or later"
 #endif
 
 //--------------------------------------------------------

@@ -113,7 +113,7 @@ void swoole_server_port_init(int module_number)
 
 static PHP_METHOD(swoole_server_port, __construct)
 {
-    swoole_php_fatal_error(E_ERROR, "please use the Swoole\\Server->listen method.");
+    swoole_php_fatal_error(E_ERROR, "please use the Swoole\\Server->listen method");
     return;
 }
 
@@ -155,7 +155,7 @@ static PHP_METHOD(swoole_server_port, set)
 
     if (port == NULL || property == NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "please use the swoole_server->listen method.");
+        swoole_php_fatal_error(E_ERROR, "please use the swoole_server->listen method");
         return;
     }
 
@@ -345,7 +345,7 @@ static PHP_METHOD(swoole_server_port, set)
         port->protocol.package_length_offset = (int) zval_get_long(v);
         if (port->protocol.package_length_offset > SW_IPC_BUFFER_SIZE)
         {
-            swoole_php_fatal_error(E_ERROR, "'package_length_offset' value is too large.");
+            swoole_php_fatal_error(E_ERROR, "'package_length_offset' value is too large");
         }
     }
     //package body start
@@ -354,7 +354,7 @@ static PHP_METHOD(swoole_server_port, set)
         port->protocol.package_body_offset = (int) zval_get_long(v);
         if (port->protocol.package_body_offset > SW_IPC_BUFFER_SIZE)
         {
-            swoole_php_fatal_error(E_ERROR, "'package_body_offset' value is too large.");
+            swoole_php_fatal_error(E_ERROR, "'package_body_offset' value is too large");
         }
     }
     //length function
@@ -410,7 +410,7 @@ static PHP_METHOD(swoole_server_port, set)
             zend::string str_v(v);
             if (access(str_v.val(), R_OK) < 0)
             {
-                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", str_v.val());
+                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found", str_v.val());
                 return;
             }
             if (port->ssl_option.cert_file)
@@ -425,7 +425,7 @@ static PHP_METHOD(swoole_server_port, set)
             zend::string str_v(v);
             if (access(str_v.val(), R_OK) < 0)
             {
-                swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", str_v.val());
+                swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found", str_v.val());
                 return;
             }
             if (port->ssl_option.key_file)
@@ -452,7 +452,7 @@ static PHP_METHOD(swoole_server_port, set)
             zend::string str_v(v);
             if (access(str_v.val(), R_OK) < 0)
             {
-                swoole_php_fatal_error(E_ERROR, "ssl_client_cert_file[%s] not found.", str_v.val());
+                swoole_php_fatal_error(E_ERROR, "ssl_client_cert_file[%s] not found", str_v.val());
                 return;
             }
             if (port->ssl_option.client_cert_file)
@@ -511,7 +511,7 @@ static PHP_METHOD(swoole_server_port, set)
         //    }
         if (swPort_enable_ssl_encrypt(port) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "swPort_enable_ssl_encrypt() failed.");
+            swoole_php_fatal_error(E_ERROR, "swPort_enable_ssl_encrypt() failed");
             RETURN_FALSE;
         }
     }
@@ -532,7 +532,7 @@ static PHP_METHOD(swoole_server_port, on)
     swServer *serv = property->serv;
     if (serv->gs->start > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "can't register event callback function after server started.");
+        swoole_php_fatal_error(E_WARNING, "can't register event callback function after server started");
         RETURN_FALSE;
     }
 

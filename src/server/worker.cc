@@ -411,7 +411,7 @@ void swWorker_onStart(swServer *serv)
             group = getgrnam(SwooleG.group);
             if (!group)
             {
-                swWarn("get group [%s] info failed.", SwooleG.group);
+                swWarn("get group [%s] info failed", SwooleG.group);
             }
         }
         //get user info
@@ -420,7 +420,7 @@ void swWorker_onStart(swServer *serv)
             passwd = getpwnam(SwooleG.user);
             if (!passwd)
             {
-                swWarn("get user [%s] info failed.", SwooleG.user);
+                swWarn("get user [%s] info failed", SwooleG.user);
             }
         }
         //chroot
@@ -428,7 +428,7 @@ void swWorker_onStart(swServer *serv)
         {
             if (0 > chroot(SwooleG.chroot))
             {
-                swSysWarn("chroot to [%s] failed.", SwooleG.chroot);
+                swSysWarn("chroot to [%s] failed", SwooleG.chroot);
             }
         }
         //set process group
@@ -436,7 +436,7 @@ void swWorker_onStart(swServer *serv)
         {
             if (setgid(group->gr_gid) < 0)
             {
-                swSysWarn("setgid to [%s] failed.", SwooleG.group);
+                swSysWarn("setgid to [%s] failed", SwooleG.group);
             }
         }
         //set process user
@@ -444,7 +444,7 @@ void swWorker_onStart(swServer *serv)
         {
             if (setuid(passwd->pw_uid) < 0)
             {
-                swSysWarn("setuid to [%s] failed.", SwooleG.user);
+                swSysWarn("setuid to [%s] failed", SwooleG.user);
             }
         }
     }
@@ -577,7 +577,7 @@ static void swWorker_onTimeout(swTimer *timer, swTimer_node *tnode)
     SwooleG.running = 0;
     SwooleG.main_reactor->running = 0;
     SwooleWG.exit_timer = nullptr;
-    swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced to terminate.");
+    swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced to terminate");
 }
 
 void swWorker_try_to_exit()
@@ -674,13 +674,13 @@ int swWorker_loop(swServer *serv, int worker_id)
     SwooleG.main_reactor = (swReactor *) sw_malloc(sizeof(swReactor));
     if (SwooleG.main_reactor == NULL)
     {
-        swError("[Worker] malloc for reactor failed.");
+        swError("[Worker] malloc for reactor failed");
         return SW_ERR;
     }
 
     if (swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
     {
-        swError("[Worker] create worker_reactor failed.");
+        swError("[Worker] create worker_reactor failed");
         return SW_ERR;
     }
 

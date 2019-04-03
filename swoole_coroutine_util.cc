@@ -266,7 +266,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
             exit_status = &_exit_status;
             ZVAL_NULL(exit_status);
         }
-        obj = zend_throw_error_exception(swoole_exit_exception_ce_ptr, "swoole exit.", 0, E_ERROR);
+        obj = zend_throw_error_exception(swoole_exit_exception_ce_ptr, "swoole exit", 0, E_ERROR);
         ZVAL_OBJ(&ex, obj);
         zend_update_property_long(swoole_exit_exception_ce_ptr, &ex, ZEND_STRL("flags"), flags);
         Z_TRY_ADDREF_P(exit_status);
@@ -458,7 +458,7 @@ static PHP_METHOD(swoole_coroutine_util, resume)
     auto coroutine_iterator = user_yield_coros.find(cid);
     if (coroutine_iterator == user_yield_coros.end())
     {
-        swoole_php_fatal_error(E_WARNING, "you can not resume the coroutine which is in IO operation.");
+        swoole_php_fatal_error(E_WARNING, "you can not resume the coroutine which is in IO operation");
         RETURN_FALSE;
     }
 
@@ -870,7 +870,7 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
 
     if (async == 1)
     {
-        swoole_php_fatal_error(E_WARNING, "only support file resources.");
+        swoole_php_fatal_error(E_WARNING, "only support file resources");
         RETURN_FALSE;
     }
 
@@ -1139,13 +1139,13 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname)
 
     if (l_domain_name == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "domain name is empty.");
+        swoole_php_fatal_error(E_WARNING, "domain name is empty");
         RETURN_FALSE;
     }
 
     if (family != AF_INET && family != AF_INET6)
     {
-        swoole_php_fatal_error(E_WARNING, "unknown protocol family, must be AF_INET or AF_INET6.");
+        swoole_php_fatal_error(E_WARNING, "unknown protocol family, must be AF_INET or AF_INET6");
         RETURN_FALSE;
     }
 
@@ -1178,13 +1178,13 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
 
     if (l_hostname == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "hostname is empty.");
+        swoole_php_fatal_error(E_WARNING, "hostname is empty");
         RETURN_FALSE;
     }
 
     if (family != AF_INET && family != AF_INET6)
     {
-        swoole_php_fatal_error(E_WARNING, "unknown protocol family, must be AF_INET or AF_INET6.");
+        swoole_php_fatal_error(E_WARNING, "unknown protocol family, must be AF_INET or AF_INET6");
         RETURN_FALSE;
     }
 
@@ -1321,7 +1321,7 @@ PHP_FUNCTION(swoole_coroutine_exec)
 
     if (php_swoole_signal_isset_handler(SIGCHLD))
     {
-        swoole_php_error(E_WARNING, "The signal [SIGCHLD] is registered, cannot execute swoole_coroutine_exec.");
+        swoole_php_error(E_WARNING, "The signal [SIGCHLD] is registered, cannot execute swoole_coroutine_exec");
         RETURN_FALSE;
     }
 

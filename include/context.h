@@ -38,15 +38,17 @@ static bool protect_stack(void *top, size_t stack_size, uint32_t page)
 {
     if (stack_size <= SwooleG.pagesize * (page + 1))
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_CO_PROTECT_STACK_FAILED, "getpagesize() failed.");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_CO_PROTECT_STACK_FAILED, "getpagesize() failed");
         return false;
     }
 #ifdef PROT_NONE
     void *protect_page_addr = ((size_t) top & 0xfff) ? (void*) (((size_t) top & ~(size_t) 0xfff) + 0x1000) : top;
     if (-1 == mprotect(protect_page_addr, SwooleG.pagesize * page, PROT_NONE))
     {
-        swSysWarn("mprotect() failed: origin_addr:%p, align_addr:%p, page_size:%d, protect_page:%u.", top,
-                protect_page_addr, SwooleG.pagesize, page);
+        swSysWarn(
+            "mprotect() failed: origin_addr:%p, align_addr:%p, page_size:%d, protect_page:%u",
+            top, protect_page_addr, SwooleG.pagesize, page
+        );
         return false;
     }
     else
@@ -62,13 +64,15 @@ static bool unprotect_stack(void *top, uint32_t page)
 #ifdef PROT_READ
     if (-1 == mprotect(protect_page_addr, SwooleG.pagesize * page, PROT_READ | PROT_WRITE))
     {
-        swSysWarn("mprotect() failed: origin_addr:%p, align_addr:%p, page_size:%d, protect_page:%u.", top,
-                protect_page_addr, SwooleG.pagesize, page);
+        swSysWarn(
+            "mprotect() failed: origin_addr:%p, align_addr:%p, page_size:%d, protect_page:%u",
+            top, protect_page_addr, SwooleG.pagesize, page
+        );
         return false;
     }
     else
     {
-        swDebug("origin_addr:%p, align_addr:%p, page_size:%d, protect_page:%u.", top, protect_page_addr, page, SwooleG.pagesize);
+        swDebug("origin_addr:%p, align_addr:%p, page_size:%d, protect_page:%u", top, protect_page_addr, page, SwooleG.pagesize);
         return true;
     }
 #endif

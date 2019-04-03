@@ -385,7 +385,7 @@ int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth)
 
     if (SSL_CTX_load_verify_locations(ctx, cert_file, NULL) == 0)
     {
-        swWarn("SSL_CTX_load_verify_locations(\"%s\") failed.", cert_file);
+        swWarn("SSL_CTX_load_verify_locations(\"%s\") failed", cert_file);
         return SW_ERR;
     }
 
@@ -393,7 +393,7 @@ int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth)
     list = SSL_load_client_CA_file(cert_file);
     if (list == NULL)
     {
-        swWarn("SSL_load_client_CA_file(\"%s\") failed.", cert_file);
+        swWarn("SSL_load_client_CA_file(\"%s\") failed", cert_file);
         return SW_ERR;
     }
 
@@ -416,7 +416,7 @@ int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx)
     {
         if (!SSL_CTX_set_default_verify_paths(ctx))
         {
-            swWarn("Unable to set default verify locations and no CA settings specified.");
+            swWarn("Unable to set default verify locations and no CA settings specified");
             return SW_ERR;
         }
     }
@@ -524,7 +524,7 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
             }
         }
 
-        swTrace("SSL subjectAltName: no match.");
+        swTrace("SSL subjectAltName: no match");
         GENERAL_NAMES_free(altnames);
         goto failed;
     }
@@ -619,21 +619,21 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
     bio = BIO_new(BIO_s_mem());
     if (bio == NULL)
     {
-        swWarn("BIO_new() failed.");
+        swWarn("BIO_new() failed");
         X509_free(cert);
         return SW_ERR;
     }
 
     if (PEM_write_bio_X509(bio, cert) == 0)
     {
-        swWarn("PEM_write_bio_X509() failed.");
+        swWarn("PEM_write_bio_X509() failed");
         goto failed;
     }
 
     len = BIO_pending(bio);
     if (len < 0 && len > length)
     {
-        swWarn("certificate length[%ld] is too big.", len);
+        swWarn("certificate length[%ld] is too big", len);
         goto failed;
     }
 
@@ -697,7 +697,7 @@ int swSSL_accept(swConnection *conn)
     else if (err == SSL_ERROR_SSL)
     {
         int reason = ERR_GET_REASON(ERR_peek_error());
-        swWarn("bad SSL client[%s:%d], reason=%d.", swConnection_get_ip(conn), swConnection_get_port(conn), reason);
+        swWarn("bad SSL client[%s:%d], reason=%d", swConnection_get_ip(conn), swConnection_get_port(conn), reason);
         return SW_ERROR;
     }
     //EOF was observed
@@ -705,7 +705,7 @@ int swSSL_accept(swConnection *conn)
     {
         return SW_ERROR;
     }
-    swWarn("SSL_do_handshake() failed. Error: %s[%ld|%d].", strerror(errno), err, errno);
+    swWarn("SSL_do_handshake() failed. Error: %s[%ld|%d]", strerror(errno), err, errno);
     return SW_ERROR;
 }
 
@@ -744,7 +744,7 @@ int swSSL_connect(swConnection *conn)
     }
     else if (err == SSL_ERROR_ZERO_RETURN)
     {
-        swDebug("SSL_connect(fd=%d) closed.", conn->fd);
+        swDebug("SSL_connect(fd=%d) closed", conn->fd);
         return SW_ERR;
     }
     else if (err == SSL_ERROR_SYSCALL)
@@ -755,7 +755,7 @@ int swSSL_connect(swConnection *conn)
             return SW_ERR;
         }
     }
-    swWarn("SSL_connect(fd=%d) failed. Error: %s[%ld|%d].", conn->fd, ERR_reason_error_string(err), err, errno);
+    swWarn("SSL_connect(fd=%d) failed. Error: %s[%ld|%d]", conn->fd, ERR_reason_error_string(err), err, errno);
 
     return SW_ERR;
 }
@@ -775,7 +775,7 @@ int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size)
         {
             if (swConnection_error(errno) == SW_ERROR)
             {
-                swSysWarn("write() failed.");
+                swSysWarn("write() failed");
             }
         }
         else
@@ -787,7 +787,7 @@ int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size)
     }
     else
     {
-        swSysWarn("pread() failed.");
+        swSysWarn("pread() failed");
         return SW_ERR;
     }
 }
@@ -827,7 +827,7 @@ void swSSL_close(swConnection *conn)
     if (!(n == 1 || sslerr == 0 || sslerr == SSL_ERROR_ZERO_RETURN))
     {
         err = (sslerr == SSL_ERROR_SYSCALL) ? errno : 0;
-        swWarn("SSL_shutdown() failed. Error: %d:%d.", sslerr, err);
+        swWarn("SSL_shutdown() failed. Error: %d:%d", sslerr, err);
     }
 
     SSL_free(conn->ssl);
@@ -905,7 +905,7 @@ static sw_inline void swSSL_connection_error(swConnection *conn)
         break;
 #endif
 
-    swoole_error_log(level, SW_ERROR_SSL_BAD_PROTOCOL, "SSL connection#%d[%s:%d] protocol error[%d].", conn->session_id,
+    swoole_error_log(level, SW_ERROR_SSL_BAD_PROTOCOL, "SSL connection#%d[%s:%d] protocol error[%d]", conn->session_id,
             swConnection_get_ip(conn), swConnection_get_port(conn), reason);
 }
 
@@ -986,7 +986,7 @@ int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags)
     SSL *ssl = SSL_new(ssl_context);
     if (ssl == NULL)
     {
-        swWarn("SSL_new() failed.");
+        swWarn("SSL_new() failed");
         return SW_ERR;
     }
     if (!SSL_set_fd(ssl, conn->fd))
@@ -1025,7 +1025,7 @@ static RSA* swSSL_rsa_key_callback(SSL *ssl, int is_export, int key_length)
     BIGNUM *bn = BN_new();
     if (bn == NULL)
     {
-        swWarn("allocation error generating RSA key.");
+        swWarn("allocation error generating RSA key");
         return NULL;
     }
 

@@ -24,7 +24,7 @@ int swTimer_now(struct timeval *time)
     struct timespec _now;
     if (clock_gettime(CLOCK_MONOTONIC, &_now) < 0)
     {
-        swSysWarn("clock_gettime(CLOCK_MONOTONIC) failed.");
+        swSysWarn("clock_gettime(CLOCK_MONOTONIC) failed");
         return SW_ERR;
     }
     time->tv_sec = _now.tv_sec;
@@ -32,7 +32,7 @@ int swTimer_now(struct timeval *time)
 #else
     if (gettimeofday(time, NULL) < 0)
     {
-        swSysWarn("gettimeofday() failed.");
+        swSysWarn("gettimeofday() failed");
         return SW_ERR;
     }
 #endif
@@ -129,14 +129,14 @@ swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, 
 
     if (unlikely(_msec <= 0))
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "_msec value[%ld] is invalid.", _msec);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "_msec value[%ld] is invalid", _msec);
         return NULL;
     }
 
     swTimer_node *tnode = sw_malloc(sizeof(swTimer_node));
     if (unlikely(!tnode))
     {
-        swSysWarn("malloc(%ld) failed.", sizeof(swTimer_node));
+        swSysWarn("malloc(%ld) failed", sizeof(swTimer_node));
         return NULL;
     }
 

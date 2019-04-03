@@ -25,7 +25,7 @@ swArray *swArray_new(int page_size, size_t item_size)
     swArray *array = sw_malloc(sizeof(swArray));
     if (array == NULL)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "malloc[0] failed.");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "malloc[0] failed");
         return NULL;
     }
     bzero(array, sizeof(swArray));
@@ -34,7 +34,7 @@ swArray *swArray_new(int page_size, size_t item_size)
     if (array->pages == NULL)
     {
         sw_free(array);
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "malloc[1] failed.");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "malloc[1] failed");
         return NULL;
     }
 
@@ -73,7 +73,7 @@ int swArray_extend(swArray *array)
     array->pages[array->page_num] = sw_calloc(array->page_size, array->item_size);
     if (array->pages[array->page_num] == NULL)
     {
-        swWarn("malloc[1] failed.");
+        swWarn("malloc[1] failed");
         return SW_ERR;
     }
     array->page_num++;

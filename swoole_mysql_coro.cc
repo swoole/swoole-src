@@ -593,7 +593,7 @@ static ssize_t mysql_decode_row(mysql_client *client, char *buf, uint32_t packet
     bzero(&row, sizeof(row));
     array_init(row_array);
 
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_length=%u.", client->response.num_column, packet_length);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_length=%u", client->response.num_column, packet_length);
 
     mysql_field *field = NULL;
 
@@ -774,7 +774,7 @@ static ssize_t mysql_decode_row(mysql_client *client, char *buf, uint32_t packet
             break;
 
         default:
-            swWarn("unknown field type[%d].", field->type);
+            swWarn("unknown field type[%d]", field->type);
             read_n = SW_ERR;
             _error:
             zval_ptr_dtor(row_array);
@@ -881,7 +881,7 @@ static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint32_
     zval *row_array = sw_malloc_zval();
     array_init(row_array);
 
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_length=%u.", client->response.num_column, packet_length);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_length=%u", client->response.num_column, packet_length);
 
     mysql_field *field = NULL;
     for (i = 0; i < client->response.num_column; i++)
@@ -1067,7 +1067,7 @@ static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint32_
             break;
 
         default:
-            swWarn("unknown field type[%d].", field->type);
+            swWarn("unknown field type[%d]", field->type);
             read_n = SW_ERR;
             _error:
             zval_ptr_dtor(row_array);
@@ -1120,18 +1120,18 @@ static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval 
     if (!client->cli)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
-        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
+        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed", client->fd);
         return SW_ERR;
     }
     if (!client->connected)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
-        swoole_php_error(E_WARNING, "mysql client is not connected to server.");
+        swoole_php_error(E_WARNING, "mysql client is not connected to server");
         return SW_ERR;
     }
     if (client->state != SW_MYSQL_STATE_QUERY)
     {
-        swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query.");
+        swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query");
         return SW_ERR;
     }
 
@@ -1230,7 +1230,7 @@ static int mysql_parse_prepare_result(mysql_client *client, char *buf, size_t n_
 
     MYSQL_RESPONSE_BUFFER->offset += SW_MYSQL_PACKET_HEADER_SIZE + client->response.packet_length;
 
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "stmt_id=%u, field_count=%u, param_count=%u, warning_count=%u.", stmt->id,
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "stmt_id=%u, field_count=%u, param_count=%u, warning_count=%u", stmt->id,
             stmt->field_count, stmt->param_count, stmt->warning_count);
 
     return SW_OK;
@@ -1443,7 +1443,7 @@ static int mysql_read_columns(mysql_client *client)
 
     for (; client->response.index_column < client->response.num_column; client->response.index_column++)
     {
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "index_index_column=%ld, n_buf=%zu.", client->response.index_column, (uintmax_t) n_buf);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "index_index_column=%ld, n_buf=%zu", client->response.index_column, (uintmax_t) n_buf);
 
         // Ensure that we've received the complete packet
         if (mysql_ensure_packet(p, n_buf) == SW_ERR)
@@ -1469,7 +1469,7 @@ static int mysql_read_columns(mysql_client *client)
         }
         else
         {
-            swWarn("mysql_decode_field failed, code=%d.", ret);
+            swWarn("mysql_decode_field failed, code=%d", ret);
             return ret < 0 ? ret : SW_ERR;
         }
     }
@@ -1485,7 +1485,7 @@ static int mysql_read_columns(mysql_client *client)
 
     if (mysql_read_eof(client, p, n_buf) != SW_OK)
     {
-        swWarn("unexpected mysql non-eof packet.");
+        swWarn("unexpected mysql non-eof packet");
         return SW_ERR;
     }
 
@@ -1513,7 +1513,7 @@ static sw_inline int mysql_read_params(mysql_client *client)
         char *p = buffer->str + buffer->offset;
         size_t n_buf = buffer->length - buffer->offset;
 
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "n_buf=%zu, length=%u.", (uintmax_t) n_buf, client->response.packet_length);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "n_buf=%zu, length=%u", (uintmax_t) n_buf, client->response.packet_length);
 
         // Ensure that we've received the complete packet
         if (mysql_ensure_packet(p, n_buf) == SW_ERR)
@@ -1533,7 +1533,7 @@ static sw_inline int mysql_read_params(mysql_client *client)
 
             swMysqlPacketDump(p, SW_MYSQL_PACKET_HEADER_SIZE + client->response.packet_length, "Protocol::ParameterDefinition");
 
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "read param, count=%d.", client->statement->unreaded_param_count);
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "read param, count=%d", client->statement->unreaded_param_count);
 
             continue;
         }
@@ -1743,7 +1743,7 @@ static int mysql_response(mysql_client *client)
     while ((n_buf = buffer->length - buffer->offset) > 0)
     {
         p = buffer->str + buffer->offset;
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "client->state=%d, n_buf=%zu.", client->state, n_buf);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "client->state=%d, n_buf=%zu", client->state, n_buf);
 
         switch (client->state)
         {
@@ -1811,7 +1811,7 @@ static int mysql_response(mysql_client *client)
                 }
                 buffer->offset += (SW_MYSQL_PACKET_HEADER_SIZE + ret);
 
-                swTraceLog(SW_TRACE_MYSQL_CLIENT, "ResultSet_Packet: num_of_fields=%lu.", client->response.num_column);
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "ResultSet_Packet: num_of_fields=%lu", client->response.num_column);
 
                 // easy to the safe side: but under what circumstances would num_column will be 0 in result set?
                 if (client->response.num_column > 0)
@@ -2434,20 +2434,20 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
 
     if (!client->cli || client->state == SW_MYSQL_STATE_CLOSED)
     {
-        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
+        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed", client->fd);
         return SW_ERR;
     }
 
     if (client->state != SW_MYSQL_STATE_QUERY)
     {
-        swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query.");
+        swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query");
         return SW_ERR;
     }
 
     mysql_statement *statement = (mysql_statement *) swoole_get_object(zobject);
     if (!statement)
     {
-        swoole_php_fatal_error(E_WARNING, "mysql preparation is not ready.");
+        swoole_php_fatal_error(E_WARNING, "mysql preparation is not ready");
         return SW_ERR;
     }
 
@@ -2463,7 +2463,7 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
 
     if (param_count != statement->param_count)
     {
-        swoole_php_fatal_error(E_WARNING, "mysql statement#%u expects %u parameter, %u given.", statement->id, statement->param_count, param_count);
+        swoole_php_fatal_error(E_WARNING, "mysql statement#%u expects %u parameter, %u given", statement->id, statement->param_count, param_count);
         return SW_ERR;
     }
 
@@ -2588,7 +2588,7 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result,
         }
         else // handler error
         {
-            static const char* errmsg = "mysql response packet parse error.";
+            static const char* errmsg = "mysql response packet parse error";
             client->response.response_type = SW_MYSQL_PACKET_ERR;
             client->response.error_code = ret;
             client->response.server_msg = (char *) errmsg;
@@ -2786,7 +2786,7 @@ static int swoole_mysql_coro_close(zval *zobject)
     mysql_client *client = (mysql_client *) swoole_get_object(zobject);
     if (!client)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql_coro.");
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql_coro");
         return FAILURE;
     }
 
@@ -2896,7 +2896,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     mysql_client *client = (mysql_client *) swoole_get_object(getThis());
     if (client->cli)
     {
-        swoole_php_fatal_error(E_WARNING, "connection to the server has already been established.");
+        swoole_php_fatal_error(E_WARNING, "connection to the server has already been established");
         RETURN_FALSE;
     }
 
@@ -2914,7 +2914,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     else
     {
-        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "HOST parameter is required.", 11);
+        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "HOST parameter is required", 11);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "port", value))
@@ -2933,7 +2933,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     else
     {
-        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "USER parameter is required.", 11);
+        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "USER parameter is required", 11);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "password", value))
@@ -2944,7 +2944,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     else
     {
-        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "PASSWORD parameter is required.", 11);
+        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "PASSWORD parameter is required", 11);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "database", value))
@@ -2955,7 +2955,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     else
     {
-        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "DATABASE parameter is required.", 11);
+        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "DATABASE parameter is required", 11);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "timeout", value))
@@ -2973,7 +2973,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         if (connector->character_set < 0)
         {
             char buf[64];
-            snprintf(buf, sizeof(buf), "unknown charset [%s].", str_charset.val());
+            snprintf(buf, sizeof(buf), "unknown charset [%s]", str_charset.val());
             zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, buf, 11);
             RETURN_FALSE;
         }
@@ -3035,7 +3035,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         int tcp_nodelay = 1;
         if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) != 0)
         {
-            swoole_php_sys_error(E_WARNING, "setsockopt(%d, IPPROTO_TCP, TCP_NODELAY) failed.", cli->socket->fd);
+            swoole_php_sys_error(E_WARNING, "setsockopt(%d, IPPROTO_TCP, TCP_NODELAY) failed", cli->socket->fd);
         }
     }
 
@@ -3106,13 +3106,13 @@ static PHP_METHOD(swoole_mysql_coro, query)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
         zend_update_property_long(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
-        swoole_php_fatal_error(E_WARNING, "The MySQL connection is not established.");
+        swoole_php_fatal_error(E_WARNING, "The MySQL connection is not established");
         RETURN_FALSE;
     }
 
     if (client->iowait == SW_MYSQL_CORO_STATUS_DONE)
     {
-        swoole_php_fatal_error(E_WARNING, "mysql client is waiting for calling recv, cannot send new sql query.");
+        swoole_php_fatal_error(E_WARNING, "mysql client is waiting for calling recv, cannot send new sql query");
         RETURN_FALSE;
     }
 
@@ -3127,7 +3127,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
 
     if (sql.length <= 0)
     {
-        swoole_php_fatal_error(E_WARNING, "Query is empty.");
+        swoole_php_fatal_error(E_WARNING, "Query is empty");
         RETURN_FALSE;
     }
 
@@ -3194,7 +3194,7 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
     mysql_client *client = (mysql_client *) swoole_get_object(getThis());
     if (!client)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql");
         RETURN_FALSE;
     }
 
@@ -3208,20 +3208,20 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
         swoole_php_fatal_error(
             E_DEPRECATED,
             "you should not use defer to handle transaction, "
-            "if you want, please use `query` instead."
+            "if you want, please use `query` instead"
         );
         RETURN_FALSE;
     }
 
     if (in_transaction && client->transaction)
     {
-        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "There is already an active transaction.", 21);
+        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "There is already an active transaction", 21);
         RETURN_FALSE;
     }
 
     if (!in_transaction && !client->transaction)
     {
-        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "There is no active transaction.", 22);
+        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "There is no active transaction", 22);
         RETURN_FALSE;
     }
 
@@ -3318,7 +3318,7 @@ static PHP_METHOD(swoole_mysql_coro, recv)
 
     if (client->iowait != SW_MYSQL_CORO_STATUS_WAIT)
     {
-        swoole_php_fatal_error(E_WARNING, "no request.");
+        swoole_php_fatal_error(E_WARNING, "no request");
         RETURN_FALSE;
     }
 
@@ -3338,13 +3338,13 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
         zend_update_property_long(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
-        swoole_php_fatal_error(E_WARNING, "The MySQL connection is not established.");
+        swoole_php_fatal_error(E_WARNING, "The MySQL connection is not established");
         RETURN_FALSE;
     }
 
     if (client->state != SW_MYSQL_STATE_QUERY)
     {
-        swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query.");
+        swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query");
         RETURN_FALSE;
     }
 
@@ -3358,7 +3358,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     }
     if (sql.length <= 0)
     {
-        swoole_php_fatal_error(E_WARNING, "Query is empty.");
+        swoole_php_fatal_error(E_WARNING, "Query is empty");
         RETURN_FALSE;
     }
 
@@ -3417,7 +3417,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
     mysql_client *client = stmt->client;
     if (!client->cli)
     {
-        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
+        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed", client->fd);
         RETURN_FALSE;
     }
 
@@ -3604,32 +3604,32 @@ static PHP_METHOD(swoole_mysql_coro, escape)
     mysql_client *client = (mysql_client *) swoole_get_object(getThis());
     if (!client)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql");
         RETURN_FALSE;
     }
     if (!client->cli)
     {
-        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
+        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed", client->fd);
         RETURN_FALSE;
     }
 
     char *newstr = (char *) safe_emalloc(2, str.length + 1, 1);
     if (newstr == NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "emalloc(%ld) failed.", str.length + 1);
+        swoole_php_fatal_error(E_ERROR, "emalloc(%ld) failed", str.length + 1);
         RETURN_FALSE;
     }
 
     const MYSQLND_CHARSET* cset = mysqlnd_find_charset_nr(client->connector.character_set);
     if (cset == NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "unknown mysql charset[%d].", client->connector.character_set);
+        swoole_php_fatal_error(E_ERROR, "unknown mysql charset[%d]", client->connector.character_set);
         RETURN_FALSE;
     }
     int newstr_len = mysqlnd_cset_escape_slashes(cset, newstr, str.str, str.length);
     if (newstr_len < 0)
     {
-        swoole_php_fatal_error(E_ERROR, "mysqlnd_cset_escape_slashes() failed.");
+        swoole_php_fatal_error(E_ERROR, "mysqlnd_cset_escape_slashes() failed");
         RETURN_FALSE;
     }
     RETVAL_STRINGL(newstr, newstr_len);
@@ -3877,7 +3877,7 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client)
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysWarn("Read from socket[%d] failed.", cli->socket->fd);
+            swSysWarn("Read from socket[%d] failed", cli->socket->fd);
             return SW_ERR;
         case SW_CLOSE:
             _system_call_error:
@@ -4073,7 +4073,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
     while(1)
     {
         ret = recv(sock, buffer->str + buffer->length, buffer->size - buffer->length, 0);
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "recv-ret=%d, buffer-length=%zu.", ret, buffer->length);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "recv-ret=%d, buffer-length=%zu", ret, buffer->length);
         if (ret < 0)
         {
             if (errno == EINTR)
@@ -4085,7 +4085,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 switch (swConnection_error(errno))
                 {
                 case SW_ERROR:
-                    swSysWarn("Read from socket[%d] failed.", event->fd);
+                    swSysWarn("Read from socket[%d] failed", event->fd);
                     return SW_ERR;
                 case SW_CLOSE:
                     goto _close_fd;
@@ -4151,7 +4151,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             {
                 if (swString_extend(buffer, buffer->size * 2) < 0)
                 {
-                    swoole_php_fatal_error(E_ERROR, "malloc failed.");
+                    swoole_php_fatal_error(E_ERROR, "malloc failed");
                     reactor->del(SwooleG.main_reactor, event->fd);
                 }
                 continue;

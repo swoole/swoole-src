@@ -58,20 +58,20 @@ int swPort_enable_ssl_encrypt(swListenPort *ls)
 {
     if (ls->ssl_option.cert_file == NULL || ls->ssl_option.key_file == NULL)
     {
-        swWarn("SSL error, require ssl_cert_file and ssl_key_file.");
+        swWarn("SSL error, require ssl_cert_file and ssl_key_file");
         return SW_ERR;
     }
     ls->ssl_context = swSSL_get_context(&ls->ssl_option);
     if (ls->ssl_context == NULL)
     {
-        swWarn("swSSL_get_context() error.");
+        swWarn("swSSL_get_context() error");
         return SW_ERR;
     }
     if (ls->ssl_option.client_cert_file
             && swSSL_set_client_certificate(ls->ssl_context, ls->ssl_option.client_cert_file,
                     ls->ssl_option.verify_depth) == SW_ERR)
     {
-        swWarn("swSSL_set_client_certificate() error.");
+        swWarn("swSSL_set_client_certificate() error");
         return SW_ERR;
     }
     if (ls->open_http_protocol)
@@ -85,7 +85,7 @@ int swPort_enable_ssl_encrypt(swListenPort *ls)
     }
     if (swSSL_server_set_cipher(ls->ssl_context, &ls->ssl_config) < 0)
     {
-        swWarn("swSSL_server_set_cipher() error.");
+        swWarn("swSSL_server_set_cipher() error");
         return SW_ERR;
     }
     return SW_OK;
@@ -109,7 +109,7 @@ int swPort_listen(swListenPort *ls)
     {
         if (setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, (const void*) &ls->tcp_defer_accept, sizeof(int)) != 0)
         {
-            swSysWarn("setsockopt(TCP_DEFER_ACCEPT) failed.");
+            swSysWarn("setsockopt(TCP_DEFER_ACCEPT) failed");
         }
     }
 #endif
@@ -119,7 +119,7 @@ int swPort_listen(swListenPort *ls)
     {
         if (setsockopt(sock, IPPROTO_TCP, TCP_FASTOPEN, (const void*) &ls->tcp_fastopen, sizeof(int)) != 0)
         {
-            swSysWarn("setsockopt(TCP_FASTOPEN) failed.");
+            swSysWarn("setsockopt(TCP_FASTOPEN) failed");
         }
     }
 #endif
@@ -129,7 +129,7 @@ int swPort_listen(swListenPort *ls)
     {
         if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &option, sizeof(option)) != 0)
         {
-            swSysWarn("setsockopt(SO_KEEPALIVE) failed.");
+            swSysWarn("setsockopt(SO_KEEPALIVE) failed");
         }
 #ifdef TCP_KEEPIDLE
         setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, (void*) &ls->tcp_keepidle, sizeof(int));
@@ -235,7 +235,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysWarn("recv from connection#%d failed.", event->fd);
+            swSysWarn("recv from connection#%d failed", event->fd);
             return SW_OK;
         case SW_CLOSE:
             conn->close_errno = errno;
@@ -345,7 +345,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysWarn("recv from connection#%d failed.", event->fd);
+            swSysWarn("recv from connection#%d failed", event->fd);
             return SW_OK;
         case SW_CLOSE:
             conn->close_errno = errno;
@@ -372,7 +372,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             {
                 return SW_OK;
             }
-            swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "get protocol failed.");
+            swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "get protocol failed");
 #ifdef SW_USE_HTTP2
             _bad_request:
 #endif
@@ -420,7 +420,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             {
                 if (buffer->size == buffer->length)
                 {
-                    swWarn("[2]http header is too long.");
+                    swWarn("[2]http header is too long");
                     goto close_fd;
                 }
                 else
@@ -464,7 +464,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                 }
                 else if (buffer->size == buffer->length)
                 {
-                    swWarn("[0]http header is too long.");
+                    swWarn("[0]http header is too long");
                     goto close_fd;
                 }
                 /* wait more data */
@@ -475,7 +475,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             }
             else if (request->content_length > (protocol->package_max_length - request->header_length))
             {
-                swWarn("Content-Length is too big, MaxSize=[%d].", protocol->package_max_length - request->header_length);
+                swWarn("Content-Length is too big, MaxSize=[%d]", protocol->package_max_length - request->header_length);
                 goto close_fd;
             }
         }

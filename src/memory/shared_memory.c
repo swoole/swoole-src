@@ -151,7 +151,7 @@ void *swShareMemory_sysv_create(swShareMemory *object, size_t size, int key)
     //SHM_R | SHM_W
     if ((shmid = shmget(key, size, IPC_CREAT)) < 0)
     {
-        swSysWarn("shmget(%d, %ld) failed.", key, size);
+        swSysWarn("shmget(%d, %ld) failed", key, size);
         return NULL;
     }
     if ((mem = shmat(shmid, NULL, 0)) == (void *) -1)
