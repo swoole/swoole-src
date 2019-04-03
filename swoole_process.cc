@@ -77,6 +77,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_construct, 0, 0, 1)
     ZEND_ARG_CALLABLE_INFO(0, callback, 0)
     ZEND_ARG_INFO(0, redirect_stdin_and_stdout)
     ZEND_ARG_INFO(0, pipe_type)
+    ZEND_ARG_INFO(0, enable_coroutine)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_void, 0, 0, 0)
