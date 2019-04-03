@@ -1167,7 +1167,7 @@ PHP_FUNCTION(swoole_get_local_ip)
 
     if (getifaddrs(&ipaddrs) != 0)
     {
-        php_error_docref(NULL, E_WARNING, "getifaddrs() failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "getifaddrs() failed");
         RETURN_FALSE;
     }
     array_init(return_value);
@@ -1220,7 +1220,7 @@ PHP_FUNCTION(swoole_get_local_mac)
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        php_error_docref(NULL, E_WARNING, "new socket failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "new socket failed");
         RETURN_FALSE;
     }
     array_init(return_value);

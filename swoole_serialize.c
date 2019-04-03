@@ -92,7 +92,7 @@ static CPINLINE int swoole_string_new(size_t size, seriaString *str, zend_uchar 
     str->buffer = ecalloc(1, total);
     if (!str->buffer)
     {
-        php_error_docref(NULL, E_ERROR, "malloc Error: %s [%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_ERROR, "malloc failed");
     }
 
     SBucketType real_type = {0};
@@ -113,7 +113,7 @@ static CPINLINE void swoole_check_size(seriaString *str, size_t len)
         str->buffer = erealloc2(str->buffer, new_size, str->offset);
         if (!str->buffer)
         {
-            php_error_docref(NULL, E_ERROR, "realloc Error: %s [%d]", strerror(errno), errno);
+            swoole_php_sys_error(E_ERROR, "erealloc2 failed");
         }
         str->total = new_size;
     }

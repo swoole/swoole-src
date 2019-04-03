@@ -845,13 +845,13 @@ SW_API bool php_swoole_export_socket(zval *zobject, int fd, enum swSocket_type t
     int new_fd = dup(fd);
     if (new_fd < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "dup(%d) failed. Error: %s [%d]", fd, strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "dup(%d) failed", fd);
         return false;
     }
     sock->socket = new Socket(new_fd, type);
     if (UNEXPECTED(sock->socket->socket == nullptr))
     {
-        swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "new Socket() failed");
         delete sock->socket;
         sock->socket = nullptr;
         OBJ_RELEASE(object);

@@ -425,7 +425,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
     //bind failed
     if (ret < 0)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "bind(%s:%d) failed. Error: %s [%d]", host, *port, strerror(errno), errno);
+        swSysWarn("bind(%s:%d) failed", host, *port);
         return SW_ERR;
     }
 

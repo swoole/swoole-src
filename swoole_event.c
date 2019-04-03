@@ -127,7 +127,7 @@ static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
 
     if (getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_event->onError[1]: getsockopt[sock=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "swoole_event->onError[1]: getsockopt[sock=%d] failed", event->fd);
     }
 
     if (error != 0)
@@ -279,7 +279,7 @@ void php_swoole_event_wait()
             int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
             if (ret < 0)
             {
-                swoole_php_fatal_error(E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
+                swoole_php_sys_error(E_ERROR, "reactor wait failed");
             }
             SW_SET_EG_SCOPE(scope);
 #if defined(EG_FLAGS_IN_SHUTDOWN) && !defined(EG_FLAGS_OBJECT_STORE_NO_REUSE)
@@ -839,7 +839,7 @@ PHP_FUNCTION(swoole_event_dispatch)
     int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
     if (ret < 0)
     {
-        swoole_php_fatal_error(E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_ERROR, "reactor wait failed");
     }
 
     SwooleG.main_reactor->once = 0;

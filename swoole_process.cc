@@ -492,7 +492,7 @@ static PHP_METHOD(swoole_process, kill)
     {
         if (!(sig == 0 && errno == ESRCH))
         {
-            swoole_php_error(E_WARNING, "swKill(%d, %d) failed. Error: %s[%d]", (int) pid, (int) sig, strerror(errno), errno);
+            swoole_php_sys_error(E_WARNING, "swKill(%d, %d) failed", (int) pid, (int) sig);
         }
         RETURN_FALSE;
     }
@@ -639,7 +639,7 @@ static PHP_METHOD(swoole_process, alarm)
 
     if (setitimer(type, &timer_set, NULL) < 0)
     {
-        swoole_php_error(E_WARNING, "setitimer() failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "setitimer() failed");
         RETURN_FALSE;
     }
 
@@ -714,7 +714,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
     {
         if (dup2(process->pipe, STDIN_FILENO) < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
+            swoole_php_sys_error(E_WARNING, "dup2() failed");
         }
     }
 
@@ -722,7 +722,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
     {
         if (dup2(process->pipe, STDOUT_FILENO) < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
+            swoole_php_sys_error(E_WARNING, "dup2() failed");
         }
     }
 
@@ -730,7 +730,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
     {
         if (dup2(process->pipe, STDERR_FILENO) < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
+            swoole_php_sys_error(E_WARNING, "dup2() failed");
         }
     }
 
@@ -798,7 +798,7 @@ static PHP_METHOD(swoole_process, start)
     pid_t pid = swoole_fork();
     if (pid < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "fork() failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "fork() failed");
         RETURN_FALSE;
     }
     else if (pid > 0)
@@ -845,7 +845,7 @@ static PHP_METHOD(swoole_process, read)
         efree(buf);
         if (errno != EINTR)
         {
-            swoole_php_error(E_WARNING, "read() failed. Error: %s[%d]", strerror(errno), errno);
+            swoole_php_sys_error(E_WARNING, "read() failed");
         }
         RETURN_FALSE;
     }
@@ -899,7 +899,7 @@ static PHP_METHOD(swoole_process, write)
 
     if (ret < 0)
     {
-        swoole_php_error(E_WARNING, "write() failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "write() failed");
         RETURN_FALSE;
     }
     ZVAL_LONG(return_value, ret);
@@ -1052,7 +1052,7 @@ static PHP_METHOD(swoole_process, exec)
 
     if (execv(execfile, exec_args) < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "execv(%s) failed. Error: %s[%d]", execfile, strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "execv(%s) failed", execfile);
         RETURN_FALSE;
     }
     else
@@ -1185,7 +1185,7 @@ static PHP_METHOD(swoole_process, close)
     }
     if (ret < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "close() failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "close() failed");
         RETURN_FALSE;
     }
     if (which == 0)

@@ -2191,7 +2191,7 @@ static PHP_METHOD(swoole_server, __construct)
         {
             zend_throw_exception_ex(
                 swoole_exception_ce_ptr, errno,
-                "failed to listen server port[%s:" ZEND_LONG_FMT "]. Error: %s[%d]",
+                "failed to listen server port[%s:" ZEND_LONG_FMT "], Error: %s[%d]",
                 serv_host, serv_port, strerror(errno), errno
             );
             RETURN_FALSE;
@@ -3280,7 +3280,7 @@ static PHP_METHOD(swoole_server, reload)
     int sig = only_reload_taskworker ? SIGUSR2 : SIGUSR1;
     if (swKill(serv->gs->manager_pid, sig) < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "failed to send the reload signal. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "failed to send the reload signal");
         RETURN_FALSE;
     }
     RETURN_TRUE;
@@ -3418,7 +3418,7 @@ static PHP_METHOD(swoole_server, taskwait)
             }
             else
             {
-                swoole_php_error(E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
+                swoole_php_sys_error(E_WARNING, "taskwait failed");
                 break;
             }
         }
@@ -3505,7 +3505,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
         sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
         if (swProcessPool_dispatch_blocking(&serv->gs->task_workers, &buf, &dst_worker_id) < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
+            swoole_php_sys_error(E_WARNING, "taskwait failed");
             task_id = -1;
             fail:
             add_index_bool(return_value, i, 0);

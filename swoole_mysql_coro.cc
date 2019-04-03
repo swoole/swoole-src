@@ -3017,7 +3017,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 
     if (swClient_create(cli, type, 0) < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "swClient_create() failed. Error: %s [%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "swClient_create() failed");
         _failed:
         if (errno != 0)
         {

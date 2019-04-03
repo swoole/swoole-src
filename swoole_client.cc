@@ -888,7 +888,7 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
 
         create_socket: if (swClient_create(cli, php_swoole_socktype(type), async) < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "swClient_create() failed. Error: %s [%d]", strerror(errno), errno);
+            swoole_php_sys_error(E_WARNING, "swClient_create() failed");
             zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), errno);
             return NULL;
         }
@@ -1354,7 +1354,7 @@ static PHP_METHOD(swoole_client, recv)
             ret = cli->recv(cli, buf, buf_len, 0);
             if (ret < 0)
             {
-                swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(errno), errno);
+                swoole_php_sys_error(E_WARNING, "recv() failed");
                 buffer->length = 0;
                 RETURN_FALSE;
             }
@@ -2010,7 +2010,7 @@ PHP_FUNCTION(swoole_client_select)
     if (retval == -1)
     {
         efree(fds);
-        swoole_php_fatal_error(E_WARNING, "unable to poll(). Error: %s [%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "unable to poll()");
         RETURN_FALSE;
     }
 
@@ -2067,7 +2067,7 @@ PHP_FUNCTION(swoole_client_select)
     retval = select(max_fd + 1, &rfds, &wfds, &efds, &timeo);
     if (retval == -1)
     {
-        swoole_php_fatal_error(E_WARNING, "unable to select. Error: %s [%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "unable to select");
         RETURN_FALSE;
     }
     if (r_array != NULL)
