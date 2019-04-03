@@ -675,6 +675,17 @@ static sw_inline void sw_zval_free(zval *val)
 #define SWOOLE_RAW_DEFINE(constant)          REGISTER_LONG_CONSTANT(#constant, constant, CONST_CS | CONST_PERSISTENT)
 #define SWOOLE_RAW_DEFINE_EX(name, value)    REGISTER_LONG_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
 
+//----------------------------------String API-----------------------------------
+
+#define SW_PHP_OB_START(zoutput) \
+    zval zoutput; \
+    do { \
+        php_output_start_user(NULL, 0, PHP_OUTPUT_HANDLER_STDFLAGS);
+#define SW_PHP_OB_END() \
+        php_output_get_contents(&zoutput); \
+        php_output_discard(); \
+    } while (0)
+
 //----------------------------------Array API------------------------------------
 
 #define php_swoole_array_length(zarray)      zend_hash_num_elements(Z_ARRVAL_P(zarray))
@@ -1036,17 +1047,20 @@ static sw_inline char* sw_http_build_query(zval *zdata, size_t *length, smart_st
 
 static sw_inline zend_string* sw_get_debug_print_backtrace(zend_long options, zend_long limit)
 {
-    zval fcn, args[2], *retval = NULL;
-    php_output_start_user(NULL, 0, PHP_OUTPUT_HANDLER_STDFLAGS);
-    ZVAL_STRING(&fcn, "debug_print_backtrace");
-    ZVAL_LONG(&args[0], options);
-    ZVAL_LONG(&args[1], limit);
-    sw_call_user_function_ex(EG(function_table), NULL, &fcn, &retval, 2, args, 0, NULL);
-    zval_ptr_dtor(&fcn);
-    php_output_get_contents(retval);
-    php_output_discard();
-    Z_STRVAL_P(retval)[--Z_STRLEN_P(retval)] = '\0'; // replace \n to \0
-    return Z_STR_P(retval);
+    SW_PHP_OB_START(zoutput) {
+        zval fcn, args[2];
+        ZVAL_STRING(&fcn, "debug_print_backtrace");
+        ZVAL_LONG(&args[0], options);
+        ZVAL_LONG(&args[1], limit);
+        sw_call_user_function_fast_ex(&fcn, NULL, &zoutput, 2, args);
+        zval_ptr_dtor(&fcn);
+    } SW_PHP_OB_END();
+    if (UNEXPECTED(ZVAL_IS_NULL(&zoutput)))
+    {
+        return NULL;
+    }
+    Z_STRVAL(zoutput)[--Z_STRLEN(zoutput)] = '\0'; // replace \n to \0
+    return Z_STR(zoutput);
 }
 
 END_EXTERN_C()
