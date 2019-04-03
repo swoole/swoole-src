@@ -11,4 +11,4 @@ go(function () {
 });
 ?>
 --EXPECTF--
-[%s]	ERROR	must be forked outside the coroutine.
+[%s]	ERROR	must be forked outside the coroutine
