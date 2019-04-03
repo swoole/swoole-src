@@ -372,7 +372,7 @@ void PHPCoroutine::create_func(void *arg)
             defer_fci->fci.params = retval;
             if (UNEXPECTED(sw_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) == FAILURE))
             {
-                swoole_php_fatal_error(E_WARNING, "defer callback handler error.");
+                swoole_php_fatal_error(E_WARNING, "defer callback handler error");
             }
             sw_fci_cache_discard(&defer_fci->fci_cache);
             efree(defer_fci);
@@ -412,18 +412,18 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
     }
     if (unlikely(Coroutine::count() >= max_num))
     {
-        swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %zu.", (uintmax_t) Coroutine::count());
+        swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %zu", (uintmax_t) Coroutine::count());
         return SW_CORO_ERR_LIMIT;
     }
     if (unlikely(!fci_cache || !fci_cache->function_handler))
     {
-        swoole_php_fatal_error(E_ERROR, "invalid function call info cache.");
+        swoole_php_fatal_error(E_ERROR, "invalid function call info cache");
         return SW_CORO_ERR_INVALID;
     }
     zend_uchar type = fci_cache->function_handler->type;
     if (unlikely(type != ZEND_USER_FUNCTION && type != ZEND_INTERNAL_FUNCTION))
     {
-        swoole_php_fatal_error(E_ERROR, "invalid function type %u.", fci_cache->function_handler->type);
+        swoole_php_fatal_error(E_ERROR, "invalid function type %u", fci_cache->function_handler->type);
         return SW_CORO_ERR_INVALID;
     }
 

@@ -55,7 +55,7 @@ swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared)
     void *mem = (shared == 1) ? sw_shm_malloc(size) : sw_malloc(size);
     if (mem == NULL)
     {
-        swWarn("malloc(%d) failed.", size);
+        swWarn("malloc(%d) failed", size);
         return NULL;
     }
 

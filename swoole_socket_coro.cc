@@ -157,7 +157,7 @@ static const zend_function_entry swoole_socket_coro_methods[] =
         socket_coro* _sock = swoole_socket_coro_fetch_object(Z_OBJ_P(_zobject)); \
         if (UNEXPECTED(!sock->socket)) \
         { \
-            swoole_php_fatal_error(E_ERROR, "you must call Socket constructor first."); \
+            swoole_php_fatal_error(E_ERROR, "you must call Socket constructor first"); \
         } \
         if (UNEXPECTED(_sock->socket == SW_BAD_SOCKET)) { \
             zend_update_property_long(swoole_socket_coro_ce_ptr, _zobject, ZEND_STRL("errCode"), EBADF); \
@@ -845,13 +845,13 @@ SW_API bool php_swoole_export_socket(zval *zobject, int fd, enum swSocket_type t
     int new_fd = dup(fd);
     if (new_fd < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "dup(%d) failed. Error: %s [%d]", fd, strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "dup(%d) failed", fd);
         return false;
     }
     sock->socket = new Socket(new_fd, type);
     if (UNEXPECTED(sock->socket->socket == nullptr))
     {
-        swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "new Socket() failed");
         delete sock->socket;
         sock->socket = nullptr;
         OBJ_RELEASE(object);
@@ -1518,7 +1518,7 @@ static PHP_METHOD(swoole_socket_coro, setOption)
     retval = setsockopt(sock->socket->get_fd(), level, optname, opt_ptr, optlen);
     if (retval != 0)
     {
-        swoole_php_sys_error(E_WARNING, "setsockopt(%d) failed.", sock->socket->get_fd());
+        swoole_php_sys_error(E_WARNING, "setsockopt(%d) failed", sock->socket->get_fd());
         RETURN_FALSE
     }
 

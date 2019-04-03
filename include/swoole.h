@@ -421,12 +421,12 @@ enum swWorker_status
         SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
     }
 
-#define swSysError(str,...) \
+#define swSysWarn(str,...) \
     do{\
         SwooleG.error = errno;\
         if (SW_LOG_ERROR >= SwooleG.log_level) {\
             SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-            size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str " Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
+            size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str ", Error: %s[%d]",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
             SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_errror_len);\
             SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
         }\
@@ -436,6 +436,15 @@ enum swWorker_status
     do{\
         SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
         size_t _sw_errror_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
+        SwooleG.write_log(SW_LOG_ERROR, sw_error, _sw_errror_len);\
+        SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
+        exit(1);\
+    } while(0)
+
+#define swSysError(str,...) \
+    do{\
+        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+        size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str ", Error: %s[%d]",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
         SwooleG.write_log(SW_LOG_ERROR, sw_error, _sw_errror_len);\
         SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
         exit(1);\

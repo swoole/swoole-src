@@ -41,7 +41,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk)
             int tcp_nodelay = 0;
             if (setsockopt(conn->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) != 0)
             {
-                swWarn("setsockopt(TCP_NODELAY) failed. Error: %s[%d]", strerror(errno), errno);
+                swSysWarn("setsockopt(TCP_NODELAY) failed");
             }
         }
         /**
@@ -49,7 +49,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk)
          */
         if (swSocket_tcp_nopush(conn->fd, 1) == -1)
         {
-            swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysWarn("swSocket_tcp_nopush() failed");
         }
         conn->tcp_nopush = 1;
     }
@@ -75,7 +75,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk)
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("sendfile(%s, %ld, %d) failed.", task->filename, (long)task->offset, sendn);
+            swSysWarn("sendfile(%s, %ld, %d) failed", task->filename, (long)task->offset, sendn);
             swBuffer_pop_chunk(conn->out_buffer, chunk);
             return SW_OK;
         case SW_CLOSE:
@@ -100,7 +100,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk)
          */
         if (swSocket_tcp_nopush(conn->fd, 0) == -1)
         {
-            swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysWarn("swSocket_tcp_nopush() failed");
         }
         conn->tcp_nopush = 0;
 
@@ -112,7 +112,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk)
             int value = 1;
             if (setsockopt(conn->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &value, sizeof(int)) != 0)
             {
-                swWarn("setsockopt(TCP_NODELAY) failed. Error: %s[%d]", strerror(errno), errno);
+                swSysWarn("setsockopt(TCP_NODELAY) failed");
             }
         }
 #endif
@@ -143,7 +143,7 @@ int swConnection_buffer_send(swConnection *conn)
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swWarn("send to fd[%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
+            swSysWarn("send to fd[%d] failed", conn->fd);
             break;
         case SW_CLOSE:
             conn->close_errno = errno;
@@ -241,7 +241,7 @@ int swConnection_sendfile(swConnection *conn, char *filename, off_t offset, size
     swTask_sendfile *task = sw_malloc(sizeof(swTask_sendfile));
     if (task == NULL)
     {
-        swWarn("malloc for swTask_sendfile failed.");
+        swWarn("malloc for swTask_sendfile failed");
         return SW_ERR;
     }
     bzero(task, sizeof(swTask_sendfile));
@@ -252,7 +252,7 @@ int swConnection_sendfile(swConnection *conn, char *filename, off_t offset, size
     {
         sw_free(task->filename);
         sw_free(task);
-        swSysError("open(%s) failed.", filename);
+        swSysWarn("open(%s) failed", filename);
         return SW_OK;
     }
     task->fd = file_fd;
@@ -261,14 +261,14 @@ int swConnection_sendfile(swConnection *conn, char *filename, off_t offset, size
     struct stat file_stat;
     if (fstat(file_fd, &file_stat) < 0)
     {
-        swSysError("fstat(%s) failed.", filename);
+        swSysWarn("fstat(%s) failed", filename);
         error_chunk.store.ptr = task;
         swConnection_sendfile_destructor(&error_chunk);
         return SW_ERR;
     }
     if (offset < 0 || (length + offset > file_stat.st_size))
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length or offset is invalid.");
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length or offset is invalid");
         error_chunk.store.ptr = task;
         swConnection_sendfile_destructor(&error_chunk);
         return SW_OK;
@@ -285,7 +285,7 @@ int swConnection_sendfile(swConnection *conn, char *filename, off_t offset, size
     swBuffer_chunk *chunk = swBuffer_new_chunk(conn->out_buffer, SW_CHUNK_SENDFILE, 0);
     if (chunk == NULL)
     {
-        swWarn("get out_buffer chunk failed.");
+        swWarn("get out_buffer chunk failed");
         error_chunk.store.ptr = task;
         swConnection_sendfile_destructor(&error_chunk);
         return SW_ERR;

@@ -50,7 +50,7 @@ static int swSystemTimer_signal_set(swTimer *timer, long interval)
     struct timeval now;
     if (gettimeofday(&now, NULL) < 0)
     {
-        swWarn("gettimeofday() failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("gettimeofday() failed");
         return SW_ERR;
     }
     bzero(&timer_set, sizeof(timer_set));
@@ -72,7 +72,7 @@ static int swSystemTimer_signal_set(swTimer *timer, long interval)
 
     if (setitimer(ITIMER_REAL, &timer_set, NULL) < 0)
     {
-        swWarn("setitimer() failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("setitimer() failed");
         return SW_ERR;
     }
     return SW_OK;

@@ -1228,7 +1228,7 @@ size_t swoole_http_parser_execute (swoole_http_parser *parser,
 
           case h_connection:
           case h_transfer_encoding:
-            assert(0 && "Shouldn't get here.");
+            assert(0 && "Shouldn't get here");
             break;
 
           case h_content_length:

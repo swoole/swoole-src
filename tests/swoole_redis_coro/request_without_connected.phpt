@@ -12,5 +12,5 @@ go(function () {
 });
 ?>
 --EXPECTF--
-Warning: Swoole\Coroutine\Redis::get(): The host is empty. in %s/tests/swoole_redis_coro/request_without_connected.php on line 5
+Warning: Swoole\Coroutine\Redis::get(): The host is empty in %s/tests/swoole_redis_coro/request_without_connected.php on line 5
 DONE

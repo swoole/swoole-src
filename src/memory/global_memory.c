@@ -102,7 +102,7 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
     gm->lock.lock(&gm->lock);
     if (size > gm->pagesize - sizeof(swMemoryGlobal_page))
     {
-        swWarn("failed to alloc %d bytes, exceed the maximum size[%d].", size, gm->pagesize - (int) sizeof(swMemoryGlobal_page));
+        swWarn("failed to alloc %d bytes, exceed the maximum size[%d]", size, gm->pagesize - (int) sizeof(swMemoryGlobal_page));
         gm->lock.unlock(&gm->lock);
         return NULL;
     }
@@ -111,7 +111,7 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
         swMemoryGlobal_page *page = swMemoryGlobal_new_page(gm);
         if (page == NULL)
         {
-            swWarn("swMemoryGlobal_alloc alloc memory error.");
+            swWarn("swMemoryGlobal_alloc alloc memory error");
             gm->lock.unlock(&gm->lock);
             return NULL;
         }
@@ -125,7 +125,7 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
 
 static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr)
 {
-    swWarn("swMemoryGlobal Allocator don't need to release.");
+    swWarn("swMemoryGlobal Allocator don't need to release");
 }
 
 static void swMemoryGlobal_destroy(swMemoryPool *poll)

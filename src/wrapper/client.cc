@@ -40,7 +40,7 @@ void event_wait(void)
         int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
         if (ret < 0)
         {
-            swWarn("reactor wait failed. Error: %s [%d]", strerror(errno), errno);
+            swSysWarn("reactor wait failed");
         }
     }
 }
@@ -55,7 +55,7 @@ void check_reactor(void)
 
     if (swIsTaskWorker())
     {
-        swWarn("cannot use async-io in task process.");
+        swWarn("cannot use async-io in task process");
     }
 
     if (SwooleG.main_reactor == NULL)
@@ -65,11 +65,11 @@ void check_reactor(void)
         SwooleG.main_reactor = (swReactor *) malloc(sizeof(swReactor));
         if (SwooleG.main_reactor == NULL)
         {
-            swWarn("malloc failed.");
+            swWarn("malloc failed");
         }
         if (swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
         {
-            swWarn("create reactor failed.");
+            swWarn("create reactor failed");
         }
         //client, swoole_event_exit will set swoole_running = 0
         SwooleWG.in_client = 1;

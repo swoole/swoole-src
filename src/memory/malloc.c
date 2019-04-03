@@ -25,7 +25,7 @@ swMemoryPool* swMalloc_new()
     swMemoryPool *pool = sw_malloc(sizeof(swMemoryPool));
     if (pool == NULL)
     {
-        swSysError("mallc(%ld) failed.", sizeof(swMemoryPool));
+        swSysWarn("mallc(%ld) failed", sizeof(swMemoryPool));
         return NULL;
     }
     pool->alloc = swMalloc_alloc;

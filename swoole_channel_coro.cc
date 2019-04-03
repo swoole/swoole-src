@@ -90,7 +90,7 @@ static sw_inline Channel * swoole_get_channel(zval *zobject)
     Channel *chan = swoole_channel_coro_fetch_object(Z_OBJ_P(zobject))->chan;
     if (UNEXPECTED(!chan))
     {
-        swoole_php_fatal_error(E_ERROR, "you must call Channel constructor first.");
+        swoole_php_fatal_error(E_ERROR, "you must call Channel constructor first");
     }
     return chan;
 }

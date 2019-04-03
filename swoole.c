@@ -306,7 +306,7 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "length function handler error.");
+        swoole_php_fatal_error(E_WARNING, "length function handler error");
         goto error;
     }
     zval_ptr_dtor(&args[0]);
@@ -347,14 +347,14 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *dat
     }
     if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, zdata ? 4 : 3, args) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "dispatch function handler error.");
+        swoole_php_fatal_error(E_WARNING, "dispatch function handler error");
     }
     else if (!ZVAL_IS_NULL(retval))
     {
         worker_id = (int) zval_get_long(retval);
         if (worker_id >= serv->worker_num)
         {
-            swoole_php_fatal_error(E_WARNING, "invalid target worker-id[%d].", worker_id);
+            swoole_php_fatal_error(E_WARNING, "invalid target worker-id[%d]", worker_id);
             worker_id = -1;
         }
         zval_ptr_dtor(retval);
@@ -401,7 +401,7 @@ void swoole_set_object_by_handle(uint32_t handle, void *ptr)
         new_ptr = sw_realloc(old_ptr, sizeof(void*) * new_size);
         if (!new_ptr)
         {
-            swoole_php_fatal_error(E_ERROR, "malloc(%d) failed.", (int )(new_size * sizeof(void *)));
+            swoole_php_fatal_error(E_ERROR, "malloc(%d) failed", (int )(new_size * sizeof(void *)));
             return;
         }
         bzero(new_ptr + (old_size * sizeof(void*)), (new_size - old_size) * sizeof(void*));
@@ -442,7 +442,7 @@ void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr)
         }
         if (new_ptr == NULL)
         {
-            swoole_php_fatal_error(E_ERROR, "malloc(%d) failed.", (int )(new_size * sizeof(void *)));
+            swoole_php_fatal_error(E_ERROR, "malloc(%d) failed", (int )(new_size * sizeof(void *)));
             return;
         }
         if (old_size > 0)
@@ -1010,8 +1010,10 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
             case E_CORE_ERROR:
             case E_USER_ERROR:
             case E_COMPILE_ERROR:
-                swoole_error_log(SW_LOG_ERROR, SW_ERROR_PHP_FATAL_ERROR, "Fatal error: %s in %s on line %d.",
-                        PG(last_error_message), PG(last_error_file)?PG(last_error_file):"-", PG(last_error_lineno));
+                swoole_error_log(
+                    SW_LOG_ERROR, SW_ERROR_PHP_FATAL_ERROR, "Fatal error: %s in %s on line %d",
+                    PG(last_error_message), PG(last_error_file)?PG(last_error_file):"-", PG(last_error_lineno)
+                );
                 break;
             default:
                 break;
@@ -1019,7 +1021,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
         }
         else
         {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SERVER_WORKER_TERMINATED, "worker process is terminated by exit()/die().");
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SERVER_WORKER_TERMINATED, "worker process is terminated by exit()/die()");
         }
     }
 
@@ -1146,13 +1148,13 @@ PHP_FUNCTION(swoole_set_process_name)
 {
 #ifdef __MACH__
     // MacOS doesn't support 'cli_set_process_title'
-    swoole_php_fatal_error(E_WARNING, "swoole_set_process_name is not supported on MacOS.");
+    swoole_php_fatal_error(E_WARNING, "swoole_set_process_name is not supported on MacOS");
     RETURN_FALSE;
 #else
     zend_function *cli_set_process_title =  zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("cli_set_process_title"));
     if (!cli_set_process_title)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_set_process_name only support in CLI mode.");
+        swoole_php_fatal_error(E_WARNING, "swoole_set_process_name only support in CLI mode");
         RETURN_FALSE;
     }
     cli_set_process_title->internal_function.handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
@@ -1168,7 +1170,7 @@ PHP_FUNCTION(swoole_get_local_ip)
 
     if (getifaddrs(&ipaddrs) != 0)
     {
-        php_error_docref(NULL, E_WARNING, "getifaddrs() failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "getifaddrs() failed");
         RETURN_FALSE;
     }
     array_init(return_value);
@@ -1194,7 +1196,7 @@ PHP_FUNCTION(swoole_get_local_ip)
         }
         if (!inet_ntop(ifa->ifa_addr->sa_family, in_addr, ip, sizeof(ip)))
         {
-            php_error_docref(NULL, E_WARNING, "%s: inet_ntop failed.", ifa->ifa_name);
+            php_error_docref(NULL, E_WARNING, "%s: inet_ntop failed", ifa->ifa_name);
         }
         else
         {
@@ -1221,7 +1223,7 @@ PHP_FUNCTION(swoole_get_local_mac)
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        php_error_docref(NULL, E_WARNING, "new socket failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "new socket failed");
         RETURN_FALSE;
     }
     array_init(return_value);
@@ -1249,7 +1251,7 @@ PHP_FUNCTION(swoole_get_local_mac)
     }
     close(sock);
 #else
-    php_error_docref(NULL, E_WARNING, "swoole_get_local_mac is not supported.");
+    php_error_docref(NULL, E_WARNING, "swoole_get_local_mac is not supported");
     RETURN_FALSE;
 #endif
 }
@@ -1264,7 +1266,7 @@ PHP_FUNCTION(swoole_internal_call_user_shutdown_begin)
     }
     else
     {
-        php_error_docref(NULL, E_WARNING, "can not call this function in user level.");
+        php_error_docref(NULL, E_WARNING, "can not call this function in user level");
         RETURN_FALSE;
     }
 }

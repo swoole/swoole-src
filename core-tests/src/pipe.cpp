@@ -19,7 +19,7 @@ TEST(pipe, unixsock)
     ret = p.read(&p, buf, sizeof(buf));
     if (ret < 0)
     {
-        swSysError("read() failed.");
+        swSysWarn("read() failed.");
     }
     ASSERT_GT(ret, 0);
     ASSERT_EQ(strcmp("hello world1", buf), 0);

@@ -210,12 +210,12 @@ bool Socket::socks5_handshake()
     method = ctx->buf[1];
     if (version != SW_SOCKS5_VERSION_CODE)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported.");
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
         return SW_ERR;
     }
     if (method != ctx->method)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method not supported.");
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method not supported");
         return SW_ERR;
     }
     // authentication
@@ -255,12 +255,12 @@ bool Socket::socks5_handshake()
         uchar status = ctx->buf[1];
         if (version != 0x01)
         {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported.");
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
             return false;
         }
         if (status != 0x00)
         {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_AUTH_FAILED, "SOCKS username/password authentication failed.");
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_AUTH_FAILED, "SOCKS username/password authentication failed");
             return false;
         }
     }
@@ -310,7 +310,7 @@ bool Socket::socks5_handshake()
     version = ctx->buf[0];
     if (version != SW_SOCKS5_VERSION_CODE)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported.");
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
         return false;
     }
     result = ctx->buf[1];
@@ -327,7 +327,7 @@ bool Socket::socks5_handshake()
     }
     else
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_SERVER_ERROR, "Socks5 server error, reason: %s.", swSocks5_strerror(result));
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_SERVER_ERROR, "Socks5 server error, reason: %s", swSocks5_strerror(result));
         return false;
     }
 }
@@ -950,14 +950,14 @@ bool Socket::bind(std::string address, int port)
     int option = 1;
     if (::setsockopt(socket->fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
     {
-        swSysError("setsockopt(%d, SO_REUSEADDR) failed.", socket->fd);
+        swSysWarn("setsockopt(%d, SO_REUSEADDR) failed", socket->fd);
     }
 #ifdef HAVE_REUSEPORT
     if (SwooleG.reuse_port)
     {
         if (::setsockopt(socket->fd, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
         {
-            swSysError("setsockopt(SO_REUSEPORT) failed.");
+            swSysWarn("setsockopt(SO_REUSEPORT) failed");
             SwooleG.reuse_port = 0;
         }
     }
@@ -1040,7 +1040,7 @@ bool Socket::listen(int backlog)
         ssl_context = swSSL_get_context(&ssl_option);
         if (ssl_context == nullptr)
         {
-            swWarn("swSSL_get_context() error.");
+            swWarn("swSSL_get_context() error");
             return false;
         }
     }
@@ -1073,7 +1073,7 @@ Socket* Socket::accept()
     Socket *client_sock = new Socket(conn, this);
     if (unlikely(client_sock->socket == nullptr))
     {
-        swWarn("new Socket() failed. Error: %s [%d]", strerror(errno), errno);
+        swSysWarn("new Socket() failed");
         set_err(errno);
         delete client_sock;
         return nullptr;
@@ -1208,7 +1208,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
     int file_fd = open(filename, O_RDONLY);
     if (file_fd < 0)
     {
-        swSysError("open(%s) failed.", filename);
+        swSysWarn("open(%s) failed", filename);
         return false;
     }
 
@@ -1217,7 +1217,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         struct stat file_stat;
         if (::fstat(file_fd, &file_stat) < 0)
         {
-            swSysError("fstat(%s) failed.", filename);
+            swSysWarn("fstat(%s) failed", filename);
             ::close(file_fd);
             return false;
         }
@@ -1250,13 +1250,13 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         }
         else if (n == 0)
         {
-            swWarn("sendfile return zero.");
+            swWarn("sendfile return zero");
             ::close(file_fd);
             return false;
         }
         else if (errno != EAGAIN)
         {
-            swSysError("sendfile(%d, %s) failed.", socket->fd, filename);
+            swSysWarn("sendfile(%d, %s) failed", socket->fd, filename);
             set_err(errno);
             ::close(file_fd);
             return false;
@@ -1287,7 +1287,7 @@ ssize_t Socket::sendto(char *address, int port, char *data, int len)
     }
     else
     {
-        swWarn("only supports SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6.");
+        swWarn("only supports SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6");
         return -1;
     }
 }
@@ -1390,7 +1390,7 @@ ssize_t Socket::recv_packet(double timeout)
         }
         else if (buf_len > protocol.package_max_length)
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "packet[length=%d] is too big.", (int )buf_len);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "packet[length=%d] is too big", (int )buf_len);
             return 0;
         }
 
@@ -1605,7 +1605,7 @@ bool Socket::close()
     {
         if (unlikely(::close(socket->fd) != 0))
         {
-            swSysError("close(%d) failed.", socket->fd);
+            swSysWarn("close(%d) failed", socket->fd);
         }
         socket->fd = -1;
         return true;
@@ -1692,7 +1692,7 @@ Socket::~Socket()
     SW_ASSERT(socket->removed);
     if (unlikely(socket->fd > 0 && ::close(socket->fd) != 0))
     {
-        swSysError("close(%d) failed.", socket->fd);
+        swSysWarn("close(%d) failed", socket->fd);
     }
     bzero(socket, sizeof(swConnection));
     socket->fd = -1;

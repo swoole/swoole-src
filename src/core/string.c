@@ -21,7 +21,7 @@ swString *swString_new(size_t size)
     swString *str = sw_malloc(sizeof(swString));
     if (str == NULL)
     {
-        swWarn("malloc[1] failed.");
+        swWarn("malloc[1] failed");
         return NULL;
     }
 
@@ -32,7 +32,7 @@ swString *swString_new(size_t size)
 
     if (str->str == NULL)
     {
-        swSysError("malloc[2](%ld) failed.", size);
+        swSysWarn("malloc[2](%ld) failed", size);
         sw_free(str);
         return NULL;
     }
@@ -171,7 +171,7 @@ int swString_extend(swString *str, size_t new_size)
     char *new_str = sw_realloc(str->str, new_size);
     if (new_str == NULL)
     {
-        swSysError("realloc(%ld) failed.", new_size);
+        swSysWarn("realloc(%ld) failed", new_size);
         return SW_ERR;
     }
 

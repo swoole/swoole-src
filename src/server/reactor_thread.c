@@ -106,7 +106,7 @@ static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint3
     swConnection *conn = swServer_connection_verify(SwooleG.serv, pkg_info->fd);
     if (!conn)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists.", pkg_info->fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists", pkg_info->fd);
         return;
     }
     response.info.fd = conn->session_id;
@@ -165,7 +165,7 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         }
         else
         {
-            swSysError("recvfrom(%d) failed.", fd);
+            swSysWarn("recvfrom(%d) failed", fd);
             return ret;
         }
     }
@@ -261,7 +261,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
         linger.l_linger = 0;
         if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) != 0)
         {
-            swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
+            swSysWarn("setsockopt(SO_LINGER) failed");
         }
     }
 #endif
@@ -306,7 +306,7 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     notify_ev.fd = fd;
     notify_ev.type = SW_EVENT_CLOSE;
 
-    swTraceLog(SW_TRACE_CLOSE, "client[fd=%d] close the connection.", fd);
+    swTraceLog(SW_TRACE_CLOSE, "client[fd=%d] close the connection", fd);
 
     swConnection *conn = swServer_connection_get(serv, fd);
     if (conn == NULL || conn->active == 0)
@@ -418,7 +418,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
         }
         else
         {
-            swWarn("read(worker_pipe) failed. Error: %s[%d]", strerror(errno), errno);
+            swSysWarn("read(worker_pipe) failed");
             return SW_ERR;
         }
     }
@@ -449,7 +449,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
             {
                 if (thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE) < 0)
                 {
-                    swSysError("reactor->set(%d, PIPE | READ | WRITE) failed.", pipe_fd);
+                    swSysWarn("reactor->set(%d, PIPE | READ | WRITE) failed", pipe_fd);
                 }
                 goto append_pipe_buffer;
             }
@@ -459,7 +459,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
             append_pipe_buffer:
             if (swBuffer_append(buffer, data, len) < 0)
             {
-                swWarn("append to pipe_buffer failed.");
+                swWarn("append to pipe_buffer failed");
                 ret = SW_ERR;
             }
             else
@@ -511,7 +511,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
             {
                 if (conn->closed)
                 {
-                    swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_SERVER, "Session#%d is closed by server.", send_data->info.fd);
+                    swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_SERVER, "Session#%d is closed by server", send_data->info.fd);
                     _discard: swBuffer_pop_chunk(buffer, chunk);
                     continue;
                 }
@@ -550,7 +550,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         }
         if (ret < 0)
         {
-            swSysError("reactor->set(%d) failed.", ev->fd);
+            swSysWarn("reactor->set(%d) failed", ev->fd);
         }
     }
 
@@ -883,7 +883,7 @@ int swReactorThread_start(swServer *serv)
 
         if (pthread_create(&pidt, NULL, (void * (*)(void *)) swReactorThread_loop, (void *) param) < 0)
         {
-            swError("pthread_create[tcp_reactor] failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("pthread_create[tcp_reactor] failed");
         }
         thread->thread_id = pidt;
     }
@@ -1009,7 +1009,7 @@ int swReactorThread_init_reactor(swServer *serv, swReactor *reactor, uint16_t re
         swBuffer *buffer = swBuffer_new(sizeof(swEventData));
         if (!buffer)
         {
-            swWarn("create buffer failed.");
+            swWarn("create buffer failed");
             return SW_ERR;
         }
         serv->connection_list[pipe_fd].in_buffer = buffer;
@@ -1038,7 +1038,7 @@ int swReactorThread_init_reactor(swServer *serv, swReactor *reactor, uint16_t re
          */
         if (serv->connection_list[pipe_fd].object == NULL)
         {
-            swWarn("create pipe mutex lock failed.");
+            swWarn("create pipe mutex lock failed");
             return SW_ERR;
         }
         swMutex_create(serv->connection_list[pipe_fd].object, 0);
@@ -1088,7 +1088,7 @@ static int swReactorThread_loop(swThreadParam *param)
 
         if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
         {
-            swSysError("pthread_setaffinity_np() failed.");
+            swSysWarn("pthread_setaffinity_np() failed");
         }
     }
 #endif
@@ -1141,7 +1141,7 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     task.info.info.time = conn->last_time_usec;
 #endif
 
-    swTrace("send string package, size=%ld bytes.", (long)length);
+    swTrace("send string package, size=%ld bytes", (long)length);
 
     if (serv->stream_socket)
     {
@@ -1203,13 +1203,13 @@ void swReactorThread_free(swServer *serv)
         {
             cancel: if (pthread_cancel(thread->thread_id) < 0)
             {
-                swSysError("pthread_cancel(%ld) failed.", (long ) thread->thread_id);
+                swSysWarn("pthread_cancel(%ld) failed", (long ) thread->thread_id);
             }
         }
         //wait thread
         if (pthread_join(thread->thread_id, NULL) != 0)
         {
-            swSysError("pthread_join(%ld) failed.", (long ) thread->thread_id);
+            swSysWarn("pthread_join(%ld) failed", (long ) thread->thread_id);
         }
     }
 }
