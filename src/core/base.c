@@ -172,7 +172,7 @@ pid_t swoole_fork()
 {
     if (swoole_coroutine_is_in())
     {
-        swError("must be forked outside the coroutine");
+        swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "must be forked outside the coroutine");
         return -1;
     }
     if (SwooleAIO.init)

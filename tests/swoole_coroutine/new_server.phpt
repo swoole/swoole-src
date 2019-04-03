@@ -12,4 +12,7 @@ go(function () {
 });
 ?>
 --EXPECTF--
-[%s]	ERROR	must be forked outside the coroutine
+[%s]	ERROR	(PHP Fatal Error: %d):
+Swoole\Server::start: must be forked outside the coroutine
+Stack trace:
+#0  Swoole\Server->start() called at [%s/tests/swoole_coroutine/new_server.php:%d]
