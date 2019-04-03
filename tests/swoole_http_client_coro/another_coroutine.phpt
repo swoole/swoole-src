@@ -50,7 +50,7 @@ $pm->run();
 ?>
 --EXPECTF--
 [%s]	ERROR	(PHP Fatal Error: %d):
-Swoole\Coroutine\Http\Client::get: Socket#8 has already been bound to another coroutine#2, reading of the same socket in multiple coroutines at the same time is not allowed
+Swoole\Coroutine\Http\Client::get: Socket#%d has already been bound to another coroutine#%d, reading of the same socket in multiple coroutines at the same time is not allowed
 Stack trace:
 #0  Swoole\Coroutine\Http\Client->get() called at [%s:%d]
 #1  get() called at [%s:%d]

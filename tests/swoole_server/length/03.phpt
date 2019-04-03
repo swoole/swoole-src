@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: 8M packet
+swoole_server/length: 8M packet
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';
 ?>

@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: big packet
+swoole_server/length: big packet
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';
 if (!is_file('/proc/sys/net/core/wmem_max')) {
