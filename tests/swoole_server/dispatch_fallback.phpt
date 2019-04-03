@@ -78,7 +78,7 @@ $pm->childFunc = function () use ($pm, $port)
         "worker_num" => WORKER_N,
         'dispatch_mode' => 1,
         'dispatch_func' => function ($serv, $fd, $type, $data) {
-            return -3;
+            return SWOOLE_DISPATCH_RESULT_USERFUNC_FALLBACK;
         },
         'package_eof' => "\r\n\r\n",
         'open_eof_split' => true,
