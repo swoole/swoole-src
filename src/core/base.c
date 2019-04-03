@@ -480,11 +480,11 @@ void swoole_redirect_stdout(int new_fd)
 {
     if (dup2(new_fd, STDOUT_FILENO) < 0)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "dup2(STDOUT_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("dup2(STDOUT_FILENO) failed");
     }
     if (dup2(new_fd, STDERR_FILENO) < 0)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "dup2(STDERR_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("dup2(STDERR_FILENO) failed");
     }
 }
 

@@ -113,7 +113,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
                     swServer_disable_accept(reactor);
                     reactor->disable_accept = 1;
                 }
-                swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "accept() failed. Error: %s[%d]", strerror(errno), errno);
+                swSysWarn("accept() failed");
                 return SW_OK;
             }
         }
@@ -574,7 +574,7 @@ int swServer_start(swServer *serv)
             }
             else
             {
-                swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "open(/dev/null) failed. Error: %s[%d]", strerror(errno), errno);
+                swSysWarn("open(/dev/null) failed");
             }
         }
 
@@ -601,7 +601,7 @@ int swServer_start(swServer *serv)
     serv->workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
     if (serv->workers == NULL)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "gmalloc[server->workers] failed.");
+        swSysWarn("gmalloc[server->workers] failed");
         return SW_ERR;
     }
 

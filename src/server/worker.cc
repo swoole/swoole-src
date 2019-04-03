@@ -148,8 +148,7 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
         case EAGAIN:
             return SW_OK;
         default:
-            swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "accept() failed. Error: %s[%d]", strerror(errno),
-                    errno);
+            swSysWarn("accept() failed");
             return SW_OK;
         }
     }

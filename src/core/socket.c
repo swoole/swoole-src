@@ -499,7 +499,7 @@ int swSocket_create_server(int type, char *address, int port, int backlog)
     int fd = swSocket_create(type);
     if (fd < 0)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "socket() failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("socket() failed");
         return SW_ERR;
     }
 
@@ -511,7 +511,7 @@ int swSocket_create_server(int type, char *address, int port, int backlog)
 
     if (listen(fd, backlog) < 0)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "listen(%s:%d, %d) failed. Error: %s[%d]", address, port, backlog, strerror(errno), errno);
+        swSysWarn("listen(%s:%d, %d) failed", address, port, backlog);
         close(fd);
         return SW_ERR;
     }

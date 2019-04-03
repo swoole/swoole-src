@@ -145,7 +145,7 @@ int swReactorProcess_start(swServer *serv)
         serv->user_workers = (swWorker *) sw_malloc(serv->user_worker_num * sizeof(swWorker));
         if (serv->user_workers == NULL)
         {
-            swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "gmalloc[server->user_workers] failed.");
+            swSysWarn("gmalloc[server->user_workers] failed");
             return SW_ERR;
         }
         swUserWorker_node *user_worker;
