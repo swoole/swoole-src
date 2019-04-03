@@ -151,6 +151,11 @@ static int swFactoryProcess_start(swFactory *factory)
         }
         serv->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_MASTER);
         serv->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_WORKER);
+
+        int kernel_buffer_size = SW_UNIXSOCK_MAX_BUF_SIZE;
+        setsockopt(serv->workers[i].pipe_master, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
+        setsockopt(serv->workers[i].pipe_worker, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
+
         serv->workers[i].pipe_object = &object->pipes[i];
         swServer_store_pipe_fd(serv, serv->workers[i].pipe_object);
     }
@@ -311,7 +316,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
 
         swTrace("dispatch, type=%d|len=%d", buf->info.type, buf->info.len);
 
-        if (swReactorThread_send2worker(serv, worker, &buf, sizeof(buf->info) + buf->info.len) < 0)
+        if (swReactorThread_send2worker(serv, worker, buf, sizeof(buf->info) + buf->info.len) < 0)
         {
             return SW_ERR;
         }
