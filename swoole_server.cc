@@ -534,6 +534,10 @@ void swoole_server_init(int module_number)
     zend_declare_property_long(swoole_server_task_ce_ptr, ZEND_STRL("id"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_task_ce_ptr, ZEND_STRL("worker_id"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_task_ce_ptr, ZEND_STRL("flags"), 0, ZEND_ACC_PUBLIC);
+
+    SWOOLE_RAW_DEFINE_EX("SWOOLE_DISPATCH_RESULT_DISCARD_PACKET", SW_DISPATCH_RESULT_DISCARD_PACKET);
+    SWOOLE_RAW_DEFINE_EX("SWOOLE_DISPATCH_RESULT_CLOSE_CONNECTION", SW_DISPATCH_RESULT_CLOSE_CONNECTION);
+    SWOOLE_RAW_DEFINE_EX("SWOOLE_DISPATCH_RESULT_USERFUNC_FALLBACK", SW_DISPATCH_RESULT_USERFUNC_FALLBACK);
 }
 
 zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
