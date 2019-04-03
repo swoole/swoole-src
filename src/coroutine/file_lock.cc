@@ -79,17 +79,12 @@ public:
             {
                 lm->lock_flag = LOCK_SH;
                 lm->locking[Coroutine::get_current()] = LOCK_SH;
-                resume_first_lock_sh_coroutine(lm);
             }
             else
             {
                 lm->lock_flag = LOCK_EX;
                 lm->locking[Coroutine::get_current()] = LOCK_EX;
             }
-        }
-        else if (lm->lock_flag & LOCK_SH)
-        {
-            resume_first_lock_sh_coroutine(lm);
         }
         else if (!lm->lock_flag)
         {
@@ -100,9 +95,7 @@ public:
             }
             else
             {
-                Coroutine *co = (lm->wait_list.front()).first;
-                lm->wait_list.pop_front();
-                co->resume();
+                resume_next(lm);
             }
         }
 
@@ -118,18 +111,11 @@ private:
     };
     static unordered_map<string, file_lock_manager*> lock_pool;
 
-    static void resume_first_lock_sh_coroutine(file_lock_manager *lm)
+    static void resume_next(file_lock_manager *lm)
     {
-        for (auto p = lm->wait_list.begin(); p != lm->wait_list.end(); ++p)
-        {
-            if (p->second & LOCK_SH)
-            {
-                Coroutine *co = p->first;
-                lm->wait_list.erase(p);
-                co->resume();
-                break;
-            }
-        }
+        Coroutine *co = (lm->wait_list.front()).first;
+        lm->wait_list.pop_front();
+        co->resume();
     }
 
     static int unlock(char *filename, int fd)
@@ -165,9 +151,7 @@ private:
                 {
                     lm->locking.erase(co);
                     lm->lock_flag = 0;
-                    Coroutine *co = (lm->wait_list.front()).first;
-                    lm->wait_list.pop_front();
-                    co->resume();
+                    resume_next(lm);
                 }
             }
         }
