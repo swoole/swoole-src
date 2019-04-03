@@ -8,8 +8,6 @@ swoole_server: 8M packet
 require __DIR__ . '/../../include/bootstrap.php';
 $port = get_one_free_port();
 
-$max = file_get_contents('/proc/sys/net/core/wmem_max');
-
 $size = 8 * 1024 * 1024;
 
 $pm = new ProcessManager;
