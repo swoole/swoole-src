@@ -2418,11 +2418,7 @@ static PHP_METHOD(swoole_server, set)
             c_dispatch_func = php_swoole_dispatch_func;
             break;
         }
-        if (c_dispatch_func)
-        {
-            serv->dispatch_mode = SW_DISPATCH_USERFUNC;
-            serv->dispatch_func = c_dispatch_func;
-        }
+        serv->dispatch_func = c_dispatch_func;
     }
     //log_file
     if (php_swoole_array_get_value(vht, "log_file", v))

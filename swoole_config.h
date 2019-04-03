@@ -108,6 +108,7 @@
 #define SW_SESSION_LIST_SIZE             (1*1024*1024)
 
 #define SW_MSGMAX                        65536
+#define SW_UNIXSOCK_MAX_BUF_SIZE         (2*1024*1024)
 
 /**
  * The maximum number of Reactor threads

@@ -151,10 +151,18 @@ static int swFactoryProcess_start(swFactory *factory)
         }
         serv->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_MASTER);
         serv->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_WORKER);
+
+        int kernel_buffer_size = SW_UNIXSOCK_MAX_BUF_SIZE;
+        setsockopt(serv->workers[i].pipe_master, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
+        setsockopt(serv->workers[i].pipe_worker, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
+
         serv->workers[i].pipe_object = &object->pipes[i];
         swServer_store_pipe_fd(serv, serv->workers[i].pipe_object);
     }
-
+    
+#ifdef HAVE_KQUEUE
+    serv->ipc_max_size = SW_IPC_MAX_SIZE;
+#else
     int bufsize;
     socklen_t _len = sizeof(bufsize);
     /**
@@ -166,6 +174,7 @@ static int swFactoryProcess_start(swFactory *factory)
     }
     // - dgram header [32 byte]
     serv->ipc_max_size = bufsize - 32;
+#endif
     /**
      * alloc memory
      */
@@ -217,15 +226,19 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
     int fd = task->info.fd;
 
     int target_worker_id = swServer_worker_schedule(serv, fd, task);
-
-    //discard the data packet.
     if (target_worker_id < 0)
     {
-        /**
-         * -1 : discard packet
-         * [TODO] -2 : close connection
-         */
-        return SW_ERR;
+        switch (target_worker_id)
+        {
+            case SW_DISPATCH_RESULT_DISCARD_PACKET:
+                return SW_ERR;
+            case SW_DISPATCH_RESULT_CLOSE_CONNECTION:
+                // TODO: close connection
+                return SW_ERR;
+            default:
+                swWarn("invalid target worker id[%d]", target_worker_id);
+                return SW_ERR;
+        }
     }
 
     if (swEventData_is_stream(task->info.type))
@@ -311,7 +324,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
 
         swTrace("dispatch, type=%d|len=%d", buf->info.type, buf->info.len);
 
-        if (swReactorThread_send2worker(serv, worker, &buf, sizeof(buf->info) + buf->info.len) < 0)
+        if (swReactorThread_send2worker(serv, worker, buf, sizeof(buf->info) + buf->info.len) < 0)
         {
             return SW_ERR;
         }
