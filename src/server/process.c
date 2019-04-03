@@ -137,7 +137,7 @@ static int swFactoryProcess_start(swFactory *factory)
     object->pipes = (swPipe *) sw_calloc(serv->worker_num, sizeof(swPipe));
     if (object->pipes == NULL)
     {
-        swError("malloc[pipes] failed. Error: %s [%d]", strerror(errno), errno);
+        swSysError("malloc[pipes] failed");
         return SW_ERR;
     }
 
@@ -172,7 +172,7 @@ static int swFactoryProcess_start(swFactory *factory)
     object->buffers = sw_calloc(serv->reactor_num, sizeof(swSendBuffer *));
     if (object->buffers == NULL)
     {
-        swError("malloc[buffers] failed. Error: %s [%d]", strerror(errno), errno);
+        swSysError("malloc[buffers] failed");
         return SW_ERR;
     }
     for (i = 0; i < serv->reactor_num; i++)
@@ -180,7 +180,7 @@ static int swFactoryProcess_start(swFactory *factory)
         object->buffers[i] = sw_malloc(serv->ipc_max_size);
         if (object->buffers[i] == NULL)
         {
-            swError("malloc[sndbuf][%d] failed. Error: %s [%d]", i, strerror(errno), errno);
+            swSysError("malloc[sndbuf][%d] failed", i);
             return SW_ERR;
         }
     }

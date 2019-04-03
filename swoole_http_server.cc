@@ -705,7 +705,7 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
         fclose((FILE *) p->fp);
         p->fp = NULL;
 
-        swWarn("write upload file failed. Error %s[%d]", strerror(errno), errno);
+        swSysWarn("write upload file failed");
     }
     return 0;
 }
@@ -757,7 +757,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     if (fp == NULL)
     {
         add_assoc_long(multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
-        swWarn("fopen(%s) failed. Error %s[%d]", file_path, strerror(errno), errno);
+        swSysWarn("fopen(%s) failed", file_path);
         return 0;
     }
 

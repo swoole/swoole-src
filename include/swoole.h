@@ -434,6 +434,15 @@ enum swWorker_status
         exit(1);\
     } while(0)
 
+#define swSysError(str,...) \
+    do{\
+        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+        size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str " Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
+        SwooleG.write_log(SW_LOG_ERROR, sw_error, _sw_errror_len);\
+        SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
+        exit(1);\
+    } while(0)
+
 #define swFatalError(code, str,...) \
         SwooleG.fatal_error(code, str, ##__VA_ARGS__)
 

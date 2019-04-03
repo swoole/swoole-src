@@ -883,7 +883,7 @@ int swReactorThread_start(swServer *serv)
 
         if (pthread_create(&pidt, NULL, (void * (*)(void *)) swReactorThread_loop, (void *) param) < 0)
         {
-            swError("pthread_create[tcp_reactor] failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("pthread_create[tcp_reactor] failed");
         }
         thread->thread_id = pidt;
     }
