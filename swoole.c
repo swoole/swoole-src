@@ -527,6 +527,7 @@ static void php_swoole_fatal_error(int code, const char *format, ...)
     const char *space, *class_name = get_active_class_name(&space);
     va_list args;
 
+    SwooleGS->lock_2.lock(&SwooleGS->lock_2);
     swString_clear(buffer);
     buffer->length += sw_snprintf(buffer->str, buffer->size, "(PHP Fatal Error: %d):\n%s%s%s: ", code, class_name, space, get_active_function_name());
     va_start(args, format);
@@ -534,7 +535,6 @@ static void php_swoole_fatal_error(int code, const char *format, ...)
     va_end(args);
     swString_append_ptr(buffer, SW_STRL("\n"));
     sw_get_debug_print_backtrace(buffer, DEBUG_BACKTRACE_IGNORE_ARGS, 0);
-    SwooleGS->lock_2.lock(&SwooleGS->lock_2);
     SwooleG.write_log(SW_LOG_ERROR, buffer->str, buffer->length);
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);
     exit(255);

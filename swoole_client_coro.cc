@@ -762,7 +762,6 @@ static PHP_METHOD(swoole_client_coro, connect)
         php_swoole_client_set(cli, zset);
     }
 
-    PHPCoroutine::check_bind("client", cli->get_bound_cid());
     cli->set_timeout(timeout, SW_TIMEOUT_CONNECT);
     if (!cli->connect(host, port, sock_flag))
     {
@@ -800,7 +799,6 @@ static PHP_METHOD(swoole_client_coro, send)
         RETURN_FALSE;
     }
 
-    PHPCoroutine::check_bind("client", cli->get_bound_cid(SW_EVENT_WRITE));
     Socket::timeout_setter ts(cli, timeout, SW_TIMEOUT_WRITE);
     ssize_t ret = cli->send_all(data, data_len);
     if (ret < 0)
@@ -848,7 +846,6 @@ static PHP_METHOD(swoole_client_coro, sendto)
         }
         cli->socket->active = 1;
     }
-    PHPCoroutine::check_bind("client", cli->get_bound_cid(SW_EVENT_WRITE));
     SW_CHECK_RETURN(cli->sendto(ip, port, data, len));
 }
 
@@ -879,7 +876,6 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     }
 
     zend_string *retval = zend_string_alloc(length + 1, 0);
-    PHPCoroutine::check_bind("client", cli->get_bound_cid(SW_EVENT_READ));
     ssize_t n_bytes = cli->recvfrom(ZSTR_VAL(retval), length);
     if (n_bytes < 0)
     {
@@ -928,7 +924,6 @@ static PHP_METHOD(swoole_client_coro, sendfile)
         zend_update_property_string(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), "dgram socket cannot use sendfile.");
         RETURN_FALSE;
     }
-    PHPCoroutine::check_bind("client", cli->get_bound_cid(SW_EVENT_WRITE));
     int ret = cli->sendfile(file, offset, length);
     if (ret < 0)
     {
@@ -956,7 +951,6 @@ static PHP_METHOD(swoole_client_coro, recv)
     {
         RETURN_FALSE;
     }
-    PHPCoroutine::check_bind("client", cli->get_bound_cid(SW_EVENT_READ));
     ssize_t retval ;
     if (cli->open_length_check || cli->open_eof_check)
     {
@@ -1173,7 +1167,6 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
     {
         php_swoole_socket_set_ssl(cli, zset);
     }
-    PHPCoroutine::check_bind("client", cli->get_bound_cid());
     if (cli->ssl_handshake() == false)
     {
         RETURN_FALSE;

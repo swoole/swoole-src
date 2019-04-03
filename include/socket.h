@@ -287,13 +287,12 @@ private:
             long cid = get_bound_cid(event);
             if (unlikely(cid))
             {
-                swoole_error_log(
-                    SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
+                swFatalError(
+                    SW_ERROR_CO_HAS_BEEN_BOUND,
                     "Socket#%d has already been bound to another coroutine#%ld, "
-                    "%s of the same socket in multiple coroutines at the same time is not allowed.\n",
+                    "%s of the same socket in multiple coroutines at the same time is not allowed",
                     socket->fd, cid, (event == SW_EVENT_READ ? "reading" : (event == SW_EVENT_WRITE ? "writing" : "reading or writing"))
                 );
-                exit(255);
             }
         }
         if (unlikely(socket->closed))

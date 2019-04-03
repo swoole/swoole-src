@@ -446,6 +446,9 @@ void PHPCoroutine::defer(php_swoole_fci *fci)
     task->defer_tasks->push(fci);
 }
 
+/**
+ * Deprecated (should be removed after refactor MySQL and HTTP2 client)
+ */
 void PHPCoroutine::check_bind(const char *name, long bind_cid)
 {
     Coroutine::get_current_safe();
@@ -453,7 +456,7 @@ void PHPCoroutine::check_bind(const char *name, long bind_cid)
     {
         swString *buffer = SwooleTG.buffer_stack;
         swString_clear(buffer);
-        sw_get_debug_print_backtrace(buffer, DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+        sw_get_debug_print_backtrace(buffer, DEBUG_BACKTRACE_IGNORE_ARGS, 0);
         swoole_error_log(
             SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
             "%s has already been bound to another coroutine#%ld, "

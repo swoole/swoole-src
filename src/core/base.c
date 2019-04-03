@@ -1420,11 +1420,11 @@ static void swoole_fatal_error(int code, const char *format, ...)
     size_t retval = 0;
     va_list args;
 
+    SwooleGS->lock_2.lock(&SwooleGS->lock_2);
     retval += sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "(ERROR %d): ", code);
     va_start(args, format);
     retval += sw_vsnprintf(sw_error + retval, SW_ERROR_MSG_SIZE - retval, format, args);
     va_end(args);
-    SwooleGS->lock_2.lock(&SwooleGS->lock_2);
     SwooleG.write_log(SW_LOG_ERROR, sw_error, retval);
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);
     exit(255);

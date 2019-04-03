@@ -108,7 +108,6 @@ class http_client
     bool init_compression(enum http_compress_method method);
     bool uncompress_response();
 #endif
-    void check_bind();
     void set(zval *zset);
     bool exec(std::string uri);
     bool recv(double timeout = 0);
@@ -520,14 +519,6 @@ bool http_client::uncompress_response()
 }
 #endif
 
-void http_client::check_bind()
-{
-    if (socket)
-    {
-        PHPCoroutine::check_bind("http client", socket->get_bound_cid());
-    }
-}
-
 void http_client::set(zval *zset = nullptr)
 {
     zval *ztmp;
@@ -642,8 +633,6 @@ bool http_client::send()
     char *method;
     uint32_t header_flag = 0x0;
     zval *zmethod, *zheaders, *zbody, *zupload_files, *zcookies, *z_download_file;
-
-    check_bind();
 
     if (uri.length() == 0)
     {
@@ -1161,8 +1150,6 @@ bool http_client::exec(std::string uri)
 
 bool http_client::recv(double timeout)
 {
-    check_bind();
-
     if (!wait)
     {
         return false;
@@ -1209,8 +1196,6 @@ bool http_client::recv(double timeout)
 
 void http_client::recv(zval *zframe, double timeout)
 {
-    check_bind();
-
     SW_ASSERT(websocket);
     ZVAL_FALSE(zframe);
     if (!socket || !socket->is_connect())
@@ -1317,8 +1302,6 @@ bool http_client::upgrade(std::string uri)
 
 bool http_client::push(zval *zdata, zend_long opcode, bool fin)
 {
-    check_bind();
-
     if (!websocket)
     {
         swoole_php_fatal_error(E_WARNING, "websocket handshake failed, cannot push data.");
