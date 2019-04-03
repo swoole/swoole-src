@@ -523,9 +523,10 @@ void php_swoole_register_shutdown_function_prepend(char *function)
 
 static void php_swoole_fatal_error(int code, const char *format, ...)
 {
-    swString *buffer = SwooleTG.buffer_stack;
-    const char *space, *class_name = get_active_class_name(&space);
     va_list args;
+    swString *buffer = SwooleTG.buffer_stack;
+    zend_string *backtrace;
+    const char *space, *class_name = get_active_class_name(&space);
 
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);
     swString_clear(buffer);
@@ -533,8 +534,10 @@ static void php_swoole_fatal_error(int code, const char *format, ...)
     va_start(args, format);
     buffer->length += sw_vsnprintf(buffer->str + buffer->length, buffer->size - buffer->length, format, args);
     va_end(args);
-    swString_append_ptr(buffer, SW_STRL("\n"));
-    sw_get_debug_print_backtrace(buffer, DEBUG_BACKTRACE_IGNORE_ARGS, 0);
+    swString_append_ptr(buffer, SW_STRL("\nStack trace:\n"));
+    backtrace = sw_get_debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 0);
+    swString_append_ptr(buffer, ZSTR_VAL(backtrace), ZSTR_LEN(backtrace));
+    zend_string_release(backtrace);
     SwooleG.write_log(SW_LOG_ERROR, buffer->str, buffer->length);
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);
     exit(255);

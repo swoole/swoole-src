@@ -15,7 +15,7 @@
   +----------------------------------------------------------------------+
  */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 #include "swoole_coroutine.h"
 
 using namespace swoole;
@@ -454,16 +454,12 @@ void PHPCoroutine::check_bind(const char *name, long bind_cid)
     Coroutine::get_current_safe();
     if (unlikely(bind_cid > 0))
     {
-        swString *buffer = SwooleTG.buffer_stack;
-        swString_clear(buffer);
-        sw_get_debug_print_backtrace(buffer, DEBUG_BACKTRACE_IGNORE_ARGS, 0);
-        swoole_error_log(
-            SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
+        swFatalError(
+            SW_ERROR_CO_HAS_BEEN_BOUND,
             "%s has already been bound to another coroutine#%ld, "
-            "reading or writing of the same socket in multiple coroutines at the same time is not allowed.\n"
-            "%.*s", name, bind_cid, (int) buffer->length, buffer->str
+            "reading or writing of the same socket in multiple coroutines at the same time is not allowed",
+            name, bind_cid
         );
-        exit(255);
     }
 }
 
