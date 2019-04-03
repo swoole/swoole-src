@@ -159,7 +159,10 @@ static int swFactoryProcess_start(swFactory *factory)
         serv->workers[i].pipe_object = &object->pipes[i];
         swServer_store_pipe_fd(serv, serv->workers[i].pipe_object);
     }
-
+    
+#ifdef HAVE_KQUEUE
+    serv->ipc_max_size = SW_IPC_MAX_SIZE;
+#else
     int bufsize;
     socklen_t _len = sizeof(bufsize);
     /**
@@ -171,6 +174,7 @@ static int swFactoryProcess_start(swFactory *factory)
     }
     // - dgram header [32 byte]
     serv->ipc_max_size = bufsize - 32;
+#endif
     /**
      * alloc memory
      */
