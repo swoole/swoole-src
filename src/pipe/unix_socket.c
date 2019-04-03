@@ -90,7 +90,7 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
     swPipeUnsock *object = sw_malloc(sizeof(swPipeUnsock));
     if (object == NULL)
     {
-        swWarn("malloc() failed.");
+        swWarn("malloc() failed");
         return SW_ERR;
     }
     bzero(object, sizeof(swPipeUnsock));
@@ -98,7 +98,7 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
     ret = socketpair(AF_UNIX, protocol, 0, object->socks);
     if (ret < 0)
     {
-        swWarn("socketpair() failed. Error: %s [%d]", strerror(errno), errno);
+        swSysWarn("socketpair() failed");
         sw_free(object);
         return SW_ERR;
     }

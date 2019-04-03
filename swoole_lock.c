@@ -100,7 +100,7 @@ static PHP_METHOD(swoole_lock, __construct)
     swLock *lock = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swLock));
     if (lock == NULL)
     {
-        zend_throw_exception(swoole_exception_ce_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL);
+        zend_throw_exception(swoole_exception_ce_ptr, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
 
@@ -114,7 +114,7 @@ static PHP_METHOD(swoole_lock, __construct)
     case SW_FILELOCK:
         if (filelock_len == 0)
         {
-            zend_throw_exception(swoole_exception_ce_ptr, "filelock requires file name of the lock.", SW_ERROR_INVALID_PARAMS);
+            zend_throw_exception(swoole_exception_ce_ptr, "filelock requires file name of the lock", SW_ERROR_INVALID_PARAMS);
             RETURN_FALSE;
         }
         int fd;
@@ -142,7 +142,7 @@ static PHP_METHOD(swoole_lock, __construct)
     }
     if (ret < 0)
     {
-        zend_throw_exception(swoole_exception_ce_ptr, "failed to create lock.", errno);
+        zend_throw_exception(swoole_exception_ce_ptr, "failed to create lock", errno);
         RETURN_FALSE;
     }
     swoole_set_object(getThis(), lock);
@@ -177,7 +177,7 @@ static PHP_METHOD(swoole_lock, lockwait)
     swLock *lock = swoole_get_object(getThis());
     if (lock->type != SW_MUTEX)
     {
-        zend_throw_exception(swoole_exception_ce_ptr, "only mutex supports lockwait.", -2);
+        zend_throw_exception(swoole_exception_ce_ptr, "only mutex supports lockwait", -2);
         RETURN_FALSE;
     }
     SW_LOCK_CHECK_RETURN(swMutex_lockwait(lock, (int)timeout * 1000));

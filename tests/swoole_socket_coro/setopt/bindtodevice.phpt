@@ -26,4 +26,4 @@ $retval_2 = $socket->setOption(SOL_SOCKET, SO_BINDTODEVICE, "ethIDONOTEXIST");
 assert($retval_2 === false);
 ?>
 --EXPECTF--
-Warning: Swoole\Coroutine\Socket::setOption(): setsockopt(%d) failed. Error: No such device[%d]. in %s on line %d
+Warning: Swoole\Coroutine\Socket::setOption(): setsockopt(%d) failed, Error: No such device[%d] in %s on line %d

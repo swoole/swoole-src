@@ -33,8 +33,8 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Warning: Swoole\Server::start(): exceed max number of coroutine 1. in %s/tests/swoole_http_server/max_coro_num.php on line 25
+Warning: Swoole\Server::start(): exceed max number of coroutine 1 in %s/tests/swoole_http_server/max_coro_num.php on line 25
 
-Warning: Swoole\Server::start(): create Http onRequest coroutine error. in %s/tests/swoole_http_server/max_coro_num.php on line 25
+Warning: Swoole\Server::start(): create Http onRequest coroutine error in %s/tests/swoole_http_server/max_coro_num.php on line 25
 
 503

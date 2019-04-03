@@ -151,7 +151,7 @@ static ssize_t http_build_trailer(http_context *ctx, uchar *buffer)
         buflen = nghttp2_hd_deflate_bound(deflater, trailer.get(), trailer.len());
         if (buflen > SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE)
         {
-            swoole_php_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u.", SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE);
+            swoole_php_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u", SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE);
             return -1;
         }
         rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, trailer.get(), trailer.len());
@@ -181,7 +181,7 @@ static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
     {
         if (PHPCoroutine::create(fci_cache, 2, args) < 0)
         {
-            swoole_php_error(E_WARNING, "create Http2 onRequest coroutine error.");
+            swoole_php_error(E_WARNING, "create Http2 onRequest coroutine error");
             serv->factory.end(&serv->factory, fd);
         }
     }
@@ -190,7 +190,7 @@ static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
         zval _retval, *retval = &_retval;
         if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
         {
-            swoole_php_error(E_WARNING, "Http2 onRequest handler error.");
+            swoole_php_error(E_WARNING, "Http2 onRequest handler error");
         }
         zval_ptr_dtor(retval);
     }
@@ -334,7 +334,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     size_t buflen = nghttp2_hd_deflate_bound(deflater, headers.get(), headers.len());
     if (buflen > SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE)
     {
-        swoole_php_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u.", SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE);
+        swoole_php_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u", SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE);
         return -1;
     }
     ssize_t rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, headers.get(), headers.len());
@@ -509,7 +509,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
         int ret = nghttp2_hd_inflate_new(&inflater);
         if (ret != 0)
         {
-            swWarn("nghttp2_hd_inflate_init() failed, Error: %s[%d].", nghttp2_strerror(ret), ret);
+            swWarn("nghttp2_hd_inflate_init() failed, Error: %s[%d]", nghttp2_strerror(ret), ret);
             return SW_ERR;
         }
         client->inflater = inflater;
@@ -536,7 +536,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
         rv = nghttp2_hd_inflate_hd(inflater, &nv, &inflate_flags, (uchar *) in, inlen, 1);
         if (rv < 0)
         {
-            swWarn("inflate failed, Error: %s[%zd].", nghttp2_strerror(rv), rv);
+            swWarn("inflate failed, Error: %s[%zd]", nghttp2_strerror(rv), rv);
             return SW_ERR;
         }
 
@@ -604,7 +604,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                         int boundary_len = nv.valuelen - strlen("multipart/form-data; boundary=");
                         if (boundary_len <= 0)
                         {
-                            swWarn("invalid multipart/form-data body fd:%d.", ctx->fd);
+                            swWarn("invalid multipart/form-data body fd:%d", ctx->fd);
                             return SW_ERR;
                         }
                         swoole_http_parse_form_data(ctx, (char*) nv.value + nv.valuelen - boundary_len, boundary_len);
@@ -707,27 +707,27 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             switch (id)
             {
             case SW_HTTP2_SETTING_HEADER_TABLE_SIZE:
-                swTraceLog(SW_TRACE_HTTP2, "setting: header_compression_table_max=%u.", value);
+                swTraceLog(SW_TRACE_HTTP2, "setting: header_compression_table_max=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS:
                 client->max_concurrent_streams = value;
-                swTraceLog(SW_TRACE_HTTP2, "setting: max_concurrent_streams=%u.", value);
+                swTraceLog(SW_TRACE_HTTP2, "setting: max_concurrent_streams=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
                 client->send_window = value;
-                swTraceLog(SW_TRACE_HTTP2, "setting: init_send_window=%u.", value);
+                swTraceLog(SW_TRACE_HTTP2, "setting: init_send_window=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
                 client->max_frame_size = value;
-                swTraceLog(SW_TRACE_HTTP2, "setting: max_frame_size=%u.", value);
+                swTraceLog(SW_TRACE_HTTP2, "setting: max_frame_size=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
                 // client->max_header_list_size = value; // useless now
-                swTraceLog(SW_TRACE_HTTP2, "setting: max_header_list_size=%u.", value);
+                swTraceLog(SW_TRACE_HTTP2, "setting: max_header_list_size=%u", value);
                 break;
             default:
                 // disable warning and ignore it because some websites are not following http2 protocol totally
-                // swWarn("unknown option[%d]: %d.", id, value);
+                // swWarn("unknown option[%d]: %d", id, value);
                 break;
             }
             buf += sizeof(id) + sizeof(value);
@@ -745,7 +745,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             if (unlikely(!stream->ctx))
             {
                 zval_ptr_dtor(&zdata);
-                swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 create stream#%d context error.", stream_id);
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 create stream#%d context error", stream_id);
                 return SW_ERR;
             }
             client->streams[stream_id] = stream;
@@ -791,7 +791,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
         if (stream_iterator == client->streams.end())
         {
             zval_ptr_dtor(&zdata);
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NOT_FOUND, "http2 stream#%d not found.", stream_id);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NOT_FOUND, "http2 stream#%d not found", stream_id);
             return SW_ERR;
         }
         stream = stream_iterator->second;
@@ -840,7 +840,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
                 size_t n = multipart_parser_execute(multipart_parser, buffer->str, buffer->length);
                 if (n != (size_t) length)
                 {
-                    swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, n=%zu.", n);
+                    swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, n=%zu", n);
                 }
             }
             http2_onRequest(ctx, from_fd);

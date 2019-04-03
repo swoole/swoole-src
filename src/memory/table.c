@@ -66,13 +66,13 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
     }
     if (swMutex_create(&table->lock, 1) < 0)
     {
-        swWarn("mutex create failed.");
+        swWarn("mutex create failed");
         return NULL;
     }
     table->iterator = sw_malloc(sizeof(swTable_iterator));
     if (!table->iterator)
     {
-        swWarn("malloc failed.");
+        swWarn("malloc failed");
         return NULL;
     }
     table->columns = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, (swHashMap_dtor)swTableColumn_free);
@@ -137,7 +137,7 @@ int swTableColumn_add(swTable *table, char *name, int len, int type, int size)
         col->type = SW_TABLE_STRING;
         break;
     default:
-        swWarn("unkown column type.");
+        swWarn("unkown column type");
         swTableColumn_free(col);
         return SW_ERR;
     }

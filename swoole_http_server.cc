@@ -388,7 +388,7 @@ int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int
     multipart_parser *mt_parser = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
     if (!mt_parser)
     {
-        swoole_php_fatal_error(E_WARNING, "multipart_parser_init() failed.");
+        swoole_php_fatal_error(E_WARNING, "multipart_parser_init() failed");
         return SW_ERR;
     }
 
@@ -417,7 +417,7 @@ void swoole_http_parse_cookie(zval *array, const char *at, size_t length)
             klen = i - j + 1;
             if (klen >= SW_HTTP_COOKIE_KEYLEN)
             {
-                swWarn("cookie[%.*s...] name length %d is exceed the max name len %d.", 8, (char *) at + j, klen, SW_HTTP_COOKIE_KEYLEN);
+                swWarn("cookie[%.*s...] name length %d is exceed the max name len %d", 8, (char *) at + j, klen, SW_HTTP_COOKIE_KEYLEN);
                 return;
             }
             memcpy(keybuf, (char *) at + j, klen - 1);
@@ -431,7 +431,7 @@ void swoole_http_parse_cookie(zval *array, const char *at, size_t length)
             vlen = i - j;
             if (vlen >= SW_HTTP_COOKIE_VALLEN)
             {
-                swWarn("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d.", keybuf, 8, (char *) at + j, vlen, SW_HTTP_COOKIE_VALLEN);
+                swWarn("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d", keybuf, 8, (char *) at + j, vlen, SW_HTTP_COOKIE_VALLEN);
                 return;
             }
             memcpy(valbuf, (char *) at + j, vlen);
@@ -465,13 +465,13 @@ void swoole_http_parse_cookie(zval *array, const char *at, size_t length)
         vlen = i - j;
         if (klen >= SW_HTTP_COOKIE_KEYLEN)
         {
-            swWarn("cookie[%.*s...] name length %d is exceed the max name len %d.", 8, keybuf, klen, SW_HTTP_COOKIE_KEYLEN);
+            swWarn("cookie[%.*s...] name length %d is exceed the max name len %d", 8, keybuf, klen, SW_HTTP_COOKIE_KEYLEN);
             return;
         }
         keybuf[klen - 1] = 0;
         if (vlen >= SW_HTTP_COOKIE_VALLEN)
         {
-            swWarn("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d.", keybuf, 8, (char *) at + j, vlen, SW_HTTP_COOKIE_VALLEN);
+            swWarn("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d", keybuf, 8, (char *) at + j, vlen, SW_HTTP_COOKIE_VALLEN);
             return;
         }
         memcpy(valbuf, (char *) at + j, vlen);
@@ -507,7 +507,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         swConnection *conn = swWorker_get_connection(SwooleG.serv, ctx->fd);
         if (!conn)
         {
-            swWarn("connection[%d] is closed.", ctx->fd);
+            swWarn("connection[%d] is closed", ctx->fd);
             return SW_ERR;
         }
         swListenPort *port = (swListenPort *) SwooleG.serv->connection_list[conn->from_fd].object;
@@ -545,7 +545,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
                 }
                 if (boundary_len <= 0)
                 {
-                    swWarn("invalid multipart/form-data body fd:%d.", ctx->fd);
+                    swWarn("invalid multipart/form-data body fd:%d", ctx->fd);
                     return 0;
                 }
                 // trim '"'
@@ -598,7 +598,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
     if (ctx->input_var_num > PG(max_input_vars))
     {
         swoole_php_error(E_WARNING, "Input variables exceeded " ZEND_LONG_FMT ". "
-                "To increase the limit change max_input_vars in php.ini.", PG(max_input_vars));
+                "To increase the limit change max_input_vars in php.ini", PG(max_input_vars));
         return SW_OK;
     }
     else
@@ -629,7 +629,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 
         if (Z_STRLEN_P(form_name) >= SW_HTTP_COOKIE_KEYLEN)
         {
-            swWarn("form_name[%s] is too large.", Z_STRVAL_P(form_name));
+            swWarn("form_name[%s] is too large", Z_STRVAL_P(form_name));
             return SW_OK;
         }
 
@@ -649,7 +649,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
         {
             if (Z_STRLEN_P(filename) >= SW_HTTP_COOKIE_KEYLEN)
             {
-                swWarn("filename[%s] is too large.", Z_STRVAL_P(filename));
+                swWarn("filename[%s] is too large", Z_STRVAL_P(filename));
                 return SW_OK;
             }
             ctx->current_input_name = estrndup(tmp, value_len);
@@ -705,7 +705,7 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
         fclose((FILE *) p->fp);
         p->fp = NULL;
 
-        swWarn("write upload file failed. Error %s[%d]", strerror(errno), errno);
+        swSysWarn("write upload file failed");
     }
     return 0;
 }
@@ -757,7 +757,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     if (fp == NULL)
     {
         add_assoc_long(multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
-        swWarn("fopen(%s) failed. Error %s[%d]", file_path, strerror(errno), errno);
+        swSysWarn("fopen(%s) failed", file_path);
         return 0;
     }
 
@@ -863,7 +863,7 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
         size_t n = multipart_parser_execute(multipart_parser, c, length);
         if (n != length)
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, n=%zu.", n);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, n=%zu", n);
         }
     }
 
@@ -907,7 +907,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
     if (!conn)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[%d] is closed.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[%d] is closed", fd);
         return SW_ERR;
     }
 
@@ -950,7 +950,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     if (n < 0)
     {
         sw_zval_free(zdata);
-        swWarn("swoole_http_parser_execute failed.");
+        swWarn("swoole_http_parser_execute failed");
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
             return serv->close(serv, fd, 1);
@@ -978,7 +978,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         if (!conn)
         {
             sw_zval_free(zdata);
-            swWarn("connection[%d] is closed.", fd);
+            swWarn("connection[%d] is closed", fd);
             return SW_ERR;
         }
 
@@ -1021,7 +1021,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         {
             if (PHPCoroutine::create(fci_cache, 2, args) < 0)
             {
-                swoole_php_error(E_WARNING, "create Http onRequest coroutine error.");
+                swoole_php_error(E_WARNING, "create Http onRequest coroutine error");
 #ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
                 serv->send(serv, fd, (char *) SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
 #endif
@@ -1033,7 +1033,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             zval _retval, *retval = &_retval;
             if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
             {
-                swoole_php_error(E_WARNING, "Http onRequest handler error.");
+                swoole_php_error(E_WARNING, "Http onRequest handler error");
             }
             zval_ptr_dtor(retval);
         }
@@ -1105,7 +1105,7 @@ http_context* swoole_http_context_new(int fd)
     http_context *ctx = (http_context *) emalloc(sizeof(http_context));
     if (!ctx)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "emalloc(%ld) failed.", sizeof(http_context));
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "emalloc(%ld) failed", sizeof(http_context));
         return NULL;
     }
     bzero(ctx, sizeof(http_context));
@@ -1290,14 +1290,14 @@ void php_swoole_http_server_before_start(swServer *serv, zval *zobject)
     swoole_http_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_http_buffer)
     {
-        swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
+        swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
         return;
     }
 
     swoole_http_form_data_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_http_form_data_buffer)
     {
-        swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
+        swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
         return;
     }
 
@@ -1399,7 +1399,7 @@ static PHP_METHOD(swoole_http_response, write)
 #ifdef SW_USE_HTTP2
     if (ctx->stream)
     {
-        swoole_php_error(E_WARNING, "Http2 client does not support HTTP-CHUNK.");
+        swoole_php_error(E_WARNING, "Http2 client does not support HTTP-CHUNK");
         RETURN_FALSE;
     }
 #endif
@@ -1428,7 +1428,7 @@ static PHP_METHOD(swoole_http_response, write)
 
     if (length == 0)
     {
-        swoole_php_error(E_WARNING, "data to send is empty.");
+        swoole_php_error(E_WARNING, "data to send is empty");
         RETURN_FALSE;
     }
     else
@@ -1476,7 +1476,7 @@ static http_context* http_get_context(zval *zobject, int check_end)
     http_context *ctx = (http_context *) swoole_get_object(zobject);
     if (!ctx || (check_end && ctx->end))
     {
-        swoole_php_fatal_error(E_WARNING, "Http request is finished.");
+        swoole_php_fatal_error(E_WARNING, "Http request is finished");
         return NULL;
     }
     return ctx;
@@ -1741,7 +1741,7 @@ int swoole_http_response_compress(swString *body, int method, int level)
             input_size, input_buffer, &encoded_size, encoded_buffer
         ))
         {
-            swWarn("BrotliEncoderCompress() failed.");
+            swWarn("BrotliEncoderCompress() failed");
             return SW_ERR;
         }
         else
@@ -1803,7 +1803,7 @@ int swoole_http_response_compress(swString *body, int method, int level)
     }
     else
     {
-        swWarn("deflateInit2() failed, Error: [%d].", retval);
+        swWarn("deflateInit2() failed, Error: [%d]", retval);
     }
     return SW_ERR;
 }
@@ -1989,7 +1989,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
     if (filename_length <= 0)
     {
-        swoole_php_error(E_WARNING, "file name is empty.");
+        swoole_php_error(E_WARNING, "file name is empty");
         RETURN_FALSE;
     }
 
@@ -2005,29 +2005,29 @@ static PHP_METHOD(swoole_http_response, sendfile)
 
     if (ctx->chunk)
     {
-        swoole_php_fatal_error(E_ERROR, "can't use sendfile when Http-Chunk is enabled.");
+        swoole_php_fatal_error(E_ERROR, "can't use sendfile when Http-Chunk is enabled");
         RETURN_FALSE;
     }
 
     struct stat file_stat;
     if (stat(filename, &file_stat) < 0)
     {
-        swoole_php_sys_error(E_WARNING, "stat(%s) failed.", filename);
+        swoole_php_sys_error(E_WARNING, "stat(%s) failed", filename);
         RETURN_FALSE;
     }
     if (file_stat.st_size == 0)
     {
-        swoole_php_sys_error(E_WARNING, "can't send empty file[%s].", filename);
+        swoole_php_sys_error(E_WARNING, "can't send empty file[%s]", filename);
         RETURN_FALSE;
     }
     if (file_stat.st_size <= offset)
     {
-        swoole_php_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] exceeds the file size.", offset);
+        swoole_php_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] exceeds the file size", offset);
         RETURN_FALSE;
     }
     if (length > file_stat.st_size - offset)
     {
-        swoole_php_sys_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] exceeds the file size.", length);
+        swoole_php_sys_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] exceeds the file size", length);
         RETURN_FALSE;
     }
     if (length == 0)
@@ -2226,12 +2226,12 @@ static PHP_METHOD(swoole_http_response, header)
     }
     if (klen > SW_HTTP_HEADER_KEY_SIZE - 1)
     {
-        swoole_php_error(E_WARNING, "header key is too long.");
+        swoole_php_error(E_WARNING, "header key is too long");
         RETURN_FALSE;
     }
     if (vlen > SW_HTTP_HEADER_VALUE_SIZE)
     {
-        swoole_php_error(E_WARNING, "header value is too long.");
+        swoole_php_error(E_WARNING, "header value is too long");
         RETURN_FALSE;
     }
 
@@ -2285,12 +2285,12 @@ static PHP_METHOD(swoole_http_response, trailer)
     }
     if (klen > SW_HTTP_HEADER_KEY_SIZE - 1)
     {
-        swoole_php_error(E_WARNING, "trailer key is too long.");
+        swoole_php_error(E_WARNING, "trailer key is too long");
         RETURN_FALSE;
     }
     if (vlen > SW_HTTP_HEADER_VALUE_SIZE)
     {
-        swoole_php_error(E_WARNING, "trailer value is too long.");
+        swoole_php_error(E_WARNING, "trailer value is too long");
         RETURN_FALSE;
     }
 
@@ -2341,7 +2341,7 @@ static PHP_METHOD(swoole_http_response, create)
     http_context *ctx = (http_context *) emalloc(sizeof(http_context));
     if (!ctx)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "emalloc(%ld) failed.", sizeof(http_context));
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "emalloc(%ld) failed", sizeof(http_context));
         RETURN_FALSE;
     }
     bzero(ctx, sizeof(http_context));

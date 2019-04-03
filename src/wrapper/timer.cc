@@ -32,7 +32,7 @@ long swoole_timer_add(long ms, uchar persistent, swTimerCallback callback, void 
     swTimer_node *tnode = swTimer_add(&SwooleG.timer, ms, persistent, private_data, callback);
     if (tnode == nullptr)
     {
-        swWarn("addtimer failed.");
+        swWarn("addtimer failed");
         return SW_ERR;
     }
     else

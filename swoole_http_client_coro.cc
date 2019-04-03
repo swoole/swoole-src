@@ -453,7 +453,7 @@ bool http_client::init_compression(http_compress_method method)
         init_gzip();
         if (Z_OK != inflateInit(&gzip_stream))
         {
-            swWarn("inflateInit() failed.");
+            swWarn("inflateInit() failed");
             return false;
         }
         break;
@@ -461,7 +461,7 @@ bool http_client::init_compression(http_compress_method method)
         init_gzip();
         if (Z_OK != inflateInit2(&gzip_stream, MAX_WBITS + 16))
         {
-            swWarn("inflateInit2() failed.");
+            swWarn("inflateInit2() failed");
             return false;
         }
         break;
@@ -514,7 +514,7 @@ bool http_client::uncompress_response()
             break;
         }
     }
-    swWarn("http_response_uncompress failed.");
+    swWarn("http_response_uncompress failed");
     return false;
 }
 #endif
@@ -566,7 +566,7 @@ bool http_client::connect()
         socket = new Socket(socket_type);
         if (UNEXPECTED(socket->socket == nullptr))
         {
-            swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
+            swoole_php_sys_error(E_WARNING, "new Socket() failed");
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), errno);
             zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), strerror(errno));
             delete socket;
@@ -596,7 +596,7 @@ bool http_client::connect()
             body = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
             if (!body)
             {
-                swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
+                swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
                 return false;
             }
         }
@@ -636,7 +636,7 @@ bool http_client::send()
 
     if (uri.length() == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "path is empty.");
+        swoole_php_fatal_error(E_WARNING, "path is empty");
         return false;
     }
 
@@ -696,14 +696,14 @@ bool http_client::send()
         int fd = ::open(download_file_name, O_CREAT | O_WRONLY, 0664);
         if (fd < 0)
         {
-            swSysError("open(%s, O_CREAT | O_WRONLY) failed.", download_file_name);
+            swSysWarn("open(%s, O_CREAT | O_WRONLY) failed", download_file_name);
             return SW_ERR;
         }
         if (download_offset == 0)
         {
             if (ftruncate(fd, 0) < 0)
             {
-                swSysError("ftruncate(%s) failed.", download_file_name);
+                swSysWarn("ftruncate(%s) failed", download_file_name);
                 ::close(fd);
                 return SW_ERR;
             }
@@ -712,7 +712,7 @@ bool http_client::send()
         {
             if (lseek(fd, download_offset, SEEK_SET) < 0)
             {
-                swSysError("fseek(%s, %jd) failed.", download_file_name, (intmax_t) download_offset);
+                swSysWarn("fseek(%s, %jd) failed", download_file_name, (intmax_t) download_offset);
                 ::close(fd);
                 return SW_ERR;
             }
@@ -1079,7 +1079,7 @@ bool http_client::send()
                 char *formstr = sw_http_build_query(zbody, &len, &formstr_s);
                 if (formstr == NULL)
                 {
-                    swoole_php_error(E_WARNING, "http_build_query failed.");
+                    swoole_php_error(E_WARNING, "http_build_query failed");
                     return SW_ERR;
                 }
                 http_client_append_content_length(http_client_buffer, len);
@@ -1157,7 +1157,7 @@ bool http_client::recv(double timeout)
     if (!socket || !socket->is_connect())
     {
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION);
-        zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "connection is not available.");
+        zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "connection is not available");
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         return false;
     }
@@ -1201,7 +1201,7 @@ void http_client::recv(zval *zframe, double timeout)
     if (!socket || !socket->is_connect())
     {
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION);
-        zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "connection is not available.");
+        zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "connection is not available");
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         return;
     }
@@ -1259,7 +1259,7 @@ bool http_client::recv_http_response(double timeout)
         }
         total_bytes += retval;
         parsed_n = swoole_http_parser_execute(&parser, &http_parser_settings, buffer->str, retval);
-        swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d.", parsed_n, retval, total_bytes, parser.state == s_start_res);
+        swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d", parsed_n, retval, total_bytes, parser.state == s_start_res);
         if (parser.state == s_start_res)
         {
             // websocket stick package
@@ -1304,16 +1304,16 @@ bool http_client::push(zval *zdata, zend_long opcode, bool fin)
 {
     if (!websocket)
     {
-        swoole_php_fatal_error(E_WARNING, "websocket handshake failed, cannot push data.");
+        swoole_php_fatal_error(E_WARNING, "websocket handshake failed, cannot push data");
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error = SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED);
-        zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "websocket handshake failed, cannot push data.");
+        zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "websocket handshake failed, cannot push data");
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
         return false;
     }
     if (!socket || !socket->is_connect())
     {
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION);
-        zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "connection is not available.");
+        zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "connection is not available");
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         return false;
     }
@@ -1409,7 +1409,7 @@ static sw_inline http_client * swoole_get_phc(zval *zobject)
     http_client *phc = swoole_http_client_coro_fetch_object(Z_OBJ_P(zobject))->phc;
     if (UNEXPECTED(!phc))
     {
-        swoole_php_fatal_error(E_ERROR, "you must call Http Client constructor first.");
+        swoole_php_fatal_error(E_ERROR, "you must call Http Client constructor first");
     }
     return phc;
 }
@@ -1478,14 +1478,14 @@ void swoole_http_client_coro_init(int module_number)
     http_client_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!http_client_buffer)
     {
-        swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
+        swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
     }
 
 #ifdef SW_HAVE_ZLIB
     swoole_zlib_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_zlib_buffer)
     {
-        swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
+        swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
     }
 #endif
 }
@@ -1511,7 +1511,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
     // check host
     if (host_len == 0)
     {
-        zend_throw_exception_ex(swoole_http_client_coro_exception_ce_ptr, EINVAL, "host is empty.");
+        zend_throw_exception_ex(swoole_http_client_coro_exception_ce_ptr, EINVAL, "host is empty");
         RETURN_FALSE;
     }
     // check ssl
@@ -1520,7 +1520,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
     {
         zend_throw_exception_ex(
             swoole_http_client_coro_exception_ce_ptr,
-            EINVAL, "Need to use `--enable-openssl` to support ssl when compiling swoole."
+            EINVAL, "Need to use `--enable-openssl` to support ssl when compiling swoole"
         );
         RETURN_FALSE;
     }
@@ -1653,22 +1653,22 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     struct stat file_stat;
     if (stat(path, &file_stat) < 0)
     {
-        swoole_php_sys_error(E_WARNING, "stat(%s) failed.", path);
+        swoole_php_sys_error(E_WARNING, "stat(%s) failed", path);
         RETURN_FALSE;
     }
     if (file_stat.st_size == 0)
     {
-        swoole_php_sys_error(E_WARNING, "cannot send empty file[%s].", filename);
+        swoole_php_sys_error(E_WARNING, "cannot send empty file[%s]", filename);
         RETURN_FALSE;
     }
     if (file_stat.st_size <= offset)
     {
-        swoole_php_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] exceeds the file size.", offset);
+        swoole_php_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] exceeds the file size", offset);
         RETURN_FALSE;
     }
     if (length > file_stat.st_size - offset)
     {
-        swoole_php_sys_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] exceeds the file size.", length);
+        swoole_php_sys_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] exceeds the file size", length);
         RETURN_FALSE;
     }
     if (length == 0)

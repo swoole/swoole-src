@@ -637,7 +637,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
 
             if (!certfile || !private_key)
             {
-                swoole_php_fatal_error(E_ERROR, "ssl cert/key file not found.");
+                swoole_php_fatal_error(E_ERROR, "ssl cert/key file not found");
                 return FAILURE;
             }
 
@@ -918,7 +918,7 @@ static php_stream *socket_create(
     if (UNEXPECTED(sock->socket == nullptr))
     {
         _failed:
-        swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "new Socket() failed");
         delete sock;
         return NULL;
     }
@@ -950,7 +950,7 @@ bool PHPCoroutine::enable_hook(int flags)
 {
     if (unlikely(enable_strict_mode))
     {
-        swoole_php_fatal_error(E_ERROR, "unable to enable the coroutine mode after you enable the strict mode.");
+        swoole_php_fatal_error(E_ERROR, "unable to enable the coroutine mode after you enable the strict mode");
         return false;
     }
     if (!hook_init)

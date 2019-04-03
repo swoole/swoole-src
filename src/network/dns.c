@@ -98,7 +98,7 @@ static int swDNSResolver_get_server()
 
     if ((fp = fopen(SW_DNS_SERVER_CONF, "rt")) == NULL)
     {
-        swWarn("fopen("SW_DNS_SERVER_CONF") failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("fopen("SW_DNS_SERVER_CONF") failed");
         return SW_ERR;
     }
 
@@ -237,7 +237,7 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     swDNS_lookup_request *request = swHashMap_find(request_map, key, key_len);
     if (request == NULL)
     {
-        swWarn("bad response, request_id=%d.", request_id);
+        swWarn("bad response, request_id=%d", request_id);
         return SW_OK;
     }
 
@@ -311,7 +311,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
     int len = strlen(domain);
     if (len >= sizeof(key))
     {
-        swWarn("domain name is too long.");
+        swWarn("domain name is too long");
         return SW_ERR;
     }
 
@@ -322,20 +322,20 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
     }
     else if (swHashMap_find(request_map, key, key_len))
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_DNSLOOKUP_DUPLICATE_REQUEST, "duplicate request.");
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_DNSLOOKUP_DUPLICATE_REQUEST, "duplicate request");
         return SW_ERR;
     }
 
     swDNS_lookup_request *request = sw_malloc(sizeof(swDNS_lookup_request));
     if (request == NULL)
     {
-        swWarn("malloc(%d) failed.", (int ) sizeof(swDNS_lookup_request));
+        swWarn("malloc(%d) failed", (int ) sizeof(swDNS_lookup_request));
         return SW_ERR;
     }
     request->domain = sw_strndup(domain, len + 1);
     if (request->domain == NULL)
     {
-        swWarn("strdup(%d) failed.", len + 1);
+        swWarn("strdup(%d) failed", len + 1);
         sw_free(request);
         return SW_ERR;
     }
@@ -344,7 +344,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
 
     if (domain_encode(request->domain, len, _domain_name) < 0)
     {
-        swWarn("invalid domain[%s].", domain);
+        swWarn("invalid domain[%s]", domain);
         sw_free(request->domain);
         sw_free(request);
         return SW_ERR;
@@ -364,7 +364,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         {
             sw_free(request->domain);
             sw_free(request);
-            swWarn("malloc failed.");
+            swWarn("malloc failed");
             return SW_ERR;
         }
         if (swClient_create(resolver_socket, SW_SOCK_UDP, 0) < 0)

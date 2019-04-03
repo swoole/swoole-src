@@ -59,13 +59,13 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
         swConnection *conn = swServer_connection_get(serv, task->info.fd);
         if (conn == NULL || conn->active == 0)
         {
-            swWarn("dispatch[type=%d] failed, connection#%d is not active.", task->info.type, task->info.fd);
+            swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, task->info.fd);
             return SW_ERR;
         }
         //server active close, discard data.
         if (conn->closed)
         {
-            swWarn("dispatch[type=%d] failed, connection#%d is closed by server.", task->info.type,
+            swWarn("dispatch[type=%d] failed, connection#%d is closed by server", task->info.type,
                     task->info.fd);
             return SW_OK;
         }
@@ -100,13 +100,13 @@ static int swFactory_notify(swFactory *factory, swDataHead *info)
     swConnection *conn = swServer_connection_get(serv, info->fd);
     if (conn == NULL || conn->active == 0)
     {
-        swWarn("dispatch[type=%d] failed, connection#%d is not active.", info->type, info->fd);
+        swWarn("dispatch[type=%d] failed, connection#%d is not active", info->type, info->fd);
         return SW_ERR;
     }
     //server active close, discard data.
     if (conn->closed)
     {
-        swWarn("dispatch[type=%d] failed, connection#%d is closed by server.", info->type, info->fd);
+        swWarn("dispatch[type=%d] failed, connection#%d is closed by server", info->type, info->fd);
         return SW_OK;
     }
     //converted fd to session_id
@@ -130,7 +130,7 @@ static int swFactory_end(swFactory *factory, int fd)
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (conn == NULL || conn->active == 0)
     {
-        //swWarn("can not close. Connection[%d] not found.", _send.info.fd);
+        //swWarn("can not close. Connection[%d] not found", _send.info.fd);
         return SW_ERR;
     }
     else if (conn->close_force)
@@ -139,7 +139,7 @@ static int swFactory_end(swFactory *factory, int fd)
     }
     else if (conn->closing)
     {
-        swWarn("The connection[%d] is closing.", fd);
+        swWarn("The connection[%d] is closing", fd);
         return SW_ERR;
     }
     else if (conn->closed)

@@ -912,7 +912,7 @@ static sw_inline swRedisClient* swoole_get_redis_client(zval *zobject)
     swRedisClient *redis = (swRedisClient *) swoole_get_object(zobject);
     if (UNEXPECTED(!redis))
     {
-        swoole_php_fatal_error(E_ERROR, "you must call Redis constructor first.");
+        swoole_php_fatal_error(E_ERROR, "you must call Redis constructor first");
     }
     return redis;
 }
@@ -992,7 +992,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
 
     if (host.len() == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "The host is empty.");
+        swoole_php_fatal_error(E_WARNING, "The host is empty");
         return false;
     }
 
@@ -1034,7 +1034,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     {
         if (port <= 0 || port > SW_CLIENT_MAX_PORT)
         {
-            swoole_php_fatal_error(E_WARNING, "The port " ZEND_LONG_FMT " is invalid.", port);
+            swoole_php_fatal_error(E_WARNING, "The port " ZEND_LONG_FMT " is invalid", port);
             return false;
         }
         context = redisConnectWithTimeout(host.val(), (int) port, tv);
@@ -1046,7 +1046,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     {
         zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errType"), SW_REDIS_ERR_ALLOC);
         zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errCode"), sw_redis_convert_err(SW_REDIS_ERR_ALLOC));
-        zend_update_property_string(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "cannot allocate redis context.");
+        zend_update_property_string(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "cannot allocate redis context");
         return false;
     }
     if (context->err)
@@ -1061,7 +1061,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     {
         zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errType"), SW_REDIS_ERR_OTHER);
         zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errCode"), sw_redis_convert_err(SW_REDIS_ERR_OTHER));
-        zend_update_property_string(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "Can not found the connection.");
+        zend_update_property_string(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "Can not found the connection");
         swoole_redis_coro_close(redis);
         return false;
     }
@@ -1119,7 +1119,7 @@ static sw_inline bool swoole_redis_coro_keep_liveness(swRedisClient *redis)
         }
         zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errType"), SW_REDIS_ERR_CLOSED);
         // Notice: do not update errCode
-        zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errMsg"), "connection is not available.");
+        zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errMsg"), "connection is not available");
         return false;
     }
     return true;
@@ -1976,7 +1976,7 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 
     if (redis)
     {
-        swoole_php_fatal_error(E_ERROR, "constructor can only be called once.");
+        swoole_php_fatal_error(E_ERROR, "constructor can only be called once");
         RETURN_FALSE;
     }
 
@@ -2121,7 +2121,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
     }
     if (UNEXPECTED(!redis->defer && !redis->session.subscribe))
     {
-        swoole_php_fatal_error(E_WARNING, "you should not use recv without defer or subscribe.");
+        swoole_php_fatal_error(E_WARNING, "you should not use recv without defer or subscribe");
         RETURN_FALSE;
     }
 

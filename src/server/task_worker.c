@@ -98,7 +98,7 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
     //write to file
     if (swoole_sync_writefile(tmp_fd, data, data_len) != data_len)
     {
-        swWarn("write to tmpfile failed.");
+        swWarn("write to tmpfile failed");
         return SW_ERR;
     }
 
@@ -148,11 +148,11 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
         SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
         if (SwooleG.main_reactor == NULL)
         {
-            swError("[TaskWorker] malloc for reactor failed.");
+            swError("[TaskWorker] malloc for reactor failed");
         }
         if (swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
         {
-            swError("[TaskWorker] create reactor failed.");
+            swError("[TaskWorker] create reactor failed");
         }
         SwooleG.enable_signalfd = 1;
     }
@@ -218,7 +218,7 @@ static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     }
     else
     {
-        swSysError("read(%d, %ld) failed.", event->fd, sizeof(task));
+        swSysWarn("read(%d, %ld) failed", event->fd, sizeof(task));
         return SW_ERR;
     }
 }
@@ -266,7 +266,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
     bzero(&buf.info, sizeof(buf.info));
     if (serv->task_worker_num < 1)
     {
-        swWarn("cannot use task/finish, because no set serv->task_worker_num.");
+        swWarn("cannot use task/finish, because no set serv->task_worker_num");
         return SW_ERR;
     }
     if (current_task == NULL)
@@ -275,12 +275,12 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
     }
     if (current_task->info.type == SW_EVENT_PIPE_MESSAGE)
     {
-        swWarn("task/finish is not supported in onPipeMessage callback.");
+        swWarn("task/finish is not supported in onPipeMessage callback");
         return SW_ERR;
     }
     if (swTask_type(current_task) & SW_TASK_NOREPLY)
     {
-        swWarn("task->finish() can only be used in the worker process.");
+        swWarn("task->finish() can only be used in the worker process");
         return SW_ERR;
     }
 
@@ -289,7 +289,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
 
     if (worker == NULL)
     {
-        swWarn("invalid worker_id[%d].", source_worker_id);
+        swWarn("invalid worker_id[%d]", source_worker_id);
         return SW_ERR;
     }
 
@@ -379,7 +379,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
                 //write to tmpfile
                 if (swoole_sync_writefile(fd, &buf, sizeof(buf.info) + buf.info.len) != sizeof(buf.info) + buf.info.len)
                 {
-                    swSysError("write(%s, %ld) failed.", _tmpfile, sizeof(buf.info) + buf.info.len);
+                    swSysWarn("write(%s, %ld) failed", _tmpfile, sizeof(buf.info) + buf.info.len);
                 }
                 sw_atomic_fetch_add(finish_count, 1);
                 close(fd);
@@ -426,7 +426,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
     }
     if (ret < 0)
     {
-        swWarn("TaskWorker: send result to worker failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("TaskWorker: send result to worker failed");
     }
     return ret;
 }

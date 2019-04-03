@@ -113,7 +113,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
                     swServer_disable_accept(reactor);
                     reactor->disable_accept = 1;
                 }
-                swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "accept() failed. Error: %s[%d]", strerror(errno), errno);
+                swSysWarn("accept() failed");
                 return SW_OK;
             }
         }
@@ -123,7 +123,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         //too many connection
         if (new_fd >= (int) serv->max_connection)
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "Too many connections [now: %d].", new_fd);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "Too many connections [now: %d]", new_fd);
             close(new_fd);
             return SW_OK;
         }
@@ -185,13 +185,13 @@ static int swServer_start_check(swServer *serv)
     //stream
     if (serv->have_stream_sock && serv->onReceive == NULL)
     {
-        swWarn("onReceive event callback must be set.");
+        swWarn("onReceive event callback must be set");
         return SW_ERR;
     }
     //dgram
     if (serv->have_dgram_sock && serv->onPacket == NULL)
     {
-        swWarn("onPacket event callback must be set.");
+        swWarn("onPacket event callback must be set");
         return SW_ERR;
     }
     //disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
@@ -212,7 +212,7 @@ static int swServer_start_check(swServer *serv)
     {
         if (serv->onTask == NULL)
         {
-            swWarn("onTask event callback must be set.");
+            swWarn("onTask event callback must be set");
             return SW_ERR;
         }
         if (serv->task_worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
@@ -254,12 +254,12 @@ static int swServer_start_check(swServer *serv)
     else if (SwooleG.max_sockets > 0 && serv->max_connection > SwooleG.max_sockets)
     {
         serv->max_connection = SwooleG.max_sockets;
-        swWarn("serv->max_connection is exceed the maximum value, it's reset to %u.", SwooleG.max_sockets);
+        swWarn("serv->max_connection is exceed the maximum value, it's reset to %u", SwooleG.max_sockets);
     }
     else if (serv->max_connection > SW_SESSION_LIST_SIZE)
     {
         serv->max_connection = SW_SESSION_LIST_SIZE;
-        swWarn("serv->max_connection is exceed the SW_SESSION_LIST_SIZE, it's reset to %u.", SW_SESSION_LIST_SIZE);
+        swWarn("serv->max_connection is exceed the SW_SESSION_LIST_SIZE, it's reset to %u", SW_SESSION_LIST_SIZE);
     }
     // package max length
     swListenPort *ls;
@@ -347,7 +347,7 @@ swString** swServer_create_worker_buffer(swServer *serv)
     swString **buffers = (swString **) sw_malloc(sizeof(swString*) * buffer_num);
     if (buffers == NULL)
     {
-        swError("malloc for worker buffer_input failed.");
+        swError("malloc for worker buffer_input failed");
         return NULL;
     }
 
@@ -356,7 +356,7 @@ swString** swServer_create_worker_buffer(swServer *serv)
         buffers[i] = swString_new(SW_BUFFER_SIZE_BIG);
         if (buffers[i] == NULL)
         {
-            swError("worker buffer_input init failed.");
+            swError("worker buffer_input init failed");
             return NULL;
         }
     }
@@ -386,7 +386,7 @@ int swServer_create_task_worker(swServer *serv)
     swProcessPool *pool = &serv->gs->task_workers;
     if (swProcessPool_create(pool, serv->task_worker_num, serv->task_max_request, key, ipc_mode) < 0)
     {
-        swWarn("[Master] create task_workers failed.");
+        swWarn("[Master] create task_workers failed");
         return SW_ERR;
     }
 
@@ -416,7 +416,7 @@ int swServer_worker_create(swServer *serv, swWorker *worker)
     worker->send_shm = sw_shm_malloc(serv->buffer_output_size);
     if (worker->send_shm == NULL)
     {
-        swWarn("malloc for worker->store failed.");
+        swWarn("malloc for worker->store failed");
         return SW_ERR;
     }
     swMutex_create(&worker->lock, 1);
@@ -449,7 +449,7 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
         if (sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set) < 0)
 #endif
         {
-            swSysError("sched_setaffinity() failed.");
+            swSysWarn("sched_setaffinity() failed");
         }
     }
 #endif
@@ -544,7 +544,7 @@ int swServer_start(swServer *serv)
     //cann't start 2 servers at the same time, please use process->exec.
     if (!sw_atomic_cmp_set(&serv->gs->start, 0, 1))
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_ONLY_START_ONE, "must only start one server.");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_ONLY_START_ONE, "must only start one server");
         return SW_ERR;
     }
     //init loggger
@@ -574,7 +574,7 @@ int swServer_start(swServer *serv)
             }
             else
             {
-                swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "open(/dev/null) failed. Error: %s[%d]", strerror(errno), errno);
+                swSysWarn("open(/dev/null) failed");
             }
         }
 
@@ -601,7 +601,7 @@ int swServer_start(swServer *serv)
     serv->workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
     if (serv->workers == NULL)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "gmalloc[server->workers] failed.");
+        swSysWarn("gmalloc[server->workers] failed");
         return SW_ERR;
     }
 
@@ -726,12 +726,12 @@ void swServer_init(swServer *serv)
     serv->stats = (swServerStats *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
     if (serv->stats == NULL)
     {
-        swError("[Master] Fatal Error: failed to allocate memory for swServer->stats.");
+        swError("[Master] Fatal Error: failed to allocate memory for swServer->stats");
     }
     serv->gs = (swServerGS *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
     if (serv->gs == NULL)
     {
-        swError("[Master] Fatal Error: failed to allocate memory for swServer->gs.");
+        swError("[Master] Fatal Error: failed to allocate memory for swServer->gs");
     }
 
     SwooleG.serv = serv;
@@ -771,7 +771,7 @@ int swServer_shutdown(swServer *serv)
 
 int swServer_free(swServer *serv)
 {
-    swTraceLog(SW_TRACE_SERVER, "release service.");
+    swTraceLog(SW_TRACE_SERVER, "release service");
 
     /**
      * shutdown workers
@@ -785,20 +785,20 @@ int swServer_free(swServer *serv)
      */
     if (serv->heartbeat_pidt)
     {
-        swTraceLog(SW_TRACE_SERVER, "terminate heartbeat thread.");
+        swTraceLog(SW_TRACE_SERVER, "terminate heartbeat thread");
         if (pthread_cancel(serv->heartbeat_pidt) < 0)
         {
-            swSysError("pthread_cancel(%ld) failed.", (ulong_t )serv->heartbeat_pidt);
+            swSysWarn("pthread_cancel(%ld) failed", (ulong_t )serv->heartbeat_pidt);
         }
         //wait thread
         if (pthread_join(serv->heartbeat_pidt, NULL) < 0)
         {
-            swSysError("pthread_join(%ld) failed.", (ulong_t )serv->heartbeat_pidt);
+            swSysWarn("pthread_join(%ld) failed", (ulong_t )serv->heartbeat_pidt);
         }
     }
     if (serv->factory_mode == SW_MODE_BASE)
     {
-        swTraceLog(SW_TRACE_SERVER, "terminate task workers.");
+        swTraceLog(SW_TRACE_SERVER, "terminate task workers");
         if (serv->task_worker_num > 0)
         {
             swProcessPool_shutdown(&serv->gs->task_workers);
@@ -806,7 +806,7 @@ int swServer_free(swServer *serv)
     }
     else if (!serv->single_thread)
     {
-        swTraceLog(SW_TRACE_SERVER, "terminate reactor threads.");
+        swTraceLog(SW_TRACE_SERVER, "terminate reactor threads");
         /**
          * Wait until all the end of the thread
          */
@@ -853,8 +853,7 @@ int swServer_udp_send(swServer *serv, swSendData *resp)
     int ret = swSocket_sendto_blocking(sock, resp->data, resp->info.len, 0, (struct sockaddr*) &addr_in, sizeof(addr_in));
     if (ret < 0)
     {
-        swWarn("sendto to client[%s:%d] failed. Error: %s [%d]", inet_ntoa(addr_in.sin_addr), resp->info.from_id,
-                strerror(errno), errno);
+        swSysWarn("sendto to client[%s:%d] failed", inet_ntoa(addr_in.sin_addr), resp->info.from_id);
     }
     return ret;
 }
@@ -920,7 +919,7 @@ static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_
 
     if (unlikely(swIsMaster()))
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't send data to the connections in master process.");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't send data to the connections in master process");
         return SW_ERR;
     }
 
@@ -953,11 +952,11 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     {
         if (_send->info.type == SW_EVENT_TCP)
         {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send %d byte failed, session#%d does not exist.", _send_length, session_id);
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send %d byte failed, session#%d does not exist", _send_length, session_id);
         }
         else
         {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send event$[%d] failed, session#%d does not exist.", _send->info.type, session_id);
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send event$[%d] failed, session#%d does not exist", _send->info.type, session_id);
         }
         return SW_ERR;
     }
@@ -984,7 +983,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
         }
         else
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow.", fd);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow", fd);
         }
         return SW_ERR;
     }
@@ -1111,7 +1110,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
         //connection is closed
         if (conn->removed)
         {
-            swWarn("connection#%d is closed by client.", fd);
+            swWarn("connection#%d is closed by client", fd);
             return SW_ERR;
         }
         //connection output buffer overflow
@@ -1123,7 +1122,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
             }
             else
             {
-                swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow.", fd);
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow", fd);
             }
             conn->overflow = 1;
             if (serv->onBufferEmpty && serv->onBufferFull == NULL)
@@ -1185,13 +1184,13 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename,
 {
     if (unlikely(session_id <= 0 || session_id > SW_MAX_SESSION_ID))
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%d].", session_id);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%d]", session_id);
         return SW_ERR;
     }
 
     if (unlikely(swIsMaster()))
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't send data to the connections in master process.");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't send data to the connections in master process");
         return SW_ERR;
     }
 
@@ -1202,7 +1201,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename,
     if (unlikely(filename_length > SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1))
     {
         swoole_error_log(
-            SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "sendfile name[%.8s...] length %u is exceed the max name len %u.",
+            SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "sendfile name[%.8s...] length %u is exceed the max name len %u",
             filename, filename_length, (uint32_t) (SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1)
         );
         return SW_ERR;
@@ -1214,12 +1213,12 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename,
     struct stat file_stat;
     if (stat(filename, &file_stat) < 0)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "stat(%s) failed.", filename);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "stat(%s) failed", filename);
         return SW_ERR;
     }
     if (file_stat.st_size <= offset)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty.", (long) offset);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty", (long) offset);
         return SW_ERR;
     }
     req->offset = offset;
@@ -1243,7 +1242,7 @@ static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uin
     swConnection *conn = swServer_connection_verify(serv, session_id);
     if (!conn)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "send %d byte failed, because session#%d is closed.", length, session_id);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "send %d byte failed, because session#%d is closed", length, session_id);
         return SW_ERR;
     }
     return swSocket_write_blocking(conn->fd, data, length);
@@ -1270,8 +1269,7 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset)
 {
     if (unlikely(swIsMaster()))
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER,
-                "can't close the connections in master process.");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't close the connections in master process");
         return SW_ERR;
     }
     swConnection *conn = swServer_connection_verify_no_ssl(serv, session_id);
@@ -1286,7 +1284,7 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset)
     }
     //server is initiative to close the connection
     conn->close_actively = 1;
-    swTraceLog(SW_TRACE_CLOSE, "session_id=%d, fd=%d.", session_id, conn->session_id);
+    swTraceLog(SW_TRACE_CLOSE, "session_id=%d, fd=%d", session_id, conn->session_id);
 
     int ret;
     if (!swIsWorker())
@@ -1333,7 +1331,7 @@ void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
     {
         serv->scheduler_warning = 0;
         serv->warning_time = serv->gs->now;
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_NO_IDLE_WORKER, "No idle worker is available.");
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_NO_IDLE_WORKER, "No idle worker is available");
     }
 
     if (serv->hooks[SW_SERVER_HOOK_MASTER_TIMER])
@@ -1367,7 +1365,7 @@ static void swServer_master_update_time(swServer *serv)
     time_t now = time(NULL);
     if (now < 0)
     {
-        swWarn("get time failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("get time failed");
     }
     else
     {
@@ -1409,7 +1407,7 @@ int swServer_add_systemd_socket(swServer *serv)
     int pid = atoi(e);
     if (getpid() != pid)
     {
-        swWarn("invalid LISTEN_PID.");
+        swWarn("invalid LISTEN_PID");
         return 0;
     }
 
@@ -1421,12 +1419,12 @@ int swServer_add_systemd_socket(swServer *serv)
     int n = atoi(e);
     if (n < 1)
     {
-        swWarn("invalid LISTEN_FDS.");
+        swWarn("invalid LISTEN_FDS");
         return 0;
     }
     else if (n >= SW_MAX_LISTEN_PORT)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "LISTEN_FDS is too big.");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "LISTEN_FDS is too big");
         return 0;
     }
 
@@ -1442,26 +1440,26 @@ int swServer_add_systemd_socket(swServer *serv)
         swListenPort *ls = (swListenPort *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenPort));
         if (ls == NULL)
         {
-            swWarn("alloc failed.");
+            swWarn("alloc failed");
             return count;
         }
         //get socket type
         optlen = sizeof(val);
         if (getsockopt(sock, SOL_SOCKET, SO_TYPE, &val, &optlen) < 0)
         {
-            swWarn("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed.", sock);
+            swWarn("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
             return count;
         }
         sock_type = val;
         //get socket family
 #ifndef SO_DOMAIN
-        swWarn("no getsockopt(SO_DOMAIN) supports.");
+        swWarn("no getsockopt(SO_DOMAIN) supports");
         return count;
 #else
         optlen = sizeof(val);
         if (getsockopt(sock, SOL_SOCKET, SO_DOMAIN, &val, &optlen) < 0)
         {
-            swWarn("getsockopt(%d, SOL_SOCKET, SO_DOMAIN) failed.", sock);
+            swWarn("getsockopt(%d, SOL_SOCKET, SO_DOMAIN) failed", sock);
             return count;
         }
 #endif
@@ -1470,7 +1468,7 @@ int swServer_add_systemd_socket(swServer *serv)
         address.len = sizeof(address.addr);
         if (getsockname(sock, (struct sockaddr*) &address.addr, &address.len) < 0)
         {
-            swWarn("getsockname(%d) failed.", sock);
+            swWarn("getsockname(%d) failed", sock);
             return count;
         }
 
@@ -1514,7 +1512,7 @@ int swServer_add_systemd_socket(swServer *serv)
             strncpy(ls->host, address.addr.un.sun_path, SW_HOST_MAXSIZE);
             break;
         default:
-            swWarn("Unknown socket type[%d].", sock_type);
+            swWarn("Unknown socket type[%d]", sock_type);
             break;
         }
 
@@ -1607,7 +1605,7 @@ swListenPort* swServer_add_port(swServer *serv, int type, const char *host, int 
     int sock = swSocket_create(ls->type);
     if (sock < 0)
     {
-        swSysError("create socket failed.");
+        swSysWarn("create socket failed");
         return NULL;
     }
     //bind address and port
@@ -1663,7 +1661,7 @@ int swServer_get_socket(swServer *serv, int port)
 
 static void swServer_signal_handler(int sig)
 {
-    swTraceLog(SW_TRACE_SERVER, "signal[%d] triggered.", sig);
+    swTraceLog(SW_TRACE_SERVER, "signal[%d] triggered", sig);
 
     swServer *serv = SwooleG.serv;
     int status;
@@ -1679,7 +1677,7 @@ static void swServer_signal_handler(int sig)
         {
             SwooleG.running = 0;
         }
-        swInfo("Server is shutdown now.");
+        swInfo("Server is shutdown now");
         break;
     case SIGALRM:
         swSystemTimer_signal_handler(SIGALRM);
@@ -1696,7 +1694,7 @@ static void swServer_signal_handler(int sig)
         pid = waitpid(-1, &status, WNOHANG);
         if (pid > 0 && pid == serv->gs->manager_pid)
         {
-            swWarn("Fatal Error: manager process exit. status=%d, signal=[%s].", WEXITSTATUS(status), swSignal_str(WTERMSIG(status)));
+            swWarn("Fatal Error: manager process exit. status=%d, signal=[%s]", WEXITSTATUS(status), swSignal_str(WTERMSIG(status)));
         }
         break;
         /**
@@ -1771,7 +1769,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
         int sockopt = 1;
         if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) != 0)
         {
-            swSysError("setsockopt(TCP_NODELAY) failed.");
+            swSysWarn("setsockopt(TCP_NODELAY) failed");
         }
         connection->tcp_nodelay = 1;
     }
@@ -1781,7 +1779,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     {
         if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &ls->kernel_socket_recv_buffer_size, sizeof(int)) != 0)
         {
-            swSysError("setsockopt(SO_RCVBUF, %d) failed.", ls->kernel_socket_recv_buffer_size);
+            swSysWarn("setsockopt(SO_RCVBUF, %d) failed", ls->kernel_socket_recv_buffer_size);
         }
     }
 
@@ -1790,7 +1788,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     {
         if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &ls->kernel_socket_send_buffer_size, sizeof(int)) != 0)
         {
-            swSysError("setsockopt(SO_SNDBUF, %d) failed.", ls->kernel_socket_send_buffer_size);
+            swSysWarn("setsockopt(SO_SNDBUF, %d) failed", ls->kernel_socket_send_buffer_size);
         }
     }
 

@@ -56,11 +56,11 @@ static void trace_request(swWorker *worker)
     int ret = trace_dump(worker, slowlog);
     if (ret < 0)
     {
-        swSysError("failed to trace worker %d, error lint =%d.", worker->pid, -ret);
+        swSysWarn("failed to trace worker %d, error lint =%d", worker->pid, -ret);
     }
     if (0 > ptrace(PTRACE_DETACH, traced_pid, (void *) 1, 0))
     {
-        swSysError("failed to ptrace(DETACH) worker %d", worker->pid);
+        swSysWarn("failed to ptrace(DETACH) worker %d", worker->pid);
     }
     fflush(slowlog);
 }
@@ -76,14 +76,14 @@ void php_swoole_trace_check(void *arg)
     for (; i < count; i++)
     {
         worker = swServer_get_worker(serv, i);
-        swTraceLog(SW_TRACE_SERVER, "trace request, worker#%d, pid=%d. request_time=%ld.", i, worker->pid, worker->request_time);
+        swTraceLog(SW_TRACE_SERVER, "trace request, worker#%d, pid=%d. request_time=%ld", i, worker->pid, worker->request_time);
         if (!(worker->request_time > 0 && worker->traced == 0 && serv->gs->now - worker->request_time >= timeout))
         {
             continue;
         }
         if (ptrace(PTRACE_ATTACH, worker->pid, 0, 0) < 0)
         {
-            swSysError("failed to ptrace(ATTACH, %d) worker#%d,", worker->pid, worker->id);
+            swSysWarn("failed to ptrace(ATTACH, %d) worker#%d,", worker->pid, worker->id);
             continue;
         }
         worker->tracer = trace_request;

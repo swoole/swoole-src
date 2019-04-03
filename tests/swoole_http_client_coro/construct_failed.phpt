@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 $http = new Co\Http\Client('');
 ?>
 --EXPECTF--
-Fatal error: Uncaught Swoole\Coroutine\Http\Client\Exception: host is empty. in %s/tests/swoole_http_client_coro/construct_failed.php:3
+Fatal error: Uncaught Swoole\Coroutine\Http\Client\Exception: host is empty in %s/tests/swoole_http_client_coro/construct_failed.php:3
 Stack trace:
 #0 %s/tests/swoole_http_client_coro/construct_failed.php(3): Swoole\Coroutine\Http\Client->__construct('')
 #1 {main}
