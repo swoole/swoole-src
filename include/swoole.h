@@ -506,6 +506,8 @@ enum swTraceType
      */
     SW_TRACE_COROUTINE        = 1u << 24,
     SW_TRACE_CONTEXT          = 1u << 25,
+
+    SW_TRACE_ALL              = 0xffffffff
 };
 
 #ifdef SW_LOG_TRACE_OPEN

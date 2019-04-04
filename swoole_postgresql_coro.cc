@@ -147,9 +147,9 @@ void swoole_postgresql_coro_init(int module_number)
     le_result = zend_register_list_destructors_ex(_free_result, NULL, "pgsql result", module_number);
     zend_declare_property_null(swoole_postgresql_coro_ce, "error", 5, ZEND_ACC_PUBLIC);
 
-    REGISTER_LONG_CONSTANT("SW_PGSQL_ASSOC", PGSQL_ASSOC, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SW_PGSQL_NUM", PGSQL_NUM, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SW_PGSQL_BOTH", PGSQL_BOTH, CONST_CS | CONST_PERSISTENT);
+    SW_REGISTER_LONG_CONSTANT("SW_PGSQL_ASSOC", PGSQL_ASSOC);
+    SW_REGISTER_LONG_CONSTANT("SW_PGSQL_NUM", PGSQL_NUM);
+    SW_REGISTER_LONG_CONSTANT("SW_PGSQL_BOTH", PGSQL_BOTH);
 }
 
 static PHP_METHOD(swoole_postgresql_coro, __construct)

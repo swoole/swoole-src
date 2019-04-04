@@ -670,10 +670,12 @@ static sw_inline void sw_zval_free(zval *val)
 
 //----------------------------------Constant API------------------------------------
 
-#define SWOOLE_DEFINE(constant)              REGISTER_LONG_CONSTANT("SWOOLE_"#constant, SW_##constant, CONST_CS | CONST_PERSISTENT)
-#define SWOOLE_DEFINE_NS(constant)           REGISTER_LONG_CONSTANT("SWOOLE_"#constant, constant, CONST_CS | CONST_PERSISTENT)
-#define SWOOLE_RAW_DEFINE(constant)          REGISTER_LONG_CONSTANT(#constant, constant, CONST_CS | CONST_PERSISTENT)
-#define SWOOLE_RAW_DEFINE_EX(name, value)    REGISTER_LONG_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
+#define SW_REGISTER_NULL_CONSTANT(name)           REGISTER_NULL_CONSTANT(name, CONST_CS | CONST_PERSISTENT)
+#define SW_REGISTER_BOOL_CONSTANT(name, value)    REGISTER_BOOL_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
+#define SW_REGISTER_LONG_CONSTANT(name, value)    REGISTER_LONG_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
+#define SW_REGISTER_DOUBLE_CONSTANT(name, value)  REGISTER_DOUBLE_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
+#define SW_REGISTER_STRING_CONSTANT(name, value)  REGISTER_STRING_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
+#define SW_REGISTER_STRINGL_CONSTANT(name, value) REGISTER_STRINGL_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
 
 //----------------------------------String API-----------------------------------
 

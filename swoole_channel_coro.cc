@@ -134,9 +134,9 @@ void swoole_channel_coro_init(int module_number)
     zend_declare_property_long(swoole_channel_coro_ce, ZEND_STRL("capacity"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_channel_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
 
-    SWOOLE_DEFINE(CHANNEL_OK);
-    SWOOLE_DEFINE(CHANNEL_TIMEOUT);
-    SWOOLE_DEFINE(CHANNEL_CLOSED);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CHANNEL_OK", SW_CHANNEL_OK);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CHANNEL_TIMEOUT", SW_CHANNEL_TIMEOUT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CHANNEL_CLOSED", SW_CHANNEL_CLOSED);
 }
 
 static PHP_METHOD(swoole_channel_coro, __construct)
