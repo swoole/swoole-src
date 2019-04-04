@@ -199,9 +199,9 @@ typedef unsigned long ulong_t;
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
 
 /*-----------------------------------Memory------------------------------------*/
-
+#define SW_DEFAULT_ALIGNMENT   sizeof(unsigned long)
 #define SW_MEM_ALIGNED_SIZE(size) \
-        SW_MEM_ALIGNED_SIZE_EX(size, 8)
+        SW_MEM_ALIGNED_SIZE_EX(size, SW_DEFAULT_ALIGNMENT)
 #define SW_MEM_ALIGNED_SIZE_EX(size, alignment) \
         (((size) + ((alignment) - 1LL)) & ~((alignment) - 1LL))
 
