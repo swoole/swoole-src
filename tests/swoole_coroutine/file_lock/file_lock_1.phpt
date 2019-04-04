@@ -11,7 +11,7 @@ $startTime = microtime(true);
 go(function () use ($startTime) {
     $f = fopen('test.tmp', 'w+');
     flock($f, LOCK_EX);
-    co::sleep(0.01);
+    co::sleep(0.1);
     flock($f, LOCK_UN);
     flock($f, LOCK_SH);
     flock($f, LOCK_UN);

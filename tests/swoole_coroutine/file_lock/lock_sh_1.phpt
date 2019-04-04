@@ -10,21 +10,29 @@ require __DIR__ . '/../../include/bootstrap.php';
 $startTime = microtime(true);
 go(function () {
     $f = fopen('test.tmp', 'w+');
-    flock($f, LOCK_EX);
+    $ret = flock($f, LOCK_EX);
+    assert($ret);
     co::sleep(0.3);
-    flock($f, LOCK_UN);
+    $ret = flock($f, LOCK_UN);
+    assert($ret);
 });
-go(function () use ($startTime) {
-    $f = fopen('test.tmp', 'w+');
-    flock($f, LOCK_SH);
-    assert((microtime(true) - $startTime) < 1);
-    flock($f, LOCK_UN);
-});
+
 go(function () {
     $f = fopen('test.tmp', 'w+');
-    flock($f, LOCK_SH);
+    $ret = flock($f, LOCK_SH);
+    assert($ret);
     co::sleep(2);
-    flock($f, LOCK_UN);
+    $ret = flock($f, LOCK_UN);
+    assert($ret);
+});
+
+go(function () use ($startTime) {
+    $f = fopen('test.tmp', 'w+');
+    $ret = flock($f, LOCK_SH);
+    assert($ret);
+    assert((microtime(true) - $startTime) < 1);
+    $ret = flock($f, LOCK_UN);
+    assert($ret);
 });
 
 ?>
