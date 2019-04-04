@@ -73,7 +73,6 @@ void sw_shm_free(void *ptr)
 
 void* sw_shm_realloc(void *ptr, size_t new_size)
 {
-    new_size = SW_MEM_ALIGNED_SIZE(new_size);
     swShareMemory *object = (swShareMemory *) ((char *) ptr - sizeof(swShareMemory));
     void *new_ptr;
     new_ptr = sw_shm_malloc(new_size);
