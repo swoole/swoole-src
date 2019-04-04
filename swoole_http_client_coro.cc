@@ -1434,11 +1434,11 @@ static zend_object *swoole_http_client_coro_create_object(zend_class_entry *ce)
 
 void swoole_http_client_coro_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_client_coro, "Swoole\\Coroutine\\Http\\Client", NULL, "Co\\Http\\Client", swoole_http_client_coro_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_http_client_coro, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_client_coro, zend_class_unset_property_deny);
-    SWOOLE_SET_CLASS_CUSTOM_OBJECT(swoole_http_client_coro, swoole_http_client_coro_create_object, swoole_http_client_coro_free_object, http_client_coro, std);
+    SW_INIT_CLASS_ENTRY(swoole_http_client_coro, "Swoole\\Coroutine\\Http\\Client", NULL, "Co\\Http\\Client", swoole_http_client_coro_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_http_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_http_client_coro, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_client_coro, zend_class_unset_property_deny);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_client_coro, swoole_http_client_coro_create_object, swoole_http_client_coro_free_object, http_client_coro, std);
 
     // client status
     zend_declare_property_long(swoole_http_client_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
@@ -1467,7 +1467,7 @@ void swoole_http_client_coro_init(int module_number)
     zend_declare_property_null(swoole_http_client_coro_ce, ZEND_STRL("cookies"), ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_http_client_coro_ce, ZEND_STRL("body"), "", ZEND_ACC_PUBLIC);
 
-    SWOOLE_INIT_CLASS_ENTRY_EX(swoole_http_client_coro_exception, "Swoole\\Coroutine\\Http\\Client\\Exception", NULL, "Co\\Http\\Client\\Exception", NULL, swoole_exception);
+    SW_INIT_CLASS_ENTRY_EX(swoole_http_client_coro_exception, "Swoole\\Coroutine\\Http\\Client\\Exception", NULL, "Co\\Http\\Client\\Exception", NULL, swoole_exception);
 
     SWOOLE_DEFINE_NS(HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
     SWOOLE_DEFINE_NS(HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);

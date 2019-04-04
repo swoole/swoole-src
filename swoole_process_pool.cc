@@ -79,10 +79,10 @@ static zval *current_process = NULL;
 
 void swoole_process_pool_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_process_pool, "Swoole\\Process\\Pool", "swoole_process_pool", NULL, swoole_process_pool_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_process_pool, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_process_pool, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process_pool, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY(swoole_process_pool, "Swoole\\Process\\Pool", "swoole_process_pool", NULL, swoole_process_pool_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_process_pool, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_process_pool, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process_pool, zend_class_unset_property_deny);
 
     zend_declare_property_long(swoole_process_pool_ce, ZEND_STRL("master_pid"), -1, ZEND_ACC_PUBLIC);
 }
@@ -478,7 +478,7 @@ static PHP_METHOD(swoole_process_pool, shutdown)
 
 static PHP_METHOD(swoole_process_pool, __destruct)
 {
-    SW_PREVENT_USER_DESTRUCT;
+    SW_PREVENT_USER_DESTRUCT();
 
     swProcessPool *pool = (swProcessPool *) swoole_get_object(getThis());
     efree(pool->ptr);

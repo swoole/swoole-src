@@ -57,10 +57,10 @@ static const zend_function_entry swoole_lock_methods[] =
 
 void swoole_lock_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_lock, "Swoole\\Lock", "swoole_lock", NULL, swoole_lock_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_lock, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_lock, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_lock, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY(swoole_lock, "Swoole\\Lock", "swoole_lock", NULL, swoole_lock_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_lock, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_lock, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_lock, zend_class_unset_property_deny);
 
     zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("FILELOCK"), SW_FILELOCK);
     zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("MUTEX"), SW_MUTEX);
@@ -150,7 +150,7 @@ static PHP_METHOD(swoole_lock, __construct)
 
 static PHP_METHOD(swoole_lock, __destruct)
 {
-    SW_PREVENT_USER_DESTRUCT;
+    SW_PREVENT_USER_DESTRUCT();
 
     swLock *lock = swoole_get_object(getThis());
     if (lock)

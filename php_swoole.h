@@ -717,62 +717,70 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 
 /* PHP 7 class declaration macros */
 
-#define SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_ce) \
-    do { \
-        zend_class_entry _##module##_ce; \
-        INIT_CLASS_ENTRY(_##module##_ce, namespaceName, methods); \
-        module##_ce = zend_register_internal_class_ex(&_##module##_ce, parent_ce); \
-        if (snake_name) { \
-            SWOOLE_CLASS_ALIAS(snake_name, module); \
-        } \
-        if (shortName && SWOOLE_G(use_shortname)) { \
-            SWOOLE_CLASS_ALIAS(shortName, module); \
-        } \
-    } while (0);
+#define SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_ce) do { \
+    zend_class_entry _##module##_ce; \
+    INIT_CLASS_ENTRY(_##module##_ce, namespaceName, methods); \
+    module##_ce = zend_register_internal_class_ex(&_##module##_ce, parent_ce); \
+    SW_CLASS_ALIAS(snake_name, module); \
+    SW_CLASS_ALIAS_SHORT_NAME(shortName, module); \
+} while (0)
 
-#define SWOOLE_INIT_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
-    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, NULL); \
-    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+#define SW_INIT_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, NULL); \
+    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers))
 
-#define SWOOLE_INIT_CLASS_ENTRY_EX(module, namespaceName, snake_name, shortName, methods, parent_module) \
-    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce); \
-    memcpy(&module##_handlers, &parent_module##_handlers, sizeof(zend_object_handlers));
+#define SW_INIT_CLASS_ENTRY_EX(module, namespaceName, snake_name, shortName, methods, parent_module) \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce); \
+    memcpy(&module##_handlers, &parent_module##_handlers, sizeof(zend_object_handlers))
 
-#define SWOOLE_INIT_EXCEPTION_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
-    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, zend_exception_get_default()); \
+#define SW_INIT_EXCEPTION_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, zend_exception_get_default()); \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers)); \
-    SWOOLE_SET_CLASS_CLONEABLE(module, zend_class_clone_deny);
+    SW_SET_CLASS_CLONEABLE(module, zend_class_clone_deny)
 
-#define SWOOLE_CLASS_ALIAS(name, module) \
-    sw_zend_register_class_alias(ZEND_STRL(name), module##_ce);
+#define SW_CLASS_ALIAS(name, module) do { \
+    if (name) { \
+        sw_zend_register_class_alias(ZEND_STRL(name), module##_ce); \
+    } \
+} while (0)
 
-#define SWOOLE_SET_CLASS_SERIALIZABLE(module, _serialize, _unserialize) \
+#define SW_CLASS_ALIAS_SHORT_NAME(shortName, module) do { \
+    if (SWOOLE_G(use_shortname)) { \
+        SW_CLASS_ALIAS(shortName, module); \
+    } \
+} while (0)
+
+#define SW_SET_CLASS_SERIALIZABLE(module, _serialize, _unserialize) \
     module##_ce->serialize = _serialize; \
-    module##_ce->unserialize = _unserialize;
+    module##_ce->unserialize = _unserialize
 
 #define zend_class_clone_deny NULL
-#define SWOOLE_SET_CLASS_CLONEABLE(module, _clone_obj) \
-    module##_handlers.clone_obj = _clone_obj;
+#define SW_SET_CLASS_CLONEABLE(module, _clone_obj) \
+    module##_handlers.clone_obj = _clone_obj
 
 #define zend_class_unset_property_deny php_swoole_class_unset_property_deny
-#define SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(module, _unset_property) \
-    module##_handlers.unset_property = _unset_property;
+#define SW_SET_CLASS_UNSET_PROPERTY_HANDLER(module, _unset_property) \
+    module##_handlers.unset_property = _unset_property
 
-#define SWOOLE_SET_CLASS_CREATE(module, _create_object) \
-    module##_ce->create_object = _create_object;
+#define SW_SET_CLASS_CREATE(module, _create_object) \
+    module##_ce->create_object = _create_object
 
-#define SWOOLE_SET_CLASS_FREE(module, _free_obj) \
-    module##_handlers.free_obj = _free_obj;
+#define SW_SET_CLASS_FREE(module, _free_obj) \
+    module##_handlers.free_obj = _free_obj
 
-#define SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj) \
-    SWOOLE_SET_CLASS_CREATE(module, _create_object); \
-    SWOOLE_SET_CLASS_FREE(module, _free_obj);
+#define SW_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj) \
+    SW_SET_CLASS_CREATE(module, _create_object); \
+    SW_SET_CLASS_FREE(module, _free_obj)
 
-#define SWOOLE_SET_CLASS_CUSTOM_OBJECT(module, _create_object, _free_obj, _struct, _std) \
-    SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj); \
-    module##_handlers.offset = XtOffsetOf(_struct, _std);
+#define SW_SET_CLASS_CUSTOM_OBJECT(module, _create_object, _free_obj, _struct, _std) \
+    SW_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj); \
+    module##_handlers.offset = XtOffsetOf(_struct, _std)
 
-#define SW_PREVENT_USER_DESTRUCT if(unlikely(!(GC_FLAGS(Z_OBJ_P(getThis())) & IS_OBJ_DESTRUCTOR_CALLED))){RETURN_NULL()}
+#define SW_PREVENT_USER_DESTRUCT()  do { \
+    if (unlikely(!(GC_FLAGS(Z_OBJ_P(getThis())) & IS_OBJ_DESTRUCTOR_CALLED))) { \
+        RETURN_NULL(); \
+    } \
+} while (0)
 
 static sw_inline int sw_zend_register_class_alias(const char *name, size_t name_len, zend_class_entry *ce)
 {

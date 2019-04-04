@@ -78,10 +78,10 @@ static zend_object_handlers swoole_buffer_handlers;
 
 void swoole_buffer_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_buffer, "Swoole\\Buffer", "swoole_buffer", NULL, swoole_buffer_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_buffer, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_buffer, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_buffer, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY(swoole_buffer, "Swoole\\Buffer", "swoole_buffer", NULL, swoole_buffer_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_buffer, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_buffer, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_buffer, zend_class_unset_property_deny);
 
     zend_declare_property_long(swoole_buffer_ce, ZEND_STRL("capacity"), SW_STRING_BUFFER_DEFAULT, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_buffer_ce, ZEND_STRL("length"), 0, ZEND_ACC_PUBLIC);
@@ -130,7 +130,7 @@ static PHP_METHOD(swoole_buffer, __construct)
 
 static PHP_METHOD(swoole_buffer, __destruct)
 {
-    SW_PREVENT_USER_DESTRUCT;
+    SW_PREVENT_USER_DESTRUCT();
 
     swString *buffer = swoole_get_object(getThis());
     if (buffer)
