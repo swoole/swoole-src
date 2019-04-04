@@ -23,8 +23,7 @@
 using namespace std;
 using namespace swoole;
 
-static zend_class_entry swoole_server_port_ce;
-zend_class_entry *swoole_server_port_ce_ptr;
+zend_class_entry *swoole_server_port_ce;
 static zend_object_handlers swoole_server_port_handlers;
 
 struct server_port_event {
@@ -86,29 +85,29 @@ const zend_function_entry swoole_server_port_methods[] =
 
 void swoole_server_port_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_server_port, "Swoole\\Server\\Port", "swoole_server_port", NULL, swoole_server_port_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_server_port, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_server_port, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_port, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY(swoole_server_port, "Swoole\\Server\\Port", "swoole_server_port", NULL, swoole_server_port_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_server_port, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_server_port, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_port, zend_class_unset_property_deny);
 
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onClose"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onPacket"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onBufferFull"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onRequest"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onHandShake"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onOpen"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onMessage"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onConnect"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onReceive"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onClose"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onPacket"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onBufferFull"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onRequest"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onHandShake"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onOpen"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onMessage"), ZEND_ACC_PRIVATE);
 
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_server_port_ce_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_server_port_ce_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_server_port_ce_ptr, ZEND_STRL("sock"), -1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_server_port_ce, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_server_port_ce, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_server_port_ce, ZEND_STRL("sock"), -1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
 
-    zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("connections"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("connections"), ZEND_ACC_PUBLIC);
 }
 
 static PHP_METHOD(swoole_server_port, __construct)
@@ -119,7 +118,7 @@ static PHP_METHOD(swoole_server_port, __construct)
 
 static PHP_METHOD(swoole_server_port, __destruct)
 {
-    SW_PREVENT_USER_DESTRUCT;
+    SW_PREVENT_USER_DESTRUCT();
 
     swoole_server_port_property *property = (swoole_server_port_property *) swoole_get_property(getThis(), 0);
 
@@ -517,7 +516,7 @@ static PHP_METHOD(swoole_server_port, set)
     }
 #endif
 
-    zval *zsetting = sw_zend_read_property_array(swoole_server_port_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
+    zval *zsetting = sw_zend_read_property_array(swoole_server_port_ce, getThis(), ZEND_STRL("setting"), 1);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
     property->zsetting = zsetting;
 }
@@ -577,8 +576,8 @@ static PHP_METHOD(swoole_server_port, on)
         memcpy(property_name + 2, callback_name[i], len);
         l_property_name = len + 2;
         property_name[l_property_name] = '\0';
-        zend_update_property(swoole_server_port_ce_ptr, getThis(), property_name, l_property_name, cb);
-        property->callbacks[i] = sw_zend_read_property(swoole_server_port_ce_ptr, getThis(), property_name, l_property_name, 0);
+        zend_update_property(swoole_server_port_ce, getThis(), property_name, l_property_name, cb);
+        property->callbacks[i] = sw_zend_read_property(swoole_server_port_ce, getThis(), property_name, l_property_name, 0);
         sw_copy_to_stack(property->callbacks[i], property->_callbacks[i]);
         if (property->caches[i])
         {
@@ -636,7 +635,7 @@ static PHP_METHOD(swoole_server_port, getCallback)
     if (i != server_port_event_map.end())
     {
         string property_name = "on" + i->second.name;
-        zval rv, *property = zend_read_property(swoole_server_port_ce_ptr, getThis(), property_name.c_str(), property_name.length(), 1, &rv);
+        zval rv, *property = zend_read_property(swoole_server_port_ce, getThis(), property_name.c_str(), property_name.length(), 1, &rv);
         if (!ZVAL_IS_NULL(property))
         {
             RETURN_ZVAL(property, 1, 0);

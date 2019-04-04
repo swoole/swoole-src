@@ -26,8 +26,7 @@ static PHP_METHOD(swoole_lock, trylock_read);
 static PHP_METHOD(swoole_lock, unlock);
 static PHP_METHOD(swoole_lock, destroy);
 
-static zend_class_entry swoole_lock_ce;
-static zend_class_entry *swoole_lock_ce_ptr;
+static zend_class_entry *swoole_lock_ce;
 static zend_object_handlers swoole_lock_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
@@ -58,30 +57,30 @@ static const zend_function_entry swoole_lock_methods[] =
 
 void swoole_lock_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_lock, "Swoole\\Lock", "swoole_lock", NULL, swoole_lock_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_lock, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_lock, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_lock, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY(swoole_lock, "Swoole\\Lock", "swoole_lock", NULL, swoole_lock_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_lock, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_lock, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_lock, zend_class_unset_property_deny);
 
-    zend_declare_class_constant_long(swoole_lock_ce_ptr, ZEND_STRL("FILELOCK"), SW_FILELOCK);
-    zend_declare_class_constant_long(swoole_lock_ce_ptr, ZEND_STRL("MUTEX"), SW_MUTEX);
-    zend_declare_class_constant_long(swoole_lock_ce_ptr, ZEND_STRL("SEM"), SW_SEM);
+    zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("FILELOCK"), SW_FILELOCK);
+    zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("MUTEX"), SW_MUTEX);
+    zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("SEM"), SW_SEM);
 #ifdef HAVE_RWLOCK
-    zend_declare_class_constant_long(swoole_lock_ce_ptr, ZEND_STRL("RWLOCK"), SW_RWLOCK);
+    zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("RWLOCK"), SW_RWLOCK);
 #endif
 #ifdef HAVE_SPINLOCK
-    zend_declare_class_constant_long(swoole_lock_ce_ptr, ZEND_STRL("SPINLOCK"), SW_SPINLOCK);
+    zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("SPINLOCK"), SW_SPINLOCK);
 #endif
-    zend_declare_property_long(swoole_lock_ce_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_lock_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
 
-    REGISTER_LONG_CONSTANT("SWOOLE_FILELOCK", SW_FILELOCK, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_MUTEX", SW_MUTEX, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_SEM", SW_SEM, CONST_CS | CONST_PERSISTENT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_FILELOCK", SW_FILELOCK);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MUTEX", SW_MUTEX);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_SEM", SW_SEM);
 #ifdef HAVE_RWLOCK
-    REGISTER_LONG_CONSTANT("SWOOLE_RWLOCK", SW_RWLOCK, CONST_CS | CONST_PERSISTENT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_RWLOCK", SW_RWLOCK);
 #endif
 #ifdef HAVE_SPINLOCK
-    REGISTER_LONG_CONSTANT("SWOOLE_SPINLOCK", SW_SPINLOCK, CONST_CS | CONST_PERSISTENT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_SPINLOCK", SW_SPINLOCK);
 #endif
 }
 
@@ -100,7 +99,7 @@ static PHP_METHOD(swoole_lock, __construct)
     swLock *lock = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swLock));
     if (lock == NULL)
     {
-        zend_throw_exception(swoole_exception_ce_ptr, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
+        zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
 
@@ -114,13 +113,13 @@ static PHP_METHOD(swoole_lock, __construct)
     case SW_FILELOCK:
         if (filelock_len == 0)
         {
-            zend_throw_exception(swoole_exception_ce_ptr, "filelock requires file name of the lock", SW_ERROR_INVALID_PARAMS);
+            zend_throw_exception(swoole_exception_ce, "filelock requires file name of the lock", SW_ERROR_INVALID_PARAMS);
             RETURN_FALSE;
         }
         int fd;
         if ((fd = open(filelock, O_RDWR | O_CREAT, 0666)) < 0)
         {
-            zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "open file[%s] failed. Error: %s [%d]", filelock, strerror(errno), errno);
+            zend_throw_exception_ex(swoole_exception_ce, errno, "open file[%s] failed. Error: %s [%d]", filelock, strerror(errno), errno);
             RETURN_FALSE;
         }
         ret = swFileLock_create(lock, fd);
@@ -142,7 +141,7 @@ static PHP_METHOD(swoole_lock, __construct)
     }
     if (ret < 0)
     {
-        zend_throw_exception(swoole_exception_ce_ptr, "failed to create lock", errno);
+        zend_throw_exception(swoole_exception_ce, "failed to create lock", errno);
         RETURN_FALSE;
     }
     swoole_set_object(getThis(), lock);
@@ -151,7 +150,7 @@ static PHP_METHOD(swoole_lock, __construct)
 
 static PHP_METHOD(swoole_lock, __destruct)
 {
-    SW_PREVENT_USER_DESTRUCT;
+    SW_PREVENT_USER_DESTRUCT();
 
     swLock *lock = swoole_get_object(getThis());
     if (lock)
@@ -177,7 +176,7 @@ static PHP_METHOD(swoole_lock, lockwait)
     swLock *lock = swoole_get_object(getThis());
     if (lock->type != SW_MUTEX)
     {
-        zend_throw_exception(swoole_exception_ce_ptr, "only mutex supports lockwait", -2);
+        zend_throw_exception(swoole_exception_ce, "only mutex supports lockwait", -2);
         RETURN_FALSE;
     }
     SW_LOCK_CHECK_RETURN(swMutex_lockwait(lock, (int)timeout * 1000));

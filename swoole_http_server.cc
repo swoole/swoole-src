@@ -68,16 +68,13 @@ enum http_upload_errno
     HTTP_UPLOAD_ERR_CANT_WRITE,
 };
 
-static zend_class_entry swoole_http_server_ce;
-zend_class_entry *swoole_http_server_ce_ptr;
+zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
 
-static zend_class_entry swoole_http_response_ce;
-zend_class_entry *swoole_http_response_ce_ptr;
+zend_class_entry *swoole_http_response_ce;
 static zend_object_handlers swoole_http_response_handlers;
 
-static zend_class_entry swoole_http_request_ce;
-zend_class_entry *swoole_http_request_ce_ptr;
+zend_class_entry *swoole_http_request_ce;
 static zend_object_handlers swoole_http_request_handlers;
 
 static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length);
@@ -764,7 +761,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     p->fp = fp;
     add_assoc_string(multipart_header, "tmp_name", file_path);
 
-    zval *ztmpfiles = sw_zend_read_property(swoole_http_request_ce_ptr, zrequest_object, ZEND_STRL("tmpfiles"), 1);
+    zval *ztmpfiles = sw_zend_read_property(swoole_http_request_ce, zrequest_object, ZEND_STRL("tmpfiles"), 1);
     if (ztmpfiles == NULL || ZVAL_IS_NULL(ztmpfiles))
     {
         swoole_http_server_array_init(tmpfiles, request);
@@ -785,7 +782,7 @@ static int multipart_body_on_data_end(multipart_parser* p)
     zval *zrequest_object = ctx->request.zobject;
     if (ctx->current_form_data_name)
     {
-        zval *zpost = sw_zend_read_property(swoole_http_request_ce_ptr, zrequest_object, ZEND_STRL("post"), 1);
+        zval *zpost = sw_zend_read_property(swoole_http_request_ce, zrequest_object, ZEND_STRL("post"), 1);
         if (ZVAL_IS_NULL(zpost))
         {
             swoole_http_server_array_init(post, request);
@@ -1064,40 +1061,40 @@ void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
 
 void swoole_http_server_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY_EX(swoole_http_server, "Swoole\\Http\\Server", "swoole_http_server", NULL, NULL, swoole_server);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_server, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_http_server, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY_EX(swoole_http_server, "Swoole\\Http\\Server", "swoole_http_server", NULL, NULL, swoole_server);
+    SW_SET_CLASS_SERIALIZABLE(swoole_http_server, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_http_server, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server, zend_class_unset_property_deny);
 
-    zend_declare_property_null(swoole_http_server_ce_ptr, ZEND_STRL("onRequest"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_http_server_ce, ZEND_STRL("onRequest"), ZEND_ACC_PRIVATE);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", NULL, swoole_http_request_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_request, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_http_request, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_request, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", NULL, swoole_http_request_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_http_request, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_http_request, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_request, zend_class_unset_property_deny);
 
-    zend_declare_property_long(swoole_http_request_ce_ptr, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http_request_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
 #ifdef SW_USE_HTTP2
-    zend_declare_property_long(swoole_http_request_ce_ptr, ZEND_STRL("streamId"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http_request_ce, ZEND_STRL("streamId"), 0, ZEND_ACC_PUBLIC);
 #endif
-    zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("header"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("server"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("request"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("cookie"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("get"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("files"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("post"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("tmpfiles"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_request_ce, ZEND_STRL("header"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_request_ce, ZEND_STRL("server"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_request_ce, ZEND_STRL("request"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_request_ce, ZEND_STRL("cookie"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_request_ce, ZEND_STRL("get"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_request_ce, ZEND_STRL("files"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_request_ce, ZEND_STRL("post"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_request_ce, ZEND_STRL("tmpfiles"), ZEND_ACC_PUBLIC);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_response, "Swoole\\Http\\Response", "swoole_http_response", NULL, swoole_http_response_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_response, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_http_response, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_response, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY(swoole_http_response, "Swoole\\Http\\Response", "swoole_http_response", NULL, swoole_http_response_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_http_response, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_http_response, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_response, zend_class_unset_property_deny);
 
-    zend_declare_property_long(swoole_http_response_ce_ptr, ZEND_STRL("fd"), 0,  ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_response_ce_ptr, ZEND_STRL("header"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_response_ce_ptr, ZEND_STRL("cookie"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_response_ce_ptr, ZEND_STRL("trailer"), ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http_response_ce, ZEND_STRL("fd"), 0,  ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("header"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("cookie"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("trailer"), ZEND_ACC_PUBLIC);
 }
 
 http_context* swoole_http_context_new(int fd)
@@ -1113,18 +1110,18 @@ http_context* swoole_http_context_new(int fd)
     zval *zrequest_object;
     zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
-    object_init_ex(zrequest_object, swoole_http_request_ce_ptr);
+    object_init_ex(zrequest_object, swoole_http_request_ce);
     swoole_set_object(zrequest_object, ctx);
 
     zval *zresponse_object;
     zresponse_object = &ctx->response._zobject;
     ctx->response.zobject = zresponse_object;
-    object_init_ex(zresponse_object, swoole_http_response_ce_ptr);
+    object_init_ex(zresponse_object, swoole_http_response_ce);
     swoole_set_object(zresponse_object, ctx);
 
     //socket fd
-    zend_update_property_long(swoole_http_response_ce_ptr, zresponse_object, ZEND_STRL("fd"), fd);
-    zend_update_property_long(swoole_http_request_ce_ptr, zrequest_object, ZEND_STRL("fd"), fd);
+    zend_update_property_long(swoole_http_response_ce, zresponse_object, ZEND_STRL("fd"), fd);
+    zend_update_property_long(swoole_http_request_ce, zrequest_object, ZEND_STRL("fd"), fd);
 
 #if PHP_MEMORY_DEBUG
     php_vmstat.new_http_request ++;
@@ -1305,7 +1302,7 @@ void php_swoole_http_server_before_start(swServer *serv, zval *zobject)
     ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));
     zend_hash_init(SG(rfc1867_uploaded_files), 8, NULL, NULL, 0);
 
-    if (!instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce_ptr))
+    if (!instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce))
     {
         swoole_php_error(E_WARNING, "use %s class and open http related protocols may lead to some errors (inconsistent class type)", ZSTR_VAL(Z_OBJCE_P(zobject)->name));
     }
@@ -1352,9 +1349,9 @@ static PHP_METHOD(swoole_http_request, getData)
 
 static PHP_METHOD(swoole_http_request, __destruct)
 {
-    SW_PREVENT_USER_DESTRUCT;
+    SW_PREVENT_USER_DESTRUCT();
 
-    zval *ztmpfiles = sw_zend_read_property(swoole_http_request_ce_ptr, getThis(), ZEND_STRL("tmpfiles"), 1);
+    zval *ztmpfiles = sw_zend_read_property(swoole_http_request_ce, getThis(), ZEND_STRL("tmpfiles"), 1);
     //upload files
     if (ztmpfiles && Z_TYPE_P(ztmpfiles) == IS_ARRAY)
     {
@@ -1508,7 +1505,7 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
     /**
      * http header
      */
-    zval *zheader = sw_zend_read_property(swoole_http_response_ce_ptr, ctx->response.zobject, ZEND_STRL("header"), 1);
+    zval *zheader = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 1);
     uint32_t header_flag = 0x0;
     if (ZVAL_IS_ARRAY(zheader))
     {
@@ -1615,7 +1612,7 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
     }
 
     //http cookies
-    zval *zcookie = sw_zend_read_property(swoole_http_response_ce_ptr, ctx->response.zobject, ZEND_STRL("cookie"), 1);
+    zval *zcookie = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("cookie"), 1);
     if (ZVAL_IS_ARRAY(zcookie))
     {
         zval *value;
@@ -1817,17 +1814,17 @@ static PHP_METHOD(swoole_http_response, initHeader)
         RETURN_FALSE;
     }
     zval *zresponse_object = ctx->response.zobject;
-    zval *zheader = sw_zend_read_property(swoole_http_response_ce_ptr, zresponse_object, ZEND_STRL("header"), 1);
+    zval *zheader = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("header"), 1);
     if (!ZVAL_IS_ARRAY(zheader))
     {
         swoole_http_server_array_init(header, response);
     }
-    zval *zcookie = sw_zend_read_property(swoole_http_response_ce_ptr, zresponse_object, ZEND_STRL("cookie"), 1);
+    zval *zcookie = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("cookie"), 1);
     if (!ZVAL_IS_ARRAY(zcookie))
     {
         swoole_http_server_array_init(cookie, response);
     }
-    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce_ptr, zresponse_object, ZEND_STRL("trailer"), 1);
+    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("trailer"), 1);
     if (!ZVAL_IS_ARRAY(ztrailer))
     {
         swoole_http_server_array_init(trailer, response);
@@ -2084,7 +2081,7 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
         RETURN_FALSE;
     }
     zval *zresponse_object = ctx->response.zobject;
-    zval *zcookie = sw_zend_read_property(swoole_http_response_ce_ptr, zresponse_object, ZEND_STRL("cookie"), 1);
+    zval *zcookie = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("cookie"), 1);
     if (!ZVAL_IS_ARRAY(zcookie))
     {
         swoole_http_server_array_init(cookie, response);
@@ -2219,7 +2216,7 @@ static PHP_METHOD(swoole_http_response, header)
     }
 
     zval *zresponse_object = ctx->response.zobject;
-    zval *zheader = sw_zend_read_property(swoole_http_response_ce_ptr, zresponse_object, ZEND_STRL("header"), 1);
+    zval *zheader = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("header"), 1);
     if (!ZVAL_IS_ARRAY(zheader))
     {
         swoole_http_server_array_init(header, response);
@@ -2278,7 +2275,7 @@ static PHP_METHOD(swoole_http_response, trailer)
     }
 
     zval *zresponse_object = ctx->response.zobject;
-    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce_ptr, zresponse_object, ZEND_STRL("trailer"), 1);
+    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("trailer"), 1);
     if (!ZVAL_IS_ARRAY(ztrailer))
     {
         swoole_http_server_array_init(trailer, response);
@@ -2347,12 +2344,12 @@ static PHP_METHOD(swoole_http_response, create)
     bzero(ctx, sizeof(http_context));
     ctx->fd = (int) fd;
 
-    object_init_ex(return_value, swoole_http_response_ce_ptr);
+    object_init_ex(return_value, swoole_http_response_ce);
     swoole_set_object(return_value, ctx);
     ctx->response.zobject = return_value;
     sw_copy_to_stack(ctx->response.zobject, ctx->response._zobject);
 
-    zend_update_property_long(swoole_http_response_ce_ptr, return_value, ZEND_STRL("fd"), ctx->fd);
+    zend_update_property_long(swoole_http_response_ce, return_value, ZEND_STRL("fd"), ctx->fd);
 }
 
 static PHP_METHOD(swoole_http_response, redirect)
@@ -2395,7 +2392,7 @@ static PHP_METHOD(swoole_http_response, redirect)
 
 static PHP_METHOD(swoole_http_response, __destruct)
 {
-    SW_PREVENT_USER_DESTRUCT;
+    SW_PREVENT_USER_DESTRUCT();
 
     http_context *context = (http_context *) swoole_get_object(getThis());
     if (context)
@@ -2411,7 +2408,7 @@ static PHP_METHOD(swoole_http_response, __destruct)
             {
                 context->response.status = 500;
             }
-            sw_zend_call_method_with_0_params(getThis(), swoole_http_response_ce_ptr, NULL, "end", NULL);
+            sw_zend_call_method_with_0_params(getThis(), swoole_http_response_ce, NULL, "end", NULL);
             context = (http_context *) swoole_get_object(getThis());
             if (context)
             {

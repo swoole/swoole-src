@@ -49,8 +49,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_runtime_enableCoroutine, 0, 0, 0)
     ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
-static zend_class_entry swoole_runtime_ce;
-static zend_class_entry *swoole_runtime_ce_ptr;
+static zend_class_entry *swoole_runtime_ce;
 static zend_object_handlers swoole_runtime_handlers;
 
 static php_stream_ops socket_ops
@@ -130,22 +129,22 @@ static const zend_function_entry swoole_runtime_methods[] =
 
 void swoole_runtime_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_runtime, "Swoole\\Runtime", "swoole_runtime", NULL, swoole_runtime_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_runtime, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_runtime, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_runtime, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY(swoole_runtime, "Swoole\\Runtime", "swoole_runtime", NULL, swoole_runtime_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_runtime, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_runtime, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_runtime, zend_class_unset_property_deny);
 
-    SWOOLE_DEFINE(HOOK_TCP);
-    SWOOLE_DEFINE(HOOK_UDP);
-    SWOOLE_DEFINE(HOOK_UNIX);
-    SWOOLE_DEFINE(HOOK_UDG);
-    SWOOLE_DEFINE(HOOK_SSL);
-    SWOOLE_DEFINE(HOOK_TLS);
-    SWOOLE_DEFINE(HOOK_STREAM_SELECT);
-    SWOOLE_DEFINE(HOOK_FILE);
-    SWOOLE_DEFINE(HOOK_SLEEP);
-    SWOOLE_DEFINE(HOOK_BLOCKING_FUNCTION);
-    SWOOLE_DEFINE(HOOK_ALL);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_TCP", SW_HOOK_TCP);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_UDP", SW_HOOK_UDP);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_UNIX", SW_HOOK_UNIX);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_UDG", SW_HOOK_UDG);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SSL", SW_HOOK_SSL);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_TLS", SW_HOOK_TLS);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STREAM_SELECT", SW_HOOK_STREAM_SELECT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_FILE", SW_HOOK_FILE);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SLEEP", SW_HOOK_SLEEP);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_BLOCKING_FUNCTION", SW_HOOK_BLOCKING_FUNCTION);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_ALL", SW_HOOK_ALL);
 }
 
 static auto block_io_functions = {

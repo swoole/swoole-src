@@ -34,24 +34,9 @@ Server::Server(string _host, int _port, int _mode, int _type)
         serv.worker_num = 1;
     }
 
-//        serv.reactor_num = 4;
-//        serv.worker_num = 2;
     serv.factory_mode = (uint8_t) mode;
-    //serv.factory_mode = SW_MODE_SINGLE; //SW_MODE_PROCESS/SW_MODE_THREAD/SW_MODE_BASE/SW_MODE_SINGLE
-//        serv.max_connection = 10000;
-    //serv.open_cpu_affinity = 1;
-    //serv.open_tcp_nodelay = 1;
-    //serv.daemonize = 1;
-//	memcpy(serv.log_file, SW_STRL("/tmp/swoole.log")); //日志
-
     serv.dispatch_mode = 2;
-//	serv.open_tcp_keepalive = 1;
 
-#ifdef HAVE_OPENSSL
-    //serv.ssl_cert_file = "tests/ssl/ssl.crt";
-    //serv.ssl_key_file = "tests/ssl/ssl.key";
-    //serv.open_ssl = 1;
-#endif
     //create Server
     int ret = swServer_create(&serv);
     if (ret < 0)

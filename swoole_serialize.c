@@ -49,8 +49,7 @@ static const zend_function_entry swoole_serialize_methods[] = {
     PHP_FE_END
 };
 
-static zend_class_entry swoole_serialize_ce;
-zend_class_entry *swoole_serialize_ce_ptr;
+zend_class_entry *swoole_serialize_ce;
 static zend_object_handlers swoole_serialize_handlers;
 
 #define SWOOLE_SERI_EOF "EOF"
@@ -62,10 +61,10 @@ void *unseri_buffer_end = NULL;
 
 void swoole_serialize_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_serialize, "Swoole\\Serialize", "swoole_serialize", NULL, swoole_serialize_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_serialize, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_serialize, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_serialize, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY(swoole_serialize, "Swoole\\Serialize", "swoole_serialize", NULL, swoole_serialize_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_serialize, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_serialize, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_serialize, zend_class_unset_property_deny);
 
     //    ZVAL_STRING(&swSeriaG.sleep_fname, "__sleep");
     zend_string *zstr_sleep = zend_string_init("__sleep", sizeof ("__sleep") - 1, 1);
@@ -77,9 +76,9 @@ void swoole_serialize_init(int module_number)
     memset(&swSeriaG.filter, 0, sizeof (swSeriaG.filter));
     memset(&mini_filter, 0, sizeof (mini_filter));
 
-    REGISTER_LONG_CONSTANT("SWOOLE_FAST_PACK", SW_FAST_PACK, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("UNSERIALIZE_OBJECT_TO_ARRAY", UNSERIALIZE_OBJECT_TO_ARRAY, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("UNSERIALIZE_OBJECT_TO_STDCLASS", UNSERIALIZE_OBJECT_TO_STDCLASS, CONST_CS | CONST_PERSISTENT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_FAST_PACK", SW_FAST_PACK);
+    SW_REGISTER_LONG_CONSTANT("UNSERIALIZE_OBJECT_TO_ARRAY", UNSERIALIZE_OBJECT_TO_ARRAY);
+    SW_REGISTER_LONG_CONSTANT("UNSERIALIZE_OBJECT_TO_STDCLASS", UNSERIALIZE_OBJECT_TO_STDCLASS);
 }
 
 static CPINLINE int swoole_string_new(size_t size, seriaString *str, zend_uchar type)
@@ -290,23 +289,23 @@ void CPINLINE swoole_memcpy_fast(void *destination, const void *source, size_t s
         size -= diff;
     }
 
-    // 4个寄存器
+    // 4 registers
     __m128i c1, c2, c3, c4;
 
     if ((((size_t) src) & 15L) == 0)
     {
         for(; size >= 64; size -= 64)
         {
-            //load 时候将下次要用的数据提前fetch
+            // fetch the data to be used next time
             _mm_prefetch((const char*) (src + 64), _MM_HINT_NTA);
             _mm_prefetch((const char*) (dst + 64), _MM_HINT_T0);
-            //从内存中load到寄存器
+            // load data from memory to register
             c1 = _mm_load_si128(((const __m128i*) src) + 0);
             c2 = _mm_load_si128(((const __m128i*) src) + 1);
             c3 = _mm_load_si128(((const __m128i*) src) + 2);
             c4 = _mm_load_si128(((const __m128i*) src) + 3);
             src += 64;
-            //写回内存
+            // write back to memory
             _mm_store_si128((((__m128i*) dst) + 0), c1);
             _mm_store_si128((((__m128i*) dst) + 1), c2);
             _mm_store_si128((((__m128i*) dst) + 2), c3);

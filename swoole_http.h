@@ -161,8 +161,8 @@ void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
 
 #define swoole_http_server_array_init(name, class)    SW_MAKE_STD_ZVAL(z##name);\
 array_init(z##name);\
-zend_update_property(swoole_http_##class##_ce_ptr, z##class##_object, ZEND_STRL(#name), z##name);\
-ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_ce_ptr, z##class##_object, ZEND_STRL(#name), 0);\
+zend_update_property(swoole_http_##class##_ce, z##class##_object, ZEND_STRL(#name), z##name);\
+ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_ce, z##class##_object, ZEND_STRL(#name), 0);\
 sw_copy_to_stack(ctx->class.z##name, ctx->class._z##name);\
 zval_ptr_dtor(z##name);\
 z##name = ctx->class.z##name;
@@ -179,9 +179,9 @@ int swoole_http2_do_response(http_context *ctx, swString *body);
 void swoole_http2_free(swConnection *conn);
 #endif
 
-extern zend_class_entry *swoole_http_server_ce_ptr;
-extern zend_class_entry *swoole_http_response_ce_ptr;
-extern zend_class_entry *swoole_http_request_ce_ptr;
+extern zend_class_entry *swoole_http_server_ce;
+extern zend_class_entry *swoole_http_response_ce;
+extern zend_class_entry *swoole_http_request_ce;
 
 extern swString *swoole_http_buffer;
 

@@ -254,18 +254,18 @@ typedef struct
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 
-extern zend_class_entry *swoole_socket_coro_ce_ptr;
-extern zend_class_entry *swoole_client_ce_ptr;
-extern zend_class_entry *swoole_server_ce_ptr;
+extern zend_class_entry *swoole_socket_coro_ce;
+extern zend_class_entry *swoole_client_ce;
+extern zend_class_entry *swoole_server_ce;
 extern zend_object_handlers swoole_server_handlers;
-extern zend_class_entry *swoole_connection_iterator_ce_ptr;
-extern zend_class_entry *swoole_buffer_ce_ptr;
-extern zend_class_entry *swoole_process_ce_ptr;
-extern zend_class_entry *swoole_http_server_ce_ptr;
+extern zend_class_entry *swoole_connection_iterator_ce;
+extern zend_class_entry *swoole_buffer_ce;
+extern zend_class_entry *swoole_process_ce;
+extern zend_class_entry *swoole_http_server_ce;
 extern zend_object_handlers swoole_http_server_handlers;
-extern zend_class_entry *swoole_websocket_server_ce_ptr;
-extern zend_class_entry *swoole_server_port_ce_ptr;
-extern zend_class_entry *swoole_exception_ce_ptr;
+extern zend_class_entry *swoole_websocket_server_ce;
+extern zend_class_entry *swoole_server_port_ce;
+extern zend_class_entry *swoole_exception_ce;
 extern zend_object_handlers swoole_exception_handlers;
 
 extern zval *php_sw_server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
@@ -670,10 +670,23 @@ static sw_inline void sw_zval_free(zval *val)
 
 //----------------------------------Constant API------------------------------------
 
-#define SWOOLE_DEFINE(constant)              REGISTER_LONG_CONSTANT("SWOOLE_"#constant, SW_##constant, CONST_CS | CONST_PERSISTENT)
-#define SWOOLE_DEFINE_NS(constant)           REGISTER_LONG_CONSTANT("SWOOLE_"#constant, constant, CONST_CS | CONST_PERSISTENT)
-#define SWOOLE_RAW_DEFINE(constant)          REGISTER_LONG_CONSTANT(#constant, constant, CONST_CS | CONST_PERSISTENT)
-#define SWOOLE_RAW_DEFINE_EX(name, value)    REGISTER_LONG_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
+#define SW_REGISTER_NULL_CONSTANT(name)           REGISTER_NULL_CONSTANT(name, CONST_CS | CONST_PERSISTENT)
+#define SW_REGISTER_BOOL_CONSTANT(name, value)    REGISTER_BOOL_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
+#define SW_REGISTER_LONG_CONSTANT(name, value)    REGISTER_LONG_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
+#define SW_REGISTER_DOUBLE_CONSTANT(name, value)  REGISTER_DOUBLE_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
+#define SW_REGISTER_STRING_CONSTANT(name, value)  REGISTER_STRING_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
+#define SW_REGISTER_STRINGL_CONSTANT(name, value) REGISTER_STRINGL_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
+
+//----------------------------------String API-----------------------------------
+
+#define SW_PHP_OB_START(zoutput) \
+    zval zoutput; \
+    do { \
+        php_output_start_user(NULL, 0, PHP_OUTPUT_HANDLER_STDFLAGS);
+#define SW_PHP_OB_END() \
+        php_output_get_contents(&zoutput); \
+        php_output_discard(); \
+    } while (0)
 
 //----------------------------------Array API------------------------------------
 
@@ -706,60 +719,70 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 
 /* PHP 7 class declaration macros */
 
-#define SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_ce_ptr) \
-    INIT_CLASS_ENTRY(module##_ce, namespaceName, methods); \
-    module##_ce_ptr = zend_register_internal_class_ex(&module##_ce, parent_ce_ptr); \
-    if (snake_name) { \
-        SWOOLE_CLASS_ALIAS(snake_name, module); \
-    } \
-    if (shortName && SWOOLE_G(use_shortname)) { \
-        SWOOLE_CLASS_ALIAS(shortName, module); \
-    }
+#define SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_ce) do { \
+    zend_class_entry _##module##_ce; \
+    INIT_CLASS_ENTRY(_##module##_ce, namespaceName, methods); \
+    module##_ce = zend_register_internal_class_ex(&_##module##_ce, parent_ce); \
+    SW_CLASS_ALIAS(snake_name, module); \
+    SW_CLASS_ALIAS_SHORT_NAME(shortName, module); \
+} while (0)
 
-#define SWOOLE_INIT_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
-    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, NULL); \
-    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+#define SW_INIT_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, NULL); \
+    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers))
 
-#define SWOOLE_INIT_CLASS_ENTRY_EX(module, namespaceName, snake_name, shortName, methods, parent_module) \
-    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce_ptr); \
-    memcpy(&module##_handlers, &parent_module##_handlers, sizeof(zend_object_handlers));
+#define SW_INIT_CLASS_ENTRY_EX(module, namespaceName, snake_name, shortName, methods, parent_module) \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce); \
+    memcpy(&module##_handlers, &parent_module##_handlers, sizeof(zend_object_handlers))
 
-#define SWOOLE_INIT_EXCEPTION_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
-    INIT_CLASS_ENTRY(module##_ce, namespaceName, methods); \
-    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, zend_exception_get_default()); \
+#define SW_INIT_EXCEPTION_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, zend_exception_get_default()); \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers)); \
-    SWOOLE_SET_CLASS_CLONEABLE(module, zend_class_clone_deny);
+    SW_SET_CLASS_CLONEABLE(module, zend_class_clone_deny)
 
-#define SWOOLE_CLASS_ALIAS(name, module) \
-    sw_zend_register_class_alias(ZEND_STRL(name), module##_ce_ptr);
+#define SW_CLASS_ALIAS(name, module) do { \
+    if (name) { \
+        sw_zend_register_class_alias(ZEND_STRL(name), module##_ce); \
+    } \
+} while (0)
 
-#define SWOOLE_SET_CLASS_SERIALIZABLE(module, _serialize, _unserialize) \
-    module##_ce_ptr->serialize = _serialize; \
-    module##_ce_ptr->unserialize = _unserialize;
+#define SW_CLASS_ALIAS_SHORT_NAME(shortName, module) do { \
+    if (SWOOLE_G(use_shortname)) { \
+        SW_CLASS_ALIAS(shortName, module); \
+    } \
+} while (0)
+
+#define SW_SET_CLASS_SERIALIZABLE(module, _serialize, _unserialize) \
+    module##_ce->serialize = _serialize; \
+    module##_ce->unserialize = _unserialize
 
 #define zend_class_clone_deny NULL
-#define SWOOLE_SET_CLASS_CLONEABLE(module, _clone_obj) \
-    module##_handlers.clone_obj = _clone_obj;
+#define SW_SET_CLASS_CLONEABLE(module, _clone_obj) \
+    module##_handlers.clone_obj = _clone_obj
 
 #define zend_class_unset_property_deny php_swoole_class_unset_property_deny
-#define SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(module, _unset_property) \
-    module##_handlers.unset_property = _unset_property;
+#define SW_SET_CLASS_UNSET_PROPERTY_HANDLER(module, _unset_property) \
+    module##_handlers.unset_property = _unset_property
 
-#define SWOOLE_SET_CLASS_CREATE(module, _create_object) \
-    module##_ce_ptr->create_object = _create_object;
+#define SW_SET_CLASS_CREATE(module, _create_object) \
+    module##_ce->create_object = _create_object
 
-#define SWOOLE_SET_CLASS_FREE(module, _free_obj) \
-    module##_handlers.free_obj = _free_obj;
+#define SW_SET_CLASS_FREE(module, _free_obj) \
+    module##_handlers.free_obj = _free_obj
 
-#define SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj) \
-    SWOOLE_SET_CLASS_CREATE(module, _create_object); \
-    SWOOLE_SET_CLASS_FREE(module, _free_obj);
+#define SW_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj) \
+    SW_SET_CLASS_CREATE(module, _create_object); \
+    SW_SET_CLASS_FREE(module, _free_obj)
 
-#define SWOOLE_SET_CLASS_CUSTOM_OBJECT(module, _create_object, _free_obj, _struct, _std) \
-    SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj); \
-    module##_handlers.offset = XtOffsetOf(_struct, _std);
+#define SW_SET_CLASS_CUSTOM_OBJECT(module, _create_object, _free_obj, _struct, _std) \
+    SW_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj); \
+    module##_handlers.offset = XtOffsetOf(_struct, _std)
 
-#define SW_PREVENT_USER_DESTRUCT if(unlikely(!(GC_FLAGS(Z_OBJ_P(getThis())) & IS_OBJ_DESTRUCTOR_CALLED))){RETURN_NULL()}
+#define SW_PREVENT_USER_DESTRUCT()  do { \
+    if (unlikely(!(GC_FLAGS(Z_OBJ_P(getThis())) & IS_OBJ_DESTRUCTOR_CALLED))) { \
+        RETURN_NULL(); \
+    } \
+} while (0)
 
 static sw_inline int sw_zend_register_class_alias(const char *name, size_t name_len, zend_class_entry *ce)
 {
@@ -1034,21 +1057,22 @@ static sw_inline char* sw_http_build_query(zval *zdata, size_t *length, smart_st
     return formstr->s->val;
 }
 
-static sw_inline void sw_get_debug_print_backtrace(swString *buffer, zend_long options, zend_long limit)
+static sw_inline zend_string* sw_get_debug_print_backtrace(zend_long options, zend_long limit)
 {
-    zval _fcn, *fcn = &_fcn, args[2], *retval = NULL;
-    php_output_start_user(NULL, 0, PHP_OUTPUT_HANDLER_STDFLAGS);
-    ZVAL_STRING(fcn, "debug_print_backtrace");
-    ZVAL_LONG(&args[0], options);
-    ZVAL_LONG(&args[1], limit);
-    sw_call_user_function_ex(EG(function_table), NULL, fcn, &retval, 2, args, 0, NULL);
-    zval_ptr_dtor(fcn);
-    php_output_get_contents(retval);
-    php_output_discard();
-    swString_append_ptr(buffer, ZEND_STRL("Stack trace:\n"));
-    Z_STRVAL_P(retval)[Z_STRLEN_P(retval)-1] = '\0'; // replace \n to \0
-    swString_append_ptr(buffer, Z_STRVAL_P(retval), Z_STRLEN_P(retval));
-    zval_ptr_dtor(retval);
+    SW_PHP_OB_START(zoutput) {
+        zval fcn, args[2];
+        ZVAL_STRING(&fcn, "debug_print_backtrace");
+        ZVAL_LONG(&args[0], options);
+        ZVAL_LONG(&args[1], limit);
+        sw_call_user_function_fast_ex(&fcn, NULL, &zoutput, 2, args);
+        zval_ptr_dtor(&fcn);
+    } SW_PHP_OB_END();
+    if (UNEXPECTED(ZVAL_IS_NULL(&zoutput)))
+    {
+        return NULL;
+    }
+    Z_STRVAL(zoutput)[--Z_STRLEN(zoutput)] = '\0'; // replace \n to \0
+    return Z_STR(zoutput);
 }
 
 END_EXTERN_C()

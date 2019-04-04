@@ -153,18 +153,14 @@ static PHP_METHOD(swoole_exit_exception, getStatus);
 
 static unordered_map<int, Coroutine *> user_yield_coros;
 
-static zend_class_entry swoole_coroutine_util_ce;
-static zend_class_entry *swoole_coroutine_util_ce_ptr;
+static zend_class_entry *swoole_coroutine_util_ce;
 static zend_object_handlers swoole_coroutine_util_handlers;
 
-static zend_class_entry swoole_coroutine_iterator_ce;
-static zend_class_entry *swoole_coroutine_iterator_ce_ptr;
+static zend_class_entry *swoole_coroutine_iterator_ce;
 
-static zend_class_entry swoole_coroutine_context_ce;
-static zend_class_entry *swoole_coroutine_context_ce_ptr;
+static zend_class_entry *swoole_coroutine_context_ce;
 
-static zend_class_entry swoole_exit_exception_ce;
-static zend_class_entry *swoole_exit_exception_ce_ptr;
+static zend_class_entry *swoole_exit_exception_ce;
 static zend_object_handlers swoole_exit_exception_handlers;
 
 BEGIN_EXTERN_C()
@@ -266,11 +262,11 @@ static int coro_exit_handler(zend_execute_data *execute_data)
             exit_status = &_exit_status;
             ZVAL_NULL(exit_status);
         }
-        obj = zend_throw_error_exception(swoole_exit_exception_ce_ptr, "swoole exit", 0, E_ERROR);
+        obj = zend_throw_error_exception(swoole_exit_exception_ce, "swoole exit", 0, E_ERROR);
         ZVAL_OBJ(&ex, obj);
-        zend_update_property_long(swoole_exit_exception_ce_ptr, &ex, ZEND_STRL("flags"), flags);
+        zend_update_property_long(swoole_exit_exception_ce, &ex, ZEND_STRL("flags"), flags);
         Z_TRY_ADDREF_P(exit_status);
-        zend_update_property(swoole_exit_exception_ce_ptr, &ex, ZEND_STRL("status"), exit_status);
+        zend_update_property(swoole_exit_exception_ce, &ex, ZEND_STRL("status"), exit_status);
     }
 
     return ZEND_USER_OPCODE_DISPATCH;
@@ -280,30 +276,30 @@ void swoole_coroutine_util_init(int module_number)
 {
     PHPCoroutine::init();
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util, "Swoole\\Coroutine", NULL, "Co", swoole_coroutine_util_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_coroutine_util, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_coroutine_util, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_util, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY(swoole_coroutine_util, "Swoole\\Coroutine", NULL, "Co", swoole_coroutine_util_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_coroutine_util, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_coroutine_util, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_util, zend_class_unset_property_deny);
 
-    SWOOLE_INIT_CLASS_ENTRY_BASE(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", NULL, spl_ce_ArrayIterator);
+    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", NULL, spl_ce_ArrayIterator);
 
-    SWOOLE_INIT_CLASS_ENTRY_BASE(swoole_coroutine_context, "Swoole\\Coroutine\\Context", NULL, "Co\\Context", NULL, spl_ce_ArrayObject);
+    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_context, "Swoole\\Coroutine\\Context", NULL, "Co\\Context", NULL, spl_ce_ArrayObject);
 
-    SWOOLE_DEFINE(DEFAULT_MAX_CORO_NUM);
-    SWOOLE_DEFINE(CORO_MAX_NUM_LIMIT);
-    SWOOLE_DEFINE(CORO_INIT);
-    SWOOLE_DEFINE(CORO_WAITING);
-    SWOOLE_DEFINE(CORO_RUNNING);
-    SWOOLE_DEFINE(CORO_END);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_DEFAULT_MAX_CORO_NUM", SW_DEFAULT_MAX_CORO_NUM);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_MAX_NUM_LIMIT", SW_CORO_MAX_NUM_LIMIT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_INIT", SW_CORO_INIT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_WAITING", SW_CORO_WAITING);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_RUNNING", SW_CORO_RUNNING);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_END", SW_CORO_END);
 #ifdef SW_CORO_SCHEDULER_TICK
-    SWOOLE_DEFINE(CORO_SCHEDULER_TICK);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_SCHEDULER_TICK", SW_CORO_SCHEDULER_TICK);
 #endif
 
     //prohibit exit in coroutine
-    SWOOLE_INIT_CLASS_ENTRY_EX(swoole_exit_exception, "Swoole\\ExitException", NULL, NULL, swoole_exit_exception_methods, swoole_exception);
+    SW_INIT_CLASS_ENTRY_EX(swoole_exit_exception, "Swoole\\ExitException", NULL, NULL, swoole_exit_exception_methods, swoole_exception);
 
-    SWOOLE_DEFINE(EXIT_IN_COROUTINE);
-    SWOOLE_DEFINE(EXIT_IN_SERVER);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_COROUTINE", SW_EXIT_IN_COROUTINE);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_SERVER", SW_EXIT_IN_SERVER);
 
     if (SWOOLE_G(cli))
     {
@@ -509,7 +505,7 @@ static PHP_METHOD(swoole_coroutine_util, getContext)
     }
     if (UNEXPECTED(!task->context))
     {
-        object_init_ex(return_value, swoole_coroutine_context_ce_ptr);
+        object_init_ex(return_value, swoole_coroutine_context_ce);
         task->context = Z_OBJ_P(return_value);
     }
     GC_ADDREF(task->context);
@@ -1269,11 +1265,11 @@ static PHP_METHOD(swoole_coroutine_util, list)
     for (auto &co : Coroutine::coroutines) {
         add_next_index_long(&zlist, co.second->get_cid());
     }
-    object_init_ex(return_value, swoole_coroutine_iterator_ce_ptr);
+    object_init_ex(return_value, swoole_coroutine_iterator_ce);
     sw_zend_call_method_with_1_params(
         return_value,
-        swoole_coroutine_iterator_ce_ptr,
-        &swoole_coroutine_iterator_ce_ptr->constructor,
+        swoole_coroutine_iterator_ce,
+        &swoole_coroutine_iterator_ce->constructor,
         (const char *) "__construct",
         NULL,
         &zlist
