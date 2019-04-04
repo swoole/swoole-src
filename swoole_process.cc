@@ -69,7 +69,6 @@ static void free_signal_callback(void* data);
 
 static uint32_t php_swoole_worker_round_id = 0;
 static zval *signal_callback[SW_SIGNO_MAX];
-static zend_class_entry swoole_process_ce;
 zend_class_entry *swoole_process_ce_ptr;
 static zend_object_handlers swoole_process_handlers;
 

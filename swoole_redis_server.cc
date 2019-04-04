@@ -27,7 +27,6 @@ END_EXTERN_C()
 using namespace swoole;
 using namespace std;
 
-static zend_class_entry swoole_redis_server_ce;
 static zend_class_entry *swoole_redis_server_ce_ptr;
 static zend_object_handlers swoole_redis_server_handlers;
 

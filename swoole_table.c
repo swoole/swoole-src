@@ -18,11 +18,9 @@
 
 #include "include/table.h"
 
-static zend_class_entry swoole_table_ce;
 static zend_class_entry *swoole_table_ce_ptr;
 static zend_object_handlers swoole_table_handlers;
 
-static zend_class_entry swoole_table_row_ce;
 static zend_class_entry *swoole_table_row_ce_ptr;
 static zend_object_handlers swoole_table_row_handlers;
 

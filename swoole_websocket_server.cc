@@ -35,15 +35,12 @@ extern "C"
 
 using namespace swoole;
 
-static zend_class_entry swoole_websocket_server_ce;
 zend_class_entry *swoole_websocket_server_ce_ptr;
 static zend_object_handlers swoole_websocket_server_handlers;
 
-static zend_class_entry swoole_websocket_frame_ce;
 zend_class_entry *swoole_websocket_frame_ce_ptr;
 static zend_object_handlers swoole_websocket_frame_handlers;
 
-static zend_class_entry swoole_websocket_closeframe_ce;
 static zend_class_entry *swoole_websocket_closeframe_ce_ptr;
 static zend_object_handlers swoole_websocket_closeframe_handlers;
 

@@ -112,11 +112,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_waitup, 0, 0, 0)
     ZEND_ARG_INFO(0, count)
 ZEND_END_ARG_INFO()
 
-static zend_class_entry swoole_atomic_ce;
 zend_class_entry *swoole_atomic_ce_ptr;
 static zend_object_handlers swoole_atomic_handlers;
 
-static zend_class_entry swoole_atomic_long_ce;
 zend_class_entry *swoole_atomic_long_ce_ptr;
 static zend_object_handlers swoole_atomic_long_handlers;
 

@@ -414,15 +414,12 @@ static const zend_function_entry swoole_server_task_methods[] =
     PHP_FE_END
 };
 
-static zend_class_entry swoole_server_ce;
 zend_class_entry *swoole_server_ce_ptr;
 zend_object_handlers swoole_server_handlers;
 
-static zend_class_entry swoole_connection_iterator_ce;
 zend_class_entry *swoole_connection_iterator_ce_ptr;
 static zend_object_handlers swoole_connection_iterator_handlers;
 
-static zend_class_entry swoole_server_task_ce;
 static zend_class_entry *swoole_server_task_ce_ptr;
 static zend_object_handlers swoole_server_task_handlers;
 

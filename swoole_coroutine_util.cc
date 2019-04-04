@@ -153,17 +153,13 @@ static PHP_METHOD(swoole_exit_exception, getStatus);
 
 static unordered_map<int, Coroutine *> user_yield_coros;
 
-static zend_class_entry swoole_coroutine_util_ce;
 static zend_class_entry *swoole_coroutine_util_ce_ptr;
 static zend_object_handlers swoole_coroutine_util_handlers;
 
-static zend_class_entry swoole_coroutine_iterator_ce;
 static zend_class_entry *swoole_coroutine_iterator_ce_ptr;
 
-static zend_class_entry swoole_coroutine_context_ce;
 static zend_class_entry *swoole_coroutine_context_ce_ptr;
 
-static zend_class_entry swoole_exit_exception_ce;
 static zend_class_entry *swoole_exit_exception_ce_ptr;
 static zend_object_handlers swoole_exit_exception_handlers;
 

@@ -25,7 +25,6 @@
 
 using namespace swoole;
 
-static zend_class_entry swoole_channel_coro_ce;
 static zend_class_entry *swoole_channel_coro_ce_ptr;
 static zend_object_handlers swoole_channel_coro_handlers;
 

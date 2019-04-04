@@ -73,7 +73,6 @@ static const zend_function_entry swoole_buffer_methods[] =
     PHP_FE_END
 };
 
-static zend_class_entry swoole_buffer_ce;
 zend_class_entry *swoole_buffer_ce_ptr;
 static zend_object_handlers swoole_buffer_handlers;
 

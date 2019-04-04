@@ -68,15 +68,12 @@ enum http_upload_errno
     HTTP_UPLOAD_ERR_CANT_WRITE,
 };
 
-static zend_class_entry swoole_http_server_ce;
 zend_class_entry *swoole_http_server_ce_ptr;
 zend_object_handlers swoole_http_server_handlers;
 
-static zend_class_entry swoole_http_response_ce;
 zend_class_entry *swoole_http_response_ce_ptr;
 static zend_object_handlers swoole_http_response_handlers;
 
-static zend_class_entry swoole_http_request_ce;
 zend_class_entry *swoole_http_request_ce_ptr;
 static zend_object_handlers swoole_http_request_handlers;
 

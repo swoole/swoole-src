@@ -25,15 +25,12 @@
 
 using namespace swoole;
 
-static zend_class_entry swoole_http2_client_coro_ce;
 static zend_class_entry *swoole_http2_client_coro_ce_ptr;
 static zend_object_handlers swoole_http2_client_coro_handlers;
 
-static zend_class_entry swoole_http2_request_ce;
 static zend_class_entry *swoole_http2_request_ce_ptr;
 static zend_object_handlers swoole_http2_request_handlers;
 
-static zend_class_entry swoole_http2_response_ce;
 zend_class_entry *swoole_http2_response_ce_ptr;
 static zend_object_handlers swoole_http2_response_handlers;
 

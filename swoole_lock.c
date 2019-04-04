@@ -26,7 +26,6 @@ static PHP_METHOD(swoole_lock, trylock_read);
 static PHP_METHOD(swoole_lock, unlock);
 static PHP_METHOD(swoole_lock, destroy);
 
-static zend_class_entry swoole_lock_ce;
 static zend_class_entry *swoole_lock_ce_ptr;
 static zend_object_handlers swoole_lock_handlers;
 

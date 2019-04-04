@@ -72,7 +72,6 @@ typedef struct
     zval _onMessage;
 } process_pool_property;
 
-static zend_class_entry swoole_process_pool_ce;
 static zend_class_entry *swoole_process_pool_ce_ptr;
 static zend_object_handlers swoole_process_pool_handlers;
 static swProcessPool *current_pool;

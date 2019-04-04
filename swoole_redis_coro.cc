@@ -66,7 +66,6 @@ enum swRedisError
 #define IS_XX_ARG(a) \
     ((a[0]=='x' || a[0]=='X') && (a[1]=='x' || a[1]=='X') && a[2]=='\0')
 
-static zend_class_entry swoole_redis_coro_ce;
 static zend_class_entry *swoole_redis_coro_ce_ptr;
 static zend_object_handlers swoole_redis_coro_handlers;
 

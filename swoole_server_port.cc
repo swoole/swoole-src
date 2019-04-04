@@ -23,7 +23,6 @@
 using namespace std;
 using namespace swoole;
 
-static zend_class_entry swoole_server_port_ce;
 zend_class_entry *swoole_server_port_ce_ptr;
 static zend_object_handlers swoole_server_port_handlers;
 

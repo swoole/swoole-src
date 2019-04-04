@@ -344,15 +344,12 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_statement_nextResult, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-static zend_class_entry swoole_mysql_coro_ce;
 static zend_class_entry *swoole_mysql_coro_ce_ptr;
 static zend_object_handlers swoole_mysql_coro_handlers;
 
-static zend_class_entry swoole_mysql_coro_exception_ce;
 static zend_class_entry *swoole_mysql_coro_exception_ce_ptr;
 static zend_object_handlers swoole_mysql_coro_exception_handlers;
 
-static zend_class_entry swoole_mysql_coro_statement_ce;
 static zend_class_entry *swoole_mysql_coro_statement_ce_ptr;
 static zend_object_handlers swoole_mysql_coro_statement_handlers;
 

@@ -125,11 +125,9 @@ private:
     swoole_http_parser parser = {0};
 };
 
-static zend_class_entry swoole_http_client_coro_ce;
 zend_class_entry *swoole_http_client_coro_ce_ptr;
 static zend_object_handlers swoole_http_client_coro_handlers;
 
-static zend_class_entry swoole_http_client_coro_exception_ce;
 zend_class_entry *swoole_http_client_coro_exception_ce_ptr;
 static zend_object_handlers swoole_http_client_coro_exception_handlers;
 

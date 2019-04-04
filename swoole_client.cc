@@ -267,7 +267,6 @@ static const zend_function_entry swoole_client_methods[] =
 
 static unordered_map<string, queue<swClient *> *> long_connections;
 
-static zend_class_entry swoole_client_ce;
 zend_class_entry *swoole_client_ce_ptr;
 static zend_object_handlers swoole_client_handlers;
 
