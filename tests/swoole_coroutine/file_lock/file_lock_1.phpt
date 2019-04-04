@@ -8,7 +8,7 @@ require __DIR__ . '/../../include/bootstrap.php';
 
 \Swoole\Runtime::enableCoroutine();
 $startTime = microtime(true);
-go(function () {
+go(function () use ($startTime) {
     $f = fopen('test.tmp', 'w+');
     flock($f, LOCK_EX);
     co::sleep(0.01);

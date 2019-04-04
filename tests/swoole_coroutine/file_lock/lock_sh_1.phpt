@@ -14,7 +14,7 @@ go(function () {
     co::sleep(0.01);
     flock($f, LOCK_UN);
 });
-go(function () {
+go(function () use ($startTime) {
     $f = fopen('test.tmp', 'w+');
     flock($f, LOCK_SH);
     assert((microtime(true) - $startTime) < 1);
