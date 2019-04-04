@@ -109,7 +109,7 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
 
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStart, &retval, 2, args, 0, NULL) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error.");
+        swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error");
     }
     if (UNEXPECTED(EG(exception)))
     {
@@ -139,7 +139,7 @@ static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, u
 
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onMessage, &retval, 2, args, 0, NULL)  == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "onMessage handler error.");
+        swoole_php_fatal_error(E_WARNING, "onMessage handler error");
     }
     if (UNEXPECTED(EG(exception)))
     {
@@ -168,7 +168,7 @@ static void php_swoole_process_pool_onWorkerStop(swProcessPool *pool, int worker
     }
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStop, &retval, 2, args, 0, NULL) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error.");
+        swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error");
     }
     if (UNEXPECTED(EG(exception)))
     {
@@ -206,13 +206,13 @@ static PHP_METHOD(swoole_process_pool, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "swoole_process_pool only can be used in PHP CLI mode.");
+        swoole_php_fatal_error(E_ERROR, "swoole_process_pool only can be used in PHP CLI mode");
         RETURN_FALSE;
     }
 
     if (SwooleG.serv)
     {
-        swoole_php_fatal_error(E_ERROR, "swoole_process_pool cannot use in server process.");
+        swoole_php_fatal_error(E_ERROR, "swoole_process_pool cannot use in server process");
         RETURN_FALSE;
     }
 
@@ -261,7 +261,7 @@ static PHP_METHOD(swoole_process_pool, on)
 
     if (pool->started > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "process pool is started. unable to register event callback function.");
+        swoole_php_fatal_error(E_WARNING, "process pool is started. unable to register event callback function");
         RETURN_FALSE;
     }
 
@@ -292,7 +292,7 @@ static PHP_METHOD(swoole_process_pool, on)
     {
         if (pool->ipc_mode == SW_IPC_NONE)
         {
-            swoole_php_fatal_error(E_WARNING, "cannot set onMessage event with ipc_type=0.");
+            swoole_php_fatal_error(E_WARNING, "cannot set onMessage event with ipc_type=0");
             RETURN_TRUE;
         }
         if (pp->onMessage)
@@ -333,7 +333,7 @@ static PHP_METHOD(swoole_process_pool, listen)
 
     if (pool->started > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "process pool is started. unable to listen.");
+        swoole_php_fatal_error(E_WARNING, "process pool is started. unable to listen");
         RETURN_FALSE;
     }
 
@@ -344,7 +344,7 @@ static PHP_METHOD(swoole_process_pool, listen)
 
     if (pool->ipc_mode != SW_IPC_SOCKET)
     {
-        swoole_php_fatal_error(E_WARNING, "unsupported ipc type[%d].", pool->ipc_mode);
+        swoole_php_fatal_error(E_WARNING, "unsupported ipc type[%d]", pool->ipc_mode);
         RETURN_FALSE;
     }
 
@@ -375,7 +375,7 @@ static PHP_METHOD(swoole_process_pool, write)
     swProcessPool *pool = (swProcessPool *) swoole_get_object(getThis());
     if (pool->ipc_mode != SW_IPC_SOCKET)
     {
-        swoole_php_fatal_error(E_WARNING, "unsupported ipc type[%d].", pool->ipc_mode);
+        swoole_php_fatal_error(E_WARNING, "unsupported ipc type[%d]", pool->ipc_mode);
         RETURN_FALSE;
     }
     if (length == 0)
@@ -390,7 +390,7 @@ static PHP_METHOD(swoole_process_pool, start)
     swProcessPool *pool = (swProcessPool *) swoole_get_object(getThis());
     if (pool->started)
     {
-        swoole_php_fatal_error(E_WARNING, "process pool is started. unable to execute swoole_process_pool->start.");
+        swoole_php_fatal_error(E_WARNING, "process pool is started. unable to execute swoole_process_pool->start");
         RETURN_FALSE;
     }
 

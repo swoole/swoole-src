@@ -59,7 +59,7 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
     {
         if (PHPCoroutine::create(&fci->fci_cache, fci->fci.param_count, fci->fci.params) < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "create onTimer coroutine error.");
+            swoole_php_fatal_error(E_WARNING, "create onTimer coroutine error");
         }
     }
     else
@@ -67,7 +67,7 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
         zval retval;
         if (sw_call_user_function_fast_ex(NULL, &fci->fci_cache, &retval, fci->fci.param_count, fci->fci.params) == FAILURE)
         {
-            swoole_php_fatal_error(E_WARNING, "onTimeout handler error.");
+            swoole_php_fatal_error(E_WARNING, "onTimeout handler error");
         }
         zval_ptr_dtor(&retval);
     }
@@ -107,7 +107,7 @@ static void php_swoole_add_timer(INTERNAL_FUNCTION_PARAMETERS, bool persistent)
     tnode = swTimer_add(&SwooleG.timer, ms, persistent, fci, php_swoole_onTimeout);
     if (UNEXPECTED(!tnode))
     {
-        swoole_php_fatal_error(E_WARNING, "add timer failed.");
+        swoole_php_fatal_error(E_WARNING, "add timer failed");
         goto _failed;
     }
     tnode->type = SW_TIMER_TYPE_PHP;

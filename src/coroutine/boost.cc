@@ -34,7 +34,7 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
     swap_ctx_ = NULL;
 
     stack_ = (char*) sw_malloc(stack_size_);
-    swTraceLog(SW_TRACE_COROUTINE, "alloc stack: size=%u, ptr=%p.", stack_size_, stack_);
+    swTraceLog(SW_TRACE_COROUTINE, "alloc stack: size=%u, ptr=%p", stack_size_, stack_);
 
     void* sp = (void*) ((char*) stack_ + stack_size_);
 #ifdef USE_VALGRIND

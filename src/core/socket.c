@@ -23,7 +23,7 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length
     int file_fd = open(filename, O_RDONLY);
     if (file_fd < 0)
     {
-        swWarn("open(%s) failed. Error: %s[%d]", filename, strerror(errno), errno);
+        swSysWarn("open(%s) failed", filename);
         return SW_ERR;
     }
 
@@ -32,7 +32,7 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length
         struct stat file_stat;
         if (fstat(file_fd, &file_stat) < 0)
         {
-            swWarn("fstat() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysWarn("fstat() failed");
             close(file_fd);
             return SW_ERR;
         }
@@ -58,7 +58,7 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length
             if (n <= 0)
             {
                 close(file_fd);
-                swSysError("sendfile(%d, %s) failed.", sock, filename);
+                swSysWarn("sendfile(%d, %s) failed", sock, filename);
                 return SW_ERR;
             }
             else
@@ -106,7 +106,7 @@ int swSocket_wait(int fd, int timeout_ms, int events)
         }
         else if (ret < 0 && errno != EINTR)
         {
-            swWarn("poll() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysWarn("poll() failed");
             return SW_ERR;
         }
         else
@@ -153,7 +153,7 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
         }
         else if (ret < 0 && errno != EINTR)
         {
-            swWarn("poll() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysWarn("poll() failed");
             sw_free(event_list);
             return SW_ERR;
         }
@@ -188,7 +188,7 @@ int swSocket_write_blocking(int __fd, void *__data, int __len)
             }
             else
             {
-                swSysError("write %d bytes failed.", __len);
+                swSysWarn("write %d bytes failed", __len);
                 return SW_ERR;
             }
         }
@@ -244,7 +244,7 @@ ssize_t swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *d
     struct sockaddr_in addr;
     if (inet_aton(dst_ip, &addr.sin_addr) == 0)
     {
-        swWarn("ip[%s] is invalid.", dst_ip);
+        swWarn("ip[%s] is invalid", dst_ip);
         return SW_ERR;
     }
     addr.sin_family = AF_INET;
@@ -258,7 +258,7 @@ ssize_t swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *
     bzero(&addr, sizeof(addr));
     if (inet_pton(AF_INET6, dst_ip, &addr.sin6_addr) < 0)
     {
-        swWarn("ip[%s] is invalid.", dst_ip);
+        swWarn("ip[%s] is invalid", dst_ip);
         return SW_ERR;
     }
     addr.sin6_port = (uint16_t) htons(dst_port);
@@ -362,7 +362,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
     int option = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) != 0)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed.", sock);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed", sock);
     }
     //reuse port
 #ifdef HAVE_REUSEPORT
@@ -370,7 +370,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
     {
         if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) != 0)
         {
-            swSysError("setsockopt(SO_REUSEPORT) failed.");
+            swSysWarn("setsockopt(SO_REUSEPORT) failed");
             SwooleG.reuse_port = 0;
         }
     }
@@ -425,7 +425,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
     //bind failed
     if (ret < 0)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "bind(%s:%d) failed. Error: %s [%d]", host, *port, strerror(errno), errno);
+        swSysWarn("bind(%s:%d) failed", host, *port);
         return SW_ERR;
     }
 
@@ -436,12 +436,12 @@ int swSocket_set_buffer_size(int fd, uint32_t buffer_size)
 {
     if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(buffer_size)) != 0)
     {
-        swSysError("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed.", fd, buffer_size);
+        swSysWarn("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, buffer_size);
         return SW_ERR;
     }
     if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &buffer_size, sizeof(buffer_size)) != 0)
     {
-        swSysError("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed.", fd, buffer_size);
+        swSysWarn("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed", fd, buffer_size);
         return SW_ERR;
     }
     return SW_OK;
@@ -456,13 +456,13 @@ int swSocket_set_timeout(int sock, double timeout)
     ret = setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (void *) &timeo, sizeof(timeo));
     if (ret < 0)
     {
-        swWarn("setsockopt(SO_SNDTIMEO) failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("setsockopt(SO_SNDTIMEO) failed");
         return SW_ERR;
     }
     ret = setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (void *) &timeo, sizeof(timeo));
     if (ret < 0)
     {
-        swWarn("setsockopt(SO_RCVTIMEO) failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("setsockopt(SO_RCVTIMEO) failed");
         return SW_ERR;
     }
     return SW_OK;
@@ -499,7 +499,7 @@ int swSocket_create_server(int type, char *address, int port, int backlog)
     int fd = swSocket_create(type);
     if (fd < 0)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "socket() failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("socket() failed");
         return SW_ERR;
     }
 
@@ -511,7 +511,7 @@ int swSocket_create_server(int type, char *address, int port, int backlog)
 
     if (listen(fd, backlog) < 0)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "listen(%s:%d, %d) failed. Error: %s[%d]", address, port, backlog, strerror(errno), errno);
+        swSysWarn("listen(%s:%d, %d) failed", address, port, backlog);
         close(fd);
         return SW_ERR;
     }

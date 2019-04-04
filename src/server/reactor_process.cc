@@ -40,13 +40,13 @@ int swReactorProcess_create(swServer *serv)
     serv->connection_list = (swConnection *) sw_calloc(serv->max_connection, sizeof(swConnection));
     if (serv->connection_list == NULL)
     {
-        swSysError("calloc[2](%d) failed.", (int )(serv->max_connection * sizeof(swConnection)));
+        swSysWarn("calloc[2](%d) failed", (int )(serv->max_connection * sizeof(swConnection)));
         return SW_ERR;
     }
     //create factry object
     if (swFactory_create(&(serv->factory)) < 0)
     {
-        swError("create factory failed.");
+        swError("create factory failed");
         return SW_ERR;
     }
     serv->factory.finish = swReactorProcess_send2client;
@@ -71,7 +71,7 @@ int swReactorProcess_start(swServer *serv)
             {
                 if (close(ls->sock) < 0)
                 {
-                    swSysError("close(%d) failed.", ls->sock);
+                    swSysWarn("close(%d) failed", ls->sock);
                 }
                 continue;
             }
@@ -145,7 +145,7 @@ int swReactorProcess_start(swServer *serv)
         serv->user_workers = (swWorker *) sw_malloc(serv->user_worker_num * sizeof(swWorker));
         if (serv->user_workers == NULL)
         {
-            swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "gmalloc[server->user_workers] failed.");
+            swSysWarn("gmalloc[server->user_workers] failed");
             return SW_ERR;
         }
         swUserWorker_node *user_worker;
@@ -178,7 +178,7 @@ int swReactorProcess_start(swServer *serv)
 
     if (serv->onStart)
     {
-        swWarn("The onStart event with SWOOLE_BASE is deprecated.");
+        swWarn("The onStart event with SWOOLE_BASE is deprecated");
         serv->onStart(serv);
     }
 
@@ -235,7 +235,7 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
             memcpy(&_send.info, &task.info, sizeof(_send.info));
             _send.info.type = SW_EVENT_TCP;
             _send.data = buffer_output->str;
-            _send.length = buffer_output->length;
+            _send.info.len = buffer_output->length;
             factory->finish(factory, &_send);
             swString_clear(buffer_output);
         }
@@ -251,7 +251,7 @@ static int swReactorProcess_alloc_output_buffer(int n_buffer)
     SwooleWG.buffer_output = (swString **) sw_malloc(sizeof(swString*) * n_buffer);
     if (SwooleWG.buffer_output == NULL)
     {
-        swError("malloc for SwooleWG.buffer_output failed.");
+        swError("malloc for SwooleWG.buffer_output failed");
         return SW_ERR;
     }
 
@@ -261,7 +261,7 @@ static int swReactorProcess_alloc_output_buffer(int n_buffer)
         SwooleWG.buffer_output[i] = swString_new(SW_BUFFER_SIZE_BIG);
         if (SwooleWG.buffer_output[i] == NULL)
         {
-            swError("buffer_output init failed.");
+            swError("buffer_output init failed");
             return SW_ERR;
         }
     }
@@ -512,15 +512,12 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
 {
     swServer *serv = (swServer *) factory->ptr;
     int session_id = _send->info.fd;
-    if (_send->length == 0)
-    {
-        _send->length = _send->info.len;
-    }
 
     swSession *session = swServer_get_session(serv, session_id);
     if (session->fd == 0)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send %d byte failed, session#%d does not exist.",  _send->length, session_id);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send %d byte failed, session#%d does not exist",
+                _send->info.len, session_id);
         return SW_ERR;
     }
     //proxy
@@ -536,7 +533,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
             proxy_msg.info.from_id = SwooleWG.id;
             proxy_msg.info.type = SW_EVENT_PROXY_START;
 
-            size_t send_n = _send->length;
+            size_t send_n = _send->info.len;
             size_t offset = 0;
 
             while (send_n > 0)
@@ -560,12 +557,12 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
         else if (_send->info.type == SW_EVENT_SENDFILE)
         {
             memcpy(&proxy_msg.info, &_send->info, sizeof(proxy_msg.info));
-            memcpy(proxy_msg.data, _send->data, _send->length);
+            memcpy(proxy_msg.data, _send->data, _send->info.len);
             return swReactorProcess_send2worker(worker->pipe_master, &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
         }
         else
         {
-            swWarn("unkown event type[%d].", _send->info.type);
+            swWarn("unkown event type[%d]", _send->info.type);
             return SW_ERR;
         }
         return SW_OK;
@@ -632,7 +629,7 @@ static int swReactorProcess_reuse_port(swListenPort *ls)
     int sock = swSocket_create(ls->type);
     if (sock < 0)
     {
-        swSysError("create socket failed.");
+        swSysWarn("create socket failed");
         return SW_ERR;
     }
     //bind address and port

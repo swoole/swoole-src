@@ -65,7 +65,7 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout)
     efd = eventfd(0, flag);
     if (efd < 0)
     {
-        swWarn("eventfd create failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("eventfd create failed");
         sw_free(object);
         return -1;
     }

@@ -271,17 +271,13 @@ struct _swFactory
     int (*finish)(struct _swFactory *, swSendData *);
     int (*notify)(struct _swFactory *, swDataHead *);    //send a event notify
     int (*end)(struct _swFactory *, int fd);
+    void (*free)(struct _swFactory *);
 };
 
 typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);
 
 int swFactory_create(swFactory *factory);
-int swFactory_start(swFactory *factory);
-int swFactory_shutdown(swFactory *factory);
-int swFactory_dispatch(swFactory *factory, swSendData *req);
 int swFactory_finish(swFactory *factory, swSendData *_send);
-int swFactory_notify(swFactory *factory, swDataHead *event);
-int swFactory_end(swFactory *factory, int fd);
 int swFactory_check_callback(swFactory *factory);
 
 int swFactoryProcess_create(swFactory *factory, int worker_num);
@@ -471,6 +467,7 @@ struct _swServer
     int *cpu_affinity_available;
     int cpu_affinity_available_num;
 
+    swSendBuffer **dispatch_buffers;
     double send_timeout;
 
     uint16_t listen_port_num;
@@ -480,6 +477,8 @@ struct _swServer
     /* buffer output/input setting*/
     uint32_t buffer_output_size;
     uint32_t buffer_input_size;
+
+    uint32_t ipc_max_size;
 
     void *ptr2;
     void *private_data_3;
@@ -737,7 +736,7 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
     int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);
     if (tmp_file_fd < 0)
     {
-        swSysError("open(%s) failed.", _pkg.tmpfile);
+        swSysWarn("open(%s) failed", _pkg.tmpfile);
         return NULL;
     }
     if (SwooleTG.buffer_stack->size < _pkg.length && swString_extend_align(SwooleTG.buffer_stack, _pkg.length) < 0)
@@ -826,6 +825,15 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
 {
     uint32_t key;
 
+    if (serv->dispatch_func)
+    {
+        int id = serv->dispatch_func(serv, swServer_connection_get(serv, fd), data);
+        if (id != SW_DISPATCH_RESULT_USERFUNC_FALLBACK)
+        {
+            return id;
+        }
+    }
+
     //polling mode
     if (serv->dispatch_mode == SW_DISPATCH_ROUND)
     {
@@ -873,11 +881,6 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
         {
             key = conn->uid;
         }
-    }
-    //schedule by dispatch function
-    else if (serv->dispatch_mode == SW_DISPATCH_USERFUNC)
-    {
-        return serv->dispatch_func(serv, swServer_connection_get(serv, fd), data);
     }
     //Preemptive distribution
     else

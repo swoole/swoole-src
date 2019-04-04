@@ -19,4 +19,4 @@ Assert::eq($info['coroutine_num'], 3000);
 Assert::eq($info['coroutine_peak_num'], 3000);
 ?>
 --EXPECTF--
-Warning: go(): exceed max number of coroutine 3000. in %s/tests/swoole_coroutine/max_num.php on line 9
+Warning: go(): exceed max number of coroutine 3000 in %s/tests/swoole_coroutine/max_num.php on line 9

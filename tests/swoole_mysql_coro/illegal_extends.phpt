@@ -56,4 +56,4 @@ go(function () {
 
 ?>
 --EXPECTF--
-Warning: Swoole\Coroutine\MySQL::query(): mysql connection#%d is closed. in %s on line %d
+Warning: Swoole\Coroutine\MySQL::query(): mysql connection#%d is closed in %s on line %d

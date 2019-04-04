@@ -199,9 +199,9 @@ typedef unsigned long ulong_t;
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
 
 /*-----------------------------------Memory------------------------------------*/
-
+#define SW_DEFAULT_ALIGNMENT   sizeof(unsigned long)
 #define SW_MEM_ALIGNED_SIZE(size) \
-        SW_MEM_ALIGNED_SIZE_EX(size, 8)
+        SW_MEM_ALIGNED_SIZE_EX(size, SW_DEFAULT_ALIGNMENT)
 #define SW_MEM_ALIGNED_SIZE_EX(size, alignment) \
         (((size) + ((alignment) - 1LL)) & ~((alignment) - 1LL))
 
@@ -382,6 +382,13 @@ enum swFactory_dispatch_mode
     SW_DISPATCH_STREAM   = 7,
 };
 
+enum swFactory_dispatch_result
+{
+    SW_DISPATCH_RESULT_DISCARD_PACKET    = -1,
+    SW_DISPATCH_RESULT_CLOSE_CONNECTION  = -2,
+    SW_DISPATCH_RESULT_USERFUNC_FALLBACK = -3,
+};
+
 enum swWorker_status
 {
     SW_WORKER_BUSY = 1,
@@ -414,12 +421,12 @@ enum swWorker_status
         SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
     }
 
-#define swSysError(str,...) \
+#define swSysWarn(str,...) \
     do{\
         SwooleG.error = errno;\
         if (SW_LOG_ERROR >= SwooleG.log_level) {\
             SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-            size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str " Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
+            size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str ", Error: %s[%d]",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
             SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_errror_len);\
             SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
         }\
@@ -429,6 +436,15 @@ enum swWorker_status
     do{\
         SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
         size_t _sw_errror_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
+        SwooleG.write_log(SW_LOG_ERROR, sw_error, _sw_errror_len);\
+        SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
+        exit(1);\
+    } while(0)
+
+#define swSysError(str,...) \
+    do{\
+        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+        size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str ", Error: %s[%d]",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
         SwooleG.write_log(SW_LOG_ERROR, sw_error, _sw_errror_len);\
         SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
         exit(1);\
@@ -848,7 +864,7 @@ enum _swEventData_flag
 typedef struct _swDataHead
 {
     int fd;
-    uint16_t len;
+    uint32_t len;
     int16_t from_id;
     uint8_t type;
     uint8_t flags;
@@ -872,6 +888,12 @@ typedef struct _swEventData
     char data[SW_IPC_BUFFER_SIZE];
 } swEventData;
 
+typedef struct _swSendBuffer
+{
+    swDataHead info;
+    char data[0];
+} swSendBuffer;
+
 typedef struct _swDgramPacket
 {
     swSocketAddress info;
@@ -882,10 +904,6 @@ typedef struct _swDgramPacket
 typedef struct _swSendData
 {
     swDataHead info;
-    /**
-     * for big package
-     */
-    uint32_t length;
     char *data;
 } swSendData;
 
@@ -2188,7 +2206,7 @@ typedef struct
 {
     swLock lock;
     swLock lock_2;
-} SwooleGS_t;
+} swGlobalS_t;
 
 //Worker process global Variable
 typedef struct
@@ -2223,8 +2241,9 @@ typedef struct
     swWorker *worker;
     time_t exit_time;
     swTimer_node *exit_timer;
+    swSendBuffer *send_buffer;
 
-} swWorkerG;
+} swWorkerGlobal_t;
 
 typedef struct
 {
@@ -2233,7 +2252,7 @@ typedef struct
     uint8_t update_time;
     swString *buffer_stack;
     swReactor *reactor;
-} swThreadG;
+} swThreadGlobal_t;
 
 typedef struct
 {
@@ -2314,12 +2333,12 @@ typedef struct
     swHashMap *functions;
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];
 
-} swServerG;
+} swGlobal_t;
 
-extern swServerG SwooleG;              //Local Global Variable
-extern SwooleGS_t *SwooleGS;           //Share Memory Global Variable
-extern swWorkerG SwooleWG;             //Worker Global Variable
-extern __thread swThreadG SwooleTG;   //Thread Global Variable
+extern swGlobal_t SwooleG;              //Local Global Variable
+extern swGlobalS_t *SwooleGS;           //Share Memory Global Variable
+extern swWorkerGlobal_t SwooleWG;             //Worker Global Variable
+extern __thread swThreadGlobal_t SwooleTG;   //Thread Global Variable
 
 #define SW_CPU_NUM                    (SwooleG.cpu_num)
 

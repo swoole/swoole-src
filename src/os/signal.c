@@ -65,7 +65,7 @@ void swSignal_none(void)
     int ret = pthread_sigmask(SIG_BLOCK, &mask, NULL);
     if (ret < 0)
     {
-        swWarn("pthread_sigmask() failed. Error: %s[%d]", strerror(ret), ret);
+        swSysWarn("pthread_sigmask() failed");
     }
 }
 
@@ -155,7 +155,7 @@ void swSignal_callback(int signo)
 {
     if (signo >= SW_SIGNO_MAX)
     {
-        swWarn("signal[%d] numberis invalid.", signo);
+        swWarn("signal[%d] numberis invalid", signo);
         return;
     }
     swSignalHandler callback = signals[signo].handler;
@@ -171,7 +171,7 @@ swSignalHandler swSignal_get_handler(int signo)
 {
     if (signo >= SW_SIGNO_MAX)
     {
-        swWarn("signal[%d] numberis invalid.", signo);
+        swWarn("signal[%d] numberis invalid", signo);
         return NULL;
     }
     else
@@ -247,13 +247,13 @@ int swSignalfd_setup(swReactor *reactor)
         signal_fd = signalfd(-1, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
         if (signal_fd < 0)
         {
-            swWarn("signalfd() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysWarn("signalfd() failed");
             return SW_ERR;
         }
         SwooleG.signal_fd = signal_fd;
         if (sigprocmask(SIG_BLOCK, &signalfd_mask, NULL) == -1)
         {
-            swWarn("sigprocmask() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysWarn("sigprocmask() failed");
             return SW_ERR;
         }
         reactor->setHandle(reactor, SW_FD_SIGNAL, swSignalfd_onSignal);
@@ -273,7 +273,7 @@ static void swSignalfd_clear()
     {
         if (sigprocmask(SIG_UNBLOCK, &signalfd_mask, NULL) < 0)
         {
-            swSysError("sigprocmask(SIG_UNBLOCK) failed.");
+            swSysWarn("sigprocmask(SIG_UNBLOCK) failed");
         }
         close(signal_fd);
         bzero(&signalfd_mask, sizeof(signalfd_mask));
@@ -288,12 +288,12 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
     n = read(event->fd, &siginfo, sizeof(siginfo));
     if (n < 0)
     {
-        swWarn("read from signalfd failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("read from signalfd failed");
         return SW_OK;
     }
     if (siginfo.ssi_signo >=  SW_SIGNO_MAX)
     {
-        swWarn("unknown signal[%d].", siginfo.ssi_signo);
+        swWarn("unknown signal[%d]", siginfo.ssi_signo);
         return SW_OK;
     }
     if (signals[siginfo.ssi_signo].active)

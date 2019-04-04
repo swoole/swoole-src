@@ -49,8 +49,10 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-[%s]	ERROR	check_bind (ERRNO 10002): http client has already been bound to another coroutine#%d, reading or writing of the same socket in multiple coroutines at the same time is not allowed.
+[%s]	ERROR	(PHP Fatal Error: %d):
+Swoole\Coroutine\Http\Client::get: Socket#%d has already been bound to another coroutine#%d, reading of the same socket in multiple coroutines at the same time is not allowed
 Stack trace:
 #0  Swoole\Coroutine\Http\Client->get() called at [%s:%d]
 #1  get() called at [%s:%d]
 #2  {closure}() called at [%s:%d]
+#3  {closure}() called at [%s:%d]

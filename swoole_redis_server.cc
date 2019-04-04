@@ -97,7 +97,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (!conn)
     {
-        swWarn("connection[%d] is closed.", fd);
+        swWarn("connection[%d] is closed", fd);
         return SW_ERR;
     }
 
@@ -177,7 +177,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
 
     if (command_len >= SW_REDIS_MAX_COMMAND_SIZE)
     {
-        swoole_php_error(E_WARNING, "command is too long.");
+        swoole_php_error(E_WARNING, "command is too long");
         serv->close(serv, fd, 0);
         return SW_OK;
     }
@@ -206,7 +206,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     {
         if (PHPCoroutine::create(fci_cache, 2, args) < 0)
         {
-            swoole_php_error(E_WARNING, "create redis server onReceive coroutine error.");
+            swoole_php_error(E_WARNING, "create redis server onReceive coroutine error");
         }
     }
     else
@@ -214,7 +214,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         zval _retval, *retval = &_retval;
         if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
         {
-            swoole_php_error(E_WARNING, "redis server command '%.*s' handler error.", command_len, command);
+            swoole_php_error(E_WARNING, "redis server command '%.*s' handler error", command_len, command);
         }
         if (Z_TYPE_P(retval) == IS_STRING)
         {
@@ -236,7 +236,7 @@ static PHP_METHOD(swoole_redis_server, start)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (serv->gs->start > 0)
     {
-        swoole_php_error(E_WARNING, "Server is running. Unable to execute swoole_server::start.");
+        swoole_php_error(E_WARNING, "Server is running. Unable to execute swoole_server::start");
         RETURN_FALSE;
     }
 
@@ -247,7 +247,7 @@ static PHP_METHOD(swoole_redis_server, start)
     format_buffer = swString_new(SW_BUFFER_SIZE_STD);
     if (!format_buffer)
     {
-        swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_BUFFER_SIZE_STD);
+        swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_BUFFER_SIZE_STD);
         RETURN_FALSE;
     }
 
@@ -292,7 +292,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
 
     if (command_len == 0 || command_len >= SW_REDIS_MAX_COMMAND_SIZE)
     {
-        swoole_php_fatal_error(E_ERROR, "invalid command.");
+        swoole_php_fatal_error(E_ERROR, "invalid command");
         RETURN_FALSE;
     }
 
@@ -403,13 +403,13 @@ static PHP_METHOD(swoole_redis_server, format)
         if (!value)
         {
             no_value:
-            swoole_php_fatal_error(E_WARNING, "require more parameters.");
+            swoole_php_fatal_error(E_WARNING, "require more parameters");
             RETURN_FALSE;
         }
         convert_to_string(value);
         if (Z_STRLEN_P(value) > SW_REDIS_MAX_STRING_SIZE || Z_STRLEN_P(value) < 1)
         {
-            swoole_php_fatal_error(E_WARNING, "invalid string size.");
+            swoole_php_fatal_error(E_WARNING, "invalid string size");
             RETURN_FALSE;
         }
         swString_clear(format_buffer);
@@ -427,7 +427,7 @@ static PHP_METHOD(swoole_redis_server, format)
         }
         if (Z_TYPE_P(value) != IS_ARRAY)
         {
-            swoole_php_fatal_error(E_WARNING, "the second parameter should be an array.");
+            swoole_php_fatal_error(E_WARNING, "the second parameter should be an array");
         }
         swString_clear(format_buffer);
         length = sw_snprintf(message, sizeof(message), "*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
@@ -462,7 +462,7 @@ static PHP_METHOD(swoole_redis_server, format)
         }
         if (Z_TYPE_P(value) != IS_ARRAY)
         {
-            swoole_php_fatal_error(E_WARNING, "the second parameter should be an array.");
+            swoole_php_fatal_error(E_WARNING, "the second parameter should be an array");
         }
         swString_clear(format_buffer);
         length = sw_snprintf(message, sizeof(message), "*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));

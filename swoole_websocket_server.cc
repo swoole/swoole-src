@@ -189,7 +189,7 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
     }
     if (unlikely(opcode > SW_WEBSOCKET_OPCODE_MAX))
     {
-        swoole_php_fatal_error(E_WARNING, "the maximum value of opcode is %d.", SW_WEBSOCKET_OPCODE_MAX);
+        swoole_php_fatal_error(E_WARNING, "the maximum value of opcode is %d", SW_WEBSOCKET_OPCODE_MAX);
         return SW_ERR;
     }
     zend::string str_zdata;
@@ -216,7 +216,7 @@ void swoole_websocket_onOpen(swServer *serv, http_context *ctx)
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (!conn)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed", fd);
         return;
     }
 
@@ -237,7 +237,7 @@ void swoole_websocket_onOpen(swServer *serv, http_context *ctx)
     {
         if (PHPCoroutine::create(fci_cache, 2, args) < 0)
         {
-            swoole_php_error(E_WARNING, "create onOpen coroutine error.");
+            swoole_php_error(E_WARNING, "create onOpen coroutine error");
             serv->close(serv, fd, 0);
             return;
         }
@@ -247,7 +247,7 @@ void swoole_websocket_onOpen(swServer *serv, http_context *ctx)
         zval _retval, *retval = &_retval;
         if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
         {
-            swoole_php_error(E_WARNING, "onOpen handler error.");
+            swoole_php_error(E_WARNING, "onOpen handler error");
         }
         zval_ptr_dtor(retval);
     }
@@ -326,7 +326,7 @@ static int websocket_handshake(swServer *serv, swListenPort *port, http_context 
     swConnection *conn = swWorker_get_connection(serv, ctx->fd);
     if (!conn)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed.", ctx->fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed", ctx->fd);
         return SW_ERR;
     }
     conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
@@ -369,7 +369,7 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
     {
         if (PHPCoroutine::create(fci_cache, 2, args) < 0)
         {
-            swoole_php_error(E_WARNING, "create onMessage coroutine error.");
+            swoole_php_error(E_WARNING, "create onMessage coroutine error");
             SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
         }
     }
@@ -378,7 +378,7 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
         zval _retval, *retval = &_retval;
         if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
         {
-            swoole_php_error(E_WARNING, "onMessage handler error.");
+            swoole_php_error(E_WARNING, "onMessage handler error");
         }
         zval_ptr_dtor(retval);
     }
@@ -462,7 +462,7 @@ static sw_inline int swoole_websocket_server_push(swServer *serv, int fd, swStri
 {
     if (unlikely(fd <= 0))
     {
-        swoole_php_fatal_error(E_WARNING, "fd[%d] is invalid.", fd);
+        swoole_php_fatal_error(E_WARNING, "fd[%d] is invalid", fd);
         return SW_ERR;
     }
 
@@ -470,7 +470,7 @@ static sw_inline int swoole_websocket_server_push(swServer *serv, int fd, swStri
     if (!conn || conn->websocket_status < WEBSOCKET_STATUS_HANDSHAKE)
     {
         SwooleG.error = SW_ERROR_WEBSOCKET_UNCONNECTED;
-        swoole_php_fatal_error(E_WARNING, "the connected client of connection[%d] is not a websocket client or closed.", (int ) fd);
+        swoole_php_fatal_error(E_WARNING, "the connected client of connection[%d] is not a websocket client or closed", (int ) fd);
         return SW_ERR;
     }
 
@@ -615,7 +615,7 @@ static PHP_METHOD(swoole_websocket_server, isEstablished)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        php_error_docref(NULL, E_WARNING, "the server is not running.");
+        php_error_docref(NULL, E_WARNING, "the server is not running");
         RETURN_FALSE;
     }
 

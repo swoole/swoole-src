@@ -17,4 +17,4 @@ go(function () {
 });
 ?>
 --EXPECTF--
-Fatal error: Swoole\Coroutine\Socket::connect(): you must call Socket constructor first. in %s on line %d
+Fatal error: Swoole\Coroutine\Socket::connect(): you must call Socket constructor first in %s on line %d

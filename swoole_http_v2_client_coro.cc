@@ -268,7 +268,7 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
 
     if (host_len == 0)
     {
-        zend_throw_exception(swoole_exception_ce_ptr, "host is empty.", SW_ERROR_INVALID_PARAMS);
+        zend_throw_exception(swoole_exception_ce_ptr, "host is empty", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
 
@@ -281,7 +281,7 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
         type |= SW_SOCK_SSL;
         hcc->ssl = 1;
 #else
-        swoole_php_fatal_error(E_ERROR, "Need to use `--enable-openssl` to support ssl when compiling swoole.");
+        swoole_php_fatal_error(E_ERROR, "Need to use `--enable-openssl` to support ssl when compiling swoole");
 #endif
     }
     hcc->host = estrndup(host, host_len);
@@ -350,7 +350,7 @@ int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *s
         rv = nghttp2_hd_inflate_hd(hcc->inflater, &nv, &inflate_flags, (uchar *) in, inlen, 1);
         if (rv < 0)
         {
-            swoole_php_error(E_WARNING, "inflate failed, Error: %s[%zd].", nghttp2_strerror(rv), rv);
+            swoole_php_error(E_WARNING, "inflate failed, Error: %s[%zd]", nghttp2_strerror(rv), rv);
             return SW_ERR;
         }
 
@@ -376,7 +376,7 @@ int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *s
                 http2_client_init_gzip_stream(stream);
                 if (Z_OK != inflateInit2(&stream->gzip_stream, MAX_WBITS + 16))
                 {
-                    swWarn("inflateInit2() failed.");
+                    swWarn("inflateInit2() failed");
                     return SW_ERR;
                 }
             }
@@ -508,7 +508,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
     size_t buflen = nghttp2_hd_deflate_bound(hcc->deflater, headers.get(), headers.len());
     if (buflen > hcc->remote_settings.max_header_list_size)
     {
-        swoole_php_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u.", hcc->remote_settings.max_header_list_size);
+        swoole_php_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u", hcc->remote_settings.max_header_list_size);
         return -1;
     }
     ssize_t rv = nghttp2_hd_deflate_hd(hcc->deflater, (uchar *) buffer, buflen, headers.get(), headers.len());
@@ -570,19 +570,19 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
                         return;
                     }
                 }
-                swTraceLog(SW_TRACE_HTTP2, "setting: header_compression_table_max=%u.", value);
+                swTraceLog(SW_TRACE_HTTP2, "setting: header_compression_table_max=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS:
                 hcc->remote_settings.max_concurrent_streams = value;
-                swTraceLog(SW_TRACE_HTTP2, "setting: max_concurrent_streams=%u.", value);
+                swTraceLog(SW_TRACE_HTTP2, "setting: max_concurrent_streams=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
                 hcc->remote_settings.window_size = value;
-                swTraceLog(SW_TRACE_HTTP2, "setting: init_send_window=%u.", value);
+                swTraceLog(SW_TRACE_HTTP2, "setting: init_send_window=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
                 hcc->remote_settings.max_frame_size = value;
-                swTraceLog(SW_TRACE_HTTP2, "setting: max_frame_size=%u.", value);
+                swTraceLog(SW_TRACE_HTTP2, "setting: max_frame_size=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
                 if (value != hcc->remote_settings.max_header_list_size)
@@ -596,11 +596,11 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
                         return;
                     }
                 }
-                swTraceLog(SW_TRACE_HTTP2, "setting: max_header_list_size=%u.", value);
+                swTraceLog(SW_TRACE_HTTP2, "setting: max_header_list_size=%u", value);
                 break;
             default:
                 // disable warning and ignore it because some websites are not following http2 protocol totally
-                // swWarn("unknown option[%d]: %d.", id, value);
+                // swWarn("unknown option[%d]: %d", id, value);
                 break;
             }
             buf += sizeof(id) + sizeof(value);
@@ -853,7 +853,7 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
     length = http2_client_build_header(zobject, req, buffer + SW_HTTP2_FRAME_HEADER_SIZE);
     if (length <= 0)
     {
-        swWarn("http2_client_build_header() failed.");
+        swWarn("http2_client_build_header() failed");
         return 0;
     }
 
@@ -910,7 +910,7 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
             p = sw_http_build_query(zdata, &len, &formstr_s);
             if (p == NULL)
             {
-                swoole_php_error(E_WARNING, "http_build_query failed.");
+                swoole_php_error(E_WARNING, "http_build_query failed");
                 return 0;
             }
         }
@@ -979,7 +979,7 @@ static int http2_client_send_data(http2_client_property *hcc, uint32_t stream_id
         char *formstr = sw_http_build_query(data, &len, &formstr_s);
         if (formstr == NULL)
         {
-            swoole_php_error(E_WARNING, "http_build_query failed.");
+            swoole_php_error(E_WARNING, "http_build_query failed");
             return -1;
         }
         memset(buffer, 0, SW_HTTP2_FRAME_HEADER_SIZE);
@@ -998,7 +998,7 @@ static int http2_client_send_data(http2_client_property *hcc, uint32_t stream_id
     }
     else
     {
-        swoole_php_error(E_WARNING, "unknown data type[%d].", Z_TYPE_P(data) );
+        swoole_php_error(E_WARNING, "unknown data type[%d]", Z_TYPE_P(data) );
         return -1;
     }
     return SW_OK;
@@ -1011,8 +1011,8 @@ static PHP_METHOD(swoole_http2_client_coro, send)
     if (!hcc->streams)
     {
         zend_update_property_long(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION));
-        zend_update_property_string(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server.");
-        swoole_php_error(E_WARNING, "client is not connected to server.");
+        zend_update_property_string(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server");
+        swoole_php_error(E_WARNING, "client is not connected to server");
         RETURN_FALSE;
     }
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &request) == FAILURE)
@@ -1021,7 +1021,7 @@ static PHP_METHOD(swoole_http2_client_coro, send)
     }
     if (Z_TYPE_P(request) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(request), swoole_http2_request_ce_ptr))
     {
-        swoole_php_fatal_error(E_ERROR, "object is not instanceof swoole_http2_request.");
+        swoole_php_fatal_error(E_ERROR, "object is not instanceof swoole_http2_request");
         RETURN_FALSE;
     }
 
@@ -1043,8 +1043,8 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
     if (!hcc->streams)
     {
         zend_update_property_long(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION));
-        zend_update_property_string(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server.");
-        swoole_php_error(E_WARNING, "client is not connected to server.");
+        zend_update_property_string(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server");
+        swoole_php_error(E_WARNING, "client is not connected to server");
         RETURN_FALSE;
     }
 
@@ -1089,14 +1089,14 @@ static void http2_client_onConnect(swClient *cli)
     ret = nghttp2_hd_inflate_new(&hcc->inflater);
     if (ret != 0)
     {
-        swoole_php_error(E_WARNING, "nghttp2_hd_inflate_init() failed with error: %s[%d].", nghttp2_strerror(ret), ret);
+        swoole_php_error(E_WARNING, "nghttp2_hd_inflate_init() failed with error: %s[%d]", nghttp2_strerror(ret), ret);
         cli->close(cli);
         return;
     }
     ret = nghttp2_hd_deflate_new(&hcc->deflater, hcc->local_settings.header_table_size);
     if (ret != 0)
     {
-        swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init() failed with error: %s[%d].", nghttp2_strerror(ret), ret);
+        swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init() failed with error: %s[%d]", nghttp2_strerror(ret), ret);
         cli->close(cli);
         return;
     }
@@ -1119,6 +1119,11 @@ static void http2_client_onConnect(swClient *cli)
 static void http2_client_onClose(swClient *cli)
 {
     zval *zobject = (zval *) cli->object;
+
+    if (!cli->object)
+    {
+        return;
+    }
 
     zend_update_property_bool(swoole_http2_client_coro_ce_ptr, zobject, ZEND_STRL("connected"), 0);
     zend_update_property_long(swoole_http2_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error);
@@ -1229,7 +1234,7 @@ static PHP_METHOD(swoole_http2_client_coro, connect)
 
     if (hcc->client)
     {
-        swoole_php_fatal_error(E_WARNING, "The HTTP2 connection has already been established.");
+        swoole_php_fatal_error(E_WARNING, "The HTTP2 connection has already been established");
         RETURN_FALSE;
     }
 
@@ -1377,8 +1382,8 @@ static PHP_METHOD(swoole_http2_client_coro, write)
     if (!hcc->streams)
     {
         zend_update_property_long(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION));
-        zend_update_property_string(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server.");
-        swoole_php_error(E_WARNING, "client is not connected to server.");
+        zend_update_property_string(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server");
+        swoole_php_error(E_WARNING, "client is not connected to server");
         RETURN_FALSE;
     }
 
@@ -1400,8 +1405,8 @@ static PHP_METHOD(swoole_http2_client_coro, ping)
     if (!hcc->streams)
     {
         zend_update_property_long(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION));
-        zend_update_property_string(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server.");
-        swoole_php_error(E_WARNING, "client is not connected to server.");
+        zend_update_property_string(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server");
+        swoole_php_error(E_WARNING, "client is not connected to server");
         RETURN_FALSE;
     }
 
@@ -1442,8 +1447,8 @@ static PHP_METHOD(swoole_http2_client_coro, goaway)
     if (!hcc->streams)
     {
         zend_update_property_long(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION));
-        zend_update_property_string(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server.");
-        swoole_php_error(E_WARNING, "client is not connected to server.");
+        zend_update_property_string(swoole_http2_client_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server");
+        swoole_php_error(E_WARNING, "client is not connected to server");
         RETURN_FALSE;
     }
 

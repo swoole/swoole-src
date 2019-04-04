@@ -72,7 +72,6 @@ public:
 
     Socket(int domain = AF_INET, int type = SOCK_STREAM, int protocol = IPPROTO_IP);
     Socket(enum swSocket_type type = SW_SOCK_TCP);
-    Socket(int _fd, Socket *socket);
     Socket(int _fd, enum swSocket_type _type);
     ~Socket();
     bool connect(std::string host, int port, int flags = 0);
@@ -207,7 +206,7 @@ public:
     {
         if (setsockopt(socket->fd, level, optname, &optval, sizeof(optval)) != 0)
         {
-            swSysError("setsockopt(%d, %d, %d, %d) failed.", socket->fd, level, optname, optval);
+            swSysWarn("setsockopt(%d, %d, %d, %d) failed", socket->fd, level, optname, optval);
             return false;
         }
         return true;
@@ -262,6 +261,7 @@ private:
     static int writable_event_callback(swReactor *reactor, swEvent *event);
     static int error_event_callback(swReactor *reactor, swEvent *event);
 
+    Socket(int _fd, Socket *socket);
     inline void init_sock_type(enum swSocket_type _type);
     inline bool init_sock();
     inline void init_sock(int fd);
@@ -287,13 +287,12 @@ private:
             long cid = get_bound_cid(event);
             if (unlikely(cid))
             {
-                swoole_error_log(
-                    SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
+                swFatalError(
+                    SW_ERROR_CO_HAS_BEEN_BOUND,
                     "Socket#%d has already been bound to another coroutine#%ld, "
-                    "%s of the same socket in multiple coroutines at the same time is not allowed.\n",
+                    "%s of the same socket in multiple coroutines at the same time is not allowed",
                     socket->fd, cid, (event == SW_EVENT_READ ? "reading" : (event == SW_EVENT_WRITE ? "writing" : "reading or writing"))
                 );
-                exit(255);
             }
         }
         if (unlikely(socket->closed))

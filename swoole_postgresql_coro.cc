@@ -189,7 +189,7 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
 
     if (SwooleG.main_reactor->add(SwooleG.main_reactor, fd, PHP_SWOOLE_FD_POSTGRESQL | SW_EVENT_WRITE) < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_event_add failed.");
+        swoole_php_fatal_error(E_WARNING, "swoole_event_add failed");
         RETURN_FALSE;
     }
 
@@ -257,11 +257,11 @@ static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
         break;
 
     case CONNECTION_MADE:
-        feedback = "Connected to server...";
+        feedback = "Connected to server..";
         break;
 
     default:
-        feedback = " time out...";
+        feedback = " time out..";
     }
 
     err_msg = PQerrorMessage(object->conn);
@@ -294,7 +294,7 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
     socklen_t len = sizeof(SwooleG.error);
     if (getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &SwooleG.error, &len) < 0)
     {
-        swWarn("getsockopt(%d) failed. Error: %s[%d]", event->fd, strerror(errno), errno);
+        swSysWarn("getsockopt(%d) failed", event->fd);
         return SW_ERR;
     }
 
@@ -1262,7 +1262,7 @@ static int swoole_postgresql_coro_close(zval *zobject)
     pg_object *object = (pg_object *) swoole_get_object(zobject);
     if (!object)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_postgresql_coro.");
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_postgresql_coro");
         return FAILURE;
     }
     SwooleG.main_reactor->del(SwooleG.main_reactor, object->fd);

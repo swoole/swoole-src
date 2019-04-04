@@ -16,6 +16,6 @@ go(function () {
 Swoole\Event::wait();
 ?>
 --EXPECTF--
-Warning: Swoole\Coroutine\Http2\Client::send(): client is not connected to server. in %s on line %d
+Warning: Swoole\Coroutine\Http2\Client::send(): client is not connected to server in %s on line %d
 
-Warning: Swoole\Coroutine\Http2\Client::recv(): client is not connected to server. in %s on line %d
+Warning: Swoole\Coroutine\Http2\Client::recv(): client is not connected to server in %s on line %d
