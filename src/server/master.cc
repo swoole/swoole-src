@@ -32,10 +32,6 @@ static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int from_fd, int reactor_id);
 
-swServerG SwooleG;
-swWorkerG SwooleWG;
-__thread swThreadG SwooleTG;
-
 int16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
 

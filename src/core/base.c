@@ -35,7 +35,10 @@
 #include <sys/filio.h>
 #endif
 
-SwooleGS_t *SwooleGS;
+swGlobal_t SwooleG;
+swGlobalS_t *SwooleGS;
+__thread swThreadGlobal_t SwooleTG;
+swWorkerGlobal_t SwooleWG;
 
 static void swoole_fatal_error(int code, const char *format, ...);
 
@@ -87,7 +90,7 @@ void swoole_init(void)
         printf("[Master] Fatal Error: global memory allocation failure");
         exit(1);
     }
-    SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(SwooleGS_t));
+    SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swGlobalS_t));
     if (SwooleGS == NULL)
     {
         printf("[Master] Fatal Error: failed to allocate memory for SwooleGS");

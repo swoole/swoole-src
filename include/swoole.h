@@ -2206,7 +2206,7 @@ typedef struct
 {
     swLock lock;
     swLock lock_2;
-} SwooleGS_t;
+} swGlobalS_t;
 
 //Worker process global Variable
 typedef struct
@@ -2242,7 +2242,7 @@ typedef struct
     time_t exit_time;
     swTimer_node *exit_timer;
 
-} swWorkerG;
+} swWorkerGlobal_t;
 
 typedef struct
 {
@@ -2251,7 +2251,7 @@ typedef struct
     uint8_t update_time;
     swString *buffer_stack;
     swReactor *reactor;
-} swThreadG;
+} swThreadGlobal_t;
 
 typedef struct
 {
@@ -2332,12 +2332,12 @@ typedef struct
     swHashMap *functions;
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];
 
-} swServerG;
+} swGlobal_t;
 
-extern swServerG SwooleG;              //Local Global Variable
-extern SwooleGS_t *SwooleGS;           //Share Memory Global Variable
-extern swWorkerG SwooleWG;             //Worker Global Variable
-extern __thread swThreadG SwooleTG;   //Thread Global Variable
+extern swGlobal_t SwooleG;              //Local Global Variable
+extern swGlobalS_t *SwooleGS;           //Share Memory Global Variable
+extern swWorkerGlobal_t SwooleWG;             //Worker Global Variable
+extern __thread swThreadGlobal_t SwooleTG;   //Thread Global Variable
 
 #define SW_CPU_NUM                    (SwooleG.cpu_num)
 
