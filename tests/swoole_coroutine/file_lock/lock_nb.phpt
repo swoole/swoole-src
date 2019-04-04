@@ -1,10 +1,10 @@
 --TEST--
 swoole_coroutine/file_lock: lock_nb
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
 \Swoole\Runtime::enableCoroutine();
 go(function () {
