@@ -137,19 +137,26 @@ int swoole_coroutine_flock_ex(char *filename, int fd, int operation)
         return ::flock(fd, operation);
     }
 
+    char *real = realpath(filename, SwooleTG.buffer_stack->str);
+    if (real == NULL)
+    {
+        SwooleG.error = errno = ENOENT;
+        return -1;
+    }
+
     switch (operation)
     {
     case LOCK_EX:
-        return lock_ex(filename, fd);
+        return lock_ex(real, fd);
     case LOCK_SH:
-        return lock_sh(filename, fd);
+        return lock_sh(real, fd);
     case LOCK_UN:
-        return lock_release(filename, fd);
+        return lock_release(real, fd);
     default:
 #ifdef LOCK_NB
         if (operation & LOCK_NB)
         {
-            return lock_nb(filename, fd, operation & (~LOCK_NB));
+            return lock_nb(real, fd, operation & (~LOCK_NB));
         }
 #endif
         return -1;

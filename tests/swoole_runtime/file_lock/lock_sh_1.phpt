@@ -1,15 +1,17 @@
 --TEST--
 swoole_coroutine/file_lock: lock_sh_1
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc';
+die("not support");
+?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
-
+const FILE = __DIR__ . '/test.data';
 \Swoole\Runtime::enableCoroutine();
 $startTime = microtime(true);
 go(function () {
-    $f = fopen('test.tmp', 'w+');
+    $f = fopen(FILE, 'w+');
     $ret = flock($f, LOCK_EX);
     assert($ret);
     co::sleep(0.3);
@@ -18,7 +20,7 @@ go(function () {
 });
 
 go(function () {
-    $f = fopen('test.tmp', 'w+');
+    $f = fopen(FILE, 'w+');
     $ret = flock($f, LOCK_SH);
     assert($ret);
     co::sleep(2);
@@ -27,13 +29,14 @@ go(function () {
 });
 
 go(function () use ($startTime) {
-    $f = fopen('test.tmp', 'w+');
+    $f = fopen(FILE, 'w+');
     $ret = flock($f, LOCK_SH);
     assert($ret);
     assert((microtime(true) - $startTime) < 1);
     $ret = flock($f, LOCK_UN);
     assert($ret);
 });
-
+swoole_event_wait();
+unlink(FILE);
 ?>
 --EXPECTF--
