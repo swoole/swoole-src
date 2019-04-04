@@ -49,7 +49,7 @@ static const zend_function_entry swoole_serialize_methods[] = {
     PHP_FE_END
 };
 
-zend_class_entry *swoole_serialize_ce_ptr;
+zend_class_entry *swoole_serialize_ce;
 static zend_object_handlers swoole_serialize_handlers;
 
 #define SWOOLE_SERI_EOF "EOF"

@@ -351,15 +351,15 @@ int swoole_convert_to_fd(zval *zsocket)
     case IS_OBJECT:
     {
         zval *zfd = NULL;
-        if (instanceof_function(Z_OBJCE_P(zsocket), swoole_socket_coro_ce_ptr))
+        if (instanceof_function(Z_OBJCE_P(zsocket), swoole_socket_coro_ce))
         {
             zfd = sw_zend_read_property(Z_OBJCE_P(zsocket), zsocket, ZEND_STRL("fd"), 0);
         }
-        else if (instanceof_function(Z_OBJCE_P(zsocket), swoole_client_ce_ptr))
+        else if (instanceof_function(Z_OBJCE_P(zsocket), swoole_client_ce))
         {
             zfd = sw_zend_read_property(Z_OBJCE_P(zsocket), zsocket, ZEND_STRL("sock"), 0);
         }
-        else if (instanceof_function(Z_OBJCE_P(zsocket), swoole_process_ce_ptr))
+        else if (instanceof_function(Z_OBJCE_P(zsocket), swoole_process_ce))
         {
             zfd = sw_zend_read_property(Z_OBJCE_P(zsocket), zsocket, ZEND_STRL("pipe"), 0);
         }

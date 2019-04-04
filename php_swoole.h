@@ -254,18 +254,18 @@ typedef struct
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 
-extern zend_class_entry *swoole_socket_coro_ce_ptr;
-extern zend_class_entry *swoole_client_ce_ptr;
-extern zend_class_entry *swoole_server_ce_ptr;
+extern zend_class_entry *swoole_socket_coro_ce;
+extern zend_class_entry *swoole_client_ce;
+extern zend_class_entry *swoole_server_ce;
 extern zend_object_handlers swoole_server_handlers;
-extern zend_class_entry *swoole_connection_iterator_ce_ptr;
-extern zend_class_entry *swoole_buffer_ce_ptr;
-extern zend_class_entry *swoole_process_ce_ptr;
-extern zend_class_entry *swoole_http_server_ce_ptr;
+extern zend_class_entry *swoole_connection_iterator_ce;
+extern zend_class_entry *swoole_buffer_ce;
+extern zend_class_entry *swoole_process_ce;
+extern zend_class_entry *swoole_http_server_ce;
 extern zend_object_handlers swoole_http_server_handlers;
-extern zend_class_entry *swoole_websocket_server_ce_ptr;
-extern zend_class_entry *swoole_server_port_ce_ptr;
-extern zend_class_entry *swoole_exception_ce_ptr;
+extern zend_class_entry *swoole_websocket_server_ce;
+extern zend_class_entry *swoole_server_port_ce;
+extern zend_class_entry *swoole_exception_ce;
 extern zend_object_handlers swoole_exception_handlers;
 
 extern zval *php_sw_server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
@@ -717,11 +717,11 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 
 /* PHP 7 class declaration macros */
 
-#define SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_ce_ptr) \
+#define SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_ce) \
     do { \
         zend_class_entry _##module##_ce; \
         INIT_CLASS_ENTRY(_##module##_ce, namespaceName, methods); \
-        module##_ce_ptr = zend_register_internal_class_ex(&_##module##_ce, parent_ce_ptr); \
+        module##_ce = zend_register_internal_class_ex(&_##module##_ce, parent_ce); \
         if (snake_name) { \
             SWOOLE_CLASS_ALIAS(snake_name, module); \
         } \
@@ -735,7 +735,7 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 
 #define SWOOLE_INIT_CLASS_ENTRY_EX(module, namespaceName, snake_name, shortName, methods, parent_module) \
-    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce_ptr); \
+    SWOOLE_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce); \
     memcpy(&module##_handlers, &parent_module##_handlers, sizeof(zend_object_handlers));
 
 #define SWOOLE_INIT_EXCEPTION_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
@@ -744,11 +744,11 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     SWOOLE_SET_CLASS_CLONEABLE(module, zend_class_clone_deny);
 
 #define SWOOLE_CLASS_ALIAS(name, module) \
-    sw_zend_register_class_alias(ZEND_STRL(name), module##_ce_ptr);
+    sw_zend_register_class_alias(ZEND_STRL(name), module##_ce);
 
 #define SWOOLE_SET_CLASS_SERIALIZABLE(module, _serialize, _unserialize) \
-    module##_ce_ptr->serialize = _serialize; \
-    module##_ce_ptr->unserialize = _unserialize;
+    module##_ce->serialize = _serialize; \
+    module##_ce->unserialize = _unserialize;
 
 #define zend_class_clone_deny NULL
 #define SWOOLE_SET_CLASS_CLONEABLE(module, _clone_obj) \
@@ -759,7 +759,7 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     module##_handlers.unset_property = _unset_property;
 
 #define SWOOLE_SET_CLASS_CREATE(module, _create_object) \
-    module##_ce_ptr->create_object = _create_object;
+    module##_ce->create_object = _create_object;
 
 #define SWOOLE_SET_CLASS_FREE(module, _free_obj) \
     module##_handlers.free_obj = _free_obj;

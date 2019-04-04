@@ -112,10 +112,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_waitup, 0, 0, 0)
     ZEND_ARG_INFO(0, count)
 ZEND_END_ARG_INFO()
 
-zend_class_entry *swoole_atomic_ce_ptr;
+zend_class_entry *swoole_atomic_ce;
 static zend_object_handlers swoole_atomic_handlers;
 
-zend_class_entry *swoole_atomic_long_ce_ptr;
+zend_class_entry *swoole_atomic_long_ce;
 static zend_object_handlers swoole_atomic_long_handlers;
 
 static const zend_function_entry swoole_atomic_methods[] =
@@ -167,7 +167,7 @@ PHP_METHOD(swoole_atomic, __construct)
     sw_atomic_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_t));
     if (atomic == NULL)
     {
-        zend_throw_exception(swoole_exception_ce_ptr, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
+        zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     *atomic = (sw_atomic_t) value;
@@ -294,7 +294,7 @@ PHP_METHOD(swoole_atomic_long, __construct)
     sw_atomic_long_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_long_t));
     if (atomic == NULL)
     {
-        zend_throw_exception(swoole_exception_ce_ptr, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
+        zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     *atomic = (sw_atomic_long_t) value;

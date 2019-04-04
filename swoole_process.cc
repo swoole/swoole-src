@@ -69,7 +69,7 @@ static void free_signal_callback(void* data);
 
 static uint32_t php_swoole_worker_round_id = 0;
 static zval *signal_callback[SW_SIGNO_MAX];
-zend_class_entry *swoole_process_ce_ptr;
+zend_class_entry *swoole_process_ce;
 static zend_object_handlers swoole_process_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_construct, 0, 0, 1)
@@ -194,19 +194,19 @@ void swoole_process_init(int module_number)
     SWOOLE_SET_CLASS_CLONEABLE(swoole_process, zend_class_clone_deny);
     SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process, zend_class_unset_property_deny);
 
-    zend_declare_class_constant_long(swoole_process_ce_ptr, ZEND_STRL("IPC_NOWAIT"), MSGQUEUE_NOWAIT);
-    zend_declare_class_constant_long(swoole_process_ce_ptr, ZEND_STRL("PIPE_MASTER"), SW_PIPE_CLOSE_MASTER);
-    zend_declare_class_constant_long(swoole_process_ce_ptr, ZEND_STRL("PIPE_WORKER"), SW_PIPE_CLOSE_WORKER);
-    zend_declare_class_constant_long(swoole_process_ce_ptr, ZEND_STRL("PIPE_READ"), SW_PIPE_CLOSE_READ);
-    zend_declare_class_constant_long(swoole_process_ce_ptr, ZEND_STRL("PIPE_WRITE"), SW_PIPE_CLOSE_WRITE);
+    zend_declare_class_constant_long(swoole_process_ce, ZEND_STRL("IPC_NOWAIT"), MSGQUEUE_NOWAIT);
+    zend_declare_class_constant_long(swoole_process_ce, ZEND_STRL("PIPE_MASTER"), SW_PIPE_CLOSE_MASTER);
+    zend_declare_class_constant_long(swoole_process_ce, ZEND_STRL("PIPE_WORKER"), SW_PIPE_CLOSE_WORKER);
+    zend_declare_class_constant_long(swoole_process_ce, ZEND_STRL("PIPE_READ"), SW_PIPE_CLOSE_READ);
+    zend_declare_class_constant_long(swoole_process_ce, ZEND_STRL("PIPE_WRITE"), SW_PIPE_CLOSE_WRITE);
     bzero(signal_callback, sizeof(signal_callback));
 
-    zend_declare_property_null(swoole_process_ce_ptr, ZEND_STRL("pipe"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_process_ce_ptr, ZEND_STRL("callback"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_process_ce_ptr, ZEND_STRL("msgQueueId"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_process_ce_ptr, ZEND_STRL("msgQueueKey"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_process_ce_ptr, ZEND_STRL("pid"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_process_ce_ptr, ZEND_STRL("id"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_ce, ZEND_STRL("pipe"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_ce, ZEND_STRL("callback"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_ce, ZEND_STRL("msgQueueId"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_ce, ZEND_STRL("msgQueueKey"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_ce, ZEND_STRL("pid"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_ce, ZEND_STRL("id"), ZEND_ACC_PUBLIC);
 
     /**
      * 31 signal constants
@@ -329,7 +329,7 @@ static PHP_METHOD(swoole_process, __construct)
         process->pipe_worker = _pipe->getFd(_pipe, SW_PIPE_WORKER);
         process->pipe = process->pipe_master;
 
-        zend_update_property_long(swoole_process_ce_ptr, getThis(), ZEND_STRL("pipe"), process->pipe_master);
+        zend_update_property_long(swoole_process_ce, getThis(), ZEND_STRL("pipe"), process->pipe_master);
     }
 
     proc->pipe_type = pipe_type;
@@ -434,8 +434,8 @@ static PHP_METHOD(swoole_process, useQueue)
     }
     process->queue = queue;
     process->ipc_mode = mode;
-    zend_update_property_long(swoole_process_ce_ptr, getThis(), ZEND_STRL("msgQueueId"), queue->msg_id);
-    zend_update_property_long(swoole_process_ce_ptr, getThis(), ZEND_STRL("msgQueueKey"), msgkey);
+    zend_update_property_long(swoole_process_ce, getThis(), ZEND_STRL("msgQueueId"), queue->msg_id);
+    zend_update_property_long(swoole_process_ce, getThis(), ZEND_STRL("msgQueueKey"), msgkey);
     RETURN_TRUE;
 }
 
@@ -738,8 +738,8 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
     SwooleWG.id = process->id;
     SwooleWG.worker = process;
 
-    zend_update_property_long(swoole_process_ce_ptr, zobject, ZEND_STRL("pid"), process->pid);
-    zend_update_property_long(swoole_process_ce_ptr, zobject, ZEND_STRL("pipe"), process->pipe_worker);
+    zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pid"), process->pid);
+    zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pipe"), process->pipe_worker);
 
     zval args[1];
     zval *retval = NULL;
@@ -805,7 +805,7 @@ static PHP_METHOD(swoole_process, start)
     {
         process->pid = pid;
         process->child_process = 0;
-        zend_update_property_long(swoole_server_ce_ptr, getThis(), ZEND_STRL("pid"), process->pid);
+        zend_update_property_long(swoole_server_ce, getThis(), ZEND_STRL("pid"), process->pid);
         RETURN_LONG(pid);
     }
     else

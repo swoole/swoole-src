@@ -49,7 +49,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_runtime_enableCoroutine, 0, 0, 0)
     ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
-static zend_class_entry *swoole_runtime_ce_ptr;
+static zend_class_entry *swoole_runtime_ce;
 static zend_object_handlers swoole_runtime_handlers;
 
 static php_stream_ops socket_ops

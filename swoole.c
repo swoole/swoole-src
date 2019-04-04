@@ -216,13 +216,13 @@ static const zend_function_entry swoole_event_methods[] =
 php_vmstat_t php_vmstat;
 #endif
 
-static zend_class_entry *swoole_timer_ce_ptr;
+static zend_class_entry *swoole_timer_ce;
 static zend_object_handlers swoole_timer_handlers;
 
-static zend_class_entry *swoole_event_ce_ptr;
+static zend_class_entry *swoole_event_ce;
 static zend_object_handlers swoole_event_handlers;
 
-zend_class_entry *swoole_exception_ce_ptr;
+zend_class_entry *swoole_exception_ce;
 zend_object_handlers swoole_exception_handlers;
 
 zend_module_entry swoole_module_entry =
