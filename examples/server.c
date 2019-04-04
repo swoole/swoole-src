@@ -42,13 +42,13 @@ int main(int argc, char **argv)
 	int ret;
 
 	swServer serv;
-	swServer_init(&serv); //初始化
+	swServer_init(&serv);
 
 	//config
-	serv.reactor_num = 2; //reactor线程数量
-	serv.worker_num = 4;      //worker进程数量
+	serv.reactor_num = 2;
+	serv.worker_num = 4;
 
-	serv.factory_mode = SW_MODE_PROCESS; //SW_MODE_PROCESS SW_MODE_THREAD SW_MODE_BASE
+	serv.factory_mode = SW_MODE_PROCESS; // SW_MODE_PROCESS or SW_MODE_BASE
 	serv.max_connection = 100000;
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;

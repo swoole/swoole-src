@@ -289,23 +289,23 @@ void CPINLINE swoole_memcpy_fast(void *destination, const void *source, size_t s
         size -= diff;
     }
 
-    // 4个寄存器
+    // 4 registers
     __m128i c1, c2, c3, c4;
 
     if ((((size_t) src) & 15L) == 0)
     {
         for(; size >= 64; size -= 64)
         {
-            //load 时候将下次要用的数据提前fetch
+            // fetch the data to be used next time
             _mm_prefetch((const char*) (src + 64), _MM_HINT_NTA);
             _mm_prefetch((const char*) (dst + 64), _MM_HINT_T0);
-            //从内存中load到寄存器
+            // load data from memory to register
             c1 = _mm_load_si128(((const __m128i*) src) + 0);
             c2 = _mm_load_si128(((const __m128i*) src) + 1);
             c3 = _mm_load_si128(((const __m128i*) src) + 2);
             c4 = _mm_load_si128(((const __m128i*) src) + 3);
             src += 64;
-            //写回内存
+            // write back to memory
             _mm_store_si128((((__m128i*) dst) + 0), c1);
             _mm_store_si128((((__m128i*) dst) + 1), c2);
             _mm_store_si128((((__m128i*) dst) + 2), c3);

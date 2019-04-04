@@ -748,13 +748,13 @@ typedef struct _swProtocol
 {
     /* one package: eof check */
     uint8_t split_by_eof;
-    uint8_t package_eof_len;  //数据缓存结束符长度
-    char package_eof[SW_DATA_EOF_MAXLEN + 1];  //数据缓存结束符
+    uint8_t package_eof_len;
+    char package_eof[SW_DATA_EOF_MAXLEN + 1];
 
-    char package_length_type;  //length field type
+    char package_length_type;
     uint8_t package_length_size;
-    uint16_t package_length_offset;  //第几个字节开始表示长度
-    uint16_t package_body_offset;  //第几个字节开始计算长度
+    uint16_t package_length_offset;
+    uint16_t package_body_offset;
     uint32_t package_max_length;
 
     void *private_data;

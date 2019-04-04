@@ -764,10 +764,10 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
 #define SW_SERVER_TIMER_FD_INDEX        2 //for timerfd
 
-//使用connection_list[0]表示最大的FD
+// connection_list[0] => the largest fd
 #define swServer_set_maxfd(serv,maxfd) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd=maxfd)
 #define swServer_get_maxfd(serv) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd)
-//使用connection_list[1]表示最小的FD
+// connection_list[1] => the smallest fd
 #define swServer_set_minfd(serv,maxfd) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd=maxfd)
 #define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)
 

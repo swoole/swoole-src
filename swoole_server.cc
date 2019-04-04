@@ -3980,14 +3980,14 @@ static PHP_METHOD(swoole_server, connection_list)
         RETURN_FALSE;
     }
 
-    //超过最大查找数量
+    // exceeded the maximum number of searches
     if (find_count > SW_MAX_FIND_COUNT)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_connection_list max_find_count=%d", SW_MAX_FIND_COUNT);
         RETURN_FALSE;
     }
 
-    //复制出来避免被其他进程改写
+    // copy it out to avoid being overwritten by other processes
     int serv_max_fd = swServer_get_maxfd(serv);
 
     if (start_fd == 0)

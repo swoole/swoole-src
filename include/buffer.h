@@ -51,7 +51,7 @@ typedef struct _swBuffer_chunk
 typedef struct _swBuffer
 {
     int fd;
-    uint8_t chunk_num; //chunk数量
+    uint8_t chunk_num;
     uint16_t chunk_size;
     uint32_t length;
     swBuffer_chunk *head;
