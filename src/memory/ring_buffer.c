@@ -123,6 +123,7 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
     uint32_t capacity;
 
     uint32_t alloc_size = size + sizeof(swRingBuffer_item);
+    alloc_size = SW_MEM_ALIGNED_SIZE(alloc_size);
 
     if (object->free_count > 0)
     {

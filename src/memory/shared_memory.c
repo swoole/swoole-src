@@ -21,6 +21,7 @@
 
 void* sw_shm_malloc(size_t size)
 {
+    size = SW_MEM_ALIGNED_SIZE(size);
     swShareMemory object;
     void *mem;
     size += sizeof(swShareMemory);
@@ -41,7 +42,9 @@ void* sw_shm_calloc(size_t num, size_t _size)
     swShareMemory object;
     void *mem;
     void *ret_mem;
-    int size = sizeof(swShareMemory) + (num * _size);
+    size_t size = sizeof(swShareMemory) + (num * _size);
+    size = SW_MEM_ALIGNED_SIZE(size);
+
     mem = swShareMemory_mmap_create(&object, size, NULL);
     if (mem == NULL)
     {
@@ -70,6 +73,7 @@ void sw_shm_free(void *ptr)
 
 void* sw_shm_realloc(void *ptr, size_t new_size)
 {
+    new_size = SW_MEM_ALIGNED_SIZE(new_size);
     swShareMemory *object = (swShareMemory *) ((char *) ptr - sizeof(swShareMemory));
     void *new_ptr;
     new_ptr = sw_shm_malloc(new_size);

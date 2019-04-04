@@ -99,6 +99,7 @@ static swMemoryGlobal_page* swMemoryGlobal_new_page(swMemoryGlobal *gm)
 static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
 {
     swMemoryGlobal *gm = pool->object;
+    size = SW_MEM_ALIGNED_SIZE(size);
     gm->lock.lock(&gm->lock);
     if (size > gm->pagesize - sizeof(swMemoryGlobal_page))
     {
