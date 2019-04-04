@@ -309,7 +309,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
             break;
         }
     }
-#elif PHP_VERSION_ID > 70000
+#elif PHP_VERSION_ID >= 70000
     while (execute_data)
     {
         long function;
