@@ -311,13 +311,17 @@ PHP_METHOD(swoole_table, column)
     {
         RETURN_FALSE;
     }
-    if (type == SW_TABLE_STRING && size < 1)
+    if (type == SW_TABLE_STRING)
     {
-        swoole_php_fatal_error(E_WARNING, "the length of string type values has to be more than zero");
-        RETURN_FALSE;
+        if (size < 1)
+        {
+            swoole_php_fatal_error(E_WARNING, "the length of string type values has to be more than zero");
+            RETURN_FALSE;
+        }
+        size = SW_MEM_ALIGNED_SIZE(size);
     }
     //default int32
-    if (type == SW_TABLE_INT && size < 1)
+    if (type == SW_TABLE_INT && size < 4)
     {
         size = 4;
     }

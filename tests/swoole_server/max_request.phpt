@@ -22,7 +22,10 @@ $pm->parentFunc = function ($pid) use ($pm)
     for ($i = 0; $i < 4000; $i++)
     {
         $data = "PKG-$i" . str_repeat('A', rand(100, 20000)) . "\r\n\r\n";
-        $client->send($data);
+        if ($client->send($data) === false) {
+            echo "send error\n";
+            break;
+        }
         $ret = $client->recv();
         Assert::eq($ret and strlen($ret), strlen($data) + 8);
     }

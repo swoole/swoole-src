@@ -29,8 +29,6 @@ static int swWorker_onStreamRead(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t length);
 static int swWorker_onStreamClose(swReactor *reactor, swEvent *event);
 
-static swSendBuffer *g_buffer = nullptr;
-
 void swWorker_free(swWorker *worker)
 {
     if (worker->send_shm)
@@ -473,6 +471,13 @@ void swWorker_onStart(swServer *serv)
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
         sw_shm_protect(serv->session_list, PROT_READ);
+        /**
+         * Use only the first block of pipe_buffer memory in worker process
+         */
+        for (i = 1; i < serv->reactor_num; i++)
+        {
+            sw_free(serv->pipe_buffers[i]);
+        }
     }
 
 #ifdef HAVE_SIGNALFD
@@ -723,12 +728,6 @@ int swWorker_loop(swServer *serv, int worker_id)
         }
     }
 
-    g_buffer = (swSendBuffer *) sw_malloc(serv->ipc_max_size);
-    if (g_buffer == nullptr)
-    {
-        return SW_ERR;
-    }
-
     swWorker_onStart(serv);
 
     //main loop
@@ -766,18 +765,19 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 {
     swServer *serv = (swServer *) reactor->ptr;
     swFactory *factory = &serv->factory;
+    swPipeBuffer *buffer = serv->pipe_buffers[0];
     int ret;
 
     read_from_pipe:
 
-    if (read(event->fd, g_buffer, serv->ipc_max_size) > 0)
+    if (read(event->fd, buffer, serv->ipc_max_size) > 0)
     {
-        ret = swWorker_onTask(factory, (swEventData *) g_buffer);
+        ret = swWorker_onTask(factory, (swEventData *) buffer);
 #ifndef SW_WORKER_RECV_AGAIN
         /**
          * Big package
          */
-        if (g_buffer->info.flags & SW_EVENT_DATA_CHUNK)
+        if (buffer->info.flags & SW_EVENT_DATA_CHUNK)
 #endif
         {
             //no data

@@ -41,7 +41,7 @@ public:
 
 static unordered_map<string, file_lock_manager*> lock_pool;
 
-static int lock_ex(char *filename, int fd)
+static inline file_lock_manager* get_manager(char *filename)
 {
     string key(filename);
     auto i = lock_pool.find(key);
@@ -55,6 +55,12 @@ static int lock_ex(char *filename, int fd)
     {
         lm = i->second;
     }
+    return lm;
+}
+
+static inline int lock_ex(char *filename, int fd)
+{
+    file_lock_manager*lm = get_manager(filename);
     if (lm->lock_ex || lm->lock_sh)
     {
         Coroutine *co = Coroutine::get_current();
@@ -65,20 +71,9 @@ static int lock_ex(char *filename, int fd)
     return ::flock(fd, LOCK_EX);
 }
 
-static int lock_sh(char *filename, int fd)
+static inline int lock_sh(char *filename, int fd)
 {
-    string key(filename);
-    auto i = lock_pool.find(key);
-    file_lock_manager* lm;
-    if (i == lock_pool.end())
-    {
-        lm = new file_lock_manager;
-        lock_pool[key] = lm;
-    }
-    else
-    {
-        lm = i->second;
-    }
+    file_lock_manager*lm = get_manager(filename);
     if (lm->lock_ex)
     {
         Coroutine *co = Coroutine::get_current();
@@ -89,7 +84,7 @@ static int lock_sh(char *filename, int fd)
     return ::flock(fd, LOCK_SH);
 }
 
-static int lock_release(char *filename, int fd)
+static inline int lock_release(char *filename, int fd)
 {
     string key(filename);
     auto i = lock_pool.find(key);
@@ -108,18 +103,38 @@ static int lock_release(char *filename, int fd)
     {
         Coroutine *co = lm->_queue.front();
         lm->_queue.pop();
-        int retval = flock(fd, LOCK_UN);
+        int retval = ::flock(fd, LOCK_UN);
         co->resume();
         return retval;
     }
 }
+
+#ifdef LOCK_NB
+static inline int lock_nb(char *filename, int fd, int operation)
+{
+    int retval = ::flock(fd, operation | LOCK_NB);
+    if (retval == 0)
+    {
+        file_lock_manager*lm = get_manager(filename);
+        if (operation == LOCK_EX)
+        {
+            lm->lock_ex = true;
+        }
+        else
+        {
+            lm->lock_sh = true;
+        }
+    }
+    return retval;
+}
+#endif
 
 int swoole_coroutine_flock_ex(char *filename, int fd, int operation)
 {
     Coroutine *co = Coroutine::get_current();
     if (unlikely(SwooleG.main_reactor == nullptr || !co))
     {
-        return flock(fd, operation);
+        return ::flock(fd, operation);
     }
 
     switch (operation)
@@ -131,8 +146,13 @@ int swoole_coroutine_flock_ex(char *filename, int fd, int operation)
     case LOCK_UN:
         return lock_release(filename, fd);
     default:
-        assert(0);
-        break;
+#ifdef LOCK_NB
+        if (operation & LOCK_NB)
+        {
+            return lock_nb(filename, fd, operation & (~LOCK_NB));
+        }
+#endif
+        return -1;
     }
 
     return 0;
