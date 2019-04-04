@@ -472,11 +472,11 @@ void swWorker_onStart(swServer *serv)
     {
         sw_shm_protect(serv->session_list, PROT_READ);
         /**
-         * Use only the first block of dispatch_buffer memory in worker process
+         * Use only the first block of pipe_buffer memory in worker process
          */
         for (i = 1; i < serv->reactor_num; i++)
         {
-            sw_free(serv->dispatch_buffers[i]);
+            sw_free(serv->pipe_buffers[i]);
         }
     }
 
@@ -765,7 +765,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 {
     swServer *serv = (swServer *) reactor->ptr;
     swFactory *factory = &serv->factory;
-    swSendBuffer *buffer = serv->dispatch_buffers[0];
+    swPipeBuffer *buffer = serv->pipe_buffers[0];
     int ret;
 
     read_from_pipe:

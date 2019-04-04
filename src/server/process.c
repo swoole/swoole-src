@@ -81,9 +81,9 @@ static void swFactoryProcess_free(swFactory *factory)
 
     for (i = 0; i < serv->reactor_num; i++)
     {
-        sw_free(serv->dispatch_buffers[i]);
+        sw_free(serv->pipe_buffers[i]);
     }
-    sw_free(serv->dispatch_buffers);
+    sw_free(serv->pipe_buffers);
 
     if (serv->stream_socket)
     {
@@ -177,22 +177,21 @@ static int swFactoryProcess_start(swFactory *factory)
     /**
      * alloc memory
      */
-    serv->dispatch_buffers = sw_calloc(serv->reactor_num, sizeof(swSendBuffer *));
-    if (serv->dispatch_buffers == NULL)
+    serv->pipe_buffers = sw_calloc(serv->reactor_num, sizeof(swPipeBuffer *));
+    if (serv->pipe_buffers == NULL)
     {
         swSysError("malloc[buffers] failed");
         return SW_ERR;
     }
     for (i = 0; i < serv->reactor_num; i++)
     {
-        serv->dispatch_buffers[i] = sw_malloc(serv->ipc_max_size);
-        if (serv->dispatch_buffers[i] == NULL)
+        serv->pipe_buffers[i] = sw_malloc(serv->ipc_max_size);
+        if (serv->pipe_buffers[i] == NULL)
         {
             swSysError("malloc[sndbuf][%d] failed", i);
             return SW_ERR;
         }
     }
-    SwooleWG.send_buffer = serv->dispatch_buffers[0];
     /**
      * The manager process must be started first, otherwise it will have a thread fork
      */
@@ -289,7 +288,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
     /**
      * Multi-Threads
      */
-    swSendBuffer *buf = serv->dispatch_buffers[SwooleTG.id];
+    swPipeBuffer *buf = serv->pipe_buffers[SwooleTG.id];
     uint32_t max_length = serv->ipc_max_size - sizeof(buf->info);
 
     buf->info = task->info;
@@ -410,7 +409,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         return SW_OK;
     }
 
-    swSendBuffer *buf = serv->dispatch_buffers[0];
+    swPipeBuffer *buf = serv->pipe_buffers[0];
     buf->info.fd = session_id;
     buf->info.type = resp->info.type;
     swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
@@ -467,7 +466,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     sendn = buf->info.len + sizeof(resp->info);
 
     swTrace("[Worker] send: sendn=%d|type=%d|content=<<EOF\n%.*s\nEOF", sendn, resp->info.type, resp->info.len, resp->data);
-    ret = swWorker_send2reactor(serv, buf, sendn, session_id);
+    ret = swWorker_send2reactor(serv, (swEventData *) buf, sendn, session_id);
     if (ret < 0)
     {
         swSysWarn("sendto to reactor failed");

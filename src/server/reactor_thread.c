@@ -342,33 +342,32 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
 {
     int n;
-    swEventData resp;
     swSendData _send;
 
     swServer *serv = reactor->ptr;
-
     swPackage_response pkg_resp;
     swWorker *worker;
+    swPipeBuffer *resp = serv->pipe_buffers[reactor->id];
 
 #ifdef SW_REACTOR_RECV_AGAIN
     while (1)
 #endif
     {
-        n = read(ev->fd, &resp, sizeof(resp));
+        n = read(ev->fd, resp, serv->ipc_max_size);
         if (n > 0)
         {
-            memcpy(&_send.info, &resp.info, sizeof(resp.info));
+            memcpy(&_send.info, &resp->info, sizeof(_send.info));
             //pipe data
             if (_send.info.from_fd == SW_RESPONSE_SMALL)
             {
-                _send.data = resp.data;
-                _send.info.len = resp.info.len;
+                _send.data = resp->data;
+                _send.info.len = resp->info.len;
                 swServer_master_send(serv, &_send);
             }
             //use send shm
             else if (_send.info.from_fd == SW_RESPONSE_SHM)
             {
-                memcpy(&pkg_resp, resp.data, sizeof(pkg_resp));
+                memcpy(&pkg_resp, resp->data, sizeof(pkg_resp));
                 worker = swServer_get_worker(serv, pkg_resp.worker_id);
 
                 _send.data = worker->send_shm;
@@ -391,7 +390,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
             //use tmp file
             else if (_send.info.from_fd == SW_RESPONSE_TMPFILE)
             {
-                swString *data = swTaskWorker_large_unpack(&resp);
+                swString *data = swTaskWorker_large_unpack((swEventData *) resp);
                 if (data == NULL)
                 {
                     return SW_ERR;

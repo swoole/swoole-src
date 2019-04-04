@@ -882,17 +882,17 @@ typedef struct _swEvent
     swConnection *socket;
 } swEvent;
 
-typedef struct _swEventData
+typedef struct
 {
     swDataHead info;
     char data[SW_IPC_BUFFER_SIZE];
 } swEventData;
 
-typedef struct _swSendBuffer
+typedef struct
 {
     swDataHead info;
     char data[0];
-} swSendBuffer;
+} swPipeBuffer;
 
 typedef struct _swDgramPacket
 {
@@ -2241,7 +2241,6 @@ typedef struct
     swWorker *worker;
     time_t exit_time;
     swTimer_node *exit_timer;
-    swSendBuffer *send_buffer;
 
 } swWorkerGlobal_t;
 

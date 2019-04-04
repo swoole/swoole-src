@@ -1077,7 +1077,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
 #endif
             if (!conn->out_buffer)
             {
-                conn->out_buffer = swBuffer_new(SW_IPC_BUFFER_SIZE);
+                conn->out_buffer = swBuffer_new(serv->ipc_max_size);
                 if (conn->out_buffer == NULL)
                 {
                     return SW_ERR;
