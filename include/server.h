@@ -467,6 +467,7 @@ struct _swServer
     int *cpu_affinity_available;
     int cpu_affinity_available_num;
 
+    swSendBuffer **dispatch_buffers;
     double send_timeout;
 
     uint16_t listen_port_num;

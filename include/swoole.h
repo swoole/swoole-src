@@ -2241,6 +2241,7 @@ typedef struct
     swWorker *worker;
     time_t exit_time;
     swTimer_node *exit_timer;
+    swSendBuffer *send_buffer;
 
 } swWorkerGlobal_t;
 
