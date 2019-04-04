@@ -100,13 +100,10 @@ static void swoole_channel_coro_free_object(zend_object *object)
     Channel *chan = chan_t->chan;
     if (chan)
     {
-        while (chan->length() > 0)
+        zval *data;
+        while ((data = (zval *) chan->pop_data()))
         {
-            zval *data = (zval *) chan->pop_data();
-            if (data)
-            {
-                sw_zval_free(data);
-            }
+            sw_zval_free(data);
         }
         delete chan;
     }
