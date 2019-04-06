@@ -1005,7 +1005,7 @@ int swReactorThread_init_reactor(swServer *serv, swReactor *reactor, uint16_t re
         pipe_fd = serv->workers[i].pipe_master;
 
         //for request
-        swBuffer *buffer = swBuffer_new(sizeof(swEventData));
+        swBuffer *buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
         if (!buffer)
         {
             swWarn("create buffer failed");

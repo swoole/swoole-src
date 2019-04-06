@@ -230,7 +230,7 @@ int swConnection_sendfile(swConnection *conn, char *filename, off_t offset, size
 {
     if (conn->out_buffer == NULL)
     {
-        conn->out_buffer = swBuffer_new(SW_IPC_BUFFER_SIZE);
+        conn->out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
         if (conn->out_buffer == NULL)
         {
             return SW_ERR;
@@ -315,7 +315,7 @@ swBuffer_chunk* swConnection_get_in_buffer(swConnection *conn)
 
     if (conn->in_buffer == NULL)
     {
-        buffer = swBuffer_new(SW_IPC_BUFFER_SIZE);
+        buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
         //buffer create failed
         if (buffer == NULL)
         {
@@ -347,7 +347,7 @@ swBuffer_chunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type)
     swBuffer_chunk *chunk;
     if (conn->out_buffer == NULL)
     {
-        conn->out_buffer = swBuffer_new(SW_IPC_BUFFER_SIZE);
+        conn->out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
         if (conn->out_buffer == NULL)
         {
             return NULL;

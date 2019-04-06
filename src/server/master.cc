@@ -1077,7 +1077,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
 #endif
             if (!conn->out_buffer)
             {
-                conn->out_buffer = swBuffer_new(serv->ipc_max_size);
+                conn->out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
                 if (conn->out_buffer == NULL)
                 {
                     return SW_ERR;
@@ -1127,17 +1127,10 @@ int swServer_master_send(swServer *serv, swSendData *_send)
             }
         }
 
-        int _length = _send_length;
-        char* _pos = _send_data;
-        int _n;
-
-        //buffer enQueue
-        while (_length > 0)
+        if (swBuffer_append(conn->out_buffer, _send_data, _send_length) < 0)
         {
-            _n = _length >= SW_BUFFER_SIZE_BIG ? SW_BUFFER_SIZE_BIG : _length;
-            swBuffer_append(conn->out_buffer, _pos, _n);
-            _pos += _n;
-            _length -= _n;
+            swWarn("append to pipe_buffer failed");
+            return SW_ERR;
         }
 
         swListenPort *port = swServer_get_port(serv, fd);

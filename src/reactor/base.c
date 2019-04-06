@@ -281,7 +281,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
             do_buffer:
             if (!socket->out_buffer)
             {
-                buffer = swBuffer_new(sizeof(swEventData));
+                buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
                 if (!buffer)
                 {
                     swWarn("create worker buffer failed");
