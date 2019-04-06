@@ -30,7 +30,7 @@ swBuffer* swBuffer_new(uint32_t chunk_size)
     }
 
     bzero(buffer, sizeof(swBuffer));
-    buffer->chunk_size = chunk_size;
+    buffer->chunk_size = chunk_size == 0 ? INT_MAX : chunk_size;
 
     return buffer;
 }
@@ -147,7 +147,7 @@ int swBuffer_append(swBuffer *buffer, void *data, uint32_t size)
     {
         _n = _length >= buffer->chunk_size ? buffer->chunk_size : _length;
 
-        swBuffer_chunk *chunk = swBuffer_new_chunk(buffer, SW_CHUNK_DATA, size);
+        swBuffer_chunk *chunk = swBuffer_new_chunk(buffer, SW_CHUNK_DATA, _n);
         if (chunk == NULL)
         {
             return SW_ERR;
