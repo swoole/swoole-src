@@ -329,6 +329,7 @@ static PHP_METHOD(swoole_connection_iterator, offsetExists);
 static PHP_METHOD(swoole_connection_iterator, offsetGet);
 static PHP_METHOD(swoole_connection_iterator, offsetSet);
 static PHP_METHOD(swoole_connection_iterator, offsetUnset);
+static PHP_METHOD(swoole_connection_iterator, __construct);
 static PHP_METHOD(swoole_connection_iterator, __destruct);
 
 /**
@@ -394,13 +395,14 @@ static zend_function_entry swoole_server_methods[] = {
 
 static const zend_function_entry swoole_connection_iterator_methods[] =
 {
+    PHP_ME(swoole_connection_iterator, __construct,  arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_connection_iterator, __destruct,  arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_connection_iterator, rewind,      arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_connection_iterator, next,        arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_connection_iterator, current,     arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_connection_iterator, key,         arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_connection_iterator, valid,       arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_connection_iterator, count,       arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_connection_iterator, __destruct,  arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_connection_iterator, offsetExists,    arginfo_swoole_connection_iterator_offsetExists, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_connection_iterator, offsetGet,       arginfo_swoole_connection_iterator_offsetGet, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_connection_iterator, offsetSet,       arginfo_swoole_connection_iterator_offsetSet, ZEND_ACC_PUBLIC)
@@ -4223,6 +4225,12 @@ static PHP_METHOD(swoole_server, stop)
 
 // swoole_connection_iterator
 
+static PHP_METHOD(swoole_connection_iterator, __construct)
+{
+    swoole_php_fatal_error(E_ERROR, "please use the Swoole\\Server->connections");
+    return;
+}
+
 static PHP_METHOD(swoole_connection_iterator, rewind)
 {
     swConnectionIterator *itearator = (swConnectionIterator *) swoole_get_object(getThis());
@@ -4334,8 +4342,12 @@ static PHP_METHOD(swoole_connection_iterator, offsetUnset)
 
 static PHP_METHOD(swoole_connection_iterator, __destruct)
 {
-    swConnectionIterator *i = (swConnectionIterator *) swoole_get_object(getThis());
-    efree(i);
+    swConnectionIterator *iterator = (swConnectionIterator *) swoole_get_object(getThis());
+    if (!iterator)
+    {
+        return;
+    }
+    efree(iterator);
     swoole_set_object(getThis(), NULL);
 }
 
