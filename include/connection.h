@@ -58,9 +58,6 @@ typedef struct _swSSL_option
 int swConnection_buffer_send(swConnection *conn);
 
 swString* swConnection_get_string_buffer(swConnection *conn);
-void swConnection_clear_string_buffer(swConnection *conn);
-swBuffer_chunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
-swBuffer_chunk* swConnection_get_in_buffer(swConnection *conn);
 int swConnection_sendfile(swConnection *conn, char *filename, off_t offset, size_t length);
 int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk);
 void swConnection_sendfile_destructor(swBuffer_chunk *chunk);
