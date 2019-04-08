@@ -463,17 +463,9 @@ static PHP_METHOD(swoole_process_pool, getProcess)
 
 static PHP_METHOD(swoole_process_pool, shutdown)
 {
-    zval rv;
-    zval *retval = zend_read_property(swoole_process_pool_ce, getThis(), ZEND_STRL("master_pid"), 1, &rv);
+    zval *retval = sw_zend_read_property(swoole_process_pool_ce, getThis(), ZEND_STRL("master_pid"), 0);
     long pid = zval_get_long(retval);
-    if (pid > 0)
-    {
-        RETURN_BOOL(kill(pid, SIGTERM) == 0);
-    }
-    else
-    {
-        RETURN_FALSE;
-    }
+    RETURN_BOOL(swKill(pid, SIGTERM) == 0);
 }
 
 static PHP_METHOD(swoole_process_pool, __destruct)
