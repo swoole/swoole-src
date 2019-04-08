@@ -1,4 +1,4 @@
-This is MySQL ORM User Guide
+MySQL ORM User Guide
 ===
 
 ## Catalogue
@@ -93,8 +93,16 @@ $info = $mysql->error;
 ## Where statement
 - Basic usage
 ```php
-$mysql->select("user_info_test", "*", ["sexuality" => "male"]);
-// WHERE sexuality = 'male'
+//sql_stat is an array, 
+//sql_stat['sql'] : SELECT * FROM `user_info_test` WHERE `sexuality` = ?
+//sql_stat['bind_value'] : array("male")
+
+$sql_stat = $mysql->select("user_info_test", "*", ["sexuality" => "male"]);
+if ($sql_stat !== false) {
+  $stmt = $mysql->prepare($sql_stat['sql']);
+  $ret = $stmt->execute($sql_stat['bind_value']);
+}
+
 
 $mysql->select("user_info_test", "*", ["age" => 29]);  // WHERE age = 29
 
