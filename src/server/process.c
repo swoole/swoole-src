@@ -158,7 +158,7 @@ static int swFactoryProcess_start(swFactory *factory)
         serv->workers[i].pipe_object = &object->pipes[i];
         swServer_store_pipe_fd(serv, serv->workers[i].pipe_object);
     }
-    
+
 #ifdef HAVE_KQUEUE
     serv->ipc_max_size = SW_IPC_MAX_SIZE;
 #else

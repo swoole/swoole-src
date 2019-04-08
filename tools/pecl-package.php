@@ -26,7 +26,11 @@ function check_source_ver(string $expect_ver, $source_file)
 
     // auto fixed sub version values
     if (strpos($source_content, 'SWOOLE_MAJOR_VERSION') !== false) {
-        list($major, $minor, $release, $extra) = preg_split('/[.-]/', $source_ver, 4);
+        $version_parts = array_values(array_filter(preg_split('/(?:\b)|(?:(?<=[0-9])(?=[a-zA-Z]))/',
+            $source_ver), function (string $char) {
+            return preg_match('/[0-9a-zA-Z]/', $char);
+        }));
+        list($major, $minor, $release, $extra) = $version_parts;
         $source_content = preg_replace(
             '/^(\#define[ ]+SWOOLE_VERSION_ID[ ]+)\d+$/m',
             '${1}' . sprintf('%d%02d%02d', $major, $minor, $release),
@@ -96,7 +100,7 @@ $tests_dir = __DIR__ . '/../tests/';
 $root_dir = SWOOLE_SOURCE_ROOT;
 
 // check version definitions
-$package_ver_regex = '/<version>\s+<release>(?<release_v>\d+?\.\d+?\.\d+?)<\/release>\s+<api>(?<api_v>\d+?\.\d+?)<\/api>\s+<\/version>\s+<stability>\s+<release>(?<release_s>[a-z]+?)<\/release>\s+<api>(?<api_s>[a-z]+?)<\/api>\s+<\/stability>/';
+$package_ver_regex = '/<version>\s+<release>(?<release_v>\d+?\.\d+?\.\d+?(?:-?(?:alpine|beta|rc\d*?))?)<\/release>\s+<api>(?<api_v>\d+?\.\d+?)<\/api>\s+<\/version>\s+<stability>\s+<release>(?<release_s>[a-z]+?)<\/release>\s+<api>(?<api_s>[a-z]+?)<\/api>\s+<\/stability>/i';
 preg_match($package_ver_regex, file_get_contents(__DIR__ . '/../package.xml'), $matches);
 $package_release_ver = $matches['release_v'];
 $package_api_ver = $matches['api_v'];
@@ -186,7 +190,7 @@ if (!$success) {
     swoole_error('Replace time tag failed!');
 }
 if (!file_put_contents(__DIR__ . '/../package.xml', $content)) {
-    swoole_error('Output package successful!');
+    swoole_error('Output package.xml failed!');
 }
 $package = trim(`cd {$root_dir} && pecl package`);
 if (preg_match('/Warning/i', $package)) {
@@ -196,7 +200,7 @@ if (preg_match('/Warning/i', $package)) {
     swoole_log("{$warn}\n", SWOOLE_COLOR_MAGENTA);
 }
 // check package status
-if (!preg_match('/Package (?<filename>swoole-[\d.]+\.tgz) done/', $package, $matches)) {
+if (!preg_match('/Package (?<filename>swoole-.+?.tgz) done/', $package, $matches)) {
     swoole_error($package);
 } else {
     $file_name = $matches['filename'];
