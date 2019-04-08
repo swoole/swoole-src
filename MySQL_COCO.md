@@ -93,25 +93,25 @@ $info = $mysql->error;
 ## Where statement
 - Basic usage
 ```php
-$ycdb->select("user_info_test", "*", ["sexuality" => "male"]);
+$mysql->select("user_info_test", "*", ["sexuality" => "male"]);
 // WHERE sexuality = 'male'
 
-$ycdb->select("user_info_test", "*", ["age" => 29]);  // WHERE age = 29
+$mysql->select("user_info_test", "*", ["age" => 29]);  // WHERE age = 29
 
-$ycdb->select("user_info_test", "*", ["age[>]" => 29]); // WHERE age > 29
+$mysql->select("user_info_test", "*", ["age[>]" => 29]); // WHERE age > 29
 
-$ycdb->select("user_info_test", "*", ["age[>=]" => 29]); // WHERE age >= 29
+$mysql->select("user_info_test", "*", ["age[>=]" => 29]); // WHERE age >= 29
 
-$ycdb->select("user_info_test", "*", ["age[!]" => 29]); // WHERE age != 29
+$mysql->select("user_info_test", "*", ["age[!]" => 29]); // WHERE age != 29
 
-$ycdb->select("user_info_test", "*", ["age[<>]" => [28, 29]]); // WHERE age  BETWEEN 28 AND 29
+$mysql->select("user_info_test", "*", ["age[<>]" => [28, 29]]); // WHERE age  BETWEEN 28 AND 29
 
-$ycdb->select("user_info_test", "*", ["age[><]" => [28, 29]]); // WHERE age NOT BETWEEN 28 AND 29
+$mysql->select("user_info_test", "*", ["age[><]" => [28, 29]]); // WHERE age NOT BETWEEN 28 AND 29
 
-$ycdb->select("user_info_test", "*", ["username" => ["Tom", "Red", "carlo"]]); // WHERE username in ('Tom', 'Red', 'carlo')
+$mysql->select("user_info_test", "*", ["username" => ["Tom", "Red", "carlo"]]); // WHERE username in ('Tom', 'Red', 'carlo')
 
 //Multiple conditional query
-$data = $ycdb->select("user_info_test", "*", [
+$data = $mysql->select("user_info_test", "*", [
     "uid[!]" => 10,
     "username[!]" => "James",
     "height[!]" => [165, 168, 172],
@@ -125,7 +125,7 @@ $data = $ycdb->select("user_info_test", "*", [
 
 You can use "AND" or "OR" to make up very complex SQL statements.
 ```php
-$data = $ycdb->select("user_info_test", "*", [
+$data = $mysql->select("user_info_test", "*", [
   "OR" => [
     "uid[>]" => 3,
     "age[<>]" => [28, 29],
@@ -134,7 +134,7 @@ $data = $ycdb->select("user_info_test", "*", [
 ]);
 // WHERE uid > 3 OR age BETWEEN 29 AND 29 OR sexuality = 'female'
 
-$data = $ycdb->select("user_info_test", "*", [
+$data = $mysql->select("user_info_test", "*", [
   "AND" => [
     "OR" => [
       "age" => 29,
@@ -145,8 +145,8 @@ $data = $ycdb->select("user_info_test", "*", [
 ]);
 // WHERE (age = 29 OR sexuality='female') AND height = 177
 
-//Attention： Because ycdb uses array arguments, the first OR is overwritten, the following usage is wrong, 
-$data = $ycdb->select("user_info_test", "*", [
+//Attention： Because mysql uses array arguments, the first OR is overwritten, the following usage is wrong, 
+$data = $mysql->select("user_info_test", "*", [
   "AND" => [
     "OR" => [
       "age" => 29,
@@ -161,7 +161,7 @@ $data = $ycdb->select("user_info_test", "*", [
 // [X] SELECT * FROM user_info_test WHERE (uid != 3 OR height >= 170)
 
 //We can use # and comments to distinguish between two diffrents OR
-$data = $ycdb->select("user_info_test", "*", [
+$data = $mysql->select("user_info_test", "*", [
   "AND" => [
     "OR #1" => [
       "age" => 29,
@@ -179,28 +179,28 @@ $data = $ycdb->select("user_info_test", "*", [
 
 LIKE USAGE [~].
 ```php
-$data = $ycdb->select("user_info_test", "*", [ "username[~]" => "%ide%" ]);
+$data = $mysql->select("user_info_test", "*", [ "username[~]" => "%ide%" ]);
 // WHERE username LIKE '%ide%'
 
-$data = $ycdb->select("user_info_test", "*", ["username[~]" => ["%ide%", "Jam%", "%ace"]]);
+$data = $mysql->select("user_info_test", "*", ["username[~]" => ["%ide%", "Jam%", "%ace"]]);
 // WHERE username LIKE '%ide%' OR username LIKE 'Jam%' OR username LIKE '%ace'
 
-$data = $ycdb->select("user_info_test", "*", [ "username[!~]" => "%ide%" ]);
+$data = $mysql->select("user_info_test", "*", [ "username[!~]" => "%ide%" ]);
 // WHERE username NOT LIKE '%ide%'
 ```
 
 - Use of wildcards 
 ```php
-$ycdb->select("user_info_test", "*", [ "username[~]" => "Londo_" ]); // London, Londox, Londos...
+$mysql->select("user_info_test", "*", [ "username[~]" => "Londo_" ]); // London, Londox, Londos...
 
-$ycdb->select("user_info_test", "id", [ "username[~]" => "[BCR]at" ]); // Bat, Cat, Rat
+$mysql->select("user_info_test", "id", [ "username[~]" => "[BCR]at" ]); // Bat, Cat, Rat
 
-$ycdb->select("user_info_test", "id", [	"username[~]" => "[!BCR]at" ]); // Eat, Fat, Hat...
+$mysql->select("user_info_test", "id", [	"username[~]" => "[!BCR]at" ]); // Eat, Fat, Hat...
 ```
 
 - ORDER BY And LIMIT
 ```php
-$data = $ycdb->select("user_info_test", "*", [
+$data = $mysql->select("user_info_test", "*", [
   'sexuality' => 'male',
   'ORDER' => [
     "age",
@@ -215,7 +215,7 @@ $data = $ycdb->select("user_info_test", "*", [
 
 - GROUP And HAVING
 ```php
-$ycdb->select("user_info_test", "sexuality,age,height", [
+$mysql->select("user_info_test", "sexuality,age,height", [
   'GROUP' => 'sexuality',
  
   // GROUP by array of values
@@ -274,7 +274,7 @@ select_sql($table, $join, $columns, $where) //just get select sql and data map f
 
 You can use * to match all fields, but if you specify columns you can improve performance.<br>
 ```php
-$datas = $ycdb->select("user_info_test", [
+$datas = $mysql->select("user_info_test", [
   "uid",
   "username"
 ], [
@@ -293,10 +293,10 @@ $datas = $ycdb->select("user_info_test", [
 // )
 
 // Select all columns
-$datas = $ycdb->select("user_info_test", "*");
+$datas = $mysql->select("user_info_test", "*");
 
 // Select a column
-$datas = $ycdb->select("user_info_test", "username");
+$datas = $mysql->select("user_info_test", "username");
  
 // $datas = array(
 //  [0] => "lucky",
@@ -308,7 +308,7 @@ $datas = $ycdb->select("user_info_test", "username");
 
 - Table join
 
-Multi-table query SQL is more complicated, and it can be easily solved with ycdb.<br>
+Multi-table query SQL is more complicated, and it can be easily solved with mysql.<br>
 
 ```php
 // [>] == RIGH JOIN
@@ -316,7 +316,7 @@ Multi-table query SQL is more complicated, and it can be easily solved with ycdb
 // [<>] == FULL JOIN
 // [><] == INNER JOIN
 
-$ycdb->select("user_info_test",
+$mysql->select("user_info_test",
 [ // Table Join Info
   "[>]account" => ["uid" => "userid"], // RIGHT JOIN `account` ON `user_info_test`.`uid`= `account`.`userid`
  
@@ -372,7 +372,7 @@ $ycdb->select("user_info_test",
 You can use aliases to prevent field conflicts<br>
 
 ```php
-$data = $ycdb->select("user_info_test(uinfo)", [
+$data = $mysql->select("user_info_test(uinfo)", [
   "[<]account(A)" => "userid",
 ], [
   "uinfo.uid(uid)",
@@ -404,10 +404,10 @@ insert_sql($table, $data)  //just get insert sql from ORM, not implement query
  
 ```php
 $data = array('username' => 'smallhow','sexuality' => 'male','age' => 35, 'height' => '168');
-$insert_id = $ycdb->insert("user_info_test", $data);
+$insert_id = $mysql->insert("user_info_test", $data);
 if($insert_id == -1) {
-  $code = $ycdb->errorCode();
-  $info = $ycdb->errorInfo();
+  $code = $mysql->errorCode();
+  $info = $mysql->errorInfo();
   echo "code:" . $code . "\n";
   echo "info:" . $info[2] . "\n";
 } else {
@@ -436,10 +436,10 @@ replace_sql($table, $data)  //just get replace sql from ORM, not implement query
  
 ```php
 $data = array('username' => 'smallhow','sexuality' => 'male','age' => 35, 'height' => '168');
-$insert_id = $ycdb->replace("user_info_test", $data);
+$insert_id = $mysql->replace("user_info_test", $data);
 if($insert_id == -1) {
-  $code = $ycdb->errorCode();
-  $info = $ycdb->errorInfo();
+  $code = $mysql->errorCode();
+  $info = $mysql->errorInfo();
   echo "code:" . $code . "\n";
   echo "info:" . $info[2] . "\n";
 } else {
@@ -469,7 +469,7 @@ update_sql($table, $data, $where)  //just get update sql data and map from ORM, 
 ```php
 $data = array('height' => 182,'age' => 33);
 $where = array('username' => 'smallhow');
-$ret = $ycdb->update("user_info_test", $data, $where);
+$ret = $mysql->update("user_info_test", $data, $where);
 ```
 
 ## Delete statement
@@ -489,7 +489,7 @@ delete_sql($table, $where)  //just get delete sql and data map from ORM, not imp
 
 ```php
 $where = array('username' => 'smallhow');
-$ret = $ycdb->delete("user_info_test", $where);
+$ret = $mysql->delete("user_info_test", $where);
 ```
 
 ## Whole Example
@@ -506,7 +506,7 @@ $join = [
 $columns = ["name(a)", "avatar(b)", "age"];
 
 $where =  [
-  "user.email[!]" => ["foo@bar.com", "cat@dog.com", "admin@ycdb.in"],
+  "user.email[!]" => ["foo@bar.com", "cat@dog.com", "admin@mysql.in"],
   "user.uid[<]" => 11111,
   "uid[>=]" => 222,
   "uid[!]" => null,
@@ -557,27 +557,27 @@ $where =  [
     "LIMIT" => 33,
 ];
 
-$ycdb->select($table, $join, $columns, $where);
+$mysql->select($table, $join, $columns, $where);
 ```
 
 ## Database transaction
 
 ```php
-$ycdb->begin();
+$mysql->begin();
 
-$ret1 = $ycdb->exec("insert into user_info_test(username, sexuality, age, height) values('smallhow', 'male', 29, 180)");
-$ret2 = $ycdb->exec("insert into user_info_test(username, sexuality, age, height) values('jesson', 'female', 28, 175)");
+$ret1 = $mysql->exec("insert into user_info_test(username, sexuality, age, height) values('smallhow', 'male', 29, 180)");
+$ret2 = $mysql->exec("insert into user_info_test(username, sexuality, age, height) values('jesson', 'female', 28, 175)");
 
 if($ret1 == -1 || $ret2 == -1 ) {
-  $ycdb->rollback();
+  $mysql->rollback();
 } else {
-  $ycdb->commit()
+  $mysql->commit()
 }
 ```
 
 ## PHP Database Connection Pool
 
-Short connection performance is generally not available. CPU resources are consumed by the system. Once the network is jittered, there will be a large number of TIME_WAIT generated. The service has to be restarted periodically or the machine is restarted periodically. The server is unstable, QPS is high and low, and the connection is stable and efficient. The pool can effectively solve the above problems, it is the basis of high concurrency. ycdb uses a special way to establish a stable connection pool with MySQL. performance can be increased by at least 30%, According to PHP's operating mechanism, long connections can only reside on top of the worker process after establishment, that is, how many work processes are there. How many long connections, for example, we have 10 PHP servers, each launching 1000 PHP-FPM worker processes, they connect to the same MySQL instance, then there will be a maximum of 10,000 long connections on this MySQL instance, the number is completely Out of control! And PHP's connection pool heartbeat mechanism is not perfect<br><br>
+Short connection performance is generally not available. CPU resources are consumed by the system. Once the network is jittered, there will be a large number of TIME_WAIT generated. The service has to be restarted periodically or the machine is restarted periodically. The server is unstable, QPS is high and low, and the connection is stable and efficient. The pool can effectively solve the above problems, it is the basis of high concurrency. mysql uses a special way to establish a stable connection pool with MySQL. performance can be increased by at least 30%, According to PHP's operating mechanism, long connections can only reside on top of the worker process after establishment, that is, how many work processes are there. How many long connections, for example, we have 10 PHP servers, each launching 1000 PHP-FPM worker processes, they connect to the same MySQL instance, then there will be a maximum of 10,000 long connections on this MySQL instance, the number is completely Out of control! And PHP's connection pool heartbeat mechanism is not perfect<br><br>
 
 
 ### How ?
@@ -653,12 +653,12 @@ Except the option is array("unix_socket" => "/tmp/mysql_pool.sock") , Php mysql 
 
 ```php
 $option = array("unix_socket" => "/tmp/mysql_pool.sock");
-$ycdb = new ycdb($option);
-$ret = $ycdb->select("user_info_test", "*", ["sexuality" => "male"]);
+$mysql = new mysql($option);
+$ret = $mysql->select("user_info_test", "*", ["sexuality" => "male"]);
 
 if($ret == -1) {
-  $code = $ycdb->errorCode();
-  $info = $ycdb->errorInfo();
+  $code = $mysql->errorCode();
+  $info = $mysql->errorInfo();
   echo "code:" . $code . "\n";
   echo "info:" . $info[2] . "\n";
 } else {
