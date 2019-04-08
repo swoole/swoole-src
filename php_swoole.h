@@ -1075,6 +1075,108 @@ static sw_inline zend_string* sw_get_debug_print_backtrace(zend_long options, ze
     return Z_STR(zoutput);
 }
 
+
+//----------------------------------ORM API------------------------------------
+#define PDO_PARAM_NULL 0
+#define PDO_PARAM_INT 1
+#define PDO_PARAM_STR 2
+#define PDO_PARAM_LOB 3
+#define PDO_PARAM_STMT 4
+#define PDO_PARAM_BOOL 5
+
+#define PDO_FETCH_ASSOC 2
+#define PDO_FETCH_COLUMN 7 
+
+#define MAX_TABLE_SIZE 48
+#define MAX_OPERATOR_SIZE 4
+
+#define MAP_ITOA_INT_SIZE 16
+
+#define MM_ALIGNED_SIZE_32(size) ((size + Z_L(32) - Z_L(1)) & (~(Z_L(32) - Z_L(1))))
+#define MM_REAL_SIZE(len) (MM_ALIGNED_SIZE_32(len + 1 + sizeof(size_t)))
+
+#define sw_is_space(p) (p != '\0' && (isspace(p) || (p) == '\n' || (p) == '\r' || (p) == '\t'))
+#define sw_is_string_empty(p) (p == NULL || p[0] == '\0')
+
+extern char* sw_multi_memcpy_auto_realloc(char** source, int n_str, ...);
+extern int sw_strpos(const char *haystack,const char *needle);
+
+extern char* sw_get_array_key_index(zval* p, uint32_t index);
+static sw_inline void sw_string_malloc_32(char **tmp, int len) {
+    size_t real_size = MM_REAL_SIZE(len);
+    *tmp = (char*)sw_malloc(real_size);
+    memset(*tmp, 0, real_size);
+    memcpy(*tmp, &real_size, sizeof(size_t));
+    *tmp = *tmp + sizeof(size_t);
+}
+
+static sw_inline void sw_string_free_32(char *tmp) {
+    sw_free(tmp - sizeof(size_t));
+}
+
+static sw_inline int sw_compare_strict_bool(zval *op1, zend_bool op2 TSRMLS_DC) {
+	if(op1 == NULL) {
+		return 0 == op2;
+	}
+	
+	switch (Z_TYPE_P(op1)) {
+		case IS_LONG:
+			return (Z_LVAL_P(op1) ? 1 : 0) == op2;
+		case IS_DOUBLE:
+			return (Z_DVAL_P(op1) ? 1 : 0) == op2;
+		case IS_NULL:
+			return 0 == op2;
+		case IS_TRUE:
+			return 1 == op2;
+		case IS_FALSE:
+			return 0 == op2;
+		default:
+			return 0;
+	}
+
+	return 0;
+}
+
+static sw_inline zval* sw_zval_copy(zval * source) {
+	zval *copy;
+	SW_MAKE_STD_ZVAL(copy);
+	*copy = *source;
+	zval_copy_ctor(copy);
+	return copy;
+}
+
+static sw_inline char* sw_itoa(long num, char* str) {
+	int radix = 10;
+	memset(str, 0, MAP_ITOA_INT_SIZE);
+    char index[]="0123456789ABCDEF";
+    unsigned long unum;
+    int i=0,j,k;
+    if (radix==10&&num<0) {
+        unum=(unsigned long)-num;
+        str[i++]='-';
+    } else unum=(unsigned long)num;
+    do {
+        str[i++]=index[unum%(unsigned long)radix];
+        unum/=radix;
+    } while (unum);
+    str[i]='\0';
+    if (str[0]=='-')k=1;
+    else k=0;
+    char temp;
+    for (j=k;j<=(i-1)/2;j++) {
+        temp=str[j];
+        str[j]=str[i-1+k-j];
+        str[i-1+k-j]=temp;
+    }
+    return str;
+}
+
+#define SW_IS_FALSE(var)		sw_compare_strict_bool(var, 0 TSRMLS_CC)
+#define SW_IS_ARRAY(var)	(var != NULL && Z_TYPE_P(var) == IS_ARRAY)
+#define SW_IS_EMPTY(var)	(var == NULL || Z_TYPE_P(var) == IS_NULL || SW_IS_FALSE(var) || (Z_TYPE_P(var) == IS_STRING && !Z_STRLEN_P(var)) || !zend_is_true(var))
+#define SW_IS_NULL(var)		(var == NULL || Z_TYPE_P(var) == IS_NULL)
+#define SW_HASHTABLE_IS_EMPTY(var)		(var == NULL || !zend_hash_num_elements(var))
+
 END_EXTERN_C()
 
 #endif	/* PHP_SWOOLE_H */

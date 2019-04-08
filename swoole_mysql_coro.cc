@@ -30,6 +30,7 @@ extern "C" {
 #include "ext/hash/php_hash.h"
 #include "ext/hash/php_hash_sha.h"
 #include "ext/standard/php_math.h"
+#include "ext/standard/php_string.h"
 
 #ifdef SW_MYSQL_RSA_SUPPORT
 #include <openssl/rsa.h>
@@ -55,6 +56,12 @@ static PHP_METHOD(swoole_mysql_coro, prepare);
 static PHP_METHOD(swoole_mysql_coro, setDefer);
 static PHP_METHOD(swoole_mysql_coro, getDefer);
 static PHP_METHOD(swoole_mysql_coro, close);
+
+static PHP_METHOD(swoole_mysql_coro, select);
+static PHP_METHOD(swoole_mysql_coro, insert);
+static PHP_METHOD(swoole_mysql_coro, replace);
+static PHP_METHOD(swoole_mysql_coro, update);
+static PHP_METHOD(swoole_mysql_coro, delete);
 
 static PHP_METHOD(swoole_mysql_coro_statement, __destruct);
 static PHP_METHOD(swoole_mysql_coro_statement, execute);
@@ -323,6 +330,34 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_setDefer, 0, 0, 0)
     ZEND_ARG_INFO(0, defer)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_select, 0, 0, 2)
+ZEND_ARG_INFO(0, table)
+ZEND_ARG_INFO(0, join)
+ZEND_ARG_INFO(0, columns)
+ZEND_ARG_INFO(0, where)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_insert, 0, 0, 2)
+ZEND_ARG_INFO(0, table)
+ZEND_ARG_ARRAY_INFO(0, data, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_replace, 0, 0, 2)
+ZEND_ARG_INFO(0, table)
+ZEND_ARG_ARRAY_INFO(0, data, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_update, 0, 0, 2)
+ZEND_ARG_INFO(0, table)
+ZEND_ARG_ARRAY_INFO(0, data, 0)
+ZEND_ARG_INFO(0, where)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_delete, 0, 0, 1)
+ZEND_ARG_INFO(0, table)
+ZEND_ARG_INFO(0, where)
+ZEND_END_ARG_INFO()
+
 #ifdef SW_USE_MYSQLND
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_escape, 0, 0, 1)
     ZEND_ARG_INFO(0, string)
@@ -371,6 +406,12 @@ static const zend_function_entry swoole_mysql_coro_methods[] =
     PHP_ME(swoole_mysql_coro, setDefer, arginfo_swoole_mysql_coro_setDefer, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro, getDefer, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    
+    PHP_ME(swoole_mysql_coro, select, arginfo_swoole_mysql_coro_select, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro, insert, arginfo_swoole_mysql_coro_insert, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro, replace, arginfo_swoole_mysql_coro_replace, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro, update, arginfo_swoole_mysql_coro_update, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro, delete, arginfo_swoole_mysql_coro_delete, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -3289,6 +3330,1452 @@ static PHP_METHOD(swoole_mysql_coro, setDefer)
     }
     client->defer = defer;
     RETURN_TRUE
+}
+
+
+static sw_inline size_t get_string_sw_malloc_size(char* source) {
+	size_t source_size = 0;
+	memcpy(&source_size, source - 4, sizeof(size_t));
+	return source_size;
+}
+
+char* sw_multi_memcpy_auto_realloc(char** source, int n_value, ...) {
+	int source_size = get_string_sw_malloc_size(*source);
+	
+	va_list var_arg;
+	int count = 0;
+	int dest_len = strlen(*source) + 1;
+	va_start(var_arg, n_value);
+	while(count < n_value) {
+		char *tmp = va_arg(var_arg, char*);
+		dest_len += strlen(tmp);
+		count++;
+	}
+	va_end(var_arg);
+	
+	//need realloc
+	char* dest = NULL;
+	if(source_size < (int)MM_REAL_SIZE(dest_len)) {
+		sw_string_malloc_32(&dest, dest_len);
+		memcpy(dest, *source, strlen(*source));
+		sw_string_free_32(*source);
+		*source = dest;
+	} else {
+		dest = *source;
+	}
+	
+	count=0;
+	va_start(var_arg, n_value);
+	while(count < n_value) {
+		char *tmp = va_arg(var_arg, char*);
+		memcpy(dest + strlen(dest), tmp, strlen(tmp));
+		count++;
+	}
+	va_end(var_arg);
+	return dest;
+}
+
+//match table and alias
+static int preg_table_match(char* key, char* table, char* alias) {
+    int table_start = -1;
+    int table_end = -1;
+    int alias_start = -1;
+    int alias_end = -1;
+
+    int key_len;
+    key_len = strlen(key);
+	
+    table[0] = '\0';
+    alias[0] = '\0';
+
+    if (key_len == 0) {
+        return 0;
+    }
+
+    int i = -1;
+    while (i < key_len) {
+        i++;
+        char c_key = key[i];
+        if ( table_start == -1 && !sw_is_space(c_key)) {
+            table_start = i;
+        }
+
+        if (table_end == -1 && (c_key == '(' || sw_is_space(c_key))) {
+            table_end = i;
+        }
+
+        if ( alias_start == -1 && c_key == '(') {
+            alias_start = i;
+        }
+
+        if ( alias_end == -1 && c_key == ')') {
+            alias_end = i;
+        }
+    }
+
+    if (alias_start == -1 || alias_end == -1 || alias_start > alias_end) {
+        table_end = key_len;
+    }
+
+    if (table_start != -1 && table_end != -1 && table_end > table_start) {
+        if (table_end - table_start >= MAX_TABLE_SIZE) {
+            swoole_php_fatal_error(E_ERROR, "table size is too long, [%s]", key);
+        }
+
+        memset(table, 0, MAX_TABLE_SIZE);
+        memcpy(table, key + table_start, table_end - table_start);
+    }
+
+    if (alias_start != -1 && alias_end != -1 && alias_end > alias_start) {
+        if (alias_end - alias_start >= MAX_TABLE_SIZE) {
+            swoole_php_fatal_error(E_ERROR, "alias size is too long, [%s]", key);
+        }
+
+        memset(alias, 0, MAX_TABLE_SIZE);
+        memcpy(alias, key + alias_start + 1, alias_end - alias_start - 1);
+    }
+	
+    return 1;
+}
+
+char* sw_get_array_key_index(zval *p, uint32_t index) {
+	if(!SW_IS_ARRAY(p)) {
+		return NULL;
+	}
+	
+	uint32_t array_size = zend_hash_num_elements(Z_ARRVAL_P(p));
+	if(array_size < index) {
+		return NULL;
+	}
+	
+	char * key;
+	zval *value;
+	uint32_t key_len;
+	int key_type;
+	ulong_t num = 0;
+	
+	SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(p), key, key_len, key_type, value)
+		if (HASH_KEY_IS_STRING != key_type) { //not char
+			continue;
+		}
+		
+		if( value == NULL || key_len == 0) {}
+		
+		if(num == index) {
+			return key;
+		}
+			
+		num++;
+	SW_HASHTABLE_FOREACH_END();
+	return NULL;
+}
+
+int sw_strpos(const char* haystack,const char* needle)    
+{
+	int ignorecase = 0;
+    register unsigned char c, needc;  
+    unsigned char const *from, *end;  
+    int len = strlen(haystack);  
+    int needlen = strlen(needle);
+    from = (unsigned char *)haystack;  
+    end = (unsigned char *)haystack + len;  
+    const char *findreset = needle;  
+    
+    int i = 0;
+    
+    while (from < end) {
+        c = *from++;  
+        needc = *needle;  
+        if (ignorecase) {
+            if (c >= 65 && c < 97)  
+                c += 32;  
+            if (needc >= 65 && needc < 97)  
+                needc += 32;  
+        }  
+        if(c == needc) {
+            ++needle;  
+            if(*needle == '\0') {  
+                if (len == needlen)   
+                    return 0;  
+                else  
+                    return i - needlen+1;  
+            }  
+        }
+        else {
+            if(*needle == '\0' && needlen > 0)  
+                return i - needlen +1;  
+            needle = findreset;    
+        }
+    		i++;
+    }    
+    return  -1;    
+}
+
+static int preg_join_match(char* key, char* join, char* table, char* alias) {
+    int join_start = -1;
+    int join_end = -1;
+    int table_start = -1;
+    int table_end = -1;
+    int alias_start = -1;
+    int alias_end = -1;
+
+    int key_len = strlen(key);
+
+    join[0] = '\0';
+    table[0] = '\0';
+    alias[0] = '\0';
+
+    if (key_len == 0) {
+        return 0;
+    }
+
+    int i = -1;
+    while (i < key_len) {
+        i++;
+        char c_key = key[i];
+        if ( join_start == -1 && c_key == '[') {
+            join_start = i;
+        }
+
+        if (table_start == -1 && join_start == -1 && c_key != '[' && !sw_is_space(c_key)) {
+            table_start = i;
+        }
+
+        if (join_end != -1 && table_start == -1 && !sw_is_space(c_key)) {
+            table_start = i;
+        }
+
+        if ( join_start != -1 && c_key == ']') {
+            join_end = i;
+        }
+
+        if (table_start != -1 && c_key == '(') {
+            table_end = i;
+        }
+
+        if ( alias_start == -1 && c_key == '(') {
+            alias_start = i;
+        }
+
+        if ( alias_end == -1 && c_key == ')') {
+            alias_end = i;
+        }
+    }
+
+    if (alias_start == -1 || alias_end == -1 || alias_start > alias_end) {
+        table_end = key_len;
+    }
+
+    if (table_start != -1 && table_end != -1 && table_end > table_start) {
+        if (table_end - table_start >= MAX_TABLE_SIZE) {
+            swoole_php_fatal_error(E_ERROR, "join table size is too long, [%s]", key);
+        }
+
+        memset(table, 0, MAX_TABLE_SIZE);
+        memcpy(table, key + table_start, table_end - table_start);
+    }
+
+    if (alias_start != -1 && alias_end != -1 && alias_end > alias_start) {
+        if (alias_end - alias_start >= MAX_TABLE_SIZE) {
+            swoole_php_fatal_error(E_ERROR, "join alias size is too long, [%s]", key);
+        }
+
+        memset(alias, 0, MAX_TABLE_SIZE);
+        memcpy(alias, key + alias_start + 1, alias_end - alias_start - 1);
+    }
+
+    if (join_start != -1 && join_end != -1 && join_start < join_end) {
+        if (join_end - join_start >= MAX_OPERATOR_SIZE) {
+            swoole_php_fatal_error(E_ERROR, "join operator size is too long, [%s]", key);
+        }
+
+        memset(join, 0, MAX_OPERATOR_SIZE);
+        memcpy(join, key + join_start + 1, join_end - join_start - 1);
+        if (!(strcmp(join, ">") == 0 || strcmp(join, "<") == 0 || strcmp(join, "<>") == 0 || strcmp(join, "><") == 0)) {
+            join[0] = '\0';
+        }
+    }
+    return 1;
+}
+
+static const char* get_join_type(char* type) {
+    if (strcmp(type, "<") == 0) {
+        return "LEFT";
+    } else if (strcmp(type, ">") == 0) {
+        return "RIGHT";
+    } else if (strcmp(type, "<>") == 0) {
+        return "FULL";
+    } else if (strcmp(type, "><") == 0) {
+        return "INNER";
+    } else {
+        return "";
+    }
+}
+
+static int is_set_array_index(HashTable *ht, int index) {
+	zval* p = zend_hash_index_find(ht, index);
+	if(SW_IS_EMPTY(p)) {
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
+static char* strreplace(char* original, char const * const pattern, char const * const replacement)
+{
+    size_t const replen = strlen(replacement);
+    size_t const patlen = strlen(pattern);
+    size_t const orilen = strlen(original);
+
+    size_t patcnt = 0;
+    const char * oriptr;
+    const char * patloc;
+
+    for (oriptr = original; (patloc = strstr(oriptr, pattern)); oriptr = patloc + patlen) {
+        patcnt++;
+    }
+    
+    size_t const retlen = orilen + patcnt * (replen - patlen);
+    char * const returned = (char *) sw_malloc( sizeof(char) * (retlen + 1) );
+
+    if (returned != NULL) {
+        char * retptr = returned;
+        for (oriptr = original; (patloc = strstr(oriptr, pattern)); oriptr = patloc + patlen) {
+            size_t const skplen = patloc - oriptr;
+            strncpy(retptr, oriptr, skplen);
+            retptr += skplen;
+            strncpy(retptr, replacement, replen);
+            retptr += replen;
+        }
+        strcpy(retptr, oriptr);
+    }
+    
+    strcpy(original, returned);
+    sw_free(returned);
+    return original;
+}
+
+static char* sw_implode(zval *arr, const char *delim_str, char** result)
+{
+	zval *return_value = NULL;
+	SW_MAKE_STD_ZVAL(return_value);
+	zend_string *delim = zend_string_init(delim_str, strlen(delim_str), 0);
+	
+	php_implode(delim, arr, return_value);
+	
+	sw_multi_memcpy_auto_realloc(result, 1, Z_STRVAL_P(return_value));
+	
+	efree(delim);
+	zval_ptr_dtor(return_value);
+	
+	return *result;
+}
+
+static char* column_quote(char* string, char* table_column) {
+    char tmp[MAX_TABLE_SIZE] = {0};
+
+    sprintf(tmp, " `%s` ", string);
+
+    if (strlen(tmp) >= MAX_TABLE_SIZE) {
+        swoole_php_fatal_error(E_ERROR, "column size is too long, [%s]", string);
+    }
+
+    if (sw_strpos(tmp, ".") >= 0) {
+        if (strlen(tmp) + 5 >= MAX_TABLE_SIZE) {
+            swoole_php_fatal_error(E_ERROR, "column + alias size is too long, [%s]", string);
+        }
+        strreplace(tmp, ".", "`.`");
+    }
+
+    strcpy(table_column, tmp);
+    return table_column;
+}
+
+static char *rtrim(char *str)
+{
+	if (str == NULL || *str == '\0') {
+		return str;
+	}
+ 
+	int len = strlen(str);
+	char *p = str + len - 1;
+	while (p >= str  && (isspace(*p) || (*p) == '\n' || (*p) == '\r' || (*p) == '\t')) {
+		*p = '\0';
+		--p;
+	}
+	return str;
+}
+
+static char *ltrim(char *str)
+{
+	if (str == NULL || *str == '\0') {
+		return str;
+	}
+ 
+	int len = 0;
+	char *p = str;
+	while (*p != '\0' && (isspace(*p) || (*p) == '\n' || (*p) == '\r' || (*p) == '\t')) {
+		++p;
+		++len;
+	}
+ 
+	memmove(str, p, strlen(str) - len + 1);
+ 
+	return str;
+}
+
+static char *trim(char *str)
+{
+	str = rtrim(str);
+	str = ltrim(str);
+	return str;
+}
+
+static char* rtrim_str(char *str, char *remove)
+{
+	if (str == NULL || *str == '\0') {
+		return str;
+	}
+ 
+	int len = strlen(str);
+	int r_len = strlen(remove);
+	
+	if(r_len > len) {
+		return str;
+	}
+	
+	char *end = str + len - 1;
+	char *r_end = remove + r_len - 1;
+	
+	int remove_flag = 1;
+	
+	while (end >= str && r_end >= remove) {
+		if((*r_end) == (*end)) {
+			--r_end;
+			--end;
+		} else {
+			remove_flag = 0;
+			break;
+		}
+	}
+	
+	if (remove_flag){
+		char *end = str + len - 1;
+		char *r_end = remove + r_len - 1;
+		while (end >= str && r_end >= remove) {
+			if((*r_end) == (*end)) {
+				*end = '\0';
+				--r_end;
+				--end;
+			} else {
+				break;
+			}
+		}
+	}
+	
+	return str;
+}
+
+static char *ltrim_str(char *str, char *remove){
+	if (str == NULL || *str == '\0') {
+		return str;
+	}
+ 
+	int len = strlen(str);
+	int r_len = strlen(remove);
+	
+	if(r_len > len) {
+		return str;
+	}
+	
+	char *end = str + len - 1;
+	char *r_end = remove + r_len - 1;
+	
+	char *start = str;
+	char *r_start = remove;
+	
+	int remove_flag = 1;
+	while (start <= end && r_start <= r_end) {
+		if((*start) == (*r_start)) {
+			++r_start;
+			++start;
+		} else {
+			remove_flag = 0;
+			break;
+		}
+	}
+	
+	if(remove_flag) {
+		memmove(str, start, len - r_len);
+		str[len - r_len] = '\0';
+	}
+	
+	return str;
+}
+
+static zval* php_sw_array_get_value(HashTable *ht, char *key) {
+	zval *v = zend_hash_str_find(ht, key, strlen(key));
+    if (v == NULL) {
+        return NULL;
+    } else {
+    	if(ZVAL_IS_NULL(v)) {
+    		return NULL;
+    	} else {
+    		return v;
+    	}
+    }
+}
+
+static char* handle_join(zval *join, char *table, char** table_query) {
+    char* sub_table;
+    zval* relation;
+    uint32_t key_len;
+    int key_type;
+	
+    SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(join), sub_table, key_len, key_type, relation)
+	    if (HASH_KEY_IS_STRING != key_type) {
+	        continue;
+	    }
+	    
+	    if(key_len == 0) {}
+	
+	    char join_join[MAX_TABLE_SIZE] = {0};
+	    char join_table[MAX_TABLE_SIZE] = {0};
+	    char join_alias[MAX_TABLE_SIZE] = {0};
+	    preg_join_match(sub_table, join_join, join_table, join_alias);
+		
+	    if (!sw_is_string_empty(join_join) && !sw_is_string_empty(join_table)) {
+	        sw_multi_memcpy_auto_realloc(table_query, 5, " ", get_join_type(join_join), " JOIN `", join_table, "` ");
+	        
+	        if (!sw_is_string_empty(join_alias)) {
+	            sw_multi_memcpy_auto_realloc(table_query, 3, "AS `", join_alias, "` ");
+	        }
+	       	
+	        if (Z_TYPE_P(relation) == IS_STRING) {
+	            sw_multi_memcpy_auto_realloc(table_query, 3, "USING (`", Z_STRVAL_P(relation), "`) ");
+	        } else if (Z_TYPE_P(relation) == IS_ARRAY) {
+	            if (is_set_array_index(Z_ARRVAL_P(relation), 0)) {
+	                sw_multi_memcpy_auto_realloc(table_query, 1, "USING (`");
+	                sw_implode(relation, "`,`", table_query);
+	                sw_multi_memcpy_auto_realloc(table_query, 1, "`) ");
+	            } else {
+	                char *key;
+	                zval *value;
+	
+	                sw_multi_memcpy_auto_realloc(table_query, 1, "ON ");
+	
+	                SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(relation), key, key_len, key_type, value)
+	                if (HASH_KEY_IS_STRING != key_type) {
+	                    continue;
+	                }
+	
+	                char* table_column = NULL;
+	                sw_string_malloc_32(&table_column, 0);
+	                if (sw_strpos(key, ".") >= 0) {
+	                    column_quote(key, table_column);
+	                } else {
+	                    sw_multi_memcpy_auto_realloc(&table_column, 5, "`", table, "`.`", key, "`");
+	                }
+	
+	                //alias
+	                if (!sw_is_string_empty(join_alias)) {
+	                    sw_multi_memcpy_auto_realloc(table_query, 4, table_column, "=`", join_alias, "`");
+	                } else {
+	                    sw_multi_memcpy_auto_realloc(table_query, 4, table_column, "= `", join_table, "`");
+	                }
+	
+	                sw_string_free_32(table_column);
+	
+	                sw_multi_memcpy_auto_realloc(table_query, 3, ".`", Z_STRVAL_P(value), "` AND");
+	                SW_HASHTABLE_FOREACH_END();
+					
+					char str[10] = "AND";
+	                rtrim_str(rtrim(*table_query), str);
+	            }
+	        }
+	    }
+    SW_HASHTABLE_FOREACH_END();
+
+
+    return *table_query;
+}
+
+static char* column_push(zval* columns, zval* map, char** column_query) {
+    if (SW_IS_EMPTY(columns) || (Z_TYPE_P(columns) == IS_STRING && strcmp(Z_STRVAL_P(columns), "*") == 0)) {
+        sw_multi_memcpy_auto_realloc(column_query, 1, "*");
+        return *column_query;
+    }
+
+    if (Z_TYPE_P(columns) == IS_STRING) {
+        sw_multi_memcpy_auto_realloc(column_query, 1, Z_STRVAL_P(columns));
+        return *column_query;
+    } else if (SW_IS_ARRAY(columns)) {
+        char * key;
+        zval *value;
+        uint32_t key_len;
+        int key_type;
+
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(columns), key, key_len, key_type, value)
+        if (Z_TYPE_P(value) != IS_STRING) {
+            continue;
+        }
+		
+		if( key == NULL || key_len == 0 || key_type == 0) {}
+		
+        char match_column[MAX_TABLE_SIZE] = {0};
+        char match_alias[MAX_TABLE_SIZE] = {0};
+        preg_table_match(Z_STRVAL_P(value), match_column, match_alias);
+
+        if (!sw_is_string_empty(match_column) && !sw_is_string_empty(match_alias)) {
+            sw_multi_memcpy_auto_realloc(column_query, 4, match_column, " AS `", match_alias, "`,");
+        } else {
+            sw_multi_memcpy_auto_realloc(column_query, 2, Z_STRVAL_P(value), ",");
+        }
+
+        SW_HASHTABLE_FOREACH_END();
+		
+		char tmp[2] = ",";
+        rtrim_str(rtrim(*column_query), tmp);
+        return *column_query;
+    } else {
+        sw_multi_memcpy_auto_realloc(column_query, 1, "*");
+        return *column_query;
+    }
+}
+
+static int preg_and_or_match(char* key, char* relation) {
+    int relation_start = -1;
+    int relation_end = -1;
+
+    relation[0] = '\0';
+
+    int key_len = strlen(key);
+    if (key_len == 0) {
+        return 0;
+    }
+
+    int i = -1;
+    while (i < key_len) {
+        i++;
+        char c_key = key[i];
+
+        if ( relation_start == -1 && !sw_is_space(c_key)) {
+            relation_start = i;
+        }
+
+        if (relation_end == -1 && ( c_key == '#' || sw_is_space(c_key))) {
+            relation_end = i;
+        }
+
+        if (relation_end == -1 && i == key_len - 1) {
+            relation_end = key_len;
+        }
+    }
+
+    if (relation_start != -1 && relation_end != -1 && relation_end > relation_start && relation_end - relation_start - 1 < MAX_OPERATOR_SIZE) {
+        memset(relation, 0, MAX_OPERATOR_SIZE);
+        memcpy(relation, key + relation_start, relation_end - relation_start);
+        if (strcmp(relation, "AND") != 0 && strcmp(relation, "OR") != 0 && strcmp(relation, "and") != 0 && strcmp(relation, "or") != 0 ) {
+            relation[0] = '\0';
+        }
+    }
+
+    return 1;
+}
+
+static int preg_operator_match(char* key, char* column, char* operators) {
+    int column_start = -1;
+    int column_end = -1;
+    int column_end_is_space = -1;
+    int operator_start = -1;
+    int operator_end = -1;
+
+    int key_len = strlen(key);
+
+    column[0] = '\0';
+    operators[0] = '\0';
+
+    if (key_len == 0) {
+        return 0;
+    }
+
+    int i = -1;
+    while (i < key_len) {
+        i++;
+        char c_key = key[i];
+        if ( column_start == -1 && !sw_is_space(c_key)) {
+            column_start = i;
+        }
+
+        if (column_end == -1 && (c_key == '[' || sw_is_space(c_key))) {
+            column_end = i;
+        }
+
+        if (column_end_is_space == -1 && sw_is_space(c_key)) {
+            column_end_is_space = i;
+        }
+
+        if ( operator_start == -1 && c_key == '[') {
+            operator_start = i;
+        }
+
+        if ( operator_end == -1 && c_key == ']') {
+            operator_end = i;
+        }
+    }
+
+    if (operator_start == -1 || operator_end == -1 || operator_start > operator_end) {
+        column_end = column_end_is_space == -1 ? key_len : column_end_is_space;
+    }
+
+    if (column_start != -1 && column_end != -1 && column_end > column_start) {
+        if (column_end - column_start - 1 >= MAX_TABLE_SIZE) {
+            swoole_php_fatal_error(E_ERROR, "column size is too long [%s]", key);
+        }
+
+        memset(column, 0, MAX_TABLE_SIZE);
+        memcpy(column, key + column_start, column_end - column_start);
+    }
+
+    if (operator_start != -1 && operator_end != -1 && operator_start < operator_end) {
+        if (operator_end - operator_start - 1 >= MAX_OPERATOR_SIZE) {
+            swoole_php_fatal_error(E_ERROR, "operator size is too long [%s]", key);
+        }
+
+        memset(operators, 0, MAX_OPERATOR_SIZE);
+        memcpy(operators, key + operator_start + 1, operator_end - operator_start - 1);
+        if (!(strcmp(operators, ">") == 0 || strcmp(operators, ">=") == 0 || strcmp(operators, "<") == 0 || strcmp(operators, "<=") == 0 ||
+                strcmp(operators, "!") == 0 || strcmp(operators, "~") == 0 || strcmp(operators, "!~") == 0 || strcmp(operators, "<>") == 0 || strcmp(operators, "><") == 0)) {
+            operators[0] = '\0';
+        }
+    }
+
+    return 1;
+}
+
+static zval* add_map(zval* map, zval* value) {
+    zval *copy = sw_zval_copy(value);
+    add_next_index_zval(map, copy);
+    return map;
+}
+
+static char* handle_where_not_in(zval* not_in_array, char** where_query, zval* map) {
+    char * key;
+    zval *value;
+    uint32_t key_len;
+    int key_type;
+
+    SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(not_in_array), key, key_len, key_type, value)
+    if (Z_TYPE_P(value) == IS_STRING || Z_TYPE_P(value) == IS_LONG) {
+        add_map(map, value);
+        sw_multi_memcpy_auto_realloc(where_query, 1, " ?,");
+    }
+    
+    if( key == NULL || key_len == 0 || key_type == 0) {}
+	
+    SW_HASHTABLE_FOREACH_END();
+	
+	char tmp[2] = ",";
+    rtrim_str(rtrim(*where_query), tmp);
+    return *where_query;
+}
+
+static char* handle_like_array(zval* like_array, char** where_query, char* column, char* operators, zval* map, char* connector) {
+    char * key;
+    zval *value;
+    uint32_t key_len;
+    int key_type;
+
+    SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(like_array), key, key_len, key_type, value)
+    if (Z_TYPE_P(value) == IS_STRING || Z_TYPE_P(value) == IS_LONG) {
+        add_map(map, value);
+        sw_multi_memcpy_auto_realloc(where_query, 3, column, strcmp(operators, "~") == 0 ? "LIKE ? " : "NOT LIKE ? ", connector);
+    }
+    
+    if( key == NULL || key_len == 0 || key_type == 0) {}
+	
+    SW_HASHTABLE_FOREACH_END();
+    rtrim_str(rtrim(*where_query), connector);
+    return *where_query;
+}
+
+//where condition
+static char* where_implode(char* key, zval* value, zval* map, char** where_query, char* connector) {
+    char relation_ship[MAX_OPERATOR_SIZE] = {0};
+    preg_and_or_match(key, relation_ship);
+
+    if (Z_TYPE_P(value) == IS_ARRAY && !sw_is_string_empty(relation_ship)) {
+        char* relation_key;
+        zval* relation_value;
+        uint32_t relation_key_len;
+        int relation_key_type;
+
+        char* sub_where_clause = NULL;
+        sw_string_malloc_32(&sub_where_clause, 0);
+
+        sw_multi_memcpy_auto_realloc(where_query, 1, " AND (");
+
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(value), relation_key, relation_key_len, relation_key_type, relation_value)
+        if (HASH_KEY_IS_STRING != relation_key_type) {
+            continue;
+        } else {
+            where_implode(relation_key, relation_value, map, &sub_where_clause, relation_ship);
+        }
+        
+        if(relation_key_len == 0) {}
+		
+        SW_HASHTABLE_FOREACH_END();
+
+        sw_multi_memcpy_auto_realloc(where_query, 2, sub_where_clause, ")");
+        sw_string_free_32(sub_where_clause);
+        return *where_query;
+    }
+
+    char column[MAX_TABLE_SIZE] = {0};
+    char operators[MAX_OPERATOR_SIZE] = {0};
+    preg_operator_match(key, column, operators);
+
+    if (!sw_is_string_empty(column)) {
+        column_quote(column, column);
+
+        if (!sw_is_string_empty(operators)) {
+            if (strcmp(operators, ">") == 0 || strcmp(operators, ">=") == 0 || strcmp(operators, "<") == 0 || strcmp(operators, "<=") == 0) { // >, >=, <, <=
+                add_map(map, value);
+                sw_multi_memcpy_auto_realloc(where_query, 4, connector, column, operators, " ? ");
+            } else if (strcmp(operators, "!") == 0) { //not equal
+                switch (Z_TYPE_P(value)) {
+                case IS_NULL:
+                    sw_multi_memcpy_auto_realloc(where_query, 3, connector, column, "IS NOT NULL ");
+                    break;
+                case IS_ARRAY:
+                    sw_multi_memcpy_auto_realloc(where_query, 3, connector, column, "NOT IN (");
+                    handle_where_not_in(value, where_query, map);
+                    sw_multi_memcpy_auto_realloc(where_query, 1, ") ");
+                    break;
+                case IS_LONG:
+                case IS_STRING:
+                case IS_DOUBLE:
+                case IS_TRUE:
+                case IS_FALSE:
+                    add_map(map, value);
+                    sw_multi_memcpy_auto_realloc(where_query, 3, connector, column, "!= ? ");
+                    break;
+                }
+            } else if (strcmp(operators, "~") == 0 ||  strcmp(operators, "!~") == 0) { //like
+                if (Z_TYPE_P(value) == IS_STRING) {
+                    add_map(map, value);
+                    sw_multi_memcpy_auto_realloc(where_query, 3, connector, column, (strcmp(operators, "~") == 0 ? "LIKE ? " : "NOT LIKE ? "));
+                } else if (Z_TYPE_P(value) == IS_ARRAY) {
+                    char* like_connector = sw_get_array_key_index(value, 0);
+                    if (like_connector != NULL && (strcmp(like_connector, "AND") == 0 || strcmp(like_connector, "OR") == 0)) {
+                        zval* connetor_value = php_sw_array_get_value(Z_ARRVAL_P(value), like_connector);
+                        if (connetor_value != NULL && Z_TYPE_P(connetor_value) == IS_ARRAY) {
+                            sw_multi_memcpy_auto_realloc(where_query, 2, connector, " (");
+                            handle_like_array(connetor_value, where_query, column, operators, map, like_connector);
+                            sw_multi_memcpy_auto_realloc(where_query, 1, ") ");
+                        }
+                    } else {
+                        sw_multi_memcpy_auto_realloc(where_query, 2, connector, " (");
+                        char op_tmp[10] = "OR";
+                        handle_like_array(value, where_query, column, operators, map, op_tmp);
+                        sw_multi_memcpy_auto_realloc(where_query, 1, ") ");
+                    }
+                }
+            } else if (strcmp(operators, "<>") == 0 ||  strcmp(operators, "><") == 0) {
+                if (Z_TYPE_P(value) == IS_ARRAY) {
+                    zval* between_a = zend_hash_index_find(Z_ARRVAL_P(value), 0);
+                    zval* between_b = zend_hash_index_find(Z_ARRVAL_P(value), 1);
+                    if (!SW_IS_EMPTY(between_a) && (Z_TYPE_P(between_a) == IS_LONG || Z_TYPE_P(between_a) == IS_STRING)
+                            && !SW_IS_EMPTY(between_b) && (Z_TYPE_P(between_b) == IS_LONG || Z_TYPE_P(between_b) == IS_STRING)) {
+                        sw_multi_memcpy_auto_realloc(where_query, 2, connector, " ");
+                        if (strcmp(operators, "><") == 0) {
+                            sw_multi_memcpy_auto_realloc(where_query, 1, "NOT ");
+                        }
+                        
+                        add_map(map, between_a);
+                        sw_multi_memcpy_auto_realloc(where_query, 3, "(", column, "BETWEEN ? ");
+                        add_map(map, between_b);
+                        sw_multi_memcpy_auto_realloc(where_query, 1, "AND ?) ");
+                    }
+                }
+            }
+        } else {
+            switch (Z_TYPE_P(value)) {
+            case IS_NULL:
+                sw_multi_memcpy_auto_realloc(where_query, 3, connector, column, "IS NULL ");
+                break;
+            case IS_ARRAY:
+                sw_multi_memcpy_auto_realloc(where_query, 3, connector, column, "IN (");
+                handle_where_not_in(value, where_query, map);
+                sw_multi_memcpy_auto_realloc(where_query, 1, ") ");
+                break;
+            case IS_LONG:
+            case IS_STRING:
+            case IS_DOUBLE:
+            case IS_TRUE:
+            case IS_FALSE:
+                add_map(map, value);
+                sw_multi_memcpy_auto_realloc(where_query, 3, connector, column, "= ? ");
+                break;
+            }
+        }
+    }
+
+    ltrim_str(*where_query, connector);
+    return *where_query;
+}
+
+//handle group by
+static char* group_by_implode(zval* group, char** group_by_condition) {
+    if (!SW_IS_EMPTY(group)) {
+        if (Z_TYPE_P(group) == IS_STRING) {
+            sw_multi_memcpy_auto_realloc(group_by_condition, 1, Z_STRVAL_P(group));
+        } else if (Z_TYPE_P(group) == IS_ARRAY) {
+            char* key;
+            zval* value;
+            uint32_t key_len;
+            int key_type;
+
+
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(group), key, key_len, key_type, value)
+            if (Z_TYPE_P(value) == IS_STRING) {
+                sw_multi_memcpy_auto_realloc(group_by_condition, 2, Z_STRVAL_P(value), ",");
+            }
+            
+            if( key == NULL || key_len == 0 || key_type == 0) {}
+			
+            SW_HASHTABLE_FOREACH_END();
+
+            char* tmp = (*group_by_condition) +  strlen(*group_by_condition) - 1;
+            if (*tmp == ',') {
+                *tmp = '\0';
+            }
+        }
+    }
+    return *group_by_condition;
+}
+
+//handle having
+char* having_implode(zval* having, zval* map, char** having_condition) 
+{
+	char tmp[5] = "AND";
+	
+    if (SW_IS_ARRAY(having)) {
+        char * key;
+        zval *value;
+        uint32_t key_len;
+        int key_type;
+
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(having), key, key_len, key_type, value)
+        if (HASH_KEY_IS_STRING != key_type) {
+            continue;
+        } else {
+            where_implode(key, value, map, having_condition, tmp);
+        }
+        
+        if(key_len == 0) {}
+		
+        SW_HASHTABLE_FOREACH_END();
+    }
+
+    strreplace(*having_condition, "( AND", "(");
+    trim(ltrim_str(ltrim(*having_condition), tmp));
+    return *having_condition;
+}
+
+//order by
+char* order_implode(zval* order, char** order_condition) {
+    if (!SW_IS_EMPTY(order)) {
+        if (Z_TYPE_P(order) == IS_STRING) {
+            sw_multi_memcpy_auto_realloc(order_condition, 1, Z_STRVAL_P(order));
+        } else if (Z_TYPE_P(order) == IS_ARRAY) {
+            char* key;
+            zval* value;
+            uint32_t key_len;
+            int key_type;
+
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(order), key, key_len, key_type, value)
+            if (HASH_KEY_IS_STRING != key_type) {
+                if (Z_TYPE_P(value) == IS_STRING) {
+                    char column[MAX_TABLE_SIZE] = {0};
+                    column_quote(Z_STRVAL_P(value), column);
+                    sw_multi_memcpy_auto_realloc(order_condition, 2, column, ",");
+                }
+            } else {
+                if (Z_TYPE_P(value) == IS_STRING && (strcmp(Z_STRVAL_P(value), "ASC") == 0 || strcmp(Z_STRVAL_P(value), "DESC") == 0)) {
+                    char column[MAX_TABLE_SIZE] = {0};
+                    column_quote(key, column);
+                    sw_multi_memcpy_auto_realloc(order_condition, 3, column, Z_STRVAL_P(value), ",");
+                }
+            }
+            
+            if(key_len == 0) {}
+            	
+            SW_HASHTABLE_FOREACH_END();
+            char tmp[2] = ",";
+            rtrim_str(*order_condition, tmp);
+        }
+    }
+    return *order_condition;
+}
+
+//limit
+char* limit_implode(zval* limit, char** limit_condition) {
+    if (!SW_IS_EMPTY(limit)) {
+        if (Z_TYPE_P(limit) == IS_STRING || Z_TYPE_P(limit) == IS_LONG) {
+            convert_to_string(limit);
+            if (is_numeric_string(Z_STRVAL_P(limit), Z_STRLEN_P(limit), NULL, NULL, 0)) {
+                sw_multi_memcpy_auto_realloc(limit_condition, 1, Z_STRVAL_P(limit));
+            }
+        } else if (Z_TYPE_P(limit) == IS_ARRAY) {
+            zval* offset_val = zend_hash_index_find(Z_ARRVAL_P(limit), 0);
+            zval* limit_val = zend_hash_index_find(Z_ARRVAL_P(limit), 1);
+            convert_to_string(limit_val);
+            convert_to_string(offset_val);
+
+            if (is_numeric_string(Z_STRVAL_P(limit_val), Z_STRLEN_P(limit_val), NULL, NULL, 0)
+                    && is_numeric_string(Z_STRVAL_P(offset_val), Z_STRLEN_P(offset_val), NULL, NULL, 0)) {
+                sw_multi_memcpy_auto_realloc(limit_condition, 3, Z_STRVAL_P(limit_val), " OFFSET ", Z_STRVAL_P(offset_val));
+            }
+        }
+    }
+
+    return *limit_condition;
+}
+
+static char* where_clause(zval* where, zval* map, char** sql) {
+    if (SW_IS_EMPTY(where)) {
+        return *sql;
+    }
+    
+    char* group_by_condition = NULL;
+    char* having_condition = NULL;
+    char* order_condition = NULL;
+    char* limit_condition = NULL;
+
+    char* where_condition = NULL;
+    sw_string_malloc_32(&where_condition, 0);
+	
+    if (SW_IS_ARRAY(where)) {
+        char * key;
+        zval *value;
+        uint32_t key_len;
+        int key_type;
+
+		char op_tmp[10] = "AND";
+		
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(where), key, key_len, key_type, value)
+        if (HASH_KEY_IS_STRING != key_type) {
+            continue;
+        } else {
+            if (strcmp(key, "GROUP") == 0) {
+                sw_string_malloc_32(&group_by_condition, 0);
+                group_by_implode(value, &group_by_condition);
+            } else if (strcmp(key, "HAVING") == 0) {
+                sw_string_malloc_32(&having_condition, 0);
+                having_implode(value, map, &having_condition);
+            } else if (strcmp(key, "ORDER") == 0) {
+                sw_string_malloc_32(&order_condition, 0);
+                order_implode(value, &order_condition);
+            } else if (strcmp(key, "LIMIT") == 0) {
+                sw_string_malloc_32(&limit_condition, 0);
+                limit_implode(value, &limit_condition);
+            } else { // where clause
+                where_implode(key, value, map, &where_condition, op_tmp);
+            }
+        }
+        
+        if(key_len == 0) {}
+        	
+        SW_HASHTABLE_FOREACH_END();
+
+        strreplace(where_condition, "( AND", "(");
+        trim(ltrim_str(ltrim(where_condition), op_tmp));
+        if (where_condition[0] != '\0') {
+            sw_multi_memcpy_auto_realloc(sql, 2, " WHERE ", where_condition);
+        }
+    }
+    
+    sw_string_free_32(where_condition);
+	
+    if (group_by_condition != NULL) {
+        sw_multi_memcpy_auto_realloc(sql, 2, " GROUP BY ", group_by_condition);
+        sw_string_free_32(group_by_condition);
+    }
+
+    if (having_condition != NULL) {
+        sw_multi_memcpy_auto_realloc(sql, 2, " HAVING ", having_condition);
+        sw_string_free_32(having_condition);
+    }
+
+    if (order_condition != NULL) {
+        sw_multi_memcpy_auto_realloc(sql, 2, " ORDER BY ", order_condition);
+        sw_string_free_32(order_condition);
+    }
+
+    if (limit_condition != NULL) {
+        sw_multi_memcpy_auto_realloc(sql, 2, " LIMIT ", limit_condition);
+        sw_string_free_32(limit_condition);
+    }
+	
+    return *sql;
+}
+
+static char* select_context(char* table, zval* map, zval* join, zval* columns, zval* where, char** sql) {
+    char* table_query;
+    sw_string_malloc_32(&table_query, 0);
+	
+    char table_match[MAX_TABLE_SIZE] = {0};
+    char alias_match[MAX_TABLE_SIZE] = {0};
+    
+    preg_table_match(table, table_match, alias_match);
+    if (!sw_is_string_empty(table_match) && !sw_is_string_empty(alias_match)) {
+        sw_multi_memcpy_auto_realloc(&table_query, 5, "`", table_match, "` AS `", alias_match, "`");
+    } else {
+        sw_multi_memcpy_auto_realloc(&table_query, 3, "`", table, "`");
+    }
+	 
+    char* first_join_key = NULL;
+    zval* real_where = where;
+    zval* real_columns = columns;
+	
+    if (SW_IS_ARRAY(join) && (first_join_key = sw_get_array_key_index(join, 0)) != NULL && sw_strpos(first_join_key, "[") == 0) { 
+        if (sw_is_string_empty(alias_match)) {
+           	handle_join(join, table, &table_query);
+        } else {
+        	handle_join(join, alias_match, &table_query);
+        }
+    } else {
+        if (SW_IS_NULL(where)) {
+            real_columns = join;
+            real_where = columns;
+        }
+    }
+    
+    char* column_query;
+    sw_string_malloc_32(&column_query, 0);
+	
+    column_push(real_columns, map, &column_query);
+	
+    sw_multi_memcpy_auto_realloc(sql, 4, "SELECT ", column_query, " FROM ", table_query);
+
+    sw_string_free_32(column_query);
+    sw_string_free_32(table_query);
+    
+    where_clause(real_where, map, sql);
+    return *sql;
+}
+
+static PHP_METHOD(swoole_mysql_coro, select)
+{
+	char* table = NULL;
+    size_t table_len;
+    zval* join = NULL, *columns = NULL, *where = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz|zz", &table, &table_len, &join, &columns, &where) == FAILURE) {
+        RETURN_FALSE;
+    }
+    
+    char *sql;
+    zval *map;
+    
+    SW_MAKE_STD_ZVAL(map);
+    array_init(map);
+    
+    sw_string_malloc_32(&sql, 0);
+    
+    select_context(table, map, join, columns, where, &sql);
+    
+    zval *ret_val = NULL, *z_sql = NULL;
+    SW_MAKE_STD_ZVAL(ret_val);
+    array_init(ret_val);
+    
+    SW_MAKE_STD_ZVAL(z_sql);
+    ZVAL_STRING(z_sql, sql);
+    sw_string_free_32(sql);
+    
+    add_assoc_zval(ret_val, "sql", z_sql);
+    add_assoc_zval(ret_val, "bind_value", map);
+    
+    RETVAL_ZVAL(ret_val, 1, 1);
+}
+
+PHP_METHOD(swoole_mysql_coro, insert) {
+    char *table = NULL;
+    size_t table_len;
+    zval *data = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &table, &table_len, &data) == FAILURE) {
+        RETURN_FALSE;
+    }
+    
+    char *insert_sql, *insert_keys,*insert_value;
+    char *key;
+    zval *value;
+    uint32_t key_len;
+    int key_type;
+    char longval[MAP_ITOA_INT_SIZE], doubleval[32];
+
+    sw_string_malloc_32(&insert_sql, 0);
+    sw_string_malloc_32(&insert_keys, 0);
+    sw_string_malloc_32(&insert_value, 0);
+
+    SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(data), key, key_len, key_type, value)
+    if (HASH_KEY_IS_STRING != key_type) {
+        sw_string_free_32(insert_keys);
+        sw_string_free_32(insert_value);
+        sw_string_free_32(insert_sql);
+        swoole_php_fatal_error(E_WARNING, "input data must be key/value hash, not index array.");
+        RETURN_FALSE;
+    } else {
+        sw_multi_memcpy_auto_realloc(&insert_keys, 3, "`", key, "`,");
+
+        switch (Z_TYPE_P(value)) {
+        case IS_NULL:
+            sw_multi_memcpy_auto_realloc(&insert_value, 1, "NULL,");
+            break;
+        case IS_ARRAY:
+            sw_multi_memcpy_auto_realloc(&insert_value, 1, "ARRAY,");
+            break;
+        case IS_TRUE:
+            sw_multi_memcpy_auto_realloc(&insert_value, 1, "1,");
+            break;
+        case IS_FALSE:
+            sw_multi_memcpy_auto_realloc(&insert_value, 1, "0,");
+            break;
+        case IS_LONG:
+            sw_itoa(Z_LVAL_P(value), longval);
+            sw_multi_memcpy_auto_realloc(&insert_value, 2, longval, ",");
+            break;
+        case IS_DOUBLE:
+            sprintf(doubleval, "%g", Z_DVAL_P(value));
+            sw_multi_memcpy_auto_realloc(&insert_value, 2, doubleval, ",");
+            break;
+        case IS_STRING:
+            sw_multi_memcpy_auto_realloc(&insert_value, 3, "'", Z_STRVAL_P(value), "',");
+            break;
+        }
+    }
+    
+    if(key_len == 0) {}
+    SW_HASHTABLE_FOREACH_END();
+	
+	char tmp[2] = ",";
+    rtrim_str(insert_keys, tmp);
+    rtrim_str(insert_value, tmp);
+    
+    sw_multi_memcpy_auto_realloc(&insert_sql, 7, "INSERT INTO `", table, "` (", insert_keys ,") values (", insert_value, ")");
+    sw_string_free_32(insert_keys);
+    sw_string_free_32(insert_value);
+
+    zval *ret_val = NULL, *z_sql = NULL;
+    SW_MAKE_STD_ZVAL(ret_val);
+    array_init(ret_val);
+    
+    SW_MAKE_STD_ZVAL(z_sql);
+    ZVAL_STRING(z_sql, insert_sql);
+    sw_string_free_32(insert_sql);
+    
+    add_assoc_zval(ret_val, "sql", z_sql);
+    RETVAL_ZVAL(ret_val, 1, 1);
+}
+
+PHP_METHOD(swoole_mysql_coro, replace) {
+    char *table = NULL;
+    size_t table_len;
+    zval *data = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &table, &table_len, &data) == FAILURE) {
+        RETURN_FALSE;
+    }
+	
+    char *replace_sql, *replace_keys,*replace_value;
+    char *key;
+    zval *value;
+    uint32_t key_len;
+    int key_type;
+    char longval[MAP_ITOA_INT_SIZE], doubleval[32];
+
+    sw_string_malloc_32(&replace_sql, 0);
+    sw_string_malloc_32(&replace_keys, 0);
+    sw_string_malloc_32(&replace_value, 0);
+
+    SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(data), key, key_len, key_type, value)
+    if (HASH_KEY_IS_STRING != key_type) {
+        sw_string_free_32(replace_keys);
+        sw_string_free_32(replace_value);
+        sw_string_free_32(replace_sql);
+        swoole_php_fatal_error(E_WARNING, "input data must be key/value hash, not index array.");
+        RETURN_FALSE;
+    } else {
+        sw_multi_memcpy_auto_realloc(&replace_keys, 3, "`", key, "`,");
+
+        switch (Z_TYPE_P(value)) {
+        case IS_NULL:
+            sw_multi_memcpy_auto_realloc(&replace_value, 1, "NULL,");
+            break;
+        case IS_ARRAY:
+            sw_multi_memcpy_auto_realloc(&replace_value, 1, "ARRAY,");
+            break;
+        case IS_TRUE:
+            sw_multi_memcpy_auto_realloc(&replace_value, 1, "1,");
+            break;
+        case IS_FALSE:
+            sw_multi_memcpy_auto_realloc(&replace_value, 1, "0,");
+            break;
+        case IS_LONG:
+            sw_itoa(Z_LVAL_P(value), longval);
+            sw_multi_memcpy_auto_realloc(&replace_value, 2, longval, ",");
+            break;
+        case IS_DOUBLE:
+            sprintf(doubleval, "%g", Z_DVAL_P(value));
+            sw_multi_memcpy_auto_realloc(&replace_value, 2, doubleval, ",");
+            break;
+        case IS_STRING:
+            sw_multi_memcpy_auto_realloc(&replace_value, 3, "'", Z_STRVAL_P(value), "',");
+            break;
+        }
+
+    }
+    
+    if(key_len == 0) {}
+    SW_HASHTABLE_FOREACH_END();
+	
+	char tmp[2] = ",";
+    rtrim_str(replace_keys, tmp);
+    rtrim_str(replace_value, tmp);
+    sw_multi_memcpy_auto_realloc(&replace_sql, 7, "REPLACE INTO `", table, "` (", replace_keys ,") values (", replace_value, ")");
+    sw_string_free_32(replace_keys);
+    sw_string_free_32(replace_value);
+	
+	zval *ret_val = NULL, *z_sql = NULL;
+    SW_MAKE_STD_ZVAL(ret_val);
+    array_init(ret_val);
+    
+    SW_MAKE_STD_ZVAL(z_sql);
+    ZVAL_STRING(z_sql, replace_sql);
+    sw_string_free_32(replace_sql);
+    
+    add_assoc_zval(ret_val, "sql", z_sql);
+    RETVAL_ZVAL(ret_val, 1, 1);
+}
+
+PHP_METHOD(swoole_mysql_coro, update) {
+    char *table = NULL;
+    size_t table_len;
+    zval *data = NULL, *where = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz|z", &table, &table_len, &data, &where) == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    char *update_sql;
+    sw_string_malloc_32(&update_sql, 0);
+
+    char *update_datas;
+    char *key;
+    zval *value;
+    uint32_t key_len;
+    int key_type;
+    char longval[MAP_ITOA_INT_SIZE], doubleval[32];
+
+    sw_string_malloc_32(&update_datas, 0);
+
+    SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(data), key, key_len, key_type, value)
+    if (HASH_KEY_IS_STRING != key_type) {
+        sw_string_free_32(update_datas);
+        sw_string_free_32(update_sql);
+        swoole_php_fatal_error(E_WARNING, "input data must be key/value hash, not index array.");
+        RETURN_FALSE;
+    } else {
+        sw_multi_memcpy_auto_realloc(&update_datas, 3, "`", key, "` = ");
+
+        switch (Z_TYPE_P(value)) {
+        case IS_NULL:
+            sw_multi_memcpy_auto_realloc(&update_datas, 1, "NULL,");
+            break;
+        case IS_ARRAY:
+            sw_multi_memcpy_auto_realloc(&update_datas, 1, "ARRAY,");
+            break;
+        case IS_TRUE:
+            sw_multi_memcpy_auto_realloc(&update_datas, 1, "1,");
+            break;
+        case IS_FALSE:
+            sw_multi_memcpy_auto_realloc(&update_datas, 1, "0,");
+            break;
+        case IS_LONG:
+            sw_itoa(Z_LVAL_P(value), longval);
+            sw_multi_memcpy_auto_realloc(&update_datas, 2, longval, ",");
+            break;
+        case IS_DOUBLE:
+            sprintf(doubleval, "%g", Z_DVAL_P(value));
+            sw_multi_memcpy_auto_realloc(&update_datas, 2, doubleval, ",");
+            break;
+        case IS_STRING:
+            sw_multi_memcpy_auto_realloc(&update_datas, 3, "'", Z_STRVAL_P(value), "',");
+            break;
+        }
+
+    }
+    
+    if(key_len == 0) {}
+    	
+    SW_HASHTABLE_FOREACH_END();
+	
+	char tmp[2] = ",";
+    rtrim_str(update_datas, tmp);
+    sw_multi_memcpy_auto_realloc(&update_sql, 4, "UPDATE `", table, "` SET ", update_datas);
+    sw_string_free_32(update_datas);
+    
+    zval *map;
+    SW_MAKE_STD_ZVAL(map);
+    array_init(map);
+		
+    where_clause(where, map, & update_sql);
+    
+    zval *ret_val = NULL, *z_sql = NULL;
+    SW_MAKE_STD_ZVAL(ret_val);
+    array_init(ret_val);
+    
+    SW_MAKE_STD_ZVAL(z_sql);
+    ZVAL_STRING(z_sql, update_sql);
+    sw_string_free_32(update_sql);
+    
+    add_assoc_zval(ret_val, "sql", z_sql);
+    add_assoc_zval(ret_val, "bind_value", map);
+    RETVAL_ZVAL(ret_val, 1, 1);
+}
+
+PHP_METHOD(swoole_mysql_coro, delete) {
+    char *table = NULL;
+    size_t table_len;
+    zval *where = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|z", &table, &table_len, &where) == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    char *delete_sql;
+    sw_string_malloc_32(&delete_sql, 0);
+    sw_multi_memcpy_auto_realloc(&delete_sql, 3, "DELETE FROM `", table, "` ");
+	
+    zval *map;
+    SW_MAKE_STD_ZVAL(map);
+    array_init(map);
+
+    where_clause(where, map, & delete_sql);
+	
+	zval *ret_val = NULL, *z_sql = NULL;
+    SW_MAKE_STD_ZVAL(ret_val);
+    array_init(ret_val);
+    
+    SW_MAKE_STD_ZVAL(z_sql);
+    ZVAL_STRING(z_sql, delete_sql);
+    sw_string_free_32(delete_sql);
+    
+    add_assoc_zval(ret_val, "sql", z_sql);
+    add_assoc_zval(ret_val, "bind_value", map);
+    RETVAL_ZVAL(ret_val, 1, 1);
 }
 
 static PHP_METHOD(swoole_mysql_coro, recv)
