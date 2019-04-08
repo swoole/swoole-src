@@ -622,7 +622,6 @@ $util_db_config['collect']['pool_size'] = 15;
 ```
 
 ```php
-//MySQLPool.php
 class MySQLPool {
     const POOL_SIZE = 10;
 
@@ -683,17 +682,17 @@ class MySQLPool {
             }
         }
     }
-    
+
     function insert($table = '', $data = NULL) {
         if (empty($table) || empty($data) || !is_array($data)) {
             throw new RuntimeException("insert_table_or_data_must_be_set");
         }
-		
+
         $sql_stat = (new Swoole\Coroutine\MySQL())->insert($table, $data);
         if ($sql_stat === false) {
             throw new RuntimeException("insert_sql error [$table][".json_encode($data)."]");
         }
-        
+
         $ret = $this->query($sql_stat['sql'], $sql_stat['bind_value'], $mysql);
         if (!empty($ret)) {
             return $mysql->insert_id;
@@ -706,12 +705,12 @@ class MySQLPool {
         if (empty($table) || empty($data) || !is_array($data)) {
             throw new RuntimeException("replace_table_or_data_must_be_set");
         }
-		
-		$sql_stat = (new Swoole\Coroutine\MySQL())->replace($table, $data);
+
+        $sql_stat = (new Swoole\Coroutine\MySQL())->replace($table, $data);
         if ($sql_stat === false) {
             throw new RuntimeException("replace_sql error [$table][".json_encode($data)."]");
         }
-        
+
         $ret = $this->query($sql_stat['sql'], $sql_stat['bind_value']);
         return $ret;
     }
@@ -720,12 +719,12 @@ class MySQLPool {
         if (empty($table) || empty($data) || !is_array($data)) {
             throw new RuntimeException("update_table_or_data_must_be_set");
         }
-        
+
         $sql_stat = (new Swoole\Coroutine\MySQL())->update($table, $data, $where);
         if ($sql_stat === false) {
             throw new RuntimeException("update_sql error [$table][".json_encode($data)."][".json_encode($where)."]");
         }
-        
+
         $ret = $this->query($sql_stat['sql'], $sql_stat['bind_value']);
         return $ret;
     }
@@ -739,7 +738,7 @@ class MySQLPool {
         if ($sql_stat === false) {
             throw new RuntimeException("replace_sql error [$table][".json_encode($where)."]");
         }
-        
+
         $ret = $this->query($sql_stat['sql'], $sql_stat['bind_value']);
         return $ret;
     }
@@ -748,17 +747,17 @@ class MySQLPool {
         if (empty($table)) {
             throw new RuntimeException("select_table_or_columns_must_be_set");
         }
-		
-		if(empty($join)) {
-			$sql_stat = (new Swoole\Coroutine\MySQL())->select($table, $columns, $where);
-		} else {
-			$sql_stat = (new Swoole\Coroutine\MySQL())->select($table, $join, $columns, $where);
-		}
-		
+
+        if (empty($join)) {
+            $sql_stat = (new Swoole\Coroutine\MySQL())->select($table, $columns, $where);
+        } else {
+            $sql_stat = (new Swoole\Coroutine\MySQL())->select($table, $join, $columns, $where);
+        }
+
         if ($sql_stat === false) {
             throw new RuntimeException("select_sql error [$table][".json_encode($where)."][".json_encode($columns)."]");
         }
-        
+
         $ret = $this->query($sql_stat['sql'], $sql_stat['bind_value']);
         return $ret;
     }
