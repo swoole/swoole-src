@@ -1,13 +1,9 @@
-ycdatabase
+This is MySQL ORM User Guide
 ===
 
 ## Catalogue
-  - Instruction
-  - Requirement
   - Create test table
-  - Compire ycdatabase in linux
-  - Start ycdatabase
-  - Init ycdb connection
+  - Start Coroutine MySQL
   - Native SQL query
   - Error Info
   - Where statement
@@ -18,29 +14,7 @@ ycdatabase
   - Delete statement
   - Whole Example
   - Database Transaction
-  - Data Caching
   - PHP Database Connection Pool
-  - Redis Connection Pool
-  
-## Instruction
-  1、Fast : ycdb is an mysql database ORM written in c, built in php extension, as we known, database ORM is a very time-consuming operation, especially for interpretive languages such as PHP, and for a project, the proportion of ORM is very high,so here I will implement the MySQL ORM operation in C language, and use the performance of C language to improve the performance of ORM.<br>
-  2、Safe : ycdb can solve SQL injection through parameter binding. <br>
-  3、Powerful : concise and powerful usage , support any operation in database.<br>
-  4、Easy : Extremely easy to learn and use, friendly construction.<br>
-  5、Data-cache : ycdb supports data caching. You can use redis as a medium to cache database data, but remember that when the update, insert, and delete operations involve caching data, you need to delete your cache to ensure data consistency.<br>
-  6、Connection-pool : ycdb uses a special way to establish a stable connection pool with MySQL. performance can be increased by at least 30%, According to PHP's operating mechanism, long connections can only reside on top of the worker process after establishment, that is, how many work processes are there. How many long connections, for example, we have 10 PHP servers, each launching 1000 PHP-FPM worker processes, they connect to the same MySQL instance, then there will be a maximum of 10,000 long connections on this MySQL instance, the number is completely Out of control! And PHP's connection pool heartbeat mechanism is not perfect<br><br>
-  1、快速 - ycdb是一个为PHP扩展写的纯C语言写的mysql数据库ORM扩展，众所周知，数据库ORM是一个非常耗时的操作，尤其对于解释性语言如PHP，而且对于一个项目来说，ORM大多数情况能占到项目很大的一个比例，所以这里我将MySQL的ORM操作用C语言实现，利用C语言的性能，提升ORM的性能。<br>
-  2、安全 - ycdb能通过参数绑定的方式解决SQL注入的问题。<br>
-  3、强大 - 便捷的函数，支持所有数据库操作。<br>
-  4、简单 - 使用和学习非常简单，界面友好。<br>
-  5、数据缓存 - ycdb支持数据缓存，你可以采用redis作为介质来缓存数据库的数据，但是记得在update、insert、delete 操作涉及到与缓存数据相关的数据修改时，需要按key删除您的缓存，以保证数据一致性。<br>
-  6、连接池 - ycdb通过一种特殊的方式来建立一个稳定的与MySQL之间的连接池，性能至少能提升30%，按照 PHP 的运行机制，长连接在建立之后只能寄居在工作进程之上，也就是说有多少个工作进程，就有多少个长连接，打个比方，我们有 10 台 PHP 服务器，每台启动 1000 个 PHP-FPM 工作进程，它们连接同一个 MySQL 实例，那么此 MySQL 实例上最多将存在 10000 个长连接，数量完全失控了！而且PHP的连接池心跳机制不完善。
-  
-#### 中文文档(Chinese Document)： https://blog.csdn.net/caohao0591/article/details/84390713
-  
-## Requirement
-- PHP 7.0 + 
-- need support **PDO** for mysql
 
 ## Create test table
 ```sql
@@ -56,95 +30,64 @@ CREATE TABLE `user_info_test` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='userinfo';
 ```
 
-## Compire ycdatabase in linux
-```
-////  path to is your PHP install dir ////
-$cd ~/ycdatabase/ycdatabase_extension
-$/path/to/phpize
-$chmod +x ./configure
-$./configure --with-php-config=/path/to/php-config
-$make
-$make install
-```
-
 ## Start ycdatabase
-- new ycdb()
+- new Swoole\Coroutine\MySQL();
+
 ```php
-$db_conf = array("host" => "127.0.0.1", 
-                 "username" => "root", 
-                 "password" => "test123123", 
-                 "dbname" => "userinfo", 
-                 "port" => '3306', 
-                 "option" => array(
-                        PDO::ATTR_CASE => PDO::CASE_NATURAL,
-                        PDO::ATTR_TIMEOUT => 2));
-
-$ycdb = new ycdb($db_conf);
-```
-
-  we can start by creating a ycdatabase object (ycdb) from the obove code, db_conf include host,username,password,dbname,port and option, option is a pdo attribution, you can get the detail from http://php.net/manual/en/pdo.setattribute.php, For example, PDO::ATTR_TIMEOUT in the above code is specifies the timeout duration in seconds, and PDO::ATTR_CASE is forcing column names to a specific case.<br><br>
-
-## Init ycdb connection
-- we need to init pdo connection before we use ycdatabase.
-```php
-try{
-    $ycdb->initialize();
-} catch (PDOException $e) {
-    echo "find PDOException when initialize\n";
-    var_dump($e);
-    exit;
-}
+$mysql = new Swoole\Coroutine\MySQL();
+$options = array();
+$options['host'] = '127.0.0.1';
+$options['port'] = 3306;
+$options['user'] = 'root';
+$options['password'] = 'hao123123';
+$options['database'] = 'user';
+$ret = $mysql->connect($options);
 ```
 
 ## Native SQL query
-
-We can directly execute the sql statement through the exec() function,the return value is the number of rows affected by the execution, or return insert_id if it is insert statement, when the table has not AUTO_INCREMENT field, the insert_id should be zero, and execute select statement through the query() function, If $ret = -1 indicates that the sql execution error occurs, we can pass $ycdb->errorCode(), $ycdb- >errorInfo() returns the error code and error description respectively.<br><br>
-
-
 - insert data
 ```php
-$insert_id = $ycdb->exec("insert into user_info_test(username, sexuality, age, height) 
-                    values('smallhow', 'male', 29, 180)");
-if($insert_id == -1) {
-    $code = $ycdb->errorCode();
-    $info = $ycdb->errorInfo();
-    echo "code:" . $code . "\n";
-    echo "info:" . $info[2] . "\n";
+$ret = $mysql->query("insert into user_info_test(username, sexuality, age, height) 
+			values('smallhow', 'male', 29, 180)");
+
+if ($ret === false) {
+  echo $mysql->errno . "\n";
+  echo $mysql->error . "\n";
 } else {
-    echo $insert_id;
+  echo $mysql->insert_id . "\n";
 }
 ```
 
 - update data
 
- ![Image](https://github.com/caohao0730/ycdatabase/blob/master/ycdatabase_extension/image-folder/table.jpg)
-
-if we execute the following update statement, $ret returns 3 if the current data is the above image.
 ```php
-$ret = $ycdb->exec("update user_info_test set remark='test' where height>=180");
-echo $ret; //ret is 3
+$ret = $mysql->query("update user_info_test set remark='test' where height>=180");
+
+if ($ret === false) {
+  echo $mysql->errno . "\n";
+  echo $mysql->error . "\n";
+}
 ```
 
 - select data
 ```php
-$ret = $ycdb->query("select * from user_info_test where bool_flag=1");
-echo json_encode($ret);
+$ret = $mysql->query("select * from user_info_test where bool_flag=1");
+		
+if ($ret === false) {
+  echo $mysql->errno . "\n";
+  echo $mysql->error . "\n";
+} else {
+  var_dump($ret);
+}
 ```
- ![Image](https://github.com/caohao0730/ycdatabase/blob/master/ycdatabase_extension/image-folder/query_select.jpg)
-
-```php
- $ret = $ycdb->query("select username from user_info_test where bool_flag=1");
-echo json_encode($ret);
-```
-![Image](https://raw.githubusercontent.com/caohao0730/ycdatabase/master/ycdatabase_extension/image-folder/query_single.png)
 
 ## Error Info
 
-Error codes and error messages can be obtained through the errorCode and errorInfo function<br>
+Error codes and error messages can be obtained through the errno and error params<br>
 
 ```php
-$code = $ycdb->errorCode();
-$info = $ycdb->errorInfo();
+$code = $mysql->errno;
+$info = $mysql->error;
 ```
 
 ## Where statement
@@ -632,75 +575,6 @@ if($ret1 == -1 || $ret2 == -1 ) {
 }
 ```
 
-## Data Caching
-
-We can use redis, or any other cache system that supports set/get/del/expire function as the medium to store the data returned by the database. If you do not specify the expiration time, the default storage expiration time is 5 minutes. if The cache is specified. When we call data update function such as update/delete/insert, we should pass in the same cache key so that ycdb can clear the cache to ensure data consistency.<br><br>
-
-```php
-//we want cache data by redis
-$redis = new Redis();
-$redis->connect('/home/redis/pid/redis.sock');
-
-$option = array("host" => "127.0.0.1", 
-                "username" => "test", 
-                "password" => "test", 
-                "dbname" => "test", 
-                "port" => '3306',
-                "cache" => $redis,  //cache instance
-                'option' => array(
-                    PDO::ATTR_CASE => PDO::CASE_NATURAL,
-                    PDO::ATTR_TIMEOUT => 2));
-
-
-$ycdb = new ycdb($option);
-
-try{
-  $ycdb->initialize();
-} catch (PDOException $e) {
-  echo "find PDOException when initialize\n";
-  exit;
-}
-
-// I want to keep the 29-year-old user data queried by the database in the cache, and keep it for 10 minutes.
-$age = 29;
-$cache_key = 'pre_cache_key_' . $age;
-
-$data = $ycdb->select("user_info_test", "*", [
-	'age' => $age,
-	'CACHE' => ['key' => $cache_key, 'expire' => 600]   //cache key an expire time (seconds)
-]);
-
-echo $redis->get($cache_key) . "\n";
-
-// If I update these 29-year-old user data, or even add a new 29-year-old user information, 
-// it's best to enter the cache key to clean up the cache to keep the data consistent.
-$ycdb->update("user_info_test", ['remark' => '29-year-old'], [
-  'age' => $age,
-  'CACHE' => ['key' => $cache_key]  //cache key
-]);
-
-echo $redis->get($cache_key) . "\n";
-
-//If you are going to delete the relevant data, it is best to also clean up the cache by cache_key.
-$ycdb->delete("user_info_test", [
-  'age' => $age,
-  'CACHE' => ['key' => $cache_key]  //cache key
-]);
-
-echo $redis->get($cache_key) . "\n";
-
-//Clean up the cache by cache_key when the data you insert is related to the cached data.
-$insert_data = array();
-$insert_data['username'] = 'test';
-$insert_data['sexuality'] = 'male';
-$insert_data['age'] = 29;
-$insert_data['height'] = 176;
-
-$insert_id = $ycdb->insert("user_info_test", $insert_data, ['key' => $cache_key]);
-
-echo $redis->get($cache_key) . "\n";
-```
-
 ## PHP Database Connection Pool
 
 Short connection performance is generally not available. CPU resources are consumed by the system. Once the network is jittered, there will be a large number of TIME_WAIT generated. The service has to be restarted periodically or the machine is restarted periodically. The server is unstable, QPS is high and low, and the connection is stable and efficient. The pool can effectively solve the above problems, it is the basis of high concurrency. ycdb uses a special way to establish a stable connection pool with MySQL. performance can be increased by at least 30%, According to PHP's operating mechanism, long connections can only reside on top of the worker process after establishment, that is, how many work processes are there. How many long connections, for example, we have 10 PHP servers, each launching 1000 PHP-FPM worker processes, they connect to the same MySQL instance, then there will be a maximum of 10,000 long connections on this MySQL instance, the number is completely Out of control! And PHP's connection pool heartbeat mechanism is not perfect<br><br>
@@ -790,69 +664,4 @@ if($ret == -1) {
 } else {
   print_r($ret);
 }
-```
-
-## Redis Connection Pool
-Similarly, Redis can solve the connection pool problem in the same way.
-
-### Redis Connection Pool Config
-~/openresty-pool/conf/nginx.conf 
-```lua
-worker_processes  1;        #nginx worker process num
- 
-error_log logs/error.log;   #error log path
- 
-events {
-    worker_connections 1024;
-}
- 
-stream {
-  lua_code_cache on;
- 
-  lua_check_client_abort on;
- 
-  server {
-    listen unix:/tmp/redis_pool.sock;
- 
-    content_by_lua_block {
-      local redis_pool = require "redis_pool"
-			
-      pool = redis_pool:new({ip = "127.0.0.1", port = 6379, auth = "password"})
- 
-      pool:run()
-    }
-  }
-	
-  server {
- 
-    listen unix:/tmp/mysql_pool.sock;
-		
-    content_by_lua_block {
-      local mysql_pool = require "mysql_pool"
-			
-      local config = {host = "127.0.0.1", 
-                      user = "root", 
-                      password = "test", 
-                      database = "collect", 
-                      timeout = 2000, 
-                      max_idle_timeout = 10000, 
-                      pool_size = 200}
-						   
-      pool = mysql_pool:new(config)
-			
-      pool:run()
-    }
-  }
-}
-
-```
-
-### PHP Code
-```php
-$redis = new Redis();
-$redis->pconnect('/tmp/redis_pool.sock');
-var_dump($redis->hSet("foo1", "vvvvv42", 2));
-var_dump($redis->hSet("foo1", "vvvv", 33));
-var_dump($redis->expire("foo1", 111));
-var_dump($redis->hGetAll("foo1"));
 ```
