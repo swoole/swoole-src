@@ -119,7 +119,7 @@ $mysql->select("user_info_test", "*", ["age[><]" => [28, 29]]); // WHERE age NOT
 $mysql->select("user_info_test", "*", ["username" => ["Tom", "Red", "carlo"]]); // WHERE username in ('Tom', 'Red', 'carlo')
 
 //Multiple conditional query
-$data = $mysql->select("user_info_test", "*", [
+$mysql->select("user_info_test", "*", [
     "uid[!]" => 10,
     "username[!]" => "James",
     "height[!]" => [165, 168, 172],
@@ -133,7 +133,7 @@ $data = $mysql->select("user_info_test", "*", [
 
 You can use "AND" or "OR" to make up very complex SQL statements.
 ```php
-$data = $mysql->select("user_info_test", "*", [
+$mysql->select("user_info_test", "*", [
   "OR" => [
     "uid[>]" => 3,
     "age[<>]" => [28, 29],
@@ -142,7 +142,7 @@ $data = $mysql->select("user_info_test", "*", [
 ]);
 // WHERE uid > 3 OR age BETWEEN 29 AND 29 OR sexuality = 'female'
 
-$data = $mysql->select("user_info_test", "*", [
+$mysql->select("user_info_test", "*", [
   "AND" => [
     "OR" => [
       "age" => 29,
@@ -154,7 +154,7 @@ $data = $mysql->select("user_info_test", "*", [
 // WHERE (age = 29 OR sexuality='female') AND height = 177
 
 //Attention： Because mysql uses array arguments, the first OR is overwritten, the following usage is wrong, 
-$data = $mysql->select("user_info_test", "*", [
+$mysql->select("user_info_test", "*", [
   "AND" => [
     "OR" => [
       "age" => 29,
@@ -169,7 +169,7 @@ $data = $mysql->select("user_info_test", "*", [
 // [X] SELECT * FROM user_info_test WHERE (uid != 3 OR height >= 170)
 
 //We can use # and comments to distinguish between two diffrents OR
-$data = $mysql->select("user_info_test", "*", [
+$mysql->select("user_info_test", "*", [
   "AND" => [
     "OR #1" => [
       "age" => 29,
@@ -187,13 +187,13 @@ $data = $mysql->select("user_info_test", "*", [
 
 LIKE USAGE [~].
 ```php
-$data = $mysql->select("user_info_test", "*", [ "username[~]" => "%ide%" ]);
+$mysql->select("user_info_test", "*", [ "username[~]" => "%ide%" ]);
 // WHERE username LIKE '%ide%'
 
-$data = $mysql->select("user_info_test", "*", ["username[~]" => ["%ide%", "Jam%", "%ace"]]);
+$mysql->select("user_info_test", "*", ["username[~]" => ["%ide%", "Jam%", "%ace"]]);
 // WHERE username LIKE '%ide%' OR username LIKE 'Jam%' OR username LIKE '%ace'
 
-$data = $mysql->select("user_info_test", "*", [ "username[!~]" => "%ide%" ]);
+$mysql->select("user_info_test", "*", [ "username[!~]" => "%ide%" ]);
 // WHERE username NOT LIKE '%ide%'
 ```
 
@@ -208,7 +208,7 @@ $mysql->select("user_info_test", "id", [	"username[~]" => "[!BCR]at" ]); // Eat,
 
 - ORDER BY And LIMIT
 ```php
-$data = $mysql->select("user_info_test", "*", [
+$mysql->select("user_info_test", "*", [
   'sexuality' => 'male',
   'ORDER' => [
     "age",
@@ -245,8 +245,7 @@ $mysql->select("user_info_test", "sexuality,age,height", [
 - usage
 
 ```php
-select($table, $columns, $where)
-select_sql($table, $columns, $where)  //just get select sql and data map from ORM, not implement query
+select($table, $columns, $where) 
 ```
 
 #### table [string]
@@ -259,8 +258,7 @@ select_sql($table, $columns, $where)  //just get select sql and data map from OR
 > The conditions of the query.
 
 ```php
-select($table, $join, $columns, $where)
-select_sql($table, $join, $columns, $where) //just get select sql and data map from ORM, not implement query
+select($table, $join, $columns, $where) 
 ```
 #### table [string]
 > table name
@@ -275,21 +273,23 @@ select_sql($table, $join, $columns, $where) //just get select sql and data map f
 > The conditions of the query.
 
 #### return: [array]
->Fail if -1 is returned, otherwise result array is returned<br>
+>Fail if false is returned, otherwise an array with select sql and bind value.
 <br>
 
 - example
 
 You can use * to match all fields, but if you specify columns you can improve performance.<br>
 ```php
-$datas = $mysql->select("user_info_test", [
-  "uid",
-  "username"
-], [
-  "age[>]" => 31
-]);
+$sql_stat = $mysql->select("user_info_test", ["uid", "username"], ["age[>]" => 31]);
 
-// $datas = array(
+var_dump($sql_stat);
+
+if ($sql_stat !== false) {
+  $stmt = $mysql->prepare($sql_stat['sql']);
+  $ret = $stmt->execute($sql_stat['bind_value']);
+}
+
+// $ret = array(
 //  [0] => array(
 //      "uid" => 6,
 //      "username" => "Aiden"
@@ -301,16 +301,7 @@ $datas = $mysql->select("user_info_test", [
 // )
 
 // Select all columns
-$datas = $mysql->select("user_info_test", "*");
-
-// Select a column
-$datas = $mysql->select("user_info_test", "username");
- 
-// $datas = array(
-//  [0] => "lucky",
-//  [1] => "Tom",
-//  [2] => "Red"
-// )
+$mysql->select("user_info_test", "*");
 ```
 <br>
 
@@ -395,8 +386,7 @@ $data = $mysql->select("user_info_test(uinfo)", [
 ## Insert statement
 
 ```php
-insert($table, $data, $cache_info)
-insert_sql($table, $data)  //just get insert sql from ORM, not implement query
+insert($table, $data)
 ```
 #### table [string]
 > table name
@@ -404,22 +394,21 @@ insert_sql($table, $data)  //just get insert sql from ORM, not implement query
 #### data [array]
 > insert data
 
-#### cache_info (optional) [array]
-> cache info
-
 #### return [int]
->Fail if -1 is returned, otherwise insert_id is returned, if the table has no AUTO_INCREMENT field, the insert_id is zero<br>
+>Fail if false is returned, otherwise an array with select sql.<br>
  
 ```php
 $data = array('username' => 'smallhow','sexuality' => 'male','age' => 35, 'height' => '168');
-$insert_id = $mysql->insert("user_info_test", $data);
-if($insert_id == -1) {
-  $code = $mysql->errorCode();
-  $info = $mysql->errorInfo();
-  echo "code:" . $code . "\n";
-  echo "info:" . $info[2] . "\n";
-} else {
-  echo $insert_id;
+$sql_stat = $mysql->insert("user_info_test", $data);
+		
+if ($sql_stat !== false) {
+  $ret = $mysql->query($sql_stat['sql']);
+  if($ret === false) {
+    echo $mysql->errno . "\n";
+    echo $mysql->error . "\n";
+  } else {
+    echo $mysql->insert_id . "\n";
+  }
 }
 
 ```
@@ -427,8 +416,7 @@ if($insert_id == -1) {
 ## Replace statement
 
 ```php
-replace($table, $data, $cache_info)
-replace_sql($table, $data)  //just get replace sql from ORM, not implement query
+replace($table, $data)
 ```
 #### table [string]
 > table name
@@ -436,22 +424,19 @@ replace_sql($table, $data)  //just get replace sql from ORM, not implement query
 #### data [array]
 > replace data
 
-#### cache_info (optional) [array]
-> cache info
-
 #### return [int]
->Fail if -1 is returned, otherwise insert_id is returned<br>
+>Fail if false is returned, otherwise an array with select sql.<br>
  
 ```php
-$data = array('username' => 'smallhow','sexuality' => 'male','age' => 35, 'height' => '168');
-$insert_id = $mysql->replace("user_info_test", $data);
-if($insert_id == -1) {
-  $code = $mysql->errorCode();
-  $info = $mysql->errorInfo();
-  echo "code:" . $code . "\n";
-  echo "info:" . $info[2] . "\n";
-} else {
-  echo $insert_id;
+$data = array('uid' => 35, 'username' => 'smallhow','sexuality' => 'male','age' => 35, 'height' => '168');
+$sql_stat = $mysql->replace("user_info_test", $data);
+
+if ($sql_stat !== false) {
+  $ret = $mysql->query($sql_stat['sql']);
+  if($ret === false) {
+    echo $mysql->errno . "\n";
+    echo $mysql->error . "\n";
+  }
 }
 
 ```
@@ -460,7 +445,6 @@ if($insert_id == -1) {
 
 ```php
 update($table, $data, $where)
-update_sql($table, $data, $where)  //just get update sql data and map from ORM, not implement query
 ```
 #### table [string]
 > table name
@@ -472,19 +456,28 @@ update_sql($table, $data, $where)  //just get update sql data and map from ORM, 
 > where condition [可选]
 
 #### return [int]
->Fail if -1 is returned, otherwise the number of update records is returned<br>
+>Fail if false is returned, otherwise an array with select sql and bind value.<br>
 
 ```php
-$data = array('height' => 182,'age' => 33);
+$data = array('height' => 185,'age' => 32);
 $where = array('username' => 'smallhow');
-$ret = $mysql->update("user_info_test", $data, $where);
+$sql_stat = $mysql->update("user_info_test", $data, $where);
+
+if ($sql_stat !== false) {
+  $stmt = $mysql->prepare($sql_stat['sql']);
+  if($stmt === false) {
+    echo $mysql->errno . "\n";
+    echo $mysql->error . "\n";
+  } else {
+    $ret = $stmt->execute($sql_stat['bind_value']);
+  }
+}
 ```
 
 ## Delete statement
 
 ```php
 delete($table, $where)
-delete_sql($table, $where)  //just get delete sql and data map from ORM, not implement query
 ```
 #### table [string]
 > table name
@@ -493,11 +486,21 @@ delete_sql($table, $where)  //just get delete sql and data map from ORM, not imp
 > where condition [可选]
 
 #### return [int]
->Fail if -1 is returned, otherwise the number of delete records is returned<br>
+>Fail if false is returned, otherwise an array with select sql and bind value.<br>
 
 ```php
 $where = array('username' => 'smallhow');
-$ret = $mysql->delete("user_info_test", $where);
+$sql_stat = $mysql->delete("user_info_test", $where);
+
+if ($sql_stat !== false) {
+  $stmt = $mysql->prepare($sql_stat['sql']);
+  if($stmt === false) {
+    echo $mysql->errno . "\n";
+    echo $mysql->error . "\n";
+  } else {
+    $ret = $stmt->execute($sql_stat['bind_value']);
+  }
+}
 ```
 
 ## Whole Example
