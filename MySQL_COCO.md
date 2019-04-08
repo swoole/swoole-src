@@ -575,7 +575,7 @@ $mysql->select($table, $join, $columns, $where);
 
 ```php
 //usage.php
-include("db_config.php");
+include("DBConfig.php");
 include("MySQLPool.php");
 
 $table = 'user_info_test';
@@ -603,7 +603,7 @@ $ret = MySQLPool::instance('collect')->delete($table, $where);
 ```
 
 ```php
-//db_config.php
+//DBConfig.php
 $util_db_config['default']['host']     = '127.0.0.1';
 $util_db_config['default']['username'] = 'root';
 $util_db_config['default']['password'] = 'hao123123';
