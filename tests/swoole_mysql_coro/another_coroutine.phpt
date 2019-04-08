@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro: illegal another coroutine
+swoole_mysql_coro: illegal another coroutine
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';

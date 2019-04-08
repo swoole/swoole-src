@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine/file_lock: lock_sh_1
+swoole_runtime/file_lock: lock_sh_1
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';
 die("skip not support");

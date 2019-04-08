@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine/file_lock: lock_nb
+swoole_runtime/file_lock: lock_nb
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

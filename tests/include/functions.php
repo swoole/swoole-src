@@ -40,20 +40,27 @@ function top(int $pid)
     return $top;
 }
 
+function is_busybox_ps(): bool
+{
+    static $bool;
+    $bool = $bool ?? !empty(`ps --help 2>&1 | grep -i busybox`);
+    return $bool;
+}
+
 function kill_process_by_name(string $name)
 {
-    shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_alpine_linux() ? '1' : '2') . '}\' | xargs kill');
+    shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_busybox_ps() ? '1' : '2') . '}\' | xargs kill');
 }
 
 function get_process_pid_by_name(string $name): bool
 {
-    return (int)shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_alpine_linux() ? '1' : '2') . '}\'');
+    return (int)shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_busybox_ps() ? '1' : '2') . '}\'');
 }
 
-function is_alpine_linux(): bool
+function is_musl_libc(): bool
 {
     static $bool;
-    $bool = $bool ?? strpos(`apk 2>&1`, 'apk-tools') !== false;
+    $bool = $bool ?? !empty(`ldd 2>&1 | grep -i musl`);
     return $bool;
 }
 

@@ -374,7 +374,7 @@ define('SWOOLE_COLOR_MAGENTA', 5);
 define('SWOOLE_COLOR_CYAN', 6);
 define('SWOOLE_COLOR_WHITE', 7);
 // swoole patch: os check
-define('SWOOLE_IS_ALPINE_LINUX', strpos(`apk 2>&1`, 'apk-tools') !== false);
+define('SWOOLE_IS_MUSL_LIBC', !empty(`ldd 2>&1 | grep -i musl`));
 
 function save_or_mail_results()
 {
@@ -1195,7 +1195,7 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
             return $data;
         } else if ($n > 0) {
             // swoole patch: fix blocking read
-            if (SWOOLE_IS_ALPINE_LINUX) {
+            if (SWOOLE_IS_MUSL_LIBC) {
                 if ($captureStdOut) {
                     $line = fread($pipes[1], 8192);
                 } elseif ($captureStdErr) {

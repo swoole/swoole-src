@@ -40,7 +40,7 @@ go(function () {
         Assert::eq($e->getCode(), 2054); // not support auth plugin
     }
 
-    if (!is_alpine_linux()) {
+    if (!is_musl_libc()) {
         Assert::eq($r_strong1, $r_strong2);
     }
     var_dump($r_strong2);

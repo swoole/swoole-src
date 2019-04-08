@@ -16,7 +16,7 @@ go(function () {
         'timeout' => 0.5
     ]);
     echo 'Connection: ' . ($connected ? 'Connected' : 'Not connected') . PHP_EOL;
-    if (is_alpine_linux()) {
+    if (is_musl_libc()) {
         Assert::eq($mysql->connect_errno, SOCKET_EINVAL);
         Assert::eq($mysql->connect_error, swoole_strerror(SOCKET_EINVAL));
     } else {
