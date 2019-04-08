@@ -13,8 +13,7 @@ MySQL ORM User Guide
   - Update statement
   - Delete statement
   - Whole Example
-  - Database Transaction
-  - PHP Database Connection Pool
+  - Connection Pool
 
 ## Create test table
 ```sql
@@ -571,108 +570,271 @@ $where =  [
 $mysql->select($table, $join, $columns, $where);
 ```
 
-## Database transaction
+
+## Connection Pool
 
 ```php
-$mysql->begin();
+//usage.php
+include("db_config.php");
+include("MySQLPool.php");
 
-$ret1 = $mysql->exec("insert into user_info_test(username, sexuality, age, height) values('smallhow', 'male', 29, 180)");
-$ret2 = $mysql->exec("insert into user_info_test(username, sexuality, age, height) values('jesson', 'female', 28, 175)");
+$table = 'user_info_test';
+$join = array("[>]account" => ["uid" => "userid"]);
+$columns = "uid,username";
+$where = ["uid[<]" => 10, "age" => 31];
 
-if($ret1 == -1 || $ret2 == -1 ) {
-  $mysql->rollback();
-} else {
-  $mysql->commit()
-}
+$ret = MySQLPool::instance('collect')->query("select * from $table where bool_flag=1");
+
+$ret = MySQLPool::instance('collect')->select("user_info_test", $where, $columns, $join);
+
+$ret = MySQLPool::instance('collect')->select_row($table, $where, $columns);
+
+$data = array('username' => 'smallhow','sexuality' => 'male','age' => 35, 'height' => '168');
+$insert_id = MySQLPool::instance('collect')->insert($table, $data);
+
+$data['uid'] = 12;
+$ret = MySQLPool::instance('collect')->replace($table, $data);
+
+$update_data = array('height' => 186,'age' => 29);
+$where = array('username' => 'smallhow');
+$ret = MySQLPool::instance('collect')->update($table, $update_data, $where);
+
+$ret = MySQLPool::instance('collect')->delete($table, $where);
 ```
 
-## PHP Database Connection Pool
+```php
+//db_config.php
+$util_db_config['default']['host']     = '127.0.0.1';
+$util_db_config['default']['username'] = 'root';
+$util_db_config['default']['password'] = 'hao123123';
+$util_db_config['default']['dbname']   = 'caihongqiu';
+$util_db_config['default']['char_set'] = 'utf8';
+$util_db_config['default']['dbcollat'] = 'utf8_general_ci';
+$util_db_config['default']['pool_size'] = 10;
 
-Short connection performance is generally not available. CPU resources are consumed by the system. Once the network is jittered, there will be a large number of TIME_WAIT generated. The service has to be restarted periodically or the machine is restarted periodically. The server is unstable, QPS is high and low, and the connection is stable and efficient. The pool can effectively solve the above problems, it is the basis of high concurrency. mysql uses a special way to establish a stable connection pool with MySQL. performance can be increased by at least 30%, According to PHP's operating mechanism, long connections can only reside on top of the worker process after establishment, that is, how many work processes are there. How many long connections, for example, we have 10 PHP servers, each launching 1000 PHP-FPM worker processes, they connect to the same MySQL instance, then there will be a maximum of 10,000 long connections on this MySQL instance, the number is completely Out of control! And PHP's connection pool heartbeat mechanism is not perfect<br><br>
-
-
-### How ?
-Let's focus on Nginx, its stream module implements load balancing of TCP/UDP services, and with the stream-lua module, we can implement programmable stream services, that is, custom TCP/N with Nginx. UDP service! Of course, you can write TCP/UDP services from scratch, but standing on Nginx's shoulder is a more time-saving and labor-saving choice. We can choose the OpenResty library to complete the MySQL connection pool function. OpenResty is a very powerful and well-functioning Nginx Lua framework. It encapsulates Socket, MySQL, Redis, Memcache, etc. But what is the relationship between Nginx and PHP connection pool? And listen to me slowly: Usually most PHP is used with Nginx, and PHP and Nginx are mostly on the same server. With this objective condition, we can use Nginx to implement a connection pool, connect to services such as MySQL on Nginx, and then connect to Nginx through a local Unix Domain Socket, thus avoiding all kinds of short links. Disadvantages, but also enjoy the benefits of the connection pool.
-
-### OpenResty Install
-OpenResty Document: https://moonbingbing.gitbooks.io/openresty-best-practices/content/openresty/install_on_centos.html
-OpenResty Official Website : http://www.openresty.org/
-
-CentOS 6.8 Install :
-```
-###### Install the necessary libraries ######
-$yum install readline-devel pcre-devel openssl-devel perl
-
-###### Install OpenResty ######
-$cd ~/ycdatabase/openresty
-$tar -xzvf openresty-1.13.6.1.tar.gz
-$cd openresty-1.13.6.1
-$./configure --prefix=/usr/local/openresty.1.13 --with-luajit --without-http_redis2_module --with-http_iconv_module
-$gmake 
-$gmake install
-
-###### open mysql pool ######
-$cp -rf ~/ycdatabase/openresty/openresty-pool ~/
-$mkdir ~/openresty-pool/logs
-$/usr/local/openresty.1.13/nginx/sbin/nginx -p ~/openresty-pool
+$util_db_config['collect']['host']     = '127.0.0.1';
+$util_db_config['collect']['username'] = 'root';
+$util_db_config['collect']['password'] = 'hao123123';
+$util_db_config['collect']['dbname']   = 'shine_light';
+$util_db_config['collect']['char_set'] = 'utf8';
+$util_db_config['collect']['dbcollat'] = 'utf8_general_ci';
+$util_db_config['collect']['pool_size'] = 15;
 ```
 
-### MySQL Database Connection Pool Config
-~/openresty-pool/conf/nginx.conf  :
+```php
+//MySQLPool.php
+class MySQLPool {
+    const POOL_SIZE = 10;
 
-```lua
-worker_processes  1;        #nginx worker process num
+    protected $pool;
+    static private $instances;
 
-error_log logs/error.log;   #nginx error log path
+    var $host = '';
+    var $username = '';
+    var $password = '';
+    var $dbname = '';
+    var $port = 3306;
+    var $char_set = 'utf8';
+    var $dbcollat = 'utf8_general_ci';
 
-events {
-    worker_connections 1024;
-}
+    static public function instance($params) {
+        if (!isset(self::$instances[$params])) {
 
-stream {
-  lua_code_cache on;
+            $params = empty($params) ? 'default' : $params;
 
-  lua_check_client_abort on;
-  
-  server {
-    listen unix:/tmp/mysql_pool.sock;
-		
-    content_by_lua_block {
-      local mysql_pool = require "mysql_pool"
-			
-      local config = {host = "127.0.0.1", 
-                      user = "root", 
-                      password = "test", 
-                      database = "collect", 
-                      timeout = 2000, 
-                      max_idle_timeout = 10000, 
-                      pool_size = 200}
-						   
-      pool = mysql_pool:new(config)
-			
-      pool:run()
+            global $util_db_config;
+
+            if (! isset($util_db_config[$params])) {
+                throw new RuntimeException("You have specified an invalid database connection group.");
+            }
+
+            $config = $util_db_config[$params];
+
+            $pool_size = isset($config['pool_size']) ? intval($config['pool_size']) : MySQLPool::POOL_SIZE;
+            $pool_size = $pool_size <= 0 ? MySQLPool::POOL_SIZE : $pool_size;
+
+            self::$instances[$params] = new MySQLPool($config, $pool_size);
+        }
+
+        return self::$instances[$params];
     }
-  }
-}
-```
-If you have more than a MySQL Server, you can start another server and add a new listener to unix domain socket.<br>
 
+    /**
+     * MySQLPool constructor.
+     * @param int $size 连接池的尺寸
+     */
+    function __construct($params, $size) {
+        foreach ($params as $key => $val) {
+            $this->$key = $val;
+        }
 
-### PHP Code
-Except the option is array("unix_socket" => "/tmp/mysql_pool.sock") , Php mysql connection pool usage is exactly the same as before,But, MySQL does not support transactions in unix domain socket mode.<br>
+        $this->pool = new Swoole\Coroutine\Channel($size);
 
+        for ($i = 0; $i < $size; $i++) {
+            $mysql = new Swoole\Coroutine\MySQL();
 
-```php
-$option = array("unix_socket" => "/tmp/mysql_pool.sock");
-$mysql = new mysql($option);
-$ret = $mysql->select("user_info_test", "*", ["sexuality" => "male"]);
+            $ret = $this->connect($mysql);
 
-if($ret == -1) {
-  $code = $mysql->errorCode();
-  $info = $mysql->errorInfo();
-  echo "code:" . $code . "\n";
-  echo "info:" . $info[2] . "\n";
-} else {
-  print_r($ret);
+            if ($ret) {
+                $this->pool->push($mysql);
+                $this->query("SET NAMES '".$this->char_set."' COLLATE '".$this->dbcollat."'");
+            } else {
+                throw new RuntimeException("MySQL connect error host={$this->host}, port={$this->port}, user={$this->username}, database={$this->dbname}, errno=[" . $mysql->errno . "], error=[" . $mysql->error . "]");
+            }
+        }
+    }
+    
+    function insert($table = '', $data = NULL) {
+        if (empty($table) || empty($data) || !is_array($data)) {
+            throw new RuntimeException("insert_table_or_data_must_be_set");
+        }
+		
+        $sql_stat = (new Swoole\Coroutine\MySQL())->insert($table, $data);
+        if ($sql_stat === false) {
+            throw new RuntimeException("insert_sql error [$table][".json_encode($data)."]");
+        }
+        
+        $ret = $this->query($sql_stat['sql'], $sql_stat['bind_value'], $mysql);
+        if (!empty($ret)) {
+            return $mysql->insert_id;
+        } else {
+            return intval($ret);
+        }
+    }
+
+    function replace($table = '', $data = NULL) {
+        if (empty($table) || empty($data) || !is_array($data)) {
+            throw new RuntimeException("replace_table_or_data_must_be_set");
+        }
+		
+		$sql_stat = (new Swoole\Coroutine\MySQL())->replace($table, $data);
+        if ($sql_stat === false) {
+            throw new RuntimeException("replace_sql error [$table][".json_encode($data)."]");
+        }
+        
+        $ret = $this->query($sql_stat['sql'], $sql_stat['bind_value']);
+        return $ret;
+    }
+
+    function update($table = '', $data = NULL, $where = NULL) {
+        if (empty($table) || empty($data) || !is_array($data)) {
+            throw new RuntimeException("update_table_or_data_must_be_set");
+        }
+        
+        $sql_stat = (new Swoole\Coroutine\MySQL())->update($table, $data, $where);
+        if ($sql_stat === false) {
+            throw new RuntimeException("update_sql error [$table][".json_encode($data)."][".json_encode($where)."]");
+        }
+        
+        $ret = $this->query($sql_stat['sql'], $sql_stat['bind_value']);
+        return $ret;
+    }
+
+    function delete($table = '', $where = NULL) {
+        if (empty($table)) {
+            throw new RuntimeException("delete_table_must_be_set");
+        }
+
+        $sql_stat = (new Swoole\Coroutine\MySQL())->delete($table, $where);
+        if ($sql_stat === false) {
+            throw new RuntimeException("replace_sql error [$table][".json_encode($where)."]");
+        }
+        
+        $ret = $this->query($sql_stat['sql'], $sql_stat['bind_value']);
+        return $ret;
+    }
+
+    function select($table = '', $where = array(), $columns = "*", $join = null) {
+        if (empty($table)) {
+            throw new RuntimeException("select_table_or_columns_must_be_set");
+        }
+		
+		if(empty($join)) {
+			$sql_stat = (new Swoole\Coroutine\MySQL())->select($table, $columns, $where);
+		} else {
+			$sql_stat = (new Swoole\Coroutine\MySQL())->select($table, $join, $columns, $where);
+		}
+		
+        if ($sql_stat === false) {
+            throw new RuntimeException("select_sql error [$table][".json_encode($where)."][".json_encode($columns)."]");
+        }
+        
+        $ret = $this->query($sql_stat['sql'], $sql_stat['bind_value']);
+        return $ret;
+    }
+
+    function select_row($table = '', $where = array(), $columns = "*") {
+        $where['LIMIT'] = 1;
+        $ret = $this->select($table, $where, $columns);
+        if (empty($ret) || !is_array($ret)) {
+            return array();
+        }
+
+        return $ret[0];
+    }
+
+    private function connect(& $mysql, $reconn = false) {
+        if ($reconn) {
+            $mysql->close();
+        }
+
+        $options = array();
+        $options['host'] = $this->host;
+        $options['port'] = intval($this->port) == 0 ? 3306 : intval($this->port);
+        $options['user'] = $this->username;
+        $options['password'] = $this->password;
+        $options['database'] = $this->dbname;
+        $ret = $mysql->connect($options);
+        return $ret;
+    }
+
+    private function real_query(& $mysql, & $sql, & $map) {
+        if (empty($map)) {
+            return $mysql->query($sql);
+        } else {
+            $stmt = $mysql->prepare($sql);
+
+            if ($stmt == false) {
+                return false;
+            } else {
+                return $stmt->execute($map);
+            }
+        }
+    }
+
+    function query($sql, $map = null, & $mysql = null) {
+        if (empty($sql)) {
+            throw new RuntimeException("input_empty_query_sql");
+        }
+
+        try {
+            $mysql = $this->pool->pop();
+            $ret = $this->real_query($mysql, $sql, $map);
+
+            if ($ret === false) {
+                echo "MySQL QUERY FAIL [".$mysql->errno."][".$mysql->error."], sql=[{$sql}], map=[".json_encode($map)."]";
+
+                if ($mysql->errno == 2006 || $mysql->errno == 2013) {
+                    //重连MySQL
+                    $ret = $this->connect($mysql, true);
+                    if ($ret) {
+                        $ret = $this->real_query($mysql, $sql, $map);
+                    } else {
+                        throw new RuntimeException("reconnect fail: [" . $mysql->errno . "][" . $mysql->error . "], host={$this->host}, port={$this->port}, user={$this->username}, database={$this->dbname}");
+                    }
+                }
+            }
+
+            if ($ret === false) {
+                throw new RuntimeException($mysql->errno . "|" . $mysql->error);
+            }
+
+            $this->pool->push($mysql);
+            return $ret;
+        } catch (Exception $e) {
+            $this->pool->push($mysql);
+            throw new RuntimeException("MySQL catch exception [".$e->getMessage()."], sql=[{$sql}], map=".json_encode($map));
+        }
+    }
 }
 ```
