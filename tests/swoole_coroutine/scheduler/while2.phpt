@@ -13,26 +13,26 @@ require __DIR__ . '/../../include/bootstrap.php';
 declare(ticks=1000);
 
 $max_msec = 10;
-Swoole\Coroutine::set([
-    'max_exec_msec' => $max_msec,
-]);
+Co::set(['max_exec_msec' => $max_msec]);
 
 $start = microtime(1);
 echo "start\n";
 $flag = 1;
-go(function () use (&$flag, $max_msec){
+
+go(function () use (&$flag, $max_msec) {
     echo "coro 1 start to loop\n";
     $i = 0;
-    while($flag) {
-        $i ++;
+    while ($flag) {
+        $i++;
     }
     echo "coro 1 can exit\n";
 });
-    
+
 $end = microtime(1);
-$msec = ($end-$start) * 1000;
-assert(abs($msec-$max_msec) <= 2);
-go(function () use (&$flag){
+$msec = ($end - $start) * 1000;
+USE_VALGRIND || Assert::lessThanEq(abs($msec - $max_msec), 2);
+
+go(function () use (&$flag) {
     echo "coro 2 set flag = false\n";
     $flag = false;
 });
