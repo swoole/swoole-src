@@ -744,19 +744,19 @@ size_t php_swoole_get_send_data(zval *zdata, char **str)
     return length;
 }
 
-static sw_inline int php_swoole_check_task_param(swServer *serv, int dst_worker_id)
+static sw_inline int php_swoole_check_task_param(swServer *serv, zend_long dst_worker_id)
 {
-    if (serv->task_worker_num < 1)
+    if (UNEXPECTED(serv->task_worker_num == 0))
     {
-        swoole_php_fatal_error(E_WARNING, "task method can't be executed, please set 'task_worker_num' > 0");
+        swoole_php_fatal_error(E_WARNING, "task method can't be executed without task worker");
         return SW_ERR;
     }
-    if (dst_worker_id >= serv->task_worker_num)
+    if (UNEXPECTED(dst_worker_id >= serv->task_worker_num))
     {
-        swoole_php_fatal_error(E_WARNING, "worker_id must be less than serv->task_worker_num");
+        swoole_php_fatal_error(E_WARNING, "worker_id must be less than task_worker_num[%u]", serv->task_worker_num);
         return SW_ERR;
     }
-    if (swIsTaskWorker())
+    if (UNEXPECTED(swIsTaskWorker()))
     {
         swoole_php_fatal_error(E_WARNING, "Server->task() cannot use in the task-worker");
         return SW_ERR;
