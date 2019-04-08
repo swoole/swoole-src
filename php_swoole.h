@@ -1085,7 +1085,7 @@ static sw_inline zend_string* sw_get_debug_print_backtrace(zend_long options, ze
 #define PDO_PARAM_BOOL 5
 
 #define PDO_FETCH_ASSOC 2
-#define PDO_FETCH_COLUMN 7 
+#define PDO_FETCH_COLUMN 7
 
 #define MAX_TABLE_SIZE 48
 #define MAX_OPERATOR_SIZE 4
@@ -1115,39 +1115,39 @@ static sw_inline void sw_string_free_32(char *tmp) {
 }
 
 static sw_inline int sw_compare_strict_bool(zval *op1, zend_bool op2 TSRMLS_DC) {
-	if(op1 == NULL) {
-		return 0 == op2;
-	}
-	
-	switch (Z_TYPE_P(op1)) {
-		case IS_LONG:
-			return (Z_LVAL_P(op1) ? 1 : 0) == op2;
-		case IS_DOUBLE:
-			return (Z_DVAL_P(op1) ? 1 : 0) == op2;
-		case IS_NULL:
-			return 0 == op2;
-		case IS_TRUE:
-			return 1 == op2;
-		case IS_FALSE:
-			return 0 == op2;
-		default:
-			return 0;
-	}
+    if (op1 == NULL) {
+        return 0 == op2;
+    }
 
-	return 0;
+    switch (Z_TYPE_P(op1)) {
+    case IS_LONG:
+        return (Z_LVAL_P(op1) ? 1 : 0) == op2;
+    case IS_DOUBLE:
+        return (Z_DVAL_P(op1) ? 1 : 0) == op2;
+    case IS_NULL:
+        return 0 == op2;
+    case IS_TRUE:
+        return 1 == op2;
+    case IS_FALSE:
+        return 0 == op2;
+    default:
+        return 0;
+    }
+
+    return 0;
 }
 
 static sw_inline zval* sw_zval_copy(zval * source) {
-	zval *copy;
-	SW_MAKE_STD_ZVAL(copy);
-	*copy = *source;
-	zval_copy_ctor(copy);
-	return copy;
+    zval *copy;
+    SW_MAKE_STD_ZVAL(copy);
+    *copy = *source;
+    zval_copy_ctor(copy);
+    return copy;
 }
 
 static sw_inline char* sw_itoa(long num, char* str) {
-	int radix = 10;
-	memset(str, 0, MAP_ITOA_INT_SIZE);
+    int radix = 10;
+    memset(str, 0, MAP_ITOA_INT_SIZE);
     char index[]="0123456789ABCDEF";
     unsigned long unum;
     int i=0,j,k;
@@ -1171,7 +1171,7 @@ static sw_inline char* sw_itoa(long num, char* str) {
     return str;
 }
 
-#define SW_IS_FALSE(var)		sw_compare_strict_bool(var, 0 TSRMLS_CC)
+#define SW_IS_FALSE(var)    sw_compare_strict_bool(var, 0 TSRMLS_CC)
 #define SW_IS_ARRAY(var)	(var != NULL && Z_TYPE_P(var) == IS_ARRAY)
 #define SW_IS_EMPTY(var)	(var == NULL || Z_TYPE_P(var) == IS_NULL || SW_IS_FALSE(var) || (Z_TYPE_P(var) == IS_STRING && !Z_STRLEN_P(var)) || !zend_is_true(var))
 #define SW_IS_NULL(var)		(var == NULL || Z_TYPE_P(var) == IS_NULL)
