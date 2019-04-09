@@ -625,7 +625,7 @@ void swWorker_try_to_exit()
             else
             {
                 int timeout_msec = remaining_time * 1000;
-                if (SwooleG.main_reactor->timeout_msec < timeout_msec)
+                if (SwooleG.main_reactor->timeout_msec < 0 || SwooleG.main_reactor->timeout_msec > timeout_msec)
                 {
                     SwooleG.main_reactor->timeout_msec = timeout_msec;
                 }
