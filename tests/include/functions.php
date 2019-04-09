@@ -727,6 +727,11 @@ class ProcessManager
         $this->childFunc = $func;
     }
 
+    public function getChildPid(): int
+    {
+        return $this->childPid;
+    }
+
     public function setWaitTimeout(int $value)
     {
         $this->waitTimeout = $value;
