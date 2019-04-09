@@ -23,7 +23,6 @@
 #include <grp.h>
 
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event);
-static void swWorker_onTimeout(swTimer *timer, swTimer_node *tnode);
 static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamRead(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t length);
@@ -577,14 +576,6 @@ void swWorker_stop(swWorker *worker)
     swWorker_try_to_exit();
 }
 
-static void swWorker_onTimeout(swTimer *timer, swTimer_node *tnode)
-{
-    SwooleG.running = 0;
-    SwooleG.main_reactor->running = 0;
-    SwooleWG.exit_timer = nullptr;
-    swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced to terminate");
-}
-
 void swWorker_try_to_exit()
 {
     swWorker *worker = SwooleWG.worker;
@@ -608,12 +599,6 @@ void swWorker_try_to_exit()
 
     uint8_t call_worker_exit_func = 0;
 
-    if (SwooleWG.exit_timer)
-    {
-        swTimer_del(&SwooleG.timer, SwooleWG.exit_timer);
-        SwooleWG.exit_timer = nullptr;
-    }
-
     while (1)
     {
         if (swReactor_empty(SwooleG.main_reactor))
@@ -632,11 +617,18 @@ void swWorker_try_to_exit()
             int remaining_time = serv->max_wait_time - (serv->gs->now - SwooleWG.exit_time);
             if (remaining_time <= 0)
             {
-                swWorker_onTimeout(nullptr, nullptr);
+                SwooleG.running = 0;
+                SwooleG.main_reactor->running = 0;
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
+                        "worker exit timeout, forced to terminate");
             }
             else
             {
-                SwooleWG.exit_timer = swTimer_add(&SwooleG.timer, (long) (remaining_time * 1000), 0, NULL, swWorker_onTimeout);
+                int timeout_msec = remaining_time * 1000;
+                if (SwooleG.main_reactor->timeout_msec < 0 || SwooleG.main_reactor->timeout_msec > timeout_msec)
+                {
+                    SwooleG.main_reactor->timeout_msec = timeout_msec;
+                }
             }
         }
         break;
