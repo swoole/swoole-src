@@ -1077,16 +1077,6 @@ static sw_inline zend_string* sw_get_debug_print_backtrace(zend_long options, ze
 
 
 //----------------------------------ORM API------------------------------------
-#define PDO_PARAM_NULL 0
-#define PDO_PARAM_INT 1
-#define PDO_PARAM_STR 2
-#define PDO_PARAM_LOB 3
-#define PDO_PARAM_STMT 4
-#define PDO_PARAM_BOOL 5
-
-#define PDO_FETCH_ASSOC 2
-#define PDO_FETCH_COLUMN 7
-
 #define MAX_TABLE_SIZE 48
 #define MAX_OPERATOR_SIZE 4
 
