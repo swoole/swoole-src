@@ -3332,13 +3332,15 @@ static PHP_METHOD(swoole_mysql_coro, setDefer)
     RETURN_TRUE
 }
 
-static sw_inline size_t get_string_sw_malloc_size(char* source) {
+static sw_inline size_t get_string_sw_malloc_size(char* source) 
+{
     size_t source_size = 0;
     memcpy(&source_size, source - 4, sizeof(size_t));
     return source_size;
 }
 
-char* sw_multi_memcpy_auto_realloc(char** source, int n_value, ...) {
+char* sw_multi_memcpy_auto_realloc(char** source, int n_value, ...) 
+{
     int source_size = get_string_sw_malloc_size(*source);
 
     va_list var_arg;
@@ -3375,7 +3377,8 @@ char* sw_multi_memcpy_auto_realloc(char** source, int n_value, ...) {
 }
 
 //match table and alias
-static int preg_table_match(char* key, char* table, char* alias) {
+static int preg_table_match(char* key, char* table, char* alias) 
+{
     int table_start = -1;
     int table_end = -1;
     int alias_start = -1;
@@ -3437,7 +3440,8 @@ static int preg_table_match(char* key, char* table, char* alias) {
     return 1;
 }
 
-char* sw_get_array_key_index(zval *p, uint32_t index) {
+char* sw_get_array_key_index(zval *p, uint32_t index) 
+{
     if (!SW_IS_ARRAY(p)) {
         return NULL;
     }
@@ -3469,7 +3473,8 @@ char* sw_get_array_key_index(zval *p, uint32_t index) {
     return NULL;
 }
 
-int sw_strpos(const char* haystack,const char* needle) {
+int sw_strpos(const char* haystack,const char* needle) 
+{
     int ignorecase = 0;
     register unsigned char c, needc;
     unsigned char const *from, *end;
@@ -3508,7 +3513,8 @@ int sw_strpos(const char* haystack,const char* needle) {
     return  -1;
 }
 
-static int preg_join_match(char* key, char* join, char* table, char* alias) {
+static int preg_join_match(char* key, char* join, char* table, char* alias) 
+{
     int join_start = -1;
     int join_end = -1;
     int table_start = -1;
@@ -3595,7 +3601,8 @@ static int preg_join_match(char* key, char* join, char* table, char* alias) {
     return 1;
 }
 
-static const char* get_join_type(char* type) {
+static const char* get_join_type(char* type) 
+{
     if (strcmp(type, "<") == 0) {
         return "LEFT";
     } else if (strcmp(type, ">") == 0) {
@@ -3618,7 +3625,8 @@ static int is_set_array_index(HashTable *ht, int index) {
     }
 }
 
-static char* strreplace(char* original, char const * const pattern, char const * const replacement) {
+static char* strreplace(char* original, char const * const pattern, char const * const replacement) 
+{
     size_t const replen = strlen(replacement);
     size_t const patlen = strlen(pattern);
     size_t const orilen = strlen(original);
@@ -3651,7 +3659,8 @@ static char* strreplace(char* original, char const * const pattern, char const *
     return original;
 }
 
-static char* sw_implode(zval *arr, const char *delim_str, char** result) {
+static char* sw_implode(zval *arr, const char *delim_str, char** result) 
+{
     zval *return_value = NULL;
     SW_MAKE_STD_ZVAL(return_value);
     zend_string *delim = zend_string_init(delim_str, strlen(delim_str), 0);
@@ -3666,7 +3675,8 @@ static char* sw_implode(zval *arr, const char *delim_str, char** result) {
     return *result;
 }
 
-static char* column_quote(char* string, char* table_column) {
+static char* column_quote(char* string, char* table_column) 
+{
     char tmp[MAX_TABLE_SIZE] = {0};
 
     sprintf(tmp, " `%s` ", string);
@@ -3686,7 +3696,8 @@ static char* column_quote(char* string, char* table_column) {
     return table_column;
 }
 
-static char *rtrim(char *str) {
+static char *rtrim(char *str) 
+{
     if (str == NULL || *str == '\0') {
         return str;
     }
@@ -3700,7 +3711,8 @@ static char *rtrim(char *str) {
     return str;
 }
 
-static char *ltrim(char *str) {
+static char *ltrim(char *str) 
+{
     if (str == NULL || *str == '\0') {
         return str;
     }
@@ -3717,13 +3729,15 @@ static char *ltrim(char *str) {
     return str;
 }
 
-static char *trim(char *str) {
+static char *trim(char *str) 
+{
     str = rtrim(str);
     str = ltrim(str);
     return str;
 }
 
-static char* rtrim_str(char *str, char *remove) {
+static char* rtrim_str(char *str, char *remove) 
+{
     if (str == NULL || *str == '\0') {
         return str;
     }
@@ -3767,7 +3781,8 @@ static char* rtrim_str(char *str, char *remove) {
     return str;
 }
 
-static char *ltrim_str(char *str, char *remove) {
+static char *ltrim_str(char *str, char *remove) 
+{
     if (str == NULL || *str == '\0') {
         return str;
     }
@@ -3804,7 +3819,8 @@ static char *ltrim_str(char *str, char *remove) {
     return str;
 }
 
-static zval* php_sw_array_get_value(HashTable *ht, char *key) {
+static zval* php_sw_array_get_value(HashTable *ht, char *key) 
+{
     zval *v = zend_hash_str_find(ht, key, strlen(key));
     if (v == NULL) {
         return NULL;
@@ -3817,7 +3833,8 @@ static zval* php_sw_array_get_value(HashTable *ht, char *key) {
     }
 }
 
-static char* handle_join(zval *join, char *table, char** table_query) {
+static char* handle_join(zval *join, char *table, char** table_query) 
+{
     char* sub_table;
     zval* relation;
     uint32_t key_len;
@@ -3891,7 +3908,8 @@ static char* handle_join(zval *join, char *table, char** table_query) {
     return *table_query;
 }
 
-static char* column_push(zval* columns, zval* map, char** column_query) {
+static char* column_push(zval* columns, zval* map, char** column_query) 
+{
     if (SW_IS_EMPTY(columns) || (Z_TYPE_P(columns) == IS_STRING && strcmp(Z_STRVAL_P(columns), "*") == 0)) {
         sw_multi_memcpy_auto_realloc(column_query, 1, "*");
         return *column_query;
@@ -3934,7 +3952,8 @@ static char* column_push(zval* columns, zval* map, char** column_query) {
     }
 }
 
-static int preg_and_or_match(char* key, char* relation) {
+static int preg_and_or_match(char* key, char* relation) 
+{
     int relation_start = -1;
     int relation_end = -1;
 
@@ -3974,7 +3993,8 @@ static int preg_and_or_match(char* key, char* relation) {
     return 1;
 }
 
-static int preg_operator_match(char* key, char* column, char* operators) {
+static int preg_operator_match(char* key, char* column, char* operators) 
+{
     int column_start = -1;
     int column_end = -1;
     int column_end_is_space = -1;
@@ -4044,13 +4064,15 @@ static int preg_operator_match(char* key, char* column, char* operators) {
     return 1;
 }
 
-static zval* add_map(zval* map, zval* value) {
+static zval* add_map(zval* map, zval* value) 
+{
     zval *copy = sw_zval_copy(value);
     add_next_index_zval(map, copy);
     return map;
 }
 
-static char* handle_where_not_in(zval* not_in_array, char** where_query, zval* map) {
+static char* handle_where_not_in(zval* not_in_array, char** where_query, zval* map) 
+{
     char * key;
     zval *value;
     uint32_t key_len;
@@ -4071,7 +4093,8 @@ static char* handle_where_not_in(zval* not_in_array, char** where_query, zval* m
     return *where_query;
 }
 
-static char* handle_like_array(zval* like_array, char** where_query, char* column, char* operators, zval* map, char* connector) {
+static char* handle_like_array(zval* like_array, char** where_query, char* column, char* operators, zval* map, char* connector) 
+{
     char * key;
     zval *value;
     uint32_t key_len;
@@ -4091,7 +4114,8 @@ static char* handle_like_array(zval* like_array, char** where_query, char* colum
 }
 
 //where condition
-static char* where_implode(char* key, zval* value, zval* map, char** where_query, char* connector) {
+static char* where_implode(char* key, zval* value, zval* map, char** where_query, char* connector) 
+{
     char relation_ship[MAX_OPERATOR_SIZE] = {0};
     preg_and_or_match(key, relation_ship);
 
@@ -4217,7 +4241,8 @@ static char* where_implode(char* key, zval* value, zval* map, char** where_query
 }
 
 //handle group by
-static char* group_by_implode(zval* group, char** group_by_condition) {
+static char* group_by_implode(zval* group, char** group_by_condition) 
+{
     if (!SW_IS_EMPTY(group)) {
         if (Z_TYPE_P(group) == IS_STRING) {
             sw_multi_memcpy_auto_realloc(group_by_condition, 1, Z_STRVAL_P(group));
@@ -4247,7 +4272,8 @@ static char* group_by_implode(zval* group, char** group_by_condition) {
 }
 
 //handle having
-char* having_implode(zval* having, zval* map, char** having_condition) {
+char* having_implode(zval* having, zval* map, char** having_condition) 
+{
     char tmp[5] = "AND";
 
     if (SW_IS_ARRAY(having)) {
@@ -4274,7 +4300,8 @@ char* having_implode(zval* having, zval* map, char** having_condition) {
 }
 
 //order by
-char* order_implode(zval* order, char** order_condition) {
+char* order_implode(zval* order, char** order_condition) 
+{
     if (!SW_IS_EMPTY(order)) {
         if (Z_TYPE_P(order) == IS_STRING) {
             sw_multi_memcpy_auto_realloc(order_condition, 1, Z_STRVAL_P(order));
@@ -4310,7 +4337,8 @@ char* order_implode(zval* order, char** order_condition) {
 }
 
 //limit
-char* limit_implode(zval* limit, char** limit_condition) {
+char* limit_implode(zval* limit, char** limit_condition) 
+{
     if (!SW_IS_EMPTY(limit)) {
         if (Z_TYPE_P(limit) == IS_STRING || Z_TYPE_P(limit) == IS_LONG) {
             convert_to_string(limit);
@@ -4333,7 +4361,8 @@ char* limit_implode(zval* limit, char** limit_condition) {
     return *limit_condition;
 }
 
-static char* where_clause(zval* where, zval* map, char** sql) {
+static char* where_clause(zval* where, zval* map, char** sql) 
+{
     if (SW_IS_EMPTY(where)) {
         return *sql;
     }
@@ -4411,7 +4440,8 @@ static char* where_clause(zval* where, zval* map, char** sql) {
     return *sql;
 }
 
-static char* select_context(char* table, zval* map, zval* join, zval* columns, zval* where, char** sql) {
+static char* select_context(char* table, zval* map, zval* join, zval* columns, zval* where, char** sql) 
+{
     char* table_query;
     sw_string_malloc_32(&table_query, 0);
 
@@ -4456,7 +4486,8 @@ static char* select_context(char* table, zval* map, zval* join, zval* columns, z
     return *sql;
 }
 
-static PHP_METHOD(swoole_mysql_coro, select) {
+static PHP_METHOD(swoole_mysql_coro, select) 
+{
     char* table = NULL;
     size_t table_len;
     zval* join = NULL, *columns = NULL, *where = NULL;
@@ -4489,7 +4520,8 @@ static PHP_METHOD(swoole_mysql_coro, select) {
     RETVAL_ZVAL(ret_val, 1, 1);
 }
 
-PHP_METHOD(swoole_mysql_coro, insert) {
+PHP_METHOD(swoole_mysql_coro, insert) 
+{
     char *table = NULL;
     size_t table_len;
     zval *data = NULL;
@@ -4569,7 +4601,8 @@ PHP_METHOD(swoole_mysql_coro, insert) {
     RETVAL_ZVAL(ret_val, 1, 1);
 }
 
-PHP_METHOD(swoole_mysql_coro, replace) {
+PHP_METHOD(swoole_mysql_coro, replace) 
+{
     char *table = NULL;
     size_t table_len;
     zval *data = NULL;
@@ -4649,7 +4682,8 @@ PHP_METHOD(swoole_mysql_coro, replace) {
     RETVAL_ZVAL(ret_val, 1, 1);
 }
 
-PHP_METHOD(swoole_mysql_coro, update) {
+PHP_METHOD(swoole_mysql_coro, update) 
+{
     char *table = NULL;
     size_t table_len;
     zval *data = NULL, *where = NULL;
@@ -4735,7 +4769,8 @@ PHP_METHOD(swoole_mysql_coro, update) {
     RETVAL_ZVAL(ret_val, 1, 1);
 }
 
-PHP_METHOD(swoole_mysql_coro, delete) {
+PHP_METHOD(swoole_mysql_coro, delete) 
+{
     char *table = NULL;
     size_t table_len;
     zval *where = NULL;
