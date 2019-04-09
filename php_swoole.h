@@ -1102,7 +1102,8 @@ extern char* sw_multi_memcpy_auto_realloc(char** source, int n_str, ...);
 extern int sw_strpos(const char *haystack,const char *needle);
 
 extern char* sw_get_array_key_index(zval* p, uint32_t index);
-static sw_inline void sw_string_malloc_32(char **tmp, int len) {
+static sw_inline void sw_string_malloc_32(char **tmp, int len) 
+{
     size_t real_size = MM_REAL_SIZE(len);
     *tmp = (char*)sw_malloc(real_size);
     memset(*tmp, 0, real_size);
@@ -1110,11 +1111,13 @@ static sw_inline void sw_string_malloc_32(char **tmp, int len) {
     *tmp = *tmp + sizeof(size_t);
 }
 
-static sw_inline void sw_string_free_32(char *tmp) {
+static sw_inline void sw_string_free_32(char *tmp) 
+{
     sw_free(tmp - sizeof(size_t));
 }
 
-static sw_inline int sw_compare_strict_bool(zval *op1, zend_bool op2 TSRMLS_DC) {
+static sw_inline int sw_compare_strict_bool(zval *op1, zend_bool op2 TSRMLS_DC) 
+{
     if (op1 == NULL) {
         return 0 == op2;
     }
@@ -1137,7 +1140,8 @@ static sw_inline int sw_compare_strict_bool(zval *op1, zend_bool op2 TSRMLS_DC) 
     return 0;
 }
 
-static sw_inline zval* sw_zval_copy(zval * source) {
+static sw_inline zval* sw_zval_copy(zval * source) 
+{
     zval *copy;
     SW_MAKE_STD_ZVAL(copy);
     *copy = *source;
@@ -1145,7 +1149,8 @@ static sw_inline zval* sw_zval_copy(zval * source) {
     return copy;
 }
 
-static sw_inline char* sw_itoa(long num, char* str) {
+static sw_inline char* sw_itoa(long num, char* str) 
+{
     int radix = 10;
     memset(str, 0, MAP_ITOA_INT_SIZE);
     char index[]="0123456789ABCDEF";
