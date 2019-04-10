@@ -614,7 +614,7 @@ void swWorker_try_to_exit()
                 call_worker_exit_func = 1;
                 continue;
             }
-            int remaining_time = serv->max_wait_time - (serv->gs->now - SwooleWG.exit_time);
+            int remaining_time = serv->max_wait_time - (time(NULL) - SwooleWG.exit_time);
             if (remaining_time <= 0)
             {
                 SwooleG.running = 0;
