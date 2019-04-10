@@ -149,7 +149,7 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
         zval_ptr_dtor(&retval);
     }
 
-    if (!tnode->interval || tnode->remove)
+    if (!tnode->interval || tnode->removed)
     {
         php_swoole_timer_dtor(tnode);
     }
@@ -241,7 +241,7 @@ static PHP_FUNCTION(swoole_timer_exists)
         ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
         tnode = swTimer_get(&SwooleG.timer, id);
-        RETURN_BOOL(tnode && !tnode->remove);
+        RETURN_BOOL(tnode && !tnode->removed);
     }
 }
 
@@ -269,7 +269,7 @@ static PHP_FUNCTION(swoole_timer_info)
         add_assoc_long(return_value, "id", tnode->id);
         add_assoc_long(return_value, "exec_msec", tnode->exec_msec);
         add_assoc_long(return_value, "round", tnode->round);
-        add_assoc_bool(return_value, "removed", tnode->remove);
+        add_assoc_bool(return_value, "removed", tnode->removed);
     }
 }
 

@@ -151,7 +151,7 @@ swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, 
     tnode->type = SW_TIMER_TYPE_KERNEL;
     tnode->exec_msec = now_msec + _msec;
     tnode->interval = interval ? _msec : 0;
-    tnode->remove = 0;
+    tnode->removed = 0;
     tnode->callback = callback;
     tnode->round = timer->round;
 
@@ -186,13 +186,13 @@ swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, 
 
 enum swBool_type swTimer_del_ex(swTimer *timer, swTimer_node *tnode, swTimerDtor dtor)
 {
-    if (unlikely(!tnode || tnode->remove))
+    if (unlikely(!tnode || tnode->removed))
     {
         return SW_FALSE;
     }
     if (unlikely(SwooleG.timer._current_id > 0 && tnode->id == SwooleG.timer._current_id))
     {
-        tnode->remove = 1;
+        tnode->removed = 1;
         swTraceLog(SW_TRACE_TIMER, "set-remove: id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, tnode->round, timer->num);
         return SW_TRUE;
     }
@@ -241,7 +241,7 @@ int swTimer_select(swTimer *timer)
         }
 
         timer->_current_id = tnode->id;
-        if (!tnode->remove)
+        if (!tnode->removed)
         {
             swTraceLog(SW_TRACE_TIMER, "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, tnode->round, timer->num - 1);
             tnode->callback(timer, tnode);
@@ -249,7 +249,7 @@ int swTimer_select(swTimer *timer)
         timer->_current_id = -1;
 
         //persistent timer
-        if (tnode->interval > 0 && !tnode->remove)
+        if (tnode->interval > 0 && !tnode->removed)
         {
             while (tnode->exec_msec <= now_msec)
             {
