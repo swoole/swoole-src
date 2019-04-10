@@ -254,6 +254,7 @@ typedef struct
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 
+extern zend_class_entry *swoole_timer_ce;
 extern zend_class_entry *swoole_socket_coro_ce;
 extern zend_class_entry *swoole_client_ce;
 extern zend_class_entry *swoole_server_ce;
@@ -388,12 +389,19 @@ static sw_inline void php_swoole_check_reactor()
     }
 }
 
+// shutdown
 void php_swoole_register_shutdown_function(char *function);
 void php_swoole_register_shutdown_function_prepend(char *function);
+
+// event
 void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_event_exit();
-void php_swoole_clear_all_timer();
+
+// timer
+enum swBool_type php_swoole_timer_clear(swTimer_node *tnode);
+enum swBool_type php_swoole_timer_clear_all();
+
 void php_swoole_register_callback(swServer *serv);
 void php_swoole_trace_check(void *arg);
 void php_swoole_client_free(zval *zobject, swClient *cli);
