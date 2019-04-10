@@ -2702,6 +2702,13 @@ static PHP_METHOD(swoole_server, set)
         serv->message_queue_key = (uint64_t) zval_get_long(v);
     }
 
+    if (serv->task_enable_coroutine
+            && (serv->task_ipc_mode == SW_TASK_IPC_MSGQUEUE || serv->task_ipc_mode == SW_TASK_IPC_PREEMPTIVE))
+    {
+        swoole_php_fatal_error(E_ERROR, "cannot use msgqueue when task_enable_coroutine is enable");
+        RETURN_FALSE;
+    }
+
     sw_zend_call_method_with_1_params(server_port_list.zobjects[0], swoole_server_port_ce, NULL, "set", NULL, zset);
 
     zval *zsetting = sw_zend_read_property_array(swoole_server_ce, getThis(), ZEND_STRL("setting"), 1);

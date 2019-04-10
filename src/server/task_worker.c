@@ -38,6 +38,11 @@ void swTaskWorker_init(swServer *serv)
      */
     if (serv->task_enable_coroutine)
     {
+        if (serv->task_ipc_mode == SW_TASK_IPC_MSGQUEUE || serv->task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
+        {
+            swError("cannot use msgqueue when task_enable_coroutine is enable");
+            return;
+        }
         pool->main_loop = swTaskWorker_loop_async;
     }
     if (serv->task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
