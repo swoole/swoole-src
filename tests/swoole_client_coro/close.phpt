@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_coro: close actively by client
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

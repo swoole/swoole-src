@@ -24,16 +24,21 @@ class Exception
 {
 public:
     int code;
+    const char *msg;
 
-    Exception(enum swErrorCode _code)
+    Exception(int code) : code(code)
     {
-        code = _code;
+        msg = swoole_strerror(code);
     }
 };
 }
 
-const char* swoole_strerror(enum swErrorCode code)
+const char* swoole_strerror(int code)
 {
+    if (code < SW_ERROR_START)
+    {
+        return strerror(code);
+    }
     /* swstrerror {{{*/
     switch(code)
     {
@@ -49,6 +54,8 @@ const char* swoole_strerror(enum swErrorCode code)
         return "Invalid params";
     case SW_ERROR_QUEUE_FULL:
         return "Queue full";
+    case SW_ERROR_OPERATION_NOT_SUPPORT:
+        return "Operation not support";
     case SW_ERROR_FILE_NOT_EXIST:
         return "File not exist";
     case SW_ERROR_FILE_TOO_LARGE:
@@ -155,6 +162,8 @@ const char* swoole_strerror(enum swErrorCode code)
         return "Server send in master";
     case SW_ERROR_SERVER_INVALID_REQUEST:
         return "Server invalid request";
+    case SW_ERROR_SERVER_CONNECT_FAIL:
+        return "Server connect fail";
     case SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT:
         return "Server worker exit timeout";
     case SW_ERROR_CO_OUT_OF_COROUTINE:
@@ -195,7 +204,7 @@ const char* swoole_strerror(enum swErrorCode code)
 /*}}}*/
 }
 
-void swoole_throw_error(enum swErrorCode code)
+void swoole_throw_error(int code)
 {
     throw swoole::Exception(code);
 }

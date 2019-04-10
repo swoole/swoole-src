@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 ini_set('swoole.display_errors', false);
 
-$tcp_server = __DIR__ . "/../include/memoryleak/tcp_client_memory_leak/tcp_serv.php";
+$tcp_server = __DIR__ . "/../include/api/swoole_server/tcp_serv.php";
 $closeServer = start_server($tcp_server, '127.0.0.1', 9001);
 
 $mem = memory_get_usage(true);
@@ -29,7 +29,7 @@ $cli->on("close", function (swoole_client $cli) use ($closeServer) {
     $closeServer();
 });
 $cli->connect('127.0.0.1', 9001);
-assert(memory_get_usage(true) == $mem);
+Assert::eq(memory_get_usage(true), $mem);
 echo "SUCCESS\n";
 
 swoole_event::wait();

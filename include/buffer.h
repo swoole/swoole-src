@@ -51,8 +51,11 @@ typedef struct _swBuffer_chunk
 typedef struct _swBuffer
 {
     int fd;
-    uint8_t chunk_num; //chunk数量
-    uint16_t chunk_size;
+    uint32_t chunk_num;
+    /**
+     * 0: donot use chunk
+     */
+    uint32_t chunk_size;
     uint32_t length;
     swBuffer_chunk *head;
     swBuffer_chunk *tail;
@@ -61,7 +64,7 @@ typedef struct _swBuffer
 #define swBuffer_get_chunk(buffer)   (buffer->head)
 #define swBuffer_empty(buffer)       (buffer == NULL || buffer->head == NULL)
 
-swBuffer* swBuffer_new(int chunk_size);
+swBuffer* swBuffer_new(uint32_t chunk_size);
 swBuffer_chunk *swBuffer_new_chunk(swBuffer *buffer, uint32_t type, uint32_t size);
 void swBuffer_pop_chunk(swBuffer *buffer, swBuffer_chunk *chunk);
 int swBuffer_append(swBuffer *buffer, void *data, uint32_t size);

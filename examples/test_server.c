@@ -20,21 +20,20 @@ int main(int argc, char **argv)
 {
     int ret;
     swServer serv;
-    swServer_init(&serv);  //初始化
+    swServer_init(&serv);
 
-    serv.reactor_num = 4;  //reactor线程数量
-    serv.worker_num = 2;  //worker进程数量
+    serv.reactor_num = 4;
+    serv.worker_num = 2;
 
     serv.factory_mode = SW_MODE_BASE;
-    //serv.factory_mode = SW_MODE_SINGLE; //SW_MODE_PROCESS/SW_MODE_THREAD/SW_MODE_BASE/SW_MODE_SINGLE
     serv.max_connection = 10000;
     //serv.open_cpu_affinity = 1;
     //serv.open_tcp_nodelay = 1;
     //serv.daemonize = 1;
-//	memcpy(serv.log_file, SW_STRS("/tmp/swoole.log")); //日志
+    //memcpy(serv.log_file, SW_STRS("/tmp/swoole.log"));
 
     serv.dispatch_mode = 2;
-//	serv.open_tcp_keepalive = 1;
+    //serv.open_tcp_keepalive = 1;
 
 #ifdef HAVE_OPENSSL
     //serv.ssl_cert_file = "tests/ssl/ssl.crt";
@@ -65,7 +64,7 @@ int main(int argc, char **argv)
     port->open_eof_check = 0;
     //config
     port->backlog = 128;
-    memcpy(port->protocol.package_eof, SW_STRL("\r\n\r\n"));  //开启eof检测，启用buffer区
+    memcpy(port->protocol.package_eof, SW_STRL("\r\n\r\n"));
 
     swServer_add_port(&serv, SW_SOCK_UDP, "0.0.0.0", 9502);
     swServer_add_port(&serv, SW_SOCK_TCP6, "::", 9503);
@@ -97,12 +96,17 @@ int my_onReceive(swServer *serv, swEventData *req)
 
     g_receive_count++;
 
-    swConnection *conn = swWorker_get_connection(serv, req->info.fd);
-    swoole_rtrim(req->data, req->info.len);
-    swNotice("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d", g_receive_count, swConnection_get_ip(conn),
-            swConnection_get_port(conn), req->data, req->info.len);
+    swPackagePtr *req_pkg = (swPackagePtr *)req;
+    swConnection *conn = swWorker_get_connection(serv, req_pkg->info.fd);
 
-    int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s\n", req->info.len, req->data);
+    swoole_rtrim(req_pkg->data.str, req_pkg->data.length);
+    swNotice("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d", g_receive_count,
+        swConnection_get_ip(conn), swConnection_get_port(conn), 
+        req_pkg->data.str, req_pkg->data.length);
+
+    int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s\n", 
+        req_pkg->data.length, req_pkg->data.str);
+
     ret = serv->send(serv, req->info.fd, resp_data, n);
     if (ret < 0)
     {

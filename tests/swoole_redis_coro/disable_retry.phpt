@@ -20,7 +20,7 @@ $pm->parentFunc = function () use ($pm) {
             assert($ret);
             $ret = $redis->get('random_val');
             if ($n % 2) {
-                assert($ret === $random);
+                Assert::eq($ret, $random);
             } else {
                 assert(!$ret);
             }

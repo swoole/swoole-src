@@ -30,7 +30,7 @@ class OpcodeServer
         ]);
 
         $this->swooleServer->on("receive", function(\swoole_server $server, $fd, $fromReactorId, $recv) use($port) {
-            assert(intval($recv) === $port);
+            Assert::eq(intval($recv), $port);
             $r = $server->send($fd, opcode_encode("return", $port));
             assert($r !== false);
         });
@@ -45,7 +45,7 @@ class OpcodeServer
         ]);
 
         $serv1->on("receive", function(\swoole_server $server, $fd, $fromReactorId, $recv) use($port1) {
-            assert(intval($recv) === $port1);
+            Assert::eq(intval($recv), $port1);
             $r = $server->send($fd, opcode_encode("return", $port1));
             assert($r !== false);
         });
@@ -61,7 +61,7 @@ class OpcodeServer
 
 
         $serv2->on("receive", function(\swoole_server $server, $fd, $fromReactorId, $recv) use($port2) {
-            assert(intval($recv) === $port2);
+            Assert::eq(intval($recv), $port2);
             $r = $server->send($fd, opcode_encode("return", $port2));
             assert($r !== false);
         });

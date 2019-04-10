@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_async: getSocket debug
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc';
 if (method_exists('swoole_client', 'getSocket') === false) {
@@ -27,7 +26,7 @@ $cli->on("connect", function(swoole_client $cli) {
     /*
     @$cli->getSocket();
     $err = error_get_last();
-    assert($err["message"] === "swoole_client_async::getSocket(): unable to obtain socket family Error: Bad file descriptor[9].");
+    Assert::eq($err["message"], "swoole_client_async::getSocket(): unable to obtain socket family Error: Bad file descriptor[9].");
     */
      swoole_event_exit();
 });

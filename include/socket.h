@@ -72,7 +72,6 @@ public:
 
     Socket(int domain = AF_INET, int type = SOCK_STREAM, int protocol = IPPROTO_IP);
     Socket(enum swSocket_type type = SW_SOCK_TCP);
-    Socket(int _fd, Socket *socket);
     Socket(int _fd, enum swSocket_type _type);
     ~Socket();
     bool connect(std::string host, int port, int flags = 0);
@@ -151,7 +150,7 @@ public:
     inline void set_err(int e)
     {
         errCode = errno = e;
-        errMsg = e ? strerror(e) : "";
+        errMsg = e ? swoole_strerror(e) : "";
     }
 
     inline void set_err(int e, const char *s)
@@ -160,14 +159,8 @@ public:
         errMsg = s;
     }
 
-    inline void set_err(enum swErrorCode e)
-    {
-        errCode = errno = e;
-        errMsg = swoole_strerror(e);
-    }
-
     /* set connect read write timeout */
-    inline void set_timeout(double timeout, enum swTimeout_type type = SW_TIMEOUT_ALL)
+    inline void set_timeout(double timeout, int type = SW_TIMEOUT_ALL)
     {
         if (timeout == 0)
         {
@@ -187,7 +180,7 @@ public:
         }
     }
 
-    inline void set_timeout(struct timeval *timeout, enum swTimeout_type type = SW_TIMEOUT_ALL)
+    inline void set_timeout(struct timeval *timeout, int type = SW_TIMEOUT_ALL)
     {
         set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000), type);
     }
@@ -198,11 +191,11 @@ public:
         {
             return connect_timeout;
         }
-        if (type & SW_TIMEOUT_READ)
+        else if (type & SW_TIMEOUT_READ)
         {
             return read_timeout;
         }
-        if (type & SW_TIMEOUT_WRITE)
+        else if (type & SW_TIMEOUT_WRITE)
         {
             return write_timeout;
         }
@@ -213,7 +206,7 @@ public:
     {
         if (setsockopt(socket->fd, level, optname, &optval, sizeof(optval)) != 0)
         {
-            swSysError("setsockopt(%d, %d, %d, %d) failed.", socket->fd, level, optname, optval);
+            swSysWarn("setsockopt(%d, %d, %d, %d) failed", socket->fd, level, optname, optval);
             return false;
         }
         return true;
@@ -259,6 +252,7 @@ private:
     bool shutdown_read = false;
     bool shutdown_write = false;
 #ifdef SW_USE_OPENSSL
+    std::string ssl_host_name;
     SSL_CTX *ssl_context = nullptr;
 #endif
 
@@ -267,6 +261,7 @@ private:
     static int writable_event_callback(swReactor *reactor, swEvent *event);
     static int error_event_callback(swReactor *reactor, swEvent *event);
 
+    Socket(int _fd, Socket *socket);
     inline void init_sock_type(enum swSocket_type _type);
     inline bool init_sock();
     inline void init_sock(int fd);
@@ -292,13 +287,12 @@ private:
             long cid = get_bound_cid(event);
             if (unlikely(cid))
             {
-                swoole_error_log(
-                    SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
+                swFatalError(
+                    SW_ERROR_CO_HAS_BEEN_BOUND,
                     "Socket#%d has already been bound to another coroutine#%ld, "
-                    "%s of the same socket in multiple coroutines at the same time is not allowed.\n",
+                    "%s of the same socket in multiple coroutines at the same time is not allowed",
                     socket->fd, cid, (event == SW_EVENT_READ ? "reading" : (event == SW_EVENT_WRITE ? "writing" : "reading or writing"))
                 );
-                exit(255);
             }
         }
         if (unlikely(socket->closed))

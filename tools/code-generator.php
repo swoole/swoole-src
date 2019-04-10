@@ -17,11 +17,12 @@ array_pop($matches[0]);
 $define_output = '';
 foreach ($matches[0] as $match) {
     // convert error code to define
-    $constant = str_replace('SW_', '', $match);
-    $define_output .= "{$_space()}SWOOLE_DEFINE({$constant});\n";
+    $constant_name = str_replace('SW_', 'SWOOLE_', $match);
+    $constant_value = $match;
+    $define_output .= "{$_space()}SW_REGISTER_LONG_CONSTANT(\"{$constant_name}\", {$constant_value});\n";
 }
 $swoole_c_content = preg_replace(
-    '/ *?(?:SWOOLE_DEFINE\(ERROR_[0-9A-Z_]+?\);\n *)+/',
+    '/ *?(?:SW_REGISTER_LONG_CONSTANT\("SWOOLE_ERROR_[0-9A-Z_]+?", SW_ERROR_[0-9A-Z_]+?\);\n *)+/',
     $define_output, $swoole_c_content, 1, $is_ok
 );
 swoole_check($is_ok, 'Generate ERROR constants');

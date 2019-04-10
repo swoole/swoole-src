@@ -12,7 +12,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $response = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}", ['timeout' => 0.1]);
-        assert(strrpos($response, RANDOM_CHAR) + 1 === BUFFER_OUTPUT_SIZE - HTTP_HEADER_SIZE);
+        Assert::eq(strrpos($response, RANDOM_CHAR) + 1, BUFFER_OUTPUT_SIZE - HTTP_HEADER_SIZE);
         $response = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/full", ['timeout' => 0.1]);
         assert(!$response);
         echo file_get_contents(TEST_LOG_FILE);
@@ -39,5 +39,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-[%s]	WARNING	swFactoryProcess_finish (ERROR %d): The length of data [%d] exceeds the output buffer size[%d], please use the sendfile, chunked transfer mode or adjust the buffer_output_size.
+[%s]	WARNING	swFactoryProcess_finish (ERRNO %d): The length of data [%d] exceeds the output buffer size[%d], please use the sendfile, chunked transfer mode or adjust the buffer_output_size
 DONE

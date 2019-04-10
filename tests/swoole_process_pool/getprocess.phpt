@@ -15,9 +15,10 @@ $pid = posix_getpid();
 $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) use ($pid)
 {
     $process = $pool->getProcess();
-    assert($process->pid == posix_getpid());
+    Assert::eq($process->pid, posix_getpid());
     posix_kill($pid, SIGTERM);
-    sleep(100);
+    sleep(20);
+    echo "ERROR\n";
 });
 
 $pool->start();

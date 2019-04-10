@@ -21,7 +21,7 @@ class A
 go(function () {
     $a = new A;
     $result = call_user_func_array([$a, 'bar'], []);
-    assert($result == gethostbyname('www.swoole.com'));
+    Assert::eq($result, gethostbyname('www.swoole.com'));
 });
 swoole_event_wait();
 ?>

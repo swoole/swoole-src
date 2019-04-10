@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: coro array map
+swoole_coroutine/forbidden_case: coro array map
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

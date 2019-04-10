@@ -1,10 +1,7 @@
 --TEST--
-swoole_server: task_co
+swoole_server/task: task_co
 --SKIPIF--
-<?php
-require __DIR__ . '/../../include/skipif.inc';
-skip_if_function_not_exist('curl_init');
-?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
@@ -17,14 +14,16 @@ for ($n = MAX_REQUESTS; $n--;)
     $randoms[] = random_bytes(mt_rand(0, 65536));
 }
 
-$pm->parentFunc = function ($pid) use ($pm) {
-    for ($n = MAX_REQUESTS; $n--;)
-    {
-        if (!assert(($res = curlGet("http://127.0.0.1:{$pm->getFreePort()}/task?n={$n}")) === 'OK')) {
-            echo "{$res}\n";
-            break;
+$pm->parentFunc = function () use ($pm) {
+    go(function () use ($pm) {
+        for ($n = MAX_REQUESTS; $n--;) {
+            if (!assert(($res = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/task?n={$n}")) === 'OK')) {
+                echo "{$res}\n";
+                break;
+            }
         }
-    }
+    });
+    Swoole\Event::wait();
     echo "DONE\n";
     $pm->kill();
 };
@@ -34,12 +33,12 @@ $pm->childFunc = function () use ($pm, $randoms) {
         'log_file' => '/dev/null',
         'worker_num' => 4,
         'task_worker_num' => 4,
+        'task_enable_coroutine' => true
     ]);
     $server->on('workerStart', function ($serv, $wid) use ($pm) {
         $pm->wakeup();
     });
     $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($server, $randoms) {
-
         $n = $request->get['n'];
         switch ($request->server['path_info'])
         {
@@ -66,9 +65,8 @@ $pm->childFunc = function () use ($pm, $randoms) {
             }
         }
     });
-    $server->on('task', function (swoole_http_server $server, int $task_id, int $worker_id, string $n) use ($pm) {
-        $body = curlGet('http://127.0.0.1:' . $pm->getFreePort() . "/random?n={$n}");
-        return [$n, $body];
+    $server->on('task', function (swoole_http_server $server, swoole_server_task $task) use ($pm) {
+        $task->finish([$task->data , httpGetBody('http://127.0.0.1:' . $pm->getFreePort() . "/random?n={$task->data}")]);
     });
     $server->on('finish', function () { });
     $server->start();

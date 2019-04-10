@@ -17,4 +17,4 @@ go(function () {
 });
 ?>
 --EXPECTF--
-Fatal error: Swoole\Coroutine\Channel::push(): you must call Channel constructor first. in %s on line %d
+Fatal error: Swoole\Coroutine\Channel::push(): you must call Channel constructor first in %s on line %d

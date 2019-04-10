@@ -1,10 +1,7 @@
 --TEST--
 swoole_coroutine: http redirect
 --SKIPIF--
-<?php
-require __DIR__ . '/../include/skipif.inc';
-skip_if_function_not_exist('curl_init');
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -13,10 +10,12 @@ define('SECRET', RandStr::getBytes(rand(1024, 8192)));
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
-    $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
-    assert(!empty($data));
-    assert($data == SECRET);
-    $pm->kill();
+    go(function () use ($pm) {
+        $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        Assert::notEmpty(!empty($data));
+        Assert::eq($data, SECRET);
+        $pm->kill();
+    });
 };
 
 $pm->childFunc = function () use ($pm) {

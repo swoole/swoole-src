@@ -13,10 +13,10 @@ $pm->parentFunc = function ($pid) use ($pm)
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cli->addFile(TEST_IMAGE, 'test.jpg');
         $cli->post('/upload_file', array('name' => 'rango'));
-        assert($cli->statusCode == 200);
+        Assert::eq($cli->statusCode, 200);
         $ret = json_decode($cli->body, true);
         assert($ret and is_array($ret));
-        assert(md5_file(TEST_IMAGE) == $ret['md5']);
+        Assert::eq(md5_file(TEST_IMAGE), $ret['md5']);
         $cli->close();
     });
     swoole_event::wait();

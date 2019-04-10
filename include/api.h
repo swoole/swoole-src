@@ -33,6 +33,13 @@ long swoole_timer_add(long ms, uchar persistent, swTimerCallback callback, void 
 uchar swoole_timer_exists(long timer_id);
 uchar swoole_timer_clear(long timer_id);
 
+static inline int swoole_event_init()
+{
+    swoole_init();
+    SwooleG.main_reactor = (swReactor *) sw_malloc(sizeof(swReactor));
+    return swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS);
+}
+
 static inline uchar swoole_event_add(int fd, int events, int fdtype)
 {
     return SwooleG.main_reactor->add(SwooleG.main_reactor, fd, fdtype | events) == SW_OK;
@@ -46,6 +53,16 @@ static inline uchar swoole_event_set(int fd, int events, int fdtype)
 static inline uchar swoole_event_del(int fd)
 {
     return SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
+}
+
+static inline int swoole_event_wait()
+{
+    return SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
+}
+
+static inline void swoole_event_defer(swCallback cb, void *private_data)
+{
+    SwooleG.main_reactor->defer(SwooleG.main_reactor, cb, private_data);
 }
 
 #ifdef __cplusplus

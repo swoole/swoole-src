@@ -19,7 +19,7 @@
 #ifndef __clang__
 // gcc version check
 #if defined(__GNUC__) && (__GNUC__ < 3 || (__GNUC__ == 4 && __GNUC_MINOR__ < 8))
-#error "GCC 4.8 or later required."
+#error "GCC 4.8 or later required"
 #endif
 #endif
 
@@ -108,6 +108,7 @@
 #define SW_SESSION_LIST_SIZE             (1*1024*1024)
 
 #define SW_MSGMAX                        65536
+#define SW_UNIXSOCK_MAX_BUF_SIZE         (2*1024*1024)
 
 /**
  * The maximum number of Reactor threads
@@ -137,6 +138,7 @@
 #define SW_BUFFER_OUTPUT_SIZE            (2*1024*1024)
 #define SW_BUFFER_INPUT_SIZE             (2*1024*1024)
 #define SW_BUFFER_MIN_SIZE               65536
+#define SW_SEND_BUFFER_SIZE              65536
 
 #define SW_BACKLOG                       512
 
@@ -181,7 +183,7 @@
 #define SW_STRING_BUFFER_GARBAGE_RATIO   4
 
 #define SW_SIGNO_MAX                     128
-#define SW_UNREGISTERED_SIGNAL_FMT       "Unable to find callback function for signal %s."
+#define SW_UNREGISTERED_SIGNAL_FMT       "Unable to find callback function for signal %s"
 
 #define SW_DNS_HOST_BUFFER_SIZE          16
 #define SW_DNS_SERVER_PORT               53

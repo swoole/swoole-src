@@ -35,7 +35,7 @@ for ($i = MAX_CONCURRENCY_LOW; $i--;) {
     go('onRequest');
 }
 swoole_event_wait();
-assert($count === MAX_CONCURRENCY_LOW);
+Assert::eq($count, MAX_CONCURRENCY_LOW);
 assert((microtime(true) - $start) < .5);
 mysql_sleep(.1); //block IO
 echo "DONE\n";

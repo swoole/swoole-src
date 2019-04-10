@@ -1,4 +1,3 @@
-#!/usr/bin/env php
 <?php
 define('EMOJI_OK', '✅');
 define('EMOJI_SUCCESS', '🚀');
@@ -13,8 +12,7 @@ define('SWOOLE_COLOR_MAGENTA', 5);
 define('SWOOLE_COLOR_CYAN', 6);
 define('SWOOLE_COLOR_WHITE', 7);
 
-$_space = function(int $length = 4): string
-{
+$_space = function (int $length = 4): string {
     return str_repeat(' ', $length);
 };
 
@@ -87,9 +85,8 @@ function swoole_execute_and_check(string $command)
 
 function scan_dir(string $dir, callable $filter = null): array
 {
-    $files = array_filter(scandir($dir), function (string $f) {
-        return $f{0} !== '.';
-    });
+    $files = array_filter(scandir($dir), function (string $file) { return $file{0} !== '.'; });
+    array_walk($files, function (&$file) use ($dir) { $file = "{$dir}/{$file}"; });
     return array_values($filter ? array_filter($files, $filter) : $files);
 }
 

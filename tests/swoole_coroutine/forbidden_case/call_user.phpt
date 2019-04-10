@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: coro call user func
+swoole_coroutine/forbidden_case: coro call user func
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

@@ -9,7 +9,7 @@ require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $foo = foo();
     $ret = $foo->pop(0.001);
-    assert($ret === false);
+    Assert::false($ret);
 });
 function foo()
 {

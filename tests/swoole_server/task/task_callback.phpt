@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: task callback
+swoole_server/task: task callback
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -16,14 +16,14 @@ $pm->parentFunc = function ($pid) use ($pm)
     $cli->send("task-01") or die("ERROR");
 
     $res = json_decode(trim($cli->recv()), true);
-    assert($res['code'] == 0);
-    assert($res['message'] == 'hello world');
+    Assert::eq($res['code'], 0);
+    Assert::eq($res['message'], 'hello world');
 
     echo "SUCCESS\n";
 
     $res = json_decode(trim($cli->recv()), true);
-    assert($res['code'] == 0);
-    assert($res['message'] == 'hello world');
+    Assert::eq($res['code'], 0);
+    Assert::eq($res['message'], 'hello world');
     echo "SUCCESS\n";
 
     swoole_process::kill($pid);

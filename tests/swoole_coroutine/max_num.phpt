@@ -14,9 +14,9 @@ for ($c = SWOOLE_DEFAULT_MAX_CORO_NUM + 1; $c--;) {
     });
 }
 $info = co::stats();
-assert($info['c_stack_size'] == 2097152);
-assert($info['coroutine_num'] == 3000);
-assert($info['coroutine_peak_num'] == 3000);
+Assert::eq($info['c_stack_size'], 2097152);
+Assert::eq($info['coroutine_num'], 3000);
+Assert::eq($info['coroutine_peak_num'], 3000);
 ?>
 --EXPECTF--
-Warning: go(): exceed max number of coroutine 3000. in %s/tests/swoole_coroutine/max_num.php on line 9
+Warning: go(): exceed max number of coroutine 3000 in %s/tests/swoole_coroutine/max_num.php on line 9

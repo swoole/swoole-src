@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: coro defer
+swoole_coroutine/defer: coro defer
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

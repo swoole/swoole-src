@@ -45,7 +45,7 @@ swChannel* swChannel_new(size_t size, int maxlen, int flags)
 
     if (mem == NULL)
     {
-        swWarn("swChannel_create: malloc(%ld) failed.", size);
+        swWarn("swChannel_create: malloc(%ld) failed", size);
         return NULL;
     }
     swChannel *object = mem;
@@ -65,7 +65,7 @@ swChannel* swChannel_new(size_t size, int maxlen, int flags)
         //init lock
         if (swMutex_create(&object->lock, 1) < 0)
         {
-            swWarn("mutex init failed.");
+            swWarn("mutex init failed");
             return NULL;
         }
     }
@@ -75,7 +75,7 @@ swChannel* swChannel_new(size_t size, int maxlen, int flags)
         ret = swPipeNotify_auto(&object->notify_fd, 1, 1);
         if (ret < 0)
         {
-            swWarn("notify_fd init failed.");
+            swWarn("notify_fd init failed");
             return NULL;
         }
     }

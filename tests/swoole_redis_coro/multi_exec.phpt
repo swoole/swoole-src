@@ -19,10 +19,10 @@ go(function () {
 
     $rs = $redis->exec();
     assert($rs and is_array($rs));
-    assert($rs[0][0] == 'hello');
-    assert($rs[0][1] == 'world');
-    assert($rs[1][0] == 'rango');
-    assert($rs[1][1] == 'swoole');
+    Assert::eq($rs[0][0], 'hello');
+    Assert::eq($rs[0][1], 'world');
+    Assert::eq($rs[1][0], 'rango');
+    Assert::eq($rs[1][1], 'swoole');
     echo "DONE\n";
 });
 ?>

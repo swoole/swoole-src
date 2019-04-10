@@ -12,7 +12,7 @@ go(function () use ($chan)
     $data = $chan->pop(0.5);
     assert($data);
     $data = $chan->pop(0.5);
-    assert($data == false);
+    Assert::false($data);
 });
 
 go(function () use ($chan)

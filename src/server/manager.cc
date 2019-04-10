@@ -37,9 +37,9 @@ typedef struct
     swWorker *workers;
 } swReloadWorker;
 
-static int swManager_loop(swFactory *factory);
+static int swManager_loop(swServer *serv);
 static void swManager_signal_handler(int sig);
-static pid_t swManager_spawn_worker(swFactory *factory, int worker_id);
+static pid_t swManager_spawn_worker(swServer *serv, int worker_id);
 static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status);
 
 static swManagerProcess ManagerProcess;
@@ -68,20 +68,27 @@ static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode)
         }
         if (swKill(pid, SIGKILL) < 0)
         {
-            swSysError("swKill(%d, SIGKILL) [%d] failed.", pid, i);
+            swSysWarn("swKill(%d, SIGKILL) [%d] failed", pid, i);
         }
         else
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
-                    "[Manager] Worker#%d[pid=%d] exit timeout, forced kill.", workers[i].id, pid);
+            swoole_error_log(
+                SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
+                "[Manager] Worker#%d[pid=%d] exit timeout, forced kill", workers[i].id, pid
+            );
         }
     }
+    errno = 0;
     sw_free(workers);
     sw_free(reload_info);
 }
 
 static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int n)
 {
+    if (!serv->max_wait_time)
+    {
+        return;
+    }
     /**
      * separate old workers, free memory in the timer
      */
@@ -90,39 +97,15 @@ static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int 
     memcpy(reload_workers, workers, sizeof(swWorker) * n);
     reload_info->reload_worker_num = n;
     reload_info->workers = reload_workers;
-    if (serv->max_wait_time)
-    {
-        swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, reload_info, swManager_kill_timeout_process);
-    }
+
+    swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, reload_info, swManager_kill_timeout_process);
 }
 
 //create worker child proccess
-int swManager_start(swFactory *factory)
+int swManager_start(swServer *serv)
 {
-    swFactoryProcess *object = (swFactoryProcess *) factory->object;
-    swServer *serv = (swServer *) factory->ptr;
-
     int i;
     pid_t pid;
-
-    object->pipes = (swPipe *) sw_calloc(serv->worker_num, sizeof(swPipe));
-    if (object->pipes == NULL)
-    {
-        swError("malloc[worker_pipes] failed. Error: %s [%d]", strerror(errno), errno);
-        return SW_ERR;
-    }
-
-    for (i = 0; i < serv->worker_num; i++)
-    {
-        if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0)
-        {
-            return SW_ERR;
-        }
-        serv->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_MASTER);
-        serv->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_WORKER);
-        serv->workers[i].pipe_object = &object->pipes[i];
-        swServer_store_pipe_fd(serv, serv->workers[i].pipe_object);
-    }
 
     if (serv->task_worker_num > 0)
     {
@@ -153,7 +136,7 @@ int swManager_start(swFactory *factory)
         serv->user_workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->user_worker_num * sizeof(swWorker));
         if (serv->user_workers == NULL)
         {
-            swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "gmalloc[server->user_workers] failed.");
+            swSysWarn("gmalloc[server->user_workers] failed");
             return SW_ERR;
         }
         swUserWorker_node *user_worker;
@@ -199,10 +182,10 @@ int swManager_start(swFactory *factory)
          */
         for (i = 0; i < serv->worker_num; i++)
         {
-            pid = swManager_spawn_worker(factory, i);
+            pid = swManager_spawn_worker(serv, i);
             if (pid < 0)
             {
-                swError("fork() failed.");
+                swError("fork() failed");
                 return SW_ERR;
             }
             else
@@ -231,7 +214,7 @@ int swManager_start(swFactory *factory)
 
         SwooleG.process_type = SW_PROCESS_MANAGER;
         SwooleG.pid = getpid();
-        exit(swManager_loop(factory));
+        exit(swManager_loop(serv));
         break;
 
         //master process
@@ -239,7 +222,7 @@ int swManager_start(swFactory *factory)
         serv->gs->manager_pid = pid;
         break;
     case -1:
-        swError("fork() failed.");
+        swError("fork() failed");
         return SW_ERR;
     }
     return SW_OK;
@@ -261,7 +244,7 @@ static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid
     }
 }
 
-static int swManager_loop(swFactory *factory)
+static int swManager_loop(swServer *serv)
 {
     int pid, new_pid;
     int i;
@@ -274,8 +257,6 @@ static int swManager_loop(swFactory *factory)
     SwooleG.enable_coroutine = 0;
 
     memset(&ManagerProcess, 0, sizeof(ManagerProcess));
-
-    swServer *serv = (swServer *) factory->ptr;
 
     if (serv->hooks[SW_SERVER_HOOK_MANAGER_START])
     {
@@ -329,7 +310,7 @@ static int swManager_loop(swFactory *factory)
                 }
                 else
                 {
-                    pid_t new_pid = swManager_spawn_worker(factory, msg.worker_id);
+                    pid_t new_pid = swManager_spawn_worker(serv, msg.worker_id);
                     if (new_pid > 0)
                     {
                         serv->workers[msg.worker_id].pid = new_pid;
@@ -351,14 +332,14 @@ static int swManager_loop(swFactory *factory)
             {
                 error: if (errno > 0 && errno != EINTR)
                 {
-                    swSysError("wait() failed.");
+                    swSysWarn("wait() failed");
                 }
                 continue;
             }
             //reload task & event workers
             else if (ManagerProcess.reload_all_worker == 1)
             {
-                swNotice("Server is reloading all workers now.");
+                swInfo("Server is reloading all workers now");
                 if (ManagerProcess.reload_init == 0)
                 {
                     ManagerProcess.reload_init = 1;
@@ -383,7 +364,7 @@ static int swManager_loop(swFactory *factory)
                         {
                             if (swKill(ManagerProcess.reload_workers[i].pid, SIGTERM) < 0)
                             {
-                                swSysError("swKill(%d, SIGTERM) [%d] failed.", ManagerProcess.reload_workers[i].pid, i);
+                                swSysWarn("swKill(%d, SIGTERM) [%d] failed", ManagerProcess.reload_workers[i].pid, i);
                             }
                         }
                         ManagerProcess.reload_worker_i = serv->worker_num;
@@ -400,10 +381,10 @@ static int swManager_loop(swFactory *factory)
             {
                 if (serv->task_worker_num == 0)
                 {
-                    swWarn("cannot reload task workers, task workers is not started.");
+                    swWarn("cannot reload task workers, task workers is not started");
                     continue;
                 }
-                swNotice("Server is reloading task workers now.");
+                swInfo("Server is reloading task workers now");
                 if (ManagerProcess.reload_init == 0)
                 {
                     memcpy(ManagerProcess.reload_workers, serv->gs->task_workers.workers, sizeof(swWorker) * serv->task_worker_num);
@@ -443,7 +424,7 @@ static int swManager_loop(swFactory *factory)
 
                 while (1)
                 {
-                    new_pid = swManager_spawn_worker(factory, i);
+                    new_pid = swManager_spawn_worker(serv, i);
                     if (new_pid < 0)
                     {
                         SW_START_SLEEP;
@@ -501,7 +482,7 @@ static int swManager_loop(swFactory *factory)
                     ManagerProcess.reload_worker_i++;
                     goto kill_worker;
                 }
-                swSysError("swKill(%d, SIGTERM) [%d] failed.", ManagerProcess.reload_workers[ManagerProcess.reload_worker_i].pid, ManagerProcess.reload_worker_i);
+                swSysWarn("swKill(%d, SIGTERM) [%d] failed", ManagerProcess.reload_workers[ManagerProcess.reload_worker_i].pid, ManagerProcess.reload_worker_i);
             }
         }
     }
@@ -524,7 +505,7 @@ static int swManager_loop(swFactory *factory)
     {
         if (swWaitpid(serv->workers[i].pid, &status, 0) < 0)
         {
-            swSysError("waitpid(%d) failed.", serv->workers[i].pid);
+            swSysWarn("waitpid(%d) failed", serv->workers[i].pid);
         }
     }
     //kill all user process
@@ -541,7 +522,7 @@ static int swManager_loop(swFactory *factory)
     return SW_OK;
 }
 
-static pid_t swManager_spawn_worker(swFactory *factory, int worker_id)
+static pid_t swManager_spawn_worker(swServer *serv, int worker_id)
 {
     pid_t pid;
     int ret;
@@ -551,13 +532,13 @@ static pid_t swManager_spawn_worker(swFactory *factory, int worker_id)
     //fork() failed
     if (pid < 0)
     {
-        swWarn("Fork Worker failed. Error: %s [%d]", strerror(errno), errno);
+        swSysWarn("Fork Worker failed");
         return SW_ERR;
     }
     //worker child processor
     else if (pid == 0)
     {
-        ret = swWorker_loop(factory, worker_id);
+        ret = swWorker_loop(serv, worker_id);
         exit(ret);
     }
     //parent,add to writer
@@ -672,7 +653,7 @@ void swManager_kill_user_worker(swServer *serv)
         }
         if (swWaitpid(user_worker->pid, &__stat_loc, 0) < 0)
         {
-            swSysError("waitpid(%d) failed.", user_worker->pid);
+            swSysWarn("waitpid(%d) failed", user_worker->pid);
         }
     }
 }
@@ -688,7 +669,7 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
 
     if (pid < 0)
     {
-        swWarn("Fork Worker failed. Error: %s [%d]", strerror(errno), errno);
+        swSysWarn("Fork Worker failed");
         return SW_ERR;
     }
     //child

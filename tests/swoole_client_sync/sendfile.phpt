@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_sync: sync sendfile
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -20,7 +19,7 @@ $pm->parentFunc = function ($pid) use ($port)
     $data = $client->recv();
     $client->send(pack('N', 8) . 'shutdown');
     $client->close();
-    assert($data === md5_file(TEST_IMAGE));
+    Assert::eq($data, md5_file(TEST_IMAGE));
 };
 
 $pm->childFunc = function () use ($pm, $port)

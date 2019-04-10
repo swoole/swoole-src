@@ -1,5 +1,5 @@
 --TEST--
-swoole_feature: cross_close: stream closed by server
+swoole_feature/cross_close: stream closed by server
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -14,9 +14,9 @@ $pm->parentFunc = function () use ($pm) {
             exit("$errstr ($errno)\n");
         } else {
             echo "WRITE\n";
-            assert(fwrite($fp, ($data = tcp_pack("Hello Swoole Server!"))) === strlen($data));
+            Assert::eq(fwrite($fp, ($data = tcp_pack("Hello Swoole Server!"))), strlen($data));
             echo "READ\n";
-            assert(fread($fp, 1024) === '');
+            Assert::eq(fread($fp, 1024), '');
             echo "CLOSED\n";
             fclose($fp);
             echo "DONE\n";
@@ -36,7 +36,7 @@ $pm->childFunc = function () use ($pm) {
             go(function () use ($server) {
                 if ($conn = stream_socket_accept($server, 1)) {
                     switch_process();
-                    assert(fread($conn, tcp_length(fread($conn, tcp_type_length()))) === "Hello Swoole Server!");
+                    Assert::eq(fread($conn, tcp_length(fread($conn, tcp_type_length()))), "Hello Swoole Server!");
                     echo "CLOSE\n";
                     fclose($conn);
                     switch_process();

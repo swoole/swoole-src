@@ -70,7 +70,7 @@ int swThreadPool_dispatch(swThreadPool *pool, void *task, int task_len)
 
     if (ret < 0)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUEUE_FULL, "the queue of thread pool is full.");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUEUE_FULL, "the queue of thread pool is full");
         return SW_ERR;
     }
 
@@ -89,7 +89,7 @@ int swThreadPool_run(swThreadPool *pool)
         pool->params[i].object = pool;
         if (pthread_create(&(swThreadPool_thread(pool,i)->tid), NULL, swThreadPool_loop, &pool->params[i]) < 0)
         {
-            swWarn("pthread_create failed. Error: %s[%d]", strerror(errno), errno);
+            swSysWarn("pthread_create failed");
             return SW_ERR;
         }
     }

@@ -112,12 +112,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_waitup, 0, 0, 0)
     ZEND_ARG_INFO(0, count)
 ZEND_END_ARG_INFO()
 
-static zend_class_entry swoole_atomic_ce;
-zend_class_entry *swoole_atomic_ce_ptr;
+zend_class_entry *swoole_atomic_ce;
 static zend_object_handlers swoole_atomic_handlers;
 
-static zend_class_entry swoole_atomic_long_ce;
-zend_class_entry *swoole_atomic_long_ce_ptr;
+zend_class_entry *swoole_atomic_long_ce;
 static zend_object_handlers swoole_atomic_long_handlers;
 
 static const zend_function_entry swoole_atomic_methods[] =
@@ -146,15 +144,15 @@ static const zend_function_entry swoole_atomic_long_methods[] =
 
 void swoole_atomic_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_atomic, "Swoole\\Atomic", "swoole_atomic", NULL, swoole_atomic_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_atomic, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_atomic, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY(swoole_atomic, "Swoole\\Atomic", "swoole_atomic", NULL, swoole_atomic_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_atomic, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_atomic, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic, zend_class_unset_property_deny);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_atomic_long, "Swoole\\Atomic\\Long", "swoole_atomic_long", NULL, swoole_atomic_long_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_atomic_long, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_atomic_long, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic_long, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY(swoole_atomic_long, "Swoole\\Atomic\\Long", "swoole_atomic_long", NULL, swoole_atomic_long_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_atomic_long, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_atomic_long, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic_long, zend_class_unset_property_deny);
 }
 
 PHP_METHOD(swoole_atomic, __construct)
@@ -169,7 +167,7 @@ PHP_METHOD(swoole_atomic, __construct)
     sw_atomic_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_t));
     if (atomic == NULL)
     {
-        zend_throw_exception(swoole_exception_ce_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL);
+        zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     *atomic = (sw_atomic_t) value;
@@ -296,7 +294,7 @@ PHP_METHOD(swoole_atomic_long, __construct)
     sw_atomic_long_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_long_t));
     if (atomic == NULL)
     {
-        zend_throw_exception(swoole_exception_ce_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL);
+        zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     *atomic = (sw_atomic_long_t) value;

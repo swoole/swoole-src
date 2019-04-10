@@ -42,38 +42,36 @@ function skip_if_php_version_between($a, $b)
 
 function skip_if_not_debug_version()
 {
-    if (!SWOOLE_DEBUG) {
-        skip('only in swoole debug version');
+    skip('only in swoole debug version', !SWOOLE_DEBUG);
+}
+
+function skip_if_ini_bool_equal_to(string $name, bool $value)
+{
+    if (((bool)ini_get($name)) === $value) {
+        $value = $value ? 'enable' : 'disable';
+        skip("{$name} is {$value}");
     }
 }
 
 function skip_if_constant_not_defined(string $constant_name)
 {
     require_once __DIR__ . '/config.php';
-    if (!defined($constant_name)) {
-        skip("{$constant_name} is not defined");
-    }
+    skip("{$constant_name} is not defined", !defined($constant_name));
 }
 
 function skip_if_function_not_exist(string $function_name)
 {
-    if (!function_exists($function_name)) {
-        skip("{$function_name} not exist");
-    }
+    skip("{$function_name} not exist", !function_exists($function_name));
 }
 
 function skip_if_class_not_exist(string $class_name)
 {
-    if (!class_exists($class_name, false)) {
-        skip("{$class_name} not exist");
-    }
+    skip("{$class_name} not exist", !class_exists($class_name, false));
 }
 
 function skip_if_file_not_exist(string $filename)
 {
-    if (!file_exists($filename)) {
-        skip("file {$filename} is not exist");
-    }
+    skip("file {$filename} is not exist", !file_exists($filename));
 }
 
 function skip_if_no_ssl()
@@ -95,39 +93,29 @@ function skip_if_openssl_version_lower_than($version = '1.0.0')
 
 function skip_if_no_http2()
 {
-    if (!class_exists("swoole_http2_request", false)) {
-        skip('no http2');
-    }
+    skip('no http2', !class_exists(Swoole\Http2\Request::class, false));
 }
 
 function skip_if_no_top()
 {
     skip_if_darwin();
-    skip_if_alpine_linux();
-    if (stripos(`top help 2>&1`, 'usage') === false) {
-        skip('no top');
-    }
+    skip('top provided by busybox (not support)', !empty(`top --help 2>&1 | grep -i busybox`));
+    skip('no top', empty(`top help 2>&1 | grep usage`));
 }
 
 function skip_if_darwin()
 {
-    if (stripos(PHP_OS, 'Darwin') !== false) {
-        skip('not support on darwin');
-    }
+    skip('not support on darwin', stripos(PHP_OS, 'Darwin') !== false);
 }
 
-function skip_if_alpine_linux()
+function skip_if_musl_libc()
 {
-    if (strpos(`apk 2>&1`, 'apk-tools') !== false) {
-        skip('not support on alpine liunx');
-    }
+    skip('not support when use musl libc', !empty(`ldd 2>&1 | grep -i musl`));
 }
 
 function skip_if_no_process_affinity()
 {
-    if (!method_exists(swoole_process::class, 'setaffinity')) {
-        skip('no process affinity');
-    }
+    skip('no process affinity', !method_exists(Swoole\Process::class, 'setaffinity'));
 }
 
 function skip_if_in_valgrind(string $reason = 'valgrind is too slow')
@@ -147,9 +135,7 @@ function skip_if_in_docker(string $reason = 'not support in docker')
 
 function skip_if_no_proxy(string $host, string $port)
 {
-    if (IS_IN_TRAVIS || check_tcp_port($host, $port) !== 1) {
-        skip('no available proxy');
-    }
+    skip('no available proxy', IS_IN_TRAVIS || check_tcp_port($host, $port) <= 0);
 }
 
 function skip_if_no_http_proxy()
@@ -182,12 +168,15 @@ function skip_if_pdo_not_support_mysql8()
 function skip_if_not_mysql8()
 {
     require_once __DIR__ . '/config.php';
-    if (!preg_match(
-        '/caching_sha2_password/',
-        $r = curlGet('http://' . MYSQL_SERVER_HOST . ':' . MYSQL_SERVER_PORT))
-    ) {
-        skip('require mysql8');
-    }
+    go(function () {
+        if (!preg_match(
+            '/caching_sha2_password/',
+            httpGetBody('http://' . MYSQL_SERVER_HOST . ':' . MYSQL_SERVER_PORT))
+        ) {
+            skip('require mysql8');
+        }
+    });
+    Swoole\Event::wait();
 }
 
 function skip_deprecated()

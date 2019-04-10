@@ -51,9 +51,9 @@ go(function () {
 
     // right implementation
     assert($db->connectRaw($server));
-    assert($db->query('select 1')[0][1] === 1);
+    Assert::eq($db->query('select 1')[0][1], 1);
 });
 
 ?>
 --EXPECTF--
-Warning: Swoole\Coroutine\MySQL::query(): mysql connection#%d is closed. in %s on line %d
+Warning: Swoole\Coroutine\MySQL::query(): mysql connection#%d is closed in %s on line %d

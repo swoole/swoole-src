@@ -1,17 +1,16 @@
 --TEST--
-swoole_server: task_ipc_mode = 2
+swoole_server/task: task_ipc_mode = 2
 --SKIPIF--
-<?php
-require __DIR__ . '/../../include/skipif.inc';
-skip_if_function_not_exist('curl_init');
-?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
-    echo curlGet("http://127.0.0.1:{$pm->getFreePort()}");
-    $pm->kill();
+    go(function () use ($pm) {
+        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        $pm->kill();
+    });
 };
 $pm->childFunc = function () use ($pm) {
     $server = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);

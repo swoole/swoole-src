@@ -1,31 +1,31 @@
 --TEST--
 swoole_channel_coro: coroutine wait
 --SKIPIF--
-<?php
-require __DIR__ . '/../include/skipif.inc';
-skip_if_function_not_exist('curl_init');
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
 
-$pm->parentFunc = function ($pid) use ($pm) {
-    $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
-    assert(!empty($data));
-    $json = json_decode($data, true);
-    assert(is_array($json));
-    assert(isset($json['www.qq.com']) and $json['www.qq.com'] > 1024);
-    assert(isset($json['www.163.com']) and $json['www.163.com'] > 1024);
-    $pm->kill();
+$pm->parentFunc = function () use ($pm) {
+    go(function () use ($pm) {
+        $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        assert(!empty($data));
+        $json = json_decode($data, true);
+        assert(is_array($json));
+        assert(isset($json['www.qq.com']) and $json['www.qq.com'] > 1024);
+        assert(isset($json['www.163.com']) and $json['www.163.com'] > 1024);
+        $pm->kill();
+    });
+    Swoole\Event::wait();
+    echo "DONE\n";
 };
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new \swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
-//    $serv->set(["worker_num" => 1, 'log_file' => '/dev/null',]);
-    $serv->on("WorkerStart", function (\swoole_server $serv, $worker_id) use ($pm) {
+    $serv = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $serv->on("WorkerStart", function () use ($pm) {
         $pm->wakeup();
     });
     $serv->on('request', function ($req, $resp) {
@@ -85,3 +85,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+DONE

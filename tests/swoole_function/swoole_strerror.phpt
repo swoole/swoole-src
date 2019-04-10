@@ -5,7 +5,7 @@ swoole_function: swoole_strerror
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-if (!is_alpine_linux()) {
+if (!is_musl_libc()) {
     assert(
         swoole_strerror(IS_MAC_OS ? 4 : -4 /*EAI_FAIL*/, SWOOLE_STRERROR_GAI) ===
         'Non-recoverable failure in name resolution'
@@ -17,12 +17,12 @@ if (!is_alpine_linux()) {
 }
 echo swoole_strerror(SOCKET_ECONNRESET) . "\n";
 echo swoole_strerror(SWOOLE_ERROR_FILE_NOT_EXIST) . "\n";
-if (!is_alpine_linux()) {
+if (!is_musl_libc()) {
     $unknown = swoole_strerror(SWOOLE_ERROR_MALLOC_FAIL - 1);
     $sw_unknown = swoole_strerror(SWOOLE_ERROR_MALLOC_FAIL - 1, SWOOLE_STRERROR_SWOOLE);
-    assert($unknown === $sw_unknown);
+    Assert::eq($unknown, $sw_unknown);
 } else {
-    assert(swoole_strerror(SWOOLE_ERROR_MALLOC_FAIL - 1) === 'No error information');
+    Assert::eq(swoole_strerror(SWOOLE_ERROR_MALLOC_FAIL - 1), 'No error information');
 }
 ?>
 --EXPECT--

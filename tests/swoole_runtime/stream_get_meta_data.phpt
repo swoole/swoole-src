@@ -16,11 +16,11 @@ function test($port) {
         $http = "GET / HTTP/1.0\r\nAccept: */*User-Agent: Lowell-Agent\r\nHost: www.baidu.com\r\nConnection: Close\r\n\r\n";
         fwrite($fp, $http);
         $content = fread($fp, 1024);
-        assert($content === "");
+        Assert::eq($content, "");
         $res = stream_get_meta_data($fp);
-        assert($res['eof'] === false);
-        assert($res['blocked'] === true);
-        assert($res['timed_out'] === true);
+        Assert::false($res['eof']);
+        Assert::true($res['blocked']);
+        Assert::true($res['timed_out']);
         fclose($fp);
     }
 }

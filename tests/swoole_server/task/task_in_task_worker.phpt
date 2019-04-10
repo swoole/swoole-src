@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: task in task worker
+swoole_server/task: task in task worker
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -24,7 +24,7 @@ $pm->childFunc = function () use ($pm)
 
     $serv->on("WorkerStart", function (\swoole_server $serv, $wid) use ($pm) {
         if ($serv->taskworker) {
-            assert(@$serv->task(['type' => 'array', 'value' => 'task worker']) === false);
+            Assert::false(@$serv->task(['type' => 'array', 'value' => 'task worker']));
             $pm->wakeup();
         }
     });

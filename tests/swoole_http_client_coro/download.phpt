@@ -37,11 +37,11 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
             @unlink($filename);
             $cli->setHeaders([]);
             $cli->get('/');
-            assert($cli->body === $raw_file_content);
+            Assert::eq($cli->body, $raw_file_content);
         });
     }
     swoole_event_wait();
-    assert($count === MAX_CONCURRENCY_LOW);
+    Assert::eq($count, MAX_CONCURRENCY_LOW);
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {

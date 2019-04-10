@@ -15,11 +15,14 @@ dnl  +----------------------------------------------------------------------+
 dnl  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
 dnl  +----------------------------------------------------------------------+
 
-PHP_ARG_ENABLE(debug-log, whether to enable debug log,
+PHP_ARG_ENABLE(debug-log, enable debug log,
 [  --enable-debug-log        Enable swoole debug log], no, no)
 
-PHP_ARG_ENABLE(trace-log, Whether to enable trace log,
+PHP_ARG_ENABLE(trace-log, enable trace log,
 [  --enable-trace-log        Enable swoole trace log], no, no)
+
+PHP_ARG_ENABLE(scheduler-tick, enable coroutine scheduler powered by tick,
+[  --enable-scheduler-tick    Enable swoole coroutine scheduler powered by tick], no, no)
 
 PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets          Do you have sockets extension?], no, no)
@@ -51,7 +54,7 @@ PHP_ARG_WITH(jemalloc_dir, dir of jemalloc,
 PHP_ARG_WITH(libpq_dir, dir of libpq,
 [  --with-libpq-dir[=DIR]      Include libpq support (requires libpq >= 9.5)], no, no)
 
-PHP_ARG_ENABLE(asan, whether to enable asan,
+PHP_ARG_ENABLE(asan, enable asan,
 [  --enable-asan             Enable asan], no, no)
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
@@ -259,6 +262,10 @@ if test "$PHP_SWOOLE" != "no"; then
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
     fi
 
+    if test "$PHP_SCHEDULER_TICK" != "no"; then
+        AC_DEFINE(SW_CORO_SCHEDULER_TICK, 1, [enable coroutine scheduler powered by tick])
+    fi
+
     if test "$PHP_TRACE_LOG" != "no"; then
         AC_DEFINE(SW_LOG_TRACE_OPEN, 1, [enable trace log])
     fi
@@ -397,6 +404,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/boost.cc \
         src/coroutine/channel.cc \
         src/coroutine/context.cc \
+        src/coroutine/file_lock.cc \
         src/coroutine/hook.cc \
         src/coroutine/socket.cc \
         src/coroutine/ucontext.cc \
@@ -492,6 +500,10 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_websocket_server.cc"
 
     swoole_source_file="$swoole_source_file \
+        thirdparty/sockets/multicast.cc \
+        thirdparty/sockets/sendrecvmsg.cc \
+        thirdparty/sockets/conversions.cc \
+        thirdparty/sockets/sockaddr_conv.cc \
         thirdparty/swoole_http_parser.c \
         thirdparty/multipart_parser.c"
 
@@ -516,7 +528,9 @@ if test "$PHP_SWOOLE" != "no"; then
     AS_CASE([$host_cpu],
       [x86_64*], [SW_CPU="x86_64"],
       [x86*], [SW_CPU="x86"],
+      [i?86*], [SW_CPU="x86"],
       [arm*], [SW_CPU="arm"],
+      [aarch64*], [SW_CPU="arm64"],
       [arm64*], [SW_CPU="arm64"],
       [
         SW_NO_USE_ASM_CONTEXT="yes"
@@ -587,10 +601,10 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h])
 
     PHP_REQUIRE_CXX()
-    
+
     CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations"
 
-    if test "$SW_OS" = "CYGWIN" || test "$SW_OS" = "MINGW"; then 
+    if test "$SW_OS" = "CYGWIN" || test "$SW_OS" = "MINGW"; then
         CXXFLAGS="$CXXFLAGS -std=gnu++11"
     else
         CXXFLAGS="$CXXFLAGS -std=c++11"
@@ -610,5 +624,6 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/http2)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/sockets)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)
 fi

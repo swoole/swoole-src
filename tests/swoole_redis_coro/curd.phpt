@@ -13,7 +13,7 @@ go(function () {
             $key = md5(openssl_random_pseudo_bytes(mt_rand(1, 128)));
             $value = md5(openssl_random_pseudo_bytes(mt_rand(1, 128)));
             assert($redis->set($key, $value));
-            assert($redis->get($key) === $value);
+            Assert::eq($redis->get($key), $value);
             assert($redis->delete($key));
         }
     }

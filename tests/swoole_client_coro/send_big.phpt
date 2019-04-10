@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_coro: send
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -32,7 +31,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         assert($client->send($_postBody));
 
         $data = $client->recv(5);
-        assert($data == "HTTP/1.1 200 OK\r\n\r\n");
+        Assert::eq($data, "HTTP/1.1 200 OK\r\n\r\n");
         $client->close();
     });
     swoole_event::wait();

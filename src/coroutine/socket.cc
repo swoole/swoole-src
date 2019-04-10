@@ -83,7 +83,7 @@ int Socket::error_event_callback(swReactor *reactor, swEvent *event)
         socket->write_co->resume();
     }
     // Notice: socket maybe deleted in write coroutine
-    if (!event->socket->removed && socket->read_co)
+    if (event->socket->object == socket && !event->socket->removed && socket->read_co)
     {
         socket->set_err(0);
         socket->read_co->resume();
@@ -210,12 +210,12 @@ bool Socket::socks5_handshake()
     method = ctx->buf[1];
     if (version != SW_SOCKS5_VERSION_CODE)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported.");
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
         return SW_ERR;
     }
     if (method != ctx->method)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method not supported.");
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method not supported");
         return SW_ERR;
     }
     // authentication
@@ -255,12 +255,12 @@ bool Socket::socks5_handshake()
         uchar status = ctx->buf[1];
         if (version != 0x01)
         {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported.");
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
             return false;
         }
         if (status != 0x00)
         {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_AUTH_FAILED, "SOCKS username/password authentication failed.");
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_AUTH_FAILED, "SOCKS username/password authentication failed");
             return false;
         }
     }
@@ -310,7 +310,7 @@ bool Socket::socks5_handshake()
     version = ctx->buf[0];
     if (version != SW_SOCKS5_VERSION_CODE)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported.");
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
         return false;
     }
     result = ctx->buf[1];
@@ -327,7 +327,7 @@ bool Socket::socks5_handshake()
     }
     else
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_SERVER_ERROR, "Socks5 server error, reason: %s.", swSocks5_strerror(result));
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_SERVER_ERROR, "Socks5 server error, reason: %s", swSocks5_strerror(result));
         return false;
     }
 }
@@ -541,8 +541,10 @@ Socket::Socket(int _fd, enum swSocket_type _type)
 
 Socket::Socket(int _fd, Socket *server_sock)
 {
+    type = server_sock->type;
     sock_domain = server_sock->sock_domain;
     sock_type = server_sock->sock_type;
+    sock_protocol = server_sock->sock_protocol;
 
     reactor = server_sock->reactor;
     socket = swReactor_get(reactor, _fd);
@@ -656,6 +658,12 @@ bool Socket::connect(string _host, int _port, int flags)
 
             if (!inet_pton(AF_INET, host.c_str(), & socket->info.addr.inet_v4.sin_addr))
             {
+#ifdef SW_USE_OPENSSL
+                if (open_ssl)
+                {
+                    ssl_host_name = host;
+                }
+#endif
                 host = Coroutine::gethostbyname(host, AF_INET, connect_timeout);
                 if (host.empty())
                 {
@@ -678,6 +686,12 @@ bool Socket::connect(string _host, int _port, int flags)
 
             if (!inet_pton(AF_INET6, host.c_str(), &socket->info.addr.inet_v6.sin6_addr))
             {
+#ifdef SW_USE_OPENSSL
+                if (open_ssl)
+                {
+                    ssl_host_name = host;
+                }
+#endif
                 host = Coroutine::gethostbyname(host, AF_INET6, connect_timeout);
                 if (host.empty())
                 {
@@ -936,14 +950,14 @@ bool Socket::bind(std::string address, int port)
     int option = 1;
     if (::setsockopt(socket->fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
     {
-        swSysError("setsockopt(%d, SO_REUSEADDR) failed.", socket->fd);
+        swSysWarn("setsockopt(%d, SO_REUSEADDR) failed", socket->fd);
     }
 #ifdef HAVE_REUSEPORT
     if (SwooleG.reuse_port)
     {
         if (::setsockopt(socket->fd, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
         {
-            swSysError("setsockopt(SO_REUSEPORT) failed.");
+            swSysWarn("setsockopt(SO_REUSEPORT) failed");
             SwooleG.reuse_port = 0;
         }
     }
@@ -1026,7 +1040,7 @@ bool Socket::listen(int backlog)
         ssl_context = swSSL_get_context(&ssl_option);
         if (ssl_context == nullptr)
         {
-            swWarn("swSSL_get_context() error.");
+            swWarn("swSSL_get_context() error");
             return false;
         }
     }
@@ -1059,7 +1073,7 @@ Socket* Socket::accept()
     Socket *client_sock = new Socket(conn, this);
     if (unlikely(client_sock->socket == nullptr))
     {
-        swWarn("new Socket() failed. Error: %s [%d]", strerror(errno), errno);
+        swSysWarn("new Socket() failed");
         set_err(errno);
         delete client_sock;
         return nullptr;
@@ -1122,6 +1136,10 @@ bool Socket::ssl_handshake()
     if (ssl_option.tls_host_name)
     {
         SSL_set_tlsext_host_name(socket->ssl, ssl_option.tls_host_name);
+    }
+    else if (!ssl_option.disable_tls_host_name && !ssl_host_name.empty())
+    {
+        SSL_set_tlsext_host_name(socket->ssl, ssl_host_name.c_str());
     }
 #endif
 
@@ -1190,7 +1208,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
     int file_fd = open(filename, O_RDONLY);
     if (file_fd < 0)
     {
-        swSysError("open(%s) failed.", filename);
+        swSysWarn("open(%s) failed", filename);
         return false;
     }
 
@@ -1199,7 +1217,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         struct stat file_stat;
         if (::fstat(file_fd, &file_stat) < 0)
         {
-            swSysError("fstat(%s) failed.", filename);
+            swSysWarn("fstat(%s) failed", filename);
             ::close(file_fd);
             return false;
         }
@@ -1232,13 +1250,13 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         }
         else if (n == 0)
         {
-            swWarn("sendfile return zero.");
+            swWarn("sendfile return zero");
             ::close(file_fd);
             return false;
         }
         else if (errno != EAGAIN)
         {
-            swSysError("sendfile(%d, %s) failed.", socket->fd, filename);
+            swSysWarn("sendfile(%d, %s) failed", socket->fd, filename);
             set_err(errno);
             ::close(file_fd);
             return false;
@@ -1269,7 +1287,7 @@ ssize_t Socket::sendto(char *address, int port, char *data, int len)
     }
     else
     {
-        swWarn("only supports SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6.");
+        swWarn("only supports SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6");
         return -1;
     }
 }
@@ -1372,7 +1390,7 @@ ssize_t Socket::recv_packet(double timeout)
         }
         else if (buf_len > protocol.package_max_length)
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "packet[length=%d] is too big.", (int )buf_len);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "packet[length=%d] is too big", (int )buf_len);
             return 0;
         }
 
@@ -1549,10 +1567,13 @@ bool Socket::shutdown(int __how)
     return false;
 }
 
+/**
+ * @return bool (whether it can be freed)
+ * you can access errCode member to get error information
+ */
 bool Socket::close()
 {
-    bool ret = true;
-    if (has_bound())
+    if (unlikely(has_bound()))
     {
         if (socket->closed)
         {
@@ -1562,7 +1583,7 @@ bool Socket::close()
         }
         if (socket->active)
         {
-            ret = shutdown();
+            shutdown();
         }
         if (!socket->closed)
         {
@@ -1578,21 +1599,24 @@ bool Socket::close()
             set_err(ECONNRESET);
             read_co->resume();
         }
+        return false;
     }
     else
     {
-        int fd = socket->fd;
+        if (unlikely(::close(socket->fd) != 0))
+        {
+            swSysWarn("close(%d) failed", socket->fd);
+        }
         socket->fd = -1;
-        delete this;
-        ret = ::close(fd) == 0;
+        return true;
     }
-    return ret;
 }
 
 /**
- * Notice:
- * the destructor should only be called when the construct fails
- * If you want to safe release the socket, you should call Soskcet::close
+ * Warn:
+ * the destructor should only be called in following two cases:
+ * 1. construct failed
+ * 2. called close() and it return true
  */
 Socket::~Socket()
 {
@@ -1665,13 +1689,10 @@ Socket::~Socket()
     {
         unlink(socket->info.addr.un.sun_path);
     }
-    if (unlikely(socket->fd > 0))
+    SW_ASSERT(socket->removed);
+    if (unlikely(socket->fd > 0 && ::close(socket->fd) != 0))
     {
-        if (!socket->removed)
-        {
-            reactor->del(reactor, socket->fd);
-        }
-        ::close(socket->fd);
+        swSysWarn("close(%d) failed", socket->fd);
     }
     bzero(socket, sizeof(swConnection));
     socket->fd = -1;

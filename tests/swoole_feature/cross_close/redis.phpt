@@ -1,5 +1,5 @@
 --TEST--
-swoole_feature: cross_close: redis
+swoole_feature/cross_close: redis
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -26,7 +26,7 @@ $pm->parentFunc = function () use ($pm) {
             assert(!$redis->connected);
             assert(in_array($redis->errType, [SWOOLE_REDIS_ERR_IO, SWOOLE_REDIS_ERR_EOF], true));
             if ($redis->errType === SWOOLE_REDIS_ERR_IO) {
-                assert($redis->errCode === SOCKET_ECONNRESET);
+                Assert::eq($redis->errCode, SOCKET_ECONNRESET);
             }
         });
     });
@@ -42,7 +42,7 @@ $pm->childFunc = function () use ($pm) {
                 $data = $conn->recv();
                 $random = $pm->getRandomData();
                 $random_len = strlen($random);
-                assert($data === "*2\r\n$3\r\nGET\r\n\${$random_len}\r\n{$random}\r\n");
+                Assert::eq($data, "*2\r\n$3\r\nGET\r\n\${$random_len}\r\n{$random}\r\n");
                 switch_process();
                 co::sleep(5);
                 $conn->close();

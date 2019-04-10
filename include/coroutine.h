@@ -106,6 +106,11 @@ public:
         return task;
     }
 
+    inline bool is_end()
+    {
+        return ctx.end;
+    }
+
     inline void set_task(void *_task)
     {
         task = _task;

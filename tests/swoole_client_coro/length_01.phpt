@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_coro: (length protocol) wrong packet
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -25,7 +24,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $retData = $cli->recv();
         assert($retData != false);
         $len = unpack('Nlen', $retData)['len'];
-        assert(strlen($retData) === $len + 4);
+        Assert::eq(strlen($retData), $len + 4);
     });
     swoole_event_wait();
     $pm->kill();

@@ -20,11 +20,11 @@ go(function () {
 
     // now we can make the responses independent
     $stmt1 = $db->prepare('SELECT * FROM ckl LIMIT 1');
-    assert($stmt1->execute() === true);
+    Assert::true($stmt1->execute());
     $stmt2 = $db->prepare('SELECT * FROM ckl LIMIT 2');
-    assert($stmt2->execute() === true);
-    assert(count($stmt1->fetchAll()) === 1);
-    assert(count($stmt2->fetchAll()) === 2);
+    Assert::true($stmt2->execute());
+    Assert::eq(count($stmt1->fetchAll()), 1);
+    Assert::eq(count($stmt2->fetchAll()), 2);
 });
 ?>
 --EXPECT--

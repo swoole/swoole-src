@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: task [enable_coroutine]
+swoole_server/task: task [enable_coroutine]
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -20,7 +20,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
             $c = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             $c->set(['timeout' => 5,]);
             assert($c->get('/task?n='.$n));
-            assert($c->body == "OK");
+            Assert::eq($c->body, "OK");
         });
     }
     swoole_event_wait();
@@ -51,7 +51,7 @@ $pm->childFunc = function () use ($pm, $randoms) {
         $response->end('OK');
     });
     $server->on('task', function (swoole_http_server $server, Swoole\Server\Task $task) use ($pm, $randoms) {
-        assert($task->worker_id == 0);
+        Assert::eq($task->worker_id, 0);
         assert($task->flags > 0);
         assert($task->id >= 0);
         $n = $task->data;

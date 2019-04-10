@@ -35,7 +35,7 @@ $pm->parentFunc = function ($pid) use ($port)
         usleep(10000);
         $bytes += strlen($r);
     }
-    assert($bytes == N);
+    Assert::eq($bytes, N);
     swoole_process::kill($pid);
 };
 

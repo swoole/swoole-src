@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: use async io and coroutine in task process
+swoole_http_server/task: use async io and coroutine in task process
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -35,4 +35,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Fatal error: Swoole\Server::finish(): please use Swoole\Server\Task->finish instead when task_enable_coroutine is enable. in %s/task/enable_coroutine_with_wrong_usage.php on line %d
+Fatal error: Swoole\Server::finish(): please use Swoole\Server\Task->finish instead when task_enable_coroutine is enable in %s/task/enable_coroutine_with_wrong_usage.php on line %d

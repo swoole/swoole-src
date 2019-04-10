@@ -42,11 +42,11 @@ co::create(function () {
     }
 
     $prepared_num1 = (int)(($db->query('show status like \'Prepared_stmt_count\''))[0]['Value']);
-    assert($prepared_num1 - $start_prepared_num === 3);
+    Assert::eq($prepared_num1 - $start_prepared_num, 3);
     $stmt1 = null; //destruct
     unset($stmt2); //destruct
     $prepared_num2 = (int)(($db->query('show status like \'Prepared_stmt_count\''))[0]['Value']);
-    assert($prepared_num1 - $prepared_num2 === 2);
+    Assert::eq($prepared_num1 - $prepared_num2, 2);
 });
 
 ?>

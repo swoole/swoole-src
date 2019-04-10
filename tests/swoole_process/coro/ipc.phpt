@@ -1,5 +1,5 @@
 --TEST--
-swoole_process: ipc with coroutine
+swoole_process/coro: ipc with coroutine
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

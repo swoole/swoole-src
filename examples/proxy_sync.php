@@ -9,8 +9,6 @@ class ProxyServer
     {
         $serv = new swoole_server("127.0.0.1", 9509);
         $serv->set(array(
-            'timeout' => 1, //select and epoll_wait timeout.
-            'poll_thread_num' => 1, //reactor thread num
             'worker_num' => 32, //reactor thread num
             'backlog' => 128, //listen backlog
             'max_conn' => 10000,
@@ -23,8 +21,6 @@ class ProxyServer
         $serv->on('Receive', array($this, 'onReceive'));
         $serv->on('Close', array($this, 'onClose'));
         $serv->on('WorkerStop', array($this, 'onShutdown'));
-        //swoole_server_addtimer($serv, 2);
-        #swoole_server_addtimer($serv, 10);
         $serv->start();
     }
 

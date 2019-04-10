@@ -157,11 +157,12 @@ void swoole_websocket_onRequest(http_context *);
 http_context* swoole_http_context_new(int fd);
 void swoole_http_context_free(http_context *ctx);
 int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len);
+void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
 
 #define swoole_http_server_array_init(name, class)    SW_MAKE_STD_ZVAL(z##name);\
 array_init(z##name);\
-zend_update_property(swoole_http_##class##_ce_ptr, z##class##_object, ZEND_STRL(#name), z##name);\
-ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_ce_ptr, z##class##_object, ZEND_STRL(#name), 0);\
+zend_update_property(swoole_http_##class##_ce, z##class##_object, ZEND_STRL(#name), z##name);\
+ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_ce, z##class##_object, ZEND_STRL(#name), 0);\
 sw_copy_to_stack(ctx->class.z##name, ctx->class._z##name);\
 zval_ptr_dtor(z##name);\
 z##name = ctx->class.z##name;
@@ -178,9 +179,9 @@ int swoole_http2_do_response(http_context *ctx, swString *body);
 void swoole_http2_free(swConnection *conn);
 #endif
 
-extern zend_class_entry *swoole_http_server_ce_ptr;
-extern zend_class_entry *swoole_http_response_ce_ptr;
-extern zend_class_entry *swoole_http_request_ce_ptr;
+extern zend_class_entry *swoole_http_server_ce;
+extern zend_class_entry *swoole_http_response_ce;
+extern zend_class_entry *swoole_http_request_ce;
 
 extern swString *swoole_http_buffer;
 
@@ -197,39 +198,136 @@ static sw_inline voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
 
 static sw_inline void php_zlib_free(voidpf opaque, voidpf address)
 {
-    efree((void* )address);
+    efree((void *)address);
 }
 #endif
 
-static sw_inline int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *set_cookie_headers)
+static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *set_cookie_headers)
 {
-    size_t klen = 0, vlen = 0;
-    char *p, *eof;
+    const char *key = at;
+    zval val;
+    size_t key_len = 0, val_len = 0;
+    const char *p, *eof = at + length;
     // key
-    p = (char*) memchr(at, '=', length);
+    p = (char *) memchr(at, '=', length);
     if (p)
     {
-        klen = p - at;
+        key_len = p - at;
     }
-    if (klen == 0 || klen >= SW_HTTP_COOKIE_KEYLEN || klen >= length - 1)
+    if (key_len == 0 || key_len >= length - 1)
     {
-        swWarn("cookie key format is wrong.");
+        swWarn("cookie key format is wrong");
         return SW_ERR;
     }
-    add_assoc_stringl_ex(set_cookie_headers, at, klen, (char *) at, length);
+    if (key_len > SW_HTTP_COOKIE_KEYLEN)
+    {
+        swWarn("cookie[%.8s...] name length %d is exceed the max name len %d", key, key_len, SW_HTTP_COOKIE_KEYLEN);
+        return SW_ERR;
+    }
+    add_assoc_stringl_ex(set_cookie_headers, key, key_len, (char *) at, length);
     // val
-    p+=1;
-    eof = (char*) memchr(p, ';', length);
+    p++;
+    eof = (char*) memchr(p, ';', at + length - p);
     if (!eof)
     {
-        eof = (char *) at + length;
+        eof = at + length;
     }
-    vlen = php_url_decode(p, eof - p);
-    add_assoc_stringl_ex(cookies, at, klen, p, vlen);
+    val_len = eof - p;
+    if (val_len > SW_HTTP_COOKIE_VALLEN)
+    {
+        swWarn("cookie[%.*s]'s value[v=%.8s...] length %d is exceed the max value len %d", (int) key_len, key, p, val_len, SW_HTTP_COOKIE_VALLEN);
+        return SW_ERR;
+    }
+    ZVAL_STRINGL(&val, p, val_len);
+    Z_STRLEN(val) = php_url_decode(Z_STRVAL(val), val_len);
+    add_assoc_zval_ex(cookies, at, key_len, &val);
     return SW_OK;
 }
 
 #ifdef __cplusplus
+}
+#endif
+
+#ifdef SW_USE_HTTP2
+namespace swoole
+{
+namespace http2
+{
+class headers
+{
+public:
+    headers(size_t size) : size(size), index(0)
+    {
+        nvs = (nghttp2_nv *) ecalloc(size, sizeof(nghttp2_nv));
+    }
+
+    inline nghttp2_nv* get()
+    {
+        return nvs;
+    }
+
+    inline size_t len()
+    {
+        return index;
+    }
+
+    void reserve_one()
+    {
+        index++;
+    }
+
+    inline void add(
+        size_t index,
+        const char *name, size_t name_len,
+        const char *value, size_t value_len,
+        const uint8_t flags = NGHTTP2_NV_FLAG_NONE)
+    {
+        if (likely(index < size || nvs[index].name == nullptr))
+        {
+            nghttp2_nv *nv = &nvs[index];
+            name = zend_str_tolower_dup(name, name_len); // auto to lower
+            nv->name = (uchar*) name;
+            nv->namelen = name_len;
+            nv->value = (uchar*) emalloc(value_len);
+            memcpy(nv->value, value, value_len);
+            nv->valuelen = value_len;
+            nv->flags = flags | NGHTTP2_NV_FLAG_NO_COPY_NAME | NGHTTP2_NV_FLAG_NO_COPY_VALUE;
+            swTraceLog(SW_TRACE_HTTP2,"name=(%zu)[%.*s], value=(%zu)[%.*s]", name_len, (int) name_len, name, value_len, (int) value_len, value);
+        }
+        else
+        {
+            swoole_php_fatal_error(E_WARNING, "unexpect http2 header [%.*s] (duplicated or overflow)", (int) name_len, name);
+        }
+    }
+
+    inline void add(
+        const char *name, size_t name_len,
+        const char *value, size_t value_len,
+        const uint8_t flags = NGHTTP2_NV_FLAG_NONE
+    )
+    {
+        add(index++, name, name_len, value, value_len, flags);
+    }
+
+    ~headers()
+    {
+        for (size_t i = 0; i < size; ++i)
+        {
+            if (likely(nvs[i].name/* && nvs[i].value */))
+            {
+                efree((void *) nvs[i].name);
+                efree((void *) nvs[i].value);
+            }
+        }
+        efree(nvs);
+    }
+
+private:
+    nghttp2_nv *nvs;
+    size_t size;
+    size_t index;
+};
+}
 }
 #endif
 

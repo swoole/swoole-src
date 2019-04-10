@@ -1,6 +1,5 @@
 --TEST--
 swoole_server: unix socket stream server
-
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

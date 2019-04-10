@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_sync: recv timeout
-
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -14,8 +13,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
     assert($r);
     $client->send(pack('N', filesize(TEST_IMAGE)));
     $data = @$client->recv();
-    assert($data == false);
-    assert($client->errCode == SOCKET_EAGAIN);
+    Assert::false($data);
+    Assert::eq($client->errCode, SOCKET_EAGAIN);
     $client->close();
     $pm->kill();
 };

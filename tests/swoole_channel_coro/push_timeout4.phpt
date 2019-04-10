@@ -14,7 +14,7 @@ go(function () use ($channel) {
 });
 
 go(function () use ($channel) {
-    assert($channel->pop(0.1) == 1);
+    Assert::eq($channel->pop(0.1), 1);
 });
 
 swoole_event_wait();

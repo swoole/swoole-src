@@ -16,12 +16,12 @@ go(function () {
     for ($i = 0; $i < 3; ++$i)
     {
         $val = $redis->recv();
-        assert($val[0] == 'subscribe');
+        Assert::eq($val[0], 'subscribe');
     }
 
     for ($i = 0; $i < 3; $i++) {
         $val = $redis->recv();
-        assert($val and $val[0] == 'message');
+        Assert::eq($val and $val[0], 'message');
     }
 
     $redis->close();

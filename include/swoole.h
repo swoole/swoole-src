@@ -89,8 +89,8 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SWOOLE_MAJOR_VERSION      4
 #define SWOOLE_MINOR_VERSION      3
 #define SWOOLE_RELEASE_VERSION    2
-#define SWOOLE_EXTRA_VERSION      "alpha"
-#define SWOOLE_VERSION            "4.3.2-alpha"
+#define SWOOLE_EXTRA_VERSION      "rc2"
+#define SWOOLE_VERSION            "4.3.2-rc2"
 #define SWOOLE_VERSION_ID         40302
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
@@ -199,9 +199,9 @@ typedef unsigned long ulong_t;
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
 
 /*-----------------------------------Memory------------------------------------*/
-
+#define SW_DEFAULT_ALIGNMENT   sizeof(unsigned long)
 #define SW_MEM_ALIGNED_SIZE(size) \
-        SW_MEM_ALIGNED_SIZE_EX(size, 8)
+        SW_MEM_ALIGNED_SIZE_EX(size, SW_DEFAULT_ALIGNMENT)
 #define SW_MEM_ALIGNED_SIZE_EX(size, alignment) \
         (((size) + ((alignment) - 1LL)) & ~((alignment) - 1LL))
 
@@ -368,6 +368,7 @@ enum swLog_level
     SW_LOG_NOTICE,
     SW_LOG_WARNING,
     SW_LOG_ERROR,
+    SW_LOG_NONE,
 };
 //-------------------------------------------------------------------------------
 enum swFactory_dispatch_mode
@@ -381,6 +382,13 @@ enum swFactory_dispatch_mode
     SW_DISPATCH_STREAM   = 7,
 };
 
+enum swFactory_dispatch_result
+{
+    SW_DISPATCH_RESULT_DISCARD_PACKET    = -1,
+    SW_DISPATCH_RESULT_CLOSE_CONNECTION  = -2,
+    SW_DISPATCH_RESULT_USERFUNC_FALLBACK = -3,
+};
+
 enum swWorker_status
 {
     SW_WORKER_BUSY = 1,
@@ -389,48 +397,81 @@ enum swWorker_status
 };
 //-------------------------------------------------------------------------------
 
-#define swWarn(str,...)          if (SW_LOG_WARNING >= SwooleG.log_level){\
-    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: " str,__func__,##__VA_ARGS__);\
-    SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_errror_len);\
-    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
-
-#define swNotice(str,...)        if (SW_LOG_NOTICE >= SwooleG.log_level){\
-    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
-    SwooleG.write_log(SW_LOG_NOTICE, sw_error, _sw_errror_len);\
-    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
-
-#define swError(str,...)       do{\
-    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    size_t _sw_errror_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
-    SwooleG.write_log(SW_LOG_ERROR, sw_error, _sw_errror_len);\
-    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
-    exit(1);\
-    }while(0)
-
-#define swSysError(str,...)  do{SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str " Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
-    SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_errror_len);\
-    SwooleG.error=errno;\
-    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}while(0)
-
-#define swFatalError(code, str,...) SwooleG.fatal_error(code, str, ##__VA_ARGS__)
-
-#define swoole_error_log(level, __errno, str, ...)      do{SwooleG.error=__errno;\
-    if (level >= SwooleG.log_level){\
-        size_t _sw_errror_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERROR %d): " str,__func__,__errno,##__VA_ARGS__);\
+#define swNotice(str,...) \
+    if (SW_LOG_NOTICE >= SwooleG.log_level) {\
         SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-        SwooleG.write_log(level, sw_error, _sw_errror_len);\
+        size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
+        SwooleG.write_log(SW_LOG_NOTICE, sw_error, _sw_errror_len);\
         SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
-    }} while(0)
+    }
+
+#define swInfo(str,...) \
+    if (SW_LOG_INFO >= SwooleG.log_level) {\
+        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+        size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
+        SwooleG.write_log(SW_LOG_INFO, sw_error, _sw_errror_len);\
+        SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
+    }
+
+#define swWarn(str,...) \
+    if (SW_LOG_WARNING >= SwooleG.log_level) {\
+        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+        size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: " str,__func__,##__VA_ARGS__);\
+        SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_errror_len);\
+        SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
+    }
+
+#define swSysWarn(str,...) \
+    do{\
+        SwooleG.error = errno;\
+        if (SW_LOG_ERROR >= SwooleG.log_level) {\
+            SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+            size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str ", Error: %s[%d]",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
+            SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_errror_len);\
+            SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
+        }\
+    } while(0)
+
+#define swError(str,...) \
+    do{\
+        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+        size_t _sw_errror_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
+        SwooleG.write_log(SW_LOG_ERROR, sw_error, _sw_errror_len);\
+        SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
+        exit(1);\
+    } while(0)
+
+#define swSysError(str,...) \
+    do{\
+        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+        size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str ", Error: %s[%d]",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
+        SwooleG.write_log(SW_LOG_ERROR, sw_error, _sw_errror_len);\
+        SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
+        exit(1);\
+    } while(0)
+
+#define swFatalError(code, str,...) \
+        SwooleG.fatal_error(code, str, ##__VA_ARGS__)
+
+#define swoole_error_log(level, __errno, str, ...) \
+    do{\
+        SwooleG.error = __errno;\
+        if (level >= SwooleG.log_level){\
+            size_t _sw_errror_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERRNO %d): " str,__func__,__errno,##__VA_ARGS__);\
+            SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+            SwooleG.write_log(level, sw_error, _sw_errror_len);\
+            SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
+        }\
+    } while(0)
 
 #ifdef SW_DEBUG
-#define swDebug(str,...) if (SW_LOG_DEBUG >= SwooleG.log_level){\
-    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    size_t _sw_errror_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__);\
-    SwooleG.write_log(SW_LOG_DEBUG, sw_error, _sw_errror_len);\
-    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
+#define swDebug(str,...) \
+    if (SW_LOG_DEBUG >= SwooleG.log_level) {\
+        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+        size_t _sw_errror_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__);\
+        SwooleG.write_log(SW_LOG_DEBUG, sw_error, _sw_errror_len);\
+        SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
+    }
 #else
 #define swDebug(str,...)
 #endif
@@ -465,6 +506,8 @@ enum swTraceType
      */
     SW_TRACE_COROUTINE        = 1u << 24,
     SW_TRACE_CONTEXT          = 1u << 25,
+
+    SW_TRACE_ALL              = 0xffffffff
 };
 
 #ifdef SW_LOG_TRACE_OPEN
@@ -705,13 +748,13 @@ typedef struct _swProtocol
 {
     /* one package: eof check */
     uint8_t split_by_eof;
-    uint8_t package_eof_len;  //数据缓存结束符长度
-    char package_eof[SW_DATA_EOF_MAXLEN + 1];  //数据缓存结束符
+    uint8_t package_eof_len;
+    char package_eof[SW_DATA_EOF_MAXLEN + 1];
 
-    char package_length_type;  //length field type
+    char package_length_type;
     uint8_t package_length_size;
-    uint16_t package_length_offset;  //第几个字节开始表示长度
-    uint16_t package_body_offset;  //第几个字节开始计算长度
+    uint16_t package_length_offset;
+    uint16_t package_body_offset;
     uint32_t package_max_length;
 
     void *private_data;
@@ -792,9 +835,11 @@ static sw_inline int swString_extend_align(swString *str, size_t _new_size)
  */
 static sw_inline void swString_pop_front(swString *str, off_t offset)
 {
-    assert(offset > 0 && (size_t) offset < str->length);
+    assert(offset >= 0 && (size_t ) offset <= str->length);
+    if (unlikely(offset == 0)) return;
     str->length = str->length - offset;
     str->offset = 0;
+    if (str->length == 0) return;
     memmove(str->str, str->str + offset, str->length);
 }
 
@@ -821,7 +866,7 @@ enum _swEventData_flag
 typedef struct _swDataHead
 {
     int fd;
-    uint16_t len;
+    uint32_t len;
     int16_t from_id;
     uint8_t type;
     uint8_t flags;
@@ -839,11 +884,17 @@ typedef struct _swEvent
     swConnection *socket;
 } swEvent;
 
-typedef struct _swEventData
+typedef struct
 {
     swDataHead info;
     char data[SW_IPC_BUFFER_SIZE];
 } swEventData;
+
+typedef struct
+{
+    swDataHead info;
+    char data[0];
+} swPipeBuffer;
 
 typedef struct _swDgramPacket
 {
@@ -855,10 +906,6 @@ typedef struct _swDgramPacket
 typedef struct _swSendData
 {
     swDataHead info;
-    /**
-     * for big package
-     */
-    uint32_t length;
     char *data;
 } swSendData;
 
@@ -1818,11 +1865,7 @@ void swReactor_defer_task_destroy(swReactor *reactor);
 
 static sw_inline swConnection* swReactor_get(swReactor *reactor, int fd)
 {
-    if (reactor->thread)
-    {
-        return &reactor->socket_list[fd];
-    }
-    swConnection *socket = (swConnection*) swArray_alloc(reactor->socket_array, fd);
+    swConnection *socket = reactor->thread ? &reactor->socket_list[fd] : (swConnection*) swArray_alloc(reactor->socket_array, fd);
     if (socket && !socket->active)
     {
         socket->fd = fd;
@@ -2165,7 +2208,7 @@ typedef struct
 {
     swLock lock;
     swLock lock_2;
-} SwooleGS_t;
+} swGlobalS_t;
 
 //Worker process global Variable
 typedef struct
@@ -2199,9 +2242,8 @@ typedef struct
     swString **buffer_output;
     swWorker *worker;
     time_t exit_time;
-    swTimer_node *exit_timer;
 
-} swWorkerG;
+} swWorkerGlobal_t;
 
 typedef struct
 {
@@ -2210,7 +2252,7 @@ typedef struct
     uint8_t update_time;
     swString *buffer_stack;
     swReactor *reactor;
-} swThreadG;
+} swThreadGlobal_t;
 
 typedef struct
 {
@@ -2291,12 +2333,12 @@ typedef struct
     swHashMap *functions;
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];
 
-} swServerG;
+} swGlobal_t;
 
-extern swServerG SwooleG;              //Local Global Variable
-extern SwooleGS_t *SwooleGS;           //Share Memory Global Variable
-extern swWorkerG SwooleWG;             //Worker Global Variable
-extern __thread swThreadG SwooleTG;   //Thread Global Variable
+extern swGlobal_t SwooleG;              //Local Global Variable
+extern swGlobalS_t *SwooleGS;           //Share Memory Global Variable
+extern swWorkerGlobal_t SwooleWG;             //Worker Global Variable
+extern __thread swThreadGlobal_t SwooleTG;   //Thread Global Variable
 
 #define SW_CPU_NUM                    (SwooleG.cpu_num)
 

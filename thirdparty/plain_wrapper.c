@@ -61,7 +61,7 @@ extern int php_get_gid_by_name(const char *name, gid_t *gid);
 
 static size_t php_stdiop_write(php_stream *stream, const char *buf, size_t count);
 static size_t php_stdiop_read(php_stream *stream, char *buf, size_t count);
-static int php_stdiop_close(php_stream *stream, int close_handle);
+static int sw_php_stdiop_close(php_stream *stream, int close_handle);
 static int php_stdiop_stat(php_stream *stream, php_stream_statbuf *ssb);
 static int php_stdiop_flush(php_stream *stream);
 static int php_stdiop_seek(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffset);
@@ -179,7 +179,7 @@ typedef struct {
 static php_stream_ops sw_php_stream_stdio_ops = {
     php_stdiop_write,
     php_stdiop_read,
-    php_stdiop_close,
+    sw_php_stdiop_close,
     php_stdiop_flush,
     "STDIO/coroutine",
     php_stdiop_seek,
@@ -312,7 +312,7 @@ static size_t php_stdiop_read(php_stream *stream, char *buf, size_t count)
 	return ret;
 }
 
-static int php_stdiop_close(php_stream *stream, int close_handle)
+static int sw_php_stdiop_close(php_stream *stream, int close_handle)
 {
 	int ret;
 	php_stdio_stream_data *data = (php_stdio_stream_data*)stream->abstract;
@@ -350,12 +350,20 @@ static int php_stdiop_close(php_stream *stream, int close_handle)
 				ret = fclose(data->file);
 				data->file = NULL;
 			}
-		} else if (data->fd != -1) {
-			ret = close(data->fd);
-			data->fd = -1;
-		} else {
-			return 0; /* everything should be closed already -> success */
-		}
+        }
+        else if (data->fd != -1)
+        {
+            if ((data->lock_flag & LOCK_EX) || (data->lock_flag & LOCK_SH))
+            {
+                swoole_coroutine_flock_ex(stream->orig_path, data->fd, LOCK_UN);
+            }
+            ret = close(data->fd);
+            data->fd = -1;
+        }
+        else
+        {
+            return 0; /* everything should be closed already -> success */
+        }
 		if (data->temp_name) {
 #ifdef PHP_WIN32
 			php_win32_ioutil_unlink(ZSTR_VAL(data->temp_name));
@@ -569,7 +577,7 @@ static int php_stdiop_set_option(php_stream *stream, int option, int value, void
 				return 0;
 			}
 
-			if (!swoole_coroutine_flock(fd, value)) {
+			if (!swoole_coroutine_flock_ex(stream->orig_path, fd, value)) {
 				data->lock_flag = value;
 				return 0;
 			} else {

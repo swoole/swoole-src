@@ -187,10 +187,10 @@ $pm->parentFunc = function () use ($pm, &$normal_chars) {
     foreach ($headers as $header) {
         list($name, $value) = explode(': ', $header);
         if (in_array(strtolower($name), $normal_chars)) {
-            assert($value == ($s = $pm->getRandomData()));
+            Assert::eq($value, ($s = $pm->getRandomData()));
         }
     }
-    assert($body === $pm->getRandomData());
+    Assert::eq($body, $pm->getRandomData());
 
     // use swoole http client
     go(function () use ($pm, &$normal_chars) {
@@ -199,10 +199,10 @@ $pm->parentFunc = function () use ($pm, &$normal_chars) {
         assert($cli->get('/'));
         foreach ($cli->headers as $name => $value) {
             if (in_array($name, $normal_chars)) {
-                assert($value == $pm->getRandomData());
+                Assert::eq($value, $pm->getRandomData());
             }
         }
-        assert($cli->body === $pm->getRandomData());
+        Assert::eq($cli->body, $pm->getRandomData());
     });
 
     swoole_event_wait();

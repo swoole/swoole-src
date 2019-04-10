@@ -5,10 +5,9 @@ swoole_websocket_server: websocket server active close with close frame flag fal
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/../include/lib/class.websocket_client.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
-    $cli = new WebsocketClient;
+    $cli = new Samtleben\WebsocketClient;
     $connected = $cli->connect('127.0.0.1', $pm->getFreePort(), '/');
     assert($connected);
     $cli->sendRecv('shutdown');
@@ -28,7 +27,7 @@ $pm->childFunc = function () use ($pm) {
         if ($frame->opcode == WEBSOCKET_OPCODE_CLOSE) {
             echo "{$frame->code}\n";
             echo "{$frame->reason}\n";
-            assert(false); // Should never reach here
+            Assert::true(false, 'never here'); // Should never reach here
         } else {
             if ($frame->data == 'shutdown') {
                 echo "{$frame->data}";

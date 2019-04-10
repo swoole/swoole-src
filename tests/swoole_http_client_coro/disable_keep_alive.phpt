@@ -14,16 +14,16 @@ go(function () {
     ]);
     $cli->setHeaders(['Host' => $host]);
     $cli->get('/');
-    assert($cli->statusCode === 200);
+    Assert::eq($cli->statusCode, 200);
 
-    assert($cli->get('/contract.shtml') === true);
-    assert($cli->statusCode === 200);
+    Assert::true($cli->get('/contract.shtml'));
+    Assert::eq($cli->statusCode, 200);
 
     // failed clear
     $cli->set([
         'timeout' => 0.001
     ]);
-    assert($cli->get('/contract.shtml') === false);
+    Assert::false($cli->get('/contract.shtml'));
     assert(empty($cli->headers));
     assert(empty($cli->body));
 });

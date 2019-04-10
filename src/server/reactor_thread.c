@@ -58,8 +58,8 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                         task.info.fd = conn->fd;
                         task.info.type = SW_EVENT_CONNECT;
                         task.info.from_id = conn->from_id;
+                        task.info.len = ret;
                         task.data = SwooleTG.buffer_stack->str;
-                        task.length = ret;
                         factory->dispatch(factory, &task);
                         goto delay_receive;
                     }
@@ -106,13 +106,12 @@ static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint3
     swConnection *conn = swServer_connection_verify(SwooleG.serv, pkg_info->fd);
     if (!conn)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists.", pkg_info->fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists", pkg_info->fd);
         return;
     }
     response.info.fd = conn->session_id;
     response.info.type = pkg_info->type;
-    response.info.len = 0;
-    response.length = length - sizeof(swDataHead);
+    response.info.len = length - sizeof(swDataHead);
     response.data = data + sizeof(swDataHead);
     swServer_master_send(SwooleG.serv, &response);
 }
@@ -166,7 +165,7 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         }
         else
         {
-            swSysError("recvfrom(%d) failed.", fd);
+            swSysWarn("recvfrom(%d) failed", fd);
             return ret;
         }
     }
@@ -189,7 +188,7 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
 #endif
 
     pkt->length = ret;
-    task.length = sizeof(*pkt) + ret;
+    task.info.len = sizeof(*pkt) + ret;
     task.data = (char*) pkt;
 
     if (factory->dispatch(factory, &task) < 0)
@@ -262,7 +261,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
         linger.l_linger = 0;
         if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) != 0)
         {
-            swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
+            swSysWarn("setsockopt(SO_LINGER) failed");
         }
     }
 #endif
@@ -307,7 +306,7 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     notify_ev.fd = fd;
     notify_ev.type = SW_EVENT_CLOSE;
 
-    swTraceLog(SW_TRACE_CLOSE, "client[fd=%d] close the connection.", fd);
+    swTraceLog(SW_TRACE_CLOSE, "client[fd=%d] close the connection", fd);
 
     swConnection *conn = swServer_connection_get(serv, fd);
     if (conn == NULL || conn->active == 0)
@@ -343,37 +342,36 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
 {
     int n;
-    swEventData resp;
     swSendData _send;
 
     swServer *serv = reactor->ptr;
-
     swPackage_response pkg_resp;
     swWorker *worker;
+    swPipeBuffer *resp = serv->pipe_buffers[reactor->id];
 
 #ifdef SW_REACTOR_RECV_AGAIN
     while (1)
 #endif
     {
-        n = read(ev->fd, &resp, sizeof(resp));
+        n = read(ev->fd, resp, serv->ipc_max_size);
         if (n > 0)
         {
-            memcpy(&_send.info, &resp.info, sizeof(resp.info));
+            memcpy(&_send.info, &resp->info, sizeof(_send.info));
             //pipe data
             if (_send.info.from_fd == SW_RESPONSE_SMALL)
             {
-                _send.data = resp.data;
-                _send.length = resp.info.len;
+                _send.data = resp->data;
+                _send.info.len = resp->info.len;
                 swServer_master_send(serv, &_send);
             }
             //use send shm
             else if (_send.info.from_fd == SW_RESPONSE_SHM)
             {
-                memcpy(&pkg_resp, resp.data, sizeof(pkg_resp));
+                memcpy(&pkg_resp, resp->data, sizeof(pkg_resp));
                 worker = swServer_get_worker(serv, pkg_resp.worker_id);
 
                 _send.data = worker->send_shm;
-                _send.length = pkg_resp.length;
+                _send.info.len = pkg_resp.length;
 
 #if 0
                 struct
@@ -392,13 +390,13 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
             //use tmp file
             else if (_send.info.from_fd == SW_RESPONSE_TMPFILE)
             {
-                swString *data = swTaskWorker_large_unpack(&resp);
+                swString *data = swTaskWorker_large_unpack((swEventData *) resp);
                 if (data == NULL)
                 {
                     return SW_ERR;
                 }
                 _send.data = data->str;
-                _send.length = data->length;
+                _send.info.len = data->length;
                 swServer_master_send(serv, &_send);
             }
             //reactor thread exit
@@ -419,7 +417,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
         }
         else
         {
-            swWarn("read(worker_pipe) failed. Error: %s[%d]", strerror(errno), errno);
+            swSysWarn("read(worker_pipe) failed");
             return SW_ERR;
         }
     }
@@ -450,7 +448,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
             {
                 if (thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE) < 0)
                 {
-                    swSysError("reactor->set(%d, PIPE | READ | WRITE) failed.", pipe_fd);
+                    swSysWarn("reactor->set(%d, PIPE | READ | WRITE) failed", pipe_fd);
                 }
                 goto append_pipe_buffer;
             }
@@ -460,7 +458,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
             append_pipe_buffer:
             if (swBuffer_append(buffer, data, len) < 0)
             {
-                swWarn("append to pipe_buffer failed.");
+                swWarn("append to pipe_buffer failed");
                 ret = SW_ERR;
             }
             else
@@ -512,7 +510,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
             {
                 if (conn->closed)
                 {
-                    swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_SERVER, "Session#%d is closed by server.", send_data->info.fd);
+                    swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_SERVER, "Session#%d is closed by server", send_data->info.fd);
                     _discard: swBuffer_pop_chunk(buffer, chunk);
                     continue;
                 }
@@ -551,7 +549,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         }
         if (ret < 0)
         {
-            swSysError("reactor->set(%d) failed.", ev->fd);
+            swSysWarn("reactor->set(%d) failed", ev->fd);
         }
     }
 
@@ -884,7 +882,7 @@ int swReactorThread_start(swServer *serv)
 
         if (pthread_create(&pidt, NULL, (void * (*)(void *)) swReactorThread_loop, (void *) param) < 0)
         {
-            swError("pthread_create[tcp_reactor] failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("pthread_create[tcp_reactor] failed");
         }
         thread->thread_id = pidt;
     }
@@ -1007,10 +1005,10 @@ int swReactorThread_init_reactor(swServer *serv, swReactor *reactor, uint16_t re
         pipe_fd = serv->workers[i].pipe_master;
 
         //for request
-        swBuffer *buffer = swBuffer_new(sizeof(swEventData));
+        swBuffer *buffer = swBuffer_new(0);
         if (!buffer)
         {
-            swWarn("create buffer failed.");
+            swWarn("create buffer failed");
             return SW_ERR;
         }
         serv->connection_list[pipe_fd].in_buffer = buffer;
@@ -1039,7 +1037,7 @@ int swReactorThread_init_reactor(swServer *serv, swReactor *reactor, uint16_t re
          */
         if (serv->connection_list[pipe_fd].object == NULL)
         {
-            swWarn("create pipe mutex lock failed.");
+            swWarn("create pipe mutex lock failed");
             return SW_ERR;
         }
         swMutex_create(serv->connection_list[pipe_fd].object, 0);
@@ -1089,7 +1087,7 @@ static int swReactorThread_loop(swThreadParam *param)
 
         if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
         {
-            swSysError("pthread_setaffinity_np() failed.");
+            swSysWarn("pthread_setaffinity_np() failed");
         }
     }
 #endif
@@ -1134,8 +1132,7 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     swServer *serv = SwooleG.serv;
     swSendData task;
 
-    task.info.len = 0;
-    task.info.flags = 0;
+    bzero(&task.info, sizeof(task.info));
     task.info.from_fd = conn->from_fd;
     task.info.from_id = conn->from_id;
     task.info.type = SW_EVENT_TCP;
@@ -1143,7 +1140,7 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     task.info.info.time = conn->last_time_usec;
 #endif
 
-    swTrace("send string package, size=%ld bytes.", (long)length);
+    swTrace("send string package, size=%ld bytes", (long)length);
 
     if (serv->stream_socket)
     {
@@ -1172,8 +1169,8 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     else
     {
         task.info.fd = conn->fd;
+        task.info.len = length;
         task.data = data;
-        task.length = length;
         return serv->factory.dispatch(&serv->factory, &task);
     }
 }
@@ -1205,13 +1202,13 @@ void swReactorThread_free(swServer *serv)
         {
             cancel: if (pthread_cancel(thread->thread_id) < 0)
             {
-                swSysError("pthread_cancel(%ld) failed.", (long ) thread->thread_id);
+                swSysWarn("pthread_cancel(%ld) failed", (long ) thread->thread_id);
             }
         }
         //wait thread
         if (pthread_join(thread->thread_id, NULL) != 0)
         {
-            swSysError("pthread_join(%ld) failed.", (long ) thread->thread_id);
+            swSysWarn("pthread_join(%ld) failed", (long ) thread->thread_id);
         }
     }
 }

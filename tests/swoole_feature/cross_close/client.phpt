@@ -1,5 +1,5 @@
 --TEST--
-swoole_feature: cross_close: client
+swoole_feature/cross_close: client
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -21,7 +21,7 @@ $pm->parentFunc = function () use ($pm) {
         });
         assert(!($ret = @$cli->recv(-1)));
         if ($ret === false) {
-            assert($cli->errCode === SOCKET_ECONNRESET);
+            Assert::eq($cli->errCode, SOCKET_ECONNRESET);
         }
         echo "CLOSED\n";
         assert(!$cli->connected);

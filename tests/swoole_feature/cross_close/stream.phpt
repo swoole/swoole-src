@@ -1,5 +1,5 @@
 --TEST--
-swoole_feature: cross_close: stream
+swoole_feature/cross_close: stream
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

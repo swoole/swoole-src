@@ -26,7 +26,7 @@ $pm->parentFunc = function () use ($pm) {
                 if (empty($data)) {
                     break;
                 }
-                assert(rtrim($data, "\r\n") === $pm->getRandomData());
+                Assert::eq(rtrim($data, "\r\n"), $pm->getRandomData());
             }
         });
     });

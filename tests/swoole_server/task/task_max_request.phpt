@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: task_max_request
+swoole_server/task: task_max_request
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -61,8 +61,8 @@ $process = new Swoole\Process(function() {
 $process->start();
 
 Swoole\Process::wait();
-assert($counter1->get() == 4000);
-assert($counter2->get() == 4000);
+Assert::eq($counter1->get(), 4000);
+Assert::eq($counter2->get(), 4000);
 assert($counter3->get() > 15);
 echo "DONE\n";
 ?>

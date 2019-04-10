@@ -28,7 +28,7 @@ go(function () {
     $req->data = '{"type":"up"}';
     $cli->send($req);
     $response = $cli->recv();
-    assert(json_decode($response->data)->error->code === 602);
+    Assert::eq(json_decode($response->data)->error->code, 602);
 });
 ?>
 --EXPECT--

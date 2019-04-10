@@ -18,8 +18,8 @@ go(function () {
 
     $res = $db->query("EXPLAIN SELECT * FROM dual;");
     assert(!$res);
-    assert($db->errno === 1096);
-    assert($db->error === "No tables used");
+    Assert::eq($db->errno, 1096);
+    Assert::eq($db->error, "No tables used");
 });
 ?>
 --EXPECT--

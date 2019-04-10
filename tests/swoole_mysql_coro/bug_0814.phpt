@@ -41,8 +41,8 @@ co::create(function () {
     assert(count($ret3) > 0);
 
     $ret = $db->query("select sleep(20)", 0.1);
-    assert($ret == false);
-    assert( $db->errno == SOCKET_ETIMEDOUT);
+    Assert::false($ret);
+    Assert::eq( $db->errno, SOCKET_ETIMEDOUT);
     $ret1 = $db->connect($server);
     if (!$ret1) {
         echo "CONNECT[2] ERROR\n";

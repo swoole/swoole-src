@@ -271,22 +271,13 @@ struct _swFactory
     int (*finish)(struct _swFactory *, swSendData *);
     int (*notify)(struct _swFactory *, swDataHead *);    //send a event notify
     int (*end)(struct _swFactory *, int fd);
+    void (*free)(struct _swFactory *);
 };
-
-typedef struct _swFactoryProcess
-{
-    swPipe *pipes;
-} swFactoryProcess;
 
 typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);
 
 int swFactory_create(swFactory *factory);
-int swFactory_start(swFactory *factory);
-int swFactory_shutdown(swFactory *factory);
-int swFactory_dispatch(swFactory *factory, swSendData *req);
 int swFactory_finish(swFactory *factory, swSendData *_send);
-int swFactory_notify(swFactory *factory, swDataHead *event);
-int swFactory_end(swFactory *factory, int fd);
 int swFactory_check_callback(swFactory *factory);
 
 int swFactoryProcess_create(swFactory *factory, int worker_num);
@@ -476,6 +467,7 @@ struct _swServer
     int *cpu_affinity_available;
     int cpu_affinity_available_num;
 
+    swPipeBuffer **pipe_buffers;
     double send_timeout;
 
     uint16_t listen_port_num;
@@ -485,6 +477,8 @@ struct _swServer
     /* buffer output/input setting*/
     uint32_t buffer_output_size;
     uint32_t buffer_input_size;
+
+    uint32_t ipc_max_size;
 
     void *ptr2;
     void *private_data_3;
@@ -742,7 +736,7 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
     int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);
     if (tmp_file_fd < 0)
     {
-        swSysError("open(%s) failed.", _pkg.tmpfile);
+        swSysWarn("open(%s) failed", _pkg.tmpfile);
         return NULL;
     }
     if (SwooleTG.buffer_stack->size < _pkg.length && swString_extend_align(SwooleTG.buffer_stack, _pkg.length) < 0)
@@ -771,10 +765,10 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
 #define SW_SERVER_TIMER_FD_INDEX        2 //for timerfd
 
-//使用connection_list[0]表示最大的FD
+// connection_list[0] => the largest fd
 #define swServer_set_maxfd(serv,maxfd) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd=maxfd)
 #define swServer_get_maxfd(serv) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd)
-//使用connection_list[1]表示最小的FD
+// connection_list[1] => the smallest fd
 #define swServer_set_minfd(serv,maxfd) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd=maxfd)
 #define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)
 
@@ -831,6 +825,15 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
 {
     uint32_t key;
 
+    if (serv->dispatch_func)
+    {
+        int id = serv->dispatch_func(serv, swServer_connection_get(serv, fd), data);
+        if (id != SW_DISPATCH_RESULT_USERFUNC_FALLBACK)
+        {
+            return id;
+        }
+    }
+
     //polling mode
     if (serv->dispatch_mode == SW_DISPATCH_ROUND)
     {
@@ -878,11 +881,6 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
         {
             key = conn->uid;
         }
-    }
-    //schedule by dispatch function
-    else if (serv->dispatch_mode == SW_DISPATCH_USERFUNC)
-    {
-        return serv->dispatch_func(serv, swServer_connection_get(serv, fd), data);
     }
     //Preemptive distribution
     else
@@ -1002,7 +1000,7 @@ void swWorker_free(swWorker *worker);
 void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
 void swWorker_try_to_exit();
-int swWorker_loop(swFactory *factory, int worker_pti);
+int swWorker_loop(swServer *serv, int worker_pti);
 int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int fd);
 int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag);
 void swWorker_signal_handler(int signo);
@@ -1034,7 +1032,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
 int swReactorProcess_create(swServer *serv);
 int swReactorProcess_start(swServer *serv);
 
-int swManager_start(swFactory *factory);
+int swManager_start(swServer *serv);
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
 pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker);
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);

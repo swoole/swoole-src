@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_async: onBufferFull & onBufferEmpty
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -32,7 +31,7 @@ $pm->parentFunc = function ($pid) use ($port)
     {
         $cli->send(pack('N', 8) . 'shutdown');
         $cli->close();
-        assert($data === md5_file(TEST_IMAGE));
+        Assert::eq($data, md5_file(TEST_IMAGE));
     });
 
     $client->on("error", function($cli){

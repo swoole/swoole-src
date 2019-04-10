@@ -92,7 +92,7 @@ int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
     swFdList_node *ev = sw_malloc(sizeof(swFdList_node));
     if (ev == NULL)
     {
-        swWarn("malloc(%ld) failed.", sizeof(swFdList_node));
+        swWarn("malloc(%ld) failed", sizeof(swFdList_node));
         return SW_ERR;
     }
 
@@ -144,7 +144,7 @@ int swReactorSelect_set(swReactor *reactor, int fd, int fdtype)
     LL_SEARCH(object->fds, s_ev, &ev, swReactorSelect_cmp);
     if (s_ev == NULL)
     {
-        swWarn("swReactorSelect: sock[%d] not found.", fd);
+        swWarn("swReactorSelect: sock[%d] not found", fd);
         return SW_ERR;
     }
     s_ev->fdtype = fdtype;
@@ -225,7 +225,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
         {
             if (swReactor_error(reactor) < 0)
             {
-                swWarn("select error. Error: %s[%d]", strerror(errno), errno);
+                swSysWarn("select error");
             }
             continue;
         }
@@ -253,7 +253,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                     ret = handle(reactor, &event);
                     if (ret < 0)
                     {
-                        swSysError("[Reactor#%d] select event[type=READ, fd=%d] handler fail.", reactor->id, event.fd);
+                        swSysWarn("[Reactor#%d] select event[type=READ, fd=%d] handler fail", reactor->id, event.fd);
                     }
                 }
                 //write
@@ -263,7 +263,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                     ret = handle(reactor, &event);
                     if (ret < 0)
                     {
-                        swSysError("[Reactor#%d] select event[type=WRITE, fd=%d] handler fail.", reactor->id, event.fd);
+                        swSysWarn("[Reactor#%d] select event[type=WRITE, fd=%d] handler fail", reactor->id, event.fd);
                     }
                 }
                 //error
@@ -273,7 +273,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                     ret = handle(reactor, &event);
                     if (ret < 0)
                     {
-                        swSysError("[Reactor#%d] select event[type=ERROR, fd=%d] handler fail.", reactor->id, event.fd);
+                        swSysWarn("[Reactor#%d] select event[type=ERROR, fd=%d] handler fail", reactor->id, event.fd);
                     }
                 }
                 if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE))

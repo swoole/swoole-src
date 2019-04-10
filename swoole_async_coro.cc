@@ -200,7 +200,7 @@ PHP_FUNCTION(swoole_async_set)
 {
     if (SwooleG.main_reactor != NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings.");
+        swoole_php_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings");
         RETURN_FALSE;
     }
 
@@ -211,8 +211,6 @@ PHP_FUNCTION(swoole_async_set)
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    php_swoole_array_separate(zset);
 
     vht = Z_ARRVAL_P(zset);
     if (php_swoole_array_get_value(vht, "enable_signalfd", v))
@@ -258,8 +256,11 @@ PHP_FUNCTION(swoole_async_set)
     }
     if (php_swoole_array_get_value(vht, "dns_server", v))
     {
-        zend::string str_v(v);
-        SwooleG.dns_server_v4 = sw_strndup(str_v.val(), str_v.len());
+        if (SwooleG.dns_server_v4)
+        {
+            sw_free(SwooleG.dns_server_v4);
+        }
+        SwooleG.dns_server_v4 = zend::string(v).dup();
     }
     if (php_swoole_array_get_value(vht, "use_async_resolver", v))
     {
@@ -279,7 +280,6 @@ PHP_FUNCTION(swoole_async_set)
         }
     }
 #endif
-    zval_ptr_dtor(zset);
 }
 
 PHP_FUNCTION(swoole_async_dns_lookup_coro)
@@ -293,13 +293,13 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
 
     if (Z_TYPE_P(domain) != IS_STRING)
     {
-        swoole_php_fatal_error(E_WARNING, "invalid domain name.");
+        swoole_php_fatal_error(E_WARNING, "invalid domain name");
         RETURN_FALSE;
     }
 
     if (Z_STRLEN_P(domain) == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "domain name empty.");
+        swoole_php_fatal_error(E_WARNING, "domain name empty");
         RETURN_FALSE;
     }
 

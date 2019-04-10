@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $chan = new Chan;
     $chan->test = 1;
-    assert($chan->test === 1);
+    Assert::eq($chan->test, 1);
     unset($chan->test);
     assert(!isset($chan->test));
 

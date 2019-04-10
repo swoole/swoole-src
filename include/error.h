@@ -145,7 +145,7 @@ enum swErrorCode
     SW_ERROR_END
 };
 
-const char* swoole_strerror(enum swErrorCode code);
-void swoole_throw_error(enum swErrorCode code);
+const char* swoole_strerror(int code);
+void swoole_throw_error(int code);
 
 #endif /* SW_ERRNO_H_ */

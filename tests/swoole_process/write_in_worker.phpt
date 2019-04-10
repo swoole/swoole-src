@@ -18,7 +18,7 @@ $pm->childFunc = function () use ($pm, $counter) {
             echo "process start\n";
             for ($i = 0; $i < 1024; $i++) {
                 $data = $process->read();
-                assert(strlen($data) == 8192);
+                Assert::eq(strlen($data), 8192);
             }
             echo "process end\n";
         }
@@ -30,8 +30,7 @@ $pm->childFunc = function () use ($pm, $counter) {
     $serv->on("WorkerStart", function (\swoole_server $serv) use ($process, $pm) {
         usleep(1);
         for ($i = 0; $i < 1024; $i++) {
-            $process->write(str_repeat('A', 8192));
-            assert($process == true);
+            Assert::eq($process->write(str_repeat('A', 8192)), 8192);
         }
         switch_process();
         echo "worker end\n";

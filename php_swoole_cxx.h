@@ -12,18 +12,6 @@ namespace zend
 class string
 {
 public:
-    static char* dup(zval *v)
-    {
-        string str(v);
-        return sw_strndup(str.val(), str.len());
-    }
-
-    static char* edup(zval *v)
-    {
-        string str(v);
-        return estrndup(str.val(), str.len());
-    }
-
     string()
     {
         str = nullptr;
@@ -34,9 +22,14 @@ public:
         str = zval_get_string(v);
     }
 
-    string(zend_string *v)
+    string(zend_string *&v)
     {
         str = zend_string_copy(v);
+    }
+
+    string(zend_string *&&v)
+    {
+        str = v;
     }
 
     void operator =(zval* v)
@@ -63,9 +56,19 @@ public:
         return str;
     }
 
-    std::string toStdString()
+    std::string to_std_string()
     {
         return std::string(val(), len());
+    }
+
+    char* dup()
+    {
+        return likely(len() > 0) ? sw_strndup(val(), len()) : nullptr;
+    }
+
+    char* edup()
+    {
+        return likely(len() > 0) ? estrndup(val(), len()) : nullptr;
     }
 
     ~string()
@@ -102,5 +105,40 @@ public:
 private:
     zend_string *str;
 };
-}
 
+namespace array
+{
+class key_value
+{
+public:
+    zend_ulong index;
+    zend_string *key;
+    zval zvalue;
+
+    key_value(zend_ulong _index, zend_string *_key, zval *_zvalue)
+    {
+        index = _index;
+        key = _key ? zend_string_copy(_key) : nullptr;
+        ZVAL_DEREF(_zvalue);
+        zvalue = *_zvalue;
+        Z_TRY_ADDREF(zvalue);
+    }
+
+    inline void add_to(zval *zarray)
+    {
+        HashTable *ht = Z_ARRVAL_P(zarray);
+        zval *dest_elem = !key ? zend_hash_index_update(ht, index, &zvalue) : zend_hash_update(ht, key, &zvalue);
+        Z_TRY_ADDREF_P(dest_elem);
+    }
+
+    ~key_value()
+    {
+        if (key)
+        {
+            zend_string_release(key);
+        }
+        zval_ptr_dtor(&zvalue);
+    }
+};
+}
+}

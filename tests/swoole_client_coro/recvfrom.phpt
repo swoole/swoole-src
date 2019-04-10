@@ -21,8 +21,8 @@ go(function () use ($free_port) {
     $addr = null;
     $port = null;
     $cli->recvfrom(1024, $addr, $port);
-    assert($addr === '127.0.0.1');
-    assert($port === $free_port);
+    Assert::eq($addr, '127.0.0.1');
+    Assert::eq($port, $free_port);
 });
 
 swoole_event::wait();

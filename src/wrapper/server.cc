@@ -34,24 +34,9 @@ Server::Server(string _host, int _port, int _mode, int _type)
         serv.worker_num = 1;
     }
 
-//        serv.reactor_num = 4;
-//        serv.worker_num = 2;
     serv.factory_mode = (uint8_t) mode;
-    //serv.factory_mode = SW_MODE_SINGLE; //SW_MODE_PROCESS/SW_MODE_THREAD/SW_MODE_BASE/SW_MODE_SINGLE
-//        serv.max_connection = 10000;
-    //serv.open_cpu_affinity = 1;
-    //serv.open_tcp_nodelay = 1;
-    //serv.daemonize = 1;
-//	memcpy(serv.log_file, SW_STRL("/tmp/swoole.log")); //日志
-
     serv.dispatch_mode = 2;
-//	serv.open_tcp_keepalive = 1;
 
-#ifdef HAVE_OPENSSL
-    //serv.ssl_cert_file = "tests/ssl/ssl.crt";
-    //serv.ssl_key_file = "tests/ssl/ssl.key";
-    //serv.open_ssl = 1;
-#endif
     //create Server
     int ret = swServer_create(&serv);
     if (ret < 0)
@@ -177,29 +162,8 @@ static int task_pack(swEventData *task, const DataBuffer &data)
 static DataBuffer task_unpack(swEventData *task_result)
 {
     DataBuffer retval;
-
-    if (swTask_type(task_result) & SW_TASK_TMPFILE)
-    {
-        swPackage_task _pkg;
-        memcpy(&_pkg, task_result->data, sizeof(_pkg));
-
-        int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);
-        if (tmp_file_fd < 0)
-        {
-            swSysError("open(%s) failed.", _pkg.tmpfile);
-        }
-        else
-        {
-            void *_buffer = retval.alloc((size_t) _pkg.length);
-            if (swoole_sync_readfile(tmp_file_fd, _buffer, _pkg.length) != _pkg.length)
-            {
-                close(tmp_file_fd);
-                unlink(_pkg.tmpfile);
-            }
-        }
-        return retval;
-    }
-    else
+    swString *result = swTaskWorker_large_unpack(task_result);
+    if (result)
     {
         retval.copy(task_result->data, (size_t) task_result->info.len);
     }
@@ -233,17 +197,17 @@ int Server::check_task_param(int dst_worker_id)
 {
     if (SwooleG.serv->task_worker_num < 1)
     {
-        swWarn("Task method cannot use, Please set task_worker_num.");
+        swWarn("Task method cannot use, Please set task_worker_num");
         return SW_ERR;
     }
     if (dst_worker_id >= SwooleG.serv->task_worker_num)
     {
-        swWarn("worker_id must be less than serv->task_worker_num.");
+        swWarn("worker_id must be less than serv->task_worker_num");
         return SW_ERR;
     }
     if (!swIsWorker())
     {
-        swWarn("The method can only be used in the worker process.");
+        swWarn("The method can only be used in the worker process");
         return SW_ERR;
     }
     return SW_OK;
@@ -253,7 +217,7 @@ int Server::task(DataBuffer &data, int dst_worker_id)
 {
     if (serv.gs->start == 0)
     {
-        swWarn("Server is not running.");
+        swWarn("Server is not running");
         return false;
     }
 
@@ -285,7 +249,7 @@ bool Server::finish(DataBuffer &data)
 {
     if (serv.gs->start == 0)
     {
-        swWarn("Server is not running.");
+        swWarn("Server is not running");
         return false;
     }
     return swTaskWorker_finish(&serv, (char *) data.buffer, (int) data.length, 0, nullptr) == 0;
@@ -313,7 +277,7 @@ bool Server::sendto(const string &ip, int port, const DataBuffer &data, int serv
     }
     else if (serv.udp_socket_ipv4 <= 0)
     {
-        swWarn("You must add an UDP listener to server before using sendto.");
+        swWarn("You must add an UDP listener to server before using sendto");
         return false;
     }
 
@@ -338,19 +302,19 @@ bool Server::sendfile(int fd, string &file, off_t offset, size_t length)
 {
     if (serv.gs->start == 0)
     {
-        swWarn("Server is not running.");
+        swWarn("Server is not running");
         return false;
     }
 
     struct stat file_stat;
     if (stat(file.c_str(), &file_stat) < 0)
     {
-        swWarn("stat(%s) failed.", file.c_str());
+        swWarn("stat(%s) failed", file.c_str());
         return false;
     }
     if (file_stat.st_size <= offset)
     {
-        swWarn("file[offset=%jd] is empty.", (intmax_t) offset);
+        swWarn("file[offset=%jd] is empty", (intmax_t) offset);
         return false;
     }
     return serv.sendfile(&serv, fd, (char *) file.c_str(), file.length(), offset, length) == SW_OK;
@@ -362,25 +326,25 @@ bool Server::sendMessage(int worker_id, DataBuffer &data)
 
     if (serv.gs->start == 0)
     {
-        swWarn("Server is not running.");
+        swWarn("Server is not running");
         return false;
     }
 
     if (worker_id == (int) SwooleWG.id)
     {
-        swWarn("cannot send message to self.");
+        swWarn("cannot send message to self");
         return false;
     }
 
     if (worker_id >= serv.worker_num + serv.task_worker_num)
     {
-        swWarn("worker_id[%d] is invalid.", worker_id);
+        swWarn("worker_id[%d] is invalid", worker_id);
         return false;
     }
 
     if (serv.onPipeMessage == NULL)
     {
-        swWarn("onPipeMessage is null, cannot use sendMessage.");
+        swWarn("onPipeMessage is null, cannot use sendMessage");
         return false;
     }
 
@@ -401,7 +365,7 @@ bool Server::sendwait(int fd, const DataBuffer &data)
 {
     if (serv.gs->start == 0)
     {
-        swWarn("Server is not running.");
+        swWarn("Server is not running");
         return false;
     }
     if (data.length <= 0)
@@ -410,7 +374,7 @@ bool Server::sendwait(int fd, const DataBuffer &data)
     }
     if (serv.factory_mode != SW_MODE_BASE || swIsTaskWorker())
     {
-        swWarn("cannot sendwait.");
+        swWarn("cannot sendwait");
         return false;
     }
     return serv.sendwait(&serv, fd, data.buffer, data.length) == 0;
@@ -593,7 +557,7 @@ DataBuffer Server::taskwait(const DataBuffer &data, double timeout, int dst_work
 
     if (serv.gs->start == 0)
     {
-        swWarn("server is not running.");
+        swWarn("server is not running");
         return retval;
     }
 
@@ -625,7 +589,7 @@ DataBuffer Server::taskwait(const DataBuffer &data, double timeout, int dst_work
         }
         else
         {
-            swWarn("taskwait failed. Error: %s[%d]", strerror(errno), errno);
+            swSysWarn("taskwait failed");
         }
     }
     return retval;
@@ -638,7 +602,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
 
     if (serv.gs->start == 0)
     {
-        swWarn("server is not running.");
+        swWarn("server is not running");
         return retval;
     }
 
@@ -659,7 +623,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
     int _tmpfile_fd = swoole_tmpfile(_tmpfile);
     if (_tmpfile_fd < 0)
     {
-        swSysError("mktemp(%s) failed.", SW_TASK_TMP_FILE);
+        swSysWarn("mktemp(%s) failed", SW_TASK_TMP_FILE);
         return retval;
     }
 
@@ -681,7 +645,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         task_id = task_pack(&buf, *task);
         if (task_id < 0)
         {
-            swWarn("task pack failed.");
+            swWarn("task pack failed");
             goto fail;
         }
         swTask_type(&buf) |= SW_TASK_WAITALL;
@@ -693,7 +657,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         }
         else
         {
-            swWarn("taskwait failed. Error: %s[%d]", strerror(errno), errno);
+            swSysWarn("taskwait failed");
             fail: retval[i] = DataBuffer();
             n_task--;
         }
@@ -713,7 +677,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         }
         else
         {
-            swSysError("taskwait failed.");
+            swSysWarn("taskwait failed");
             unlink(_tmpfile);
             return retval;
         }
@@ -745,6 +709,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         content->offset += sizeof(swDataHead) + result->info.len;
     }
     unlink(_tmpfile);
+    swString_free(content);
     return retval;
 }
 

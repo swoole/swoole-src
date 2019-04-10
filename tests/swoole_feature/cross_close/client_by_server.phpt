@@ -1,5 +1,5 @@
 --TEST--
-swoole_feature: cross_close: client closed by server
+swoole_feature/cross_close: client closed by server
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -12,19 +12,19 @@ $pm->parentFunc = function () use ($pm) {
         assert($cli->connect('127.0.0.1', $pm->getFreePort()));
         assert($cli->connected);
         echo "RECV\n";
-        assert($cli->recv(-1) === '');
+        Assert::eq($cli->recv(-1), '');
         echo "CLOSED\n";
         while (($ret = @$cli->send(get_safe_random()))) {
             continue;
         }
         if ($cli->errCode) {
-            assert($cli->errCode === SOCKET_EPIPE);
+            Assert::eq($cli->errCode, SOCKET_EPIPE);
         }
         while (($ret = @$cli->recv(-1))) {
             continue;
         }
         if ($ret === false) {
-            assert($cli->errCode === SOCKET_ECONNRESET);
+            Assert::eq($cli->errCode, SOCKET_ECONNRESET);
         }
     });
 };

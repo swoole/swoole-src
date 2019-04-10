@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_coro: (length protocol) resume in onClose callback
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -26,7 +25,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $retData = $cli->recv();
         assert(is_string($retData) and strlen($retData) > 0);
         $retData = $cli->recv();
-        assert($retData === '');
+        Assert::eq($retData, '');
     });
     swoole_event_wait();
     $pm->kill();

@@ -159,7 +159,15 @@ int swoole_coroutine_close(int fd)
         goto _no_coro;
     }
     Socket *socket = (Socket *) conn->object;
-    return socket->close() ? 0 : -1;
+    if (socket->close())
+    {
+        delete socket;
+        return 0;
+    }
+    else
+    {
+        return -1;
+    }
 }
 
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
@@ -179,7 +187,7 @@ int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t 
 
 int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout)
 {
-    if (unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current() || nfds != 1))
+    if (unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current() || nfds != 1 || timeout == 0))
     {
         _poll: return poll(fds, nfds, timeout);
     }
@@ -807,10 +815,11 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
 
 struct coro_poll_task
 {
-    swTimer_node *timer;
-    Coroutine *co;
     std::unordered_map<int, socket_poll_fd> *fds;
-    bool success;
+    Coroutine *co = nullptr;
+    swTimer_node *timer = nullptr;
+    bool success = false;
+    bool wait = true;
 };
 
 static std::unordered_map<int, coro_poll_task *> coro_poll_task_map;
@@ -834,6 +843,7 @@ static void socket_poll_timeout(swTimer *timer, swTimer_node *tnode)
     coro_poll_task *task = (coro_poll_task *) tnode->data;
     task->timer = nullptr;
     task->success = false;
+    task->wait = false;
     socket_poll_clean(task);
     task->co->resume();
 }
@@ -849,12 +859,30 @@ static inline void socket_poll_trigger_event(swReactor *reactor, int fd, enum sw
 {
     coro_poll_task *task = coro_poll_task_map[fd];
     auto i = task->fds->find(fd);
-    i->second.revents |= event;
-    if (task->timer)
+    if (event == SW_EVENT_ERROR && !(i->second.events & SW_EVENT_ERROR))
     {
-        swTimer_del(&SwooleG.timer, task->timer);
-        task->timer = nullptr;
+        if (i->second.events & SW_EVENT_READ)
+        {
+            i->second.revents |= SW_EVENT_READ;
+        }
+        if (i->second.events & SW_EVENT_WRITE)
+        {
+            i->second.revents |= SW_EVENT_WRITE;
+        }
+    }
+    else
+    {
+        i->second.revents |= event;
+    }
+    if (task->wait)
+    {
+        task->wait = false;
         task->success = true;
+        if (task->timer)
+        {
+            swTimer_del(&SwooleG.timer, task->timer);
+            task->timer = nullptr;
+        }
         reactor->defer(reactor, socket_poll_completed, task);
     }
 }
@@ -887,6 +915,46 @@ bool Coroutine::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double
         reactor->setHandle(reactor, SW_FD_CORO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
     }
 
+    if (timeout == 0)
+    {
+        struct pollfd *event_list = (struct pollfd *) sw_calloc(fds.size(), sizeof(struct pollfd));
+        int j = 0;
+        for (auto i = fds.begin(); i != fds.end(); i++)
+        {
+            event_list[j].fd = i->first;
+            event_list[j].events = i->second.events;
+            event_list[j].revents = 0;
+            j++;
+        }
+        int retval = ::poll(event_list, fds.size(), 0);
+        if (retval > 0)
+        {
+            for (size_t i = 0; i < fds.size(); i++)
+            {
+                auto _e = fds.find(event_list[i].fd);
+                int16_t revents = event_list[i].revents;
+                int16_t sw_revents = 0;
+                if (revents & POLLIN)
+                {
+                    sw_revents |= SW_EVENT_READ;
+                }
+                if (revents & POLLOUT)
+                {
+                    sw_revents |= SW_EVENT_WRITE;
+                }
+                //ignore ERR and HUP, because event is already processed at IN and OUT handler.
+                if ((((revents & POLLERR) || (revents & POLLHUP)) && !((revents & POLLIN) || (revents & POLLOUT))))
+                {
+                    sw_revents |= SW_EVENT_ERROR;
+                }
+                _e->second.revents = sw_revents;
+            }
+        }
+        sw_free(event_list);
+        return retval > 0;
+    }
+
+    size_t tasked_num = 0;
     coro_poll_task task;
     task.fds = &fds;
     task.co = Coroutine::get_current_safe();
@@ -900,7 +968,13 @@ bool Coroutine::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double
         else
         {
             coro_poll_task_map[i->first] = &task;
+            tasked_num++;
         }
+    }
+
+    if (unlikely(tasked_num == 0))
+    {
+        return false;
     }
 
     if (timeout > 0)

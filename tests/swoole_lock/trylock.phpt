@@ -1,6 +1,5 @@
 --TEST--
 swoole_lock: trylock
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -21,7 +20,7 @@ if (pcntl_fork() > 0)
 }
 else
 {
-    assert($lock->trylock() == false);
+    Assert::false($lock->trylock());
     assert($lock->unlock());
 }
 ?>

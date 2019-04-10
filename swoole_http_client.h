@@ -84,26 +84,26 @@ static sw_inline int http_client_check_data(zval *data)
 {
     if (Z_TYPE_P(data) != IS_ARRAY && Z_TYPE_P(data) != IS_STRING)
     {
-        swoole_php_error(E_WARNING, "parameter $data must be an array or string.");
+        swoole_php_error(E_WARNING, "parameter $data must be an array or string");
         return SW_ERR;
     }
     else if (Z_TYPE_P(data) == IS_ARRAY && php_swoole_array_length(data) == 0)
     {
-        swoole_php_error(E_WARNING, "parameter $data is empty.");
+        swoole_php_error(E_WARNING, "parameter $data is empty");
     }
     else if (Z_TYPE_P(data) == IS_STRING && Z_STRLEN_P(data) == 0)
     {
-        swoole_php_error(E_WARNING, "parameter $data is empty.");
+        swoole_php_error(E_WARNING, "parameter $data is empty");
     }
     return SW_OK;
 }
 
 static sw_inline void http_client_swString_append_headers(swString* swStr, const char* key, size_t key_len, const char* data, size_t data_len)
 {
-    swString_append_ptr(swStr, (char *)key, key_len);
-    swString_append_ptr(swStr, (char *)ZEND_STRL(": "));
-    swString_append_ptr(swStr, (char *)data, data_len);
-    swString_append_ptr(swStr, (char *)ZEND_STRL("\r\n"));
+    swString_append_ptr(swStr, key, key_len);
+    swString_append_ptr(swStr, ZEND_STRL(": "));
+    swString_append_ptr(swStr, data, data_len);
+    swString_append_ptr(swStr, ZEND_STRL("\r\n"));
 }
 
 static sw_inline void http_client_append_content_length(swString* buf, int length)

@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: coro defer with exception
+swoole_coroutine/defer: coro defer with exception
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -11,14 +11,14 @@ go(function () {
         $bar = 'cha';
         defer(function () use ($foo, $bar) {
             echo "defer 1\n";
-            assert($foo === 1);
-            assert($bar === 'cha');
+            Assert::eq($foo, 1);
+            Assert::eq($bar, 'cha');
         });
         $foo = 2;
         $bar = 'gua';
         defer(function () use ($foo, &$bar) {
             echo "defer 2\n";
-            assert($foo === 2);
+            Assert::eq($foo, 2);
             assert($foo !== 'gua'); // because of &
         });
         $foo = 3;

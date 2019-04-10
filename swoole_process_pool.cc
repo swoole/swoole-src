@@ -47,6 +47,7 @@ static PHP_METHOD(swoole_process_pool, listen);
 static PHP_METHOD(swoole_process_pool, write);
 static PHP_METHOD(swoole_process_pool, getProcess);
 static PHP_METHOD(swoole_process_pool, start);
+static PHP_METHOD(swoole_process_pool, shutdown);
 
 static const zend_function_entry swoole_process_pool_methods[] =
 {
@@ -57,6 +58,7 @@ static const zend_function_entry swoole_process_pool_methods[] =
     PHP_ME(swoole_process_pool, listen, arginfo_swoole_process_pool_listen, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, write, arginfo_swoole_process_pool_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, start, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, shutdown, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -70,18 +72,19 @@ typedef struct
     zval _onMessage;
 } process_pool_property;
 
-static zend_class_entry swoole_process_pool_ce;
-static zend_class_entry *swoole_process_pool_ce_ptr;
+static zend_class_entry *swoole_process_pool_ce;
 static zend_object_handlers swoole_process_pool_handlers;
 static swProcessPool *current_pool;
 static zval *current_process = NULL;
 
 void swoole_process_pool_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_process_pool, "Swoole\\Process\\Pool", "swoole_process_pool", NULL, swoole_process_pool_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_process_pool, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_process_pool, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process_pool, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY(swoole_process_pool, "Swoole\\Process\\Pool", "swoole_process_pool", NULL, swoole_process_pool_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_process_pool, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_process_pool, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process_pool, zend_class_unset_property_deny);
+
+    zend_declare_property_long(swoole_process_pool_ce, ZEND_STRL("master_pid"), -1, ZEND_ACC_PUBLIC);
 }
 
 static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worker_id)
@@ -105,7 +108,7 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
 
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStart, &retval, 2, args, 0, NULL) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error.");
+        swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error");
     }
     if (UNEXPECTED(EG(exception)))
     {
@@ -135,7 +138,7 @@ static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, u
 
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onMessage, &retval, 2, args, 0, NULL)  == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "onMessage handler error.");
+        swoole_php_fatal_error(E_WARNING, "onMessage handler error");
     }
     if (UNEXPECTED(EG(exception)))
     {
@@ -164,7 +167,7 @@ static void php_swoole_process_pool_onWorkerStop(swProcessPool *pool, int worker
     }
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStop, &retval, 2, args, 0, NULL) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error.");
+        swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error");
     }
     if (UNEXPECTED(EG(exception)))
     {
@@ -202,13 +205,13 @@ static PHP_METHOD(swoole_process_pool, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "swoole_process_pool only can be used in PHP CLI mode.");
+        swoole_php_fatal_error(E_ERROR, "swoole_process_pool only can be used in PHP CLI mode");
         RETURN_FALSE;
     }
 
     if (SwooleG.serv)
     {
-        swoole_php_fatal_error(E_ERROR, "swoole_process_pool cannot use in server process.");
+        swoole_php_fatal_error(E_ERROR, "swoole_process_pool cannot use in server process");
         RETURN_FALSE;
     }
 
@@ -219,14 +222,14 @@ static PHP_METHOD(swoole_process_pool, __construct)
 
     if (worker_num <= 0)
     {
-        zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "invalid worker_num");
+        zend_throw_exception_ex(swoole_exception_ce, errno, "invalid worker_num");
         RETURN_FALSE;
     }
 
     swProcessPool *pool = (swProcessPool *) emalloc(sizeof(swProcessPool));
     if (swProcessPool_create(pool, worker_num, 0, (key_t) msgq_key, ipc_type) < 0)
     {
-        zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "failed to create process pool");
+        zend_throw_exception_ex(swoole_exception_ce, errno, "failed to create process pool");
         RETURN_FALSE;
     }
 
@@ -234,7 +237,7 @@ static PHP_METHOD(swoole_process_pool, __construct)
     {
         if (swProcessPool_set_protocol(pool, 0, SW_BUFFER_INPUT_SIZE) < 0)
         {
-            zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "failed to create process pool");
+            zend_throw_exception_ex(swoole_exception_ce, errno, "failed to create process pool");
             RETURN_FALSE;
         }
     }
@@ -257,7 +260,7 @@ static PHP_METHOD(swoole_process_pool, on)
 
     if (pool->started > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "process pool is started. unable to register event callback function.");
+        swoole_php_fatal_error(E_WARNING, "process pool is started. unable to register event callback function");
         RETURN_FALSE;
     }
 
@@ -288,7 +291,7 @@ static PHP_METHOD(swoole_process_pool, on)
     {
         if (pool->ipc_mode == SW_IPC_NONE)
         {
-            swoole_php_fatal_error(E_WARNING, "cannot set onMessage event with ipc_type=0.");
+            swoole_php_fatal_error(E_WARNING, "cannot set onMessage event with ipc_type=0");
             RETURN_TRUE;
         }
         if (pp->onMessage)
@@ -329,7 +332,7 @@ static PHP_METHOD(swoole_process_pool, listen)
 
     if (pool->started > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "process pool is started. unable to listen.");
+        swoole_php_fatal_error(E_WARNING, "process pool is started. unable to listen");
         RETURN_FALSE;
     }
 
@@ -340,7 +343,7 @@ static PHP_METHOD(swoole_process_pool, listen)
 
     if (pool->ipc_mode != SW_IPC_SOCKET)
     {
-        swoole_php_fatal_error(E_WARNING, "unsupported ipc type[%d].", pool->ipc_mode);
+        swoole_php_fatal_error(E_WARNING, "unsupported ipc type[%d]", pool->ipc_mode);
         RETURN_FALSE;
     }
 
@@ -371,7 +374,7 @@ static PHP_METHOD(swoole_process_pool, write)
     swProcessPool *pool = (swProcessPool *) swoole_get_object(getThis());
     if (pool->ipc_mode != SW_IPC_SOCKET)
     {
-        swoole_php_fatal_error(E_WARNING, "unsupported ipc type[%d].", pool->ipc_mode);
+        swoole_php_fatal_error(E_WARNING, "unsupported ipc type[%d]", pool->ipc_mode);
         RETURN_FALSE;
     }
     if (length == 0)
@@ -386,7 +389,7 @@ static PHP_METHOD(swoole_process_pool, start)
     swProcessPool *pool = (swProcessPool *) swoole_get_object(getThis());
     if (pool->started)
     {
-        swoole_php_fatal_error(E_WARNING, "process pool is started. unable to execute swoole_process_pool->start.");
+        swoole_php_fatal_error(E_WARNING, "process pool is started. unable to execute swoole_process_pool->start");
         RETURN_FALSE;
     }
 
@@ -419,6 +422,8 @@ static PHP_METHOD(swoole_process_pool, start)
     pool->onWorkerStart = php_swoole_process_pool_onWorkerStart;
     pool->onWorkerStop = php_swoole_process_pool_onWorkerStop;
 
+    zend_update_property_long(swoole_process_pool_ce, getThis(), ZEND_STRL("master_pid"), getpid());
+
     if (swProcessPool_start(pool) < 0)
     {
         RETURN_FALSE;
@@ -442,9 +447,9 @@ static PHP_METHOD(swoole_process_pool, getProcess)
     if (current_process == NULL)
     {
         swWorker *worker = &current_pool->workers[SwooleWG.id];
-        object_init_ex(&object, swoole_process_ce_ptr);
-        zend_update_property_long(swoole_process_ce_ptr, &object, ZEND_STRL("id"), SwooleWG.id);
-        zend_update_property_long(swoole_process_ce_ptr, &object, ZEND_STRL("pid"), getpid());
+        object_init_ex(&object, swoole_process_ce);
+        zend_update_property_long(swoole_process_ce, &object, ZEND_STRL("id"), SwooleWG.id);
+        zend_update_property_long(swoole_process_ce, &object, ZEND_STRL("pid"), getpid());
         swoole_set_object(&object, worker);
         current_process = &object;
     }
@@ -456,9 +461,16 @@ static PHP_METHOD(swoole_process_pool, getProcess)
     RETURN_ZVAL(current_process, 1, 0);
 }
 
+static PHP_METHOD(swoole_process_pool, shutdown)
+{
+    zval *retval = sw_zend_read_property(swoole_process_pool_ce, getThis(), ZEND_STRL("master_pid"), 0);
+    long pid = zval_get_long(retval);
+    RETURN_BOOL(swKill(pid, SIGTERM) == 0);
+}
+
 static PHP_METHOD(swoole_process_pool, __destruct)
 {
-    SW_PREVENT_USER_DESTRUCT;
+    SW_PREVENT_USER_DESTRUCT();
 
     swProcessPool *pool = (swProcessPool *) swoole_get_object(getThis());
     efree(pool->ptr);

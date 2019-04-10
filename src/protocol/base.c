@@ -40,7 +40,7 @@ ssize_t swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, 
     //Protocol length is not legitimate, out of bounds or exceed the allocated length
     if (body_length < 0)
     {
-        swWarn("invalid package, remote_addr=%s:%d, length=%d, size=%d.", swConnection_get_ip(conn), swConnection_get_port(conn), body_length, size);
+        swWarn("invalid package, remote_addr=%s:%d, length=%d, size=%d", swConnection_get_ip(conn), swConnection_get_port(conn), body_length, size);
         return SW_ERR;
     }
     swDebug("length=%d", protocol->package_body_offset + body_length);
@@ -70,7 +70,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
         eof_pos = swoole_strnpos(buffer->str + buffer->offset, buffer->length - buffer->offset, protocol->package_eof, protocol->package_eof_len);
     }
 
-    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[0] count=%d, length=%ld, size=%ld, offset=%ld.", count, buffer->length, buffer->size, (long)buffer->offset);
+    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[0] count=%d, length=%ld, size=%ld, offset=%ld", count, buffer->length, buffer->size, (long)buffer->offset);
 
     //waiting for more data
     if (eof_pos < 0)
@@ -144,7 +144,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("recv(%d, %d) failed.", conn->fd, recv_size);
+            swSysWarn("recv(%d, %d) failed", conn->fd, recv_size);
             return SW_OK;
         case SW_CLOSE:
             conn->close_errno = errno;
@@ -210,7 +210,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
             }
             else if (package_length > protocol->package_max_length)
             {
-                swWarn("package is too big, remote_addr=%s:%d, length=%d.", swConnection_get_ip(conn), swConnection_get_port(conn), package_length);
+                swWarn("package is too big, remote_addr=%s:%d, length=%d", swConnection_get_ip(conn), swConnection_get_port(conn), package_length);
                 return SW_ERR;
             }
             //get length success
@@ -263,7 +263,7 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("recv from socket#%d failed.", conn->fd);
+            swSysWarn("recv from socket#%d failed", conn->fd);
             return SW_OK;
         case SW_CLOSE:
             conn->close_errno = errno;

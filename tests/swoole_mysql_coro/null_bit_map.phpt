@@ -84,7 +84,7 @@ for ($c = MAX_CONCURRENCY_LOW; $c--;) {
                     assert($insert->execute(array_values($gen)));
                 }
                 $result = $mysql->prepare("SELECT * FROM {$table_name}")->execute();
-                assert(array_reverse($data_list) === $result);
+                Assert::eq(array_reverse($data_list), $result);
             } catch (\Throwable $e) {
                 assert(0);
             } finally {

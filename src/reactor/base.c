@@ -61,7 +61,7 @@ int swReactor_create(swReactor *reactor, int max_event)
     reactor->socket_array = swArray_new(1024, sizeof(swConnection));
     if (!reactor->socket_array)
     {
-        swWarn("create socket array failed.");
+        swWarn("create socket array failed");
         return SW_ERR;
     }
 
@@ -182,13 +182,13 @@ static void swReactor_onTimeout(swReactor *reactor)
 
 static void swReactor_onFinish(swReactor *reactor)
 {
+    swReactor_onTimeout_and_Finish(reactor);
     //check signal
-    if (reactor->singal_no)
+    if (unlikely(reactor->singal_no))
     {
         swSignal_callback(reactor->singal_no);
         reactor->singal_no = 0;
     }
-    swReactor_onTimeout_and_Finish(reactor);
 }
 
 void swReactor_activate_future_task(swReactor *reactor)
@@ -221,7 +221,7 @@ int swReactor_close(swReactor *reactor, int fd)
     }
     bzero(socket, sizeof(swConnection));
     socket->removed = 1;
-    swTraceLog(SW_TRACE_CLOSE, "fd=%d.", fd);
+    swTraceLog(SW_TRACE_CLOSE, "fd=%d", fd);
     return close(fd);
 }
 
@@ -231,7 +231,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     swConnection *socket = swReactor_get(reactor, fd);
     swBuffer *buffer = socket->out_buffer;
 
-    if (socket->fd == 0)
+    if (socket->fd <= 0)
     {
         socket->fd = fd;
     }
@@ -249,7 +249,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
 
     if (n > socket->buffer_size)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "data is too large, cannot exceed buffer size.");
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "data is too large, cannot exceed buffer size");
         return SW_ERR;
     }
 
@@ -281,10 +281,10 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
             do_buffer:
             if (!socket->out_buffer)
             {
-                buffer = swBuffer_new(sizeof(swEventData));
+                buffer = swBuffer_new(socket->fdtype == SW_FD_PIPE ? 0 : SW_SEND_BUFFER_SIZE);
                 if (!buffer)
                 {
-                    swWarn("create worker buffer failed.");
+                    swWarn("create worker buffer failed");
                     return SW_ERR;
                 }
                 socket->out_buffer = buffer;
@@ -296,14 +296,14 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
             {
                 if (reactor->set(reactor, fd, socket->fdtype | socket->events) < 0)
                 {
-                    swSysError("reactor->set(%d, SW_EVENT_WRITE) failed.", fd);
+                    swSysWarn("reactor->set(%d, SW_EVENT_WRITE) failed", fd);
                 }
             }
             else
             {
                 if (reactor->add(reactor, fd, socket->fdtype | SW_EVENT_WRITE) < 0)
                 {
-                    swSysError("reactor->add(%d, SW_EVENT_WRITE) failed.", fd);
+                    swSysWarn("reactor->add(%d, SW_EVENT_WRITE) failed", fd);
                 }
             }
 
@@ -330,7 +330,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
             }
             else
             {
-                swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow.", fd);
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow", fd);
                 swYield();
                 swSocket_wait(fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }

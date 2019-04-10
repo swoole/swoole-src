@@ -1,5 +1,5 @@
 --TEST--
-swoole_feature: full_duplex: socket
+swoole_feature/full_duplex: socket
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -9,12 +9,6 @@ require __DIR__ . '/../../include/bootstrap.php';
 const CHUNK_SIZE = 128 * 1024; // 128K
 const CHUNK_NUM = 8; // 1M
 const BUFFER_SIZE = CHUNK_SIZE / 2; // 64K
-
-function set_socket_buffer_size($php_socket, int $size)
-{
-    socket_set_option($php_socket, SOL_SOCKET, SO_SNDBUF, $size);
-    socket_set_option($php_socket, SOL_SOCKET, SO_RCVBUF, $size);
-}
 
 $pm = new ProcessManager;
 $pm->initRandomDataEx(MAX_CONCURRENCY_LOW, MAX_REQUESTS_LOW, CHUNK_SIZE);

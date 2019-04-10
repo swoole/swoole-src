@@ -23,9 +23,9 @@ $pm->parentFunc = function () use ($pm) {
         $cli->set(['socket_buffer_size' => SOCKET_BUFFER_SIZE]);
         for ($n = MAX_REQUESTS; $n--;) {
             $data = $pm->getRandomData();
-            assert($cli->post('/', $data) === true);
-            assert($cli->statusCode === 200);
-            assert($cli->body === $data);
+            Assert::true($cli->post('/', $data));
+            Assert::eq($cli->statusCode, 200);
+            Assert::eq($cli->body, $data);
             phpt_echo("posting " . strlen($data) . " bytes\n");
         }
         $cli->close();

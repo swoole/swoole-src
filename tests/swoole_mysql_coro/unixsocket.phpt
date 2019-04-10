@@ -18,7 +18,7 @@ go(function () {
         'database' => MYSQL_SERVER_DB
     ];
     assert($db->connect($server));
-    assert($db->query('SELECT 1') === [['1' => '1']]);
+    Assert::eq($db->query('SELECT 1'), [['1' => '1']]);
     echo "DONE\n";
 });
 ?>

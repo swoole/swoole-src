@@ -14,7 +14,7 @@ go(function () {
     $ret = $cli->post('/', ['name' => 'rango']);
     assert($ret);
     assert(count($cli->headers) > 0);
-    assert($cli->statusCode === 200);
+    Assert::eq($cli->statusCode, 200);
     assert(strpos($cli->body, IS_IN_TRAVIS ? 'MIT News' : 'cust.edu.cn') !== false);
     $cli->close();
     @unlink('/tmp/test.jpg');

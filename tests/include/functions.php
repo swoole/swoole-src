@@ -17,6 +17,8 @@
  +----------------------------------------------------------------------+
  */
 
+require_once __DIR__ . '/config.php';
+
 function switch_process()
 {
     usleep((USE_VALGRIND ? 100 : 10) * 1000);
@@ -38,20 +40,27 @@ function top(int $pid)
     return $top;
 }
 
+function is_busybox_ps(): bool
+{
+    static $bool;
+    $bool = $bool ?? !empty(`ps --help 2>&1 | grep -i busybox`);
+    return $bool;
+}
+
 function kill_process_by_name(string $name)
 {
-    shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_alpine_linux() ? '1' : '2') . '}\' | xargs kill');
+    shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_busybox_ps() ? '1' : '2') . '}\' | xargs kill');
 }
 
 function get_process_pid_by_name(string $name): bool
 {
-    return (int)shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_alpine_linux() ? '1' : '2') . '}\'');
+    return (int)shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_busybox_ps() ? '1' : '2') . '}\'');
 }
 
-function is_alpine_linux(): bool
+function is_musl_libc(): bool
 {
     static $bool;
-    $bool = $bool ?? strpos(`apk 2>&1`, 'apk-tools') !== false;
+    $bool = $bool ?? !empty(`ldd 2>&1 | grep -i musl`);
     return $bool;
 }
 
@@ -79,6 +88,12 @@ function get_one_free_port_coro()
     $port = $socket->getsockname()['port'];
     $socket->close();
     return $port;
+}
+
+function set_socket_buffer_size($php_socket, int $size)
+{
+    socket_set_option($php_socket, SOL_SOCKET, SO_SNDBUF, $size);
+    socket_set_option($php_socket, SOL_SOCKET, SO_RCVBUF, $size);
 }
 
 function approximate($expect, $actual, float $ratio = 0.1): bool
@@ -133,13 +148,24 @@ function phpt_var_dump(...$args)
 function _httpGet(string $uri, array $options = [])
 {
     $url_info = parse_url($uri);
-    $domain = $url_info['host'];
+    $scheme = $url_info['scheme'] ?? 'http';
+    $domain = $url_info['host'] ?? '127.0.0.1';
     $path = $url_info['path'] ?? null ?: '/';
+    $query = $url_info['query'] ?? null ? "?{$url_info['query']}" : '';
     $port = (int)($url_info['port'] ?? null ?: 80);
-    $cli = new Swoole\Coroutine\Http\Client($domain, $port, $port == 443);
+    $cli = new Swoole\Coroutine\Http\Client($domain, $port, $scheme === 'https' || $port == 443);
     $cli->set($options + ['timeout' => 5]);
     $cli->setHeaders(['Host' => $domain]);
-    $cli->get($path);
+    $redirect_times = $options['redirect'] ?? 3;
+    while (true) {
+        $cli->get($path . $query);
+        if ($redirect_times-- && ($cli->headers['location'] ?? null) && $cli->headers['location']{0} === '/') {
+            $path = $cli->headers['location'];
+            $query = '';
+            continue;
+        }
+        break;
+    }
     return $cli;
 }
 
@@ -156,24 +182,6 @@ function httpGetHeaders(string $uri, array $options = [])
 function httpGetBody(string $uri, array $options = [])
 {
     return _httpGet($uri, $options)->body;
-}
-
-function curlGet($url, $gzip = true)
-{
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_HEADER, 0);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    if ($gzip)
-    {
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Accept-Encoding: gzip'));
-        curl_setopt($ch, CURLOPT_ENCODING, "gzip");
-    }
-    $output = curl_exec($ch);
-    curl_close($ch);
-    return $output;
 }
 
 function content_hook_replace(string $content, array $kv_map): string
@@ -264,7 +272,7 @@ function makeTcpClient($host, $port, callable $onConnect = null, callable $onRec
     ]));
     $cli->on("connect", function (\swoole_client $cli) use ($onConnect)
     {
-        assert($cli->isConnected() === true);
+        Assert::true($cli->isConnected());
         if ($onConnect)
         {
             $onConnect($cli);
@@ -293,7 +301,7 @@ function makeTcpClient_without_protocol($host, $port, callable $onConnect = null
     $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
     $cli->on("connect", function (\swoole_client $cli) use ($onConnect)
     {
-        assert($cli->isConnected() === true);
+        Assert::true($cli->isConnected());
         if ($onConnect)
         {
             $onConnect($cli);
@@ -320,7 +328,7 @@ function makeTcpClient_without_protocol($host, $port, callable $onConnect = null
 function opcode_encode($op, $data)
 {
     $r = json_encode([$op, $data]);
-    assert(json_last_error() === JSON_ERROR_NONE);
+    Assert::eq(json_last_error(), JSON_ERROR_NONE);
     return pack("N", strlen($r) + 4) . $r;
 }
 
@@ -328,7 +336,7 @@ function opcode_decode($raw)
 {
     $json = substr($raw, 4);
     $r = json_decode($json, true);
-    assert(json_last_error() === JSON_ERROR_NONE);
+    Assert::eq(json_last_error(), JSON_ERROR_NONE);
     assert(is_array($r) && count($r) === 2);
     return $r;
 }
@@ -719,6 +727,11 @@ class ProcessManager
         $this->childFunc = $func;
     }
 
+    public function getChildPid(): int
+    {
+        return $this->childPid;
+    }
+
     public function setWaitTimeout(int $value)
     {
         $this->waitTimeout = $value;
@@ -808,18 +821,16 @@ class ProcessManager
     /**
      *  Kill Child Process
      */
-    public function kill()
+    public function kill(bool $force = false)
     {
         if (!defined('PCNTL_ESRCH')) {
             define('PCNTL_ESRCH', 3);
         }
         if (!$this->alone && $this->childPid) {
-            $ret = @Swoole\Process::kill($this->childPid);
-            if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
-                $ret = @Swoole\Process::kill($this->childPid, SIGKILL);
-            }
-            if (!$ret && swoole_errno() !== PCNTL_ESRCH) {
-                exit('KILL CHILD PROCESS ERROR');
+            if ($force || (!@Swoole\Process::kill($this->childPid) && swoole_errno() !== PCNTL_ESRCH)) {
+                if (!@Swoole\Process::kill($this->childPid, SIGKILL) && swoole_errno() !== PCNTL_ESRCH) {
+                    exit('KILL CHILD PROCESS ERROR');
+                }
             }
         }
     }
@@ -1060,4 +1071,16 @@ class TcpStat
         }
         return $ret;
     }
+}
+
+function readfile_with_lock($file)
+{
+    $fp = fopen($file, "r+");
+    flock($fp, LOCK_SH);
+    $data = '';
+    while(!feof($fp)) {
+        $data .= fread($fp, 8192);
+    }
+    fclose($fp);
+    return $data;
 }

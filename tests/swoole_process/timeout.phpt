@@ -14,7 +14,7 @@ assert($r > 0);
 ini_set("swoole.display_errors", "off");
 $proc->setTimeout(0.5);
 $ret = $proc->read();
-assert($ret === false);
+Assert::false($ret);
 swoole_process::kill($proc->pid, SIGKILL);
 \swoole_process::wait(true);
 ?>

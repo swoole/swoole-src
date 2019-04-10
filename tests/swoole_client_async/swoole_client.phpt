@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_async: swoole_client connect & send & close
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -15,7 +14,7 @@ suicide(5000);
 $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 
 $cli->on("connect", function(swoole_client $cli) {
-    assert($cli->isConnected() === true);
+    Assert::true($cli->isConnected());
     $cli->send(RandStr::gen(1024, RandStr::ALL));
 });
 
@@ -24,7 +23,7 @@ $cli->on("receive", function(swoole_client $cli, $data){
     // print("receive: len $recv_len");
     $cli->send(RandStr::gen(1024, RandStr::ALL));
     $cli->close();
-    assert($cli->isConnected() === false);
+    Assert::false($cli->isConnected());
 });
 
 $cli->on("error", function(swoole_client $cli) {

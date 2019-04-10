@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime: pdo in task and http response detach
+swoole_server/task: pdo in task and http response detach
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
@@ -14,7 +14,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
     for ($i = MAX_CONCURRENCY_LOW; $i--;) {
         go(function () use ($pm) {
             $ret = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}");
-            assert($ret === 'Hello Swoole!');
+            Assert::eq($ret, 'Hello Swoole!');
         });
     }
     swoole_event_wait();

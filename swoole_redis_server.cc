@@ -27,8 +27,7 @@ END_EXTERN_C()
 using namespace swoole;
 using namespace std;
 
-static zend_class_entry swoole_redis_server_ce;
-static zend_class_entry *swoole_redis_server_ce_ptr;
+static zend_class_entry *swoole_redis_server_ce;
 static zend_object_handlers swoole_redis_server_handlers;
 
 static swString *format_buffer;
@@ -67,18 +66,18 @@ const zend_function_entry swoole_redis_server_methods[] =
 
 void swoole_redis_server_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY_EX(swoole_redis_server, "Swoole\\Redis\\Server", "swoole_redis_server", NULL, swoole_redis_server_methods, swoole_server);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_redis_server, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_redis_server, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_redis_server, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY_EX(swoole_redis_server, "Swoole\\Redis\\Server", "swoole_redis_server", NULL, swoole_redis_server_methods, swoole_server);
+    SW_SET_CLASS_SERIALIZABLE(swoole_redis_server, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_redis_server, zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_redis_server, zend_class_unset_property_deny);
 
-    zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("NIL"), SW_REDIS_REPLY_NIL);
-    zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("ERROR"), SW_REDIS_REPLY_ERROR);
-    zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("STATUS"), SW_REDIS_REPLY_STATUS);
-    zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("INT"), SW_REDIS_REPLY_INT);
-    zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("STRING"), SW_REDIS_REPLY_STRING);
-    zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("SET"), SW_REDIS_REPLY_SET);
-    zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("MAP"), SW_REDIS_REPLY_MAP);
+    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("NIL"), SW_REDIS_REPLY_NIL);
+    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("ERROR"), SW_REDIS_REPLY_ERROR);
+    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("STATUS"), SW_REDIS_REPLY_STATUS);
+    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("INT"), SW_REDIS_REPLY_INT);
+    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("STRING"), SW_REDIS_REPLY_STRING);
+    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("SET"), SW_REDIS_REPLY_SET);
+    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("MAP"), SW_REDIS_REPLY_MAP);
 }
 
 void swoole_redis_server_shutdown()
@@ -97,7 +96,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (!conn)
     {
-        swWarn("connection[%d] is closed.", fd);
+        swWarn("connection[%d] is closed", fd);
         return SW_ERR;
     }
 
@@ -177,7 +176,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
 
     if (command_len >= SW_REDIS_MAX_COMMAND_SIZE)
     {
-        swoole_php_error(E_WARNING, "command is too long.");
+        swoole_php_error(E_WARNING, "command is too long");
         serv->close(serv, fd, 0);
         return SW_OK;
     }
@@ -206,7 +205,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     {
         if (PHPCoroutine::create(fci_cache, 2, args) < 0)
         {
-            swoole_php_error(E_WARNING, "create redis server onReceive coroutine error.");
+            swoole_php_error(E_WARNING, "create redis server onReceive coroutine error");
         }
     }
     else
@@ -214,7 +213,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         zval _retval, *retval = &_retval;
         if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
         {
-            swoole_php_error(E_WARNING, "redis server command '%.*s' handler error.", command_len, command);
+            swoole_php_error(E_WARNING, "redis server command '%.*s' handler error", command_len, command);
         }
         if (Z_TYPE_P(retval) == IS_STRING)
         {
@@ -236,7 +235,7 @@ static PHP_METHOD(swoole_redis_server, start)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (serv->gs->start > 0)
     {
-        swoole_php_error(E_WARNING, "Server is running. Unable to execute swoole_server::start.");
+        swoole_php_error(E_WARNING, "Server is running. Unable to execute swoole_server::start");
         RETURN_FALSE;
     }
 
@@ -247,11 +246,11 @@ static PHP_METHOD(swoole_redis_server, start)
     format_buffer = swString_new(SW_BUFFER_SIZE_STD);
     if (!format_buffer)
     {
-        swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_BUFFER_SIZE_STD);
+        swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_BUFFER_SIZE_STD);
         RETURN_FALSE;
     }
 
-    zval *zsetting = sw_zend_read_property_array(swoole_server_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
+    zval *zsetting = sw_zend_read_property_array(swoole_server_ce, getThis(), ZEND_STRL("setting"), 1);
 #ifdef HT_ALLOW_COW_VIOLATION
     HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(zsetting));
 #endif
@@ -292,7 +291,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
 
     if (command_len == 0 || command_len >= SW_REDIS_MAX_COMMAND_SIZE)
     {
-        swoole_php_fatal_error(E_ERROR, "invalid command.");
+        swoole_php_fatal_error(E_ERROR, "invalid command");
         RETURN_FALSE;
     }
 
@@ -309,7 +308,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
     size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%s", command);
     php_strtolower(_command, _command_len);
 
-    zend_update_property(swoole_redis_server_ce_ptr, getThis(), _command, _command_len, zcallback);
+    zend_update_property(swoole_redis_server_ce, getThis(), _command, _command_len, zcallback);
 
     string key(_command, _command_len);
     auto i = redis_handlers.find(key);
@@ -340,7 +339,7 @@ static PHP_METHOD(swoole_redis_server, getHandler)
     php_strtolower(_command, _command_len);
 
     zval rv;
-    zval *handler = zend_read_property(swoole_redis_server_ce_ptr, getThis(), _command, _command_len, 1, &rv);
+    zval *handler = zend_read_property(swoole_redis_server_ce, getThis(), _command, _command_len, 1, &rv);
     RETURN_ZVAL(handler, 1, 0);
 }
 
@@ -403,13 +402,13 @@ static PHP_METHOD(swoole_redis_server, format)
         if (!value)
         {
             no_value:
-            swoole_php_fatal_error(E_WARNING, "require more parameters.");
+            swoole_php_fatal_error(E_WARNING, "require more parameters");
             RETURN_FALSE;
         }
         convert_to_string(value);
         if (Z_STRLEN_P(value) > SW_REDIS_MAX_STRING_SIZE || Z_STRLEN_P(value) < 1)
         {
-            swoole_php_fatal_error(E_WARNING, "invalid string size.");
+            swoole_php_fatal_error(E_WARNING, "invalid string size");
             RETURN_FALSE;
         }
         swString_clear(format_buffer);
@@ -427,7 +426,7 @@ static PHP_METHOD(swoole_redis_server, format)
         }
         if (Z_TYPE_P(value) != IS_ARRAY)
         {
-            swoole_php_fatal_error(E_WARNING, "the second parameter should be an array.");
+            swoole_php_fatal_error(E_WARNING, "the second parameter should be an array");
         }
         swString_clear(format_buffer);
         length = sw_snprintf(message, sizeof(message), "*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
@@ -462,7 +461,7 @@ static PHP_METHOD(swoole_redis_server, format)
         }
         if (Z_TYPE_P(value) != IS_ARRAY)
         {
-            swoole_php_fatal_error(E_WARNING, "the second parameter should be an array.");
+            swoole_php_fatal_error(E_WARNING, "the second parameter should be an array");
         }
         swString_clear(format_buffer);
         length = sw_snprintf(message, sizeof(message), "*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));

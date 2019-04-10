@@ -14,7 +14,7 @@ $pm->parentFunc = function () use ($pm) {
 
         $data = str_repeat('A', 65534)."\r\n\r\n";
         assert($client->send($data));
-        assert(false === @$client->recv());
+        Assert::eq(false, @$client->recv());
     });
     
     Swoole\Event::wait();

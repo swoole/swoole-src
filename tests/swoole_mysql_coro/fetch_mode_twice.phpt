@@ -18,12 +18,12 @@ go(function () {
 
     $db->connect($server);
 
-    assert($db->query("INSERT INTO ckl (`domain`,`path`,`name`) VALUES ('www.baidu.com', '/search', 'baidu')") === true);
+    Assert::true($db->query("INSERT INTO ckl (`domain`,`path`,`name`) VALUES ('www.baidu.com', '/search', 'baidu')"));
     // now we can make the responses independent
     $stmt = $db->prepare('SELECT * FROM ckl LIMIT 1');
-    assert($stmt->execute() === true);
+    Assert::true($stmt->execute());
     assert(($ret = $stmt->fetchAll()) && is_array($ret) && count($ret) === 1);
-    assert($stmt->fetchAll() === null);
+    Assert::eq($stmt->fetchAll(), null);
 });
 ?>
 --EXPECT--
