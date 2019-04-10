@@ -277,18 +277,21 @@ static PHP_FUNCTION(swoole_timer_list)
 {
     zval zlist;
     array_init(&zlist);
-    swHashMap_rewind(SwooleG.timer.map);
-    while (1)
+    if (EXPECTED(SwooleG.timer.initialized))
     {
-        uint64_t timer_id;
-        swTimer_node *tnode = (swTimer_node *) swHashMap_each_int(SwooleG.timer.map, &timer_id);
-        if (UNEXPECTED(!tnode))
+        swHashMap_rewind(SwooleG.timer.map);
+        while (1)
         {
-            break;
-        }
-        if (tnode->type == SW_TIMER_TYPE_PHP)
-        {
-            add_next_index_long(&zlist, timer_id);
+            uint64_t timer_id;
+            swTimer_node *tnode = (swTimer_node *) swHashMap_each_int(SwooleG.timer.map, &timer_id);
+            if (UNEXPECTED(!tnode))
+            {
+                break;
+            }
+            if (tnode->type == SW_TIMER_TYPE_PHP)
+            {
+                add_next_index_long(&zlist, timer_id);
+            }
         }
     }
     object_init_ex(return_value, swoole_timer_iterator_ce);
@@ -325,6 +328,5 @@ static PHP_FUNCTION(swoole_timer_clear)
 
 static PHP_FUNCTION(swoole_timer_clear_all)
 {
-    php_swoole_timer_clear_all();
-    RETURN_TRUE;
+    RETURN_BOOL(php_swoole_timer_clear_all());
 }
