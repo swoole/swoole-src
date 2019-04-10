@@ -32,6 +32,7 @@ static PHP_FUNCTION(swoole_timer_after);
 static PHP_FUNCTION(swoole_timer_tick);
 static PHP_FUNCTION(swoole_timer_exists);
 static PHP_FUNCTION(swoole_timer_info);
+static PHP_FUNCTION(swoole_timer_stats);
 static PHP_FUNCTION(swoole_timer_list);
 static PHP_FUNCTION(swoole_timer_clear);
 static PHP_FUNCTION(swoole_timer_clear_all);
@@ -69,6 +70,7 @@ static const zend_function_entry swoole_timer_methods[] =
     ZEND_FENTRY(after, ZEND_FN(swoole_timer_after), arginfo_swoole_timer_after, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exists, ZEND_FN(swoole_timer_exists), arginfo_swoole_timer_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(info, ZEND_FN(swoole_timer_info), arginfo_swoole_timer_info, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(stats, ZEND_FN(swoole_timer_stats), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(list, ZEND_FN(swoole_timer_list), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(clear, ZEND_FN(swoole_timer_clear), arginfo_swoole_timer_clear, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(clearAll, ZEND_FN(swoole_timer_clear_all), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -265,12 +267,20 @@ static PHP_FUNCTION(swoole_timer_info)
         {
             RETURN_NULL();
         }
-        array_init_size(return_value, 4);
+        array_init(return_value);
         add_assoc_long(return_value, "exec_msec", tnode->exec_msec);
         add_assoc_long(return_value, "interval", tnode->interval);
         add_assoc_long(return_value, "round", tnode->round);
         add_assoc_bool(return_value, "removed", tnode->removed);
     }
+}
+
+static PHP_FUNCTION(swoole_timer_stats)
+{
+    array_init(return_value);
+    add_assoc_bool(return_value, "initialized", SwooleG.timer.initialized);
+    add_assoc_long(return_value, "num", SwooleG.timer.num);
+    add_assoc_long(return_value, "round", SwooleG.timer.round);
 }
 
 static PHP_FUNCTION(swoole_timer_list)
