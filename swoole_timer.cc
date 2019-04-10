@@ -266,8 +266,8 @@ static PHP_FUNCTION(swoole_timer_info)
             RETURN_NULL();
         }
         array_init_size(return_value, 4);
-        add_assoc_long(return_value, "id", tnode->id);
         add_assoc_long(return_value, "exec_msec", tnode->exec_msec);
+        add_assoc_long(return_value, "interval", tnode->interval);
         add_assoc_long(return_value, "round", tnode->round);
         add_assoc_bool(return_value, "removed", tnode->removed);
     }
