@@ -777,11 +777,11 @@ swString* swoole_sync_readfile_eof(int fd)
         }
         else
         {
-            if (swString_extend(data, data->size * 2) < 0)
+            data->length += n;
+            if (data->length == data->size && swString_extend(data, data->size * 2) < 0)
             {
                 return data;
             }
-            data->length += n;
         }
     }
     return data;
