@@ -784,6 +784,30 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     } \
 } while (0)
 
+#define SW_FUNCTION_ALIAS(origin_function_table, origin, alias_function_table, alias) \
+    sw_zend_register_function_alias(origin_function_table, ZEND_STRL(origin), alias_function_table, ZEND_STRL(alias))
+
+static sw_inline int sw_zend_register_function_alias
+(
+    HashTable *origin_function_table, const char *origin, size_t origin_length,
+    HashTable *alias_function_table, const char *alias, size_t alias_length
+)
+{
+    zend_string *lowercase_origin = zend_string_alloc(origin_length, 0);
+    zend_str_tolower_copy(ZSTR_VAL(lowercase_origin), origin, origin_length);
+    zend_function *origin_function = (zend_function *) zend_hash_find_ptr(origin_function_table, lowercase_origin);
+    zend_string_release(lowercase_origin);
+    if (UNEXPECTED(!origin_function))
+    {
+        return FAILURE;
+    }
+    SW_ASSERT(origin_function->common.type == ZEND_INTERNAL_FUNCTION);
+    char _alias[alias_length + 1];
+    strncpy(_alias, alias, alias_length)[alias_length] = '\0';
+    zend_function_entry zfe[] = {{_alias, origin_function->internal_function.handler, ((zend_internal_arg_info *) origin_function->common.arg_info) - 1, origin_function->common.num_args, 0 }, PHP_FE_END};
+    return zend_register_functions(origin_function->common.scope, zfe, alias_function_table, origin_function->common.type);
+}
+
 static sw_inline int sw_zend_register_class_alias(const char *name, size_t name_len, zend_class_entry *ce)
 {
     zend_string *_name;
