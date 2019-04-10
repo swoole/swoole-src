@@ -761,7 +761,7 @@ size_t swoole_sync_readfile(int fd, void *buf, size_t len)
 
 swString* swoole_sync_readfile_eof(int fd)
 {
-    int n = 0;
+    ssize_t n = 0;
     swString *data = swString_new(SW_BUFFER_SIZE_STD);
     if (data == NULL)
     {
@@ -777,8 +777,7 @@ swString* swoole_sync_readfile_eof(int fd)
         }
         else
         {
-            data->length += n;
-            if (data->length == data->size && swString_extend(data, data->size * 2) < 0)
+            if (swString_grow(data, (size_t) n))
             {
                 return data;
             }

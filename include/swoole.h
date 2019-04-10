@@ -822,12 +822,25 @@ static sw_inline void swString_free(swString *str)
 
 static sw_inline int swString_extend_align(swString *str, size_t _new_size)
 {
-    size_t align_size = str->size * 2;
+    size_t align_size = SW_MEM_ALIGNED_SIZE(str->size * 2);
     while (align_size < _new_size)
     {
         align_size *= 2;
     }
     return swString_extend(str, align_size);
+}
+
+static sw_inline int swString_grow(swString *str, size_t incr_value)
+{
+    str->length += incr_value;
+    if (str->length == str->size && swString_extend(str, str->size * 2) < 0)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        return SW_OK;
+    }
 }
 
 /**
