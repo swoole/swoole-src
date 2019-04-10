@@ -254,6 +254,7 @@ typedef struct
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 
+extern zend_class_entry *swoole_timer_ce;
 extern zend_class_entry *swoole_socket_coro_ce;
 extern zend_class_entry *swoole_client_ce;
 extern zend_class_entry *swoole_server_ce;
@@ -312,13 +313,6 @@ PHP_FUNCTION(swoole_client_select);
 PHP_FUNCTION(swoole_async_set);
 PHP_FUNCTION(swoole_async_dns_lookup_coro);
 //---------------------------------------------------------
-//                  timer
-//---------------------------------------------------------
-PHP_FUNCTION(swoole_timer_after);
-PHP_FUNCTION(swoole_timer_tick);
-PHP_FUNCTION(swoole_timer_exists);
-PHP_FUNCTION(swoole_timer_clear);
-//---------------------------------------------------------
 //                  error
 //---------------------------------------------------------
 #define SW_STRERROR_SYSTEM  0
@@ -338,35 +332,40 @@ PHP_FUNCTION(swoole_fast_serialize);
 PHP_FUNCTION(swoole_unserialize);
 #endif
 
-void swoole_server_init(int module_number);
-void swoole_server_port_init(int module_number);
-void swoole_async_coro_init(int module_number);
-void swoole_table_init(int module_number);
-void swoole_runtime_init(int module_number);
-void swoole_lock_init(int module_number);
+/** <Sort by dependency> **/
+// base
 void swoole_atomic_init(int module_number);
-void swoole_client_init(int module_number);
-void swoole_socket_coro_init(int module_number);
-void swoole_client_coro_init(int module_number);
-void swoole_redis_coro_init(int module_number);
-#ifdef SW_USE_POSTGRESQL
-void swoole_postgresql_coro_init (int module_number);
-#endif
-void swoole_mysql_coro_init(int module_number);
-void swoole_http_client_coro_init(int module_number);
-void swoole_coroutine_util_init(int module_number);
-void swoole_coroutine_util_destroy();
-void swoole_redis_server_init(int module_number);
+void swoole_buffer_init(int module_number);
+void swoole_lock_init(int module_number);
 void swoole_process_init(int module_number);
 void swoole_process_pool_init(int module_number);
-void swoole_http_server_init(int module_number);
+void swoole_table_init(int module_number);
+void swoole_timer_init(int module_number);
+// coroutine
+void swoole_async_coro_init(int module_number);
+void swoole_coroutine_util_init(int module_number);
+void swoole_channel_coro_init(int module_number);
+void swoole_runtime_init(int module_number);
+// client
+void swoole_socket_coro_init(int module_number);
+void swoole_client_init(int module_number);
+void swoole_client_coro_init(int module_number);
+void swoole_http_client_coro_init(int module_number);
+void swoole_mysql_coro_init(int module_number);
+void swoole_redis_coro_init(int module_number);
 #ifdef SW_USE_HTTP2
 void swoole_http2_client_coro_init(int module_number);
 #endif
-void swoole_websocket_init(int module_number);
-void swoole_buffer_init(int module_number);
-void swoole_channel_init(int module_number);
-void swoole_channel_coro_init(int module_number);
+#ifdef SW_USE_POSTGRESQL
+void swoole_postgresql_coro_init(int module_number);
+#endif
+// server
+void swoole_server_init(int module_number);
+void swoole_server_port_init(int module_number);
+void swoole_http_server_init(int module_number);
+void swoole_websocket_server_init(int module_number);
+void swoole_redis_server_init(int module_number);
+// others
 #ifdef SW_USE_FAST_SERIALIZE
 void swoole_serialize_init(int module_number);
 #endif
@@ -388,12 +387,19 @@ static sw_inline void php_swoole_check_reactor()
     }
 }
 
+// shutdown
 void php_swoole_register_shutdown_function(char *function);
 void php_swoole_register_shutdown_function_prepend(char *function);
+
+// event
 void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_event_exit();
-void php_swoole_clear_all_timer();
+
+// timer
+enum swBool_type php_swoole_timer_clear(swTimer_node *tnode);
+enum swBool_type php_swoole_timer_clear_all();
+
 void php_swoole_register_callback(swServer *serv);
 void php_swoole_trace_check(void *arg);
 void php_swoole_client_free(zval *zobject, swClient *cli);
@@ -783,6 +789,30 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
         RETURN_NULL(); \
     } \
 } while (0)
+
+#define SW_FUNCTION_ALIAS(origin_function_table, origin, alias_function_table, alias) \
+    sw_zend_register_function_alias(origin_function_table, ZEND_STRL(origin), alias_function_table, ZEND_STRL(alias))
+
+static sw_inline int sw_zend_register_function_alias
+(
+    HashTable *origin_function_table, const char *origin, size_t origin_length,
+    HashTable *alias_function_table, const char *alias, size_t alias_length
+)
+{
+    zend_string *lowercase_origin = zend_string_alloc(origin_length, 0);
+    zend_str_tolower_copy(ZSTR_VAL(lowercase_origin), origin, origin_length);
+    zend_function *origin_function = (zend_function *) zend_hash_find_ptr(origin_function_table, lowercase_origin);
+    zend_string_release(lowercase_origin);
+    if (UNEXPECTED(!origin_function))
+    {
+        return FAILURE;
+    }
+    SW_ASSERT(origin_function->common.type == ZEND_INTERNAL_FUNCTION);
+    char _alias[alias_length + 1];
+    strncpy(_alias, alias, alias_length)[alias_length] = '\0';
+    zend_function_entry zfe[] = {{_alias, origin_function->internal_function.handler, ((zend_internal_arg_info *) origin_function->common.arg_info) - 1, origin_function->common.num_args, 0 }, PHP_FE_END};
+    return zend_register_functions(origin_function->common.scope, zfe, alias_function_table, origin_function->common.type);
+}
 
 static sw_inline int sw_zend_register_class_alias(const char *name, size_t name_len, zend_class_entry *ce)
 {

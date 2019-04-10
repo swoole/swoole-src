@@ -162,6 +162,7 @@ static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, z
     int64_t lval = 0;
     char *k;
 
+    swHashMap_rewind(table->columns);
     while(1)
     {
         col = swHashMap_each(table->columns, &k);

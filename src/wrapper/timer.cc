@@ -59,7 +59,7 @@ uchar swoole_timer_exists(long timer_id)
         return false;
     }
     auto tnode = swTimer_get(&SwooleG.timer, timer_id);
-    return (tnode && !tnode->remove);
+    return (tnode && !tnode->removed);
 }
 
 uchar swoole_timer_clear(long timer_id)
