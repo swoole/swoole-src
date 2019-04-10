@@ -319,6 +319,11 @@ int swHashMap_move_int(swHashMap *hmap, uint64_t old_key, uint64_t new_key)
     return SW_OK;
 }
 
+void swHashMap_rewind(swHashMap* hmap)
+{
+    hmap->iterator = NULL;
+}
+
 void* swHashMap_each(swHashMap* hmap, char **key)
 {
     swHashMap_node *node = swHashMap_node_each(hmap);

@@ -97,7 +97,7 @@ enum swBool_type php_swoole_timer_clear_all()
         return SW_FALSE;
     }
     uint64_t timer_id;
-    //kill user process
+    swHashMap_rewind(SwooleG.timer.map);
     while (1)
     {
         swTimer_node *tnode = (swTimer_node *) swHashMap_each_int(SwooleG.timer.map, &timer_id);
