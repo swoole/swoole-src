@@ -67,8 +67,6 @@ static sw_inline int swHashMap_node_add(swHashMap_node *root, swHashMap_node *ad
 static sw_inline swHashMap_node* swHashMap_node_each(swHashMap* hmap)
 {
     swHashMap_node *iterator = hmap->iterator;
-    swHashMap_node *tmp;
-
     if (hmap->root->hh.tbl->num_items == 0)
     {
         return NULL;
@@ -77,17 +75,7 @@ static sw_inline swHashMap_node* swHashMap_node_each(swHashMap* hmap)
     {
         iterator = hmap->root;
     }
-    tmp = iterator->hh.next;
-    if (tmp)
-    {
-        hmap->iterator = tmp;
-        return tmp;
-    }
-    else
-    {
-        hmap->iterator = NULL;
-        return NULL;
-    }
+    return hmap->iterator = iterator->hh.next;
 }
 
 swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
