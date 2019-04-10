@@ -19,14 +19,19 @@
 #include "php_swoole.h"
 #include "swoole_coroutine.h"
 
+#include "ext/spl/spl_array.h"
+
 using namespace swoole;
 
 zend_class_entry *swoole_timer_ce;
 static zend_object_handlers swoole_timer_handlers;
 
+static zend_class_entry *swoole_timer_iterator_ce;
+
 static PHP_FUNCTION(swoole_timer_after);
 static PHP_FUNCTION(swoole_timer_tick);
 static PHP_FUNCTION(swoole_timer_exists);
+static PHP_FUNCTION(swoole_timer_list);
 static PHP_FUNCTION(swoole_timer_clear);
 static PHP_FUNCTION(swoole_timer_clear_all);
 
@@ -58,6 +63,7 @@ static const zend_function_entry swoole_timer_methods[] =
     ZEND_FENTRY(tick, ZEND_FN(swoole_timer_tick), arginfo_swoole_timer_tick, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(after, ZEND_FN(swoole_timer_after), arginfo_swoole_timer_after, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exists, ZEND_FN(swoole_timer_exists), arginfo_swoole_timer_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(list, ZEND_FN(swoole_timer_list), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(clear, ZEND_FN(swoole_timer_clear), arginfo_swoole_timer_clear, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(clearAll, ZEND_FN(swoole_timer_clear_all), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
@@ -69,6 +75,8 @@ void swoole_timer_init(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_timer, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_timer, zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_timer, zend_class_unset_property_deny);
+
+    SW_INIT_CLASS_ENTRY_BASE(swoole_timer_iterator, "Swoole\\Timer\\Iterator", "swoole_timer_iterator", NULL, NULL, spl_ce_ArrayIterator);
 
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "after", CG(function_table), "swoole_timer_after");
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "tick", CG(function_table), "swoole_timer_tick");
@@ -96,10 +104,10 @@ enum swBool_type php_swoole_timer_clear_all()
     {
         return SW_FALSE;
     }
-    uint64_t timer_id;
     swHashMap_rewind(SwooleG.timer.map);
     while (1)
     {
+        uint64_t timer_id;
         swTimer_node *tnode = (swTimer_node *) swHashMap_each_int(SwooleG.timer.map, &timer_id);
         if (!tnode)
         {
@@ -228,6 +236,36 @@ static PHP_FUNCTION(swoole_timer_exists)
         tnode = swTimer_get(&SwooleG.timer, id);
         RETURN_BOOL(tnode && !tnode->remove);
     }
+}
+
+static PHP_FUNCTION(swoole_timer_list)
+{
+    zval zlist;
+    array_init(&zlist);
+    swHashMap_rewind(SwooleG.timer.map);
+    while (1)
+    {
+        uint64_t timer_id;
+        swTimer_node *tnode = (swTimer_node *) swHashMap_each_int(SwooleG.timer.map, &timer_id);
+        if (!tnode)
+        {
+            break;
+        }
+        if (tnode->type == SW_TIMER_TYPE_PHP)
+        {
+            add_next_index_long(&zlist, timer_id);
+        }
+    }
+    object_init_ex(return_value, swoole_timer_iterator_ce);
+    sw_zend_call_method_with_1_params(
+        return_value,
+        swoole_timer_iterator_ce,
+        &swoole_timer_iterator_ce->constructor,
+        (const char *) "__construct",
+        NULL,
+        &zlist
+    );
+    zval_ptr_dtor(&zlist);
 }
 
 static PHP_FUNCTION(swoole_timer_clear)
