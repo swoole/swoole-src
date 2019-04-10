@@ -7,7 +7,7 @@ swoole_timer: list
 require __DIR__ . '/../include/bootstrap.php';
 $s = microtime(true);
 var_dump(Swoole\Timer::stats());
-for ($c = MAX_REQUESTS; $c--;) {
+for ($c = 1000; $c--;) {
     Swoole\Timer::after(mt_rand(1, 1000), function () { });
 }
 var_dump(Swoole\Timer::stats());
@@ -33,7 +33,7 @@ array(3) {
   ["initialized"]=>
   bool(true)
   ["num"]=>
-  int(100)
+  int(1000)
   ["round"]=>
   int(0)
 }

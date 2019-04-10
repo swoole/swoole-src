@@ -6,8 +6,8 @@ swoole_timer: list
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $timers = [];
-for ($c = MAX_REQUESTS; $c--;) {
-    $msec = mt_rand(1, 100);
+for ($c = 1000; $c--;) {
+    $msec = mt_rand(100, 500);
     $timers[Swoole\Timer::after($msec, function () { })] = $msec;
 }
 foreach (Swoole\Timer::list() as $timer_id) {

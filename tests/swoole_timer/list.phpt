@@ -6,7 +6,7 @@ swoole_timer: list
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $timers = [];
-for ($c = MAX_REQUESTS; $c--;) {
+for ($c = MAX_CONCURRENCY; $c--;) {
     $timers[] = Swoole\Timer::after(mt_rand(1, 100), function () { });
 }
 $iterator = Swoole\Timer::list();
