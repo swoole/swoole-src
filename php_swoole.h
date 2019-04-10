@@ -313,13 +313,6 @@ PHP_FUNCTION(swoole_client_select);
 PHP_FUNCTION(swoole_async_set);
 PHP_FUNCTION(swoole_async_dns_lookup_coro);
 //---------------------------------------------------------
-//                  timer
-//---------------------------------------------------------
-PHP_FUNCTION(swoole_timer_after);
-PHP_FUNCTION(swoole_timer_tick);
-PHP_FUNCTION(swoole_timer_exists);
-PHP_FUNCTION(swoole_timer_clear);
-//---------------------------------------------------------
 //                  error
 //---------------------------------------------------------
 #define SW_STRERROR_SYSTEM  0
@@ -339,35 +332,40 @@ PHP_FUNCTION(swoole_fast_serialize);
 PHP_FUNCTION(swoole_unserialize);
 #endif
 
-void swoole_server_init(int module_number);
-void swoole_server_port_init(int module_number);
-void swoole_async_coro_init(int module_number);
-void swoole_table_init(int module_number);
-void swoole_runtime_init(int module_number);
-void swoole_lock_init(int module_number);
+/** <Sort by dependency> **/
+// base
 void swoole_atomic_init(int module_number);
-void swoole_client_init(int module_number);
-void swoole_socket_coro_init(int module_number);
-void swoole_client_coro_init(int module_number);
-void swoole_redis_coro_init(int module_number);
-#ifdef SW_USE_POSTGRESQL
-void swoole_postgresql_coro_init (int module_number);
-#endif
-void swoole_mysql_coro_init(int module_number);
-void swoole_http_client_coro_init(int module_number);
-void swoole_coroutine_util_init(int module_number);
-void swoole_coroutine_util_destroy();
-void swoole_redis_server_init(int module_number);
+void swoole_buffer_init(int module_number);
+void swoole_lock_init(int module_number);
 void swoole_process_init(int module_number);
 void swoole_process_pool_init(int module_number);
-void swoole_http_server_init(int module_number);
+void swoole_table_init(int module_number);
+void swoole_timer_init(int module_number);
+// coroutine
+void swoole_async_coro_init(int module_number);
+void swoole_coroutine_util_init(int module_number);
+void swoole_channel_coro_init(int module_number);
+void swoole_runtime_init(int module_number);
+// client
+void swoole_socket_coro_init(int module_number);
+void swoole_client_init(int module_number);
+void swoole_client_coro_init(int module_number);
+void swoole_http_client_coro_init(int module_number);
+void swoole_mysql_coro_init(int module_number);
+void swoole_redis_coro_init(int module_number);
 #ifdef SW_USE_HTTP2
 void swoole_http2_client_coro_init(int module_number);
 #endif
-void swoole_websocket_init(int module_number);
-void swoole_buffer_init(int module_number);
-void swoole_channel_init(int module_number);
-void swoole_channel_coro_init(int module_number);
+#ifdef SW_USE_POSTGRESQL
+void swoole_postgresql_coro_init(int module_number);
+#endif
+// server
+void swoole_server_init(int module_number);
+void swoole_server_port_init(int module_number);
+void swoole_http_server_init(int module_number);
+void swoole_websocket_server_init(int module_number);
+void swoole_redis_server_init(int module_number);
+// others
 #ifdef SW_USE_FAST_SERIALIZE
 void swoole_serialize_init(int module_number);
 #endif

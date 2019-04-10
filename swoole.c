@@ -765,7 +765,6 @@ PHP_MINIT_FUNCTION(swoole)
 
     SW_INIT_EXCEPTION_CLASS_ENTRY(swoole_exception, "Swoole\\Exception", "swoole_exception", NULL, NULL);
 
-    //swoole init
     swoole_init();
     if (!SWOOLE_G(enable_coroutine))
     {
@@ -776,36 +775,43 @@ PHP_MINIT_FUNCTION(swoole)
         SWOOLE_G(cli) = 1;
     }
 
-    swoole_server_init(module_number);
-    swoole_server_port_init(module_number);
-    swoole_client_init(module_number);
-    swoole_socket_coro_init(module_number);
-    swoole_client_coro_init(module_number);
-    swoole_redis_coro_init(module_number);
-#ifdef SW_USE_POSTGRESQL
-    swoole_postgresql_coro_init(module_number);
-#endif
-    swoole_mysql_coro_init(module_number);
-    swoole_http_client_coro_init(module_number);
-	swoole_coroutine_util_init(module_number);
-    swoole_async_coro_init(module_number);
+    /** <Sort by dependency> **/
+    // base
+    swoole_atomic_init(module_number);
+    swoole_buffer_init(module_number);
+    swoole_lock_init(module_number);
     swoole_process_init(module_number);
     swoole_process_pool_init(module_number);
     swoole_table_init(module_number);
-    swoole_runtime_init(module_number);
-    swoole_lock_init(module_number);
-    swoole_atomic_init(module_number);
-    swoole_http_server_init(module_number);
-    swoole_buffer_init(module_number);
-    swoole_websocket_init(module_number);
+    swoole_timer_init(module_number);
+    // coroutine
+    swoole_async_coro_init(module_number);
+    swoole_coroutine_util_init(module_number);
     swoole_channel_coro_init(module_number);
+    swoole_runtime_init(module_number);
+    // client
+    swoole_socket_coro_init(module_number);
+    swoole_client_init(module_number);
+    swoole_client_coro_init(module_number);
+    swoole_http_client_coro_init(module_number);
+    swoole_mysql_coro_init(module_number);
+    swoole_redis_coro_init(module_number);
 #ifdef SW_USE_HTTP2
     swoole_http2_client_coro_init(module_number);
 #endif
+#ifdef SW_USE_POSTGRESQL
+    swoole_postgresql_coro_init(module_number);
+#endif
+    // server
+    swoole_server_init(module_number);
+    swoole_server_port_init(module_number);
+    swoole_http_server_init(module_number);
+    swoole_websocket_server_init(module_number);
+    swoole_redis_server_init(module_number);
+    // others
 #ifdef SW_USE_FAST_SERIALIZE
     swoole_serialize_init(module_number);
 #endif
-    swoole_redis_server_init(module_number);
 
     SwooleG.fatal_error = php_swoole_fatal_error;
     SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
