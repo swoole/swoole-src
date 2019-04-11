@@ -755,7 +755,10 @@ int swSSL_connect(swConnection *conn)
             return SW_ERR;
         }
     }
-    swWarn("SSL_connect(fd=%d) failed. Error: %s[%ld|%d]", conn->fd, ERR_reason_error_string(err), err, errno);
+
+    long err_code = ERR_get_error();
+    char *msg = ERR_error_string(err_code, SwooleTG.buffer_stack->str);
+    swWarn("SSL_connect(fd=%d) failed. Error: %s[%ld|%d]", conn->fd, msg, err, ERR_GET_REASON(err_code));
 
     return SW_ERR;
 }
