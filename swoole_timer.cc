@@ -90,6 +90,8 @@ void swoole_timer_init(int module_number)
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "tick", CG(function_table), "swoole_timer_tick");
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "exists", CG(function_table), "swoole_timer_exists");
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "info", CG(function_table), "swoole_timer_info");
+    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "stats", CG(function_table), "swoole_timer_stats");
+    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "list", CG(function_table), "swoole_timer_list");
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "clear", CG(function_table), "swoole_timer_clear");
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "clearAll", CG(function_table), "swoole_timer_clear_all");
 }
