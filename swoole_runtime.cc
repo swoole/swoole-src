@@ -834,7 +834,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     }
 #endif
     default:
-        return FAILURE;
+        break;
     }
     return SUCCESS;
 }
