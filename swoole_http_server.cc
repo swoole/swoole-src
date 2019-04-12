@@ -962,10 +962,11 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         ctx->keepalive = swoole_http_should_keep_alive(parser);
 
         add_assoc_string(zserver, "request_method", (char *) http_get_method_name(parser->method));
+        add_assoc_stringl_ex(zserver, ZEND_STRL("request_uri"), ctx->request.path, ctx->request.path_len);
 
+        // path_info should be decoded
         zend_string * zstr_path = zend_string_init(ctx->request.path, ctx->request.path_len, 0);
-        add_assoc_str_ex(zserver, ZEND_STRL("request_uri"), zstr_path);
-        GC_ADDREF(zstr_path);
+        ZSTR_LEN(zstr_path) = php_url_decode(ZSTR_VAL(zstr_path), ZSTR_LEN(zstr_path));
         add_assoc_str_ex(zserver, ZEND_STRL("path_info"), zstr_path);
 
         add_assoc_long_ex(zserver, ZEND_STRL("request_time"), serv->gs->now);

@@ -583,7 +583,9 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                         zstr_path = zend_string_init((char *) nv.value, nv.valuelen, 0);
                     }
                     add_assoc_str_ex(zserver, ZEND_STRL("request_uri"), zstr_path);
-                    GC_ADDREF(zstr_path);
+                    // path_info should be decoded
+                    zstr_path = zend_string_dup(zstr_path, 0);
+                    ZSTR_LEN(zstr_path) = php_url_decode(ZSTR_VAL(zstr_path), ZSTR_LEN(zstr_path));
                     add_assoc_str_ex(zserver, ZEND_STRL("path_info"), zstr_path);
                 }
                 else if (strncasecmp((char *) nv.name + 1, "authority", nv.namelen -1) == 0)
