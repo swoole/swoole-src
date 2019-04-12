@@ -81,19 +81,15 @@ static struct
     php_stream_transport_factory udp;
     php_stream_transport_factory _unix;
     php_stream_transport_factory udg;
-#ifdef SW_USE_OPENSSL
     php_stream_transport_factory ssl;
     php_stream_transport_factory tls;
-#endif
 } ori_factory = {
     nullptr,
     nullptr,
     nullptr,
     nullptr,
-#ifdef SW_USE_OPENSSL
     nullptr,
     nullptr,
-#endif
 };
 
 static php_stream_wrapper ori_php_plain_files_wrapper;
@@ -760,9 +756,11 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     switch (option)
     {
     case PHP_STREAM_OPTION_XPORT_API:
+    {
         return socket_xport_api(stream, sock, (php_stream_xport_param *) ptrparam STREAMS_CC);
-
+    }
     case PHP_STREAM_OPTION_META_DATA_API:
+    {
 #ifdef SW_USE_OPENSSL
         if (sock->socket->ssl)
         {
@@ -805,15 +803,17 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
             add_assoc_zval((zval *)ptrparam, "crypto", &tmp);
         }
 #endif
-        add_assoc_bool((zval * )ptrparam, "timed_out", sock->errCode == ETIMEDOUT);
-        add_assoc_bool((zval * )ptrparam, "eof", stream->eof);
-        add_assoc_bool((zval * )ptrparam, "blocked", 1);
+        add_assoc_bool((zval *)ptrparam, "timed_out", sock->errCode == ETIMEDOUT);
+        add_assoc_bool((zval *)ptrparam, "eof", stream->eof);
+        add_assoc_bool((zval *)ptrparam, "blocked", 1);
         break;
-
+    }
     case PHP_STREAM_OPTION_READ_TIMEOUT:
+    {
         default_timeout = *(struct timeval*) ptrparam;
         abstract->read_timeout = (double) default_timeout.tv_sec + ((double) default_timeout.tv_usec / 1000 / 1000);
         break;
+    }
 #ifdef SW_USE_OPENSSL
     case PHP_STREAM_OPTION_CRYPTO_API:
     {
@@ -834,7 +834,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     }
 #endif
     default:
-        break;
+        return FAILURE;
     }
     return SUCCESS;
 }
@@ -859,7 +859,6 @@ static php_stream *php_socket_create(
     {
         ori_call = ori_factory.udg;
     }
-#ifdef SW_USE_OPENSSL
     else if (strncmp(proto, "ssl", protolen) == 0)
     {
         ori_call = ori_factory.ssl;
@@ -868,10 +867,13 @@ static php_stream *php_socket_create(
     {
         ori_call = ori_factory.tls;
     }
-#endif
     else
     {
         ori_call = ori_factory.tcp;
+    }
+    if (UNEXPECTED(!ori_call))
+    {
+        return NULL;
     }
     return ori_call(proto, protolen, resourcename, resourcenamelen, persistent_id, options, flags, timeout, context STREAMS_CC);
 }
@@ -902,13 +904,16 @@ static php_stream *socket_create(
     {
         sock = new Socket(SW_SOCK_UNIX_DGRAM);
     }
-#ifdef SW_USE_OPENSSL
     else if (strncmp(proto, "ssl", protolen) == 0 || strncmp(proto, "tls", protolen) == 0)
     {
+#ifdef SW_USE_OPENSSL
         sock = new Socket(SW_SOCK_TCP);
         sock->open_ssl = true;
-    }
+#else
+        swoole_php_error(E_WARNING, "you must configure with `enable-openssl` to support ssl connection");
+        return NULL;
 #endif
+    }
     else
     {
         sock = new Socket(SW_SOCK_TCP);
@@ -917,7 +922,6 @@ static php_stream *socket_create(
     if (UNEXPECTED(sock->socket == nullptr))
     {
         _failed:
-        swoole_php_sys_error(E_WARNING, "new Socket() failed");
         delete sock;
         return NULL;
     }
@@ -960,10 +964,8 @@ bool PHPCoroutine::enable_hook(int flags)
         ori_factory.udp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udp"));
         ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("unix"));
         ori_factory.udg = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udg"));
-#ifdef SW_USE_OPENSSL
         ori_factory.ssl = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("ssl"));
         ori_factory.tls = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tls"));
-#endif
         ori_stream_select = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("stream_select"));
         ori_stream_select_handler = ori_stream_select->internal_function.handler;
 
@@ -1055,7 +1057,6 @@ bool PHPCoroutine::enable_hook(int flags)
             php_stream_xport_register("udg", ori_factory.udg);
         }
     }
-#ifdef SW_USE_OPENSSL
     if (flags & SW_HOOK_SSL)
     {
         if (!(hook_flags & SW_HOOK_SSL))
@@ -1090,7 +1091,6 @@ bool PHPCoroutine::enable_hook(int flags)
             php_stream_xport_register("tls", ori_factory.tls);
         }
     }
-#endif
     if (flags & SW_HOOK_STREAM_SELECT)
     {
         if (!(hook_flags & SW_HOOK_STREAM_SELECT))

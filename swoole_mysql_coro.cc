@@ -4001,7 +4001,7 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client)
             goto _error;
         }
 #else
-        connector->error_code = -1;
+        connector->error_code = EPROTONOSUPPORT;
         connector->error_msg = (char *) "MySQL8 RSA-Auth need enable OpenSSL!";
         connector->error_length = strlen(connector->error_msg);
         swoole_mysql_coro_onConnect(client);

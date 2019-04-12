@@ -28,6 +28,9 @@ using namespace swoole;
 static zend_class_entry *swoole_http2_client_coro_ce;
 static zend_object_handlers swoole_http2_client_coro_handlers;
 
+static zend_class_entry *swoole_http2_client_coro_exception_ce;
+static zend_object_handlers swoole_http2_client_coro_exception_handlers;
+
 static zend_class_entry *swoole_http2_request_ce;
 static zend_object_handlers swoole_http2_request_handlers;
 
@@ -128,6 +131,8 @@ void swoole_http2_client_coro_init(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_http2_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http2_client_coro, zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http2_client_coro, zend_class_unset_property_deny);
+
+    SW_INIT_CLASS_ENTRY_EX(swoole_http2_client_coro_exception, "Swoole\\Coroutine\\Http2\\Client\\Exception", NULL, "Co\\Http2\\Client\\Exception", NULL, swoole_exception);
 
     SW_INIT_CLASS_ENTRY(swoole_http2_request, "Swoole\\Http2\\Request", "swoole_http2_request", NULL, NULL);
     SW_SET_CLASS_SERIALIZABLE(swoole_http2_request, zend_class_serialize_deny, zend_class_unserialize_deny);
@@ -265,11 +270,11 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
 
     if (host_len == 0)
     {
-        zend_throw_exception(swoole_exception_ce, "host is empty", SW_ERROR_INVALID_PARAMS);
+        zend_throw_exception(swoole_http2_client_coro_exception_ce, "host is empty", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
 
-    http2_client_property *hcc = (http2_client_property*) emalloc(sizeof(http2_client_property));
+    http2_client_property *hcc = (http2_client_property *) emalloc(sizeof(http2_client_property));
     bzero(hcc, sizeof(http2_client_property));
     long type = SW_FLAG_ASYNC | SW_SOCK_TCP;
     if (ssl)
@@ -278,7 +283,11 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
         type |= SW_SOCK_SSL;
         hcc->ssl = 1;
 #else
-        swoole_php_fatal_error(E_ERROR, "Need to use `--enable-openssl` to support ssl when compiling swoole");
+        zend_throw_exception_ex(
+            swoole_http2_client_coro_exception_ce,
+            EPROTONOSUPPORT, "you must configure with `enable-openssl` to support ssl connection"
+        );
+        RETURN_FALSE;
 #endif
     }
     hcc->host = estrndup(host, host_len);
