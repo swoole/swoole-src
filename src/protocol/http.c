@@ -365,6 +365,7 @@ int swHttpRequest_get_header_length(swHttpRequest *request)
     return SW_ERR;
 }
 
+#ifdef SW_USE_HTTP2
 ssize_t swHttpMix_get_package_length(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
 {
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
@@ -415,3 +416,4 @@ int swHttpMix_dispatch_frame(swConnection *conn, char *data, uint32_t length)
         return SW_ERR;
     }
 }
+#endif

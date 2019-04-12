@@ -633,7 +633,9 @@ typedef struct _swConnection
     uint8_t ssl_want_read;
     uint8_t ssl_want_write;
     uint8_t http_upgrade;
+#ifdef SW_USE_HTTP2
     uint8_t http2_stream;
+#endif
     uint8_t skip_recv;
     //--------------------------------------------------------------
     /**

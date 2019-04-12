@@ -124,9 +124,12 @@ static inline void swHttpRequest_clean(swHttpRequest *request)
 #ifdef SW_HTTP_100_CONTINUE
 int swHttpRequest_has_expect_header(swHttpRequest *request);
 #endif
+
+#ifdef SW_USE_HTTP2
 ssize_t swHttpMix_get_package_length(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 uint8_t swHttpMix_get_package_length_size(swConnection *conn);
 int swHttpMix_dispatch_frame(swConnection *conn, char *data, uint32_t length);
+#endif
 
 #ifdef __cplusplus
 }
