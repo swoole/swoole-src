@@ -415,6 +415,10 @@ struct _swServer
      */
     uint32_t discard_timeout_request :1;
     /**
+     * parse cookie header
+     */
+    uint32_t http_parse_cookie :1;
+    /**
      * parse x-www-form-urlencoded data
      */
     uint32_t http_parse_post :1;

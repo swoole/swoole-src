@@ -491,7 +491,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     size_t header_len = ctx->current_header_name_len;
     char *header_name = zend_str_tolower_dup(ctx->current_header_name, header_len);
 
-    if (strncmp(header_name, "cookie", header_len) == 0)
+    if (SwooleG.serv->http_parse_cookie && strncmp(header_name, "cookie", header_len) == 0)
     {
         zval *zcookie;
         swoole_http_server_array_init(cookie, request);
