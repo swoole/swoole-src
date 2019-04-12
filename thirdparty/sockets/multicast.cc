@@ -749,7 +749,7 @@ int php_add4_to_if_index(struct in_addr *addr, Socket *php_sock, unsigned *if_in
         size += 5 * sizeof(struct ifreq);
         buf = (char*) ecalloc(size, 1);
         if_conf.ifc_len = size;
-        if_conf.ifc_buf = buf;
+        if_conf.ifc_buf = (caddr_t) buf;
 
 		if (ioctl(php_sock->get_fd(), SIOCGIFCONF, (char*)&if_conf) == -1 &&
 				(errno != EINVAL || lastsize != 0)) {
@@ -768,8 +768,8 @@ int php_add4_to_if_index(struct in_addr *addr, Socket *php_sock, unsigned *if_in
 		}
 	}
 
-	for (p = if_conf.ifc_buf;
-		 p < if_conf.ifc_buf + if_conf.ifc_len;
+	for (p = (char *) if_conf.ifc_buf;
+		 p < ((char *) if_conf.ifc_buf + if_conf.ifc_len);
 		 p += entry_len) {
 		struct ifreq *cur_req;
 
