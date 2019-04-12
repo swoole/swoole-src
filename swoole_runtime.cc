@@ -739,6 +739,9 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
         xparam->outputs.returncode = sock->shutdown(shutdown_how[xparam->how]);
         break;
     default:
+#ifdef SW_DEBUG
+        swoole_php_fatal_error(E_WARNING, "socket_xport_api: unsupported option", xparam->op);
+#endif
         break;
     }
     return PHP_STREAM_OPTION_RETURN_OK;
@@ -747,9 +750,9 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam)
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
-    if (UNEXPECTED(!abstract))
+    if (UNEXPECTED(!abstract || !abstract->socket))
     {
-        return FAILURE;
+        return PHP_STREAM_OPTION_RETURN_ERR;
     }
     Socket *sock = (Socket*) abstract->socket;
     struct timeval default_timeout = { 0, 0 };
@@ -827,16 +830,24 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
             cparam->outputs.returncode = socket_enable_crypto(stream, sock, cparam STREAMS_CC);
             return PHP_STREAM_OPTION_RETURN_OK;
         default:
-            /* fall through */
+            /* never here */
+            SW_ASSERT(0);
             break;
         }
         break;
     }
 #endif
+    case PHP_STREAM_OPTION_CHECK_LIVENESS:
+    {
+        return sock->check_liveness() ? PHP_STREAM_OPTION_RETURN_OK : PHP_STREAM_OPTION_RETURN_ERR;
+    }
     default:
+#ifdef SW_DEBUG
+        swoole_php_fatal_error(E_WARNING, "socket_set_option: unsupported option %d with value %d", option, value);
+#endif
         break;
     }
-    return SUCCESS;
+    return PHP_STREAM_OPTION_RETURN_OK;
 }
 
 static php_stream *php_socket_create(
