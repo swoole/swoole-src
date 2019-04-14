@@ -26,6 +26,7 @@ extern "C"
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <stdint.h>
 #include <poll.h>
 
 /**

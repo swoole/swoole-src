@@ -465,6 +465,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/server/reactor_thread.c \
         src/server/task_worker.c \
         src/server/worker.cc \
+        src/server/static_handler.cc \
         src/wrapper/client.cc \
         src/wrapper/server.cc \
         src/wrapper/timer.cc \

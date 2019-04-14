@@ -121,6 +121,8 @@ static inline void swHttpRequest_clean(swHttpRequest *request)
     memset(request, 0, offsetof(swHttpRequest, buffer));
 }
 
+int swHttpRequset_static_handler(swServer *serv, swHttpRequest *request, swConnection *conn);
+
 #ifdef SW_HTTP_100_CONTINUE
 int swHttpRequest_has_expect_header(swHttpRequest *request);
 #endif

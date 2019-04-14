@@ -15,6 +15,7 @@
 */
 
 #include "coroutine.h"
+#include "coroutine_c_api.h"
 #include "async.h"
 
 using namespace swoole;
@@ -131,16 +132,9 @@ void Coroutine::set_on_close(coro_php_close_t func)
     on_close = func;
 }
 
-
-extern "C"
-{
-/**
- * for C
- */
 uint8_t swoole_coroutine_is_in()
 {
     return !!Coroutine::get_current();
-}
 }
 
 /**
