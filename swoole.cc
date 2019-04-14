@@ -20,6 +20,8 @@
 #include "ext/pcre/php_pcre.h"
 #endif
 
+#include "mime_types.h"
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <net/if.h>
@@ -301,7 +303,7 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
     zval args[1];
     ZVAL_STRINGL(&args[0], data, length);
 
-    zval *callback = protocol->private_data;
+    zval *callback = (zval *) protocol->private_data;
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL) == FAILURE)
     {
@@ -374,7 +376,7 @@ static sw_inline uint32_t swoole_get_new_size(uint32_t old_size, int handle)
         swoole_php_fatal_error(E_ERROR, "handle %d exceed %d", handle, SWOOLE_OBJECT_MAX);
         return 0;
     }
-    while (new_size <= handle)
+    while (new_size <= (uint32_t) handle)
     {
         new_size *= 2;
     }
@@ -403,8 +405,8 @@ void swoole_set_object_by_handle(uint32_t handle, void *ptr)
             swoole_php_fatal_error(E_ERROR, "malloc(%d) failed", (int )(new_size * sizeof(void *)));
             return;
         }
-        bzero(new_ptr + (old_size * sizeof(void*)), (new_size - old_size) * sizeof(void*));
-        swoole_objects.array = new_ptr;
+        bzero((char*) new_ptr + (old_size * sizeof(void*)), (new_size - old_size) * sizeof(void*));
+        swoole_objects.array = (void**) new_ptr;
         swoole_objects.size = new_size;
     }
 #ifdef ZEND_DEBUG
@@ -431,13 +433,13 @@ void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr)
         if (old_size == 0)
         {
             new_size = handle < SWOOLE_OBJECT_DEFAULT ? SWOOLE_OBJECT_DEFAULT : swoole_get_new_size(SWOOLE_OBJECT_DEFAULT, handle);
-            new_ptr = sw_calloc(new_size, sizeof(void *));
+            new_ptr = (void **) sw_calloc(new_size, sizeof(void *));
         }
         else
         {
             new_size = swoole_get_new_size(old_size, handle);
             old_ptr = swoole_objects.property[property_id];
-            new_ptr = sw_realloc(old_ptr, new_size * sizeof(void *));
+            new_ptr = (void **) sw_realloc(old_ptr, new_size * sizeof(void *));
         }
         if (new_ptr == NULL)
         {
@@ -446,7 +448,7 @@ void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr)
         }
         if (old_size > 0)
         {
-            bzero((void *) new_ptr + old_size * sizeof(void*), (new_size - old_size) * sizeof(void*));
+            bzero((char *) new_ptr + old_size * sizeof(void*), (new_size - old_size) * sizeof(void*));
         }
         swoole_objects.property_size[property_id] = new_size;
         swoole_objects.property[property_id] = new_ptr;
@@ -472,31 +474,32 @@ int swoole_register_rshutdown_function(swCallback func, int push_back)
     }
     if (push_back)
     {
-        return swLinkedList_append(SWOOLE_G(rshutdown_functions), func);
+        return swLinkedList_append(SWOOLE_G(rshutdown_functions), (void*) func);
     }
     else
     {
-        return swLinkedList_prepend(SWOOLE_G(rshutdown_functions), func);
+        return swLinkedList_prepend(SWOOLE_G(rshutdown_functions), (void*) func);
     }
 }
 
-void php_swoole_register_shutdown_function(char *function)
+void php_swoole_register_shutdown_function(const char *function)
 {
     php_shutdown_function_entry shutdown_function_entry;
     shutdown_function_entry.arg_count = 1;
     shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
     ZVAL_STRING(&shutdown_function_entry.arguments[0], function);
-    register_user_shutdown_function(function, ZSTR_LEN(Z_STR(shutdown_function_entry.arguments[0])), &shutdown_function_entry);
+    register_user_shutdown_function((char *) function, ZSTR_LEN(Z_STR(shutdown_function_entry.arguments[0])),
+            &shutdown_function_entry);
 }
 
 static void php_swoole_old_shutdown_function_move(zval *zv)
 {
-    php_shutdown_function_entry *old_shutdown_function_entry = Z_PTR_P(zv);
+    php_shutdown_function_entry *old_shutdown_function_entry = (php_shutdown_function_entry *) Z_PTR_P(zv);
     zend_hash_next_index_insert_mem(BG(user_shutdown_function_names), old_shutdown_function_entry, sizeof(php_shutdown_function_entry));
     efree(old_shutdown_function_entry);
 }
 
-void php_swoole_register_shutdown_function_prepend(char *function)
+void php_swoole_register_shutdown_function_prepend(const char *function)
 {
     HashTable *old_user_shutdown_function_names = BG(user_shutdown_function_names);
     if (!old_user_shutdown_function_names)
@@ -555,7 +558,7 @@ void swoole_call_rshutdown_function(void *arg)
 
         while (node)
         {
-            func = node->data;
+            func = (swCallback) node->data;
             func(arg);
             node = node->next;
         }
@@ -854,7 +857,7 @@ PHP_MINIT_FUNCTION(swoole)
     SwooleG.dns_cache_refresh_time = 60;
 
     swoole_objects.size = SWOOLE_OBJECT_DEFAULT;
-    swoole_objects.array = sw_calloc(swoole_objects.size, sizeof(void*));
+    swoole_objects.array = (void**) sw_calloc(swoole_objects.size, sizeof(void*));
 
     // enable pcre.jit and use swoole extension on MacOS will lead to coredump, disable it temporarily
 #if defined(PHP_PCRE_VERSION) && PHP_VERSION_ID >= 70300 && __MACH__ && !defined(SW_DEBUG)
@@ -1139,7 +1142,7 @@ PHP_FUNCTION(swoole_get_mime_type)
     {
         RETURN_FALSE;
     }
-    RETURN_STRING(swoole_get_mime_type(filename));
+    RETURN_STRING(swoole_mime_type_get(filename));
 }
 
 PHP_FUNCTION(swoole_errno)
@@ -1154,7 +1157,8 @@ PHP_FUNCTION(swoole_set_process_name)
     swoole_php_fatal_error(E_WARNING, "swoole_set_process_name is not supported on MacOS");
     RETURN_FALSE;
 #else
-    zend_function *cli_set_process_title =  zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("cli_set_process_title"));
+    zend_function *cli_set_process_title = (zend_function *) zend_hash_str_find_ptr(EG(function_table),
+            ZEND_STRL("cli_set_process_title"));
     if (!cli_set_process_title)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_set_process_name only support in CLI mode");

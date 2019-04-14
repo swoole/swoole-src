@@ -22,6 +22,8 @@
 #include "swoole_coroutine.h"
 #include "coroutine_c_api.h"
 
+#include "mime_types.h"
+
 using namespace swoole;
 
 swString *http_client_buffer;
@@ -1675,7 +1677,7 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     }
     if (l_type == 0)
     {
-        type = (char *) swoole_get_mime_type(path);
+        type = (char *) swoole_mime_type_get(path);
         l_type = strlen(type);
     }
     if (l_filename == 0)

@@ -111,6 +111,7 @@ typedef struct _swHttpRequest
 
 int swHttp_get_method(const char *method_str, int method_len);
 const char* swHttp_get_method_string(int method);
+const char *swHttp_get_status_message(int code);
 int swHttpRequest_get_protocol(swHttpRequest *request);
 int swHttpRequest_get_header_info(swHttpRequest *request);
 int swHttpRequest_get_header_length(swHttpRequest *request);
@@ -121,7 +122,7 @@ static inline void swHttpRequest_clean(swHttpRequest *request)
     memset(request, 0, offsetof(swHttpRequest, buffer));
 }
 
-int swHttpRequset_static_handler(swServer *serv, swHttpRequest *request, swConnection *conn);
+int swHttp_static_handler(swServer *serv, swHttpRequest *request, swConnection *conn);
 
 #ifdef SW_HTTP_100_CONTINUE
 int swHttpRequest_has_expect_header(swHttpRequest *request);

@@ -22,6 +22,8 @@ $pm->childFunc = function () use ($pm) {
         'log_file' => '/dev/null',
         'enable_static_handler' => true,
         'document_root' => dirname(dirname(__DIR__)) . '/examples/',
+        'static_file_types' => [],
+        'static_file_locations' => ["/static", "/"]
     ]);
     $http->on("WorkerStart", function ($serv, $wid) use ($pm) {
         $pm->wakeup();

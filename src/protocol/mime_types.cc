@@ -22,7 +22,9 @@
 #include <unordered_map>
 #include <string>
 
-std::unordered_map<std::string, std::string> mime_map({
+using namespace std;
+
+static unordered_map<string, string> mime_map({
     { "ez", "application/andrew-inset" },
     { "aw", "application/applixware" },
     { "atom", "application/atom+xml" },
@@ -387,14 +389,56 @@ std::unordered_map<std::string, std::string> mime_map({
     { "7z", "application/x-7z-compressed" }
 });
 
-const char* swoole_get_mime_type(const char *filename)
+static string get_suffix(const char* filename)
 {
-    std::string filename_s(filename);
-    std::string suffix = filename_s.substr(filename_s.find_last_of('.') + 1);
+    string filename_s(filename);
+    return filename_s.substr(filename_s.find_last_of('.') + 1);
+}
+
+const char* swoole_mime_type_get(const char *filename)
+{
+    auto suffix = get_suffix(filename);
     auto i = mime_map.find(suffix);
     if (i != mime_map.end())
     {
         return i->second.c_str();
     }
     return "application/octet-stream";
+}
+
+bool swoole_mime_type_add(const char *suffix, const char *mime_type)
+{
+    if (mime_map.find(suffix) == mime_map.end())
+    {
+        mime_map[string(suffix)] = string(mime_type);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+void swoole_mime_type_set(const char *suffix, const char *mime_type)
+{
+    mime_map[string(suffix)] = string(mime_type);
+}
+
+bool swoole_mime_type_delete(const char *suffix, const char *mime_type)
+{
+    if (mime_map.find(suffix) == mime_map.end())
+    {
+        return false;
+    }
+    else
+    {
+        mime_map.erase(string(suffix));
+        return true;
+    }
+}
+
+bool swoole_mime_type_exists(const char *filename)
+{
+    auto suffix = get_suffix(filename);
+    return mime_map.find(suffix) != mime_map.end();
 }

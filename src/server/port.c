@@ -442,7 +442,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                     /**
                      * send static file content directly in the reactor thread
                      */
-                    if (!(serv->enable_static_handler && swHttpRequset_static_handler(serv, request, conn)))
+                    if (!(serv->enable_static_handler && swHttp_static_handler(serv, request, conn)))
                     {
                         /**
                          * dynamic request, dispatch to worker

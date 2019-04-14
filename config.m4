@@ -469,7 +469,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/wrapper/client.cc \
         src/wrapper/server.cc \
         src/wrapper/timer.cc \
-        swoole.c \
+        swoole.cc \
         swoole_async_coro.cc \
         swoole_atomic.c \
         swoole_buffer.c \

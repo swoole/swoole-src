@@ -16,9 +16,15 @@
 
 #include "server.h"
 #include "http.h"
+#include "mime_types.h"
 
 #include <string>
 #include <unordered_set>
+
+using namespace std;
+
+static unordered_set<string> locations;
+static unordered_set<string> file_types;
 
 class static_handler
 {
@@ -33,7 +39,10 @@ private:
         char filename[PATH_MAX];
     } task;
 
+    char header_buffer[1024];
+
     int send_response();
+    int send_error_page(int status_code);
 
 public:
     static_handler(swServer *_serv, swHttpRequest *_request, swConnection *_conn)
@@ -47,26 +56,38 @@ public:
     bool done();
 };
 
-std::unordered_set<std::string> type_set(
-{ "js", "css", "jpg", "gif", "png", "jpeg", "html", "ico", });
+int static_handler::send_error_page(int status_code)
+{
+    swSendData response;
+    response.info.fd = conn->session_id;
+    response.info.type = SW_EVENT_TCP;
+    response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer), "HTTP/1.1 %s\r\n"
+            "Server: %s\r\n\r\n", swHttp_get_status_message(status_code),
+    SW_HTTP_SERVER_SOFTWARE);
+    response.data = header_buffer;
+    return swServer_master_send(serv, &response);
+}
 
 int static_handler::send_response()
 {
     struct stat file_stat;
+    /**
+     * file does not exist
+     */
     if (lstat(task.filename, &file_stat) < 0)
     {
-        return SW_FALSE;
+        _404: send_error_page(404);
+        return SW_TRUE;
     }
     if (file_stat.st_size == 0)
     {
-        return SW_FALSE;
+        goto _404;
     }
     if ((file_stat.st_mode & S_IFMT) != S_IFREG)
     {
-        return SW_FALSE;
+        goto _404;
     }
 
-    char header_buffer[1024];
     swSendData response;
     response.info.fd = conn->session_id;
     response.info.type = SW_EVENT_TCP;
@@ -173,7 +194,7 @@ int static_handler::send_response()
             "Date: %s\r\n"
             "Last-Modified: %s\r\n"
             "Server: %s\r\n\r\n", request->keep_alive ? "Connection: keep-alive\r\n" : "", (long) file_stat.st_size,
-            swoole_get_mime_type(task.filename), date_, date_last_modified,
+            swoole_mime_type_get(task.filename), date_, date_last_modified,
             SW_HTTP_SERVER_SOFTWARE);
 
     response.data = header_buffer;
@@ -249,13 +270,10 @@ bool static_handler::done()
         return false;
     }
 
-    std::string filename_s(task.filename);
-    std::string suffix = filename_s.substr(filename_s.find_last_of('.') + 1);
-
     /**
      * non-static file
      */
-    if (type_set.find(suffix) == type_set.end())
+    if (!swoole_mime_type_exists(task.filename))
     {
         return false;
     }
@@ -263,7 +281,7 @@ bool static_handler::done()
     return send_response();
 }
 
-int swHttpRequset_static_handler(swServer *serv, swHttpRequest *request, swConnection *conn)
+int swHttp_static_handler(swServer *serv, swHttpRequest *request, swConnection *conn)
 {
     static_handler handler(serv, request, conn);
     return handler.done();
