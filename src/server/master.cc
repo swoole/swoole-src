@@ -704,6 +704,7 @@ void swServer_init(swServer *serv)
     serv->max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
     //http server
+    serv->http_parse_cookie = 1;
     serv->http_parse_post = 1;
     serv->http_compression = 1;
     serv->http_compression_level = 1; // Z_BEST_SPEED

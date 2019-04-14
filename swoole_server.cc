@@ -2611,7 +2611,12 @@ static PHP_METHOD(swoole_server, set)
         }
         serv->cpu_affinity_available = available_cpu;
     }
-    //paser x-www-form-urlencoded form data
+    //parse cookie header
+    if (php_swoole_array_get_value(vht, "http_parse_cookie", v))
+    {
+        serv->http_parse_cookie = zval_is_true(v);
+    }
+    //parse x-www-form-urlencoded form data
     if (php_swoole_array_get_value(vht, "http_parse_post", v))
     {
         serv->http_parse_post = zval_is_true(v);

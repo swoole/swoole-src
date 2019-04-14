@@ -125,10 +125,10 @@ private:
     swoole_http_parser parser = {0};
 };
 
-zend_class_entry *swoole_http_client_coro_ce;
+static zend_class_entry *swoole_http_client_coro_ce;
 static zend_object_handlers swoole_http_client_coro_handlers;
 
-zend_class_entry *swoole_http_client_coro_exception_ce;
+static zend_class_entry *swoole_http_client_coro_exception_ce;
 static zend_object_handlers swoole_http_client_coro_exception_handlers;
 
 typedef struct
@@ -1518,7 +1518,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
     {
         zend_throw_exception_ex(
             swoole_http_client_coro_exception_ce,
-            EINVAL, "Need to use `--enable-openssl` to support ssl when compiling swoole"
+            EPROTONOSUPPORT, "you must configure with `enable-openssl` to support ssl connection"
         );
         RETURN_FALSE;
     }
