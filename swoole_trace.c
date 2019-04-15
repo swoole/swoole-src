@@ -199,11 +199,19 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
                     return -__LINE__;
                 }
 
+#if PHP_VERSION_ID < 80000
                 if (ZEND_CALL_KIND_EX((*call_info) >> ZEND_CALL_INFO_SHIFT) == ZEND_CALL_TOP_CODE)
+#else
+                if (ZEND_CALL_KIND_EX(*call_info) == ZEND_CALL_TOP_CODE)
+#endif
                 {
                     return 0;
                 }
+#if PHP_VERSION_ID < 80000
                 else if (ZEND_CALL_KIND_EX(*(call_info) >> ZEND_CALL_INFO_SHIFT) == ZEND_CALL_NESTED_CODE)
+#else
+                else if (ZEND_CALL_KIND_EX(*call_info) == ZEND_CALL_NESTED_CODE)
+#endif
                 {
                     memcpy(buf, "[INCLUDE_OR_EVAL]", sizeof("[INCLUDE_OR_EVAL]"));
                 }

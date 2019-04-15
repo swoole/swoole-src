@@ -281,10 +281,27 @@ void PHPCoroutine::create_func(void *arg)
     call = (zend_execute_data *) (EG(vm_stack_top));
     task = (php_coro_task *) EG(vm_stack_top);
     EG(vm_stack_top) = (zval *) ((char *) call + PHP_CORO_TASK_SLOT * sizeof(zval));
+
+
+#if PHP_VERSION_ID < 80000
     call = zend_vm_stack_push_call_frame(
         ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED,
         func, argc, fci_cache.called_scope, fci_cache.object
     );
+#else
+    do {
+        uint32_t call_info;
+        void *object_or_called_scope;
+        if ((func->common.fn_flags & ZEND_ACC_STATIC) || !fci_cache.object) {
+            object_or_called_scope = fci_cache.called_scope;
+            call_info = ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC;
+        } else {
+            object_or_called_scope = fci_cache.object;
+            call_info = ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC | ZEND_CALL_HAS_THIS;
+        }
+        call = zend_vm_stack_push_call_frame(call_info, func, argc, object_or_called_scope);
+    } while (0);
+#endif
 
     SW_SET_EG_SCOPE(func->common.scope);
 

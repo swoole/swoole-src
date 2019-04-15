@@ -495,7 +495,11 @@ int php_coroutine_reactor_can_exit(swReactor *reactor);
 void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset);
 #endif
 
-void php_swoole_class_unset_property_deny(zval *zobject, zval *member, void **cache_slot);
+#if PHP_VERSION_ID < 80000
+void php_swoole_class_unset_property_deny(zval *zobject, zval *zmember, void **cache_slot);
+#else
+void php_swoole_class_unset_property_deny(zend_object *object, zend_string *member, void **cache_slot);
+#endif
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool display_errors;
@@ -674,8 +678,8 @@ static sw_inline void sw_zval_free(zval *val)
 #define SW_REGISTER_BOOL_CONSTANT(name, value)    REGISTER_BOOL_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
 #define SW_REGISTER_LONG_CONSTANT(name, value)    REGISTER_LONG_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
 #define SW_REGISTER_DOUBLE_CONSTANT(name, value)  REGISTER_DOUBLE_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
-#define SW_REGISTER_STRING_CONSTANT(name, value)  REGISTER_STRING_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
-#define SW_REGISTER_STRINGL_CONSTANT(name, value) REGISTER_STRINGL_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
+#define SW_REGISTER_STRING_CONSTANT(name, value)  REGISTER_STRING_CONSTANT(name, (char *) value, CONST_CS | CONST_PERSISTENT)
+#define SW_REGISTER_STRINGL_CONSTANT(name, value) REGISTER_STRINGL_CONSTANT(name, (char *) value, CONST_CS | CONST_PERSISTENT)
 
 //----------------------------------String API-----------------------------------
 

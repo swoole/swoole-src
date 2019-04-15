@@ -740,7 +740,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
         break;
     default:
 #ifdef SW_DEBUG
-        swoole_php_fatal_error(E_WARNING, "socket_xport_api: unsupported option", xparam->op);
+        swoole_php_fatal_error(E_WARNING, "socket_xport_api: unsupported option %d", xparam->op);
 #endif
         break;
     }

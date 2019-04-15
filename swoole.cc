@@ -284,6 +284,7 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->rshutdown_functions = NULL;
 }
 
+#if PHP_VERSION_ID < 80000
 void php_swoole_class_unset_property_deny(zval *zobject, zval *zmember, void **cache_slot)
 {
     if (EXPECTED(zend_hash_find(&(Z_OBJCE_P(zobject)->properties_info), Z_STR_P(zmember))))
@@ -293,6 +294,17 @@ void php_swoole_class_unset_property_deny(zval *zobject, zval *zmember, void **c
     }
     std_object_handlers.unset_property(zobject, zmember, cache_slot);
 }
+#else
+void php_swoole_class_unset_property_deny(zend_object *object, zend_string *member, void **cache_slot)
+{
+    if (EXPECTED(zend_hash_find(object->properties, member)))
+    {
+        zend_throw_error(NULL, "Property %s of class %s cannot be unset", ZSTR_VAL(member), ZSTR_VAL(object->ce->name));
+        return;
+    }
+    std_object_handlers.unset_property(object, member, cache_slot);
+}
+#endif
 
 ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
 {

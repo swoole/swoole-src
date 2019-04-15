@@ -1317,7 +1317,7 @@ static PHP_METHOD(swoole_socket_coro, getOption)
             optlen = sizeof(if_addr);
             if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &if_addr, &optlen) != 0)
             {
-                swoole_php_sys_error(E_WARNING, "getsockopt(%d, %ld, %ld)", sock->socket->get_fd(), level, optname);
+                swoole_php_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
                 RETURN_FALSE;
             }
             if (php_add4_to_if_index(&if_addr, sock->socket, &if_index) == SUCCESS)
@@ -1352,7 +1352,7 @@ static PHP_METHOD(swoole_socket_coro, getOption)
 
         if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &linger_val, &optlen) != 0)
         {
-            swoole_php_sys_error(E_WARNING, "getsockopt(%d, %ld, %ld)", sock->socket->get_fd(), level, optname);
+            swoole_php_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
             RETURN_FALSE;
         }
 
@@ -1367,7 +1367,7 @@ static PHP_METHOD(swoole_socket_coro, getOption)
 
         if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &tv, &optlen) != 0)
         {
-            swoole_php_sys_error(E_WARNING, "getsockopt(%d, %ld, %ld)", sock->socket->get_fd(), level, optname);
+            swoole_php_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
             RETURN_FALSE;
         }
 
@@ -1382,7 +1382,7 @@ static PHP_METHOD(swoole_socket_coro, getOption)
 
         if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &other_val, &optlen) != 0)
         {
-            swoole_php_sys_error(E_WARNING, "getsockopt(%d, %ld, %ld)", sock->socket->get_fd(), level, optname);
+            swoole_php_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
             RETURN_FALSE;
         }
         if (optlen == 1)
