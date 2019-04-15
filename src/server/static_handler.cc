@@ -23,9 +23,6 @@
 
 using namespace std;
 
-static unordered_set<string> locations;
-static unordered_set<string> file_types;
-
 class static_handler
 {
 private:
@@ -76,16 +73,15 @@ int static_handler::send_response()
      */
     if (lstat(task.filename, &file_stat) < 0)
     {
-        _404: send_error_page(404);
-        return SW_TRUE;
+        return SW_FALSE;
     }
     if (file_stat.st_size == 0)
     {
-        goto _404;
+        return SW_FALSE;
     }
     if ((file_stat.st_mode & S_IFMT) != S_IFREG)
     {
-        goto _404;
+        return SW_FALSE;
     }
 
     swSendData response;
