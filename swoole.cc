@@ -73,26 +73,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_isset, 0, 0, 1)
     ZEND_ARG_INFO(0, events)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_tick, 0, 0, 2)
-    ZEND_ARG_INFO(0, ms)
-    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
-    ZEND_ARG_VARIADIC_INFO(0, params)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_after, 0, 0, 2)
-    ZEND_ARG_INFO(0, ms)
-    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
-    ZEND_ARG_VARIADIC_INFO(0, params)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_exists, 0, 0, 1)
-    ZEND_ARG_INFO(0, timer_id)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_clear, 0, 0, 1)
-    ZEND_ARG_INFO(0, timer_id)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_set, 0, 0, 1)
     ZEND_ARG_ARRAY_INFO(0, settings, 0)
 ZEND_END_ARG_INFO()
@@ -163,11 +143,6 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_event_cycle, arginfo_swoole_event_cycle)
     PHP_FE(swoole_event_dispatch, arginfo_swoole_void)
     PHP_FE(swoole_event_isset, arginfo_swoole_event_isset)
-    /*------swoole_timer-----*/
-    PHP_FE(swoole_timer_after, arginfo_swoole_timer_after)
-    PHP_FE(swoole_timer_tick, arginfo_swoole_timer_tick)
-    PHP_FE(swoole_timer_exists, arginfo_swoole_timer_exists)
-    PHP_FE(swoole_timer_clear, arginfo_swoole_timer_clear)
     /*------swoole_async_io------*/
     PHP_FE(swoole_async_dns_lookup_coro, arginfo_swoole_async_dns_lookup_coro)
     PHP_FE(swoole_async_set, arginfo_swoole_async_set)
@@ -192,15 +167,6 @@ const zend_function_entry swoole_functions[] =
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
-static const zend_function_entry swoole_timer_methods[] =
-{
-    ZEND_FENTRY(tick, ZEND_FN(swoole_timer_tick), arginfo_swoole_timer_tick, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(after, ZEND_FN(swoole_timer_after), arginfo_swoole_timer_after, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(exists, ZEND_FN(swoole_timer_exists), arginfo_swoole_timer_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(clear, ZEND_FN(swoole_timer_clear), arginfo_swoole_timer_clear, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_FE_END
-};
-
 static const zend_function_entry swoole_event_methods[] =
 {
     ZEND_FENTRY(add, ZEND_FN(swoole_event_add), arginfo_swoole_event_add, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -219,9 +185,6 @@ static const zend_function_entry swoole_event_methods[] =
 #if PHP_MEMORY_DEBUG
 php_vmstat_t php_vmstat;
 #endif
-
-static zend_class_entry *swoole_timer_ce;
-static zend_object_handlers swoole_timer_handlers;
 
 static zend_class_entry *swoole_event_ce;
 static zend_object_handlers swoole_event_handlers;
@@ -810,11 +773,6 @@ PHP_MINIT_FUNCTION(swoole)
         zend_hash_str_del(CG(function_table), ZEND_STRL("defer"));
     }
 
-    SW_INIT_CLASS_ENTRY(swoole_timer, "Swoole\\Timer", "swoole_timer", NULL, swoole_timer_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_timer, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SW_SET_CLASS_CLONEABLE(swoole_timer, zend_class_clone_deny);
-    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_timer, zend_class_unset_property_deny);
-
     SW_INIT_CLASS_ENTRY(swoole_event, "Swoole\\Event", "swoole_event", NULL, swoole_event_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_event, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_event, zend_class_clone_deny);
@@ -822,7 +780,6 @@ PHP_MINIT_FUNCTION(swoole)
 
     SW_INIT_EXCEPTION_CLASS_ENTRY(swoole_exception, "Swoole\\Exception", "swoole_exception", NULL, NULL);
 
-    //swoole init
     swoole_init();
     if (!SWOOLE_G(enable_coroutine))
     {
@@ -833,36 +790,43 @@ PHP_MINIT_FUNCTION(swoole)
         SWOOLE_G(cli) = 1;
     }
 
-    swoole_server_init(module_number);
-    swoole_server_port_init(module_number);
-    swoole_client_init(module_number);
-    swoole_socket_coro_init(module_number);
-    swoole_client_coro_init(module_number);
-    swoole_redis_coro_init(module_number);
-#ifdef SW_USE_POSTGRESQL
-    swoole_postgresql_coro_init(module_number);
-#endif
-    swoole_mysql_coro_init(module_number);
-    swoole_http_client_coro_init(module_number);
-	swoole_coroutine_util_init(module_number);
-    swoole_async_coro_init(module_number);
+    /** <Sort by dependency> **/
+    // base
+    swoole_atomic_init(module_number);
+    swoole_buffer_init(module_number);
+    swoole_lock_init(module_number);
     swoole_process_init(module_number);
     swoole_process_pool_init(module_number);
     swoole_table_init(module_number);
-    swoole_runtime_init(module_number);
-    swoole_lock_init(module_number);
-    swoole_atomic_init(module_number);
-    swoole_http_server_init(module_number);
-    swoole_buffer_init(module_number);
-    swoole_websocket_init(module_number);
+    swoole_timer_init(module_number);
+    // coroutine
+    swoole_async_coro_init(module_number);
+    swoole_coroutine_util_init(module_number);
     swoole_channel_coro_init(module_number);
+    swoole_runtime_init(module_number);
+    // client
+    swoole_socket_coro_init(module_number);
+    swoole_client_init(module_number);
+    swoole_client_coro_init(module_number);
+    swoole_http_client_coro_init(module_number);
+    swoole_mysql_coro_init(module_number);
+    swoole_redis_coro_init(module_number);
 #ifdef SW_USE_HTTP2
     swoole_http2_client_coro_init(module_number);
 #endif
+#ifdef SW_USE_POSTGRESQL
+    swoole_postgresql_coro_init(module_number);
+#endif
+    // server
+    swoole_server_init(module_number);
+    swoole_server_port_init(module_number);
+    swoole_http_server_init(module_number);
+    swoole_websocket_server_init(module_number);
+    swoole_redis_server_init(module_number);
+    // others
 #ifdef SW_USE_FAST_SERIALIZE
     swoole_serialize_init(module_number);
 #endif
-    swoole_redis_server_init(module_number);
 
     SwooleG.fatal_error = php_swoole_fatal_error;
     SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);

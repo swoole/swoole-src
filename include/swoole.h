@@ -2165,15 +2165,15 @@ enum swTimer_type
 
 struct _swTimer_node
 {
-    swHeap_node *heap_node;
-    void *data;
-    swTimerCallback callback;
+    long id;
+    enum swTimer_type type;
     int64_t exec_msec;
     int64_t interval;
     uint64_t round;
-    long id;
-    enum swTimer_type type;
-    uint8_t remove;
+    uint8_t removed;
+    swTimerCallback callback;
+    void *data;
+    swHeap_node *heap_node;
 };
 
 struct _swTimer
