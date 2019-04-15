@@ -408,7 +408,7 @@ int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_contex
     return SW_OK;
 }
 
-void swoole_websocket_init(int module_number)
+void swoole_websocket_server_init(int module_number)
 {
     SW_INIT_CLASS_ENTRY_EX(swoole_websocket_server, "Swoole\\WebSocket\\Server", "swoole_websocket_server", NULL, swoole_websocket_server_methods, swoole_http_server);
     SW_SET_CLASS_SERIALIZABLE(swoole_websocket_server, zend_class_serialize_deny, zend_class_unserialize_deny);

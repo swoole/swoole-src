@@ -567,6 +567,15 @@ function start_server($file, $host, $port, $redirect_file = "/dev/null", $ext1 =
     };
 }
 
+function swoole_fork_exec(callable $fn, bool $redirect_stdin_and_stdout = false, int $pipe_type = SOCK_DGRAM, bool $enable_coroutine = false)
+{
+    $process = new Swoole\Process(...func_get_args());
+    if (!$process->start()) {
+        return false;
+    }
+    return $process::wait();
+}
+
 function fork_exec(callable $fn, $f_stdout = "/dev/null", $f_stderr = null)
 {
     $pid = pcntl_fork();
