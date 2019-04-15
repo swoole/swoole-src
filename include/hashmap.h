@@ -43,6 +43,7 @@ int swHashMap_del(swHashMap *hmap, char *key, uint16_t key_len);
 int swHashMap_del_int(swHashMap *hmap, uint64_t key);
 int swHashMap_move(swHashMap *hmap, char *old_key, uint16_t old_key_len, char *new_key, uint16_t new_key_len);
 int swHashMap_move_int(swHashMap *hmap, uint64_t old_key, uint64_t new_key);
+void swHashMap_rewind(swHashMap* hmap);
 void* swHashMap_each(swHashMap* hmap, char **key);
 void* swHashMap_each_int(swHashMap* hmap, uint64_t *key);
 #define swHashMap_each_reset(hmap)    (hmap->iterator = NULL)
