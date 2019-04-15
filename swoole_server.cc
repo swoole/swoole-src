@@ -2672,6 +2672,28 @@ static PHP_METHOD(swoole_server, set)
         }
     }
     /**
+     * [static_handler] locations
+     */
+    if (php_swoole_array_get_value(vht, "static_handler_locations", v))
+    {
+        if (ZVAL_IS_ARRAY(v))
+        {
+            zval *_location;
+            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(v), _location)
+                zend::string __location(_location);
+                if (__location.len() > 0 && __location.val()[0] == '/')
+                {
+                    swHttp_static_handler_add_location(serv, __location.val(), __location.len());
+                }
+            SW_HASHTABLE_FOREACH_END();
+        }
+        else
+        {
+            swoole_php_fatal_error(E_ERROR, "static_handler_locations num must be array");
+            RETURN_FALSE;
+        }
+    }
+    /**
      * buffer input size
      */
     if (php_swoole_array_get_value(vht, "buffer_input_size", v))
