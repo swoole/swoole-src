@@ -32,19 +32,18 @@
 
 #ifdef HAVE_KQUEUE
 
-#define FETCH_EVENT() \
-    memcpy(&fd_, &(object->events[i].udata), sizeof(fd_)); \
-    event.fd = fd_.fd; \
-    event.from_id = reactor->id; \
-    event.type = fd_.fdtype; \
-    event.socket = swReactor_get(reactor, event.fd)
-
-typedef struct swReactorKqueue_s swReactorKqueue;
-typedef struct _swFd
+typedef struct
 {
     uint32_t fd;
     uint32_t fdtype;
 } swFd;
+
+typedef struct
+{
+    int epfd;
+    int event_max;
+    struct kevent *events;
+} swReactorKqueue;
 
 static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype);
 static int swReactorKqueue_set(swReactor *reactor, int fd, int fdtype);
@@ -52,12 +51,26 @@ static int swReactorKqueue_del(swReactor *reactor, int fd);
 static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo);
 static void swReactorKqueue_free(swReactor *reactor);
 
-struct swReactorKqueue_s
+static sw_inline enum swBool_type swReactorKqueue_fetch_event(swReactor *reactor, swEvent *event, void *udata)
 {
-    int epfd;
-    int event_max;
-    struct kevent *events;
-};
+    event->fd = ((swFd *) (udata))->fd;
+    event->type = ((swFd *) (udata))->fdtype;
+    event->from_id = reactor->id;
+    event->socket = swReactor_get(reactor, event->fd);
+    if (event->socket->removed)
+    {
+        return SW_FALSE;
+    }
+    return SW_TRUE;
+}
+
+static sw_inline void swReactorKqueue_del_once_socket(swReactor *reactor, swConnection *socket)
+{
+    if ((socket->events & SW_EVENT_ONCE) && !socket->removed)
+    {
+        reactor->del(reactor, socket->fd);
+    }
+}
 
 int swReactorKqueue_create(swReactor *reactor, int max_event_num)
 {
@@ -259,14 +272,12 @@ static int swReactorKqueue_del(swReactor *reactor, int fd)
 static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 {
     swEvent event;
-    swFd fd_;
     swReactorKqueue *object = reactor->object;
     swReactor_handle handle;
 
-    int i, n, ret;
-    struct timespec t;
+    int i, n;
+    struct timespec t = {0};
     struct timespec *t_ptr;
-    bzero(&t, sizeof(t));
 
     if (reactor->timeout_msec == 0)
     {
@@ -327,50 +338,37 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
             SW_REACTOR_CONTINUE;
         }
 
+        swTraceLog(SW_TRACE_EVENT, "n %d events", n);
+
         for (i = 0; i < n; i++)
         {
-            swTraceLog(SW_TRACE_EVENT, "n %d events", n);
-            if (object->events[i].udata)
+            struct kevent *kevent = &object->events[i];
+            void *udata = (void *) kevent->udata;
+            if (udata)
             {
-                //read
-                if (object->events[i].filter == EVFILT_READ)
+                switch (kevent->filter)
                 {
-                    FETCH_EVENT();
-                    if (event.socket->removed)
+                case EVFILT_READ:
+                case EVFILT_WRITE:
+                {
+                    if (swReactorKqueue_fetch_event(reactor, &event, udata))
                     {
-                        continue;
+                        handle = swReactor_getHandle(reactor, likely(EVFILT_READ) ? SW_EVENT_READ : SW_EVENT_WRITE, event.type);
+                        if (unlikely(handle(reactor, &event) < 0))
+                        {
+                            swSysWarn("kqueue event %s socket#%d handler failed", EVFILT_READ ? "read" : "write", event.fd);
+                        }
+                        swReactorKqueue_del_once_socket(reactor, event.socket);
                     }
-                    handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
-                    ret = handle(reactor, &event);
-                    if (ret < 0)
-                    {
-                        swSysWarn("kqueue event read socket#%d handler failed", event.fd);
-                    }
+                    break;
                 }
-                //write
-                else if (object->events[i].filter == EVFILT_WRITE)
+                case EVFILT_SIGNAL:
                 {
-                    FETCH_EVENT();
-                    if (event.socket->removed)
-                    {
-                        continue;
-                    }
-                    handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
-                    ret = handle(reactor, &event);
-                    if (ret < 0)
-                    {
-                        swSysWarn("kqueue event write socket#%d handler failed", event.fd);
-                    }
-                }
-                // signal
-                else if (object->events[i].filter == EVFILT_SIGNAL)
-                {
-                    struct
-                    {
+                    struct {
                         swSignalHandler handler;
                         uint16_t signo;
                         uint16_t active;
-                    } *sw_signal = object->events[i].udata;
+                    } *sw_signal = udata;
                     if (sw_signal->active)
                     {
                         if (sw_signal->handler)
@@ -379,18 +377,18 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                         }
                         else
                         {
-                            swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT,
-                                    swSignal_str(sw_signal->signo));
+                            swoole_error_log(
+                                SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL,
+                                SW_UNREGISTERED_SIGNAL_FMT, swSignal_str(sw_signal->signo)
+                            );
                         }
                     }
+                    break;
                 }
-                else
+                default:
                 {
-                    swWarn("unknown event filter[%d]", object->events[i].filter);
+                    swWarn("unknown event filter[%d]", kevent->filter);
                 }
-                if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE))
-                {
-                    reactor->del(reactor, event.fd);
                 }
             }
         }
