@@ -39,9 +39,6 @@ PHP_ARG_ENABLE(swoole, swoole support,
 PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 [  --enable-mysqlnd          Do you have mysqlnd?], no, no)
 
-PHP_ARG_ENABLE(coroutine-postgresql, enable coroutine postgresql support,
-[  --enable-coroutine-postgresql    Do you install postgresql?], no, no)
-
 PHP_ARG_WITH(openssl_dir, dir of openssl,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
@@ -50,9 +47,6 @@ PHP_ARG_WITH(phpx_dir, dir of php-x,
 
 PHP_ARG_WITH(jemalloc_dir, dir of jemalloc,
 [  --with-jemalloc-dir[=DIR]   Include jemalloc support], no, no)
-
-PHP_ARG_WITH(libpq_dir, dir of libpq,
-[  --with-libpq-dir[=DIR]      Include libpq support (requires libpq >= 9.5)], no, no)
 
 PHP_ARG_ENABLE(asan, enable asan,
 [  --enable-asan             Enable asan], no, no)
@@ -309,7 +303,6 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
-    AC_CHECK_LIB(pq, PQconnectdb, AC_DEFINE(HAVE_POSTGRESQL, 1, [have postgresql]))
 
     AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
         AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
@@ -437,35 +430,6 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_MYSQLND, 1, [use mysqlnd])
     fi
 
-    if test "$PHP_COROUTINE_POSTGRESQL" = "yes"; then
-        if test "$PHP_LIBPQ" != "no" || test "$PHP_LIBPQ_DIR" != "no"; then
-            if test "$PHP_LIBPQ_DIR" != "no"; then
-                AC_DEFINE(HAVE_LIBPQ, 1, [have libpq])
-                AC_MSG_RESULT(libpq include success)
-                PHP_ADD_INCLUDE("${PHP_LIBPQ_DIR}/include")
-                PHP_ADD_LIBRARY_WITH_PATH(pq, "${PHP_LIBPQ_DIR}/${PHP_LIBDIR}")
-                PGSQL_INCLUDE=$PHP_LIBPQ_DIR/include
-            else
-                PGSQL_SEARCH_PATHS="/usr /usr/local /usr/local/pgsql"
-                for i in $PGSQL_SEARCH_PATHS; do
-                    for j in include include/pgsql include/postgres include/postgresql ""; do
-                        if test -r "$i/$j/libpq-fe.h"; then
-                            PGSQL_INC_BASE=$i
-                            PGSQL_INCLUDE=$i/$j
-                            AC_MSG_RESULT(libpq-fe.h found in PGSQL_INCLUDE)
-                            PHP_ADD_INCLUDE("${PGSQL_INCLUDE}")
-                        fi
-                    done
-                done
-            fi
-            AC_DEFINE(SW_USE_POSTGRESQL, 1, [enable coroutine-postgresql support])
-            PHP_ADD_LIBRARY(pq, 1, SWOOLE_SHARED_LIBADD)
-        fi
-        if test -z "$PGSQL_INCLUDE"; then
-           AC_MSG_ERROR(Cannot find libpq-fe.h. Please confirm the libpq or specify correct PostgreSQL(libpq) installation path)
-        fi
-    fi
-
     swoole_source_file=" \
         src/core/array.c \
         src/core/base.c \
@@ -564,7 +528,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_http_v2_server.cc \
         swoole_lock.c \
         swoole_mysql_coro.cc \
-        swoole_postgresql_coro.cc \
         swoole_process.cc \
         swoole_process_pool.cc \
         swoole_redis_coro.cc \

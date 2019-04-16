@@ -356,9 +356,6 @@ void swoole_redis_coro_init(int module_number);
 #ifdef SW_USE_HTTP2
 void swoole_http2_client_coro_init(int module_number);
 #endif
-#ifdef SW_USE_POSTGRESQL
-void swoole_postgresql_coro_init(int module_number);
-#endif
 // server
 void swoole_server_init(int module_number);
 void swoole_server_port_init(int module_number);

@@ -814,9 +814,6 @@ PHP_MINIT_FUNCTION(swoole)
 #ifdef SW_USE_HTTP2
     swoole_http2_client_coro_init(module_number);
 #endif
-#ifdef SW_USE_POSTGRESQL
-    swoole_postgresql_coro_init(module_number);
-#endif
     // server
     swoole_server_init(module_number);
     swoole_server_port_init(module_number);
