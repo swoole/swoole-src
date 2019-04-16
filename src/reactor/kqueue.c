@@ -53,8 +53,9 @@ static void swReactorKqueue_free(swReactor *reactor);
 
 static sw_inline enum swBool_type swReactorKqueue_fetch_event(swReactor *reactor, swEvent *event, void *udata)
 {
-    event->fd = ((swFd *) (udata))->fd;
-    event->type = ((swFd *) (udata))->fdtype;
+    swFd *fd = (swFd *) &udata;
+    event->fd = fd->fd;
+    event->type = fd->fdtype;
     event->from_id = reactor->id;
     event->socket = swReactor_get(reactor, event->fd);
     if (event->socket->removed)
@@ -353,10 +354,10 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                 {
                     if (swReactorKqueue_fetch_event(reactor, &event, udata))
                     {
-                        handle = swReactor_getHandle(reactor, likely(EVFILT_READ) ? SW_EVENT_READ : SW_EVENT_WRITE, event.type);
+                        handle = swReactor_getHandle(reactor, likely(kevent->filter == EVFILT_READ) ? SW_EVENT_READ : SW_EVENT_WRITE, event.type);
                         if (unlikely(handle(reactor, &event) < 0))
                         {
-                            swSysWarn("kqueue event %s socket#%d handler failed", EVFILT_READ ? "read" : "write", event.fd);
+                            swSysWarn("kqueue event %s socket#%d handler failed", kevent->filter == EVFILT_READ ? "read" : "write", event.fd);
                         }
                         swReactorKqueue_del_once_socket(reactor, event.socket);
                     }
