@@ -282,8 +282,7 @@ void PHPCoroutine::create_func(void *arg)
     task = (php_coro_task *) EG(vm_stack_top);
     EG(vm_stack_top) = (zval *) ((char *) call + PHP_CORO_TASK_SLOT * sizeof(zval));
 
-
-#if PHP_VERSION_ID < 80000
+#if PHP_VERSION_ID < 70400
     call = zend_vm_stack_push_call_frame(
         ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED,
         func, argc, fci_cache.called_scope, fci_cache.object
