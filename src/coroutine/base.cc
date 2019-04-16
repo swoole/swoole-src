@@ -38,7 +38,7 @@ void Coroutine::yield()
         on_yield(task);
     }
     current = origin;
-    ctx.SwapOut();
+    ctx.swap_out();
 }
 
 void Coroutine::resume()
@@ -50,7 +50,7 @@ void Coroutine::resume()
     }
     origin = current;
     current = this;
-    ctx.SwapIn();
+    ctx.swap_in();
     if (ctx.end)
     {
         close();
@@ -61,7 +61,7 @@ void Coroutine::yield_naked()
 {
     state = SW_CORO_WAITING;
     current = origin;
-    ctx.SwapOut();
+    ctx.swap_out();
 }
 
 void Coroutine::resume_naked()
@@ -69,7 +69,7 @@ void Coroutine::resume_naked()
     state = SW_CORO_RUNNING;
     origin = current;
     current = this;
-    ctx.SwapIn();
+    ctx.swap_in();
     if (ctx.end)
     {
         close();

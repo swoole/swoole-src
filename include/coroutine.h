@@ -227,7 +227,7 @@ protected:
         long cid = this->cid;
         origin = current;
         current = this;
-        ctx.SwapIn();
+        ctx.swap_in();
         if (ctx.end)
         {
             close();
