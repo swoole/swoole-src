@@ -140,10 +140,6 @@ extern swoole_object_array swoole_objects;
 #define SWOOLE_SOCKETS_SUPPORT
 #endif
 
-#if PHP_VERSION_ID < 70400
-#define SW_USE_FAST_SERIALIZE 1
-#endif
-
 #if PHP_MAJOR_VERSION < 7
 #error "require PHP version 7.0 or later"
 #endif
@@ -323,14 +319,6 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro);
 PHP_FUNCTION(swoole_strerror);
 PHP_FUNCTION(swoole_errno);
 PHP_FUNCTION(swoole_last_error);
-//---------------------------------------------------------
-//                  serialize
-//---------------------------------------------------------
-#ifdef SW_USE_FAST_SERIALIZE
-PHP_FUNCTION(swoole_serialize);
-PHP_FUNCTION(swoole_fast_serialize);
-PHP_FUNCTION(swoole_unserialize);
-#endif
 
 /** <Sort by dependency> **/
 // base
@@ -362,12 +350,11 @@ void swoole_server_port_init(int module_number);
 void swoole_http_server_init(int module_number);
 void swoole_websocket_server_init(int module_number);
 void swoole_redis_server_init(int module_number);
-// others
-#ifdef SW_USE_FAST_SERIALIZE
-void swoole_serialize_init(int module_number);
-#endif
 
-//RSHUTDOWN
+/**
+ * RSHUTDOWN
+ * ==============================================================
+ */
 void swoole_async_coro_shutdown();
 void swoole_redis_server_shutdown();
 
@@ -484,11 +471,6 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *dat
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
 zend_bool php_swoole_signal_isset_handler(int signo);
 void php_swoole_event_onDefer(void *_cb);
-
-#ifdef SW_USE_FAST_SERIALIZE
-PHPAPI zend_string* php_swoole_serialize(zval *zvalue);
-PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *zobject_args, long flag);
-#endif
 
 #ifdef SW_COROUTINE
 int php_coroutine_reactor_can_exit(swReactor *reactor);

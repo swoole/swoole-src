@@ -820,10 +820,6 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_http_server_init(module_number);
     swoole_websocket_server_init(module_number);
     swoole_redis_server_init(module_number);
-    // others
-#ifdef SW_USE_FAST_SERIALIZE
-    swoole_serialize_init(module_number);
-#endif
 
     SwooleG.fatal_error = php_swoole_fatal_error;
     SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
