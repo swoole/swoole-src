@@ -34,9 +34,10 @@ go(function () {
      */
     assert($redis->set('key1', 'value', ['xx', 'px' => 10000]));
     assert($redis->ttl('key1') == 10);
+    echo "OK\n";
 });
 
 swoole_event::wait();
 ?>
 --EXPECT--
-
+OK
