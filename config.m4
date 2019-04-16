@@ -533,7 +533,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_redis_coro.cc \
         swoole_redis_server.cc \
         swoole_runtime.cc \
-        swoole_serialize.c \
         swoole_server.cc \
         swoole_server_port.cc \
         swoole_socket_coro.cc \
