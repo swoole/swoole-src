@@ -23,6 +23,9 @@
 
 using namespace std;
 
+unordered_set<string> types;
+unordered_set<string> locations;
+
 class static_handler
 {
 private:
@@ -37,6 +40,7 @@ private:
     } task;
 
     char header_buffer[1024];
+    bool last;
 
     int send_response();
     int send_error_page(int status_code);
@@ -49,6 +53,7 @@ public:
         conn = _conn;
         task.length = 0;
         task.offset = 0;
+        last = false;
     }
     bool done();
 };
@@ -59,8 +64,11 @@ int static_handler::send_error_page(int status_code)
     response.info.fd = conn->session_id;
     response.info.type = SW_EVENT_TCP;
     response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer), "HTTP/1.1 %s\r\n"
-            "Server: %s\r\n\r\n", swHttp_get_status_message(status_code),
-    SW_HTTP_SERVER_SOFTWARE);
+            "Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"
+            "Content-Length: %d\r\n"
+            "\r\n%s",
+            swHttp_get_status_message(status_code),
+            sizeof(SW_HTTP_PAGE_404) - 1, SW_HTTP_PAGE_404);
     response.data = header_buffer;
     return swServer_master_send(serv, &response);
 }
@@ -73,7 +81,15 @@ int static_handler::send_response()
      */
     if (lstat(task.filename, &file_stat) < 0)
     {
-        return SW_FALSE;
+        if (last)
+        {
+            send_error_page(404);
+            return SW_TRUE;
+        }
+        else
+        {
+            return SW_FALSE;
+        }
     }
     if (file_stat.st_size == 0)
     {
@@ -241,9 +257,24 @@ bool static_handler::done()
 
     size_t n = params ? params - url : request->url_length;
 
+    if (locations.size() > 0)
+    {
+        for (auto i = locations.begin(); i != locations.end(); i++)
+        {
+            if (strncasecmp(i->c_str(), url, i->size()) == 0)
+            {
+                last = true;
+            }
+        }
+        if (!last)
+        {
+            return false;
+        }
+    }
+
     if (serv->document_root_len + n >= PATH_MAX)
     {
-        return SW_FALSE;
+        return false;
     }
 
     memcpy(p, url, n);
@@ -253,7 +284,15 @@ bool static_handler::done()
     char real_path[PATH_MAX];
     if (!realpath(task.filename, real_path))
     {
-        return false;
+        if (last)
+        {
+            send_error_page(404);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     if (real_path[serv->document_root_len] != '/')
@@ -281,4 +320,10 @@ int swHttp_static_handler(swServer *serv, swHttpRequest *request, swConnection *
 {
     static_handler handler(serv, request, conn);
     return handler.done();
+}
+
+int swHttp_static_handler_add_location(swServer *serv, const char *location, size_t length)
+{
+    locations.insert(string(location, length));
+    return SW_OK;
 }

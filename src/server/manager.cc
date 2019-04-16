@@ -631,6 +631,7 @@ void swManager_kill_user_worker(swServer *serv)
     int __stat_loc;
 
     //kill user process
+    swHashMap_rewind(serv->user_worker_map);
     while (1)
     {
         user_worker = (swWorker *) swHashMap_each_int(serv->user_worker_map, &key);
@@ -643,6 +644,7 @@ void swManager_kill_user_worker(swServer *serv)
     }
 
     //wait user process
+    swHashMap_rewind(serv->user_worker_map);
     while (1)
     {
         user_worker = (swWorker *) swHashMap_each_int(serv->user_worker_map, &key);
