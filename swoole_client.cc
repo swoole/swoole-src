@@ -321,7 +321,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
     fci_cache = &cb->cache_onReceive;
     if (!fci_cache)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_client object has no 'onReceive' callback function");
+        swoole_php_fatal_error(E_WARNING, "Swoole\\Client object has no 'onReceive' callback function");
         goto free_zdata;
     }
     if (sw_call_user_function_fast_ex(NULL, &cb->cache_onReceive, retval, 2, args) == FAILURE)

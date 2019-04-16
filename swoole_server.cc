@@ -2124,7 +2124,7 @@ static PHP_METHOD(swoole_server, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "swoole_server only can be used in PHP CLI mode");
+        swoole_php_fatal_error(E_ERROR, "Swoole\\Server only can be used in PHP CLI mode");
         RETURN_FALSE;
     }
 
@@ -2145,7 +2145,7 @@ static PHP_METHOD(swoole_server, __construct)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lll", &serv_host, &host_len, &serv_port, &serv_mode, &sock_type) == FAILURE)
     {
-        swoole_php_fatal_error(E_ERROR, "invalid swoole_server parameters");
+        swoole_php_fatal_error(E_ERROR, "invalid Swoole\\Server parameters");
         RETURN_FALSE;
     }
 
@@ -4007,7 +4007,7 @@ static PHP_METHOD(swoole_server, connection_list)
     // exceeded the maximum number of searches
     if (find_count > SW_MAX_FIND_COUNT)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_connection_list max_find_count=%d", SW_MAX_FIND_COUNT);
+        swoole_php_fatal_error(E_WARNING, "swoole connection list max_find_count=%d", SW_MAX_FIND_COUNT);
         RETURN_FALSE;
     }
 
