@@ -54,6 +54,7 @@ void Channel::yield(enum opcode type)
 
 void* Channel::pop(double timeout)
 {
+    Coroutine::get_current_safe();
     if (closed)
     {
         return nullptr;
@@ -101,6 +102,7 @@ void* Channel::pop(double timeout)
 
 bool Channel::push(void *data, double timeout)
 {
+    Coroutine::get_current_safe();
     if (closed)
     {
         return false;
