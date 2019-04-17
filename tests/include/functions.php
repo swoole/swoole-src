@@ -145,7 +145,7 @@ function phpt_var_dump(...$args)
     }
 }
 
-function _httpGet(string $uri, array $options = [])
+function httpRequest(string $uri, array $options = [])
 {
     $url_info = parse_url($uri);
     $scheme = $url_info['scheme'] ?? 'http';
@@ -155,10 +155,16 @@ function _httpGet(string $uri, array $options = [])
     $port = (int)($url_info['port'] ?? null ?: 80);
     $cli = new Swoole\Coroutine\Http\Client($domain, $port, $scheme === 'https' || $port == 443);
     $cli->set($options + ['timeout' => 5]);
+    if (isset($options['method'])) {
+        $cli->setMethod($options['method']);
+    }
     $cli->setHeaders(['Host' => $domain]);
+    if (isset($options['data'])) {
+        $cli->setData($options['data']);
+    }
     $redirect_times = $options['redirect'] ?? 3;
     while (true) {
-        $cli->get($path . $query);
+        $cli->execute($path . $query);
         if ($redirect_times-- && ($cli->headers['location'] ?? null) && $cli->headers['location']{0} === '/') {
             $path = $cli->headers['location'];
             $query = '';
@@ -171,17 +177,17 @@ function _httpGet(string $uri, array $options = [])
 
 function httpGetStatusCode(string $uri, array $options = [])
 {
-    return _httpGet($uri, $options)->statusCode;
+    return httpRequest($uri, $options)->statusCode;
 }
 
 function httpGetHeaders(string $uri, array $options = [])
 {
-    return _httpGet($uri, $options)->headers;
+    return httpRequest($uri, $options)->headers;
 }
 
 function httpGetBody(string $uri, array $options = [])
 {
-    return _httpGet($uri, $options)->body;
+    return httpRequest($uri, $options)->body;
 }
 
 function content_hook_replace(string $content, array $kv_map): string

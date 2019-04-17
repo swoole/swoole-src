@@ -1568,13 +1568,15 @@ static PHP_METHOD(swoole_http_client_coro, setDefer)
 
 static PHP_METHOD(swoole_http_client_coro, setMethod)
 {
-    zval *method;
+    char *method;
+    size_t method_length;
 
+    // Notice: maybe string or array
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_ZVAL(method)
+        Z_PARAM_STRING(method, method_length)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestMethod"), method);
+    zend_update_property_stringl(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestMethod"), method, method_length);
 
     RETURN_TRUE;
 }
@@ -1607,14 +1609,13 @@ static PHP_METHOD(swoole_http_client_coro, setCookies)
 
 static PHP_METHOD(swoole_http_client_coro, setData)
 {
-    char *data;
-    size_t data_len;
+    zval *zdata;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_STRING(data, data_len)
+        Z_PARAM_ZVAL(zdata)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property_stringl(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestBody"), data, data_len);
+    zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestBody"), zdata);
 
     RETURN_TRUE;
 }
