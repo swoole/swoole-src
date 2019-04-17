@@ -21,6 +21,7 @@
 #ifdef HAVE_KQUEUE
 #include <sys/event.h>
 #else
+#define USE_KQUEUE_IDE_HELPER
 #include "helper/kqueue.h"
 #define HAVE_KQUEUE
 #endif
