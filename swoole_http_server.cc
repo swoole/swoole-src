@@ -1838,12 +1838,20 @@ static PHP_METHOD(swoole_http_response, end)
     if (ctx->upgrade)
     {
         swConnection *conn = swWorker_get_connection(serv, ctx->fd);
-        if (conn && conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE && ctx->response.status == 101)
+        if (conn && conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)
         {
-            conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
+            if (ctx->response.status == 101)
+            {
+                conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
+            }
+            else
+            {
+                /* connection should be closed when handshake failed */
+                conn->websocket_status = WEBSOCKET_STATUS_NONE;
+                ctx->keepalive = 0;
+            }
         }
     }
-
     if (!ctx->keepalive)
     {
         serv->close(serv, ctx->fd, 0);
