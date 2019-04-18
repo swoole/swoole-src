@@ -2660,16 +2660,15 @@ static PHP_METHOD(swoole_server, set)
         {
             sw_free(serv->document_root);
         }
-        serv->document_root = str_v.dup();
-        if (serv->document_root[str_v.len() - 1] == '/')
+        serv->document_root = (char *) sw_malloc(PATH_MAX);
+        if (!realpath(str_v.val(), serv->document_root))
         {
-            serv->document_root[str_v.len() - 1] = 0;
-            serv->document_root_len = str_v.len() - 1;
+            swoole_php_fatal_error(E_ERROR, "document_root[%s] does not exist", serv->document_root);
+            sw_free(serv->document_root);
+            serv->document_root = nullptr;
+            RETURN_FALSE;
         }
-        else
-        {
-            serv->document_root_len = str_v.len();
-        }
+        serv->document_root_len = strlen(serv->document_root);
     }
     /**
      * [static_handler] locations
