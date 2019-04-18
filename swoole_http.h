@@ -174,14 +174,15 @@ z##name = ctx->class.z##name;
 /**
  * Http v2
  */
-int swoole_http2_onFrame(swConnection *conn, swEventData *req);
-int swoole_http2_do_response(http_context *ctx, swString *body);
-void swoole_http2_free(swConnection *conn);
+int swoole_http2_server_onFrame(swConnection *conn, swEventData *req);
+int swoole_http2_server_do_response(http_context *ctx, swString *body);
+void swoole_http2_server_session_free(swConnection *conn);
+int swoole_http2_server_ping(http_context *ctx);
 #endif
 
 extern zend_class_entry *swoole_http_server_ce;
-extern zend_class_entry *swoole_http_response_ce;
 extern zend_class_entry *swoole_http_request_ce;
+extern zend_class_entry *swoole_http_response_ce;
 
 extern swString *swoole_http_buffer;
 
