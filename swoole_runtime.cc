@@ -179,8 +179,6 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
 {
     char *colon;
     char *host = NULL;
-
-#ifdef HAVE_IPV6
     char *p;
 
     if (*(str) == '[' && str_len > 1)
@@ -198,7 +196,6 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
         *portno = atoi(p + 2);
         return estrndup(str + 1, p - str - 1);
     }
-#endif
     if (str_len)
     {
         colon = (char*) memchr(str, ':', str_len - 1);
