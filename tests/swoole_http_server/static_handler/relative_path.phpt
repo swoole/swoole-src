@@ -34,7 +34,7 @@ $pm->childFunc = function () use ($pm) {
     $http->set([
 //        'log_file' => '/dev/null',
         'enable_static_handler' => true,
-        'document_root' => ‘../../../’,
+        'document_root' => '../../../',
         'static_handler_locations' => ["/examples", ]
     ]);
     $http->on("WorkerStart", function ($serv, $wid) use ($pm) {
