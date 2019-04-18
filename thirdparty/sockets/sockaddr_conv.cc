@@ -3,7 +3,6 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
-#if HAVE_IPV6
 /* Sets addr by hostname, or by ip in string form (AF_INET6) */
 int php_set_inet6_addr(struct sockaddr_in6 *sin6, char *string, swoole::Socket *php_sock) /* {{{ */
 {
@@ -71,7 +70,6 @@ int php_set_inet6_addr(struct sockaddr_in6 *sin6, char *string, swoole::Socket *
 	return 1;
 }
 /* }}} */
-#endif
 
 /* Sets addr by hostname, or by ip in string form (AF_INET)  */
 int php_set_inet_addr(struct sockaddr_in *sin, char *string, swoole::Socket *php_sock) /* {{{ */
@@ -115,7 +113,6 @@ int php_set_inet46_addr(php_sockaddr_storage *ss, socklen_t *ss_len, char *strin
 			return 1;
 		}
 	}
-#if HAVE_IPV6
 	else if (php_sock->sock_type == AF_INET6) {
 		struct sockaddr_in6 t = {0};
 		if (php_set_inet6_addr(&t, string, php_sock)) {
@@ -125,7 +122,6 @@ int php_set_inet46_addr(php_sockaddr_storage *ss, socklen_t *ss_len, char *strin
 			return 1;
 		}
 	}
-#endif
 	else {
 		php_error_docref(NULL, E_WARNING,
 			"IP address used in the context of an unexpected type of socket");
