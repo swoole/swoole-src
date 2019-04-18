@@ -173,6 +173,7 @@ static PHP_METHOD(swoole_http_response, detach);
 static PHP_METHOD(swoole_http_response, create);
 #ifdef SW_USE_HTTP2
 static PHP_METHOD(swoole_http_response, trailer);
+static PHP_METHOD(swoole_http_response, ping);
 #endif
 static PHP_METHOD(swoole_http_response, status);
 static PHP_METHOD(swoole_http_response, __destruct);
@@ -256,7 +257,6 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_trailer, 0, 0, 2)
     ZEND_ARG_INFO(0, key)
     ZEND_ARG_INFO(0, value)
-    ZEND_ARG_INFO(0, ucwords)
 ZEND_END_ARG_INFO()
 #endif
 
@@ -335,6 +335,7 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, header, arginfo_swoole_http_response_header, ZEND_ACC_PUBLIC)
 #ifdef SW_USE_HTTP2
     PHP_ME(swoole_http_response, trailer, arginfo_swoole_http_response_trailer, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, ping, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
 #endif
     PHP_ME(swoole_http_response, write, arginfo_swoole_http_response_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, end, arginfo_swoole_http_response_end, ZEND_ACC_PUBLIC)
@@ -922,7 +923,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 #ifdef SW_USE_HTTP2
     if (conn->http2_stream)
     {
-        return swoole_http2_onFrame(conn, req);
+        return swoole_http2_server_onFrame(conn, req);
     }
 #endif
 
@@ -1054,7 +1055,7 @@ void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
 #ifdef SW_USE_HTTP2
     if (conn->http2_stream)
     {
-        swoole_http2_free(conn);
+        swoole_http2_server_session_free(conn);
     }
 #endif
     php_swoole_onClose(serv, ev);
@@ -1095,7 +1096,9 @@ void swoole_http_server_init(int module_number)
     zend_declare_property_long(swoole_http_response_ce, ZEND_STRL("fd"), 0,  ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("header"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("cookie"), ZEND_ACC_PUBLIC);
+#ifdef SW_USE_HTTP2
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("trailer"), ZEND_ACC_PUBLIC);
+#endif
 }
 
 http_context* swoole_http_context_new(int fd)
@@ -1703,11 +1706,13 @@ static PHP_METHOD(swoole_http_response, initHeader)
     {
         swoole_http_server_array_init(cookie, response);
     }
+#ifdef SW_USE_HTTP2
     zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("trailer"), 1);
     if (!ZVAL_IS_ARRAY(ztrailer))
     {
         swoole_http_server_array_init(trailer, response);
     }
+#endif
     RETURN_TRUE;
 }
 
@@ -1742,7 +1747,7 @@ static PHP_METHOD(swoole_http_response, end)
 #ifdef SW_USE_HTTP2
     if (ctx->stream)
     {
-        swoole_http2_do_response(ctx, &http_body);
+        swoole_http2_server_do_response(ctx, &http_body);
         RETURN_TRUE;
     }
 #endif
@@ -2148,21 +2153,20 @@ static PHP_METHOD(swoole_http_response, trailer)
 {
     char *k, *v;
     size_t klen, vlen;
-    zend_bool ucwords = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|b", &k, &klen, &v, &vlen, &ucwords) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|b", &k, &klen, &v, &vlen) == FAILURE)
     {
         RETURN_FALSE;
     }
 
     http_context *ctx = http_get_context(getThis(), 0);
-    if (!ctx)
+    if (!ctx || !ctx->stream)
     {
         RETURN_FALSE;
     }
 
     zval *zresponse_object = ctx->response.zobject;
-    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("trailer"), 1);
+    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("trailer"), 0);
     if (!ZVAL_IS_ARRAY(ztrailer))
     {
         swoole_http_server_array_init(trailer, response);
@@ -2177,29 +2181,24 @@ static PHP_METHOD(swoole_http_response, trailer)
         swoole_php_error(E_WARNING, "trailer value is too long");
         RETURN_FALSE;
     }
-
-    if (ucwords)
+    if (true)
     {
         char key_buf[SW_HTTP_HEADER_KEY_SIZE];
-        memcpy(key_buf, k, klen);
-        key_buf[klen] = '\0';
-#ifdef SW_USE_HTTP2
-        if (ctx->stream)
-        {
-            swoole_strtolower(key_buf, klen);
-        }
-        else
-#endif
-        {
-            http_header_key_format(key_buf, klen);
-        }
+        strncpy(key_buf, k, klen)[klen] = '\0';
+        swoole_strtolower(key_buf, klen);
         add_assoc_stringl_ex(ztrailer, key_buf, klen, v, vlen);
     }
-    else
-    {
-        add_assoc_stringl_ex(ztrailer, k, klen, v, vlen);
-    }
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_http_response, ping)
+{
+    http_context *ctx = http_get_context(getThis(), 0);
+    if (!ctx || !ctx->stream)
+    {
+        RETURN_FALSE;
+    }
+    SW_CHECK_RETURN(swoole_http2_server_ping(ctx));
 }
 #endif
 
