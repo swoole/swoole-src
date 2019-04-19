@@ -36,10 +36,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-04-15</date>
-    <time>15:00:00</time>
+    <date>2019-04-19</date>
+    <time>12:00:00</time>
     <version>
-        <release>4.3.2</release>
+        <release>4.3.3</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -48,50 +48,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        Enhancement
-        ---
-        + Dynamically `ipc_size`, greatly improving IPC performance in Process mode (48c1b2b) (3e85511) (@matyhtf)
-        + Improve `Runtime::enableCoroutine` API, support passing in flag directly as the first parameter (464ad65) (7d4be65) (@twose)
-        + SSL connection will automatically configure the ssl_host_name (563e677) (@twose)
-        + Some NOTICE level information will be changed to INFO level, such as server restart information, etc (d87d63a) (@twose)
-        + Add constants for`dispatch_func` return value: `SWOOLE_DISPATCH_RESULT_DISCARD_PACKET`, `SWOOLE_DISPATCH_RESULT_USERFUNC_FALLBACK` (#2451) (@windrunner414)
-        + `swoole_strerror` support parse system error code and swoole error code automatically (d89c565) (#2458) (@twose) (@mabu233)
-        + Built-in Socket related constants, and it would not conflict with Socket extensions (1e1b1d1) (@twose)
-        + Add http_parse_cookie option (dce290ef) (@twose)
-        + Decode path_info (82f8e4fc) (@twose)
-        + Support PHP_STREAM_OPTION_CHECK_LIVENESS (6ff292da) (@twose)
-
         Fixed
         ---
-        * Fixed `CID-1478883`, `CID-1478887`, `CID-1478891`, `CID-1478894` (688713f) (17805af) (e8f1473) (58a098f) (@matyhtf)
-        * Fixed invalid memory access due to fd reuse (08b37fd) (@twose)
-        * Fixed connection reset due to fd reuse (#2444) (@twose)
-        * Fixed the bug where the GC didn't work during the shutdown (causing a memory leak) (836ea23) (15ba9f7) (@twose)
-        * Fixed the invalidation of `Co\Iterator` (db9e155) (@twose)
-        * Fixed`Co::exec` causes process stuck (8a1d776) (22252d7) (@matyhtf)
-        * Fixed BADF caused by `exportSocket` (ebbce67) (c7af14c) (c717122) (@matyhtf)
-        * Complete `Swoole\Buffer` property declaration (2f66319) (@twose)
-        * Complete `Co::exec` arg info (7da1376) (@twose)
-        * Fixed the wrong error code when the MySQL client host was invalid (#2367) (@twose)
-        * Fixed the problem that the sync client is interrupted by the signal (#2448) (@liues1992)
-        * Fixed build check with `i?86/aarch64` (#2460) (@dixyes)
-        * Fixed `poll` with timeout `0` (1143743) (@matyhtf)
-        * Fixed `stream_select` with `null` timeout (e8a58d5) (c166b7a) (@twose)
-        * Fixed `stream_select` behavior (d8e7a41) (3ce877d) (2819232) (cd8e4c7)  (@twose) (@matyhtf)
-        * Generate Swoole Warning instead of PHP Warning (unmanageable error) (955d021) (@twose)
-        * Fixed `Co\Client` construct failed (#2466) (@twose)
-        * Fixed Http2 cookie (e18d66b) (@twose)
-        * Fixed `Process->getProcess` free (fe1ca17) (@matyhtf)
-        * Fixed Coroutine flock (23401d8) (86cf0c9) (@matyhtf)
-        * Fixed `Co\Http2\Client` null ptr (66c31ee) (@twose)
-        * Fixed `Socket->accept` return Socket object with uninitialised type (5d26b00) (@twose)
-        * Fixed `Co\Http\Client` with websocket protocol can not support full duplex (#2477) (523c588) (@twose)
-        * Complete `Event::dispatch`, `Event::isSet` method arg info (#2491) (@deminy)
-        * Fixed invalid `Connection\Iterator` (#2492) (@matyhtf)
-        * Fixed `reload_async` with Timer (9eaf32cc) (bacb5228) (@matyhtf) (@twose)
-        * Cannot use msgqueue when task_enable_coroutine is enable (#2497) (@matyhtf)
-        * Fixed `read_eof` bug (e936c764) (@matyhtf)
-        * Sockets C++ compatibility (3cf7dcba) (@twose)
+        * Fixed Http2 ping frame bug (0f074a61) (371d0b86) (e28ed13c) (@twose) (@shiguangqi)
+        * Fixed OSX signal bug (6d06a2c2) (6b66f56c) (@twose)
+        * Fixed `Coroutine\Http\Client->setData` (53d9d1ac) (@twose)
+        * Remove HAVE_IPV6 (3effad3c) (@matyhtf)
+        * PHP7.4 compatibility (#2506) (@twose)
     </notes>
     <contents>
         <dir name="/">
@@ -989,6 +952,7 @@
             <file role="test" name="tests/swoole_http2_server/huge_headers.phpt" />
             <file role="test" name="tests/swoole_http2_server/nghttp2_big_data.phpt" />
             <file role="test" name="tests/swoole_http2_server/no_compression.phpt" />
+            <file role="test" name="tests/swoole_http2_server/ping.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/204.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/addData.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/another_coroutine.phpt" />
@@ -1013,6 +977,7 @@
             <file role="test" name="tests/swoole_http_client_coro/multi.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/multi_and_reuse.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/parser.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/post_array.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/reconnect_but_failed.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/recv_slow_timeout.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/recv_timeout.phpt" />
