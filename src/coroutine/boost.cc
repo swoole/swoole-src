@@ -26,10 +26,13 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
 {
     BOOST_ASSERT(boost::context::stack_traits::minimum_size() <= stack_size_);
     BOOST_ASSERT(
-            boost::context::stack_traits::is_unbounded()
-                    || (boost::context::stack_traits::maximum_size() >= stack_size_));
+        boost::context::stack_traits::is_unbounded() ||
+        (boost::context::stack_traits::maximum_size() >= stack_size_)
+    );
 
+#ifdef SW_CONTEXT_PROTECT_STACK_PAGE
     protect_page_ = 0;
+#endif
     end = false;
     swap_ctx_ = NULL;
 
@@ -42,6 +45,7 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
 #endif
     ctx_ = boost::context::make_fcontext(sp, stack_size_, (void (*)(intptr_t))&context_func);
 
+#ifdef SW_CONTEXT_PROTECT_STACK_PAGE
     uint32_t protect_page = get_protect_stack_page();
     if (protect_page)
     {
@@ -50,6 +54,7 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
             protect_page_ = protect_page;
         }
     }
+#endif
 }
 
 Context::~Context()
@@ -57,10 +62,12 @@ Context::~Context()
     if (stack_)
     {
         swTraceLog(SW_TRACE_COROUTINE, "free stack: ptr=%p", stack_);
+#ifdef SW_CONTEXT_PROTECT_STACK_PAGE
         if (protect_page_)
         {
             unprotect_stack(stack_, protect_page_);
         }
+#endif
 #if defined(USE_VALGRIND)
         VALGRIND_STACK_DEREGISTER(valgrind_stack_id);
 #endif
@@ -69,13 +76,13 @@ Context::~Context()
     }
 }
 
-bool Context::SwapIn()
+bool Context::swap_in()
 {
     boost::context::jump_fcontext(&swap_ctx_, ctx_, (intptr_t) this, true);
     return true;
 }
 
-bool Context::SwapOut()
+bool Context::swap_out()
 {
     boost::context::jump_fcontext(&ctx_, swap_ctx_, (intptr_t) this, true);
     return true;
@@ -86,7 +93,7 @@ void Context::context_func(void *arg)
     Context* _this = (Context*) arg;
     _this->fn_(_this->private_data_);
     _this->end = true;
-    _this->SwapOut();
+    _this->swap_out();
 }
 
 #endif

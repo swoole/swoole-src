@@ -107,14 +107,16 @@ ssize_t Context::get_stack_usage()
 }
 #endif
 
-void Context::swap_in()
+bool Context::swap_in()
 {
     jump_fcontext(&swap_ctx_, ctx_, (intptr_t) this, true);
+    return true;
 }
 
-void Context::swap_out()
+bool Context::swap_out()
 {
     jump_fcontext(&ctx_, swap_ctx_, (intptr_t) this, true);
+    return true;
 }
 
 void Context::context_func(void *arg)

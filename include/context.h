@@ -85,8 +85,8 @@ class Context
 public:
     Context(size_t stack_size, coroutine_func_t fn, void* private_data);
     ~Context();
-    void swap_in();
-    void swap_out();
+    bool swap_in();
+    bool swap_out();
     static void context_func(void* arg);
 #if !defined(SW_NO_USE_ASM_CONTEXT) && defined(SW_LOG_TRACE_OPEN)
     ssize_t get_stack_usage();
