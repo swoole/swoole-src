@@ -16,7 +16,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
             $timeout = ms_random(0.1, 1);
             $s = microtime(true);
             $data = $conn->recvAll(1024, $timeout);
-            assert(time_approximate($timeout, microtime(true) - $s));
+            time_approximate($timeout, microtime(true) - $s);
             assert(strlen($data) > 0);
             assert(strlen($data) != 1024);
             assert(strpos($pm->getRandomDataEx($c), $data) === 0);

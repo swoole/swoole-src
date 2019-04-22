@@ -25,7 +25,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
                     $ret = $conn->recvfrom($peer, $timeout);
                     break;
             }
-            assert(time_approximate($timeout, microtime(true) - $s));
+            time_approximate($timeout, microtime(true) - $s);
             assert($ret === false);
             assert($conn->errCode == SOCKET_ETIMEDOUT);
         });

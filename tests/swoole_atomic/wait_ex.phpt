@@ -20,7 +20,7 @@ $server->on('WorkerStart', function (Swoole\Http\Server $server, int $wid) use (
         $atomic->wait(-1);
         echo "I'm wide awake\n";
         $s = microtime(true) - $s;
-        assert(time_approximate(1, $s, 0.2));
+        time_approximate(1, $s, 0.2);
     }
 });
 $server->on('Request', function () { });

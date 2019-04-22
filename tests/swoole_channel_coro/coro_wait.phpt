@@ -14,8 +14,8 @@ $pm->parentFunc = function () use ($pm) {
         assert(!empty($data));
         $json = json_decode($data, true);
         assert(is_array($json));
-        assert(isset($json['www.qq.com']) and $json['www.qq.com'] > 1024);
-        assert(isset($json['www.163.com']) and $json['www.163.com'] > 1024);
+        Assert::true(isset($json['www.qq.com']) and $json['www.qq.com'] > 1024);
+        Assert::true(isset($json['www.163.com']) and $json['www.163.com'] > 1024);
         $pm->kill();
     });
     Swoole\Event::wait();

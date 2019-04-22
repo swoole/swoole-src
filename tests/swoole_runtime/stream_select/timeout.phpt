@@ -18,7 +18,7 @@ go(function () {
         $timeout = ms_random(0.1, 0.5);
         $n = stream_select($r_array, $w_array, $e_array, 0, $timeout * 1000000);
         Assert::eq($n, 0);
-        assert(time_approximate($timeout, microtime(true) - $s));
+        time_approximate($timeout, microtime(true) - $s);
         echo "SUCCESS\n";
     }
 });

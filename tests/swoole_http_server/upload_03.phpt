@@ -29,8 +29,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
     assert(!empty($data));
     $json = json_decode(explode("\r\n\r\n", $data, 2)[1], true);
     assert(is_array($json));
-    assert(isset($json['folder_id']));
-    assert(isset($json['name']));
+    Assert::true(isset($json['folder_id']));
+    Assert::true(isset($json['name']));
     swoole_process::kill($pid);
 };
 

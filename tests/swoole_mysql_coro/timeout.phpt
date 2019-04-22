@@ -25,7 +25,7 @@ for ($c = MAX_CONCURRENCY_LOW; $c--;) {
         } else {
             $ret = $statement->execute(null, $timeout);
         }
-        assert(time_approximate($timeout, microtime(true) - $s));
+        time_approximate($timeout, microtime(true) - $s);
         assert(!$ret);
         assert($mysql->errno === SOCKET_ETIMEDOUT);
     });

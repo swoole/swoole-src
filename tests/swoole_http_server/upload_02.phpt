@@ -60,7 +60,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     assert(!empty($data));
     $json = json_decode(explode("\r\n\r\n", $data, 2)[1], true);
     assert(is_array($json));
-    assert(isset($json['file']));
+    Assert::true(isset($json['file']));
     echo "DONE\n";
     $pm->kill();
 };

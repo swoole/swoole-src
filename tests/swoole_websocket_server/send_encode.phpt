@@ -29,7 +29,7 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count, $data_list) {
                 assert($frame->finish);
                 Assert::eq($frame->opcode, (int)$opcode);
                 Assert::eq($frame->data, $data_list[$id]);
-                if (assert(isset($data_list[$id]))) {
+                if (Assert::true(isset($data_list[$id]))) {
                     unset($data_list[$id]);
                 }
                 if (empty($data_list)) {

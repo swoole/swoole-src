@@ -60,9 +60,9 @@ $pm->childFunc = function () use ($pm) {
                 phpt_echo("=== worker real ===\n");
                 phpt_var_dump($worker_real = array_column($mem_records, 'worker_real'));
                 for ($i = $records_count / 2; $i < $records_count; $i++) {
-                    assert(approximate($master_virtual[$i], $master_virtual[$records_count / 2]));
-                    assert(approximate($worker_virtual[$i], $worker_virtual[$records_count / 2]));
-                    assert(approximate($worker_real[$i], $worker_real[$records_count / 2]));
+                    approximate($master_virtual[$i], $master_virtual[$records_count / 2]);
+                    approximate($worker_virtual[$i], $worker_virtual[$records_count / 2]);
+                    approximate($worker_real[$i], $worker_real[$records_count / 2]);
                 }
                 $server->shutdown();
                 return;
