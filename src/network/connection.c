@@ -184,7 +184,7 @@ swString* swConnection_get_string_buffer(swConnection *conn)
 
 static char tmp_address[INET6_ADDRSTRLEN];
 
-char* swConnection_get_ip(swConnection *conn)
+const char* swConnection_get_ip(swConnection *conn)
 {
     if (conn->socket_type == SW_SOCK_TCP || conn->socket_type == SW_SOCK_UDP)
     {
