@@ -1246,6 +1246,10 @@ static PHP_METHOD(swoole_client, sendto)
     {
         ret = swSocket_udp_sendto6(cli->socket->fd, ip, port, data, len);
     }
+    else if (cli->type == SW_SOCK_UNIX_DGRAM)
+    {
+        ret = swSocket_unix_sendto(cli->socket->fd, ip, data, len);
+    }
     else
     {
         swoole_php_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6");

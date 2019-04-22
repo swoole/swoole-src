@@ -1277,19 +1277,24 @@ ssize_t Socket::sendto(const char *address, int port, const char *data, int len)
     {
         return -1;
     }
-    if (type == SW_SOCK_UDP)
+    ssize_t retval;
+    switch (type)
     {
-        return swSocket_udp_sendto(socket->fd, address, port, data, len);
-    }
-    else if (type == SW_SOCK_UDP6)
-    {
-        return swSocket_udp_sendto6(socket->fd, address, port, data, len);
-    }
-    else
-    {
-        swWarn("only supports SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6");
+    case SW_SOCK_UDP:
+        retval = swSocket_udp_sendto(socket->fd, address, port, data, len);
+        break;
+    case SW_SOCK_UDP6:
+        retval = swSocket_udp_sendto6(socket->fd, address, port, data, len);
+        break;
+    case SW_SOCK_UNIX_DGRAM:
+        retval = swSocket_unix_sendto(socket->fd, address, data, len);
+        break;
+    default:
+        set_err(EPROTONOSUPPORT, "only supports DGRAM");
         return -1;
     }
+    set_err(retval < 0 ? errno : 0);
+    return retval;
 }
 
 ssize_t Socket::recvfrom(void *__buf, size_t __n)
