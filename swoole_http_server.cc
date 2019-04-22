@@ -985,7 +985,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
         add_assoc_long(zserver, "server_port", swConnection_get_port(&serv->connection_list[conn->from_fd]));
         add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
-        add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
+        add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(conn));
         add_assoc_long(zserver, "master_time", conn->last_time);
         add_assoc_string(zserver, "server_protocol", (char *) (ctx->request.version == 101 ? "HTTP/1.1" : "HTTP/1.0"));
 
