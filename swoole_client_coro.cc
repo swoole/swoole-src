@@ -1130,9 +1130,13 @@ static PHP_METHOD(swoole_client_coro, getpeername)
             swoole_php_fatal_error(E_WARNING, "inet_ntop() failed");
         }
     }
+    else if (cli->type == SW_SOCK_UNIX_DGRAM)
+    {
+        add_assoc_string(return_value, "host", cli->socket->info.addr.un.sun_path);
+    }
     else
     {
-        swoole_php_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6");
+        swoole_php_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
         RETURN_FALSE;
     }
 }

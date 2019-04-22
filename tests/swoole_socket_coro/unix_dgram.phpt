@@ -14,11 +14,13 @@ go(function () {
             Assert::eq($data, 'hello');
             $server->sendto($peer['address'], 0, 'world');
         }
+        var_dump($peer);
     });
     go(function () use ($server) {
         @unlink('/tmp/test-client.sock');
         $client = new Swoole\Coroutine\Socket(AF_UNIX, SOCK_DGRAM, IPPROTO_IP);
         $client->bind('/tmp/test-client.sock');
+        $peer = [];
         for ($n = MAX_REQUESTS; $n--;) {
             $client->sendto('/tmp/test-server.sock', 0, 'hello');
             $data = $client->recvfrom($peer);
@@ -28,6 +30,7 @@ go(function () {
             }
             Assert::eq($data, 'world');
         }
+        var_dump($peer);
         $client->close();
         $server->close();
     });
@@ -36,4 +39,12 @@ Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--
+array(1) {
+  ["address"]=>
+  string(21) "/tmp/test-server.sock"
+}
+array(1) {
+  ["address"]=>
+  string(21) "/tmp/test-client.sock"
+}
 DONE
