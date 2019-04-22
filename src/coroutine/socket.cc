@@ -1199,7 +1199,7 @@ int Socket::ssl_verify(bool allow_self_signed)
 }
 #endif
 
-bool Socket::sendfile(char *filename, off_t offset, size_t length)
+bool Socket::sendfile(const char *filename, off_t offset, size_t length)
 {
     if (unlikely(!is_available(SW_EVENT_WRITE)))
     {
@@ -1271,7 +1271,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
     return true;
 }
 
-ssize_t Socket::sendto(char *address, int port, char *data, int len)
+ssize_t Socket::sendto(const char *address, int port, const char *data, int len)
 {
     if (unlikely(!is_available(SW_EVENT_WRITE)))
     {

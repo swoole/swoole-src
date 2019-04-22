@@ -1499,13 +1499,15 @@ int swSocket_accept(int fd, swSocketAddress *sa);
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
-ssize_t swSocket_sendto_blocking(int, void *, size_t, int, struct sockaddr *, socklen_t);
+ssize_t swSocket_sendto_blocking(int fd, const void *buf, size_t n, int flag, struct sockaddr *addr, socklen_t addr_len);
 int swSocket_set_buffer_size(int fd, uint32_t buffer_size);
-ssize_t swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
-ssize_t swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
-ssize_t swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t len);
-int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length, double timeout);
-int swSocket_write_blocking(int __fd, void *__data, int __len);
+ssize_t swSocket_udp_sendto(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len);
+ssize_t swSocket_udp_sendto6(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len);
+#ifndef _WIN32
+ssize_t swSocket_unix_sendto(int server_sock, const char *dst_path, const char *data, uint32_t len);
+#endif
+int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t length, double timeout);
+int swSocket_write_blocking(int __fd, const void *__data, int __len);
 int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
 
 #ifndef _WIN32

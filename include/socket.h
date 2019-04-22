@@ -93,8 +93,8 @@ public:
     Socket* accept();
     bool bind(std::string address, int port = 0);
     bool listen(int backlog = 0);
-    bool sendfile(char *filename, off_t offset, size_t length);
-    ssize_t sendto(char *address, int port, char *data, int len);
+    bool sendfile(const char *filename, off_t offset, size_t length);
+    ssize_t sendto(const char *address, int port, const char *data, int len);
     ssize_t recvfrom(void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
 #ifdef SW_USE_OPENSSL
