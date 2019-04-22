@@ -1121,16 +1121,16 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
         if (sock->socket->sock_domain == AF_INET)
         {
             add_assoc_long(peername, "port", swConnection_get_port(sock->socket->socket));
-            add_assoc_string(peername, "address", swConnection_get_ip(sock->socket->socket));
+            add_assoc_string(peername, "address", (char *) swConnection_get_ip(sock->socket->socket));
         }
         else if (sock->socket->sock_domain == AF_INET6)
         {
             add_assoc_long(peername, "port", swConnection_get_port(sock->socket->socket));
-            add_assoc_string(peername, "address", swConnection_get_ip(sock->socket->socket));
+            add_assoc_string(peername, "address", (char *) swConnection_get_ip(sock->socket->socket));
         }
         else if (sock->socket->sock_domain == AF_UNIX)
         {
-            add_assoc_string(peername, "address", swConnection_get_ip(sock->socket->socket));
+            add_assoc_string(peername, "address", (char *) swConnection_get_ip(sock->socket->socket));
         }
         RETURN_STR(buf);
     }
