@@ -38,7 +38,7 @@ if (empty(getenv('SWOOLE_DEBUG')) && method_exists('Co', 'set')) {
     }
     require $autoloader;
 
-    class Assert extends \Webmozart\Assert\Assert
+    class Assert extends \Swoole\Assert
     {
         public static function reportInvalidArgument($message)
         {

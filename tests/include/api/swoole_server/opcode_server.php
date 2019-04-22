@@ -164,7 +164,7 @@ class OpcodeServer
     {
         $recv = json_decode($recv);
         Assert::eq(json_last_error(), JSON_ERROR_NONE);
-        assert(isset($recv["fd"]) && isset($recv["data"]));
+        Assert::true(isset($recv["fd"]) && isset($recv["data"]));
         $this->swooleServer->send($recv["fd"], opcode_encode("return", $recv["data"]));
     }
 
@@ -172,7 +172,7 @@ class OpcodeServer
     {
         $recv = json_decode($recv, true);
         Assert::eq(json_last_error(), JSON_ERROR_NONE);
-        assert(isset($recv["fd"]) && isset($recv["msg"]));
+        Assert::true(isset($recv["fd"]) && isset($recv["msg"]));
         $this->swooleServer->send($recv["fd"], opcode_encode("return", $recv["msg"]));
     }
 
