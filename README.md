@@ -18,7 +18,8 @@ Swoole
 
 The network layer in Swoole is event-based and takes full advantage of the underlying epoll/kqueue implementation, making it really easy to serve millions of requests.
 
-Swoole4 use a brand new engine kernel and now it has a full-time developer team, so we are entering an unprecedented period in PHP history which offers a unique possibility for a rapid evolution in performance.
+
+Swoole4 use a brand new engine kernel and now it has a full-time developer team, so we are entering an unprecedented period in PHP history which offers a unique possibility for rapid evolution in performance.
 
 ## ⚡️Coroutine
 
@@ -483,6 +484,22 @@ After compiling and installing to the system successfully, you need to add a new
 2. `git pull && cd swoole-src && make clean && make && sudo make install`
 3. if you change your PHP version, please re-run `phpize clean && phpize` then try to compile
 
+
+### Major change since version 4.3.0
+
+Async clients and API are moved to a separate PHP extension `swoole_async` since version 4.3.0, install `swoole_async`:
+
+```shell
+git clone https://github.com/swoole/async-ext.git
+cd async-src
+phpize
+./confiugre
+make -j 4
+sudo make install
+```
+
+Enable it by adding a new line `extension=swoole_async.so` to `php.ini`.
+
 ## 💎 Frameworks & Components
 
 - [**Swoft**](https://github.com/swoft-cloud) is a modern, high-performance AOP and coroutine PHP framework.
@@ -492,7 +509,7 @@ After compiling and installing to the system successfully, you need to add a new
 ## 🛠 Develop & Discussion
 
 * __中文文档__: <http://wiki.swoole.com>
-* __Document__: <https://www.swoole.co.uk/docs>
+* __Documentation__: <https://www.swoole.co.uk/docs>
 * __IDE Helper & API__: <https://github.com/swoole/ide-helper>
 * __中文社区__: <https://wiki.swoole.com/wiki/page/p-discussion.html>
 * __Twitter__: <https://twitter.com/php_swoole>
