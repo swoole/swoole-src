@@ -56,7 +56,6 @@ else
     fi
 fi
 
-${TEST_PHP_EXECUTABLE} ${__DIR__}/include/bootstrap.php
 if [ $? -eq 0 ]; then
     PHPT=1 ${TEST_PHP_EXECUTABLE} -d "memory_limit=1024m" ${__DIR__}/run-tests ${glob}
 fi

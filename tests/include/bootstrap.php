@@ -17,7 +17,7 @@ swoole_async_set([
 Co::set([
     'socket_timeout' => 5
 ]);
-if (empty(getenv('SWOOLE_DEBUG')) && method_exists('Co', 'set')) {
+if (empty(getenv('SWOOLE_DEBUG'))) {
     Co::set([
         'log_level' => SWOOLE_LOG_INFO,
         'trace_flags' => 0,
@@ -26,28 +26,10 @@ if (empty(getenv('SWOOLE_DEBUG')) && method_exists('Co', 'set')) {
 
 // Components
 (function () {
-    $autoloader = __DIR__ . '/lib/vendor/autoload.php';
-    $composer_dir = __DIR__ . '/lib';
-    if (!file_exists($autoloader)) {
-        $composer_info = `cd {$composer_dir} && composer install 2>&1`;
-        if (!file_exists($autoloader)) {
-            throw new RuntimeException('Composer install failed:' . PHP_EOL . $composer_info);
-        }
-    } elseif (!IS_IN_TRAVIS) {
-        `cd {$composer_dir} && composer dump-autoload -o > /dev/null 2>&1`;
-    }
-    require $autoloader;
+    require __DIR__ . '/lib/vendor/autoload.php';
 
     class Assert extends \Swoole\Assert
     {
-        public static function reportInvalidArgument($message)
-        {
-            $e = new RuntimeException($message);
-            $file = $e->getFile();
-            $line = $e->getLine();
-            $msg = $e->getMessage();
-            $trace = $e->getTraceAsString();
-            echo "\nAssert failed: {$msg} in {$file} on line {$line}\nStack trace: \n{$trace}\n";
-        }
+        protected static $throwException = false;
     }
 })();
