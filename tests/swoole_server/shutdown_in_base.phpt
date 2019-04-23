@@ -10,8 +10,8 @@ $pm->initRandomData(1);
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $client = new Co\Client(SWOOLE_SOCK_TCP);
-        assert($client->connect('127.0.0.1', $pm->getFreePort()));
-        assert($client->send($pm->getRandomData()) > 0);
+        Assert::assert($client->connect('127.0.0.1', $pm->getFreePort()));
+        Assert::assert($client->send($pm->getRandomData()) > 0);
     });
 };
 $pm->childFunc = function () use ($pm) {

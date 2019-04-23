@@ -13,8 +13,8 @@ go(function () {
         'ssl_host_name' => $domain
     ]);
     $random = get_safe_random(16);
-    assert($cli->get('/get?foo=' . $random));
-    assert(strpos($cli->body, $random) !== false);
+    Assert::assert($cli->get('/get?foo=' . $random));
+    Assert::assert(strpos($cli->body, $random) !== false);
     echo "DONE\n";
 });
 swoole_event_wait();

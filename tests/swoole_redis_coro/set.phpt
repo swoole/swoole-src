@@ -11,29 +11,29 @@ require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $redis = new Swoole\Coroutine\Redis();
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-    assert($redis->set('key1', 'value'));
-    assert($redis->set('key1', 'value', 10));
-    assert($redis->ttl('key1') == 10);
+    Assert::assert($redis->set('key1', 'value'));
+    Assert::assert($redis->set('key1', 'value', 10));
+    Assert::assert($redis->ttl('key1') == 10);
     /**
      * xx+ex
      */
-    assert($redis->set('key1', 'value', ['xx', 'ex' => 30]));
-    assert($redis->ttl('key1') == 30);
+    Assert::assert($redis->set('key1', 'value', ['xx', 'ex' => 30]));
+    Assert::assert($redis->ttl('key1') == 30);
     /**
      * delete
      */
-    assert($redis->delete('key1'));
+    Assert::assert($redis->delete('key1'));
     /**
      * nx+ex
      */
-    assert($redis->set('key1', 'value', ['nx', 'ex' => 20]));
-    assert($redis->ttl('key1') == 20);
+    Assert::assert($redis->set('key1', 'value', ['nx', 'ex' => 20]));
+    Assert::assert($redis->ttl('key1') == 20);
 
     /**
      * px
      */
-    assert($redis->set('key1', 'value', ['xx', 'px' => 10000]));
-    assert($redis->ttl('key1') == 10);
+    Assert::assert($redis->set('key1', 'value', ['xx', 'px' => 10000]));
+    Assert::assert($redis->ttl('key1') == 10);
     echo "OK\n";
 });
 

@@ -10,7 +10,7 @@ $pm->parentFunc = function () use ($pm)
 {
     go(function () use ($pm) {
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
-        assert(md5_file(__DIR__ . '/../../README.md') == md5($data));
+        Assert::assert(md5_file(__DIR__ . '/../../README.md') == md5($data));
         $pm->kill();
     });
     Swoole\Event::wait();

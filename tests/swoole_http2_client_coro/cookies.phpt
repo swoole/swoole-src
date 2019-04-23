@@ -16,7 +16,7 @@ $pm->parentFunc = function () use ($pm) {
             for ($k = 32; $k--;) {
                 $request->cookies[get_safe_random()] = get_safe_random();
             }
-            assert($cli->send($request));
+            Assert::assert($cli->send($request));
             $response = $cli->recv(1);
             Assert::eq('OK', $response->data);
             Assert::eq($request->cookies, $response->cookies);

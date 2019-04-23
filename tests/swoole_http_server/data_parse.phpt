@@ -75,7 +75,7 @@ Content-Length: {$content_length}{$CR}
 {$post}
 HTTP;
 
-    assert($client->send($data));
+    Assert::assert($client->send($data));
     $data = '';
     while ($tmp = $client->recv()) {
         $data .= $tmp;

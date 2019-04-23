@@ -18,7 +18,7 @@ go(function () {
             echo "DONE\n";
         });
         echo "READ\n";
-        assert(!fread($fp, 1024));
+        Assert::assert(!fread($fp, 1024));
         echo "CLOSED\n";
         fclose($fp);
     }

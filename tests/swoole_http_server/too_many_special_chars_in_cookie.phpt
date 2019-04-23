@@ -15,7 +15,7 @@ $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         for ($n = MAX_REQUESTS; $n--;) {
-            assert($cli->get('/'));
+            Assert::assert($cli->get('/'));
             Assert::eq($cli->statusCode, 200);
             Assert::eq($cli->cookies['foo'], $pm->getRandomData());
         }

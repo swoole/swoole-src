@@ -15,11 +15,11 @@ $pm->parentFunc = function ($pid) use ($pm)
     {
         Assert::true($cli->isConnected());
         $r = $cli->sleep();
-        assert($r);
+        Assert::assert($r);
         swoole_timer_after(200, function () use ($cli)
         {
             $r = $cli->wakeup();
-            assert($r);
+            Assert::assert($r);
         });
         $cli->send(RandStr::gen(1024, RandStr::ALL));
     });

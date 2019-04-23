@@ -19,7 +19,7 @@ class TimerTest {
             return;
         }
         $this->timer_id = swoole_timer_after($ms, array($this, 'onTimerTick'));
-        assert($this->timer_id > 0);
+        Assert::assert($this->timer_id > 0);
     }
 
     public function onTimerTick() {

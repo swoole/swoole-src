@@ -10,9 +10,9 @@ $pm->initRandomData(1);
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $redis = new Co\Redis;
-        assert($redis->connect('127.0.0.1', $pm->getFreePort()));
+        Assert::assert($redis->connect('127.0.0.1', $pm->getFreePort()));
         echo "GET\n";
-        assert(!$redis->get($pm->getRandomData()));
+        Assert::assert(!$redis->get($pm->getRandomData()));
         echo "CLOSED\n";
         Assert::eq($redis->errType, SWOOLE_REDIS_ERR_EOF);
         Assert::eq($redis->errCode, SOCKET_ECONNRESET);
@@ -22,10 +22,10 @@ $pm->parentFunc = function () use ($pm) {
 };
 $pm->childFunc = function () use ($pm) {
     $server = new Co\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-    assert($server->bind('127.0.0.1', $pm->getFreePort()));
-    assert($server->listen());
+    Assert::assert($server->bind('127.0.0.1', $pm->getFreePort()));
+    Assert::assert($server->listen());
     go(function () use ($pm, $server) {
-        if (assert(($conn = $server->accept()) && $conn instanceof Co\Socket)) {
+        if (Assert::assert(($conn = $server->accept()) && $conn instanceof Co\Socket)) {
             switch_process();
             $data = $conn->recv();
             $random = $pm->getRandomData();

@@ -18,7 +18,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $httpClient->setMethod("POST");
         $httpClient->setData("HELLO");
         $ok = $httpClient->execute("/rawcookie");
-        assert($ok);
+        Assert::assert($ok);
         Assert::eq($httpClient->statusCode, 200);
         Assert::eq($httpClient->errCode, 0);
         Assert::eq($httpClient->body, "Hello World!");
@@ -44,7 +44,7 @@ $pm->childFunc = function () use ($pm, $simple_http_server) {
         // string $name [, string $value = "" [, int $expire = 0 [, string $path = "" [, string $domain = "" [, bool $secure = false [, bool $httponly = false ]]]]]]
         $response->cookie($name, $value, $expire, $path, $domain, $secure, $httpOnly);
         $expect = "name=value; path=/; httponly";
-        assert(in_array($expect, $response->cookie, true));
+        Assert::assert(in_array($expect, $response->cookie, true));
         $response->cookie($name, $value, $expire, $path, $domain, $secure, $httpOnly);
         $response->rawcookie("rawcontent", $request->rawcontent());
         $response->end("Hello World!");

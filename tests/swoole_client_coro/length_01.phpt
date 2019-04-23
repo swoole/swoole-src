@@ -22,7 +22,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $data = str_repeat('A', 1025);
         $cli->send(pack('N', strlen($data)) . $data);
         $retData = $cli->recv();
-        assert($retData != false);
+        Assert::assert($retData != false);
         $len = unpack('Nlen', $retData)['len'];
         Assert::eq(strlen($retData), $len + 4);
     });

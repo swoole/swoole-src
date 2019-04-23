@@ -21,7 +21,7 @@ go(function () {
     });
     $obj->resource = $file = fopen(__FILE__, 'r+');
     defer(function () use ($obj) {
-        assert(is_resource($obj->resource));
+        Assert::assert(is_resource($obj->resource));
         fclose($obj->resource);
         echo "closed\n";
     });

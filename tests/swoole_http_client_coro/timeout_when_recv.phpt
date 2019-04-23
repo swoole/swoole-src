@@ -16,8 +16,8 @@ $pm->parentFunc = function ($pid) use ($pm, $port) {
         ]);
         $cli->setDefer();
         $cli->get('/');
-        assert(!$cli->recv());
-        assert(empty($cli->body));
+        Assert::assert(!$cli->recv());
+        Assert::assert(empty($cli->body));
         $pm->kill();
     });
     swoole_event_wait();

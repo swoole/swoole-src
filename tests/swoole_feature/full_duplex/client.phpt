@@ -34,7 +34,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
             global $clients;
             $clients[] = $client = new Co\Client(SWOOLE_SOCK_TCP);
             $ret = $client->connect('127.0.0.1', $pm->getFreePort(), -1);
-            if (!assert($ret)) {
+            if (!Assert::assert($ret)) {
                 throw new RuntimeException('connect failed');
             } else {
                 set_socket_buffer_size($client->getSocket(), BUFFER_SIZE);
@@ -89,10 +89,10 @@ $pm->parentFunc = function ($pid) use ($pm) {
 $pm->childFunc = function () use ($pm) {
     go(function () use ($pm) {
         $server = new Co\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-        assert($server->bind('127.0.0.1', $pm->getFreePort()));
-        assert($server->listen(MAX_CONCURRENCY));
+        Assert::assert($server->bind('127.0.0.1', $pm->getFreePort()));
+        Assert::assert($server->listen(MAX_CONCURRENCY));
         while ($conn = $server->accept(-1)) {
-            if (!assert($conn instanceof Co\Socket)) {
+            if (!Assert::assert($conn instanceof Co\Socket)) {
                 throw new RuntimeException('accept failed');
             } else {
                 set_socket_buffer_size($conn->getSocket(), BUFFER_SIZE);
@@ -119,7 +119,7 @@ $pm->childFunc = function () use ($pm) {
                             $data .= $tmp;
                             $need_n = CHUNK_SIZE - strlen($data);
                         } while ($need_n !== 0);
-                        if (!assert($data === $verify)) {
+                        if (!Assert::assert($data === $verify)) {
                             break;
                         }
                         $length -= strlen($data);

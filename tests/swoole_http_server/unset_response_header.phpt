@@ -9,7 +9,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     go(function () use ($pm) {
         $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-        assert($cli->get('/'));
+        Assert::assert($cli->get('/'));
         echo "{$cli->statusCode}\n";
         Assert::true(!isset($cli->headers['foo']));
         Assert::eq($cli->headers['bar'], 'Foo');

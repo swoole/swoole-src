@@ -14,7 +14,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/list");
-        assert(!empty($data) && count(json_decode($data, true)) > 0);
+        Assert::assert(!empty($data) && count(json_decode($data, true)) > 0);
         $pm->kill();
     });
 };

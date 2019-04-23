@@ -10,7 +10,7 @@ $proc = new \swoole_process(function(\swoole_process $process) {
     sleep(5);
 });
 $r = $proc->start();
-assert($r > 0);
+Assert::assert($r > 0);
 ini_set("swoole.display_errors", "off");
 $proc->setTimeout(0.5);
 $ret = $proc->read();

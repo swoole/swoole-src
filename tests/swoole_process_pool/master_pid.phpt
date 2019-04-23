@@ -12,7 +12,7 @@ $pool = new Swoole\Process\Pool(1);
 $pid = posix_getpid();
 $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) use ($pid)
 {
-    assert($pool->master_pid == $pid);
+    Assert::assert($pool->master_pid == $pid);
     posix_kill($pid, SIGTERM);
     sleep(20);
     echo "ERROR\n";

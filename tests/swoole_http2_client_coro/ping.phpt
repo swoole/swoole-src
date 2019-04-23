@@ -16,7 +16,7 @@ go(function () {
         exit; // we can't connect to this website without proxy in China so we skip it.
     }
     $ret = $cli->ping();
-    assert($ret);
+    Assert::assert($ret);
     Co::sleep(0.5);
     Assert::greaterThan($cli->send(new Swoole\Http2\Request), 0);
     $response = $cli->recv();

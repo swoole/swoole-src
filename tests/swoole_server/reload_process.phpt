@@ -40,7 +40,7 @@ $pm->parentFunc = function () use ($pm) {
 
     $log = file_get_contents(TEST_LOG_FILE);
     $log = trim(preg_replace('/.+?\s+?INFO\s+?.+/', '', $log));
-    if (!assert(empty($log))){
+    if (!Assert::assert(empty($log))){
         var_dump($log);
     }
     $pm->kill();

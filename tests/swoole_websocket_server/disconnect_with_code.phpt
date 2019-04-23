@@ -9,7 +9,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
     $cli = new Samtleben\WebsocketClient;
     $connected = $cli->connect('127.0.0.1', $pm->getFreePort(), '/');
-    assert($connected);
+    Assert::assert($connected);
     $response = $cli->sendRecv("shutdown");
     $byteArray = unpack('n', $response);
     echo $byteArray[1] . "\n";

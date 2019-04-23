@@ -29,7 +29,7 @@ $pm->parentFunc = function () use ($pm) {
         $client->send(substr($_sendStr, 1024));
         $data = $client->recv();
         $client->close();
-        if (assert(!empty($data))) {
+        if (Assert::assert(!empty($data))) {
             Assert::eq((int)explode("\r\n\r\n", $data)[1], $len);
         }
         $pm->kill();

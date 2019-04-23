@@ -24,8 +24,8 @@ go(function () {
         'timeout' => 0.001
     ]);
     Assert::false($cli->get('/contract.shtml'));
-    assert(empty($cli->headers));
-    assert(empty($cli->body));
+    Assert::assert(empty($cli->headers));
+    Assert::assert(empty($cli->body));
 });
 ?>
 --EXPECT--

@@ -19,7 +19,7 @@ function mysql_sleep(float $time)
         MYSQL_SERVER_USER, MYSQL_SERVER_PWD
     );
     $pdo->exec("SELECT sleep({$time})");
-    if (assert($pdo->errorCode() ===  PDO::ERR_NONE)){
+    if (Assert::assert($pdo->errorCode() ===  PDO::ERR_NONE)){
         global $count;
         $count++;
     }
@@ -36,7 +36,7 @@ for ($i = MAX_CONCURRENCY_LOW; $i--;) {
 }
 swoole_event_wait();
 Assert::eq($count, MAX_CONCURRENCY_LOW);
-assert((microtime(true) - $start) < .5);
+Assert::assert((microtime(true) - $start) < .5);
 mysql_sleep(.1); //block IO
 echo "DONE\n";
 ?>

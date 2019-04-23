@@ -9,20 +9,20 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/examples/test.jpg");
-        assert(!empty($data));
-        assert(md5($data) === md5_file(TEST_IMAGE));
+        Assert::assert(!empty($data));
+        Assert::assert(md5($data) === md5_file(TEST_IMAGE));
 
         /**
          * 命中location，但文件不存在，直接返回 404
          */
         $status = httpGetStatusCode("http://127.0.0.1:{$pm->getFreePort()}/examples/test2.jpg");
-        assert($status == 404);
+        Assert::assert($status == 404);
 
         /**
          * 动态请求
          */
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/test.jpg");
-        assert($data == TEST_IMAGE);
+        Assert::assert($data == TEST_IMAGE);
 
         $pm->kill();
     });

@@ -12,7 +12,7 @@ if ($argv[1] ?? '' === 'ulimit') {
         }
         echo 'never here' . PHP_EOL;
     } catch (Co\Socket\Exception $e) {
-        assert($e->getCode() === SOCKET_EMFILE);
+        Assert::assert($e->getCode() === SOCKET_EMFILE);
         echo "DONE\n";
     }
 } else {

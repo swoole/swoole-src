@@ -21,7 +21,7 @@ go(function () {
     Assert::true($stmt->execute());
     Assert::true($stmt->execute());
     Assert::true($stmt->execute());
-    assert(is_array($stmt->fetchAll()));
+    Assert::assert(is_array($stmt->fetchAll()));
 });
 ?>
 --EXPECT--

@@ -23,7 +23,7 @@ go(function () {
     for ($n = MAX_CONCURRENCY; $n--;) {
         foreach ($map as $host => &$ip) {
             $ip = co::gethostbyname($host);
-            assert(preg_match(IP_REGEX, $ip));
+            Assert::assert(preg_match(IP_REGEX, $ip));
         }
     }
     unset($ip);
@@ -43,7 +43,7 @@ go(function () {
     for ($n = MAX_CONCURRENCY; $n--;) {
         swoole_clear_dns_cache();
         $ip = co::gethostbyname(array_rand($map));
-        assert(preg_match(IP_REGEX, $ip));
+        Assert::assert(preg_match(IP_REGEX, $ip));
     }
     $no_cache_time = microtime(true) - $no_cache_time;
 
@@ -53,7 +53,7 @@ go(function () {
         go(function () use ($map, $chan) {
             swoole_clear_dns_cache();
             $ip = co::gethostbyname(array_rand($map));
-            $chan->push(assert(preg_match(IP_REGEX, $ip)));
+            $chan->push(Assert::assert(preg_match(IP_REGEX, $ip)));
         });
     }
     for ($c = MAX_CONCURRENCY_MID; $c--;) {
@@ -62,11 +62,11 @@ go(function () {
     $no_cache_multi_time = microtime(true) - $no_cache_multi_time;
 
     phpt_var_dump($first_time, $cache_time, $no_cache_time, $no_cache_multi_time);
-    assert($cache_time < 0.01);
-    assert($cache_time < $first_time);
-    assert($cache_time < $no_cache_time);
-    assert($cache_time < $no_cache_multi_time);
-    assert($no_cache_multi_time < $no_cache_time);
+    Assert::assert($cache_time < 0.01);
+    Assert::assert($cache_time < $first_time);
+    Assert::assert($cache_time < $no_cache_time);
+    Assert::assert($cache_time < $no_cache_multi_time);
+    Assert::assert($no_cache_multi_time < $no_cache_time);
     echo co::gethostbyname('m.cust.edu.cn') . "\n";
 });
 swoole_event_wait();

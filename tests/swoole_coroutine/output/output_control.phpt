@@ -32,9 +32,9 @@ go(function () {
 // #co2
 go(function () {
     Assert::eq(ob_get_status(true), []); //empty
-    assert(!ob_get_contents());
+    Assert::assert(!ob_get_contents());
     co::sleep(0.001);
-    assert(!ob_get_clean());
+    Assert::assert(!ob_get_clean());
 });
 
 // #co3

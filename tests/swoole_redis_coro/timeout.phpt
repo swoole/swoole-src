@@ -11,14 +11,14 @@ go(function () {
 
     $s = microtime(true);
     $res = $redis->blpop(['test', 'test2'], 3);
-    assert(!$res);
+    Assert::assert(!$res);
     Assert::eq($redis->errCode, SOCKET_ETIMEDOUT);
     $s = microtime(true) - $s;
     time_approximate(0.5, $s); // would not retry after timeout
 
     $s = microtime(true);
     $res = $redis->brpoplpush('test', 'test2', 3);
-    assert(!$res);
+    Assert::assert(!$res);
     Assert::eq($redis->errCode, SOCKET_ETIMEDOUT);
     $s = microtime(true) - $s;
     time_approximate(0.5, $s); // would not retry after timeout

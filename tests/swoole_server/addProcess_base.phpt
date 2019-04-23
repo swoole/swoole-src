@@ -33,7 +33,7 @@ $pm->parentFunc = function ($pid) use ($port)
     });
 
     $r = $cli->connect(TCP_SERVER_HOST, $port, 1);
-    assert($r);
+    Assert::assert($r);
     Swoole\Event::wait();
 };
 

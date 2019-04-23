@@ -16,7 +16,7 @@ go(function () {
     $data = Co::fread($fp, 1024);
     echo "read\n";
     swoole\runtime::enableCoroutine(false);
-    assert(!empty($data));
+    Assert::assert(!empty($data));
     Assert::eq(md5($data), md5_file(__FILE__));
 });
 

@@ -13,28 +13,28 @@ $startTime = microtime(true);
 go(function () {
     $f = fopen(FILE, 'w+');
     $ret = flock($f, LOCK_EX);
-    assert($ret);
+    Assert::assert($ret);
     co::sleep(0.3);
     $ret = flock($f, LOCK_UN);
-    assert($ret);
+    Assert::assert($ret);
 });
 
 go(function () {
     $f = fopen(FILE, 'w+');
     $ret = flock($f, LOCK_SH);
-    assert($ret);
+    Assert::assert($ret);
     co::sleep(2);
     $ret = flock($f, LOCK_UN);
-    assert($ret);
+    Assert::assert($ret);
 });
 
 go(function () use ($startTime) {
     $f = fopen(FILE, 'w+');
     $ret = flock($f, LOCK_SH);
-    assert($ret);
-    assert((microtime(true) - $startTime) < 1);
+    Assert::assert($ret);
+    Assert::assert((microtime(true) - $startTime) < 1);
     $ret = flock($f, LOCK_UN);
-    assert($ret);
+    Assert::assert($ret);
 });
 swoole_event_wait();
 unlink(FILE);

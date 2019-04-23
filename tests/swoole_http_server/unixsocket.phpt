@@ -12,11 +12,11 @@ $pm->parentFunc = function () use ($pm) {
     for ($c = MAX_CONCURRENCY; $c--;) {
         go(function () use ($pm) {
             $client = new Swoole\Coroutine\Client(SWOOLE_UNIX_STREAM);
-            assert($client->connect(UNIXSOCK_PATH, 0, -1));
+            Assert::assert($client->connect(UNIXSOCK_PATH, 0, -1));
             for ($n = MAX_REQUESTS; $n--;) {
                 $client->send("GET / HTTP/1.1\r\n\r\n");
                 list($headers, $body) = explode("\r\n\r\n", @$client->recv());
-                assert(count(explode("\n", $headers)) >= 5);
+                Assert::assert(count(explode("\n", $headers)) >= 5);
                 Assert::eq($body, 'Hello Swoole!');
             }
         });

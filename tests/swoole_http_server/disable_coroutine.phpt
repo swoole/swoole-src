@@ -9,7 +9,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         for ($n = 0; $n > MAX_REQUESTS; $n++) {
-            assert(httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/") == $n);
+            Assert::assert(httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/") == $n);
         }
     });
     Swoole\Event::wait();

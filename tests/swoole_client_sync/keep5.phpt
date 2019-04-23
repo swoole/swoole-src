@@ -20,7 +20,7 @@ $pm->parentFunc = function () use ($pm) {
     $r = @$client2->connect(TCP_SERVER_HOST, $pm->getFreePort(), 0.5);
     Assert::true($r);
 
-    assert($client1->sock != $client2->sock);
+    Assert::assert($client1->sock != $client2->sock);
 
     @$client1->close(true);
 

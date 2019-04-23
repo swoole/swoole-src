@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $proc = new \swoole_process(function(\swoole_process $proc) {
     $r = \swoole_process::daemon();
-    assert($r);
+    Assert::assert($r);
 
     $proc->push(posix_getpid());
 });
@@ -16,7 +16,7 @@ $proc->useQueue();
 $forkPid = $proc->start();
 $demonPid = intval($proc->pop());
 
-assert($forkPid !== $demonPid);
+Assert::assert($forkPid !== $demonPid);
 
 \swoole_process::kill($demonPid, SIGKILL);
 

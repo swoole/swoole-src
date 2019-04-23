@@ -17,11 +17,11 @@ $pm->parentFunc = function () use ($pm) {
             $pm->kill();
             echo "DONE\n";
         });
-        assert(!$http->get('/'));
+        Assert::assert(!$http->get('/'));
         echo "CLOSED\n";
         Assert::eq($http->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
         Assert::eq($http->errCode, SOCKET_ECONNRESET);
-        assert(empty($http->body));
+        Assert::assert(empty($http->body));
     });
 };
 $pm->childFunc = function () use ($pm) {

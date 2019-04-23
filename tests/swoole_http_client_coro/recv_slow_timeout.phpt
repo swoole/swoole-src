@@ -16,9 +16,9 @@ $pm->parentFunc = function ($pid) use ($pm) {
             $ret = $cli->get('/');
             $s = microtime(true) - $s;
             phpt_var_dump($s);
-            if (assert(!$ret)) {
-                assert($cli->errCode === SOCKET_ETIMEDOUT);
-                assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
+            if (Assert::assert(!$ret)) {
+                Assert::assert($cli->errCode === SOCKET_ETIMEDOUT);
+                Assert::assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
                 time_approximate(1, $s);
             }
             $cli->close();
@@ -32,11 +32,11 @@ $pm->parentFunc = function ($pid) use ($pm) {
 $pm->childFunc = function () use ($pm) {
     go(function () use ($pm) {
         $server = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, 0);
-        assert($server->bind('127.0.0.1', $pm->getFreePort()));
-        assert($server->listen());
+        Assert::assert($server->bind('127.0.0.1', $pm->getFreePort()));
+        Assert::assert($server->listen());
         while ($client = $server->accept()) {
             go(function () use ($server, $client) {
-                assert($client instanceof Swoole\Coroutine\Socket);
+                Assert::assert($client instanceof Swoole\Coroutine\Socket);
                 $data =
                     "HTTP/1.1 200 OK\r\n" .
                     "Connection: keep-alive\r\n" .

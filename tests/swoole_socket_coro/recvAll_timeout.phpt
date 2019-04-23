@@ -11,17 +11,17 @@ $pm->parentFunc = function ($pid) use ($pm) {
     for ($c = MAX_CONCURRENCY_MID; $c--;) {
         go(function () use ($pm, $c) {
             $conn = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-            assert($conn->connect('127.0.0.1', $pm->getFreePort()));
+            Assert::assert($conn->connect('127.0.0.1', $pm->getFreePort()));
             $conn->send($c);
             $timeout = ms_random(0.1, 1);
             $s = microtime(true);
             $data = $conn->recvAll(1024, $timeout);
             time_approximate($timeout, microtime(true) - $s);
-            assert(strlen($data) > 0);
-            assert(strlen($data) != 1024);
-            assert(strpos($pm->getRandomDataEx($c), $data) === 0);
-            assert($conn->errCode == SOCKET_ETIMEDOUT);
-            assert($conn->errMsg == swoole_strerror(SOCKET_ETIMEDOUT));
+            Assert::assert(strlen($data) > 0);
+            Assert::assert(strlen($data) != 1024);
+            Assert::assert(strpos($pm->getRandomDataEx($c), $data) === 0);
+            Assert::assert($conn->errCode == SOCKET_ETIMEDOUT);
+            Assert::assert($conn->errMsg == swoole_strerror(SOCKET_ETIMEDOUT));
         });
     }
     Swoole\Event::wait();

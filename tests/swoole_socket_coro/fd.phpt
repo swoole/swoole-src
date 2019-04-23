@@ -9,7 +9,7 @@ $sockets = [];
 for ($n = MAX_REQUESTS; $n--;) {
     $sockets[] = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
     if (count($sockets) > 1) {
-        assert(end($sockets)->fd === prev($sockets)->fd + 1);
+        Assert::assert(end($sockets)->fd === prev($sockets)->fd + 1);
     }
 }
 echo "DONE\n";

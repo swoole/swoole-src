@@ -55,9 +55,9 @@ go(function () {
         go(function () use ($pool, $c) {
             for ($n = 0; $n < MAX_REQUESTS; $n++) {
                 $redis = $pool->get();
-                if (assert($redis->set("awesome-{$c}-{$n}", 'swoole'))) {
-                    if (assert($redis->get("awesome-{$c}-{$n}") === 'swoole')) {
-                        if (assert($redis->delete("awesome-{$c}-{$n}"))) {
+                if (Assert::assert($redis->set("awesome-{$c}-{$n}", 'swoole'))) {
+                    if (Assert::assert($redis->get("awesome-{$c}-{$n}") === 'swoole')) {
+                        if (Assert::assert($redis->delete("awesome-{$c}-{$n}"))) {
                             global $count;
                             $count++;
                         }

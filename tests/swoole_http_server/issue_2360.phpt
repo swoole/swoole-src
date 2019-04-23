@@ -45,7 +45,7 @@ $pm->childFunc = function () use ($pm) {
     });
     $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm) {
         phpt_echo("received {$request->header['content-length']} bytes\n");
-        if (assert($request->rawContent() === $pm->getRandomData())) {
+        if (Assert::assert($request->rawContent() === $pm->getRandomData())) {
             $response->end($request->rawContent());
         }
     });

@@ -10,7 +10,7 @@ require __DIR__ . '/../../include/bootstrap.php';
 function test_flock()
 {
     $fp = fopen('/tmp/flock.log', 'w+');
-    assert(flock($fp, LOCK_EX));
+    Assert::assert(flock($fp, LOCK_EX));
     Co::sleep(0.001);
     $ret = fwrite($fp, ($date = date('Y-m-d H:i:s')));
     Assert::eq($ret, strlen($date));

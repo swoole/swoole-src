@@ -28,7 +28,7 @@ $pm->childFunc = function () use ($pm) {
             // send request
             $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
             $p = $serv->ports[0]->port;
-            assert($cli->connect('127.0.0.1', $p, 3));
+            Assert::assert($cli->connect('127.0.0.1', $p, 3));
             $request = "GET / HTTP/1.1\r\n\r\n";
             $cli->send($request);
             $response = @$cli->recv(); // the server will block by 100ms, so it will surely get EINTR internally by the task timer

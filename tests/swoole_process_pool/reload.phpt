@@ -19,7 +19,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         swoole_process::kill($pid, SIGUSR1);
         usleep(10000);
         //判断进程是否存在
-        assert(intval(shell_exec("ps aux | grep \"" . PROC_NAME . "\" |grep -v grep| awk '{ print $2}'")) > 0);
+        Assert::assert(intval(shell_exec("ps aux | grep \"" . PROC_NAME . "\" |grep -v grep| awk '{ print $2}'")) > 0);
     }
     $pm->kill();
 };

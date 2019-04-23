@@ -41,7 +41,7 @@ $pm->childFunc = function () use ($pm, $port, $size) {
         $pm->wakeup();
     });
     $serv->on("receive", function ($serv, $fd, $rid, $data) use ($size) {
-        assert(strlen($data) == $size + 4);
+        Assert::assert(strlen($data) == $size + 4);
         $serv->send($fd, "OK\n");
     });
     $serv->start();

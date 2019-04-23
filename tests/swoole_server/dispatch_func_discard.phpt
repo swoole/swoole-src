@@ -10,10 +10,10 @@ $pm->parentFunc = function () use ($pm) {
 
     go(function () use ($pm) {
         $client = new Co\Client(SWOOLE_SOCK_TCP);
-        assert($client->connect('127.0.0.1', $pm->getFreePort(), 0.2));
+        Assert::assert($client->connect('127.0.0.1', $pm->getFreePort(), 0.2));
 
         $data = str_repeat('A', 65534)."\r\n\r\n";
-        assert($client->send($data));
+        Assert::assert($client->send($data));
         Assert::eq(false, @$client->recv());
     });
     

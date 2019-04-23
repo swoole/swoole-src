@@ -14,7 +14,7 @@ $cli->on("connect", function (swoole_client $cli) {
 });
 
 $cli->on("receive", function (swoole_client $cli, $data) {
-    assert(strlen($data) > 0);
+    Assert::assert(strlen($data) > 0);
     $cli->close();
     Assert::false($cli->isConnected());
 });

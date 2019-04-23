@@ -11,11 +11,11 @@ require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $cli = new Swoole\Coroutine\Http\Client('pecl.php.net', 443, true);
     $cli->set(['timeout' => 5]);
-    assert($cli->get('/'));
-    assert(strpos($cli->body, 'pecl') !== false);
+    Assert::assert($cli->get('/'));
+    Assert::assert(strpos($cli->body, 'pecl') !== false);
     co::sleep(75);
-    assert($cli->get('/'));
-    assert(strpos($cli->body, 'pecl') !== false);
+    Assert::assert($cli->get('/'));
+    Assert::assert(strpos($cli->body, 'pecl') !== false);
 });
 swoole_event_wait();
 echo "OK\n";

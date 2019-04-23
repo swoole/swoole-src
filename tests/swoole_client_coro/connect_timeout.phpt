@@ -12,13 +12,13 @@ go(function () {
     ]);
     $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
     $s = microtime(true);
-    assert(!@$cli->connect('140.207.135.104', 1));
+    Assert::assert(!@$cli->connect('140.207.135.104', 1));
     Assert::eq($cli->errCode, SOCKET_ETIMEDOUT);
     $s = microtime(true) - $s;
     phpt_var_dump($s);
     time_approximate($s, 0.1);
     $s = microtime(true);
-    assert(!@$cli->connect('140.207.135.104', 1, $random_timeout = mt_rand(100, 1000) / 1000));
+    Assert::assert(!@$cli->connect('140.207.135.104', 1, $random_timeout = mt_rand(100, 1000) / 1000));
     Assert::eq($cli->errCode, SOCKET_ETIMEDOUT);
     $s = microtime(true) - $s;
     phpt_var_dump($s);

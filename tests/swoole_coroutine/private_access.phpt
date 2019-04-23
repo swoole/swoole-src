@@ -55,10 +55,10 @@ class Bar
                 'password' => MYSQL_SERVER_PWD,
                 'database' => MYSQL_SERVER_DB
             ]);
-            assert($res);
+            Assert::assert($res);
             $ret = $mysql->query('show tables', 1);
-            assert(is_array($ret));
-            assert(count($ret) > 0);
+            Assert::assert(is_array($ret));
+            Assert::assert(count($ret) > 0);
             var_dump(self::$s_private);
             var_dump(self::$s_protect);
             var_dump(self::$s_public);

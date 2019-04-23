@@ -51,7 +51,7 @@ SQL;
                 Assert::eq(current($res[0]), array_shift($_map));
             } while ($res = $db->nextResult());
             Assert::eq($db->affected_rows, 1, 'get the affected rows failed!');
-            assert(empty($_map), 'there are some results lost!');
+            Assert::assert(empty($_map), 'there are some results lost!');
         }
     }
 

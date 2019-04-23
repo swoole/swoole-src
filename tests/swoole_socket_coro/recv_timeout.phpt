@@ -10,7 +10,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     for ($c = MAX_CONCURRENCY_MID; $c--;) {
         go(function () use ($pm) {
             $conn = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-            assert($conn->connect('127.0.0.1', $pm->getFreePort()));
+            Assert::assert($conn->connect('127.0.0.1', $pm->getFreePort()));
             $conn->send(json_encode(['data' => 'hello']));
             $timeout = ms_random(0.1, 1);
             $s = microtime(true);
@@ -26,8 +26,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
                     break;
             }
             time_approximate($timeout, microtime(true) - $s);
-            assert($ret === false);
-            assert($conn->errCode == SOCKET_ETIMEDOUT);
+            Assert::assert($ret === false);
+            Assert::assert($conn->errCode == SOCKET_ETIMEDOUT);
         });
     }
     Swoole\Event::wait();

@@ -6,11 +6,11 @@ swoole_function: swoole_strerror
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 if (!is_musl_libc()) {
-    assert(
+    Assert::assert(
         swoole_strerror(IS_MAC_OS ? 4 : -4 /*EAI_FAIL*/, SWOOLE_STRERROR_GAI) ===
         'Non-recoverable failure in name resolution'
     );
-    assert(
+    Assert::assert(
         swoole_strerror(2 /*NO_ADDRESS*/, SWOOLE_STRERROR_DNS) ===
         'Host name lookup failure'
     );

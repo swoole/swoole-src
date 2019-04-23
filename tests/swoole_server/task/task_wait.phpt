@@ -19,7 +19,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         go(function () use ($pm, $n) {
             $c = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             $c->set(['timeout' => 5,]);
-            assert($c->get('/task?n='.$n));
+            Assert::assert($c->get('/task?n='.$n));
             Assert::eq($c->body, "OK");
         });
     }

@@ -7,19 +7,19 @@ swoole_redis_coro: redis select
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $redis = new Swoole\Coroutine\Redis;
-    assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
-    assert($redis->select(0));
-    assert($redis->set('foo', $random0 = get_safe_random()));
-    assert($redis->select(1));
-    assert($redis->set('foo', $random1 = get_safe_random()));
+    Assert::assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
+    Assert::assert($redis->select(0));
+    Assert::assert($redis->set('foo', $random0 = get_safe_random()));
+    Assert::assert($redis->select(1));
+    Assert::assert($redis->set('foo', $random1 = get_safe_random()));
     $foo = $redis->get('foo');
-    assert($foo !== $random0);
+    Assert::assert($foo !== $random0);
     Assert::eq($foo, $random1);
-    assert($redis->select(0));
+    Assert::assert($redis->select(0));
     $foo = $redis->get('foo');
     Assert::eq($foo, $random0);
-    assert($foo !== $random1);
-    assert($redis->select(1));
+    Assert::assert($foo !== $random1);
+    Assert::assert($redis->select(1));
 
     // test whether it's OK after automatic reconnected
     $redis_killer = new Swoole\Coroutine\Redis;
@@ -27,7 +27,7 @@ go(function () {
     $redis_killer->request(['CLIENT', 'KILL', 'TYPE', 'normal']);
 
     $foo = $redis->get('foo');
-    assert($foo !== $random0);
+    Assert::assert($foo !== $random0);
     Assert::eq($foo, $random1);
 
     echo "DONE\n";

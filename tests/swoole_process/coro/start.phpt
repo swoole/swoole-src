@@ -12,7 +12,7 @@ $proc = new \swoole_process(function () {
 }, false, 1, true);
 
 $r = $proc->start();
-assert($r > 0);
+Assert::assert($r > 0);
 $proc->close();
 
 \swoole_process::wait(true);

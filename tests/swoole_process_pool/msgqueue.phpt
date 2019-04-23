@@ -33,8 +33,8 @@ $pm->childFunc = function () use ($pm) {
 
     $pool->on("message", function (Swoole\Process\Pool $pool, string $message) {
         $data = json_decode($message, true);
-        assert($data);
-        assert(is_array($data));
+        Assert::assert($data);
+        Assert::assert(is_array($data));
         Assert::eq(strlen(base64_decode($data['data'])), 1024);
     });
 

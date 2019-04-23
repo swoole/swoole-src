@@ -34,7 +34,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);  //POST数据
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $res = curl_exec($ch);
-    assert(!empty($res));
+    Assert::assert(!empty($res));
     Assert::eq($res, md5_file($file));
     curl_close($ch);
 

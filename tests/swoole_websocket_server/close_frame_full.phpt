@@ -13,7 +13,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             $cli->set(['timeout' => 5]);
             for ($n = MAX_REQUESTS; $n--;) {
                 $ret = $cli->upgrade('/');
-                assert($ret);
+                Assert::assert($ret);
                 $code = mt_rand(0, 5000);
                 $reason = md5($code);
                 $close_frame = new swoole_websocket_closeframe;

@@ -10,11 +10,11 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $client = new Co\Client(SWOOLE_SOCK_TCP);
-        assert($client->connect('127.0.0.1', $pm->getFreePort()));
-        assert($client->send('null' . EOF));
-        assert($client->send('-1' . EOF));
-        assert($client->send('100' . EOF));
-        assert($client->send(PHP_INT_MAX . EOF));
+        Assert::assert($client->connect('127.0.0.1', $pm->getFreePort()));
+        Assert::assert($client->send('null' . EOF));
+        Assert::assert($client->send('-1' . EOF));
+        Assert::assert($client->send('100' . EOF));
+        Assert::assert($client->send(PHP_INT_MAX . EOF));
         switch_process();
         $pm->kill();
     });

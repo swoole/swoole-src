@@ -37,7 +37,7 @@ go(function () {
     Assert::eq($cli1->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
 
     Assert::eq($cli2->errCode, 0);
-    assert($cli2->statusCode === 200 && strpos($cli2->body, 'tencent') !== false);
+    Assert::assert($cli2->statusCode === 200 && strpos($cli2->body, 'tencent') !== false);
 });
 swoole_event::wait();
 ?>

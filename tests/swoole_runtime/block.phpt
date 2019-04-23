@@ -26,7 +26,7 @@ for ($i = 5; $i--;) {
     });
 }
 swoole_event_wait();
-assert((microtime(true) - $start) > 5 * 0.1);
+Assert::assert((microtime(true) - $start) > 5 * 0.1);
 echo "DONE\n";
 ?>
 --EXPECT--

@@ -5,7 +5,7 @@ swoole_coroutine: max num limit
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-assert(SWOOLE_CORO_MAX_NUM_LIMIT === PHP_INT_MAX);
+Assert::assert(SWOOLE_CORO_MAX_NUM_LIMIT === PHP_INT_MAX);
 echo SWOOLE_CORO_MAX_NUM_LIMIT;
 ?>
 --EXPECTF--

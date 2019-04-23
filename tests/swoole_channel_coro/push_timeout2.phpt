@@ -15,9 +15,9 @@ go(function () use ($chan) {
 });
 
 go(function () use ($chan) {
-    assert($chan->push(1, 0.1));
-    assert(!$chan->push(2, 0.1));
-    assert($chan->push('swoole', 1));
+    Assert::assert($chan->push(1, 0.1));
+    Assert::assert(!$chan->push(2, 0.1));
+    Assert::assert($chan->push('swoole', 1));
 });
 
 swoole_event_wait();

@@ -17,7 +17,7 @@ go(function () {
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB
     ];
-    assert($db->connect($server));
+    Assert::assert($db->connect($server));
     Assert::eq($db->query('SELECT 1'), [['1' => '1']]);
     echo "DONE\n";
 });

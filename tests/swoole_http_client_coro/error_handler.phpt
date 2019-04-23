@@ -16,7 +16,7 @@ $pm->parentFunc = function () use ($pm) {
             $cli->get('/');
         }
         foreach ($cli_map as $cli) {
-            assert($cli->recv());
+            Assert::assert($cli->recv());
             Assert::eq($cli->body, $pm->getRandomData());
         }
 
@@ -27,7 +27,7 @@ $pm->parentFunc = function () use ($pm) {
         foreach ($cli_map as $cli) {
             $cli->set(['reconnect' => false]);
             $cli->setDefer(false);
-            assert(!$cli->get('/'));
+            Assert::assert(!$cli->get('/'));
             Assert::eq($cli->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
             Assert::eq($cli->errCode, SOCKET_ECONNRESET);
         }
@@ -35,7 +35,7 @@ $pm->parentFunc = function () use ($pm) {
         // when we enable reconnect, we will get connect error
         foreach ($cli_map as $cli) {
             $cli->set(['reconnect' => true]);
-            assert(!$cli->get('/'));
+            Assert::assert(!$cli->get('/'));
             Assert::eq($cli->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
             Assert::eq($cli->errCode, SOCKET_ECONNREFUSED);
         }

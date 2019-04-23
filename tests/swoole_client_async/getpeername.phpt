@@ -18,7 +18,7 @@ $pm->parentFunc = function ($pid)
 
     $cli->on("receive", function(\swoole_client $cli, $data){
         $i = $cli->getpeername();
-        assert($i !== false);
+        Assert::assert($i !== false);
         $cli->send('shutdown');
         $cli->close();
     });
@@ -28,7 +28,7 @@ $pm->parentFunc = function ($pid)
     });
 
     $r = $cli->connect(UDP_SERVER_HOST, UDP_SERVER_PORT, 1);
-    assert($r);
+    Assert::assert($r);
     Swoole\Event::wait();
 };
 

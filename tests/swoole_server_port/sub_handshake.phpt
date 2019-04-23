@@ -12,7 +12,7 @@ $pm->parentFunc = function () use ($pm) {
         $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort(1));
         $cli->set(['timeout' => 5]);
         $ret = $cli->upgrade('/');
-        assert($ret);
+        Assert::assert($ret);
         $cli->push('Hello~');
         $ret = $cli->recv();
         var_dump($ret);

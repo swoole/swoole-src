@@ -20,7 +20,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         kill_process_by_name(WORKER_PROC_NAME);
         usleep(10000);
         //判断进程是否存在
-        assert(get_process_pid_by_name(WORKER_PROC_NAME) > 0);
+        Assert::assert(get_process_pid_by_name(WORKER_PROC_NAME) > 0);
     }
     $pm->kill();
 };

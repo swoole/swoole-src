@@ -16,8 +16,8 @@ go(function () {
         $peer = null;
         $data = $socket->recvfrom($peer);
         $socket->sendto($peer['address'], $peer['port'], "Swoole: $data");
-        assert(strlen($data) >= 30000);
-        assert(is_array($peer));
+        Assert::assert(strlen($data) >= 30000);
+        Assert::assert(is_array($peer));
     }
 });
 
@@ -29,8 +29,8 @@ go(function () {
         $socket->sendto('127.0.0.1', 9601, str_repeat('A', rand(30000, 65000)));
         $peer = null;
         $data = $socket->recvfrom($peer);
-        assert(is_array($peer));
-        assert(strlen($data) >= 30000);
+        Assert::assert(is_array($peer));
+        Assert::assert(strlen($data) >= 30000);
     }
 });
 swoole_event_wait();

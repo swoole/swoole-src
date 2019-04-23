@@ -19,10 +19,10 @@ usleep(500 * 1000);
 
 makeTcpClient(TCP_SERVER_HOST, $port, function(\swoole_client $cli) use($port) {
     $r = $cli->send(opcode_encode("bind", [2, 42]));
-    assert($r !== false);
+    Assert::assert($r !== false);
 }, function(\swoole_client $cli, $recv) {
     list($op, $binded) = opcode_decode($recv);
-    assert($binded);
+    Assert::assert($binded);
     swoole_event_exit();
     echo "SUCCESS";
 });

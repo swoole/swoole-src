@@ -23,10 +23,10 @@ $pm->parentFunc = function ($pid) use ($pm)
         $cli->send(pack('N', strlen($data)).$data);
         co::sleep(0.2);
         $retData = $cli->recv();
-        assert(is_string($retData) and strlen($retData) > 0);
+        Assert::assert(is_string($retData) and strlen($retData) > 0);
         /** use valgrind to check memory */
         $cli->close();
-        assert(!$cli->connected);
+        Assert::assert(!$cli->connected);
     });
     swoole_event_wait();
     $pm->kill();

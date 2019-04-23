@@ -20,10 +20,10 @@ require __DIR__ . '/../../include/bootstrap.php';
 $socket = new Co\Socket(AF_INET, SOCK_STREAM, SOL_TCP);
 
 $retval_1 = $socket->setOption(SOL_SOCKET, SO_BINDTODEVICE, "lo");
-assert($retval_1 === true);
+Assert::assert($retval_1 === true);
 
 $retval_2 = $socket->setOption(SOL_SOCKET, SO_BINDTODEVICE, "ethIDONOTEXIST");
-assert($retval_2 === false);
+Assert::assert($retval_2 === false);
 ?>
 --EXPECTF--
 Warning: Swoole\Coroutine\Socket::setOption(): setsockopt(%d) failed, Error: No such device[%d] in %s on line %d

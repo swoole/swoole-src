@@ -20,12 +20,12 @@ $pm->parentFunc = function (int $pid) use ($pm) {
                 'fd' => -1
             ];
             if ($connections[$c]['type'] !== 'null') {
-                if (!assert($connections[$c]['cli']->get('/'))) {
+                if (!Assert::assert($connections[$c]['cli']->get('/'))) {
                     exit;
                 }
                 $connections[$c]['fd'] = (int)$connections[$c]['cli']->body;
                 if ($connections[$c]['type'] === 'websocket') {
-                    if (!assert($connections[$c]['cli']->upgrade('/'))) {
+                    if (!Assert::assert($connections[$c]['cli']->upgrade('/'))) {
                         exit;
                     }
                 }
@@ -39,17 +39,17 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             Assert::true($ready->pop());
         }
         $cli = new Co\Http\Client('127.0.0.1', $pm->getFreePort());
-        if (assert($cli->upgrade('/'))) {
+        if (Assert::assert($cli->upgrade('/'))) {
             for ($c = 0; $c < MAX_CONCURRENCY; $c++) {
-                if (!assert($cli->push($connections[$c]['fd']))) {
+                if (!Assert::assert($cli->push($connections[$c]['fd']))) {
                     exit;
                 }
                 $frame = $cli->recv();
-                if (!assert($frame instanceof Swoole\WebSocket\Frame)) {
+                if (!Assert::assert($frame instanceof Swoole\WebSocket\Frame)) {
                     exit;
                 }
                 // var_dump($connections[$c], $frame->data);
-                if (!assert($frame->data === ($connections[$c]['type'] ?? 'null'))) {
+                if (!Assert::assert($frame->data === ($connections[$c]['type'] ?? 'null'))) {
                     exit;
                 }
             }

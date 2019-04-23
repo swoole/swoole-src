@@ -26,9 +26,9 @@ $pm->parentFunc = function ($pid) use ($pm) {
     fwrite($sock, $data);
     stream_set_chunk_size($sock, 2 * 1024 * 1024);
     $data = fread($sock, 2 * 1024 * 1024);
-    assert(!empty($data));
+    Assert::assert(!empty($data));
     $json = json_decode(explode("\r\n\r\n", $data, 2)[1], true);
-    assert(is_array($json));
+    Assert::assert(is_array($json));
     Assert::true(isset($json['folder_id']));
     Assert::true(isset($json['name']));
     swoole_process::kill($pid);

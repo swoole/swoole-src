@@ -32,7 +32,7 @@ $pm->parentFunc = function (int $pid) use ($pm, $data_list) {
             while (true) {
                 $frame = $cli->recv();
                 list($id, $opcode) = explode('|', $frame->data, 3);
-                assert($frame->finish);
+                Assert::assert($frame->finish);
                 Assert::eq($frame->opcode, (int)$opcode);
                 Assert::eq($frame->data, $cli_data_list[$id]);
                 unset($cli_data_list[$id]);
@@ -70,7 +70,7 @@ $pm->childFunc = function () use ($pm) {
             } else {
                 $ret = $serv->push($req->fd, $data, $opcode);
             }
-            if (!assert($ret)) {
+            if (!Assert::assert($ret)) {
                 var_dump($serv->getLastError());
             }
         }

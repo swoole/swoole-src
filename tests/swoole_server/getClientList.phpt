@@ -24,10 +24,10 @@ usleep(500 * 1000);
 
 makeTcpClient(TCP_SERVER_HOST, $port, function(\swoole_client $cli) {
     $r = $cli->send(opcode_encode("getClientList", []));
-    assert($r !== false);
+    Assert::assert($r !== false);
 }, function(\swoole_client $cli, $recv) {
     list($op, $data) = opcode_decode($recv);
-    assert(is_array($data) && count($data) === 1);
+    Assert::assert(is_array($data) && count($data) === 1);
     swoole_event_exit();
     echo "SUCCESS";
 });

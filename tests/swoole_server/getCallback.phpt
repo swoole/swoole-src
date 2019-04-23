@@ -9,7 +9,7 @@ $server = new Swoole\Server('127.0.0.1');
 $server->on('start', function ($server) { });
 $server->on('shutdown', function ($server) { });
 Assert::isInstanceOf($server->getCallback('start'), Closure::class);
-assert(is_callable($server->getCallback('start')));
+Assert::assert(is_callable($server->getCallback('start')));
 $cb = $server->getCallback('start');
 Assert::eq($cb, $server->getCallback('start'));
 Assert::eq($server->getCallback('Receive'), null);

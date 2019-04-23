@@ -14,7 +14,7 @@ $pm->parentFunc = function () use ($pm)
 {
     go(function () use ($pm) {
         $data= httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
-        assert(strlen($data) > 1024);
+        Assert::assert(strlen($data) > 1024);
         $pm->kill();
     });
     Swoole\Event::wait();

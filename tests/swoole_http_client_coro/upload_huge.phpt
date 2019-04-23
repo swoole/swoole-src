@@ -16,10 +16,10 @@ go(function () {
     $cli->addFile('/tmp/test.jpg', 'test.jpg');
     $ret = $cli->post('/post', ['name' => 'twosee']);
     if ($ret) {
-        assert(count($cli->headers) > 0);
-        assert($cli->statusCode === 200);
+        Assert::assert(count($cli->headers) > 0);
+        Assert::assert($cli->statusCode === 200);
         $body = json_decode($cli->body, true);
-        assert($body['files']['test.jpg'] === $content);
+        Assert::assert($body['files']['test.jpg'] === $content);
         echo "SUCCESS\n";
     }
     $cli->close();

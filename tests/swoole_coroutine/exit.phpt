@@ -56,7 +56,7 @@ for ($i = 0; $i < count($exit_status_list); $i++) {
             // in coroutine
             route();
         } catch (\Swoole\ExitException $e) {
-            assert($e->getFlags() & SWOOLE_EXIT_IN_COROUTINE);
+            Assert::assert($e->getFlags() & SWOOLE_EXIT_IN_COROUTINE);
             $exit_status = $chan->pop();
             $exit_status = $exit_status === 'undef' ? null : $exit_status;
             Assert::eq($e->getStatus(), $exit_status);

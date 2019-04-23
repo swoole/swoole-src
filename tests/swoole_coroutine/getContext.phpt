@@ -41,11 +41,11 @@ class Resource
 }
 
 $context = new Co\Context();
-assert($context instanceof ArrayObject);
-assert(Co::getContext() === null);
+Assert::assert($context instanceof ArrayObject);
+Assert::assert(Co::getContext() === null);
 func(function () {
     $context = Co::getContext();
-    assert($context instanceof Co\Context);
+    Assert::assert($context instanceof Co\Context);
     $context['resource1'] = new Resource;
     $context->resource2 = new Resource;
     func(function () {

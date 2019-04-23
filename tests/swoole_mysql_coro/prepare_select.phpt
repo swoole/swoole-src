@@ -35,7 +35,7 @@ Co::create(function () {
         echo "EXECUTE ERROR#{$stmt->errno}: {$stmt->error}\n";
         return;
     }
-    assert(count($ret3) > 0);
+    Assert::assert(count($ret3) > 0);
 });
 
 ?>

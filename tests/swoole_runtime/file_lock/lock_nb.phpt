@@ -9,9 +9,9 @@ const FILE = __DIR__ . '/test.data';
 \Swoole\Runtime::enableCoroutine();
 go(function () {
     $fp = fopen(FILE, 'w+');
-    assert(flock($fp, LOCK_EX));
+    Assert::assert(flock($fp, LOCK_EX));
     $fp2 = fopen(FILE, 'w+');
-    assert(!flock($fp2, LOCK_EX | LOCK_NB));
+    Assert::assert(!flock($fp2, LOCK_EX | LOCK_NB));
 });
 swoole_event_wait();
 unlink(FILE);

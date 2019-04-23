@@ -13,16 +13,16 @@ $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $redis = new Swoole\Coroutine\Redis;
         $ret = $redis->connect('127.0.0.1', $pm->getFreePort());
-        assert($ret);
+        Assert::assert($ret);
         $redis->setOptions(['retry' => false]);
         for ($n = MAX_REQUESTS; $n--;) {
             $ret = $redis->set('random_val', $random = get_safe_random(128));
-            assert($ret);
+            Assert::assert($ret);
             $ret = $redis->get('random_val');
             if ($n % 2) {
                 Assert::eq($ret, $random);
             } else {
-                assert(!$ret);
+                Assert::assert(!$ret);
             }
         }
         $pm->kill();

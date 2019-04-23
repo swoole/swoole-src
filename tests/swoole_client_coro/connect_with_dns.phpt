@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
     $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
-    assert($cli->connect('www.gov.cn', 80));
+    Assert::assert($cli->connect('www.gov.cn', 80));
 });
 
 ?>

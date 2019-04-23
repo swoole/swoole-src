@@ -8,10 +8,10 @@ require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
     $sock = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-    assert($sock->bind('127.0.0.1', 9601));
-    assert($sock->listen(512));
+    Assert::assert($sock->bind('127.0.0.1', 9601));
+    Assert::assert($sock->listen(512));
     $conn = $sock->accept();
-    assert($conn);
+    Assert::assert($conn);
     Assert::isInstanceOf($conn, Swoole\Coroutine\Socket::class);
 
     $data = $conn->recv();
@@ -23,7 +23,7 @@ go(function () {
 
 go(function ()  {
     $conn = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-    assert($conn->connect('127.0.0.1', 9601));
+    Assert::assert($conn->connect('127.0.0.1', 9601));
     $conn->send(json_encode(['data' => 'hello']));
     echo $conn->recv();
 });

@@ -15,9 +15,9 @@ go(function () {
         'database' => 'not_exist'
     ];
     $connected = $db->connect($server);
-    assert(!$connected);
+    Assert::assert(!$connected);
     Assert::eq($db->connect_errno, 1049); // unknown database
-    assert(strpos($db->connect_error, 'not_exist'));
+    Assert::assert(strpos($db->connect_error, 'not_exist'));
 });
 ?>
 --EXPECT--

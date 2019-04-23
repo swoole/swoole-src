@@ -16,7 +16,7 @@ Swoole\Runtime::enableCoroutine();
 
 go(function () {
     $fp = fopen(FILE, 'w+');
-    assert(flock($fp, LOCK_EX));
+    Assert::assert(flock($fp, LOCK_EX));
     Co::sleep(0.01);
     flock($fp, LOCK_UN);
     fclose($fp);

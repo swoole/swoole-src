@@ -45,12 +45,12 @@ go(function () {
     ];
 
     // invalid connect
-    assert($db->connect($server));
-    assert(!$db->connected);
-    assert(!$db->query('select 1'));
+    Assert::assert($db->connect($server));
+    Assert::assert(!$db->connected);
+    Assert::assert(!$db->query('select 1'));
 
     // right implementation
-    assert($db->connectRaw($server));
+    Assert::assert($db->connectRaw($server));
     Assert::eq($db->query('select 1')[0][1], 1);
 });
 

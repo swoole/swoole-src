@@ -25,7 +25,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
             'bar' => 'char'
         ];
         for ($n = MAX_REQUESTS; $n--;) {
-            assert($cli->send($req));
+            Assert::assert($cli->send($req));
             $response = $cli->recv(1);
             Assert::eq($response->data, co::readFile(__FILE__));
         }

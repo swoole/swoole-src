@@ -9,8 +9,8 @@ $pm = new ProcessManager();
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $cli = new Co\Client(SWOOLE_SOCK_TCP);
-        assert($cli->connect('127.0.0.1', $pm->getFreePort()));
-        assert($cli->connected);
+        Assert::assert($cli->connect('127.0.0.1', $pm->getFreePort()));
+        Assert::assert($cli->connected);
         echo "RECV\n";
         Assert::eq($cli->recv(-1), '');
         echo "CLOSED\n";
@@ -31,10 +31,10 @@ $pm->parentFunc = function () use ($pm) {
 $pm->childFunc = function () use ($pm) {
     go(function () use ($pm) {
         $server = new Co\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-        assert($server->bind('127.0.0.1', $pm->getFreePort()));
-        assert($server->listen());
+        Assert::assert($server->bind('127.0.0.1', $pm->getFreePort()));
+        Assert::assert($server->listen());
         go(function () use ($pm, $server) {
-            if (assert(($conn = $server->accept()) && $conn instanceof Co\Socket)) {
+            if (Assert::assert(($conn = $server->accept()) && $conn instanceof Co\Socket)) {
                 switch_process();
                 echo "CLOSE\n";
                 $conn->close();

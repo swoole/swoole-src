@@ -9,7 +9,7 @@ go(function () {
     $redis = new Swoole\Coroutine\Redis;
     // not connected
     Assert::false($redis->getDBNum());
-    assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
+    Assert::assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
     // connected but not selected
     Assert::eq($redis->getDBNum(), 0);
     // select and success
@@ -25,7 +25,7 @@ go(function () {
     $redis = new Swoole\Coroutine\Redis(['database' => 1]);
     // connected but not selected
     Assert::false($redis->getDBNum());
-    assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
+    Assert::assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
     // connected but not selected
     Assert::eq($redis->getDBNum(), 1);
     // set database but failed

@@ -28,7 +28,7 @@ swoole_timer_after(500, function()use($timerId){
     swoole_timer_clear($timerId);
 });
 swoole_event::wait();
-assert($mem + 1024 * 1024 * 1 > memory_get_usage());
+Assert::assert($mem + 1024 * 1024 * 1 > memory_get_usage());
 echo "DONE\n";
 
 ?>

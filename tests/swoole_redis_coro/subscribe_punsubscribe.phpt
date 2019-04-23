@@ -9,26 +9,26 @@ require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $redis = new Co\Redis();
     $ret = $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-    assert($ret);
+    Assert::assert($ret);
 
     $ret = $redis->subscribe(['channel1']);
-    assert($ret);
+    Assert::assert($ret);
 
     $ret = $redis->recv();
     Assert::eq($ret[0], 'subscribe');
     Assert::eq($ret[1], 'channel1');
 
     $ret = $redis->getDefer();
-    assert(!$ret);
+    Assert::assert(!$ret);
 
     $ret = $redis->set('a', '1');
-    assert(!$ret);
+    Assert::assert(!$ret);
 
     $ret = $redis->setDefer(false);
-    assert(!$ret);
+    Assert::assert(!$ret);
 
     $ret = $redis->punsubscribe(['channel1']);
-    assert($ret);
+    Assert::assert($ret);
 
     $ret = $redis->recv();
     Assert::eq($ret[0], 'punsubscribe');
@@ -36,13 +36,13 @@ go(function () {
     Assert::eq($ret[2], 1);
 
     $ret = $redis->getDefer();
-    assert(!$ret);
+    Assert::assert(!$ret);
 
     $ret = $redis->set('a', '1');
-    assert(!$ret);
+    Assert::assert(!$ret);
 
     $ret = $redis->setDefer(false);
-    assert(!$ret);
+    Assert::assert(!$ret);
 
     $redis->close();
 });

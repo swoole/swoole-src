@@ -13,7 +13,7 @@ go(function () {
         'ssl_host_name' => 'pro-api.coinmarketcap.com'
     ]);
     $c->get('/');
-    assert(strlen($c->body) > 0);
+    Assert::assert(strlen($c->body) > 0);
     Assert::eq($c->statusCode, 200);
 });
 swoole_event::wait();

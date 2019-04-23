@@ -18,9 +18,9 @@ go(function () {
         $r_array = [$fp1, $fp2];
         $w_array = $e_array = null;
         $n = stream_select($r_array, $w_array, $e_array, null);
-        assert($n == 1);
-        assert(count($r_array) == 1);
-        assert($r_array[0] == $fp1);
+        Assert::assert($n == 1);
+        Assert::assert(count($r_array) == 1);
+        Assert::assert($r_array[0] == $fp1);
         $response = '';
         while (!feof($fp1)) {
             $response .= fgets($fp1);

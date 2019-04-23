@@ -17,7 +17,7 @@ for ($n = MAX_REQUESTS; $n--;)
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         for ($n = MAX_REQUESTS; $n--;) {
-            if (!assert(($res = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/task?n={$n}")) === 'OK')) {
+            if (!Assert::assert(($res = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/task?n={$n}")) === 'OK')) {
                 echo "{$res}\n";
                 break;
             }
