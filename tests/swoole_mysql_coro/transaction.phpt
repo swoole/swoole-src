@@ -5,7 +5,7 @@ swoole_mysql_coro: transaction
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-error_reporting(E_DEPRECATED);
+error_reporting(E_ALL);
 go(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [
@@ -33,16 +33,12 @@ go(function () {
 
     $db->setDefer();
     Assert::assert(!$db->begin());
-    Assert::assert(!$db->getDefer());
     $db->setDefer();
     Assert::assert(!$db->commit());
-    Assert::assert(!$db->getDefer());
     $db->setDefer();
     Assert::assert(!$db->begin());
-    Assert::assert(!$db->getDefer());
     $db->setDefer();
     Assert::assert(!$db->rollback());
-    Assert::assert(!$db->getDefer());
 });
 ?>
 --EXPECTF--

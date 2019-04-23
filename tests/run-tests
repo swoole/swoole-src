@@ -129,7 +129,7 @@ if ((substr(PHP_OS, 0, 3) == "WIN") && empty($environment["SystemRoot"])) {
 // swoole patch (composer)
 (function () {
     $composer_dir = __DIR__ . '/include/lib';
-    $composer_info = `cd {$composer_dir} && composer install 2>&1`;
+    $composer_info = `cd {$composer_dir} && composer update 2>&1`;
     if (!file_exists($composer_dir . '/vendor/autoload.php')) {
         throw new RuntimeException('Composer install failed:' . PHP_EOL . $composer_info);
     }
