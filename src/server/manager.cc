@@ -18,6 +18,9 @@
 #include "server.h"
 
 #include <sys/wait.h>
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
 
 typedef struct
 {
@@ -285,6 +288,9 @@ static int swManager_loop(swServer *serv)
     swSignal_add(SIGRTMIN, swManager_signal_handler);
 #endif
     //swSignal_add(SIGINT, swManager_signal_handler);
+#ifdef __linux__
+    prctl(PR_SET_PDEATHSIG, SIGTERM);
+#endif
 
     if (serv->manager_alarm > 0)
     {
