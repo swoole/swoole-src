@@ -19,17 +19,17 @@ Swoole
 The network layer in Swoole is event-based and takes full advantage of the underlying epoll/kqueue implementation, making it really easy to serve millions of requests.
 
 
-Swoole4 use a brand new engine kernel and now it has a full-time developer team, so we are entering an unprecedented period in PHP history which offers a unique possibility for rapid evolution in performance.
+Swoole 4.x use a brand new engine kernel and now it has a full-time developer team, so we are entering an unprecedented period in PHP history which offers a unique possibility for rapid evolution in performance.
 
 ## ⚡️Coroutine
 
-Swoole4 or later supports the built-in coroutine with high availability, and you can use fully synchronized code to implement asynchronous performance. PHP code without any additional keywords, the underlying automatic coroutine-scheduling.
+Swoole 4.x or later supports the built-in coroutine with high availability, and you can use fully synchronized code to implement asynchronous performance. PHP code without any additional keywords, the underlying automatic coroutine-scheduling.
 
 Developers can understand coroutines as ultra-lightweight threads, and you can easily create thousands of coroutines in a single process.
 
 ### MySQL
 
-Concurrency 10k requests to read data from MySQL takes only 0.2s!
+Concurrency 10K requests to read data from MySQL takes only 0.2s!
 
 ```php
 $s = microtime(true);
@@ -53,7 +53,7 @@ Swoole\Event::wait();
 echo 'use ' . (microtime(true) - $s) . ' s';
 ```
 
-### Mixed Server
+### Mixed server
 
 You can create multiple services on the single event loop: TCP, HTTP, Websocket and HTTP2, and easily handle thousands of requests.
 
@@ -94,7 +94,7 @@ $tcp_server->on('receive', function (Swoole\Server $server, int $fd, int $reacto
 $server->start();
 ```
 
-### Kinds of Clients
+### Coroutine clients
 
 Whether you DNS query or send requests or receive responses, all of these are scheduled by coroutine automatically.
 
@@ -199,7 +199,7 @@ go(function () {
 });
 ```
 
-#### Production & Consumption
+#### Producer and consumers
 
 Some Swoole's clients implement the defer mode for concurrency, but you can still implement it flexible with a combination of coroutines and channels.
 
@@ -246,7 +246,7 @@ Swoole\Timer::after(1000, function () use ($id) {
     }
 });
 ```
-#### Use coroutine way
+#### The way of coroutine
 
 ```php
 go(function () {
@@ -263,11 +263,11 @@ go(function () {
 });
 ```
 
-## 🔥 Amazing Runtime Hook
+## 🔥 Amazing runtime hooks
 
-**In the latest version of Swoole, we add a new feature to make sync network libs to be a coroutine lib with only one step.**
+**In the latest version of Swoole, we have added a new feature to make sync PHP network libraires to be coroutine libraires with only one line of code.**
 
-Just call `Swoole\Runtime::enableCoroutine()` method on the top of the script and use php-redis, concurrency 10k requests to read data from Redis takes only 0.1s!
+Just call `Swoole\Runtime::enableCoroutine()` method on the top of the script and use php-redis, 10K concurrent requests reading data from Redis takes only 0.1s!
 
 ```php
 Swoole\Runtime::enableCoroutine();
@@ -284,11 +284,11 @@ Swoole\Event::wait();
 echo 'use ' . (microtime(true) - $s) . ' s';
 ```
 
-After you call it, the Swoole kernel will replace the function pointers of streams in ZendVM, if you use `php_stream` based extensions, all socket operations can be dynamically converted to asynchronous IO scheduled by coroutine at runtime.
+After you call it, the Swoole kernel will replace the function pointers of streams in ZendVM, if you use `php_stream` based extensions, all socket operations can be dynamically converted to be asynchronous IO scheduled by coroutine at runtime.
 
 ### How many things you can do in 1s?
 
-Sleep 10k times, read, write, check and delete files 10k times, use PDO and MySQLi to communicate with the database 10k times, create a TCP server and multiple clients to communicate with each other 10k times, create a UDP server and multiple clients to communicate with each other 10k times...Everything works well in one process!
+Sleep 10K times, read, write, check and delete files 10K times, use PDO and MySQLi to communicate with the database 10K times, create a TCP server and multiple clients to communicate with each other 10K times, create a UDP server and multiple clients to communicate with each other 10K times... Everything works well in one process!
 
 Just see what the Swoole brings, just imagine...
 
@@ -305,7 +305,7 @@ for ($c = 100; $c--;) {
     });
 }
 
-// 10k file read and write
+// 10K file read and write
 for ($c = 100; $c--;) {
     go(function () use ($c) {
         $tmp_filename = "/tmp/test-{$c}.php";
@@ -318,7 +318,7 @@ for ($c = 100; $c--;) {
     });
 }
 
-// 10k pdo and mysqli read
+// 10K pdo and mysqli read
 for ($c = 50; $c--;) {
     go(function () {
         $pdo = new PDO('mysql:host=127.0.0.1;dbname=test;charset=utf8', 'root', 'root');
@@ -342,7 +342,7 @@ for ($c = 50; $c--;) {
     });
 }
 
-// php_stream tcp server & client with 12.8k requests in single process
+// php_stream tcp server & client with 12.8K requests in single process
 function tcp_pack(string $data): string
 {
     return pack('n', strlen($data)) . $data;
@@ -394,7 +394,7 @@ for ($c = 128; $c--;) {
     });
 }
 
-// udp server & client with 12.8k requests in single process
+// udp server & client with 12.8K requests in single process
 go(function () {
     $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_DGRAM, 0);
     $socket->bind('127.0.0.1', 9503);
@@ -436,17 +436,17 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 
 > As with any open source project, Swoole always provides the most reliable stability and the most powerful features in **the latest released version**. Please ensure as much as possible that you are using the latest version.
 
-### 1. Binary package (beginners + dev-env)
+### 1. From binary package (beginners + dev-env)
 
 See our [download page](https://www.swoole.com/page/download)
 
-### Compilation Requirements
+### Compiling requirements
 
 - Linux, OS X or Cygwin, WSL
 - PHP 7.0.0 or later (The higher the version, the better the performance.)
 - GCC 4.8 or later
 
-### 2. Install via pecl (beginners)
+### 2. Install via PECL (beginners)
 
 ```shell
 pecl install swoole
@@ -454,10 +454,17 @@ pecl install swoole
 
 ### 3. Install from source (recommended)
 
-> Please download the source files from [Releases](https://github.com/swoole/swoole-src/releases)
+Please download the source packages from [Releases](https://github.com/swoole/swoole-src/releases) or:
 
 ```shell
+git clone https://github.com/swoole/swoole-src.git && \
 cd swoole-src && \
+git checkout v4.x.x
+```
+
+Compile and install at the source folder:
+
+```shell
 phpize && \
 ./configure && \
 make && make install
@@ -465,9 +472,9 @@ make && make install
 
 #### Enable extension in PHP
 
-After compiling and installing to the system successfully, you need to add a new line `extension=swoole.so` to `php.ini` to enable Swoole extension.
+After compiling and installing to the system successfully, you have to add a new line `extension=swoole.so` to `php.ini` to enable Swoole extension.
 
-#### Extra Compiler Configurations
+#### Extra compiler configurations
 
 > for example: `./configure --enable-openssl --enable-sockets`
 
@@ -532,7 +539,7 @@ You may contribute in the following ways:
 
 ## ❤️ Contributors
 
-This project exists thanks to all the people who contribute. [[Contributor](https://github.com/swoole/swoole-src/graphs/contributors)].
+This project exists thanks to all the people who contribute. [[Contributors](https://github.com/swoole/swoole-src/graphs/contributors)].
 <a href="https://github.com/swoole/swoole-src/graphs/contributors"><img src="https://opencollective.com/swoole-src/contributors.svg?width=890&button=false" /></a>
 
 ## 🎙️ Official Evangelist
