@@ -755,8 +755,38 @@ bool http_client::send()
     swString_append_ptr(http_client_buffer, method, strlen(method));
     swString_append_ptr(http_client_buffer, ZEND_STRL(" "));
 
-    // ============ path ============
-    swString_append_ptr(http_client_buffer, path.c_str(), path.length());
+    // ============ path & proxy ============
+#ifdef SW_USE_OPENSSL
+    if (socket->http_proxy && !socket->open_ssl)
+#else
+    if (socket->http_proxy)
+#endif
+    {
+        zend::string str_host;
+        const static char *pre = "http://";
+        char *_host = (char *) host.c_str();
+        size_t _host_len = host.length();
+        if (zheaders && Z_TYPE_P(zheaders) == IS_ARRAY)
+        {
+            if ((value = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))))
+            {
+                str_host = value;
+                _host = str_host.val();
+                _host_len = str_host.len();
+            }
+        }
+        size_t proxy_uri_len = path.length() + _host_len + strlen(pre) + 10;
+        char *proxy_uri = (char*) emalloc(proxy_uri_len);
+        proxy_uri_len = sw_snprintf(proxy_uri, proxy_uri_len, "%s%s:%u%s", pre, _host, port, path.c_str());
+        swString_append_ptr(http_client_buffer, proxy_uri, proxy_uri_len);
+        efree(proxy_uri);
+    }
+    else
+    {
+        swString_append_ptr(http_client_buffer, path.c_str(), path.length());
+    }
+
+    // ============ protocol ============
     swString_append_ptr(http_client_buffer, ZEND_STRL(" HTTP/1.1\r\n"));
 
     // ============ headers ============
