@@ -75,7 +75,6 @@ typedef struct
 static zend_class_entry *swoole_process_pool_ce;
 static zend_object_handlers swoole_process_pool_handlers;
 static swProcessPool *current_pool;
-static zval *current_process = NULL;
 
 void swoole_process_pool_init(int module_number)
 {
@@ -85,6 +84,7 @@ void swoole_process_pool_init(int module_number)
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process_pool, zend_class_unset_property_deny);
 
     zend_declare_property_long(swoole_process_pool_ce, ZEND_STRL("master_pid"), -1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_pool_ce, ZEND_STRL("workers"), ZEND_ACC_PUBLIC);
 }
 
 static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worker_id)
@@ -437,28 +437,66 @@ static PHP_METHOD(swoole_process_pool, start)
 
 static PHP_METHOD(swoole_process_pool, getProcess)
 {
-    static zval object;
+    long worker_id = -1;
 
     if (current_pool == NULL)
     {
         RETURN_FALSE;
     }
 
-    if (current_process == NULL)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &worker_id) == FAILURE)
     {
-        swWorker *worker = &current_pool->workers[SwooleWG.id];
-        object_init_ex(&object, swoole_process_ce);
-        zend_update_property_long(swoole_process_ce, &object, ZEND_STRL("id"), SwooleWG.id);
-        zend_update_property_long(swoole_process_ce, &object, ZEND_STRL("pid"), getpid());
-        swoole_set_object(&object, worker);
-        current_process = &object;
-    }
-    else
-    {
-        Z_TRY_ADDREF_P(&object);
+        RETURN_FALSE;
     }
 
-    RETURN_ZVAL(current_process, 1, 0);
+    if (worker_id >= current_pool->worker_num)
+    {
+        swoole_php_error(E_WARNING, "invalid worker_id[%ld]", worker_id);
+        RETURN_FALSE;
+    }
+    else if (worker_id < 0)
+    {
+        worker_id = SwooleWG.id;
+    }
+
+    zval *zworkers = sw_zend_read_property_array(swoole_process_pool_ce, getThis(), ZEND_STRL("workers"), 1);
+    zval zobject;
+    zval *zprocess = zend_hash_index_find(Z_ARRVAL_P(zworkers), worker_id);
+
+    if (zprocess == nullptr || ZVAL_IS_NULL(zprocess))
+    {
+        zprocess = &zobject;
+        /**
+         * Separation from shared memory
+         */
+        swWorker *worker = (swWorker *) emalloc(sizeof(swWorker));
+        *worker = current_pool->workers[worker_id];
+
+        object_init_ex(zprocess, swoole_process_ce);
+        zend_update_property_long(swoole_process_ce, zprocess, ZEND_STRL("id"), SwooleWG.id);
+        zend_update_property_long(swoole_process_ce, zprocess, ZEND_STRL("pid"), worker->pid);
+        if (current_pool->ipc_mode == SW_IPC_UNIXSOCK)
+        {
+            //current process
+            if (worker->id == SwooleWG.id)
+            {
+                worker->pipe = worker->pipe_worker;
+            }
+            else
+            {
+                worker->pipe = worker->pipe_master;
+            }
+            /**
+             * Forbidden to close pipe in the php layer
+             */
+            worker->pipe_object = nullptr;
+            zend_update_property_long(swoole_process_ce, zprocess, ZEND_STRL("pipe"), worker->pipe);
+        }
+        swoole_set_object(zprocess, worker);
+        add_index_zval(zworkers, worker_id, zprocess);
+    }
+
+    RETURN_ZVAL(zprocess, 1, 0);
 }
 
 static PHP_METHOD(swoole_process_pool, shutdown)

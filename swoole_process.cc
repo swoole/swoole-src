@@ -366,8 +366,8 @@ static PHP_METHOD(swoole_process, __destruct)
             OBJ_RELEASE(proc->zsocket);
         }
         efree(proc);
-        efree(process);
     }
+    efree(process);
 }
 
 static PHP_METHOD(swoole_process, wait)
@@ -1167,6 +1167,12 @@ static PHP_METHOD(swoole_process, close)
     if (process->pipe == 0)
     {
         swoole_php_fatal_error(E_WARNING, "no pipe, cannot close the pipe");
+        RETURN_FALSE;
+    }
+
+    if (process->pipe_object == nullptr)
+    {
+        swoole_php_fatal_error(E_WARNING, "cannot close the pipe");
         RETURN_FALSE;
     }
 
