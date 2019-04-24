@@ -615,8 +615,6 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 
 //----------------------------------Zval API------------------------------------
 
-#define SW_MAKE_STD_ZVAL(p) zval _##p; p = &(_##p); ZVAL_NULL(p)
-
 // do not use sw_copy_to_stack(return_value, foo);
 #define sw_copy_to_stack(ptr, val) val = *(zval *) ptr, ptr = &val
 
