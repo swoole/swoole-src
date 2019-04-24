@@ -160,7 +160,8 @@ int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
 
 #define swoole_http_server_array_init(name, class) \
-zval _z##name, *z##name = &_z##name;
+zval _z##name; \
+z##name = &_z##name; \
 array_init(z##name);\
 zend_update_property(swoole_http_##class##_ce, z##class##_object, ZEND_STRL(#name), z##name);\
 ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_ce, z##class##_object, ZEND_STRL(#name), 0);\
