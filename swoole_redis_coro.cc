@@ -2914,6 +2914,37 @@ static PHP_METHOD(swoole_redis_coro, hVals)
 static PHP_METHOD(swoole_redis_coro, hGetAll)
 {
     sw_redis_command_key(INTERNAL_FUNCTION_PARAM_PASSTHRU, "HGETALL", 7);
+    
+    if(return_value != NULL && Z_TYPE_P(return_value) == IS_ARRAY)
+    {
+    	int index = 0, arr_cnt;
+        zval* map = NULL;
+        SW_MAKE_STD_ZVAL(map);
+        array_init(map);
+		
+        arr_cnt = zend_hash_num_elements(Z_ARRVAL_P(return_value));
+    	
+        while(index < arr_cnt) 
+        {
+            zval* array_key = zend_hash_index_find(Z_ARRVAL_P(return_value), index++);
+            if(Z_TYPE_P(array_key) == IS_STRING) 
+            {
+            	char key[Z_STRLEN_P(array_key) + 1] = {0};
+	            memcpy(key, Z_STRVAL_P(array_key), Z_STRLEN_P(array_key));
+				
+	            zval *value;
+	            SW_MAKE_STD_ZVAL(value);
+	            *value = *zend_hash_index_find(Z_ARRVAL_P(return_value), index++);
+	            zval_copy_ctor(value);
+				
+	            add_assoc_zval(map, key, value);
+            }
+        }
+    	
+        zval_ptr_dtor(return_value);
+        RETVAL_ZVAL(map, 1, 1);
+    }
+    
 }
 
 static PHP_METHOD(swoole_redis_coro, renameKey)
