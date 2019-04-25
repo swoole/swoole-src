@@ -3959,16 +3959,13 @@ static PHP_METHOD(swoole_redis_coro, hMGet)
             zvalue = zend_hash_index_find(Z_ARRVAL_P(return_value), index++);
             if(Z_ISNULL_P(zvalue))
             {
-                zval zfalse;
-                ZVAL_FALSE(&zfalse);
-                zvalue = &zfalse;
+                add_assoc_bool_ex(&zret, Z_STRVAL_P(&zkey_str), Z_STRLEN_P(&zkey_str), 0);
             }
             else
             {
                 Z_ADDREF_P(zvalue);
+                add_assoc_zval_ex(&zret, Z_STRVAL_P(&zkey_str), Z_STRLEN_P(&zkey_str), zvalue);
             }
-            
-            add_assoc_zval_ex(&zret, Z_STRVAL_P(&zkey_str), Z_STRLEN_P(&zkey_str), zvalue);
             zval_ptr_dtor(&zkey_str);
         }
         ZEND_HASH_FOREACH_END();

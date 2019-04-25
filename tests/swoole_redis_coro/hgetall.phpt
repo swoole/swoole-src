@@ -1,5 +1,5 @@
 --TEST--
-swoole_redis_coro: redis hGetAll hmGet zRange zRevRange zRangeByScore zRevRangeByScore
+swoole_redis_coro: hGetAll hmGet zRange zRevRange zRangeByScore zRevRangeByScore
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
