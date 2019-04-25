@@ -890,6 +890,7 @@ typedef struct
     uint8_t reconnect_interval;
     uint8_t reconnected_count;
     bool auth;
+    bool compatibility_mode;
     long database;
     zval *zobject;
     zval _zobject;
@@ -971,6 +972,29 @@ static sw_inline bool swoole_redis_coro_close(swRedisClient *redis)
         return true;
     }
     return false;
+}
+
+static sw_inline void swoole_redis_handle_result(zval* return_value) {
+	int index = 0;
+	zval *k, *value;
+	zval map;
+	array_init(&map);
+    	
+	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(return_value), value)
+	{
+		if(index == 0) {
+			k = value;
+		} else {
+			Z_ADDREF_P(value);
+			add_assoc_zval_ex(&map, Z_STRVAL_P(k), Z_STRLEN_P(k), value);
+		}
+    		
+		index = (index + 1) % 2;
+	}
+	ZEND_HASH_FOREACH_END();
+
+	zval_ptr_dtor(return_value);
+	RETVAL_ZVAL(&map, 1, 1);
 }
 
 static bool redis_auth(swRedisClient *redis, char *pw, size_t pw_len);
@@ -1344,6 +1368,10 @@ static inline void sw_redis_command_key(INTERNAL_FUNCTION_PARAMETERS, const char
     SW_REDIS_COMMAND_ARGV_FILL(cmd, cmd_len)
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
     redis_request(redis, argc, argv, argvlen, return_value);
+
+    if(redis->compatibility_mode && memcmp("HGETALL", cmd, cmd_len) == 0 && Z_TYPE_P(return_value) == IS_ARRAY) {
+    	swoole_redis_handle_result(return_value);
+    }
 }
 
 static sw_inline void sw_redis_command_key_var_val(INTERNAL_FUNCTION_PARAMETERS, const char *cmd, int cmd_len)
@@ -1959,6 +1987,10 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
     if (php_swoole_array_get_value(vht, "reconnect", ztmp))
     {
         redis->reconnect_interval = (uint8_t) MIN(zval_get_long(ztmp), UINT8_MAX);
+    }
+    if (php_swoole_array_get_value(vht, "compatibility_mode", ztmp))
+    { 
+        redis->compatibility_mode = zval_is_true(ztmp);
     }
 }
 
@@ -2914,32 +2946,6 @@ static PHP_METHOD(swoole_redis_coro, hVals)
 static PHP_METHOD(swoole_redis_coro, hGetAll)
 {
     sw_redis_command_key(INTERNAL_FUNCTION_PARAM_PASSTHRU, "HGETALL", 7);
-    
-    if(return_value != NULL && Z_TYPE_P(return_value) == IS_ARRAY)
-    {
-    	int index = 0, arr_cnt;
-        zval map;
-        array_init(&map);
-		
-        arr_cnt = zend_hash_num_elements(Z_ARRVAL_P(return_value));
-    	
-        while(index < arr_cnt) 
-        {
-            zval* array_key = zend_hash_index_find(Z_ARRVAL_P(return_value), index++);
-			
-            if(Z_TYPE_P(array_key) == IS_STRING) 
-            {
-	            zval value;
-	            value = *zend_hash_index_find(Z_ARRVAL_P(return_value), index++);
-	            zval_copy_ctor(&value);
-				
-	            add_assoc_zval_ex(&map, Z_STRVAL_P(array_key), Z_STRLEN_P(array_key), &value);
-            }
-        }
-        
-    	zval_ptr_dtor(return_value);
-        RETVAL_ZVAL(&map, 1, 1);
-    }
 }
 
 static PHP_METHOD(swoole_redis_coro, renameKey)
@@ -3217,6 +3223,11 @@ static PHP_METHOD(swoole_redis_coro, zRange)
 
     redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
+    
+    if (ws && redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY)
+    {
+    	swoole_redis_handle_result(return_value);
+    }
 }
 
 static PHP_METHOD(swoole_redis_coro, zRevRange)
@@ -3254,6 +3265,11 @@ static PHP_METHOD(swoole_redis_coro, zRevRange)
 
     redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
+
+    if (ws && redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY)
+    {
+    	swoole_redis_handle_result(return_value);
+    }
 }
 
 static PHP_METHOD(swoole_redis_coro, zUnion)
@@ -3670,6 +3686,11 @@ static PHP_METHOD(swoole_redis_coro, zRangeByScore)
 
     redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
+
+    if (withscores && redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY)
+    {
+    	swoole_redis_handle_result(return_value);
+    }
 }
 
 static PHP_METHOD(swoole_redis_coro, zRevRangeByScore)
@@ -3743,6 +3764,11 @@ static PHP_METHOD(swoole_redis_coro, zRevRangeByScore)
 
     redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
+
+    if (withscores && redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY)
+    {
+    	swoole_redis_handle_result(return_value);
+    }
 }
 
 static PHP_METHOD(swoole_redis_coro, zIncrBy)
@@ -3901,6 +3927,30 @@ static PHP_METHOD(swoole_redis_coro, hMGet)
     SW_HASHTABLE_FOREACH_END();
     redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
+
+    if(redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY){
+    	int index = 0;
+		zval *hkey, *value;
+		zval map;
+		array_init(&map);
+		
+		ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(z_arr), hkey)
+		{
+			zval hkey_str = *hkey;
+			zval_copy_ctor(&hkey_str);
+			convert_to_string(&hkey_str);
+			
+			value = zend_hash_index_find(Z_ARRVAL_P(return_value), index++);
+			Z_ADDREF_P(value);
+			
+			add_assoc_zval_ex(&map, Z_STRVAL_P(&hkey_str), Z_STRLEN_P(&hkey_str), value);
+			zval_ptr_dtor(&hkey_str);
+		}
+		ZEND_HASH_FOREACH_END();
+		
+		zval_ptr_dtor(return_value);
+		RETVAL_ZVAL(&map, 1, 1);
+    }
 }
 
 static PHP_METHOD(swoole_redis_coro, hExists)
