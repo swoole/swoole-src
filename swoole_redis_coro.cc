@@ -1006,7 +1006,6 @@ static sw_inline void swoole_redis_handle_result(zval* return_value, bool str2do
     zval_ptr_dtor(return_value);
     RETVAL_ZVAL(&zret, 1, 1);
 }
-}
 
 static bool redis_auth(swRedisClient *redis, char *pw, size_t pw_len);
 static bool redis_select_db(swRedisClient *redis, long db_number);
