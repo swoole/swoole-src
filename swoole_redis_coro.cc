@@ -974,15 +974,14 @@ static sw_inline bool swoole_redis_coro_close(swRedisClient *redis)
     return false;
 }
 
-static sw_inline void swoole_redis_handle_result(zval* return_value, bool str2double) {
-    int index = 0;
+static sw_inline void swoole_redis_handle_assoc_array_result(zval* return_value, bool str2double) {
     zval *zkey, *zvalue;
     zval zret;
     array_init(&zret);
-        
+    bool is_key = false;
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(return_value), zvalue)
     {
-        if(index == 0) 
+        if((is_key = !is_key))
         {
             zkey = zvalue;
         }
@@ -998,8 +997,6 @@ static sw_inline void swoole_redis_handle_result(zval* return_value, bool str2do
             }
             add_assoc_zval_ex(&zret, Z_STRVAL_P(zkey), Z_STRLEN_P(zkey), zvalue);
         }
-            
-        index = (index + 1) % 2;
     }
     ZEND_HASH_FOREACH_END();
 
@@ -1381,7 +1378,7 @@ static inline void sw_redis_command_key(INTERNAL_FUNCTION_PARAMETERS, const char
     
     if(redis->compatibility_mode && memcmp("HGETALL", cmd, cmd_len) == 0 && Z_TYPE_P(return_value) == IS_ARRAY) 
     {
-        swoole_redis_handle_result(return_value, false);
+        swoole_redis_handle_assoc_array_result(return_value, false);
     }
 }
 
@@ -3236,7 +3233,7 @@ static PHP_METHOD(swoole_redis_coro, zRange)
     
     if (ws && redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY)
     {
-        swoole_redis_handle_result(return_value, true);
+        swoole_redis_handle_assoc_array_result(return_value, true);
     }
     
     SW_REDIS_COMMAND_FREE_ARGV
@@ -3279,7 +3276,7 @@ static PHP_METHOD(swoole_redis_coro, zRevRange)
     
     if (ws && redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY)
     {
-        swoole_redis_handle_result(return_value, true);
+        swoole_redis_handle_assoc_array_result(return_value, true);
     }
     
     SW_REDIS_COMMAND_FREE_ARGV
@@ -3701,7 +3698,7 @@ static PHP_METHOD(swoole_redis_coro, zRangeByScore)
     
     if (withscores && redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY)
     {
-        swoole_redis_handle_result(return_value, true);
+        swoole_redis_handle_assoc_array_result(return_value, true);
     }
     
     SW_REDIS_COMMAND_FREE_ARGV
@@ -3780,7 +3777,7 @@ static PHP_METHOD(swoole_redis_coro, zRevRangeByScore)
     
     if (withscores && redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY)
     {
-        swoole_redis_handle_result(return_value, true);
+        swoole_redis_handle_assoc_array_result(return_value, true);
     }
     
     SW_REDIS_COMMAND_FREE_ARGV
@@ -3952,21 +3949,18 @@ static PHP_METHOD(swoole_redis_coro, hMGet)
         
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(z_arr), zkey)
         {
-            zval zkey_str = *zkey;
-            zval_copy_ctor(&zkey_str);
-            convert_to_string(&zkey_str);
+            zend::string zkey_str(zkey);
             
             zvalue = zend_hash_index_find(Z_ARRVAL_P(return_value), index++);
             if(Z_ISNULL_P(zvalue))
             {
-                add_assoc_bool_ex(&zret, Z_STRVAL_P(&zkey_str), Z_STRLEN_P(&zkey_str), 0);
+                add_assoc_bool_ex(&zret, zkey_str.val(), zkey_str.len(), 0);
             }
             else
             {
                 Z_ADDREF_P(zvalue);
-                add_assoc_zval_ex(&zret, Z_STRVAL_P(&zkey_str), Z_STRLEN_P(&zkey_str), zvalue);
+                add_assoc_zval_ex(&zret, zkey_str.val(), zkey_str.len(), zvalue);
             }
-            zval_ptr_dtor(&zkey_str);
         }
         ZEND_HASH_FOREACH_END();
         
