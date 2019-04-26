@@ -20,6 +20,10 @@ go(function() {
     $redis->zAdd('zkey', true, 'val1');
     $redis->zAdd('zkey', 5, 'val5');
     
+    echo "-----get---\n";
+    var_dump($redis->get('novalue'));
+    echo "-----zRank---\n";
+    var_dump($redis->zRank('novalue', 1));
     echo "-----hGetAll---\n";
     var_dump($redis->hGetAll('hkey'));
     echo "-----hmGet---\n";
@@ -34,6 +38,10 @@ go(function() {
     var_dump($redis->zRevRangeByScore('zkey', 99, 0, ['withscores' => true]));
 });
 --EXPECT--
+-----get---
+bool(false)
+-----zRank---
+bool(false)
 -----hGetAll---
 array(3) {
   [""]=>

@@ -2433,6 +2433,11 @@ static PHP_METHOD(swoole_redis_coro, debug)
 static PHP_METHOD(swoole_redis_coro, get)
 {
     sw_redis_command_key(INTERNAL_FUNCTION_PARAM_PASSTHRU, "GET", 3);
+    
+    if (ZVAL_IS_NULL(return_value))
+    {
+    	RETURN_FALSE;
+    }
 }
 
 static PHP_METHOD(swoole_redis_coro, mGet)
@@ -3895,6 +3900,11 @@ static PHP_METHOD(swoole_redis_coro, zScore)
 static PHP_METHOD(swoole_redis_coro, zRank)
 {
     sw_redis_command_key_val(INTERNAL_FUNCTION_PARAM_PASSTHRU, "ZRANK", 5);
+    
+    if (ZVAL_IS_NULL(return_value))
+    {
+    	RETURN_FALSE;
+    }
 }
 
 static PHP_METHOD(swoole_redis_coro, zRevRank)
