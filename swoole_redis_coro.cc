@@ -1379,7 +1379,7 @@ static inline void sw_redis_command_key(INTERNAL_FUNCTION_PARAMETERS, const char
     
     if (redis->compatibility_mode)
     {
-        if (Z_TYPE_P(return_value) == IS_ARRAY && memcmp("HGETALL", cmd, cmd_len) == 0)
+        if (ZVAL_IS_ARRAY(return_value) && memcmp("HGETALL", cmd, cmd_len) == 0)
         {
             swoole_redis_handle_assoc_array_result(return_value, false);
         }
@@ -3244,7 +3244,7 @@ static PHP_METHOD(swoole_redis_coro, zRange)
 
     redis_request(redis, argc, argv, argvlen, return_value);
     
-    if (ws && redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY)
+    if (ws && redis->compatibility_mode && ZVAL_IS_ARRAY(return_value))
     {
         swoole_redis_handle_assoc_array_result(return_value, true);
     }
@@ -3287,7 +3287,7 @@ static PHP_METHOD(swoole_redis_coro, zRevRange)
 
     redis_request(redis, argc, argv, argvlen, return_value);
     
-    if (ws && redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY)
+    if (ws && redis->compatibility_mode && ZVAL_IS_ARRAY(return_value))
     {
         swoole_redis_handle_assoc_array_result(return_value, true);
     }
@@ -3709,7 +3709,7 @@ static PHP_METHOD(swoole_redis_coro, zRangeByScore)
 
     redis_request(redis, argc, argv, argvlen, return_value);
     
-    if (withscores && redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY)
+    if (withscores && redis->compatibility_mode && ZVAL_IS_ARRAY(return_value))
     {
         swoole_redis_handle_assoc_array_result(return_value, true);
     }
@@ -3788,7 +3788,7 @@ static PHP_METHOD(swoole_redis_coro, zRevRangeByScore)
 
     redis_request(redis, argc, argv, argvlen, return_value);
     
-    if (withscores && redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY)
+    if (withscores && redis->compatibility_mode && ZVAL_IS_ARRAY(return_value))
     {
         swoole_redis_handle_assoc_array_result(return_value, true);
     }
@@ -3953,9 +3953,9 @@ static PHP_METHOD(swoole_redis_coro, hMGet)
     redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
     
-    if (redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY)
+    if (redis->compatibility_mode && ZVAL_IS_ARRAY(return_value))
     {
-        int index = 0;
+        size_t index = 0;
         zval *zkey, *zvalue;
         zval zret;
         array_init(&zret);
