@@ -977,8 +977,9 @@ static sw_inline bool swoole_redis_coro_close(swRedisClient *redis)
 static sw_inline void swoole_redis_handle_assoc_array_result(zval* return_value, bool str2double) {
     zval *zkey, *zvalue;
     zval zret;
-    array_init(&zret);
     bool is_key = false;
+    
+    array_init(&zret);
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(return_value), zvalue)
     {
         if((is_key = !is_key))
@@ -1376,7 +1377,7 @@ static inline void sw_redis_command_key(INTERNAL_FUNCTION_PARAMETERS, const char
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
     redis_request(redis, argc, argv, argvlen, return_value);
     
-    if(redis->compatibility_mode && memcmp("HGETALL", cmd, cmd_len) == 0 && Z_TYPE_P(return_value) == IS_ARRAY) 
+    if (redis->compatibility_mode && memcmp("HGETALL", cmd, cmd_len) == 0 && Z_TYPE_P(return_value) == IS_ARRAY) 
     {
         swoole_redis_handle_assoc_array_result(return_value, false);
     }
@@ -3940,7 +3941,7 @@ static PHP_METHOD(swoole_redis_coro, hMGet)
     redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
     
-    if(redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY)
+    if (redis->compatibility_mode && Z_TYPE_P(return_value) == IS_ARRAY)
     {
         int index = 0;
         zval *zkey, *zvalue;
@@ -3952,7 +3953,7 @@ static PHP_METHOD(swoole_redis_coro, hMGet)
             zend::string zkey_str(zkey);
             
             zvalue = zend_hash_index_find(Z_ARRVAL_P(return_value), index++);
-            if(ZVAL_IS_NULL(zvalue))
+            if (ZVAL_IS_NULL(zvalue))
             {
                 add_assoc_bool_ex(&zret, zkey_str.val(), zkey_str.len(), 0);
             }
