@@ -1377,9 +1377,16 @@ static inline void sw_redis_command_key(INTERNAL_FUNCTION_PARAMETERS, const char
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
     redis_request(redis, argc, argv, argvlen, return_value);
     
-    if (redis->compatibility_mode && memcmp("HGETALL", cmd, cmd_len) == 0 && Z_TYPE_P(return_value) == IS_ARRAY) 
+    if (redis->compatibility_mode)
     {
-        swoole_redis_handle_assoc_array_result(return_value, false);
+        if (Z_TYPE_P(return_value) == IS_ARRAY && memcmp("HGETALL", cmd, cmd_len) == 0)
+        {
+            swoole_redis_handle_assoc_array_result(return_value, false);
+        }
+        else if (ZVAL_IS_NULL(return_value) && memcmp("GET", cmd, cmd_len) == 0)
+        {
+            RETURN_FALSE;
+        }
     }
 }
 
@@ -1566,6 +1573,11 @@ static sw_inline void sw_redis_command_key_val(INTERNAL_FUNCTION_PARAMETERS, con
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
     SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_value)
     redis_request(redis, 3, argv, argvlen, return_value);
+    
+    if (redis->compatibility_mode && ZVAL_IS_NULL(return_value) && memcmp("ZRANK", cmd, cmd_len) == 0)
+    {
+        RETURN_FALSE;
+    }
 }
 
 static sw_inline void sw_redis_command_key_str(INTERNAL_FUNCTION_PARAMETERS, const char *cmd, int cmd_len)
@@ -2433,11 +2445,6 @@ static PHP_METHOD(swoole_redis_coro, debug)
 static PHP_METHOD(swoole_redis_coro, get)
 {
     sw_redis_command_key(INTERNAL_FUNCTION_PARAM_PASSTHRU, "GET", 3);
-    
-    if (ZVAL_IS_NULL(return_value))
-    {
-    	RETURN_FALSE;
-    }
 }
 
 static PHP_METHOD(swoole_redis_coro, mGet)
@@ -3900,11 +3907,6 @@ static PHP_METHOD(swoole_redis_coro, zScore)
 static PHP_METHOD(swoole_redis_coro, zRank)
 {
     sw_redis_command_key_val(INTERNAL_FUNCTION_PARAM_PASSTHRU, "ZRANK", 5);
-    
-    if (ZVAL_IS_NULL(return_value))
-    {
-    	RETURN_FALSE;
-    }
 }
 
 static PHP_METHOD(swoole_redis_coro, zRevRank)
