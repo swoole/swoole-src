@@ -997,7 +997,7 @@ static PHP_METHOD(swoole_socket_coro, connect)
     RETURN_TRUE;
 }
 
-static sw_inline void swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, bool all)
+static sw_inline void swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, const bool all)
 {
     zend_long length = SW_BUFFER_SIZE_BIG;
     double timeout = 0;
@@ -1008,7 +1008,7 @@ static sw_inline void swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, bool
         Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (length <= 0)
+    if (UNEXPECTED(length <= 0))
     {
         length = SW_BUFFER_SIZE_BIG;
     }
@@ -1031,9 +1031,7 @@ static sw_inline void swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, bool
     }
     else
     {
-        ZSTR_LEN(buf) = bytes;
-        ZSTR_VAL(buf)[bytes] = '\0';
-        RETURN_STR(buf);
+        RETURN_STR(sw_zend_string_recycle(buf, length, bytes));
     }
 }
 

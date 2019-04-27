@@ -675,6 +675,24 @@ static sw_inline void sw_zval_free(zval *val)
         php_output_discard(); \
     } while (0)
 
+static sw_inline zend_string* sw_zend_string_recycle(zend_string *s, size_t alloc_len, size_t real_len)
+{
+    SW_ASSERT(!ZSTR_IS_INTERNED(s));
+    if (UNEXPECTED(alloc_len != real_len))
+    {
+        if (UNEXPECTED(alloc_len - real_len > SwooleG.pagesize))
+        {
+            s = zend_string_realloc(s, real_len, 0);
+        }
+        else
+        {
+            ZSTR_LEN(s) = real_len;
+        }
+    }
+    ZSTR_VAL(s)[real_len] = '\0';
+    return s;
+}
+
 //----------------------------------Array API------------------------------------
 
 #define php_swoole_array_length(zarray)      zend_hash_num_elements(Z_ARRVAL_P(zarray))
