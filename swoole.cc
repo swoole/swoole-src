@@ -250,9 +250,15 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
 #if PHP_VERSION_ID < 80000
 void php_swoole_class_unset_property_deny(zval *zobject, zval *zmember, void **cache_slot)
 {
-    if (EXPECTED(zend_hash_find(&(Z_OBJCE_P(zobject)->properties_info), Z_STR_P(zmember))))
+    if (!Z_OBJCE_P(zobject)->parent && EXPECTED(zend_hash_find(&(Z_OBJCE_P(zobject)->properties_info), Z_STR_P(zmember))))
     {
         zend_throw_error(NULL, "Property %s of class %s cannot be unset", Z_STRVAL_P(zmember), ZSTR_VAL(Z_OBJCE_P(zobject)->name));
+        return;
+    }
+    else if (Z_OBJCE_P(zobject)->parent && Z_OBJCE_P(zobject)->parent->type == ZEND_INTERNAL_CLASS && \
+            EXPECTED(zend_hash_find(&(Z_OBJCE_P(zobject)->parent->properties_info), Z_STR_P(zmember))))
+    {
+        zend_throw_error(NULL, "Property %s of class %s cannot be unset", Z_STRVAL_P(zmember), ZSTR_VAL(Z_OBJCE_P(zobject)->parent->name));
         return;
     }
     std_object_handlers.unset_property(zobject, zmember, cache_slot);
