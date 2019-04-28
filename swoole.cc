@@ -1076,41 +1076,42 @@ PHP_FUNCTION(swoole_cpu_num)
 
 PHP_FUNCTION(swoole_strerror)
 {
-    zend_long swoole_errno = 0;
+    zend_long swoole_errno;
     zend_long error_type = SW_STRERROR_SYSTEM;
-    char error_msg[256] = {0};
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &swoole_errno, &error_type) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_LONG(swoole_errno)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(error_type)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     if (error_type == SW_STRERROR_GAI)
     {
-        snprintf(error_msg, sizeof(error_msg) - 1, "%s", gai_strerror(swoole_errno));
+        RETURN_STRING(gai_strerror(swoole_errno));
     }
     else if (error_type == SW_STRERROR_DNS)
     {
-        snprintf(error_msg, sizeof(error_msg) - 1, "%s", hstrerror(swoole_errno));
+        RETURN_STRING(hstrerror(swoole_errno));
     }
     else if (error_type == SW_STRERROR_SWOOLE || (swoole_errno > SW_ERROR_START && swoole_errno < SW_ERROR_END))
     {
-        snprintf(error_msg, sizeof(error_msg) - 1, "%s", swoole_strerror(swoole_errno));
+        RETURN_STRING(swoole_strerror(swoole_errno));
     }
     else
     {
-        snprintf(error_msg, sizeof(error_msg) - 1, "%s", strerror(swoole_errno));
+        RETURN_STRING(strerror(swoole_errno));
     }
-    RETURN_STRING(error_msg);
 }
 
 PHP_FUNCTION(swoole_get_mime_type)
 {
     char *filename;
-    zend_long filename_len;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &filename, &filename_len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    size_t filename_len;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(filename, filename_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     RETURN_STRING(swoole_mime_type_get(filename));
 }
 
@@ -1122,8 +1123,8 @@ PHP_FUNCTION(swoole_errno)
 PHP_FUNCTION(swoole_set_process_name)
 {
 #ifdef __MACH__
-    // MacOS doesn't support 'cli_set_process_title'
-    swoole_php_fatal_error(E_WARNING, "swoole_set_process_name is not supported on MacOS");
+    // OSX doesn't support 'cli_set_process_title'
+    swoole_php_fatal_error(E_WARNING, "swoole_set_process_name is not supported on OSX");
     RETURN_FALSE;
 #else
     zend_function *cli_set_process_title = (zend_function *) zend_hash_str_find_ptr(EG(function_table),
