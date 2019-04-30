@@ -137,6 +137,11 @@ uint8_t swoole_coroutine_is_in()
     return !!Coroutine::get_current();
 }
 
+long swoole_coroutine_get_current_id()
+{
+    return Coroutine::get_current_cid();
+}
+
 /**
  * for gdb
  */
