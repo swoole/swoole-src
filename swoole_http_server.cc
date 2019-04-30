@@ -2000,7 +2000,7 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
         {
             char *encoded_value;
             int encoded_value_len;
-            encoded_value = sw_php_url_encode(value, value_len, &encoded_value_len);
+            encoded_value = sw_php_raw_url_encode(value, value_len, &encoded_value_len);
             cookie_size += encoded_value_len;
             cookie = (char *) emalloc(cookie_size);
             snprintf(cookie, cookie_size, "%s=%s", name, encoded_value);

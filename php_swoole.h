@@ -1049,6 +1049,15 @@ static sw_inline char* sw_php_url_encode(char *value, size_t value_len, int* ext
     return return_str;
 }
 
+static sw_inline char* sw_php_raw_url_encode(char *value, size_t value_len, int* exten)
+{
+    zend_string *str = php_raw_url_encode(value, value_len);
+    *exten = ZSTR_LEN(str);
+    char *return_str = estrndup(ZSTR_VAL(str), ZSTR_LEN(str));
+    zend_string_release(str);
+    return return_str;
+}
+
 static sw_inline char* sw_http_build_query(zval *zdata, size_t *length, smart_str *formstr)
 {
     if (php_url_encode_hash_ex(HASH_OF(zdata), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738) == FAILURE)
