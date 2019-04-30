@@ -119,10 +119,14 @@ class http_client
     bool upgrade(std::string path);
     bool push(zval *zdata, zend_long opcode = WEBSOCKET_OPCODE_TEXT, bool _fin = true);
     bool close();
-    std::string get_basic_auth_encode(char *name, size_t nameLen, char *passwd, size_t passwdLen);
+    void set_basic_auth(char *name, size_t name_len, char *passwd, size_t passwd_len);
+    static std::string get_basic_auth_encode(const std::string & basic_auth_username, const std::string & basic_auth_passwd);
 
     ~http_client();
 
+private:
+    std::string basic_auth_username;
+    std::string basic_auth_passwd;
 private:
     Socket* socket = nullptr;
     swSocket_type socket_type = SW_SOCK_TCP;
@@ -847,6 +851,12 @@ bool http_client::send()
     {
         http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), host.c_str(), host.length());
     }
+
+    if(!basic_auth_username.empty() && !basic_auth_passwd.empty()){
+        std::string basicAuth = get_basic_auth_encode(basic_auth_username, basic_auth_passwd);
+        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Authorization"), basicAuth.c_str(), basicAuth.size()); 
+    }
+
     if (!(header_flag & HTTP_HEADER_CONNECTION))
     {
         if (keep_alive)
@@ -1413,27 +1423,29 @@ bool http_client::close()
     return false;
 }
 
-std::string http_client::get_basic_auth_encode(char *name, size_t nameLen, char *passwd, size_t passwdLen){
-    size_t inputLen = nameLen + passwdLen + 1;
-    size_t outputLen = BASE64_ENCODE_OUT_SIZE(inputLen);
-    char *input = new char[inputLen + 1];
-    char *output = new char[outputLen + 7];
-    if(input == nullptr || output == nullptr) return std::string();
+void http_client::set_basic_auth(char *name, size_t name_len, char *passwd, size_t passwd_len)
+{
 
-    //name:pass
-    memcpy((void*)input, (void*)name, nameLen);
-    input[nameLen] = ':';
-    memcpy((void*)(input + nameLen + 1), (void*)passwd, passwdLen);
-    input[inputLen] = '\0';
+    basic_auth_username = std::string(name, name_len);
+    basic_auth_passwd = std::string(passwd, passwd_len);
+}
+
+std::string http_client::get_basic_auth_encode(const std::string & basic_auth_username, const std::string & basic_auth_passwd)
+{
+    std::string input = basic_auth_username + std::string(":") + basic_auth_passwd;
+    size_t input_len = input.size(); 
+    size_t output_len = BASE64_ENCODE_OUT_SIZE(input_len);
+
+    //prepare input
+    void *output = emalloc(output_len + 7);
+    if(output == nullptr) return nullptr;
 
     //basic64 encode
-    memcpy(output, "Basic ", 6);
-    swBase64_encode((unsigned char*)input, inputLen, output + 6);
+    sprintf((char*)output, "Basic ");
+    swBase64_encode((const unsigned char*)input.c_str(), input_len, (char*)(output + 6));
 
-    std::string str(output);
-    //free input, output
-    delete output;
-    delete input;
+    std::string str((const char*)output, output_len + 6);
+    efree(output);
     return str;
 }
 
@@ -1642,17 +1654,7 @@ static PHP_METHOD(swoole_http_client_coro, setHeaders)
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_ARRAY(headers)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-    //zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestHeaders"), headers);
-
-    zval *zheaders = sw_zend_read_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestHeaders"), 1);
-    zval *value = NULL;
-    char *key;
-    size_t keylen, keytype;
-    if(Z_TYPE_P(zheaders) == IS_NULL) array_init(zheaders);
-    SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(headers), key, keylen, keytype, value)
-        zend::string str_value(value);
-        add_assoc_stringl_ex(zheaders, key, keylen, str_value.val(), str_value.len());
-    SW_HASHTABLE_FOREACH_END();
+    zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestHeaders"), headers);
     RETURN_TRUE;
 }
 
@@ -1941,17 +1943,14 @@ static PHP_METHOD(swoole_http_client_coro, close)
 static PHP_METHOD(swoole_http_client_coro, setBasicAuth)
 {
     http_client* phc = swoole_get_phc(getThis());
-    char *name = nullptr, *passwd = nullptr;
-    size_t nameLen = 0, passwdLen = 0;
+    char *name, *passwd;
+    size_t name_len, passwd_len;
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
-        Z_PARAM_STRING(name, nameLen)
-        Z_PARAM_STRING(passwd, passwdLen)
+        Z_PARAM_STRING(name, name_len)
+        Z_PARAM_STRING(passwd, passwd_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    std::string str = phc->get_basic_auth_encode(name, nameLen, passwd, passwdLen);
-    zval *zheaders = sw_zend_read_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestHeaders"), 1);
-    if(Z_TYPE_P(zheaders) == IS_NULL) array_init(zheaders);
-    add_assoc_stringl_ex(zheaders, ZEND_STRL("Authorization"), str.c_str(), str.size());
+    phc->set_basic_auth(name, name_len, passwd, passwd_len);
     return;
 }
