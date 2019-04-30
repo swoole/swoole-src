@@ -23,6 +23,7 @@
 #include "coroutine_c_api.h"
 
 #include "mime_types.h"
+#include "base64.h"
 
 using namespace swoole;
 
@@ -118,6 +119,7 @@ class http_client
     bool upgrade(std::string path);
     bool push(zval *zdata, zend_long opcode = WEBSOCKET_OPCODE_TEXT, bool _fin = true);
     bool close();
+    std::string get_basic_auth_encode(char *name, size_t nameLen, char *passwd, size_t passwdLen);
 
     ~http_client();
 
@@ -221,6 +223,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_recv, 0, 0, 0)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_setBasicAuth, 0, 0, 2)
+    ZEND_ARG_INFO(0, name)
+    ZEND_ARG_INFO(0, passwd)
+ZEND_END_ARG_INFO()
+
 static PHP_METHOD(swoole_http_client_coro, __construct);
 static PHP_METHOD(swoole_http_client_coro, __destruct);
 static PHP_METHOD(swoole_http_client_coro, set);
@@ -240,6 +247,7 @@ static PHP_METHOD(swoole_http_client_coro, upgrade);
 static PHP_METHOD(swoole_http_client_coro, push);
 static PHP_METHOD(swoole_http_client_coro, recv);
 static PHP_METHOD(swoole_http_client_coro, close);
+static PHP_METHOD(swoole_http_client_coro, setBasicAuth);
 
 static const zend_function_entry swoole_http_client_coro_methods[] =
 {
@@ -262,6 +270,7 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
     PHP_ME(swoole_http_client_coro, recv, arginfo_swoole_http_client_coro_recv, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, push, arginfo_swoole_http_client_coro_push, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, setBasicAuth, arginfo_swoole_http_client_coro_setBasicAuth, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -1404,6 +1413,30 @@ bool http_client::close()
     return false;
 }
 
+std::string http_client::get_basic_auth_encode(char *name, size_t nameLen, char *passwd, size_t passwdLen){
+    size_t inputLen = nameLen + passwdLen + 1;
+    size_t outputLen = BASE64_ENCODE_OUT_SIZE(inputLen);
+    char *input = new char[inputLen + 1];
+    char *output = new char[outputLen + 7];
+    if(input == nullptr || output == nullptr) return std::string();
+
+    //name:pass
+    memcpy((void*)input, (void*)name, nameLen);
+    input[nameLen] = ':';
+    memcpy((void*)(input + nameLen + 1), (void*)passwd, passwdLen);
+    input[inputLen] = '\0';
+
+    //basic64 encode
+    memcpy(output, "Basic ", 6);
+    swBase64_encode((unsigned char*)input, inputLen, output + 6);
+
+    std::string str(output);
+    //free input, output
+    delete output;
+    delete input;
+    return str;
+}
+
 http_client::~http_client()
 {
     close();
@@ -1609,9 +1642,17 @@ static PHP_METHOD(swoole_http_client_coro, setHeaders)
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_ARRAY(headers)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+    //zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestHeaders"), headers);
 
-    zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestHeaders"), headers);
-
+    zval *zheaders = sw_zend_read_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestHeaders"), 1);
+    zval *value = NULL;
+    char *key;
+    size_t keylen, keytype;
+    if(Z_TYPE_P(zheaders) == IS_NULL) array_init(zheaders);
+    SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(headers), key, keylen, keytype, value)
+        zend::string str_value(value);
+        add_assoc_stringl_ex(zheaders, key, keylen, str_value.val(), str_value.len());
+    SW_HASHTABLE_FOREACH_END();
     RETURN_TRUE;
 }
 
@@ -1895,4 +1936,22 @@ static PHP_METHOD(swoole_http_client_coro, close)
     http_client* phc = swoole_get_phc(getThis());
 
     RETURN_BOOL(phc->close());
+}
+
+static PHP_METHOD(swoole_http_client_coro, setBasicAuth)
+{
+    http_client* phc = swoole_get_phc(getThis());
+    char *name = nullptr, *passwd = nullptr;
+    size_t nameLen = 0, passwdLen = 0;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(name, nameLen)
+        Z_PARAM_STRING(passwd, passwdLen)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    std::string str = phc->get_basic_auth_encode(name, nameLen, passwd, passwdLen);
+    zval *zheaders = sw_zend_read_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestHeaders"), 1);
+    if(Z_TYPE_P(zheaders) == IS_NULL) array_init(zheaders);
+    add_assoc_stringl_ex(zheaders, ZEND_STRL("Authorization"), str.c_str(), str.size());
+    return;
 }

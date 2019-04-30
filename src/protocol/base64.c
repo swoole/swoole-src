@@ -56,7 +56,7 @@ static signed char base64de[] = {
         44, 45, 46, 47, 48, 49, 50, 51,
 };
 
-size_t swBase64_encode(unsigned char *in, size_t inlen, char *out)
+size_t swBase64_encode(const unsigned char *in, size_t inlen, char *out)
 {
     size_t i, j;
 
@@ -95,7 +95,7 @@ size_t swBase64_encode(unsigned char *in, size_t inlen, char *out)
     return j;
 }
 
-size_t swBase64_decode(char *in, size_t inlen, char* out)
+size_t swBase64_decode(const char *in, size_t inlen, char* out)
 {
     size_t i, j;
 
