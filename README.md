@@ -500,7 +500,7 @@ Async clients and API are moved to a separate PHP extension `swoole_async` since
 git clone https://github.com/swoole/async-ext.git
 cd async-src
 phpize
-./confiugre
+./configure
 make -j 4
 sudo make install
 ```
