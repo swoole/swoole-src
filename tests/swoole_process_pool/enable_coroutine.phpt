@@ -39,3 +39,4 @@ worker stop
 hello world
 worker stop
 hello world
+worker stop
