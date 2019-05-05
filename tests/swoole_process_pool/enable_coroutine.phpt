@@ -11,16 +11,18 @@ $pool = new Swoole\Process\Pool(1, SWOOLE_IPC_NONE, 0, true);
 $counter = new Swoole\Atomic(0);
 
 $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) use ($counter) {
-    Co::sleep(0.05);
-    $counter->add(1);
-    echo "hello world\n";
-    if ($counter->get() > 5) {
-        $pool->shutdown();
+    if ($counter->get() <= 5) {
+        Co::sleep(0.05);
+        $counter->add(1);
+        echo "hello world\n";
     }
 });
 
-$pool->on("workerStop", function ($pool, $data) {
+$pool->on("workerStop", function ($pool, $data) use ($counter) {
     echo "worker stop\n";
+    if ($counter->get() > 5) {
+        $pool->shutdown();
+    }
 });
 
 $pool->start();
