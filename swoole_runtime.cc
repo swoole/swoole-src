@@ -31,6 +31,7 @@ static PHP_FUNCTION(_usleep);
 static PHP_FUNCTION(_time_nanosleep);
 static PHP_FUNCTION(_time_sleep_until);
 static PHP_FUNCTION(_stream_select);
+static PHP_FUNCTION(_stream_socket_pair);
 }
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam);
@@ -48,6 +49,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_runtime_enableCoroutine, 0, 0, 0)
     ZEND_ARG_INFO(0, enable)
     ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
+
 
 static zend_class_entry *swoole_runtime_ce;
 static zend_object_handlers swoole_runtime_handlers;
@@ -109,6 +111,8 @@ static zend_function *ori_gethostbyname;
 static zif_handler ori_gethostbyname_handler;
 static zend_function *ori_stream_select;
 static zif_handler ori_stream_select_handler;
+static zend_function *ori_stream_socket_pair;
+static zif_handler ori_stream_socket_pair_handler;
 
 extern "C"
 {
@@ -973,6 +977,8 @@ bool PHPCoroutine::enable_hook(int flags)
         ori_factory.tls = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tls"));
         ori_stream_select = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("stream_select"));
         ori_stream_select_handler = ori_stream_select->internal_function.handler;
+        ori_stream_socket_pair = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("stream_socket_pair"));
+        ori_stream_socket_pair_handler = ori_stream_socket_pair->internal_function.handler;
 
         // file
         memcpy((void*) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
@@ -1103,6 +1109,7 @@ bool PHPCoroutine::enable_hook(int flags)
             if (ori_stream_select)
             {
                 ori_stream_select->internal_function.handler = PHP_FN(_stream_select);
+                ori_stream_socket_pair->internal_function.handler = PHP_FN(_stream_socket_pair);
             }
             else
             {
@@ -1117,6 +1124,7 @@ bool PHPCoroutine::enable_hook(int flags)
             if (ori_stream_select)
             {
                 ori_stream_select->internal_function.handler = ori_stream_select_handler;
+                ori_stream_socket_pair->internal_function.handler = ori_stream_socket_pair_handler;
             }
         }
     }
@@ -1604,4 +1612,69 @@ static PHP_FUNCTION(_stream_select)
     }
 
     RETURN_LONG(retval);
+}
+
+static php_stream *sw_php_stream_sock_open_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC)
+{
+    Socket *sock = new Socket(_fd, domain, type, protocol);
+
+    if (FG(default_socket_timeout) > 0)
+    {
+        sock->set_timeout((double) FG(default_socket_timeout));
+    }
+
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t*) emalloc(sizeof(*abstract));
+    memset(abstract, 0, sizeof(*abstract));
+
+    abstract->socket = sock;
+    abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
+    abstract->stream.socket = sock->get_fd();
+    abstract->read_timeout = (double) FG(default_socket_timeout);
+
+    php_stream *stream = php_stream_alloc_rel(&socket_ops, abstract, nullptr, "r+");
+
+    if (stream == NULL)
+    {
+        delete sock;
+    }
+    else
+    {
+        stream->flags |= PHP_STREAM_FLAG_AVOID_BLOCKING;
+    }
+
+    return stream;
+}
+
+static PHP_FUNCTION(_stream_socket_pair)
+{
+    zend_long domain, type, protocol;
+    php_stream *s1, *s2;
+    php_socket_t pair[2];
+
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_LONG(domain)
+        Z_PARAM_LONG(type)
+        Z_PARAM_LONG(protocol)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (0 != socketpair((int) domain, (int) type, (int) protocol, pair))
+    {
+        swoole_php_error(E_WARNING, "failed to create sockets: [%d]: %s", errno, strerror(errno));
+        RETURN_FALSE;
+    }
+
+    array_init(return_value);
+
+    php_swoole_check_reactor();
+
+    s1 = sw_php_stream_sock_open_from_socket(pair[0], domain, type, protocol STREAMS_CC);
+    s2 = sw_php_stream_sock_open_from_socket(pair[1], domain, type, protocol STREAMS_CC);
+
+    /* set the __exposed flag.
+     * php_stream_to_zval() does, add_next_index_resource() does not */
+    php_stream_auto_cleanup(s1);
+    php_stream_auto_cleanup(s2);
+
+    add_next_index_resource(return_value, s1->res);
+    add_next_index_resource(return_value, s2->res);
 }

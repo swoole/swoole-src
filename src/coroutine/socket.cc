@@ -539,6 +539,15 @@ Socket::Socket(int _fd, enum swSocket_type _type)
     init_options();
 }
 
+Socket::Socket(int _fd, int _domain, int _type, int _protocol) :
+        sock_domain(_domain), sock_type(_type), sock_protocol(_protocol)
+{
+    type = get_type(_domain, _type, _protocol);
+    init_sock(_fd);
+    socket->active = 1;
+    init_options();
+}
+
 Socket::Socket(int _fd, Socket *server_sock)
 {
     type = server_sock->type;

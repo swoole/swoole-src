@@ -70,7 +70,8 @@ public:
     swSSL_option ssl_option = {0};
 #endif
 
-    Socket(int domain = AF_INET, int type = SOCK_STREAM, int protocol = IPPROTO_IP);
+    Socket(int domain, int type, int protocol);
+    Socket(int _fd, int _domain, int _type, int _protocol);
     Socket(enum swSocket_type type = SW_SOCK_TCP);
     Socket(int _fd, enum swSocket_type _type);
     ~Socket();
