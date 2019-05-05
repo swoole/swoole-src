@@ -226,7 +226,7 @@ int swSSL_server_set_cipher(SSL_CTX* ssl_context, swSSL_config *cfg)
 #endif
     SSL_CTX_set_read_ahead(ssl_context, 1);
 
-    if (strlen(cfg->ciphers) > 0)
+    if (cfg->ciphers && strlen(cfg->ciphers) > 0)
     {
         if (SSL_CTX_set_cipher_list(ssl_context, cfg->ciphers) == 0)
         {
