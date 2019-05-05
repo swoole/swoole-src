@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro: http client
+swoole_http_client_coro: http client set basic auth
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -7,17 +7,17 @@ swoole_http_client_coro: http client
 require __DIR__ . '/../include/bootstrap.php';
 
 go(function(){
-    $cli = new Swoole\Coroutine\Http\Client('www.baidu.com');
+    $cli = new Swoole\Coroutine\Http\Client('httpbin.org');
     $cli->set(['timeout' => 10]);
-    $cli->setBasicAuth('name','passwd');
     $cli->setHeaders([
-        'Host' => 'www.baidu.com',
+        'host' => 'httpbin.org',
         'User-Agent' => 'Chrome/49.0.2587.3',
         'Accept' => 'text/html,application/xhtml+xml,application/xml',
         'Accept-Encoding' => 'gzip',
     ]);
-    $ret = ($cli->get('/'));
-    echo("OK\n");
+    $cli->setBasicAuth('username','password');
+    $ret = $cli->get('/basic-auth/username/password');
+    if($ret && !empty($cli->body)) echo("OK\n");
 });
 ?>
 --EXPECT--
