@@ -686,6 +686,10 @@ swString* Coroutine::read_file(const char *file, int lock)
     if (ev.error == 0)
     {
         swString *str = (swString *) sw_malloc(sizeof(swString));
+        if (!str)
+        {
+            return NULL;
+        }
         str->str = (char*) ev.buf;
         str->length = ev.nbytes;
         return str;

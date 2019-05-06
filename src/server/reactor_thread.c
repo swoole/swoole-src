@@ -782,10 +782,16 @@ int swReactorThread_start(swServer *serv)
 {
     int ret;
     swReactor *main_reactor = sw_malloc(sizeof(swReactor));
+    if (!main_reactor)
+    {
+        swWarn("malloc(%ld) failed", sizeof(swReactor));
+        return SW_ERR;
+    }
 
     ret = swReactor_create(main_reactor, SW_REACTOR_MAXEVENTS);
     if (ret < 0)
     {
+        sw_free(main_reactor);
         swWarn("Reactor create failed");
         return SW_ERR;
     }

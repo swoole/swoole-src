@@ -1091,6 +1091,10 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
     struct hostent *result;
 
     char *buf = (char*) sw_malloc(buf_len);
+    if (!buf)
+    {
+        return SW_ERR;
+    }
     memset(buf, 0, buf_len);
     while ((rc = gethostbyname2_r(name, __af, &hbuf, buf, buf_len, &result, &err)) == ERANGE)
     {
@@ -1362,19 +1366,21 @@ int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream)
 char* swoole_string_format(size_t n, const char *format, ...)
 {
     char *buf = sw_malloc(n);
-    if (buf)
+    if (!buf)
     {
-        int ret;
-        va_list va_list;
-        va_start(va_list, format);
-        ret = vsnprintf(buf, n, format, va_list);
-        va_end(va_list);
-        if (ret >= 0)
-        {
-            return buf;
-        }
-        sw_free(buf);
+        return NULL;
     }
+
+    int ret;
+    va_list va_list;
+    va_start(va_list, format);
+    ret = vsnprintf(buf, n, format, va_list);
+    va_end(va_list);
+    if (ret >= 0)
+    {
+        return buf;
+    }
+    sw_free(buf);
     return NULL;
 }
 

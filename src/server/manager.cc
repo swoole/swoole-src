@@ -96,7 +96,18 @@ static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int 
      * separate old workers, free memory in the timer
      */
     swWorker *reload_workers = (swWorker *) sw_malloc(sizeof(swWorker) * n);
+    if (!reload_workers)
+    {
+        swWarn("malloc(%ld) failed", sizeof(swWorker) * n);
+        return;
+    }
     swReloadWorker *reload_info = (swReloadWorker *) sw_malloc(sizeof(swReloadWorker));
+    if (!reload_info)
+    {
+        sw_free(reload_workers);
+        swWarn("malloc(%ld) failed", sizeof(swReloadWorker));
+        return;
+    }
     memcpy(reload_workers, workers, sizeof(swWorker) * n);
     reload_info->reload_worker_num = n;
     reload_info->workers = reload_workers;
