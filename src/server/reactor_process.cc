@@ -320,6 +320,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
         {
             swReactor_free_output_buffer(n_buffer);
+            sw_free(reactor);
             return SW_ERR;
         }
         SwooleG.main_reactor = reactor;
