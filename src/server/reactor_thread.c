@@ -818,6 +818,8 @@ int swReactorThread_start(swServer *serv)
         }
         if (swPort_listen(ls) < 0)
         {
+            _failed: main_reactor->free(main_reactor);
+            sw_free(main_reactor);
             return SW_ERR;
         }
     }
@@ -880,7 +882,7 @@ int swReactorThread_start(swServer *serv)
         if (param == NULL)
         {
             swError("malloc failed");
-            return SW_ERR;
+            goto _failed;
         }
 
         param->object = serv;
@@ -931,7 +933,7 @@ int swReactorThread_start(swServer *serv)
     swTimer_node *update_timer;
     if ((update_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
     {
-        return SW_ERR;
+        goto _failed;
     }
 
     if (serv->onStart != NULL)
