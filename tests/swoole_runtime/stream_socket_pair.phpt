@@ -24,6 +24,7 @@ Co::create(function()use(&$pipe){
     while ($buffer = fread($pipe[1], 1024)) {
         printf("Read byte: %d, beffer: %s\n", strlen($buffer), $buffer);
     }
+    fclose($pipe[1]);
 });
 
 
