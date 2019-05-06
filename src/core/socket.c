@@ -125,6 +125,11 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
     assert(n_fd < 65535);
 
     struct pollfd *event_list = sw_calloc(n_fd, sizeof(struct pollfd));
+    if (!event_list)
+    {
+        swWarn("malloc[1] failed");
+        return SW_ERR;
+    }
     int i;
 
     int _events = 0;

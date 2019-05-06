@@ -833,6 +833,11 @@ PHP_MINIT_FUNCTION(swoole)
 
     swoole_objects.size = SWOOLE_OBJECT_DEFAULT;
     swoole_objects.array = (void**) sw_calloc(swoole_objects.size, sizeof(void*));
+    if (!swoole_objects.array)
+    {
+        swoole_php_fatal_error(E_ERROR, "malloc([swoole_objects]) failed");
+        exit(253);
+    }
 
     // enable pcre.jit and use swoole extension on MacOS will lead to coredump, disable it temporarily
 #if defined(PHP_PCRE_VERSION) && PHP_VERSION_ID >= 70300 && __MACH__ && !defined(SW_DEBUG)
