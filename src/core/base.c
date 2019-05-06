@@ -272,7 +272,7 @@ void swoole_dump_hex(char *data, int outlen)
         {
             printf("%08zX: ", i);
         }
-        printf("%02X ", data[i]);
+        printf("%02X ", (uint8_t)data[i]); 
         if (((i + 1) & 0x0fu) == 0)
         {
             printf("\n");

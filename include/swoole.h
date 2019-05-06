@@ -245,25 +245,19 @@ size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 static sw_inline char* swoole_strdup(const char *s)
 {
     size_t l = strlen(s) + 1;
-    char *p = (char *) sw_malloc(l);
-    if (!p)
-    {
-        return NULL;
-    }
-    memcpy(p, s, l);
+    char *p = (char *)sw_malloc(l); 
+ 	if(p) memcpy(p, s, l); 
     return p;
 }
 
 static sw_inline char* swoole_strndup(const char *s, size_t n)
 {
-    char *p = (char *) sw_malloc(n + 1);
-    if (!p)
-    {
-        return NULL;
-    }
-    strncpy(p, s, n);
-    p[n] = '\0';
-    return p;
+    char *p = (char *)sw_malloc(n + 1);
+    if(p) { 
+		strncpy(p, s, n); 
+    	p[n] = '\0'; 
+    } 
+	return p;
 }
 
 /*--------------------------------Constants------------------------------------*/
