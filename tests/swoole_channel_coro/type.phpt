@@ -23,7 +23,7 @@ go(function () use ($chan, $exit_status_list)
 {
     foreach ($exit_status_list as $val)
     {
-        assert($chan->push($val));
+        Assert::assert($chan->push($val));
     }
 });
 

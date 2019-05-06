@@ -14,7 +14,7 @@ $pm->parentFunc = function ($pid) use ($pm,$argv) {
     sleep(2);
     $script_name = $argv[0];
     $ret = shell_exec("ps aux | grep $script_name | grep -v 'grep'");
-    assert($ret != "");
+    Assert::assert($ret != "");
     $pm->kill();
 };
 

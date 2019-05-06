@@ -22,7 +22,7 @@ go(function () {
     // now we can make the responses independent
     $stmt = $db->prepare('SELECT * FROM ckl LIMIT 1');
     Assert::true($stmt->execute());
-    assert(($ret = $stmt->fetchAll()) && is_array($ret) && count($ret) === 1);
+    Assert::assert(($ret = $stmt->fetchAll()) && is_array($ret) && count($ret) === 1);
     Assert::eq($stmt->fetchAll(), null);
 });
 ?>

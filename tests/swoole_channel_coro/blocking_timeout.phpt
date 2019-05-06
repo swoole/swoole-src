@@ -10,7 +10,7 @@ $chan = new chan();
 go(function () use ($chan)
 {
     $data = $chan->pop(0.5);
-    assert($data);
+    Assert::assert($data);
     $data = $chan->pop(0.5);
     Assert::false($data);
 });

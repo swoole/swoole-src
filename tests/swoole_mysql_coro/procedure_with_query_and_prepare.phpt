@@ -30,7 +30,7 @@ SQL;
         $db->query('CALL sp_whoami()');
         $stmt = $db->prepare('CALL sp_whoami()');
         $ret = $stmt->execute();
-        assert(strpos(current($ret[0]), MYSQL_SERVER_USER) !== false);
+        Assert::assert(strpos(current($ret[0]), MYSQL_SERVER_USER) !== false);
     }
 });
 ?>

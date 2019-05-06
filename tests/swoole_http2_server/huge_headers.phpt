@@ -24,7 +24,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
             for ($i = 32; $i--;) {
                 $request->headers[md5(mt_rand(1, 65535))] = sha1(openssl_random_pseudo_bytes(32));
             }
-            assert($cli->send($request));
+            Assert::assert($cli->send($request));
             $response = $cli->recv();
             Assert::eq($response->statusCode, 200);
             Assert::eq(json_encode($request->headers), $response->data);
@@ -39,7 +39,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         for ($i = 32; $i--;) {
             $request->headers[md5(mt_rand(1, 65535))] = sha1(openssl_random_pseudo_bytes(32));
         }
-        assert(!$cli->send($request));
+        Assert::assert(!$cli->send($request));
         $pm->kill();
     });
     swoole_event_wait();

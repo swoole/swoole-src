@@ -28,7 +28,7 @@ go(function () {
             $content .= fread($fp, 8192);
         }
         fclose($fp);
-        assert(strpos($content,'map.baidu.com') !== false);
+        Assert::assert(strpos($content,'map.baidu.com') !== false);
     }
 });
 swoole_event_wait();

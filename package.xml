@@ -36,10 +36,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-04-08</date>
-    <time>17:00:00</time>
+    <date>2019-04-15</date>
+    <time>15:00:00</time>
     <version>
-        <release>4.3.1RC1</release>
+        <release>4.3.2</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -48,13 +48,6 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        New Features
-        ---
-        + Added coroutine CPU intensive scene scheduling capability (Preemptive), need to use configuration `--enable-scheduler-tick` (#2446) (@shiguangqi)
-        + Added `Co\Http2\Client->ping` (40041f6) (@shiguangqi)
-        + Added`getOption` and `setOption` method to `Co\Socket` (9d13c29) (@matyhtf)
-        + Added `$master_pid` property and `shutdown` method to `Process\Pool` (a1d6eaa) (@matyhtf)
-
         Enhancement
         ---
         + Dynamically `ipc_size`, greatly improving IPC performance in Process mode (48c1b2b) (3e85511) (@matyhtf)
@@ -64,6 +57,9 @@
         + Add constants for`dispatch_func` return value: `SWOOLE_DISPATCH_RESULT_DISCARD_PACKET`, `SWOOLE_DISPATCH_RESULT_USERFUNC_FALLBACK` (#2451) (@windrunner414)
         + `swoole_strerror` support parse system error code and swoole error code automatically (d89c565) (#2458) (@twose) (@mabu233)
         + Built-in Socket related constants, and it would not conflict with Socket extensions (1e1b1d1) (@twose)
+        + Add http_parse_cookie option (dce290ef) (@twose)
+        + Decode path_info (82f8e4fc) (@twose)
+        + Support PHP_STREAM_OPTION_CHECK_LIVENESS (6ff292da) (@twose)
 
         Fixed
         ---
@@ -82,7 +78,7 @@
         * Fixed `poll` with timeout `0` (1143743) (@matyhtf)
         * Fixed `stream_select` with `null` timeout (e8a58d5) (c166b7a) (@twose)
         * Fixed `stream_select` behavior (d8e7a41) (3ce877d) (2819232) (cd8e4c7)  (@twose) (@matyhtf)
-        * Generate Swoole Warning insteadd of PHP Warning (unmanageable error) (955d021) (@twose)
+        * Generate Swoole Warning instead of PHP Warning (unmanageable error) (955d021) (@twose)
         * Fixed `Co\Client` construct failed (#2466) (@twose)
         * Fixed Http2 cookie (e18d66b) (@twose)
         * Fixed `Process->getProcess` free (fe1ca17) (@matyhtf)
@@ -92,6 +88,10 @@
         * Fixed `Co\Http\Client` with websocket protocol can not support full duplex (#2477) (523c588) (@twose)
         * Complete `Event::dispatch`, `Event::isSet` method arg info (#2491) (@deminy)
         * Fixed invalid `Connection\Iterator` (#2492) (@matyhtf)
+        * Fixed `reload_async` with Timer (9eaf32cc) (bacb5228) (@matyhtf) (@twose)
+        * Cannot use msgqueue when task_enable_coroutine is enable (#2497) (@matyhtf)
+        * Fixed `read_eof` bug (e936c764) (@matyhtf)
+        * Sockets C++ compatibility (3cf7dcba) (@twose)
     </notes>
     <contents>
         <dir name="/">
@@ -498,6 +498,7 @@
             <file role="src" name="include/http2.h" />
             <file role="src" name="include/list.h" />
             <file role="src" name="include/lru_cache.h" />
+            <file role="src" name="include/mime_types.h" />
             <file role="src" name="include/mqtt.h" />
             <file role="src" name="include/rbtree.h" />
             <file role="doc" name="include/readme" />
@@ -596,13 +597,14 @@
             <file role="src" name="src/server/process.c" />
             <file role="src" name="src/server/reactor_process.cc" />
             <file role="src" name="src/server/reactor_thread.c" />
+            <file role="src" name="src/server/static_handler.cc" />
             <file role="src" name="src/server/task_worker.c" />
             <file role="src" name="src/server/worker.cc" />
             <file role="doc" name="src/wrapper/README.md" />
             <file role="src" name="src/wrapper/client.cc" />
             <file role="src" name="src/wrapper/server.cc" />
             <file role="src" name="src/wrapper/timer.cc" />
-            <file role="src" name="swoole.c" />
+            <file role="src" name="swoole.cc" />
             <file role="src" name="swoole_async_coro.cc" />
             <file role="src" name="swoole_atomic.c" />
             <file role="src" name="swoole_buffer.c" />
@@ -1284,6 +1286,7 @@
             <file role="test" name="tests/swoole_server/force_reload.phpt" />
             <file role="test" name="tests/swoole_server/force_reload2.phpt" />
             <file role="test" name="tests/swoole_server/force_reload3.phpt" />
+            <file role="test" name="tests/swoole_server/force_reload4.phpt" />
             <file role="test" name="tests/swoole_server/getCallback.phpt" />
             <file role="test" name="tests/swoole_server/getClientInfo.phpt" />
             <file role="test" name="tests/swoole_server/getClientList.phpt" />

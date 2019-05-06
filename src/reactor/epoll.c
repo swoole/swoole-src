@@ -83,13 +83,13 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
     reactor->max_event_num = max_event_num;
 
     reactor_object->events = sw_calloc(max_event_num, sizeof(struct epoll_event));
-
     if (reactor_object->events == NULL)
     {
         swWarn("malloc[1] failed");
         sw_free(reactor_object);
         return SW_ERR;
     }
+
     //epoll create
     reactor_object->epfd = epoll_create(512);
     if (reactor_object->epfd < 0)

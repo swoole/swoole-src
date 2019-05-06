@@ -37,7 +37,7 @@ for ($c = MAX_CONCURRENCY_MID; $c--;) {
                 fwrite($fp, "Client: Hello #{$n}!");
                 $recv = fread($fp, 1024);
                 list($_address, $_port) = explode(':', (stream_socket_get_name($fp, true)));
-                assert($_address === '127.0.0.1' && (int)$_port === $port);
+                Assert::assert($_address === '127.0.0.1' && (int)$_port === $port);
                 Assert::eq($recv, "Server: Hello #{$n}!");
             }
             fclose($fp);

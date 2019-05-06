@@ -12,7 +12,7 @@ $pm->parentFunc = function ($pid) use ($pm)
     go(function () use ($pm) {
         $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $r = $client->connect("127.0.0.1", $pm->getFreePort(), 0.5);
-        assert($r);
+        Assert::assert($r);
 
         $socket = $client->getSocket();
         socket_set_option($socket, SOL_SOCKET, SO_SNDBUF, 65536);
@@ -27,8 +27,8 @@ $pm->parentFunc = function ($pid) use ($pm)
         $_postBody = http_build_query($_postData)."_END\r\n\r\n";
         $header .=  "Content-Length: " . strlen($_postBody);
 
-        assert($client->send($header));
-        assert($client->send($_postBody));
+        Assert::assert($client->send($header));
+        Assert::assert($client->send($_postBody));
 
         $data = $client->recv(5);
         Assert::eq($data, "HTTP/1.1 200 OK\r\n\r\n");

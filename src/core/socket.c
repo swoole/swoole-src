@@ -17,7 +17,7 @@
 #include "swoole.h"
 #include "connection.h"
 
-int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length, double timeout)
+int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t length, double timeout)
 {
     int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
     int file_fd = open(filename, O_RDONLY);
@@ -125,6 +125,11 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
     assert(n_fd < 65535);
 
     struct pollfd *event_list = sw_calloc(n_fd, sizeof(struct pollfd));
+    if (!event_list)
+    {
+        swWarn("malloc[1] failed");
+        return SW_ERR;
+    }
     int i;
 
     int _events = 0;
@@ -167,14 +172,14 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
     return SW_OK;
 }
 
-int swSocket_write_blocking(int __fd, void *__data, int __len)
+int swSocket_write_blocking(int __fd, const void *__data, int __len)
 {
     int n = 0;
     int written = 0;
 
     while (written < __len)
     {
-        n = write(__fd, (char *) __data + written, __len - written);
+        n = write(__fd, __data + written, __len - written);
         if (n < 0)
         {
             if (errno == EINTR)
@@ -239,7 +244,7 @@ int swSocket_accept(int fd, swSocketAddress *sa)
     return conn;
 }
 
-ssize_t swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len)
+ssize_t swSocket_udp_sendto(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len)
 {
     struct sockaddr_in addr;
     if (inet_aton(dst_ip, &addr.sin_addr) == 0)
@@ -252,7 +257,7 @@ ssize_t swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *d
     return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
 }
 
-ssize_t swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len)
+ssize_t swSocket_udp_sendto6(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len)
 {
     struct sockaddr_in6 addr;
     bzero(&addr, sizeof(addr));
@@ -267,7 +272,7 @@ ssize_t swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *
 }
 
 #ifndef _WIN32
-ssize_t swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t len)
+ssize_t swSocket_unix_sendto(int server_sock, const char *dst_path, const char *data, uint32_t len)
 {
     struct sockaddr_un addr;
     bzero(&addr, sizeof(addr));
@@ -277,7 +282,7 @@ ssize_t swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32
 }
 #endif
 
-ssize_t swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len)
+ssize_t swSocket_sendto_blocking(int fd, const void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len)
 {
     ssize_t n = 0;
 

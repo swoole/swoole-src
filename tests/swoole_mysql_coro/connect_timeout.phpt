@@ -17,10 +17,10 @@ go(function () {
         'database' => MYSQL_SERVER_DB,
         'timeout' => ($timeout = mt_rand(100, 500) / 1000)
     ]);
-    assert(time_approximate($timeout, microtime(true) - $s));
-    assert(!$connected);
-    assert($mysql->connected === false);
-    assert($mysql->connect_errno === SOCKET_ETIMEDOUT);
+    time_approximate($timeout, microtime(true) - $s);
+    Assert::assert(!$connected);
+    Assert::assert($mysql->connected === false);
+    Assert::assert($mysql->connect_errno === SOCKET_ETIMEDOUT);
     // handshake timeout
     $s = microtime(true);
     $connected = $mysql->connect([
@@ -31,10 +31,10 @@ go(function () {
         'database' => MYSQL_SERVER_DB,
         'timeout' => ($timeout = mt_rand(100, 500) / 1000)
     ]);
-    assert(time_approximate($timeout, microtime(true) - $s));
-    assert(!$connected);
-    assert($mysql->connected === false);
-    assert($mysql->connect_errno === SOCKET_ETIMEDOUT);
+    time_approximate($timeout, microtime(true) - $s);
+    Assert::assert(!$connected);
+    Assert::assert($mysql->connected === false);
+    Assert::assert($mysql->connect_errno === SOCKET_ETIMEDOUT);
 });
 Swoole\Event::wait();
 echo "DONE\n";

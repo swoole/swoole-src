@@ -15,7 +15,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $cli->post('/upload_file', array('name' => 'rango'));
         Assert::eq($cli->statusCode, 200);
         $ret = json_decode($cli->body, true);
-        assert($ret and is_array($ret));
+        Assert::assert($ret and is_array($ret));
         Assert::eq(md5_file(TEST_IMAGE), $ret['md5']);
         $cli->close();
     });

@@ -24,7 +24,7 @@ $pm->childFunc = function () use ($pm) {
         'task_worker_num' => 4
     ]);
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($http) {
-        assert($response->detach());
+        Assert::assert($response->detach());
         $http->task($response->fd);
     });
     $http->on('task', function ($a, $b, $c, string $fd) {

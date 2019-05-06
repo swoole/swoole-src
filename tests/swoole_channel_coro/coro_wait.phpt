@@ -11,11 +11,11 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
-        assert(!empty($data));
+        Assert::assert(!empty($data));
         $json = json_decode($data, true);
-        assert(is_array($json));
-        assert(isset($json['www.qq.com']) and $json['www.qq.com'] > 1024);
-        assert(isset($json['www.163.com']) and $json['www.163.com'] > 1024);
+        Assert::assert(is_array($json));
+        Assert::true(isset($json['www.qq.com']) and $json['www.qq.com'] > 1024);
+        Assert::true(isset($json['www.163.com']) and $json['www.163.com'] > 1024);
         $pm->kill();
     });
     Swoole\Event::wait();

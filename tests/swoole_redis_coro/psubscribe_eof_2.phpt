@@ -26,10 +26,10 @@ go(function () use ($sock, $port) {
     $redis->connect('127.0.0.1', $port);
 
     $val = $redis->psubscribe(['channel1']);
-    assert($val);
+    Assert::assert($val);
 
     $val = $redis->recv();
-    assert($val[0] == 'psubscribe' && $val[1] == 'channel1');
+    Assert::assert($val[0] == 'psubscribe' && $val[1] == 'channel1');
 
     $val = $redis->recv();
     Assert::false($val);

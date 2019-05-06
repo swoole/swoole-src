@@ -25,7 +25,7 @@ $pm->parentFunc = function ($pid) use ($port)
         //小包
         if ($i <= 1000)
         {
-            assert($pkg and strlen($pkg) <= 2048);
+            Assert::assert($pkg and strlen($pkg) <= 2048);
             if ($i == 1000)
             {
                 echo "SUCCESS\n";
@@ -35,7 +35,7 @@ $pm->parentFunc = function ($pid) use ($port)
         //慢速发送
         elseif ($i <= 1100)
         {
-            assert($pkg and strlen($pkg) <= 8192);
+            Assert::assert($pkg and strlen($pkg) <= 8192);
             if ($i == 1100)
             {
                 echo "SUCCESS\n";
@@ -45,11 +45,11 @@ $pm->parentFunc = function ($pid) use ($port)
         //大包
         else
         {
-            assert($pkg != false);
+            Assert::assert($pkg != false);
             $_pkg = unserialize($pkg);
-            assert(is_array($_pkg));
+            Assert::assert(is_array($_pkg));
             Assert::eq($_pkg['i'], $i - 1100 - 1);
-            assert($_pkg['data'] <= 256 * 1024);
+            Assert::assert($_pkg['data'] <= 256 * 1024);
             if ($i == 2100) {
                 echo "SUCCESS\n";
                 $cli->close();

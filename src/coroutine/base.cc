@@ -15,6 +15,7 @@
 */
 
 #include "coroutine.h"
+#include "coroutine_c_api.h"
 #include "async.h"
 
 using namespace swoole;
@@ -37,7 +38,7 @@ void Coroutine::yield()
         on_yield(task);
     }
     current = origin;
-    ctx.SwapOut();
+    ctx.swap_out();
 }
 
 void Coroutine::resume()
@@ -49,7 +50,7 @@ void Coroutine::resume()
     }
     origin = current;
     current = this;
-    ctx.SwapIn();
+    ctx.swap_in();
     if (ctx.end)
     {
         close();
@@ -60,7 +61,7 @@ void Coroutine::yield_naked()
 {
     state = SW_CORO_WAITING;
     current = origin;
-    ctx.SwapOut();
+    ctx.swap_out();
 }
 
 void Coroutine::resume_naked()
@@ -68,7 +69,7 @@ void Coroutine::resume_naked()
     state = SW_CORO_RUNNING;
     origin = current;
     current = this;
-    ctx.SwapIn();
+    ctx.swap_in();
     if (ctx.end)
     {
         close();
@@ -131,16 +132,14 @@ void Coroutine::set_on_close(coro_php_close_t func)
     on_close = func;
 }
 
-
-extern "C"
-{
-/**
- * for C
- */
 uint8_t swoole_coroutine_is_in()
 {
     return !!Coroutine::get_current();
 }
+
+long swoole_coroutine_get_current_id()
+{
+    return Coroutine::get_current_cid();
 }
 
 /**

@@ -9,8 +9,8 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/test.jpg");
-        assert(!empty($data));
-        assert(md5($data) === md5_file(TEST_IMAGE));
+        Assert::assert(!empty($data));
+        Assert::assert(md5($data) === md5_file(TEST_IMAGE));
         $pm->kill();
     });
     Swoole\Event::wait();
@@ -22,6 +22,8 @@ $pm->childFunc = function () use ($pm) {
         'log_file' => '/dev/null',
         'enable_static_handler' => true,
         'document_root' => dirname(dirname(__DIR__)) . '/examples/',
+        'static_file_types' => [],
+        'static_file_locations' => ["/static", "/"]
     ]);
     $http->on("WorkerStart", function ($serv, $wid) use ($pm) {
         $pm->wakeup();

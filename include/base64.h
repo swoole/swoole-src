@@ -25,8 +25,8 @@ extern "C"
 #define BASE64_ENCODE_OUT_SIZE(s) (((s) + 2) / 3 * 4)
 #define BASE64_DECODE_OUT_SIZE(s) (((s)) / 4 * 3)
 
-size_t swBase64_encode(unsigned char *in, size_t inlen, char *out);
-size_t swBase64_decode(char *in, size_t inlen, char *out);
+size_t swBase64_encode(const unsigned char *in, size_t inlen, char *out);
+size_t swBase64_decode(const char *in, size_t inlen, char *out);
 
 #ifdef __cplusplus
 }

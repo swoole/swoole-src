@@ -8,22 +8,22 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $lock = new Swoole\Lock(Swoole\Lock::MUTEX);
 echo "[Parent] Lock\n";
-assert($lock->lock());
+Assert::assert($lock->lock());
 
 if (pcntl_fork() > 0)
 {
     usleep(100 * 1000);
     echo "[Parent] Unlock\n";
-    assert($lock->unlock());
+    Assert::assert($lock->unlock());
     echo "[Parent] Exit\n";
     pcntl_wait($status);
 }
 else
 {
     echo "[Child] Wait Lock\n";
-    assert($lock->lock());
+    Assert::assert($lock->lock());
     echo "[Child] Get Lock\n";
-    assert($lock->unlock());
+    Assert::assert($lock->unlock());
     exit("[Child] exit\n");
 }
 ?>

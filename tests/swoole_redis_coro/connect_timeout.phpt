@@ -10,9 +10,9 @@ go(function () {
     $redis = new Swoole\Coroutine\Redis(['timeout' => $timeout]);
     $s = microtime(true);
     $ret = $redis->connect('192.0.0.1', 9000);
-    assert(!$ret);
-    assert($redis->errCode === SOCKET_ETIMEDOUT);
-    assert(time_approximate($timeout, microtime(true) - $s));
+    Assert::assert(!$ret);
+    Assert::assert($redis->errCode === SOCKET_ETIMEDOUT);
+    time_approximate($timeout, microtime(true) - $s);
 });
 Swoole\Event::wait();
 echo "DONE\n";

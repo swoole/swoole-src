@@ -22,21 +22,21 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count, $data_list) {
             $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             $cli->set(['timeout' => 5]);
             $ret = $cli->upgrade('/');
-            assert($ret);
+            Assert::assert($ret);
             while (($frame = $cli->recv())) {
                 /**@var $frame swoole_websocket_frame */
                 list($id, $opcode) = explode('|', $frame->data, 3);
-                assert($frame->finish);
+                Assert::assert($frame->finish);
                 Assert::eq($frame->opcode, (int)$opcode);
                 Assert::eq($frame->data, $data_list[$id]);
-                if (assert(isset($data_list[$id]))) {
+                if (Assert::true(isset($data_list[$id]))) {
                     unset($data_list[$id]);
                 }
                 if (empty($data_list)) {
                     break;
                 }
             }
-            if (assert(empty($data_list))) {
+            if (Assert::assert(empty($data_list))) {
                 $count--;
             }
         });
@@ -69,7 +69,7 @@ $pm->childFunc = function () use ($pm) {
             } else {
                 $ret = $serv->push($req->fd, $data, $opcode);
             }
-            if (!assert($ret)) {
+            if (!Assert::assert($ret)) {
                 var_dump($serv->getLastError());
             }
         }

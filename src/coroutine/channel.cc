@@ -54,6 +54,7 @@ void Channel::yield(enum opcode type)
 
 void* Channel::pop(double timeout)
 {
+    Coroutine *current_co = Coroutine::get_current_safe();
     if (closed)
     {
         return nullptr;
@@ -68,7 +69,7 @@ void* Channel::pop(double timeout)
             long msec = (long) (timeout * 1000);
             msg.chan = this;
             msg.type = CONSUMER;
-            msg.co = Coroutine::get_current();
+            msg.co = current_co;
             msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, timer_callback);
         }
 
@@ -101,6 +102,7 @@ void* Channel::pop(double timeout)
 
 bool Channel::push(void *data, double timeout)
 {
+    Coroutine *current_co = Coroutine::get_current_safe();
     if (closed)
     {
         return false;
@@ -115,7 +117,7 @@ bool Channel::push(void *data, double timeout)
             long msec = (long) (timeout * 1000);
             msg.chan = this;
             msg.type = PRODUCER;
-            msg.co = Coroutine::get_current();
+            msg.co = current_co;
             msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, timer_callback);
         }
 

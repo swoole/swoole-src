@@ -14,7 +14,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
     for ($i = MAX_CONCURRENCY_LOW; $i--;) {
         go(function () use ($pm) {
             $ret = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}");
-            assert($ret === 'Hello Swoole!');
+            Assert::assert($ret === 'Hello Swoole!');
         });
     }
     swoole_event_wait();
@@ -29,7 +29,7 @@ $pm->childFunc = function () use ($pm) {
         'task_enable_coroutine' => true
     ]);
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($http) {
-        assert($response->detach());
+        Assert::assert($response->detach());
         $http->task($response->fd, -1, function ($server, $taskId, $data) {
             list($fd, $data) = $data;
             $response = swoole_http_response::create($fd);
@@ -49,7 +49,7 @@ $pm->childFunc = function () use ($pm) {
             MYSQL_SERVER_USER, MYSQL_SERVER_PWD
         );
         $stmt = $pdo->query('SELECT "Hello Swoole!"');
-        assert($stmt->execute());
+        Assert::assert($stmt->execute());
         $ret = $stmt->fetchAll(PDO::FETCH_COLUMN)[0];
         return [$task, [$fd, $ret]];
     });

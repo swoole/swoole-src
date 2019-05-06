@@ -25,7 +25,7 @@ go(function () {
         'number' => 2333
     ];
     for ($n = 5; $n--;) {
-        assert($cli->send($req));
+        Assert::assert($cli->send($req));
         $response = $cli->recv();
         echo "{$response->statusCode}\n";
     }

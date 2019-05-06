@@ -11,7 +11,7 @@ $pm->initRandomData(1, 64 * ONE_MEGABYTES);
 $pm->parentFunc = function ($pid) use ($pm) {
     go(function () use ($pm) {
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
-        assert($data === $pm->getRandomData());
+        Assert::assert($data === $pm->getRandomData());
         phpt_var_dump(strlen($data));
         $pm->kill();
         echo "DONE\n";
@@ -32,7 +32,7 @@ $pm->childFunc = function () use ($pm) {
         $offset = 0;
         do {
             $send_bytes = min($data_len - $offset, ONE_MEGABYTES);
-            assert($response->write(substr($data, $offset, $send_bytes)) === true);
+            Assert::assert($response->write(substr($data, $offset, $send_bytes)) === true);
             $offset += $send_bytes;
         } while ($offset < $data_len);
         $response->end();

@@ -11,10 +11,10 @@ $socket = new Co\Socket(AF_INET, SOCK_STREAM, SOL_TCP);
 
 //wrong params
 $retval_1 = $socket->setOption(SOL_SOCKET, SO_RCVTIMEO, array());
-assert($retval_1 === false);
+Assert::assert($retval_1 === false);
 $options = array("sec" => 1, "usec" => 0);
 $retval_2 = $socket->setOption(SOL_SOCKET, SO_RCVTIMEO, $options);
-assert($retval_2 === true);
+Assert::assert($retval_2 === true);
 
 ?>
 --EXPECTF--

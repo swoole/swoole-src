@@ -10,7 +10,7 @@ $proc = new \swoole_process(function() {
     echo "SUCCESS";
 });
 $r = $proc->start();
-assert($r > 0);
+Assert::assert($r > 0);
 $proc->close();
 
 \swoole_process::wait(true);

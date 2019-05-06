@@ -87,11 +87,11 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 /*----------------------------------------------------------------------------*/
 
 #define SWOOLE_MAJOR_VERSION      4
-#define SWOOLE_MINOR_VERSION      3
-#define SWOOLE_RELEASE_VERSION    2
-#define SWOOLE_EXTRA_VERSION      "rc2"
-#define SWOOLE_VERSION            "4.3.2-rc2"
-#define SWOOLE_VERSION_ID         40302
+#define SWOOLE_MINOR_VERSION      4
+#define SWOOLE_RELEASE_VERSION    0
+#define SWOOLE_EXTRA_VERSION      "alpha"
+#define SWOOLE_VERSION            "4.4.0-alpha"
+#define SWOOLE_VERSION_ID         40400
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -245,14 +245,22 @@ size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 static sw_inline char* swoole_strdup(const char *s)
 {
     size_t l = strlen(s) + 1;
-    char *p = (char *)sw_malloc(l);
+    char *p = (char *) sw_malloc(l);
+    if (!p)
+    {
+        return NULL;
+    }
     memcpy(p, s, l);
     return p;
 }
 
 static sw_inline char* swoole_strndup(const char *s, size_t n)
 {
-    char *p = (char *)sw_malloc(n + 1);
+    char *p = (char *) sw_malloc(n + 1);
+    if (!p)
+    {
+        return NULL;
+    }
     strncpy(p, s, n);
     p[n] = '\0';
     return p;
@@ -633,7 +641,9 @@ typedef struct _swConnection
     uint8_t ssl_want_read;
     uint8_t ssl_want_write;
     uint8_t http_upgrade;
+#ifdef SW_USE_HTTP2
     uint8_t http2_stream;
+#endif
     uint8_t skip_recv;
     //--------------------------------------------------------------
     /**
@@ -772,7 +782,6 @@ typedef ssize_t (*swProtocol_length_function)(struct _swProtocol *, swConnection
 uint32_t swoole_utf8_decode(uchar **p, size_t n);
 size_t swoole_utf8_length(uchar *p, size_t n);
 void swoole_random_string(char *buf, size_t size);
-const char* swoole_get_mime_type(const char *file);
 
 static sw_inline char *swoole_strlchr(char *p, char *last, char c)
 {
@@ -822,12 +831,25 @@ static sw_inline void swString_free(swString *str)
 
 static sw_inline int swString_extend_align(swString *str, size_t _new_size)
 {
-    size_t align_size = str->size * 2;
+    size_t align_size = SW_MEM_ALIGNED_SIZE(str->size * 2);
     while (align_size < _new_size)
     {
         align_size *= 2;
     }
     return swString_extend(str, align_size);
+}
+
+static sw_inline int swString_grow(swString *str, size_t incr_value)
+{
+    str->length += incr_value;
+    if (str->length == str->size && swString_extend(str, str->size * 2) < 0)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        return SW_OK;
+    }
 }
 
 /**
@@ -1485,13 +1507,15 @@ int swSocket_accept(int fd, swSocketAddress *sa);
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
-ssize_t swSocket_sendto_blocking(int, void *, size_t, int, struct sockaddr *, socklen_t);
+ssize_t swSocket_sendto_blocking(int fd, const void *buf, size_t n, int flag, struct sockaddr *addr, socklen_t addr_len);
 int swSocket_set_buffer_size(int fd, uint32_t buffer_size);
-ssize_t swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
-ssize_t swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
-ssize_t swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t len);
-int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length, double timeout);
-int swSocket_write_blocking(int __fd, void *__data, int __len);
+ssize_t swSocket_udp_sendto(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len);
+ssize_t swSocket_udp_sendto6(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len);
+#ifndef _WIN32
+ssize_t swSocket_unix_sendto(int server_sock, const char *dst_path, const char *data, uint32_t len);
+#endif
+int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t length, double timeout);
+int swSocket_write_blocking(int __fd, const void *__data, int __len);
 int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
 
 #ifndef _WIN32
@@ -2151,15 +2175,15 @@ enum swTimer_type
 
 struct _swTimer_node
 {
-    swHeap_node *heap_node;
-    void *data;
-    swTimerCallback callback;
+    long id;
+    enum swTimer_type type;
     int64_t exec_msec;
     int64_t interval;
     uint64_t round;
-    long id;
-    enum swTimer_type type;
-    uint8_t remove;
+    uint8_t removed;
+    swTimerCallback callback;
+    void *data;
+    swHeap_node *heap_node;
 };
 
 struct _swTimer

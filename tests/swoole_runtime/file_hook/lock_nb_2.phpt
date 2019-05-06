@@ -27,7 +27,7 @@ go(function () {
     Co::sleep(0.001);
     $fp = fopen(FILE, 'w+');
     echo "[2] LOCK yield\n";
-    assert(flock($fp, LOCK_EX));
+    Assert::assert(flock($fp, LOCK_EX));
     echo "[2] LOCK resume\n";
     flock($fp, LOCK_UN);
     co:sleep(0.002);

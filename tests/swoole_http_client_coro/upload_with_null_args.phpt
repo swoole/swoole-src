@@ -13,10 +13,10 @@ $pm->parentFunc = function () use ($pm) {
         $cli->post('/upload_file', ['name' => 'rango']);
         Assert::eq($cli->statusCode, 200);
         $ret = json_decode($cli->body, true);
-        assert($ret and is_array($ret));
+        Assert::assert($ret and is_array($ret));
         Assert::eq($ret['files']['test_jpg']['name'], 'test.jpg');
         Assert::eq($ret['files']['test_jpg']['type'], 'image/jpeg');
-        assert(preg_match('#/tmp/swoole\.upfile\.#', $ret['files']['test_jpg']['tmp_name']));
+        Assert::assert(preg_match('#/tmp/swoole\.upfile\.#', $ret['files']['test_jpg']['tmp_name']));
         Assert::eq($ret['files']['test_jpg']['error'], 0);
         Assert::eq($ret['files']['test_jpg']['size'], filesize(TEST_IMAGE));
         Assert::eq(md5_file(TEST_IMAGE), $ret['md5']);

@@ -7,7 +7,7 @@ swoole_redis_coro: redis request without connected
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $redis = new Swoole\Coroutine\Redis;
-    assert(!$redis->get('foo'));
+    Assert::assert(!$redis->get('foo'));
     echo "DONE\n";
 });
 ?>

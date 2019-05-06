@@ -12,7 +12,7 @@ $pm->parentFunc = function ($pid) use ($pm, $port) {
     Assert::isInstanceOf($socket, Swoole\Coroutine\Socket::class);
     Assert::eq($socket->errCode, 0);
     go(function () use ($socket, $port) {
-        assert($socket->connect('localhost', $port));
+        Assert::assert($socket->connect('localhost', $port));
         $i = 0.000;
         while (true) {
             $socket->send("hello");
@@ -32,8 +32,8 @@ $pm->parentFunc = function ($pid) use ($pm, $port) {
 
 $pm->childFunc = function () use ($pm, $port) {
     $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, 0);
-    assert($socket->bind('127.0.0.1', $port));
-    assert($socket->listen(128));
+    Assert::assert($socket->bind('127.0.0.1', $port));
+    Assert::assert($socket->listen(128));
     go(function () use ($socket, $pm) {
         $client = $socket->accept();
         Assert::isInstanceOf($client, Swoole\Coroutine\Socket::class);

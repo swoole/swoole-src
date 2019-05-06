@@ -8,11 +8,11 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $proc = new \swoole_process(function() {});
 $r  = $proc->useQueue();
-assert($r);
+Assert::assert($r);
 
 $proc->start();
 $r  = $proc->freeQueue();
-assert($r);
+Assert::assert($r);
 
 \swoole_process::wait();
 

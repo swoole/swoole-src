@@ -321,7 +321,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
     fci_cache = &cb->cache_onReceive;
     if (!fci_cache)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_client object has no 'onReceive' callback function");
+        swoole_php_fatal_error(E_WARNING, "Swoole\\Client object has no 'onReceive' callback function");
         goto free_zdata;
     }
     if (sw_call_user_function_fast_ex(NULL, &cb->cache_onReceive, retval, 2, args) == FAILURE)
@@ -1246,9 +1246,13 @@ static PHP_METHOD(swoole_client, sendto)
     {
         ret = swSocket_udp_sendto6(cli->socket->fd, ip, port, data, len);
     }
+    else if (cli->type == SW_SOCK_UNIX_DGRAM)
+    {
+        ret = swSocket_unix_sendto(cli->socket->fd, ip, data, len);
+    }
     else
     {
-        swoole_php_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6");
+        swoole_php_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
         RETURN_FALSE;
     }
     SW_CHECK_RETURN(ret);
@@ -1640,9 +1644,13 @@ static PHP_METHOD(swoole_client, getpeername)
             swoole_php_fatal_error(E_WARNING, "inet_ntop() failed");
         }
     }
+    else if (cli->type == SW_SOCK_UNIX_DGRAM)
+    {
+        add_assoc_string(return_value, "host", cli->remote_addr.addr.un.sun_path);
+    }
     else
     {
-        swoole_php_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6");
+        swoole_php_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
         RETURN_FALSE;
     }
 }

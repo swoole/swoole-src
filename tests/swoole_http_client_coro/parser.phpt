@@ -196,7 +196,7 @@ $pm->parentFunc = function () use ($pm, &$normal_chars) {
     go(function () use ($pm, &$normal_chars) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cli->set(['timeout' => 1]);
-        assert($cli->get('/'));
+        Assert::assert($cli->get('/'));
         foreach ($cli->headers as $name => $value) {
             if (in_array($name, $normal_chars)) {
                 Assert::eq($value, $pm->getRandomData());

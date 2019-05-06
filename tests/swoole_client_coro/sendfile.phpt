@@ -12,10 +12,10 @@ $pm->parentFunc = function ($pid) use ($pm)
     go(function ()  use ($pm) {
         $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $r = $client->connect(TCP_SERVER_HOST, $pm->getFreePort(), 0.5);
-        assert($r);
+        Assert::assert($r);
         $client->send(pack('N', filesize(TEST_IMAGE)));
         $ret = $client->sendfile(TEST_IMAGE);
-        assert($ret);
+        Assert::assert($ret);
 
         $data = $client->recv();
         $client->send(pack('N', 8) . 'shutdown');

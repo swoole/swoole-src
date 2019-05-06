@@ -32,11 +32,18 @@ using namespace swoole;
 Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
         fn_(fn), stack_size_(stack_size), private_data_(private_data)
 {
+#ifdef SW_CONTEXT_PROTECT_STACK_PAGE
     protect_page_ = 0;
+#endif
     end = false;
     swap_ctx_ = nullptr;
 
     stack_ = (char*) sw_malloc(stack_size_);
+    if (!stack_)
+    {
+        swFatalError(SW_ERROR_MALLOC_FAIL, "failed to malloc stack memory.");
+        exit(254);
+    }
     swTraceLog(SW_TRACE_COROUTINE, "alloc stack: size=%u, ptr=%p", stack_size_, stack_);
 
     void* sp = (void*) ((char*) stack_ + stack_size_);
@@ -53,7 +60,7 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
         offset *= 2;
     }
 #endif
-
+#ifdef SW_CONTEXT_PROTECT_STACK_PAGE
     uint32_t protect_page = get_protect_stack_page();
     if (protect_page)
     {
@@ -62,6 +69,7 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
             protect_page_ = protect_page;
         }
     }
+#endif
 }
 
 Context::~Context()
@@ -69,10 +77,12 @@ Context::~Context()
     if (stack_)
     {
         swTraceLog(SW_TRACE_COROUTINE, "free stack: ptr=%p", stack_);
+#ifdef SW_CONTEXT_PROTECT_STACK_PAGE
         if (protect_page_)
         {
             unprotect_stack(stack_, protect_page_);
         }
+#endif
 #ifdef USE_VALGRIND
         VALGRIND_STACK_DEREGISTER(valgrind_stack_id);
 #endif
@@ -102,13 +112,13 @@ ssize_t Context::get_stack_usage()
 }
 #endif
 
-bool Context::SwapIn()
+bool Context::swap_in()
 {
     jump_fcontext(&swap_ctx_, ctx_, (intptr_t) this, true);
     return true;
 }
 
-bool Context::SwapOut()
+bool Context::swap_out()
 {
     jump_fcontext(&ctx_, swap_ctx_, (intptr_t) this, true);
     return true;
@@ -119,7 +129,7 @@ void Context::context_func(void *arg)
     Context *_this = (Context *) arg;
     _this->fn_(_this->private_data_);
     _this->end = true;
-    _this->SwapOut();
+    _this->swap_out();
 }
 
 #endif

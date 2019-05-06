@@ -39,9 +39,6 @@ PHP_ARG_ENABLE(swoole, swoole support,
 PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 [  --enable-mysqlnd          Do you have mysqlnd?], no, no)
 
-PHP_ARG_ENABLE(coroutine-postgresql, enable coroutine postgresql support,
-[  --enable-coroutine-postgresql    Do you install postgresql?], no, no)
-
 PHP_ARG_WITH(openssl_dir, dir of openssl,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
@@ -50,9 +47,6 @@ PHP_ARG_WITH(phpx_dir, dir of php-x,
 
 PHP_ARG_WITH(jemalloc_dir, dir of jemalloc,
 [  --with-jemalloc-dir[=DIR]   Include jemalloc support], no, no)
-
-PHP_ARG_WITH(libpq_dir, dir of libpq,
-[  --with-libpq-dir[=DIR]      Include libpq support (requires libpq >= 9.5)], no, no)
 
 PHP_ARG_ENABLE(asan, enable asan,
 [  --enable-asan             Enable asan], no, no)
@@ -192,6 +186,84 @@ AC_DEFUN([AC_SWOOLE_HAVE_VALGRIND],
     ])
 ])
 
+AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
+    dnl Check for struct cmsghdr
+    AC_CACHE_CHECK([for struct cmsghdr], ac_cv_cmsghdr,
+    [
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <sys/types.h>
+#include <sys/socket.h>]], [[struct cmsghdr s; s]])], [ac_cv_cmsghdr=yes], [ac_cv_cmsghdr=no])
+    ])
+
+    if test "$ac_cv_cmsghdr" = yes; then
+        AC_DEFINE(HAVE_CMSGHDR,1,[Whether you have struct cmsghdr])
+    fi
+
+    AC_CHECK_FUNCS([hstrerror socketpair if_nametoindex if_indextoname])
+    AC_CHECK_HEADERS([netdb.h netinet/tcp.h sys/un.h sys/sockio.h])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <sys/types.h>
+#include <sys/socket.h>
+    ]], [[static struct msghdr tp; int n = (int) tp.msg_flags; return n]])],[],
+        [AC_DEFINE(MISSING_MSGHDR_MSGFLAGS, 1, [ ])]
+    )
+    AC_DEFINE([HAVE_SOCKETS], 1, [ ])
+
+    dnl Check for fied ss_family in sockaddr_storage (missing in AIX until 5.3)
+    AC_CACHE_CHECK([for field ss_family in struct sockaddr_storage], ac_cv_ss_family,
+    [
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netdb.h>
+    ]], [[struct sockaddr_storage sa_store; sa_store.ss_family = AF_INET6;]])],
+        [ac_cv_ss_family=yes], [ac_cv_ss_family=no])
+    ])
+
+    if test "$ac_cv_ss_family" = yes; then
+        AC_DEFINE(HAVE_SA_SS_FAMILY,1,[Whether you have sockaddr_storage.ss_family])
+    fi
+
+    dnl Check for AI_V4MAPPED flag
+    AC_CACHE_CHECK([if getaddrinfo supports AI_V4MAPPED],[ac_cv_gai_ai_v4mapped],
+    [
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <netdb.h>
+    ]], [[int flag = AI_V4MAPPED;]])],
+        [ac_cv_gai_ai_v4mapped=yes], [ac_cv_gai_ai_v4mapped=no])
+    ])
+
+    if test "$ac_cv_gai_ai_v4mapped" = yes; then
+        AC_DEFINE(HAVE_AI_V4MAPPED,1,[Whether you have AI_V4MAPPED])
+    fi
+
+    dnl Check for AI_ALL flag
+    AC_CACHE_CHECK([if getaddrinfo supports AI_ALL],[ac_cv_gai_ai_all],
+    [
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <netdb.h>
+    ]], [[int flag = AI_ALL;]])],
+        [ac_cv_gai_ai_all=yes], [ac_cv_gai_ai_all=no])
+    ])
+
+    if test "$ac_cv_gai_ai_all" = yes; then
+        AC_DEFINE(HAVE_AI_ALL,1,[Whether you have AI_ALL])
+    fi
+
+    dnl Check for AI_IDN flag
+    AC_CACHE_CHECK([if getaddrinfo supports AI_IDN],[ac_cv_gai_ai_idn],
+    [
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <netdb.h>
+    ]], [[int flag = AI_IDN;]])],
+            [ac_cv_gai_ai_idn=yes], [ac_cv_gai_ai_idn=no])
+    ])
+
+    if test "$ac_cv_gai_ai_idn" = yes; then
+        AC_DEFINE(HAVE_AI_IDN,1,[Whether you have AI_IDN])
+    fi
+])
+
 AC_MSG_CHECKING([if compiling with clang])
 AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([], [[
@@ -231,7 +303,6 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
-    AC_CHECK_LIB(pq, PQconnectdb, AC_DEFINE(HAVE_POSTGRESQL, 1, [have postgresql]))
 
     AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
         AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
@@ -297,6 +368,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_HAVE_UCONTEXT
     AC_SWOOLE_HAVE_BOOST_CONTEXT
     AC_SWOOLE_HAVE_VALGRIND
+    AC_SWOOLE_CHECK_SOCKETS
 
     AS_CASE([$host_os],
       [darwin*], [SW_OS="MAC"],
@@ -356,35 +428,6 @@ if test "$PHP_SWOOLE" != "no"; then
     if test "$PHP_MYSQLND" = "yes"; then
         PHP_ADD_EXTENSION_DEP(mysqli, mysqlnd)
         AC_DEFINE(SW_USE_MYSQLND, 1, [use mysqlnd])
-    fi
-
-    if test "$PHP_COROUTINE_POSTGRESQL" = "yes"; then
-        if test "$PHP_LIBPQ" != "no" || test "$PHP_LIBPQ_DIR" != "no"; then
-            if test "$PHP_LIBPQ_DIR" != "no"; then
-                AC_DEFINE(HAVE_LIBPQ, 1, [have libpq])
-                AC_MSG_RESULT(libpq include success)
-                PHP_ADD_INCLUDE("${PHP_LIBPQ_DIR}/include")
-                PHP_ADD_LIBRARY_WITH_PATH(pq, "${PHP_LIBPQ_DIR}/${PHP_LIBDIR}")
-                PGSQL_INCLUDE=$PHP_LIBPQ_DIR/include
-            else
-                PGSQL_SEARCH_PATHS="/usr /usr/local /usr/local/pgsql"
-                for i in $PGSQL_SEARCH_PATHS; do
-                    for j in include include/pgsql include/postgres include/postgresql ""; do
-                        if test -r "$i/$j/libpq-fe.h"; then
-                            PGSQL_INC_BASE=$i
-                            PGSQL_INCLUDE=$i/$j
-                            AC_MSG_RESULT(libpq-fe.h found in PGSQL_INCLUDE)
-                            PHP_ADD_INCLUDE("${PGSQL_INCLUDE}")
-                        fi
-                    done
-                done
-            fi
-            AC_DEFINE(SW_USE_POSTGRESQL, 1, [enable coroutine-postgresql support])
-            PHP_ADD_LIBRARY(pq, 1, SWOOLE_SHARED_LIBADD)
-        fi
-        if test -z "$PGSQL_INCLUDE"; then
-           AC_MSG_ERROR(Cannot find libpq-fe.h. Please confirm the libpq or specify correct PostgreSQL(libpq) installation path)
-        fi
     fi
 
     swoole_source_file=" \
@@ -463,12 +506,13 @@ if test "$PHP_SWOOLE" != "no"; then
         src/server/process.c \
         src/server/reactor_process.cc \
         src/server/reactor_thread.c \
+        src/server/static_handler.cc \
         src/server/task_worker.c \
         src/server/worker.cc \
         src/wrapper/client.cc \
         src/wrapper/server.cc \
         src/wrapper/timer.cc \
-        swoole.c \
+        swoole.cc \
         swoole_async_coro.cc \
         swoole_atomic.c \
         swoole_buffer.c \
@@ -484,13 +528,11 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_http_v2_server.cc \
         swoole_lock.c \
         swoole_mysql_coro.cc \
-        swoole_postgresql_coro.cc \
         swoole_process.cc \
         swoole_process_pool.cc \
         swoole_redis_coro.cc \
         swoole_redis_server.cc \
         swoole_runtime.cc \
-        swoole_serialize.c \
         swoole_server.cc \
         swoole_server_port.cc \
         swoole_socket_coro.cc \

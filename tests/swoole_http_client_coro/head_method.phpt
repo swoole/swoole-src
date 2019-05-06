@@ -13,7 +13,7 @@ Swoole\Coroutine::create(function ()
     $cli->setMethod('HEAD');
     $cli->get('/');
     Assert::eq($cli->statusCode, 200);
-    assert(count($cli->headers) > 0);
+    Assert::assert(count($cli->headers) > 0);
 });
 ?>
 --EXPECT--

@@ -10,12 +10,12 @@ require __DIR__ . '/../include/bootstrap.php';
 Swoole\Runtime::enableCoroutine();
 go(function () {
     $redis = new Redis;
-    assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
+    Assert::assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
     $redis->get("key");
 });
 go(function () {
     $redis = new Redis;
-    assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
+    Assert::assert($redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
     $redis->get("key");
 });
 Swoole\Event::wait();

@@ -12,7 +12,7 @@ $GLOBALS['port'] = (int)$GLOBALS['socket']->getsockname()['port'];
 go(function () {
     for ($c = MAX_CONCURRENCY_MID; $c--;) {
         $conn = $GLOBALS['socket']->accept();
-        assert($conn instanceof Co\Socket);
+        Assert::assert($conn instanceof Co\Socket);
         $GLOBALS['connections'][] = $conn;
     }
 });
@@ -22,18 +22,18 @@ for ($c = MAX_CONCURRENCY_MID; $c--;) {
         $cli->setDefer();
         $config_timeout = mt_rand(100, 500) / 1000;
         $cli->set(['timeout' => $config_timeout]);
-        assert($cli->get('/'));
+        Assert::assert($cli->get('/'));
         $arg_timeout = mt_rand(100, 500) / 1000;
         $s = microtime(true);
         if (mt_rand(0, 1)) {
             $ret = $cli->recv();
-            assert(time_approximate($config_timeout, microtime(true) - $s));
+            time_approximate($config_timeout, microtime(true) - $s);
         } else {
             $ret = $cli->recv($arg_timeout);
-            assert(time_approximate($arg_timeout, microtime(true) - $s));
+            time_approximate($arg_timeout, microtime(true) - $s);
         }
-        assert(!$ret);
-        assert($cli->errCode === SOCKET_ETIMEDOUT);
+        Assert::assert(!$ret);
+        Assert::assert($cli->errCode === SOCKET_ETIMEDOUT);
     });
 }
 Swoole\Event::wait();

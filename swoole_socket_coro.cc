@@ -203,9 +203,7 @@ static void swoole_socket_coro_register_constants(int module_number)
 {
     REGISTER_LONG_CONSTANT("AF_UNIX", AF_UNIX, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("AF_INET", AF_INET, CONST_CS | CONST_PERSISTENT);
-#if HAVE_IPV6
     REGISTER_LONG_CONSTANT("AF_INET6", AF_INET6, CONST_CS | CONST_PERSISTENT);
-#endif
     REGISTER_LONG_CONSTANT("SOCK_STREAM", SOCK_STREAM, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SOCK_DGRAM", SOCK_DGRAM, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SOCK_RAW", SOCK_RAW, CONST_CS | CONST_PERSISTENT);
@@ -296,11 +294,9 @@ static void swoole_socket_coro_register_constants(int module_number)
     REGISTER_LONG_CONSTANT("IP_MULTICAST_IF", IP_MULTICAST_IF, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("IP_MULTICAST_TTL", IP_MULTICAST_TTL, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("IP_MULTICAST_LOOP", IP_MULTICAST_LOOP, CONST_CS | CONST_PERSISTENT);
-#if HAVE_IPV6
     REGISTER_LONG_CONSTANT("IPV6_MULTICAST_IF", IPV6_MULTICAST_IF, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("IPV6_MULTICAST_HOPS", IPV6_MULTICAST_HOPS, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("IPV6_MULTICAST_LOOP", IPV6_MULTICAST_LOOP, CONST_CS | CONST_PERSISTENT);
-#endif
 
 #ifdef IPV6_V6ONLY
     REGISTER_LONG_CONSTANT("IPV6_V6ONLY", IPV6_V6ONLY, CONST_CS | CONST_PERSISTENT);
@@ -771,16 +767,12 @@ static void swoole_socket_coro_register_constants(int module_number)
 #endif
 
     REGISTER_LONG_CONSTANT("IPPROTO_IP", IPPROTO_IP, CONST_CS | CONST_PERSISTENT);
-#if HAVE_IPV6
     REGISTER_LONG_CONSTANT("IPPROTO_IPV6", IPPROTO_IPV6, CONST_CS | CONST_PERSISTENT);
-#endif
 
     REGISTER_LONG_CONSTANT("SOL_TCP", IPPROTO_TCP, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SOL_UDP", IPPROTO_UDP, CONST_CS | CONST_PERSISTENT);
 
-#if HAVE_IPV6
     REGISTER_LONG_CONSTANT("IPV6_UNICAST_HOPS", IPV6_UNICAST_HOPS, CONST_CS | CONST_PERSISTENT);
-#endif
 
     REGISTER_LONG_CONSTANT("AI_PASSIVE", AI_PASSIVE, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("AI_CANONNAME", AI_CANONNAME, CONST_CS | CONST_PERSISTENT);
@@ -1129,16 +1121,16 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
         if (sock->socket->sock_domain == AF_INET)
         {
             add_assoc_long(peername, "port", swConnection_get_port(sock->socket->socket));
-            add_assoc_string(peername, "address", swConnection_get_ip(sock->socket->socket));
+            add_assoc_string(peername, "address", (char *) swConnection_get_ip(sock->socket->socket));
         }
         else if (sock->socket->sock_domain == AF_INET6)
         {
             add_assoc_long(peername, "port", swConnection_get_port(sock->socket->socket));
-            add_assoc_string(peername, "address", swConnection_get_ip(sock->socket->socket));
+            add_assoc_string(peername, "address", (char *) swConnection_get_ip(sock->socket->socket));
         }
         else if (sock->socket->sock_domain == AF_UNIX)
         {
-            add_assoc_string(peername, "address", swConnection_get_ip(sock->socket->socket));
+            add_assoc_string(peername, "address", (char *) swConnection_get_ip(sock->socket->socket));
         }
         RETURN_STR(buf);
     }
@@ -1317,7 +1309,7 @@ static PHP_METHOD(swoole_socket_coro, getOption)
             optlen = sizeof(if_addr);
             if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &if_addr, &optlen) != 0)
             {
-                swoole_php_sys_error(E_WARNING, "getsockopt(%d, %ld, %ld)", sock->socket->get_fd(), level, optname);
+                swoole_php_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
                 RETURN_FALSE;
             }
             if (php_add4_to_if_index(&if_addr, sock->socket, &if_index) == SUCCESS)
@@ -1352,7 +1344,7 @@ static PHP_METHOD(swoole_socket_coro, getOption)
 
         if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &linger_val, &optlen) != 0)
         {
-            swoole_php_sys_error(E_WARNING, "getsockopt(%d, %ld, %ld)", sock->socket->get_fd(), level, optname);
+            swoole_php_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
             RETURN_FALSE;
         }
 
@@ -1367,7 +1359,7 @@ static PHP_METHOD(swoole_socket_coro, getOption)
 
         if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &tv, &optlen) != 0)
         {
-            swoole_php_sys_error(E_WARNING, "getsockopt(%d, %ld, %ld)", sock->socket->get_fd(), level, optname);
+            swoole_php_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
             RETURN_FALSE;
         }
 
@@ -1382,7 +1374,7 @@ static PHP_METHOD(swoole_socket_coro, getOption)
 
         if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &other_val, &optlen) != 0)
         {
-            swoole_php_sys_error(E_WARNING, "getsockopt(%d, %ld, %ld)", sock->socket->get_fd(), level, optname);
+            swoole_php_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
             RETURN_FALSE;
         }
         if (optlen == 1)

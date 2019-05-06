@@ -32,7 +32,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     });
 
     $client->on("receive", function(swoole_client $cli, $pkg) use ($pid) {
-        assert($pkg != false and strlen($pkg) > 100);
+        Assert::assert($pkg != false and strlen($pkg) > 100);
         swoole_process::kill($pid);
         $cli->close();
     });

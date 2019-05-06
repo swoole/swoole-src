@@ -111,6 +111,7 @@ typedef struct _swHttpRequest
 
 int swHttp_get_method(const char *method_str, int method_len);
 const char* swHttp_get_method_string(int method);
+const char *swHttp_get_status_message(int code);
 int swHttpRequest_get_protocol(swHttpRequest *request);
 int swHttpRequest_get_header_info(swHttpRequest *request);
 int swHttpRequest_get_header_length(swHttpRequest *request);
@@ -121,12 +122,18 @@ static inline void swHttpRequest_clean(swHttpRequest *request)
     memset(request, 0, offsetof(swHttpRequest, buffer));
 }
 
+int swHttp_static_handler(swServer *serv, swHttpRequest *request, swConnection *conn);
+int swHttp_static_handler_add_location(swServer *serv, const char *location, size_t length);
+
 #ifdef SW_HTTP_100_CONTINUE
 int swHttpRequest_has_expect_header(swHttpRequest *request);
 #endif
+
+#ifdef SW_USE_HTTP2
 ssize_t swHttpMix_get_package_length(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 uint8_t swHttpMix_get_package_length_size(swConnection *conn);
 int swHttpMix_dispatch_frame(swConnection *conn, char *data, uint32_t length);
+#endif
 
 #ifdef __cplusplus
 }

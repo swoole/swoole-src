@@ -23,7 +23,7 @@ $pm->childFunc = function () use ($pm) {
             case '/test':
                 $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
                 $cli->get('/');
-                if (!assert($cli->statusCode === 200)) {
+                if (!Assert::assert($cli->statusCode === 200)) {
                     _error:
                     $response->status(500);
                     $response->end('ERROR');
@@ -31,7 +31,7 @@ $pm->childFunc = function () use ($pm) {
                 }
                 $cli->close();
                 $db = new Swoole\Coroutine\Mysql();
-                if (!assert($db->connect([
+                if (!Assert::assert($db->connect([
                     'host' => MYSQL_SERVER_HOST,
                     'port' => MYSQL_SERVER_PORT,
                     'user' => MYSQL_SERVER_USER,
@@ -41,7 +41,7 @@ $pm->childFunc = function () use ($pm) {
                 ]))) {
                     goto _error;
                 }
-                if (!assert($db->query('select 1')[0][1] === 1)) {
+                if (!Assert::assert($db->query('select 1')[0][1] === 1)) {
                     goto _error;
                 }
                 $db->close();

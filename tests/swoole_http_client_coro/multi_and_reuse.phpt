@@ -30,9 +30,9 @@ go(function () {
     $baidu->recv(10);
     $qq->recv(10);
     Assert::eq($baidu->statusCode, 200);
-    assert(stripos($baidu->body, 'baidu') !== false);
+    Assert::assert(stripos($baidu->body, 'baidu') !== false);
     Assert::eq($qq->statusCode, 200);
-    assert(stripos($qq->body, 'tencent') !== false);
+    Assert::assert(stripos($qq->body, 'tencent') !== false);
 
     //reuse
     $baidu->get('/duty/');
@@ -40,9 +40,9 @@ go(function () {
     $baidu->recv(10);
     $qq->recv(10);
     Assert::eq($baidu->statusCode, 200);
-    assert(stripos($baidu->body, 'baidu') !== false);
+    Assert::assert(stripos($baidu->body, 'baidu') !== false);
     Assert::eq($qq->statusCode, 200);
-    assert(stripos($qq->body, 'tencent') !== false);
+    Assert::assert(stripos($qq->body, 'tencent') !== false);
 });
 ?>
 --EXPECT--

@@ -17,12 +17,12 @@ go(function () {
     $req = new Swoole\Http2\Request;
     $req->path = '/';
     $req->headers = 1;
-    assert($cli->send($req));
-    assert(is_array($req->headers)); // check array
+    Assert::assert($cli->send($req));
+    Assert::assert(is_array($req->headers)); // check array
     /**@var $response swoole_http2_response */
     $response = $cli->recv();
     echo $response->statusCode;
-    assert(stripos($response->data, 'swoole') !== false);
+    Assert::assert(stripos($response->data, 'swoole') !== false);
 });
 ?>
 --EXPECT--

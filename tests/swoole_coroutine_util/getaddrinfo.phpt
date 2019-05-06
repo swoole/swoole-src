@@ -7,9 +7,9 @@ swoole_coroutine_util: getaddrinfo
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $ip_list = Co::getaddrinfo('www.baidu.com', AF_INET);
-    assert(!empty($ip_list) and is_array($ip_list));
+    Assert::assert(!empty($ip_list) and is_array($ip_list));
     foreach ($ip_list as $ip) {
-        assert(preg_match(IP_REGEX, $ip));
+        Assert::assert(preg_match(IP_REGEX, $ip));
     }
     echo "DONE\n";
 });

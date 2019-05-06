@@ -72,6 +72,9 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
     pool->worker_num = worker_num;
     pool->max_request = max_request;
 
+    /**
+     * Shared memory is used here
+     */
     pool->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num * sizeof(swWorker));
     if (pool->workers == NULL)
     {

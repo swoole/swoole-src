@@ -15,9 +15,9 @@ for ($c = MAX_CONCURRENCY_LOW; $c--;) {
             'password' => MYSQL_SERVER_PWD,
             'database' => MYSQL_SERVER_DB
         ]);
-        assert($connected);
+        Assert::assert($connected);
         $statement = $mysql->prepare('SELECT SLEEP(1)');
-        assert($statement instanceof Co\Mysql\Statement);
+        Assert::assert($statement instanceof Co\Mysql\Statement);
         $timeout = ms_random(0.1, 0.5);
         $s = microtime(true);
         if (mt_rand(0, 1)) {
@@ -25,9 +25,9 @@ for ($c = MAX_CONCURRENCY_LOW; $c--;) {
         } else {
             $ret = $statement->execute(null, $timeout);
         }
-        assert(time_approximate($timeout, microtime(true) - $s));
-        assert(!$ret);
-        assert($mysql->errno === SOCKET_ETIMEDOUT);
+        time_approximate($timeout, microtime(true) - $s);
+        Assert::assert(!$ret);
+        Assert::assert($mysql->errno === SOCKET_ETIMEDOUT);
     });
 }
 Swoole\Event::wait();

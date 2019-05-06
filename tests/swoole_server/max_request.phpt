@@ -31,7 +31,7 @@ $pm->parentFunc = function ($pid) use ($pm)
     }
     $client->close();
     global $counter;
-    assert($counter->get() > 10);
+    Assert::assert($counter->get() > 10);
     swoole_process::kill($pid);
 };
 

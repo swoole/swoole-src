@@ -539,6 +539,15 @@ Socket::Socket(int _fd, enum swSocket_type _type)
     init_options();
 }
 
+Socket::Socket(int _fd, int _domain, int _type, int _protocol) :
+        sock_domain(_domain), sock_type(_type), sock_protocol(_protocol)
+{
+    type = get_type(_domain, _type, _protocol);
+    init_sock(_fd);
+    socket->active = 1;
+    init_options();
+}
+
 Socket::Socket(int _fd, Socket *server_sock)
 {
     type = server_sock->type;
@@ -1199,7 +1208,7 @@ int Socket::ssl_verify(bool allow_self_signed)
 }
 #endif
 
-bool Socket::sendfile(char *filename, off_t offset, size_t length)
+bool Socket::sendfile(const char *filename, off_t offset, size_t length)
 {
     if (unlikely(!is_available(SW_EVENT_WRITE)))
     {
@@ -1271,25 +1280,30 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
     return true;
 }
 
-ssize_t Socket::sendto(char *address, int port, char *data, int len)
+ssize_t Socket::sendto(const char *address, int port, const char *data, int len)
 {
     if (unlikely(!is_available(SW_EVENT_WRITE)))
     {
         return -1;
     }
-    if (type == SW_SOCK_UDP)
+    ssize_t retval;
+    switch (type)
     {
-        return swSocket_udp_sendto(socket->fd, address, port, data, len);
-    }
-    else if (type == SW_SOCK_UDP6)
-    {
-        return swSocket_udp_sendto6(socket->fd, address, port, data, len);
-    }
-    else
-    {
-        swWarn("only supports SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6");
+    case SW_SOCK_UDP:
+        retval = swSocket_udp_sendto(socket->fd, address, port, data, len);
+        break;
+    case SW_SOCK_UDP6:
+        retval = swSocket_udp_sendto6(socket->fd, address, port, data, len);
+        break;
+    case SW_SOCK_UNIX_DGRAM:
+        retval = swSocket_unix_sendto(socket->fd, address, data, len);
+        break;
+    default:
+        set_err(EPROTONOSUPPORT, "only supports DGRAM");
         return -1;
     }
+    set_err(retval < 0 ? errno : 0);
+    return retval;
 }
 
 ssize_t Socket::recvfrom(void *__buf, size_t __n)

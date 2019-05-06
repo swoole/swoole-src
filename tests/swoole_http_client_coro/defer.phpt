@@ -17,14 +17,14 @@ $pm->parentFunc = function () use ($pm) {
 
         // normal
         for ($n = MAX_REQUESTS; $n--;) {
-            assert($cli->get('/'));
+            Assert::assert($cli->get('/'));
             Assert::eq($cli->body, $pm->getRandomData());
         }
 
         // failed when recv response
         $retry_time = microtime(true);
         for ($n = MAX_REQUESTS; $n--;) {
-            assert(!$cli->get('/'));
+            Assert::assert(!$cli->get('/'));
         }
         $retry_time = microtime(true) - $retry_time;
 
@@ -34,14 +34,14 @@ $pm->parentFunc = function () use ($pm) {
         // failed when connect
         $failed_time = microtime(true);
         for ($n = MAX_REQUESTS; $n--;) {
-            assert(!$cli->get('/'));
+            Assert::assert(!$cli->get('/'));
             Assert::eq($cli->errCode, SOCKET_ECONNREFUSED);
             Assert::eq($cli->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED, $cli->statusCode);
         }
         $failed_time = microtime(true) - $failed_time;
 
         phpt_var_dump($retry_time, $failed_time);
-        assert($retry_time > $failed_time * 2);
+        Assert::assert($retry_time > $failed_time * 2);
     });
     swoole_event_wait();
     echo "OK\n";

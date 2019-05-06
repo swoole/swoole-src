@@ -22,32 +22,32 @@ go(function () use ($port) {
     ]);
 
     $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_UDP);
-    if (!assert($cli->connect('127.0.0.1', $port))) {
+    if (!Assert::assert($cli->connect('127.0.0.1', $port))) {
         return;
     }
 
-    assert($cli->send("hello"));
+    Assert::assert($cli->send("hello"));
 
     // default timeout
     $s = microtime(true);
     $ret = @$cli->recv();
     $s = microtime(true) - $s;
-    assert($s > 0.08 && $s < 0.12, $s);
-    assert(!$ret, var_dump_return($ret));
+    Assert::assert($s > 0.08 && $s < 0.12, $s);
+    Assert::assert(!$ret, var_dump_return($ret));
 
     // custom timeout
     $s = microtime(true);
     $ret = @$cli->recv(0.5);
     $s = microtime(true) - $s;
-    assert($s > 0.45 && $s < 0.55, $s);
-    assert(!$ret, var_dump_return($ret));
+    Assert::assert($s > 0.45 && $s < 0.55, $s);
+    Assert::assert(!$ret, var_dump_return($ret));
 
     // default timeout
     $s = microtime(true);
     $ret = @$cli->recv();
     $s = microtime(true) - $s;
-    assert($s > 0.08 && $s < 0.12, $s);
-    assert(!$ret, var_dump_return($ret));
+    Assert::assert($s > 0.08 && $s < 0.12, $s);
+    Assert::assert(!$ret, var_dump_return($ret));
 
     $cli->close();
     echo "TIMEOUT\n";

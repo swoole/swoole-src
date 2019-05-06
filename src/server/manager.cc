@@ -18,6 +18,9 @@
 #include "server.h"
 
 #include <sys/wait.h>
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
 
 typedef struct
 {
@@ -93,7 +96,18 @@ static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int 
      * separate old workers, free memory in the timer
      */
     swWorker *reload_workers = (swWorker *) sw_malloc(sizeof(swWorker) * n);
+    if (!reload_workers)
+    {
+        swWarn("malloc(%ld) failed", sizeof(swWorker) * n);
+        return;
+    }
     swReloadWorker *reload_info = (swReloadWorker *) sw_malloc(sizeof(swReloadWorker));
+    if (!reload_info)
+    {
+        sw_free(reload_workers);
+        swWarn("malloc(%ld) failed", sizeof(swReloadWorker));
+        return;
+    }
     memcpy(reload_workers, workers, sizeof(swWorker) * n);
     reload_info->reload_worker_num = n;
     reload_info->workers = reload_workers;
@@ -285,6 +299,9 @@ static int swManager_loop(swServer *serv)
     swSignal_add(SIGRTMIN, swManager_signal_handler);
 #endif
     //swSignal_add(SIGINT, swManager_signal_handler);
+#ifdef __linux__
+    prctl(PR_SET_PDEATHSIG, SIGTERM);
+#endif
 
     if (serv->manager_alarm > 0)
     {
@@ -631,6 +648,7 @@ void swManager_kill_user_worker(swServer *serv)
     int __stat_loc;
 
     //kill user process
+    swHashMap_rewind(serv->user_worker_map);
     while (1)
     {
         user_worker = (swWorker *) swHashMap_each_int(serv->user_worker_map, &key);
@@ -643,6 +661,7 @@ void swManager_kill_user_worker(swServer *serv)
     }
 
     //wait user process
+    swHashMap_rewind(serv->user_worker_map);
     while (1)
     {
         user_worker = (swWorker *) swHashMap_each_int(serv->user_worker_map, &key);

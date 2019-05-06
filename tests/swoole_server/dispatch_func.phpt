@@ -10,8 +10,8 @@ $pm->parentFunc = function () use ($pm) {
     for ($c = MAX_CONCURRENCY_MID; $c--;) {
         go(function () use ($pm) {
             $client = new Co\Client(SWOOLE_SOCK_UDP);
-            assert($client->connect('127.0.0.1', $pm->getFreePort()));
-            assert($client->send($data = get_safe_random()));
+            Assert::assert($client->connect('127.0.0.1', $pm->getFreePort()));
+            Assert::assert($client->send($data = get_safe_random()));
             Assert::eq($data, $client->recv());
         });
     }

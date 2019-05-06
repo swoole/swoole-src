@@ -43,7 +43,7 @@ $pm->childFunc = function () use ($pm, $reloaded, $workerCounter) {
                 $pm->wakeup();
             });
             echo "RELOAD\n";
-            assert($server->reload());
+            Assert::assert($server->reload());
         }
     });
     $server->on('Receive', function () { });

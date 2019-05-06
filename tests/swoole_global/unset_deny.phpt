@@ -10,7 +10,7 @@ go(function () {
     $chan->test = 1;
     Assert::eq($chan->test, 1);
     unset($chan->test);
-    assert(!isset($chan->test));
+    Assert::true(!isset($chan->test));
 
     // clone error
     try {
@@ -24,7 +24,7 @@ go(function () {
         unset($chan->errCode);
     } catch (Error $e) {
         echo "{$e->getMessage()}\n";
-        assert(isset($chan->errCode));
+        Assert::true(isset($chan->errCode));
     }
 });
 ?>

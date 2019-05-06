@@ -15,10 +15,10 @@ go(function () {
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB
     ]);
-    assert($res);
+    Assert::assert($res);
     $ret = $mysql->query('show tables', 2);
-    assert(is_array($ret));
-    assert(count($ret) > 0);
+    Assert::assert(is_array($ret));
+    Assert::assert(count($ret) > 0);
 });
 ?>
 --EXPECT--

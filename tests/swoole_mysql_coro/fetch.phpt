@@ -21,10 +21,10 @@ go(function () {
     // now we can make the responses independent
     $stmt = $db->prepare('SELECT `id` FROM `userinfo` LIMIT 2');
     Assert::true($stmt->execute());
-    if (!assert(is_array($ret = $stmt->fetch()) && !empty($ret))) {
+    if (!Assert::assert(is_array($ret = $stmt->fetch()) && !empty($ret))) {
         echo "FETCH1 ERROR#{$stmt->errno}: {$stmt->error}\n";
     }
-    if (!assert(is_array($ret = $stmt->fetch()) && !empty($ret))) {
+    if (!Assert::assert(is_array($ret = $stmt->fetch()) && !empty($ret))) {
         echo "FETCH2 ERROR#{$stmt->errno}: {$stmt->error}\n";
     }
     Assert::eq($stmt->fetch(), null);

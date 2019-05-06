@@ -13,7 +13,7 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
             $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             $cli->set(['timeout' => 5]);
             $ret = $cli->upgrade('/');
-            assert($ret);
+            Assert::assert($ret);
             $rand_list = [];
             $times = MAX_REQUESTS;
             for ($n = $times; $n--;) {
@@ -30,10 +30,10 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
                 } else {
                     $ret = $cli->push($rand, $opcode, $finish);
                 }
-                assert($ret);
+                Assert::assert($ret);
             }
             $frame = $cli->recv();
-            if (assert($frame->data === implode('', $rand_list))) {
+            if (Assert::assert($frame->data === implode('', $rand_list))) {
                 $count++;
             }
         });

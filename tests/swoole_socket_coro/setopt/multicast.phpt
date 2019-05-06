@@ -22,9 +22,9 @@ go(function () use ($socket) {
     while($n--) {
         $addr = [];
         $data = $socket->recvfrom($addr);
-        assert(strlen($data) > 10);
-        assert(!empty($addr['port']));
-        assert(!empty($addr['address']));
+        Assert::assert(strlen($data) > 10);
+        Assert::assert(!empty($addr['port']));
+        Assert::assert(!empty($addr['address']));
     }
 });
 

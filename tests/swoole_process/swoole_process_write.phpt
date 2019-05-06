@@ -11,7 +11,7 @@ $proc = new \swoole_process(function(\swoole_process $process) {
     Assert::eq($r, 7);
 });
 $r = $proc->start();
-assert($r > 0);
+Assert::assert($r > 0);
 
 swoole_timer_after(10, function() use($proc) {
     echo $proc->read();

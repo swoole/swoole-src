@@ -16,7 +16,7 @@ $pm->parentFunc = function ($pid) use ($pm, $port1, $port2, $port3)
 {
     makeTcpClient_without_protocol(TCP_SERVER_HOST, $port1, function(\swoole_client $cli) use($port1) {
         $r = $cli->send("$port1\r\n");
-        assert($r !== false);
+        Assert::assert($r !== false);
     }, function(\swoole_client $cli, $data) use($port1) {
         Assert::eq($data, $port1);
         $cli->close();
@@ -24,7 +24,7 @@ $pm->parentFunc = function ($pid) use ($pm, $port1, $port2, $port3)
 
     makeTcpClient_without_protocol(TCP_SERVER_HOST, $port2, function(\swoole_client $cli) use($port2) {
         $r = $cli->send("$port2\n");
-        assert($r !== false);
+        Assert::assert($r !== false);
     }, function(\swoole_client $cli, $data) use($port2) {
         Assert::eq($data, $port2);
         $cli->close();
@@ -32,7 +32,7 @@ $pm->parentFunc = function ($pid) use ($pm, $port1, $port2, $port3)
 
     makeTcpClient_without_protocol(TCP_SERVER_HOST, $port3, function(\swoole_client $cli) use($port1, $port3) {
         $r = $cli->send("$port3\r");
-        assert($r !== false);
+        Assert::assert($r !== false);
     }, function(\swoole_client $cli, $data) use($port1, $port3) {
         Assert::eq($data, $port1);
         $cli->close();

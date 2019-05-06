@@ -14,7 +14,7 @@ $server->setHandler('GET', function ($fd, $data) use ($server) {
 });
 
 $callback = $server->getHandler('GET');
-assert(is_callable($callback));
+Assert::assert(is_callable($callback));
 
 ?>
 --EXPECT--

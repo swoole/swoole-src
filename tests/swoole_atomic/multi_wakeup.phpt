@@ -11,7 +11,7 @@ $s = microtime(true);
 $pm->parentFunc = function () use ($pm, $s) {
     echo "WAKED\n";
     $s = microtime(true) - $s;
-    assert($s < 1);
+    Assert::assert($s < 1);
     usleep(1000);
     $pm->kill();
 };
@@ -19,7 +19,7 @@ $pm->childFunc = function () use ($pm) {
     $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set(['worker_num' => 4, 'log_file' => '/dev/null']);
     $server->on('workerStart', function () use ($pm) {
-        assert($pm->wakeup());
+        Assert::assert($pm->wakeup());
     });
     $server->on('request', function () { });
     $server->start();

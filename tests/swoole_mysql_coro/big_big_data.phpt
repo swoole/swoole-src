@@ -69,7 +69,7 @@ SQL
         $sql = "INSERT INTO `firmware` (`fid`, `firmware`, `f_md5`, `f_remark`) " .
             "VALUES ({$fid}, '{$firmware}', '{$f_md5}', '{$f_remark}')";
         $ret = $pdo->exec($sql);
-        if (assert($ret)) {
+        if (Assert::assert($ret)) {
             $sql = 'SELECT * FROM `test`.`firmware` WHERE fid=';
             $pdo_stmt = $pdo->prepare("{$sql}?");
             $mysql_stmt = $mysql_prepare->prepare("{$sql}?");

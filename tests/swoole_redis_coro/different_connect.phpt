@@ -15,23 +15,23 @@ function test(string $host, int $port = 0)
     $ret = $redis->connect($host, $port);
     $real_connect_time = microtime(true) - $real_connect_time;
 
-    assert($ret);
-    assert(($fd = $redis->sock) > 0);
+    Assert::assert($ret);
+    Assert::assert(($fd = $redis->sock) > 0);
 
     $fake_connect_time = 0;
     for ($n = MAX_REQUESTS; $n--;) {
         $fake_connect_time = microtime(true);
         $ret = $redis->connect($host, $port);
         $fake_connect_time = microtime(true) - $fake_connect_time;
-        assert($ret);
-        assert($fake_connect_time < $real_connect_time);
+        Assert::assert($ret);
+        Assert::assert($fake_connect_time < $real_connect_time);
     }
 
     $real_connect_time = microtime(true);
     $redis->connect(MYSQL_SERVER_HOST, MYSQL_SERVER_PORT);
     $real_connect_time = microtime(true) - $real_connect_time;
-    assert($fake_connect_time < $real_connect_time);
-    assert(!$redis->get('foo'));
+    Assert::assert($fake_connect_time < $real_connect_time);
+    Assert::assert(!$redis->get('foo'));
     Assert::eq($redis->errType, SWOOLE_REDIS_ERR_PROTOCOL);
 }
 

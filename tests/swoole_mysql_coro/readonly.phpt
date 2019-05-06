@@ -18,33 +18,33 @@ go(function () {
         'database' => MYSQL_SERVER_DB
     ];
     $connected = $root->connect($server);
-    assert($connected);
+    Assert::assert($connected);
 
     // create read only user
     $create = $root->query('CREATE USER `readonly`@`%` IDENTIFIED BY \'123456\';');
-    assert($create);
+    Assert::assert($create);
     $grant = $root->query('GRANT SELECT ON *.* TO `readonly`@`%` WITH GRANT OPTION;');
-    assert($grant);
+    Assert::assert($grant);
 
     // use readonly
     $server['user'] = 'readonly';
     $server['password'] = '123456';
     $readonly = new Swoole\Coroutine\MySQL;
     $connected = $readonly->connect($server);
-    assert($connected);
+    Assert::assert($connected);
 
     // read
     $result = $readonly->query('SELECT * FROM userinfo');
-    assert(is_array($result) && count($result) > 5);
+    Assert::assert(is_array($result) && count($result) > 5);
     $id = $result[0]['id'];
     // write
     $delete = $readonly->query('DELETE FROM userinfo WHERE id=' . $id);
-    assert(!$delete);
+    Assert::assert(!$delete);
     echo $readonly->errno . "\n";
     echo $readonly->error . "\n";
 
     // drop
-    assert($root->query('DROP ROLE readonly'));
+    Assert::assert($root->query('DROP ROLE readonly'));
 });
 ?>
 --EXPECTF--

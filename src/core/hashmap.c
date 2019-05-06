@@ -66,28 +66,11 @@ static sw_inline int swHashMap_node_add(swHashMap_node *root, swHashMap_node *ad
 
 static sw_inline swHashMap_node* swHashMap_node_each(swHashMap* hmap)
 {
-    swHashMap_node *iterator = hmap->iterator;
-    swHashMap_node *tmp;
-
-    if (hmap->root->hh.tbl->num_items == 0)
+    if (hmap->iterator)
     {
-        return NULL;
+        return hmap->iterator = hmap->iterator->hh.next;
     }
-    if (iterator == NULL)
-    {
-        iterator = hmap->root;
-    }
-    tmp = iterator->hh.next;
-    if (tmp)
-    {
-        hmap->iterator = tmp;
-        return tmp;
-    }
-    else
-    {
-        hmap->iterator = NULL;
-        return NULL;
-    }
+    return NULL;
 }
 
 swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
@@ -108,6 +91,7 @@ swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
 
     bzero(hmap, sizeof(swHashMap));
     hmap->root = root;
+    hmap->iterator = root;
 
     bzero(root, sizeof(swHashMap_node));
 
@@ -329,6 +313,11 @@ int swHashMap_move_int(swHashMap *hmap, uint64_t old_key, uint64_t new_key)
     HASH_ADD_INT(root, key_int, ret);
 
     return SW_OK;
+}
+
+void swHashMap_rewind(swHashMap* hmap)
+{
+    hmap->iterator = hmap->root;
 }
 
 void* swHashMap_each(swHashMap* hmap, char **key)

@@ -11,14 +11,14 @@ skip_if_file_not_exist(REDIS_SERVER_PATH);
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $redis = new Swoole\Coroutine\Redis(['timeout' => 100]);
-    assert($redis->connect('unix:/' . REDIS_SERVER_PATH, 0));
+    Assert::assert($redis->connect('unix:/' . REDIS_SERVER_PATH, 0));
     for ($c = MAX_CONCURRENCY_MID; $c--;) {
         for ($n = MAX_REQUESTS; $n--;) {
             $key = md5(openssl_random_pseudo_bytes(mt_rand(1, 128)));
             $value = md5(openssl_random_pseudo_bytes(mt_rand(1, 128)));
-            assert($redis->set($key, $value));
+            Assert::assert($redis->set($key, $value));
             Assert::eq($redis->get($key), $value);
-            assert($redis->delete($key));
+            Assert::assert($redis->delete($key));
         }
     }
 });

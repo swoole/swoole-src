@@ -27,13 +27,13 @@ class TestCo
             });
             go(function () use ($send, $data) {
                 $data = $send->pop();
-                if (assert($data === $data)) {
+                if (Assert::assert($data === $data)) {
                     co::sleep(0.001);
                     $send->push(true); // send ok
                 }
             });
             $ret = $send->push($data);
-            assert($ret);
+            Assert::assert($ret);
             $response = $recv->pop();
             Assert::eq($response, $data);
         }

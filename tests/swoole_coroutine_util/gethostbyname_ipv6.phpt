@@ -10,7 +10,7 @@ use Swoole\Coroutine as co;
 
 co::create(function () {
     $ip = co::gethostbyname('ipv6.baidu.com', AF_INET6);
-    assert(!empty($ip));
+    Assert::assert(!empty($ip));
 });
 
 ?>

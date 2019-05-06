@@ -9,7 +9,7 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     $client = new swoole_client(SWOOLE_SOCK_TCP);
-    assert($client->connect('127.0.0.1', 8089, 5));
+    Assert::assert($client->connect('127.0.0.1', 8089, 5));
     $data = "hello swoole!";
     $client->send(pack('N', strlen($data)) . $data);
     $ret = $client->recv();
@@ -26,7 +26,7 @@ $pm->childFunc = function () use ($pm) {
 
     $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) {
         $client = new swoole_client(SWOOLE_SOCK_TCP);
-        assert($client->connect('127.0.0.1', 8089, 5));
+        Assert::assert($client->connect('127.0.0.1', 8089, 5));
         $data = "hello swoole! (from workerStart)";
         $client->send(pack('N', strlen($data)) . $data);
         $client->close();

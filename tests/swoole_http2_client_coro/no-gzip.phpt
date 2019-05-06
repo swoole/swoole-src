@@ -27,7 +27,7 @@ go(function () {
     ];
     $i = 5;
     while ($i--) {
-        assert($cli->send($req));
+        Assert::assert($cli->send($req));
     }
     $i = 5;
     $map = [];
@@ -35,10 +35,10 @@ go(function () {
         /**@var $response swoole_http2_response */
         $response = $cli->recv();
         Assert::eq($response->statusCode, 200);
-        assert(strpos($response->data, 'zhihu') !== false);
+        Assert::assert(strpos($response->data, 'zhihu') !== false);
         $map[] = $response->streamId;
     }
-    assert(!array_diff($map, [1, 3, 5, 7, 9]));
+    Assert::assert(!array_diff($map, [1, 3, 5, 7, 9]));
 });
 ?>
 --EXPECT--

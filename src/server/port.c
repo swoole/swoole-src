@@ -26,7 +26,6 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *lp, swEv
 static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_http(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_redis(swReactor *reactor, swListenPort *lp, swEvent *event);
-static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, swConnection *conn);
 
 void swPort_init(swListenPort *port)
 {
@@ -314,6 +313,11 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     if (conn->object == NULL)
     {
         request = sw_malloc(sizeof(swHttpRequest));
+        if (!request)
+        {
+            swWarn("malloc(%ld) failed", sizeof(swHttpRequest));
+            return SW_ERR;
+        }
         bzero(request, sizeof(swHttpRequest));
         conn->object = request;
     }
@@ -443,7 +447,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                     /**
                      * send static file content directly in the reactor thread
                      */
-                    if (!(serv->enable_static_handler && swPort_http_static_handler(serv, request, conn)))
+                    if (!(serv->enable_static_handler && swHttp_static_handler(serv, request, conn)))
                     {
                         /**
                          * dynamic request, dispatch to worker
@@ -607,213 +611,3 @@ void swPort_free(swListenPort *port)
     }
 }
 
-static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, swConnection *conn)
-{
-    char *url = request->buffer->str + request->url_offset;
-    char *params = memchr(url, '?', request->url_length);
-
-    struct
-    {
-        off_t offset;
-        size_t length;
-        char filename[PATH_MAX];
-    } buffer;
-
-    char *p = buffer.filename;
-
-    memcpy(p, serv->document_root, serv->document_root_len);
-    p += serv->document_root_len;
-    size_t n = params ? params - url : request->url_length;
-
-    if (serv->document_root_len + n >= PATH_MAX)
-    {
-        return SW_FALSE;
-    }
-
-    memcpy(p, url, n);
-    p += n;
-    *p = '\0';
-
-    char real_path[PATH_MAX];
-    if (!realpath(buffer.filename, real_path))
-    {
-        return SW_FALSE;
-    }
-
-    if (real_path[serv->document_root_len] != '/')
-    {
-        return SW_FALSE;
-    }
-
-    if (strncmp(real_path, serv->document_root, serv->document_root_len) != 0)
-    {
-        return SW_FALSE;
-    }
-
-    struct stat file_stat;
-    if (lstat(buffer.filename, &file_stat) < 0)
-    {
-        return SW_FALSE;
-    }
-    if (file_stat.st_size == 0)
-    {
-        return SW_FALSE;
-    }
-    if ((file_stat.st_mode & S_IFMT) != S_IFREG)
-    {
-        return SW_FALSE;
-    }
-
-    char header_buffer[1024];
-    swSendData response;
-    response.info.fd = conn->session_id;
-
-    response.info.type = SW_EVENT_TCP;
-
-    p = request->buffer->str + request->url_offset + request->url_length + 10;
-    char *pe = request->buffer->str + request->header_length;
-
-    char *date_if_modified_since = NULL;
-    int length_if_modified_since = 0;
-
-    int state = 0;
-    for (; p < pe; p++)
-    {
-        switch(state)
-        {
-        case 0:
-            if (strncasecmp(p, SW_STRL("If-Modified-Since")) == 0)
-            {
-                p += sizeof("If-Modified-Since");
-                state = 1;
-            }
-            break;
-        case 1:
-            if (!isspace(*p))
-            {
-                date_if_modified_since = p;
-                state = 2;
-            }
-            break;
-        case 2:
-            if (strncasecmp(p, SW_STRL("\r\n")) == 0)
-            {
-                length_if_modified_since = p - date_if_modified_since;
-                goto check_modify_date;
-            }
-            break;
-        default:
-            break;
-        }
-    }
-
-    char date_[64];
-    struct tm *tm1;
-
-    check_modify_date: tm1 = gmtime(&serv->gs->now);
-    strftime(date_, sizeof(date_), "%a, %d %b %Y %H:%M:%S %Z", tm1);
-
-    char date_last_modified[64];
-#ifdef __MACH__
-    time_t file_mtime = file_stat.st_mtimespec.tv_sec;
-#elif defined(_WIN32)
-	time_t file_mtime = file_stat.st_mtime;
-#else
-    time_t file_mtime = file_stat.st_mtim.tv_sec;
-#endif
-
-    struct tm *tm2 = gmtime(&file_mtime);
-    strftime(date_last_modified, sizeof(date_last_modified), "%a, %d %b %Y %H:%M:%S %Z", tm2);
-
-    if (state == 2)
-    {
-        struct tm tm3;
-        char date_tmp[64];
-        memcpy(date_tmp, date_if_modified_since, length_if_modified_since);
-        date_tmp[length_if_modified_since] = 0;
-
-        char *date_format = NULL;
-
-        if (strptime(date_tmp, SW_HTTP_RFC1123_DATE_GMT, &tm3) != NULL)
-        {
-            date_format = SW_HTTP_RFC1123_DATE_GMT;
-        }
-        else if (strptime(date_tmp, SW_HTTP_RFC1123_DATE_UTC, &tm3) != NULL)
-        {
-            date_format = SW_HTTP_RFC1123_DATE_UTC;
-        }
-        else if (strptime(date_tmp, SW_HTTP_RFC850_DATE, &tm3) != NULL)
-        {
-            date_format = SW_HTTP_RFC850_DATE;
-        }
-        else if (strptime(date_tmp, SW_HTTP_ASCTIME_DATE, &tm3) != NULL)
-        {
-            date_format = SW_HTTP_ASCTIME_DATE;
-        }
-        if (date_format && mktime(&tm3) - (int) timezone >= file_mtime)
-        {
-            response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
-                    "HTTP/1.1 304 Not Modified\r\n"
-                    "%s"
-                    "Date: %s\r\n"
-                    "Last-Modified: %s\r\n"
-                    "Server: %s\r\n\r\n",
-                    request->keep_alive ? "Connection: keep-alive\r\n" : "",
-                    date_,
-                    date_last_modified,
-                    SW_HTTP_SERVER_SOFTWARE
-            );
-            response.data = header_buffer;
-            swServer_master_send(serv, &response);
-            goto _finish;
-        }
-    }
-
-    response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
-            "HTTP/1.1 200 OK\r\n"
-            "%s"
-            "Content-Length: %ld\r\n"
-            "Content-Type: %s\r\n"
-            "Date: %s\r\n"
-            "Last-Modified: %s\r\n"
-            "Server: %s\r\n\r\n",
-            request->keep_alive ? "Connection: keep-alive\r\n" : "",
-            (long) file_stat.st_size,
-            swoole_get_mime_type(buffer.filename),
-            date_,
-            date_last_modified,
-            SW_HTTP_SERVER_SOFTWARE);
-
-    response.data = header_buffer;
-
-#ifdef HAVE_TCP_NOPUSH
-    if (conn->tcp_nopush == 0)
-    {
-        if (swSocket_tcp_nopush(conn->fd, 1) == -1)
-        {
-            swSysWarn("swSocket_tcp_nopush() failed");
-        }
-        conn->tcp_nopush = 1;
-    }
-#endif
-    swServer_master_send(serv, &response);
-
-    buffer.offset = 0;
-    buffer.length = file_stat.st_size;
-
-    response.info.type = SW_EVENT_SENDFILE;
-    response.info.len = sizeof(swSendFile_request) + buffer.length + 1;
-    response.data = (void*) &buffer;
-
-    swServer_master_send(serv, &response);
-
-    _finish:
-    if (!request->keep_alive)
-    {
-        response.info.type = SW_EVENT_CLOSE;
-        response.data = NULL;
-        swServer_master_send(serv, &response);
-    }
-
-    return SW_TRUE;
-}

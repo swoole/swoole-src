@@ -686,6 +686,10 @@ swString* Coroutine::read_file(const char *file, int lock)
     if (ev.error == 0)
     {
         swString *str = (swString *) sw_malloc(sizeof(swString));
+        if (!str)
+        {
+            return NULL;
+        }
         str->str = (char*) ev.buf;
         str->length = ev.nbytes;
         return str;
@@ -918,6 +922,11 @@ bool Coroutine::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double
     if (timeout == 0)
     {
         struct pollfd *event_list = (struct pollfd *) sw_calloc(fds.size(), sizeof(struct pollfd));
+        if (!event_list)
+        {
+            swWarn("malloc[1] failed");
+            return SW_ERR;
+        }
         int j = 0;
         for (auto i = fds.begin(); i != fds.end(); i++)
         {

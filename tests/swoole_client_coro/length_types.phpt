@@ -22,7 +22,7 @@ $pm->parentFunc = function () use ($pm) {
                 for ($n = MAX_REQUESTS; $n--;) {
                     $data = $pm->getRandomData();
                     $recv = substr($client->recv(-1), $type_length);
-                    if (!assert($recv === $data)) {
+                    if (!Assert::assert($recv === $data)) {
                         echo "ERROR\n";
                         break;
                     }
@@ -39,7 +39,7 @@ $pm->childFunc = function () use ($pm) {
     $server->on('connect', function (Swoole\Server $server, int $fd) use ($pm) {
         $length_type = array_keys(tcp_length_types())[$fd - 1];
         for ($n = MAX_REQUESTS; $n--;) {
-            assert($server->send($fd, tcp_pack($pm->getRandomData(), $length_type)));
+            Assert::assert($server->send($fd, tcp_pack($pm->getRandomData(), $length_type)));
         }
     });
     $server->on('receive', function () { });

@@ -19,7 +19,7 @@ go(function () use ($startTime) {
 
     flock($f, LOCK_SH);
     flock($f, LOCK_UN);
-    assert((microtime(true) - $startTime) < 1);
+    Assert::assert((microtime(true) - $startTime) < 1);
 });
 go(function () {
     $f = fopen(FILE, 'w+');

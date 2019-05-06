@@ -24,7 +24,7 @@ go(function () {
         while (!feof($fp1)) {
             $html .= fgets($fp1, 1024);
         }
-        assert(strlen($html) > 1024);
+        Assert::assert(strlen($html) > 1024);
         fclose($fp1);
     }
 });

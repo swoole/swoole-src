@@ -26,13 +26,14 @@ extern "C"
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <stdint.h>
 #include <poll.h>
 
 /**
  * base
  */
 uint8_t swoole_coroutine_is_in();
-
+long swoole_coroutine_get_current_id();
 /**
  * file
  */

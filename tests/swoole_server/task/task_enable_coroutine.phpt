@@ -29,7 +29,7 @@ $pm->childFunc = function () use ($pm) {
         'task_enable_coroutine' => true
     ]);
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($http) {
-        assert($response->detach());
+        Assert::assert($response->detach());
         if (mt_rand(0, 1)) {
             $http->task($response->fd);
         } else {
@@ -51,7 +51,7 @@ $pm->childFunc = function () use ($pm) {
                 MYSQL_SERVER_USER, MYSQL_SERVER_PWD
             );
             $stmt = $pdo->query('SELECT "Hello Swoole!"');
-            assert($stmt->execute());
+            Assert::assert($stmt->execute());
             $ret = $stmt->fetchAll(PDO::FETCH_COLUMN)[0];
             $response->end($ret);
         }

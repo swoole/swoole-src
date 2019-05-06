@@ -9,8 +9,8 @@ require __DIR__ . '/../include/bootstrap.php';
 $channel = new Swoole\Coroutine\Channel(1);
 
 go(function () use ($channel) {
-    assert($channel->push(1, 0.1));
-    assert(!$channel->push(1, 0.1));
+    Assert::assert($channel->push(1, 0.1));
+    Assert::assert(!$channel->push(1, 0.1));
 });
 
 swoole_event_wait();

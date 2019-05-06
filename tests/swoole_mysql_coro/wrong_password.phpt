@@ -15,7 +15,7 @@ go(function () {
         'database' => MYSQL_SERVER_DB
     ];
     $connected = $db->connect($server);
-    assert(!$connected);
+    Assert::assert(!$connected);
     echo $db->connect_errno . "\n";
     echo $db->connect_error, "\n";
 });

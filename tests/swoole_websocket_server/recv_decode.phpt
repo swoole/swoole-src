@@ -21,7 +21,7 @@ $pm->parentFunc = function (int $pid) use ($pm, $data_list) {
             $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             $cli->set(['timeout' => 5]);
             $ret = $cli->upgrade('/');
-            assert($ret);
+            Assert::assert($ret);
             foreach ($data_list as $data) {
                 if (mt_rand(0, 1)) {
                     $frame = new swoole_websocket_frame;
@@ -31,14 +31,14 @@ $pm->parentFunc = function (int $pid) use ($pm, $data_list) {
                 } else {
                     $ret = $cli->push($data, (int)explode('|', $data, 3)[1]);
                 }
-                if (!assert($ret)) {
+                if (!Assert::assert($ret)) {
                     var_dump(swoole_strerror(swoole_last_error()));
                 } else {
                     $ret = $cli->recv();
                     unset($data_list[$ret->data]);
                 }
             }
-            assert(empty($data_list));
+            Assert::assert(empty($data_list));
         });
     }
     swoole_event_wait();
@@ -56,13 +56,13 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('message', function (swoole_websocket_server $serv, swoole_websocket_frame $recv_frame) {
         global $data_list;
         list($id, $opcode) = explode('|', $recv_frame->data, 3);
-        if (!assert($recv_frame->finish)) {
+        if (!Assert::assert($recv_frame->finish)) {
             return;
         }
-        if (!assert($recv_frame->opcode === (int)$opcode)) {
+        if (!Assert::assert($recv_frame->opcode === (int)$opcode)) {
             return;
         }
-        if (!assert($recv_frame->data === $data_list[$id])) {
+        if (!Assert::assert($recv_frame->data === $data_list[$id])) {
             var_dump($recv_frame->data);
             var_dump($data_list[$id]);
             return;

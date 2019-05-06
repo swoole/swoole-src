@@ -23,7 +23,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $cli->send(pack('N', strlen($data)).$data);
         co::sleep(0.2);
         $retData = $cli->recv();
-        assert(is_string($retData) and strlen($retData) > 0);
+        Assert::assert(is_string($retData) and strlen($retData) > 0);
         $retData = $cli->recv();
         Assert::eq($retData, '');
     });

@@ -465,7 +465,6 @@ static int _php_mcast_join_leave(
 				join ? IP_ADD_MEMBERSHIP : IP_DROP_MEMBERSHIP, (char*)&mreq,
 				sizeof(mreq));
 	}
-#if HAVE_IPV6
 	else if (sock->sock_type == AF_INET6) {
 		struct ipv6_mreq mreq = {{{{0}}}};
 
@@ -478,7 +477,6 @@ static int _php_mcast_join_leave(
 				join ? IPV6_JOIN_GROUP : IPV6_LEAVE_GROUP, (char*)&mreq,
 				sizeof(mreq));
 	}
-#endif
 	else {
 		php_error_docref(NULL, E_WARNING,
 			"Option %s is inapplicable to this socket type",
@@ -533,14 +531,12 @@ static int _php_mcast_source_op(
 		return setsockopt(sock->get_fd(), level,
 				_php_source_op_to_ipv4_op(sop), (char*)&mreqs, sizeof(mreqs));
 	}
-#if HAVE_IPV6
 	else if (sock->type == AF_INET6) {
 		php_error_docref(NULL, E_WARNING,
 			"This platform does not support %s for IPv6 sockets",
 			_php_source_op_to_string(sop));
 		return -2;
 	}
-#endif
 	else {
 		php_error_docref(NULL, E_WARNING,
 			"Option %s is inapplicable to this socket type",
@@ -749,7 +745,7 @@ int php_add4_to_if_index(struct in_addr *addr, Socket *php_sock, unsigned *if_in
         size += 5 * sizeof(struct ifreq);
         buf = (char*) ecalloc(size, 1);
         if_conf.ifc_len = size;
-        if_conf.ifc_buf = buf;
+        if_conf.ifc_buf = (caddr_t) buf;
 
 		if (ioctl(php_sock->get_fd(), SIOCGIFCONF, (char*)&if_conf) == -1 &&
 				(errno != EINVAL || lastsize != 0)) {
@@ -768,8 +764,8 @@ int php_add4_to_if_index(struct in_addr *addr, Socket *php_sock, unsigned *if_in
 		}
 	}
 
-	for (p = if_conf.ifc_buf;
-		 p < if_conf.ifc_buf + if_conf.ifc_len;
+	for (p = (char *) if_conf.ifc_buf;
+		 p < ((char *) if_conf.ifc_buf + if_conf.ifc_len);
 		 p += entry_len) {
 		struct ifreq *cur_req;
 

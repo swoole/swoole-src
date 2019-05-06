@@ -32,6 +32,11 @@ swMemoryPool* swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t s
     size_t size = slice_size * slice_num + slice_num * sizeof(swFixedPool_slice);
     size_t alloc_size = size + sizeof(swFixedPool) + sizeof(swMemoryPool);
     void *memory = (shared == 1) ? sw_shm_malloc(alloc_size) : sw_malloc(alloc_size);
+    if (!memory)
+    {
+        swWarn("malloc(%ld) failed", size);
+        return NULL;
+    }
 
     swFixedPool *object = memory;
     memory = (char *) memory + sizeof(swFixedPool);

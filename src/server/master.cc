@@ -623,11 +623,24 @@ int swServer_start(swServer *serv)
     if (serv->task_worker_num > 0 && serv->worker_num > 0)
     {
         serv->task_result = (swEventData *) sw_shm_calloc(serv->worker_num, sizeof(swEventData));
+        if (!serv->task_result)
+        {
+            swWarn("malloc[serv->task_result] failed");
+            return SW_ERR;
+        }
         serv->task_notify = (swPipe *) sw_calloc(serv->worker_num, sizeof(swPipe));
+        if (!serv->task_notify)
+        {
+            swWarn("malloc[serv->task_notify] failed");
+            sw_shm_free(serv->task_result);
+            return SW_ERR;
+        }
         for (i = 0; i < serv->worker_num; i++)
         {
             if (swPipeNotify_auto(&serv->task_notify[i], 1, 0))
             {
+                sw_shm_free(serv->task_result);
+                sw_free(serv->task_notify);
                 return SW_ERR;
             }
         }
@@ -704,6 +717,7 @@ void swServer_init(swServer *serv)
     serv->max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
     //http server
+    serv->http_parse_cookie = 1;
     serv->http_parse_post = 1;
     serv->http_compression = 1;
     serv->http_compression_level = 1; // Z_BEST_SPEED

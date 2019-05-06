@@ -28,6 +28,9 @@ using namespace swoole;
 static zend_class_entry *swoole_http2_client_coro_ce;
 static zend_object_handlers swoole_http2_client_coro_handlers;
 
+static zend_class_entry *swoole_http2_client_coro_exception_ce;
+static zend_object_handlers swoole_http2_client_coro_exception_handlers;
+
 static zend_class_entry *swoole_http2_request_ce;
 static zend_object_handlers swoole_http2_request_handlers;
 
@@ -128,6 +131,8 @@ void swoole_http2_client_coro_init(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_http2_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http2_client_coro, zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http2_client_coro, zend_class_unset_property_deny);
+
+    SW_INIT_CLASS_ENTRY_EX(swoole_http2_client_coro_exception, "Swoole\\Coroutine\\Http2\\Client\\Exception", NULL, "Co\\Http2\\Client\\Exception", NULL, swoole_exception);
 
     SW_INIT_CLASS_ENTRY(swoole_http2_request, "Swoole\\Http2\\Request", "swoole_http2_request", NULL, NULL);
     SW_SET_CLASS_SERIALIZABLE(swoole_http2_request, zend_class_serialize_deny, zend_class_unserialize_deny);
@@ -265,11 +270,11 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
 
     if (host_len == 0)
     {
-        zend_throw_exception(swoole_exception_ce, "host is empty", SW_ERROR_INVALID_PARAMS);
+        zend_throw_exception(swoole_http2_client_coro_exception_ce, "host is empty", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
 
-    http2_client_property *hcc = (http2_client_property*) emalloc(sizeof(http2_client_property));
+    http2_client_property *hcc = (http2_client_property *) emalloc(sizeof(http2_client_property));
     bzero(hcc, sizeof(http2_client_property));
     long type = SW_FLAG_ASYNC | SW_SOCK_TCP;
     if (ssl)
@@ -278,7 +283,11 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
         type |= SW_SOCK_SSL;
         hcc->ssl = 1;
 #else
-        swoole_php_fatal_error(E_ERROR, "Need to use `--enable-openssl` to support ssl when compiling swoole");
+        zend_throw_exception_ex(
+            swoole_http2_client_coro_exception_ce,
+            EPROTONOSUPPORT, "you must configure with `enable-openssl` to support ssl connection"
+        );
+        RETURN_FALSE;
 #endif
     }
     hcc->host = estrndup(host, host_len);
@@ -628,34 +637,12 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     }
     case SW_HTTP2_TYPE_PING:
     {
-        zval return_value;
-        zval *retval = NULL;
-        swHttp2FrameTraceLog(recv, "ACK");
-        if ((flags & SW_HTTP2_FLAG_ACK) && length == SW_HTTP2_FRAME_PING_PAYLOAD_SIZE)
+        swHttp2FrameTraceLog(recv, "ping");
+        if (!(flags & SW_HTTP2_FLAG_ACK))
         {
-            ZVAL_TRUE(&return_value);
-        }
-        else
-        {
-            ZVAL_FALSE(&return_value);
-            http2_client_close(cli); //will trigger onClose and resume
-            return;
-        }
-        if (cli->timer)
-        {
-            swTimer_del(&SwooleG.timer, cli->timer);
-            cli->timer = NULL;
-        }
-        if (hcc->iowait != 0)
-        {
-            hcc->iowait = 0;
-            hcc->read_cid = 0;
-            php_coro_context *context = (php_coro_context *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
-            int ret = PHPCoroutine::resume_m(context, &return_value, retval);
-            if (ret == SW_CORO_ERR_END && retval)
-            {
-                zval_ptr_dtor(retval);
-            }
+            swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
+            memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE, buf + SW_HTTP2_FRAME_HEADER_SIZE, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
+            cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, 0);
         }
         return;
     }
@@ -1409,17 +1396,7 @@ static PHP_METHOD(swoole_http2_client_coro, ping)
 
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
     swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_NONE, 0);
-    cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, 0);
-
-    double timeout = hcc->timeout;
-    php_coro_context *context = (php_coro_context *) swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
-    if (timeout > 0)
-    {
-        cli->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, context, http2_client_onTimeout);
-    }
-    hcc->iowait = 1;
-    hcc->read_cid = PHPCoroutine::get_cid();
-    PHPCoroutine::yield_m(return_value, context);
+    SW_CHECK_RETURN(cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, 0));
 }
 
 /**

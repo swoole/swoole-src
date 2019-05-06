@@ -24,7 +24,7 @@ usleep(500 * 1000);
 
 makeTcpClient(TCP_SERVER_HOST, $port, function(\swoole_client $cli) use($port) {
     $r = $cli->send(opcode_encode("sendMessage", ["SUCCESS", 1]));
-    assert($r !== false);
+    Assert::assert($r !== false);
 }, function(\swoole_client $cli, $recv) {
     list($op, $msg) = opcode_decode($recv);
     echo $msg;

@@ -70,7 +70,8 @@ public:
     swSSL_option ssl_option = {0};
 #endif
 
-    Socket(int domain = AF_INET, int type = SOCK_STREAM, int protocol = IPPROTO_IP);
+    Socket(int domain, int type, int protocol);
+    Socket(int _fd, int _domain, int _type, int _protocol);
     Socket(enum swSocket_type type = SW_SOCK_TCP);
     Socket(int _fd, enum swSocket_type _type);
     ~Socket();
@@ -93,8 +94,8 @@ public:
     Socket* accept();
     bool bind(std::string address, int port = 0);
     bool listen(int backlog = 0);
-    bool sendfile(char *filename, off_t offset, size_t length);
-    ssize_t sendto(char *address, int port, char *data, int len);
+    bool sendfile(const char *filename, off_t offset, size_t length);
+    ssize_t sendto(const char *address, int port, const char *data, int len);
     ssize_t recvfrom(void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
 #ifdef SW_USE_OPENSSL

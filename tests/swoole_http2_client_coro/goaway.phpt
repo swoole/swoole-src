@@ -16,8 +16,8 @@ go(function () {
         exit; // we can't connect to this website without proxy in China so we skip it.
     }
     $cli->goaway(SWOOLE_HTTP2_ERROR_NO_ERROR, '[GOAWAY] nothing~bye~bye~');
-    assert(!$cli->recv(-1));
-    assert(!$cli->connected);
+    Assert::assert(!$cli->recv(-1));
+    Assert::assert(!$cli->connected);
 });
 ?>
 --EXPECT--

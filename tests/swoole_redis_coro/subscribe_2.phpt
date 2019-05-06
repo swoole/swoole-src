@@ -16,14 +16,14 @@ go(function () {
     for ($i = 0; $i < MAX_REQUESTS; $i++) {
         $channel = 'channel' . $i;
         $val = $redis->subscribe([$channel]);
-        assert($val);
+        Assert::assert($val);
 
         $val = $redis->recv();
-        assert($val[0] == 'subscribe' && $val[1] == $channel);
+        Assert::assert($val[0] == 'subscribe' && $val[1] == $channel);
 
         go(function () use ($channel, $redis2) {
             $ret = $redis2->publish($channel, 'test' . $channel);
-            assert($ret);
+            Assert::assert($ret);
         });
 
         $val = $redis->recv();

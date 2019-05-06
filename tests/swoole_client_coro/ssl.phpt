@@ -30,7 +30,7 @@ go(function () {
         $content .= $read;
     }
     $cli->close();
-    assert(strpos($content, 'map.baidu.com') !== false);
+    Assert::assert(strpos($content, 'map.baidu.com') !== false);
 });
 ?>
 --EXPECT--

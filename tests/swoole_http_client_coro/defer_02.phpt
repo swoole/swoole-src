@@ -21,7 +21,7 @@ $pm->parentFunc = function () use ($pm, $randomData) {
             $cli->setDefer();
             $clients[$n] = $cli;
             $retval = $cli->get('/?n=' . $n);
-            assert($retval);
+            Assert::assert($retval);
             if (!$retval)
             {
                 var_dump($cli->errCode);

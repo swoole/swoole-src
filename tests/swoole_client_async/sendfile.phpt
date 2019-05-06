@@ -16,7 +16,7 @@ $pm->parentFunc = function ($pid) use ($port)
     {
         $cli->send(pack('N', filesize(TEST_IMAGE)));
         $ret = $cli->sendfile(TEST_IMAGE);
-        assert($ret);
+        Assert::assert($ret);
     });
     $client->on("receive", function (Swoole\Client $cli, $data)
     {

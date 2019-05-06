@@ -10,11 +10,11 @@ $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $http = new Co\Http\Client('127.0.0.1', $pm->getFreePort());
         echo "GET\n";
-        assert(!$http->get('/'));
+        Assert::assert(!$http->get('/'));
         echo "CLOSED\n";
         Assert::eq($http->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
         Assert::eq($http->errCode, SOCKET_ECONNRESET);
-        assert(empty($http->body));
+        Assert::assert(empty($http->body));
         $pm->kill();
     });
 };

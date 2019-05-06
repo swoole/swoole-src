@@ -5,7 +5,7 @@ swoole_mysql_coro: transaction
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-error_reporting(E_DEPRECATED);
+error_reporting(E_ALL);
 go(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [
@@ -18,31 +18,27 @@ go(function () {
     $db->connect($server);
 
     $random = mt_rand();
-    assert($db->begin());
-    assert($db->query('INSERT INTO ckl (`domain`,`path`,`name`) VALUES ("www.swoole.com", "/", "' . $random . '")'));
-    assert(!empty($db->query('SELECT `name` FROM `ckl` WHERE `name`="' . $random . '"')));
-    assert($db->rollback());
-    assert(empty($db->query('SELECT `name` FROM `ckl` WHERE `name`="' . $random . '"')));
+    Assert::assert($db->begin());
+    Assert::assert($db->query('INSERT INTO ckl (`domain`,`path`,`name`) VALUES ("www.swoole.com", "/", "' . $random . '")'));
+    Assert::assert(!empty($db->query('SELECT `name` FROM `ckl` WHERE `name`="' . $random . '"')));
+    Assert::assert($db->rollback());
+    Assert::assert(empty($db->query('SELECT `name` FROM `ckl` WHERE `name`="' . $random . '"')));
     $random = mt_rand();
-    assert($db->begin());
-    assert($db->query('INSERT INTO ckl (`domain`,`path`,`name`) VALUES ("www.swoole.com", "/", "' . $random . '")'));
-    assert($db->commit());
-    assert(!empty($db->query('SELECT `name` FROM `ckl` WHERE `name`="' . $random . '"')));
-    assert($db->query('DELETE FROM `ckl` WHERE `name`="' . $random . '"'));
-    assert(empty($db->query('SELECT `name` FROM `ckl` WHERE `name`="' . $random . '"')));
+    Assert::assert($db->begin());
+    Assert::assert($db->query('INSERT INTO ckl (`domain`,`path`,`name`) VALUES ("www.swoole.com", "/", "' . $random . '")'));
+    Assert::assert($db->commit());
+    Assert::assert(!empty($db->query('SELECT `name` FROM `ckl` WHERE `name`="' . $random . '"')));
+    Assert::assert($db->query('DELETE FROM `ckl` WHERE `name`="' . $random . '"'));
+    Assert::assert(empty($db->query('SELECT `name` FROM `ckl` WHERE `name`="' . $random . '"')));
 
     $db->setDefer();
-    assert(!$db->begin());
-    assert(!$db->getDefer());
+    Assert::assert(!$db->begin());
     $db->setDefer();
-    assert(!$db->commit());
-    assert(!$db->getDefer());
+    Assert::assert(!$db->commit());
     $db->setDefer();
-    assert(!$db->begin());
-    assert(!$db->getDefer());
+    Assert::assert(!$db->begin());
     $db->setDefer();
-    assert(!$db->rollback());
-    assert(!$db->getDefer());
+    Assert::assert(!$db->rollback());
 });
 ?>
 --EXPECTF--

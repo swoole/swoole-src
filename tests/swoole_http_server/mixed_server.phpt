@@ -23,7 +23,7 @@ $pm->parentFunc = function ($pid) use ($pm, $tcp_options) {
     go(function () use ($pm, $tcp_options) {
         // http
         $http_client = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort(0));
-        assert($http_client->post('/', 'Swoole Http'));
+        Assert::assert($http_client->post('/', 'Swoole Http'));
         var_dump($http_client->body);
 
         // http2

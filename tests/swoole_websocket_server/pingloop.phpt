@@ -16,7 +16,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
         go(function () use ($pm) {
             $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             $ret = $cli->upgrade('/');
-            assert($ret);
+            Assert::assert($ret);
             $loop = 0;
             while ($response = $cli->recv(-1)) {
                 switch ($response->opcode) {
@@ -31,12 +31,12 @@ $pm->parentFunc = function (int $pid) use ($pm) {
                         } else {
                             $ret = $cli->push('', WEBSOCKET_OPCODE_PONG);
                         }
-                        assert($ret);
+                        Assert::assert($ret);
                         break;
                     case WEBSOCKET_OPCODE_CLOSE:
                         break 2;
                     default:
-                        assert(0, 'never hear.');
+                        Assert::assert(0, 'never hear.');
                 }
             }
             Assert::eq($loop, PING_LOOP);

@@ -18,13 +18,13 @@ for ($c = MAX_CONCURRENCY; $c--;) {
             });
             go(function () use ($send, $rand) {
                 $data = $send->pop();
-                if (assert($data === $rand)) {
+                if (Assert::assert($data === $rand)) {
                     co::sleep(0.001);
                     $send->push(true); // send ok
                 }
             });
             $ret = $send->push($rand);
-            assert($ret);
+            Assert::assert($ret);
             $response = $recv->pop();
             Assert::eq($response, new stdClass());
         }

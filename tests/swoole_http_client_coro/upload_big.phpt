@@ -12,10 +12,10 @@ go(function () {
     file_put_contents('/tmp/test.jpg', $content);
     $cli->addFile('/tmp/test.jpg', 'test.jpg');
     $ret = $cli->post('/', ['name' => 'rango']);
-    assert($ret);
-    assert(count($cli->headers) > 0);
+    Assert::assert($ret);
+    Assert::assert(count($cli->headers) > 0);
     Assert::eq($cli->statusCode, 200);
-    assert(strpos($cli->body, IS_IN_TRAVIS ? 'MIT News' : 'cust.edu.cn') !== false);
+    Assert::assert(strpos($cli->body, IS_IN_TRAVIS ? 'MIT News' : 'cust.edu.cn') !== false);
     $cli->close();
     @unlink('/tmp/test.jpg');
     echo "DONE\n";

@@ -67,7 +67,7 @@ $pm->parentFunc = function ($pid) use ($port)
     swoole_event::wait();
     swoole_process::kill($pid);
     phpt_var_dump($stats);
-    assert(($stats[5] + $stats[10]) < REQ_N);
+    Assert::assert(($stats[5] + $stats[10]) < REQ_N);
     Assert::eq(array_sum($stats) / count($stats), REQ_N);
     echo "DONE\n";
 };

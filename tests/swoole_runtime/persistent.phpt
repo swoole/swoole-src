@@ -21,7 +21,7 @@ $map = [];
 $timer_id = Swoole\Timer::tick(1000 / MAX_CONCURRENCY_MID, function () use (&$map) {
     $redis = new Redis();
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-    assert($redis->set('foo', 'bar'));
+    Assert::assert($redis->set('foo', 'bar'));
     Assert::eq($redis->get('foo'), 'bar');
     $map[] = $redis;
 });

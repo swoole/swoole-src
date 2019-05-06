@@ -9,7 +9,7 @@ const PID_FILE = __DIR__.'/test.pid';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)
 {
-    assert(is_file(PID_FILE));
+    Assert::assert(is_file(PID_FILE));
     swoole_process::kill($pid);
 };
 
@@ -36,6 +36,6 @@ $pm->childFunc = function () use ($pm)
 $pm->childFirst();
 $pm->run();
 clearstatcache();
-assert(!is_file(PID_FILE));
+Assert::assert(!is_file(PID_FILE));
 ?>
 --EXPECT--

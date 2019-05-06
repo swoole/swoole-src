@@ -34,7 +34,7 @@ function mysql(): \Swoole\Coroutine\MySQL
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB
     ]);
-    assert($connected);
+    Assert::assert($connected);
     return $mysql;
 }
 
@@ -69,7 +69,7 @@ for ($c = MAX_CONCURRENCY_LOW; $c--;) {
                     $insert = $mysql->prepare(
                         "INSERT INTO {$table_name} VALUES (" . rtrim(str_repeat('?, ', $field_size + 1), ', ') . ")"
                     );
-                    assert($insert);
+                    Assert::assert($insert);
                     $data_list[] = $gen = (function ($id, $fields_info) {
                         $r = ['id' => $id];
                         foreach ($fields_info as $info) {
@@ -81,14 +81,14 @@ for ($c = MAX_CONCURRENCY_LOW; $c--;) {
                         }
                         return $r;
                     })($n + 1, $fields_info);
-                    assert($insert->execute(array_values($gen)));
+                    Assert::assert($insert->execute(array_values($gen)));
                 }
                 $result = $mysql->prepare("SELECT * FROM {$table_name}")->execute();
                 Assert::eq(array_reverse($data_list), $result);
             } catch (\Throwable $e) {
-                assert(0);
+                Assert::assert(0);
             } finally {
-                assert($mysql->query("DROP TABLE {$table_name}"));
+                Assert::assert($mysql->query("DROP TABLE {$table_name}"));
             }
         }
     });

@@ -18,7 +18,7 @@ co::create(function () use ($chan) {
 co::create(function () use ($chan) {
     for($i=0; $i<10; $i++) {
         $data = $chan->pop();
-        assert(!empty($data));
+        Assert::assert(!empty($data));
     }
 });
 

@@ -27,6 +27,7 @@ typedef void (*coroutine_func_t)(void*);
 
 namespace swoole
 {
+#ifdef SW_CONTEXT_PROTECT_STACK_PAGE
 //namespace start
 static uint32_t& get_protect_stack_page()
 {
@@ -77,13 +78,15 @@ static bool unprotect_stack(void *top, uint32_t page)
     }
 #endif
 }
+#endif
+
 class Context
 {
 public:
     Context(size_t stack_size, coroutine_func_t fn, void* private_data);
     ~Context();
-    bool SwapIn();
-    bool SwapOut();
+    bool swap_in();
+    bool swap_out();
     static void context_func(void* arg);
 #if !defined(SW_NO_USE_ASM_CONTEXT) && defined(SW_LOG_TRACE_OPEN)
     ssize_t get_stack_usage();
@@ -105,7 +108,9 @@ private:
     coroutine_func_t fn_;
     char* stack_;
     uint32_t stack_size_;
+#ifdef SW_CONTEXT_PROTECT_STACK_PAGE
     uint32_t protect_page_;
+#endif
 #ifdef USE_VALGRIND
     uint32_t valgrind_stack_id;
 #endif

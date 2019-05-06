@@ -126,6 +126,15 @@ if ((substr(PHP_OS, 0, 3) == "WIN") && empty($environment["SystemRoot"])) {
     }
 }
 
+// swoole patch (composer)
+(function () {
+    $composer_dir = __DIR__ . '/include/lib';
+    $composer_info = `cd {$composer_dir} && composer update 2>&1`;
+    if (!file_exists($composer_dir . '/vendor/autoload.php')) {
+        throw new RuntimeException('Composer install failed:' . PHP_EOL . $composer_info);
+    }
+})();
+
 // Don't ever guess at the PHP executable location.
 // Require the explicit specification.
 // Otherwise we could end up testing the wrong file!
@@ -2235,7 +2244,7 @@ COMMAND $cmd
         // swoole patch: clear port
         if (preg_match('/bind\([^:]+?:(?<port>\d+?)\)/', $diff, $matches)) {
             $port = $matches['port'];
-            @`lsof -i:{$port} | grep LISTEN | awk '{print $2}' | xargs kill -9`;
+            @`lsof -i:{$port} | grep LISTEN | awk '{print $2}' | xargs kill -9 > /dev/null 2>&1`;
         }
 
         if (strpos($log_format, 'D') !== false && file_put_contents($diff_filename, $diff, FILE_BINARY) === false) {

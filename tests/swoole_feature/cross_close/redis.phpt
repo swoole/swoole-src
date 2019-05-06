@@ -16,15 +16,15 @@ $pm->parentFunc = function () use ($pm) {
             go(function () use ($pm, $redis) {
                 co::sleep(0.001);
                 echo "CLOSE\n";
-                assert($redis->close());
+                Assert::assert($redis->close());
                 echo "DONE\n";
                 $pm->kill();
             });
             $ret = $redis->get($pm->getRandomData());
             echo "CLOSED\n";
-            assert(!$ret);
-            assert(!$redis->connected);
-            assert(in_array($redis->errType, [SWOOLE_REDIS_ERR_IO, SWOOLE_REDIS_ERR_EOF], true));
+            Assert::assert(!$ret);
+            Assert::assert(!$redis->connected);
+            Assert::assert(in_array($redis->errType, [SWOOLE_REDIS_ERR_IO, SWOOLE_REDIS_ERR_EOF], true));
             if ($redis->errType === SWOOLE_REDIS_ERR_IO) {
                 Assert::eq($redis->errCode, SOCKET_ECONNRESET);
             }
@@ -34,10 +34,10 @@ $pm->parentFunc = function () use ($pm) {
 $pm->childFunc = function () use ($pm) {
     go(function () use ($pm) {
         $server = new Co\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-        assert($server->bind('127.0.0.1', $pm->getFreePort()));
-        assert($server->listen());
+        Assert::assert($server->bind('127.0.0.1', $pm->getFreePort()));
+        Assert::assert($server->listen());
         go(function () use ($pm, $server) {
-            if (assert(($conn = $server->accept()) && $conn instanceof Co\Socket)) {
+            if (Assert::assert(($conn = $server->accept()) && $conn instanceof Co\Socket)) {
                 switch_process();
                 $data = $conn->recv();
                 $random = $pm->getRandomData();

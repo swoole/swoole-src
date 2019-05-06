@@ -24,25 +24,25 @@ $pm->parentFunc = function ($pid) use ($port)
     for ($i = 0; $i < 1000; $i++)
     {
         $pkg = $client->recv();
-        assert($pkg and strlen($pkg) <= 2048);
+        Assert::assert($pkg and strlen($pkg) <= 2048);
     }
     echo "SUCCESS\n";
     //慢速发送
     for ($i = 0; $i < 100; $i++)
     {
         $pkg = $client->recv();
-        assert($pkg and strlen($pkg) <= 8192);
+        Assert::assert($pkg and strlen($pkg) <= 8192);
     }
     echo "SUCCESS\n";
     //大包
     for ($i = 0; $i < 1000; $i++)
     {
         $pkg = $client->recv();
-        assert($pkg != false);
+        Assert::assert($pkg != false);
         $_pkg = unserialize($pkg);
-        assert(is_array($_pkg));
+        Assert::assert(is_array($_pkg));
         Assert::eq($_pkg['i'], $i);
-        assert($_pkg['data'] <= 256 * 1024);
+        Assert::assert($_pkg['data'] <= 256 * 1024);
     }
     echo "SUCCESS\n";
     $client->close();

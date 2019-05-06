@@ -11,13 +11,13 @@ $pm->parentFunc = function (int $pid) use ($pm) {
         $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cli->set(['timeout' => 5]);
         $ret = $cli->upgrade('/');
-        assert($ret);
+        Assert::assert($ret);
         for ($i = 100; $i--;)
         {
             $ping = new swoole_websocket_frame;
             $ping->opcode = WEBSOCKET_OPCODE_PING;
             $ret = $cli->push($ping);
-            assert($ret);
+            Assert::assert($ret);
             $pong = $cli->recv();
             Assert::eq($pong->opcode, WEBSOCKET_OPCODE_PONG);
         }

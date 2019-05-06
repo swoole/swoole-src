@@ -178,7 +178,7 @@ public:
 
     static inline void set_stack_size(size_t size)
     {
-        stack_size = SW_MEM_ALIGNED_SIZE_EX(MAX(SW_CORO_MIN_STACK_SIZE, MIN(size, SW_CORO_MAX_STACK_SIZE)), SW_CORO_STACK_ALIGNED_SIZE);
+        stack_size = SW_MEM_ALIGNED_SIZE_EX(SW_MAX(SW_CORO_MIN_STACK_SIZE, SW_MIN(size, SW_CORO_MAX_STACK_SIZE)), SW_CORO_STACK_ALIGNED_SIZE);
     }
 
     static inline long get_last_cid()
@@ -227,7 +227,7 @@ protected:
         long cid = this->cid;
         origin = current;
         current = this;
-        ctx.SwapIn();
+        ctx.swap_in();
         if (ctx.end)
         {
             close();

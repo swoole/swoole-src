@@ -20,8 +20,8 @@ $pm->parentFunc = function () use ($pm) {
             'http_proxy_port' => HTTP_PROXY_PORT
         ]);
         $result = $cli->get('/');
-        assert($result);
-        assert(stripos($cli->body, 'swoole') !== false);
+        Assert::assert($result);
+        Assert::assert(stripos($cli->body, 'swoole') !== false);
         $pm->kill();
     });
 };

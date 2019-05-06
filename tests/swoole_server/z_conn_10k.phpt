@@ -22,7 +22,7 @@ $pm->parentFunc = function () use ($pm) {
                 $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
                 $client_map["{$c}.{$n}"] = $client;
                 if ($client->connect('127.0.0.1', $pm->getFreePort(), -1)) {
-                    if (assert($client->recv() === 'Hello Swoole!')) {
+                    if (Assert::assert($client->recv() === 'Hello Swoole!')) {
                         if (++$count === MAX_CONCURRENCY_MID * MAX_REQUESTS) {
                             var_dump($count);
                             echo "DONE\n";

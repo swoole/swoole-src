@@ -9,19 +9,19 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Lock;
 
 $lock = new Lock(LOCK::MUTEX);
-assert($lock->lock());
+Assert::assert($lock->lock());
 
 if (pcntl_fork() > 0)
 {
     sleep(1);
-    assert($lock->unlock());
-    assert($lock->lock());
+    Assert::assert($lock->unlock());
+    Assert::assert($lock->lock());
     pcntl_wait($status);
 }
 else
 {
     Assert::false($lock->trylock());
-    assert($lock->unlock());
+    Assert::assert($lock->unlock());
 }
 ?>
 --EXPECT--
