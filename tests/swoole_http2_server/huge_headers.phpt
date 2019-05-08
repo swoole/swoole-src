@@ -67,4 +67,4 @@ $pm->run();
 ?>
 --EXPECTF--
 Warning: Swoole\Coroutine\Http2\Client::send(): header cannot bigger than remote max_header_list_size %d in %s on line %d
-[%s]	WARNING	http2_client_send_request: http2_client_build_header() failed
+[%s]	WARNING	send_request: http2_client_build_header() failed
