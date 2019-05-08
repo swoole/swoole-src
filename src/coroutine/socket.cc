@@ -734,7 +734,7 @@ bool Socket::connect(string _host, int _port, int flags)
         return false;
     }
     //http proxy
-    if (http_proxy && http_proxy_handshake() == false)
+    if (http_proxy && !http_proxy->dont_handshake && http_proxy_handshake() == false)
     {
         return false;
     }
