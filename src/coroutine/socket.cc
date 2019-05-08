@@ -673,7 +673,7 @@ bool Socket::connect(string _host, int _port, int flags)
                     ssl_host_name = host;
                 }
 #endif
-                host = Coroutine::gethostbyname(host, AF_INET, connect_timeout);
+                host = coroutine::System::gethostbyname(host, AF_INET, connect_timeout);
                 if (host.empty())
                 {
                     set_err(SwooleG.error);
@@ -701,7 +701,7 @@ bool Socket::connect(string _host, int _port, int flags)
                     ssl_host_name = host;
                 }
 #endif
-                host = Coroutine::gethostbyname(host, AF_INET6, connect_timeout);
+                host = coroutine::System::gethostbyname(host, AF_INET6, connect_timeout);
                 if (host.empty())
                 {
                     set_err(SwooleG.error);

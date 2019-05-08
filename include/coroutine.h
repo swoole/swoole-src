@@ -18,6 +18,7 @@
 
 #include "swoole.h"
 #include "context.h"
+#include "async.h"
 
 #include <limits.h>
 
@@ -52,9 +53,6 @@ typedef void (*coro_php_close_t)(void*);
 
 namespace swoole
 {
-void set_dns_cache_expire(time_t expire);
-void set_dns_cache_capacity(size_t capacity);
-void clear_dns_cache();
 
 struct socket_poll_fd
 {
@@ -119,12 +117,6 @@ public:
     static std::unordered_map<long, Coroutine*> coroutines;
 
     static void print_list();
-
-    static int sleep(double sec);
-    static swString* read_file(const char *file, int lock);
-    static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
-    static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
-    static bool socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout);
 
     static void set_on_yield(coro_php_yield_t func);
     static void set_on_resume(coro_php_resume_t func);
@@ -234,6 +226,29 @@ protected:
         }
         return cid;
     }
+};
+
+namespace coroutine
+{
+class System
+{
+public:
+    static int sleep(double sec);
+    static swString* read_file(const char *file, int lock);
+    static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
+    static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
+    static void set_dns_cache_expire(time_t expire);
+    static void set_dns_cache_capacity(size_t capacity);
+    static void clear_dns_cache();
+    static bool socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout);
+};
+}
+;
+
+struct aio_task
+{
+    Coroutine *co;
+    swAio_event *event;
 };
 }
 

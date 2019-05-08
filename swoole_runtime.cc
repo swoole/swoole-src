@@ -21,6 +21,7 @@
 
 using namespace swoole;
 using namespace std;
+using namespace swoole::coroutine;
 
 extern "C"
 {
@@ -1267,7 +1268,7 @@ static PHP_FUNCTION(_sleep)
 
     if (num >= SW_TIMER_MIN_SEC && Coroutine::get_current())
     {
-        RETURN_LONG(Coroutine::sleep((double ) num) < 0 ? num : 0);
+        RETURN_LONG(System::sleep((double ) num) < 0 ? num : 0);
     }
     else
     {
@@ -1291,7 +1292,7 @@ static PHP_FUNCTION(_usleep)
 
     if (_time >= SW_TIMER_MIN_SEC && Coroutine::get_current())
     {
-        Coroutine::sleep((double) num / 1000000);
+        System::sleep((double) num / 1000000);
     }
     else
     {
@@ -1320,7 +1321,7 @@ static PHP_FUNCTION(_time_nanosleep)
     double _time = (double) tv_sec + (double) tv_nsec / 1000000000.00;
     if (_time >= SW_TIMER_MIN_SEC && Coroutine::get_current())
     {
-        Coroutine::sleep(_time);
+        System::sleep(_time);
     }
     else
     {
@@ -1378,7 +1379,7 @@ static PHP_FUNCTION(_time_sleep_until)
     double _time = (double) php_req.tv_sec + (double) php_req.tv_nsec / 1000000000.00;
     if (_time >= SW_TIMER_MIN_SEC && Coroutine::get_current())
     {
-        Coroutine::sleep(_time);
+        System::sleep(_time);
     }
     else
     {
@@ -1569,7 +1570,7 @@ static PHP_FUNCTION(_stream_select)
     /**
      * timeout or add failed
      */
-    if (!Coroutine::socket_poll(fds, timeout))
+    if (!System::socket_poll(fds, timeout))
     {
         RETURN_LONG(0);
     }
