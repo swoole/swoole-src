@@ -17,15 +17,14 @@
  */
 
 #include "php_swoole_cxx.h"
-
-#include "swoole_http_client.h"
-#include "swoole_coroutine.h"
 #include "coroutine_c_api.h"
+#include "swoole_http_client.h"
 
 #include "mime_types.h"
 #include "base64.h"
 
 using namespace swoole;
+using swoole::coroutine::Socket;
 
 swString *http_client_buffer;
 

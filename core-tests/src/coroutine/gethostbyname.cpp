@@ -1,6 +1,7 @@
 #include "tests.h"
 
-using namespace swoole;
+#include "coroutine_system.h"
+
 using swoole::coroutine::System;
 
 TEST(coroutine_gethostbyname, resolve_with_cache)

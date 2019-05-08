@@ -31,9 +31,11 @@
 #include <string>
 #include <unordered_map>
 
-using namespace swoole;
 using namespace std;
 using swoole::coroutine::System;
+using swoole::coroutine::Socket;
+using swoole::Coroutine;
+using swoole::PHPCoroutine;
 
 typedef struct
 {

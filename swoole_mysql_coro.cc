@@ -18,7 +18,6 @@
 
 #include "php_swoole_cxx.h"
 
-#include "swoole_coroutine.h"
 #include "swoole_mysql_coro.h"
 
 #include "error.h"
@@ -38,6 +37,7 @@ extern "C" {
 }
 
 using namespace swoole;
+using swoole::coroutine::Socket;
 
 static PHP_METHOD(swoole_mysql_coro, __construct);
 static PHP_METHOD(swoole_mysql_coro, __destruct);

@@ -15,10 +15,7 @@
 */
 
 #include "swoole.h"
-
 #include "coroutine.h"
-#include "socket.h"
-#include "api.h"
 #include "coroutine_c_api.h"
 
 #include <fcntl.h>

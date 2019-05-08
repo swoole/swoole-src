@@ -14,11 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
-#include "socket.h"
-#include "async.h"
-#include "coroutine.h"
-
-#ifndef _WIN32
+#include "swoole.h"
+#include "coroutine_cxx_api.h"
 
 #include <sys/file.h>
 #include <sys/types.h>
@@ -29,7 +26,8 @@
 #include <string>
 #include <iostream>
 
-using namespace swoole;
+using swoole::Coroutine;
+using swoole::coroutine::Socket;
 
 extern "C"
 {
@@ -638,5 +636,3 @@ struct dirent *swoole_coroutine_readdir(DIR *dirp)
 }
 #endif
 }
-
-#endif

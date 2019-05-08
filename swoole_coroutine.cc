@@ -16,7 +16,6 @@
  */
 
 #include "php_swoole_cxx.h"
-#include "swoole_coroutine.h"
 
 using namespace swoole;
 

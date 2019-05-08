@@ -18,12 +18,12 @@
 #include "swoole_http.h"
 
 #ifdef SW_USE_HTTP2
-#include "swoole_coroutine.h"
 #include "swoole_http_v2_client.h"
 
 #include <vector>
 
 using namespace swoole;
+using swoole::coroutine::Socket;
 
 static zend_class_entry *swoole_http2_client_coro_ce;
 static zend_object_handlers swoole_http2_client_coro_handlers;

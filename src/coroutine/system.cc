@@ -14,15 +14,18 @@
   +----------------------------------------------------------------------+
 */
 
-#include "socket.h"
-#include "async.h"
-#include "coroutine.h"
-
+#include "coroutine_system.h"
 #include "lru_cache.h"
 
-using namespace swoole;
 using namespace std;
+using namespace swoole;
 using swoole::coroutine::System;
+
+struct aio_task
+{
+    Coroutine *co;
+    swAio_event *event;
+};
 
 static size_t dns_cache_capacity = 1000;
 static time_t dns_cache_expire = 60;

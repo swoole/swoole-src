@@ -55,7 +55,7 @@ void to_zval_read_ucred(const char *data, zval *zv, res_context *ctx);
 void from_zval_write_msghdr_recv(const zval *container, char *msghdr_c, ser_context *ctx);
 
 /* ENTRY POINTS FOR CONVERSIONS */
-void *from_zval_run_conversions(const zval *container, swoole::Socket *sock, from_zval_write_field *writer,
+void *from_zval_run_conversions(const zval *container, Socket *sock, from_zval_write_field *writer,
         size_t struct_size, const char *top_name, zend_llist **allocations /* out */, struct err_s *err /* in/out */);
 
 zval *to_zval_run_conversions(const char *structure, to_zval_read_field *reader, const char *top_name,

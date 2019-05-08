@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
  */
 #include "php_swoole_cxx.h"
-#include "swoole_coroutine.h"
 
 #include <unordered_map>
 #include <initializer_list>
@@ -22,6 +21,7 @@
 using namespace swoole;
 using namespace std;
 using swoole::coroutine::System;
+using swoole::coroutine::Socket;
 
 extern "C"
 {

@@ -25,7 +25,7 @@ struct _ser_context
     zend_llist keys,
     /* common part to res_context ends here */
     allocations;
-    swoole::Socket *sock;
+    Socket *sock;
 };
 
 struct _res_context
@@ -325,7 +325,7 @@ static void free_from_zval_allocation(void *alloc_ptr_ptr)
 	efree(*(void**)alloc_ptr_ptr);
 }
 
-void *from_zval_run_conversions(const zval *container, swoole::Socket *sock, from_zval_write_field *writer,
+void *from_zval_run_conversions(const zval *container, Socket *sock, from_zval_write_field *writer,
         size_t struct_size, const char *top_name, zend_llist **allocations /* out */, struct err_s *err /* in/out */)
 {
 	ser_context ctx;

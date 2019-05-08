@@ -1,5 +1,6 @@
-#include "socket.h"
-#include "async.h"
+#include "coroutine.h"
+#include "coroutine_socket.h"
+#include "coroutine_system.h"
 #include "buffer.h"
 #include "base64.h"
 
@@ -10,6 +11,7 @@
 using namespace swoole;
 using namespace std;
 using swoole::coroutine::System;
+using swoole::coroutine::Socket;
 
 double Socket::default_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double Socket::default_read_timeout    = SW_DEFAULT_SOCKET_READ_TIMEOUT;

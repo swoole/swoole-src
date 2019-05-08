@@ -1,7 +1,6 @@
 #pragma once
 
-#include "coroutine.h"
-#include "socket.h"
+#include "coroutine_cxx_api.h"
 #include "zend_vm.h"
 #include "zend_closures.h"
 

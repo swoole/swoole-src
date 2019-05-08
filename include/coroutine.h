@@ -227,29 +227,6 @@ protected:
         return cid;
     }
 };
-
-namespace coroutine
-{
-class System
-{
-public:
-    static int sleep(double sec);
-    static swString* read_file(const char *file, int lock);
-    static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
-    static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
-    static void set_dns_cache_expire(time_t expire);
-    static void set_dns_cache_capacity(size_t capacity);
-    static void clear_dns_cache();
-    static bool socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout);
-};
-}
-;
-
-struct aio_task
-{
-    Coroutine *co;
-    swAio_event *event;
-};
 }
 
 /**

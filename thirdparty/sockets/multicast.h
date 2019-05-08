@@ -20,6 +20,8 @@
 
 #include "php_swoole_cxx.h"
 
+using swoole::coroutine::Socket;
+
 #if defined(MCAST_JOIN_GROUP) && !defined(__APPLE__)
 # define RFC3678_API 1
 /* has block/unblock and source membership, in this case for both IPv4 and IPv6 */
@@ -47,26 +49,26 @@
 # define PHP_MCAST_LEAVE_SOURCE_GROUP	MCAST_LEAVE_SOURCE_GROUP
 #endif
 
-int php_do_setsockopt_ip_mcast(swoole::Socket *php_sock, int level, int optname, zval *arg4);
-int php_do_setsockopt_ipv6_mcast(swoole::Socket *php_sock, int level, int optname, zval *arg4);
-int php_if_index_to_addr4(unsigned if_index, swoole::Socket *php_sock, struct in_addr *out_addr);
-int php_add4_to_if_index(struct in_addr *addr, swoole::Socket *php_sock, unsigned *if_index);
+int php_do_setsockopt_ip_mcast(Socket *php_sock, int level, int optname, zval *arg4);
+int php_do_setsockopt_ipv6_mcast(Socket *php_sock, int level, int optname, zval *arg4);
+int php_if_index_to_addr4(unsigned if_index, Socket *php_sock, struct in_addr *out_addr);
+int php_add4_to_if_index(struct in_addr *addr, Socket *php_sock, unsigned *if_index);
 int php_string_to_if_index(const char *val, unsigned *out);
-int php_mcast_join(swoole::Socket *sock, int level, struct sockaddr *group, socklen_t group_len, unsigned int if_index);
+int php_mcast_join(Socket *sock, int level, struct sockaddr *group, socklen_t group_len, unsigned int if_index);
 
-int php_mcast_leave(swoole::Socket *sock, int level, struct sockaddr *group, socklen_t group_len,
+int php_mcast_leave(Socket *sock, int level, struct sockaddr *group, socklen_t group_len,
         unsigned int if_index);
 
 #ifdef HAS_MCAST_EXT
-int php_mcast_join_source(swoole::Socket *sock, int level, struct sockaddr *group, socklen_t group_len,
+int php_mcast_join_source(Socket *sock, int level, struct sockaddr *group, socklen_t group_len,
         struct sockaddr *source, socklen_t source_len, unsigned int if_index);
 
-int php_mcast_leave_source(swoole::Socket *sock, int level, struct sockaddr *group, socklen_t group_len,
+int php_mcast_leave_source(Socket *sock, int level, struct sockaddr *group, socklen_t group_len,
         struct sockaddr *source, socklen_t source_len, unsigned int if_index);
 
-int php_mcast_block_source(swoole::Socket *sock, int level, struct sockaddr *group, socklen_t group_len,
+int php_mcast_block_source(Socket *sock, int level, struct sockaddr *group, socklen_t group_len,
         struct sockaddr *source, socklen_t source_len, unsigned int if_index);
 
-int php_mcast_unblock_source(swoole::Socket *sock, int level, struct sockaddr *group, socklen_t group_len,
+int php_mcast_unblock_source(Socket *sock, int level, struct sockaddr *group, socklen_t group_len,
         struct sockaddr *source, socklen_t source_len, unsigned int if_index);
 #endif
