@@ -31,8 +31,12 @@ SQL;
         for ($n = MAX_REQUESTS; $n--;) {
             $ret = $stmt->execute(['hello mysql!']);
             Assert::eq(current($ret[0]), 'You said: "hello mysql!"');
+            Assert::null($stmt->nextResult());
         }
     }
 });
+Swoole\Event::wait();
+echo "DONE\n";
 ?>
 --EXPECT--
+DONE

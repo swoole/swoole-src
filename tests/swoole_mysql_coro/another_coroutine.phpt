@@ -8,9 +8,12 @@ require __DIR__ . '/../include/skipif.inc';
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $process = new Swoole\Process(function () {
-    function get(Co\Mysql $client)
+    function get(Co\Mysql $cli)
     {
-        $client->query('SELECT 1');
+        $cli->query('SELECT SLEEP(1)');
+        Assert::eq($cli->errno, SOCKET_EINPROGRESS);
+        echo $cli->error . PHP_EOL;
+        $cli->recv();
     }
 
     $cli = new Co\MySQL;
@@ -21,10 +24,12 @@ $process = new Swoole\Process(function () {
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB
     ]);
+    Assert::true($cli->setDefer());
     Assert::true($connected);
     if ($connected) {
         go(function () use ($cli) {
-            $cli->query('SELECT 1');
+            $cli->query('SELECT SLEEP(1)');
+            $cli->recv();
         });
         go(function () use ($cli) {
             (function () use ($cli) {
@@ -40,10 +45,11 @@ $process->start();
 Swoole\Process::wait();
 ?>
 --EXPECTF--
+mysql client is busy now, %s
 [%s]	ERROR	(PHP Fatal Error: %d):
-Swoole\Coroutine\MySQL::query: mysql client has already been bound to another coroutine#%d, reading or writing of the same socket in multiple coroutines at the same time is not allowed
+Swoole\Coroutine\MySQL::recv: Socket#%d has already been bound to another coroutine#%d, reading of the same socket in multiple coroutines at the same time is not allowed
 Stack trace:
-#0  Swoole\Coroutine\MySQL->query() called at [%s:%d]
-#1  get() called at [%s:%d]
-#2  {closure}() called at [%s:%d]
-#3  {closure}() called at [%s:%d]
+#0  Swoole\Coroutine\MySQL->recv() called at [%s/tests/swoole_mysql_coro/another_coroutine.php:%d]
+#1  get() called at [%s/tests/swoole_mysql_coro/another_coroutine.php:%d]
+#2  {closure}() called at [%s/tests/swoole_mysql_coro/another_coroutine.php:%d]
+#3  {closure}() called at [%s/tests/swoole_mysql_coro/another_coroutine.php:%d]

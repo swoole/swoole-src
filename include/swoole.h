@@ -35,15 +35,16 @@ extern "C" {
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
-#include <stddef.h>
 #include <inttypes.h>
+#include <limits.h>
+#include <math.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 #include <signal.h>
 #include <time.h>
-#include <limits.h>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -204,12 +205,24 @@ typedef unsigned long ulong_t;
 
 #ifdef SW_DEBUG
 #define SW_ASSERT(e)           assert(e)
+#define SW_ASSERT_1BYTE(v)     do { \
+    size_t i = 0, n = 0; \
+    for (; i < sizeof(v); i++) { \
+        n += ((v >> i) & 1) ? 1 : 0; \
+    } \
+    assert(n == 1); \
+} while (0)
 #else
 #define SW_ASSERT(e)
+#define SW_ASSERT_1BYTE(v)
 #endif
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
 
 /*-----------------------------------Memory------------------------------------*/
+
+// Evaluates to the number of elements in 'array'
+#define SW_ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
+
 #define SW_DEFAULT_ALIGNMENT   sizeof(unsigned long)
 #define SW_MEM_ALIGNED_SIZE(size) \
         SW_MEM_ALIGNED_SIZE_EX(size, SW_DEFAULT_ALIGNMENT)
@@ -491,8 +504,29 @@ enum swWorker_status
         SwooleG.write_log(SW_LOG_DEBUG, sw_error, _sw_errror_len);\
         SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
     }
+
+#define swHexDump(data, length) \
+    do { \
+        const char *__data = (data); \
+        size_t __length = (length); \
+        swDebug("+----------+------------+-----------+-----------+------------+------------------+"); \
+        for (size_t of = 0; of < __length; of += 16) \
+        { \
+            char hex[16 * 3 + 1]; \
+            char str[16 + 1]; \
+            size_t i, hof = 0, sof = 0; \
+            for (i = of; i < of + 16 && i < __length; i++) \
+            { \
+                hof += sprintf(hex + hof, "%02x ", (__data)[i] & 0xff); \
+                sof += sprintf(str + sof, "%c", isprint((int) (__data)[i]) ? (__data)[i] : '.'); \
+            } \
+            swDebug("| %08x | %-48s| %-16s |", of, hex, str); \
+        } \
+        swDebug("+----------+------------+-----------+-----------+------------+------------------+"); \
+    } while (0)
 #else
 #define swDebug(str,...)
+#define swHexDump(data, length)
 #endif
 
 enum swTraceType
@@ -1267,6 +1301,9 @@ void swLog_free(void);
 uint64_t swoole_hash_key(char *str, int str_len);
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v);
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
+
+extern void swoole_sha1(const char *str, int _len, unsigned char *digest);
+extern void swoole_sha256(const char *str, int _len, unsigned char *digest);
 
 static sw_inline uint16_t swoole_swap_endian16(uint16_t x)
 {

@@ -22,4 +22,4 @@ go(function () {
 ?>
 --EXPECTF--
 1045
-#28000Access denied for user 'root'@'%s' (using password: YES)
+SQLSTATE[28000] [1045] Access denied for user 'root'@'%s' (using password: YES)

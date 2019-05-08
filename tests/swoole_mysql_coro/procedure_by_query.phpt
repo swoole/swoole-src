@@ -1,5 +1,5 @@
 --TEST--
-swoole_mysql_coro: procedure without query (#2117)
+swoole_mysql_coro: procedure without fetch mode by query
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -12,7 +12,8 @@ go(function () {
         'port' => MYSQL_SERVER_PORT,
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
-        'database' => MYSQL_SERVER_DB
+        'database' => MYSQL_SERVER_DB,
+        'strict_type' => true
     ];
 
     $clear = <<<SQL
@@ -40,20 +41,17 @@ SQL;
     $db->connect($server);
 
     if ($db->query($clear) && $db->query($procedure)) {
-        for ($n = MAX_REQUESTS_LOW; $n--;) {
-            $res = $db->query('CALL reply("hello mysql!")');
+        for ($n = MAX_REQUESTS; $n--;) {
             $_map = $map;
-            do {
-                Assert::eq(current($res[0]), array_shift($_map));
-            } while ($res = $db->nextResult());
-        }
-        for ($n = MAX_REQUESTS_LOW; $n--;) {
             $res = $db->query('CALL reply("hello mysql!")');
-            $_map = $map;
             do {
-                Assert::eq(current($res[0]), array_shift($_map));
+                if (is_array($res)) {
+                    Assert::eq(current($res[0]), array_shift($_map));
+                } else {
+                    Assert::true($res);
+                }
             } while ($res = $db->nextResult());
-            Assert::eq($db->affected_rows, 1, 'get the affected rows failed!');
+            Assert::eq($db->affected_rows, 1);
             Assert::assert(empty($_map), 'there are some results lost!');
         }
     }

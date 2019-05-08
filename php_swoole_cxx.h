@@ -1,6 +1,7 @@
 #pragma once
 
 #include "php_swoole.h"
+#include "swoole_cxx.h"
 #include "swoole_coroutine.h"
 
 SW_API bool php_swoole_export_socket(zval *object, int fd, enum swSocket_type type);

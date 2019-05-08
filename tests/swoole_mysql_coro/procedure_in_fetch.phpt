@@ -48,33 +48,35 @@ SQL;
         do {
             $res = $stmt->fetchAll();
             Assert::eq(current($res[0]), array_shift($_map));
-        } while ($stmt->nextResult());
-        Assert::eq($stmt->affected_rows, 1, 'get the affected rows failed!');
+        } while ($ret = $stmt->nextResult());
+        Assert::eq($stmt->affected_rows, 1);
         Assert::assert(empty($_map), 'there are some results lost!');
 
         //PDO
-        !extension_loaded('PDO') && exit("DONE\n");
-        $_map = $map;
-        try {
-            $pdo = new PDO(
-                "mysql:host=" . MYSQL_SERVER_HOST . ";port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
-                MYSQL_SERVER_USER, MYSQL_SERVER_PWD
-            );
-            $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
-            $stmt = $pdo->prepare("CALL reply(?)");
-            Assert::true($stmt->execute(['hello mysql!']));
-            do {
-                $res = $stmt->fetchAll();
-                Assert::eq(current($res[0]), array_shift($_map));
-            } while ($ret = $stmt->nextRowset());
-            Assert::eq($stmt->rowCount(), 1, 'get the affected rows failed!');
-            Assert::assert(empty($_map), 'there are some results lost!');
-        } catch (\PDOException $e) {
-            Assert::eq($e->getCode(), 2054); // not support auth plugin
+        if (extension_loaded('PDO')) {
+            $_map = $map;
+            try {
+                $pdo = new PDO(
+                    "mysql:host=" . MYSQL_SERVER_HOST . ";port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+                    MYSQL_SERVER_USER, MYSQL_SERVER_PWD
+                );
+                $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+                $stmt = $pdo->prepare("CALL reply(?)");
+                Assert::true($stmt->execute(['hello mysql!']));
+                do {
+                    $res = $stmt->fetchAll();
+                    Assert::eq(current($res[0]), array_shift($_map));
+                } while ($ret = $stmt->nextRowset());
+                Assert::eq($stmt->rowCount(), 1, 'get the affected rows failed!');
+                Assert::assert(empty($_map), 'there are some results lost!');
+            } catch (\PDOException $e) {
+                Assert::eq($e->getCode(), 2054); // not support auth plugin
+            }
         }
-        echo "DONE\n";
     }
 });
+Swoole\Event::wait();
+echo "DONE\n";
 ?>
 --EXPECT--
 DONE

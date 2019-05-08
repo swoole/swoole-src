@@ -36,6 +36,11 @@ enum swTimeout_type
     SW_TIMEOUT_RDWR = SW_TIMEOUT_READ | SW_TIMEOUT_WRITE,
     SW_TIMEOUT_ALL = 0xff,
 };
+
+static constexpr enum swTimeout_type swTimeout_type_list[3] =
+{
+    SW_TIMEOUT_CONNECT, SW_TIMEOUT_READ, SW_TIMEOUT_WRITE
+};
 }
 
 namespace swoole { namespace coroutine {
@@ -127,12 +132,12 @@ public:
         return socket ? socket->fd : -1;
     }
 
-    inline bool has_bound()
+    inline bool has_bound(const enum swEvent_type event = SW_EVENT_RDWR)
     {
-        return read_co || write_co;
+        return !!get_bound_co(event);
     }
 
-    inline Coroutine* get_bound_co(enum swEvent_type event)
+    inline Coroutine* get_bound_co(const enum swEvent_type event)
     {
         if (likely(event & SW_EVENT_READ))
         {
@@ -145,7 +150,7 @@ public:
         return nullptr;
     }
 
-    inline long get_bound_cid(enum swEvent_type event = SW_EVENT_RDWR)
+    inline long get_bound_cid(const enum swEvent_type event = SW_EVENT_RDWR)
     {
         Coroutine *co = get_bound_co(event);
         return co ? co->get_cid() : 0;
@@ -191,19 +196,19 @@ public:
 
     inline double get_timeout(enum swTimeout_type type = SW_TIMEOUT_ALL)
     {
-        if (type & SW_TIMEOUT_CONNECT)
+        SW_ASSERT_1BYTE(type);
+        if (type == SW_TIMEOUT_CONNECT)
         {
             return connect_timeout;
         }
-        else if (type & SW_TIMEOUT_READ)
+        else if (type == SW_TIMEOUT_READ)
         {
             return read_timeout;
         }
-        else if (type & SW_TIMEOUT_WRITE)
+        else // if (type == SW_TIMEOUT_WRITE)
         {
             return write_timeout;
         }
-        return -1;
     }
 
     inline bool set_option(int level, int optname, int optval)
@@ -361,29 +366,44 @@ public:
         timeout_setter(Socket *socket, double timeout, const enum swTimeout_type type) :
             socket(socket), timeout(timeout), type(type)
         {
-            SW_ASSERT(type == SW_TIMEOUT_CONNECT || type == SW_TIMEOUT_READ || type == SW_TIMEOUT_WRITE);
-            original_timeout = socket->get_timeout(type);
             if (timeout == 0)
             {
-                this->timeout = original_timeout;
+                return;
             }
-            else if (timeout != original_timeout)
+            for (uint8_t i = 0; i < SW_ARRAY_SIZE(swTimeout_type_list); i++)
             {
-                socket->set_timeout(timeout, type);
+                if (type & swTimeout_type_list[i])
+                {
+                    original_timeout[i] = socket->get_timeout(swTimeout_type_list[i]);
+                    if (timeout != original_timeout[i])
+                    {
+                        socket->set_timeout(timeout, swTimeout_type_list[i]);
+                    }
+                }
             }
         }
         ~timeout_setter()
         {
-            if (timeout != original_timeout)
+            if (timeout == 0)
             {
-                socket->set_timeout(original_timeout, type);
+                return;
+            }
+            for (uint8_t i = 0; i < SW_ARRAY_SIZE(swTimeout_type_list); i++)
+            {
+                if (type & swTimeout_type_list[i])
+                {
+                    if (timeout != original_timeout[i])
+                    {
+                        socket->set_timeout(original_timeout[i], swTimeout_type_list[i]);
+                    }
+                }
             }
         }
     protected:
         Socket *socket;
         double timeout;
         enum swTimeout_type type;
-        double original_timeout;
+        double original_timeout[sizeof(swTimeout_type_list)] = {0};
     };
 
     class timeout_controller: public timeout_setter
@@ -392,26 +412,31 @@ public:
         timeout_controller(Socket *socket, double timeout, const enum swTimeout_type type) :
                 timeout_setter(socket, timeout, type)
         {
-            if (timeout > 0)
-            {
-                startup_time = swoole_microtime();
-            }
         }
-        inline bool has_timedout()
+        inline bool has_timedout(const enum swTimeout_type type)
         {
+            SW_ASSERT_1BYTE(type);
             if (timeout > 0)
             {
-                double used_time = swoole_microtime() - startup_time;
-                if (timeout - used_time < SW_TIMER_MIN_SEC)
+                if (unlikely(startup_time == 0))
                 {
-                    return true;
+                    startup_time = swoole_microtime();
                 }
-                socket->set_timeout(timeout - used_time, type);
+                else
+                {
+                    double used_time = swoole_microtime() - startup_time;
+                    if (unlikely(timeout - used_time < SW_TIMER_MIN_SEC))
+                    {
+                        socket->set_err(ETIMEDOUT);
+                        return true;
+                    }
+                    socket->set_timeout(timeout - used_time, type);
+                }
             }
             return false;
         }
     protected:
-        double startup_time;
+        double startup_time = 0;
     };
 };
 //-------------------------------------------------------------------------------

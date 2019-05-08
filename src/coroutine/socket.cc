@@ -679,7 +679,7 @@ bool Socket::connect(string _host, int _port, int flags)
                 host = System::gethostbyname(host, AF_INET, connect_timeout);
                 if (host.empty())
                 {
-                    set_err(SwooleG.error);
+                    set_err(SwooleG.error, hstrerror(SwooleG.error));
                     return false;
                 }
                 continue;
@@ -1590,6 +1590,11 @@ bool Socket::shutdown(int __how)
  */
 bool Socket::close()
 {
+    if (socket->fd < 0)
+    {
+        set_err(EBADF);
+        return true;
+    }
     if (unlikely(has_bound()))
     {
         if (socket->closed)

@@ -389,7 +389,6 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset);
 #endif
 void php_swoole_websocket_frame_unpack(swString *data, zval *zframe);
 int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opcode, zend_bool fin, zend_bool mask);
-void php_swoole_sha1(const char *str, int _len, unsigned char *digest);
 
 int php_swoole_task_pack(swEventData *task, zval *data);
 zval* php_swoole_task_unpack(swEventData *task_result);
@@ -659,6 +658,14 @@ static sw_inline void sw_zval_free(zval *val)
 #define SW_REGISTER_STRING_CONSTANT(name, value)  REGISTER_STRING_CONSTANT(name, (char *) value, CONST_CS | CONST_PERSISTENT)
 #define SW_REGISTER_STRINGL_CONSTANT(name, value) REGISTER_STRINGL_CONSTANT(name, (char *) value, CONST_CS | CONST_PERSISTENT)
 
+//----------------------------------Number API-----------------------------------
+
+#if PHP_VERSION_ID >= 70011
+#define sw_php_math_round(value, places, mode) _php_math_round(value, places, mode)
+#else
+#define sw_php_math_round(value, places, mode) ((double) (value))
+#endif
+
 //----------------------------------String API-----------------------------------
 
 #define SW_PHP_OB_START(zoutput) \
@@ -701,18 +708,23 @@ static sw_inline zend_string* sw_zend_string_recycle(zend_string *s, size_t allo
     else {k = ZSTR_VAL(_foreach_key), klen=ZSTR_LEN(_foreach_key); ktype = 1;} {
 #define SW_HASHTABLE_FOREACH_END()                 } ZEND_HASH_FOREACH_END();
 
-static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong value)
+static sw_inline int add_assoc_ulong_safe_ex(zval *arg, const char *key, size_t key_len, zend_ulong value)
 {
     if (likely(value <= ZEND_LONG_MAX))
     {
-        return add_assoc_long(arg, key, value);
+        return add_assoc_long_ex(arg, key, key_len, value);
     }
     else
     {
         char buf[MAX_LENGTH_OF_LONG + 1] = {0};
         sprintf((char *) buf, ZEND_ULONG_FMT, value);
-        return add_assoc_string(arg, key, buf);
+        return add_assoc_string_ex(arg, key, key_len, buf);
     }
+}
+
+static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong value)
+{
+    return add_assoc_ulong_safe_ex(arg, key, strlen(key), value);
 }
 
 //----------------------------------Class API------------------------------------
