@@ -38,7 +38,7 @@
 	} while (0)
 
 
-int php_do_setsockopt_ipv6_rfc3542(swoole::Socket *php_sock, int level, int optname, zval *arg4)
+int php_do_setsockopt_ipv6_rfc3542(Socket *php_sock, int level, int optname, zval *arg4)
 {
 #ifdef IPV6_PKTINFO
 	struct err_s	err = {0};
@@ -81,7 +81,7 @@ dosockopt:
 	return retval != 0 ? FAILURE : SUCCESS;
 }
 
-int php_do_getsockopt_ipv6_rfc3542(swoole::Socket *php_sock, int level, int optname, zval *result)
+int php_do_getsockopt_ipv6_rfc3542(Socket *php_sock, int level, int optname, zval *result)
 {
     struct err_s err =
     { 0 };

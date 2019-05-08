@@ -180,12 +180,10 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
     {
         memcpy(&task.info.fd, &pkt->info.addr.inet_v6.sin6_addr, sizeof(task.info.fd));
     }
-#ifndef _WIN32
     else
     {
         task.info.fd = swoole_crc32(pkt->info.addr.un.sun_path, pkt->info.len);
     }
-#endif
 
     pkt->length = ret;
     task.info.len = sizeof(*pkt) + ret;
@@ -782,10 +780,16 @@ int swReactorThread_start(swServer *serv)
 {
     int ret;
     swReactor *main_reactor = sw_malloc(sizeof(swReactor));
+    if (!main_reactor)
+    {
+        swWarn("malloc(%ld) failed", sizeof(swReactor));
+        return SW_ERR;
+    }
 
     ret = swReactor_create(main_reactor, SW_REACTOR_MAXEVENTS);
     if (ret < 0)
     {
+        sw_free(main_reactor);
         swWarn("Reactor create failed");
         return SW_ERR;
     }
@@ -812,6 +816,8 @@ int swReactorThread_start(swServer *serv)
         }
         if (swPort_listen(ls) < 0)
         {
+            _failed: main_reactor->free(main_reactor);
+            sw_free(main_reactor);
             return SW_ERR;
         }
     }
@@ -874,7 +880,7 @@ int swReactorThread_start(swServer *serv)
         if (param == NULL)
         {
             swError("malloc failed");
-            return SW_ERR;
+            goto _failed;
         }
 
         param->object = serv;
@@ -925,7 +931,7 @@ int swReactorThread_start(swServer *serv)
     swTimer_node *update_timer;
     if ((update_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
     {
-        return SW_ERR;
+        goto _failed;
     }
 
     if (serv->onStart != NULL)

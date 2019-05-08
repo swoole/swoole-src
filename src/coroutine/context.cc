@@ -39,6 +39,11 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
     swap_ctx_ = nullptr;
 
     stack_ = (char*) sw_malloc(stack_size_);
+    if (!stack_)
+    {
+        swFatalError(SW_ERROR_MALLOC_FAIL, "failed to malloc stack memory.");
+        exit(254);
+    }
     swTraceLog(SW_TRACE_COROUTINE, "alloc stack: size=%u, ptr=%p", stack_size_, stack_);
 
     void* sp = (void*) ((char*) stack_ + stack_size_);

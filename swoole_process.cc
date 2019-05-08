@@ -18,8 +18,6 @@
 #include "php_streams.h"
 #include "php_network.h"
 
-#include "swoole_coroutine.h"
-
 using namespace swoole;
 
 namespace php

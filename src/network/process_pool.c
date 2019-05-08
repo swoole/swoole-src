@@ -82,7 +82,6 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
         return SW_ERR;
     }
 
-#ifndef _WIN32
     if (ipc_mode == SW_IPC_MSGQUEUE)
     {
         pool->use_msgqueue = 1;
@@ -122,10 +121,8 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
             pool->workers[i].pipe_object = pipe;
         }
     }
-	else
-#endif
-	if (ipc_mode == SW_IPC_SOCKET)
-	{
+    else if (ipc_mode == SW_IPC_SOCKET)
+    {
 		pool->use_socket = 1;
 		pool->stream = sw_malloc(sizeof(swStreamInfo));
 		if (pool->stream == NULL)

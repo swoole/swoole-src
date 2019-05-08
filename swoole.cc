@@ -250,9 +250,15 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
 #if PHP_VERSION_ID < 80000
 void php_swoole_class_unset_property_deny(zval *zobject, zval *zmember, void **cache_slot)
 {
-    if (EXPECTED(zend_hash_find(&(Z_OBJCE_P(zobject)->properties_info), Z_STR_P(zmember))))
+    if (!Z_OBJCE_P(zobject)->parent && EXPECTED(zend_hash_find(&(Z_OBJCE_P(zobject)->properties_info), Z_STR_P(zmember))))
     {
         zend_throw_error(NULL, "Property %s of class %s cannot be unset", Z_STRVAL_P(zmember), ZSTR_VAL(Z_OBJCE_P(zobject)->name));
+        return;
+    }
+    else if (Z_OBJCE_P(zobject)->parent && Z_OBJCE_P(zobject)->parent->type == ZEND_INTERNAL_CLASS && \
+            EXPECTED(zend_hash_find(&(Z_OBJCE_P(zobject)->parent->properties_info), Z_STR_P(zmember))))
+    {
+        zend_throw_error(NULL, "Property %s of class %s cannot be unset", Z_STRVAL_P(zmember), ZSTR_VAL(Z_OBJCE_P(zobject)->parent->name));
         return;
     }
     std_object_handlers.unset_property(zobject, zmember, cache_slot);
@@ -827,6 +833,11 @@ PHP_MINIT_FUNCTION(swoole)
 
     swoole_objects.size = SWOOLE_OBJECT_DEFAULT;
     swoole_objects.array = (void**) sw_calloc(swoole_objects.size, sizeof(void*));
+    if (!swoole_objects.array)
+    {
+        swoole_php_fatal_error(E_ERROR, "malloc([swoole_objects]) failed");
+        exit(253);
+    }
 
     // enable pcre.jit and use swoole extension on MacOS will lead to coredump, disable it temporarily
 #if defined(PHP_PCRE_VERSION) && PHP_VERSION_ID >= 70300 && __MACH__ && !defined(SW_DEBUG)

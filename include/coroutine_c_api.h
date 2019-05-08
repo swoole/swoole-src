@@ -33,7 +33,7 @@ extern "C"
  * base
  */
 uint8_t swoole_coroutine_is_in();
-
+long swoole_coroutine_get_current_id();
 /**
  * file
  */

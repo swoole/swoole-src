@@ -20,6 +20,8 @@
 
 #include "ext/standard/basic_functions.h"
 
+using swoole::coroutine::Socket;
+
 enum client_property
 {
     client_property_callback = 0,

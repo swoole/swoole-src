@@ -114,7 +114,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
  */
 int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
-    int package_length;
+    ssize_t package_length;
     uint8_t package_length_size = protocol->get_package_length_size ? protocol->get_package_length_size(conn) : protocol->package_length_size;
     uint32_t recv_size;
 

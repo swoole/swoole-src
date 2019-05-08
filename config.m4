@@ -449,6 +449,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/context.cc \
         src/coroutine/file_lock.cc \
         src/coroutine/hook.cc \
+        src/coroutine/system.cc \
         src/coroutine/socket.cc \
         src/coroutine/ucontext.cc \
         src/lock/atomic.c \

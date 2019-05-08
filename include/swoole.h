@@ -41,18 +41,29 @@ extern "C" {
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#ifdef __sun
-#include <strings.h>
-#endif
 #include <signal.h>
 #include <time.h>
 #include <limits.h>
 
-#ifdef _WIN32
-#include "win.h"
-#else
-#include "unix.h"
-#endif
+#include <fcntl.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <poll.h>
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/select.h>
+#include <sys/mman.h>
+#include <sys/ipc.h>
+#include <sys/wait.h>
+#include <sys/un.h>
+#include <sys/types.h>
+#include <sys/utsname.h>
+#include <sys/stat.h>
 
 #if defined(HAVE_CPU_AFFINITY)
 #ifdef __FreeBSD__
@@ -245,14 +256,22 @@ size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 static sw_inline char* swoole_strdup(const char *s)
 {
     size_t l = strlen(s) + 1;
-    char *p = (char *)sw_malloc(l);
+    char *p = (char *) sw_malloc(l);
+    if (!p)
+    {
+        return NULL;
+    }
     memcpy(p, s, l);
     return p;
 }
 
 static sw_inline char* swoole_strndup(const char *s, size_t n)
 {
-    char *p = (char *)sw_malloc(n + 1);
+    char *p = (char *) sw_malloc(n + 1);
+    if (!p)
+    {
+        return NULL;
+    }
     strncpy(p, s, n);
     p[n] = '\0';
     return p;
@@ -578,9 +597,7 @@ typedef struct
     {
         struct sockaddr_in inet_v4;
         struct sockaddr_in6 inet_v6;
-#ifndef _WIN32
         struct sockaddr_un un;
-#endif
     } addr;
     socklen_t len;
 } swSocketAddress;
@@ -975,7 +992,6 @@ static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
 void swBreakPoint(void);
 
 //------------------Queue--------------------
-#ifndef _WIN32
 typedef struct _swQueue_Data
 {
     long mtype; /* type of received/sent message */
@@ -997,7 +1013,6 @@ int swMsgQueue_push(swMsgQueue *q, swQueue_data *in, int data_length);
 int swMsgQueue_pop(swMsgQueue *q, swQueue_data *out, int buffer_length);
 int swMsgQueue_stat(swMsgQueue *q, int *queue_num, int *queue_bytes);
 int swMsgQueue_free(swMsgQueue *q);
-#endif
 //------------------Lock--------------------------------------
 enum SW_LOCKS
 {
@@ -1038,7 +1053,6 @@ typedef struct _swMutex
     pthread_mutexattr_t attr;
 } swMutex;
 
-#ifndef _WIN32
 typedef struct _swFileLock
 {
     struct flock lock_t;
@@ -1052,7 +1066,6 @@ typedef struct _swRWLock
     pthread_rwlockattr_t attr;
 
 } swRWLock;
-#endif
 
 #ifdef HAVE_SPINLOCK
 typedef struct _swSpinLock
@@ -1080,7 +1093,6 @@ typedef struct _swLock
     union
     {
         swMutex mutex;
-#ifndef _WIN32
 #ifdef HAVE_RWLOCK
         swRWLock rwlock;
 #endif
@@ -1090,7 +1102,6 @@ typedef struct _swLock
         swFileLock filelock;
         swSem sem;
         swAtomicLock atomlock;
-#endif
     } object;
 
     int (*lock_rd)(struct _swLock *);
@@ -1209,7 +1220,6 @@ void* sw_shm_calloc(size_t num, size_t _size);
 int sw_shm_protect(void *addr, int flags);
 void* sw_shm_realloc(void *ptr, size_t new_size);
 
-#ifndef _WIN32
 #ifdef HAVE_RWLOCK
 int swRWLock_create(swLock *lock, int use_in_process);
 #endif
@@ -1221,7 +1231,6 @@ int swFileLock_create(swLock *lock, int fd);
 int swSpinLock_create(swLock *object, int spin);
 #endif
 int swAtomicLock_create(swLock *object, int spin);
-#endif
 
 int swMutex_create(swLock *lock, int use_in_process);
 int swMutex_lockwait(swLock *lock, int timeout_msec);
@@ -1453,10 +1462,9 @@ pid_t swoole_fork();
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
-#ifndef _WIN32
 int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
-#endif
+
 SW_API int swoole_add_function(const char *name, void* func);
 SW_API void* swoole_get_function(char *name, uint32_t length);
 SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back);
@@ -1503,14 +1511,11 @@ ssize_t swSocket_sendto_blocking(int fd, const void *buf, size_t n, int flag, st
 int swSocket_set_buffer_size(int fd, uint32_t buffer_size);
 ssize_t swSocket_udp_sendto(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len);
 ssize_t swSocket_udp_sendto6(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len);
-#ifndef _WIN32
 ssize_t swSocket_unix_sendto(int server_sock, const char *dst_path, const char *data, uint32_t len);
-#endif
 int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t length, double timeout);
 int swSocket_write_blocking(int __fd, const void *__data, int __len);
 int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
 
-#ifndef _WIN32
 static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
 {
     int ret;
@@ -1526,7 +1531,6 @@ static sw_inline int swKill(pid_t __pid, int __sig)
     }
     return kill(__pid, __sig);
 }
-#endif
 
 #ifdef TCP_CORK
 #define HAVE_TCP_NOPUSH
@@ -1663,9 +1667,7 @@ struct _swWorker
 
 	swMemoryPool *pool_output;
 
-#ifndef _WIN32
 	swMsgQueue *queue;
-#endif
 
     /**
      * redirect stdout to pipe_master
@@ -1796,9 +1798,7 @@ struct _swProcessPool
     swPipe *pipes;
     swHashMap *map;
     swReactor *reactor;
-#ifndef _WIN32
     swMsgQueue *queue;
-#endif
     swStreamInfo *stream;
 
     void *ptr;
@@ -2323,9 +2323,7 @@ typedef struct
     uint32_t pagesize;
     uint32_t max_sockets;
 
-#ifndef _WIN32
     struct utsname uname;
-#endif
 
     /**
      * tcp socket default buffer size

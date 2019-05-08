@@ -16,7 +16,6 @@
 
 #include "swoole.h"
 
-#ifndef _WIN32
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -144,4 +143,3 @@ int swMsgQueue_set_capacity(swMsgQueue *q, int queue_bytes)
     return 0;
 }
 
-#endif

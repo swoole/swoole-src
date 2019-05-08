@@ -197,12 +197,10 @@ const char* swConnection_get_ip(swConnection *conn)
             return tmp_address;
         }
     }
-#ifndef _WIN32
     else if (conn->socket_type == SW_SOCK_UNIX_STREAM || conn->socket_type == SW_SOCK_UNIX_DGRAM)
     {
         return conn->info.addr.un.sun_path;
     }
-#endif
     return "unknown";
 }
 

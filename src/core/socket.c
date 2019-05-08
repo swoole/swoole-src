@@ -125,6 +125,11 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
     assert(n_fd < 65535);
 
     struct pollfd *event_list = sw_calloc(n_fd, sizeof(struct pollfd));
+    if (!event_list)
+    {
+        swWarn("malloc[1] failed");
+        return SW_ERR;
+    }
     int i;
 
     int _events = 0;
@@ -266,7 +271,6 @@ ssize_t swSocket_udp_sendto6(int server_sock, const char *dst_ip, int dst_port, 
     return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
 }
 
-#ifndef _WIN32
 ssize_t swSocket_unix_sendto(int server_sock, const char *dst_path, const char *data, uint32_t len)
 {
     struct sockaddr_un addr;
@@ -275,7 +279,6 @@ ssize_t swSocket_unix_sendto(int server_sock, const char *dst_path, const char *
     strncpy(addr.sun_path, dst_path, sizeof(addr.sun_path) - 1);
     return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
 }
-#endif
 
 ssize_t swSocket_sendto_blocking(int fd, const void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len)
 {
@@ -353,9 +356,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
 
     struct sockaddr_in addr_in4;
     struct sockaddr_in6 addr_in6;
-#ifndef _WIN32
     struct sockaddr_un addr_un;
-#endif
     socklen_t len;
 
     //SO_REUSEADDR option
@@ -376,7 +377,6 @@ int swSocket_bind(int sock, int type, char *host, int *port)
     }
 #endif
 
-#ifndef _WIN32
     //unix socket
     if (type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM)
     {
@@ -387,9 +387,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
         ret = bind(sock, (struct sockaddr*) &addr_un, sizeof(addr_un));
     }
     //IPv6
-    else
-#endif
-	if (type > SW_SOCK_UDP)
+    else if (type > SW_SOCK_UDP)
     {
         bzero(&addr_in6, sizeof(addr_in6));
         inet_pton(AF_INET6, host, &(addr_in6.sin6_addr));
