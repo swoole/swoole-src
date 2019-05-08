@@ -249,7 +249,7 @@ typedef unsigned long ulong_t;
 #define sw_strndup             strndup
 #endif
 
-/** always return less than size */
+/** always return less than size, zero termination  */
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...);
 size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 

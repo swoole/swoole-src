@@ -520,7 +520,7 @@ static PHP_METHOD(swoole_process_pool, getProcess)
             zend_update_property_long(swoole_process_ce, zprocess, ZEND_STRL("pipe"), worker->pipe);
         }
         swoole_set_object(zprocess, worker);
-        add_index_zval(zworkers, worker_id, zprocess);
+        (void) add_index_zval(zworkers, worker_id, zprocess);
     }
 
     RETURN_ZVAL(zprocess, 1, 0);
