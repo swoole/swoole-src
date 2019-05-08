@@ -387,7 +387,7 @@ int swoole_convert_to_fd_ex(zval *zsocket, int *async)
         {
             if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )&fd, 1) == SUCCESS && fd >= 0)
             {
-                *async = stream->wrapper->wops == php_plain_files_wrapper.wops ? 0 : 1;
+                *async = (stream->wrapper && (stream->wrapper->wops == php_plain_files_wrapper.wops)) ? 0 : 1;
                 return fd;
             }
         }

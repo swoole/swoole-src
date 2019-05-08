@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "swoole.h"
 #include "coroutine.h"
 #include "connection.h"
 #include "socks5.h"
@@ -31,12 +30,16 @@ namespace swoole
 {
 enum swTimeout_type
 {
-    SW_TIMEOUT_CONNECT      =  1u << 1,
-    SW_TIMEOUT_READ         =  1u << 2,
-    SW_TIMEOUT_WRITE        =  1u << 3,
-    SW_TIMEOUT_RDWR         =  SW_TIMEOUT_READ | SW_TIMEOUT_WRITE,
-    SW_TIMEOUT_ALL          =  0xff,
+    SW_TIMEOUT_CONNECT = 1u << 1,
+    SW_TIMEOUT_READ = 1u << 2,
+    SW_TIMEOUT_WRITE = 1u << 3,
+    SW_TIMEOUT_RDWR = SW_TIMEOUT_READ | SW_TIMEOUT_WRITE,
+    SW_TIMEOUT_ALL = 0xff,
 };
+}
+
+namespace swoole { namespace coroutine {
+//-------------------------------------------------------------------------------
 class Socket
 {
 public:
@@ -70,7 +73,8 @@ public:
     swSSL_option ssl_option = {0};
 #endif
 
-    Socket(int domain = AF_INET, int type = SOCK_STREAM, int protocol = IPPROTO_IP);
+    Socket(int domain, int type, int protocol);
+    Socket(int _fd, int _domain, int _type, int _protocol);
     Socket(enum swSocket_type type = SW_SOCK_TCP);
     Socket(int _fd, enum swSocket_type _type);
     ~Socket();
@@ -410,4 +414,5 @@ public:
         double startup_time;
     };
 };
-};
+//-------------------------------------------------------------------------------
+}}

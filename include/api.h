@@ -37,6 +37,10 @@ static inline int swoole_event_init()
 {
     swoole_init();
     SwooleG.main_reactor = (swReactor *) sw_malloc(sizeof(swReactor));
+    if (!SwooleG.main_reactor)
+    {
+        return SW_ERR;
+    }
     return swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS);
 }
 

@@ -1,5 +1,6 @@
-#include "socket.h"
-#include "async.h"
+#include "coroutine.h"
+#include "coroutine_socket.h"
+#include "coroutine_system.h"
 #include "buffer.h"
 #include "base64.h"
 
@@ -9,6 +10,8 @@
 
 using namespace swoole;
 using namespace std;
+using swoole::coroutine::System;
+using swoole::coroutine::Socket;
 
 double Socket::default_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double Socket::default_read_timeout    = SW_DEFAULT_SOCKET_READ_TIMEOUT;
@@ -539,6 +542,15 @@ Socket::Socket(int _fd, enum swSocket_type _type)
     init_options();
 }
 
+Socket::Socket(int _fd, int _domain, int _type, int _protocol) :
+        sock_domain(_domain), sock_type(_type), sock_protocol(_protocol)
+{
+    type = get_type(_domain, _type, _protocol);
+    init_sock(_fd);
+    socket->active = 1;
+    init_options();
+}
+
 Socket::Socket(int _fd, Socket *server_sock)
 {
     type = server_sock->type;
@@ -664,7 +676,7 @@ bool Socket::connect(string _host, int _port, int flags)
                     ssl_host_name = host;
                 }
 #endif
-                host = Coroutine::gethostbyname(host, AF_INET, connect_timeout);
+                host = System::gethostbyname(host, AF_INET, connect_timeout);
                 if (host.empty())
                 {
                     set_err(SwooleG.error);
@@ -692,7 +704,7 @@ bool Socket::connect(string _host, int _port, int flags)
                     ssl_host_name = host;
                 }
 #endif
-                host = Coroutine::gethostbyname(host, AF_INET6, connect_timeout);
+                host = System::gethostbyname(host, AF_INET6, connect_timeout);
                 if (host.empty())
                 {
                     set_err(SwooleG.error);

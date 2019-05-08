@@ -313,6 +313,11 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     if (conn->object == NULL)
     {
         request = sw_malloc(sizeof(swHttpRequest));
+        if (!request)
+        {
+            swWarn("malloc(%ld) failed", sizeof(swHttpRequest));
+            return SW_ERR;
+        }
         bzero(request, sizeof(swHttpRequest));
         conn->object = request;
     }

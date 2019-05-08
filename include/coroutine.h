@@ -18,6 +18,7 @@
 
 #include "swoole.h"
 #include "context.h"
+#include "async.h"
 
 #include <limits.h>
 
@@ -52,9 +53,6 @@ typedef void (*coro_php_close_t)(void*);
 
 namespace swoole
 {
-void set_dns_cache_expire(time_t expire);
-void set_dns_cache_capacity(size_t capacity);
-void clear_dns_cache();
 
 struct socket_poll_fd
 {
@@ -120,12 +118,6 @@ public:
 
     static void print_list();
 
-    static int sleep(double sec);
-    static swString* read_file(const char *file, int lock);
-    static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
-    static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
-    static bool socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout);
-
     static void set_on_yield(coro_php_yield_t func);
     static void set_on_resume(coro_php_resume_t func);
     static void set_on_close(coro_php_close_t func);
@@ -178,7 +170,7 @@ public:
 
     static inline void set_stack_size(size_t size)
     {
-        stack_size = SW_MEM_ALIGNED_SIZE_EX(MAX(SW_CORO_MIN_STACK_SIZE, MIN(size, SW_CORO_MAX_STACK_SIZE)), SW_CORO_STACK_ALIGNED_SIZE);
+        stack_size = SW_MEM_ALIGNED_SIZE_EX(SW_MAX(SW_CORO_MIN_STACK_SIZE, SW_MIN(size, SW_CORO_MAX_STACK_SIZE)), SW_CORO_STACK_ALIGNED_SIZE);
     }
 
     static inline long get_last_cid()

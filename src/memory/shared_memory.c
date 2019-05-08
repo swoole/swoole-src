@@ -15,9 +15,7 @@
 */
 
 #include "swoole.h"
-#ifndef _WIN32
 #include <sys/shm.h>
-#endif
 
 void* sw_shm_malloc(size_t size)
 {
@@ -88,7 +86,6 @@ void* sw_shm_realloc(void *ptr, size_t new_size)
     }
 }
 
-#ifndef _WIN32
 void *swShareMemory_mmap_create(swShareMemory *object, size_t size, char *mapfile)
 {
     void *mem;
@@ -182,28 +179,3 @@ int swShareMemory_sysv_free(swShareMemory *object, int rm)
     }
     return ret;
 }
-#else
-void *swShareMemory_mmap_create(swShareMemory *object, size_t size, char *mapfile)
-{
-	bzero(object, sizeof(swShareMemory));
-	SECURITY_ATTRIBUTES sa;
-	sa.nLength = sizeof(sa);
-	sa.lpSecurityDescriptor = NULL;
-	sa.bInheritHandle = TRUE;
-	HANDLE handle = CreateFileMapping(INVALID_HANDLE_VALUE, &sa, PAGE_READWRITE, 0, size, NULL);
-	void* p = MapViewOfFile(handle, FILE_MAP_ALL_ACCESS, 0, 0, size);
-	if (!p)
-	{
-		CloseHandle(handle);
-		return MAP_FAILED;
-	}
-	object->mem = handle;
-	return p;
-}
-
-int swShareMemory_mmap_free(swShareMemory *object)
-{
-	return CloseHandle(object->mem);
-}
-
-#endif

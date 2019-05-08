@@ -4,7 +4,7 @@
 #include <arpa/inet.h>
 
 /* Sets addr by hostname, or by ip in string form (AF_INET6) */
-int php_set_inet6_addr(struct sockaddr_in6 *sin6, char *string, swoole::Socket *php_sock) /* {{{ */
+int php_set_inet6_addr(struct sockaddr_in6 *sin6, char *string, Socket *php_sock) /* {{{ */
 {
 	struct in6_addr tmp;
 #if HAVE_GETADDRINFO
@@ -72,7 +72,7 @@ int php_set_inet6_addr(struct sockaddr_in6 *sin6, char *string, swoole::Socket *
 /* }}} */
 
 /* Sets addr by hostname, or by ip in string form (AF_INET)  */
-int php_set_inet_addr(struct sockaddr_in *sin, char *string, swoole::Socket *php_sock) /* {{{ */
+int php_set_inet_addr(struct sockaddr_in *sin, char *string, Socket *php_sock) /* {{{ */
 {
 	struct in_addr tmp;
 	struct hostent *host_entry;
@@ -102,7 +102,7 @@ int php_set_inet_addr(struct sockaddr_in *sin, char *string, swoole::Socket *php
 
 /* Sets addr by hostname or by ip in string form (AF_INET or AF_INET6,
  * depending on the socket) */
-int php_set_inet46_addr(php_sockaddr_storage *ss, socklen_t *ss_len, char *string, swoole::Socket *php_sock) /* {{{ */
+int php_set_inet46_addr(php_sockaddr_storage *ss, socklen_t *ss_len, char *string, Socket *php_sock) /* {{{ */
 {
 	if (php_sock->sock_type == AF_INET) {
 		struct sockaddr_in t = {0};

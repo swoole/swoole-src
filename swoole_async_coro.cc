@@ -19,16 +19,13 @@
 #include "php_network.h"
 
 #include "ext/standard/file.h"
-
-#ifdef SW_COROUTINE
-#include "swoole_coroutine.h"
 #include "ext/standard/basic_functions.h"
-#endif
 
 #include <string>
 #include <unordered_map>
 
-using namespace swoole;
+using swoole::PHPCoroutine;
+using swoole::coroutine::Socket;
 
 typedef struct
 {

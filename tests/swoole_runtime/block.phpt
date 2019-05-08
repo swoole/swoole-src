@@ -8,8 +8,8 @@ skip_if_pdo_not_support_mysql8();
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-Swoole\Runtime::enableCoroutine();
 
+Swoole\Runtime::enableCoroutine(false);
 $start = microtime(true);
 $pdo_map = [];
 for ($i = 5; $i--;) {
@@ -18,6 +18,8 @@ for ($i = 5; $i--;) {
         MYSQL_SERVER_USER, MYSQL_SERVER_PWD
     );
 }
+
+Swoole\Runtime::enableCoroutine(true);
 for ($i = 5; $i--;) {
     $pdo = $pdo_map[$i];
     go(function () use ($pdo) {

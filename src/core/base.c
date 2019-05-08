@@ -21,18 +21,12 @@
 
 #include <stdarg.h>
 
-#ifndef _WIN32
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/ioctl.h>
-#endif
 
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>
-#endif
-
-#ifdef __sun
-#include <sys/filio.h>
 #endif
 
 swGlobal_t SwooleG;
@@ -60,19 +54,12 @@ void swoole_init(void)
     SwooleG.write_log = swLog_put;
     SwooleG.fatal_error = swoole_fatal_error;
 
-#ifdef _WIN32
-    SYSTEM_INFO info;
-    GetSystemInfo(&info);
-    SwooleG.cpu_num =  info.dwNumberOfProcessors;
-    SwooleG.pagesize = info.dwPageSize;
-#else
     SwooleG.cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
     SwooleG.pagesize = getpagesize();
     //get system uname
     uname(&SwooleG.uname);
     //random seed
     srandom(time(NULL));
-#endif
 
     SwooleG.pid = getpid();
 
@@ -103,7 +90,6 @@ void swoole_init(void)
     swMutex_create(&SwooleG.lock, 0);
 
     SwooleG.max_sockets = 1024;
-#ifndef _WIN32
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {
@@ -114,7 +100,6 @@ void swoole_init(void)
         SwooleG.max_sockets = MAX((uint32_t) rlmt.rlim_cur, 1024);
         SwooleG.max_sockets = MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
-#endif
 
     SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
 
@@ -1091,6 +1076,10 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
     struct hostent *result;
 
     char *buf = (char*) sw_malloc(buf_len);
+    if (!buf)
+    {
+        return SW_ERR;
+    }
     memset(buf, 0, buf_len);
     while ((rc = gethostbyname2_r(name, __af, &hbuf, buf, buf_len, &result, &err)) == ERANGE)
     {
@@ -1362,19 +1351,21 @@ int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream)
 char* swoole_string_format(size_t n, const char *format, ...)
 {
     char *buf = sw_malloc(n);
-    if (buf)
+    if (!buf)
     {
-        int ret;
-        va_list va_list;
-        va_start(va_list, format);
-        ret = vsnprintf(buf, n, format, va_list);
-        va_end(va_list);
-        if (ret >= 0)
-        {
-            return buf;
-        }
-        sw_free(buf);
+        return NULL;
     }
+
+    int ret;
+    va_list va_list;
+    va_start(va_list, format);
+    ret = vsnprintf(buf, n, format, va_list);
+    va_end(va_list);
+    if (ret >= 0)
+    {
+        return buf;
+    }
+    sw_free(buf);
     return NULL;
 }
 

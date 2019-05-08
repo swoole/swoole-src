@@ -2141,6 +2141,12 @@ static PHP_METHOD(swoole_server, __construct)
     }
 
     swServer *serv = (swServer *) sw_malloc(sizeof (swServer));
+    if (!serv)
+    {
+        swoole_php_fatal_error(E_ERROR, "malloc(%ld) failed", sizeof(swServer));
+        RETURN_FALSE;
+    }
+
     swServer_init(serv);
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lll", &serv_host, &host_len, &serv_port, &serv_mode, &sock_type) == FAILURE)
@@ -2352,6 +2358,10 @@ static PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "enable_coroutine", v))
     {
         serv->enable_coroutine = SwooleG.enable_coroutine = zval_is_true(v);
+        /**
+         * GitHub Issue#2555
+         */
+        serv->reload_async = serv->enable_coroutine;
     }
     if (php_swoole_array_get_value(vht, "max_coro_num", v) || php_swoole_array_get_value(vht, "max_coroutine", v))
     {
@@ -2510,6 +2520,11 @@ static PHP_METHOD(swoole_server, set)
             sw_free(SwooleG.task_tmpdir);
         }
         SwooleG.task_tmpdir = (char*) sw_malloc(str_v.len() + sizeof(SW_TASK_TMP_FILE) + 1);
+        if (!SwooleG.task_tmpdir)
+        {
+            swoole_php_fatal_error(E_ERROR, "malloc() failed");
+            RETURN_FALSE;
+        }
         SwooleG.task_tmpdir_len = sw_snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/swoole.task.XXXXXX", str_v.val()) + 1;
     }
     //task_max_request
@@ -2568,6 +2583,11 @@ static PHP_METHOD(swoole_server, set)
         }
         int available_num = SW_CPU_NUM - ignore_num;
         int *available_cpu = (int *) sw_malloc(sizeof(int) * available_num);
+        if (!available_cpu)
+        {
+            swoole_php_fatal_error(E_WARNING, "malloc() failed");
+            RETURN_FALSE;
+        }
         int flag, i, available_i = 0;
 
         zval *zval_core = NULL;
@@ -2661,6 +2681,11 @@ static PHP_METHOD(swoole_server, set)
             sw_free(serv->document_root);
         }
         serv->document_root = (char *) sw_malloc(PATH_MAX);
+        if (!serv->document_root)
+        {
+            swoole_php_fatal_error(E_ERROR, "malloc() failed");
+            RETURN_FALSE;
+        }
         if (!realpath(str_v.val(), serv->document_root))
         {
             swoole_php_fatal_error(E_ERROR, "document_root[%s] does not exist", serv->document_root);

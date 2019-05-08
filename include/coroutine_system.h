@@ -14,22 +14,23 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_BASE64_H__
-#define SW_BASE64_H__
+#pragma once
 
-#ifdef __cplusplus
-extern "C"
+#include "coroutine.h"
+
+namespace swoole { namespace coroutine {
+//-------------------------------------------------------------------------------
+class System
 {
-#endif
-
-#define BASE64_ENCODE_OUT_SIZE(s) (((s) + 2) / 3 * 4)
-#define BASE64_DECODE_OUT_SIZE(s) (((s)) / 4 * 3)
-
-size_t swBase64_encode(const unsigned char *in, size_t inlen, char *out);
-size_t swBase64_decode(const char *in, size_t inlen, char *out);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* SW_BASE64_H__ */
+public:
+    static int sleep(double sec);
+    static swString* read_file(const char *file, int lock);
+    static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
+    static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
+    static void set_dns_cache_expire(time_t expire);
+    static void set_dns_cache_capacity(size_t capacity);
+    static void clear_dns_cache();
+    static bool socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout);
+};
+//-------------------------------------------------------------------------------
+}}
