@@ -243,14 +243,9 @@
 /**
  * MySQL Client
  */
+#define SW_MYSQL_DEFAULT_HOST            "127.0.0.1"
 #define SW_MYSQL_DEFAULT_PORT            3306
-#define SW_MYSQL_CONNECT_TIMEOUT         1.0
 #define SW_MYSQL_DEFAULT_CHARSET         33  // 0x21, utf8_general_ci
-
-/**
- * Redis Client
- */
-#define SW_REDIS_CONNECT_TIMEOUT         1.0
 
 /**
  * PGSQL Client

@@ -20,14 +20,15 @@ for ($c = MAX_CONCURRENCY_LOW; $c--;) {
         Assert::assert($statement instanceof Co\Mysql\Statement);
         $timeout = ms_random(0.1, 0.5);
         $s = microtime(true);
-        if (mt_rand(0, 1)) {
+        $use_query = !!mt_rand(0, 1);
+        if ($use_query) {
             $ret = $mysql->query('SELECT SLEEP(1)', $timeout);
         } else {
             $ret = $statement->execute(null, $timeout);
         }
         time_approximate($timeout, microtime(true) - $s);
         Assert::assert(!$ret);
-        Assert::assert($mysql->errno === SOCKET_ETIMEDOUT);
+        Assert::eq($use_query ? $mysql->errno : $statement->errno, SOCKET_ETIMEDOUT);
     });
 }
 Swoole\Event::wait();

@@ -489,6 +489,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/http2.c \
         src/protocol/mime_types.cc \
         src/protocol/mqtt.c \
+        src/protocol/mysql.cc \
         src/protocol/redis.c \
         src/protocol/sha1.c \
         src/protocol/socks5.c \

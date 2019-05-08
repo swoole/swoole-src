@@ -179,14 +179,9 @@ function skip_if_not_mysql8()
     Swoole\Event::wait();
 }
 
-function skip_deprecated()
+function skip_unsupported(string $message = '')
 {
-    skip('it\'s the deprecated', file_exists('/.travisenv'), SWOOLE_COLOR_WHITE);
-}
-
-function skip_unsupported()
-{
-    skip('the test cannot continue to work for some implementation reasons');
+    skip($message ?: 'the test cannot continue to work for some implementation reasons');
 }
 
 (function () {

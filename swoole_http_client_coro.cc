@@ -1309,6 +1309,10 @@ bool http_client::recv_http_response(double timeout)
     Socket::timeout_controller tc(socket, timeout, SW_TIMEOUT_READ);
     while (true)
     {
+        if (unlikely(tc.has_timedout(SW_TIMEOUT_READ)))
+        {
+            return false;
+        }
         retval = socket->recv(buffer->str, buffer->size);
         if (unlikely(retval <= 0))
         {
@@ -1338,11 +1342,6 @@ bool http_client::recv_http_response(double timeout)
         if (unlikely(parser.state == s_dead))
         {
             socket->set_err(EPROTO);
-            return false;
-        }
-        if (unlikely(tc.has_timedout()))
-        {
-            socket->set_err(ETIMEDOUT);
             return false;
         }
     }

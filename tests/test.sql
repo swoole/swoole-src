@@ -86,7 +86,7 @@ CREATE TABLE `userinfo` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(40) NOT NULL,
   `level` int(11) NOT NULL,
-  `passwd` varchar(40) NOT NULL,
+  `passwd` varchar(40),
   `regtime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `big_n` bigint(20) NOT NULL,
   `data` json NOT NULL,
@@ -98,7 +98,7 @@ CREATE TABLE `userinfo` (
   `year` year(4) NOT NULL DEFAULT '1970',
   `int8_t` tinyint(11) NOT NULL,
   `mshort` smallint(6) NOT NULL,
-  `mtext` text NOT NULL,
+  `mtext` text,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=144 DEFAULT CHARSET=utf8;
 
@@ -107,13 +107,13 @@ CREATE TABLE `userinfo` (
 -- ----------------------------
 BEGIN;
 INSERT INTO `userinfo` VALUES (1, 'jack', 199, 'xuyou', '2015-01-02 02:00:00', 999000, 'null', 1270, 0.22, '1970-01-01', '21:52:33', '2018-04-17 04:16:20', 1989, 127, 32767, '');
-INSERT INTO `userinfo` VALUES (2, 'jack', 0, 'xuyou', '2016-05-20 00:00:00', 0, '{\"a\": 123}', 0, 0, '1970-01-01', '00:00:00', '1970-01-01 01:03:00', 1999, 0, 0, '');
+INSERT INTO `userinfo` VALUES (2, 'jack', 0, 'xuyou', '2016-05-20 00:00:00', 0, '{\"a\": 123}', 0, 0, '1970-01-01', '00:00:00', '1970-01-01 01:03:00', 1999, 0, 0, NULL);
 INSERT INTO `userinfo` VALUES (3, '韩天峰', 0, 'xuyou', '2016-05-20 19:08:47', 0, 'null', 0, 0, '1970-01-01', '00:00:00', '1970-01-01 00:00:00', 0000, 0, 0, '');
-INSERT INTO `userinfo` VALUES (4, 'jack', 11, 'xuyou', '2016-05-20 19:17:33', 0, 'null', 0, 0, '1970-01-01', '00:00:00', '1970-01-01 00:00:00', 0000, 0, 0, '');
+INSERT INTO `userinfo` VALUES (4, 'jack', 11, 'xuyou', '2016-05-20 19:17:33', 0, 'null', 0, 0, '1970-01-01', '00:00:00', '1970-01-01 00:00:00', 0000, 0, 0, NULL);
 INSERT INTO `userinfo` VALUES (5, 'rango22', 0, '123456', '2016-07-19 13:31:37', 0, 'null', 0, 0, '1970-01-01', '00:00:00', '1970-01-01 00:00:00', 0000, 0, 0, '');
-INSERT INTO `userinfo` VALUES (6, 'hello', 99, '123456', '2017-07-03 19:37:37', 19999991, 'null', 7775533, 256.33, '2017-12-13', '09:51:29', '1970-01-01 00:00:00', 2015, 127, 32321, '我们都是中国人，你很好吗？');
-INSERT INTO `userinfo` VALUES (7, 'hello', 0, '123456', '2017-07-03 19:37:49', 99999999, '{}', 0, 0, '1970-01-01', '00:00:00', '1970-01-01 00:00:00', 0000, 0, 0, '');
-INSERT INTO `userinfo` VALUES (8, 'hello', 99, '123456', '2018-04-09 15:48:00', 99999999, 'null', 0, 0, '1970-01-01', '00:00:00', '1970-01-01 00:00:00', 0000, 0, 0, '');
+INSERT INTO `userinfo` VALUES (6, 'hello', 99, NULL, '2017-07-03 19:37:37', 19999991, 'null', 7775533, 256.33, '2017-12-13', '09:51:29', '1970-01-01 00:00:00', 2015, 127, 32321, '我们都是中国人，你很好吗？');
+INSERT INTO `userinfo` VALUES (7, 'twosee', 0, NULL, '2017-07-03 19:37:49', 99999999, '{}', 0, 0, '1997-06-04', '01:02:03', '1997-06-04 04:05:06.0708', 0000, 0, 0, '');
+INSERT INTO `userinfo` VALUES (8, 'hello', 99, '123456', '2018-04-09 15:48:00', 99999999, 'null', 0, 0, '1970-01-01', '00:00:00', '1970-01-01 00:00:00', 0000, 0, 0, NULL);
 COMMIT;
 
 SET FOREIGN_KEY_CHECKS = 1;
