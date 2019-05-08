@@ -22,7 +22,7 @@
 
 using namespace swoole;
 using namespace std;
-using namespace swoole::coroutine;
+using swoole::coroutine::System;
 
 static size_t dns_cache_capacity = 1000;
 static time_t dns_cache_expire = 60;

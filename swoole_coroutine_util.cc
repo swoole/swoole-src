@@ -33,7 +33,7 @@
 
 using namespace swoole;
 using namespace std;
-using namespace swoole::coroutine;
+using swoole::coroutine::System;
 
 typedef struct
 {

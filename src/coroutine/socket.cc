@@ -9,6 +9,7 @@
 
 using namespace swoole;
 using namespace std;
+using swoole::coroutine::System;
 
 double Socket::default_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double Socket::default_read_timeout    = SW_DEFAULT_SOCKET_READ_TIMEOUT;
@@ -673,7 +674,7 @@ bool Socket::connect(string _host, int _port, int flags)
                     ssl_host_name = host;
                 }
 #endif
-                host = coroutine::System::gethostbyname(host, AF_INET, connect_timeout);
+                host = System::gethostbyname(host, AF_INET, connect_timeout);
                 if (host.empty())
                 {
                     set_err(SwooleG.error);
@@ -701,7 +702,7 @@ bool Socket::connect(string _host, int _port, int flags)
                     ssl_host_name = host;
                 }
 #endif
-                host = coroutine::System::gethostbyname(host, AF_INET6, connect_timeout);
+                host = System::gethostbyname(host, AF_INET6, connect_timeout);
                 if (host.empty())
                 {
                     set_err(SwooleG.error);
