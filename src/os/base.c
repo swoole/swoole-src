@@ -21,16 +21,6 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 
-#ifdef __sun
-#include <fcntl.h>
-#define LOCK_SH             F_RDLCK
-#define LOCK_EX             F_WRLCK
-#define LOCK_UN             F_UNLCK
-struct flock lock;
-#define flock(fildes, cmd) \
-    lock.l_type = (cmd), fcntl(fildes, F_SETLK, &lock)
-#endif
-
 #if 0
 swAsyncIO SwooleAIO;
 
