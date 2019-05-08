@@ -41,20 +41,17 @@ static zend_object_handlers swoole_http2_request_handlers;
 zend_class_entry *swoole_http2_response_ce;
 static zend_object_handlers swoole_http2_response_handlers;
 
-
 typedef struct
 {
     uint32_t stream_id;
     uint8_t gzip;
     uint8_t type;
     zval *response_object;
-    zval *callback;
     swString *buffer;
 #ifdef SW_HAVE_ZLIB
     z_stream gzip_stream;
     swString *gzip_buffer;
 #endif
-    zval _callback;
     zval _response_object;
 
     // flow control
@@ -74,7 +71,7 @@ public:
     zval *object;
     zval _object;
 
-    swoole::coroutine::Socket *client;
+    Socket *client;
 
     nghttp2_hd_inflater *inflater;
     nghttp2_hd_deflater *deflater;
@@ -112,6 +109,11 @@ public:
         {
             efree(host);
         }
+    }
+
+    inline http2_client_stream* get_stream(uint32_t stream_id)
+    {
+        return (http2_client_stream*) swHashMap_find_int(streams, stream_id);
     }
 
     bool connect();
@@ -194,11 +196,6 @@ static sw_inline void http2_client_init_gzip_stream(http2_client_stream *stream)
 }
 #endif
 
-static inline http2_client_stream* http2_client_stream_get(http2_client *h2c, uint32_t stream_id)
-{
-    return (http2_client_stream*) swHashMap_find_int(h2c->streams, stream_id);
-}
-
 static const zend_function_entry swoole_http2_client_methods[] =
 {
     PHP_ME(swoole_http2_client_coro, __construct,   arginfo_swoole_http2_client_coro_construct, ZEND_ACC_PUBLIC)
@@ -211,7 +208,7 @@ static const zend_function_entry swoole_http2_client_methods[] =
     PHP_ME(swoole_http2_client_coro, write,         arginfo_swoole_http2_client_coro_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, recv,          arginfo_swoole_http2_client_coro_recv, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, goaway,        arginfo_swoole_http2_client_coro_goaway, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, ping,        arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, ping,          arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, close,         arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -500,7 +497,7 @@ enum swReturnType http2_client::parse_frame(zval *return_value)
         }
         else
         {
-            http2_client_stream *stream = http2_client_stream_get(this, stream_id);
+            http2_client_stream *stream = get_stream(stream_id);
             if (stream)
             {
                 stream->remote_window_size += value;
@@ -555,7 +552,7 @@ enum swReturnType http2_client::parse_frame(zval *return_value)
     }
     }
 
-    http2_client_stream *stream = http2_client_stream_get(this, stream_id);
+    http2_client_stream *stream = get_stream(stream_id);
     // stream has closed
     if (stream == NULL)
     {
@@ -1161,7 +1158,7 @@ uint32_t http2_client::send_request(zval *req)
 int http2_client::send_data(uint32_t stream_id, zval *data, bool end)
 {
     char buffer[SW_HTTP2_FRAME_HEADER_SIZE];
-    http2_client_stream *stream = http2_client_stream_get(this, stream_id);
+    http2_client_stream *stream = get_stream(stream_id);
     if (stream == NULL || stream->type != SW_HTTP2_STREAM_PIPELINE)
     {
         return -1;
@@ -1398,7 +1395,7 @@ static PHP_METHOD(swoole_http2_client_coro, isStreamExist)
             RETURN_FALSE;
         }
     }
-    http2_client_stream *stream = http2_client_stream_get(h2c, stream_id);
+    http2_client_stream *stream = h2c->get_stream(stream_id);
     RETURN_BOOL(stream ? 1 : 0);
 }
 
