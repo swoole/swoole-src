@@ -554,36 +554,41 @@ void http_client::set(zval *zset = nullptr)
     HashTable *vht;
     zval *zsettings = sw_zend_read_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("setting"), 1);
 
-    if (zset)
+    if (!ZVAL_IS_ARRAY(zset) || php_swoole_array_length(zset) == 0)
     {
-        SW_ASSERT(ZVAL_IS_ARRAY(zset));
-        php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
-        // will be set immediately
-        vht = Z_ARRVAL_P(zset);
-        if (php_swoole_array_get_value(vht, "connect_timeout", ztmp) || php_swoole_array_get_value(vht, "timeout", ztmp) /* backward compatibility */)
-        {
-            connect_timeout = zval_get_double(ztmp);
-        }
-        if (php_swoole_array_get_value(vht, "reconnect", ztmp))
-        {
-            reconnect_interval = (uint8_t) MIN(zval_get_long(ztmp), UINT8_MAX);
-        }
-        if (php_swoole_array_get_value(vht, "defer", ztmp))
-        {
-            defer = zval_is_true(ztmp);
-        }
-        if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
-        {
-            keep_alive = zval_is_true(ztmp);
-        }
-        if (php_swoole_array_get_value(vht, "websocket_mask", ztmp))
-        {
-            websocket_mask = zval_is_true(ztmp);
-        }
+        return;
+    }
+
+    php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
+    // will be set immediately
+    vht = Z_ARRVAL_P(zset);
+    if (php_swoole_array_get_value(vht, "connect_timeout", ztmp) || php_swoole_array_get_value(vht, "timeout", ztmp) /* backward compatibility */)
+    {
+        connect_timeout = zval_get_double(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "reconnect", ztmp))
+    {
+        reconnect_interval = (uint8_t) MIN(zval_get_long(ztmp), UINT8_MAX);
+    }
+    if (php_swoole_array_get_value(vht, "defer", ztmp))
+    {
+        defer = zval_is_true(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
+    {
+        keep_alive = zval_is_true(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "websocket_mask", ztmp))
+    {
+        websocket_mask = zval_is_true(ztmp);
     }
     if (socket)
     {
         php_swoole_client_set(socket, zset ? zset : zsettings);
+        if (!socket->open_ssl && socket->http_proxy)
+        {
+            socket->http_proxy->dont_handshake = 1;
+        }
     }
 }
 
