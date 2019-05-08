@@ -626,9 +626,12 @@ bool http_client::connect()
 #ifdef SW_USE_OPENSSL
         socket->open_ssl = ssl;
 #endif
-        // check settings
-        zval *zsettings = sw_zend_read_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("setting"), 1);
-        apply_setting(zsettings);
+        // apply settings
+        zval *zsettings = sw_zend_read_property_not_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("setting"), 1);
+        if (zsettings)
+        {
+            apply_setting(zsettings);
+        }
 
         // connect
         socket->set_timeout(connect_timeout, SW_TIMEOUT_CONNECT);
@@ -1598,7 +1601,7 @@ static PHP_METHOD(swoole_http_client_coro, set)
         Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (!ZVAL_IS_ARRAY(zset) || php_swoole_array_length(zset) == 0)
+    if (php_swoole_array_length(zset) == 0)
     {
         RETURN_FALSE;
     }
