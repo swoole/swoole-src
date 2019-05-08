@@ -14,6 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
+#include "coroutine.h"
 #include "coroutine_system.h"
 #include "lru_cache.h"
 
