@@ -41,7 +41,7 @@ static zend_object_handlers swoole_http2_request_handlers;
 zend_class_entry *swoole_http2_response_ce;
 static zend_object_handlers swoole_http2_response_handlers;
 
-typedef struct
+struct http2_client_stream
 {
     uint32_t stream_id;
     uint8_t gzip;
@@ -57,8 +57,7 @@ typedef struct
     // flow control
     uint32_t remote_window_size;
     uint32_t local_window_size;
-
-} http2_client_stream;
+};
 
 class http2_client
 {
@@ -66,7 +65,7 @@ public:
     char *host;
     size_t host_len;
     int port;
-    uint8_t ssl;
+    bool ssl;
     double timeout;
     zval *object;
     zval _object;
@@ -84,16 +83,16 @@ public:
 
     swHashMap *streams;
 
-    http2_client(const char *_host, size_t _host_len, int _port, zval *_zobject)
+    http2_client(const char *_host, size_t _host_len, int _port, bool _ssl, zval *_zobject)
     {
         host = estrndup(_host, _host_len);
         host_len = _host_len;
         port = _port;
+        ssl = _ssl;
         timeout = Socket::default_read_timeout;
         object = _zobject;
         sw_copy_to_stack(object, _object);
 
-        ssl = false;
         inflater = nullptr;
         deflater = nullptr;
         last_stream_id = 0;
@@ -718,12 +717,10 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
         RETURN_FALSE;
     }
 
-    http2_client *h2c = new http2_client(host, host_len, port, getThis());
+    http2_client *h2c = new http2_client(host, host_len, port, ssl, getThis());
     if (ssl)
     {
-#ifdef SW_USE_OPENSSL
-        h2c->ssl = 1;
-#else
+#ifndef SW_USE_OPENSSL
         zend_throw_exception_ex(
             swoole_http2_client_coro_exception_ce,
             EPROTONOSUPPORT, "you must configure with `enable-openssl` to support ssl connection"
