@@ -225,7 +225,7 @@ public:
     {
         if (unlikely(!read_buffer))
         {
-            read_buffer = swString_new(SW_BUFFER_SIZE_STD);
+            read_buffer = swString_new(SW_BUFFER_SIZE_BIG);
         }
         return read_buffer;
     }
@@ -234,7 +234,7 @@ public:
     {
         if (unlikely(!write_buffer))
         {
-            write_buffer = swString_new(SW_BUFFER_SIZE_STD);
+            write_buffer = swString_new(SW_BUFFER_SIZE_BIG);
         }
         return write_buffer;
     }

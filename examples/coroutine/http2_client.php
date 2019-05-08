@@ -1,19 +1,29 @@
 <?php
 use Swoole\Coroutine as co;
 
-//const TEST = array('get', 'post', 'pipeline');
-const TEST = array('pipeline');
+const TEST = array('get', 'post', 'pipeline');
+//const TEST = array('pipeline');
+//const TEST = array('get',);
+
+CO::set(['trace_flags' => SWOOLE_TRACE_HTTP2, 
+// 'log_level' => SWOOLE_LOG_TRACE,
+
+
+
+]);
+
+
 
 co::create(function () use ($fp)
 {
     $cli = new co\Http2\Client('127.0.0.1', 9518);
 
-    $cli->set([ 'timeout' => 1]);
+    $cli->set([ 'timeout' => 1, 'package_max_length' => 1024*1024*8]);
     var_dump($cli->connect());
 
     if (in_array('get', TEST))
     {
-        $req = new co\Http2\Request;
+        $req = new Swoole\Http2\Request;
         $req->path = "/index.html";
         $req->headers = [
             'host' => "localhost",
@@ -30,7 +40,7 @@ co::create(function () use ($fp)
 
     if (in_array('post', TEST))
     {
-        $req2 = new co\Http2\Request;
+        $req2 = new Swoole\Http2\Request;
         $req2->path = "/index.php";
         $req2->headers = [
             'host' => "localhost",
@@ -47,7 +57,7 @@ co::create(function () use ($fp)
 
     if (in_array('pipeline', TEST))
     {
-        $req3 = new co\Http2\Request;
+        $req3 = new Swoole\Http2\Request;
         $req3->path = "/index.php";
         $req3->headers = [
             'host' => "localhost",
