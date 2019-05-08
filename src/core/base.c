@@ -21,18 +21,12 @@
 
 #include <stdarg.h>
 
-#ifndef _WIN32
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/ioctl.h>
-#endif
 
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>
-#endif
-
-#ifdef __sun
-#include <sys/filio.h>
 #endif
 
 swGlobal_t SwooleG;
@@ -60,19 +54,12 @@ void swoole_init(void)
     SwooleG.write_log = swLog_put;
     SwooleG.fatal_error = swoole_fatal_error;
 
-#ifdef _WIN32
-    SYSTEM_INFO info;
-    GetSystemInfo(&info);
-    SwooleG.cpu_num =  info.dwNumberOfProcessors;
-    SwooleG.pagesize = info.dwPageSize;
-#else
     SwooleG.cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
     SwooleG.pagesize = getpagesize();
     //get system uname
     uname(&SwooleG.uname);
     //random seed
     srandom(time(NULL));
-#endif
 
     SwooleG.pid = getpid();
 
@@ -103,7 +90,6 @@ void swoole_init(void)
     swMutex_create(&SwooleG.lock, 0);
 
     SwooleG.max_sockets = 1024;
-#ifndef _WIN32
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {
@@ -114,7 +100,6 @@ void swoole_init(void)
         SwooleG.max_sockets = MAX((uint32_t) rlmt.rlim_cur, 1024);
         SwooleG.max_sockets = MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
-#endif
 
     SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
 
