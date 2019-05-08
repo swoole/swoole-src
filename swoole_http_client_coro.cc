@@ -111,7 +111,7 @@ class http_client
     bool init_compression(enum http_compress_method method);
     bool uncompress_response();
 #endif
-    void set(zval *zset);
+    void apply_setting(zval *zsettings);
     void set_basic_auth(const std::string & username, const std::string & password);
     bool exec(std::string path);
     bool recv(double timeout = 0);
@@ -548,20 +548,18 @@ bool http_client::uncompress_response()
 }
 #endif
 
-void http_client::set(zval *zset = nullptr)
+void http_client::apply_setting(zval *zsettings)
 {
-    zval *ztmp;
-    HashTable *vht;
-    zval *zsettings = sw_zend_read_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("setting"), 1);
-
-    if (!ZVAL_IS_ARRAY(zset) || php_swoole_array_length(zset) == 0)
+    if (!ZVAL_IS_ARRAY(zsettings) || php_swoole_array_length(zsettings) == 0)
     {
         return;
     }
 
-    php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
+    zval *ztmp;
+    HashTable *vht;
+
     // will be set immediately
-    vht = Z_ARRVAL_P(zset);
+    vht = Z_ARRVAL_P(zsettings);
     if (php_swoole_array_get_value(vht, "connect_timeout", ztmp) || php_swoole_array_get_value(vht, "timeout", ztmp) /* backward compatibility */)
     {
         connect_timeout = zval_get_double(ztmp);
@@ -584,7 +582,7 @@ void http_client::set(zval *zset = nullptr)
     }
     if (socket)
     {
-        php_swoole_client_set(socket, zset ? zset : zsettings);
+        php_swoole_client_set(socket, zsettings);
         if (!socket->open_ssl && socket->http_proxy)
         {
             socket->http_proxy->dont_handshake = 1;
@@ -629,7 +627,8 @@ bool http_client::connect()
         socket->open_ssl = ssl;
 #endif
         // check settings
-        set();
+        zval *zsettings = sw_zend_read_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("setting"), 1);
+        apply_setting(zsettings);
 
         // connect
         socket->set_timeout(connect_timeout, SW_TIMEOUT_CONNECT);
@@ -1599,9 +1598,17 @@ static PHP_METHOD(swoole_http_client_coro, set)
         Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    phc->set(zset);
-
-    RETURN_TRUE;
+    if (!ZVAL_IS_ARRAY(zset) || php_swoole_array_length(zset) == 0)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        zval *zsettings = sw_zend_read_property_array(swoole_http_client_coro_ce, getThis(), ZEND_STRL("setting"), 1);
+        php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
+        phc->apply_setting(zset);
+        RETURN_TRUE;
+    }
 }
 
 static PHP_METHOD(swoole_http_client_coro, getDefer)
