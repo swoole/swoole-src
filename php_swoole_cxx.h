@@ -1,11 +1,12 @@
 #pragma once
 
 #include "php_swoole.h"
+#include "swoole_cxx.h"
 #include "swoole_coroutine.h"
 
 SW_API bool php_swoole_export_socket(zval *object, int fd, enum swSocket_type type);
 SW_API zend_object* php_swoole_export_socket_ex(int fd, enum swSocket_type type);
-SW_API void php_swoole_client_set(swoole::Socket *cli, zval *zset);
+SW_API void php_swoole_client_set(swoole::coroutine::Socket *cli, zval *zset);
 
 namespace zend
 {

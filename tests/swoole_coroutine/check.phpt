@@ -104,6 +104,7 @@ if (class_exists(Co\Http2\Client::class)) {
         Assert::assert(0); // never here
     };
 }
+$info_list = [];
 foreach ($map as $i => $f) {
     $GLOBALS['f'] = $f;
     $process = new Swoole\Process(function () {
@@ -131,15 +132,13 @@ foreach ($map as $i => $f) {
     $process->start();
     $info = $process->read(8192);
     $process::wait();
-    $info = preg_replace('/.+(: API must be called in the coroutine)/', '%s$1', $info);
-    $info = preg_replace('/\b\:\d+\b/', ':%d', $info);
-    $info = preg_replace('/\[[^\]]+tests\/swoole_coroutine[^:]+/', '[%s', $info);
-    $info = preg_replace('/(#0 +)[^(]+/', '$1%s', $info);
-    $info = preg_replace('/^\[[^\]]+]/', '[%s]', $info);
-    $info_list[] = $info;
-    if ($i == 0) {
-        echo $info . PHP_EOL;
-    } else {
+    if (Assert::contains($info, 'ERROR')) {
+        $info = preg_replace('/[^\n]+?\n/', '', $info, 2);
+        $info = preg_replace('/\b\:\d+\b/', ':%d', $info);
+        $info = preg_replace('/\[[^\]]+tests\/swoole_coroutine[^:]+/', '[%s', $info);
+        $info = preg_replace('/(#0 +)[^(]+/', '$1%s', $info);
+        $info = preg_replace('/^\[[^\]]+]/', '[%s]', $info);
+        $info_list[] = $info;
         if (!Assert::assert($info_list[0] === $info)) {
             var_dump($map[$i]);
             var_dump($info_list[0]);
@@ -148,10 +147,9 @@ foreach ($map as $i => $f) {
         }
     }
 }
+echo current($info_list);
 ?>
 --EXPECT--
-[%s]	ERROR	(PHP Fatal Error: 10001):
-%s: API must be called in the coroutine
 Stack trace:
 #0  %s() called at [%s:%d]
 #1  {closure}() called at [%s:%d]

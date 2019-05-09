@@ -5,7 +5,9 @@ swoole_mysql_coro: transaction
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-error_reporting(E_ALL);
+
+use Swoole\Coroutine\MySQL\Exception;
+
 go(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [
@@ -32,20 +34,11 @@ go(function () {
     Assert::assert(empty($db->query('SELECT `name` FROM `ckl` WHERE `name`="' . $random . '"')));
 
     $db->setDefer();
-    Assert::assert(!$db->begin());
-    $db->setDefer();
-    Assert::assert(!$db->commit());
-    $db->setDefer();
-    Assert::assert(!$db->begin());
-    $db->setDefer();
-    Assert::assert(!$db->rollback());
+    Assert::throws(function () use ($db) { $db->begin(); }, Exception::class);
+    Assert::throws(function () use ($db) { $db->commit(); }, Exception::class);
+    Assert::throws(function () use ($db) { $db->rollback(); }, Exception::class);
+    echo "DONE\n";
 });
 ?>
---EXPECTF--
-Deprecated: Swoole\Coroutine\MySQL::%s(): %s in %s on line %d
-
-Deprecated: Swoole\Coroutine\MySQL::%s(): %s in %s on line %d
-
-Deprecated: Swoole\Coroutine\MySQL::%s(): %s in %s on line %d
-
-Deprecated: Swoole\Coroutine\MySQL::%s(): %s in %s on line %d
+--EXPECT--
+DONE

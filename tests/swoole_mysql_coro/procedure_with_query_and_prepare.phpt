@@ -28,9 +28,11 @@ SQL;
     $db->connect($server);
     if ($db->query($clear) && $db->query($procedure)) {
         $db->query('CALL sp_whoami()');
+        Assert::null($db->nextResult());
         $stmt = $db->prepare('CALL sp_whoami()');
         $ret = $stmt->execute();
         Assert::assert(strpos(current($ret[0]), MYSQL_SERVER_USER) !== false);
+        Assert::null($stmt->nextResult());
     }
 });
 ?>

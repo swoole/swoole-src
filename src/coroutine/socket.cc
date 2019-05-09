@@ -1,5 +1,6 @@
-#include "socket.h"
-#include "async.h"
+#include "coroutine.h"
+#include "coroutine_socket.h"
+#include "coroutine_system.h"
 #include "buffer.h"
 #include "base64.h"
 
@@ -9,6 +10,8 @@
 
 using namespace swoole;
 using namespace std;
+using swoole::coroutine::System;
+using swoole::coroutine::Socket;
 
 double Socket::default_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double Socket::default_read_timeout    = SW_DEFAULT_SOCKET_READ_TIMEOUT;
@@ -673,10 +676,10 @@ bool Socket::connect(string _host, int _port, int flags)
                     ssl_host_name = host;
                 }
 #endif
-                host = Coroutine::gethostbyname(host, AF_INET, connect_timeout);
+                host = System::gethostbyname(host, AF_INET, connect_timeout);
                 if (host.empty())
                 {
-                    set_err(SwooleG.error);
+                    set_err(SwooleG.error, hstrerror(SwooleG.error));
                     return false;
                 }
                 continue;
@@ -701,7 +704,7 @@ bool Socket::connect(string _host, int _port, int flags)
                     ssl_host_name = host;
                 }
 #endif
-                host = Coroutine::gethostbyname(host, AF_INET6, connect_timeout);
+                host = System::gethostbyname(host, AF_INET6, connect_timeout);
                 if (host.empty())
                 {
                     set_err(SwooleG.error);
@@ -743,7 +746,7 @@ bool Socket::connect(string _host, int _port, int flags)
         return false;
     }
     //http proxy
-    if (http_proxy && http_proxy_handshake() == false)
+    if (http_proxy && !http_proxy->dont_handshake && http_proxy_handshake() == false)
     {
         return false;
     }
@@ -1587,6 +1590,11 @@ bool Socket::shutdown(int __how)
  */
 bool Socket::close()
 {
+    if (socket->fd < 0)
+    {
+        set_err(EBADF);
+        return true;
+    }
     if (unlikely(has_bound()))
     {
         if (socket->closed)

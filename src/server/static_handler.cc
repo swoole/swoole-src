@@ -150,8 +150,6 @@ int static_handler::send_response()
     char date_last_modified[64];
 #ifdef __MACH__
     time_t file_mtime = file_stat.st_mtimespec.tv_sec;
-#elif defined(_WIN32)
-    time_t file_mtime = file_stat.st_mtime;
 #else
     time_t file_mtime = file_stat.st_mtim.tv_sec;
 #endif

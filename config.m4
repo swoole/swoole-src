@@ -449,6 +449,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/context.cc \
         src/coroutine/file_lock.cc \
         src/coroutine/hook.cc \
+        src/coroutine/system.cc \
         src/coroutine/socket.cc \
         src/coroutine/ucontext.cc \
         src/lock/atomic.c \
@@ -488,6 +489,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/http2.c \
         src/protocol/mime_types.cc \
         src/protocol/mqtt.c \
+        src/protocol/mysql.cc \
         src/protocol/redis.c \
         src/protocol/sha1.c \
         src/protocol/socks5.c \
@@ -524,8 +526,8 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_event.c \
         swoole_http_client_coro.cc \
         swoole_http_server.cc \
-        swoole_http_v2_client_coro.cc \
-        swoole_http_v2_server.cc \
+        swoole_http2_client_coro.cc \
+        swoole_http2_server.cc \
         swoole_lock.c \
         swoole_mysql_coro.cc \
         swoole_process.cc \

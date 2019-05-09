@@ -17,7 +17,6 @@ go(function () {
     }
     $cli->goaway(SWOOLE_HTTP2_ERROR_NO_ERROR, '[GOAWAY] nothing~bye~bye~');
     Assert::assert(!$cli->recv(-1));
-    Assert::assert(!$cli->connected);
 });
 ?>
 --EXPECT--

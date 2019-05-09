@@ -1,6 +1,7 @@
 #include "tests.h"
+#include "coroutine_socket.h"
 
-using namespace swoole;
+using swoole::coroutine::Socket;
 
 TEST(coroutine_socket, connect_refused)
 {

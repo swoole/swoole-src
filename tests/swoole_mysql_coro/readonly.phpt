@@ -49,4 +49,4 @@ go(function () {
 ?>
 --EXPECTF--
 1142
-DELETE command denied to user 'readonly'@'%s' for table 'userinfo'
+SQLSTATE[42000] [1142] DELETE command denied to user 'readonly'@'%s' for table 'userinfo'

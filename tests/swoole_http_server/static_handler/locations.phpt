@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: static handler with locations
+swoole_http_server/static_handler: static handler with locations
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

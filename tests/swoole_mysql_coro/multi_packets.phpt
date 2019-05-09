@@ -1,5 +1,5 @@
 --TEST--
-swoole_mysql_coro: select huge data from db (10M~64M)
+swoole_mysql_coro: select and insert huge data from db (10M~64M)
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -20,7 +20,8 @@ go(function () {
         'port' => MYSQL_SERVER_PORT,
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
-        'database' => MYSQL_SERVER_DB
+        'database' => MYSQL_SERVER_DB,
+        'strict_type' => true
     ];
     // set max_allowed_packet
     $mysql->connect($mysql_server);
@@ -42,8 +43,13 @@ CREATE TABLE `firmware` (
 SQL
     );
     if (!$ret) {
-        exit('unable to create table.');
+        exit('unable to create table: ' . $mysql->error);
     }
+    register_shutdown_function(function () use ($mysql) {
+        go(function () use ($mysql) {
+            $mysql->query('DROP TABLE `firmware`');
+        });
+    });
     $max_allowed_packet = $mysql->query('show VARIABLES like \'max_allowed_packet\'');
     $max_allowed_packet = $max_allowed_packet[0]['Value'] / 1024 / 1024;
     phpt_var_dump("max_allowed_packet: {$max_allowed_packet}M");
@@ -56,9 +62,10 @@ SQL
         "mysql:host=" . MYSQL_SERVER_HOST . ";port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
         MYSQL_SERVER_USER, MYSQL_SERVER_PWD
     );
+    $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
     $mysql_query = new Swoole\Coroutine\Mysql;
-    $mysql_prepare = new Swoole\Coroutine\Mysql;
     $mysql_query->connect($mysql_server);
+    $mysql_prepare = new Swoole\Coroutine\Mysql;
     $mysql_prepare->connect($mysql_server);
     for ($fid = 1; $fid <= $max_allowed_packet / 10; $fid++) {
         $random_size = 2 << mt_rand(2, 9);
@@ -66,9 +73,23 @@ SQL
         $firmware = str_repeat(get_safe_random($random_size), $text_size / $random_size);
         $f_md5 = md5($firmware);
         $f_remark = get_safe_random();
-        $sql = "INSERT INTO `firmware` (`fid`, `firmware`, `f_md5`, `f_remark`) " .
-            "VALUES ({$fid}, '{$firmware}', '{$f_md5}', '{$f_remark}')";
-        $ret = $pdo->exec($sql);
+        if (mt_rand(0, 1)) {
+            $sql = "INSERT INTO `firmware` (`fid`, `firmware`, `f_md5`, `f_remark`) " .
+                "VALUES ({$fid}, '{$firmware}', '{$f_md5}', '{$f_remark}')";
+            $ret = $mysql_query->query($sql);
+        } else {
+            $sql = "INSERT INTO `firmware` (`fid`, `firmware`, `f_md5`, `f_remark`) VALUES (?, ?, ?, ?)";
+            $pdo_stmt = $mysql_prepare->prepare($sql);
+            if ($pdo_stmt) {
+                $ret = $pdo_stmt->execute([$fid, $firmware, $f_md5, $f_remark]);
+                if (!$ret) {
+                    var_dump($pdo_stmt);
+                    exit;
+                }
+            } else {
+                $ret = false;
+            }
+        }
         if (Assert::assert($ret)) {
             $sql = 'SELECT * FROM `test`.`firmware` WHERE fid=';
             $pdo_stmt = $pdo->prepare("{$sql}?");
@@ -87,16 +108,20 @@ SQL
                 $chan->push(['mysql_query', $mysql_query->query("{$sql}{$fid}")[0]]);
             });
             for ($i = 3; $i--;) {
-                list($from, $result) = $chan->pop(10);
-                Assert::eq($result['fid'], $fid, var_dump_return($result));
-                Assert::eq($result['firmware'], $firmware);
-                Assert::eq($result['f_md5'], $f_md5);
-                Assert::eq($result['f_remark'], $f_remark);
-                phpt_var_dump($from, (strlen($firmware) / 1024 / 1024) . 'M');
+                list($from, $result) = $chan->pop();
+                if ($result['fid'] === $fid) {
+                    Assert::eq($result['firmware'], $firmware);
+                    Assert::eq($result['f_md5'], $f_md5);
+                    Assert::eq($result['f_remark'], $f_remark);
+                } else {
+                    Assert::assert(0, 'wrong result from ' . $from);
+                    unset($result['firmware']); // too long to show
+                    phpt_var_dump($result);
+                }
+                phpt_var_dump(sprintf('%-16s: %s', $from, (strlen($firmware) / 1024 / 1024) . 'M'));
             }
         }
     }
-    $mysql_query->query('DROP TABLE `firmware`');
     echo "DONE\n";
 });
 ?>

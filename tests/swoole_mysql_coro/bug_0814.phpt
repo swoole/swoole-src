@@ -40,9 +40,11 @@ co::create(function () {
     }
     Assert::assert(count($ret3) > 0);
 
+    $s = microtime(true);
     $ret = $db->query("select sleep(20)", 0.1);
+    time_approximate(0.1, microtime(true) - $s);
     Assert::false($ret);
-    Assert::eq( $db->errno, SOCKET_ETIMEDOUT);
+    Assert::eq($db->errno, SOCKET_ETIMEDOUT);
     $ret1 = $db->connect($server);
     if (!$ret1) {
         echo "CONNECT[2] ERROR\n";

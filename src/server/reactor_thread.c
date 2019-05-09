@@ -180,12 +180,10 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
     {
         memcpy(&task.info.fd, &pkt->info.addr.inet_v6.sin6_addr, sizeof(task.info.fd));
     }
-#ifndef _WIN32
     else
     {
         task.info.fd = swoole_crc32(pkt->info.addr.un.sun_path, pkt->info.len);
     }
-#endif
 
     pkt->length = ret;
     task.info.len = sizeof(*pkt) + ret;
