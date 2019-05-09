@@ -115,6 +115,8 @@ public:
         return (http2_client_stream*) swHashMap_find_int(streams, stream_id);
     }
 
+    http2_client_stream* create_stream(uint32_t stream_id, bool pipeline);
+
     bool connect();
     bool close();
     uint32_t send_request(zval *req);
@@ -180,20 +182,6 @@ static PHP_METHOD(swoole_http2_client_coro, goaway);
 static PHP_METHOD(swoole_http2_client_coro, close);
 
 static void http2_client_stream_free(void *ptr);
-
-#ifdef SW_HAVE_ZLIB
-/**
- * init zlib stream
- */
-static sw_inline void http2_client_init_gzip_stream(http2_client_stream *stream)
-{
-    stream->gzip = 1;
-    memset(&stream->gzip_stream, 0, sizeof(stream->gzip_stream));
-    stream->gzip_buffer = swString_new(8192);
-    stream->gzip_stream.zalloc = php_zlib_alloc;
-    stream->gzip_stream.zfree = php_zlib_free;
-}
-#endif
 
 static const zend_function_entry swoole_http2_client_methods[] =
 {
@@ -543,7 +531,20 @@ enum swReturnType http2_client::parse_frame(zval *return_value)
         // delete and free quietly
         swHashMap_del_int(streams, stream_id);
         return SW_CONTINUE;
-        break;
+    }
+    /**
+     * TODO not support push_promise
+     */
+    case SW_HTTP2_TYPE_PUSH_PROMISE:
+    {
+#if 0
+        uint32_t promise_stream_id = ntohl(*(uint32_t *) (buf)) & 0x7fffffff;
+        swHttp2FrameTraceLog(recv, "promise_stream_id=%d", promise_stream_id);
+        auto promise_stream = create_stream(promise_stream_id, false);
+        RETVAL_ZVAL(promise_stream->response_object, 0, 0);
+        return SW_READY;
+#endif
+        return SW_CONTINUE;
     }
     default:
     {
@@ -575,7 +576,7 @@ enum swReturnType http2_client::parse_frame(zval *return_value)
             {
                 if (php_swoole_zlib_uncompress(&stream->gzip_stream, stream->gzip_buffer, buf, length) == SW_ERR)
                 {
-                    swoole_php_error(E_WARNING, "uncompress failed", stream_id);
+                    swoole_php_error(E_WARNING, "uncompress failed");
                     return SW_ERROR;
                 }
                 swString_append_ptr(stream->buffer, stream->gzip_buffer->str, stream->gzip_buffer->length);
@@ -636,7 +637,6 @@ enum swReturnType http2_client::parse_frame(zval *return_value)
 
     return SW_CONTINUE;
 }
-
 
 #ifdef SW_HAVE_ZLIB
 int php_swoole_zlib_uncompress(z_stream *stream, swString *buffer, char *body, int length)
@@ -803,7 +803,7 @@ ssize_t http2_client::send_setting()
     return client->send_all(frame, SW_HTTP2_FRAME_HEADER_SIZE + 18);
 }
 
-int http2_client::parse_header(http2_client_stream *stream , int flags, char *in, size_t inlen)
+int http2_client::parse_header(http2_client_stream *stream, int flags, char *in, size_t inlen)
 {
     zval *zresponse = stream->response_object;
 
@@ -852,7 +852,17 @@ int http2_client::parse_header(http2_client_stream *stream , int flags, char *in
 #ifdef SW_HAVE_ZLIB
             else if (strncasecmp((char *) nv.name, "content-encoding", nv.namelen) == 0 && strncasecmp((char *) nv.value, "gzip", nv.valuelen) == 0)
             {
-                http2_client_init_gzip_stream(stream);
+                /**
+                 * init zlib stream
+                 */
+                stream->gzip = 1;
+                memset(&stream->gzip_stream, 0, sizeof(stream->gzip_stream));
+                stream->gzip_buffer = swString_new(8192);
+                stream->gzip_stream.zalloc = php_zlib_alloc;
+                stream->gzip_stream.zfree = php_zlib_free;
+                /**
+                 * zlib decode
+                 */
                 if (Z_OK != inflateInit2(&stream->gzip_stream, MAX_WBITS + 16))
                 {
                     swWarn("inflateInit2() failed");
@@ -1022,6 +1032,25 @@ static void http2_client_stream_free(void *ptr)
     efree(stream);
 }
 
+http2_client_stream* http2_client::create_stream(uint32_t stream_id, bool pipeline)
+{
+    // malloc
+    http2_client_stream *stream = (http2_client_stream *) ecalloc(1, sizeof(http2_client_stream));
+    // init
+    stream->response_object = &stream->_response_object;
+    object_init_ex(stream->response_object, swoole_http2_response_ce);
+    stream->stream_id = stream_id;
+    stream->type = pipeline ? SW_HTTP2_STREAM_PIPELINE : SW_HTTP2_STREAM_NORMAL;
+    stream->remote_window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+    stream->local_window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+    // add to map
+    swHashMap_add_int(streams, stream_id, stream);
+    // set property
+    zend_update_property_long(swoole_http2_response_ce, stream->response_object, ZEND_STRL("streamId"), stream_id);
+
+    return stream;
+}
+
 uint32_t http2_client::send_request(zval *req)
 {
     ssize_t length;
@@ -1047,18 +1076,7 @@ uint32_t http2_client::send_request(zval *req)
         return 0;
     }
 
-    // malloc
-    http2_client_stream *stream = (http2_client_stream *) ecalloc(1, sizeof(http2_client_stream));
-    // init
-    stream->response_object = &stream->_response_object;
-    object_init_ex(stream->response_object, swoole_http2_response_ce);
-    stream->stream_id = stream_id;
-    stream->type = Z_BVAL_P(zpipeline) ? SW_HTTP2_STREAM_PIPELINE : SW_HTTP2_STREAM_NORMAL;
-    stream->remote_window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
-    stream->local_window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
-
-    // add to map
-    swHashMap_add_int(streams, stream->stream_id, stream);
+    auto stream = create_stream(stream_id, Z_BVAL_P(zpipeline));
 
     if (is_data_empty)
     {
@@ -1076,8 +1094,6 @@ uint32_t http2_client::send_request(zval *req)
     {
         swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_HEADERS, length, SW_HTTP2_FLAG_END_HEADERS, stream->stream_id);
     }
-
-    zend_update_property_long(swoole_http2_response_ce, stream->response_object, ZEND_STRL("streamId"), stream->stream_id);
 
     swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN ", STREAM#%d] length=%zd", swHttp2_get_type(SW_HTTP2_TYPE_HEADERS), stream->stream_id, length);
     if (!client->send_all(buffer, length + SW_HTTP2_FRAME_HEADER_SIZE))

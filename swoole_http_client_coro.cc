@@ -52,7 +52,7 @@ static const swoole_http_parser_settings http_parser_settings =
 
 class http_client
 {
-    public:
+public:
     /* states */
     http_client_state state = HTTP_CLIENT_STATE_WAIT;
     bool wait = false;
@@ -97,7 +97,7 @@ class http_client
 
     http_client(zval* zobject, std::string host, zend_long port = 80, zend_bool ssl = false);
 
-    private:
+private:
 #ifdef SW_HAVE_ZLIB
     void init_gzip();
 #endif
@@ -106,7 +106,7 @@ class http_client
     bool send();
     void reset();
 
-    public:
+public:
 #ifdef SW_HAVE_ZLIB
     bool init_compression(enum http_compress_method method);
     bool uncompress_response();
