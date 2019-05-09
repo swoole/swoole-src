@@ -6,70 +6,48 @@ swoole_http_client_coro: multi http client
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($pm)
-{
-    go(function () use ($pm) {
-        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
-        $pm->kill();
-    });
-};
+go(function () {
+    $cli1 = new Swoole\Coroutine\Http\Client('www.baidu.com', 443, true);
+    $cli1->set(['timeout' => 10]);
+    $cli1->setHeaders([
+        'Host' => 'www.baidu.com',
+        'User-Agent' => 'Chrome/49.0.2587.3',
+        'Accept' => 'text/html,application/xhtml+xml,application/xml',
+        'Accept-Encoding' => 'gzip',
+    ]);
+    $cli1->setDefer(1);
 
-$pm->childFunc = function () use ($pm)
-{
-    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
-    $http->set(array(
-        'log_file' => '/dev/null'
-    ));
-    $http->on('WorkerStart', function (\swoole_server $serv)
+    $cli2 = new Swoole\Coroutine\Http\Client('www.taobao.com', 443, true);
+    $cli2->set(['timeout' => 10]);
+    $cli2->setHeaders([
+        'Host' => 'www.taobao.com',
+        'User-Agent' => 'Chrome/49.0.2587.3',
+        'Accept' => 'text/html,application/xhtml+xml,application/xml',
+        'Accept-Encoding' => 'gzip',
+    ]);
+    $cli2->setDefer(1);
+
+    $ret1 = ($cli1->get('/'));
+    $ret2 = ($cli2->get('/'));
+    if (!$ret1 or !$ret2)
     {
-        /**
-         * @var $pm ProcessManager
-         */
-        global $pm;
-        $pm->wakeup();
-    });
-    $http->on('request', function (swoole_http_request $request, swoole_http_response $response)
+        echo "ERROR\n";
+    }
+    else
     {
-        $cli1 = new Swoole\Coroutine\Http\Client('www.baidu.com', 443, true);
-        $cli1->set(['timeout' => 10]);
-        $cli1->setHeaders([
-            'Host' => 'www.baidu.com',
-            'User-Agent' => 'Chrome/49.0.2587.3',
-            'Accept' => 'text/html,application/xhtml+xml,application/xml',
-            'Accept-Encoding' => 'gzip',
-        ]);
-        $cli1->setDefer(1);
+        Assert::assert($cli1->recv());
+        Assert::assert($cli2->recv());
+        Assert::contains($cli1->body, "baidu");
+        Assert::contains($cli2->body, "taobao");
+        $cli1->close();
+        $cli2->close();
+        echo "OK\n";
+    }
+});
 
-        $cli2 = new Swoole\Coroutine\Http\Client('www.baidu.com', 443, true);
-        $cli2->set(['timeout' => 10]);
-        $cli2->setHeaders([
-            'Host' => 'www.baidu.com',
-            'User-Agent' => 'Chrome/49.0.2587.3',
-            'Accept' => 'text/html,application/xhtml+xml,application/xml',
-            'Accept-Encoding' => 'gzip',
-        ]);
-        $cli2->setDefer(1);
+Swoole\Event::wait();
 
-        $ret1 = ($cli1->get('/'));
-        $ret2 = ($cli2->get('/'));
-        if (!$ret1 or !$ret2)
-        {
-            $response->end("ERROR\n");
-            return;
-        }
-        else
-        {
-            $cli1->close();
-            $cli2->close();
-            $response->end("OK\n");
-        }
-    });
-    $http->start();
-};
 
-$pm->childFirst();
-$pm->run();
 ?>
 --EXPECT--
 OK
