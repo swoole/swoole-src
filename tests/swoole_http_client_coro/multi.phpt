@@ -17,10 +17,10 @@ go(function () {
     ]);
     $cli1->setDefer(1);
 
-    $cli2 = new Swoole\Coroutine\Http\Client('www.taobao.com', 443, true);
+    $cli2 = new Swoole\Coroutine\Http\Client('www.qq.com', 443, true);
     $cli2->set(['timeout' => 10]);
     $cli2->setHeaders([
-        'Host' => 'www.taobao.com',
+        'Host' => 'www.qq.com',
         'User-Agent' => 'Chrome/49.0.2587.3',
         'Accept' => 'text/html,application/xhtml+xml,application/xml',
         'Accept-Encoding' => 'gzip',
@@ -38,7 +38,7 @@ go(function () {
         Assert::assert($cli1->recv());
         Assert::assert($cli2->recv());
         Assert::contains($cli1->body, "baidu");
-        Assert::contains($cli2->body, "taobao");
+        Assert::contains($cli2->body, "Tencent");
         $cli1->close();
         $cli2->close();
         echo "OK\n";
