@@ -1,14 +1,13 @@
 --TEST--
-swoole_channel_coro: pop timeout hanging up
+swoole_channel_coro: pop close 1
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc';
-exit("skip for hanging up");
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
 $c1 = new chan();
+$c1->close();
 
 go(function () use ($c1) {
     $ret = $c1->pop();
@@ -16,3 +15,4 @@ go(function () use ($c1) {
 });
 ?>
 --EXPECTF--
+pop ret:false error:-2
