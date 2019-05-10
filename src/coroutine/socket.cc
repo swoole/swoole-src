@@ -1,3 +1,4 @@
+#include "swoole_cxx.h"
 #include "coroutine.h"
 #include "coroutine_socket.h"
 #include "coroutine_system.h"
@@ -1407,7 +1408,7 @@ ssize_t Socket::recv_packet(double timeout)
         }
         else if (buf_len > protocol.package_max_length)
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "packet[length=%d] is too big", (int )buf_len);
+            set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, cpp_string::format("packet[length=%zd] is too big", buf_len).c_str());
             return 0;
         }
 
@@ -1429,6 +1430,7 @@ ssize_t Socket::recv_packet(double timeout)
             if (swString_extend(read_buffer, buf_len) < 0)
             {
                 read_buffer->length = 0;
+                set_err(ENOMEM);
                 return -1;
             }
         }
@@ -1506,8 +1508,8 @@ ssize_t Socket::recv_packet(double timeout)
             {
                 if (read_buffer->length == protocol.package_max_length)
                 {
-                    swWarn("no package eof");
                     read_buffer->length = 0;
+                    set_err(EPROTO, "no package eof");
                     return -1;
                 }
                 else if (read_buffer->length == read_buffer->size)
@@ -1522,6 +1524,7 @@ ssize_t Socket::recv_packet(double timeout)
                         if (swString_extend(read_buffer, new_size) < 0)
                         {
                             read_buffer->length = 0;
+                            set_err(ENOMEM);
                             return -1;
                         }
                     }
