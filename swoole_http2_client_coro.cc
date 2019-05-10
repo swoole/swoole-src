@@ -543,13 +543,11 @@ enum swReturnType http2_client::parse_frame(zval *return_value)
      */
     case SW_HTTP2_TYPE_PUSH_PROMISE:
     {
-#if 0
         uint32_t promise_stream_id = ntohl(*(uint32_t *) (buf)) & 0x7fffffff;
         swHttp2FrameTraceLog(recv, "promise_stream_id=%d", promise_stream_id);
-        auto promise_stream = create_stream(promise_stream_id, false);
-        RETVAL_ZVAL(promise_stream->response_object, 0, 0);
-        return SW_READY;
-#endif
+        // auto promise_stream = create_stream(promise_stream_id, false);
+        // RETVAL_ZVAL(promise_stream->response_object, 0, 0);
+        // return SW_READY;
         return SW_CONTINUE;
     }
     default:
@@ -559,11 +557,11 @@ enum swReturnType http2_client::parse_frame(zval *return_value)
     }
 
     http2_client_stream *stream = get_stream(stream_id);
-    // stream has closed
+    // The stream is not found or has closed
     if (stream == NULL)
     {
-        update_error_properties(EPROTO, cpp_string::format("can not find stream#%u", stream_id).c_str());
-        return SW_ERROR;
+        swInfo("no stream[%d]", stream_id);
+        return SW_CONTINUE;
     }
     if (type == SW_HTTP2_TYPE_HEADERS)
     {
