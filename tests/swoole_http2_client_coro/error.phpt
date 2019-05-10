@@ -11,11 +11,10 @@ go(function () {
     Assert::false($cli->connect());
     Assert::eq($cli->errCode, SOCKET_ETIMEDOUT);
     Assert::false($cli->send(new Swoole\Http2\Request));
+    Assert::eq($cli->errCode, SOCKET_ECONNRESET);
     Assert::false($cli->recv(1));
+    Assert::eq($cli->errCode, SOCKET_ECONNRESET);
 });
 Swoole\Event::wait();
 ?>
---EXPECTF--
-Warning: Swoole\Coroutine\Http2\Client::send(): client is not connected to server in %s on line %d
-
-Warning: Swoole\Coroutine\Http2\Client::recv(): client is not connected to server in %s on line %d
+--EXPECT--

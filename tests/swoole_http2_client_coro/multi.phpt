@@ -35,7 +35,7 @@ go(function () {
         if ($response) {
             echo "$response->statusCode\n";
             $responses_headers_count_map[] = count($response->headers);
-            Assert::assert(strpos($response->data, 'Cookie') !== false);
+            Assert::contains($response->data, 'Cookie');
             $stream_map[] = $response->streamId;
             if (++$i === 4) {
                 break;
