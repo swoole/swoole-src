@@ -553,11 +553,11 @@ enum swReturnType http2_client::parse_frame(zval *return_value)
     }
 
     http2_client_stream *stream = get_stream(stream_id);
-    // stream has closed
+    // The stream is not found or has closed
     if (stream == NULL)
     {
-        swoole_php_error(E_WARNING, "no stream[%d]", stream_id);
-        return SW_ERROR;
+        swInfo("no stream[%d]", stream_id);
+        return SW_CONTINUE;
     }
     if (type == SW_HTTP2_TYPE_HEADERS)
     {
