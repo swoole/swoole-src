@@ -1075,7 +1075,11 @@ static PHP_METHOD(swoole_client, connect)
             swoole_php_fatal_error(E_ERROR, "no event callback function");
             RETURN_FALSE;
         }
-
+        if (!cb->cache_onReceive.function_handler)
+        {
+            swoole_php_fatal_error(E_ERROR, "no 'onReceive' callback function");
+            RETURN_FALSE;
+        }
         if (swSocket_is_stream(cli->type))
         {
             if (!cb->cache_onConnect.function_handler)
@@ -1109,11 +1113,6 @@ static PHP_METHOD(swoole_client, connect)
         }
         else
         {
-            if (!cb || !cb->cache_onReceive.function_handler)
-            {
-                swoole_php_fatal_error(E_ERROR, "no 'onReceive' callback function");
-                RETURN_FALSE;
-            }
             if (cb->cache_onConnect.function_handler)
             {
                 cli->onConnect = client_onConnect;
@@ -1143,8 +1142,7 @@ static PHP_METHOD(swoole_client, connect)
         {
             if (SwooleG.error == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED)
             {
-                swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int )port,
-                        hstrerror(h_errno), h_errno);
+                swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int) port, hstrerror(h_errno), h_errno);
             }
             zend_update_property_long(swoole_client_ce, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         }
