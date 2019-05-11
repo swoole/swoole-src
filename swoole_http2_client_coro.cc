@@ -107,13 +107,11 @@ public:
     inline void io_error()
     {
         update_error_properties(client->errCode, client->errMsg);
-        close();
     }
 
     inline void nghttp2_error(int code, const char *msg)
     {
         update_error_properties(code, cpp_string::format("%s with error: %s", msg, nghttp2_strerror(code)).c_str());
-        close();
     }
 
     inline bool is_available()
