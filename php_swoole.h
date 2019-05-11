@@ -857,7 +857,8 @@ static sw_inline zval* sw_zend_read_property(zend_class_entry *ce, zval *obj, co
 static sw_inline zval* sw_zend_read_property_not_null(zend_class_entry *ce, zval *obj, const char *s, int len, int silent)
 {
     zval rv, *property = zend_read_property(ce, obj, s, len, silent, &rv);
-    return ZVAL_IS_NULL(property) ? NULL : property;
+    zend_uchar type = Z_TYPE_P(property);
+    return (type == IS_NULL || UNEXPECTED(type == IS_UNDEF)) ? NULL : property;
 }
 
 static sw_inline zval *sw_zend_update_and_read_property_array(zend_class_entry *ce, zval *obj, const char *s, int len)
