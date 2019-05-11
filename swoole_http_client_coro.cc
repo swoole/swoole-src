@@ -111,7 +111,7 @@ public:
     bool init_compression(enum http_compress_method method);
     bool uncompress_response();
 #endif
-    void apply_setting(zval *zsettings);
+    void apply_setting(zval *zset);
     void set_basic_auth(const std::string & username, const std::string & password);
     bool exec(std::string path);
     bool recv(double timeout = 0);
@@ -288,7 +288,7 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
 {
     http_client* http = (http_client*) parser->data;
     zval* zobject = (zval*) http->zobject;
-    zval *zheaders = sw_zend_read_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 1);
+    zval *zheaders = sw_zend_read_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 0);
     char *header_name = zend_str_tolower_dup(http->tmp_header_field_name, http->tmp_header_field_name_len);
     int ret = 0;
 
@@ -300,8 +300,8 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
     }
     else if (strcmp(header_name, "set-cookie") == 0)
     {
-        zval *zcookies = sw_zend_read_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("cookies"), 1);
-        zval *zset_cookie_headers = sw_zend_read_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("set_cookie_headers"), 1);
+        zval *zcookies = sw_zend_read_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("cookies"), 0);
+        zval *zset_cookie_headers = sw_zend_read_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("set_cookie_headers"), 0);
         ret = http_parse_set_cookies(at, length, zcookies, zset_cookie_headers);
     }
 #if defined(SW_HAVE_BROTLI) || defined(SW_HAVE_ZLIB)
@@ -548,18 +548,17 @@ bool http_client::uncompress_response()
 }
 #endif
 
-void http_client::apply_setting(zval *zsettings)
+void http_client::apply_setting(zval *zset)
 {
-    if (!ZVAL_IS_ARRAY(zsettings) || php_swoole_array_length(zsettings) == 0)
+    if (!ZVAL_IS_ARRAY(zset) || php_swoole_array_length(zset) == 0)
     {
         return;
     }
 
     zval *ztmp;
-    HashTable *vht;
+    HashTable *vht = Z_ARRVAL_P(zset);
 
     // will be set immediately
-    vht = Z_ARRVAL_P(zsettings);
     if (php_swoole_array_get_value(vht, "connect_timeout", ztmp) || php_swoole_array_get_value(vht, "timeout", ztmp) /* backward compatibility */)
     {
         connect_timeout = zval_get_double(ztmp);
@@ -582,7 +581,7 @@ void http_client::apply_setting(zval *zsettings)
     }
     if (socket)
     {
-        php_swoole_client_set(socket, zsettings);
+        php_swoole_client_set(socket, zset);
 #ifdef SW_USE_OPENSSL
         if (socket->http_proxy && !socket->open_ssl)
 #else
@@ -631,11 +630,7 @@ bool http_client::connect()
         socket->open_ssl = ssl;
 #endif
         // apply settings
-        zval *zsettings = sw_zend_read_property_not_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("setting"), 1);
-        if (zsettings)
-        {
-            apply_setting(zsettings);
-        }
+        apply_setting(sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("setting"), 0));
 
         // connect
         socket->set_timeout(connect_timeout, SW_TIMEOUT_CONNECT);
@@ -732,19 +727,19 @@ bool http_client::send()
     // clear body
     swString_clear(body);
 
-    zmethod = sw_zend_read_property_not_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestMethod"), 1);
-    zheaders = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestHeaders"), 1);
-    zbody = sw_zend_read_property_not_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestBody"), 1);
-    zupload_files = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("uploadFiles"), 1);
-    zcookies = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("cookies"), 1);
-    z_download_file = sw_zend_read_property_not_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("downloadFile"), 1);
+    zmethod = sw_zend_read_property_not_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestMethod"), 0);
+    zheaders = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestHeaders"), 0);
+    zbody = sw_zend_read_property_not_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestBody"), 0);
+    zupload_files = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("uploadFiles"), 0);
+    zcookies = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("cookies"), 0);
+    z_download_file = sw_zend_read_property_not_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("downloadFile"), 0);
 
     // ============ download ============
     if (z_download_file)
     {
         zend::string str_download_file(z_download_file);
         char *download_file_name = str_download_file.val();
-        zval *z_download_offset = sw_zend_read_property_not_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("downloadOffset"), 1);
+        zval *z_download_offset = sw_zend_read_property_not_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("downloadOffset"), 0);
         off_t download_offset = 0;
         if (z_download_offset)
         {
@@ -1353,7 +1348,7 @@ bool http_client::upgrade(std::string path)
     if (!websocket)
     {
         char buf[SW_WEBSOCKET_KEY_LENGTH + 1];
-        zval *zheaders = sw_zend_read_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestHeaders"), 1);
+        zval *zheaders = sw_zend_read_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestHeaders"), 0);
         zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestMethod"), "GET");
         http_client_create_token(SW_WEBSOCKET_KEY_LENGTH, buf);
         add_assoc_string(zheaders, "Connection", (char* )"Upgrade");
@@ -1597,8 +1592,8 @@ static PHP_METHOD(swoole_http_client_coro, __destruct) { }
 
 static PHP_METHOD(swoole_http_client_coro, set)
 {
-    zval *zset;
     http_client* phc = swoole_get_phc(getThis());
+    zval *zset;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_ARRAY(zset)
@@ -1610,7 +1605,7 @@ static PHP_METHOD(swoole_http_client_coro, set)
     }
     else
     {
-        zval *zsettings = sw_zend_read_property_array(swoole_http_client_coro_ce, getThis(), ZEND_STRL("setting"), 1);
+        zval *zsettings = sw_zend_read_property_array(swoole_http_client_coro_ce, getThis(), ZEND_STRL("setting"), 0);
         php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
         phc->apply_setting(zset);
         RETURN_TRUE;
@@ -1661,7 +1656,9 @@ static PHP_METHOD(swoole_http_client_coro, setHeaders)
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_ARRAY(headers)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestHeaders"), headers);
+
     RETURN_TRUE;
 }
 
@@ -1781,7 +1778,7 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
         }
     }
 
-    zval *zupload_files = sw_zend_read_property_array(swoole_http_client_coro_ce, getThis(), ZEND_STRL("uploadFiles"), 1);
+    zval *zupload_files = sw_zend_read_property_array(swoole_http_client_coro_ce, getThis(), ZEND_STRL("uploadFiles"), 0);
     zval zupload_file;
     array_init(&zupload_file);
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("path"), path, l_path);
@@ -1824,7 +1821,7 @@ static PHP_METHOD(swoole_http_client_coro, addData)
         l_filename = l_name;
     }
 
-    zval *zupload_files = sw_zend_read_property_array(swoole_http_client_coro_ce, getThis(), ZEND_STRL("uploadFiles"), 1);
+    zval *zupload_files = sw_zend_read_property_array(swoole_http_client_coro_ce, getThis(), ZEND_STRL("uploadFiles"), 0);
     zval zupload_file;
     array_init(&zupload_file);
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("content"), data, l_data);
