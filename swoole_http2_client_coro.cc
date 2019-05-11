@@ -339,6 +339,7 @@ bool http2_client::connect()
     if (!client->connect(host, port))
     {
         io_error();
+        close();
         return false;
     }
 
@@ -351,22 +352,26 @@ bool http2_client::connect()
     if (ret != 0)
     {
         nghttp2_error(ret, "nghttp2_hd_inflate_new() failed");
+        close();
         return false;
     }
     ret = nghttp2_hd_deflate_new(&deflater, local_settings.header_table_size);
     if (ret != 0)
     {
         nghttp2_error(ret, "nghttp2_hd_deflate_new() failed");
+        close();
         return false;
     }
 
     if (!send(ZEND_STRL(SW_HTTP2_PRI_STRING)))
     {
+        close();
         return false;
     }
 
     if (!send_setting())
     {
+        close();
         return false;
     }
 
