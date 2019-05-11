@@ -37,6 +37,7 @@ $pm->childFunc = function () use ($pm) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECT--
+--EXPECTF--
+Notice: Undefined property: Swoole\Http\Response::$header in %s on line %d
 500
 just an 500 error for fun
