@@ -486,9 +486,9 @@ static PHP_METHOD(swoole_process_pool, getProcess)
         worker_id = SwooleWG.id;
     }
 
-    zval *zworkers = sw_zend_read_property_array(swoole_process_pool_ce, getThis(), ZEND_STRL("workers"), 1);
-    zval zobject;
+    zval *zworkers = sw_zend_read_and_convert_property_array(swoole_process_pool_ce, getThis(), ZEND_STRL("workers"), 0);
     zval *zprocess = zend_hash_index_find(Z_ARRVAL_P(zworkers), worker_id);
+    zval zobject;
 
     if (zprocess == nullptr || ZVAL_IS_NULL(zprocess))
     {

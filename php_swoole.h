@@ -843,36 +843,46 @@ static sw_inline int sw_zend_register_class_alias(const char *name, size_t name_
 #endif
 }
 
-static sw_inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj, const char *s, int len, int silent)
+static sw_inline zval* sw_zend_read_property(zend_class_entry *ce, zval *obj, const char *s, int len, int silent)
 {
-    zval rv, *property = zend_read_property(class_ptr, obj, s, len, silent, &rv);
+    zval rv, *property = zend_read_property(ce, obj, s, len, silent, &rv);
     if (UNEXPECTED(property == &EG(uninitialized_zval)))
     {
-        zend_update_property_null(class_ptr, obj, s, len);
-        return zend_read_property(class_ptr, obj, s, len, silent, &rv);
+        zend_update_property_null(ce, obj, s, len);
+        return zend_read_property(ce, obj, s, len, silent, &rv);
     }
     return property;
 }
 
-static sw_inline zval* sw_zend_read_property_not_null(zend_class_entry *class_ptr, zval *obj, const char *s, int len, int silent)
+static sw_inline zval* sw_zend_read_property_not_null(zend_class_entry *ce, zval *obj, const char *s, int len, int silent)
 {
-    zval rv, *property = zend_read_property(class_ptr, obj, s, len, silent, &rv);
+    zval rv, *property = zend_read_property(ce, obj, s, len, silent, &rv);
     return ZVAL_IS_NULL(property) ? NULL : property;
 }
 
-static sw_inline zval* sw_zend_read_property_array(zend_class_entry *class_ptr, zval *obj, const char *s, int len, int silent)
+static sw_inline zval *sw_zend_update_and_read_property_array(zend_class_entry *ce, zval *obj, const char *s, int len)
 {
-    zval rv, *property = zend_read_property(class_ptr, obj, s, len, silent, &rv);
+    zval ztmp;
+    array_init(&ztmp);
+    zend_update_property(ce, obj, s, len, &ztmp);
+    zval_ptr_dtor(&ztmp);
+    return zend_read_property(ce, obj, s, len, 1, &ztmp);
+}
+
+static sw_inline zval* sw_zend_read_and_convert_property_array(zend_class_entry *ce, zval *obj, const char *s, int len, int silent)
+{
+    zval rv, *property = zend_read_property(ce, obj, s, len, silent, &rv);
     if (Z_TYPE_P(property) != IS_ARRAY)
     {
-        zval temp_array;
-        array_init(&temp_array);
-        zend_update_property(class_ptr, obj, s, len, &temp_array);
-        zval_ptr_dtor(&temp_array);
         // NOTICE: if user unset the property, zend_read_property will return uninitialized_zval instead of NULL pointer
         if (UNEXPECTED(property == &EG(uninitialized_zval)))
         {
-            property = zend_read_property(class_ptr, obj, s, len, silent, &rv);
+            property = sw_zend_update_and_read_property_array(ce, obj, s, len);
+        }
+        else
+        {
+            zval_ptr_dtor(property);
+            array_init(property);
         }
     }
 

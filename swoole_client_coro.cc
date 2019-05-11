@@ -714,7 +714,7 @@ static PHP_METHOD(swoole_client_coro, set)
         Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zsetting = sw_zend_read_property_array(swoole_client_coro_ce, getThis(), ZEND_STRL("setting"), 1);
+    zsetting = sw_zend_read_and_convert_property_array(swoole_client_coro_ce, getThis(), ZEND_STRL("setting"), 0);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
     if (cli)
     {
@@ -757,7 +757,7 @@ static PHP_METHOD(swoole_client_coro, connect)
         RETURN_FALSE;
     }
 
-    zval *zset = sw_zend_read_property(swoole_client_coro_ce, getThis(), ZEND_STRL("setting"), 1);
+    zval *zset = sw_zend_read_property(swoole_client_coro_ce, getThis(), ZEND_STRL("setting"), 0);
     if (zset && ZVAL_IS_ARRAY(zset))
     {
         php_swoole_client_set(cli, zset);

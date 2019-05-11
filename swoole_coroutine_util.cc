@@ -300,6 +300,8 @@ void swoole_coroutine_util_init(int module_number)
 
     //prohibit exit in coroutine
     SW_INIT_CLASS_ENTRY_EX(swoole_exit_exception, "Swoole\\ExitException", NULL, NULL, swoole_exit_exception_methods, swoole_exception);
+    zend_declare_property_long(swoole_exit_exception_ce, ZEND_STRL("flags"), 0, ZEND_ACC_PRIVATE);
+    zend_declare_property_long(swoole_exit_exception_ce, ZEND_STRL("status"), 0, ZEND_ACC_PRIVATE);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_COROUTINE", SW_EXIT_IN_COROUTINE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_SERVER", SW_EXIT_IN_SERVER);
@@ -313,12 +315,12 @@ void swoole_coroutine_util_init(int module_number)
 
 static PHP_METHOD(swoole_exit_exception, getFlags)
 {
-    RETURN_LONG(Z_LVAL_P(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("flags"), 1)));
+    RETURN_LONG(Z_LVAL_P(sw_zend_read_property(swoole_exit_exception_ce, getThis(), ZEND_STRL("flags"), 0)));
 }
 
 static PHP_METHOD(swoole_exit_exception, getStatus)
 {
-    RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("status"), 1), 1, 0);
+    RETURN_ZVAL(sw_zend_read_property(swoole_exit_exception_ce, getThis(), ZEND_STRL("status"), 0), 1, 0);
 }
 
 static PHP_METHOD(swoole_coroutine_util, exists)

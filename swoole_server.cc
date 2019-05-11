@@ -944,7 +944,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
      */
     zend_update_property_long(swoole_server_ce, zobject, ZEND_STRL("master_pid"), getpid());
 
-    zval *zsetting = sw_zend_read_property_array(swoole_server_ce, zobject, ZEND_STRL("setting"), 1);
+    zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_ce, zobject, ZEND_STRL("setting"), 0);
 #ifdef HT_ALLOW_COW_VIOLATION
     HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(zsetting));
 #endif
@@ -987,7 +987,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     for (i = 1; i < server_port_list.num; i++)
     {
         zport_object = server_port_list.zobjects[i];
-        zport_setting = sw_zend_read_property(swoole_server_port_ce, zport_object, ZEND_STRL("setting"), 1);
+        zport_setting = sw_zend_read_property(swoole_server_port_ce, zport_object, ZEND_STRL("setting"), 0);
         //use swoole_server->setting
         if (zport_setting == NULL || ZVAL_IS_NULL(zport_setting))
         {
@@ -2746,7 +2746,7 @@ static PHP_METHOD(swoole_server, set)
 
     sw_zend_call_method_with_1_params(server_port_list.zobjects[0], swoole_server_port_ce, NULL, "set", NULL, zset);
 
-    zval *zsetting = sw_zend_read_property_array(swoole_server_ce, getThis(), ZEND_STRL("setting"), 1);
+    zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_ce, getThis(), ZEND_STRL("setting"), 0);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
 
     RETURN_TRUE;
@@ -2938,7 +2938,7 @@ static PHP_METHOD(swoole_server, start)
     serv->onReceive = php_swoole_onReceive;
     if (is_websocket_server(zobject) || is_http_server(zobject))
     {
-        zval *zsetting = sw_zend_read_property_array(swoole_server_ce, getThis(), ZEND_STRL("setting"), 1);
+        zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_ce, getThis(), ZEND_STRL("setting"), 0);
         add_assoc_bool(zsetting, "open_http_protocol", 1);
         add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
         add_assoc_bool(zsetting, "open_eof_check", 0);

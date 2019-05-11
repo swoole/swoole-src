@@ -762,7 +762,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     p->fp = fp;
     add_assoc_string(multipart_header, "tmp_name", file_path);
 
-    zval *ztmpfiles = sw_zend_read_property(swoole_http_request_ce, zrequest_object, ZEND_STRL("tmpfiles"), 1);
+    zval *ztmpfiles = sw_zend_read_property(swoole_http_request_ce, zrequest_object, ZEND_STRL("tmpfiles"), 0);
     if (ztmpfiles == NULL || ZVAL_IS_NULL(ztmpfiles))
     {
         swoole_http_server_array_init(tmpfiles, request);
@@ -783,7 +783,7 @@ static int multipart_body_on_data_end(multipart_parser* p)
     zval *zrequest_object = ctx->request.zobject;
     if (ctx->current_form_data_name)
     {
-        zval *zpost = sw_zend_read_property(swoole_http_request_ce, zrequest_object, ZEND_STRL("post"), 1);
+        zval *zpost = sw_zend_read_property(swoole_http_request_ce, zrequest_object, ZEND_STRL("post"), 0);
         if (ZVAL_IS_NULL(zpost))
         {
             swoole_http_server_array_init(post, request);
@@ -1233,7 +1233,7 @@ static PHP_METHOD(swoole_http_request, __destruct)
 {
     SW_PREVENT_USER_DESTRUCT();
 
-    zval *ztmpfiles = sw_zend_read_property(swoole_http_request_ce, getThis(), ZEND_STRL("tmpfiles"), 1);
+    zval *ztmpfiles = sw_zend_read_property(swoole_http_request_ce, getThis(), ZEND_STRL("tmpfiles"), 0);
     //upload files
     if (ztmpfiles && Z_TYPE_P(ztmpfiles) == IS_ARRAY)
     {
@@ -1387,7 +1387,7 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
     /**
      * http header
      */
-    zval *zheader = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 1);
+    zval *zheader = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
     uint32_t header_flag = 0x0;
     if (ZVAL_IS_ARRAY(zheader))
     {
@@ -1494,7 +1494,7 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
     }
 
     //http cookies
-    zval *zcookie = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("cookie"), 1);
+    zval *zcookie = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("cookie"), 0);
     if (ZVAL_IS_ARRAY(zcookie))
     {
         zval *value;
@@ -1696,18 +1696,18 @@ static PHP_METHOD(swoole_http_response, initHeader)
         RETURN_FALSE;
     }
     zval *zresponse_object = ctx->response.zobject;
-    zval *zheader = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("header"), 1);
+    zval *zheader = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("header"), 0);
     if (!ZVAL_IS_ARRAY(zheader))
     {
         swoole_http_server_array_init(header, response);
     }
-    zval *zcookie = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("cookie"), 1);
+    zval *zcookie = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("cookie"), 0);
     if (!ZVAL_IS_ARRAY(zcookie))
     {
         swoole_http_server_array_init(cookie, response);
     }
 #ifdef SW_USE_HTTP2
-    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("trailer"), 1);
+    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("trailer"), 0);
     if (!ZVAL_IS_ARRAY(ztrailer))
     {
         swoole_http_server_array_init(trailer, response);
@@ -1973,7 +1973,7 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
         RETURN_FALSE;
     }
     zval *zresponse_object = ctx->response.zobject;
-    zval *zcookie = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("cookie"), 1);
+    zval *zcookie = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("cookie"), 0);
     if (!ZVAL_IS_ARRAY(zcookie))
     {
         swoole_http_server_array_init(cookie, response);
@@ -2108,7 +2108,7 @@ static PHP_METHOD(swoole_http_response, header)
     }
 
     zval *zresponse_object = ctx->response.zobject;
-    zval *zheader = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("header"), 1);
+    zval *zheader = sw_zend_read_property(swoole_http_response_ce, zresponse_object, ZEND_STRL("header"), 0);
     if (!ZVAL_IS_ARRAY(zheader))
     {
         swoole_http_server_array_init(header, response);

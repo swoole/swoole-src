@@ -772,7 +772,7 @@ static PHP_METHOD(swoole_http2_client_coro, set)
         Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zval *zsetting = sw_zend_read_property_array(swoole_http2_client_coro_ce, getThis(), ZEND_STRL("setting"), 0);
+    zval *zsetting = sw_zend_read_and_convert_property_array(swoole_http2_client_coro_ce, getThis(), ZEND_STRL("setting"), 0);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
 
     h2c->apply_setting(zset);
@@ -844,9 +844,9 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
         inlen -= 5;
     }
 
-    zval *zheaders = sw_zend_read_property_array(swoole_http2_response_ce, zresponse, ZEND_STRL("headers"), 0);
-    zval *zcookies = sw_zend_read_property_array(swoole_http2_response_ce, zresponse, ZEND_STRL("cookies"), 0);
-    zval *zset_cookie_headers = sw_zend_read_property_array(swoole_http2_response_ce, zresponse, ZEND_STRL("set_cookie_headers"), 0);
+    zval *zheaders = sw_zend_read_and_convert_property_array(swoole_http2_response_ce, zresponse, ZEND_STRL("headers"), 0);
+    zval *zcookies = sw_zend_read_and_convert_property_array(swoole_http2_response_ce, zresponse, ZEND_STRL("cookies"), 0);
+    zval *zset_cookie_headers = sw_zend_read_and_convert_property_array(swoole_http2_response_ce, zresponse, ZEND_STRL("set_cookie_headers"), 0);
 
     ssize_t rv;
     while (true)
@@ -1090,7 +1090,7 @@ uint32_t http2_client::send_request(zval *req)
 {
     ssize_t length;
 
-    zval *zheaders = sw_zend_read_property_array(swoole_http2_request_ce, req, ZEND_STRL("headers"), 0);
+    zval *zheaders = sw_zend_read_and_convert_property_array(swoole_http2_request_ce, req, ZEND_STRL("headers"), 0);
     zval *zdata = sw_zend_read_property(swoole_http2_request_ce, req, ZEND_STRL("data"), 0);
     zval *zpipeline = sw_zend_read_property(swoole_http2_request_ce, req, ZEND_STRL("pipeline"), 0);
     bool is_data_empty = !zend_is_true(zdata);

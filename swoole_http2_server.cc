@@ -386,7 +386,7 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
      +---------------------------------------------------------------+
      */
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
-    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("trailer"), 1);
+    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("trailer"), 0);
     if (!ZVAL_IS_ARRAY(ztrailer))
     {
         ztrailer = NULL;

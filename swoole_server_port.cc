@@ -516,7 +516,7 @@ static PHP_METHOD(swoole_server_port, set)
     }
 #endif
 
-    zval *zsetting = sw_zend_read_property_array(swoole_server_port_ce, getThis(), ZEND_STRL("setting"), 1);
+    zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_port_ce, getThis(), ZEND_STRL("setting"), 0);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
     property->zsetting = zsetting;
 }

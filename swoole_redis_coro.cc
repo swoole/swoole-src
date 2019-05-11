@@ -1104,7 +1104,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     zend_update_property_long(swoole_redis_coro_ce, zobject, ZEND_STRL("sock"), context->fd);
 
     // auth and select db after connected
-    zval *zsetting = sw_zend_read_property_array(swoole_redis_coro_ce, redis->zobject, ZEND_STRL("setting"), 1);
+    zval *zsetting = sw_zend_read_and_convert_property_array(swoole_redis_coro_ce, redis->zobject, ZEND_STRL("setting"), 0);
     HashTable *vht = Z_ARRVAL_P(zsetting);
 
     if (php_swoole_array_get_value(vht, "password", ztmp))
@@ -1967,7 +1967,7 @@ void swoole_redis_coro_init(int module_number)
 
 static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, bool backward_compatibility = false)
 {
-    zval *zsettings = sw_zend_read_property_array(swoole_redis_coro_ce, redis->zobject, ZEND_STRL("setting"), 1);
+    zval *zsettings = sw_zend_read_and_convert_property_array(swoole_redis_coro_ce, redis->zobject, ZEND_STRL("setting"), 0);
     HashTable *vht = Z_ARRVAL_P(zoptions);
     zval *ztmp;
 
@@ -2018,7 +2018,7 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
 static PHP_METHOD(swoole_redis_coro, __construct)
 {
     swRedisClient *redis = (swRedisClient *) swoole_get_object(getThis());
-    zval *zsettings = sw_zend_read_property_array(swoole_redis_coro_ce, getThis(), ZEND_STRL("setting"), 1);
+    zval *zsettings = sw_zend_read_and_convert_property_array(swoole_redis_coro_ce, getThis(), ZEND_STRL("setting"), 0);
     zval *zset = NULL;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
@@ -2098,7 +2098,7 @@ static PHP_METHOD(swoole_redis_coro, getAuth)
     swRedisClient *redis = swoole_get_redis_client(getThis());
     if (redis->session.auth)
     {
-        zval *ztmp = sw_zend_read_property_array(swoole_redis_coro_ce, getThis(), ZEND_STRL("setting"), 1);
+        zval *ztmp = sw_zend_read_and_convert_property_array(swoole_redis_coro_ce, getThis(), ZEND_STRL("setting"), 0);
         if (php_swoole_array_get_value(Z_ARRVAL_P(ztmp), "password", ztmp))
         {
             RETURN_ZVAL(ztmp, 1, 0);
@@ -2120,7 +2120,7 @@ static PHP_METHOD(swoole_redis_coro, getDBNum)
 
 static PHP_METHOD(swoole_redis_coro, getOptions)
 {
-    RETURN_ZVAL(sw_zend_read_property_array(swoole_redis_coro_ce, getThis(), ZEND_STRL("setting"), 1), 1, 0);
+    RETURN_ZVAL(sw_zend_read_and_convert_property_array(swoole_redis_coro_ce, getThis(), ZEND_STRL("setting"), 0), 1, 0);
 }
 
 static PHP_METHOD(swoole_redis_coro, setOptions)
@@ -3114,7 +3114,7 @@ static PHP_METHOD(swoole_redis_coro, auth)
     }
 
     SW_REDIS_COMMAND_CHECK
-    zval *zsetting = sw_zend_read_property_array(swoole_redis_coro_ce, getThis(), ZEND_STRL("setting"), 1);
+    zval *zsetting = sw_zend_read_and_convert_property_array(swoole_redis_coro_ce, getThis(), ZEND_STRL("setting"), 0);
     add_assoc_stringl(zsetting, "password", pw, pw_len);
     RETURN_BOOL(redis_auth(redis, pw, pw_len));
 }
@@ -4149,7 +4149,7 @@ static PHP_METHOD(swoole_redis_coro, select)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     SW_REDIS_COMMAND_CHECK
-    zval *zsetting = sw_zend_read_property_array(swoole_redis_coro_ce, getThis(), ZEND_STRL("setting"), 1);
+    zval *zsetting = sw_zend_read_and_convert_property_array(swoole_redis_coro_ce, getThis(), ZEND_STRL("setting"), 0);
     add_assoc_long(zsetting, "database", db_number);
     RETURN_BOOL(redis_select_db(redis, db_number));
 }

@@ -842,9 +842,9 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
 
     swClient *cli;
     string conn_key;
-    zval *zconnection_id = sw_zend_read_property_not_null(Z_OBJCE_P(zobject), zobject, ZEND_STRL("id"), 1);
+    zval *zconnection_id = sw_zend_read_property_not_null(Z_OBJCE_P(zobject), zobject, ZEND_STRL("id"), 0);
 
-    if (zconnection_id && Z_TYPE_P(zconnection_id) == IS_STRING && Z_STRLEN_P(zconnection_id) > 0)
+    if (Z_TYPE_P(zconnection_id) == IS_STRING && Z_STRLEN_P(zconnection_id) > 0)
     {
         conn_key = string(Z_STRVAL_P(zconnection_id), Z_STRLEN_P(zconnection_id));
     }
@@ -997,7 +997,7 @@ static PHP_METHOD(swoole_client, set)
         RETURN_FALSE;
     }
 
-    zval *zsetting = sw_zend_read_property_array(swoole_client_ce, getThis(), ZEND_STRL("setting"), 1);
+    zval *zsetting = sw_zend_read_and_convert_property_array(swoole_client_ce, getThis(), ZEND_STRL("setting"), 0);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
 
     RETURN_TRUE;
@@ -1060,7 +1060,7 @@ static PHP_METHOD(swoole_client, connect)
         RETURN_FALSE;
     }
 
-    zval *zset = sw_zend_read_property(swoole_client_ce, getThis(), ZEND_STRL("setting"), 1);
+    zval *zset = sw_zend_read_property(swoole_client_ce, getThis(), ZEND_STRL("setting"), 0);
     if (zset && ZVAL_IS_ARRAY(zset))
     {
         php_swoole_client_check_setting(cli, zset);
@@ -1832,8 +1832,8 @@ static PHP_METHOD(swoole_client, enableSSL)
         RETURN_FALSE;
     }
     cli->open_ssl = 1;
-    zval *zset = sw_zend_read_property(swoole_client_ce, getThis(), ZEND_STRL("setting"), 1);
-    if (zset && ZVAL_IS_ARRAY(zset))
+    zval *zset = sw_zend_read_property(swoole_client_ce, getThis(), ZEND_STRL("setting"), 0);
+    if (ZVAL_IS_ARRAY(zset))
     {
         php_swoole_client_check_ssl_setting(cli, zset);
     }

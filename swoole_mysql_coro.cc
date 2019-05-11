@@ -2052,7 +2052,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     if (zserver_info && php_swoole_array_length(zserver_info) > 0)
     {
         php_array_merge(
-            Z_ARRVAL_P(sw_zend_read_property_array(swoole_mysql_coro_ce, getThis(), ZEND_STRL("serverInfo"), 0)),
+            Z_ARRVAL_P(sw_zend_read_and_convert_property_array(swoole_mysql_coro_ce, getThis(), ZEND_STRL("serverInfo"), 0)),
             Z_ARRVAL_P(zserver_info)
         );
     }
