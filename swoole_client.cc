@@ -143,10 +143,6 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
         swoole_php_fatal_error(E_WARNING, "%s handler error", callback_name);
         return;
     }
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
     if (retval)
     {
         zval_ptr_dtor(retval);
@@ -329,10 +325,6 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
     {
         swoole_php_fatal_error(E_WARNING, "onReactorCallback handler error");
         goto free_zdata;
-    }
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
     }
     if (retval)
     {
