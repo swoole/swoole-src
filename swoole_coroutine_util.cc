@@ -15,7 +15,7 @@
   |         Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
  */
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 
 #include "swoole_coroutine.h"
 #include "coroutine_c_api.h"
@@ -154,17 +154,13 @@ static PHP_METHOD(swoole_coroutine_util, getBackTrace);
 static PHP_METHOD(swoole_exit_exception, getFlags);
 static PHP_METHOD(swoole_exit_exception, getStatus);
 
-static unordered_map<int, Coroutine *> user_yield_coros;
-
 static zend_class_entry *swoole_coroutine_util_ce;
-static zend_object_handlers swoole_coroutine_util_handlers;
-
 static zend_class_entry *swoole_coroutine_iterator_ce;
-
 static zend_class_entry *swoole_coroutine_context_ce;
-
 static zend_class_entry *swoole_exit_exception_ce;
 static zend_object_handlers swoole_exit_exception_handlers;
+
+static unordered_map<long, Coroutine *> user_yield_coros;
 
 BEGIN_EXTERN_C()
 extern int swoole_coroutine_statvfs(const char *path, struct statvfs *buf);
@@ -279,10 +275,8 @@ void swoole_coroutine_util_init(int module_number)
 {
     PHPCoroutine::init();
 
-    SW_INIT_CLASS_ENTRY(swoole_coroutine_util, "Swoole\\Coroutine", NULL, "Co", swoole_coroutine_util_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_coroutine_util, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SW_SET_CLASS_CLONEABLE(swoole_coroutine_util, zend_class_clone_deny);
-    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_util, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_util, "Swoole\\Coroutine", NULL, "Co", swoole_coroutine_util_methods, NULL);
+    SW_SET_CLASS_CREATE(swoole_coroutine_util, sw_zend_create_object_deny);
 
     SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", NULL, spl_ce_ArrayIterator);
 

@@ -91,7 +91,7 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
 static int multipart_body_on_header_complete(multipart_parser* p);
 static int multipart_body_on_data_end(multipart_parser* p);
 
-static http_context* http_get_context(zval *zobject, int check_end);
+static http_context* http_get_context(zval *zobject, const bool check_end);
 static void http_build_header(http_context *, zval *zobject, swString *response, int body_length);
 
 static inline void http_header_key_format(char *key, int length)
@@ -1066,14 +1066,16 @@ void swoole_http_server_init(int module_number)
     SW_INIT_CLASS_ENTRY_EX(swoole_http_server, "Swoole\\Http\\Server", "swoole_http_server", NULL, NULL, swoole_server);
     SW_SET_CLASS_SERIALIZABLE(swoole_http_server, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http_server, zend_class_clone_deny);
-    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server, zend_class_unset_property_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server, sw_zend_class_unset_property_deny);
+    SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_http_server);
 
     zend_declare_property_null(swoole_http_server_ce, ZEND_STRL("onRequest"), ZEND_ACC_PRIVATE);
 
     SW_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", NULL, swoole_http_request_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_http_request, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http_request, zend_class_clone_deny);
-    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_request, zend_class_unset_property_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_request, sw_zend_class_unset_property_deny);
+    SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_http_request);
 
     zend_declare_property_long(swoole_http_request_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
 #ifdef SW_USE_HTTP2
@@ -1091,7 +1093,8 @@ void swoole_http_server_init(int module_number)
     SW_INIT_CLASS_ENTRY(swoole_http_response, "Swoole\\Http\\Response", "swoole_http_response", NULL, swoole_http_response_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_http_response, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http_response, zend_class_clone_deny);
-    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_response, zend_class_unset_property_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_response, sw_zend_class_unset_property_deny);
+    SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_http_response);
 
     zend_declare_property_long(swoole_http_response_ce, ZEND_STRL("fd"), 0,  ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("header"), ZEND_ACC_PUBLIC);
@@ -1272,7 +1275,7 @@ static PHP_METHOD(swoole_http_response, write)
     http_context *ctx = http_get_context(getThis(), 0);
     if (!ctx)
     {
-        return;
+        RETURN_FALSE;
     }
 
 #ifdef SW_USE_HTTP2
@@ -1350,12 +1353,12 @@ static PHP_METHOD(swoole_http_response, write)
     SW_CHECK_RETURN(ret);
 }
 
-static http_context* http_get_context(zval *zobject, int check_end)
+static http_context* http_get_context(zval *zobject, const bool check_end)
 {
     http_context *ctx = (http_context *) swoole_get_object(zobject);
     if (!ctx || (check_end && ctx->end))
     {
-        swoole_php_fatal_error(E_WARNING, "Http request is finished");
+        swoole_php_fatal_error(E_WARNING, "http context is unavailable (maybe it has been ended or detached)");
         return NULL;
     }
     return ctx;
@@ -2221,13 +2224,12 @@ static PHP_METHOD(swoole_http_response, create)
         Z_PARAM_LONG(fd)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    http_context *ctx = (http_context *) emalloc(sizeof(http_context));
+    http_context *ctx = (http_context *) ecalloc(1, sizeof(http_context));
     if (!ctx)
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "emalloc(%ld) failed", sizeof(http_context));
         RETURN_FALSE;
     }
-    bzero(ctx, sizeof(http_context));
     ctx->fd = (int) fd;
 
     object_init_ex(return_value, swoole_http_response_ce);

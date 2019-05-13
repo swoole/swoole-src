@@ -53,7 +53,6 @@ ZEND_END_ARG_INFO()
 
 
 static zend_class_entry *swoole_runtime_ce;
-static zend_object_handlers swoole_runtime_handlers;
 
 static php_stream_ops socket_ops
 {
@@ -130,10 +129,8 @@ static const zend_function_entry swoole_runtime_methods[] =
 
 void swoole_runtime_init(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_runtime, "Swoole\\Runtime", "swoole_runtime", NULL, swoole_runtime_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_runtime, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SW_SET_CLASS_CLONEABLE(swoole_runtime, zend_class_clone_deny);
-    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_runtime, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY_BASE(swoole_runtime, "Swoole\\Runtime", "swoole_runtime", NULL, swoole_runtime_methods, NULL);
+    SW_SET_CLASS_CREATE(swoole_runtime, sw_zend_create_object_deny);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_TCP", SW_HOOK_TCP);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_UDP", SW_HOOK_UDP);

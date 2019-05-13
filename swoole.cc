@@ -247,34 +247,6 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->rshutdown_functions = NULL;
 }
 
-#if PHP_VERSION_ID < 80000
-void php_swoole_class_unset_property_deny(zval *zobject, zval *zmember, void **cache_slot)
-{
-    if (!Z_OBJCE_P(zobject)->parent && EXPECTED(zend_hash_find(&(Z_OBJCE_P(zobject)->properties_info), Z_STR_P(zmember))))
-    {
-        zend_throw_error(NULL, "Property %s of class %s cannot be unset", Z_STRVAL_P(zmember), ZSTR_VAL(Z_OBJCE_P(zobject)->name));
-        return;
-    }
-    else if (Z_OBJCE_P(zobject)->parent && Z_OBJCE_P(zobject)->parent->type == ZEND_INTERNAL_CLASS && \
-            EXPECTED(zend_hash_find(&(Z_OBJCE_P(zobject)->parent->properties_info), Z_STR_P(zmember))))
-    {
-        zend_throw_error(NULL, "Property %s of class %s cannot be unset", Z_STRVAL_P(zmember), ZSTR_VAL(Z_OBJCE_P(zobject)->parent->name));
-        return;
-    }
-    std_object_handlers.unset_property(zobject, zmember, cache_slot);
-}
-#else
-void php_swoole_class_unset_property_deny(zend_object *object, zend_string *member, void **cache_slot)
-{
-    if (EXPECTED(zend_hash_find(object->properties, member)))
-    {
-        zend_throw_error(NULL, "Property %s of class %s cannot be unset", ZSTR_VAL(member), ZSTR_VAL(object->ce->name));
-        return;
-    }
-    std_object_handlers.unset_property(object, member, cache_slot);
-}
-#endif
-
 ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
 {
     SwooleG.lock.lock(&SwooleG.lock);
@@ -780,9 +752,7 @@ PHP_MINIT_FUNCTION(swoole)
     }
 
     SW_INIT_CLASS_ENTRY(swoole_event, "Swoole\\Event", "swoole_event", NULL, swoole_event_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_event, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SW_SET_CLASS_CLONEABLE(swoole_event, zend_class_clone_deny);
-    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_event, zend_class_unset_property_deny);
+    SW_SET_CLASS_CREATE(swoole_event, sw_zend_create_object_deny);
 
     SW_INIT_EXCEPTION_CLASS_ENTRY(swoole_exception, "Swoole\\Exception", "swoole_exception", NULL, NULL);
 

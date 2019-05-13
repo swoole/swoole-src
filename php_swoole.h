@@ -474,12 +474,6 @@ int php_coroutine_reactor_can_exit(swReactor *reactor);
 void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset);
 #endif
 
-#if PHP_VERSION_ID < 80000
-void php_swoole_class_unset_property_deny(zval *zobject, zval *zmember, void **cache_slot);
-#else
-void php_swoole_class_unset_property_deny(zend_object *object, zend_string *member, void **cache_slot);
-#endif
-
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool display_errors;
     zend_bool cli;
@@ -772,7 +766,6 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 #define SW_SET_CLASS_CLONEABLE(module, _clone_obj) \
     module##_handlers.clone_obj = _clone_obj
 
-#define zend_class_unset_property_deny php_swoole_class_unset_property_deny
 #define SW_SET_CLASS_UNSET_PROPERTY_HANDLER(module, _unset_property) \
     module##_handlers.unset_property = _unset_property
 
@@ -842,6 +835,60 @@ static sw_inline int sw_zend_register_class_alias(const char *name, size_t name_
     return zend_register_class_alias_ex(ZSTR_VAL(_interned_name), ZSTR_LEN(_interned_name), ce);
 #endif
 }
+
+static sw_inline zend_object *sw_zend_create_object(zend_class_entry *ce, zend_object_handlers *handlers)
+{
+    zend_object* object = (zend_object *) ecalloc(1, sizeof(zend_object) + zend_object_properties_size(ce));
+    zend_object_std_init(object, ce);
+    object_properties_init(object, ce);
+    object->handlers = handlers;
+    return object;
+}
+
+static sw_inline zend_object* sw_zend_create_object_deny(zend_class_entry *ce)
+{
+    zend_object *object;
+    object = zend_objects_new(ce);
+    /* Initialize default properties */
+    if (EXPECTED(ce->default_properties_count != 0)) {
+        zval *p = object->properties_table;
+        zval *end = p + ce->default_properties_count;
+        do {
+            ZVAL_UNDEF(p);
+            p++;
+        } while (p != end);
+    }
+    zend_throw_error(NULL, "The object of %s can not be created for security reasons", ZSTR_VAL(ce->name));
+    return object;
+}
+
+#if PHP_VERSION_ID < 80000
+static sw_inline void sw_zend_class_unset_property_deny(zval *zobject, zval *zmember, void **cache_slot)
+{
+    if (!Z_OBJCE_P(zobject)->parent && EXPECTED(zend_hash_find(&(Z_OBJCE_P(zobject)->properties_info), Z_STR_P(zmember))))
+    {
+        zend_throw_error(NULL, "Property %s of class %s cannot be unset", Z_STRVAL_P(zmember), ZSTR_VAL(Z_OBJCE_P(zobject)->name));
+        return;
+    }
+    else if (Z_OBJCE_P(zobject)->parent && Z_OBJCE_P(zobject)->parent->type == ZEND_INTERNAL_CLASS && \
+            EXPECTED(zend_hash_find(&(Z_OBJCE_P(zobject)->parent->properties_info), Z_STR_P(zmember))))
+    {
+        zend_throw_error(NULL, "Property %s of class %s cannot be unset", Z_STRVAL_P(zmember), ZSTR_VAL(Z_OBJCE_P(zobject)->parent->name));
+        return;
+    }
+    std_object_handlers.unset_property(zobject, zmember, cache_slot);
+}
+#else
+static sw_inline void sw_zend_class_unset_property_deny(zend_object *object, zend_string *member, void **cache_slot)
+{
+    if (EXPECTED(zend_hash_find(object->properties, member)))
+    {
+        zend_throw_error(NULL, "Property %s of class %s cannot be unset", ZSTR_VAL(member), ZSTR_VAL(object->ce->name));
+        return;
+    }
+    std_object_handlers.unset_property(object, member, cache_slot);
+}
+#endif
 
 static sw_inline zval* sw_zend_read_property(zend_class_entry *ce, zval *obj, const char *s, int len, int silent)
 {
