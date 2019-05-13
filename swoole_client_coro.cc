@@ -584,7 +584,7 @@ static void php_swoole_socket_set_ssl(Socket *cli, zval *zset)
         {
             sw_free(cli->ssl_option.cert_file);
         }
-        if (access(cli->ssl_option.cert_file, R_OK) == 0)
+        if (access(str_v.val(), R_OK) == 0)
         {
             cli->ssl_option.cert_file = str_v.dup();
         }
@@ -600,7 +600,7 @@ static void php_swoole_socket_set_ssl(Socket *cli, zval *zset)
         {
             sw_free(cli->ssl_option.key_file);
         }
-        if (access(cli->ssl_option.key_file, R_OK) == 0)
+        if (access(str_v.val(), R_OK) == 0)
         {
             cli->ssl_option.key_file = str_v.dup();
         }

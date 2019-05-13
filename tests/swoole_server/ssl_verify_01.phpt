@@ -12,17 +12,19 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    $client = new swoole_client(SWOOLE_SOCK_TCP | SWOOLE_SSL, SWOOLE_SOCK_SYNC); //同步阻塞
-    $client->set([
-        'ssl_cert_file' => dirname(__DIR__) . '/include/api/ssl-ca/client-cert.pem',
-        'ssl_key_file' => dirname(__DIR__) . '/include/api/ssl-ca/client-key.pem',
-    ]);
-    if (!$client->connect('127.0.0.1', $pm->getFreePort()))
-    {
-        exit("connect failed\n");
-    }
-    $client->send("hello world");
-    Assert::eq($client->recv(), "Swoole hello world");
+    go(function () use ($pm) {
+        $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP | SWOOLE_SSL);
+        $client->set([
+            'ssl_cert_file' => dirname(__DIR__) . '/include/api/ssl-ca/client-cert.pem',
+            'ssl_key_file' => dirname(__DIR__) . '/include/api/ssl-ca/client-key.pem',
+        ]);
+        if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
+            exit("connect failed\n");
+        }
+        $client->send("hello world");
+        Assert::eq($client->recv(), "Swoole hello world");
+    });
+    Swoole\Event::wait();
     $pm->kill();
     echo "DONE\n";
 };
