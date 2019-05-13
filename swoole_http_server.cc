@@ -998,7 +998,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             if (fci_cache == NULL)
             {
                 swoole_websocket_onHandshake(serv, port, ctx);
-                goto _free_object;
+                goto _dtor_and_return;
             }
             else
             {
@@ -1012,31 +1012,20 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             if (fci_cache == NULL)
             {
                 swoole_websocket_onRequest(ctx);
-                goto _free_object;
+                goto _dtor_and_return;
             }
         }
 
-        if (SwooleG.enable_coroutine)
+        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
         {
-            if (PHPCoroutine::create(fci_cache, 2, args) < 0)
-            {
-                swoole_php_error(E_WARNING, "create Http onRequest coroutine error");
+            swoole_php_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
 #ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
-                serv->send(serv, fd, (char *) SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
+            serv->send(serv, fd, (char *) SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
 #endif
-                serv->close(serv, fd, 0);
-            }
+            serv->close(serv, fd, 0);
         }
-        else
-        {
-            zval _retval, *retval = &_retval;
-            if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
-            {
-                swoole_php_error(E_WARNING, "Http onRequest handler error");
-            }
-            zval_ptr_dtor(retval);
-        }
-        _free_object:
+
+        _dtor_and_return:
         zval_ptr_dtor(zrequest_object);
         zval_ptr_dtor(zresponse_object);
     }

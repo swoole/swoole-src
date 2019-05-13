@@ -208,45 +208,23 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
 
 void swoole_websocket_onOpen(swServer *serv, http_context *ctx)
 {
-    int fd = ctx->fd;
-
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = swWorker_get_connection(serv, ctx->fd);
     if (!conn)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed", ctx->fd);
         return;
     }
-
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, conn->from_fd, SW_SERVER_CB_onOpen);
-    if (!fci_cache)
+    if (fci_cache)
     {
-        return;
-    }
-
-    zval *zserv = (zval *) serv->ptr2;
-    zval *zrequest_object = ctx->request.zobject;
-
-    zval args[2];
-    args[0] = *zserv;
-    args[1] = *zrequest_object;
-
-    if (SwooleG.enable_coroutine)
-    {
-        if (PHPCoroutine::create(fci_cache, 2, args) < 0)
+        zval args[2];
+        args[0] = *((zval *) serv->ptr2);
+        args[1] = *ctx->request.zobject;
+        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
         {
-            swoole_php_error(E_WARNING, "create onOpen coroutine error");
-            serv->close(serv, fd, 0);
-            return;
+            swoole_php_error(E_WARNING, "%s->onOpen handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
+            serv->close(serv, ctx->fd, 0);
         }
-    }
-    else
-    {
-        zval _retval, *retval = &_retval;
-        if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
-        {
-            swoole_php_error(E_WARNING, "onOpen handler error");
-        }
-        zval_ptr_dtor(retval);
     }
 }
 
@@ -338,50 +316,34 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
 
     zval zdata;
     char frame_header[2];
+
     php_swoole_get_recv_data(&zdata, req, frame_header, SW_WEBSOCKET_HEADER_LEN);
 
     // frame info has already decoded in swWebSocket_dispatch_frame
     finish = frame_header[0] ? 1 : 0;
     opcode = frame_header[1];
 
-    if (opcode == WEBSOCKET_OPCODE_CLOSE)
+    if (opcode == WEBSOCKET_OPCODE_CLOSE && !SwooleG.serv->listen_list->open_websocket_close_frame)
     {
-        if (!SwooleG.serv->listen_list->open_websocket_close_frame)
-        {
-            zval_ptr_dtor(&zdata);
-            return SW_OK;
-        }
+        zval_ptr_dtor(&zdata);
+        return SW_OK;
     }
-
-    zval zframe;
-    php_swoole_websocket_construct_frame(&zframe, opcode, Z_STRVAL(zdata), Z_STRLEN(zdata), finish);
-    zend_update_property_long(swoole_websocket_frame_ce, &zframe, ZEND_STRL("fd"), fd);
 
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
     zval args[2];
-    args[0] = *(zval *) serv->ptr2; // zserver
-    args[1] = zframe;
 
-    if (SwooleG.enable_coroutine)
+    args[0] = *(zval *) serv->ptr2;
+    php_swoole_websocket_construct_frame(&args[1], opcode, Z_STRVAL(zdata), Z_STRLEN(zdata), finish);
+    zend_update_property_long(swoole_websocket_frame_ce, &args[1], ZEND_STRL("fd"), fd);
+
+    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
     {
-        if (PHPCoroutine::create(fci_cache, 2, args) < 0)
-        {
-            swoole_php_error(E_WARNING, "create onMessage coroutine error");
-            SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
-        }
-    }
-    else
-    {
-        zval _retval, *retval = &_retval;
-        if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
-        {
-            swoole_php_error(E_WARNING, "onMessage handler error");
-        }
-        zval_ptr_dtor(retval);
+        swoole_php_error(E_WARNING, "%s->onMessage handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
+        SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
     }
 
     zval_ptr_dtor(&zdata);
-    zval_ptr_dtor(&zframe);
+    zval_ptr_dtor(&args[1]);
 
     return SW_OK;
 }

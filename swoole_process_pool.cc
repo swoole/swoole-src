@@ -92,11 +92,6 @@ void swoole_process_pool_init(int module_number)
 static void pool_onWorkerStart(swProcessPool *pool, int worker_id)
 {
     zval *zobject = (zval *) pool->ptr;
-    zval _retval, *retval = &_retval;
-
-    zval args[2];
-    args[0] = *zobject;
-    ZVAL_LONG(&args[1], worker_id);
 
     process_pool_property *pp = (process_pool_property *) swoole_get_property(zobject, 0);
     if (pp->onWorkerStart == NULL)
@@ -108,25 +103,15 @@ static void pool_onWorkerStart(swProcessPool *pool, int worker_id)
     SwooleWG.id = worker_id;
     current_pool = pool;
 
-    if (pp->enable_coroutine)
+    zval args[2];
+    args[0] = *zobject;
+    ZVAL_LONG(&args[1], worker_id);
+
+    if (UNEXPECTED(!zend::function::call(pp->onWorkerStart, 2, args, NULL, pp->enable_coroutine)))
     {
-        if (PHPCoroutine::create(pp->onWorkerStart, 2, args) < 0)
-        {
-            swoole_php_error(E_WARNING, "create process coroutine error");
-        }
+        swoole_php_error(E_WARNING, "%s->onWorkerStart handler error", ZSTR_VAL(swoole_process_pool_ce->name));
     }
-    else
-    {
-        if (sw_call_user_function_fast_ex(NULL, pp->onWorkerStart, retval, 2, args) == FAILURE)
-        {
-            swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error");
-        }
-        zval_ptr_dtor(retval);
-    }
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
+
     if (SwooleG.main_reactor)
     {
         php_swoole_event_wait();

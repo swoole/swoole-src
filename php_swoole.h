@@ -115,7 +115,7 @@ extern swoole_object_array swoole_objects;
 #define SW_LOCK_CHECK_RETURN(s) if(s==0){RETURN_TRUE;}else{zend_update_property_long(NULL,getThis(),SW_STRL("errCode"),s);RETURN_FALSE;}
 
 #define swoole_php_fatal_error(level, fmt_str, ...) \
-        php_error_docref(NULL, level, (const char *) fmt_str, ##__VA_ARGS__)
+        php_error_docref(NULL, level, (const char *) (fmt_str), ##__VA_ARGS__)
 
 #define swoole_php_error(level, fmt_str, ...) \
     if (SWOOLE_G(display_errors) || level == E_ERROR) \
@@ -1015,7 +1015,9 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval* o
 static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fcall_info_cache *fci_cache, zval *retval, uint32_t param_count, zval *params)
 {
     zend_fcall_info fci;
-    ZEND_ASSERT(retval);
+    zval _retval;
+    int ret;
+
     fci.size = sizeof(fci);
 #if PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION == 0
     fci.function_table = EG(function_table);
@@ -1030,12 +1032,17 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
     {
         ZVAL_UNDEF(&fci.function_name);
     }
-    fci.retval = retval;
+    fci.retval = retval ? retval : &_retval;
     fci.param_count = param_count;
     fci.params = params;
     fci.no_separation = 0;
 
-    return zend_call_function(&fci, fci_cache);
+    ret = zend_call_function(&fci, fci_cache);
+    if (!retval)
+    {
+        zval_ptr_dtor(&_retval);
+    }
+    return ret;
 }
 
 static sw_inline int sw_call_function_anyway(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache)

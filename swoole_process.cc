@@ -28,6 +28,7 @@ struct process
     zend_fcall_info_cache fci_cache;
     zend_object *zsocket;
     int pipe_type;
+    bool enable_coroutine;
 };
 
 enum process_pipe_type
@@ -332,8 +333,8 @@ static PHP_METHOD(swoole_process, __construct)
     }
 
     proc->pipe_type = pipe_type;
+    proc->enable_coroutine = enable_coroutine;
 
-    process->enable_coroutine = enable_coroutine ? 1 : 0;
     process->ptr2 = proc;
 
     sw_fci_cache_persist(&proc->fci_cache);
@@ -740,38 +741,11 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
     zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pid"), process->pid);
     zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pipe"), process->pipe_worker);
 
-    zval args[1];
-    zval *retval = NULL;
-    args[0] = *zobject;
-    Z_TRY_ADDREF_P(zobject);
-
     php::process *proc = (php::process *) process->ptr2;
 
-    if (process->enable_coroutine)
+    if (UNEXPECTED(!zend::function::call(&proc->fci_cache, 1, zobject, NULL, proc->enable_coroutine)))
     {
-        if (PHPCoroutine::create(&proc->fci_cache, 1, args) < 0)
-        {
-            swoole_php_error(E_WARNING, "create process coroutine error");
-            return SW_ERR;
-        }
-    }
-    else
-    {
-        zval _retval, *retval = &_retval;
-        if (sw_call_user_function_fast_ex(NULL, &proc->fci_cache, retval, 1, args) == FAILURE)
-        {
-            swoole_php_error(E_WARNING, "callback function error");
-        }
-        zval_ptr_dtor(retval);
-    }
-
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
-    if (retval)
-    {
-        zval_ptr_dtor(retval);
+        swoole_php_error(E_WARNING, "%s->onStart handler error", ZSTR_VAL(swoole_process_ce->name));
     }
 
     if (SwooleG.main_reactor)

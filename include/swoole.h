@@ -1720,10 +1720,6 @@ struct _swWorker
      * redirect stderr to pipe_worker
      */
     uint8_t redirect_stderr :1;
-    /**
-     * enable coroutine
-     */
-    uint8_t enable_coroutine :1;
 
 	/**
 	 * worker status, IDLE or BUSY

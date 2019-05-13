@@ -16,7 +16,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 #include "swoole_coroutine.h"
 
 #include "ext/spl/spl_array.h"
@@ -133,24 +133,10 @@ enum swBool_type php_swoole_timer_clear_all()
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     php_swoole_fci *fci = (php_swoole_fci *) tnode->data;
-
-    if (SwooleG.enable_coroutine)
+    if (UNEXPECTED(!zend::function::call(&fci->fci_cache, fci->fci.param_count, fci->fci.params, NULL, SwooleG.enable_coroutine)))
     {
-        if (PHPCoroutine::create(&fci->fci_cache, fci->fci.param_count, fci->fci.params) < 0)
-        {
-            swoole_php_fatal_error(E_WARNING, "create onTimer coroutine error");
-        }
+        swoole_php_error(E_WARNING, "%s->onTimeout handler error", ZSTR_VAL(swoole_timer_ce->name));
     }
-    else
-    {
-        zval retval;
-        if (sw_call_user_function_fast_ex(NULL, &fci->fci_cache, &retval, fci->fci.param_count, fci->fci.params) == FAILURE)
-        {
-            swoole_php_fatal_error(E_WARNING, "onTimeout handler error");
-        }
-        zval_ptr_dtor(&retval);
-    }
-
     if (!tnode->interval || tnode->removed)
     {
         php_swoole_timer_dtor(tnode);

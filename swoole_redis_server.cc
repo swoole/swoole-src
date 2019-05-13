@@ -177,7 +177,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
 
     if (command_len >= SW_REDIS_MAX_COMMAND_SIZE)
     {
-        swoole_php_error(E_WARNING, "command is too long");
+        swoole_php_error(E_WARNING, "command [%.8s...](length=%d) is too long", command, command_len);
         serv->close(serv, fd, 0);
         return SW_OK;
     }
@@ -187,42 +187,32 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%.*s", command_len, command);
     php_strtolower(_command, _command_len);
 
-    zval args[2];
-    ZVAL_LONG(&args[0], fd);
-    args[1] = zparams;
-
     auto i = redis_handlers.find(string(_command, _command_len));
     if (i == redis_handlers.end())
     {
         char err_msg[256];
         length = sw_snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%.*s'\r\n", command_len, command);
         serv->send(serv, fd, err_msg, length);
-        return SW_OK;
+        return SW_OK; // TODO: return SW_ERR?
     }
 
     zend_fcall_info_cache *fci_cache = i->second;
+    zval args[2];
+    zval retval;
 
-    if (SwooleG.enable_coroutine)
+    ZVAL_LONG(&args[0], fd);
+    args[1] = zparams;
+
+    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, &retval, SwooleG.enable_coroutine)))
     {
-        if (PHPCoroutine::create(fci_cache, 2, args) < 0)
-        {
-            swoole_php_error(E_WARNING, "create redis server onReceive coroutine error");
-        }
-    }
-    else
-    {
-        zval _retval, *retval = &_retval;
-        if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
-        {
-            swoole_php_error(E_WARNING, "redis server command '%.*s' handler error", command_len, command);
-        }
-        if (Z_TYPE_P(retval) == IS_STRING)
-        {
-            serv->send(serv, fd, Z_STRVAL_P(retval), Z_STRLEN_P(retval));
-        }
-        zval_ptr_dtor(retval);
+        swoole_php_error(E_WARNING, "%s->onRequest with command '%.*s' handler error", ZSTR_VAL(swoole_redis_server_ce->name), command_len, command);
     }
 
+    if (Z_TYPE_P(&retval) == IS_STRING)
+    {
+        serv->send(serv, fd, Z_STRVAL_P(&retval), Z_STRLEN_P(&retval));
+    }
+    zval_ptr_dtor(&retval);
     zval_ptr_dtor(&zdata);
     zval_ptr_dtor(&zparams);
 

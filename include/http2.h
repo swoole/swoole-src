@@ -88,6 +88,7 @@ enum swHttp2StreamType
 #define SW_HTTP2_RST_STREAM_SIZE              4
 #define SW_HTTP2_PRIORITY_SIZE                5
 #define SW_HTTP2_PING_SIZE                    8
+#define SW_HTTP2_RST_STREAM_SIZE              4
 #define SW_HTTP2_GOAWAY_SIZE                  8
 #define SW_HTTP2_WINDOW_UPDATE_SIZE           4
 #define SW_HTTP2_STREAM_ID_SIZE               4

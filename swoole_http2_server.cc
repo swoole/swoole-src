@@ -33,16 +33,16 @@ class http2_stream
     public:
     http_context* ctx;
     // uint8_t priority; // useless now
-    uint32_t stream_id;
+    uint32_t id;
     // flow control
     uint32_t send_window;
     uint32_t recv_window;
 
-    http2_stream(int _fd, uint32_t _stream_id)
+    http2_stream(int _fd, uint32_t _id)
     {
         ctx = swoole_http_context_new(_fd);
         ctx->stream = (void *) this;
-        stream_id = _stream_id;
+        id = _id;
         send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
         recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
     }
@@ -101,6 +101,24 @@ using namespace swoole;
 
 static std::unordered_map<int, http2_session*> http2_sessions;
 
+static void http2_server_send_window_update(swServer *serv, int fd, uint32_t stream_id, uint32_t size)
+{
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE];
+    swTraceLog(SW_TRACE_HTTP2, "send [" SW_ECHO_YELLOW "] stream_id=%u, size=%u", "WINDOW_UPDATE", stream_id, size);
+    *(uint32_t*) ((char *)frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(size);
+    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_WINDOW_UPDATE, SW_HTTP2_WINDOW_UPDATE_SIZE, 0, stream_id);
+    serv->send(serv, fd, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
+}
+
+static void http2_server_send_rst_stream(swServer *serv, int fd, uint32_t stream_id, uint32_t error_code)
+{
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_RST_STREAM_SIZE];
+    swTraceLog(SW_TRACE_HTTP2, "send [" SW_ECHO_YELLOW "] stream_id=%u, error_code=%u", "RST_STREAM", stream_id, error_code);
+    *(uint32_t*) ((char *)frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(error_code);
+    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_RST_STREAM, SW_HTTP2_RST_STREAM_SIZE, 0, stream_id);
+    serv->send(serv, fd, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_RST_STREAM_SIZE);
+}
+
 static ssize_t http2_build_trailer(http_context *ctx, uchar *buffer)
 {
     zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("trailer"), 0);
@@ -157,38 +175,17 @@ static ssize_t http2_build_trailer(http_context *ctx, uchar *buffer)
     return 0;
 }
 
-static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
+static sw_inline void http2_onRequest(http_context *ctx, http2_stream *stream, int from_fd)
 {
-    swServer *serv = SwooleG.serv;
-    int fd = ctx->fd;
-    zval _zrequest_object = *ctx->request.zobject, *zrequest_object = &_zrequest_object;
-    zval _zresponse_object = *ctx->response.zobject, *zresponse_object = &_zresponse_object;
-
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onRequest);
-    zval args[2];
-    args[0] = *zrequest_object;
-    args[1] = *zresponse_object;
-
-    if (SwooleG.enable_coroutine)
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(SwooleG.serv, from_fd, SW_SERVER_CB_onRequest);
+    zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
+    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
     {
-        if (PHPCoroutine::create(fci_cache, 2, args) < 0)
-        {
-            swoole_php_error(E_WARNING, "create Http2 onRequest coroutine error");
-            serv->factory.end(&serv->factory, fd);
-        }
+        http2_server_send_rst_stream(SwooleG.serv, ctx->fd, stream->id, SW_HTTP2_ERROR_INTERNAL_ERROR);
+        swoole_php_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));
     }
-    else
-    {
-        zval _retval, *retval = &_retval;
-        if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
-        {
-            swoole_php_error(E_WARNING, "Http2 onRequest handler error");
-        }
-        zval_ptr_dtor(retval);
-    }
-
-    zval_ptr_dtor(zrequest_object);
-    zval_ptr_dtor(zresponse_object);
+    zval_ptr_dtor(&args[0]);
+    zval_ptr_dtor(&args[1]);
 }
 
 static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_length)
@@ -394,11 +391,11 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
 
     if (!ztrailer && body->length == 0)
     {
-        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->stream_id);
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->id);
     }
     else
     {
-        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS, stream->stream_id);
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS, stream->id);
     }
 
     swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
@@ -456,7 +453,7 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
             send_n = l;
             _send_flag = flag;
         }
-        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, send_n, _send_flag, stream->stream_id);
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, send_n, _send_flag, stream->id);
         swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
         swString_append_ptr(swoole_http_buffer, p, send_n);
 
@@ -478,7 +475,7 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
         ret = http2_build_trailer(ctx, (uchar *) header_buffer);
         if (ret > 0)
         {
-            swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->stream_id);
+            swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->id);
             swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
             swString_append_ptr(swoole_http_buffer, header_buffer, ret);
             if (serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length) < 0)
@@ -494,7 +491,7 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
         client->send_window -= body->length;    // TODO: flow control?
     }
 
-    client->streams.erase(stream->stream_id);
+    client->streams.erase(stream->id);
     delete stream;
 
     return SW_OK;
@@ -649,16 +646,6 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
     return SW_OK;
 }
 
-static sw_inline void http2_server_send_window_update(int fd, int stream_id, uint32_t size)
-{
-    char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE];
-    swTraceLog(SW_TRACE_HTTP2, "send [" SW_ECHO_YELLOW "] stream_id=%d, size=%d", "WINDOW_UPDATE", stream_id, size);
-    *(uint32_t*) ((char *)frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(size);
-    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_WINDOW_UPDATE, SW_HTTP2_WINDOW_UPDATE_SIZE, 0, stream_id);
-    swServer *serv = SwooleG.serv;
-    serv->send(serv, fd, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
-}
-
 /**
  * Http2
  */
@@ -778,7 +765,7 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
 
         if (flags & SW_HTTP2_FLAG_END_STREAM)
         {
-            http2_onRequest(ctx, from_fd);
+            http2_onRequest(ctx, stream, from_fd);
         }
         else
         {
@@ -817,12 +804,12 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
         {
             if (client->recv_window < (SW_HTTP2_MAX_WINDOW_SIZE / 4))
             {
-                http2_server_send_window_update(fd, 0, SW_HTTP2_MAX_WINDOW_SIZE - client->recv_window);
+                http2_server_send_window_update(serv, fd, 0, SW_HTTP2_MAX_WINDOW_SIZE - client->recv_window);
                 client->recv_window = SW_HTTP2_MAX_WINDOW_SIZE;
             }
             if (stream->recv_window < (SW_HTTP2_MAX_WINDOW_SIZE / 4))
             {
-                http2_server_send_window_update(fd, stream_id, SW_HTTP2_MAX_WINDOW_SIZE - stream->recv_window);
+                http2_server_send_window_update(serv, fd, stream_id, SW_HTTP2_MAX_WINDOW_SIZE - stream->recv_window);
                 stream->recv_window = SW_HTTP2_MAX_WINDOW_SIZE;
             }
         }
@@ -845,7 +832,7 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
                     swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, n=%zu", n);
                 }
             }
-            http2_onRequest(ctx, from_fd);
+            http2_onRequest(ctx, stream, from_fd);
         }
         break;
     }

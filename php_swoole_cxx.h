@@ -145,4 +145,23 @@ public:
     }
 };
 }
+
+namespace function
+{
+    inline bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine)
+    {
+        if (enable_coroutine)
+        {
+            if (retval)
+            {
+                ZVAL_NULL(retval);
+            }
+            return swoole::PHPCoroutine::create(fci_cache, argc, argv) >= 0;
+        }
+        else
+        {
+            return sw_call_user_function_fast_ex(NULL, fci_cache, retval, argc, argv) == SUCCESS;
+        }
+    }
+}
 }
