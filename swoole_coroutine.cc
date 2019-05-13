@@ -406,6 +406,11 @@ void PHPCoroutine::create_func(void *arg)
     {
         OBJ_RELEASE(task->context);
     }
+
+    if (UNEXPECTED(EG(exception)))
+    {
+        zend_exception_error(EG(exception), E_ERROR);
+    }
 }
 
 long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv)
