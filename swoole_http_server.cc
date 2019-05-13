@@ -358,7 +358,7 @@ static int http_request_on_path(swoole_http_parser *parser, const char *at, size
 static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length)
 {
     http_context *ctx = (http_context *) parser->data;
-    add_assoc_stringl_ex(ctx->request.zserver, ZEND_STRL("query_string"), at, length);
+    add_assoc_stringl_ex(ctx->request.zserver, ZEND_STRL("query_string"), (char *) at, length);
     //parse url params
     sapi_module.treat_data(
         PARSE_STRING,
