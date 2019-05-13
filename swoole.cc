@@ -791,7 +791,7 @@ PHP_MINIT_FUNCTION(swoole)
     {
         SwooleG.enable_coroutine = 0;
     }
-    if (strcasecmp("cli", sapi_module.name) == 0)
+    if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0)
     {
         SWOOLE_G(cli) = 1;
     }
