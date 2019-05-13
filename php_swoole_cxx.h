@@ -160,7 +160,7 @@ namespace function
         }
         else
         {
-            return sw_call_user_function_fast_ex(NULL, fci_cache, retval, argc, argv) == SUCCESS;
+            return sw_call_user_function_fast_ex(NULL, fci_cache, argc, argv, retval) == SUCCESS;
         }
     }
 }

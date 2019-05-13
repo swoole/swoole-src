@@ -1012,7 +1012,7 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval* o
     return call_user_function_ex(function_table, object_p, function_name, &_retval, param_count, param_count ? params : NULL, no_separation, ymbol_table);
 }
 
-static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fcall_info_cache *fci_cache, zval *retval, uint32_t param_count, zval *params)
+static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fcall_info_cache *fci_cache, uint32_t param_count, zval *params, zval *retval)
 {
     zend_fcall_info fci;
     zval _retval;
@@ -1165,7 +1165,7 @@ static sw_inline zend_string* sw_get_debug_print_backtrace(zend_long options, ze
         ZVAL_STRING(&fcn, "debug_print_backtrace");
         ZVAL_LONG(&args[0], options);
         ZVAL_LONG(&args[1], limit);
-        sw_call_user_function_fast_ex(&fcn, NULL, &zoutput, 2, args);
+        sw_call_user_function_fast_ex(&fcn, NULL, 2, args, &zoutput);
         zval_ptr_dtor(&fcn);
     } SW_PHP_OB_END();
     if (UNEXPECTED(ZVAL_IS_NULL(&zoutput)))

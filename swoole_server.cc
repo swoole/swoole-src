@@ -1274,7 +1274,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     ZVAL_LONG(&args[2], (zend_long) req->info.from_id);
     args[3] = *zdata;
 
-    if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 4, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, fci_cache, 4, args, &retval) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onTask handler error");
     }
@@ -1766,7 +1766,7 @@ void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
     args[0] = *zserv;
     ZVAL_LONG(&args[1], info->fd);
 
-    if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, fci_cache, 2, args, retval) == FAILURE)
     {
         swoole_php_error(E_WARNING, "onBufferFull handler error");
     }
@@ -1942,7 +1942,7 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
     args[0] = *zserv;
     ZVAL_LONG(&args[1], info->fd);
 
-    if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, fci_cache, 2, args, retval) == FAILURE)
     {
         swoole_php_error(E_WARNING, "onBufferEmpty handler error");
     }
