@@ -27,7 +27,12 @@ $pm->childFunc = function () use ($pm) {
     $http->on("request", function (swoole_http_request $request, swoole_http_response $response) {
         $response->header('Foo', 'Bar');
         $response->status(500);
-        unset($response->header);
+        try {
+            unset($response->header);
+        } catch (Error $e) {
+            echo $e->getMessage() . PHP_EOL;
+            $response->header('Foo', null);
+        }
         $response->header('Bar', 'Foo');
         $response->end("just an 500 error for fun\n");
     });
@@ -38,6 +43,6 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Notice: Undefined property: Swoole\Http\Response::$header in %s on line %d
+Property header of class Swoole\Http\Response cannot be unset
 500
 just an 500 error for fun

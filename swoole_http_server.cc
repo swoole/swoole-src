@@ -1107,7 +1107,7 @@ void swoole_http_server_init(int module_number)
 http_context* swoole_http_context_new(int fd)
 {
     http_context *ctx = (http_context *) emalloc(sizeof(http_context));
-    if (!ctx)
+    if (UNEXPECTED(!ctx))
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "emalloc(%ld) failed", sizeof(http_context));
         return NULL;
@@ -1196,7 +1196,7 @@ void php_swoole_http_server_before_start(swServer *serv, zval *zobject)
 static PHP_METHOD(swoole_http_request, rawContent)
 {
     http_context *ctx = http_get_context(getThis(), 0);
-    if (!ctx)
+    if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
     }
@@ -1273,7 +1273,7 @@ static PHP_METHOD(swoole_http_response, write)
     }
 
     http_context *ctx = http_get_context(getThis(), 0);
-    if (!ctx)
+    if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
     }
@@ -1694,7 +1694,7 @@ int swoole_http_response_compress(swString *body, int method, int level)
 static PHP_METHOD(swoole_http_response, initHeader)
 {
     http_context *ctx = http_get_context(getThis(), 0);
-    if (!ctx)
+    if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
     }
@@ -1730,7 +1730,7 @@ static PHP_METHOD(swoole_http_response, end)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = http_get_context(getThis(), 0);
-    if (!ctx)
+    if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
     }
@@ -1886,7 +1886,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
 
     http_context *ctx = http_get_context(getThis(), 0);
-    if (!ctx)
+    if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
     }
@@ -1952,7 +1952,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
     RETURN_TRUE;
 }
 
-static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_encode = true)
+static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool url_encode)
 {
     char *name, *value = NULL, *path = NULL, *domain = NULL;
     zend_long expires = 0;
@@ -1971,7 +1971,7 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = http_get_context(getThis(), 0);
-    if (!ctx)
+    if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
     }
@@ -2056,7 +2056,7 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, bool url_e
 
 static PHP_METHOD(swoole_http_response, cookie)
 {
-    swoole_http_response_cookie(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    swoole_http_response_cookie(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
 }
 
 static PHP_METHOD(swoole_http_response, rawcookie)
@@ -2077,7 +2077,7 @@ static PHP_METHOD(swoole_http_response, status)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = http_get_context(getThis(), 0);
-    if (!ctx)
+    if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
     }
@@ -2099,13 +2099,13 @@ static PHP_METHOD(swoole_http_response, header)
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
         Z_PARAM_STRING(k, klen)
-        Z_PARAM_STRING(v, vlen)
+        Z_PARAM_STRING_EX(v, vlen, 1, 0)
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(ucwords)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = http_get_context(getThis(), 0);
-    if (!ctx)
+    if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
     }
@@ -2116,12 +2116,12 @@ static PHP_METHOD(swoole_http_response, header)
     {
         swoole_http_server_array_init(header, response);
     }
-    if (klen > SW_HTTP_HEADER_KEY_SIZE - 1)
+    if (UNEXPECTED(klen > SW_HTTP_HEADER_KEY_SIZE - 1))
     {
         swoole_php_error(E_WARNING, "header key is too long");
         RETURN_FALSE;
     }
-    if (vlen > SW_HTTP_HEADER_VALUE_SIZE)
+    if (UNEXPECTED(vlen > SW_HTTP_HEADER_VALUE_SIZE - 1))
     {
         swoole_php_error(E_WARNING, "header value is too long");
         RETURN_FALSE;
@@ -2130,8 +2130,7 @@ static PHP_METHOD(swoole_http_response, header)
     if (ucwords)
     {
         char key_buf[SW_HTTP_HEADER_KEY_SIZE];
-        memcpy(key_buf, k, klen);
-        key_buf[klen] = '\0';
+        strncpy(key_buf, k, klen)[klen] = '\0';
 #ifdef SW_USE_HTTP2
         if (ctx->stream)
         {
@@ -2142,11 +2141,25 @@ static PHP_METHOD(swoole_http_response, header)
         {
             http_header_key_format(key_buf, klen);
         }
-        add_assoc_stringl_ex(zheader, key_buf, klen, v, vlen);
+        if (UNEXPECTED(!v))
+        {
+            add_assoc_null_ex(zheader, key_buf, klen);
+        }
+        else
+        {
+            add_assoc_stringl_ex(zheader, key_buf, klen, v, vlen);
+        }
     }
     else
     {
-        add_assoc_stringl_ex(zheader, k, klen, v, vlen);
+        if (UNEXPECTED(!v))
+        {
+            add_assoc_null_ex(zheader, k, klen);
+        }
+        else
+        {
+            add_assoc_stringl_ex(zheader, k, klen, v, vlen);
+        }
     }
     RETURN_TRUE;
 }
@@ -2156,11 +2169,12 @@ static PHP_METHOD(swoole_http_response, trailer)
 {
     char *k, *v;
     size_t klen, vlen;
+    char key_buf[SW_HTTP_HEADER_KEY_SIZE];
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|b", &k, &klen, &v, &vlen) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(k, klen)
+        Z_PARAM_STRING_EX(v, vlen, 1, 0)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = http_get_context(getThis(), 0);
     if (!ctx || !ctx->stream)
@@ -2174,21 +2188,24 @@ static PHP_METHOD(swoole_http_response, trailer)
     {
         swoole_http_server_array_init(trailer, response);
     }
-    if (klen > SW_HTTP_HEADER_KEY_SIZE - 1)
+    if (UNEXPECTED(klen > SW_HTTP_HEADER_KEY_SIZE - 1))
     {
         swoole_php_error(E_WARNING, "trailer key is too long");
         RETURN_FALSE;
     }
-    if (vlen > SW_HTTP_HEADER_VALUE_SIZE)
+    if (UNEXPECTED(vlen > SW_HTTP_HEADER_VALUE_SIZE - 1))
     {
         swoole_php_error(E_WARNING, "trailer value is too long");
         RETURN_FALSE;
     }
-    if (true)
+    strncpy(key_buf, k, klen)[klen] = '\0';
+    swoole_strtolower(key_buf, klen);
+    if (UNEXPECTED(!v))
     {
-        char key_buf[SW_HTTP_HEADER_KEY_SIZE];
-        strncpy(key_buf, k, klen)[klen] = '\0';
-        swoole_strtolower(key_buf, klen);
+        add_assoc_null_ex(ztrailer, key_buf, klen);
+    }
+    else
+    {
         add_assoc_stringl_ex(ztrailer, key_buf, klen, v, vlen);
     }
     RETURN_TRUE;
@@ -2225,9 +2242,9 @@ static PHP_METHOD(swoole_http_response, create)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = (http_context *) ecalloc(1, sizeof(http_context));
-    if (!ctx)
+    if (UNEXPECTED(!ctx))
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "emalloc(%ld) failed", sizeof(http_context));
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "ecalloc(%ld) failed", sizeof(http_context));
         RETURN_FALSE;
     }
     ctx->fd = (int) fd;
@@ -2252,7 +2269,7 @@ static PHP_METHOD(swoole_http_response, redirect)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = http_get_context(getThis(), 0);
-    if (!ctx)
+    if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
     }
