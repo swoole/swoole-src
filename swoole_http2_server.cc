@@ -566,14 +566,12 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                         pathbuf[k_len] = 0;
                         add_assoc_stringl_ex(zserver, ZEND_STRL("query_string"), v_str, v_len);
                         zstr_path = zend_string_init(pathbuf, k_len, 0);
-
-                        zval *zget, *zrequest_object = ctx->request.zobject;
-                        swoole_http_server_array_init(get, request);
-
-                        //no need free, will free by treat_data
-                        char *query = estrndup(v_str, v_len);
-                        //parse url params
-                        sapi_module.treat_data(PARSE_STRING, query, zget);
+                        // parse url params
+                        sapi_module.treat_data(
+                            PARSE_STRING,
+                            estrndup(v_str, v_len), // it will be freed by treat_data
+                            swoole_http_init_and_read_property(swoole_http_request_ce, ctx->request.zobject, &ctx->request.zget, ZEND_STRL("get"))
+                        );
                     }
                     else
                     {
@@ -612,13 +610,10 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                 }
                 else if (strncasecmp((char *) nv.name, "cookie", nv.namelen) == 0)
                 {
-                    zval *zcookie = ctx->request.zcookie;
-                    zval *zrequest_object = ctx->request.zobject;
-                    if (!zcookie)
-                    {
-                        swoole_http_server_array_init(cookie, request);
-                    }
-                    swoole_http_parse_cookie(zcookie, (char *) nv.value, nv.valuelen);
+                    swoole_http_parse_cookie(
+                        swoole_http_init_and_read_property(swoole_http_request_ce, ctx->request.zobject, &ctx->request.zcookie, ZEND_STRL("cookie")),
+                        (const char *) nv.value, nv.valuelen
+                    );
                     continue;
                 }
 #ifdef SW_HAVE_ZLIB
@@ -664,7 +659,6 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
 
     http2_stream *stream = nullptr;
     http_context *ctx = nullptr;
-    zval *zrequest_object = nullptr;
     zval zdata;
     php_swoole_get_recv_data(&zdata, req, NULL, 0);
 
@@ -740,8 +734,7 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
             client->streams[stream_id] = stream;
             ctx = stream->ctx;
 
-            zrequest_object = ctx->request.zobject;
-            zend_update_property_long(Z_OBJCE_P(zrequest_object), zrequest_object, ZEND_STRL("streamId"), stream_id);
+            zend_update_property_long(swoole_http_request_ce, ctx->request.zobject, ZEND_STRL("streamId"), stream_id);
 
             zval *zserver = ctx->request.zserver;
 
@@ -786,8 +779,7 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
         stream = stream_iterator->second;
         ctx = stream->ctx;
 
-        zrequest_object = ctx->request.zobject;
-        zend_update_property_long(Z_OBJCE_P(zrequest_object), zrequest_object, ZEND_STRL("streamId"), stream_id);
+        zend_update_property_long(swoole_http_request_ce, ctx->request.zobject, ZEND_STRL("streamId"), stream_id);
 
         swString *buffer = ctx->request.post_buffer;
         if (!buffer)
@@ -818,10 +810,11 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
         {
             if (SwooleG.serv->http_parse_post && ctx->request.post_form_urlencoded)
             {
-                zval *zpost;
-                swoole_http_server_array_init(post, request);
-                char *post_content = estrndup(buffer->str, buffer->length);
-                sapi_module.treat_data(PARSE_STRING, post_content, zpost);
+                sapi_module.treat_data(
+                    PARSE_STRING,
+                    estrndup(buffer->str, buffer->length), // it will be freed by treat_data
+                    swoole_http_init_and_read_property(swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post"))
+                );
             }
             else if (ctx->mt_parser != NULL)
             {
