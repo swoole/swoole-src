@@ -110,7 +110,7 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
     }
     else
     {
-        ZVAL_STRING(&zaddress, "");
+        ZVAL_EMPTY_STRING(&zaddress);
     }
 
     std::string key(Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain));
@@ -174,7 +174,7 @@ static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
     }
     else
     {
-        ZVAL_STRING(&zaddress, "");
+        ZVAL_EMPTY_STRING(&zaddress);
     }
 
     int ret = PHPCoroutine::resume_m(req->context, &zaddress, retval);

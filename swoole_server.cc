@@ -1162,7 +1162,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
     }
     swTraceLog(SW_TRACE_SERVER, "PipeMessage: fd=%d|len=%d|from_id=%d|data=%.*s\n", req->info.fd, req->info.len, req->info.from_id, req->info.len, req->data);
     args[0] = *zserv;
-    ZVAL_LONG(&args[1], (long) req->info.from_id);
+    ZVAL_LONG(&args[1], (zend_long) req->info.from_id);
     args[2] = *zdata;
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, SwooleG.enable_coroutine)))
@@ -1180,8 +1180,8 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     zval args[4];
 
     args[0] = *zserv;
-    ZVAL_LONG(&args[1], (long ) req->info.fd);
-    ZVAL_LONG(&args[2], (long ) req->info.from_id);
+    ZVAL_LONG(&args[1], (zend_long) req->info.fd);
+    ZVAL_LONG(&args[2], (zend_long) req->info.from_id);
     php_swoole_get_recv_data(&args[3], req, NULL, 0);
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 4, args, NULL, SwooleG.enable_coroutine)))
@@ -1270,8 +1270,8 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     zval retval;
 
     args[0] = *zserv;
-    ZVAL_LONG(&args[1], (long) req->info.fd);
-    ZVAL_LONG(&args[2], (long) req->info.from_id);
+    ZVAL_LONG(&args[1], (zend_long) req->info.fd);
+    ZVAL_LONG(&args[2], (zend_long) req->info.from_id);
     args[3] = *zdata;
 
     if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 4, args) == FAILURE)
@@ -1313,12 +1313,12 @@ static int php_swoole_onTaskCo(swServer *serv, swEventData *req)
     zend_update_property(swoole_server_task_ce, &ztask, ZEND_STRL("data"), zdata);
     zend_update_property_long(swoole_server_task_ce, &ztask, ZEND_STRL("flags"), (long) swTask_type(req));
 
-    zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onTask];
+    zend_fcall_info_cache *fci_cache = php_sw_server_caches[SW_SERVER_CB_onTask];
     zval args[2];
     args[0] = *zserv;
     args[1] = ztask;
 
-    if (UNEXPECTED(PHPCoroutine::create(cache, 2, args) < 0))
+    if (UNEXPECTED(PHPCoroutine::create(fci_cache, 2, args) < 0))
     {
         swoole_php_error(E_WARNING, "%s->onTaskCo handler error", ZSTR_VAL(swoole_server_ce->name));
     }
@@ -1414,7 +1414,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     }
 
     args[0] = *zserv;
-    ZVAL_LONG(&args[1], (long ) req->info.fd);
+    ZVAL_LONG(&args[1], (zend_long) req->info.fd);
     args[2] = *zdata;
 
     zval *callback = NULL;
