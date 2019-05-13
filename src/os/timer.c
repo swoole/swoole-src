@@ -45,7 +45,7 @@ static int swSystemTimer_signal_set(swTimer *timer, long interval)
 {
     struct itimerval timer_set;
     int sec = interval / 1000;
-    int msec = (((float) interval / 1000) - sec) * 1000;
+    int msec = interval % 1000;
 
     struct timeval now;
     if (gettimeofday(&now, NULL) < 0)
