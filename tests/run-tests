@@ -132,8 +132,7 @@ if ((substr(PHP_OS, 0, 3) == "WIN") && empty($environment["SystemRoot"])) {
     $vendor_dir = $composer_dir . '/vendor';
     $expired = microtime(true) - filectime($vendor_dir) > 600;
     if ($expired) {
-        $composer_info = `cd {$composer_dir} && composer update 2>&1`;
-        echo $composer_info;
+        system("cd {$composer_dir} && composer update 2>&1");
     }
     if (!file_exists($vendor_dir . '/autoload.php')) {
         throw new RuntimeException('Composer install failed');
