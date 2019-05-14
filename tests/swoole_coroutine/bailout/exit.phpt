@@ -16,7 +16,7 @@ $process = new Swoole\Process(function () {
 $process->start();
 $status = $process::wait();
 if (Assert::isArray($status)) {
-    [$pid, $code, $signal] = array_values($status);
+    list($pid, $code, $signal) = array_values($status);
     Assert::greaterThan($pid, 0);
     Assert::eq($code, 0);
     Assert::eq($signal, 0);
