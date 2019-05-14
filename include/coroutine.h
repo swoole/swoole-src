@@ -229,6 +229,7 @@ protected:
         }
         else if (unlikely(on_bailout))
         {
+            SW_ASSERT(current == nullptr);
             on_bailout();
         }
     }
