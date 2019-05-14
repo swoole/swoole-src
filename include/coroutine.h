@@ -227,7 +227,7 @@ protected:
         {
             close();
         }
-        if (unlikely(on_bailout))
+        else if (unlikely(on_bailout))
         {
             on_bailout();
         }
