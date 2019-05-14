@@ -164,7 +164,7 @@ private:
 
     inline bool send(const char *buf, size_t len)
     {
-        if (unlikely(client->send_all(buf, len) != len))
+        if (unlikely(client->send_all(buf, len) != (ssize_t )len))
         {
             io_error();
             return false;
