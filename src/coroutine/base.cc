@@ -16,7 +16,6 @@
 
 #include "coroutine.h"
 #include "coroutine_c_api.h"
-#include "async.h"
 
 using namespace swoole;
 
@@ -27,6 +26,7 @@ uint64_t Coroutine::peak_num = 0;
 sw_coro_on_swap_t Coroutine::on_yield = nullptr;
 sw_coro_on_swap_t Coroutine::on_resume = nullptr;
 sw_coro_on_swap_t Coroutine::on_close = nullptr;
+sw_coro_bailout_t Coroutine::on_bailout = nullptr;
 
 std::unordered_map<long, Coroutine*> Coroutine::coroutines;
 
@@ -34,7 +34,7 @@ void Coroutine::yield()
 {
     SW_ASSERT(current == this);
     state = SW_CORO_WAITING;
-    if (on_yield)
+    if (likely(on_yield))
     {
         on_yield(task);
     }
@@ -46,17 +46,14 @@ void Coroutine::resume()
 {
     SW_ASSERT(current != this);
     state = SW_CORO_RUNNING;
-    if (on_resume)
+    if (likely(on_resume))
     {
         on_resume(task);
     }
     origin = current;
     current = this;
     ctx.swap_in();
-    if (ctx.is_end())
-    {
-        close();
-    }
+    check_end();
 }
 
 void Coroutine::yield_naked()
@@ -74,10 +71,7 @@ void Coroutine::resume_naked()
     origin = current;
     current = this;
     ctx.swap_in();
-    if (ctx.is_end())
-    {
-        close();
-    }
+    check_end();
 }
 
 void Coroutine::close()
@@ -135,6 +129,31 @@ void Coroutine::set_on_resume(sw_coro_on_swap_t func)
 void Coroutine::set_on_close(sw_coro_on_swap_t func)
 {
     on_close = func;
+}
+
+void Coroutine::bailout(sw_coro_bailout_t func)
+{
+    if (!func)
+    {
+        swError("bailout without bailout function");
+    }
+    if (!current)
+    {
+        func();
+    }
+    else
+    {
+        Coroutine *co = current;
+        while (co->origin)
+        {
+            co = co->origin;
+        }
+        // it will jump to main context directly (it also breaks contexts)
+        on_bailout = func;
+        co->yield();
+    }
+    // expect that never here
+    exit(1);
 }
 
 uint8_t swoole_coroutine_is_in()

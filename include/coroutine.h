@@ -47,10 +47,10 @@ typedef enum
 } sw_coro_state;
 
 typedef void (*sw_coro_on_swap_t)(void*);
+typedef void (*sw_coro_bailout_t)();
 
 namespace swoole
 {
-
 struct socket_poll_fd
 {
     int16_t events;
@@ -114,6 +114,7 @@ public:
     static void set_on_yield(sw_coro_on_swap_t func);
     static void set_on_resume(sw_coro_on_swap_t func);
     static void set_on_close(sw_coro_on_swap_t func);
+    static void bailout(sw_coro_bailout_t func);
 
     static inline long create(coroutine_func_t fn, void* args = nullptr)
     {
@@ -188,9 +189,10 @@ protected:
     static Coroutine* current;
     static long last_cid;
     static uint64_t peak_num;
-    static sw_coro_on_swap_t on_yield;  /* before php yield coro */
-    static sw_coro_on_swap_t on_resume; /* before php resume coro */
-    static sw_coro_on_swap_t on_close;  /* before php close coro */
+    static sw_coro_on_swap_t on_yield;   /* before yield */
+    static sw_coro_on_swap_t on_resume;  /* before resume */
+    static sw_coro_on_swap_t on_close;   /* before close */
+    static sw_coro_bailout_t on_bailout; /* when bailout */
 
     sw_coro_state state = SW_CORO_INIT;
     long cid;
@@ -215,11 +217,20 @@ protected:
         origin = current;
         current = this;
         ctx.swap_in();
+        check_end();
+        return cid;
+    }
+
+    inline void check_end()
+    {
         if (ctx.is_end())
         {
             close();
         }
-        return cid;
+        if (unlikely(on_bailout))
+        {
+            on_bailout();
+        }
     }
 
     void close();
