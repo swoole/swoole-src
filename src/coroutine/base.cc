@@ -32,6 +32,7 @@ std::unordered_map<long, Coroutine*> Coroutine::coroutines;
 
 void Coroutine::yield()
 {
+    SW_ASSERT(current == this);
     state = SW_CORO_WAITING;
     if (on_yield)
     {
@@ -43,6 +44,7 @@ void Coroutine::yield()
 
 void Coroutine::resume()
 {
+    SW_ASSERT(current != this);
     state = SW_CORO_RUNNING;
     if (on_resume)
     {
@@ -59,6 +61,7 @@ void Coroutine::resume()
 
 void Coroutine::yield_naked()
 {
+    SW_ASSERT(current == this);
     state = SW_CORO_WAITING;
     current = origin;
     ctx.swap_out();
@@ -66,6 +69,7 @@ void Coroutine::yield_naked()
 
 void Coroutine::resume_naked()
 {
+    SW_ASSERT(current != this);
     state = SW_CORO_RUNNING;
     origin = current;
     current = this;
@@ -78,6 +82,7 @@ void Coroutine::resume_naked()
 
 void Coroutine::close()
 {
+    SW_ASSERT(current == this);
     state = SW_CORO_END;
     if (on_close)
     {

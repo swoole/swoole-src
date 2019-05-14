@@ -23,6 +23,13 @@
 #include <sys/mman.h>
 #endif
 
+#ifdef USE_BOOST_CONTEXT
+    typedef boost::context::fcontext_t coroutine_context_t;
+#elif USE_UCONTEXT
+    typedef ucontext_t coroutine_context_t;
+#else
+    typedef fcontext_t coroutine_context_t;
+#endif
 typedef void (*coroutine_func_t)(void*);
 
 namespace swoole
@@ -94,17 +101,9 @@ public:
 public:
     bool end;
 
-private:
-#ifdef USE_BOOST_CONTEXT
-    boost::context::fcontext_t ctx_;
-    boost::context::fcontext_t swap_ctx_;
-#elif USE_UCONTEXT
-    ucontext_t swap_ctx_;
-    ucontext_t ctx_;
-#else
-    fcontext_t ctx_;
-    fcontext_t swap_ctx_;
-#endif
+protected:
+    coroutine_context_t ctx_;
+    coroutine_context_t swap_ctx_;
     coroutine_func_t fn_;
     char* stack_;
     uint32_t stack_size_;
