@@ -251,23 +251,19 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
 {
     SwooleG.lock.lock(&SwooleG.lock);
 
-    zval *retval = NULL;
-
+    zval *callback = (zval *) protocol->private_data;
     zval args[1];
+    zval *retval = NULL;
+    int ret;
+
     ZVAL_STRINGL(&args[0], data, length);
 
-    zval *callback = (zval *) protocol->private_data;
-
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL) == FAILURE)
+    ret = sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL);
+    zval_ptr_dtor(&args[0]);
+    if (ret == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "length function handler error");
-        goto error;
-    }
-    zval_ptr_dtor(&args[0]);
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-        goto error;
+        goto _error;
     }
     if (retval)
     {
@@ -276,7 +272,7 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
         SwooleG.lock.unlock(&SwooleG.lock);
         return length;
     }
-    error:
+    _error:
     SwooleG.lock.unlock(&SwooleG.lock);
     return -1;
 }
@@ -299,7 +295,7 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *dat
         zdata = &args[3];
         ZVAL_STRINGL(zdata, data->data, data->info.len > SW_IPC_BUFFER_SIZE ? SW_IPC_BUFFER_SIZE : data->info.len);
     }
-    if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, zdata ? 4 : 3, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, fci_cache, zdata ? 4 : 3, args, retval) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "dispatch function handler error");
     }

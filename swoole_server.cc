@@ -1274,7 +1274,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     ZVAL_LONG(&args[2], (zend_long) req->info.from_id);
     args[3] = *zdata;
 
-    if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 4, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, fci_cache, 4, args, &retval) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onTask handler error");
     }
@@ -1444,10 +1444,6 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     {
         swoole_php_fatal_error(E_WARNING, "onFinish handler error");
     }
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
     sw_zval_free(zdata);
     if (retval)
     {
@@ -1478,10 +1474,6 @@ static void php_swoole_onStart(swServer *serv)
     {
         swoole_php_fatal_error(E_WARNING, "onStart handler error");
     }
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
     if (retval)
     {
         zval_ptr_dtor(retval);
@@ -1505,10 +1497,6 @@ static void php_swoole_onManagerStart(swServer *serv)
     {
         swoole_php_fatal_error(E_WARNING, "onManagerStart handler error");
     }
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
     if (retval)
     {
         zval_ptr_dtor(retval);
@@ -1526,10 +1514,6 @@ static void php_swoole_onManagerStop(swServer *serv)
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onManagerStop], &retval, 1, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onManagerStop handler error");
-    }
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
     }
     if (retval)
     {
@@ -1606,10 +1590,6 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error");
     }
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
     if (retval)
     {
         zval_ptr_dtor(retval);
@@ -1629,10 +1609,6 @@ static void php_swoole_onWorkerExit(swServer *serv, int worker_id)
             NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error");
-    }
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
     }
     if (retval)
     {
@@ -1671,10 +1647,6 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onWorkerError], &retval, 5, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerError handler error");
-    }
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
     }
     if (retval)
     {
@@ -1766,13 +1738,9 @@ void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
     args[0] = *zserv;
     ZVAL_LONG(&args[1], info->fd);
 
-    if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, fci_cache, 2, args, retval) == FAILURE)
     {
         swoole_php_error(E_WARNING, "onBufferFull handler error");
-    }
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
     }
     if (retval)
     {
@@ -1942,13 +1910,9 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
     args[0] = *zserv;
     ZVAL_LONG(&args[1], info->fd);
 
-    if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, fci_cache, 2, args, retval) == FAILURE)
     {
         swoole_php_error(E_WARNING, "onBufferEmpty handler error");
-    }
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
     }
     if (retval)
     {

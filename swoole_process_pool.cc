@@ -129,13 +129,9 @@ static void pool_onMessage(swProcessPool *pool, char *data, uint32_t length)
 
     process_pool_property *pp = (process_pool_property *) swoole_get_property(zobject, 0);
 
-    if (sw_call_user_function_fast_ex( NULL, pp->onMessage, retval, 2, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, pp->onMessage, 2, args, retval) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onMessage handler error");
-    }
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
     }
     zval_ptr_dtor(&args[1]);
     zval_ptr_dtor(retval);
@@ -155,13 +151,9 @@ static void pool_onWorkerStop(swProcessPool *pool, int worker_id)
     {
         return;
     }
-    if (sw_call_user_function_fast_ex(NULL, pp->onWorkerStop, retval, 2, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, pp->onWorkerStop, 2, args, retval) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error");
-    }
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
     }
     zval_ptr_dtor(retval);
 }
