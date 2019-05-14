@@ -585,7 +585,7 @@ enum swReturnType http2_client::parse_frame(zval *return_value)
     // The stream is not found or has closed
     if (stream == NULL)
     {
-        swInfo("no stream[%d]", stream_id);
+        swNotice("http2 stream#%d belongs to an unknown type or it never registered", stream_id);
         return SW_CONTINUE;
     }
     if (type == SW_HTTP2_TYPE_HEADERS)
