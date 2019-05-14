@@ -1472,22 +1472,22 @@ static sw_inline http_client * swoole_get_phc(zval *zobject)
 
 static void swoole_http_client_coro_free_object(zend_object *object)
 {
-    http_client_coro *hcc_t = swoole_http_client_coro_fetch_object(object);
-    if (hcc_t->phc)
+    http_client_coro *hcc = swoole_http_client_coro_fetch_object(object);
+    if (hcc->phc)
     {
-        delete hcc_t->phc;
-        hcc_t->phc = nullptr;
+        delete hcc->phc;
+        hcc->phc = nullptr;
     }
-    zend_object_std_dtor(&hcc_t->std);
+    zend_object_std_dtor(&hcc->std);
 }
 
 static zend_object *swoole_http_client_coro_create_object(zend_class_entry *ce)
 {
-    http_client_coro *hcc_t = (http_client_coro *) ecalloc(1, sizeof(http_client_coro) + zend_object_properties_size(ce));
-    zend_object_std_init(&hcc_t->std, ce);
-    object_properties_init(&hcc_t->std, ce);
-    hcc_t->std.handlers = &swoole_http_client_coro_handlers;
-    return &hcc_t->std;
+    http_client_coro *hcc = (http_client_coro *) ecalloc(1, sizeof(http_client_coro) + zend_object_properties_size(ce));
+    zend_object_std_init(&hcc->std, ce);
+    object_properties_init(&hcc->std, ce);
+    hcc->std.handlers = &swoole_http_client_coro_handlers;
+    return &hcc->std;
 }
 
 void swoole_http_client_coro_init(int module_number)
@@ -1548,7 +1548,7 @@ void swoole_http_client_coro_init(int module_number)
 
 static PHP_METHOD(swoole_http_client_coro, __construct)
 {
-    http_client_coro *hcc_t = swoole_http_client_coro_fetch_object(Z_OBJ_P(getThis()));
+    http_client_coro *hcc = swoole_http_client_coro_fetch_object(Z_OBJ_P(getThis()));
     char *host;
     size_t host_len;
     zend_long port = 80;
@@ -1581,7 +1581,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
         RETURN_FALSE;
     }
 #endif
-    hcc_t->phc = new http_client(getThis(), std::string(host, host_len), port, ssl);
+    hcc->phc = new http_client(getThis(), std::string(host, host_len), port, ssl);
 }
 
 static PHP_METHOD(swoole_http_client_coro, __destruct) { }

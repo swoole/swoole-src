@@ -849,45 +849,6 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     return PHP_STREAM_OPTION_RETURN_OK;
 }
 
-static php_stream *php_socket_create(
-    const char *proto, size_t protolen, const char *resourcename, size_t resourcenamelen,
-    const char *persistent_id, int options, int flags, struct timeval *timeout, php_stream_context *context
-    STREAMS_DC
-)
-{
-    php_stream_transport_factory ori_call;
-
-    if (strncmp(proto, "unix", protolen) == 0)
-    {
-        ori_call = ori_factory._unix;
-    }
-    else if (strncmp(proto, "udp", protolen) == 0)
-    {
-        ori_call = ori_factory.udp;
-    }
-    else if (strncmp(proto, "udg", protolen) == 0)
-    {
-        ori_call = ori_factory.udg;
-    }
-    else if (strncmp(proto, "ssl", protolen) == 0)
-    {
-        ori_call = ori_factory.ssl;
-    }
-    else if (strncmp(proto, "tls", protolen) == 0)
-    {
-        ori_call = ori_factory.tls;
-    }
-    else
-    {
-        ori_call = ori_factory.tcp;
-    }
-    if (UNEXPECTED(!ori_call))
-    {
-        return NULL;
-    }
-    return ori_call(proto, protolen, resourcename, resourcenamelen, persistent_id, options, flags, timeout, context STREAMS_CC);
-}
-
 static php_stream *socket_create(
     const char *proto, size_t protolen, const char *resourcename, size_t resourcenamelen,
     const char *persistent_id, int options, int flags, struct timeval *timeout, php_stream_context *context
