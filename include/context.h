@@ -94,12 +94,14 @@ public:
     ~Context();
     bool swap_in();
     bool swap_out();
-    static void context_func(void* arg);
 #if !defined(SW_NO_USE_ASM_CONTEXT) && defined(SW_LOG_TRACE_OPEN)
     ssize_t get_stack_usage();
 #endif
-public:
-    bool end;
+    inline bool is_end()
+    {
+        return end_;
+    }
+    static void context_func(void* arg);
 
 protected:
     coroutine_context_t ctx_;
@@ -114,6 +116,7 @@ protected:
     uint32_t valgrind_stack_id;
 #endif
     void *private_data_;
+    bool end_;
 };
 //namespace end
 }
