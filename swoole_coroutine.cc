@@ -261,6 +261,9 @@ void PHPCoroutine::on_close(void *arg)
 
 void PHPCoroutine::create_func(void *arg)
 {
+#ifdef SW_CORO_SUPPORT_BAILOUT
+    zend_first_try {
+#endif
     int i;
     php_coro_args *php_arg = (php_coro_args *) arg;
     zend_fcall_info_cache fci_cache = *php_arg->fci_cache;
@@ -326,7 +329,7 @@ void PHPCoroutine::create_func(void *arg)
         ZEND_ADD_CALL_FLAG(call, call_info);
     }
 
-#ifdef SW_CORO_SWAP_BAILOUT
+#if defined(SW_CORO_SWAP_BAILOUT) && !defined(SW_CORO_SUPPORT_BAILOUT)
     EG(bailout) = NULL;
 #endif
     EG(current_execute_data) = call;
@@ -411,6 +414,11 @@ void PHPCoroutine::create_func(void *arg)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
+#ifdef SW_CORO_SUPPORT_BAILOUT
+    } zend_catch {
+        Coroutine::bailout([](){ sw_zend_bailout(); });
+    } zend_end_try();
+#endif
 }
 
 long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv)
