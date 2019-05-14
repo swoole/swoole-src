@@ -2212,19 +2212,21 @@ struct _swTimer
 {
     /*--------------signal timer--------------*/
     uint8_t initialized;
+    swReactor *reactor;
     swHeap *heap;
     swHashMap *map;
     uint32_t num;
-    int lasttime;
     uint64_t round;
     long _next_id;
     long _current_id;
     long _next_msec;
-    /*-----------------for EventTimer-------------------*/
+    /*---------------event timer--------------*/
     struct timeval basetime;
-    /*--------------------------------------------------*/
+    /*---------------system timer--------------*/
+    long lasttime;
+    /*----------------------------------------*/
     int (*set)(swTimer *timer, long exec_msec);
-    void (*free)(swTimer *timer);
+    void (*close)(swTimer *timer);
 };
 
 swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
@@ -2245,9 +2247,8 @@ static sw_inline swTimer_node* swTimer_get_ex(swTimer *timer, long id, enum swTi
     return (tnode && tnode->type == type) ? tnode : NULL;
 }
 
-int swSystemTimer_init(int msec);
+int swSystemTimer_init(swTimer *timer, long msec);
 void swSystemTimer_signal_handler(int sig);
-int swSystemTimer_event_handler(swReactor *reactor, swEvent *event);
 //--------------------------------------------------------------
 //Share Memory
 typedef struct
