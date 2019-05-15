@@ -9,10 +9,20 @@
 
 SW_API bool php_swoole_export_socket(zval *object, int fd, enum swSocket_type type);
 SW_API zend_object* php_swoole_export_socket_ex(int fd, enum swSocket_type type);
+SW_API void php_swoole_init_socket_object(zval *zobject, swoole::coroutine::Socket *socket);
+SW_API swoole::coroutine::Socket* php_swoole_get_socket(zval *zobject);
 SW_API void php_swoole_client_set(swoole::coroutine::Socket *cli, zval *zset);
 
 namespace zend
 {
+template <typename T>
+inline T* alloc()
+{
+    void *ptr = emalloc(sizeof(T));
+    memset(ptr, 0, sizeof(T));
+    return (T*) ptr;
+}
+
 class string
 {
 public:
