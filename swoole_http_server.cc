@@ -1273,7 +1273,7 @@ static PHP_METHOD(swoole_http_response, write)
         ctx->chunk = 1;
         swString_clear(swoole_http_buffer);
         http_build_header(ctx, getThis(), swoole_http_buffer, -1);
-        if (ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length) < 0)
+        if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
         {
             ctx->chunk = 0;
             ctx->send_header = 0;
@@ -1667,7 +1667,6 @@ static PHP_METHOD(swoole_http_response, initHeader)
 static PHP_METHOD(swoole_http_response, end)
 {
     zval *zdata = NULL;
-    int ret;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
@@ -1703,8 +1702,7 @@ static PHP_METHOD(swoole_http_response, end)
 
     if (ctx->chunk)
     {
-        ret = ctx->send(ctx, ZEND_STRL("0\r\n\r\n"));
-        if (ret < 0)
+        if (!ctx->send(ctx, ZEND_STRL("0\r\n\r\n")))
         {
             RETURN_FALSE;
         }
@@ -1758,14 +1756,12 @@ static PHP_METHOD(swoole_http_response, end)
 #ifdef SW_HTTP_SEND_TWICE
             else
             {
-                ret = ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length);
-                if (ret < 0)
+                if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
                 {
                     ctx->send_header = 0;
                     RETURN_FALSE;
                 }
-                ret = ctx->send(ctx,  send_body_str, send_body_len);
-                if (ret < 0)
+                if (!ctx->send(ctx,  send_body_str, send_body_len))
                 {
                     ctx->close(ctx);
                     swoole_http_context_free(ctx);
@@ -1776,8 +1772,7 @@ static PHP_METHOD(swoole_http_response, end)
 #endif
         }
 
-        ret = ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length);
-        if (ret < 0)
+        if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
         {
             ctx->send_header = 0;
             RETURN_FALSE;
@@ -2267,7 +2262,7 @@ static bool http_context_send_data(http_context* ctx, const char *data, size_t l
             ctx->send_header = 0;
         }
     }
-    return true;
+    return ret == SW_OK;
 }
 
 static bool http_context_disconnect(http_context* ctx)
