@@ -150,7 +150,7 @@ public:
 
 namespace function
 {
-    inline bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine)
+    inline bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, bool enable_coroutine)
     {
         if (enable_coroutine)
         {

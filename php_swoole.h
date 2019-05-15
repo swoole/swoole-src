@@ -692,9 +692,9 @@ static sw_inline zend_string* sw_zend_string_recycle(zend_string *s, size_t allo
 
 //----------------------------------Array API------------------------------------
 
-#define php_swoole_array_length(zarray)      zend_hash_num_elements(Z_ARRVAL_P(zarray))
-#define php_swoole_array_length_safe(zarray) (ZVAL_IS_ARRAY(zarray) ? php_swoole_array_length(zarray) : 0)
-#define php_swoole_array_get_value(ht, str, v)     ((v = zend_hash_str_find(ht, str, sizeof(str)-1)) && !ZVAL_IS_NULL(v))
+#define php_swoole_array_length(zarray)        zend_hash_num_elements(Z_ARRVAL_P(zarray))
+#define php_swoole_array_length_safe(zarray)   (ZVAL_IS_ARRAY(zarray) ? php_swoole_array_length(zarray) : 0)
+#define php_swoole_array_get_value(ht, str, v) ((v = zend_hash_str_find(ht, str, sizeof(str)-1)) && !ZVAL_IS_NULL(v))
 
 #define SW_HASHTABLE_FOREACH_START(ht, _val) ZEND_HASH_FOREACH_VAL(ht, _val);  {
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, _val) zend_string *_foreach_key;\
@@ -711,8 +711,8 @@ static sw_inline int add_assoc_ulong_safe_ex(zval *arg, const char *key, size_t 
     }
     else
     {
-        char buf[MAX_LENGTH_OF_LONG + 1] = {0};
-        sprintf((char *) buf, ZEND_ULONG_FMT, value);
+        char buf[MAX_LENGTH_OF_LONG + 1];
+        sprintf((char *) buf, ZEND_ULONG_FMT "\0", value);
         return add_assoc_string_ex(arg, key, key_len, buf);
     }
 }
