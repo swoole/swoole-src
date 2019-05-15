@@ -7,7 +7,7 @@ swoole_coroutine: check if is in the coroutine
 require __DIR__ . '/../include/bootstrap.php';
 $map = [
     function () {
-        Co::sleep(0.0001);
+        Co::sleep(0.001);
         Assert::assert(0); // never here
     },
     function () {
