@@ -565,7 +565,7 @@ void http_client::apply_setting(zval *zset)
     }
     if (php_swoole_array_get_value(vht, "reconnect", ztmp))
     {
-        reconnect_interval = (uint8_t) MIN(zval_get_long(ztmp), UINT8_MAX);
+        reconnect_interval = (uint8_t) SW_MIN(zval_get_long(ztmp), UINT8_MAX);
     }
     if (php_swoole_array_get_value(vht, "defer", ztmp))
     {

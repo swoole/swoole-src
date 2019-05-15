@@ -2131,7 +2131,7 @@ static PHP_METHOD(swoole_server, set)
 #endif
     if (php_swoole_array_get_value(vht, "trace_flags", v))
     {
-        SwooleG.trace_flags = (uint32_t) MAX(0, zval_get_long(v));
+        SwooleG.trace_flags = (uint32_t) SW_MAX(0, zval_get_long(v));
     }
     //pid file
     if (php_swoole_array_get_value(vht, "pid_file", v))

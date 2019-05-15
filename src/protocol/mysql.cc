@@ -490,7 +490,7 @@ greeting_packet::greeting_packet(const char *data) : server_packet(data)
         p += sizeof(reserved);
         if (capability_flags & SW_MYSQL_CLIENT_SECURE_CONNECTION)
         {
-            uint8_t len = MAX(13, auth_plugin_data_length - 8);
+            uint8_t len = SW_MAX(13, auth_plugin_data_length - 8);
             memcpy(auth_plugin_data + 8, p, len);
             p += len;
         }

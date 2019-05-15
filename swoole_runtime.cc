@@ -1193,7 +1193,7 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
     {
         if (Z_TYPE_P(zflags) == IS_LONG)
         {
-            flags = MAX(0, Z_LVAL_P(zflags));
+            flags = SW_MAX(0, Z_LVAL_P(zflags));
         }
         else if (ZVAL_IS_BOOL(zflags))
         {

@@ -768,7 +768,7 @@ public:
     inline uint32_t recv(char *buf, size_t size)
     {
         uint32_t readable_length = packet_eof - read_ptr;
-        uint32_t read_bytes = MIN(readable_length, size);
+        uint32_t read_bytes = SW_MIN(readable_length, size);
         if (likely(read_bytes > 0))
         {
             memcpy(buf, read_ptr, read_bytes);
@@ -795,7 +795,7 @@ public:
         swTraceLog(
             SW_TRACE_MYSQL_CLIENT,
             "text[%" PRIu64 "]: %.*s%s",
-            length, MIN(64, length), body,
+            length, SW_MIN(64, length), body,
             nul ? "null" : ((length > 64 /*|| length > readable_length*/) ? "..." : "")
         );
     }

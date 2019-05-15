@@ -383,7 +383,7 @@ static PHP_METHOD(swoole_coroutine_util, set)
     }
     if (php_swoole_array_get_value(vht, "trace_flags", v))
     {
-        SwooleG.trace_flags = (uint32_t) MAX(0, zval_get_long(v));
+        SwooleG.trace_flags = (uint32_t) SW_MAX(0, zval_get_long(v));
     }
     if (php_swoole_array_get_value(vht, "dns_cache_expire", v))
     {

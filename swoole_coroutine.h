@@ -143,7 +143,7 @@ public:
 
     static inline void set_max_exec_msec(long msec)
     {
-        max_exec_msec = MAX(0, msec);
+        max_exec_msec = SW_MAX(0, msec);
         record_last_msec(get_task());
     }
 

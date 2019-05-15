@@ -736,7 +736,7 @@ bool mysql_client::send_command(enum sw_mysql_command command, const char* sql, 
     else
     {
         /* if the data is larger than page_size, copy memory to the kernel buffer multiple times is much faster */
-        size_t send_s = MIN(length, SW_MYSQL_MAX_PACKET_BODY_SIZE - 1), send_n = send_s, number = 0;
+        size_t send_s = SW_MIN(length, SW_MYSQL_MAX_PACKET_BODY_SIZE - 1), send_n = send_s, number = 0;
         mysql::command_packet command_packet(command);
         command_packet.set_header(1 + send_s, number++);
 
@@ -751,7 +751,7 @@ bool mysql_client::send_command(enum sw_mysql_command command, const char* sql, 
         while (send_n < length)
         {
             send_s = length - send_n;
-            send_s = MIN(send_s, SW_MYSQL_MAX_PACKET_BODY_SIZE);
+            send_s = SW_MIN(send_s, SW_MYSQL_MAX_PACKET_BODY_SIZE);
             command_packet.set_header(send_s, number++);
             if (unlikely(
                 !send_raw(command_packet.get_data(), SW_MYSQL_PACKET_HEADER_SIZE)) ||
@@ -1038,7 +1038,7 @@ void mysql_client::handle_row_data_text(zval *return_value, mysql::row_data *row
         swTraceLog(
             SW_TRACE_MYSQL_CLIENT, "%.*s=[%zu]%.*s%s",
             field->name_length, field->name, Z_STRLEN_P(return_value),
-            MIN(32, Z_STRLEN_P(return_value)), Z_STRVAL_P(return_value),
+            SW_MIN(32, Z_STRLEN_P(return_value)), Z_STRVAL_P(return_value),
             (Z_STRLEN_P(return_value) > 32  ? "..." : "")
         );
     }
@@ -1450,7 +1450,7 @@ void mysql_statement::send_execute_request(zval *return_value, zval *params)
     }
     do {
         size_t length = buffer->length - SW_MYSQL_PACKET_HEADER_SIZE;
-        size_t send_s =  MIN(length, SW_MYSQL_MAX_PACKET_BODY_SIZE);
+        size_t send_s =  SW_MIN(length, SW_MYSQL_MAX_PACKET_BODY_SIZE);
         mysql::packet::set_header(buffer->str, send_s, 0);
         if (unlikely(!client->send_raw(buffer->str, SW_MYSQL_PACKET_HEADER_SIZE + send_s)))
         {
@@ -1463,7 +1463,7 @@ void mysql_statement::send_execute_request(zval *return_value, zval *params)
             while (send_n < length)
             {
                 send_s = length - send_n;
-                send_s = MIN(send_s, SW_MYSQL_MAX_PACKET_BODY_SIZE);
+                send_s = SW_MIN(send_s, SW_MYSQL_MAX_PACKET_BODY_SIZE);
                 mysql::packet::set_header(buffer->str, send_s, number++);
                 if (unlikely(
                     !client->send_raw(buffer->str, SW_MYSQL_PACKET_HEADER_SIZE)) ||

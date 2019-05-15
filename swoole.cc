@@ -1037,7 +1037,7 @@ PHP_FUNCTION(swoole_cpu_num)
     static long cpu_num = 0;
     if (cpu_num == 0)
     {
-        cpu_num = MAX(1, sysconf(_SC_NPROCESSORS_CONF));
+        cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_CONF));
     }
     RETURN_LONG(cpu_num);
 }

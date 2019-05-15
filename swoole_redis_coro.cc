@@ -2008,7 +2008,7 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
     }
     if (php_swoole_array_get_value(vht, "reconnect", ztmp))
     {
-        redis->reconnect_interval = (uint8_t) MIN(zval_get_long(ztmp), UINT8_MAX);
+        redis->reconnect_interval = (uint8_t) SW_MIN(zval_get_long(ztmp), UINT8_MAX);
     }
     if (php_swoole_array_get_value(vht, "compatibility_mode", ztmp))
     { 
@@ -4598,7 +4598,7 @@ static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_va
                 redis->context->err = SW_REDIS_ERR_OTHER;
             }
             size_t str_len = strlen(reply->str);
-            memcpy(redis->context->errstr, reply->str, MIN(str_len, sizeof(redis->context->errstr)-1));
+            memcpy(redis->context->errstr, reply->str, SW_MIN(str_len, sizeof(redis->context->errstr)-1));
         }
         zend_update_property_long(swoole_redis_coro_ce, redis->zobject, ZEND_STRL("errType"), redis->context->err);
         zend_update_property_long(swoole_redis_coro_ce, redis->zobject, ZEND_STRL("errCode"), sw_redis_convert_err(redis->context->err));
