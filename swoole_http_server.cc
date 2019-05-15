@@ -939,14 +939,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     zval *zserver = ctx->request.zserver;
 
     parser->data = ctx;
-    ctx->parse_cookie = serv->http_parse_cookie;
-    ctx->parse_body = serv->http_parse_post;
-#ifdef SW_HAVE_ZLIB
-    ctx->enable_compression = serv->http_compression;
-#endif
-    ctx->private_data = serv;
-    ctx->send = http_context_send_data;
-    ctx->close = http_context_disconnect;
+    swoole_http_server_init_context(serv, ctx);
 
     zval *zdata = sw_malloc_zval();
     php_swoole_get_recv_data(zdata, req, NULL, 0);
@@ -1121,6 +1114,18 @@ http_context* swoole_http_context_new(int fd)
     ctx->fd = fd;
 
     return ctx;
+}
+
+void swoole_http_server_init_context(swServer *serv, http_context *ctx)
+{
+    ctx->parse_cookie = serv->http_parse_cookie;
+    ctx->parse_body = serv->http_parse_post;
+#ifdef SW_HAVE_ZLIB
+    ctx->enable_compression = serv->http_compression;
+#endif
+    ctx->private_data = serv;
+    ctx->send = http_context_send_data;
+    ctx->close = http_context_disconnect;
 }
 
 void swoole_http_context_free(http_context *ctx)
@@ -2171,6 +2176,8 @@ static PHP_METHOD(swoole_http_response, create)
         RETURN_FALSE;
     }
     ctx->fd = (int) fd;
+
+    swoole_http_server_init_context(SwooleG.serv, ctx);
 
     object_init_ex(return_value, swoole_http_response_ce);
     swoole_set_object(return_value, ctx);
