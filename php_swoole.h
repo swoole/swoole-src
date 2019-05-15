@@ -998,7 +998,7 @@ static sw_inline int php_swoole_is_callable(zval *callback)
 
 static sw_inline int sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint check_flags, char **callable_name, int *callable_name_len, zend_fcall_info_cache *fci_cache, char **error)
 {
-    zend_string *key = NULL;
+    zend_string *key;
     int ret = zend_is_callable_ex(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, check_flags, &key, fci_cache, error);
     char *tmp = estrndup(ZSTR_VAL(key), ZSTR_LEN(key));
     zend_string_release(key);

@@ -1695,8 +1695,7 @@ static PHP_METHOD(swoole_http_response, end)
 #ifdef SW_USE_HTTP2
     if (ctx->stream)
     {
-        swoole_http2_server_do_response(ctx, &http_body);
-        RETURN_TRUE;
+        RETURN_BOOL(swoole_http2_server_do_response(ctx, &http_body) == SW_OK);
     }
 #endif
 

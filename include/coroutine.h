@@ -46,14 +46,11 @@ typedef enum
     SW_CORO_END,
 } sw_coro_state;
 
-typedef void (*coro_php_create_t)();
-typedef void (*coro_php_yield_t)(void*);
-typedef void (*coro_php_resume_t)(void*);
-typedef void (*coro_php_close_t)(void*);
+typedef void (*sw_coro_on_swap_t)(void*);
+typedef void (*sw_coro_bailout_t)();
 
 namespace swoole
 {
-
 struct socket_poll_fd
 {
     int16_t events;
@@ -76,8 +73,6 @@ public:
 
     void resume_naked();
     void yield_naked();
-
-    void close();
 
     inline sw_coro_state get_state()
     {
@@ -106,7 +101,7 @@ public:
 
     inline bool is_end()
     {
-        return ctx.end;
+        return ctx.is_end();
     }
 
     inline void set_task(void *_task)
@@ -116,11 +111,10 @@ public:
 
     static std::unordered_map<long, Coroutine*> coroutines;
 
-    static void print_list();
-
-    static void set_on_yield(coro_php_yield_t func);
-    static void set_on_resume(coro_php_resume_t func);
-    static void set_on_close(coro_php_close_t func);
+    static void set_on_yield(sw_coro_on_swap_t func);
+    static void set_on_resume(sw_coro_on_swap_t func);
+    static void set_on_close(sw_coro_on_swap_t func);
+    static void bailout(sw_coro_bailout_t func);
 
     static inline long create(coroutine_func_t fn, void* args = nullptr)
     {
@@ -188,14 +182,17 @@ public:
         return peak_num;
     }
 
+    static void print_list();
+
 protected:
     static size_t stack_size;
     static Coroutine* current;
     static long last_cid;
     static uint64_t peak_num;
-    static coro_php_yield_t  on_yield;  /* before php yield coro */
-    static coro_php_resume_t on_resume; /* before php resume coro */
-    static coro_php_close_t  on_close;  /* before php close coro */
+    static sw_coro_on_swap_t on_yield;   /* before yield */
+    static sw_coro_on_swap_t on_resume;  /* before resume */
+    static sw_coro_on_swap_t on_close;   /* before close */
+    static sw_coro_bailout_t on_bailout; /* when bailout */
 
     sw_coro_state state = SW_CORO_INIT;
     long cid;
@@ -220,12 +217,24 @@ protected:
         origin = current;
         current = this;
         ctx.swap_in();
-        if (ctx.end)
+        check_end();
+        return cid;
+    }
+
+    inline void check_end()
+    {
+        if (ctx.is_end())
         {
             close();
         }
-        return cid;
+        else if (unlikely(on_bailout))
+        {
+            SW_ASSERT(current == nullptr);
+            on_bailout();
+        }
     }
+
+    void close();
 };
 }
 

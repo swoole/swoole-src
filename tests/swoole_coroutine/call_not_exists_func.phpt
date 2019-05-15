@@ -29,7 +29,11 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Fatal error: Uncaught Error: Call to undefined function none() in %s/tests/swoole_coroutine/call_not_exists_func.php:%d
+Fatal error: Uncaught Error: Call to undefined function none() in %s:%d
 Stack trace:
 #0 {main}
-  thrown in %s/tests/swoole_coroutine/call_not_exists_func.php on line %d
+  thrown in %s on line %d
+[%s]	ERROR	zm_deactivate_swoole (ERRNO %d): Fatal error: Uncaught Error: Call to undefined function none() in %s:%d
+Stack trace:
+#0 {main}
+  thrown in %s on line %d

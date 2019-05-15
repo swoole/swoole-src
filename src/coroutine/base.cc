@@ -16,7 +16,6 @@
 
 #include "coroutine.h"
 #include "coroutine_c_api.h"
-#include "async.h"
 
 using namespace swoole;
 
@@ -24,16 +23,18 @@ size_t Coroutine::stack_size = SW_DEFAULT_C_STACK_SIZE;
 Coroutine* Coroutine::current = nullptr;
 long Coroutine::last_cid = 0;
 uint64_t Coroutine::peak_num = 0;
-coro_php_yield_t  Coroutine::on_yield = nullptr;
-coro_php_resume_t Coroutine::on_resume = nullptr;
-coro_php_close_t  Coroutine::on_close = nullptr;
+sw_coro_on_swap_t Coroutine::on_yield = nullptr;
+sw_coro_on_swap_t Coroutine::on_resume = nullptr;
+sw_coro_on_swap_t Coroutine::on_close = nullptr;
+sw_coro_bailout_t Coroutine::on_bailout = nullptr;
 
 std::unordered_map<long, Coroutine*> Coroutine::coroutines;
 
 void Coroutine::yield()
 {
+    SW_ASSERT(current == this);
     state = SW_CORO_WAITING;
-    if (on_yield)
+    if (likely(on_yield))
     {
         on_yield(task);
     }
@@ -43,22 +44,21 @@ void Coroutine::yield()
 
 void Coroutine::resume()
 {
+    SW_ASSERT(current != this);
     state = SW_CORO_RUNNING;
-    if (on_resume)
+    if (likely(on_resume))
     {
         on_resume(task);
     }
     origin = current;
     current = this;
     ctx.swap_in();
-    if (ctx.end)
-    {
-        close();
-    }
+    check_end();
 }
 
 void Coroutine::yield_naked()
 {
+    SW_ASSERT(current == this);
     state = SW_CORO_WAITING;
     current = origin;
     ctx.swap_out();
@@ -66,18 +66,17 @@ void Coroutine::yield_naked()
 
 void Coroutine::resume_naked()
 {
+    SW_ASSERT(current != this);
     state = SW_CORO_RUNNING;
     origin = current;
     current = this;
     ctx.swap_in();
-    if (ctx.end)
-    {
-        close();
-    }
+    check_end();
 }
 
 void Coroutine::close()
 {
+    SW_ASSERT(current == this);
     state = SW_CORO_END;
     if (on_close)
     {
@@ -117,19 +116,44 @@ void Coroutine::print_list()
     }
 }
 
-void Coroutine::set_on_yield(coro_php_yield_t func)
+void Coroutine::set_on_yield(sw_coro_on_swap_t func)
 {
     on_yield = func;
 }
 
-void Coroutine::set_on_resume(coro_php_resume_t func)
+void Coroutine::set_on_resume(sw_coro_on_swap_t func)
 {
     on_resume = func;
 }
 
-void Coroutine::set_on_close(coro_php_close_t func)
+void Coroutine::set_on_close(sw_coro_on_swap_t func)
 {
     on_close = func;
+}
+
+void Coroutine::bailout(sw_coro_bailout_t func)
+{
+    if (!func)
+    {
+        swError("bailout without bailout function");
+    }
+    if (!current)
+    {
+        func();
+    }
+    else
+    {
+        Coroutine *co = current;
+        while (co->origin)
+        {
+            co = co->origin;
+        }
+        // it will jump to main context directly (it also breaks contexts)
+        on_bailout = func;
+        co->yield();
+    }
+    // expect that never here
+    exit(1);
 }
 
 uint8_t swoole_coroutine_is_in()

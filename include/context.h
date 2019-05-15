@@ -23,6 +23,13 @@
 #include <sys/mman.h>
 #endif
 
+#ifdef USE_BOOST_CONTEXT
+    typedef boost::context::fcontext_t coroutine_context_t;
+#elif USE_UCONTEXT
+    typedef ucontext_t coroutine_context_t;
+#else
+    typedef fcontext_t coroutine_context_t;
+#endif
 typedef void (*coroutine_func_t)(void*);
 
 namespace swoole
@@ -87,24 +94,18 @@ public:
     ~Context();
     bool swap_in();
     bool swap_out();
-    static void context_func(void* arg);
 #if !defined(SW_NO_USE_ASM_CONTEXT) && defined(SW_LOG_TRACE_OPEN)
     ssize_t get_stack_usage();
 #endif
-public:
-    bool end;
+    inline bool is_end()
+    {
+        return end_;
+    }
+    static void context_func(void* arg);
 
-private:
-#ifdef USE_BOOST_CONTEXT
-    boost::context::fcontext_t ctx_;
-    boost::context::fcontext_t swap_ctx_;
-#elif USE_UCONTEXT
-    ucontext_t swap_ctx_;
-    ucontext_t ctx_;
-#else
-    fcontext_t ctx_;
-    fcontext_t swap_ctx_;
-#endif
+protected:
+    coroutine_context_t ctx_;
+    coroutine_context_t swap_ctx_;
     coroutine_func_t fn_;
     char* stack_;
     uint32_t stack_size_;
@@ -115,6 +116,7 @@ private:
     uint32_t valgrind_stack_id;
 #endif
     void *private_data_;
+    bool end_;
 };
 //namespace end
 }

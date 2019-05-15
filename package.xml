@@ -1584,6 +1584,5 @@
         <configureoption default="no" name="enable-openssl" prompt="enable openssl support?" />
         <configureoption default="no" name="enable-http2" prompt="enable http2 support?" />
         <configureoption default="no" name="enable-mysqlnd" prompt="enable mysqlnd support?" />
-        <configureoption default="no" name="enable-coroutine-postgresql" prompt="enable postgresql coroutine client support?" />
     </extsrcrelease>
 </package>
