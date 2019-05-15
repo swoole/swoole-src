@@ -107,18 +107,22 @@ typedef struct
     zval _ztrailer;
 } http_response;
 
-typedef struct
+typedef struct _http_context
 {
     int fd;
+    uint32_t completed :1;
     uint32_t end :1;
     uint32_t send_header :1;
 #ifdef SW_HAVE_ZLIB
     uint32_t enable_compression :1;
+    uint32_t accept_compression :1;
 #endif
     uint32_t chunk :1;
     uint32_t keepalive :1;
     uint32_t upgrade :1;
     uint32_t detached :1;
+    uint32_t parse_cookie :1;
+    uint32_t parse_body :1;
 
 #ifdef SW_HAVE_ZLIB
     int8_t compression_level;
@@ -141,6 +145,11 @@ typedef struct
     char *current_form_data_name;
     size_t current_form_data_name_len;
     zval *current_multipart_header;
+
+    void *private_data;
+    void *private_data_2;
+    bool (*send)(struct _http_context* ctx, const char *data, size_t length);
+    bool (*close)(struct _http_context* ctx);
 
 } http_context;
 
@@ -173,6 +182,7 @@ static sw_inline zval* swoole_http_init_and_read_property(zend_class_entry *ce, 
 }
 int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len);
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
+const swoole_http_parser_settings* swoole_http_get_parser_setting();
 
 #ifdef SW_HAVE_ZLIB
 int swoole_http_response_compress(swString *body, int method, int level);
