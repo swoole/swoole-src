@@ -1066,7 +1066,7 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
  * DNS lookup
  */
 #ifdef HAVE_GETHOSTBYNAME2_R
-int swoole_gethostbyname(int flags, char *name, char *addr)
+int swoole_gethostbyname(int flags, const char *name, char *addr)
 {
     int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
     int index = 0;

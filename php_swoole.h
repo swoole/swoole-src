@@ -712,8 +712,8 @@ static sw_inline int add_assoc_ulong_safe_ex(zval *arg, const char *key, size_t 
     else
     {
         char buf[MAX_LENGTH_OF_LONG + 1];
-        sprintf((char *) buf, ZEND_ULONG_FMT "\0", value);
-        return add_assoc_string_ex(arg, key, key_len, buf);
+        size_t len = sw_snprintf(buf, sizeof(buf), ZEND_ULONG_FMT, value);
+        return add_assoc_stringl_ex(arg, key, key_len, buf, len);
     }
 }
 
