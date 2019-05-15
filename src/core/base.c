@@ -221,7 +221,7 @@ uint64_t swoole_hash_key(char *str, int str_len)
     return hash;
 }
 
-void swoole_dump_ascii(char *data, int size)
+void swoole_dump_ascii(const char *data, size_t size)
 {
     int i;
     for (i = 0; i < size; i++)
@@ -231,7 +231,7 @@ void swoole_dump_ascii(char *data, int size)
     printf("\n");
 }
 
-void swoole_dump_bin(char *data, char type, int size)
+void swoole_dump_bin(const char *data, char type, size_t size)
 {
     int i;
     int type_size = swoole_type_size(type);
@@ -248,7 +248,7 @@ void swoole_dump_bin(char *data, char type, int size)
     printf("\n");
 }
 
-void swoole_dump_hex(char *data, int outlen)
+void swoole_dump_hex(const char *data, size_t outlen)
 {
     long i;
     for (i = 0; i < outlen; ++i)
@@ -584,7 +584,7 @@ long swoole_file_get_size(FILE *fp)
     return size;
 }
 
-long swoole_file_size(char *filename)
+long swoole_file_size(const char *filename)
 {
     struct stat file_stat;
     if (lstat(filename, &file_stat) < 0)
@@ -601,7 +601,7 @@ long swoole_file_size(char *filename)
     return file_stat.st_size;
 }
 
-swString* swoole_file_get_contents(char *filename)
+swString* swoole_file_get_contents(const char *filename)
 {
     long filesize = swoole_file_size(filename);
     if (filesize < 0)
@@ -659,7 +659,7 @@ swString* swoole_file_get_contents(char *filename)
     return content;
 }
 
-int swoole_file_put_contents(char *filename, char *content, size_t length)
+int swoole_file_put_contents(const char *filename, const char *content, size_t length)
 {
     if (length <= 0)
     {
@@ -1138,7 +1138,7 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
     return SW_OK;
 }
 #else
-int swoole_gethostbyname(int flags, char *name, char *addr)
+int swoole_gethostbyname(int flags, const char *name, char *addr)
 {
 	int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
     int index = 0;
@@ -1247,7 +1247,7 @@ SW_API int swoole_add_function(const char *name, void* func)
     return swHashMap_add(SwooleG.functions, (char *) name, strlen(name), func);
 }
 
-SW_API void* swoole_get_function(char *name, uint32_t length)
+SW_API void* swoole_get_function(const char *name, uint32_t length)
 {
     if (!SwooleG.functions)
     {

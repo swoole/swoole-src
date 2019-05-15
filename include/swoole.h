@@ -1312,7 +1312,7 @@ static sw_inline uint32_t swoole_swap_endian32(uint32_t x)
     return (((x & 0xff) << 24) | ((x & 0xff00) << 8) | ((x & 0xff0000) >> 8) | ((x & 0xff000000) >> 24));
 }
 
-static sw_inline int32_t swoole_unpack(char type, void *data)
+static sw_inline int32_t swoole_unpack(char type, const void *data)
 {
     switch(type)
     {
@@ -1370,7 +1370,7 @@ static sw_inline int32_t swoole_unpack(char type, void *data)
     }
 }
 
-static inline char* swoole_strnstr(char *haystack, char *needle, uint32_t length)
+static inline char* swoole_strnstr(const char *haystack, const char *needle, uint32_t length)
 {
     int i;
     uint32_t needle_length = strlen(needle);
@@ -1388,7 +1388,7 @@ static inline char* swoole_strnstr(char *haystack, char *needle, uint32_t length
     return NULL;
 }
 
-static inline int swoole_strnpos(char *haystack, uint32_t haystack_length, char *needle, uint32_t needle_length)
+static inline int swoole_strnpos(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
 {
     assert(needle_length > 0);
     uint32_t i;
@@ -1408,7 +1408,7 @@ static inline int swoole_strnpos(char *haystack, uint32_t haystack_length, char 
     return -1;
 }
 
-static inline int swoole_strrnpos(char *haystack, char *needle, uint32_t length)
+static inline int swoole_strrnpos(const char *haystack, const char *needle, uint32_t length)
 {
     uint32_t needle_length = strlen(needle);
     assert(needle_length > 0);
@@ -1442,12 +1442,12 @@ static inline void swoole_strtolower(char *str, int length)
 }
 
 int swoole_itoa(char *buf, long value);
-void swoole_dump_bin(char *data, char type, int size);
-void swoole_dump_hex(char *data, int outlen);
+void swoole_dump_ascii(const char *data, size_t size);
+void swoole_dump_bin(const char *data, char type, size_t size);
+void swoole_dump_hex(const char *data, size_t outlen);
 int swoole_type_size(char type);
 int swoole_mkdir_recursive(const char *dir);
 char* swoole_dirname(char *file);
-void swoole_dump_ascii(char *data, int size);
 size_t swoole_sync_writefile(int fd, const void *data, size_t len);
 size_t swoole_sync_readfile(int fd, void *buf, size_t len);
 swString* swoole_sync_readfile_eof(int fd);
@@ -1455,9 +1455,9 @@ int swoole_rand(int min, int max);
 int swoole_system_random(int min, int max);
 long swoole_file_get_size(FILE *fp);
 int swoole_tmpfile(char *filename);
-swString* swoole_file_get_contents(char *filename);
-int swoole_file_put_contents(char *filename, char *content, size_t length);
-long swoole_file_size(char *filename);
+swString* swoole_file_get_contents(const char *filename);
+int swoole_file_put_contents(const char *filename, const char *content, size_t length);
+long swoole_file_size(const char *filename);
 char *swoole_dec2hex(int value, int base);
 int swoole_version_compare(const char *version1, const char *version2);
 #ifdef HAVE_EXECINFO
@@ -1465,12 +1465,12 @@ void swoole_print_trace(void);
 #endif
 void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
-int swoole_gethostbyname(int type, char *name, char *addr);
+int swoole_gethostbyname(int type, const char *name, char *addr);
 int swoole_getaddrinfo(swRequest_getaddrinfo *req);
 char* swoole_string_format(size_t n, const char *format, ...);
 //----------------------core function---------------------
 int swSocket_set_timeout(int sock, double timeout);
-int swSocket_create_server(int type, char *address, int port, int backlog);
+int swSocket_create_server(int type, const char *address, int port, int backlog);
 //----------------------------------------Socket---------------------------------------
 static sw_inline int swSocket_is_dgram(uint8_t type)
 {
@@ -1500,7 +1500,7 @@ int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream)
 int swoole_daemon(int nochdir, int noclose);
 
 SW_API int swoole_add_function(const char *name, void* func);
-SW_API void* swoole_get_function(char *name, uint32_t length);
+SW_API void* swoole_get_function(const char *name, uint32_t length);
 SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back);
 SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg);
 
@@ -1536,7 +1536,7 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
 }
 
 int swSocket_create(int type);
-int swSocket_bind(int sock, int type, char *host, int *port);
+int swSocket_bind(int sock, int type, const char *host, int *port);
 int swSocket_accept(int fd, swSocketAddress *sa);
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);

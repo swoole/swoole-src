@@ -350,7 +350,7 @@ int swSocket_create(int type)
     return socket(_domain, _type, 0);
 }
 
-int swSocket_bind(int sock, int type, char *host, int *port)
+int swSocket_bind(int sock, int type, const char *host, int *port)
 {
     int ret;
 
@@ -466,7 +466,7 @@ int swSocket_set_timeout(int sock, double timeout)
     return SW_OK;
 }
 
-int swSocket_create_server(int type, char *address, int port, int backlog)
+int swSocket_create_server(int type, const char *address, int port, int backlog)
 {
 #if 0
     int type;
