@@ -231,6 +231,8 @@ protected:
         {
             SW_ASSERT(current == nullptr);
             on_bailout();
+            // expect that never here
+            exit(1);
         }
     }
 
