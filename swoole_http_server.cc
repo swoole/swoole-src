@@ -2177,6 +2177,8 @@ static PHP_METHOD(swoole_http_response, create)
     }
     ctx->fd = (int) fd;
 
+    swoole_http_server_init_context(SwooleG.serv, ctx);
+
     object_init_ex(return_value, swoole_http_response_ce);
     swoole_set_object(return_value, ctx);
     ctx->response.zobject = return_value;
