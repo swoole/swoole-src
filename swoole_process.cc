@@ -67,7 +67,8 @@ static void php_swoole_onSignal(int signo);
 static void free_signal_callback(void* data);
 
 static uint32_t php_swoole_worker_round_id = 0;
-static zval *signal_callback[SW_SIGNO_MAX];
+static zval *signal_callback[SW_SIGNO_MAX] = {0};
+
 zend_class_entry *swoole_process_ce;
 static zend_object_handlers swoole_process_handlers;
 
@@ -199,7 +200,6 @@ void swoole_process_init(int module_number)
     zend_declare_class_constant_long(swoole_process_ce, ZEND_STRL("PIPE_WORKER"), SW_PIPE_CLOSE_WORKER);
     zend_declare_class_constant_long(swoole_process_ce, ZEND_STRL("PIPE_READ"), SW_PIPE_CLOSE_READ);
     zend_declare_class_constant_long(swoole_process_ce, ZEND_STRL("PIPE_WRITE"), SW_PIPE_CLOSE_WRITE);
-    bzero(signal_callback, sizeof(signal_callback));
 
     zend_declare_property_null(swoole_process_ce, ZEND_STRL("pipe"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_process_ce, ZEND_STRL("callback"), ZEND_ACC_PUBLIC);
@@ -263,24 +263,23 @@ static PHP_METHOD(swoole_process, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "Swoole\\Process only can be used in PHP CLI mode");
+        swoole_php_fatal_error(E_ERROR, "%s only can be used in PHP CLI mode", ZSTR_VAL(swoole_process_ce->name));
         RETURN_FALSE;
     }
 
     if (SwooleG.serv && SwooleG.serv->gs->start == 1 && swIsMaster())
     {
-        swoole_php_fatal_error(E_ERROR, "Swoole\\Process can't be used in master process");
+        swoole_php_fatal_error(E_ERROR, "%s can't be used in master process", ZSTR_VAL(swoole_process_ce->name));
         RETURN_FALSE;
     }
 
     if (SwooleAIO.init)
     {
-        swoole_php_fatal_error(E_ERROR, "unable to create process with async-io threads");
+        swoole_php_fatal_error(E_ERROR, "unable to create %s with async-io threads", ZSTR_VAL(swoole_process_ce->name));
         RETURN_FALSE;
     }
 
-    php::process *proc = (php::process *) emalloc(sizeof(php::process));
-    bzero(proc, sizeof(php::process));
+    php::process *proc = (php::process *) ecalloc(1, sizeof(php::process));
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
         Z_PARAM_FUNC(proc->fci, proc->fci_cache);
@@ -288,12 +287,11 @@ static PHP_METHOD(swoole_process, __construct)
         Z_PARAM_BOOL(redirect_stdin_and_stdout)
         Z_PARAM_LONG(pipe_type)
         Z_PARAM_BOOL(enable_coroutine)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+    ZEND_PARSE_PARAMETERS_END_EX(efree(proc);RETURN_FALSE);
 
-    swWorker *process = (swWorker *) emalloc(sizeof(swWorker));
-    bzero(process, sizeof(swWorker));
+    swWorker *process = (swWorker *) ecalloc(1, sizeof(swWorker));
 
-    int base = 1;
+    uint32_t base = 1;
     if (SwooleG.serv && SwooleG.serv->gs->start)
     {
         base = SwooleG.serv->worker_num + SwooleG.serv->task_worker_num + SwooleG.serv->user_worker_num;
@@ -511,7 +509,7 @@ static PHP_METHOD(swoole_process, signal)
 
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "cannot use swoole_process::signal here");
+        swoole_php_fatal_error(E_ERROR, "cannot use %s::signal here", ZSTR_VAL(swoole_process_ce->name));
         RETURN_FALSE;
     }
 
@@ -606,7 +604,7 @@ static PHP_METHOD(swoole_process, alarm)
 
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "cannot use swoole_process::alarm here");
+        swoole_php_fatal_error(E_ERROR, "cannot use %s::alarm here", ZSTR_VAL(swoole_process_ce->name));
         RETURN_FALSE;
     }
 
@@ -616,8 +614,7 @@ static PHP_METHOD(swoole_process, alarm)
         RETURN_FALSE;
     }
 
-    struct itimerval timer_set;
-    bzero(&timer_set, sizeof(timer_set));
+    struct itimerval timer_set = {{0}};
 
     if (usec > 0)
     {
@@ -685,8 +682,7 @@ zend_bool php_swoole_signal_isset_handler(int signo)
 
 void php_swoole_process_clean()
 {
-    int i;
-    for (i = 0; i < SW_SIGNO_MAX; i++)
+    for (int i = 0; i < SW_SIGNO_MAX; i++)
     {
         if (signal_callback[i])
         {
@@ -758,7 +754,7 @@ static PHP_METHOD(swoole_process, start)
 {
     swWorker *process = (swWorker *) swoole_get_object(getThis());
 
-    if (swKill(process->pid, 0) == 0)
+    if (process->pid && swKill(process->pid, 0) == 0)
     {
         swoole_php_fatal_error(E_WARNING, "process has already been started");
         RETURN_FALSE;
@@ -820,7 +816,7 @@ static PHP_METHOD(swoole_process, read)
     }
     buf->val[ret] = 0;
     buf->len = ret;
-    ZVAL_STR(return_value, buf);
+    RETURN_STR(buf);
 }
 
 static PHP_METHOD(swoole_process, write)

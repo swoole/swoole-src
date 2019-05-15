@@ -194,7 +194,7 @@ pid_t swoole_fork()
         {
             SwooleG.main_reactor->free(SwooleG.main_reactor);
             SwooleG.main_reactor = NULL;
-            swTraceLog(SW_TRACE_PHP, "destroy reactor");
+            swTraceLog(SW_TRACE_REACTOR, "reactor has been destroyed");
         }
         /**
          * reset signal handler
