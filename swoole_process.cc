@@ -279,7 +279,7 @@ static PHP_METHOD(swoole_process, __construct)
         RETURN_FALSE;
     }
 
-    php::process *proc = (php::process *) ecalloc(1, sizeof(php::process));
+    php::process *proc = zend::alloc<php::process>();
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
         Z_PARAM_FUNC(proc->fci, proc->fci_cache);

@@ -288,7 +288,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
 
     // content encoding
 #ifdef SW_HAVE_ZLIB
-    if (ctx->enable_compression)
+    if (ctx->accept_compression)
     {
         const char *content_encoding = swoole_http_get_content_encoding(ctx);
         headers.add(ZEND_STRL("content-encoding"), (char *) content_encoding, strlen(content_encoding));
@@ -297,7 +297,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
 
     // content length
 #ifdef SW_HAVE_ZLIB
-    if (ctx->enable_compression)
+    if (ctx->accept_compression)
     {
         body_length = swoole_zlib_buffer->length;
     }
@@ -352,11 +352,11 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
     int ret;
 
 #ifdef SW_HAVE_ZLIB
-    if (ctx->enable_compression)
+    if (ctx->accept_compression)
     {
         if (body->length == 0 || swoole_http_response_compress(body, ctx->compression_method, ctx->compression_level) != SW_OK)
         {
-            ctx->enable_compression = 0;
+            ctx->accept_compression = 0;
         }
     }
 #endif
@@ -427,7 +427,7 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
     size_t send_n;
 
 #ifdef SW_HAVE_ZLIB
-    if (ctx->enable_compression)
+    if (ctx->accept_compression)
     {
         p = swoole_zlib_buffer->str;
         l = swoole_zlib_buffer->length;
@@ -617,7 +617,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                     continue;
                 }
 #ifdef SW_HAVE_ZLIB
-                else if (SwooleG.serv->http_compression && strncasecmp((char *) nv.name, "accept-encoding", nv.namelen) == 0)
+                else if (ctx->enable_compression && strncasecmp((char *) nv.name, "accept-encoding", nv.namelen) == 0)
                 {
                     swoole_http_get_compression_method(ctx, (char *) nv.value, nv.valuelen);
                 }
@@ -733,6 +733,11 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
             }
             client->streams[stream_id] = stream;
             ctx = stream->ctx;
+            ctx->parse_cookie = serv->http_parse_cookie;
+            ctx->parse_body = serv->http_parse_post;
+#ifdef SW_HAVE_ZLIB
+            ctx->enable_compression = serv->http_compression;
+#endif
 
             zend_update_property_long(swoole_http_request_ce, ctx->request.zobject, ZEND_STRL("streamId"), stream_id);
 

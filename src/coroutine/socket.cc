@@ -657,8 +657,8 @@ bool Socket::connect(string _host, int _port, int flags)
         }
     }
 
-    host = _host;
-    port = _port;
+    connect_host = _host;
+    connect_port = _port;
 
     struct sockaddr *_target_addr = nullptr;
 
@@ -669,16 +669,16 @@ bool Socket::connect(string _host, int _port, int flags)
             socket->info.addr.inet_v4.sin_family = AF_INET;
             socket->info.addr.inet_v4.sin_port = htons(_port);
 
-            if (!inet_pton(AF_INET, host.c_str(), & socket->info.addr.inet_v4.sin_addr))
+            if (!inet_pton(AF_INET, connect_host.c_str(), & socket->info.addr.inet_v4.sin_addr))
             {
 #ifdef SW_USE_OPENSSL
                 if (open_ssl)
                 {
-                    ssl_host_name = host;
+                    ssl_host_name = connect_host;
                 }
 #endif
-                host = System::gethostbyname(host, AF_INET, connect_timeout);
-                if (host.empty())
+                connect_host = System::gethostbyname(connect_host, AF_INET, connect_timeout);
+                if (connect_host.empty())
                 {
                     set_err(SwooleG.error, hstrerror(SwooleG.error));
                     return false;
@@ -697,16 +697,16 @@ bool Socket::connect(string _host, int _port, int flags)
             socket->info.addr.inet_v6.sin6_family = AF_INET6;
             socket->info.addr.inet_v6.sin6_port = htons(_port);
 
-            if (!inet_pton(AF_INET6, host.c_str(), &socket->info.addr.inet_v6.sin6_addr))
+            if (!inet_pton(AF_INET6, connect_host.c_str(), &socket->info.addr.inet_v6.sin6_addr))
             {
 #ifdef SW_USE_OPENSSL
                 if (open_ssl)
                 {
-                    ssl_host_name = host;
+                    ssl_host_name = connect_host;
                 }
 #endif
-                host = System::gethostbyname(host, AF_INET6, connect_timeout);
-                if (host.empty())
+                connect_host = System::gethostbyname(connect_host, AF_INET6, connect_timeout);
+                if (connect_host.empty())
                 {
                     set_err(SwooleG.error);
                     return false;
@@ -722,13 +722,13 @@ bool Socket::connect(string _host, int _port, int flags)
         }
         else if (sock_domain == AF_UNIX)
         {
-            if (host.size() >= sizeof(socket->info.addr.un.sun_path))
+            if (connect_host.size() >= sizeof(socket->info.addr.un.sun_path))
             {
                 return false;
             }
             socket->info.addr.un.sun_family = AF_UNIX;
-            memcpy(&socket->info.addr.un.sun_path, host.c_str(), host.size());
-            socket->info.len = (socklen_t) (offsetof(struct sockaddr_un, sun_path) + host.size());
+            memcpy(&socket->info.addr.un.sun_path, connect_host.c_str(), connect_host.size());
+            socket->info.len = (socklen_t) (offsetof(struct sockaddr_un, sun_path) + connect_host.size());
             _target_addr = (struct sockaddr *) &socket->info.addr.un;
             break;
         }

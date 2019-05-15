@@ -799,6 +799,21 @@ SW_API zend_object* php_swoole_export_socket_ex(int fd, enum swSocket_type type)
     return php_swoole_export_socket(&zobject, fd, type) ? Z_OBJ_P(&zobject) : nullptr;
 }
 
+SW_API Socket* php_swoole_get_socket(zval *zobject)
+{
+    socket_coro *sock = (socket_coro *) swoole_socket_coro_fetch_object(Z_OBJ_P(zobject));
+    return sock->socket;
+}
+
+SW_API void php_swoole_init_socket_object(zval *zobject, Socket *socket)
+{
+    zend_object *object = swoole_socket_coro_create_object(swoole_socket_coro_ce);
+    socket_coro *sock = (socket_coro *) swoole_socket_coro_fetch_object(object);
+    sock->socket = socket;
+    ZVAL_OBJ(zobject, object);
+    php_swoole_init_socket(zobject, sock);
+}
+
 static PHP_METHOD(swoole_socket_coro, __construct)
 {
     zend_long domain, type, protocol = IPPROTO_IP;

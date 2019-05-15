@@ -1052,7 +1052,11 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     {
         serv->onReceive = php_swoole_http_onReceive;
         serv->onClose = php_swoole_http_onClose;
-        php_swoole_http_server_before_start(serv, zobject);
+        if (!instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce))
+        {
+            swoole_php_error(E_WARNING, "use %s class and open http related protocols may lead to some errors (inconsistent class type)", ZSTR_VAL(Z_OBJCE_P(zobject)->name));
+        }
+        php_swoole_http_server_init_global_variant();
     }
 }
 
