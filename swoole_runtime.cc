@@ -138,7 +138,8 @@ void swoole_runtime_init(int module_number)
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_UDG", SW_HOOK_UDG);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SSL", SW_HOOK_SSL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_TLS", SW_HOOK_TLS);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STREAM_SELECT", SW_HOOK_STREAM_SELECT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STREAM_FUNCTION", SW_HOOK_STREAM_FUNCTION);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STREAM_SELECT", SW_HOOK_STREAM_FUNCTION); // backward compatibility
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_FILE", SW_HOOK_FILE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SLEEP", SW_HOOK_SLEEP);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_BLOCKING_FUNCTION", SW_HOOK_BLOCKING_FUNCTION);
@@ -1061,9 +1062,9 @@ bool PHPCoroutine::enable_hook(int flags)
             php_stream_xport_register("tls", ori_factory.tls);
         }
     }
-    if (flags & SW_HOOK_STREAM_SELECT)
+    if (flags & SW_HOOK_STREAM_FUNCTION)
     {
-        if (!(hook_flags & SW_HOOK_STREAM_SELECT))
+        if (!(hook_flags & SW_HOOK_STREAM_FUNCTION))
         {
             if (ori_stream_select)
             {
@@ -1072,13 +1073,13 @@ bool PHPCoroutine::enable_hook(int flags)
             }
             else
             {
-                flags ^= SW_HOOK_STREAM_SELECT;
+                flags ^= SW_HOOK_STREAM_FUNCTION;
             }
         }
     }
     else
     {
-        if (hook_flags & SW_HOOK_STREAM_SELECT)
+        if (hook_flags & SW_HOOK_STREAM_FUNCTION)
         {
             if (ori_stream_select)
             {
