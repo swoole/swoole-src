@@ -418,10 +418,12 @@ struct _swServer
      * parse x-www-form-urlencoded data
      */
     uint32_t http_parse_post :1;
+#ifdef SW_HAVE_ZLIB
     /**
      * http content compression
      */
     uint32_t http_compression :1;
+#endif
     /**
      * handle static files
      */

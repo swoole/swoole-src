@@ -343,6 +343,7 @@ void swoole_http2_client_coro_init(int module_number);
 void swoole_server_init(int module_number);
 void swoole_server_port_init(int module_number);
 void swoole_http_server_init(int module_number);
+void swoole_http_server_coro_init(int module_number);
 void swoole_websocket_server_init(int module_number);
 void swoole_redis_server_init(int module_number);
 
@@ -448,7 +449,7 @@ void swoole_php_socket_free(zval *zsocket);
 zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type);
 zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int server_fd, int event_type);
 void php_swoole_server_before_start(swServer *serv, zval *zobject);
-void php_swoole_http_server_before_start(swServer *serv, zval *zobject);
+void php_swoole_http_server_init_global_variant();
 void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value);
 void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint32_t header_length);
 size_t php_swoole_get_send_data(zval *zdata, char **str);
@@ -998,7 +999,7 @@ static sw_inline int php_swoole_is_callable(zval *callback)
 static sw_inline int sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint check_flags, char **callable_name, int *callable_name_len, zend_fcall_info_cache *fci_cache, char **error)
 {
     zend_string *key = NULL;
-    int ret = zend_is_callable_ex(zcallable, NULL, check_flags, &key, fci_cache, error);
+    int ret = zend_is_callable_ex(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, check_flags, &key, fci_cache, error);
     char *tmp = estrndup(ZSTR_VAL(key), ZSTR_LEN(key));
     zend_string_release(key);
     *callable_name = tmp;
