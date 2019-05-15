@@ -132,6 +132,11 @@ public:
         return socket ? socket->fd : -1;
     }
 
+    inline int get_bind_port()
+    {
+        return bind_port;
+    }
+
     inline bool has_bound(const enum swEvent_type event = SW_EVENT_RDWR)
     {
         return !!get_bound_co(event);
@@ -247,8 +252,8 @@ private:
     enum swEvent_type want_event = SW_EVENT_NULL;
 #endif
 
-    std::string host;
-    int port = 0;
+    std::string connect_host;
+    int connect_port = 0;
     std::string bind_address;
     int bind_port = 0;
 
