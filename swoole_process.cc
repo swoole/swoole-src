@@ -279,7 +279,7 @@ static PHP_METHOD(swoole_process, __construct)
         RETURN_FALSE;
     }
 
-    php::process *proc = zend::alloc<php::process>;
+    php::process *proc = (php::process *) ecalloc(1, sizeof(php::process));
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
         Z_PARAM_FUNC(proc->fci, proc->fci_cache);
@@ -289,7 +289,7 @@ static PHP_METHOD(swoole_process, __construct)
         Z_PARAM_BOOL(enable_coroutine)
     ZEND_PARSE_PARAMETERS_END_EX(efree(proc);RETURN_FALSE);
 
-    swWorker *process = zend::alloc<swWorker>;
+    swWorker *process = (swWorker *) ecalloc(1, sizeof(swWorker));
 
     uint32_t base = 1;
     if (SwooleG.serv && SwooleG.serv->gs->start)
