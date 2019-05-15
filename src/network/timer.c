@@ -171,6 +171,7 @@ swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, 
     tnode->removed = 0;
     tnode->callback = callback;
     tnode->round = timer->round;
+    tnode->dtor = NULL;
 
     if (timer->_next_msec < 0 || timer->_next_msec > _msec)
     {
@@ -201,7 +202,7 @@ swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, 
     return tnode;
 }
 
-enum swBool_type swTimer_del_ex(swTimer *timer, swTimer_node *tnode, swTimerDtor dtor)
+enum swBool_type swTimer_del(swTimer *timer, swTimer_node *tnode)
 {
     if (unlikely(!tnode || tnode->removed))
     {
@@ -222,19 +223,14 @@ enum swBool_type swTimer_del_ex(swTimer *timer, swTimer_node *tnode, swTimerDtor
         swHeap_remove(timer->heap, tnode->heap_node);
         sw_free(tnode->heap_node);
     }
-    if (dtor)
+    if (tnode->dtor)
     {
-        dtor(tnode);
+        tnode->dtor(tnode);
     }
     timer->num--;
     swTraceLog(SW_TRACE_TIMER, "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, tnode->round, timer->num);
     sw_free(tnode);
     return SW_TRUE;
-}
-
-enum swBool_type swTimer_del(swTimer *timer, swTimer_node *tnode)
-{
-    return swTimer_del_ex(timer, tnode, NULL);
 }
 
 int swTimer_select(swTimer *timer)

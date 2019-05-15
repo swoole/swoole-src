@@ -104,7 +104,7 @@ static void php_swoole_timer_dtor(swTimer_node *tnode)
 
 enum swBool_type php_swoole_timer_clear(swTimer_node *tnode)
 {
-    return swTimer_del_ex(&SwooleG.timer, tnode, php_swoole_timer_dtor);
+    return swTimer_del(&SwooleG.timer, tnode);
 }
 
 enum swBool_type php_swoole_timer_clear_all()
@@ -124,7 +124,7 @@ enum swBool_type php_swoole_timer_clear_all()
         }
         if (tnode->type == SW_TIMER_TYPE_PHP)
         {
-            swTimer_del_ex(&SwooleG.timer, tnode, php_swoole_timer_dtor);
+            swTimer_del(&SwooleG.timer, tnode);
         }
     }
     return SW_TRUE;
@@ -155,9 +155,9 @@ static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent)
         Z_PARAM_VARIADIC('*', fci->fci.params, fci->fci.param_count)
     ZEND_PARSE_PARAMETERS_END_EX(goto _failed);
 
-    if (UNEXPECTED(ms <= 0))
+    if (UNEXPECTED(ms < SW_TIMER_MIN_MS))
     {
-        swoole_php_fatal_error(E_WARNING, "Timer must be greater than 0");
+        swoole_php_fatal_error(E_WARNING, "Timer must be greater than or equal to " ZEND_TOSTR(SW_TIMER_MIN_MS));
         _failed:
         efree(fci);
         RETURN_FALSE;
@@ -176,6 +176,7 @@ static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent)
         goto _failed;
     }
     tnode->type = SW_TIMER_TYPE_PHP;
+    tnode->dtor = php_swoole_timer_dtor;
     if (persistent)
     {
         if (fci->fci.param_count > 0)
@@ -318,7 +319,7 @@ static PHP_FUNCTION(swoole_timer_clear)
         ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
         tnode = swTimer_get_ex(&SwooleG.timer, id, SW_TIMER_TYPE_PHP);
-        RETURN_BOOL(swTimer_del_ex(&SwooleG.timer, tnode, php_swoole_timer_dtor));
+        RETURN_BOOL(swTimer_del(&SwooleG.timer, tnode));
     }
 }
 

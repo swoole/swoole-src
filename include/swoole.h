@@ -2197,15 +2197,19 @@ enum swTimer_type
 
 struct _swTimer_node
 {
+    /*----------------properties--------------*/
     long id;
     enum swTimer_type type;
     int64_t exec_msec;
     int64_t interval;
     uint64_t round;
     uint8_t removed;
+    swHeap_node *heap_node;
+    /*-----------------callback---------------*/
     swTimerCallback callback;
     void *data;
-    swHeap_node *heap_node;
+    /*-----------------destructor-------------*/
+    swTimerDtor dtor;
 };
 
 struct _swTimer
@@ -2222,7 +2226,7 @@ struct _swTimer
     long _next_msec;
     /*---------------event timer--------------*/
     struct timeval basetime;
-    /*---------------system timer--------------*/
+    /*---------------system timer-------------*/
     long lasttime;
     /*----------------------------------------*/
     int (*set)(swTimer *timer, long exec_msec);
@@ -2231,7 +2235,6 @@ struct _swTimer
 
 swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
 enum swBool_type swTimer_del(swTimer *timer, swTimer_node *node);
-enum swBool_type swTimer_del_ex(swTimer *timer, swTimer_node *node, swTimerDtor dtor);
 void swTimer_free(swTimer *timer);
 int swTimer_select(swTimer *timer);
 int swTimer_now(struct timeval *time);
@@ -2241,9 +2244,9 @@ static sw_inline swTimer_node* swTimer_get(swTimer *timer, long id)
     return (swTimer_node*) swHashMap_find_int(timer->map, id);
 }
 
-static sw_inline swTimer_node* swTimer_get_ex(swTimer *timer, long id, enum swTimer_type type)
+static sw_inline swTimer_node* swTimer_get_ex(swTimer *timer, long id, const enum swTimer_type type)
 {
-    swTimer_node* tnode = (swTimer_node*) swHashMap_find_int(timer->map, id);
+    swTimer_node* tnode = swTimer_get(timer, id);
     return (tnode && tnode->type == type) ? tnode : NULL;
 }
 

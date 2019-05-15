@@ -524,9 +524,9 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
         Z_PARAM_DOUBLE(seconds)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (seconds <= 0)
+    if (UNEXPECTED(seconds < SW_TIMER_MIN_SEC))
     {
-        swoole_php_fatal_error(E_WARNING, "Timer must be greater than 0");
+        swoole_php_fatal_error(E_WARNING, "Timer must be greater than or equal to " ZEND_TOSTR(SW_TIMER_MIN_SEC));
         RETURN_FALSE;
     }
     System::sleep(seconds);
