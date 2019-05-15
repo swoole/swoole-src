@@ -3853,8 +3853,8 @@ static PHP_METHOD(swoole_server_task, finish)
 
 static PHP_METHOD(swoole_server, bind)
 {
-    long fd = 0;
-    long uid = 0;
+    zend_long fd = 0;
+    zend_long uid = 0;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
@@ -3865,6 +3865,12 @@ static PHP_METHOD(swoole_server, bind)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "ll", &fd, &uid) == FAILURE)
     {
+        RETURN_FALSE;
+    }
+
+    if (uid > UINT32_MAX)
+    {
+        swoole_php_fatal_error(E_WARNING, "uid can not be greater than %u", UINT32_MAX);
         RETURN_FALSE;
     }
 
