@@ -16,11 +16,9 @@ SW_API void php_swoole_client_set(swoole::coroutine::Socket *cli, zval *zset);
 namespace zend
 {
 template <typename T>
-inline T* alloc()
+inline T* alloc(size_t nmemb = 1)
 {
-    void *ptr = emalloc(sizeof(T));
-    memset(ptr, 0, sizeof(T));
-    return (T*) ptr;
+    return (T*) ecalloc(nmemb, sizeof(T));
 }
 
 class string

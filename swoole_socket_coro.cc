@@ -801,6 +801,7 @@ SW_API zend_object* php_swoole_export_socket_ex(int fd, enum swSocket_type type)
 
 SW_API Socket* php_swoole_get_socket(zval *zobject)
 {
+    SW_ASSERT(Z_OBJCE_P(zobject) == swoole_socket_coro_ce);
     socket_coro *sock = (socket_coro *) swoole_socket_coro_fetch_object(Z_OBJ_P(zobject));
     return sock->socket;
 }
