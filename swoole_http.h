@@ -184,6 +184,8 @@ int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
 const swoole_http_parser_settings* swoole_http_get_parser_setting();
 
+void swoole_http_server_init_context(swServer *serv, http_context *ctx);
+
 #ifdef SW_HAVE_ZLIB
 int swoole_http_response_compress(swString *body, int method, int level);
 void swoole_http_get_compression_method(http_context *ctx, const char *accept_encoding, size_t length);
