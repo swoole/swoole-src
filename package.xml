@@ -36,10 +36,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-04-19</date>
-    <time>12:00:00</time>
+    <date>2019-05-16</date>
+    <time>20:00:00</time>
     <version>
-        <release>4.3.3</release>
+        <release>4.3.4</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -50,11 +50,11 @@
     <notes>
         Fixed
         ---
-        * Fixed Http2 ping frame bug (0f074a61) (371d0b86) (e28ed13c) (@twose) (@shiguangqi)
-        * Fixed OSX signal bug (6d06a2c2) (6b66f56c) (@twose)
-        * Fixed `Coroutine\Http\Client->setData` (53d9d1ac) (@twose)
-        * Remove HAVE_IPV6 (3effad3c) (@matyhtf)
-        * PHP7.4 compatibility (#2506) (@twose)
+        * Fixed SSL certificate configuration failure (#2573) (@twose)
+        * Fixed onReceive callback null pointer (#2568) (@twose)
+        * Fixed ssl->ciphers null pointer (#2553) (@matyhtf)
+        * Fixed document_root can't be a relative path (#2513) (@windrunner)
+        * Fixed HTTP proxy that does not need to handshake (16ea176f) (@matyhtf)
     </notes>
     <contents>
         <dir name="/">
@@ -1026,6 +1026,7 @@
             <file role="test" name="tests/swoole_http_server/send_yield.phpt" />
             <file role="test" name="tests/swoole_http_server/sendfile.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler.phpt" />
+            <file role="test" name="tests/swoole_http_server/static_handler/relative_path.phpt" />
             <file role="test" name="tests/swoole_http_server/task/enable_coroutine.phpt" />
             <file role="test" name="tests/swoole_http_server/task/enable_coroutine_with_wrong_usage.phpt" />
             <file role="test" name="tests/swoole_http_server/too_many_special_chars_in_cookie.phpt" />

@@ -88,10 +88,10 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 
 #define SWOOLE_MAJOR_VERSION      4
 #define SWOOLE_MINOR_VERSION      3
-#define SWOOLE_RELEASE_VERSION    3
+#define SWOOLE_RELEASE_VERSION    4
 #define SWOOLE_EXTRA_VERSION      ""
-#define SWOOLE_VERSION            "4.3.3"
-#define SWOOLE_VERSION_ID         40303
+#define SWOOLE_VERSION            "4.3.4"
+#define SWOOLE_VERSION_ID         40304
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
