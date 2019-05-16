@@ -1010,9 +1010,9 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         {
             swoole_php_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
 #ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
-            serv->send(serv, fd, (char *) SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
+            ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
 #endif
-            serv->close(serv, fd, 0);
+            ctx->close(ctx);
         }
 
         _dtor_and_return:
@@ -1876,21 +1876,20 @@ static PHP_METHOD(swoole_http_response, sendfile)
 
     swServer *serv = SwooleG.serv;
 
-    int ret = serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
-    if (ret < 0)
+    if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
     {
         ctx->send_header = 0;
         RETURN_FALSE;
     }
-    ret = serv->sendfile(serv, ctx->fd, filename, filename_length, offset, length);
-    if (ret < 0)
+    // TODO: use ctx?
+    if (serv->sendfile(serv, ctx->fd, filename, filename_length, offset, length) < 0)
     {
         ctx->send_header = 0;
         RETURN_FALSE;
     }
     if (!ctx->keepalive)
     {
-        serv->close(serv, ctx->fd, 0);
+        ctx->close(ctx);
     }
     swoole_http_context_free(ctx);
     RETURN_TRUE;

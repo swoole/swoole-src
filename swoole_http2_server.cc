@@ -405,10 +405,7 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
         flag = SW_HTTP2_FLAG_NONE;
     }
 
-    swServer *serv = SwooleG.serv;
-
-    ret = serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
-    if (ret < 0)
+    if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
     {
         ctx->send_header = 0;
         return SW_ERR;
@@ -455,7 +452,7 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
         swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
         swString_append_ptr(swoole_http_buffer, p, send_n);
 
-        if (serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length) < 0)
+        if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
         {
             return SW_ERR;
         }
@@ -476,7 +473,7 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
             swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->id);
             swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
             swString_append_ptr(swoole_http_buffer, header_buffer, ret);
-            if (serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length) < 0)
+            if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
             {
                 return SW_ERR;
             }
@@ -837,7 +834,7 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
             char ping_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
             swHttp2_set_frame_header(ping_frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
             memcpy(ping_frame + SW_HTTP2_FRAME_HEADER_SIZE, buf, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
-            serv->send(serv, fd, ping_frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
+            ctx->send(ctx, ping_frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
         }
         break;
     }
