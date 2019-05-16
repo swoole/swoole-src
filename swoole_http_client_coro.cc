@@ -111,7 +111,7 @@ public:
     bool init_compression(enum http_compress_method method);
     bool uncompress_response();
 #endif
-    void apply_setting(zval *zset);
+    void apply_setting(zval *zset, const bool check_all = true);
     void set_basic_auth(const std::string & username, const std::string & password);
     bool exec(std::string path);
     bool recv(double timeout = 0);
@@ -548,36 +548,37 @@ bool http_client::uncompress_response()
 }
 #endif
 
-void http_client::apply_setting(zval *zset)
+void http_client::apply_setting(zval *zset, const bool check_all)
 {
     if (!ZVAL_IS_ARRAY(zset) || php_swoole_array_length(zset) == 0)
     {
         return;
     }
+    if (check_all)
+    {
+        zval *ztmp;
+        HashTable *vht = Z_ARRVAL_P(zset);
 
-    zval *ztmp;
-    HashTable *vht = Z_ARRVAL_P(zset);
-
-    // will be set immediately
-    if (php_swoole_array_get_value(vht, "connect_timeout", ztmp) || php_swoole_array_get_value(vht, "timeout", ztmp) /* backward compatibility */)
-    {
-        connect_timeout = zval_get_double(ztmp);
-    }
-    if (php_swoole_array_get_value(vht, "reconnect", ztmp))
-    {
-        reconnect_interval = (uint8_t) SW_MIN(zval_get_long(ztmp), UINT8_MAX);
-    }
-    if (php_swoole_array_get_value(vht, "defer", ztmp))
-    {
-        defer = zval_is_true(ztmp);
-    }
-    if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
-    {
-        keep_alive = zval_is_true(ztmp);
-    }
-    if (php_swoole_array_get_value(vht, "websocket_mask", ztmp))
-    {
-        websocket_mask = zval_is_true(ztmp);
+        if (php_swoole_array_get_value(vht, "connect_timeout", ztmp) || php_swoole_array_get_value(vht, "timeout", ztmp) /* backward compatibility */)
+        {
+            connect_timeout = zval_get_double(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "reconnect", ztmp))
+        {
+            reconnect_interval = (uint8_t) SW_MIN(zval_get_long(ztmp), UINT8_MAX);
+        }
+        if (php_swoole_array_get_value(vht, "defer", ztmp))
+        {
+            defer = zval_is_true(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
+        {
+            keep_alive = zval_is_true(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "websocket_mask", ztmp))
+        {
+            websocket_mask = zval_is_true(ztmp);
+        }
     }
     if (socket)
     {
@@ -626,7 +627,7 @@ bool http_client::connect()
         socket->open_ssl = ssl;
 #endif
         // apply settings
-        apply_setting(sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("setting"), 0));
+        apply_setting(sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("setting"), 0), false);
 
         // connect
         socket->set_timeout(connect_timeout, SW_TIMEOUT_CONNECT);
