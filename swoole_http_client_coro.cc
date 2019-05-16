@@ -593,22 +593,18 @@ void http_client::apply_setting(zval *zset)
     }
 }
 
-void http_client::set_basic_auth(const std::string & username, const std::string & password)
+void http_client::set_basic_auth(const std::string &username, const std::string &password)
 {
-    std::string input = username + std::string(":") + password;
-    size_t input_len = input.size(); 
-    size_t output_len = BASE64_ENCODE_OUT_SIZE(input_len);
-
-    //prepare input
-    char *output = (char*)emalloc(output_len + 7);
-    if(output == nullptr) return;
-
-    //basic64 encode
-    sprintf((char*)output, "Basic ");
-    swBase64_encode((const unsigned char*)input.c_str(), input_len, output + 6);
-
-    basic_auth = std::string((const char*)output, output_len + 6);
-    efree(output);
+    std::string input = username + ":" + password;
+    size_t output_size = sizeof("Basic ") + BASE64_ENCODE_OUT_SIZE(input.size());
+    char *output = (char *) emalloc(output_size);
+    if (likely(output))
+    {
+        size_t output_len = sprintf(output, "Basic ");
+        output_len += swBase64_encode((const unsigned char *) input.c_str(), input.size(), output + output_len);
+        basic_auth = std::string((const char *) output, output_len);
+        efree(output);
+    }
 }
 
 bool http_client::connect()
@@ -870,10 +866,10 @@ bool http_client::send()
         http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), host.c_str(), host.length());
     }
 
-    if(!basic_auth.empty()){
-        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Authorization"), basic_auth.c_str(), basic_auth.size()); 
+    if (!basic_auth.empty())
+    {
+        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Authorization"), basic_auth.c_str(), basic_auth.size());
     }
-
     if (!(header_flag & HTTP_HEADER_CONNECTION))
     {
         if (keep_alive)
