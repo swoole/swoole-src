@@ -781,7 +781,7 @@ static ssize_t mysql_decode_row(mysql_client *client, char *buf, uint32_t packet
         read_n += len;
     }
 
-    add_next_index_zval(result_array, row_array);
+    (void) add_next_index_zval(result_array, row_array);
 
     efree(row_array);
 
@@ -1074,7 +1074,7 @@ static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint32_
         read_n += len;
     }
 
-    add_next_index_zval(result_array, row_array);
+    (void) add_next_index_zval(result_array, row_array);
 
     efree(row_array);
 

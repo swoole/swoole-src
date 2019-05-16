@@ -555,7 +555,11 @@ void http_client::set(zval *zset = nullptr)
     if (socket)
     {
         php_swoole_client_set(socket, zset ? zset : zsettings);
-        if (!socket->open_ssl && socket->http_proxy)
+#ifdef SW_USE_OPENSSL
+        if (socket->http_proxy && !socket->open_ssl)
+#else
+        if (socket->http_proxy)
+#endif
         {
             socket->http_proxy->dont_handshake = 1;
         }
