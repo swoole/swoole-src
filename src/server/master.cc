@@ -17,6 +17,8 @@
 #include "server.h"
 #include "http.h"
 #include "connection.h"
+#include <sys/time.h>
+#include <time.h>
 
 static int swServer_start_check(swServer *serv);
 static void swServer_signal_handler(int sig);
@@ -731,6 +733,16 @@ void swServer_init(swServer *serv)
     serv->task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
 
     serv->enable_coroutine = 1;
+
+#ifdef __linux__
+    serv->timezone = timezone;
+#else
+    struct timezone tz;
+    
+    gettimeofday(nullptr, &tz);
+
+    serv->timezone = tz.tz_minuteswest;
+#endif
 
     /**
      * alloc shared memory
