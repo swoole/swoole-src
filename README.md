@@ -510,7 +510,24 @@ Enable it by adding a new line `extension=swoole_async.so` to `php.ini`.
 ## 💎 Frameworks & Components
 
 - [**Swoft**](https://github.com/swoft-cloud) is a modern, high-performance AOP and coroutine PHP framework.
-- [**Easyswoole**](https://www.easyswoole.com) is a simple, high-performance PHP framework, based on Swoole, which makes using Swoole as easy as `echo "hello world"`.
+- [**Easyswoole**](https://www.easyswoole.com) EasySwoole is a distributed, persistent memory PHP framework based on the Swoole extension. It was created specifically for APIs to get rid of the performance penalties associated with process calls and file loading. EasySwoole highly encapsulates the Swoole Server and still maintains the original features of the Swoole server, supports simultaneous monitoring of HTTP, custom TCP, and UDP protocols, allowing developers to write multi-process, asynchronous, and highly available applications with minimal learning cost and effort.
+    - Base on Swoole extension
+    - Built-in HTTP, TCP, WebSocket,Udp Coroutine Server
+    - Global dependency injection container
+    - PSR-7 based HTTP message implementation
+    - HTTP,TCP, WebSocket, Udp middleware support
+    - Scalable high performance RPC
+    - Database ORM
+    - Mysql, Redis, RPC, HTTP Coroutine Clients
+    - Coroutine and asynchronous task delivery
+    - Custom user processes
+    - RESTful supported
+    - High performance router
+    - Fast and flexible parameter validator
+    - Powerful log component
+    - Universal connection pools
+    - Remote Console support
+    - Crontab Rule Timer support
 - [**Saber**](https://github.com/swlib/saber) Is a human-friendly, high-performance HTTP client component that has almost everything you can imagine.
 
 ## 🛠 Develop & Discussion
