@@ -1,17 +1,28 @@
 <?php
-Swoole\Coroutine::set([
-    'max_death_ms' => 2000,
-]);
+Co::set(['max_exec_msec' => 2]);
+Co::set(['check_msec' => 1]);
+$start = microtime(1);
 echo "start\n";
-go(function () {
-    echo "coro start\n";
-    for ($i = 1; ; $i++) {
-        echo $i."\n";
-        sleep(1);
-    }
-});
+$flag = 1;
 
-go(function () {
-    echo "222222\n";
+go(function () use (&$flag) {
+    echo "coro 1 start to loop\n";
+    $i = 0;
+    for (;;) {
+//         echo "$i\n";
+        if (!$flag) {
+            break;
+        }
+        $i++;
+    }
+    echo "coro 1 can exit\n";
+});
+    
+$end = microtime(1);
+$msec = ($end - $start) * 1000;
+echo "use time $msec\n";
+go(function () use (&$flag) {
+    echo "coro 2 set flag = false\n";
+    $flag = false;
 });
 echo "end\n";

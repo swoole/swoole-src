@@ -52,8 +52,7 @@ struct php_coro_task
     std::stack<php_swoole_fci *> *defer_tasks;
     long pcid;
     zend_object *context;
-#ifdef SW_CORO_SCHEDULER_TICK
-    int ticks_count;
+#ifdef SW_CORO_SCHEDULER
     int64_t last_msec;
 #endif
 };
@@ -81,6 +80,12 @@ namespace swoole
 class PHPCoroutine
 {
 public:
+
+#ifdef SW_CORO_SCHEDULER
+    static int64_t max_exec_msec;
+    static volatile int64_t check_msec;
+#endif
+
     static void init();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(php_swoole_fci *fci);
@@ -134,17 +139,19 @@ public:
         max_num = n;
     }
 
-#ifdef SW_CORO_SCHEDULER_TICK
-#define SW_CORO_SCHEDULER_TICK_EXPECT(s)      likely(s)
-#define SW_CORO_SCHEDULER_TICK_UNEXPECT(s)    unlikely(s)
-
-    static void enable_scheduler_tick();
-    static void disable_scheduler_tick();
+#ifdef SW_CORO_SCHEDULER
+#define SW_CORO_SCHEDULER_EXPECT(s)      likely(s)
+#define SW_CORO_SCHEDULER_UNEXPECT(s)    unlikely(s)
 
     static inline void set_max_exec_msec(long msec)
     {
         max_exec_msec = SW_MAX(0, msec);
         record_last_msec(get_task());
+    }
+
+    static inline void set_check_msec(long msec)
+    {
+        if (msec > check_msec) check_msec = msec;
     }
 
     static inline bool is_schedulable(php_coro_task *task)
@@ -170,17 +177,13 @@ protected:
     static void on_close(void *arg);
     static void create_func(void *arg);
 
-#ifdef SW_CORO_SCHEDULER_TICK
-    static int64_t max_exec_msec;
-    static user_opcode_handler_t ori_tick_handler;
-
+#ifdef SW_CORO_SCHEDULER
     static inline void interrupt_callback(void *data);
-    static inline void tick(uint32_t tick_count);
-    static inline int tick_handler(zend_execute_data *execute_data);
-
+    static inline void interrupt(zend_execute_data *execute_data);
+    static inline void schedule();
     static inline void record_last_msec(php_coro_task *task)
     {
-        if (SW_CORO_SCHEDULER_TICK_EXPECT(max_exec_msec > 0))
+        if (SW_CORO_SCHEDULER_EXPECT(max_exec_msec > 0))
         {
             task->last_msec = swTimer_get_absolute_msec();
         }

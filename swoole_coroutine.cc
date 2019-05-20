@@ -25,9 +25,25 @@ bool PHPCoroutine::active = false;
 uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
 php_coro_task PHPCoroutine::main_task = {0};
 
-#ifdef SW_CORO_SCHEDULER_TICK
+#ifdef SW_CORO_SCHEDULER
 int64_t PHPCoroutine::max_exec_msec = 0;
-user_opcode_handler_t PHPCoroutine::ori_tick_handler = NULL;
+volatile int64_t PHPCoroutine::check_msec = 5;//default check per 5ms
+
+static void (*orig_interrupt_function)(zend_execute_data *execute_data);
+
+void PHPCoroutine::schedule()
+{
+    swSignal_none();
+    while (SwooleG.running)
+    {
+        if (PHPCoroutine::check_msec)
+        {
+            EG(vm_interrupt) = 1;
+        }
+        usleep(PHPCoroutine::check_msec * 1000);
+    }
+    pthread_exit(0);
+}
 
 inline void PHPCoroutine::interrupt_callback(void *data)
 {
@@ -39,43 +55,18 @@ inline void PHPCoroutine::interrupt_callback(void *data)
     }
 }
 
-inline void PHPCoroutine::tick(uint32_t tick_count)
+inline void PHPCoroutine::interrupt(zend_execute_data *execute_data)
 {
     php_coro_task *task = PHPCoroutine::get_task();
-    if (task && task->co && tick_count > 0 && is_schedulable(task))
+    if (task && task->co && is_schedulable(task))
     {
         SwooleG.main_reactor->defer(SwooleG.main_reactor, interrupt_callback, (void *) task->co);
         task->co->yield();
     }
-}
-
-inline int PHPCoroutine::tick_handler(zend_execute_data *execute_data)
-{
-    if (SW_CORO_SCHEDULER_TICK_EXPECT(max_exec_msec > 0))
+    if (orig_interrupt_function)
     {
-        uint32_t tick_count = execute_data->opline->extended_value;
-        if ((uint32_t) ++EG(ticks_count) >= tick_count)
-        {
-            EG(ticks_count) = 0;
-            tick(tick_count);
-        }
+        orig_interrupt_function(execute_data);
     }
-    execute_data->opline++;
-    return ZEND_USER_OPCODE_CONTINUE;
-}
-
-void PHPCoroutine::enable_scheduler_tick()
-{
-    ori_tick_handler = zend_get_user_opcode_handler(ZEND_TICKS);
-    if (!ori_tick_handler)
-    {
-        zend_set_user_opcode_handler(ZEND_TICKS, tick_handler);
-    }
-}
-
-void PHPCoroutine::disable_scheduler_tick()
-{
-    zend_set_user_opcode_handler(ZEND_TICKS, ori_tick_handler ? ori_tick_handler : NULL);
 }
 #endif
 
@@ -84,8 +75,15 @@ void PHPCoroutine::init()
     Coroutine::set_on_yield(on_yield);
     Coroutine::set_on_resume(on_resume);
     Coroutine::set_on_close(on_close);
-#ifdef SW_CORO_SCHEDULER_TICK
-    enable_scheduler_tick();
+#ifdef SW_CORO_SCHEDULER
+    //add coroutine schedule thread
+    orig_interrupt_function = zend_interrupt_function;
+    zend_interrupt_function = PHPCoroutine::interrupt;
+    pthread_t pidt;
+    if (pthread_create(&pidt, NULL, (void * (*)(void *)) schedule, NULL) < 0)
+    {
+        swSysError("pthread_create[tcp_reactor] failed");
+    }
 #endif
 }
 
@@ -144,9 +142,6 @@ inline void PHPCoroutine::save_vm_stack(php_coro_task *task)
     task->exception_class = EG(exception_class);
     task->exception = EG(exception);
     SW_SAVE_EG_SCOPE(task->scope);
-#ifdef SW_CORO_SCHEDULER_TICK
-    task->ticks_count = EG(ticks_count);
-#endif
 }
 
 inline void PHPCoroutine::restore_vm_stack(php_coro_task *task)
@@ -165,9 +160,6 @@ inline void PHPCoroutine::restore_vm_stack(php_coro_task *task)
     EG(exception_class) = task->exception_class;
     EG(exception) = task->exception;
     SW_SET_EG_SCOPE(task->scope);
-#ifdef SW_CORO_SCHEDULER_TICK
-    EG(ticks_count) = task->ticks_count;
-#endif
 }
 
 inline void PHPCoroutine::save_og(php_coro_task *task)
@@ -221,7 +213,7 @@ void PHPCoroutine::on_resume(void *arg)
     php_coro_task *current_task = get_task();
     save_task(current_task);
     restore_task(task);
-#ifdef SW_CORO_SCHEDULER_TICK
+#ifdef SW_CORO_SCHEDULER
     record_last_msec(task);
 #endif
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", Coroutine::get_current_cid(), task->co->get_cid());
@@ -344,7 +336,7 @@ void PHPCoroutine::create_func(void *arg)
     task->defer_tasks = nullptr;
     task->pcid = task->co->get_origin_cid();
     task->context = nullptr;
-#ifdef SW_CORO_SCHEDULER_TICK
+#ifdef SW_CORO_SCHEDULER
     record_last_msec(task);
 #endif
 
