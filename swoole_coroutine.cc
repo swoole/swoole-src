@@ -26,41 +26,16 @@ uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
 php_coro_task PHPCoroutine::main_task = {0};
 
 #ifdef SW_CORO_SCHEDULER
-int64_t PHPCoroutine::max_exec_msec = 0;
-volatile int64_t PHPCoroutine::check_msec = 5;//default check per 5ms
+int64_t PHPCoroutine::max_exec_msec = 10;
+bool PHPCoroutine::_enable_preemptive_scheduler = false;
 
 static void (*orig_interrupt_function)(zend_execute_data *execute_data);
-
-void PHPCoroutine::schedule()
-{
-    swSignal_none();
-    while (SwooleG.running)
-    {
-        if (PHPCoroutine::check_msec)
-        {
-            EG(vm_interrupt) = 1;
-        }
-        usleep(PHPCoroutine::check_msec * 1000);
-    }
-    pthread_exit(0);
-}
-
-inline void PHPCoroutine::interrupt_callback(void *data)
-{
-    Coroutine *co = (Coroutine *) data;
-    if (co && !co->is_end())
-    {
-        swTraceLog(SW_TRACE_COROUTINE, "interrupt_callback cid=%ld ", co->get_cid());
-        co->resume();
-    }
-}
-
-inline void PHPCoroutine::interrupt(zend_execute_data *execute_data)
+static void sw_interrupt_function(zend_execute_data *execute_data)
 {
     php_coro_task *task = PHPCoroutine::get_task();
-    if (task && task->co && is_schedulable(task))
+    if (task && task->co && PHPCoroutine::is_schedulable(task))
     {
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, interrupt_callback, (void *) task->co);
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, PHPCoroutine::interrupt_callback, (void *) task->co);
         task->co->yield();
     }
     if (orig_interrupt_function)
@@ -76,14 +51,8 @@ void PHPCoroutine::init()
     Coroutine::set_on_resume(on_resume);
     Coroutine::set_on_close(on_close);
 #ifdef SW_CORO_SCHEDULER
-    //add coroutine schedule thread
     orig_interrupt_function = zend_interrupt_function;
-    zend_interrupt_function = PHPCoroutine::interrupt;
-    pthread_t pidt;
-    if (pthread_create(&pidt, NULL, (void * (*)(void *)) schedule, NULL) < 0)
-    {
-        swSysError("pthread_create[tcp_reactor] failed");
-    }
+    zend_interrupt_function = sw_interrupt_function;
 #endif
 }
 

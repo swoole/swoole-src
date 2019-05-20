@@ -398,15 +398,13 @@ static PHP_METHOD(swoole_coroutine_util, set)
         SWOOLE_G(display_errors) = zval_is_true(v);
     }
 #ifdef SW_CORO_SCHEDULER
-    if (php_swoole_array_get_value(vht, "max_exec_msec", v))
+    //enable_preemptive_scheduler
+    if (php_swoole_array_get_value(vht, "enable_preemptive_scheduler", v))
     {
-        long t = (long) zval_get_long(v);
-        if (t > 0) { PHPCoroutine::set_max_exec_msec(t); }
-    }
-    if (php_swoole_array_get_value(vht, "check_msec", v))
-    {
-        long t = (long) zval_get_long(v);
-        if (t > 0) { PHPCoroutine::set_check_msec(t); }
+        if(zval_is_true(v))
+        {
+            PHPCoroutine::enable_preemptive_scheduler();
+        }
     }
 #endif
 }

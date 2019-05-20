@@ -11,7 +11,7 @@ require __DIR__ . '/../../include/bootstrap.php';
 
 $default = 10;
 $max_msec = 10;
-Co::set(['max_exec_msec' => $max_msec]);
+Co::set(['enable_preemptive_scheduler' => 1]);
 
 $start = microtime(1);
 echo "start\n";

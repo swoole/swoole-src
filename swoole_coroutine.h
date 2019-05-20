@@ -80,12 +80,6 @@ namespace swoole
 class PHPCoroutine
 {
 public:
-
-#ifdef SW_CORO_SCHEDULER
-    static int64_t max_exec_msec;
-    static volatile int64_t check_msec;
-#endif
-
     static void init();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(php_swoole_fci *fci);
@@ -140,23 +134,37 @@ public:
     }
 
 #ifdef SW_CORO_SCHEDULER
-#define SW_CORO_SCHEDULER_EXPECT(s)      likely(s)
-#define SW_CORO_SCHEDULER_UNEXPECT(s)    unlikely(s)
-
     static inline void set_max_exec_msec(long msec)
     {
         max_exec_msec = SW_MAX(0, msec);
-        record_last_msec(get_task());
     }
 
-    static inline void set_check_msec(long msec)
+    static void enable_preemptive_scheduler()
     {
-        if (msec > check_msec) check_msec = msec;
+        if (!_enable_preemptive_scheduler)
+        {
+            _enable_preemptive_scheduler = true;
+            pthread_t pidt;
+            if (pthread_create(&pidt, NULL, (void * (*)(void *)) schedule, NULL) < 0)
+            {
+                swSysError("pthread_create[tcp_reactor] failed");
+            }
+        }
     }
 
     static inline bool is_schedulable(php_coro_task *task)
     {
         return (swTimer_get_absolute_msec() - task->last_msec > max_exec_msec);
+    }
+
+    static inline void interrupt_callback(void *data)
+    {
+        Coroutine *co = (Coroutine *) data;
+        if (co && !co->is_end())
+        {
+            swTraceLog(SW_TRACE_COROUTINE, "interrupt_callback cid=%ld ", co->get_cid());
+            co->resume();
+        }
     }
 #endif
 
@@ -164,6 +172,10 @@ protected:
     static bool active;
     static uint64_t max_num;
     static php_coro_task main_task;
+#ifdef SW_CORO_SCHEDULER
+    static int64_t max_exec_msec;
+    static bool _enable_preemptive_scheduler;
+#endif
 
     static inline void vm_stack_init(void);
     static inline void vm_stack_destroy(void);
@@ -178,12 +190,23 @@ protected:
     static void create_func(void *arg);
 
 #ifdef SW_CORO_SCHEDULER
-    static inline void interrupt_callback(void *data);
-    static inline void interrupt(zend_execute_data *execute_data);
-    static inline void schedule();
+    static inline void schedule()
+    {
+        swSignal_none();
+        int64_t interval_msec = PHPCoroutine::max_exec_msec / 2;
+        while (SwooleG.running)
+        {
+            if (PHPCoroutine::_enable_preemptive_scheduler)
+            {
+                EG(vm_interrupt) = 1;
+            }
+            usleep(interval_msec * 1000);
+        }
+        pthread_exit(0);
+    }
     static inline void record_last_msec(php_coro_task *task)
     {
-        if (SW_CORO_SCHEDULER_EXPECT(max_exec_msec > 0))
+        if (likely(max_exec_msec > 0))
         {
             task->last_msec = swTimer_get_absolute_msec();
         }

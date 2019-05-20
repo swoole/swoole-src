@@ -1,6 +1,5 @@
 <?php
-Co::set(['max_exec_msec' => 2]);
-Co::set(['check_msec' => 1]);
+Co::set(['enable_preemptive_scheduler' => 1]);
 $start = microtime(1);
 echo "start\n";
 $flag = 1;

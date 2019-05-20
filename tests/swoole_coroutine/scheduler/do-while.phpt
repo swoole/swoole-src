@@ -11,7 +11,7 @@ skip_if_ini_bool_equal_to('opcache.enable_cli', false);
 require __DIR__ . '/../../include/bootstrap.php';
 
 $max_msec = 10;
-Co::set(['max_exec_msec' => $max_msec]);
+Co::set(['enable_preemptive_scheduler' => 1]);
 $default = 10;
 $start = microtime(true);
 echo "start\n";

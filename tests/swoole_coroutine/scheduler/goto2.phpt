@@ -9,7 +9,7 @@ skip_if_constant_not_defined('SWOOLE_CORO_SCHEDULER');
 require __DIR__ . '/../../include/bootstrap.php';
 
 $max_msec = 10;
-Co::set(['max_exec_msec' => $max_msec]);
+Co::set(['enable_preemptive_scheduler' => 1]);
 $default = 10;
 $start = microtime(1);
 echo "start\n";
