@@ -15,6 +15,7 @@
 */
 #include <string.h>
 
+#include "php_swoole.h"
 #include "sha1.h"
 
 #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
@@ -143,8 +144,8 @@ void swSha1_final(sha1_byte digest[SHA1_DIGEST_LENGTH], SHA_CTX *context) {
     }
     /* Wipe variables */
     i = j = 0;
-    memset(context->buffer, 0, SHA1_BLOCK_LENGTH);
-    memset(context->state, 0, SHA1_DIGEST_LENGTH);
-    memset(context->count, 0, 8);
-    memset(&finalcount, 0, 8);
+    ZEND_SECURE_ZERO(context->buffer, SHA1_BLOCK_LENGTH);
+    ZEND_SECURE_ZERO(context->state, SHA1_DIGEST_LENGTH);
+    ZEND_SECURE_ZERO(context->count, 8);
+    ZEND_SECURE_ZERO(&finalcount, 8);
 }
