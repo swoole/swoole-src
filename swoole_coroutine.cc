@@ -28,6 +28,9 @@ php_coro_task PHPCoroutine::main_task = {0};
 #ifdef SW_CORO_SCHEDULER
 int64_t PHPCoroutine::max_exec_msec = 10;
 bool PHPCoroutine::_enable_preemptive_scheduler = false;
+#ifdef ZTS
+std::unordered_map<pthread_t, void*> PHPCoroutine::zts_vm_interrupt;
+#endif
 
 static void (*orig_interrupt_function)(zend_execute_data *execute_data);
 static void sw_interrupt_function(zend_execute_data *execute_data)
@@ -53,6 +56,9 @@ void PHPCoroutine::init()
 #ifdef SW_CORO_SCHEDULER
     orig_interrupt_function = zend_interrupt_function;
     zend_interrupt_function = sw_interrupt_function;
+#ifdef ZTS
+    zts_vm_interrupt[pthread_self()] = &EG(vm_interrupt);
+#endif
 #endif
 }
 

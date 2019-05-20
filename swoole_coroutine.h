@@ -80,6 +80,11 @@ namespace swoole
 class PHPCoroutine
 {
 public:
+
+#ifdef ZTS
+static std::unordered_map<pthread_t, void*> zts_vm_interrupt;
+#endif
+
     static void init();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(php_swoole_fci *fci);
@@ -193,14 +198,23 @@ protected:
     static inline void schedule()
     {
         swSignal_none();
-        int64_t interval_msec = PHPCoroutine::max_exec_msec / 2;
+        int64_t interval_msec = (PHPCoroutine::max_exec_msec / 2) * 1000;
+        pthread_detach(pthread_self());
         while (SwooleG.running)
         {
             if (PHPCoroutine::_enable_preemptive_scheduler)
             {
-                EG(vm_interrupt) = 1;
+#ifdef ZTS
+    for (auto i = zts_vm_interrupt.begin(); i != zts_vm_interrupt.end(); i++)
+    {
+        *(zend_bool *)i->second = 1;
+        max_num ++;
+    }
+#else
+    EG(vm_interrupt) = 1;
+#endif
             }
-            usleep(interval_msec * 1000);
+            usleep(interval_msec);
         }
         pthread_exit(0);
     }
