@@ -248,6 +248,7 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req);
 int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_context *ctx);
 void swoole_websocket_onOpen(http_context *ctx);
 void swoole_websocket_onRequest(http_context *ctx);
+int swoole_websocket_append_secret(swString *buffer, http_context *ctx);
 
 #ifdef SW_USE_HTTP2
 int swoole_http2_server_onFrame(swConnection *conn, swEventData *req);

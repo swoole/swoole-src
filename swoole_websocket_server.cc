@@ -257,7 +257,10 @@ void swoole_sha1(const char *str, int _len, unsigned char *digest)
     PHP_SHA1Final(digest, &context);
 }
 
-static int websocket_handshake(swServer *serv, swListenPort *port, http_context *ctx)
+/**
+ * add Sec-WebSocket-Accept header
+ */
+int swoole_websocket_append_secret(swString *buffer, http_context *ctx)
 {
     zval *header = ctx->request.zheader;
     HashTable *ht = Z_ARRVAL_P(header);
@@ -270,8 +273,6 @@ static int websocket_handshake(swServer *serv, swListenPort *port, http_context 
     }
 
     zend::string str_pData(pData);
-    swString_clear(swoole_http_buffer);
-    swString_append_ptr(swoole_http_buffer, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"));
 
     int n;
     char _buf[128];
@@ -286,7 +287,24 @@ static int websocket_handshake(swServer *serv, swListenPort *port, http_context 
     n = swBase64_encode((unsigned char *) sha1_str, sizeof(sha1_str), encoded_str);
     n = sw_snprintf(_buf, sizeof(_buf), "Sec-WebSocket-Accept: %.*s\r\n", n, encoded_str);
 
-    swString_append_ptr(swoole_http_buffer, _buf, n);
+    if (swString_append_ptr(buffer, _buf, n) < 0)
+    {
+        return SW_ERR;
+    }
+
+    return SW_OK;
+}
+
+static int websocket_handshake(swServer *serv, swListenPort *port, http_context *ctx)
+{
+    swString_clear(swoole_http_buffer);
+    swString_append_ptr(swoole_http_buffer, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"));
+
+    if (swoole_websocket_append_secret(swoole_http_buffer, ctx) < 0)
+    {
+        return SW_ERR;
+    }
+
     swString_append_ptr(swoole_http_buffer, ZEND_STRL("Sec-WebSocket-Version: " SW_WEBSOCKET_VERSION "\r\n"));
     if (port->websocket_subprotocol)
     {
@@ -305,7 +323,7 @@ static int websocket_handshake(swServer *serv, swListenPort *port, http_context 
         return SW_ERR;
     }
     conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
-    return serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
+    return ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length) ? SW_OK : SW_ERR;
 }
 
 int swoole_websocket_onMessage(swServer *serv, swEventData *req)

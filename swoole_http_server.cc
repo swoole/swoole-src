@@ -84,6 +84,8 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
 static int http_request_on_headers_complete(swoole_http_parser *parser);
 static int http_request_message_complete(swoole_http_parser *parser);
 
+static void http_response_end(zval *zobject, zval *zdata, zval *return_value);
+
 static int multipart_body_on_header_field(multipart_parser* p, const char *at, size_t length);
 static int multipart_body_on_header_value(multipart_parser* p, const char *at, size_t length);
 static int multipart_body_on_data(multipart_parser* p, const char *at, size_t length);
@@ -171,6 +173,7 @@ static PHP_METHOD(swoole_http_response, cookie);
 static PHP_METHOD(swoole_http_response, rawcookie);
 static PHP_METHOD(swoole_http_response, header);
 static PHP_METHOD(swoole_http_response, initHeader);
+static PHP_METHOD(swoole_http_response, upgrade);
 static PHP_METHOD(swoole_http_response, detach);
 static PHP_METHOD(swoole_http_response, create);
 #ifdef SW_USE_HTTP2
@@ -343,6 +346,7 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, end, arginfo_swoole_http_response_end, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, sendfile, arginfo_swoole_http_response_sendfile, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, redirect, arginfo_swoole_http_response_redirect, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, upgrade, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, detach, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, create, arginfo_swoole_http_response_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_http_response, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
@@ -502,6 +506,10 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     }
     else if (strncmp(header_name, "upgrade", header_len) == 0 && strncasecmp(at, "websocket", length) == 0)
     {
+        if (!SwooleG.serv)
+        {
+            return 0;
+        }
         swConnection *conn = swWorker_get_connection(SwooleG.serv, ctx->fd);
         if (!conn)
         {
@@ -1678,10 +1686,15 @@ static PHP_METHOD(swoole_http_response, end)
         Z_PARAM_ZVAL_EX(zdata, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    http_context *ctx = http_get_context(getThis(), 0);
+    http_response_end(getThis(), zdata, return_value);
+}
+
+static void http_response_end(zval *zobject, zval *zdata, zval *return_value)
+{
+    http_context *ctx = http_get_context(zobject, 0);
     if (UNEXPECTED(!ctx))
     {
-        RETURN_FALSE;
+        RETURN_FALSE
     }
 
     swString http_body;
@@ -1709,7 +1722,7 @@ static PHP_METHOD(swoole_http_response, end)
     {
         if (!ctx->send(ctx, ZEND_STRL("0\r\n\r\n")))
         {
-            RETURN_FALSE;
+            RETURN_FALSE
         }
         ctx->chunk = 0;
     }
@@ -1726,7 +1739,7 @@ static PHP_METHOD(swoole_http_response, end)
             }
         }
 #endif
-        http_build_header(ctx, getThis(), swoole_http_buffer, http_body.length);
+        http_build_header(ctx, zobject, swoole_http_buffer, http_body.length);
 
         char *send_body_str;
         size_t send_body_len;
@@ -1755,7 +1768,7 @@ static PHP_METHOD(swoole_http_response, end)
                 if (swString_append_ptr(swoole_http_buffer, send_body_str, send_body_len) < 0)
                 {
                     ctx->send_header = 0;
-                    RETURN_FALSE;
+                    RETURN_FALSE
                 }
             }
 #ifdef SW_HTTP_SEND_TWICE
@@ -1764,13 +1777,13 @@ static PHP_METHOD(swoole_http_response, end)
                 if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
                 {
                     ctx->send_header = 0;
-                    RETURN_FALSE;
+                    RETURN_FALSE
                 }
-                if (!ctx->send(ctx,  send_body_str, send_body_len))
+                if (!ctx->send(ctx, send_body_str, send_body_len))
                 {
                     ctx->close(ctx);
                     swoole_http_context_free(ctx);
-                    RETURN_FALSE;
+                    RETURN_FALSE
                 }
                 goto _skip_copy;
             }
@@ -1780,7 +1793,7 @@ static PHP_METHOD(swoole_http_response, end)
         if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
         {
             ctx->send_header = 0;
-            RETURN_FALSE;
+            RETURN_FALSE
         }
     }
 
@@ -2149,6 +2162,30 @@ static PHP_METHOD(swoole_http_response, ping)
 }
 #endif
 
+static PHP_METHOD(swoole_http_response, upgrade)
+{
+    http_context *ctx = http_get_context(getThis(), 0);
+    if (UNEXPECTED(!ctx))
+    {
+        RETURN_FALSE;
+    }
+
+    swString_clear(swoole_http_buffer);
+    swString_append_ptr(swoole_http_buffer,
+            ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"));
+
+    if (swoole_websocket_append_secret(swoole_http_buffer, ctx) < 0)
+    {
+        RETURN_FALSE
+    }
+
+    swString_append_ptr(swoole_http_buffer, ZEND_STRL("Sec-WebSocket-Version: " SW_WEBSOCKET_VERSION "\r\n"));
+    swString_append_ptr(swoole_http_buffer, ZEND_STRL("Server: " SW_WEBSOCKET_SERVER_SOFTWARE "\r\n\r\n"));
+
+    RETURN_BOOL(ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length));
+    swoole_http_context_free(ctx);
+}
+
 static PHP_METHOD(swoole_http_response, detach)
 {
     http_context *context = http_get_context(getThis(), 0);
@@ -2221,7 +2258,7 @@ static PHP_METHOD(swoole_http_response, redirect)
     {
         return;
     }
-    sw_zend_call_method_with_0_params(getThis(), NULL, NULL, "end", NULL);
+    http_response_end(getThis(), nullptr, return_value);
 }
 
 static PHP_METHOD(swoole_http_response, __destruct)
