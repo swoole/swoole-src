@@ -532,6 +532,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
         swTrace("session->reactor_id=%d, SwooleWG.id=%d", session->reactor_id, SwooleWG.id);
         swWorker *worker = swProcessPool_get_worker(&serv->gs->event_workers, session->reactor_id);
         swEventData proxy_msg;
+        bzero(&proxy_msg.info, sizeof(proxy_msg.info));
 
         if (_send->info.type == SW_EVENT_TCP)
         {

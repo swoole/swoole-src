@@ -2269,19 +2269,7 @@ static PHP_METHOD(swoole_server, set)
     //task coroutine
     if (php_swoole_array_get_value(vht, "task_enable_coroutine", v))
     {
-        if (zval_is_true(v))
-        {
-            if (!SwooleG.enable_coroutine)
-            {
-                swoole_php_fatal_error(E_ERROR, "server->enable_coroutine must be true");
-                return;
-            }
-            serv->task_enable_coroutine = 1;
-        }
-        else
-        {
-            serv->task_enable_coroutine = 0;
-        }
+        serv->task_enable_coroutine = zval_is_true(v);
     }
     //task_worker_num
     if (php_swoole_array_get_value(vht, "task_worker_num", v))
@@ -3441,6 +3429,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
 static PHP_METHOD(swoole_server, taskCo)
 {
     swEventData buf;
+    bzero(&buf.info, sizeof(buf.info));
     zval *tasks;
     zval *task;
     double timeout = SW_TASKWAIT_TIMEOUT;
@@ -3546,6 +3535,7 @@ static PHP_METHOD(swoole_server, taskCo)
 static PHP_METHOD(swoole_server, task)
 {
     swEventData buf;
+    bzero(&buf.info, sizeof(buf.info));
     zval *data;
     zval *callback = NULL;
 
