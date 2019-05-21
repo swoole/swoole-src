@@ -33,4 +33,3 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-SUCCESS
