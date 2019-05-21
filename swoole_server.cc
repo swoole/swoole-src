@@ -466,6 +466,18 @@ static zend_object *swoole_server_task_create_object(zend_class_entry *ce)
     return object;
 }
 
+static inline zend_bool is_enable_coroutine(swServer *serv)
+{
+    if (swIsTaskWorker())
+    {
+        return serv->task_enable_coroutine;
+    }
+    else
+    {
+        return serv->enable_coroutine;
+    }
+}
+
 void swoole_server_init(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_server, "Swoole\\Server", "swoole_server", NULL, swoole_server_methods);
@@ -1169,17 +1181,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
     ZVAL_LONG(&args[1], (zend_long) req->info.from_id);
     args[2] = *zdata;
 
-    zend_bool enable_coroutine = false;
-    if (swIsTaskWorker() && serv->task_enable_coroutine)
-    {
-        enable_coroutine = true;
-    }
-    else
-    {
-        enable_coroutine = serv->enable_coroutine;
-    }
-
-    if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, enable_coroutine)))
+    if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, is_enable_coroutine(serv))))
     {
         swoole_php_error(E_WARNING, "%s->onPipeMessage handler error", ZSTR_VAL(swoole_server_ce->name));
     }
@@ -1569,21 +1571,25 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     zend_update_property_bool(swoole_server_ce, zserv, ZEND_STRL("taskworker"), worker_id >= serv->worker_num);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_pid"), getpid());
 
-    if (swIsTaskWorker() && !serv->task_enable_coroutine)
+    if (is_enable_coroutine(serv))
+    {
+        if (PHPCoroutine::enable_preemptive_scheduler)
+        {
+            PHPCoroutine::create_scheduler_thread();
+        }
+    }
+    else
     {
         SwooleG.enable_coroutine = 0;
         PHPCoroutine::disable_hook();
     }
-    if (PHPCoroutine::enable_preemptive_scheduler)
-    {
-        PHPCoroutine::create_scheduler_thread();
-    }
+
     if (fci_cache)
     {
         zval args[2];
         args[0] = *zserv;
         ZVAL_LONG(&args[1], worker_id);
-        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine && worker_id < serv->worker_num)))
+        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, is_enable_coroutine(serv))))
         {
             swoole_php_error(E_WARNING, "%s->onWorkerStart handler error", ZSTR_VAL(swoole_server_ce->name));
         }

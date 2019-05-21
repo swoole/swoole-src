@@ -135,8 +135,8 @@ extern swoole_object_array swoole_objects;
 #define SWOOLE_SOCKETS_SUPPORT
 #endif
 
-#if PHP_MAJOR_VERSION < 7
-#error "require PHP version 7.0 or later"
+#if PHP_VERSION_ID < 70100
+#error "require PHP version 7.1 or later"
 #endif
 
 //--------------------------------------------------------
