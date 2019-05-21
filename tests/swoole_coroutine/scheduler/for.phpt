@@ -2,7 +2,6 @@
 swoole_coroutine/scheduler: for
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';
-skip_if_constant_not_defined('SWOOLE_CORO_SCHEDULER');
 ?>
 --FILE--
 <?php

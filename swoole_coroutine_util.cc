@@ -288,9 +288,6 @@ void swoole_coroutine_util_init(int module_number)
     SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_WAITING", SW_CORO_WAITING);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_RUNNING", SW_CORO_RUNNING);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_END", SW_CORO_END);
-#ifdef SW_CORO_SCHEDULER
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_SCHEDULER", SW_CORO_SCHEDULER);
-#endif
 
     //prohibit exit in coroutine
     SW_INIT_CLASS_ENTRY_EX(swoole_exit_exception, "Swoole\\ExitException", NULL, NULL, swoole_exit_exception_methods, swoole_exception);
@@ -397,7 +394,6 @@ static PHP_METHOD(swoole_coroutine_util, set)
     {
         SWOOLE_G(display_errors) = zval_is_true(v);
     }
-#ifdef SW_CORO_SCHEDULER
     //enable_preemptive_scheduler
     if (php_swoole_array_get_value(vht, "enable_preemptive_scheduler", v))
     {
@@ -406,7 +402,6 @@ static PHP_METHOD(swoole_coroutine_util, set)
             PHPCoroutine::enable_preemptive_scheduler();
         }
     }
-#endif
 }
 
 PHP_FUNCTION(swoole_clear_dns_cache)

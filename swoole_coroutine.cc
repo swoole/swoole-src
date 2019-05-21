@@ -25,12 +25,9 @@ bool PHPCoroutine::active = false;
 uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
 php_coro_task PHPCoroutine::main_task = {0};
 
-#ifdef SW_CORO_SCHEDULER
 int64_t PHPCoroutine::max_exec_msec = 10;
 bool PHPCoroutine::_enable_preemptive_scheduler = false;
-#ifdef ZTS
-std::unordered_map<pthread_t, void*> PHPCoroutine::zts_vm_interrupt;
-#endif
+zend_bool *PHPCoroutine::zend_vm_interrupt = nullptr;
 
 static void (*orig_interrupt_function)(zend_execute_data *execute_data);
 static void sw_interrupt_function(zend_execute_data *execute_data)
@@ -46,20 +43,14 @@ static void sw_interrupt_function(zend_execute_data *execute_data)
         orig_interrupt_function(execute_data);
     }
 }
-#endif
 
 void PHPCoroutine::init()
 {
     Coroutine::set_on_yield(on_yield);
     Coroutine::set_on_resume(on_resume);
     Coroutine::set_on_close(on_close);
-#ifdef SW_CORO_SCHEDULER
     orig_interrupt_function = zend_interrupt_function;
     zend_interrupt_function = sw_interrupt_function;
-#ifdef ZTS
-    zts_vm_interrupt[pthread_self()] = &EG(vm_interrupt);
-#endif
-#endif
 }
 
 inline void PHPCoroutine::vm_stack_init(void)
@@ -188,9 +179,10 @@ void PHPCoroutine::on_resume(void *arg)
     php_coro_task *current_task = get_task();
     save_task(current_task);
     restore_task(task);
-#ifdef SW_CORO_SCHEDULER
-    record_last_msec(task);
-#endif
+    if (is_enabled_preemptive_scheduler())
+    {
+        record_last_msec(task);
+    }
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", Coroutine::get_current_cid(), task->co->get_cid());
 }
 
@@ -311,10 +303,10 @@ void PHPCoroutine::create_func(void *arg)
     task->defer_tasks = nullptr;
     task->pcid = task->co->get_origin_cid();
     task->context = nullptr;
-#ifdef SW_CORO_SCHEDULER
-    record_last_msec(task);
-#endif
-
+    if (is_enabled_preemptive_scheduler())
+    {
+        record_last_msec(task);
+    }
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
         task->co->get_cid(), task->co->get_origin_cid(), (uintmax_t) Coroutine::count(), (uintmax_t) zend_memory_usage(0)

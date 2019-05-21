@@ -52,9 +52,7 @@ struct php_coro_task
     std::stack<php_swoole_fci *> *defer_tasks;
     long pcid;
     zend_object *context;
-#ifdef SW_CORO_SCHEDULER
     int64_t last_msec;
-#endif
 };
 
 struct php_coro_args
@@ -80,11 +78,6 @@ namespace swoole
 class PHPCoroutine
 {
 public:
-
-#ifdef ZTS
-static std::unordered_map<pthread_t, void*> zts_vm_interrupt;
-#endif
-
     static void init();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(php_swoole_fci *fci);
@@ -138,7 +131,6 @@ static std::unordered_map<pthread_t, void*> zts_vm_interrupt;
         max_num = n;
     }
 
-#ifdef SW_CORO_SCHEDULER
     static inline void set_max_exec_msec(long msec)
     {
         max_exec_msec = SW_MAX(0, msec);
@@ -148,6 +140,7 @@ static std::unordered_map<pthread_t, void*> zts_vm_interrupt;
     {
         if (!_enable_preemptive_scheduler)
         {
+            zend_vm_interrupt = &EG(vm_interrupt);
             _enable_preemptive_scheduler = true;
             pthread_t pidt;
             if (pthread_create(&pidt, NULL, (void * (*)(void *)) schedule, NULL) < 0)
@@ -155,6 +148,11 @@ static std::unordered_map<pthread_t, void*> zts_vm_interrupt;
                 swSysError("pthread_create[tcp_reactor] failed");
             }
         }
+    }
+
+    static bool is_enabled_preemptive_scheduler()
+    {
+        return _enable_preemptive_scheduler;
     }
 
     static inline bool is_schedulable(php_coro_task *task)
@@ -171,16 +169,14 @@ static std::unordered_map<pthread_t, void*> zts_vm_interrupt;
             co->resume();
         }
     }
-#endif
 
 protected:
     static bool active;
     static uint64_t max_num;
     static php_coro_task main_task;
-#ifdef SW_CORO_SCHEDULER
     static int64_t max_exec_msec;
     static bool _enable_preemptive_scheduler;
-#endif
+    static zend_bool *zend_vm_interrupt;
 
     static inline void vm_stack_init(void);
     static inline void vm_stack_destroy(void);
@@ -194,7 +190,6 @@ protected:
     static void on_close(void *arg);
     static void create_func(void *arg);
 
-#ifdef SW_CORO_SCHEDULER
     static inline void schedule()
     {
         swSignal_none();
@@ -204,20 +199,13 @@ protected:
         {
             if (PHPCoroutine::_enable_preemptive_scheduler)
             {
-#ifdef ZTS
-    for (auto i = zts_vm_interrupt.begin(); i != zts_vm_interrupt.end(); i++)
-    {
-        *(zend_bool *)i->second = 1;
-        max_num ++;
-    }
-#else
-    EG(vm_interrupt) = 1;
-#endif
+                *zend_vm_interrupt = 1;
             }
             usleep(interval_msec);
         }
         pthread_exit(0);
     }
+
     static inline void record_last_msec(php_coro_task *task)
     {
         if (likely(max_exec_msec > 0))
@@ -225,7 +213,6 @@ protected:
             task->last_msec = swTimer_get_absolute_msec();
         }
     }
-#endif
 };
 }
 

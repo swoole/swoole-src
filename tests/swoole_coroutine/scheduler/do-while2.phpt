@@ -3,7 +3,6 @@ swoole_coroutine/scheduler: do-while without opcache enable
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
-skip_if_constant_not_defined('SWOOLE_CORO_SCHEDULER');
 skip_if_ini_bool_equal_to('opcache.enable_cli', true);
 ?>
 --FILE--
