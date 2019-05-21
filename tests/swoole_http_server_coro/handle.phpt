@@ -35,4 +35,7 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-OK
+<h1>Index</h1>
+<h1>Test</h1>
+<h1>Stop</h1>
+
