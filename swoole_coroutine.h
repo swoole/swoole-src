@@ -1,3 +1,22 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | Author: Xinyu Zhu  <xyzhu1120@gmail.com>                             |
+  |         shiguangqi <shiguangqi2008@gmail.com>                        |
+  |         Twosee  <twose@qq.com>                                       |
+  |         Tianfeng Han  <rango@swoole.com>                             |
+  +----------------------------------------------------------------------+
+ */
+
 #pragma once
 
 #include "coroutine_cxx_api.h"
@@ -136,19 +155,8 @@ public:
         max_exec_msec = SW_MAX(0, msec);
     }
 
-    static void enable_preemptive_scheduler()
-    {
-        if (!_enable_preemptive_scheduler)
-        {
-            zend_vm_interrupt = &EG(vm_interrupt);
-            _enable_preemptive_scheduler = true;
-            pthread_t pidt;
-            if (pthread_create(&pidt, NULL, (void * (*)(void *)) schedule, NULL) < 0)
-            {
-                swSysError("pthread_create[tcp_reactor] failed");
-            }
-        }
-    }
+    static void schedule();
+    static void enable_preemptive_scheduler();
 
     static bool is_enabled_preemptive_scheduler()
     {
@@ -158,16 +166,6 @@ public:
     static inline bool is_schedulable(php_coro_task *task)
     {
         return (swTimer_get_absolute_msec() - task->last_msec > max_exec_msec);
-    }
-
-    static inline void interrupt_callback(void *data)
-    {
-        Coroutine *co = (Coroutine *) data;
-        if (co && !co->is_end())
-        {
-            swTraceLog(SW_TRACE_COROUTINE, "interrupt_callback cid=%ld ", co->get_cid());
-            co->resume();
-        }
     }
 
 protected:
@@ -189,22 +187,6 @@ protected:
     static void on_resume(void *arg);
     static void on_close(void *arg);
     static void create_func(void *arg);
-
-    static inline void schedule()
-    {
-        swSignal_none();
-        int64_t interval_msec = (PHPCoroutine::max_exec_msec / 2) * 1000;
-        pthread_detach(pthread_self());
-        while (SwooleG.running)
-        {
-            if (PHPCoroutine::_enable_preemptive_scheduler)
-            {
-                *zend_vm_interrupt = 1;
-            }
-            usleep(interval_msec);
-        }
-        pthread_exit(0);
-    }
 
     static inline void record_last_msec(php_coro_task *task)
     {

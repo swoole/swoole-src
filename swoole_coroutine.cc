@@ -12,6 +12,8 @@
   +----------------------------------------------------------------------+
   | Author: Xinyu Zhu  <xyzhu1120@gmail.com>                             |
   |         shiguangqi <shiguangqi2008@gmail.com>                        |
+  |         Twosee  <twose@qq.com>                                       |
+  |         Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
  */
 
@@ -27,15 +29,26 @@ php_coro_task PHPCoroutine::main_task = {0};
 
 int64_t PHPCoroutine::max_exec_msec = 10;
 bool PHPCoroutine::_enable_preemptive_scheduler = false;
-zend_bool *PHPCoroutine::zend_vm_interrupt = nullptr;
+zend_bool* PHPCoroutine::zend_vm_interrupt = nullptr;
 
 static void (*orig_interrupt_function)(zend_execute_data *execute_data);
-static void sw_interrupt_function(zend_execute_data *execute_data)
+
+static void swoole_interrupt_resume(void *data)
+{
+    Coroutine *co = (Coroutine *) data;
+    if (co && !co->is_end())
+    {
+        swTraceLog(SW_TRACE_COROUTINE, "interrupt_callback cid=%ld ", co->get_cid());
+        co->resume();
+    }
+}
+
+static void swoole_interrupt_function(zend_execute_data *execute_data)
 {
     php_coro_task *task = PHPCoroutine::get_task();
     if (task && task->co && PHPCoroutine::is_schedulable(task))
     {
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, PHPCoroutine::interrupt_callback, (void *) task->co);
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_interrupt_resume, (void *) task->co);
         task->co->yield();
     }
     if (orig_interrupt_function)
@@ -50,7 +63,37 @@ void PHPCoroutine::init()
     Coroutine::set_on_resume(on_resume);
     Coroutine::set_on_close(on_close);
     orig_interrupt_function = zend_interrupt_function;
-    zend_interrupt_function = sw_interrupt_function;
+    zend_interrupt_function = swoole_interrupt_function;
+}
+
+void PHPCoroutine::enable_preemptive_scheduler()
+{
+    if (!_enable_preemptive_scheduler)
+    {
+        zend_vm_interrupt = &EG(vm_interrupt);
+        _enable_preemptive_scheduler = true;
+        pthread_t pidt;
+        if (pthread_create(&pidt, NULL, (void * (*)(void *)) schedule, NULL) < 0)
+        {
+            swSysError("pthread_create[tcp_reactor] failed");
+        }
+    }
+}
+
+void PHPCoroutine::schedule()
+{
+    swSignal_none();
+    int64_t interval_msec = (PHPCoroutine::max_exec_msec / 2) * 1000;
+    pthread_detach(pthread_self());
+    while (SwooleG.running)
+    {
+        if (PHPCoroutine::_enable_preemptive_scheduler)
+        {
+            *zend_vm_interrupt = 1;
+        }
+        usleep(interval_msec);
+    }
+    pthread_exit(0);
 }
 
 inline void PHPCoroutine::vm_stack_init(void)
