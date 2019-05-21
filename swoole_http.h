@@ -119,10 +119,12 @@ typedef struct _http_context
 #endif
     uint32_t chunk :1;
     uint32_t keepalive :1;
+    uint32_t websocket :1;
     uint32_t upgrade :1;
     uint32_t detached :1;
     uint32_t parse_cookie :1;
     uint32_t parse_body :1;
+    uint32_t co_socket :1;
 
 #ifdef SW_HAVE_ZLIB
     int8_t compression_level;
@@ -134,6 +136,7 @@ typedef struct _http_context
 #endif
     http_request request;
     http_response response;
+
 
     swoole_http_parser parser;
     multipart_parser *mt_parser;

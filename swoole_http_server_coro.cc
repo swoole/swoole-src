@@ -92,6 +92,7 @@ public:
         ctx->compression_level = Z_BEST_SPEED;
 #endif
         ctx->private_data = conn;
+        ctx->co_socket = 1;
         ctx->send = http_context_send_data;
         ctx->close = http_context_disconnect;
 
@@ -322,11 +323,11 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
                 args[0] = *ctx->request.zobject;
                 args[1] = *ctx->response.zobject;
 
-                bool keep_alive = swoole_http_should_keep_alive(&ctx->parser);
+                bool keep_alive = swoole_http_should_keep_alive(&ctx->parser) && !ctx->websocket;
 
                 if (UNEXPECTED(!zend::function::call(&fci->fci_cache, 2, args, NULL, 0)))
                 {
-                    swoole_php_error(E_WARNING, "%s->onTimeout handler error", ZSTR_VAL(swoole_timer_ce->name));
+                    swoole_php_error(E_WARNING, "handler error");
                 }
                 if (keep_alive)
                 {

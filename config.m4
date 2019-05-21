@@ -526,6 +526,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_event.c \
         swoole_http_client_coro.cc \
         swoole_http_server.cc \
+        swoole_http_server_coro.cc \
         swoole_http2_client_coro.cc \
         swoole_http2_server.cc \
         swoole_lock.c \

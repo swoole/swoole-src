@@ -8,12 +8,25 @@ go(function () {
 	/**
 	 * WebSocket应用
 	 */
-	$server->handle('/websocket', function ($ctx) {
-		$ctx->response->upgrade();
+	$server->handle('/websocket', function ($request, $ws) {
+		$ws->upgrade();
+
+        $frame1 = $ws->recv();
+        $frame2 = $ws->recv();
+		var_dump($frame1, $frame2);
+
+		$ws->push("hello world\n");
+
 		while(true) {
-			$frame = $ctx->recv();
-			echo $frame->data;
-			$ctx->push("hello world");
+			echo "recv begin:\n";
+			$frame = $ws->recv();
+			if ($frame == false) {
+			    echo "ws client is closed\n";
+                var_dump("Error: ", swoole_last_error());
+			    break;
+            }
+			echo $frame->data ."\n";
+			$ws->push("hello world");
 		}
 	});
 	/**
