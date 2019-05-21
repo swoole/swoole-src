@@ -207,6 +207,10 @@ void php_swoole_reactor_init()
             swoole_php_fatal_error(E_ERROR, "failed to create reactor");
             return;
         }
+        if (PHPCoroutine::enable_preemptive_scheduler)
+        {
+            PHPCoroutine::create_scheduler_thread();
+        }
 
         SwooleG.main_reactor->can_exit = php_coroutine_reactor_can_exit;
 
@@ -251,10 +255,6 @@ void php_swoole_event_wait()
             swSignalfd_setup(SwooleG.main_reactor);
         }
 #endif
-        if (PHPCoroutine::enable_preemptive_scheduler)
-        {
-            PHPCoroutine::create_scheduler_thread();
-        }
         if (!swReactor_empty(SwooleG.main_reactor))
         {
             // Don't disable object slot reuse while running shutdown functions:
