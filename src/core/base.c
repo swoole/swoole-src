@@ -841,8 +841,7 @@ size_t sw_snprintf(char *buf, size_t size, const char *format, ...)
 
 size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args)
 {
-    size_t retval;
-    retval = vsnprintf(buf, size, format, args);
+    size_t retval = vsnprintf(buf, size, format, args);
     if (unlikely(retval < 0))
     {
         retval = 0;
