@@ -38,20 +38,20 @@ $pm->parentFunc = function ($pid) use ($pm)
             $sendn = $chunk_size;
         }
         $client->send(substr($_serialize_data, $i * $chunk_size, $sendn));
-        usleep(rand(1000, 10000));
+        usleep(rand(100, 1000));
     }
     echo $client->recv();
-    swoole_process::kill($pid);
+    $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort());
     $serv->set(array(
         'package_eof' => "\r\n\r\n",
         'open_eof_check' => true,
         'open_eof_split' => true,
-        'dispatch_mode' => 3,
+        'dispatch_mode' => 7,
         'package_max_length' => 1024 * 1024 * 2, //2M
         "worker_num" => 1,
         'log_file' => '/dev/null',
