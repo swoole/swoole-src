@@ -451,6 +451,11 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
         return SW_CORO_ERR_INVALID;
     }
 
+    if (PHPCoroutine::enable_preemptive_scheduler)
+    {
+        PHPCoroutine::create_scheduler_thread();
+    }
+
     php_coro_args php_coro_args;
     php_coro_args.fci_cache = fci_cache;
     php_coro_args.argv = argv;
