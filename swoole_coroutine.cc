@@ -31,6 +31,7 @@ bool PHPCoroutine::enable_preemptive_scheduler = false;
 bool PHPCoroutine::schedule_thread_created = false;
 
 static zend_bool* zend_vm_interrupt = nullptr;
+static pthread_t pidt;
 
 static void (*orig_interrupt_function)(zend_execute_data *execute_data);
 
@@ -67,6 +68,18 @@ void PHPCoroutine::init()
     zend_interrupt_function = swoole_interrupt_function;
 }
 
+void PHPCoroutine::shutdown()
+{
+    if (schedule_thread_created)
+    {
+        //wait thread
+        if (pthread_join(pidt, NULL) < 0)
+        {
+            swSysWarn("pthread_join(%ld) failed", (ulong_t )pidt);
+        }
+    }
+}
+
 void PHPCoroutine::create_scheduler_thread()
 {
     if (schedule_thread_created)
@@ -76,7 +89,6 @@ void PHPCoroutine::create_scheduler_thread()
 
     zend_vm_interrupt = &EG(vm_interrupt);
     schedule_thread_created = true;
-    pthread_t pidt;
     if (pthread_create(&pidt, NULL, (void * (*)(void *)) schedule, NULL) < 0)
     {
         swSysError("pthread_create[PHPCoroutine Scheduler] failed");
@@ -87,7 +99,6 @@ void PHPCoroutine::schedule()
 {
     swSignal_none();
     int64_t interval_msec = (PHPCoroutine::MAX_EXEC_MSEC / 2) * 1000;
-    pthread_detach(pthread_self());
     while (SwooleG.running)
     {
         if (PHPCoroutine::enable_preemptive_scheduler)
