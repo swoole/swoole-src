@@ -1219,7 +1219,7 @@ static PHP_METHOD(swoole_http_request, __destruct)
 
     zval *ztmpfiles = sw_zend_read_property(swoole_http_request_ce, getThis(), ZEND_STRL("tmpfiles"), 0);
     //upload files
-    if (ztmpfiles && Z_TYPE_P(ztmpfiles) == IS_ARRAY)
+    if (ztmpfiles && ZVAL_IS_ARRAY(ztmpfiles))
     {
         zval *z_file_path;
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmpfiles), z_file_path)

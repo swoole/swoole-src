@@ -2189,7 +2189,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
         {
             zval *ztype;
 
-            if (Z_TYPE_P(return_value) != IS_ARRAY)
+            if (!ZVAL_IS_ARRAY(return_value))
             {
                 zval_ptr_dtor(return_value);
                 goto _error;
@@ -2275,7 +2275,7 @@ static PHP_METHOD(swoole_redis_coro, set)
         RETURN_FALSE;
     }
 
-    if (z_opts && Z_TYPE_P(z_opts) == IS_ARRAY)
+    if (z_opts && ZVAL_IS_ARRAY(z_opts))
     {
         HashTable *kt = Z_ARRVAL_P(z_opts);
 
@@ -3658,7 +3658,7 @@ static PHP_METHOD(swoole_redis_coro, zRangeByScore)
 
     int argc = 4, i = 0;
     // Check for an options array
-    if (z_opt && Z_TYPE_P(z_opt) == IS_ARRAY)
+    if (z_opt && ZVAL_IS_ARRAY(z_opt))
     {
         ht_opt = Z_ARRVAL_P(z_opt);
 
@@ -3737,7 +3737,7 @@ static PHP_METHOD(swoole_redis_coro, zRevRangeByScore)
 
     int argc = 4, i = 0;
     // Check for an options array
-    if (z_opt && Z_TYPE_P(z_opt) == IS_ARRAY)
+    if (z_opt && ZVAL_IS_ARRAY(z_opt))
     {
         ht_opt = Z_ARRVAL_P(z_opt);
 

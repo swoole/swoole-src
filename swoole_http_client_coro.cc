@@ -693,12 +693,12 @@ bool http_client::send()
     {
         zval *zattr;
         zattr = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 0);
-        if (Z_TYPE_P(zattr) == IS_ARRAY)
+        if (ZVAL_IS_ARRAY(zattr))
         {
             zend_hash_clean(Z_ARRVAL_P(zattr));
         }
         zattr = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("set_cookie_headers"), 0);
-        if (Z_TYPE_P(zattr) == IS_ARRAY)
+        if (ZVAL_IS_ARRAY(zattr))
         {
             zend_hash_clean(Z_ARRVAL_P(zattr));
         }
@@ -793,7 +793,7 @@ bool http_client::send()
         const static char *pre = "http://";
         char *_host = (char *) host.c_str();
         size_t _host_len = host.length();
-        if (Z_TYPE_P(zheaders) == IS_ARRAY)
+        if (ZVAL_IS_ARRAY(zheaders))
         {
             if ((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))))
             {
@@ -821,7 +821,7 @@ bool http_client::send()
     uint32_t keylen;
     int keytype;
 
-    if (Z_TYPE_P(zheaders) == IS_ARRAY)
+    if (ZVAL_IS_ARRAY(zheaders))
     {
         // As much as possible to ensure that Host is the first header.
         // See: http://tools.ietf.org/html/rfc7230#section-5.4
@@ -891,7 +891,7 @@ bool http_client::send()
 #endif
 
     // ============ cookies ============
-    if (zcookies && Z_TYPE_P(zcookies) == IS_ARRAY)
+    if (zcookies && ZVAL_IS_ARRAY(zcookies))
     {
         swString_append_ptr(http_client_buffer, ZEND_STRL("Cookie: "));
         int n_cookie = php_swoole_array_length(zcookies);
@@ -955,7 +955,7 @@ bool http_client::send()
         size_t content_length = 0;
 
         // calculate length before encode array
-        if (zbody && Z_TYPE_P(zbody) == IS_ARRAY)
+        if (zbody && ZVAL_IS_ARRAY(zbody))
         {
             SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zbody), key, keylen, keytype, zvalue)
                 if (UNEXPECTED(HASH_KEY_IS_STRING != keytype || ZVAL_IS_NULL(zvalue)))
@@ -1011,7 +1011,7 @@ bool http_client::send()
         http_client_append_content_length(http_client_buffer, content_length + sizeof(boundary_str) - 1 + 6);
 
         // ============ form-data body ============
-        if (zbody && Z_TYPE_P(zbody) == IS_ARRAY)
+        if (zbody && ZVAL_IS_ARRAY(zbody))
         {
             SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zbody), key, keylen, keytype, zvalue)
             {
@@ -1134,7 +1134,7 @@ bool http_client::send()
     // ============ x-www-form-urlencoded or raw ============
     else if (zbody)
     {
-        if (Z_TYPE_P(zbody) == IS_ARRAY)
+        if (ZVAL_IS_ARRAY(zbody))
         {
             size_t len;
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Content-Type"), ZEND_STRL("application/x-www-form-urlencoded"));

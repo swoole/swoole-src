@@ -969,7 +969,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
     // Host
     headers.reserve_one();
 
-    if (Z_TYPE_P(zheaders) == IS_ARRAY)
+    if (ZVAL_IS_ARRAY(zheaders))
     {
         zend_string *key;
         zval *zvalue;
@@ -1100,7 +1100,7 @@ uint32_t http2_client::send_request(zval *req)
     zval *zpipeline = sw_zend_read_property(swoole_http2_request_ce, req, ZEND_STRL("pipeline"), 0);
     bool is_data_empty = !zend_is_true(zdata);
 
-    if (Z_TYPE_P(zdata) == IS_ARRAY)
+    if (ZVAL_IS_ARRAY(zdata))
     {
         add_assoc_stringl_ex(zheaders, ZEND_STRL("content-type"), (char *) ZEND_STRL("application/x-www-form-urlencoded"));
     }
@@ -1153,7 +1153,7 @@ uint32_t http2_client::send_request(zval *req)
         zend::string str_zpost_data;
 
         int flag = stream->type == SW_HTTP2_STREAM_PIPELINE ? 0 : SW_HTTP2_FLAG_END_STREAM;
-        if (Z_TYPE_P(zdata) == IS_ARRAY)
+        if (ZVAL_IS_ARRAY(zdata))
         {
             p = sw_http_build_query(zdata, &len, &formstr_s);
             if (p == NULL)
@@ -1220,7 +1220,7 @@ bool http2_client::send_data(uint32_t stream_id, zval *data, bool end)
 
     int flag = end ? SW_HTTP2_FLAG_END_STREAM : 0;
 
-    if (Z_TYPE_P(data) == IS_ARRAY)
+    if (ZVAL_IS_ARRAY(data))
     {
         size_t len;
         smart_str formstr_s = { 0 };
