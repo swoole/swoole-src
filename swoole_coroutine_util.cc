@@ -304,6 +304,10 @@ void swoole_coroutine_util_init(int module_number)
     }
 }
 
+void swoole_coroutine_shutdown()
+{
+    PHPCoroutine::shutdown();
+}
 static PHP_METHOD(swoole_exit_exception, getFlags)
 {
     RETURN_LONG(Z_LVAL_P(sw_zend_read_property(swoole_exit_exception_ce, getThis(), ZEND_STRL("flags"), 0)));

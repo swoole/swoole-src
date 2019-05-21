@@ -976,6 +976,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 
     swoole_async_coro_shutdown();
     swoole_redis_server_shutdown();
+    swoole_coroutine_shutdown();
 
     SwooleWG.reactor_wait_onexit = 0;
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;
