@@ -891,7 +891,7 @@ bool http_client::send()
 #endif
 
     // ============ cookies ============
-    if (zcookies && ZVAL_IS_ARRAY(zcookies))
+    if (ZVAL_IS_ARRAY(zcookies))
     {
         swString_append_ptr(http_client_buffer, ZEND_STRL("Cookie: "));
         int n_cookie = php_swoole_array_length(zcookies);
@@ -930,13 +930,11 @@ bool http_client::send()
     }
 
     // ============ multipart/form-data ============
-    if (ZVAL_IS_ARRAY(zupload_files))
+    if ((has_upload_files = (php_swoole_array_length_safe(zupload_files) > 0)))
     {
         char header_buf[2048];
         char boundary_str[SW_HTTP_CLIENT_BOUNDARY_TOTAL_SIZE];
         int n;
-
-        has_upload_files = php_swoole_array_length(zupload_files) > 0;
 
         // ============ content-type ============
         memcpy(boundary_str, SW_HTTP_CLIENT_BOUNDARY_PREKEY, sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1);
