@@ -97,6 +97,8 @@ namespace swoole
 class PHPCoroutine
 {
 public:
+    static const int MAX_EXEC_MSEC = 10;
+
     static void init();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(php_swoole_fci *fci);
@@ -150,31 +152,20 @@ public:
         max_num = n;
     }
 
-    static inline void set_max_exec_msec(long msec)
-    {
-        max_exec_msec = SW_MAX(0, msec);
-    }
-
+    static bool enable_preemptive_scheduler;
     static void schedule();
-    static void enable_preemptive_scheduler();
-
-    static bool is_enabled_preemptive_scheduler()
-    {
-        return _enable_preemptive_scheduler;
-    }
+    static void create_scheduler_thread();
 
     static inline bool is_schedulable(php_coro_task *task)
     {
-        return (swTimer_get_absolute_msec() - task->last_msec > max_exec_msec);
+        return (swTimer_get_absolute_msec() - task->last_msec > MAX_EXEC_MSEC);
     }
 
 protected:
     static bool active;
     static uint64_t max_num;
     static php_coro_task main_task;
-    static int64_t max_exec_msec;
-    static bool _enable_preemptive_scheduler;
-    static zend_bool *zend_vm_interrupt;
+    static bool schedule_thread_created;
 
     static inline void vm_stack_init(void);
     static inline void vm_stack_destroy(void);
@@ -190,7 +181,7 @@ protected:
 
     static inline void record_last_msec(php_coro_task *task)
     {
-        if (likely(max_exec_msec > 0))
+        if (enable_preemptive_scheduler)
         {
             task->last_msec = swTimer_get_absolute_msec();
         }

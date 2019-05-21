@@ -16,7 +16,9 @@
  +----------------------------------------------------------------------+
  */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
+
+using namespace swoole;
 
 typedef struct
 {
@@ -68,7 +70,7 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
 {
     zval *retval = NULL;
     zval args[1];
-    php_reactor_fd *fd = event->socket->object;
+    php_reactor_fd *fd = (php_reactor_fd *) event->socket->object;
 
     args[0] = *fd->socket;
 
@@ -89,8 +91,7 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 {
     zval *retval = NULL;
     zval args[1];
-    php_reactor_fd *fd = event->socket->object;
-
+    php_reactor_fd *fd = (php_reactor_fd *) event->socket->object;
 
     if (!fd->cb_write)
     {
@@ -137,7 +138,7 @@ static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
 
 void php_swoole_event_onDefer(void *_cb)
 {
-    php_defer_callback *defer = _cb;
+    php_defer_callback *defer = (php_defer_callback *) _cb;
     zval _retval, *retval = &_retval;
 
     if (sw_call_user_function_ex(EG(function_table), NULL, defer->callback, &retval, 0, NULL, 0, NULL) == FAILURE)
@@ -155,7 +156,7 @@ void php_swoole_event_onDefer(void *_cb)
 
 static void php_swoole_event_onEndCallback(void *_cb)
 {
-    php_defer_callback *defer = _cb;
+    php_defer_callback *defer = (php_defer_callback *) _cb;
     zval *retval = NULL;
 
     if (sw_call_user_function_ex(EG(function_table), NULL, defer->callback, &retval, 0, NULL, 0, NULL) == FAILURE)
@@ -250,6 +251,10 @@ void php_swoole_event_wait()
             swSignalfd_setup(SwooleG.main_reactor);
         }
 #endif
+        if (PHPCoroutine::enable_preemptive_scheduler)
+        {
+            PHPCoroutine::create_scheduler_thread();
+        }
         if (!swReactor_empty(SwooleG.main_reactor))
         {
             // Don't disable object slot reuse while running shutdown functions:
@@ -303,7 +308,7 @@ int swoole_convert_to_fd(zval *zsocket)
         php_stream *stream;
         if ((php_stream_from_zval_no_verify(stream, zsocket)))
         {
-            if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void *) &fd, 1) == SUCCESS && fd >= 0)
+            if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void **) &fd, 1) == SUCCESS && fd >= 0)
             {
                 return fd;
             }
@@ -369,7 +374,7 @@ int swoole_convert_to_fd_ex(zval *zsocket, int *async)
         php_stream *stream;
         if ((php_stream_from_zval_no_verify(stream, zsocket)))
         {
-            if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )&fd, 1) == SUCCESS && fd >= 0)
+            if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void **)&fd, 1) == SUCCESS && fd >= 0)
             {
                 *async = (stream->wrapper && (stream->wrapper->wops == php_plain_files_wrapper.wops)) ? 0 : 1;
                 return fd;
@@ -395,7 +400,7 @@ int swoole_convert_to_fd_ex(zval *zsocket, int *async)
 #ifdef SWOOLE_SOCKETS_SUPPORT
 php_socket* swoole_convert_to_socket(int sock)
 {
-    php_socket *socket_object = emalloc(sizeof *socket_object);
+    php_socket *socket_object = (php_socket *) emalloc(sizeof *socket_object);
     bzero(socket_object, sizeof(php_socket));
     socket_object->bsd_socket = sock;
     socket_object->blocking = 1;
@@ -468,7 +473,7 @@ PHP_FUNCTION(swoole_event_add)
         RETURN_FALSE;
     }
 
-    php_reactor_fd *reactor_fd = emalloc(sizeof(php_reactor_fd));
+    php_reactor_fd *reactor_fd = (php_reactor_fd *) emalloc(sizeof(php_reactor_fd));
     reactor_fd->socket = zfd;
     sw_copy_to_stack(reactor_fd->socket, reactor_fd->stack.socket);
     Z_TRY_ADDREF_P(reactor_fd->socket);
@@ -593,7 +598,7 @@ PHP_FUNCTION(swoole_event_set)
         RETURN_FALSE;
     }
 
-    php_reactor_fd *ev_set = socket->object;
+    php_reactor_fd *ev_set = (php_reactor_fd *) socket->object;
     if (cb_read != NULL && !ZVAL_IS_NULL(cb_read))
     {
         if (!sw_zend_is_callable(cb_read, 0, &func_name))
@@ -712,7 +717,7 @@ PHP_FUNCTION(swoole_event_defer)
 
     php_swoole_check_reactor();
 
-    php_defer_callback *defer = emalloc(sizeof(php_defer_callback));
+    php_defer_callback *defer = (php_defer_callback *) emalloc(sizeof(php_defer_callback));
     defer->callback = &defer->_callback;
     memcpy(defer->callback, callback, sizeof(zval));
     Z_TRY_ADDREF_P(callback);
@@ -759,7 +764,7 @@ PHP_FUNCTION(swoole_event_cycle)
     }
     efree(func_name);
 
-    php_defer_callback *cb = emalloc(sizeof(php_defer_callback));
+    php_defer_callback *cb = (php_defer_callback *) emalloc(sizeof(php_defer_callback));
 
     cb->callback = &cb->_callback;
     memcpy(cb->callback, callback, sizeof(zval));

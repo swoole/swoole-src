@@ -394,13 +394,9 @@ static PHP_METHOD(swoole_coroutine_util, set)
     {
         SWOOLE_G(display_errors) = zval_is_true(v);
     }
-    //enable_preemptive_scheduler
     if (php_swoole_array_get_value(vht, "enable_preemptive_scheduler", v))
     {
-        if(zval_is_true(v))
-        {
-            PHPCoroutine::enable_preemptive_scheduler();
-        }
+        PHPCoroutine::enable_preemptive_scheduler = zval_is_true(v);
     }
 }
 

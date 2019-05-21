@@ -27,9 +27,10 @@ bool PHPCoroutine::active = false;
 uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
 php_coro_task PHPCoroutine::main_task = {0};
 
-int64_t PHPCoroutine::max_exec_msec = 10;
-bool PHPCoroutine::_enable_preemptive_scheduler = false;
-zend_bool* PHPCoroutine::zend_vm_interrupt = nullptr;
+bool PHPCoroutine::enable_preemptive_scheduler = false;
+bool PHPCoroutine::schedule_thread_created = false;
+
+static zend_bool* zend_vm_interrupt = nullptr;
 
 static void (*orig_interrupt_function)(zend_execute_data *execute_data);
 
@@ -66,28 +67,30 @@ void PHPCoroutine::init()
     zend_interrupt_function = swoole_interrupt_function;
 }
 
-void PHPCoroutine::enable_preemptive_scheduler()
+void PHPCoroutine::create_scheduler_thread()
 {
-    if (!_enable_preemptive_scheduler)
+    if (schedule_thread_created)
     {
-        zend_vm_interrupt = &EG(vm_interrupt);
-        _enable_preemptive_scheduler = true;
-        pthread_t pidt;
-        if (pthread_create(&pidt, NULL, (void * (*)(void *)) schedule, NULL) < 0)
-        {
-            swSysError("pthread_create[tcp_reactor] failed");
-        }
+        return;
+    }
+
+    zend_vm_interrupt = &EG(vm_interrupt);
+    schedule_thread_created = true;
+    pthread_t pidt;
+    if (pthread_create(&pidt, NULL, (void * (*)(void *)) schedule, NULL) < 0)
+    {
+        swSysError("pthread_create[PHPCoroutine Scheduler] failed");
     }
 }
 
 void PHPCoroutine::schedule()
 {
     swSignal_none();
-    int64_t interval_msec = (PHPCoroutine::max_exec_msec / 2) * 1000;
+    int64_t interval_msec = (PHPCoroutine::MAX_EXEC_MSEC / 2) * 1000;
     pthread_detach(pthread_self());
     while (SwooleG.running)
     {
-        if (PHPCoroutine::_enable_preemptive_scheduler)
+        if (PHPCoroutine::enable_preemptive_scheduler)
         {
             *zend_vm_interrupt = 1;
         }
@@ -222,10 +225,7 @@ void PHPCoroutine::on_resume(void *arg)
     php_coro_task *current_task = get_task();
     save_task(current_task);
     restore_task(task);
-    if (is_enabled_preemptive_scheduler())
-    {
-        record_last_msec(task);
-    }
+    record_last_msec(task);
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", Coroutine::get_current_cid(), task->co->get_cid());
 }
 
@@ -340,16 +340,15 @@ void PHPCoroutine::create_func(void *arg)
     EG(exception) = NULL;
 
     save_vm_stack(task);
+    record_last_msec(task);
+
     task->output_ptr = NULL;
     task->co = Coroutine::get_current();
     task->co->set_task((void *) task);
     task->defer_tasks = nullptr;
     task->pcid = task->co->get_origin_cid();
     task->context = nullptr;
-    if (is_enabled_preemptive_scheduler())
-    {
-        record_last_msec(task);
-    }
+
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
         task->co->get_cid(), task->co->get_origin_cid(), (uintmax_t) Coroutine::count(), (uintmax_t) zend_memory_usage(0)
