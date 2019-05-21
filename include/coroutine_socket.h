@@ -161,6 +161,22 @@ public:
         return co ? co->get_cid() : 0;
     }
 
+    inline void check_bound_co(const enum swEvent_type event)
+    {
+        long cid = get_bound_cid(event);
+        if (unlikely(cid))
+        {
+            swFatalError(
+                SW_ERROR_CO_HAS_BEEN_BOUND,
+                "Socket#%d has already been bound to another coroutine#%ld, "
+                "%s of the same socket in coroutine#%ld at the same time is not allowed",
+                socket->fd, cid,
+                (event == SW_EVENT_READ ? "reading" : (event == SW_EVENT_WRITE ? "writing" : "reading or writing")),
+                Coroutine::get_current_cid()
+            );
+        }
+    }
+
     inline void set_err(int e)
     {
         errCode = errno = e;
@@ -294,20 +310,11 @@ private:
     bool add_event(const enum swEvent_type event);
     bool wait_event(const enum swEvent_type event, const void **__buf = nullptr, size_t __n = 0);
 
-    inline bool is_available(enum swEvent_type event)
+    inline bool is_available(const enum swEvent_type event)
     {
         if (event != SW_EVENT_NULL)
         {
-            long cid = get_bound_cid(event);
-            if (unlikely(cid))
-            {
-                swFatalError(
-                    SW_ERROR_CO_HAS_BEEN_BOUND,
-                    "Socket#%d has already been bound to another coroutine#%ld, "
-                    "%s of the same socket in multiple coroutines at the same time is not allowed",
-                    socket->fd, cid, (event == SW_EVENT_READ ? "reading" : (event == SW_EVENT_WRITE ? "writing" : "reading or writing"))
-                );
-            }
+            check_bound_co(event);
         }
         if (unlikely(socket->closed))
         {
