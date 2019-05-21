@@ -1,18 +1,16 @@
 --TEST--
-swoole_coroutine/scheduler: while tick 10000
+swoole_coroutine/scheduler: while
 --SKIPIF--
 <?php 
 require __DIR__ . '/../../include/skipif.inc';
-skip_if_constant_not_defined('SWOOLE_CORO_SCHEDULER_TICK');
 ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
-declare(ticks=10000);
-
+$default = 10;
 $max_msec = 10;
-Co::set(['max_exec_msec' => $max_msec]);
+Co::set(['enable_preemptive_scheduler' => 1]);
 
 $start = microtime(1);
 echo "start\n";
@@ -29,7 +27,7 @@ go(function () use (&$flag, $max_msec) {
 
 $end = microtime(1);
 $msec = ($end - $start) * 1000;
-USE_VALGRIND || Assert::lessThanEq(abs($msec - $max_msec), 2);
+USE_VALGRIND || Assert::lessThanEq(abs($msec - $max_msec), $default);
 
 go(function () use (&$flag) {
     echo "coro 2 set flag = false\n";
