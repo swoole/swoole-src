@@ -2334,25 +2334,33 @@ static PHP_METHOD(swoole_http_response, __destruct)
 {
     SW_PREVENT_USER_DESTRUCT();
 
-    http_context *context = (http_context *) swoole_get_object(getThis());
-    if (context)
+    http_context *ctx = (http_context *) swoole_get_object(getThis());
+    if (ctx)
     {
-        swConnection *conn = swWorker_get_connection(SwooleG.serv, context->fd);
-        if (!conn || conn->closed || conn->removed || context->detached)
+        if (ctx->co_socket)
         {
-            swoole_http_context_free(context);
+            http_response_end(getThis(), nullptr, return_value);
         }
         else
         {
-            if (context->response.status == 0)
+            swServer *serv = (swServer *) ctx->private_data;
+            swConnection *conn = swWorker_get_connection(serv, ctx->fd);
+            if (!conn || conn->closed || conn->removed || ctx->detached)
             {
-                context->response.status = 500;
+                swoole_http_context_free(ctx);
             }
-            sw_zend_call_method_with_0_params(getThis(), swoole_http_response_ce, NULL, "end", NULL);
-            context = (http_context *) swoole_get_object(getThis());
-            if (context)
+            else
             {
-                swoole_http_context_free(context);
+                if (ctx->response.status == 0)
+                {
+                    ctx->response.status = 500;
+                }
+                http_response_end(getThis(), nullptr, return_value);
+                ctx = (http_context *) swoole_get_object(getThis());
+                if (ctx)
+                {
+                    swoole_http_context_free(ctx);
+                }
             }
         }
     }

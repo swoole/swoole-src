@@ -19,6 +19,7 @@
 
 #include <string>
 #include <map>
+#include <algorithm>
 
 using namespace std;
 using namespace swoole;
@@ -34,19 +35,12 @@ static zend_object_handlers swoole_http_server_coro_handlers;
 static bool http_context_send_data(http_context* ctx, const char *data, size_t length);
 static bool http_context_disconnect(http_context* ctx);
 
-struct pattern_cmp
-{
-    bool operator()(const string &s1, const string &s2) const
-    {
-        return s1.length() > s2.length();
-    }
-};
-
 class http_server
 {
 public:
     Socket *socket;
-    map<string, php_swoole_fci *, pattern_cmp> handlers;
+    map<string, php_swoole_fci *> handlers;
+    php_swoole_fci *default_handler;
     bool running;
 
 public:
@@ -54,18 +48,31 @@ public:
     {
         socket = new Socket(SW_SOCK_TCP);
         running = true;
+        default_handler = nullptr;
     }
 
-    void set_handler(string pattern, php_swoole_fci*fci)
+    void set_handler(string pattern, php_swoole_fci *fci)
     {
-        auto find_fci = handlers.find(pattern);
-        if (find_fci != handlers.end())
+        if (pattern == "/")
         {
-            sw_fci_cache_discard(&find_fci->second->fci_cache);
-            efree(find_fci->second);
+            if (default_handler)
+            {
+                sw_fci_cache_discard(&default_handler->fci_cache);
+                efree(default_handler);
+            }
+            default_handler = fci;
+        }
+        else
+        {
+            auto find_fci = handlers.find(pattern);
+            if (find_fci != handlers.end())
+            {
+                sw_fci_cache_discard(&find_fci->second->fci_cache);
+                efree(find_fci->second);
+            }
+            handlers[pattern] = fci;
         }
         sw_fci_cache_persist(&fci->fci_cache);
-        handlers[pattern] = fci;
     }
 
     php_swoole_fci* get_handler(http_context *ctx)
@@ -77,7 +84,7 @@ public:
                 return i->second;
             }
         }
-        return nullptr;
+        return default_handler;
     }
 
     http_context* create_context(Socket *conn)
@@ -111,6 +118,7 @@ typedef struct
 static PHP_METHOD(swoole_http_server_coro, __construct);
 static PHP_METHOD(swoole_http_server_coro, handle);
 static PHP_METHOD(swoole_http_server_coro, start);
+static PHP_METHOD(swoole_http_server_coro, shutdown);
 static PHP_METHOD(swoole_http_server_coro, onAccept);
 static PHP_METHOD(swoole_http_server_coro, __destruct);
 
@@ -121,6 +129,7 @@ static const zend_function_entry swoole_http_server_coro_methods[] =
     PHP_ME(swoole_http_server_coro, handle, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server_coro, onAccept, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server_coro, start, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server_coro, shutdown, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -147,7 +156,7 @@ static sw_inline http_server* http_server_get_object(zend_object *obj)
 static bool http_context_send_data(http_context* ctx, const char *data, size_t length)
 {
     Socket *sock = (Socket *) ctx->private_data;
-    return sock->send_all(data, length) == length;
+    return sock->send_all(data, length) == (ssize_t) length;
 }
 
 static bool http_context_disconnect(http_context* ctx)
@@ -273,7 +282,6 @@ static PHP_METHOD(swoole_http_server_coro, start)
         {
             php_swoole_init_socket_object(&argv[0], conn);
             PHPCoroutine::create(&func_cache, 1, argv);
-            zval_dtor(&argv[0]);
         }
     }
 
@@ -284,7 +292,6 @@ static PHP_METHOD(swoole_http_server_coro, __destruct)
 {
 
 }
-
 
 static PHP_METHOD(swoole_http_server_coro, onAccept)
 {
@@ -329,7 +336,11 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
                 {
                     swoole_php_error(E_WARNING, "handler error");
                 }
-                if (keep_alive)
+
+                zval_dtor(&args[0]);
+                zval_dtor(&args[1]);
+
+                if (hs->running && keep_alive)
                 {
                     //create new http_context
                     ctx = hs->create_context(sock);
@@ -343,4 +354,10 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
         }
         break;
     }
+}
+
+static PHP_METHOD(swoole_http_server_coro, shutdown)
+{
+    http_server *hs = http_server_get_object(Z_OBJ_P(getThis()));
+    hs->running = false;
 }
