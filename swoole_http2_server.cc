@@ -122,22 +122,21 @@ static void http2_server_send_rst_stream(http_context *ctx, uint32_t stream_id, 
 static ssize_t http2_build_trailer(http_context *ctx, uchar *buffer)
 {
     zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("trailer"), 0);
-    uint32_t size = ZVAL_IS_ARRAY(ztrailer) ? php_swoole_array_length(ztrailer) : 0;
+    uint32_t size = php_swoole_array_length_safe(ztrailer);
 
     if (size > 0)
     {
         http2::headers trailer(size);
-        HashTable *ht = Z_ARRVAL_P(ztrailer);
-        zend_string *key = NULL;
-        zval *value = NULL;
+        zend_string *key;
+        zval *zvalue;
 
-        ZEND_HASH_FOREACH_STR_KEY_VAL(ht, key, value)
+        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(ztrailer), key, zvalue)
         {
-            zend::string str_value(value);
-            if (!key || str_value.len())
+            if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue)))
             {
                 continue;
             }
+            zend::string str_value(zvalue);
             trailer.add(ZSTR_VAL(key), ZSTR_LEN(key), str_value.val(), str_value.len());
         }
         ZEND_HASH_FOREACH_END();
@@ -175,8 +174,9 @@ static ssize_t http2_build_trailer(http_context *ctx, uchar *buffer)
     return 0;
 }
 
-static sw_inline void http2_onRequest(http_context *ctx, http2_stream *stream, int from_fd)
+static sw_inline void http2_onRequest(http2_stream *stream, int from_fd)
 {
+    http_context *ctx = (http_context *) stream->ctx;
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(SwooleG.serv, from_fd, SW_SERVER_CB_onRequest);
     zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
     if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
@@ -211,19 +211,18 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     if (ZVAL_IS_ARRAY(zheader))
     {
         uint32_t header_flag = 0x0;
-        HashTable *ht = Z_ARRVAL_P(zheader);
-        zend_string *key = NULL;
-        zval *value = NULL;
+        zend_string *key;
+        zval *zvalue;
 
-        ZEND_HASH_FOREACH_STR_KEY_VAL(ht, key, value)
+        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(zheader), key, zvalue)
         {
-            zend::string str_value(value);
-            char *c_key = ZSTR_VAL(key);
-            size_t c_keylen = ZSTR_LEN(key);
-            if (UNEXPECTED(!c_key || str_value.len() == 0))
+            if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue)))
             {
                 continue;
             }
+            zend::string str_value(zvalue);
+            char *c_key = ZSTR_VAL(key);
+            size_t c_keylen = ZSTR_LEN(key);
             if (strncmp("server", c_key, c_keylen) == 0)
             {
                 header_flag |= HTTP_HEADER_SERVER;
@@ -755,7 +754,7 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
 
         if (flags & SW_HTTP2_FLAG_END_STREAM)
         {
-            http2_onRequest(ctx, stream, from_fd);
+            http2_onRequest(stream, from_fd);
         }
         else
         {
@@ -822,7 +821,7 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
                     swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, n=%zu", n);
                 }
             }
-            http2_onRequest(ctx, stream, from_fd);
+            http2_onRequest(stream, from_fd);
         }
         break;
     }
@@ -834,7 +833,8 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
             char ping_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
             swHttp2_set_frame_header(ping_frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
             memcpy(ping_frame + SW_HTTP2_FRAME_HEADER_SIZE, buf, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
-            ctx->send(ctx, ping_frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
+            // FIXME: use ctx
+            serv->send(serv, fd, ping_frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
         }
         break;
     }

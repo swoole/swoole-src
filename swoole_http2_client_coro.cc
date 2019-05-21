@@ -971,17 +971,16 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
 
     if (Z_TYPE_P(zheaders) == IS_ARRAY)
     {
-        HashTable *ht = Z_ARRVAL_P(zheaders);
-        zend_string *key = NULL;
-        zval *value = NULL;
+        zend_string *key;
+        zval *zvalue;
 
-        ZEND_HASH_FOREACH_STR_KEY_VAL(ht, key, value)
+        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(zheaders), key, zvalue)
         {
-            zend::string str_value(value);
-            if (UNEXPECTED(!key || *ZSTR_VAL(key) == ':' || str_value.len() == 0))
+            if (UNEXPECTED(!key || *ZSTR_VAL(key) == ':' || ZVAL_IS_NULL(zvalue)))
             {
                 continue;
             }
+            zend::string str_value(zvalue);
             if (strncasecmp("host", ZSTR_VAL(key), ZSTR_LEN(key)) == 0)
             {
                 headers.add(HTTP2_CLIENT_HOST_HEADER_INDEX, ZEND_STRL(":authority"), str_value.val(), str_value.len());
@@ -999,24 +998,21 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
         headers.add(HTTP2_CLIENT_HOST_HEADER_INDEX,ZEND_STRL(":authority"), h2c->host.c_str(), h2c->host.length());
     }
     // http cookies
-    if (Z_TYPE_P(zcookies) == IS_ARRAY)
+    if (ZVAL_IS_ARRAY(zcookies))
     {
         zend_string *key;
-        zval *value = NULL;
+        zval *zvalue;
         char *encoded_value;
         int encoded_value_len;
         swString *buffer = SwooleTG.buffer_stack;
 
-        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(zcookies), key, value)
-            if (UNEXPECTED(!key))
+        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(zcookies), key, zvalue)
+        {
+            if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue)))
             {
                 continue;
             }
-            zend::string str_value(value);
-            if (str_value.len() == 0)
-            {
-                continue;
-            }
+            zend::string str_value(zvalue);
             swString_clear(buffer);
             swString_append_ptr(buffer, ZSTR_VAL(key), ZSTR_LEN(key));
             swString_append_ptr(buffer, "=", 1);
@@ -1027,6 +1023,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
                 efree(encoded_value);
                 headers.add(ZEND_STRL("cookie"), buffer->str, buffer->length);
             }
+        }
         ZEND_HASH_FOREACH_END();
     }
 

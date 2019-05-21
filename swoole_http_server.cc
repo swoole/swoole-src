@@ -1358,16 +1358,15 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
     uint32_t header_flag = 0x0;
     if (ZVAL_IS_ARRAY(zheader))
     {
-        HashTable *ht = Z_ARRVAL_P(zheader);
-        zval *zvalue = NULL;
-        char *key = NULL;
-        uint32_t keylen = 0;
+        const char *key;
+        uint32_t keylen;
         int type;
+        zval *zvalue;
 
-        SW_HASHTABLE_FOREACH_START2(ht, key, keylen, type, zvalue)
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zheader), key, keylen, type, zvalue)
         {
             // TODO: numeric key name neccessary?
-            if (!key)
+            if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue)))
             {
                 continue;
             }
