@@ -1169,7 +1169,17 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
     ZVAL_LONG(&args[1], (zend_long) req->info.from_id);
     args[2] = *zdata;
 
-    if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, SwooleG.enable_coroutine)))
+    zend_bool enable_coroutine = false;
+    if (swIsTaskWorker() && serv->task_enable_coroutine)
+    {
+        enable_coroutine = true;
+    }
+    else
+    {
+        enable_coroutine = serv->enable_coroutine;
+    }
+
+    if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, enable_coroutine)))
     {
         swoole_php_error(E_WARNING, "%s->onPipeMessage handler error", ZSTR_VAL(swoole_server_ce->name));
     }
