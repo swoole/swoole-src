@@ -316,13 +316,13 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
         {
             total_bytes += retval;
             parsed_n = swoole_http_parser_execute(&ctx->parser, swoole_http_get_parser_setting(), buffer->str, retval);
-            swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d", parsed_n, retval, total_bytes, parser.state == s_start_res);
+            swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d", parsed_n, retval, total_bytes, ctx->completed);
 
             if (ctx->completed)
             {
                 zval *zserver = ctx->request.zserver;
                 add_assoc_long(zserver, "server_port", hs->socket->get_bind_port());
-                add_assoc_long(zserver, "remote_port", swConnection_get_port(sock->socket));
+                add_assoc_long(zserver, "remote_port", (zend_long) swConnection_get_port(sock->socket));
                 add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(sock->socket));
 
                 php_swoole_fci *fci = hs->get_handler(ctx);
