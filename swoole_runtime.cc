@@ -1365,7 +1365,7 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, s
     zend_string *key;
     php_socket_t sock;
 
-    if (Z_TYPE_P(stream_array) != IS_ARRAY)
+    if (!ZVAL_IS_ARRAY(stream_array))
     {
         return;
     }
@@ -1399,7 +1399,7 @@ static int stream_array_emulate_read_fd_set(zval *stream_array)
     zend_ulong num_ind;
     zend_string *key;
 
-    if (Z_TYPE_P(stream_array) != IS_ARRAY)
+    if (!ZVAL_IS_ARRAY(stream_array))
     {
         return 0;
     }

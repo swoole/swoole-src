@@ -111,7 +111,7 @@ public:
     bool init_compression(enum http_compress_method method);
     bool uncompress_response();
 #endif
-    void apply_setting(zval *zset);
+    void apply_setting(zval *zset, const bool check_all = true);
     void set_basic_auth(const std::string & username, const std::string & password);
     bool exec(std::string path);
     bool recv(double timeout = 0);
@@ -548,36 +548,37 @@ bool http_client::uncompress_response()
 }
 #endif
 
-void http_client::apply_setting(zval *zset)
+void http_client::apply_setting(zval *zset, const bool check_all)
 {
     if (!ZVAL_IS_ARRAY(zset) || php_swoole_array_length(zset) == 0)
     {
         return;
     }
+    if (check_all)
+    {
+        zval *ztmp;
+        HashTable *vht = Z_ARRVAL_P(zset);
 
-    zval *ztmp;
-    HashTable *vht = Z_ARRVAL_P(zset);
-
-    // will be set immediately
-    if (php_swoole_array_get_value(vht, "connect_timeout", ztmp) || php_swoole_array_get_value(vht, "timeout", ztmp) /* backward compatibility */)
-    {
-        connect_timeout = zval_get_double(ztmp);
-    }
-    if (php_swoole_array_get_value(vht, "reconnect", ztmp))
-    {
-        reconnect_interval = (uint8_t) SW_MIN(zval_get_long(ztmp), UINT8_MAX);
-    }
-    if (php_swoole_array_get_value(vht, "defer", ztmp))
-    {
-        defer = zval_is_true(ztmp);
-    }
-    if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
-    {
-        keep_alive = zval_is_true(ztmp);
-    }
-    if (php_swoole_array_get_value(vht, "websocket_mask", ztmp))
-    {
-        websocket_mask = zval_is_true(ztmp);
+        if (php_swoole_array_get_value(vht, "connect_timeout", ztmp) || php_swoole_array_get_value(vht, "timeout", ztmp) /* backward compatibility */)
+        {
+            connect_timeout = zval_get_double(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "reconnect", ztmp))
+        {
+            reconnect_interval = (uint8_t) SW_MIN(zval_get_long(ztmp), UINT8_MAX);
+        }
+        if (php_swoole_array_get_value(vht, "defer", ztmp))
+        {
+            defer = zval_is_true(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
+        {
+            keep_alive = zval_is_true(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "websocket_mask", ztmp))
+        {
+            websocket_mask = zval_is_true(ztmp);
+        }
     }
     if (socket)
     {
@@ -593,22 +594,18 @@ void http_client::apply_setting(zval *zset)
     }
 }
 
-void http_client::set_basic_auth(const std::string & username, const std::string & password)
+void http_client::set_basic_auth(const std::string &username, const std::string &password)
 {
-    std::string input = username + std::string(":") + password;
-    size_t input_len = input.size(); 
-    size_t output_len = BASE64_ENCODE_OUT_SIZE(input_len);
-
-    //prepare input
-    char *output = (char*)emalloc(output_len + 7);
-    if(output == nullptr) return;
-
-    //basic64 encode
-    sprintf((char*)output, "Basic ");
-    swBase64_encode((const unsigned char*)input.c_str(), input_len, output + 6);
-
-    basic_auth = std::string((const char*)output, output_len + 6);
-    efree(output);
+    std::string input = username + ":" + password;
+    size_t output_size = sizeof("Basic ") + BASE64_ENCODE_OUT_SIZE(input.size());
+    char *output = (char *) emalloc(output_size);
+    if (likely(output))
+    {
+        size_t output_len = sprintf(output, "Basic ");
+        output_len += swBase64_encode((const unsigned char *) input.c_str(), input.size(), output + output_len);
+        basic_auth = std::string((const char *) output, output_len);
+        efree(output);
+    }
 }
 
 bool http_client::connect()
@@ -630,7 +627,7 @@ bool http_client::connect()
         socket->open_ssl = ssl;
 #endif
         // apply settings
-        apply_setting(sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("setting"), 0));
+        apply_setting(sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("setting"), 0), false);
 
         // connect
         socket->set_timeout(connect_timeout, SW_TIMEOUT_CONNECT);
@@ -682,8 +679,7 @@ bool http_client::keep_liveness()
 
 bool http_client::send()
 {
-    zval *value = NULL;
-    char *method;
+    zval *zvalue = NULL;
     uint32_t header_flag = 0x0;
     zval *zmethod, *zheaders, *zbody, *zupload_files, *zcookies, *z_download_file;
 
@@ -697,12 +693,12 @@ bool http_client::send()
     {
         zval *zattr;
         zattr = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 0);
-        if (Z_TYPE_P(zattr) == IS_ARRAY)
+        if (ZVAL_IS_ARRAY(zattr))
         {
             zend_hash_clean(Z_ARRVAL_P(zattr));
         }
         zattr = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("set_cookie_headers"), 0);
-        if (Z_TYPE_P(zattr) == IS_ARRAY)
+        if (ZVAL_IS_ARRAY(zattr))
         {
             zend_hash_clean(Z_ARRVAL_P(zattr));
         }
@@ -772,6 +768,7 @@ bool http_client::send()
 
     // ============ method ============
     zend::string str_method;
+    const char *method;
     if (zmethod)
     {
         str_method = zmethod;
@@ -779,9 +776,8 @@ bool http_client::send()
     }
     else
     {
-        method = (char *) (zbody ? "POST" : "GET");
+        method = zbody ? "POST" : "GET";
     }
-
     this->method = swHttp_get_method(method, strlen(method) + 1);
     swString_append_ptr(http_client_buffer, method, strlen(method));
     swString_append_ptr(http_client_buffer, ZEND_STRL(" "));
@@ -797,11 +793,11 @@ bool http_client::send()
         const static char *pre = "http://";
         char *_host = (char *) host.c_str();
         size_t _host_len = host.length();
-        if (zheaders && Z_TYPE_P(zheaders) == IS_ARRAY)
+        if (ZVAL_IS_ARRAY(zheaders))
         {
-            if ((value = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))))
+            if ((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))))
             {
-                str_host = value;
+                str_host = zvalue;
                 _host = str_host.val();
                 _host_len = str_host.len();
             }
@@ -825,26 +821,26 @@ bool http_client::send()
     uint32_t keylen;
     int keytype;
 
-    if (zheaders && Z_TYPE_P(zheaders) == IS_ARRAY)
+    if (ZVAL_IS_ARRAY(zheaders))
     {
         // As much as possible to ensure that Host is the first header.
         // See: http://tools.ietf.org/html/rfc7230#section-5.4
-        if ((value = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))))
+        if ((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))))
         {
-            http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), Z_STRVAL_P(value), Z_STRLEN_P(value));
+            http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue));
         }
         else
         {
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), host.c_str(), host.length());
         }
 
-        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zheaders), key, keylen, keytype, value)
-            if (HASH_KEY_IS_STRING != keytype)
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zheaders), key, keylen, keytype, zvalue)
+        {
+            if (UNEXPECTED(HASH_KEY_IS_STRING != keytype || ZVAL_IS_NULL(zvalue)))
             {
                 continue;
             }
-            zend::string str_value(value);
-            if ((str_value.len() == 0) || (strncasecmp(key, ZEND_STRL("Host")) == 0))
+            if (strncasecmp(key, ZEND_STRL("Host")) == 0)
             {
                 continue;
             }
@@ -862,7 +858,9 @@ bool http_client::send()
             {
                 header_flag |= HTTP_HEADER_ACCEPT_ENCODING;
             }
+            zend::string str_value(zvalue);
             http_client_swString_append_headers(http_client_buffer, key, keylen, str_value.val(), str_value.len());
+        }
         SW_HASHTABLE_FOREACH_END();
     }
     else
@@ -870,10 +868,10 @@ bool http_client::send()
         http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), host.c_str(), host.length());
     }
 
-    if(!basic_auth.empty()){
-        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Authorization"), basic_auth.c_str(), basic_auth.size()); 
+    if (!basic_auth.empty())
+    {
+        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Authorization"), basic_auth.c_str(), basic_auth.size());
     }
-
     if (!(header_flag & HTTP_HEADER_CONNECTION))
     {
         if (keep_alive)
@@ -893,20 +891,21 @@ bool http_client::send()
 #endif
 
     // ============ cookies ============
-    if (zcookies && Z_TYPE_P(zcookies) == IS_ARRAY)
+    if (ZVAL_IS_ARRAY(zcookies))
     {
         swString_append_ptr(http_client_buffer, ZEND_STRL("Cookie: "));
         int n_cookie = php_swoole_array_length(zcookies);
         int i = 0;
         char *encoded_value;
 
-        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zcookies), key, keylen, keytype, value)
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zcookies), key, keylen, keytype, zvalue)
+        {
             i++;
             if (HASH_KEY_IS_STRING != keytype)
             {
                 continue;
             }
-            zend::string str_value(value);
+            zend::string str_value(zvalue);
             if (str_value.len() == 0)
             {
                 continue;
@@ -925,18 +924,17 @@ bool http_client::send()
             {
                 swString_append_ptr(http_client_buffer, "; ", 2);
             }
+        }
         SW_HASHTABLE_FOREACH_END();
         swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
     }
 
     // ============ multipart/form-data ============
-    if (ZVAL_IS_ARRAY(zupload_files))
+    if ((has_upload_files = (php_swoole_array_length_safe(zupload_files) > 0)))
     {
         char header_buf[2048];
         char boundary_str[SW_HTTP_CLIENT_BOUNDARY_TOTAL_SIZE];
         int n;
-
-        has_upload_files = php_swoole_array_length(zupload_files) > 0;
 
         // ============ content-type ============
         memcpy(boundary_str, SW_HTTP_CLIENT_BOUNDARY_PREKEY, sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1);
@@ -955,14 +953,14 @@ bool http_client::send()
         size_t content_length = 0;
 
         // calculate length before encode array
-        if (zbody && Z_TYPE_P(zbody) == IS_ARRAY)
+        if (zbody && ZVAL_IS_ARRAY(zbody))
         {
-            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zbody), key, keylen, keytype, value)
-                if (HASH_KEY_IS_STRING != keytype)
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zbody), key, keylen, keytype, zvalue)
+                if (UNEXPECTED(HASH_KEY_IS_STRING != keytype || ZVAL_IS_NULL(zvalue)))
                 {
                     continue;
                 }
-                zend::string str_value(value);
+                zend::string str_value(zvalue);
                 //strlen("%.*s")*2 = 8
                 //header + body + CRLF(2)
                 content_length += (sizeof(SW_HTTP_FORM_RAW_DATA_FMT) - SW_HTTP_FORM_RAW_DATA_FMT_LEN -1) + (sizeof(boundary_str) - 1) + keylen + str_value.len() + 2;
@@ -980,41 +978,46 @@ bool http_client::send()
         // calculate length of files
         {
             //upload files
-            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zupload_files), key, keylen, keytype, value)
-                if (!(zname = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("name"))))
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zupload_files), key, keylen, keytype, zvalue)
+            {
+                HashTable *ht = Z_ARRVAL_P(zvalue);
+                if (!(zname = zend_hash_str_find(ht, ZEND_STRL("name"))))
                 {
                     continue;
                 }
-                if (!(zfilename = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("filename"))))
+                if (!(zfilename = zend_hash_str_find(ht, ZEND_STRL("filename"))))
                 {
                     continue;
                 }
-                if (!(zsize = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("size"))))
+                if (!(zsize = zend_hash_str_find(ht, ZEND_STRL("size"))))
                 {
                     continue;
                 }
-                if (!(ztype = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("type"))))
+                if (!(ztype = zend_hash_str_find(ht, ZEND_STRL("type"))))
                 {
                     continue;
                 }
                 //strlen("%.*s")*4 = 16
                 //header + body + CRLF(2)
-                content_length += (sizeof(SW_HTTP_FORM_FILE_DATA_FMT) - SW_HTTP_FORM_FILE_DATA_FMT_LEN - 1) + (sizeof(boundary_str) - 1)
-                        + Z_STRLEN_P(zname) + Z_STRLEN_P(zfilename) + Z_STRLEN_P(ztype) + Z_LVAL_P(zsize) + 2;
+                content_length +=
+                    (sizeof(SW_HTTP_FORM_FILE_DATA_FMT) - SW_HTTP_FORM_FILE_DATA_FMT_LEN - 1) + (sizeof(boundary_str) - 1) +
+                    Z_STRLEN_P(zname) + Z_STRLEN_P(zfilename) + Z_STRLEN_P(ztype) + Z_LVAL_P(zsize) + 2;
+            }
             SW_HASHTABLE_FOREACH_END();
         }
 
         http_client_append_content_length(http_client_buffer, content_length + sizeof(boundary_str) - 1 + 6);
 
         // ============ form-data body ============
-        if (zbody && Z_TYPE_P(zbody) == IS_ARRAY)
+        if (zbody && ZVAL_IS_ARRAY(zbody))
         {
-            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zbody), key, keylen, keytype, value)
-                if (HASH_KEY_IS_STRING != keytype)
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zbody), key, keylen, keytype, zvalue)
+            {
+                if (UNEXPECTED(HASH_KEY_IS_STRING != keytype || ZVAL_IS_NULL(zvalue)))
                 {
                     continue;
                 }
-                zend::string str_value(value);
+                zend::string str_value(zvalue);
                 n = sw_snprintf(
                     header_buf, sizeof(header_buf),
                     SW_HTTP_FORM_RAW_DATA_FMT, (int)(sizeof(boundary_str) - 1),
@@ -1023,6 +1026,7 @@ bool http_client::send()
                 swString_append_ptr(http_client_buffer, header_buf, n);
                 swString_append_ptr(http_client_buffer, str_value.val(), str_value.len());
                 swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
+            }
             SW_HASHTABLE_FOREACH_END();
         }
 
@@ -1033,27 +1037,28 @@ bool http_client::send()
 
         {
             //upload files
-            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zupload_files), key, keylen, keytype, value)
-                if (!(zname = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("name"))))
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zupload_files), key, keylen, keytype, zvalue)
+            {
+                if (!(zname = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("name"))))
                 {
                     continue;
                 }
-                if (!(zfilename = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("filename"))))
+                if (!(zfilename = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("filename"))))
                 {
                     continue;
                 }
                 /**
                  * from disk file
                  */
-                if (!(zcontent = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("content"))))
+                if (!(zcontent = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("content"))))
                 {
                     //file path
-                    if (!(zpath = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("path"))))
+                    if (!(zpath = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("path"))))
                     {
                         continue;
                     }
                     //file offset
-                    if (!(zoffset = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("offset"))))
+                    if (!(zoffset = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("offset"))))
                     {
                         continue;
                     }
@@ -1064,11 +1069,11 @@ bool http_client::send()
                     zpath = NULL;
                     zoffset = NULL;
                 }
-                if (!(zsize = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("size"))))
+                if (!(zsize = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("size"))))
                 {
                     continue;
                 }
-                if (!(ztype = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("type"))))
+                if (!(ztype = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("type"))))
                 {
                     continue;
                 }
@@ -1114,6 +1119,7 @@ bool http_client::send()
                         goto _send_fail;
                     }
                 }
+            }
             SW_HASHTABLE_FOREACH_END();
         }
 
@@ -1126,7 +1132,7 @@ bool http_client::send()
     // ============ x-www-form-urlencoded or raw ============
     else if (zbody)
     {
-        if (Z_TYPE_P(zbody) == IS_ARRAY)
+        if (ZVAL_IS_ARRAY(zbody))
         {
             size_t len;
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Content-Type"), ZEND_STRL("application/x-www-form-urlencoded"));

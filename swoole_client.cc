@@ -985,7 +985,7 @@ static PHP_METHOD(swoole_client, set)
     {
         RETURN_FALSE;
     }
-    if (Z_TYPE_P(zset) != IS_ARRAY)
+    if (!ZVAL_IS_ARRAY(zset))
     {
         RETURN_FALSE;
     }
@@ -2103,7 +2103,7 @@ static int client_poll_wait(zval *sock_array, struct pollfd *fds, int maxevents,
     int sock;
 
     ulong_t num = 0;
-    if (Z_TYPE_P(sock_array) != IS_ARRAY)
+    if (!ZVAL_IS_ARRAY(sock_array))
     {
         return 0;
     }
@@ -2155,7 +2155,7 @@ static int client_poll_wait(zval *sock_array, struct pollfd *fds, int maxevents,
 static int client_poll_add(zval *sock_array, int index, struct pollfd *fds, int maxevents, int event)
 {
     zval *element = NULL;
-    if (Z_TYPE_P(sock_array) != IS_ARRAY)
+    if (!ZVAL_IS_ARRAY(sock_array))
     {
         return -1;
     }
@@ -2195,7 +2195,7 @@ static int client_select_wait(zval *sock_array, fd_set *fds)
     int sock;
 
     ulong_t num = 0;
-    if (Z_TYPE_P(sock_array) != IS_ARRAY)
+    if (!ZVAL_IS_ARRAY(sock_array))
     {
         return 0;
     }
@@ -2240,7 +2240,7 @@ static int client_select_wait(zval *sock_array, fd_set *fds)
 static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd)
 {
     zval *element = NULL;
-    if (Z_TYPE_P(sock_array) != IS_ARRAY)
+    if (!ZVAL_IS_ARRAY(sock_array))
     {
         return 0;
     }

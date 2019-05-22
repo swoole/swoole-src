@@ -415,7 +415,7 @@ static PHP_METHOD(swoole_redis_server, format)
         {
             goto no_value;
         }
-        if (Z_TYPE_P(value) != IS_ARRAY)
+        if (!ZVAL_IS_ARRAY(value))
         {
             swoole_php_fatal_error(E_WARNING, "the second parameter should be an array");
         }
@@ -450,7 +450,7 @@ static PHP_METHOD(swoole_redis_server, format)
         {
             goto no_value;
         }
-        if (Z_TYPE_P(value) != IS_ARRAY)
+        if (!ZVAL_IS_ARRAY(value))
         {
             swoole_php_fatal_error(E_WARNING, "the second parameter should be an array");
         }

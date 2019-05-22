@@ -32,7 +32,7 @@ std::unordered_map<long, Coroutine*> Coroutine::coroutines;
 
 void Coroutine::yield()
 {
-    SW_ASSERT(current == this);
+    SW_ASSERT(current == this || on_bailout != nullptr);
     state = SW_CORO_WAITING;
     if (likely(on_yield))
     {

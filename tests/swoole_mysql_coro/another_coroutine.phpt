@@ -3,6 +3,7 @@ swoole_mysql_coro: illegal another coroutine
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+skip_unsupported();
 ?>
 --FILE--
 <?php

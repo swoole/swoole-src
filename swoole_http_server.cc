@@ -1237,7 +1237,7 @@ static PHP_METHOD(swoole_http_request, __destruct)
 
     zval *ztmpfiles = sw_zend_read_property(swoole_http_request_ce, getThis(), ZEND_STRL("tmpfiles"), 0);
     //upload files
-    if (ztmpfiles && Z_TYPE_P(ztmpfiles) == IS_ARRAY)
+    if (ztmpfiles && ZVAL_IS_ARRAY(ztmpfiles))
     {
         zval *z_file_path;
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmpfiles), z_file_path)
@@ -1376,16 +1376,15 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
     uint32_t header_flag = 0x0;
     if (ZVAL_IS_ARRAY(zheader))
     {
-        HashTable *ht = Z_ARRVAL_P(zheader);
-        zval *zvalue = NULL;
-        char *key = NULL;
-        uint32_t keylen = 0;
+        const char *key;
+        uint32_t keylen;
         int type;
+        zval *zvalue;
 
-        SW_HASHTABLE_FOREACH_START2(ht, key, keylen, type, zvalue)
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zheader), key, keylen, type, zvalue)
         {
             // TODO: numeric key name neccessary?
-            if (!key)
+            if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue)))
             {
                 continue;
             }
