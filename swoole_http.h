@@ -146,6 +146,7 @@ typedef struct _http_context
     void *private_data;
     void *private_data_2;
     bool (*send)(struct _http_context* ctx, const char *data, size_t length);
+    bool (*sendfile)(struct _http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
     bool (*close)(struct _http_context* ctx);
 
 } http_context;

@@ -28,7 +28,7 @@ static void swServer_master_update_time(swServer *serv);
 static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_t length);
 static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uint32_t length);
 static int swServer_tcp_close(swServer *serv, int session_id, int reset);
-static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t filename_length, off_t offset, size_t length);
+static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
@@ -1197,7 +1197,7 @@ static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
 /**
  * [Worker]
  */
-static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t filename_length, off_t offset, size_t length)
+static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length)
 {
     if (unlikely(session_id <= 0 || session_id > SW_MAX_SESSION_ID))
     {
@@ -1215,22 +1215,23 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename,
     swSendFile_request *req = (swSendFile_request*) _buffer;
 
     // file name size
-    if (unlikely(filename_length > SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1))
+    if (unlikely(l_file > SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1))
     {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "sendfile name[%.8s...] length %u is exceed the max name len %u",
-            filename, filename_length, (uint32_t) (SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1)
+            file, l_file, (uint32_t) (SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1)
         );
         return SW_ERR;
     }
     // string must be zero termination (for `state` system call)
-    (filename = strncpy((char *) req->filename, filename, filename_length))[filename_length] = '\0';
+    char *_file = strncpy((char *) req->filename, file, l_file);
+    _file[l_file] = '\0';
 
     // check state
     struct stat file_stat;
-    if (stat(filename, &file_stat) < 0)
+    if (stat(_file, &file_stat) < 0)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "stat(%s) failed", filename);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "stat(%s) failed", _file);
         return SW_ERR;
     }
     if (file_stat.st_size <= offset)
@@ -1245,7 +1246,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename,
     swSendData send_data = {{0}};
     send_data.info.fd = session_id;
     send_data.info.type = SW_EVENT_SENDFILE;
-    send_data.info.len = sizeof(swSendFile_request) + filename_length + 1;
+    send_data.info.len = sizeof(swSendFile_request) + l_file + 1;
     send_data.data = _buffer;
 
     return serv->factory.finish(&serv->factory, &send_data);
