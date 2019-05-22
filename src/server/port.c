@@ -144,9 +144,9 @@ int swPort_listen(swListenPort *ls)
     return SW_OK;
 }
 
-
-void swPort_set_protocol(swListenPort *ls)
+void swPort_set_protocol(swServer *serv, swListenPort *ls)
 {
+    ls->protocol.private_data_2 = serv;
     //Thread mode must copy the data.
     //will free after onFinish
     if (ls->open_eof_check)
@@ -251,7 +251,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     }
     else
     {
-        return swReactorThread_dispatch(conn, buffer, n);
+        return swReactorThread_dispatch(&port->protocol, conn, buffer, n);
     }
 }
 
@@ -452,7 +452,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                         /**
                          * dynamic request, dispatch to worker
                          */
-                        swReactorThread_dispatch(conn, buffer->str, request->header_length);
+                        swReactorThread_dispatch(protocol, conn, buffer->str, request->header_length);
                         /**
                          * http pipeline, multi request
                          */
@@ -499,7 +499,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 
         if (buffer->length == request_size)
         {
-            swReactorThread_dispatch(conn, buffer->str, buffer->length);
+            swReactorThread_dispatch(protocol, conn, buffer->str, buffer->length);
             swHttpRequest_free(conn);
         }
         else

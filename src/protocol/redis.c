@@ -161,7 +161,7 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
 
                     if (request->n_lines_received == request->n_lines_total)
                     {
-                        if (protocol->onPackage(conn, buffer->str, buffer->length) < 0)
+                        if (protocol->onPackage(protocol, conn, buffer->str, buffer->length) < 0)
                         {
                             return SW_ERR;
                         }

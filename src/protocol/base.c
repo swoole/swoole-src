@@ -81,7 +81,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
 
     uint32_t length = buffer->offset + eof_pos + protocol->package_eof_len;
     swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[4] count=%d, length=%d", count, length);
-    if (protocol->onPackage(conn, buffer->str, length) < 0)
+    if (protocol->onPackage(protocol, conn, buffer->str, length) < 0)
     {
         return SW_CLOSE;
     }
@@ -166,7 +166,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
             if (buffer->length >= buffer->offset)
             {
                 do_dispatch:
-                if (protocol->onPackage(conn, buffer->str, buffer->offset) < 0)
+                if (protocol->onPackage(protocol, conn, buffer->str, buffer->offset) < 0)
                 {
                     return SW_ERR;
                 }
@@ -303,7 +303,7 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
         }
         else if (memcmp(buffer->str + buffer->length - protocol->package_eof_len, protocol->package_eof, protocol->package_eof_len) == 0)
         {
-            if (protocol->onPackage(conn, buffer->str, buffer->length) < 0)
+            if (protocol->onPackage(protocol, conn, buffer->str, buffer->length) < 0)
             {
                 return SW_ERR;
             }

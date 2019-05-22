@@ -489,7 +489,7 @@ int swHttpRequest_get_header_length(swHttpRequest *request)
 }
 
 #ifdef SW_USE_HTTP2
-ssize_t swHttpMix_get_package_length(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
+ssize_t swHttpMix_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
 {
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
     {
@@ -523,15 +523,15 @@ uint8_t swHttpMix_get_package_length_size(swConnection *conn)
     }
 }
 
-int swHttpMix_dispatch_frame(swConnection *conn, char *data, uint32_t length)
+int swHttpMix_dispatch_frame(swProtocol *proto, swConnection *conn, char *data, uint32_t length)
 {
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
     {
-        return swWebSocket_dispatch_frame(conn, data, length);
+        return swWebSocket_dispatch_frame(proto, conn, data, length);
     }
     else if (conn->http2_stream)
     {
-        return swReactorThread_dispatch(conn, data, length);
+        return swReactorThread_dispatch(proto, conn, data, length);
     }
     else
     {

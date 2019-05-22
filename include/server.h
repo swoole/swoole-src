@@ -992,15 +992,16 @@ static sw_inline swConnection *swServer_connection_verify(swServer *serv, int se
     return conn;
 }
 
+//------------------------------------Listen Port-------------------------------------------
 void swPort_init(swListenPort *port);
 void swPort_free(swListenPort *port);
-void swPort_set_protocol(swListenPort *ls);
 int swPort_listen(swListenPort *ls);
+void swPort_set_protocol(swServer *serv, swListenPort *ls);
 #ifdef SW_USE_OPENSSL
 int swPort_enable_ssl_encrypt(swListenPort *ls);
 #endif
 void swPort_clear_protocol(swListenPort *ls);
-
+//------------------------------------Worker Process-------------------------------------------
 void swWorker_free(swWorker *worker);
 void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
@@ -1031,7 +1032,7 @@ int swReactorThread_start(swServer *serv);
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_free(swServer *serv);
 int swReactorThread_close(swReactor *reactor, int fd);
-int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length);
+int swReactorThread_dispatch(swProtocol *proto, swConnection *conn, char *data, uint32_t length);
 int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, int len);
 
 int swReactorProcess_create(swServer *serv);

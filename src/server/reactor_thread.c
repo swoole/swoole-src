@@ -579,7 +579,7 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
         {
             continue;
         }
-        swPort_set_protocol(ls);
+        swPort_set_protocol(serv, ls);
     }
 }
 
@@ -1133,9 +1133,9 @@ static int swReactorThread_loop(swThreadParam *param)
 /**
  * dispatch request data [only data frame]
  */
-int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
+int swReactorThread_dispatch(swProtocol *proto, swConnection *conn, char *data, uint32_t length)
 {
-    swServer *serv = SwooleG.serv;
+    swServer *serv = (swServer *) proto->private_data_2;
     swSendData task;
 
     bzero(&task.info, sizeof(task.info));

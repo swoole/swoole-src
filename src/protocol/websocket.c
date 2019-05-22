@@ -225,8 +225,9 @@ void swWebSocket_print_frame(swWebSocket_frame *frame)
     }
 }
 
-int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
+int swWebSocket_dispatch_frame(swProtocol *proto, swConnection *conn, char *data, uint32_t length)
 {
+    swServer *serv = (swServer *) proto->private_data_2;
     swString frame;
     bzero(&frame, sizeof(frame));
     frame.str = data;
@@ -257,7 +258,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
         }
         offset = length - ws.payload_length;
         frame_length = length - offset;
-        port = swServer_get_port(SwooleG.serv, conn->fd);
+        port = swServer_get_port(serv, conn->fd);
         //frame data overflow
         if (frame_buffer->length + frame_length > port->protocol.package_max_length)
         {
@@ -269,7 +270,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
         //frame is finished, do dispatch
         if (ws.header.FIN)
         {
-            swReactorThread_dispatch(conn, frame_buffer->str, frame_buffer->length);
+            swReactorThread_dispatch(proto, conn, frame_buffer->str, frame_buffer->length);
             swString_free(frame_buffer);
             conn->websocket_buffer = NULL;
         }
@@ -291,7 +292,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
         }
         else
         {
-            swReactorThread_dispatch(conn, data + offset, length - offset);
+            swReactorThread_dispatch(proto, conn, data + offset, length - offset);
         }
         break;
 
@@ -328,7 +329,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
             offset = length - ws.payload_length - SW_WEBSOCKET_HEADER_LEN;
             data[offset] = 1;
             data[offset + 1] = WEBSOCKET_OPCODE_CLOSE;
-            swReactorThread_dispatch(conn, data + offset, length - offset);
+            swReactorThread_dispatch(proto, conn, data + offset, length - offset);
 
             // Client attempt to close
             send_frame.str[0] = 0x88; // FIN | OPCODE: WEBSOCKET_OPCODE_CLOSE
