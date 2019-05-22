@@ -16,7 +16,6 @@
 
 #include "php_swoole_cxx.h"
 #include "swoole_http.h"
-#include "swoole_coroutine.h"
 
 extern "C"
 {
@@ -257,11 +256,9 @@ void swoole_sha1(const char *str, int _len, unsigned char *digest)
     PHP_SHA1Final(digest, &context);
 }
 
-/**
- * add Sec-WebSocket-Accept header
- */
-int swoole_websocket_append_secret(swString *buffer, http_context *ctx)
+bool swoole_websocket_handshake(http_context *ctx)
 {
+    char sec_buf[128];
     zval *header = ctx->request.zheader;
     HashTable *ht = Z_ARRVAL_P(header);
     zval *pData;
@@ -269,61 +266,49 @@ int swoole_websocket_append_secret(swString *buffer, http_context *ctx)
     if (!(pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-key"))))
     {
         swoole_php_fatal_error(E_WARNING, "header no sec-websocket-key");
-        return SW_ERR;
+        return false;
     }
 
     zend::string str_pData(pData);
 
-    int n;
-    char _buf[128];
     char sha1_str[20];
-    char encoded_str[50];
     // sec_websocket_accept
-    memcpy(_buf, str_pData.val(), str_pData.len());
-    memcpy(_buf + str_pData.len(), SW_WEBSOCKET_GUID, sizeof(SW_WEBSOCKET_GUID) - 1);
+    memcpy(sec_buf, str_pData.val(), str_pData.len());
+    memcpy(sec_buf + str_pData.len(), SW_WEBSOCKET_GUID, sizeof(SW_WEBSOCKET_GUID) - 1);
     // sha1 sec_websocket_accept
-    swoole_sha1(_buf, str_pData.len() + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
-    // base64
-    n = swBase64_encode((unsigned char *) sha1_str, sizeof(sha1_str), encoded_str);
-    n = sw_snprintf(_buf, sizeof(_buf), "Sec-WebSocket-Accept: %.*s\r\n", n, encoded_str);
+    swoole_sha1(sec_buf, str_pData.len() + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
+    // base64 encode
+    int sec_len = swBase64_encode((unsigned char *) sha1_str, sizeof(sha1_str), sec_buf);
 
-    if (swString_append_ptr(buffer, _buf, n) < 0)
+    swoole_http_response_set_header(ctx, ZEND_STRL("Upgrade"), ZEND_STRL("websocket"), false);
+    swoole_http_response_set_header(ctx, ZEND_STRL("Connection"), ZEND_STRL("Upgrade"), false);
+    swoole_http_response_set_header(ctx, ZEND_STRL("Sec-WebSocket-Accept"), sec_buf, sec_len, false);
+    swoole_http_response_set_header(ctx, ZEND_STRL("Sec-WebSocket-Version"), ZEND_STRL(SW_WEBSOCKET_VERSION), false);
+
+    if (!ctx->co_socket)
     {
-        return SW_ERR;
+        swServer *serv = (swServer *)ctx->private_data;
+        swConnection *conn = swWorker_get_connection(serv, ctx->fd);
+        if (!conn)
+        {
+            swWarn("session[%d] is closed", ctx->fd);
+            return false;
+        }
+        conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
+        swListenPort *port = (swListenPort *) serv->connection_list[conn->from_fd].object;
+        if (port && port->websocket_subprotocol)
+        {
+            swoole_http_response_set_header(ctx, ZEND_STRL("Sec-WebSocket-Protocol"), port->websocket_subprotocol,
+                    port->websocket_subprotocol_length, false);
+        }
     }
 
-    return SW_OK;
-}
+    ctx->response.status = 101;
+    ctx->upgrade = 1;
 
-static int websocket_handshake(swServer *serv, swListenPort *port, http_context *ctx)
-{
-    swString_clear(swoole_http_buffer);
-    swString_append_ptr(swoole_http_buffer, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"));
-
-    if (swoole_websocket_append_secret(swoole_http_buffer, ctx) < 0)
-    {
-        return SW_ERR;
-    }
-
-    swString_append_ptr(swoole_http_buffer, ZEND_STRL("Sec-WebSocket-Version: " SW_WEBSOCKET_VERSION "\r\n"));
-    if (port->websocket_subprotocol)
-    {
-        swString_append_ptr(swoole_http_buffer, ZEND_STRL("Sec-WebSocket-Protocol: "));
-        swString_append_ptr(swoole_http_buffer, port->websocket_subprotocol, port->websocket_subprotocol_length);
-        swString_append_ptr(swoole_http_buffer, ZEND_STRL("\r\n"));
-    }
-    swString_append_ptr(swoole_http_buffer, ZEND_STRL("Server: " SW_WEBSOCKET_SERVER_SOFTWARE "\r\n\r\n"));
-
-    swTrace("websocket header len:%ld\n%s \n", swoole_http_buffer->length, swoole_http_buffer->str);
-
-    swConnection *conn = swWorker_get_connection(serv, ctx->fd);
-    if (!conn)
-    {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed", ctx->fd);
-        return SW_ERR;
-    }
-    conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
-    return ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length) ? SW_OK : SW_ERR;
+    zval retval;
+    swoole_http_response_end(ctx, nullptr, &retval);
+    return Z_TYPE(retval) == IS_TRUE;
 }
 
 int swoole_websocket_onMessage(swServer *serv, swEventData *req)
@@ -369,22 +354,19 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
 int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_context *ctx)
 {
     int fd = ctx->fd;
-    int ret = websocket_handshake(serv, port, ctx);
-    if (ret == SW_ERR)
-    {
-        serv->close(serv, fd, 1);
-    }
-    else
+    bool success = swoole_websocket_handshake(ctx);
+    if (success)
     {
         swoole_websocket_onOpen(serv, ctx);
     }
-
-    //free client data
+    else
+    {
+        serv->close(serv, fd, 1);
+    }
     if (!ctx->end)
     {
         swoole_http_context_free(ctx);
     }
-
     return SW_OK;
 }
 

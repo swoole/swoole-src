@@ -16,13 +16,7 @@
  +----------------------------------------------------------------------+
  */
 
-#ifndef SWOOLE_HTTP_H_
-#define SWOOLE_HTTP_H_
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+#pragma once
 
 #include "thirdparty/swoole_http_parser.h"
 #include "thirdparty/multipart_parser.h"
@@ -189,6 +183,9 @@ const swoole_http_parser_settings* swoole_http_get_parser_setting();
 
 void swoole_http_server_init_context(swServer *serv, http_context *ctx);
 
+bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t klen, const char *v, size_t vlen, bool ucwords);
+void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value);
+
 #ifdef SW_HAVE_ZLIB
 int swoole_http_response_compress(swString *body, int method, int level);
 void swoole_http_get_compression_method(http_context *ctx, const char *accept_encoding, size_t length);
@@ -251,24 +248,16 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req);
 int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_context *ctx);
 void swoole_websocket_onOpen(http_context *ctx);
 void swoole_websocket_onRequest(http_context *ctx);
-int swoole_websocket_append_secret(swString *buffer, http_context *ctx);
+bool swoole_websocket_handshake(http_context *ctx);
 
 #ifdef SW_USE_HTTP2
 int swoole_http2_server_onFrame(swConnection *conn, swEventData *req);
 int swoole_http2_server_do_response(http_context *ctx, swString *body);
 void swoole_http2_server_session_free(swConnection *conn);
 int swoole_http2_server_ping(http_context *ctx);
-#endif
 
-#ifdef __cplusplus
-}
-#endif
-
-#ifdef SW_USE_HTTP2
-namespace swoole
-{
-namespace http2
-{
+namespace swoole { namespace http2 {
+//-----------------------------------namespace begin--------------------------------------------
 class headers
 {
 public:
@@ -343,8 +332,6 @@ private:
     size_t size;
     size_t index;
 };
-}
-}
+//-----------------------------------namespace end--------------------------------------------
+}}
 #endif
-
-#endif /* SWOOLE_HTTP_H_ */
