@@ -599,7 +599,7 @@ struct _swServer
      * Server method
      */
     int (*send)(swServer *serv, int session_id, void *data, uint32_t length);
-    int (*sendfile)(swServer *serv, int session_id, char *file, uint32_t l_file, off_t offset, size_t length);
+    int (*sendfile)(swServer *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
     int (*sendwait)(swServer *serv, int session_id, void *data, uint32_t length);
     int (*close)(swServer *serv, int session_id, int reset);
     int (*notify)(swServer *serv, swConnection *conn, int event);

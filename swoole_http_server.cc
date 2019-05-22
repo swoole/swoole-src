@@ -94,8 +94,9 @@ static int multipart_body_on_data_end(multipart_parser* p);
 static http_context* http_get_context(zval *zobject, const bool check_end);
 static void http_build_header(http_context *, swString *response, int body_length);
 
-static bool http_context_send_data(struct _http_context* ctx, const char *data, size_t length);
-static bool http_context_disconnect(struct _http_context* ctx);
+static bool http_context_send_data(http_context* ctx, const char *data, size_t length);
+static bool http_context_send_file(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
+static bool http_context_disconnect(http_context* ctx);
 
 static inline void http_header_key_format(char *key, int length)
 {
@@ -1094,6 +1095,7 @@ void swoole_http_server_init(int module_number)
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_http_response);
 
     zend_declare_property_long(swoole_http_response_ce, ZEND_STRL("fd"), 0,  ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("socket"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("header"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("cookie"), ZEND_ACC_PUBLIC);
 #ifdef SW_USE_HTTP2
@@ -1143,6 +1145,7 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx)
 #endif
     ctx->private_data = serv;
     ctx->send = http_context_send_data;
+    ctx->sendfile = http_context_send_file;
     ctx->close = http_context_disconnect;
 }
 
@@ -1701,10 +1704,19 @@ static PHP_METHOD(swoole_http_response, end)
         Z_PARAM_ZVAL_EX(zdata, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    swoole_http_response_end(ctx, zdata, return_value);
-    if (!ctx->end)
+#ifdef SW_USE_HTTP2
+    if (ctx->stream)
     {
-        swoole_http_context_free(ctx);
+        swoole_http2_response_end(ctx, zdata, return_value);
+    }
+    else
+#endif
+    {
+        swoole_http_response_end(ctx, zdata, return_value);
+        if (!ctx->end)
+        {
+            swoole_http_context_free(ctx);
+        }
     }
 }
 
@@ -1720,13 +1732,6 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
         http_body.length = 0;
         http_body.str = NULL;
     }
-
-#ifdef SW_USE_HTTP2
-    if (ctx->stream)
-    {
-        RETURN_BOOL(swoole_http2_server_do_response(ctx, &http_body) == SW_OK);
-    }
-#endif
 
     ctx->private_data_2 = return_value;
 
@@ -1869,7 +1874,7 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
         }
         else
         {
-            add_assoc_stringl_ex(zheader, key_buf, klen, v, vlen);
+            sw_add_assoc_stringl_ex(zheader, key_buf, klen, v, vlen);
         }
     }
     else
@@ -1880,7 +1885,7 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
         }
         else
         {
-            add_assoc_stringl_ex(zheader, k, klen, v, vlen);
+            sw_add_assoc_stringl_ex(zheader, k, klen, v, vlen);
         }
     }
     return true;
@@ -1888,16 +1893,16 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
 
 static PHP_METHOD(swoole_http_response, sendfile)
 {
-    char *filename;
-    size_t filename_length;
+    char *file;
+    size_t l_file;
     zend_long offset = 0;
     zend_long length = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &filename, &filename_length, &offset, &length) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &file, &l_file, &offset, &length) == FAILURE)
     {
         RETURN_FALSE;
     }
-    if (filename_length <= 0)
+    if (l_file <= 0)
     {
         swoole_php_error(E_WARNING, "file name is empty");
         RETURN_FALSE;
@@ -1920,14 +1925,14 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
 
     struct stat file_stat;
-    if (stat(filename, &file_stat) < 0)
+    if (stat(file, &file_stat) < 0)
     {
-        swoole_php_sys_error(E_WARNING, "stat(%s) failed", filename);
+        swoole_php_sys_error(E_WARNING, "stat(%s) failed", file);
         RETURN_FALSE;
     }
     if (file_stat.st_size == 0)
     {
-        swoole_php_sys_error(E_WARNING, "can't send empty file[%s]", filename);
+        swoole_php_sys_error(E_WARNING, "can't send empty file[%s]", file);
         RETURN_FALSE;
     }
     if (file_stat.st_size <= offset)
@@ -1948,15 +1953,12 @@ static PHP_METHOD(swoole_http_response, sendfile)
     swString_clear(swoole_http_buffer);
     http_build_header(ctx, swoole_http_buffer, length);
 
-    swServer *serv = SwooleG.serv;
-
     if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
     {
         ctx->send_header = 0;
         RETURN_FALSE;
     }
-    // TODO: use ctx?
-    if (serv->sendfile(serv, ctx->fd, filename, filename_length, offset, length) < 0)
+    if (!ctx->sendfile(ctx, file, l_file, offset, length))
     {
         ctx->send_header = 0;
         RETURN_FALSE;
@@ -2376,6 +2378,12 @@ static bool http_context_send_data(http_context* ctx, const char *data, size_t l
         }
     }
     return ret == SW_OK;
+}
+
+static bool http_context_send_file(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length)
+{
+    swServer *serv = (swServer *) ctx->private_data;
+    return serv->sendfile(serv, ctx->fd, file, l_file, offset, length) == SW_OK;
 }
 
 static bool http_context_disconnect(http_context* ctx)

@@ -901,4 +901,21 @@ void swoole_http2_server_session_free(swConnection *conn)
     http2_sessions.erase(conn->session_id);
     delete client;
 }
+
+void swoole_http2_response_end(http_context *ctx, zval *zdata, zval *return_value)
+{
+    swString http_body;
+    if (zdata)
+    {
+        http_body.length = php_swoole_get_send_data(zdata, &http_body.str);
+    }
+    else
+    {
+        http_body.length = 0;
+        http_body.str = NULL;
+    }
+
+    RETURN_BOOL(swoole_http2_server_do_response(ctx, &http_body) == SW_OK);
+}
+
 #endif

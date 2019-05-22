@@ -33,6 +33,7 @@ static zend_class_entry *swoole_http_server_coro_ce;
 static zend_object_handlers swoole_http_server_coro_handlers;
 
 static bool http_context_send_data(http_context* ctx, const char *data, size_t length);
+static bool http_context_send_file(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(http_context* ctx);
 
 class http_server
@@ -87,7 +88,7 @@ public:
         return default_handler;
     }
 
-    http_context* create_context(Socket *conn)
+    http_context* create_context(Socket *conn, zval *zconn)
     {
         http_context *ctx = swoole_http_context_new(conn->get_fd());
         swoole_http_parser *parser = &ctx->parser;
@@ -101,7 +102,10 @@ public:
         ctx->private_data = conn;
         ctx->co_socket = 1;
         ctx->send = http_context_send_data;
+        ctx->sendfile = http_context_send_file;
         ctx->close = http_context_disconnect;
+
+        zend_update_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("socket"), zconn);
 
         swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
 
@@ -159,6 +163,12 @@ static bool http_context_send_data(http_context* ctx, const char *data, size_t l
     return sock->send_all(data, length) == (ssize_t) length;
 }
 
+static bool http_context_send_file(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length)
+{
+    Socket *sock = (Socket *) ctx->private_data;
+    return sock->sendfile(file, offset, length);
+}
+
 static bool http_context_disconnect(http_context* ctx)
 {
     Socket *sock = (Socket *) ctx->private_data;
@@ -170,7 +180,18 @@ static void swoole_http_server_coro_free_object(zend_object *object)
     http_server_coro_t *hsc = swoole_http_server_coro_fetch_object(object);
     if (hsc->server)
     {
-        delete hsc->server;
+        http_server *hs = hsc->server;
+        if (hs->default_handler)
+        {
+            sw_fci_cache_discard(&hs->default_handler->fci_cache);
+            efree(hs->default_handler);
+        }
+        for (auto i = hs->handlers.begin(); i != hs->handlers.end(); i++)
+        {
+            sw_fci_cache_discard(&i->second->fci_cache);
+            efree(i->second);
+        }
+        delete hs;
     }
     zend_object_std_dtor(&hsc->std);
 }
@@ -188,22 +209,23 @@ void swoole_http_server_coro_init(int module_number)
 static PHP_METHOD(swoole_http_server_coro, __construct)
 {
     char *host;
-    size_t host_len;
+    size_t l_host;
     zend_long port = 0;
     zend_bool ssl = 0;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 3)
-        Z_PARAM_STRING(host, host_len)
+        Z_PARAM_STRING(host, l_host)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(port)
         Z_PARAM_BOOL(ssl)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property_stringl(swoole_http_server_coro_ce, getThis(), ZEND_STRL("host"), host, host_len);
+    zend_update_property_stringl(swoole_http_server_coro_ce, getThis(), ZEND_STRL("host"), host, l_host);
     zend_update_property_long(swoole_http_server_coro_ce, getThis(), ZEND_STRL("port"), port);
     zend_update_property_bool(swoole_http_server_coro_ce, getThis(), ZEND_STRL("ssl"), ssl);
+
     // check host
-    if (host_len == 0)
+    if (l_host == 0)
     {
         zend_throw_exception_ex(swoole_exception_ce, EINVAL, "host is empty");
         RETURN_FALSE;
@@ -219,6 +241,18 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
         RETURN_FALSE;
     }
 #endif
+    http_server *hs = http_server_get_object(Z_OBJ_P(getThis()));
+    Socket *sock = hs->socket;
+    if (!sock->bind(string(host, l_host), port))
+    {
+        zend_throw_exception_ex(swoole_exception_ce, EINVAL, "bind(%s:%d) failed", host, (int) port);
+        RETURN_FALSE
+    }
+    if (!sock->listen())
+    {
+        zend_throw_exception_ex(swoole_exception_ce, EINVAL, "listen() failed");
+        RETURN_FALSE
+    }
 }
 
 static PHP_METHOD(swoole_http_server_coro, handle)
@@ -242,23 +276,7 @@ static PHP_METHOD(swoole_http_server_coro, start)
 {
     http_server *hs = http_server_get_object(Z_OBJ_P(getThis()));
 
-    zval *zhost = sw_zend_read_property(swoole_http_server_coro_ce, getThis(), ZEND_STRL("host"), 1);
-    zval *zport = sw_zend_read_property(swoole_http_server_coro_ce, getThis(), ZEND_STRL("port"), 1);
-
-    auto host = zend::string(zhost);
-    int port = zval_get_long(zport);
-
     auto sock = hs->socket;
-
-    if (!sock->bind(host.to_std_string(), port))
-    {
-        RETURN_FALSE
-    }
-    if (!sock->listen())
-    {
-        RETURN_FALSE
-    }
-
     char *func_name = NULL;
     zend_fcall_info_cache func_cache;
     zval zcallback;
@@ -266,6 +284,7 @@ static PHP_METHOD(swoole_http_server_coro, start)
 
     if (!sw_zend_is_callable_ex(&zcallback, getThis(), 0, &func_name, NULL, &func_cache, NULL))
     {
+        efree(func_name);
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;
     }
@@ -282,8 +301,11 @@ static PHP_METHOD(swoole_http_server_coro, start)
         {
             php_swoole_init_socket_object(&argv[0], conn);
             PHPCoroutine::create(&func_cache, 1, argv);
+            zval_dtor(&argv[0]);
         }
     }
+
+    zval_dtor(&zcallback);
 
     RETURN_TRUE
 }
@@ -303,7 +325,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Socket *sock = php_swoole_get_socket(zconn);
-    http_context *ctx = hs->create_context(sock);
+    http_context *ctx = hs->create_context(sock, zconn);
 
     size_t total_bytes = 0;
     long parsed_n;
@@ -343,7 +365,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
                 if (hs->running && keep_alive)
                 {
                     //create new http_context
-                    ctx = hs->create_context(sock);
+                    ctx = hs->create_context(sock, zconn);
                     continue;
                 }
             }
