@@ -808,11 +808,12 @@ typedef struct _swProtocol
     uint32_t package_max_length;
 
     void *private_data;
+    void *private_data_2;
     uint16_t real_header_length;
 
-    int (*onPackage)(swConnection *conn, char *data, uint32_t length);
-	ssize_t (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
-	uint8_t (*get_package_length_size)(swConnection *conn);
+    int (*onPackage)(struct _swProtocol *, swConnection *, char *, uint32_t);
+    ssize_t (*get_package_length)(struct _swProtocol *, swConnection *, char *, uint32_t);
+    uint8_t (*get_package_length_size)(swConnection *);
 } swProtocol;
 typedef ssize_t (*swProtocol_length_function)(struct _swProtocol *, swConnection *, char *, uint32_t);
 //------------------------------String--------------------------------

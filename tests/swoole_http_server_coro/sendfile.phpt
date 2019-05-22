@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server_coro: handle
+swoole_http_server_coro: sendfile
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -29,6 +29,7 @@ $pm->childFunc = function () use ($pm) {
         });
         $server->handle('/shutdown', function ($request, $response) use ($server) {
             echo "shutdown\n";
+            $response->status(200);
             $server->shutdown();
         });
         $pm->wakeup();

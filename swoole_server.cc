@@ -703,11 +703,11 @@ int php_swoole_task_pack(swEventData *task, zval *data)
     return task->info.fd;
 }
 
-void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint32_t header_length)
+void php_swoole_get_recv_data(swServer *serv, zval *zdata, swEventData *req, char *header, uint32_t header_length)
 {
     char *data = NULL;
 
-    size_t length = swWorker_get_data(req, &data);
+    size_t length = swWorker_get_data(serv, req, &data);
     if (header_length >= length)
     {
         ZVAL_EMPTY_STRING(zdata);
@@ -1198,7 +1198,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     args[0] = *zserv;
     ZVAL_LONG(&args[1], (zend_long) req->info.fd);
     ZVAL_LONG(&args[2], (zend_long) req->info.from_id);
-    php_swoole_get_recv_data(&args[3], req, NULL, 0);
+    php_swoole_get_recv_data(serv, &args[3], req, NULL, 0);
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 4, args, NULL, SwooleG.enable_coroutine)))
     {
@@ -1216,7 +1216,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     zval zaddr;
 
     char *buffer;
-    swWorker_get_data(req, &buffer);
+    swWorker_get_data(serv, req, &buffer);
 
     array_init(&zaddr);
 

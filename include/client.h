@@ -189,6 +189,7 @@ typedef struct _swStream
 {
     swString *buffer;
     uint8_t cancel;
+    void *private_data;
     void (*response)(struct _swStream *stream, char *data, uint32_t length);
     swClient client;
 } swStream;

@@ -215,9 +215,9 @@ static int swWorker_onStreamClose(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t length)
+static int swWorker_onStreamPackage(swProtocol *proto, swConnection *conn, char *data, uint32_t length)
 {
-    swServer *serv = SwooleG.serv;
+    swServer *serv = (swServer *) proto->private_data_2;
 
     /**
      * passing memory pointer

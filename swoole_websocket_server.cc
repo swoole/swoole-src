@@ -241,10 +241,9 @@ void swoole_websocket_onRequest(http_context *ctx)
             "Server: " SW_HTTP_SERVER_SOFTWARE "\r\n\r\n"
             "<html><body><h2>HTTP 400 Bad Request</h2><hr><i>Powered by Swoole</i></body></html>";
 
-    swServer *serv = SwooleG.serv;
-    serv->send(serv, ctx->fd, (char *) bad_request, strlen(bad_request));
+    ctx->send(ctx, (char *) bad_request, strlen(bad_request));
     ctx->end = 1;
-    serv->close(serv, ctx->fd, 0);
+    ctx->close(ctx);
     swoole_http_context_free(ctx);
 }
 
@@ -320,13 +319,13 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
     zval zdata;
     char frame_header[2];
 
-    php_swoole_get_recv_data(&zdata, req, frame_header, SW_WEBSOCKET_HEADER_LEN);
+    php_swoole_get_recv_data(serv, &zdata, req, frame_header, SW_WEBSOCKET_HEADER_LEN);
 
     // frame info has already decoded in swWebSocket_dispatch_frame
     finish = frame_header[0] ? 1 : 0;
     opcode = frame_header[1];
 
-    if (opcode == WEBSOCKET_OPCODE_CLOSE && !SwooleG.serv->listen_list->open_websocket_close_frame)
+    if (opcode == WEBSOCKET_OPCODE_CLOSE && !serv->listen_list->open_websocket_close_frame)
     {
         zval_ptr_dtor(&zdata);
         return SW_OK;
@@ -342,7 +341,7 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
     if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
     {
         swoole_php_error(E_WARNING, "%s->onMessage handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
-        SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+        serv->close(serv, fd, 0);
     }
 
     zval_ptr_dtor(&zdata);

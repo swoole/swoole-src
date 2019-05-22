@@ -170,11 +170,11 @@ static DataBuffer task_unpack(swEventData *task_result)
     return retval;
 }
 
-static DataBuffer get_recv_data(swEventData *req, char *header, uint32_t header_length)
+static DataBuffer get_recv_data(swServer *serv, swEventData *req, char *header, uint32_t header_length)
 {
     char *data_ptr = NULL;
     DataBuffer retval;
-    size_t data_len = swWorker_get_data(req, &data_ptr);
+    size_t data_len = swWorker_get_data(serv, req, &data_ptr);
 
     if (header_length >= (uint32_t) data_len)
     {
@@ -195,12 +195,12 @@ static DataBuffer get_recv_data(swEventData *req, char *header, uint32_t header_
 
 int Server::check_task_param(int dst_worker_id)
 {
-    if (SwooleG.serv->task_worker_num < 1)
+    if (serv.task_worker_num < 1)
     {
         swWarn("Task method cannot use, Please set task_worker_num");
         return SW_ERR;
     }
-    if (dst_worker_id >= SwooleG.serv->task_worker_num)
+    if (dst_worker_id >= serv.task_worker_num)
     {
         swWarn("worker_id must be less than serv->task_worker_num");
         return SW_ERR;
@@ -439,7 +439,7 @@ bool Server::start(void)
 
 int Server::_onReceive(swServer *serv, swEventData *req)
 {
-    DataBuffer data = get_recv_data(req, NULL, 0);
+    DataBuffer data = get_recv_data(serv, req, NULL, 0);
     Server *_this = (Server *) serv->ptr2;
     _this->onReceive(req->info.fd, data);
     return SW_OK;
@@ -462,7 +462,7 @@ int Server::_onPacket(swServer *serv, swEventData *req)
     swDgramPacket *packet;
 
     char *buffer;
-    swWorker_get_data(req, &buffer);
+    swWorker_get_data(serv, req, &buffer);
     packet = (swDgramPacket *) buffer;
 
     char *data = NULL;

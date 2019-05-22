@@ -11,7 +11,6 @@ $pm->parentFunc = function () use ($pm) {
         echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/") . PHP_EOL;
         echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/test/index/") . PHP_EOL;
         echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/stop?hello=1") . PHP_EOL;
-        $pm->kill();
     });
 };
 $pm->childFunc = function () use ($pm) {

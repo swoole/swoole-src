@@ -1587,6 +1587,30 @@ bool Socket::shutdown(int __how)
     return false;
 }
 
+bool Socket::cancel(const enum swEvent_type event)
+{
+    if (!has_bound(event))
+    {
+        return false;
+    }
+    if (event == SW_EVENT_READ)
+    {
+        set_err(ECANCELED);
+        read_co->resume();
+        return true;
+    }
+    else if (event == SW_EVENT_READ)
+    {
+        set_err(ECANCELED);
+        write_co->resume();
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
 /**
  * @return bool (whether it can be freed)
  * you can access errCode member to get error information

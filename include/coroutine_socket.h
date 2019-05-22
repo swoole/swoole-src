@@ -87,6 +87,7 @@ public:
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
     bool close();
+    bool cancel(const enum swEvent_type event);
     bool is_connect();
     bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
@@ -139,7 +140,7 @@ public:
 
     inline bool has_bound(const enum swEvent_type event = SW_EVENT_RDWR)
     {
-        return !!get_bound_co(event);
+        return get_bound_co(event) != nullptr;
     }
 
     inline Coroutine* get_bound_co(const enum swEvent_type event)

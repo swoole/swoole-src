@@ -949,7 +949,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 #ifdef SW_USE_HTTP2
     if (conn->http2_stream)
     {
-        return swoole_http2_server_onFrame(conn, req);
+        return swoole_http2_server_onFrame(serv, conn, req);
     }
 #endif
 
@@ -961,7 +961,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     swoole_http_server_init_context(serv, ctx);
 
     zval *zdata = sw_malloc_zval();
-    php_swoole_get_recv_data(zdata, req, NULL, 0);
+    php_swoole_get_recv_data(serv, zdata, req, NULL, 0);
 
     swTrace("http request from %d with %d bytes: <<EOF\n%.*s\nEOF", fd, (int)Z_STRLEN_P(zdata), (int)Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
 
@@ -2332,6 +2332,10 @@ static PHP_METHOD(swoole_http_response, __destruct)
     http_context *ctx = (http_context *) swoole_get_object(getThis());
     if (ctx)
     {
+        if (ctx->response.status == 0)
+        {
+            ctx->response.status = 500;
+        }
         if (ctx->co_socket)
         {
             swoole_http_response_end(ctx, nullptr, return_value);
@@ -2346,10 +2350,6 @@ static PHP_METHOD(swoole_http_response, __destruct)
             }
             else
             {
-                if (ctx->response.status == 0)
-                {
-                    ctx->response.status = 500;
-                }
                 swoole_http_response_end(ctx, nullptr, return_value);
             }
         }
@@ -2366,7 +2366,7 @@ static bool http_context_send_data(http_context* ctx, const char *data, size_t l
     swServer *serv = (swServer *) ctx->private_data;
     zval *return_value = (zval *) ctx->private_data_2;
     ssize_t ret = serv->send(serv, ctx->fd, (void*) data, length);
-    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && SwooleG.serv && serv->send_yield)
+    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv && serv->send_yield)
     {
         zval _yield_data;
         ZVAL_STRINGL(&_yield_data, swoole_http_buffer->str, swoole_http_buffer->length);
