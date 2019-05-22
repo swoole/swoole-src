@@ -2332,6 +2332,10 @@ static PHP_METHOD(swoole_http_response, __destruct)
     http_context *ctx = (http_context *) swoole_get_object(getThis());
     if (ctx)
     {
+        if (ctx->response.status == 0)
+        {
+            ctx->response.status = 500;
+        }
         if (ctx->co_socket)
         {
             swoole_http_response_end(ctx, nullptr, return_value);
@@ -2346,10 +2350,6 @@ static PHP_METHOD(swoole_http_response, __destruct)
             }
             else
             {
-                if (ctx->response.status == 0)
-                {
-                    ctx->response.status = 500;
-                }
                 swoole_http_response_end(ctx, nullptr, return_value);
             }
         }

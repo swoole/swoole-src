@@ -325,56 +325,62 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Socket *sock = php_swoole_get_socket(zconn);
-    http_context *ctx = hs->create_context(sock, zconn);
-
     size_t total_bytes = 0;
     long parsed_n;
+    http_context *ctx = nullptr;
 
     while (true)
     {
         auto buffer = sock->get_read_buffer();
         ssize_t retval = sock->recv(buffer->str, buffer->size);
-        if (unlikely(retval > 0))
+        if (unlikely(retval <= 0))
         {
-            total_bytes += retval;
-            parsed_n = swoole_http_parser_execute(&ctx->parser, swoole_http_get_parser_setting(), buffer->str, retval);
-            swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d", parsed_n, retval, total_bytes, ctx->completed);
-
-            if (ctx->completed)
-            {
-                zval *zserver = ctx->request.zserver;
-                add_assoc_long(zserver, "server_port", hs->socket->get_bind_port());
-                add_assoc_long(zserver, "remote_port", (zend_long) swConnection_get_port(sock->socket));
-                add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(sock->socket));
-
-                php_swoole_fci *fci = hs->get_handler(ctx);
-                zval args[2];
-                args[0] = *ctx->request.zobject;
-                args[1] = *ctx->response.zobject;
-
-                bool keep_alive = swoole_http_should_keep_alive(&ctx->parser) && !ctx->websocket;
-
-                if (UNEXPECTED(!zend::function::call(&fci->fci_cache, 2, args, NULL, 0)))
-                {
-                    swoole_php_error(E_WARNING, "handler error");
-                }
-
-                zval_dtor(&args[0]);
-                zval_dtor(&args[1]);
-
-                if (hs->running && keep_alive)
-                {
-                    //create new http_context
-                    ctx = hs->create_context(sock, zconn);
-                    continue;
-                }
-            }
-            else
-            {
-                continue;
-            }
+            break;
         }
-        break;
+
+        if (!ctx)
+        {
+            ctx = hs->create_context(sock, zconn);
+        }
+
+        total_bytes += retval;
+        parsed_n = swoole_http_parser_execute(&ctx->parser, swoole_http_get_parser_setting(), buffer->str, retval);
+        swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d", parsed_n, retval, total_bytes, ctx->completed);
+
+        if (!ctx->completed)
+        {
+            continue;
+        }
+
+        zval *zserver = ctx->request.zserver;
+        add_assoc_long(zserver, "server_port", hs->socket->get_bind_port());
+        add_assoc_long(zserver, "remote_port", (zend_long) swConnection_get_port(sock->socket));
+        add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(sock->socket));
+
+        php_swoole_fci *fci = hs->get_handler(ctx);
+        zval args[2];
+        args[0] = *ctx->request.zobject;
+        args[1] = *ctx->response.zobject;
+
+        bool keep_alive = swoole_http_should_keep_alive(&ctx->parser) && !ctx->websocket;
+
+        if (UNEXPECTED(!zend::function::call(&fci->fci_cache, 2, args, NULL, 0)))
+        {
+            swoole_php_error(E_WARNING, "handler error");
+        }
+
+        zval_dtor(&args[0]);
+        zval_dtor(&args[1]);
+
+        if (hs->running && keep_alive)
+        {
+            ctx = nullptr;
+            continue;
+        }
+        else
+        {
+            break;
+        }
     }
 }
 
@@ -382,4 +388,5 @@ static PHP_METHOD(swoole_http_server_coro, shutdown)
 {
     http_server *hs = http_server_get_object(Z_OBJ_P(getThis()));
     hs->running = false;
+    hs->socket->cancel(SW_EVENT_READ);
 }
