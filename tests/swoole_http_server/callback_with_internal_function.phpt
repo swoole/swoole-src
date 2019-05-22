@@ -79,6 +79,8 @@ object(Swoole\Http\Request)#%d (%d) {
 object(Swoole\Http\Response)#%d (%d) {
   ["fd"]=>
   int(1)
+  ["socket"]=>
+  NULL
   ["header"]=>
   NULL
   ["cookie"]=>
