@@ -65,7 +65,7 @@ id bigint PRIMARY KEY AUTO_INCREMENT,
 SQL;
         // gen data and insert
         if (!$mysql->query($createTable)) {
-            trigger_error("create table error by query statement [{$createTable}]", E_WARNING);
+            trigger_error("create table error by query statement [{$createTable}]", E_USER_WARNING);
             return;
         }
         $_insert = "INSERT INTO {$table_name} VALUES (" . rtrim(str_repeat('?, ', $field_size + 1), ', ') . ")";

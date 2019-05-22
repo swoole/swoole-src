@@ -42,9 +42,9 @@ using swoole::coroutine::Socket;
 
 /* keep same with pdo and mysqli */
 #define MYSQLND_UNKNOWN_SQLSTATE        "HY000"
+#define MYSQLND_SERVER_GONE             "MySQL server has gone away"
 #define MYSQLND_CR_UNKNOWN_ERROR        2000
 #define MYSQLND_CR_CONNECTION_ERROR     2002
-#define MYSQLND_SERVER_GONE_ERROR       "MySQL server has gone away"
 #define MYSQLND_CR_SERVER_GONE_ERROR    2006
 #define MYSQLND_CR_OUT_OF_MEMORY        2008
 #define MYSQLND_CR_SERVER_LOST          2013
@@ -107,19 +107,41 @@ public:
         );
     }
 
-    inline void connection_error()
+    void connection_error()
     {
-        non_sql_error(MYSQLND_CR_CONNECTION_ERROR, strerror(ECONNRESET));
+        if (!is_connect())
+        {
+            non_sql_error(MYSQLND_CR_CONNECTION_ERROR, strerror(ECONNRESET));
+        }
+        else
+        {
+            non_sql_error(MYSQLND_CR_SERVER_GONE_ERROR, MYSQLND_SERVER_GONE);
+        }
         // has been closed
     }
 
-    inline void io_error()
+    void io_error()
     {
-        non_sql_error(MYSQLND_CR_SERVER_GONE_ERROR, MYSQLND_SERVER_GONE_ERROR ": %s", socket->errMsg);
+        switch (socket->errCode)
+        {
+        // which not declared in mysqlnd
+        case ETIMEDOUT:
+            non_sql_error(socket->errCode, socket->errMsg);
+            break;
+        default:
+            if (!socket->is_connect())
+            {
+                non_sql_error(MYSQLND_CR_CONNECTION_ERROR, socket->errMsg);
+            }
+            else
+            {
+                non_sql_error(MYSQLND_CR_SERVER_GONE_ERROR, MYSQLND_SERVER_GONE ": %s", socket->errMsg);
+            }
+        }
         close();
     }
 
-    inline void proto_error(const char *data, const enum sw_mysql_packet_types expected_type)
+    void proto_error(const char *data, const enum sw_mysql_packet_types expected_type)
     {
         mysql::server_packet packet(data);
         non_sql_error(
@@ -129,7 +151,7 @@ public:
         close();
     }
 
-    inline void server_error(const char *data)
+    void server_error(const char *data)
     {
         mysql::err_packet err_packet(data);
         error_code = err_packet.code;
@@ -226,18 +248,12 @@ public:
 
     inline bool check_liveness()
     {
-        if (likely(socket))
+        if (likely(socket && socket->check_liveness()))
         {
-            if (likely(socket->check_liveness()))
-            {
-                return true;
-            }
-            else
-            {
-                close();
-            }
+            return true;
         }
         connection_error();
+        close();
         return false;
     }
 
@@ -246,7 +262,7 @@ public:
         return is_connect() && !socket->has_bound(SW_EVENT_WRITE);
     }
 
-    inline bool is_available_for_new_reuqest()
+    bool is_available_for_new_reuqest()
     {
         if (unlikely(state != SW_MYSQL_STATE_IDLE && state != SW_MYSQL_STATE_CLOSED))
         {
@@ -1982,6 +1998,20 @@ void swoole_mysql_coro_init(int module_number)
     zend_declare_property_long(swoole_mysql_coro_statement_ce, ZEND_STRL("insert_id"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_mysql_coro_statement_ce, ZEND_STRL("error"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_mysql_coro_statement_ce, ZEND_STRL("errno"), 0, ZEND_ACC_PUBLIC);
+
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MYSQLND_CR_UNKNOWN_ERROR", MYSQLND_CR_UNKNOWN_ERROR);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MYSQLND_CR_CONNECTION_ERROR", MYSQLND_CR_CONNECTION_ERROR);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MYSQLND_CR_SERVER_GONE_ERROR", MYSQLND_CR_SERVER_GONE_ERROR);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MYSQLND_CR_OUT_OF_MEMORY", MYSQLND_CR_OUT_OF_MEMORY);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MYSQLND_CR_SERVER_LOST", MYSQLND_CR_SERVER_LOST);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MYSQLND_CR_COMMANDS_OUT_OF_SYNC", MYSQLND_CR_COMMANDS_OUT_OF_SYNC);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MYSQLND_CR_CANT_FIND_CHARSET", MYSQLND_CR_CANT_FIND_CHARSET);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MYSQLND_CR_MALFORMED_PACKET", MYSQLND_CR_MALFORMED_PACKET);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MYSQLND_CR_NOT_IMPLEMENTED", MYSQLND_CR_NOT_IMPLEMENTED);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MYSQLND_CR_NO_PREPARE_STMT", MYSQLND_CR_NO_PREPARE_STMT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MYSQLND_CR_PARAMS_NOT_BOUND", MYSQLND_CR_PARAMS_NOT_BOUND);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MYSQLND_CR_INVALID_PARAMETER_NO", MYSQLND_CR_INVALID_PARAMETER_NO);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MYSQLND_CR_INVALID_BUFFER_USE", MYSQLND_CR_INVALID_BUFFER_USE);
 }
 
 static PHP_METHOD(swoole_mysql_coro, __construct) { }
