@@ -15,8 +15,7 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_MYSQL_H_
-#define SW_MYSQL_H_
+#pragma once
 
 #include "swoole_cxx.h"
 
@@ -310,10 +309,8 @@ enum sw_mysql_server_status_flags
 #define swMysqlPacketDump(length, number, data, title)
 #endif
 
-namespace swoole
-{
-namespace mysql
-{
+namespace swoole { namespace mysql {
+//-----------------------------------namespace begin--------------------------------------------
 char get_charset(const char *name);
 uint8_t get_static_type_size(uint8_t type);
 
@@ -997,7 +994,5 @@ protected:
     uint32_t size;
     char *map;
 };
-}
-}
-
-#endif /* SW_MYSQL_H_ */
+//-----------------------------------namespace end--------------------------------------------
+}}
