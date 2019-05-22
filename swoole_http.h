@@ -255,6 +255,7 @@ bool swoole_websocket_handshake(http_context *ctx);
 int swoole_http2_server_onFrame(swConnection *conn, swEventData *req);
 int swoole_http2_server_do_response(http_context *ctx, swString *body);
 void swoole_http2_server_session_free(swConnection *conn);
+void swoole_http2_response_end(http_context *ctx, zval *zdata, zval *return_value);
 int swoole_http2_server_ping(http_context *ctx);
 
 namespace swoole { namespace http2 {

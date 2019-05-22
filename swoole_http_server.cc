@@ -1704,10 +1704,19 @@ static PHP_METHOD(swoole_http_response, end)
         Z_PARAM_ZVAL_EX(zdata, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    swoole_http_response_end(ctx, zdata, return_value);
-    if (!ctx->end)
+#ifdef SW_USE_HTTP2
+    if (ctx->stream)
     {
-        swoole_http_context_free(ctx);
+        swoole_http2_response_end(ctx, zdata, return_value);
+    }
+    else
+#endif
+    {
+        swoole_http_response_end(ctx, zdata, return_value);
+        if (!ctx->end)
+        {
+            swoole_http_context_free(ctx);
+        }
     }
 }
 
@@ -1723,13 +1732,6 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
         http_body.length = 0;
         http_body.str = NULL;
     }
-
-#ifdef SW_USE_HTTP2
-    if (ctx->stream)
-    {
-        RETURN_BOOL(swoole_http2_server_do_response(ctx, &http_body) == SW_OK);
-    }
-#endif
 
     ctx->private_data_2 = return_value;
 
