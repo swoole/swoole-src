@@ -32,7 +32,7 @@ go(function () {
     \Swoole\Assert::assert($cli->get('/world/index?b=455'));
     $data2 = unserialize($cli->body);
     \Swoole\Assert::assert($data1['remote_port'] == $data2['remote_port']);
-    file_get_contents('http://127.0.0.1:' . TCP_SERVER_PORT . '/shutdown');
+    file_get_contents('http://127.0.0.1:' . TEST_PORT . '/shutdown');
 });
 
 swoole_event_wait();
