@@ -26,7 +26,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onRead(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
-static int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
+static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event);
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint32_t length);
 
@@ -103,7 +103,8 @@ static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint3
 {
     swSendData response;
     swDataHead *pkg_info = (swDataHead *) data;
-    swConnection *conn = swServer_connection_verify(SwooleG.serv, pkg_info->fd);
+    swServer *serv = (swServer *) stream->private_data;
+    swConnection *conn = swServer_connection_verify(serv, pkg_info->fd);
     if (!conn)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists", pkg_info->fd);
@@ -113,18 +114,18 @@ static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint3
     response.info.type = pkg_info->type;
     response.info.len = length - sizeof(swDataHead);
     response.data = data + sizeof(swDataHead);
-    swServer_master_send(SwooleG.serv, &response);
+    swServer_master_send(serv, &response);
 }
 
 /**
  * for udp
  */
-static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
+static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
 {
     int fd = event->fd;
     int ret;
 
-    swServer *serv = SwooleG.serv;
+    swServer *serv = (swServer *) reactor->ptr;
     swConnection *server_sock = &serv->connection_list[fd];
     swSendData task;
     swDgramPacket *pkt = (swDgramPacket *) SwooleTG.buffer_stack->str;
@@ -565,7 +566,7 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
         swString_extend_align(SwooleTG.buffer_stack, SwooleTG.buffer_stack->size * 2);
     }
     //UDP Packet
-    reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);
+    reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPacketReceived);
     //Write
     reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
     //Read
@@ -1156,6 +1157,7 @@ int swReactorThread_dispatch(swProtocol *proto, swConnection *conn, char *data, 
             return SW_ERR;
         }
         stream->response = swReactorThread_onStreamResponse;
+        stream->private_data = serv;
         swListenPort *port = swServer_get_port(serv, conn->fd);
         swStream_set_max_length(stream, port->protocol.package_max_length);
 
