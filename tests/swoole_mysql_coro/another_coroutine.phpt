@@ -12,9 +12,7 @@ $process = new Swoole\Process(function () {
     function get(Co\Mysql $cli)
     {
         $cli->query('SELECT SLEEP(1)');
-        Assert::eq($cli->errno, SOCKET_EINPROGRESS);
-        echo $cli->error . PHP_EOL;
-        $cli->recv();
+        Assert::assert(false, 'never here');
     }
 
     $cli = new Co\MySQL;
@@ -30,7 +28,7 @@ $process = new Swoole\Process(function () {
     if ($connected) {
         go(function () use ($cli) {
             $cli->query('SELECT SLEEP(1)');
-            $cli->recv();
+            Assert::assert(false, 'never here');
         });
         go(function () use ($cli) {
             (function () use ($cli) {
@@ -47,7 +45,7 @@ Swoole\Process::wait();
 ?>
 --EXPECTF--
 mysql client is busy now, %s
-[%s]	ERROR	(PHP Fatal Error: %d):
+[%s]    ERROR    (PHP Fatal Error: %d):
 Swoole\Coroutine\MySQL::recv: Socket#%d has already been bound to another coroutine#%d, reading of the same socket in multiple coroutines at the same time is not allowed
 Stack trace:
 #0  Swoole\Coroutine\MySQL->recv() called at [%s/tests/swoole_mysql_coro/another_coroutine.php:%d]

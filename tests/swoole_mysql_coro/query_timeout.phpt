@@ -20,7 +20,7 @@ go(function (){
         $ret = $mysql->query('select sleep(1)', $timeout);
         time_approximate($timeout, microtime(true) - $s);
         if (Assert::false($ret)) {
-            Assert::eq($mysql->errno, SOCKET_ETIMEDOUT);
+            Assert::eq($mysql->errno, SWOOLE_MYSQLND_CR_SERVER_GONE_ERROR);
         }
     }
 });

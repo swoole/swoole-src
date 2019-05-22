@@ -107,36 +107,15 @@ public:
         );
     }
 
-    void connection_error()
+    void io_error()
     {
-        if (!is_connect())
+        if (state == SW_MYSQL_STATE_CLOSED)
         {
-            non_sql_error(MYSQLND_CR_CONNECTION_ERROR, strerror(ECONNRESET));
+            non_sql_error(MYSQLND_CR_CONNECTION_ERROR, socket->errMsg);
         }
         else
         {
-            non_sql_error(MYSQLND_CR_SERVER_GONE_ERROR, MYSQLND_SERVER_GONE);
-        }
-        // has been closed
-    }
-
-    void io_error()
-    {
-        switch (socket->errCode)
-        {
-        // which not declared in mysqlnd
-        case ETIMEDOUT:
-            non_sql_error(socket->errCode, socket->errMsg);
-            break;
-        default:
-            if (!socket->is_connect())
-            {
-                non_sql_error(MYSQLND_CR_CONNECTION_ERROR, socket->errMsg);
-            }
-            else
-            {
-                non_sql_error(MYSQLND_CR_SERVER_GONE_ERROR, MYSQLND_SERVER_GONE ": %s", socket->errMsg);
-            }
+            non_sql_error(MYSQLND_CR_SERVER_GONE_ERROR, MYSQLND_SERVER_GONE " due to %s", socket->errMsg);
         }
         close();
     }
@@ -231,30 +210,34 @@ public:
         return socket && socket->is_connect();
     }
 
-    inline bool check_connection()
-    {
-        if (unlikely(!is_connect()))
-        {
-            connection_error();
-            return false;
-        }
-        return true;
-    }
-
     inline int get_fd()
     {
         return socket ? socket->get_fd() : -1;
     }
 
+    inline bool check_connection()
+    {
+        if (unlikely(!is_connect()))
+        {
+            non_sql_error(MYSQLND_CR_CONNECTION_ERROR, "%s or %s", strerror(ECONNRESET), strerror(ENOTCONN));
+            return false;
+        }
+        return true;
+    }
+
     inline bool check_liveness()
     {
-        if (likely(socket && socket->check_liveness()))
+        if (unlikely(!check_connection()))
         {
-            return true;
+            return false;
         }
-        connection_error();
-        close();
-        return false;
+        if (unlikely(!socket->check_liveness()))
+        {
+            non_sql_error(MYSQLND_CR_SERVER_GONE_ERROR, MYSQLND_SERVER_GONE);
+            close();
+            return false;
+        }
+        return true;
     }
 
     inline bool is_writable()
