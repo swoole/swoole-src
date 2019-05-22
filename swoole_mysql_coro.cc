@@ -19,8 +19,7 @@
 
 #include "php_swoole_cxx.h"
 
-#include "swoole_coroutine.h"
-#include "mysql.h"
+#include "swoole_mysql_proto.h"
 
 // see mysqlnd 'L64' macro redefined
 #undef L64

@@ -174,10 +174,10 @@ static ssize_t http2_build_trailer(http_context *ctx, uchar *buffer)
     return 0;
 }
 
-static sw_inline void http2_onRequest(http2_stream *stream, int from_fd)
+static sw_inline void http2_onRequest(swServer *serv, http2_stream *stream, int from_fd)
 {
-    http_context *ctx = (http_context *) stream->ctx;
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(SwooleG.serv, from_fd, SW_SERVER_CB_onRequest);
+    http_context *ctx = stream->ctx;
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onRequest);
     zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
     if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
     {
@@ -638,9 +638,8 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
 /**
  * Http2
  */
-int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
+int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData *req)
 {
-    swServer *serv = SwooleG.serv;
     int fd = req->info.fd;
     int from_fd = req->info.from_fd;
 
@@ -736,7 +735,7 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
 
             add_assoc_long(zserver, "request_time", serv->gs->now);
             add_assoc_double(zserver, "request_time_float", swoole_microtime());
-            add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
+            add_assoc_long(zserver, "server_port", swConnection_get_port(&serv->connection_list[conn->from_fd]));
             add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
             add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(conn));
             add_assoc_long(zserver, "master_time", conn->last_time);
@@ -754,7 +753,7 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
 
         if (flags & SW_HTTP2_FLAG_END_STREAM)
         {
-            http2_onRequest(stream, from_fd);
+            http2_onRequest(serv, stream, from_fd);
         }
         else
         {
@@ -804,7 +803,7 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
 
         if (flags & SW_HTTP2_FLAG_END_STREAM)
         {
-            if (SwooleG.serv->http_parse_post && ctx->request.post_form_urlencoded)
+            if (serv->http_parse_post && ctx->request.post_form_urlencoded)
             {
                 sapi_module.treat_data(
                     PARSE_STRING,
@@ -821,7 +820,7 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
                     swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, n=%zu", n);
                 }
             }
-            http2_onRequest(stream, from_fd);
+            http2_onRequest(serv, stream, from_fd);
         }
         break;
     }

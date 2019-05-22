@@ -482,7 +482,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/http2.c \
         src/protocol/mime_types.cc \
         src/protocol/mqtt.c \
-        src/protocol/mysql.cc \
         src/protocol/sha1.c \
         src/protocol/socks5.c \
         src/protocol/ssl.c \
@@ -524,7 +523,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_lock.c \
         swoole_mysql_coro.cc \
         swoole_mysql_proto.cc \
-	    swoole_process.cc \
+        swoole_process.cc \
         swoole_process_pool.cc \
         swoole_redis_coro.cc \
         swoole_redis_server.cc \

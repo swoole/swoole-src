@@ -252,7 +252,7 @@ void swoole_websocket_onRequest(http_context *ctx);
 bool swoole_websocket_handshake(http_context *ctx);
 
 #ifdef SW_USE_HTTP2
-int swoole_http2_server_onFrame(swConnection *conn, swEventData *req);
+int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData *req);
 int swoole_http2_server_do_response(http_context *ctx, swString *body);
 void swoole_http2_server_session_free(swConnection *conn);
 void swoole_http2_response_end(http_context *ctx, zval *zdata, zval *return_value);

@@ -195,12 +195,12 @@ static DataBuffer get_recv_data(swServer *serv, swEventData *req, char *header, 
 
 int Server::check_task_param(int dst_worker_id)
 {
-    if (SwooleG.serv->task_worker_num < 1)
+    if (serv.task_worker_num < 1)
     {
         swWarn("Task method cannot use, Please set task_worker_num");
         return SW_ERR;
     }
-    if (dst_worker_id >= SwooleG.serv->task_worker_num)
+    if (dst_worker_id >= serv.task_worker_num)
     {
         swWarn("worker_id must be less than serv->task_worker_num");
         return SW_ERR;
