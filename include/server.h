@@ -936,7 +936,7 @@ static sw_inline swString *swWorker_get_buffer(swServer *serv, int reactor_id)
     }
 }
 
-static sw_inline size_t swWorker_get_data(swEventData *req, char **data_ptr)
+static sw_inline size_t swWorker_get_data(swServer *serv, swEventData *req, char **data_ptr)
 {
     size_t length;
     if (req->info.flags & SW_EVENT_DATA_PTR)
@@ -947,7 +947,7 @@ static sw_inline size_t swWorker_get_data(swEventData *req, char **data_ptr)
     }
     else if (req->info.flags & SW_EVENT_DATA_END)
     {
-        swString *worker_buffer = swWorker_get_buffer(SwooleG.serv, req->info.from_id);
+        swString *worker_buffer = swWorker_get_buffer(serv, req->info.from_id);
         *data_ptr = worker_buffer->str;
         length = worker_buffer->length;
     }

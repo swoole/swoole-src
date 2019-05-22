@@ -10,8 +10,10 @@ require __DIR__ . '/../include/bootstrap.php';
 
 Swoole\Runtime::enableCoroutine();
 
+define('TEST_PORT', get_one_free_port());
+
 go(function () {
-    $server = new Co\Http\Server("127.0.0.1", TCP_SERVER_PORT, false);
+    $server = new Co\Http\Server("127.0.0.1", TEST_PORT, false);
     $server->handle('/', function ($request, $response) {
         $response->end(serialize($request->server));
     });
@@ -23,7 +25,7 @@ go(function () {
 });
 
 go(function () {
-    $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', TCP_SERVER_PORT, false);
+    $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', TEST_PORT, false);
     $cli->set(['timeout' => 5]);
     \Swoole\Assert::assert($cli->get('/hello?a=x3'));
     $data1 = unserialize($cli->body);

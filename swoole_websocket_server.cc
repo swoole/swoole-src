@@ -320,7 +320,7 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
     zval zdata;
     char frame_header[2];
 
-    php_swoole_get_recv_data(&zdata, req, frame_header, SW_WEBSOCKET_HEADER_LEN);
+    php_swoole_get_recv_data(serv, &zdata, req, frame_header, SW_WEBSOCKET_HEADER_LEN);
 
     // frame info has already decoded in swWebSocket_dispatch_frame
     finish = frame_header[0] ? 1 : 0;

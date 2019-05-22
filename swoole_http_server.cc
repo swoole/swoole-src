@@ -961,7 +961,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     swoole_http_server_init_context(serv, ctx);
 
     zval *zdata = sw_malloc_zval();
-    php_swoole_get_recv_data(zdata, req, NULL, 0);
+    php_swoole_get_recv_data(serv, zdata, req, NULL, 0);
 
     swTrace("http request from %d with %d bytes: <<EOF\n%.*s\nEOF", fd, (int)Z_STRLEN_P(zdata), (int)Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
 

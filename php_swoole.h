@@ -452,7 +452,7 @@ zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int serve
 void php_swoole_server_before_start(swServer *serv, zval *zobject);
 void php_swoole_http_server_init_global_variant();
 void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value);
-void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint32_t header_length);
+void php_swoole_get_recv_data(swServer *serv, zval *zdata, swEventData *req, char *header, uint32_t header_length);
 size_t php_swoole_get_send_data(zval *zdata, char **str);
 void php_swoole_onConnect(swServer *, swDataHead *);
 int php_swoole_onReceive(swServer *, swEventData *);

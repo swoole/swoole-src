@@ -654,7 +654,7 @@ int swoole_http2_server_onFrame(swConnection *conn, swEventData *req)
     http2_stream *stream = nullptr;
     http_context *ctx = nullptr;
     zval zdata;
-    php_swoole_get_recv_data(&zdata, req, NULL, 0);
+    php_swoole_get_recv_data(serv, &zdata, req, NULL, 0);
 
     char *buf = Z_STRVAL(zdata);
     int type = buf[3];

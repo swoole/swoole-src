@@ -170,11 +170,11 @@ static DataBuffer task_unpack(swEventData *task_result)
     return retval;
 }
 
-static DataBuffer get_recv_data(swEventData *req, char *header, uint32_t header_length)
+static DataBuffer get_recv_data(swServer *serv, swEventData *req, char *header, uint32_t header_length)
 {
     char *data_ptr = NULL;
     DataBuffer retval;
-    size_t data_len = swWorker_get_data(req, &data_ptr);
+    size_t data_len = swWorker_get_data(serv, req, &data_ptr);
 
     if (header_length >= (uint32_t) data_len)
     {
@@ -439,7 +439,7 @@ bool Server::start(void)
 
 int Server::_onReceive(swServer *serv, swEventData *req)
 {
-    DataBuffer data = get_recv_data(req, NULL, 0);
+    DataBuffer data = get_recv_data(serv, req, NULL, 0);
     Server *_this = (Server *) serv->ptr2;
     _this->onReceive(req->info.fd, data);
     return SW_OK;
@@ -462,7 +462,7 @@ int Server::_onPacket(swServer *serv, swEventData *req)
     swDgramPacket *packet;
 
     char *buffer;
-    swWorker_get_data(req, &buffer);
+    swWorker_get_data(serv, req, &buffer);
     packet = (swDgramPacket *) buffer;
 
     char *data = NULL;
