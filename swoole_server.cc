@@ -466,6 +466,18 @@ static zend_object *swoole_server_task_create_object(zend_class_entry *ce)
     return object;
 }
 
+static inline zend_bool is_enable_coroutine(swServer *serv)
+{
+    if (swIsTaskWorker())
+    {
+        return serv->task_enable_coroutine;
+    }
+    else
+    {
+        return serv->enable_coroutine;
+    }
+}
+
 void swoole_server_init(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_server, "Swoole\\Server", "swoole_server", NULL, swoole_server_methods);
@@ -1169,7 +1181,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
     ZVAL_LONG(&args[1], (zend_long) req->info.from_id);
     args[2] = *zdata;
 
-    if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, SwooleG.enable_coroutine)))
+    if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, is_enable_coroutine(serv))))
     {
         swoole_php_error(E_WARNING, "%s->onPipeMessage handler error", ZSTR_VAL(swoole_server_ce->name));
     }
@@ -1558,17 +1570,26 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_id"), worker_id);
     zend_update_property_bool(swoole_server_ce, zserv, ZEND_STRL("taskworker"), worker_id >= serv->worker_num);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_pid"), getpid());
-    if (swIsTaskWorker() && !serv->task_enable_coroutine)
+
+    if (is_enable_coroutine(serv))
+    {
+        if (PHPCoroutine::enable_preemptive_scheduler)
+        {
+            PHPCoroutine::create_scheduler_thread();
+        }
+    }
+    else
     {
         SwooleG.enable_coroutine = 0;
         PHPCoroutine::disable_hook();
     }
+
     if (fci_cache)
     {
         zval args[2];
         args[0] = *zserv;
         ZVAL_LONG(&args[1], worker_id);
-        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine && worker_id < serv->worker_num)))
+        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, is_enable_coroutine(serv))))
         {
             swoole_php_error(E_WARNING, "%s->onWorkerStart handler error", ZSTR_VAL(swoole_server_ce->name));
         }
@@ -2264,19 +2285,7 @@ static PHP_METHOD(swoole_server, set)
     //task coroutine
     if (php_swoole_array_get_value(vht, "task_enable_coroutine", v))
     {
-        if (zval_is_true(v))
-        {
-            if (!SwooleG.enable_coroutine)
-            {
-                swoole_php_fatal_error(E_ERROR, "server->enable_coroutine must be true");
-                return;
-            }
-            serv->task_enable_coroutine = 1;
-        }
-        else
-        {
-            serv->task_enable_coroutine = 0;
-        }
+        serv->task_enable_coroutine = zval_is_true(v);
     }
     //task_worker_num
     if (php_swoole_array_get_value(vht, "task_worker_num", v))
@@ -3436,6 +3445,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
 static PHP_METHOD(swoole_server, taskCo)
 {
     swEventData buf;
+    bzero(&buf.info, sizeof(buf.info));
     zval *tasks;
     zval *task;
     double timeout = SW_TASKWAIT_TIMEOUT;
@@ -3541,6 +3551,7 @@ static PHP_METHOD(swoole_server, taskCo)
 static PHP_METHOD(swoole_server, task)
 {
     swEventData buf;
+    bzero(&buf.info, sizeof(buf.info));
     zval *data;
     zval *callback = NULL;
 

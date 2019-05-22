@@ -161,10 +161,11 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     }
 
 #ifdef SW_USE_MALLOC_TRIM
-    if (SwooleG.serv && reactor->last_malloc_trim_time < SwooleG.serv->gs->now - SW_MALLOC_TRIM_INTERVAL)
+    time_t now = time(NULL);
+    if (reactor->last_malloc_trim_time < now - SW_MALLOC_TRIM_INTERVAL)
     {
         malloc_trim(SW_MALLOC_TRIM_PAD);
-        reactor->last_malloc_trim_time = SwooleG.serv->gs->now;
+        reactor->last_malloc_trim_time = now;
     }
 #endif
 }

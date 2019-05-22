@@ -12,6 +12,8 @@
   +----------------------------------------------------------------------+
   | Author: Xinyu Zhu  <xyzhu1120@gmail.com>                             |
   |         shiguangqi <shiguangqi2008@gmail.com>                        |
+  |         Twosee  <twose@qq.com>                                       |
+  |         Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
  */
 
@@ -25,11 +27,15 @@ bool PHPCoroutine::active = false;
 uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
 php_coro_task PHPCoroutine::main_task = {0};
 
-#ifdef SW_CORO_SCHEDULER_TICK
-int64_t PHPCoroutine::max_exec_msec = 0;
-user_opcode_handler_t PHPCoroutine::ori_tick_handler = NULL;
+bool PHPCoroutine::enable_preemptive_scheduler = false;
+bool PHPCoroutine::schedule_thread_created = false;
 
-inline void PHPCoroutine::interrupt_callback(void *data)
+static zend_bool* zend_vm_interrupt = nullptr;
+static pthread_t pidt;
+
+static void (*orig_interrupt_function)(zend_execute_data *execute_data);
+
+static void swoole_interrupt_resume(void *data)
 {
     Coroutine *co = (Coroutine *) data;
     if (co && !co->is_end())
@@ -39,54 +45,69 @@ inline void PHPCoroutine::interrupt_callback(void *data)
     }
 }
 
-inline void PHPCoroutine::tick(uint32_t tick_count)
+static void swoole_interrupt_function(zend_execute_data *execute_data)
 {
     php_coro_task *task = PHPCoroutine::get_task();
-    if (task && task->co && tick_count > 0 && is_schedulable(task))
+    if (task && task->co && PHPCoroutine::is_schedulable(task))
     {
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, interrupt_callback, (void *) task->co);
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_interrupt_resume, (void *) task->co);
         task->co->yield();
     }
-}
-
-inline int PHPCoroutine::tick_handler(zend_execute_data *execute_data)
-{
-    if (SW_CORO_SCHEDULER_TICK_EXPECT(max_exec_msec > 0))
+    if (orig_interrupt_function)
     {
-        uint32_t tick_count = execute_data->opline->extended_value;
-        if ((uint32_t) ++EG(ticks_count) >= tick_count)
-        {
-            EG(ticks_count) = 0;
-            tick(tick_count);
-        }
-    }
-    execute_data->opline++;
-    return ZEND_USER_OPCODE_CONTINUE;
-}
-
-void PHPCoroutine::enable_scheduler_tick()
-{
-    ori_tick_handler = zend_get_user_opcode_handler(ZEND_TICKS);
-    if (!ori_tick_handler)
-    {
-        zend_set_user_opcode_handler(ZEND_TICKS, tick_handler);
+        orig_interrupt_function(execute_data);
     }
 }
-
-void PHPCoroutine::disable_scheduler_tick()
-{
-    zend_set_user_opcode_handler(ZEND_TICKS, ori_tick_handler ? ori_tick_handler : NULL);
-}
-#endif
 
 void PHPCoroutine::init()
 {
     Coroutine::set_on_yield(on_yield);
     Coroutine::set_on_resume(on_resume);
     Coroutine::set_on_close(on_close);
-#ifdef SW_CORO_SCHEDULER_TICK
-    enable_scheduler_tick();
-#endif
+    orig_interrupt_function = zend_interrupt_function;
+    zend_interrupt_function = swoole_interrupt_function;
+}
+
+void PHPCoroutine::shutdown()
+{
+    if (schedule_thread_created)
+    {
+        //wait thread
+        if (pthread_join(pidt, NULL) < 0)
+        {
+            swSysWarn("pthread_join(%ld) failed", (ulong_t )pidt);
+        }
+    }
+}
+
+void PHPCoroutine::create_scheduler_thread()
+{
+    if (schedule_thread_created)
+    {
+        return;
+    }
+
+    zend_vm_interrupt = &EG(vm_interrupt);
+    schedule_thread_created = true;
+    if (pthread_create(&pidt, NULL, (void * (*)(void *)) schedule, NULL) < 0)
+    {
+        swSysError("pthread_create[PHPCoroutine Scheduler] failed");
+    }
+}
+
+void PHPCoroutine::schedule()
+{
+    swSignal_none();
+    int64_t interval_msec = (PHPCoroutine::MAX_EXEC_MSEC / 2) * 1000;
+    while (SwooleG.running)
+    {
+        if (PHPCoroutine::enable_preemptive_scheduler)
+        {
+            *zend_vm_interrupt = 1;
+        }
+        usleep(interval_msec);
+    }
+    pthread_exit(0);
 }
 
 inline void PHPCoroutine::vm_stack_init(void)
@@ -144,9 +165,6 @@ inline void PHPCoroutine::save_vm_stack(php_coro_task *task)
     task->exception_class = EG(exception_class);
     task->exception = EG(exception);
     SW_SAVE_EG_SCOPE(task->scope);
-#ifdef SW_CORO_SCHEDULER_TICK
-    task->ticks_count = EG(ticks_count);
-#endif
 }
 
 inline void PHPCoroutine::restore_vm_stack(php_coro_task *task)
@@ -165,9 +183,6 @@ inline void PHPCoroutine::restore_vm_stack(php_coro_task *task)
     EG(exception_class) = task->exception_class;
     EG(exception) = task->exception;
     SW_SET_EG_SCOPE(task->scope);
-#ifdef SW_CORO_SCHEDULER_TICK
-    EG(ticks_count) = task->ticks_count;
-#endif
 }
 
 inline void PHPCoroutine::save_og(php_coro_task *task)
@@ -221,9 +236,7 @@ void PHPCoroutine::on_resume(void *arg)
     php_coro_task *current_task = get_task();
     save_task(current_task);
     restore_task(task);
-#ifdef SW_CORO_SCHEDULER_TICK
     record_last_msec(task);
-#endif
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", Coroutine::get_current_cid(), task->co->get_cid());
 }
 
@@ -338,15 +351,14 @@ void PHPCoroutine::create_func(void *arg)
     EG(exception) = NULL;
 
     save_vm_stack(task);
+    record_last_msec(task);
+
     task->output_ptr = NULL;
     task->co = Coroutine::get_current();
     task->co->set_task((void *) task);
     task->defer_tasks = nullptr;
     task->pcid = task->co->get_origin_cid();
     task->context = nullptr;
-#ifdef SW_CORO_SCHEDULER_TICK
-    record_last_msec(task);
-#endif
 
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
@@ -448,6 +460,11 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
     {
         swoole_php_fatal_error(E_ERROR, "invalid function type %u", fci_cache->function_handler->type);
         return SW_CORO_ERR_INVALID;
+    }
+
+    if (PHPCoroutine::enable_preemptive_scheduler)
+    {
+        PHPCoroutine::create_scheduler_thread();
     }
 
     php_coro_args php_coro_args;

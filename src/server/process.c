@@ -191,6 +191,7 @@ static int swFactoryProcess_start(swFactory *factory)
             swSysError("malloc[sndbuf][%d] failed", i);
             return SW_ERR;
         }
+        bzero(serv->pipe_buffers[i], sizeof(swDataHead));
     }
     /**
      * The manager process must be started first, otherwise it will have a thread fork

@@ -781,6 +781,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_server_init(module_number);
     swoole_server_port_init(module_number);
     swoole_http_server_init(module_number);
+    swoole_http_server_coro_init(module_number);
     swoole_websocket_server_init(module_number);
     swoole_redis_server_init(module_number);
 
@@ -975,6 +976,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 
     swoole_async_coro_shutdown();
     swoole_redis_server_shutdown();
+    swoole_coroutine_shutdown();
 
     SwooleWG.reactor_wait_onexit = 0;
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;

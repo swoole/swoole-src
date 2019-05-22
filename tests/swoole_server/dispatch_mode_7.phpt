@@ -38,10 +38,10 @@ $pm->parentFunc = function ($pid) use ($pm)
             $sendn = $chunk_size;
         }
         $client->send(substr($_serialize_data, $i * $chunk_size, $sendn));
-        usleep(rand(1000, 10000));
+        usleep(rand(100, 1000));
     }
     echo $client->recv();
-    swoole_process::kill($pid);
+    $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm)

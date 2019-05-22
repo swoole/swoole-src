@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "api.h"
+#include "swoole_api.h"
 #include "wrapper/base.hpp"
 #include "server.h"
 

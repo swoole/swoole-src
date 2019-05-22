@@ -16,13 +16,7 @@
  +----------------------------------------------------------------------+
  */
 
-#ifndef SWOOLE_HTTP_H_
-#define SWOOLE_HTTP_H_
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+#pragma once
 
 #include "thirdparty/swoole_http_parser.h"
 #include "thirdparty/multipart_parser.h"
@@ -119,10 +113,12 @@ typedef struct _http_context
 #endif
     uint32_t chunk :1;
     uint32_t keepalive :1;
+    uint32_t websocket :1;
     uint32_t upgrade :1;
     uint32_t detached :1;
     uint32_t parse_cookie :1;
     uint32_t parse_body :1;
+    uint32_t co_socket :1;
 
 #ifdef SW_HAVE_ZLIB
     int8_t compression_level;
@@ -134,6 +130,7 @@ typedef struct _http_context
 #endif
     http_request request;
     http_response response;
+
 
     swoole_http_parser parser;
     multipart_parser *mt_parser;
@@ -185,6 +182,9 @@ void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
 const swoole_http_parser_settings* swoole_http_get_parser_setting();
 
 void swoole_http_server_init_context(swServer *serv, http_context *ctx);
+
+bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t klen, const char *v, size_t vlen, bool ucwords);
+void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value);
 
 #ifdef SW_HAVE_ZLIB
 int swoole_http_response_compress(swString *body, int method, int level);
@@ -248,23 +248,16 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req);
 int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_context *ctx);
 void swoole_websocket_onOpen(http_context *ctx);
 void swoole_websocket_onRequest(http_context *ctx);
+bool swoole_websocket_handshake(http_context *ctx);
 
 #ifdef SW_USE_HTTP2
 int swoole_http2_server_onFrame(swConnection *conn, swEventData *req);
 int swoole_http2_server_do_response(http_context *ctx, swString *body);
 void swoole_http2_server_session_free(swConnection *conn);
 int swoole_http2_server_ping(http_context *ctx);
-#endif
 
-#ifdef __cplusplus
-}
-#endif
-
-#ifdef SW_USE_HTTP2
-namespace swoole
-{
-namespace http2
-{
+namespace swoole { namespace http2 {
+//-----------------------------------namespace begin--------------------------------------------
 class headers
 {
 public:
@@ -339,8 +332,6 @@ private:
     size_t size;
     size_t index;
 };
-}
-}
+//-----------------------------------namespace end--------------------------------------------
+}}
 #endif
-
-#endif /* SWOOLE_HTTP_H_ */

@@ -17,12 +17,16 @@ go(function () {
     $cli->set([
         'timeout' => 1
     ]);
-    $ret = $cli->upgrade("/");
+    $ret = $cli->upgrade("/websocket");
 
     if (!$ret) {
         echo "ERROR\n";
         return;
     }
+
+    $cli->push("websocket handshake 1\n");
+    $cli->push("websocket handshake 2\n");
+
     var_dump($cli->recv());
     for ($i = 0; $i < 5; $i ++) {
         $cli->push("hello @$i");

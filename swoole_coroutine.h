@@ -1,3 +1,22 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | Author: Xinyu Zhu  <xyzhu1120@gmail.com>                             |
+  |         shiguangqi <shiguangqi2008@gmail.com>                        |
+  |         Twosee  <twose@qq.com>                                       |
+  |         Tianfeng Han  <rango@swoole.com>                             |
+  +----------------------------------------------------------------------+
+ */
+
 #pragma once
 
 #include "coroutine_cxx_api.h"
@@ -52,10 +71,7 @@ struct php_coro_task
     std::stack<php_swoole_fci *> *defer_tasks;
     long pcid;
     zend_object *context;
-#ifdef SW_CORO_SCHEDULER_TICK
-    int ticks_count;
     int64_t last_msec;
-#endif
 };
 
 struct php_coro_args
@@ -81,7 +97,10 @@ namespace swoole
 class PHPCoroutine
 {
 public:
+    static const int MAX_EXEC_MSEC = 10;
+
     static void init();
+    static void shutdown();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(php_swoole_fci *fci);
 
@@ -134,29 +153,20 @@ public:
         max_num = n;
     }
 
-#ifdef SW_CORO_SCHEDULER_TICK
-#define SW_CORO_SCHEDULER_TICK_EXPECT(s)      likely(s)
-#define SW_CORO_SCHEDULER_TICK_UNEXPECT(s)    unlikely(s)
-
-    static void enable_scheduler_tick();
-    static void disable_scheduler_tick();
-
-    static inline void set_max_exec_msec(long msec)
-    {
-        max_exec_msec = SW_MAX(0, msec);
-        record_last_msec(get_task());
-    }
+    static bool enable_preemptive_scheduler;
+    static void schedule();
+    static void create_scheduler_thread();
 
     static inline bool is_schedulable(php_coro_task *task)
     {
-        return (swTimer_get_absolute_msec() - task->last_msec > max_exec_msec);
+        return (swTimer_get_absolute_msec() - task->last_msec > MAX_EXEC_MSEC);
     }
-#endif
 
 protected:
     static bool active;
     static uint64_t max_num;
     static php_coro_task main_task;
+    static bool schedule_thread_created;
 
     static inline void vm_stack_init(void);
     static inline void vm_stack_destroy(void);
@@ -170,22 +180,13 @@ protected:
     static void on_close(void *arg);
     static void create_func(void *arg);
 
-#ifdef SW_CORO_SCHEDULER_TICK
-    static int64_t max_exec_msec;
-    static user_opcode_handler_t ori_tick_handler;
-
-    static inline void interrupt_callback(void *data);
-    static inline void tick(uint32_t tick_count);
-    static inline int tick_handler(zend_execute_data *execute_data);
-
     static inline void record_last_msec(php_coro_task *task)
     {
-        if (SW_CORO_SCHEDULER_TICK_EXPECT(max_exec_msec > 0))
+        if (enable_preemptive_scheduler)
         {
             task->last_msec = swTimer_get_absolute_msec();
         }
     }
-#endif
 };
 }
 

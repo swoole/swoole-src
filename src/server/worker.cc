@@ -595,6 +595,18 @@ void swWorker_try_to_exit()
                 serv->close(serv, conn->session_id, 0);
             }
         }
+        //clear timer
+        if (serv->master_timer)
+        {
+            swTimer_del(&SwooleG.timer, serv->master_timer);
+            serv->master_timer = NULL;
+        }
+
+        if (serv->heartbeat_timer)
+        {
+            swTimer_del(&SwooleG.timer, serv->heartbeat_timer);
+            serv->heartbeat_timer = NULL;
+        }
     }
 
     uint8_t call_worker_exit_func = 0;

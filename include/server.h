@@ -475,6 +475,9 @@ struct _swServer
     uint16_t listen_port_num;
     time_t reload_time;
     time_t warning_time;
+    long timezone;
+    swTimer_node *master_timer;
+    swTimer_node *heartbeat_timer;
 
     /* buffer output/input setting*/
     uint32_t buffer_output_size;

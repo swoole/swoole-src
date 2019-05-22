@@ -49,6 +49,7 @@ extern "C"
 #endif
 
 using namespace swoole;
+using swoole::coroutine::Socket;
 
 swString *swoole_http_buffer;
 #ifdef SW_HAVE_ZLIB
@@ -91,7 +92,7 @@ static int multipart_body_on_header_complete(multipart_parser* p);
 static int multipart_body_on_data_end(multipart_parser* p);
 
 static http_context* http_get_context(zval *zobject, const bool check_end);
-static void http_build_header(http_context *, zval *zobject, swString *response, int body_length);
+static void http_build_header(http_context *, swString *response, int body_length);
 
 static bool http_context_send_data(struct _http_context* ctx, const char *data, size_t length);
 static bool http_context_disconnect(struct _http_context* ctx);
@@ -162,7 +163,6 @@ static inline char* http_trim_double_quote(char *ptr, int *len)
 static PHP_METHOD(swoole_http_request, getData);
 static PHP_METHOD(swoole_http_request, rawContent);
 static PHP_METHOD(swoole_http_request, __destruct);
-
 static PHP_METHOD(swoole_http_response, write);
 static PHP_METHOD(swoole_http_response, end);
 static PHP_METHOD(swoole_http_response, sendfile);
@@ -173,6 +173,12 @@ static PHP_METHOD(swoole_http_response, header);
 static PHP_METHOD(swoole_http_response, initHeader);
 static PHP_METHOD(swoole_http_response, detach);
 static PHP_METHOD(swoole_http_response, create);
+/**
+ * for WebSocket Client
+ */
+static PHP_METHOD(swoole_http_response, upgrade);
+static PHP_METHOD(swoole_http_response, push);
+static PHP_METHOD(swoole_http_response, recv);
 #ifdef SW_USE_HTTP2
 static PHP_METHOD(swoole_http_response, trailer);
 static PHP_METHOD(swoole_http_response, ping);
@@ -345,6 +351,12 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, redirect, arginfo_swoole_http_response_redirect, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, detach, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, create, arginfo_swoole_http_response_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    /**
+     * WebSocket
+     */
+    PHP_ME(swoole_http_response, upgrade, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, push, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, recv, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -502,13 +514,19 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     }
     else if (strncmp(header_name, "upgrade", header_len) == 0 && strncasecmp(at, "websocket", length) == 0)
     {
-        swConnection *conn = swWorker_get_connection(SwooleG.serv, ctx->fd);
+        ctx->websocket = 1;
+        if (ctx->co_socket)
+        {
+            return 0;
+        }
+        swServer *serv = (swServer *) ctx->private_data;
+        swConnection *conn = swWorker_get_connection(serv, ctx->fd);
         if (!conn)
         {
             swWarn("connection[%d] is closed", ctx->fd);
             return SW_ERR;
         }
-        swListenPort *port = (swListenPort *) SwooleG.serv->connection_list[conn->from_fd].object;
+        swListenPort *port = (swListenPort *) serv->connection_list[conn->from_fd].object;
         if (port->open_websocket_protocol)
         {
             conn->websocket_status = WEBSOCKET_STATUS_CONNECTION;
@@ -1277,7 +1295,7 @@ static PHP_METHOD(swoole_http_response, write)
     {
         ctx->chunk = 1;
         swString_clear(swoole_http_buffer);
-        http_build_header(ctx, getThis(), swoole_http_buffer, -1);
+        http_build_header(ctx, swoole_http_buffer, -1);
         if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
         {
             ctx->chunk = 0;
@@ -1329,7 +1347,7 @@ static http_context* http_get_context(zval *zobject, const bool check_end)
     return ctx;
 }
 
-static void http_build_header(http_context *ctx, zval *zobject, swString *response, int body_length)
+static void http_build_header(http_context *ctx, swString *response, int body_length)
 {
     char *buf = SwooleTG.buffer_stack->str;
     size_t l_buf = SwooleTG.buffer_stack->size;
@@ -1672,19 +1690,27 @@ static PHP_METHOD(swoole_http_response, end)
 {
     zval *zdata = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(0, 1)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_ZVAL_EX(zdata, 1, 0)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
     http_context *ctx = http_get_context(getThis(), 0);
     if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
     }
 
-    swString http_body;
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ZVAL_EX(zdata, 1, 0)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    swoole_http_response_end(ctx, zdata, return_value);
+    if (!ctx->end)
+    {
+        swoole_http_context_free(ctx);
+    }
+}
+
+void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value)
+{
+    swString http_body;
     if (zdata)
     {
         http_body.length = php_swoole_get_send_data(zdata, &http_body.str);
@@ -1708,7 +1734,7 @@ static PHP_METHOD(swoole_http_response, end)
     {
         if (!ctx->send(ctx, ZEND_STRL("0\r\n\r\n")))
         {
-            RETURN_FALSE;
+            RETURN_FALSE
         }
         ctx->chunk = 0;
     }
@@ -1725,7 +1751,7 @@ static PHP_METHOD(swoole_http_response, end)
             }
         }
 #endif
-        http_build_header(ctx, getThis(), swoole_http_buffer, http_body.length);
+        http_build_header(ctx, swoole_http_buffer, http_body.length);
 
         char *send_body_str;
         size_t send_body_len;
@@ -1754,7 +1780,7 @@ static PHP_METHOD(swoole_http_response, end)
                 if (swString_append_ptr(swoole_http_buffer, send_body_str, send_body_len) < 0)
                 {
                     ctx->send_header = 0;
-                    RETURN_FALSE;
+                    RETURN_FALSE
                 }
             }
 #ifdef SW_HTTP_SEND_TWICE
@@ -1763,13 +1789,13 @@ static PHP_METHOD(swoole_http_response, end)
                 if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
                 {
                     ctx->send_header = 0;
-                    RETURN_FALSE;
+                    RETURN_FALSE
                 }
-                if (!ctx->send(ctx,  send_body_str, send_body_len))
+                if (!ctx->send(ctx, send_body_str, send_body_len))
                 {
                     ctx->close(ctx);
                     swoole_http_context_free(ctx);
-                    RETURN_FALSE;
+                    RETURN_FALSE
                 }
                 goto _skip_copy;
             }
@@ -1779,7 +1805,7 @@ static PHP_METHOD(swoole_http_response, end)
         if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
         {
             ctx->send_header = 0;
-            RETURN_FALSE;
+            RETURN_FALSE
         }
     }
 
@@ -1807,8 +1833,57 @@ static PHP_METHOD(swoole_http_response, end)
     {
         ctx->close(ctx);
     }
-    swoole_http_context_free(ctx);
     RETURN_TRUE;
+}
+
+bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t klen, const char *v, size_t vlen, bool ucwords)
+{
+    if (UNEXPECTED(klen > SW_HTTP_HEADER_KEY_SIZE - 1))
+    {
+        swoole_php_error(E_WARNING, "header key is too long");
+        return false;
+    }
+    if (UNEXPECTED(vlen > SW_HTTP_HEADER_VALUE_SIZE - 1))
+    {
+        swoole_php_error(E_WARNING, "header value is too long");
+        return false;
+    }
+    zval *zheader = swoole_http_init_and_read_property(swoole_http_response_ce, ctx->response.zobject, &ctx->response.zheader, ZEND_STRL("header"));
+    if (ucwords)
+    {
+        char key_buf[SW_HTTP_HEADER_KEY_SIZE];
+        strncpy(key_buf, k, klen)[klen] = '\0';
+#ifdef SW_USE_HTTP2
+        if (ctx->stream)
+        {
+            swoole_strtolower(key_buf, klen);
+        }
+        else
+#endif
+        {
+            http_header_key_format(key_buf, klen);
+        }
+        if (UNEXPECTED(!v))
+        {
+            add_assoc_null_ex(zheader, key_buf, klen);
+        }
+        else
+        {
+            add_assoc_stringl_ex(zheader, key_buf, klen, v, vlen);
+        }
+    }
+    else
+    {
+        if (UNEXPECTED(!v))
+        {
+            add_assoc_null_ex(zheader, k, klen);
+        }
+        else
+        {
+            add_assoc_stringl_ex(zheader, k, klen, v, vlen);
+        }
+    }
+    return true;
 }
 
 static PHP_METHOD(swoole_http_response, sendfile)
@@ -1871,7 +1946,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
 
     swString_clear(swoole_http_buffer);
-    http_build_header(ctx, getThis(), swoole_http_buffer, length);
+    http_build_header(ctx, swoole_http_buffer, length);
 
     swServer *serv = SwooleG.serv;
 
@@ -2048,52 +2123,8 @@ static PHP_METHOD(swoole_http_response, header)
     {
         RETURN_FALSE;
     }
-    if (UNEXPECTED(klen > SW_HTTP_HEADER_KEY_SIZE - 1))
-    {
-        swoole_php_error(E_WARNING, "header key is too long");
-        RETURN_FALSE;
-    }
-    if (UNEXPECTED(vlen > SW_HTTP_HEADER_VALUE_SIZE - 1))
-    {
-        swoole_php_error(E_WARNING, "header value is too long");
-        RETURN_FALSE;
-    }
-    zval *zheader = swoole_http_init_and_read_property(swoole_http_response_ce, ctx->response.zobject, &ctx->response.zheader, ZEND_STRL("header"));
-    if (ucwords)
-    {
-        char key_buf[SW_HTTP_HEADER_KEY_SIZE];
-        strncpy(key_buf, k, klen)[klen] = '\0';
-#ifdef SW_USE_HTTP2
-        if (ctx->stream)
-        {
-            swoole_strtolower(key_buf, klen);
-        }
-        else
-#endif
-        {
-            http_header_key_format(key_buf, klen);
-        }
-        if (UNEXPECTED(!v))
-        {
-            add_assoc_null_ex(zheader, key_buf, klen);
-        }
-        else
-        {
-            add_assoc_stringl_ex(zheader, key_buf, klen, v, vlen);
-        }
-    }
-    else
-    {
-        if (UNEXPECTED(!v))
-        {
-            add_assoc_null_ex(zheader, k, klen);
-        }
-        else
-        {
-            add_assoc_stringl_ex(zheader, k, klen, v, vlen);
-        }
-    }
-    RETURN_TRUE;
+
+    RETURN_BOOL(swoole_http_response_set_header(ctx, k, klen, v, vlen, ucwords));
 }
 
 #ifdef SW_USE_HTTP2
@@ -2147,6 +2178,71 @@ static PHP_METHOD(swoole_http_response, ping)
     SW_CHECK_RETURN(swoole_http2_server_ping(ctx));
 }
 #endif
+
+static PHP_METHOD(swoole_http_response, upgrade)
+{
+    http_context *ctx = http_get_context(getThis(), 0);
+    if (UNEXPECTED(!ctx) || !ctx->co_socket)
+    {
+        RETURN_FALSE;
+    }
+    RETVAL_BOOL(swoole_websocket_handshake(ctx));
+    if (!ctx->end)
+    {
+        swoole_http_context_free(ctx);
+    }
+}
+
+static PHP_METHOD(swoole_http_response, push)
+{
+    http_context *ctx = http_get_context(getThis(), 0);
+    if (UNEXPECTED(!ctx) || !ctx->co_socket || !ctx->upgrade)
+    {
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
+        RETURN_FALSE;
+    }
+
+    zval *zdata = NULL;
+    zend_long opcode = WEBSOCKET_OPCODE_TEXT;
+    zend_bool finished = 1;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lb", &zdata, &opcode, &finished) == FAILURE)
+    {
+        RETURN_FALSE
+    }
+
+    swString_clear(swoole_http_buffer);
+    if (php_swoole_websocket_frame_pack(swoole_http_buffer, zdata, opcode, finished, 0) < 0)
+    {
+        RETURN_FALSE
+    }
+    RETURN_BOOL(ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length));
+}
+
+static PHP_METHOD(swoole_http_response, recv)
+{
+    http_context *ctx = http_get_context(getThis(), 0);
+    if (UNEXPECTED(!ctx) || !ctx->co_socket || !ctx->upgrade)
+    {
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
+        RETURN_FALSE;
+    }
+
+    Socket *sock = (Socket *) ctx->private_data;
+    ssize_t retval = sock->recv_packet(0);
+    swString _tmp;
+    if (retval <= 0)
+    {
+        SwooleG.error = sock->errCode;
+        RETURN_FALSE;
+    }
+    else
+    {
+        _tmp.str = sock->get_read_buffer()->str;
+        _tmp.length = retval;
+        php_swoole_websocket_frame_unpack(&_tmp, return_value);
+    }
+}
 
 static PHP_METHOD(swoole_http_response, detach)
 {
@@ -2220,33 +2316,45 @@ static PHP_METHOD(swoole_http_response, redirect)
     {
         return;
     }
-    sw_zend_call_method_with_0_params(getThis(), NULL, NULL, "end", NULL);
+    swoole_http_response_end(ctx, nullptr, return_value);
+    if (!ctx->end)
+    {
+        swoole_http_context_free(ctx);
+    }
 }
 
 static PHP_METHOD(swoole_http_response, __destruct)
 {
     SW_PREVENT_USER_DESTRUCT();
 
-    http_context *context = (http_context *) swoole_get_object(getThis());
-    if (context)
+    http_context *ctx = (http_context *) swoole_get_object(getThis());
+    if (ctx)
     {
-        swConnection *conn = swWorker_get_connection(SwooleG.serv, context->fd);
-        if (!conn || conn->closed || conn->removed || context->detached)
+        if (ctx->co_socket)
         {
-            swoole_http_context_free(context);
+            swoole_http_response_end(ctx, nullptr, return_value);
         }
         else
         {
-            if (context->response.status == 0)
+            swServer *serv = (swServer *) ctx->private_data;
+            swConnection *conn = swWorker_get_connection(serv, ctx->fd);
+            if (!conn || conn->closed || conn->removed || ctx->detached)
             {
-                context->response.status = 500;
+                swoole_http_context_free(ctx);
             }
-            sw_zend_call_method_with_0_params(getThis(), swoole_http_response_ce, NULL, "end", NULL);
-            context = (http_context *) swoole_get_object(getThis());
-            if (context)
+            else
             {
-                swoole_http_context_free(context);
+                if (ctx->response.status == 0)
+                {
+                    ctx->response.status = 500;
+                }
+                swoole_http_response_end(ctx, nullptr, return_value);
             }
+        }
+        ctx = (http_context *) swoole_get_object(getThis());
+        if (ctx)
+        {
+            swoole_http_context_free(ctx);
         }
     }
 }

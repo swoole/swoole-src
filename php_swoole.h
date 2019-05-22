@@ -135,8 +135,8 @@ extern swoole_object_array swoole_objects;
 #define SWOOLE_SOCKETS_SUPPORT
 #endif
 
-#if PHP_MAJOR_VERSION < 7
-#error "require PHP version 7.0 or later"
+#if PHP_VERSION_ID < 70100
+#error "require PHP version 7.1 or later"
 #endif
 
 //--------------------------------------------------------
@@ -353,6 +353,7 @@ void swoole_redis_server_init(int module_number);
  */
 void swoole_async_coro_shutdown();
 void swoole_redis_server_shutdown();
+void swoole_coroutine_shutdown();
 
 void php_swoole_process_clean();
 int php_swoole_process_start(swWorker *process, zval *zobject);

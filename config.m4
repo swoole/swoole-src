@@ -21,9 +21,6 @@ PHP_ARG_ENABLE(debug-log, enable debug log,
 PHP_ARG_ENABLE(trace-log, enable trace log,
 [  --enable-trace-log        Enable swoole trace log], no, no)
 
-PHP_ARG_ENABLE(scheduler-tick, enable coroutine scheduler powered by tick,
-[  --enable-scheduler-tick    Enable swoole coroutine scheduler powered by tick], no, no)
-
 PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets          Do you have sockets extension?], no, no)
 
@@ -333,10 +330,6 @@ if test "$PHP_SWOOLE" != "no"; then
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
     fi
 
-    if test "$PHP_SCHEDULER_TICK" != "no"; then
-        AC_DEFINE(SW_CORO_SCHEDULER_TICK, 1, [enable coroutine scheduler powered by tick])
-    fi
-
     if test "$PHP_TRACE_LOG" != "no"; then
         AC_DEFINE(SW_LOG_TRACE_OPEN, 1, [enable trace log])
     fi
@@ -523,9 +516,10 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_client_coro.cc \
         swoole_coroutine.cc \
         swoole_coroutine_util.cc \
-        swoole_event.c \
+        swoole_event.cc \
         swoole_http_client_coro.cc \
         swoole_http_server.cc \
+        swoole_http_server_coro.cc \
         swoole_http2_client_coro.cc \
         swoole_http2_server.cc \
         swoole_lock.c \

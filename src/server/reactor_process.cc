@@ -419,12 +419,10 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         }
     }
 
-    swTimer_node *update_timer, *heartbeat_timer = NULL;
-
     /**
      * 1 second timer, update serv->gs->now
      */
-    if ((update_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
+    if ((serv->master_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
     {
         swReactor_free_output_buffer(n_buffer);
         return SW_ERR;
@@ -437,8 +435,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
      */
     if (serv->heartbeat_check_interval > 0)
     {
-        heartbeat_timer = swTimer_add(&SwooleG.timer, (long) (serv->heartbeat_check_interval * 1000), 1, reactor, swReactorProcess_onTimeout);
-        if (heartbeat_timer == NULL)
+        serv->heartbeat_timer = swTimer_add(&SwooleG.timer, (long) (serv->heartbeat_check_interval * 1000), 1, reactor, swReactorProcess_onTimeout);
+        if (serv->heartbeat_timer == NULL)
         {
             return SW_ERR;
         }
@@ -457,14 +455,16 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_CLOSE, hook_args);
     }
 
-    if (heartbeat_timer)
+    if (serv->master_timer)
     {
-        swTimer_del(&SwooleG.timer, heartbeat_timer);
+        swTimer_del(&SwooleG.timer, serv->master_timer);
+        serv->master_timer = NULL;
     }
 
-    if (update_timer)
+    if (serv->heartbeat_timer)
     {
-        swTimer_del(&SwooleG.timer, update_timer);
+        swTimer_del(&SwooleG.timer, serv->heartbeat_timer);
+        serv->heartbeat_timer = NULL;
     }
 
     if (serv->onWorkerStop)
@@ -532,6 +532,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
         swTrace("session->reactor_id=%d, SwooleWG.id=%d", session->reactor_id, SwooleWG.id);
         swWorker *worker = swProcessPool_get_worker(&serv->gs->event_workers, session->reactor_id);
         swEventData proxy_msg;
+        bzero(&proxy_msg.info, sizeof(proxy_msg.info));
 
         if (_send->info.type == SW_EVENT_TCP)
         {

@@ -928,8 +928,7 @@ int swReactorThread_start(swServer *serv)
     /**
      * 1 second timer, update serv->gs->now
      */
-    swTimer_node *update_timer;
-    if ((update_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
+    if ((serv->master_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
     {
         goto _failed;
     }
@@ -941,9 +940,10 @@ int swReactorThread_start(swServer *serv)
 
     int retval = main_reactor->wait(main_reactor, NULL);
 
-    if (update_timer)
+    if (serv->master_timer)
     {
-        swTimer_del(&SwooleG.timer, update_timer);
+        swTimer_del(&SwooleG.timer, serv->master_timer);
+        serv->master_timer = NULL;
     }
 
     return retval;

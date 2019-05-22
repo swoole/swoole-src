@@ -11,7 +11,7 @@
     "repositories": {
         "packagist": {
             "type": "composer",
-            "url": "https://packagist.laravel-china.org/"
+            "url": "https://php.cnpkg.org"
         }
     }
 }
