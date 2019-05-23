@@ -46,6 +46,7 @@ static int socket_stat(php_stream *stream, php_stream_statbuf *ssb);
 static int socket_cast(php_stream *stream, int castas, void **ret);
 
 static void replace_internal_function(const char *name, size_t l_name);
+static void recover_internal_function(const char *name, size_t l_name);
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -1204,35 +1205,52 @@ bool PHPCoroutine::enable_hook(int flags)
         }
     }
 
+    if (!function_table)
+    {
+        function_table = (zend_array*) emalloc(sizeof(zend_array));
+        zend_hash_init(function_table, 8, NULL, NULL, 0);
+
+        zend::eval(PHP_SWOOLE_LIBRARY_SOURCE);
+    }
+
     /**
      * array_walk, array_walk_recursive ...
      */
-    if (flags & SW_HOOK_BASIC_FUNCTION)
+    if (flags & SW_HOOK_ARRAY_FUNCTION)
     {
-        if (!function_table)
+        if (!(hook_flags & SW_HOOK_ARRAY_FUNCTION))
         {
-            function_table = (zend_array*) emalloc(sizeof(zend_array));
-            zend_hash_init(function_table, 8, NULL, NULL, 0);
-        }
-        if (!(hook_flags & SW_HOOK_BASIC_FUNCTION))
-        {
-            zend::eval(PHP_SWOOLE_LIBRARY_SOURCE);
-            //replace
             replace_internal_function(ZEND_STRL("array_walk"));
             replace_internal_function(ZEND_STRL("array_walk_recursive"));
         }
     }
     else
     {
-        if (hook_flags & SW_HOOK_BASIC_FUNCTION)
+        if (hook_flags & SW_HOOK_ARRAY_FUNCTION)
         {
-            void *ptr;
-            ZEND_HASH_FOREACH_PTR(function_table, ptr)
-            {
-                real_func *rf = static_cast<real_func *>(ptr);
-                rf->function->internal_function.handler = rf->ori_handler;
-            }
-            ZEND_HASH_FOREACH_END();
+            recover_internal_function(ZEND_STRL("array_walk"));
+            recover_internal_function(ZEND_STRL("array_walk_recursive"));
+        }
+    }
+
+    if (flags & SW_HOOK_CURL)
+    {
+        if (!(hook_flags & SW_HOOK_CURL))
+        {
+            replace_internal_function(ZEND_STRL("curl_init"));
+            replace_internal_function(ZEND_STRL("curl_setopt"));
+            replace_internal_function(ZEND_STRL("curl_exec"));
+            replace_internal_function(ZEND_STRL("curl_close"));
+        }
+    }
+    else
+    {
+        if (hook_flags & SW_HOOK_CURL)
+        {
+            recover_internal_function(ZEND_STRL("curl_init"));
+            recover_internal_function(ZEND_STRL("curl_setopt"));
+            recover_internal_function(ZEND_STRL("curl_exec"));
+            recover_internal_function(ZEND_STRL("curl_close"));
         }
     }
 
@@ -1643,13 +1661,20 @@ static PHP_FUNCTION(_stream_select)
 
 static void replace_internal_function(const char *name, size_t l_name)
 {
+    real_func *rf = (real_func *) zend_hash_str_find_ptr(function_table, name, l_name);
+    if (rf)
+    {
+        rf->function->internal_function.handler = PHP_FN(_user_func_handler);
+        return;
+    }
+
     zend_function *zf = (zend_function *) zend_hash_str_find_ptr(EG(function_table), name, l_name);
     if (zf == nullptr)
     {
         return;
     }
 
-    real_func *rf = (real_func *) emalloc(sizeof(real_func));
+    rf = (real_func *) emalloc(sizeof(real_func));
     char func[128];
     memcpy(func, ZEND_STRL("swoole_"));
     memcpy(func + 7, zf->common.function_name->val, zf->common.function_name->len);
@@ -1671,6 +1696,16 @@ static void replace_internal_function(const char *name, size_t l_name)
     rf->fci_cache = func_cache;
 
     zend_hash_add_ptr(function_table, zf->common.function_name, rf);
+}
+
+static void recover_internal_function(const char *name, size_t l_name)
+{
+    real_func *rf = (real_func *) zend_hash_str_find_ptr(function_table, name, l_name);
+    if (rf == nullptr)
+    {
+        return;
+    }
+    rf->function->internal_function.handler = rf->ori_handler;
 }
 
 static php_stream *sw_php_stream_sock_open_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC)
