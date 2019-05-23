@@ -635,12 +635,9 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_INCLUDE([$ext_srcdir/include])
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
 
-    swoole_library_file="library/*.php \
-        library/curl/*.php \
-        "
+    /usr/bin/env php $ext_srcdir/tools/build-library.php
 
-    PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h $swoole_library_file])
-
+    PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h])
 
     PHP_REQUIRE_CXX()
 

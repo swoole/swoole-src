@@ -55,7 +55,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_runtime_enableCoroutine, 0, 0, 0)
     ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
-
 static zend_class_entry *swoole_runtime_ce;
 
 static php_stream_ops socket_ops
@@ -1208,11 +1207,6 @@ bool PHPCoroutine::enable_hook(int flags)
     {
         function_table = (zend_array*) emalloc(sizeof(zend_array));
         zend_hash_init(function_table, 8, NULL, NULL, 0);
-
-        //change include_path
-        zend::eval("$include_path = trim(`php-config --include-dir`);"
-                "set_include_path(ini_get('include_path').':'.$include_path.'/ext');");
-        zend::include("swoole/library/_init.php");
     }
 
     /**

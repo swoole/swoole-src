@@ -80,6 +80,7 @@ cmake-build-debug/
 *.cbp
 /.vscode
 /.vs
+/library/*.h
 /configure.in
 /configure.ac
 /core-tests/CMakeCache.txt
