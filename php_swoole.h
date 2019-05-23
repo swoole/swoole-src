@@ -482,6 +482,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool cli;
     zend_bool use_shortname;
     zend_bool enable_coroutine;
+    zend_bool enable_preemptive_scheduler;
     long socket_buffer_size;
     php_swoole_req_status req_status;
     swLinkedList *rshutdown_functions;

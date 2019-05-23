@@ -9,7 +9,7 @@ require __DIR__ . '/../../include/skipif.inc';
 require __DIR__ . '/../../include/bootstrap.php';
 
 $max_msec = 10;
-Co::set(['enable_preemptive_scheduler' => 1]);
+ini_set("swoole.enable_preemptive_scheduler","1");
 $default = 10;
 $start = microtime(1);
 echo "start\n";
