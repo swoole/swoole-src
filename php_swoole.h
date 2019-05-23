@@ -354,6 +354,7 @@ void swoole_redis_server_init(int module_number);
 void swoole_async_coro_shutdown();
 void swoole_redis_server_shutdown();
 void swoole_coroutine_shutdown();
+void swoole_runtime_shutdown();
 
 void php_swoole_process_clean();
 int php_swoole_process_start(swWorker *process, zval *zobject);

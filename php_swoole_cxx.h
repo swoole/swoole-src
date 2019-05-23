@@ -20,6 +20,8 @@
 #include "swoole_cxx.h"
 #include "swoole_coroutine.h"
 
+#include <string>
+
 #define SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(module) \
     module##_ce->create_object = [](zend_class_entry *ce) { return sw_zend_create_object(ce, &module##_handlers); }
 
@@ -29,8 +31,8 @@ SW_API void php_swoole_init_socket_object(zval *zobject, swoole::coroutine::Sock
 SW_API swoole::coroutine::Socket* php_swoole_get_socket(zval *zobject);
 SW_API void php_swoole_client_set(swoole::coroutine::Socket *cli, zval *zset);
 
-namespace zend
-{
+namespace zend {
+//-----------------------------------namespace begin--------------------------------------------
 class string
 {
 public:
@@ -182,4 +184,24 @@ namespace function
         }
     }
 }
+
+class map
+{
+private:
+    zend_array *ht;
+public:
+    map()
+    {
+        ht = zend_new_array(8);
+    }
+    ~map()
+    {
+        zend_hash_destroy(ht);
+    }
+};
+
+
+bool include(std::string file);
+bool eval(std::string code);
+//-----------------------------------namespace end--------------------------------------------
 }

@@ -49,6 +49,8 @@ enum sw_coro_hook_type
 
     SW_HOOK_FILE              = 1u << 8,
     SW_HOOK_SLEEP             = 1u << 9,
+
+    SW_HOOK_BASIC_FUNCTION    = 1u << 29,
     SW_HOOK_BLOCKING_FUNCTION = 1u << 30,
 
     SW_HOOK_ALL               = 0x7fffffff,

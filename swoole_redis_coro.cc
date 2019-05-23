@@ -2831,7 +2831,7 @@ static PHP_METHOD(swoole_redis_coro, brPop)
     int argc = ZEND_NUM_ARGS();
     SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
-    if(zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc < 1)
+    if (zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc < 1)
     {
         efree(z_args);
         return;
