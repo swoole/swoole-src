@@ -3,18 +3,18 @@
 
 import os
 
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
+dir = os.path.dirname(os.path.realpath(__file__))
 print("generating swoole php library")
 
-with open('php_swoole_library.h', 'w') as outputFile:
+with open(dir + '/php_swoole_library.h', 'w') as outputFile:
     outputFile.write('const char *PHP_SWOOLE_LIBRARY_SOURCE = "')
 
-    with open('_library', 'r') as libIndexFile:
+    with open(dir + '/_library', 'r') as libIndexFile:
         while True:
             filename = libIndexFile.readline().strip()
             if not filename:
                 break
-            with open(filename, 'r') as libSrcFile:
+            with open(dir + '/' + filename, 'r') as libSrcFile:
                 source = libSrcFile.read()
                 outputFile.write("\\\n" + source.replace('<?php', '', 1).replace('"', '\\"').replace("\n", "\\\n") + "\\\n")
 
