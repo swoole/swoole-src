@@ -5,8 +5,6 @@ swoole_runtime: array_walk
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$host = "www.swoole.com";
-$ip1 = gethostbyname($host);
 Swoole\Runtime::enableCoroutine();
 for ($n = 2; $n--;) {
     go(function () {
