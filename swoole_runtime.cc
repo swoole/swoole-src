@@ -1209,32 +1209,14 @@ bool PHPCoroutine::enable_hook(int flags)
     {
         function_table = (zend_array*) emalloc(sizeof(zend_array));
         zend_hash_init(function_table, 8, NULL, NULL, 0);
-
-        for (int i = 0; i < 2; i++)
-        {
-            if (zend::include("swoole/library/_init.php") == false)
-            {
-                zend::eval("$include_path = trim(`php-config --include-dir`);"
-                        "$php_include_path = explode(':', ini_get('include_path')); "
-                        "$php_include_path = array_values(array_filter($php_include_path, function ($v){ "
-                        "    if ($v == '.') {"
-                        "        return false;"
-                        "    } else {"
-                        "        return true;"
-                        "    }"
-                        "}));"
-                        "$dir1 = \"{$php_include_path[0]}/swoole\";"
-                        "if (!is_dir($dir1)) {"
-                        "    mkdir($dir1);"
-                        "            }"
-                        "         `cp -r {$include_path}/ext/swoole/library $dir1/library`;");
-            }
-            else
-            {
-                break;
-            }
-        }
+        //change include_path
+        zend::eval("$include_path = trim(`php-config --include-dir`);"
+                "$php_include_path = explode(':', ini_get('include_path'));"
+                "ini_set('include_path', ini_get('include_path').':'.$include_path.'/ext');");
+        zend::include("swoole/library/_init.php");
+        //replace
         replace_internal_function(ZEND_STRL("array_walk"));
+        replace_internal_function(ZEND_STRL("array_walk_recursive"));
     }
 
     hook_flags = flags;
