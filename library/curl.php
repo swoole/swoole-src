@@ -12,16 +12,19 @@ class swoole_curl_handler
     function create($url)
     {
         $info = parse_url($url);
+
         if ($info['scheme'] == 'https') {
             $ssl = true;
         } else {
             $ssl = false;
         }
+
         if (empty($info['port'])) {
             $port = $ssl ? 443 : 80;
         } else {
             $port = intval($info['port']);
         }
+
         $this->info = $info;
         $this->client = new Swoole\Coroutine\Http\Client($info['host'], $port, $ssl);
     }
