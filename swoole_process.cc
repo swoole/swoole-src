@@ -740,13 +740,9 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
         swoole_php_error(E_WARNING, "%s->onStart handler error", ZSTR_VAL(swoole_process_ce->name));
     }
 
-    if (SwooleG.main_reactor)
-    {
-        php_swoole_event_wait();
-    }
-    SwooleG.running = 0;
-
+    // equivalent to exit
     sw_zend_bailout();
+
     return SW_OK;
 }
 
