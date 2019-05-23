@@ -147,11 +147,17 @@ public:
     {
         if (likely(event & SW_EVENT_READ))
         {
-            return read_co;
+            if (read_co)
+            {
+                return read_co;
+            }
         }
         if (event & SW_EVENT_WRITE)
         {
-            return write_co;
+            if (write_co)
+            {
+                return write_co;
+            }
         }
         return nullptr;
     }
