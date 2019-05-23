@@ -16,6 +16,6 @@ with open('php_swoole_library.h', 'w') as outputFile:
                 break
             with open(filename, 'r') as libSrcFile:
                 source = libSrcFile.read()
-                outputFile.write("\\\n" + source.replace('"', '\\"').replace("\n", "\\\n") + "\\\n")
+                outputFile.write("\\\n" + source.replace('<?php', '', 1).replace('"', '\\"').replace("\n", "\\\n") + "\\\n")
 
     outputFile.write('";')

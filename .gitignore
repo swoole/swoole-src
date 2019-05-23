@@ -13,6 +13,7 @@ modules/*
 /.deps
 /.libs/
 /core
+/library/php_swoole_library.h
 /examples/core
 /Debug
 /CMakeFiles
