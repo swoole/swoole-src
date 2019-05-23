@@ -398,10 +398,6 @@ static PHP_METHOD(swoole_coroutine_util, set)
     {
         SWOOLE_G(display_errors) = zval_is_true(v);
     }
-    if (php_swoole_array_get_value(vht, "enable_preemptive_scheduler", v))
-    {
-        PHPCoroutine::enable_preemptive_scheduler = zval_is_true(v);
-    }
 }
 
 PHP_FUNCTION(swoole_clear_dns_cache)

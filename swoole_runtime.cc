@@ -1212,7 +1212,7 @@ bool PHPCoroutine::enable_hook(int flags)
 
         for (int i = 0; i < 2; i++)
         {
-            if (zend::include("swoole/library/array.php") == false)
+            if (zend::include("swoole/library/_init.php") == false)
             {
                 zend::eval("$include_path = trim(`php-config --include-dir`);"
                         "$php_include_path = explode(':', ini_get('include_path')); "

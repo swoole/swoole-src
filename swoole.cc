@@ -225,6 +225,11 @@ PHP_INI_BEGIN()
  */
 STD_ZEND_INI_BOOLEAN("swoole.enable_coroutine", "On", PHP_INI_ALL, OnUpdateBool, enable_coroutine, zend_swoole_globals, swoole_globals)
 /**
+ * enable swoole coroutine epreemptive scheduler
+ */
+STD_ZEND_INI_BOOLEAN("swoole.enable_preemptive_scheduler", "Off", PHP_INI_ALL, OnUpdateBool, enable_preemptive_scheduler, zend_swoole_globals, swoole_globals)
+/**
+/**
  * display error
  */
 STD_ZEND_INI_BOOLEAN("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, display_errors, zend_swoole_globals, swoole_globals)
@@ -241,6 +246,7 @@ PHP_INI_END()
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
 {
     swoole_globals->enable_coroutine = 1;
+    swoole_globals->enable_preemptive_scheduler = 0;
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
     swoole_globals->use_shortname = 1;

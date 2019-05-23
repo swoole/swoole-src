@@ -1571,14 +1571,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     zend_update_property_bool(swoole_server_ce, zserv, ZEND_STRL("taskworker"), worker_id >= serv->worker_num);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_pid"), getpid());
 
-    if (is_enable_coroutine(serv))
-    {
-        if (PHPCoroutine::enable_preemptive_scheduler)
-        {
-            PHPCoroutine::create_scheduler_thread();
-        }
-    }
-    else
+    if (!is_enable_coroutine(serv))
     {
         SwooleG.enable_coroutine = 0;
         PHPCoroutine::disable_hook();
