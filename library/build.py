@@ -11,7 +11,7 @@ with open('php_swoole_library.h', 'w') as outputFile:
 
     with open('_library', 'r') as libIndexFile:
         while True:
-            filename = libIndexFile.readline()
+            filename = libIndexFile.readline().strip()
             if not filename:
                 break
             with open(filename, 'r') as libSrcFile:
