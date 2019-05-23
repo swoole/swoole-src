@@ -435,16 +435,6 @@ void PHPCoroutine::create_func(void *arg)
 
 long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv)
 {
-    if (unlikely(!active))
-    {
-        if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug")))
-        {
-            swoole_php_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
-        }
-        php_swoole_check_reactor();
-        // PHPCoroutine::enable_hook(SW_HOOK_ALL); // TODO: enable it in version 4.3.0
-        active = true;
-    }
     if (unlikely(Coroutine::count() >= max_num))
     {
         swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %zu", (uintmax_t) Coroutine::count());
@@ -462,9 +452,21 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
         return SW_CORO_ERR_INVALID;
     }
 
-    if (PHPCoroutine::enable_preemptive_scheduler)
+    if (SWOOLE_G(enable_preemptive_scheduler) && !active)
     {
+        PHPCoroutine::enable_preemptive_scheduler = true;
         PHPCoroutine::create_scheduler_thread();
+    }
+
+    if (unlikely(!active))
+    {
+        if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug")))
+        {
+            swoole_php_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
+        }
+        php_swoole_check_reactor();
+        // PHPCoroutine::enable_hook(SW_HOOK_ALL); // TODO: enable it in version 4.3.0
+        active = true;
     }
 
     php_coro_args php_coro_args;
