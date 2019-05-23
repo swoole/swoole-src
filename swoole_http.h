@@ -185,6 +185,8 @@ const swoole_http_parser_settings* swoole_http_get_parser_setting();
 void swoole_http_server_init_context(swServer *serv, http_context *ctx);
 
 bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t klen, const char *v, size_t vlen, bool ucwords);
+bool swoole_http_response_set_header_zvalue(http_context *ctx, const char *k, size_t klen, zval *v, bool ucwords);
+
 void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value);
 
 #ifdef SW_HAVE_ZLIB
@@ -243,6 +245,60 @@ static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, 
     Z_STRLEN(val) = php_url_decode(Z_STRVAL(val), val_len);
     add_assoc_zval_ex(cookies, at, key_len, &val);
     return SW_OK;
+}
+
+static size_t http_get_zheader_length(zval *zheader)
+{
+    zval *zvalue;
+    size_t length = 0;
+
+    if (!ZVAL_IS_ARRAY(zheader))
+    {
+        return length;
+    }
+
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zheader), zvalue)
+    {
+        if (ZVAL_IS_ARRAY(zvalue))
+        {
+            length += php_swoole_array_length_safe(zvalue);
+        }
+        else if (!ZVAL_IS_NULL(zvalue))
+        {
+            length++;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+
+    return length;
+}
+
+static void http_parser_header_array_value(zval *zheaders, char *header_name, size_t head_len, char * value, size_t value_len)
+{
+    zval *header_zval, zvalue;
+    HashTable * ht = Z_ARRVAL_P(zheaders);
+
+    ZVAL_STRINGL(&zvalue, value, value_len);
+    if ((header_zval = zend_hash_str_find(ht, header_name, head_len)))
+    {
+        if (Z_TYPE_P(header_zval) == IS_ARRAY)
+        {
+            zend_hash_next_index_insert(Z_ARRVAL_P(header_zval), &zvalue);
+        }
+        else
+        {
+            zval zarr;
+            array_init(&zarr);
+            zend_hash_next_index_insert(Z_ARRVAL_P(&zarr), header_zval);
+            zend_hash_next_index_insert(Z_ARRVAL_P(&zarr), &zvalue);
+
+            ZVAL_COPY_VALUE(header_zval, &zarr);
+        }
+    }
+    else
+    {
+        zend_hash_str_update(ht, header_name, head_len, &zvalue);
+    }
 }
 
 int swoole_websocket_onMessage(swServer *serv, swEventData *req);

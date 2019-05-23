@@ -914,7 +914,7 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
                     return SW_ERR;
                 }
             }
-            add_assoc_stringl_ex(zheaders, (char *) nv.name, nv.namelen, (char *) nv.value, nv.valuelen);
+            http_parser_header_array_value(zheaders, (char *) nv.name, nv.namelen, (char *) nv.value, nv.valuelen);
         }
 
         if (inflate_flags & NGHTTP2_HD_INFLATE_FINAL)

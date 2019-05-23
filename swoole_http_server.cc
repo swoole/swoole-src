@@ -93,6 +93,7 @@ static int multipart_body_on_data_end(multipart_parser* p);
 
 static http_context* http_get_context(zval *zobject, const bool check_end);
 static void http_build_header(http_context *, swString *response, int body_length);
+static void http_build_array_header(swString *response, const char *key, size_t klen, HashTable * ht);
 
 static bool http_context_send_data(http_context* ctx, const char *data, size_t length);
 static bool http_context_send_file(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
@@ -1354,7 +1355,7 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
 {
     char *buf = SwooleTG.buffer_stack->str;
     size_t l_buf = SwooleTG.buffer_stack->size;
-    int n;
+    size_t n;
     char *date_str;
 
     assert(ctx->send_header == 0);
@@ -1417,9 +1418,16 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
             }
             if (!ZVAL_IS_NULL(zvalue))
             {
-                zend::string str_value(zvalue);
-                n = sw_snprintf(buf, l_buf, "%.*s: %.*s\r\n", (int) keylen, key, (int) str_value.len(), str_value.val());
-                swString_append_ptr(response, buf, n);
+                if (ZVAL_IS_ARRAY(zvalue))
+                {
+                    http_build_array_header(response, key, keylen, Z_ARRVAL_P(zvalue));
+                }
+                else
+                {
+                    zend::string str_value(zvalue);
+                    n = sw_snprintf(buf, l_buf, "%.*s: %.*s\r\n", (int) keylen, key, (int) str_value.len(), str_value.val());
+                    swString_append_ptr(response, buf, n);
+                }
             }
         }
         SW_HASHTABLE_FOREACH_END();
@@ -1537,6 +1545,25 @@ void swoole_http_get_compression_method(http_context *ctx, const char *accept_en
     {
         ctx->accept_compression = 0;
     }
+}
+
+static void http_build_array_header(swString *response, const char *key, size_t keylen, HashTable * ht)
+{
+    size_t n=0;
+    char *buf = SwooleTG.buffer_stack->str;
+    size_t l_buf = SwooleTG.buffer_stack->size;
+    zval *zvalue;
+
+    ZEND_HASH_FOREACH_VAL(ht, zvalue)
+    {
+        if (!ZVAL_IS_NULL(zvalue))
+        {
+            zend::string str_val(zvalue);
+            n = sw_snprintf(buf, l_buf, "%.*s: %.*s\r\n", (int) keylen, key, (int) str_val.len(), str_val.val());
+            swString_append_ptr(response, buf, n);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
 }
 
 const char* swoole_http_get_content_encoding(http_context *ctx)
@@ -1891,6 +1918,54 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
     return true;
 }
 
+bool swoole_http_response_set_header_zvalue(http_context *ctx, const char *k, size_t klen, zval *v, bool ucwords)
+{
+    if (UNEXPECTED(klen > SW_HTTP_HEADER_KEY_SIZE - 1))
+    {
+        swoole_php_error(E_WARNING, "header key is too long");
+        return false;
+    }
+    
+    zval *zheader = swoole_http_init_and_read_property(swoole_http_response_ce, ctx->response.zobject, &ctx->response.zheader, ZEND_STRL("header"));
+    if (ucwords)
+    {
+        char key_buf[SW_HTTP_HEADER_KEY_SIZE];
+        strncpy(key_buf, k, klen)[klen] = '\0';
+#ifdef SW_USE_HTTP2
+        if (ctx->stream)
+        {
+            swoole_strtolower(key_buf, klen);
+        }
+        else
+#endif
+        {
+            http_header_key_format(key_buf, klen);
+        }
+        if (UNEXPECTED(!v))
+        {
+            add_assoc_null_ex(zheader, key_buf, klen);
+        }
+        else
+        {
+            add_assoc_zval_ex(zheader, key_buf, klen, v);
+            Z_TRY_ADDREF_P(v);
+        }
+    }
+    else
+    {
+        if (UNEXPECTED(!v))
+        {
+            add_assoc_null_ex(zheader, k, klen);
+        }
+        else
+        {
+            add_assoc_zval_ex(zheader, k, klen, v);
+            Z_TRY_ADDREF_P(v);
+        }
+    }
+    return true;
+}
+
 static PHP_METHOD(swoole_http_response, sendfile)
 {
     char *file;
@@ -2109,13 +2184,14 @@ static PHP_METHOD(swoole_http_response, status)
 
 static PHP_METHOD(swoole_http_response, header)
 {
-    char *k, *v;
-    size_t klen, vlen;
+    char *k;
+    size_t klen;
+    zval *zv;
     zend_bool ucwords = 1;
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
         Z_PARAM_STRING(k, klen)
-        Z_PARAM_STRING_EX(v, vlen, 1, 0)
+        Z_PARAM_ZVAL(zv)
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(ucwords)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
@@ -2126,7 +2202,7 @@ static PHP_METHOD(swoole_http_response, header)
         RETURN_FALSE;
     }
 
-    RETURN_BOOL(swoole_http_response_set_header(ctx, k, klen, v, vlen, ucwords));
+    RETURN_BOOL(swoole_http_response_set_header_zvalue(ctx, k, klen, zv, ucwords));
 }
 
 #ifdef SW_USE_HTTP2

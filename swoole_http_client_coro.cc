@@ -19,6 +19,7 @@
 #include "php_swoole_cxx.h"
 #include "coroutine_c_api.h"
 #include "swoole_http_client.h"
+#include "swoole_http.h"
 
 #include "mime_types.h"
 #include "base64.h"
@@ -292,7 +293,7 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
     char *header_name = zend_str_tolower_dup(http->tmp_header_field_name, http->tmp_header_field_name_len);
     int ret = 0;
 
-    add_assoc_stringl_ex(zheaders, header_name, http->tmp_header_field_name_len, (char *) at, length);
+    http_parser_header_array_value(zheaders, header_name, (size_t)http->tmp_header_field_name_len, (char *) at, length);
 
     if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && strcmp(header_name, "upgrade") == 0 && strncasecmp(at, "websocket", length) == 0)
     {

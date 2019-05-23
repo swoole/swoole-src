@@ -101,6 +101,8 @@ using namespace swoole;
 
 static std::unordered_map<int, http2_session*> http2_sessions;
 
+static void http2_build_array_header(http2::headers &headers, const char *key, size_t keylen, HashTable * ht);
+
 static void http2_server_send_window_update(http_context *ctx, uint32_t stream_id, uint32_t size)
 {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE];
@@ -192,7 +194,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
 {
     zval *zheader = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
     zval *zcookie = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("cookie"), 0);
-    http2::headers headers(8 + php_swoole_array_length_safe(zheader) + php_swoole_array_length_safe(zcookie));
+    http2::headers headers(8 + http_get_zheader_length(zheader) + php_swoole_array_length_safe(zcookie));
     char *date_str = NULL;
     char intbuf[2][16];
     int ret;
@@ -220,7 +222,6 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
             {
                 continue;
             }
-            zend::string str_value(zvalue);
             char *c_key = ZSTR_VAL(key);
             size_t c_keylen = ZSTR_LEN(key);
             if (strncmp("server", c_key, c_keylen) == 0)
@@ -239,7 +240,16 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
             {
                 header_flag |= HTTP_HEADER_CONTENT_TYPE;
             }
-            headers.add(c_key, c_keylen, str_value.val(), str_value.len());
+
+            if (ZVAL_IS_ARRAY(zvalue))
+            {
+                http2_build_array_header(headers, c_key, c_keylen, Z_ARRVAL_P(zvalue));
+            }
+            else
+            {
+                zend::string str_value(zvalue);
+                headers.add(c_key, c_keylen, str_value.val(), str_value.len());
+            }
         }
         ZEND_HASH_FOREACH_END();
 
@@ -332,6 +342,21 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     }
 
     return rv;
+}
+
+static void http2_build_array_header(http2::headers &headers, const char *key, size_t keylen, HashTable * ht)
+{
+    zval *zvalue;
+
+    ZEND_HASH_FOREACH_VAL(ht, zvalue)
+    {
+        if (!ZVAL_IS_NULL(zvalue))
+        {
+            zend::string str_value(zvalue);
+            headers.add(key, keylen, str_value.val(), str_value.len());
+        }
+    }
+    ZEND_HASH_FOREACH_END();
 }
 
 int swoole_http2_server_ping(http_context *ctx)
