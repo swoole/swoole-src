@@ -195,6 +195,7 @@ void swoole_runtime_shutdown()
         ZEND_HASH_FOREACH_END();
         zend_hash_destroy(function_table);
         efree(function_table);
+        function_table = nullptr;
     }
 }
 
@@ -1207,15 +1208,34 @@ bool PHPCoroutine::enable_hook(int flags)
      */
     if (flags & SW_HOOK_BASIC_FUNCTION)
     {
-        function_table = (zend_array*) emalloc(sizeof(zend_array));
-        zend_hash_init(function_table, 8, NULL, NULL, 0);
-        //change include_path
-        zend::eval("$include_path = trim(`php-config --include-dir`);"
-                "set_include_path(ini_get('include_path').':'.$include_path.'/ext');");
-        zend::include("swoole/library/_init.php");
-        //replace
-        replace_internal_function(ZEND_STRL("array_walk"));
-        replace_internal_function(ZEND_STRL("array_walk_recursive"));
+        if (!function_table)
+        {
+            function_table = (zend_array*) emalloc(sizeof(zend_array));
+            zend_hash_init(function_table, 8, NULL, NULL, 0);
+        }
+        if (!(hook_flags & SW_HOOK_BASIC_FUNCTION))
+        {
+            //change include_path
+            zend::eval("$include_path = trim(`php-config --include-dir`);"
+                    "set_include_path(ini_get('include_path').':'.$include_path.'/ext');");
+            zend::include("swoole/library/_init.php");
+            //replace
+            replace_internal_function(ZEND_STRL("array_walk"));
+            replace_internal_function(ZEND_STRL("array_walk_recursive"));
+        }
+    }
+    else
+    {
+        if (hook_flags & SW_HOOK_BASIC_FUNCTION)
+        {
+            void *ptr;
+            ZEND_HASH_FOREACH_PTR(function_table, ptr)
+            {
+                real_func *rf = static_cast<real_func *>(ptr);
+                rf->function->internal_function.handler = rf->ori_handler;
+            }
+            ZEND_HASH_FOREACH_END();
+        }
     }
 
     hook_flags = flags;
@@ -1626,6 +1646,10 @@ static PHP_FUNCTION(_stream_select)
 static void replace_internal_function(const char *name, size_t l_name)
 {
     zend_function *zf = (zend_function *) zend_hash_str_find_ptr(EG(function_table), name, l_name);
+    if (zf == nullptr)
+    {
+        return;
+    }
 
     real_func *rf = (real_func *) emalloc(sizeof(real_func));
     char func[128];
