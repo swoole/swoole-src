@@ -1,4 +1,3 @@
-<?php
 function swoole_array_walk(&$array, callable $callback, $userdata = null)
 {
     foreach ($array as $key => &$item) {

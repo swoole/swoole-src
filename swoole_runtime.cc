@@ -14,6 +14,7 @@
   +----------------------------------------------------------------------+
  */
 #include "php_swoole_cxx.h"
+#include "library/php_swoole_library.h"
 
 #include <unordered_map>
 #include <initializer_list>
@@ -1215,10 +1216,7 @@ bool PHPCoroutine::enable_hook(int flags)
         }
         if (!(hook_flags & SW_HOOK_BASIC_FUNCTION))
         {
-            //change include_path
-            zend::eval("$include_path = trim(`php-config --include-dir`);"
-                    "set_include_path(ini_get('include_path').':'.$include_path.'/ext');");
-            zend::include("swoole/library/_init.php");
+            zend::eval(PHP_SWOOLE_LIBRARY_SOURCE);
             //replace
             replace_internal_function(ZEND_STRL("array_walk"));
             replace_internal_function(ZEND_STRL("array_walk_recursive"));

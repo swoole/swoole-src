@@ -631,6 +631,8 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared,,, cxx)
 
+    python $ext_srcdir/library/build.py
+
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])

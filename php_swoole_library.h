@@ -1,0 +1,1 @@
+const char *PHP_SWOOLE_LIBRARY_SOURCE = "
