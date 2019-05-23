@@ -185,21 +185,6 @@ namespace function
     }
 }
 
-class map
-{
-private:
-    zend_array *ht;
-public:
-    map()
-    {
-        ht = zend_new_array(8);
-    }
-    ~map()
-    {
-        zend_hash_destroy(ht);
-    }
-};
-
 
 bool include(std::string file);
 bool eval(std::string code);
