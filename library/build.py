@@ -9,7 +9,7 @@ print("generating swoole php library")
 with open(dir + '/php_swoole_library.h', 'w') as outputFile:
     outputFile.write('const char *PHP_SWOOLE_LIBRARY_SOURCE = "')
 
-    with open(dir + '/_library', 'r') as libIndexFile:
+    with open(dir + '/_library.i', 'r') as libIndexFile:
         while True:
             filename = libIndexFile.readline().strip()
             if not filename:
