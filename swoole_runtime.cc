@@ -1211,8 +1211,7 @@ bool PHPCoroutine::enable_hook(int flags)
         zend_hash_init(function_table, 8, NULL, NULL, 0);
         //change include_path
         zend::eval("$include_path = trim(`php-config --include-dir`);"
-                "$php_include_path = explode(':', ini_get('include_path'));"
-                "ini_set('include_path', ini_get('include_path').':'.$include_path.'/ext');");
+                "set_include_path(ini_get('include_path').':'.$include_path.'/ext');");
         zend::include("swoole/library/_init.php");
         //replace
         replace_internal_function(ZEND_STRL("array_walk"));
