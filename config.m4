@@ -505,6 +505,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/wrapper/client.cc \
         src/wrapper/server.cc \
         src/wrapper/timer.cc \
+        php_swoole_cxx.cc \
         swoole.cc \
         swoole_async_coro.cc \
         swoole_atomic.c \
@@ -632,10 +633,14 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
-
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
 
-    PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h])
+    swoole_library_file="library/*.php \
+        library/curl/*.php \
+        "
+
+    PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h $swoole_library_file])
+
 
     PHP_REQUIRE_CXX()
 

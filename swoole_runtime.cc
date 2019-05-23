@@ -33,6 +33,7 @@ static PHP_FUNCTION(_time_nanosleep);
 static PHP_FUNCTION(_time_sleep_until);
 static PHP_FUNCTION(_stream_select);
 static PHP_FUNCTION(_stream_socket_pair);
+static PHP_FUNCTION(_user_func_handler);
 }
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam);
@@ -42,6 +43,8 @@ static int socket_flush(php_stream *stream);
 static int socket_close(php_stream *stream, int close_handle);
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb);
 static int socket_cast(php_stream *stream, int castas, void **ret);
+
+static void replace_internal_function(const char *name, size_t l_name);
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -114,6 +117,8 @@ static zif_handler ori_stream_select_handler;
 static zend_function *ori_stream_socket_pair;
 static zif_handler ori_stream_socket_pair_handler;
 
+static zend_array *function_table = nullptr;
+
 extern "C"
 {
 #include "ext/standard/file.h"
@@ -165,6 +170,33 @@ static auto block_io_classes = {
 };
 
 static bool enable_strict_mode = false;
+
+struct real_func
+{
+    zval name;
+    zend_function *function;
+    zend_fcall_info_cache *fci_cache;
+    zif_handler ori_handler;
+};
+
+void swoole_runtime_shutdown()
+{
+    if (function_table)
+    {
+        void *ptr;
+        ZEND_HASH_FOREACH_PTR(function_table, ptr)
+        {
+            real_func *rf = static_cast<real_func *>(ptr);
+            zval_dtor(&rf->name);
+            rf->function->internal_function.handler = rf->ori_handler;
+            efree(rf->fci_cache);
+            efree(rf);
+        }
+        ZEND_HASH_FOREACH_END();
+        zend_hash_destroy(function_table);
+        efree(function_table);
+    }
+}
 
 static PHP_METHOD(swoole_runtime, enableStrictMode)
 {
@@ -1169,6 +1201,40 @@ bool PHPCoroutine::enable_hook(int flags)
             }
         }
     }
+
+    /**
+     * array_walk, array_walk_recursive ...
+     */
+    if (flags & SW_HOOK_BASIC_FUNCTION)
+    {
+        function_table = (zend_array*) emalloc(sizeof(zend_array));
+        zend_hash_init(function_table, 8, NULL, NULL, 0);
+
+        for (int i = 0; i < 2; i++)
+        {
+            if (zend::include("swoole/library/array.php") == false)
+            {
+                zend::eval("$include_path = trim(`php-config --include-dir`);"
+                        "$php_include_path = explode(':', ini_get('include_path')); "
+                        "$php_include_path = array_values(array_filter($php_include_path, function ($v){ "
+                        "    if ($v == '.') {"
+                        "        return false;"
+                        "    } else {"
+                        "        return true;"
+                        "    }"
+                        "}));"
+                        "$dir1 = \"{$php_include_path[0]}/swoole\";"
+                        "if (!is_dir($dir1)) {"
+                        "    mkdir($dir1);"
+                        "            }"
+                        "         `cp -r {$include_path}/ext/swoole/library $dir1/library`;"
+                        "var_dump($include_path);"
+                        "var_dump(ini_get('include_path'));");
+            }
+        }
+        replace_internal_function(ZEND_STRL("array_walk"));
+    }
+
     hook_flags = flags;
     return true;
 }
@@ -1574,6 +1640,34 @@ static PHP_FUNCTION(_stream_select)
     RETURN_LONG(retval);
 }
 
+static void replace_internal_function(const char *name, size_t l_name)
+{
+    zend_function *zf = (zend_function *) zend_hash_str_find_ptr(EG(function_table), name, l_name);
+
+    real_func *rf = (real_func *) emalloc(sizeof(real_func));
+    char func[128];
+    memcpy(func, ZEND_STRL("swoole_"));
+    memcpy(func + 7, zf->common.function_name->val, zf->common.function_name->len);
+
+    ZVAL_STRINGL(&rf->name, func, zf->common.function_name->len + 7);
+
+    char *func_name;
+    zend_fcall_info_cache *func_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(&rf->name, NULL, 0, &func_name, NULL, func_cache, NULL))
+    {
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+        return;
+    }
+    efree(func_name);
+
+    rf->function = zf;
+    rf->ori_handler = zf->internal_function.handler;
+    zf->internal_function.handler = PHP_FN(_user_func_handler);
+    rf->fci_cache = func_cache;
+
+    zend_hash_add_ptr(function_table, zf->common.function_name, rf);
+}
+
 static php_stream *sw_php_stream_sock_open_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC)
 {
     Socket *sock = new Socket(_fd, domain, type, protocol);
@@ -1637,4 +1731,19 @@ static PHP_FUNCTION(_stream_socket_pair)
 
     add_next_index_resource(return_value, s1->res);
     add_next_index_resource(return_value, s2->res);
+}
+
+static PHP_FUNCTION(_user_func_handler)
+{
+    zend_fcall_info fci;
+    fci.size = sizeof(fci);
+    fci.object = NULL;
+    fci.function_name = {0};
+    fci.retval = return_value;
+    fci.param_count = ZEND_NUM_ARGS();
+    fci.params = ZEND_CALL_ARG(execute_data, 1);
+    fci.no_separation = 1;
+
+    real_func *rf = (real_func *) zend_hash_find_ptr(function_table, execute_data->func->common.function_name);
+    zend_call_function(&fci, rf->fci_cache);
 }
