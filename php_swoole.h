@@ -1002,8 +1002,14 @@ static sw_inline int sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint
 static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval* object_p, zval *function_name, zval **retval_ptr_ptr, uint32_t param_count, zval *params, int no_separation, HashTable* ymbol_table)
 {
     static zval _retval;
+    int ret;
     *retval_ptr_ptr = &_retval;
-    return call_user_function_ex(function_table, object_p, function_name, &_retval, param_count, param_count ? params : NULL, no_separation, ymbol_table);
+    ret = call_user_function_ex(function_table, object_p, function_name, &_retval, param_count, param_count ? params : NULL, no_separation, ymbol_table);
+    if (UNEXPECTED(EG(exception)))
+    {
+        zend_exception_error(EG(exception), E_ERROR);
+    }
+    return ret;
 }
 
 static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fcall_info_cache *fci_cache, uint32_t param_count, zval *params, zval *retval)
@@ -1032,6 +1038,12 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
     fci.no_separation = 0;
 
     ret = zend_call_function(&fci, fci_cache);
+
+    /* we have no chance to return to ZendVM to check the exception  */
+    if (UNEXPECTED(EG(exception)))
+    {
+        zend_exception_error(EG(exception), E_ERROR);
+    }
     if (!retval)
     {
         zval_ptr_dtor(&_retval);
