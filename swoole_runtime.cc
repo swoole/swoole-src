@@ -1227,9 +1227,11 @@ bool PHPCoroutine::enable_hook(int flags)
                         "if (!is_dir($dir1)) {"
                         "    mkdir($dir1);"
                         "            }"
-                        "         `cp -r {$include_path}/ext/swoole/library $dir1/library`;"
-                        "var_dump($include_path);"
-                        "var_dump(ini_get('include_path'));");
+                        "         `cp -r {$include_path}/ext/swoole/library $dir1/library`;");
+            }
+            else
+            {
+                break;
             }
         }
         replace_internal_function(ZEND_STRL("array_walk"));
