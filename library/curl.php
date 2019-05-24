@@ -2,39 +2,28 @@
 
 class swoole_curl_handler
 {
-    /**
-     * @var Swoole\Coroutine\Http\Client
-     */
+    /** @var Swoole\Coroutine\Http\Client */
     private $client;
     private $info;
     private $outputStream;
 
-    /**
-     * @var callable
-     */
-    private $headerFunction ;
-
-    /**
-     * @var callable
-     */
+    /** @var callable */
+    private $headerFunction;
+    /** @var callable */
     private $readFunction;
-
+    /** @var callable */
     private $writeFunction;
-
+    /** @var callable */
     private $progressFunction;
 
-    public $return_transfer = true;
-    public $method;
+    public $returnTransfer = true;
+    public $method = 'GET';
     public $headers = [];
 
-    function create($url)
+    function create(string $url)
     {
         $info = parse_url($url);
-        if ($info['scheme'] == 'https') {
-            $ssl = true;
-        } else {
-            $ssl = false;
-        }
+        $ssl = $info['scheme'] === 'https';
         if (empty($info['port'])) {
             $port = $ssl ? 443 : 80;
         } else {
@@ -57,7 +46,7 @@ class swoole_curl_handler
 
         if ($client->headers and $this->headerFunction) {
             $cb = $this->headerFunction;
-            if ($client->statusCode == 200) {
+            if ($client->statusCode === 200) {
                 $cb($this, "HTTP/1.1 200 OK\r\n");
             }
             foreach ($client->headers as $k => $v) {
@@ -71,11 +60,11 @@ class swoole_curl_handler
             $cb($this, $this->outputStream, strlen($client->body));
         }
 
-        if ($this->return_transfer) {
+        if ($this->returnTransfer) {
             return $client->body;
         } else {
             if ($this->outputStream) {
-                fwrite($this->outputStream, $client->body);
+                return fwrite($this->outputStream, $client->body) === strlen($client->body);
             } else {
                 echo $this->outputStream;
             }
@@ -83,23 +72,22 @@ class swoole_curl_handler
         }
     }
 
-    function close()
+    function close(): void
     {
         $this->client = null;
-        return true;
     }
 
-    function getErrorCode()
+    function getErrorCode(): int
     {
         return $this->client->errCode;
     }
 
-    function getErrorMsg()
+    function getErrorMsg(): string
     {
         return $this->client->errMsg;
     }
 
-    private function getUrl()
+    private function getUrl(): string
     {
         if (empty($this->info['path'])) {
             $url = '/';
@@ -115,14 +103,14 @@ class swoole_curl_handler
         return $url;
     }
 
-    function setOption($opt, $value)
+    function setOption(int $opt, $value): bool
     {
         switch ($opt) {
             case CURLOPT_URL:
                 $this->create($value);
                 break;
             case CURLOPT_RETURNTRANSFER:
-                $this->return_transfer = $value;
+                $this->returnTransfer = $value;
                 break;
             case CURLOPT_ENCODING:
                 if (empty($value)) {
@@ -131,7 +119,7 @@ class swoole_curl_handler
                 $this->headers['Accept-Encoding'] = $value;
                 break;
             case CURLOPT_POST:
-                $this->method = 'post';
+                $this->method = 'POST';
                 break;
             case CURLOPT_HTTPHEADER:
                 foreach ($value as $header) {
@@ -146,7 +134,7 @@ class swoole_curl_handler
                 break;
             case CURLOPT_PROTOCOLS:
                 if ($value > 3) {
-                    throw new swoole_curl_exception("option[$opt=$value]  is not supports.");
+                    throw new swoole_curl_exception("option[{$opt}={$value}] not supported");
                 }
                 break;
             case CURLOPT_HTTP_VERSION:
@@ -177,34 +165,33 @@ class swoole_curl_handler
                 $this->progressFunction = $value;
                 break;
             default:
-                var_dump($opt, $value);
-                throw new swoole_curl_exception("option[$opt] is not supports.");
+                throw new swoole_curl_exception("option[{$opt}] not supported");
         }
         return true;
     }
 
-    function reset()
+    function reset(): void
     {
         $this->client->body = '';
     }
 }
 
-class swoole_curl_exception extends RuntimeException
+class swoole_curl_exception extends swoole_exception
 {
 
 }
 
-function swoole_curl_init()
+function swoole_curl_init(): swoole_curl_handler
 {
     return new swoole_curl_handler();
 }
 
-function swoole_curl_setopt(swoole_curl_handler $obj, $opt, $value)
+function swoole_curl_setopt(swoole_curl_handler $obj, $opt, $value): bool
 {
     return $obj->setOption($opt, $value);
 }
 
-function swoole_curl_setopt_array(swoole_curl_handler $obj, $array)
+function swoole_curl_setopt_array(swoole_curl_handler $obj, $array): bool
 {
     foreach ($array as $k => $v) {
         if ($obj->setOption($k, $v) === false) {
@@ -214,29 +201,27 @@ function swoole_curl_setopt_array(swoole_curl_handler $obj, $array)
     return true;
 }
 
-
 function swoole_curl_exec(swoole_curl_handler $obj)
 {
     return $obj->execute();
 }
 
-
-function swoole_curl_close(swoole_curl_handler $obj)
+function swoole_curl_close(swoole_curl_handler $obj): void
 {
-    return $obj->close();
+    $obj->close();
 }
 
-function swoole_curl_error(swoole_curl_handler $obj)
+function swoole_curl_error(swoole_curl_handler $obj): string
 {
     return $obj->getErrorMsg();
 }
 
-function swoole_curl_errno(swoole_curl_handler $obj)
+function swoole_curl_errno(swoole_curl_handler $obj): int
 {
     return $obj->getErrorCode();
 }
 
-function swoole_curl_reset(swoole_curl_handler $obj)
+function swoole_curl_reset(swoole_curl_handler $obj): void
 {
-    return $obj->reset();
+    $obj->reset();
 }
