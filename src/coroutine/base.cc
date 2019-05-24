@@ -45,6 +45,10 @@ void Coroutine::yield()
 void Coroutine::resume()
 {
     SW_ASSERT(current != this);
+    if (unlikely(on_bailout))
+    {
+        return;
+    }
     state = SW_CORO_RUNNING;
     if (likely(on_resume))
     {
