@@ -134,7 +134,6 @@
             <file role="src" name="clear.sh" />
             <file role="src" name="code_stats.sh" />
             <file role="src" name="config.m4" />
-            <file role="src" name="config.w32" />
             <file role="src" name="core-tests/CMakeLists.txt" />
             <file role="src" name="core-tests/include/tests.h" />
             <file role="src" name="core-tests/run.sh" />
