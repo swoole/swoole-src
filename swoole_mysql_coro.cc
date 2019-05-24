@@ -96,6 +96,12 @@ public:
         return error_msg.c_str();
     }
 
+    inline void non_sql_error(int code, const char *msg)
+    {
+        error_code = code;
+        error_msg = cpp_string::format("SQLSTATE[" MYSQLND_UNKNOWN_SQLSTATE "] [%d] %s", code, msg);
+    }
+
     template<typename ...Args>
     inline void non_sql_error(int code, const char *format, Args ...args)
     {
