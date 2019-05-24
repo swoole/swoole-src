@@ -43,7 +43,7 @@ bool zend::include(std::string file)
     return Z_TYPE(retval) == IS_TRUE;
 }
 
-bool zend::eval(std::string code)
+bool zend::eval(std::string code, std::string filename)
 {
-    return zend_eval_stringl((char*) code.c_str(), code.length(), nullptr, "Swoole");
+    return zend_eval_stringl((char*) code.c_str(), code.length(), nullptr, (char *) filename.c_str());
 }

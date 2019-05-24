@@ -637,6 +637,9 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
 
     /usr/bin/env php $ext_srcdir/tools/build-library.php
+    if test "$?" = "0"; then
+        AC_DEFINE(SW_HAVE_LIBRARY, 1, [have php library])
+    fi
 
     PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h])
 

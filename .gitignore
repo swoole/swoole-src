@@ -105,3 +105,5 @@ core-tests/samples/CMakeCache\.txt
 core-tests/samples/bin/
 
 core-tests/samples/CMakeFiles/
+
+/php_swoole_library.h

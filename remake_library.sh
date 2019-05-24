@@ -6,9 +6,10 @@ cd ${__DIR__}
 set +e
 echo "rm swoole_runtime.lo"
 rm swoole_runtime.lo
-echo "rm library/*.h"
-rm library/*.h
+echo "rm php_swoole_library.h"
+rm php_swoole_library.h
 set -e
 /usr/bin/env php tools/build-library.php
-echo "done"
+echo "remake..."
 make $* > /dev/null
+echo "done"

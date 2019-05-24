@@ -187,6 +187,6 @@ namespace function
 
 
 bool include(std::string file);
-bool eval(std::string code);
+bool eval(std::string code, std::string filename = "");
 //-----------------------------------namespace end--------------------------------------------
 }
