@@ -1,5 +1,5 @@
 --TEST--
-swoole_http2_server: huge headers
+swoole_http2_client_coro: huge headers
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
