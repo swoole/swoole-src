@@ -16,10 +16,10 @@ $_space = function (int $length = 4): string {
     return str_repeat(' ', $length);
 };
 
-function space(...$args): string
+function space(int $length = 4): string
 {
     global $_space;
-    return $_space(...$args);
+    return $_space($length);
 }
 
 function print_split_line(string $title = '', int $length = 32)

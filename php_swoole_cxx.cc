@@ -45,5 +45,5 @@ bool zend::include(std::string file)
 
 bool zend::eval(std::string code, std::string filename)
 {
-    return zend_eval_stringl((char*) code.c_str(), code.length(), nullptr, (char *) filename.c_str());
+    return zend_eval_stringl((char*) code.c_str(), code.length(), nullptr, (char *) filename.c_str()) == SUCCESS;
 }
