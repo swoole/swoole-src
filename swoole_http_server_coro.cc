@@ -364,6 +364,11 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
 
         total_bytes += retval;
         parsed_n = swoole_http_parser_execute(&ctx->parser, swoole_http_get_parser_setting(), buffer->str, retval);
+        if (parsed_n)
+        {
+            swSysError("Parsing http over socket[%d] failed.", ctx->fd);
+            break;
+        }
         swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d", parsed_n, retval, total_bytes, ctx->completed);
 
         if (!ctx->completed)
