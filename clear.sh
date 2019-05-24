@@ -1,3 +1,9 @@
+#!/bin/sh
+__DIR__=$(cd "$(dirname "$0")";pwd)
+
+set -e
+cd ${__DIR__}
+set +e
 find . -name \*.gcno -o -name \*.gcda | xargs rm -f
 find . -name \*.lo -o -name \*.o | xargs rm -f
 find . -name \*.la -o -name \*.a | xargs rm -f

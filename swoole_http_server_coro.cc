@@ -312,6 +312,10 @@ static PHP_METHOD(swoole_http_server_coro, start)
             {
                 System::sleep(1.0);
             }
+            else if (sock->errCode == ECANCELED)
+            {
+                break;
+            }
             else
             {
                 swoole_php_fatal_error(E_WARNING, "accept failed, Error: %s[%d]", sock->errMsg, sock->errCode);
