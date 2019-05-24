@@ -990,9 +990,7 @@ bool PHPCoroutine::enable_hook(int flags)
         ori_gethostbyname = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("gethostbyname"));
         ori_gethostbyname_handler = ori_gethostbyname->internal_function.handler;
 
-#ifdef SW_HAVE_LIBRARY
         #include "php_swoole_library.h"
-#endif
 
         hook_init = true;
     }
