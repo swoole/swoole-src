@@ -179,7 +179,6 @@ static void swoole_socket_coro_free_object(zend_object *object)
 #endif
     if (sock->socket && sock->socket != SW_BAD_SOCKET)
     {
-        assert(!sock->socket->has_bound());
         sock->socket->close();
         delete sock->socket;
     }

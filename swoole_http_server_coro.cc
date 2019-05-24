@@ -284,7 +284,6 @@ static PHP_METHOD(swoole_http_server_coro, start)
 
     if (!sw_zend_is_callable_ex(&zcallback, getThis(), 0, &func_name, NULL, &func_cache, NULL))
     {
-        efree(func_name);
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;
     }
@@ -311,6 +310,10 @@ static PHP_METHOD(swoole_http_server_coro, start)
             if (sock->errCode == EMFILE || sock->errCode == ENFILE)
             {
                 System::sleep(1.0);
+            }
+            else if (sock->errCode == ETIMEDOUT)
+            {
+                continue;
             }
             else if (sock->errCode == ECANCELED)
             {
@@ -345,13 +348,13 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
 
     Socket *sock = php_swoole_get_socket(zconn);
     size_t total_bytes = 0;
-    long parsed_n;
+    size_t parsed_n;
     http_context *ctx = nullptr;
 
     while (true)
     {
         auto buffer = sock->get_read_buffer();
-        ssize_t retval = sock->recv(buffer->str, buffer->size);
+        ssize_t retval = sock->recv(buffer->str + buffer->offset, buffer->size - buffer->offset);
         if (unlikely(retval <= 0))
         {
             break;
@@ -364,16 +367,20 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
 
         total_bytes += retval;
         parsed_n = swoole_http_parser_execute(&ctx->parser, swoole_http_get_parser_setting(), buffer->str, retval);
-        if (parsed_n)
-        {
-            swSysError("Parsing http over socket[%d] failed.", ctx->fd);
-            break;
-        }
         swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d", parsed_n, retval, total_bytes, ctx->completed);
 
         if (!ctx->completed)
         {
             continue;
+        }
+        if (retval > (ssize_t) parsed_n)
+        {
+            buffer->offset = retval - parsed_n;
+            memmove(buffer->str, buffer->str + parsed_n, buffer->offset);
+        }
+        else
+        {
+            buffer->offset = 0;
         }
 
         zval *zserver = ctx->request.zserver;

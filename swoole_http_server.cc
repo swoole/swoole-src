@@ -966,78 +966,62 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     swTrace("http request from %d with %d bytes: <<EOF\n%.*s\nEOF", fd, (int)Z_STRLEN_P(zdata), (int)Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
 
     swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
-    long n = swoole_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
-
-    if (n < 0)
+    size_t n = swoole_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
+    if (n < Z_STRLEN_P(zdata))
     {
-        sw_zval_free(zdata);
-        swWarn("swoole_http_parser_execute failed");
-        if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
+        swNotice("request has 10 bytes unprocessed");
+    }
+
+    zval args[2], *zrequest_object = &args[0], *zresponse_object = &args[1];
+    args[0] = *ctx->request.zobject;
+    args[1] = *ctx->response.zobject;
+
+    add_assoc_long(zserver, "server_port", swConnection_get_port(&serv->connection_list[conn->from_fd]));
+    add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
+    add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(conn));
+    add_assoc_long(zserver, "master_time", conn->last_time);
+
+    swoole_set_property(zrequest_object, 0, zdata);
+
+    // begin to check and call registerd callback
+    zend_fcall_info_cache *fci_cache = NULL;
+
+    if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
+    {
+        fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onHandShake);
+        if (fci_cache == NULL)
         {
-            return serv->close(serv, fd, 1);
+            swoole_websocket_onHandshake(serv, port, ctx);
+            goto _dtor_and_return;
+        }
+        else
+        {
+            conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
+            ctx->upgrade = 1;
         }
     }
     else
     {
-        zval args[2], *zrequest_object = &args[0], *zresponse_object = &args[1];
-        args[0] = *ctx->request.zobject;
-        args[1] = *ctx->response.zobject;
-
-        swConnection *conn = swWorker_get_connection(serv, fd);
-        if (!conn)
+        fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onRequest);
+        if (fci_cache == NULL)
         {
-            sw_zval_free(zdata);
-            swWarn("connection[%d] is closed", fd);
-            return SW_ERR;
+            swoole_websocket_onRequest(ctx);
+            goto _dtor_and_return;
         }
-
-        add_assoc_long(zserver, "server_port", swConnection_get_port(&serv->connection_list[conn->from_fd]));
-        add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
-        add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(conn));
-        add_assoc_long(zserver, "master_time", conn->last_time);
-
-        swoole_set_property(zrequest_object, 0, zdata);
-
-        // begin to check and call registerd callback
-        zend_fcall_info_cache *fci_cache = NULL;
-
-        if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
-        {
-            fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onHandShake);
-            if (fci_cache == NULL)
-            {
-                swoole_websocket_onHandshake(serv, port, ctx);
-                goto _dtor_and_return;
-            }
-            else
-            {
-                conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
-                ctx->upgrade = 1;
-            }
-        }
-        else
-        {
-            fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onRequest);
-            if (fci_cache == NULL)
-            {
-                swoole_websocket_onRequest(ctx);
-                goto _dtor_and_return;
-            }
-        }
-
-        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
-        {
-            swoole_php_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
-#ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
-            ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
-#endif
-            ctx->close(ctx);
-        }
-
-        _dtor_and_return:
-        zval_ptr_dtor(zrequest_object);
-        zval_ptr_dtor(zresponse_object);
     }
+
+    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
+    {
+        swoole_php_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
+#ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
+        ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
+#endif
+        ctx->close(ctx);
+    }
+
+    _dtor_and_return:
+    zval_ptr_dtor(zrequest_object);
+    zval_ptr_dtor(zresponse_object);
 
     return SW_OK;
 }
