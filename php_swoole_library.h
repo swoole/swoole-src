@@ -4,14 +4,15 @@
 
 zend::eval(
     "\n"
-    "function swoole_array_walk(&$array, callable $callback, $userdata = null)\n"
+    "function swoole_array_walk(array &$array, callable $callback, $userdata = null): bool\n"
     "{\n"
     "    foreach ($array as $key => &$item) {\n"
     "        $callback($item, $key, $userdata);\n"
     "    }\n"
+    "    return true;\n"
     "}\n"
     "\n"
-    "function swoole_array_walk_recursive(&$array, callable $callback, $userdata = null)\n"
+    "function swoole_array_walk_recursive(array &$array, callable $callback, $userdata = null): bool\n"
     "{\n"
     "    foreach ($array as $key => &$item) {\n"
     "        if (is_array($item)) {\n"
@@ -20,6 +21,7 @@ zend::eval(
     "            $callback($item, $key, $userdata);\n"
     "        }\n"
     "    }\n"
+    "    return true;\n"
     "}\n",
     "/path/to/swoole-src/library/array.php"
 );
