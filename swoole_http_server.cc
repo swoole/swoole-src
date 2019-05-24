@@ -1549,7 +1549,7 @@ void swoole_http_get_compression_method(http_context *ctx, const char *accept_en
 
 static void http_build_array_header(swString *response, const char *key, size_t keylen, HashTable * ht)
 {
-    size_t n=0;
+    size_t n = 0;
     char *buf = SwooleTG.buffer_stack->str;
     size_t l_buf = SwooleTG.buffer_stack->size;
     zval *zvalue;
@@ -1918,7 +1918,7 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
     return true;
 }
 
-bool swoole_http_response_set_header_zvalue(http_context *ctx, const char *k, size_t klen, zval *v, bool ucwords)
+bool swoole_http_response_set_header_zvalue(http_context *ctx, const char *k, size_t klen, zval *zv, bool ucwords)
 {
     if (UNEXPECTED(klen > SW_HTTP_HEADER_KEY_SIZE - 1))
     {
@@ -1941,26 +1941,26 @@ bool swoole_http_response_set_header_zvalue(http_context *ctx, const char *k, si
         {
             http_header_key_format(key_buf, klen);
         }
-        if (UNEXPECTED(!v))
+        if (UNEXPECTED(!zv))
         {
             add_assoc_null_ex(zheader, key_buf, klen);
         }
         else
         {
-            add_assoc_zval_ex(zheader, key_buf, klen, v);
-            Z_TRY_ADDREF_P(v);
+            add_assoc_zval_ex(zheader, key_buf, klen, zv);
+            Z_TRY_ADDREF_P(zv);
         }
     }
     else
     {
-        if (UNEXPECTED(!v))
+        if (UNEXPECTED(!zv))
         {
             add_assoc_null_ex(zheader, k, klen);
         }
         else
         {
-            add_assoc_zval_ex(zheader, k, klen, v);
-            Z_TRY_ADDREF_P(v);
+            add_assoc_zval_ex(zheader, k, klen, zv);
+            Z_TRY_ADDREF_P(zv);
         }
     }
     return true;
@@ -2191,7 +2191,7 @@ static PHP_METHOD(swoole_http_response, header)
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
         Z_PARAM_STRING(k, klen)
-        Z_PARAM_ZVAL(zv)
+        Z_PARAM_ZVAL_EX(zv, 1, 0)
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(ucwords)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);

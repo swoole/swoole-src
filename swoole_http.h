@@ -185,7 +185,7 @@ const swoole_http_parser_settings* swoole_http_get_parser_setting();
 void swoole_http_server_init_context(swServer *serv, http_context *ctx);
 
 bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t klen, const char *v, size_t vlen, bool ucwords);
-bool swoole_http_response_set_header_zvalue(http_context *ctx, const char *k, size_t klen, zval *v, bool ucwords);
+bool swoole_http_response_set_header_zvalue(http_context *ctx, const char *k, size_t klen, zval *zv, bool ucwords);
 
 void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value);
 
@@ -261,7 +261,7 @@ static size_t http_get_zheader_length(zval *zheader)
     {
         if (ZVAL_IS_ARRAY(zvalue))
         {
-            length += php_swoole_array_length_safe(zvalue);
+            length += php_swoole_array_length(zvalue);
         }
         else if (!ZVAL_IS_NULL(zvalue))
         {
@@ -273,15 +273,15 @@ static size_t http_get_zheader_length(zval *zheader)
     return length;
 }
 
-static void http_parser_header_array_value(zval *zheaders, char *header_name, size_t head_len, char * value, size_t value_len)
+static void http_parser_header_array_value(zval *zheaders, char *header_name, size_t header_len, char * value, size_t value_len)
 {
     zval *header_zval, zvalue;
     HashTable * ht = Z_ARRVAL_P(zheaders);
 
     ZVAL_STRINGL(&zvalue, value, value_len);
-    if ((header_zval = zend_hash_str_find(ht, header_name, head_len)))
+    if (UNEXPECTED(header_zval = zend_hash_str_find(ht, header_name, header_len)))
     {
-        if (Z_TYPE_P(header_zval) == IS_ARRAY)
+        if (ZVAL_IS_ARRAY(header_zval))
         {
             zend_hash_next_index_insert(Z_ARRVAL_P(header_zval), &zvalue);
         }
@@ -297,7 +297,7 @@ static void http_parser_header_array_value(zval *zheaders, char *header_name, si
     }
     else
     {
-        zend_hash_str_update(ht, header_name, head_len, &zvalue);
+        zend_hash_str_update(ht, header_name, header_len, &zvalue);
     }
 }
 
