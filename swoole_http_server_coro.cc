@@ -303,6 +303,21 @@ static PHP_METHOD(swoole_http_server_coro, start)
             PHPCoroutine::create(&func_cache, 1, argv);
             zval_dtor(&argv[0]);
         }
+        else
+        {
+            /*
+             * Too many connection, wait 1s
+             */
+            if (sock->errCode == EMFILE || sock->errCode == ENFILE)
+            {
+                System::sleep(1.0);
+            }
+            else
+            {
+                swoole_php_fatal_error(E_WARNING, "accept failed, Error: %s[%d]", sock->errMsg, sock->errCode);
+                break;
+            }
+        }
     }
 
     zval_dtor(&zcallback);
