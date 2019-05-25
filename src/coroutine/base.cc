@@ -152,6 +152,7 @@ void Coroutine::bailout(sw_coro_bailout_t func)
     {
         swError("bailout without bailout function");
     }
+    on_bailout = func;
     // find the coroutine which is closest to the main
     while (co->origin)
     {
