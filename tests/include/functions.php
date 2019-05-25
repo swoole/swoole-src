@@ -267,6 +267,14 @@ function get_safe_random(int $length = 32, $original = false): string
     return $raw;
 }
 
+function get_big_random(int $length = 1024 * 1024)
+{
+    if ($length < 1024 * 1024 || $length % 1024 !== 0) {
+        throw new InvalidArgumentException('Invalid length ' . $length);
+    }
+    return str_repeat(get_safe_random(1024), $length / 1024);
+}
+
 function makeTcpClient($host, $port, callable $onConnect = null, callable $onReceive = null)
 {
     $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
@@ -789,7 +797,7 @@ class ProcessManager
         $this->randomFunc = $func;
     }
 
-    public function initRandomData(int $size, int $len = 32)
+    public function initRandomData(int $size, int $len = null)
     {
         $this->initRandomDataEx(1, $size, $len);
     }
@@ -806,6 +814,19 @@ class ProcessManager
 
     public function initRandomDataEx(int $block_num, int $size, ...$arguments)
     {
+        $arguments = array_reverse($arguments);
+        $shift = 0;
+        foreach ($arguments as $index => $argument) {
+            if ($argument === null) {
+                $shift++;
+            } else {
+                break;
+            }
+        }
+        while ($shift--) {
+            array_shift($arguments);
+        }
+        $arguments = array_reverse($arguments);
         $func = $this->randomFunc;
         for ($b = 0; $b < $block_num; $b++) {
             for ($n = $size; $n--;) {
