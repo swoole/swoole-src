@@ -540,7 +540,7 @@ static void aio_onReadCompleted(swAio_event *event)
     else
     {
         SwooleG.error = event->error;
-        ZVAL_BOOL(&result, 0);
+        ZVAL_FALSE(&result);
     }
 
     php_coro_context *context = (php_coro_context *) event->object;
@@ -566,7 +566,7 @@ static void aio_onFgetsCompleted(swAio_event *event)
     else
     {
         SwooleG.error = event->error;
-        ZVAL_BOOL(&result, 0);
+        ZVAL_FALSE(&result);
     }
 
     php_coro_context *context = (php_coro_context *) event->object;
@@ -595,7 +595,7 @@ static void aio_onWriteCompleted(swAio_event *event)
     if (event->ret < 0)
     {
         SwooleG.error = event->error;
-        ZVAL_BOOL(&result, 0);
+        ZVAL_FALSE(&result);
     }
     else
     {
@@ -1094,7 +1094,7 @@ static void coro_dns_onGetaddrinfoCompleted(swAio_event *event)
     }
     else
     {
-        ZVAL_BOOL(&result, 0);
+        ZVAL_FALSE(&result);
         SwooleG.error = req->error;
     }
 

@@ -214,7 +214,7 @@ static inline void php_swoole_table_get_field_value(swTable *table, swTableRow *
     swTableColumn *col = swHashMap_find(table->columns, field, field_len);
     if (!col)
     {
-        ZVAL_BOOL(return_value, 0);
+        ZVAL_FALSE(return_value);
         return;
     }
     if (col->type == SW_TABLE_STRING)

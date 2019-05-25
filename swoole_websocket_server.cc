@@ -137,7 +137,7 @@ void php_swoole_websocket_frame_unpack(swString *data, zval *zframe)
 
     if (data->length < sizeof(frame.header))
     {
-        ZVAL_BOOL(zframe, 0);
+        ZVAL_FALSE(zframe);
         return;
     }
 

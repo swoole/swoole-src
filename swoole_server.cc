@@ -1774,7 +1774,7 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
     zval *retval = NULL;
 
     SwooleG.error = ETIMEDOUT;
-    ZVAL_BOOL(&result, 0);
+    ZVAL_FALSE(&result);
 
     int fd = (int) (long) context->private_data;
 
@@ -1816,7 +1816,8 @@ static int php_swoole_server_send_resume(swServer *serv, php_coro_context *conte
 
     if (ZVAL_IS_NULL(zdata))
     {
-        _fail: ZVAL_BOOL(&result, 0);
+        _fail:
+        ZVAL_FALSE(&result);
     }
     else
     {
