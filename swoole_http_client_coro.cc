@@ -86,7 +86,7 @@ public:
     bool websocket = false;          // if upgrade successfully
     bool gzip = false;               // enable gzip
     bool chunked = false;            // Transfer-Encoding: chunked
-    bool websocket_mask = false;     // enable websocket mask
+    bool websocket_mask = true;      // enable websocket mask
     bool is_download = false;        // save http response to file
     int download_file_fd = 0;
     bool has_upload_files = false;
