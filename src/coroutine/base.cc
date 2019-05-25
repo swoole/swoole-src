@@ -71,6 +71,10 @@ void Coroutine::yield_naked()
 void Coroutine::resume_naked()
 {
     SW_ASSERT(current != this);
+    if (unlikely(on_bailout))
+    {
+        return;
+    }
     state = SW_CORO_RUNNING;
     origin = current;
     current = this;
@@ -137,25 +141,24 @@ void Coroutine::set_on_close(sw_coro_on_swap_t func)
 
 void Coroutine::bailout(sw_coro_bailout_t func)
 {
+    Coroutine *co = current;
+    if (!co)
+    {
+        // marks that it can no longer resume any coroutine
+        on_bailout = (sw_coro_bailout_t) -1;
+        return;
+    }
     if (!func)
     {
         swError("bailout without bailout function");
     }
-    if (!current)
+    // find the coroutine which is closest to the main
+    while (co->origin)
     {
-        func();
+        co = co->origin;
     }
-    else
-    {
-        Coroutine *co = current;
-        while (co->origin)
-        {
-            co = co->origin;
-        }
-        // it will jump to main context directly (it also breaks contexts)
-        on_bailout = func;
-        co->yield();
-    }
+    // it will jump to main context directly (it also breaks contexts)
+    co->yield();
     // expect that never here
     exit(1);
 }

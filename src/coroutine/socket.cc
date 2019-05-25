@@ -1098,6 +1098,7 @@ Socket* Socket::accept()
         if (swSSL_create(client_sock->socket, ssl_context, 0) < 0 || !client_sock->ssl_accept())
         {
             client_sock->close();
+            delete client_sock;
             return nullptr;
         }
     }
@@ -1666,6 +1667,7 @@ bool Socket::close()
  * the destructor should only be called in following two cases:
  * 1. construct failed
  * 2. called close() and it return true
+ * 3. called close() and it return false but it will not be accessed anywhere else
  */
 Socket::~Socket()
 {
@@ -1673,7 +1675,12 @@ Socket::~Socket()
     {
         return;
     }
-    SW_ASSERT(!has_bound());
+#ifdef SW_DEBUG
+    if (SwooleG.running)
+    {
+        SW_ASSERT(!has_bound() && socket->removed);
+    }
+#endif
     if (read_buffer)
     {
         swString_free(read_buffer);
@@ -1738,7 +1745,6 @@ Socket::~Socket()
     {
         unlink(socket->info.addr.un.sun_path);
     }
-    SW_ASSERT(socket->removed);
     if (unlikely(socket->fd > 0 && ::close(socket->fd) != 0))
     {
         swSysWarn("close(%d) failed", socket->fd);

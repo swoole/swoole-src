@@ -110,8 +110,6 @@ public:
     static bool enable_hook(int flags);
     static bool disable_hook();
 
-    static void on_yield(void *arg);
-
     // TODO: remove old coro APIs (Manual)
     static void yield_m(zval *return_value, php_coro_context *sw_php_context);
     static int resume_m(php_coro_context *sw_current_context, zval *retval, zval *coro_retval);
@@ -177,6 +175,7 @@ protected:
     static inline void restore_og(php_coro_task *task);
     static inline void save_task(php_coro_task *task);
     static inline void restore_task(php_coro_task *task);
+    static void on_yield(void *arg);
     static void on_resume(void *arg);
     static void on_close(void *arg);
     static void create_func(void *arg);

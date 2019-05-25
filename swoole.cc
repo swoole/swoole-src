@@ -811,7 +811,7 @@ PHP_MINIT_FUNCTION(swoole)
 }
 /* }}} */
 
-/* {{{ PHP_MINIT_FUNCTION
+/* {{{ PHP_MSHUTDOWN_FUNCTION
  */
 PHP_MSHUTDOWN_FUNCTION(swoole)
 {
@@ -943,6 +943,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 {
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_BEGIN;
     swoole_call_rshutdown_function(NULL);
+
     //clear pipe buffer
     if (SwooleG.serv && swIsWorker())
     {
@@ -974,17 +975,16 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
         }
     }
 
-    if (SwooleAIO.init)
-    {
-        swAio_free();
-    }
+    swAio_free();
 
     swoole_async_coro_shutdown();
     swoole_redis_server_shutdown();
     swoole_coroutine_shutdown();
     swoole_runtime_shutdown();
 
+    SwooleG.running = 0;
     SwooleWG.reactor_wait_onexit = 0;
+
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;
 
     return SUCCESS;

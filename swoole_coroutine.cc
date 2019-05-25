@@ -78,6 +78,7 @@ void PHPCoroutine::shutdown()
             swSysWarn("pthread_join(%ld) failed", (ulong_t )pidt);
         }
     }
+    Coroutine::bailout(nullptr);
 }
 
 void PHPCoroutine::create_scheduler_thread()
