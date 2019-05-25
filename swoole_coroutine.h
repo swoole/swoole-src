@@ -107,8 +107,6 @@ public:
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(php_swoole_fci *fci);
 
-    static void check_bind(const char *name, long bind_cid);
-
     static bool enable_hook(int flags);
     static bool disable_hook();
 

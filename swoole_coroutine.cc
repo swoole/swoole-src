@@ -488,23 +488,6 @@ void PHPCoroutine::defer(php_swoole_fci *fci)
     task->defer_tasks->push(fci);
 }
 
-/**
- * Deprecated (should be removed after refactor MySQL and HTTP2 client)
- */
-void PHPCoroutine::check_bind(const char *name, long bind_cid)
-{
-    Coroutine::get_current_safe();
-    if (unlikely(bind_cid > 0))
-    {
-        swFatalError(
-            SW_ERROR_CO_HAS_BEEN_BOUND,
-            "%s has already been bound to another coroutine#%ld, "
-            "reading or writing of the same socket in multiple coroutines at the same time is not allowed",
-            name, bind_cid
-        );
-    }
-}
-
 void PHPCoroutine::yield_m(zval *return_value, php_coro_context *sw_current_context)
 {
     Coroutine::get_current_safe();
