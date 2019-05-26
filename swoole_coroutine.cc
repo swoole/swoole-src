@@ -27,7 +27,6 @@ bool PHPCoroutine::active = false;
 uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
 php_coro_task PHPCoroutine::main_task = {0};
 
-bool PHPCoroutine::enable_preemptive_scheduler = false;
 bool PHPCoroutine::schedule_thread_created = false;
 
 static zend_bool* zend_vm_interrupt = nullptr;
@@ -87,26 +86,22 @@ void PHPCoroutine::create_scheduler_thread()
     {
         return;
     }
-
     zend_vm_interrupt = &EG(vm_interrupt);
-    schedule_thread_created = true;
     if (pthread_create(&pidt, NULL, (void * (*)(void *)) schedule, NULL) < 0)
     {
         swSysError("pthread_create[PHPCoroutine Scheduler] failed");
     }
+    schedule_thread_created = true;
 }
 
 void PHPCoroutine::schedule()
 {
+    static const useconds_t interval = (MAX_EXEC_MSEC / 2) * 1000;
     swSignal_none();
-    int64_t interval_msec = (PHPCoroutine::MAX_EXEC_MSEC / 2) * 1000;
     while (SwooleG.running)
     {
-        if (PHPCoroutine::enable_preemptive_scheduler)
-        {
-            *zend_vm_interrupt = 1;
-        }
-        usleep(interval_msec);
+        *zend_vm_interrupt = 1;
+        usleep(interval);
     }
     pthread_exit(0);
 }
@@ -453,20 +448,25 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
         return SW_CORO_ERR_INVALID;
     }
 
-    if (SWOOLE_G(enable_preemptive_scheduler) && !active)
-    {
-        PHPCoroutine::enable_preemptive_scheduler = true;
-        PHPCoroutine::create_scheduler_thread();
-    }
-
     if (unlikely(!active))
     {
+        if (SWOOLE_G(enable_preemptive_scheduler))
+        {
+            // create a thread to interrupt the coroutine that takes up too much time
+            create_scheduler_thread();
+        }
+
         if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug")))
         {
             swoole_php_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
         }
+
+        // init reactor and register event wait
         php_swoole_check_reactor();
-        // PHPCoroutine::enable_hook(SW_HOOK_ALL); // TODO: enable it in version 4.3.0
+
+        // TODO: enable hook in v5.0.0
+        // enable_hook(SW_HOOK_ALL);
+
         active = true;
     }
 
