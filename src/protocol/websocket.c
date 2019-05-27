@@ -92,6 +92,23 @@ ssize_t swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn,
     return header_length + payload_length;
 }
 
+static sw_inline void swWebSocket_mask(char *data, const char *mask_key, size_t len)
+{
+    size_t n = len / 8;
+    int64_t mask_key64 = ((int64_t) (*((int32_t *) mask_key)) << 32) | *((int32_t *) mask_key);
+    size_t i;
+
+    for (i = 0; i < n; i++)
+    {
+        ((int64_t *) data)[i] ^= mask_key64;
+    }
+
+    for (i = n * 8; i < len; i++)
+    {
+        data[i] ^= mask_key[i % SW_WEBSOCKET_MASK_LEN];
+    }
+}
+
 void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, uint8_t finish, uint8_t mask)
 {
     int pos = 0;
@@ -141,11 +158,7 @@ void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode
             swString_append_ptr(buffer, data, length);
             char *_data = buffer->str + offset;
 
-            int i;
-            for (i = 0; i < length; i++)
-            {
-                _data[i] ^= _mask_data[i % SW_WEBSOCKET_MASK_LEN];
-            }
+            swWebSocket_mask(_data, _mask_data, length);
         }
         else
         {
@@ -182,11 +195,7 @@ void swWebSocket_decode(swWebSocket_frame *frame, swString *data)
         memcpy(mask_key, data->str + header_length, SW_WEBSOCKET_MASK_LEN);
         header_length += SW_WEBSOCKET_MASK_LEN;
         buf = data->str + header_length;
-        int i;
-        for (i = 0; i < payload_length; i++)
-        {
-            buf[i] ^= mask_key[i % SW_WEBSOCKET_MASK_LEN];
-        }
+        swWebSocket_mask(buf, mask_key, payload_length);
     }
     frame->payload_length = payload_length;
     frame->header_length = header_length;
