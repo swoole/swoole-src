@@ -178,10 +178,6 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
         {
             fin = zval_is_true(ztmp);
         }
-        if ((ztmp = sw_zend_read_property(swoole_websocket_frame_ce, zframe, ZEND_STRL("mask"), 1)))
-        {
-            mask = zval_is_true(ztmp);
-        }
     }
     if (unlikely(opcode > SW_WEBSOCKET_OPCODE_MAX))
     {
