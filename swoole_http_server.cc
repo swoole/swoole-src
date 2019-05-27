@@ -463,7 +463,7 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length)
             if (isspace(*_c))
             {
                 //Remove leading spaces from cookie names
-                ++j;
+                j++;
             }
             else
             {
