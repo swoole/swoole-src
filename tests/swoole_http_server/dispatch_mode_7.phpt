@@ -26,10 +26,10 @@ $pm->childFunc = function () use ($pm) {
         'worker_num' => 2,
         'dispatch_mode' => 7,
         'reload_async' => true,
+        'log_level' => SWOOLE_LOG_WARNING
     ]);
 
-    $http->on('workerStart', function ($serv, $id) {
-        global $pm;
+    $http->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
 
