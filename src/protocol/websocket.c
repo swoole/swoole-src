@@ -96,14 +96,14 @@ static sw_inline void swWebSocket_mask(char *data, const char *mask_key, size_t 
 {
     size_t n = len / 8;
     int64_t mask_key64 = ((int64_t) (*((int32_t *) mask_key)) << 32) | *((int32_t *) mask_key);
-    int i;
+    size_t i;
 
-    for (i = 0; i < n; ++i)
+    for (i = 0; i < n; i++)
     {
         ((int64_t *) data)[i] ^= mask_key64;
     }
 
-    for (i *= 8; i < len; ++i)
+    for (i = n * 8; i < len; i++)
     {
         data[i] ^= mask_key[i % SW_WEBSOCKET_MASK_LEN];
     }
