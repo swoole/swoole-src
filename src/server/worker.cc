@@ -25,7 +25,7 @@
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamRead(swReactor *reactor, swEvent *event);
-static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t length);
+static int swWorker_onStreamPackage(swProtocol *proto, swConnection *conn, char *data, uint32_t length);
 static int swWorker_onStreamClose(swReactor *reactor, swEvent *event);
 
 void swWorker_free(swWorker *worker)
@@ -723,6 +723,7 @@ int swWorker_loop(swServer *serv, int worker_id)
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_LISTEN, swWorker_onStreamAccept);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_STREAM, swWorker_onStreamRead);
         swStream_set_protocol(&serv->stream_protocol);
+        serv->stream_protocol.private_data_2 = serv;
         serv->stream_protocol.package_max_length = INT_MAX;
         serv->stream_protocol.onPackage = swWorker_onStreamPackage;
         serv->buffer_pool = swLinkedList_new(0, NULL);
