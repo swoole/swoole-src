@@ -44,6 +44,8 @@ static int socket_close(php_stream *stream, int close_handle);
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb);
 static int socket_cast(php_stream *stream, int castas, void **ret);
 
+#include "php_swoole_library.h"
+
 static void replace_internal_function(const char *name, size_t l_name);
 static void recover_internal_function(const char *name, size_t l_name);
 
@@ -990,7 +992,7 @@ bool PHPCoroutine::enable_hook(int flags)
         ori_gethostbyname = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("gethostbyname"));
         ori_gethostbyname_handler = ori_gethostbyname->internal_function.handler;
 
-        #include "php_swoole_library.h"
+        swoole_load_library();
 
         hook_init = true;
     }
