@@ -231,7 +231,7 @@ void swWebSocket_print_frame(swWebSocket_frame *frame)
 
     if (frame->payload_length)
     {
-        printf("payload: %s\n", frame->payload);
+        printf("payload: %.*s\n", (int) frame->payload_length, frame->payload);
     }
 }
 
