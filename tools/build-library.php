@@ -9,6 +9,8 @@ require __DIR__ . '/functions.php';
 
 $library_files = glob(LIB_DIR . '/*.php');
 $eval_str = '';
+$space4 = space();
+
 foreach ($library_files as $file) {
     $code = file_get_contents($file);
     if ($code === false) {
@@ -18,13 +20,11 @@ foreach ($library_files as $file) {
         swoole_error('swoole library php file must start with "<?php"');
     }
     // keep line breaks to align line numbers
-    $code = substr($code, strlen(PHP_TAG));
+    $code = trim(substr($code, strlen(PHP_TAG)));
     $code = str_replace(['\\', '"', "\n"], ['\\\\', '\\"', "\\n\"\n\""], $code);
-    // rtrim [\n""]
-    $code = substr($code, 0, -3);
-    $code = implode("\n{$_space()}", explode("\n", $code));
+    $code = implode("\n{$space4}", explode("\n", $code));
     $filename = '/path/to/swoole-src/library' . str_replace(LIB_DIR, '', $file);
-    $eval_str .= "zend::eval(\n{$_space()}\"{$code}\",\n{$_space()}\"{$filename}\"\n);\n\n";
+    $eval_str .= "zend::eval(\n{$space4}\"{$code}\",\n{$space4}\"{$filename}\"\n);\n\n";
 }
 // rtrim [\n]
 $eval_str = substr($eval_str, 0, -1);

@@ -3,7 +3,6 @@
  */
 
 zend::eval(
-    "\n"
     "function swoole_array_walk(array &$array, callable $callback, $userdata = null): bool\n"
     "{\n"
     "    foreach ($array as $key => &$item) {\n"
@@ -22,19 +21,17 @@ zend::eval(
     "        }\n"
     "    }\n"
     "    return true;\n"
-    "}\n",
+    "}",
     "/path/to/swoole-src/library/array.php"
 );
 
 zend::eval(
-    "\n"
-    "define('SWOOLE_LIBRARY', true);\n",
+    "define('SWOOLE_LIBRARY', true);\n"
+    "class_alias('Swoole\\Coroutine\\WaitGroup', 'Co\\WaitGroup', false);",
     "/path/to/swoole-src/library/constant.php"
 );
 
 zend::eval(
-    "\n"
-    "\n"
     "class swoole_curl_handler\n"
     "{\n"
     "    /** @var Swoole\\Coroutine\\Http\\Client */\n"
@@ -259,6 +256,40 @@ zend::eval(
     "function swoole_curl_reset(swoole_curl_handler $obj): void\n"
     "{\n"
     "    $obj->reset();\n"
-    "}\n",
+    "}",
     "/path/to/swoole-src/library/curl.php"
+);
+
+zend::eval(
+    "namespace Swoole\\Coroutine;\n"
+    "\n"
+    "class WaitGroup\n"
+    "{\n"
+    "    private $count = 0;\n"
+    "    private $chan;\n"
+    "\n"
+    "    public function __construct()\n"
+    "    {\n"
+    "        $this->chan = new Channel();\n"
+    "    }\n"
+    "\n"
+    "    public function add()\n"
+    "    {\n"
+    "        $this->count++;\n"
+    "    }\n"
+    "\n"
+    "    public function done()\n"
+    "    {\n"
+    "        $this->chan->push(true);\n"
+    "    }\n"
+    "\n"
+    "    public function wait()\n"
+    "    {\n"
+    "        while ($this->count--) {\n"
+    "            $this->chan->pop();\n"
+    "        }\n"
+    "    }\n"
+    "\n"
+    "}",
+    "/path/to/swoole-src/library/waitgroup.php"
 );

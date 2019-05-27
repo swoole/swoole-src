@@ -12,14 +12,9 @@ define('SWOOLE_COLOR_MAGENTA', 5);
 define('SWOOLE_COLOR_CYAN', 6);
 define('SWOOLE_COLOR_WHITE', 7);
 
-$_space = function (int $length = 4): string {
-    return str_repeat(' ', $length);
-};
-
 function space(int $length = 4): string
 {
-    global $_space;
-    return $_space($length);
+    return str_repeat(' ', $length);
 }
 
 function print_split_line(string $title = '', int $length = 32)
