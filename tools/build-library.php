@@ -7,11 +7,18 @@ define('PHP_TAG', '<?php');
 
 require __DIR__ . '/functions.php';
 
-$library_files = glob(LIB_DIR . '/*.php');
+$library_files = [
+    'array.php',
+    'curl.php',
+    'waitgroup.php',
+    'constant.php',
+];
+
 $eval_str = '';
 $space4 = space();
 
-foreach ($library_files as $file) {
+foreach ($library_files as $_file) {
+    $file = LIB_DIR . '/' . $_file;
     $code = file_get_contents($file);
     if ($code === false) {
         swoole_error("can not read file {$file}");
@@ -25,7 +32,7 @@ foreach ($library_files as $file) {
     $code = trim(substr($code, strlen(PHP_TAG)));
     $code = str_replace(['\\', '"', "\n"], ['\\\\', '\\"', "\\n\"\n\""], $code);
     $code = implode("\n{$space4}", explode("\n", $code));
-    $filename = '@swoole-' . SWOOLE_VERSION . '/library' . str_replace(LIB_DIR, '', $file);
+    $filename = '@swoole/library' . str_replace(LIB_DIR, '', $file);
     $const_str .= "static const char* swoole_lib_source_{$name} =\n{$space4}\"{$code}\";\n\n";
     $eval_str .= "{$space4}zend::eval(swoole_lib_source_{$name}, \"{$filename}\");\n";
 }

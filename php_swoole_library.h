@@ -23,10 +23,6 @@ static const char* swoole_lib_source_array =
     "    return true;\n"
     "}";
 
-static const char* swoole_lib_source_constant =
-    "define('SWOOLE_LIBRARY', true);\n"
-    "class_alias('Swoole\\Coroutine\\WaitGroup', 'Co\\WaitGroup', false);";
-
 static const char* swoole_lib_source_curl =
     "class swoole_curl_handler\n"
     "{\n"
@@ -286,11 +282,15 @@ static const char* swoole_lib_source_waitgroup =
     "\n"
     "}";
 
+static const char* swoole_lib_source_constant =
+    "define('SWOOLE_LIBRARY', true);\n"
+    "class_alias('Swoole\\Coroutine\\WaitGroup', 'Co\\WaitGroup', false);";
+
 
 static void swoole_load_library()
 {
-    zend::eval(swoole_lib_source_array, "@swoole-4.4.0-alpha/library/array.php");
-    zend::eval(swoole_lib_source_constant, "@swoole-4.4.0-alpha/library/constant.php");
-    zend::eval(swoole_lib_source_curl, "@swoole-4.4.0-alpha/library/curl.php");
-    zend::eval(swoole_lib_source_waitgroup, "@swoole-4.4.0-alpha/library/waitgroup.php");
+    zend::eval(swoole_lib_source_array, "@swoole/library/array.php");
+    zend::eval(swoole_lib_source_curl, "@swoole/library/curl.php");
+    zend::eval(swoole_lib_source_waitgroup, "@swoole/library/waitgroup.php");
+    zend::eval(swoole_lib_source_constant, "@swoole/library/constant.php");
 }
