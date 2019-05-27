@@ -99,6 +99,11 @@ static void swoole_buffer_recycle(swString *buffer)
 
 static PHP_METHOD(swoole_buffer, __construct)
 {
+    swoole_php_fatal_error(
+        E_DEPRECATED, "Class %s is deprecated, it will be removed in v4.5.0",
+        ZSTR_VAL(swoole_buffer_ce->name)
+    );
+
     zend_long size = SW_STRING_BUFFER_DEFAULT;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)

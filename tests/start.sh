@@ -23,11 +23,9 @@ else
     if [ "${1}x" = "basex" ]; then
         glob="\
         swoole_atomic \
-        swoole_buffer \
         swoole_event \
         swoole_function \
         swoole_global \
-        swoole_lock \
         swoole_process \
         swoole_process_pool \
         swoole_table \
