@@ -720,6 +720,7 @@ class ProcessManager
     public $parentFunc;
     public $childFunc;
     public $async = false;
+    public $useConstantPorts = false;
 
     protected $childPid;
     protected $childStatus = 255;
@@ -875,7 +876,7 @@ class ProcessManager
     {
         if (empty($this->freePorts)) {
             for ($i = $num; $i--;) {
-                $this->freePorts[] = get_one_free_port();
+                $this->freePorts[] = $this->useConstantPorts ? (9500 + $num - $i) : get_one_free_port();
             }
         }
     }
@@ -884,14 +885,15 @@ class ProcessManager
     {
         global $argv, $argc;
         if ($argc > 1) {
+            $this->useConstantPorts = true;
+            $this->alone = true;
+            $this->initFreePorts();
             if ($argv[1] == 'child') {
-                $this->freePorts = [9501];
-                $this->alone = true;
                 return $this->runChildFunc();
             } elseif ($argv[1] == 'parent') {
-                $this->freePorts = [9501];
-                $this->alone = true;
                 return $this->runParentFunc();
+            } else {
+                throw new \RuntimeException("bad parameter \$1\n");
             }
         }
         $this->initFreePorts();

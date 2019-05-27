@@ -95,12 +95,12 @@ ssize_t swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn,
 static sw_inline void swWebSocket_mask(char *data, const char *mask_key, size_t len)
 {
     size_t n = len / 8;
-    int64_t mask_key64 = ((int64_t) (*((int32_t *) mask_key)) << 32) | *((int32_t *) mask_key);
+    uint64_t mask_key64 = ((uint64_t) (*((uint32_t *) mask_key)) << 32) | *((uint32_t *) mask_key);
     size_t i;
 
     for (i = 0; i < n; i++)
     {
-        ((int64_t *) data)[i] ^= mask_key64;
+        ((uint64_t *) data)[i] ^= mask_key64;
     }
 
     for (i = n * 8; i < len; i++)
