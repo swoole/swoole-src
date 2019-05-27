@@ -87,6 +87,11 @@ void swoole_lock_init(int module_number)
 
 static PHP_METHOD(swoole_lock, __construct)
 {
+    swoole_php_fatal_error(
+        E_DEPRECATED, "Class %s is deprecated, it will be removed in v4.5.0",
+        ZSTR_VAL(swoole_lock_ce->name)
+    );
+
     long type = SW_MUTEX;
     char *filelock;
     size_t filelock_len = 0;
