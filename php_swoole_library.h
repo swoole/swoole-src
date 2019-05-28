@@ -987,44 +987,34 @@ static const char* swoole_library_source_core_array_object =
     "    }\n"
     "}\n";
 
+static const char* swoole_library_source_functions =
+    "\n"
+    "if (ini_get('swoole.use_shortname') === 'On') {\n"
+    "    function _string(string $string): Swoole\\StringObject\n"
+    "    {\n"
+    "        return new Swoole\\StringObject($string);\n"
+    "    }\n"
+    "\n"
+    "    function _array(array $array): Swoole\\ArrayObject\n"
+    "    {\n"
+    "        return new Swoole\\ArrayObject($array);\n"
+    "    }\n"
+    "}\n";
+
 static const char* swoole_library_source_alias =
     "\n"
     "if (ini_get('swoole.use_shortname') === 'On') {\n"
     "    class_alias(Swoole\\Coroutine\\WaitGroup::class, Co\\WaitGroup::class, false);\n"
     "}\n";
 
-static const char* swoole_library_source_function =
-    "\n"
-    "if (!function_exists('_string')) {\n"
-    "    /**\n"
-    "     * @param  string $str\n"
-    "     * @return Swoole\\StringObject\n"
-    "     */\n"
-    "    function _string($str)\n"
-    "    {\n"
-    "        return new Swoole\\StringObject($str);\n"
-    "    }\n"
-    "}\n"
-    "\n"
-    "if (!function_exists('_array')) {\n"
-    "    /**\n"
-    "     * @param  array $array\n"
-    "     * @return Swoole\\ArrayObject\n"
-    "     */\n"
-    "    function _array($array)\n"
-    "    {\n"
-    "        return new Swoole\\ArrayObject($array);\n"
-    "    }\n"
-    "}\n";
-
 static void php_swoole_load_library()
 {
-    zend::eval(swoole_library_source_constant, "@swoole-src/library/constant.php");
+    zend::eval(swoole_library_source_constants, "@swoole-src/library/constants.php");
     zend::eval(swoole_library_source_std_array, "@swoole-src/library/std/array.php");
     zend::eval(swoole_library_source_ext_curl, "@swoole-src/library/ext/curl.php");
     zend::eval(swoole_library_source_core_coroutine_wait_group, "@swoole-src/library/core/Coroutine/WaitGroup.php");
     zend::eval(swoole_library_source_core_string_object, "@swoole-src/library/core/StringObject.php");
     zend::eval(swoole_library_source_core_array_object, "@swoole-src/library/core/ArrayObject.php");
+    zend::eval(swoole_library_source_functions, "@swoole-src/library/functions.php");
     zend::eval(swoole_library_source_alias, "@swoole-src/library/alias.php");
-    zend::eval(swoole_library_source_function, "@swoole-src/library/function.php");
 }

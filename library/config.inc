@@ -1,15 +1,16 @@
 <?php
 return [
     # <basic> #
-    'constant.php',
+    'constants.php',
+    # <std> #
     'std/array.php',
-    # <internal> #
+    # <ext> #
     'ext/curl.php',
-    # <class> #
+    # <core> #
     'core/Coroutine/WaitGroup.php',
     'core/StringObject.php',
     'core/ArrayObject.php',
     # <finalizer> #
+    'functions.php',
     'alias.php',
-    'function.php',
 ];
