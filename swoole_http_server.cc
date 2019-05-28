@@ -1801,9 +1801,10 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
 #ifdef SW_HTTP_SEND_TWICE
     _skip_copy:
 #endif
-    if (ctx->upgrade)
+    if (ctx->upgrade && !ctx->co_socket)
     {
-        swConnection *conn = swWorker_get_connection(SwooleG.serv, ctx->fd);
+        swServer *serv = (swServer*) ctx->private_data;
+        swConnection *conn = swWorker_get_connection(serv, ctx->fd);
         if (conn && conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)
         {
             if (ctx->response.status == 101)
@@ -1822,6 +1823,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
     {
         ctx->close(ctx);
     }
+    ctx->end = 1;
     RETURN_TRUE;
 }
 
@@ -2173,10 +2175,6 @@ static PHP_METHOD(swoole_http_response, upgrade)
         RETURN_FALSE;
     }
     RETVAL_BOOL(swoole_websocket_handshake(ctx));
-    if (!ctx->end)
-    {
-        swoole_http_context_free(ctx);
-    }
 }
 
 static PHP_METHOD(swoole_http_response, push)
@@ -2217,10 +2215,15 @@ static PHP_METHOD(swoole_http_response, recv)
     Socket *sock = (Socket *) ctx->private_data;
     ssize_t retval = sock->recv_packet(0);
     swString _tmp;
-    if (retval <= 0)
+
+    if (retval < 0)
     {
         SwooleG.error = sock->errCode;
         RETURN_FALSE;
+    }
+    else if (retval == 0)
+    {
+        RETURN_EMPTY_STRING();
     }
     else
     {
@@ -2316,28 +2319,31 @@ static PHP_METHOD(swoole_http_response, __destruct)
     http_context *ctx = (http_context *) swoole_get_object(getThis());
     if (ctx)
     {
-        if (ctx->response.status == 0)
+        if (!ctx->end)
         {
-            ctx->response.status = 500;
-        }
-        if (ctx->co_socket)
-        {
-            swoole_http_response_end(ctx, nullptr, return_value);
-        }
-        else
-        {
-            swServer *serv = (swServer *) ctx->private_data;
-            swConnection *conn = swWorker_get_connection(serv, ctx->fd);
-            if (!conn || conn->closed || conn->removed || ctx->detached)
+            if (ctx->response.status == 0)
             {
-                swoole_http_context_free(ctx);
+                ctx->response.status = 500;
             }
-            else
+            if (ctx->co_socket)
             {
                 swoole_http_response_end(ctx, nullptr, return_value);
             }
+            else
+            {
+                swServer *serv = (swServer *) ctx->private_data;
+                swConnection *conn = swWorker_get_connection(serv, ctx->fd);
+                if (!conn || conn->closed || conn->removed || ctx->detached)
+                {
+                    swoole_http_context_free(ctx);
+                }
+                else
+                {
+                    swoole_http_response_end(ctx, nullptr, return_value);
+                }
+            }
+            ctx = (http_context *) swoole_get_object(getThis());
         }
-        ctx = (http_context *) swoole_get_object(getThis());
         if (ctx)
         {
             swoole_http_context_free(ctx);

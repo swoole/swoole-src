@@ -542,6 +542,7 @@ enum swTraceType
     SW_TRACE_LENGTH_PROTOCOL  = 1u << 12,
     SW_TRACE_CLOSE            = 1u << 13,
     SW_TRACE_HTTP_CLIENT      = 1u << 14,
+    SW_TRACE_WEBSOCEKT        = 1u << 15,
     //skip
     SW_TRACE_REDIS_CLIENT     = 1u << 16,
     SW_TRACE_MYSQL_CLIENT     = 1u << 17,
@@ -556,6 +557,7 @@ enum swTraceType
      */
     SW_TRACE_COROUTINE        = 1u << 24,
     SW_TRACE_CONTEXT          = 1u << 25,
+    SW_TRACE_CO_HTTP_SERVER   = 1u << 26,
 
     SW_TRACE_ALL              = 0xffffffff
 };
