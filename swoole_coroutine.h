@@ -106,7 +106,6 @@ public:
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(php_swoole_fci *fci);
 
-    static bool inject_function();
     static bool enable_hook(int flags);
     static bool disable_hook();
 
@@ -186,6 +185,8 @@ protected:
             task->last_msec = swTimer_get_absolute_msec();
         }
     }
+
+    static bool inject_function();
 };
 }
 
