@@ -13,7 +13,7 @@ class swoole_curl_resource
     protected $allowOptions = [
         CURLOPT_HTTPHEADER, CURLOPT_URL, CURLOPT_PORT, CURLOPT_CONNECTTIMEOUT, CURLOPT_POSTFIELDS,
         CURLOPT_SSL_VERIFYPEER, CURLOPT_ENCODING, CURLOPT_CUSTOMREQUEST,CURLOPT_HEADERFUNCTION,CURLOPT_READFUNCTION,
-        CURLOPT_FILE,CURLOPT_RETURNTRANSFER,CURLOPT_SSL_VERIFYHOST,CURLOPT_HTTP_VERSION
+        CURLOPT_FILE,CURLOPT_RETURNTRANSFER,CURLOPT_SSL_VERIFYHOST,CURLOPT_HTTP_VERSION,CURLOPT_HEADER
     ];
 
     protected $options = [];
@@ -183,6 +183,16 @@ class swoole_curl_resource
                 call_user_func($call,$this,"{$header}: {$val}\r\n");
             }
             call_user_func($call,$this,"");
+        }
+        //body rebuild
+        if(!empty($this->options[CURLOPT_HEADER])){
+            $buff = $client->body;
+            $temp = '';
+            foreach ($this->result['headers'] as $header => $val)
+            {
+                $temp .= "{$header}: {$val}\r\n";
+            }
+            $client->body = $buff."\r\n".$client->body;
         }
         //call body func
         if(isset($this->options[CURLOPT_READFUNCTION]) && !empty($client->body)){
