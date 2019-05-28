@@ -24,19 +24,31 @@ Swoole\Runtime::enableCoroutine();
 
 echo "*** Testing array_walk_recursive() : anonymous function as callback ***\n";
 
-$input = array( array(2, 5), array(10, 0));
+$input = [[2, 5], [10, 0]];
 
 echo "-- Anonymous function with one argument --\n";
-var_dump( array_walk_recursive($input, function($value) { var_dump($value); echo "\n"; }));
+var_dump(array_walk_recursive($input, function ($value) {
+    var_dump($value);
+    echo "\n";
+}));
 
 echo "-- Anonymous function with two arguments --\n";
-var_dump( array_walk_recursive($input, function($value, $key) { var_dump($key); var_dump($value); echo "\n"; }));
+var_dump(array_walk_recursive($input, function ($value, $key) {
+    var_dump($key);
+    var_dump($value);
+    echo "\n";
+}));
 
 echo "-- Anonymous function with three arguments --\n";
-var_dump( array_walk_recursive($input, function($value, $key, $user_data) { var_dump($key); var_dump($value); var_dump($user_data); echo "\n"; }, 10));
+var_dump(array_walk_recursive($input, function ($value, $key, $user_data) {
+    var_dump($key);
+    var_dump($value);
+    var_dump($user_data);
+    echo "\n";
+}, 10));
 
 echo "-- Anonymous function with null argument --\n";
-var_dump( array_walk_recursive( $input, function() { echo "1\n"; }));
+var_dump(array_walk_recursive($input, function () { echo "1\n"; }));
 echo "Done"
 ?>
 --EXPECTF--

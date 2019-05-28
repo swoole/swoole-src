@@ -28,42 +28,45 @@ Swoole\Runtime::enableCoroutine();
  */
 function print_value($value, $key, $count)
 {
-  echo  $count." : ".$key." ".$value."\n";
+    echo trim($count . " : " . $key . " " . $value) . "\n";
 }
 
 echo "*** Testing array_walk() : 'input' array with different values***\n";
 
 // different arrays as input
-$input_values = array(
+$input_values = [
 
-       // integer values
-/*1*/  array(1, 0, -10, 023, -041, 0x5A, 0X1F, -0x6E),
+    // integer values
+    /*1*/
+    [1, 0, -10, 023, -041, 0x5A, 0X1F, -0x6E],
 
-       // float value
-       array(3.4, 0.8, -2.9, 6.25e2, 8.20E-3),
+    // float value
+    [3.4, 0.8, -2.9, 6.25e2, 8.20E-3],
 
-       // string values
-       array('Mango', "Apple", 'Orange', "Lemon"),
+    // string values
+    ['Mango', "Apple", 'Orange', "Lemon"],
 
-       // bool values
-/*4*/  array(true, false, TRUE, FALSE),
+    // bool values
+    /*4*/
+    [true, false, true, false],
 
-       // null values
-       array(null, NULL),
+    // null values
+    [null, null],
 
-       // empty array
-       array(),
+    // empty array
+    [],
 
-       // binary array
-       array(b"binary"),
+    // binary array
+    [b"binary"],
 
-       // mixed array
-/*8*/  array(16, 8.345, "Fruits", true, null, FALSE, -98, 0.005, 'banana')
-);
+    // mixed array
+    /*8*/
+    [16, 8.345, "Fruits", true, null, false, -98, 0.005, 'banana']
+];
 
-for($count = 0; $count < count($input_values); $count++) {
-  echo "\n-- Iteration ".($count + 1)." --\n";
-  var_dump( array_walk($input_values[$count], "print_value", $count+1));
+for ($count = 0; $count < count($input_values); $count++) {
+    echo "\n-- Iteration " . ($count + 1) . " --\n";
+    var_dump(array_walk($input_values[$count], "print_value", $count + 1));
 }
 echo "Done"
 ?>
@@ -99,14 +102,14 @@ bool(true)
 
 -- Iteration 4 --
 4 : 0 1
-4 : 1 
+4 : 1
 4 : 2 1
-4 : 3 
+4 : 3
 bool(true)
 
 -- Iteration 5 --
-5 : 0 
-5 : 1 
+5 : 0
+5 : 1
 bool(true)
 
 -- Iteration 6 --
@@ -121,8 +124,8 @@ bool(true)
 8 : 1 8.345
 8 : 2 Fruits
 8 : 3 1
-8 : 4 
-8 : 5 
+8 : 4
+8 : 5
 8 : 6 -98
 8 : 7 0.005
 8 : 8 banana

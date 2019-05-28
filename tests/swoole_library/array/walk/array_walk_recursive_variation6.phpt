@@ -29,12 +29,12 @@ echo "*** Testing array_walk_recursive() : 'input' as an associative array ***\n
  */
 function for_numeric($value, $key, $user_data)
 {
-  // dump the input values to see if they are
-  // passed with correct type
-  var_dump($key);
-  var_dump($value);
-  var_dump($user_data);
-  echo "\n"; // new line to separate the output between each element
+    // dump the input values to see if they are
+    // passed with correct type
+    var_dump($key);
+    var_dump($value);
+    var_dump($user_data);
+    echo "\n"; // new line to separate the output between each element
 }
 
 /* Prototype : for_string( string $value, string $key)
@@ -44,11 +44,11 @@ function for_numeric($value, $key, $user_data)
  */
 function for_string($value, $key)
 {
-  // dump the input values to see if they are
-  // passed with correct type
-  var_dump($key);
-  var_dump($value);
-  echo "\n"; // new line to separate the output between each element
+    // dump the input values to see if they are
+    // passed with correct type
+    var_dump($key);
+    var_dump($value);
+    echo "\n"; // new line to separate the output between each element
 }
 
 /* Prototype : for_mixed( mixed $value, mixed $key)
@@ -58,32 +58,32 @@ function for_string($value, $key)
  */
 function for_mixed($value, $key)
 {
-  // dump the input values to see if they are
-  // passed with correct type
-  var_dump($key);
-  var_dump($value);
-  echo "\n"; // new line to separate the output between each element
+    // dump the input values to see if they are
+    // passed with correct type
+    var_dump($key);
+    var_dump($value);
+    echo "\n"; // new line to separate the output between each element
 }
 
 // Numeric keys
-$input = array( 0 => array(1 => 25, 5 => 12, 0 => -80), 1 => array(-2 => 100, 5 => 30));
+$input = [0 => [1 => 25, 5 => 12, 0 => -80], 1 => [-2 => 100, 5 => 30]];
 echo "-- Associative array with numeric keys --\n";
-var_dump( array_walk_recursive($input, "for_numeric", 10));
+var_dump(array_walk_recursive($input, "for_numeric", 10));
 
 // String keys
-$input = array( "a" => "Apple", 'z' => array('b' => 'Bananna', "c" => "carrot"), 'x' => array('o' => "Orange"));
+$input = ["a" => "Apple", 'z' => ['b' => 'Bananna', "c" => "carrot"], 'x' => ['o' => "Orange"]];
 echo "-- Associative array with string keys --\n";
-var_dump( array_walk_recursive($input, "for_string"));
+var_dump(array_walk_recursive($input, "for_string"));
 
 // binary key
-$input = array( b"a" => "Apple", b"b" => "Banana");
+$input = [b"a" => "Apple", b"b" => "Banana"];
 echo "-- Associative array with binary keys --\n";
-var_dump( array_walk_recursive($input, "for_string"));
+var_dump(array_walk_recursive($input, "for_string"));
 
 // Mixed keys - numeric/string
-$input = array( 0 => array(0 => 1, 1 => 2), "x" => array("a" => "Apple", "b" => "Banana"), 2 =>3);
+$input = [0 => [0 => 1, 1 => 2], "x" => ["a" => "Apple", "b" => "Banana"], 2 => 3];
 echo "-- Associative array with numeric/string keys --\n";
-var_dump( array_walk_recursive($input, "for_mixed"));
+var_dump(array_walk_recursive($input, "for_mixed"));
 
 echo "Done"
 ?>

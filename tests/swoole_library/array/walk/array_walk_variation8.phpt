@@ -22,17 +22,17 @@ Swoole\Runtime::enableCoroutine();
 
 echo "*** Testing array_walk() : built-in function as callback ***\n";
 
-$input = array(2 => 1, 65, 98, 100, 6 => -4);
+$input = [2 => 1, 65, 98, 100, 6 => -4];
 
 echo "-- With 'pow' built-in function --\n";
-var_dump( array_walk($input, 'pow'));
+var_dump(array_walk($input, 'pow'));
 
 echo "-- With 'min' built-in function --\n";
-var_dump( array_walk($input, "min"));
+var_dump(array_walk($input, "min"));
 
 echo "-- With 'echo' language construct --\n";
 try {
-    var_dump( array_walk($input, "echo"));
+    var_dump(array_walk($input, "echo"));
 } catch (TypeError $e) {
     echo $e->getMessage(), "\n";
 }

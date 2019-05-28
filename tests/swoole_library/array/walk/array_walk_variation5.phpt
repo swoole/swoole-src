@@ -25,7 +25,7 @@ $value3 = &$value1;
 $value4 = 50;
 
 // 'input' array containing references to above variables
-$input = array(&$value1, &$value2, -35, &$value3, 0, &$value4);
+$input = [&$value1, &$value2, -35, &$value3, 0, &$value4];
 
 // callback function
 /* Prototype : callback(int $value, mixed $key)
@@ -35,14 +35,14 @@ $input = array(&$value1, &$value2, -35, &$value3, 0, &$value4);
  */
 function callback($value, $key)
 {
-   // dump the arguments to check that they are passed
-   // with proper type
-   var_dump($key);  // key
-   var_dump($value); // value
-   echo "\n"; // new line to separate the output between each element
+    // dump the arguments to check that they are passed
+    // with proper type
+    var_dump($key);  // key
+    var_dump($value); // value
+    echo "\n"; // new line to separate the output between each element
 }
 
-var_dump( array_walk($input, "callback"));
+var_dump(array_walk($input, "callback"));
 
 echo "Done"
 ?>

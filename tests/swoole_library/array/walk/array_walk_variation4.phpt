@@ -27,22 +27,22 @@ echo "*** Testing array_walk() : array with subarray ***\n";
  */
 function callback($value, $key)
 {
-   // dump the arguments to check that they are passed
-   // with proper type
-   var_dump($key);  // key
-   var_dump($value); // value
-   echo "\n"; // new line to separate the output between each element
+    // dump the arguments to check that they are passed
+    // with proper type
+    var_dump($key);  // key
+    var_dump($value); // value
+    echo "\n"; // new line to separate the output between each element
 }
 
-$input = array(
-  array(),
-  array(1),
-  array(1,2,3),
-  array("Mango", "Orange"),
-  array(array(1, 2, 3))
-);
+$input = [
+    [],
+    [1],
+    [1, 2, 3],
+    ["Mango", "Orange"],
+    [[1, 2, 3]]
+];
 
-var_dump( array_walk( $input, "callback"));
+var_dump(array_walk($input, "callback"));
 
 echo "Done"
 ?>

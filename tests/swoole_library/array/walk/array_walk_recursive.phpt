@@ -8,17 +8,19 @@ require __DIR__ . '/../../../include/bootstrap.php';
 
 Swoole\Runtime::enableCoroutine();
 
-function foo($value) {
-	echo $value . " foo\n";
+function foo($value)
+{
+    echo $value . " foo\n";
 }
 
-function bar($value) {
-	echo $value . " bar\n";
+function bar($value)
+{
+    echo $value . " bar\n";
 }
 
-$arr = array (1,2,3);
-var_dump (array_walk_recursive ($arr, 'foo'));
-var_dump (array_walk_recursive ($arr, 'bar'));
+$arr = [1, 2, 3];
+var_dump(array_walk_recursive($arr, 'foo'));
+var_dump(array_walk_recursive($arr, 'bar'));
 
 ?>
 --EXPECT--

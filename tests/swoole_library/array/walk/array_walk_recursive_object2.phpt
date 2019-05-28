@@ -28,60 +28,66 @@ echo "*** Testing array_walk_recursive() : array of objects ***\n";
 */
 function callback_private($value, $key, $addValue)
 {
-  echo "value : ";
-  var_dump($value->getValue());
-  echo "key : ";
-  var_dump($key);
+    echo "value : ";
+    var_dump($value->getValue());
+    echo "key : ";
+    var_dump($key);
 }
 
 function callback_public($value, $key)
 {
-  echo "value : ";
-  var_dump($value->pub_value);
+    echo "value : ";
+    var_dump($value->pub_value);
 }
+
 function callback_protected($value, $key)
 {
-  echo "value : ";
-  var_dump($value->get_pro_value());
+    echo "value : ";
+    var_dump($value->get_pro_value());
 }
 
 class MyClass
 {
-  private $pri_value;
-  public $pub_value;
-  protected $pro_value;
-  public function __construct($setVal)
-  {
-    $this->pri_value = $setVal;
-    $this->pub_value = $setVal;
-    $this->pro_value = $setVal;
-  }
-  public function getValue()
-  {
-    return $this->pri_value;
-  }
-  public function get_pro_value()
-  {
-    return $this->pro_value;
-  }
-};
+    private $pri_value;
+    public $pub_value;
+    protected $pro_value;
+
+    public function __construct($setVal)
+    {
+        $this->pri_value = $setVal;
+        $this->pub_value = $setVal;
+        $this->pro_value = $setVal;
+    }
+
+    public function getValue()
+    {
+        return $this->pri_value;
+    }
+
+    public function get_pro_value()
+    {
+        return $this->pro_value;
+    }
+}
+
+;
 
 // array containing objects of MyClass
-$input = array (
-  array(
-  new MyClass(3),
-  new MyClass(10),
-  ),
-  new MyClass(20),
-  array(new MyClass(-10))
-);
+$input = [
+    [
+        new MyClass(3),
+        new MyClass(10),
+    ],
+    new MyClass(20),
+    [new MyClass(-10)]
+];
 
 echo "-- For private member --\n";
-var_dump( array_walk_recursive($input, "callback_private", 1));
+var_dump(array_walk_recursive($input, "callback_private", 1));
 echo "-- For public member --\n";
-var_dump( array_walk_recursive($input, "callback_public"));
+var_dump(array_walk_recursive($input, "callback_public"));
 echo "-- For protected member --\n";
-var_dump( array_walk_recursive($input, "callback_protected"));
+var_dump(array_walk_recursive($input, "callback_protected"));
 
 echo "Done"
 ?>
