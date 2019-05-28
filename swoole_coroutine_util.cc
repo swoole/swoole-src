@@ -110,6 +110,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getaddrinfo, 0, 0, 1)
     ZEND_ARG_INFO(0, socktype)
     ZEND_ARG_INFO(0, protocol)
     ZEND_ARG_INFO(0, service)
+    ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_readFile, 0, 0, 1)
@@ -1055,65 +1056,6 @@ static PHP_METHOD(swoole_coroutine_util, writeFile)
     }
 }
 
-static void coro_dns_onGetaddrinfoCompleted(swAio_event *event)
-{
-    php_coro_context *context = (php_coro_context *) event->object;
-
-    zval *retval = NULL;
-    zval result;
-
-    struct sockaddr_in *addr_v4;
-    struct sockaddr_in6 *addr_v6;
-
-    swRequest_getaddrinfo *req = (swRequest_getaddrinfo *) event->req;
-
-    if (req->error == 0)
-    {
-        array_init(&result);
-        int i;
-        char tmp[INET6_ADDRSTRLEN];
-        const char *r ;
-
-        for (i = 0; i < req->count; i++)
-        {
-            if (req->family == AF_INET)
-            {
-                addr_v4 = (struct sockaddr_in *) ((char*) req->result + (i * sizeof(struct sockaddr_in)));
-                r = inet_ntop(AF_INET, (const void*) &addr_v4->sin_addr, tmp, sizeof(tmp));
-            }
-            else
-            {
-                addr_v6 = (struct sockaddr_in6 *) ((char*) req->result + (i * sizeof(struct sockaddr_in6)));
-                r = inet_ntop(AF_INET6, (const void*) &addr_v6->sin6_addr, tmp, sizeof(tmp));
-            }
-            if (r)
-            {
-                add_next_index_string(&result, tmp);
-            }
-        }
-    }
-    else
-    {
-        ZVAL_FALSE(&result);
-        SwooleG.error = req->error;
-    }
-
-    int ret = PHPCoroutine::resume_m(context, &result, retval);
-    if (ret == SW_CORO_ERR_END && retval)
-    {
-        zval_ptr_dtor(retval);
-    }
-    zval_ptr_dtor(&result);
-    efree(req->hostname);
-    efree(req->result);
-    if (req->service)
-    {
-        efree(req->service);
-    }
-    efree(req);
-    efree(context);
-}
-
 PHP_FUNCTION(swoole_coroutine_gethostbyname)
 {
     char *domain_name;
@@ -1158,66 +1100,39 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
     zend_long protocol = IPPROTO_TCP;
     char *service = NULL;
     size_t l_service = 0;
+    double timeout = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|llls", &hostname, &l_hostname, &family, &socktype, &protocol,
-            &service, &l_service) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lllsd", &hostname, &l_hostname, &family, &socktype, &protocol,
+            &service, &l_service, &timeout) == FAILURE)
     {
-        RETURN_FALSE;
+        RETURN_FALSE
     }
 
     if (l_hostname == 0)
     {
         swoole_php_fatal_error(E_WARNING, "hostname is empty");
-        RETURN_FALSE;
+        RETURN_FALSE
     }
 
     if (family != AF_INET && family != AF_INET6)
     {
         swoole_php_fatal_error(E_WARNING, "unknown protocol family, must be AF_INET or AF_INET6");
-        RETURN_FALSE;
+        RETURN_FALSE
     }
 
-    swAio_event ev;
-    bzero(&ev, sizeof(swAio_event));
+    string str_service(service ? service : "");
+    vector<string> result = System::getaddrinfo(hostname, family, socktype, protocol, str_service, timeout);
 
-    swRequest_getaddrinfo *req = (swRequest_getaddrinfo *) emalloc(sizeof(swRequest_getaddrinfo));
-    bzero(req, sizeof(swRequest_getaddrinfo));
-
-    php_coro_context *context = (php_coro_context *) emalloc(sizeof(php_coro_context));
-
-    ev.type = SW_AIO_GETADDRINFO;
-    ev.object = context;
-    ev.handler = swAio_handler_getaddrinfo;
-    ev.callback = coro_dns_onGetaddrinfoCompleted;
-    ev.req = req;
-
-    req->hostname = estrndup(hostname, l_hostname);
-    req->family = family;
-    req->socktype = socktype;
-    req->protocol = protocol;
-
-    if (l_service > 0)
+    if (result.empty())
     {
-        req->service = estrndup(service, l_service);
+        RETURN_FALSE
     }
 
-    if (family == AF_INET)
+    array_init(return_value);
+    for (auto i = result.begin(); i != result.end(); i++)
     {
-        req->result = ecalloc(SW_DNS_HOST_BUFFER_SIZE, sizeof(struct sockaddr_in));
+        add_next_index_stringl(return_value, i->c_str(), i->length());
     }
-    else
-    {
-        req->result = ecalloc(SW_DNS_HOST_BUFFER_SIZE, sizeof(struct sockaddr_in6));
-    }
-
-    php_swoole_check_reactor();
-    if (swAio_dispatch(&ev) < 0)
-    {
-        efree(ev.buf);
-        RETURN_FALSE;
-    }
-
-    PHPCoroutine::yield_m(return_value, context);
 }
 
 static PHP_METHOD(swoole_coroutine_util, getBackTrace)

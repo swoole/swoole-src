@@ -1069,8 +1069,8 @@ enum swDNSLookup_cache_type
 
 typedef struct
 {
-    char *hostname;
-    char *service;
+    const char *hostname;
+    const char *service;
     int family;
     int socktype;
     int protocol;

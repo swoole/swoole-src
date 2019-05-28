@@ -264,6 +264,91 @@ string System::gethostbyname(const string &hostname, int domain, double timeout)
     }
 }
 
+vector<string> System::getaddrinfo(const string &hostname, int family, int socktype, int protocol,
+        const string &service, double timeout)
+{
+    assert(!hostname.empty());
+    assert(family == AF_INET || family == AF_INET6);
+
+    swAio_event ev;
+    bzero(&ev, sizeof(swAio_event));
+
+    swRequest_getaddrinfo req;
+    bzero(&req, sizeof(swRequest_getaddrinfo));
+
+    aio_task task;
+
+    task.co = Coroutine::get_current_safe();
+    task.event = &ev;
+
+    ev.type = SW_AIO_GETADDRINFO;
+    ev.object = &task;
+    ev.handler = swAio_handler_getaddrinfo;
+    ev.callback = aio_onDNSCompleted;
+    ev.req = &req;
+
+    struct sockaddr_in6 result_buffer[SW_DNS_HOST_BUFFER_SIZE];
+
+    req.hostname = hostname.c_str();
+    req.family = family;
+    req.socktype = socktype;
+    req.protocol = protocol;
+    req.service = service.empty() ? nullptr : service.c_str();
+    req.result = result_buffer;
+
+    swAio_event *event = swAio_dispatch2(&ev);
+    swTimer_node *timer = nullptr;
+    if (timeout > 0)
+    {
+        timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, event, aio_onDNSTimeout);
+    }
+    task.co->yield();
+    if (timer)
+    {
+        swTimer_del(&SwooleG.timer, timer);
+    }
+
+    vector<string> retval;
+
+    if (ev.ret == -1)
+    {
+        SwooleG.error = ev.error;
+    }
+
+    struct sockaddr_in *addr_v4;
+    struct sockaddr_in6 *addr_v6;
+
+    if (req.error == 0)
+    {
+        int i;
+        char tmp[INET6_ADDRSTRLEN];
+        const char *r;
+
+        for (i = 0; i < req.count; i++)
+        {
+            if (req.family == AF_INET)
+            {
+                addr_v4 = (struct sockaddr_in *) ((char*) req.result + (i * sizeof(struct sockaddr_in)));
+                r = inet_ntop(AF_INET, (const void*) &addr_v4->sin_addr, tmp, sizeof(tmp));
+            }
+            else
+            {
+                addr_v6 = (struct sockaddr_in6 *) ((char*) req.result + (i * sizeof(struct sockaddr_in6)));
+                r = inet_ntop(AF_INET6, (const void*) &addr_v6->sin6_addr, tmp, sizeof(tmp));
+            }
+            if (r)
+            {
+                retval.push_back(tmp);
+            }
+        }
+    }
+    else
+    {
+        SwooleG.error = ev.error;
+    }
+
+    return retval;
+}
 
 struct coro_poll_task
 {
