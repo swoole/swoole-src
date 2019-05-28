@@ -1,227 +1,177 @@
 <?php
 
-class swoole_curl_handler
+use Swoole\Coroutine\Http\Client;
+
+class swoole_curl_resource
 {
-    /** @var Swoole\Coroutine\Http\Client */
-    private $client;
-    private $info;
-    private $outputStream;
+    protected $options = [];
 
-    /** @var callable */
-    private $headerFunction;
-    /** @var callable */
-    private $readFunction;
-    /** @var callable */
-    private $writeFunction;
-    /** @var callable */
-    private $progressFunction;
+    protected $result = [];
 
-    public $returnTransfer = true;
-    public $method = 'GET';
-    public $headers = [];
+    protected $client;
 
-    function create(string $url)
+    public function __rest()
     {
-        $info = parse_url($url);
-        $ssl = $info['scheme'] === 'https';
-        if (empty($info['port'])) {
-            $port = $ssl ? 443 : 80;
-        } else {
-            $port = intval($info['port']);
-        }
-        $this->info = $info;
-        $this->client = new Swoole\Coroutine\Http\Client($info['host'], $port, $ssl);
+        $this->__close();
+        $this->options = [];
+        $this->result = [];
     }
 
-    function execute()
+    public function setOption(int $option,$val)
     {
-        $client = $this->client;
-        $client->setMethod($this->method);
-        if ($this->headers) {
-            $client->setHeaders($this->headers);
-        }
-        if (!$client->execute($this->getUrl())) {
-            return false;
-        }
+        $this->options[$option] = $val;
+    }
 
-        if ($client->headers and $this->headerFunction) {
-            $cb = $this->headerFunction;
-            if ($client->statusCode === 200) {
-                $cb($this, "HTTP/1.1 200 OK\r\n");
+    public function __getResult():array
+    {
+        return $this->result;
+    }
+
+    public function __exec():?string
+    {
+        if(empty($this->options[CURLOPT_URL])){
+            trigger_error('URL is empty');
+            return null;
+        }
+        $url = $this->options[CURLOPT_URL];
+        $urlInfo = parse_url($url);
+        $ssl = false;
+        if(isset($urlInfo['port'])){
+            $port = $urlInfo['port'];
+        }else{
+            if($urlInfo['scheme'] == 'https'){
+                $ssl = true;
+                $port = 443;
+            }else{
+                $port = 80;
             }
-            foreach ($client->headers as $k => $v) {
-                $cb($this, "$k: $v\r\n");
-            }
-            $cb($this, '');
         }
 
-        if ($client->body and $this->readFunction) {
-            $cb = $this->readFunction;
-            $cb($this, $this->outputStream, strlen($client->body));
+        $client = new Client($urlInfo['host'],$port,$ssl);
+        $this->client = $client;
+
+        if(!empty($this->options[CURLOPT_TIMEOUT])){
+            $client->set([
+                'timeout' => $this->options[CURLOPT_TIMEOUT]
+            ]);
         }
 
-        if ($this->returnTransfer) {
-            return $client->body;
-        } else {
-            if ($this->outputStream) {
-                return fwrite($this->outputStream, $client->body) === strlen($client->body);
-            } else {
-                echo $this->outputStream;
-            }
-            return true;
-        }
-    }
-
-    function close(): void
-    {
-        $this->client = null;
-    }
-
-    function getErrorCode(): int
-    {
-        return $this->client->errCode;
-    }
-
-    function getErrorMsg(): string
-    {
-        return $this->client->errMsg;
-    }
-
-    private function getUrl(): string
-    {
-        if (empty($this->info['path'])) {
-            $url = '/';
-        } else {
-            $url = $this->info['path'];
-        }
-        if (!empty($this->info['query'])) {
-            $url .= '?' . $this->info['query'];
-        }
-        if (!empty($this->info['query'])) {
-            $url .= '#' . $this->info['fragment'];
-        }
-        return $url;
-    }
-
-    function setOption(int $opt, $value): bool
-    {
-        switch ($opt) {
-            case CURLOPT_URL:
-                $this->create($value);
-                break;
-            case CURLOPT_RETURNTRANSFER:
-                $this->returnTransfer = $value;
-                break;
-            case CURLOPT_ENCODING:
-                if (empty($value)) {
-                    $value = 'gzip';
+        // eg:'tool=curl; fun=yes;'
+        if(!empty($this->options[CURLOPT_COOKIE])){
+            $list = explode(';',$this->options[CURLOPT_COOKIE]);
+            $ret = [];
+            foreach ($list as $item){
+                if(!empty($item)){
+                    $item = explode('=',trim($item));
+                    $ret[trim($item[0],' ')] = trim($item[1],' ');
                 }
-                $this->headers['Accept-Encoding'] = $value;
-                break;
-            case CURLOPT_POST:
-                $this->method = 'POST';
-                break;
-            case CURLOPT_HTTPHEADER:
-                foreach ($value as $header) {
-                    list($k, $v) = explode(':', $header);
-                    $v = trim($v);
-                    if ($v) {
-                        $this->headers[$k] = $v;
+            }
+            if(!empty($ret)){
+                $client->setCookies($ret);
+            }
+        }
+
+        if(!empty($this->options[CURLOPT_HTTPHEADER])){
+            $client->setHeaders($this->options[CURLOPT_HTTPHEADER]);
+        }
+
+        if(!empty($this->options[CURLOPT_CUSTOMREQUEST])){
+            $client->setMethod($this->options[CURLOPT_CUSTOMREQUEST]);
+        }
+
+        if(!empty($this->options[CURLOPT_POSTFIELDS])){
+            //文件与表单混合
+            if(is_array($this->options[CURLOPT_POSTFIELDS])){
+                $temp = [];
+                foreach ($this->options[CURLOPT_POSTFIELDS] as $key => $item){
+                    if($item instanceof \CURLFile){
+                        $client->addFile($item->getFilename(),$item->getPostFilename());
+                    }else{
+                        $temp[$key] = $item;
                     }
                 }
-                break;
-            case CURLOPT_CUSTOMREQUEST:
-                break;
-            case CURLOPT_PROTOCOLS:
-                if ($value > 3) {
-                    throw new swoole_curl_exception("option[{$opt}={$value}] not supported");
-                }
-                break;
-            case CURLOPT_HTTP_VERSION:
-                break;
-            case CURLOPT_SSL_VERIFYHOST:
-                break;
-            case CURLOPT_SSL_VERIFYPEER:
-                $this->client->set(['ssl_verify_peer' => $value]);
-                break;
-            case CURLOPT_CONNECTTIMEOUT:
-                $this->client->set(['connect_timeout' => $value]);
-                break;
-            case CURLOPT_FILE:
-                $this->outputStream = $value;
-                break;
-            case CURLOPT_HEADER:
-                break;
-            case CURLOPT_HEADERFUNCTION:
-                $this->headerFunction = $value;
-                break;
-            case CURLOPT_READFUNCTION:
-                $this->readFunction = $value;
-                break;
-            case CURLOPT_WRITEFUNCTION:
-                $this->writeFunction = $value;
-                break;
-            case CURLOPT_PROGRESSFUNCTION:
-                $this->progressFunction = $value;
-                break;
-            default:
-                throw new swoole_curl_exception("option[{$opt}] not supported");
+                $client->post($urlInfo['path'],$temp);
+            }else{
+                $client->post($urlInfo['path'],$this->options[CURLOPT_POSTFIELDS]);
+            }
+        }else{
+            $client->get($urlInfo['path']);
         }
-        return true;
+        $this->result = (array)$client;
+        return $this->result['body'] ?: null;
     }
 
-    function reset(): void
+    function __close():bool
     {
-        $this->client->body = '';
-    }
-}
-
-class swoole_curl_exception extends swoole_exception
-{
-
-}
-
-function swoole_curl_init(): swoole_curl_handler
-{
-    return new swoole_curl_handler();
-}
-
-function swoole_curl_setopt(swoole_curl_handler $obj, $opt, $value): bool
-{
-    return $obj->setOption($opt, $value);
-}
-
-function swoole_curl_setopt_array(swoole_curl_handler $obj, $array): bool
-{
-    foreach ($array as $k => $v) {
-        if ($obj->setOption($k, $v) === false) {
+        if($this->client instanceof Client){
+            $this->client->close();
+            $this->client = null;
+            return true;
+        }else{
             return false;
         }
+    }
+}
+
+function swoole_curl_init(?string $url = null): swoole_curl_resource
+{
+    $ch =  new swoole_curl_resource();
+    if($url){
+        swoole_curl_setopt($ch, CURLOPT_URL, $url);
+    }
+    return $ch;
+}
+
+function swoole_curl_setopt (swoole_curl_resource $ch, int $option, $value):bool
+{
+    $ch->setOption($option,$value);
+    return true;
+}
+
+function swoole_curl_setopt_array(swoole_curl_resource $ch, array $options):bool
+{
+    foreach ($options as $option => $val){
+        swoole_curl_setopt($ch,$option,$val);
     }
     return true;
 }
 
-function swoole_curl_exec(swoole_curl_handler $obj)
+function swoole_curl_exec(swoole_curl_resource $ch)
 {
-    return $obj->execute();
+    return $ch->__exec();
 }
 
-function swoole_curl_close(swoole_curl_handler $obj): void
+function swoole_curl_getinfo(swoole_curl_resource $resource):array
 {
-    $obj->close();
+    return $resource->__getResult();
 }
 
-function swoole_curl_error(swoole_curl_handler $obj): string
+function swoole_curl_close(swoole_curl_resource $resource):bool
 {
-    return $obj->getErrorMsg();
+    return $resource->__close();
 }
 
-function swoole_curl_errno(swoole_curl_handler $obj): int
+function swoole_curl_error(swoole_curl_resource $resource):?string
 {
-    return $obj->getErrorCode();
+    $info = swoole_curl_getinfo($resource);
+    if(isset($info['errMsg'])){
+        return $info['errMsg'];
+    }else{
+        return null;
+    }
 }
 
-function swoole_curl_reset(swoole_curl_handler $obj): void
+function swoole_curl_errno(swoole_curl_resource $resource):int
 {
-    $obj->reset();
+    $info = swoole_curl_getinfo($resource);
+    if(isset($info['errCode'])){
+        return $info['errCode'];
+    }else{
+        return 0;
+    }
+}
+
+function swoole_curl_rest(swoole_curl_resource $resource)
+{
+    $resource->__rest();
 }
