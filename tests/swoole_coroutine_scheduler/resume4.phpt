@@ -20,4 +20,4 @@ echo "main\n";
 [%s]	ERROR	(PHP Fatal Error: 10001):
 Swoole\Coroutine::yield: API must be called in the coroutine
 Stack trace:
-#0  Swoole\Coroutine::yield() called at [%s/tests/swoole_coroutine_util/resume4.php:%d]
+#0  Swoole\Coroutine::yield() called at [%s:%d]

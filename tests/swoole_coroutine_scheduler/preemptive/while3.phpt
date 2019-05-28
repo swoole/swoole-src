@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine/scheduler: while
+swoole_coroutine_scheduler/preemptive: while
 --SKIPIF--
 <?php 
 require __DIR__ . '/../../include/skipif.inc';

@@ -1,7 +1,8 @@
 --TEST--
-swoole_coroutine/scheduler: goto2
+swoole_coroutine_scheduler/preemptive: while without opcache enable
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc';
+<?php  
+require __DIR__ . '/../../include/skipif.inc';
 ?>
 --FILE--
 <?php
@@ -14,22 +15,19 @@ $start = microtime(1);
 echo "start\n";
 $flag = 1;
 
-go(function () use (&$flag) {
+go(function () use (&$flag, $max_msec) {
     echo "coro 1 start to loop\n";
     $i = 0;
-    loop:
-    $i++;
-    if (!$flag) {
-        goto end;
+    while ($flag) {
+        $i++;
     }
-    goto loop;
-    end:
     echo "coro 1 can exit\n";
 });
 
 $end = microtime(1);
 $msec = ($end - $start) * 1000;
 USE_VALGRIND || Assert::lessThanEq(abs($msec - $max_msec), $default);
+
 go(function () use (&$flag) {
     echo "coro 2 set flag = false\n";
     $flag = false;

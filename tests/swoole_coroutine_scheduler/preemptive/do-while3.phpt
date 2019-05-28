@@ -1,7 +1,8 @@
 --TEST--
-swoole_coroutine/scheduler: for
+swoole_coroutine_scheduler/preemptive: do-while
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc';
+<?php
+require __DIR__ . '/../../include/skipif.inc';
 ?>
 --FILE--
 <?php
@@ -14,13 +15,10 @@ $start = microtime(1);
 echo "start\n";
 $flag = 1;
 
-go(function () use (&$flag) {
+go(function () use (&$flag, $max_msec) {
     echo "coro 1 start to loop\n";
     $i = 0;
-    for (; ;) {
-        if (!$flag) {
-            break;
-        }
+    while ($flag) {
         $i++;
     }
     echo "coro 1 can exit\n";
@@ -28,7 +26,7 @@ go(function () use (&$flag) {
 
 $end = microtime(1);
 $msec = ($end - $start) * 1000;
-USE_VALGRIND || Assert::lessThanEq(abs($msec - $max_msec), $default);
+USE_VALGRIND || Assert::lessThanEq(abs($msec - $max_msec), $default );
 
 go(function () use (&$flag) {
     echo "coro 2 set flag = false\n";
