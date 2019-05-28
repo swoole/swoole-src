@@ -92,6 +92,11 @@ void swoole_timer_init(int module_number)
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "list", CG(function_table), "swoole_timer_list");
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "clear", CG(function_table), "swoole_timer_clear");
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "clearAll", CG(function_table), "swoole_timer_clear_all");
+
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TIMER_MIN_MS", SW_TIMER_MIN_MS);
+    SW_REGISTER_DOUBLE_CONSTANT("SWOOLE_TIMER_MIN_SEC", SW_TIMER_MIN_SEC);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TIMER_MAX_MS", SW_TIMER_MAX_MS);
+    SW_REGISTER_DOUBLE_CONSTANT("SWOOLE_TIMER_MAX_SEC", SW_TIMER_MAX_SEC);
 }
 
 static void php_swoole_timer_dtor(swTimer_node *tnode)

@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine_util: user yield and resume4
+swoole_coroutine_scheduler: user yield and resume4
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -20,4 +20,4 @@ echo "main\n";
 [%s]	ERROR	(PHP Fatal Error: 10001):
 Swoole\Coroutine::yield: API must be called in the coroutine
 Stack trace:
-#0  Swoole\Coroutine::yield() called at [%s/tests/%s/resume4.php:%d]
+#0  Swoole\Coroutine::yield() called at [%s:%d]

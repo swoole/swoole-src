@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine/scheduler: for
+swoole_coroutine_scheduler/preemptive: for
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';
 ?>
@@ -17,7 +17,7 @@ $flag = 1;
 go(function () use (&$flag) {
     echo "coro 1 start to loop\n";
     $i = 0;
-    for (;;) {
+    for (; ;) {
         if (!$flag) {
             break;
         }

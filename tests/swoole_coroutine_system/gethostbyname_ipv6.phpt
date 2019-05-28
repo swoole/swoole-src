@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine_util: gethostbyname for IPv6
+swoole_coroutine_system: gethostbyname for IPv6
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

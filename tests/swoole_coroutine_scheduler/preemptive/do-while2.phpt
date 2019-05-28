@@ -1,7 +1,8 @@
 --TEST--
-swoole_coroutine/scheduler: goto 
+swoole_coroutine_scheduler/preemptive: do-while without opcache enable
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc';
+<?php
+require __DIR__ . '/../../include/skipif.inc';
 ?>
 --FILE--
 <?php
@@ -17,13 +18,9 @@ $flag = 1;
 go(function () use (&$flag) {
     echo "coro 1 start to loop\n";
     $i = 0;
-    loop:
-    $i++;
-    if (!$flag) {
-        goto end;
-    }
-    goto loop;
-    end:
+    do {
+        $i++;
+    } while ($flag);
     echo "coro 1 can exit\n";
 });
 
@@ -36,6 +33,8 @@ go(function () use (&$flag) {
     $flag = false;
 });
 echo "end\n";
+
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 start

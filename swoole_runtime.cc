@@ -44,8 +44,6 @@ static int socket_close(php_stream *stream, int close_handle);
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb);
 static int socket_cast(php_stream *stream, int castas, void **ret);
 
-#include "php_swoole_library.h"
-
 static void replace_internal_function(const char *name, size_t l_name);
 static void recover_internal_function(const char *name, size_t l_name);
 
@@ -993,6 +991,8 @@ bool PHPCoroutine::enable_hook(int flags)
         ori_gethostbyname = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("gethostbyname"));
         ori_gethostbyname_handler = ori_gethostbyname->internal_function.handler;
 
+        inject_function();
+
         hook_init = true;
     }
     // php_stream
@@ -1206,11 +1206,6 @@ bool PHPCoroutine::enable_hook(int flags)
         }
     }
 
-    if (!function_table)
-    {
-        PHPCoroutine::inject_function();
-    }
-
     if (flags & SW_HOOK_CURL)
     {
         if (!(hook_flags & SW_HOOK_CURL))
@@ -1251,15 +1246,15 @@ bool PHPCoroutine::inject_function()
         return false;
     }
 
-    swoole_load_library();
     function_table = (zend_array*) emalloc(sizeof(zend_array));
     zend_hash_init(function_table, 8, NULL, NULL, 0);
-
     /**
-     * array_walk, array_walk_recursive cannot use with coroutine, replace with swoole library
+     * array_walk, array_walk_recursive can not work in coroutine
+     * replace them with the php swoole library
      */
     replace_internal_function(ZEND_STRL("array_walk"));
     replace_internal_function(ZEND_STRL("array_walk_recursive"));
+
     return true;
 }
 

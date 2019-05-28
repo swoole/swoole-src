@@ -12,9 +12,20 @@ define('SWOOLE_COLOR_MAGENTA', 5);
 define('SWOOLE_COLOR_CYAN', 6);
 define('SWOOLE_COLOR_WHITE', 7);
 
-function space(int $length = 4): string
+function space(int $length): string
 {
     return str_repeat(' ', $length);
+}
+
+function camelize(string $uncamelized_words, string $separator = '_'): string
+{
+    $uncamelized_words = $separator . str_replace($separator, " ", strtolower($uncamelized_words));
+    return ltrim(str_replace(" ", "", ucwords($uncamelized_words)), $separator);
+}
+
+function unCamelize(string $camelCaps, string $separator = '_'): string
+{
+    return strtolower(preg_replace('/([a-z])([A-Z])/', "$1" . $separator . "$2", $camelCaps));
 }
 
 function print_split_line(string $title = '', int $length = 32)
