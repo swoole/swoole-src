@@ -2,11 +2,14 @@
 return [
     # <basic> #
     'constant.php',
-    'array.php',
+    'std/array.php',
     # <internal> #
-    'curl.php',
+    'ext/curl.php',
     # <class> #
-    'Coroutine/WaitGroup.php',
+    'core/Coroutine/WaitGroup.php',
+    'core/StringObject.php',
+    'core/ArrayObject.php',
     # <finalizer> #
-    'alias.php'
+    'alias.php',
+    'function.php',
 ];

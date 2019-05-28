@@ -29,6 +29,11 @@ using swoole::coroutine::System;
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_server_coro_pattern, 0, 0, 2)
+    ZEND_ARG_INFO(0, pattern)
+    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
+ZEND_END_ARG_INFO()
+
 static zend_class_entry *swoole_http_server_coro_ce;
 static zend_object_handlers swoole_http_server_coro_handlers;
 
@@ -130,7 +135,7 @@ static const zend_function_entry swoole_http_server_coro_methods[] =
 {
     PHP_ME(swoole_http_server_coro, __construct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server_coro, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_server_coro, handle, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server_coro, handle, arginfo_swoole_http_server_coro_pattern, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server_coro, onAccept, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server_coro, start, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server_coro, shutdown, arginfo_swoole_void, ZEND_ACC_PUBLIC)
@@ -405,6 +410,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
 
         if (hs->running && keep_alive)
         {
+            swTraceLog(SW_TRACE_CO_HTTP_SERVER, "http_server_coro keepalive");
             ctx = nullptr;
             continue;
         }

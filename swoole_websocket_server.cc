@@ -33,6 +33,7 @@ extern "C"
 #include "thirdparty/swoole_http_parser.h"
 
 using namespace swoole;
+using swoole::coroutine::Socket;
 
 zend_class_entry *swoole_websocket_server_ce;
 static zend_object_handlers swoole_websocket_server_handlers;
@@ -137,6 +138,7 @@ void php_swoole_websocket_frame_unpack(swString *data, zval *zframe)
 
     if (data->length < sizeof(frame.header))
     {
+        SwooleG.error = SW_ERROR_INVALID_PARAMS;
         ZVAL_FALSE(zframe);
         return;
     }
@@ -296,6 +298,13 @@ bool swoole_websocket_handshake(http_context *ctx)
             swoole_http_response_set_header(ctx, ZEND_STRL("Sec-WebSocket-Protocol"), port->websocket_subprotocol,
                     port->websocket_subprotocol_length, false);
         }
+    }
+    else
+    {
+        Socket *sock = (Socket *) ctx->private_data;
+        sock->open_length_check = 1;
+        sock->protocol.get_package_length = swWebSocket_get_package_length;
+        sock->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN;
     }
 
     ctx->response.status = 101;
