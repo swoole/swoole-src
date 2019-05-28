@@ -37,26 +37,37 @@ function fix_tests_in_this_dir(string $dir, string $root = '')
                 }
             }
             // title
-            preg_match('/--TEST--\n(.+):/', $content, $matches);
-            if (!isset($matches[1])) {
+            preg_match('/--TEST--\n([^\n]+)/', $content, $matches);
+            $current_title = $matches[1] ?? '';
+            if (!$current_title) {
                 swoole_warn("Can not find title in {$file}");
                 continue;
             }
-            if ($title_dir_name !== $matches[1]) {
+            $current_title_array = explode(':', $current_title);
+            $current_title_dir_name = $current_title_array[0];
+            if (count($current_title_array) < 2) {
+                $content = preg_replace(
+                    '/--TEST--\n/',
+                    '$0' . $title_dir_name . ': ',
+                    $content,
+                    1, $count
+                );
+                $changed = true;
+            } elseif ($current_title_dir_name !== $title_dir_name) {
                 $content = preg_replace(
                     '/(--TEST--\n)(?:.+)(:)/',
                     '$1' . $title_dir_name . '$2',
                     $content,
                     1, $count
                 );
+                $changed = true;
+            }
+            if ($changed) {
                 if (!$count) {
                     swoole_error("Replace title failed in {$file}");
                 } else {
-                    swoole_ok("Fix title from [{$matches[1]}] to [{$title_dir_name}] in {$file}");
-                    $changed = true;
+                    swoole_ok("Fix title dir name from [{$current_title_dir_name}] to [{$title_dir_name}] in {$file}");
                 }
-            }
-            if ($changed) {
                 file_put_contents($file, $content);
             }
         } elseif (is_dir($file)) {
