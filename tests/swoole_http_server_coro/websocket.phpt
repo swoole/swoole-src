@@ -1,5 +1,5 @@
 --TEST--
-swoole_websocket_server: websocket greeter and reply twice
+swoole_http_server_coro: websocket greeter and reply twice
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
