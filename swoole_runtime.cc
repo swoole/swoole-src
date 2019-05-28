@@ -1247,6 +1247,12 @@ bool PHPCoroutine::enable_hook(int flags)
 bool PHPCoroutine::inject_function()
 {
     swoole_load_library();
+
+    if (!function_table)
+    {
+        function_table = (zend_array*) emalloc(sizeof(zend_array));
+        zend_hash_init(function_table, 8, NULL, NULL, 0);
+    }
     /**
      * array_walk, array_walk_recursive cannot use with coroutine, replace with swoole library
      */
