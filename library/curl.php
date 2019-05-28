@@ -12,7 +12,8 @@ class swoole_curl_resource
 
     protected $allowOptions = [
         CURLOPT_HTTPHEADER, CURLOPT_URL, CURLOPT_PORT, CURLOPT_CONNECTTIMEOUT, CURLOPT_POSTFIELDS,
-        CURLOPT_SSL_VERIFYPEER, CURLOPT_ENCODING, CURLOPT_CUSTOMREQUEST
+        CURLOPT_SSL_VERIFYPEER, CURLOPT_ENCODING, CURLOPT_CUSTOMREQUEST,CURLOPT_HEADERFUNCTION,CURLOPT_READFUNCTION,
+        CURLOPT_FILE,CURLOPT_RETURNTRANSFER
     ];
 
     protected $options = [];
@@ -71,7 +72,7 @@ class swoole_curl_resource
         return $this->result;
     }
 
-    public function __exec(): ?string
+    public function __exec()
     {
         if (empty($this->options[CURLOPT_URL])) {
             trigger_error('URL is empty');
@@ -93,6 +94,18 @@ class swoole_curl_resource
         // CURL OPTIONS PORT
         if (!empty($this->options[CURLOPT_PORT])) {
             $port = $this->options[CURLOPT_PORT];
+        }
+
+        //Path init
+
+        if(empty($urlInfo['path'])){
+            $path = '/';
+        }else{
+            $path = $urlInfo['path'];
+        }
+
+        if(!empty($urlInfo['fragment'])){
+            $path = $path .'#'.$urlInfo['fragment'];
         }
 
         $client = new Client($urlInfo['host'], $port, $ssl);
@@ -151,15 +164,44 @@ class swoole_curl_resource
                         $temp[$key] = $item;
                     }
                 }
-                $client->post($urlInfo['path'], $temp);
+                $client->post($path, $temp);
             } else {
-                $client->post($urlInfo['path'], $this->options[CURLOPT_POSTFIELDS]);
+                $client->post($path, $this->options[CURLOPT_POSTFIELDS]);
             }
         } else {
-            $client->get($urlInfo['path']);
+            $client->get($path);
         }
         $this->result = (array)$client;
-        return $this->result['body'] ?: null;
+        //call header func
+        if(isset($this->options[CURLOPT_HEADERFUNCTION])){
+            $call = $this->options[CURLOPT_HEADERFUNCTION];
+            if ($client->statusCode === 200) {
+                call_user_func($call,$this,"HTTP/1.1 200 OK\r\n");
+            }
+            foreach ($this->result['headers'] as $header => $val)
+            {
+                call_user_func($call,$this,"{$header}: {$val}\r\n");
+            }
+            call_user_func($call,$this,"");
+        }
+        //call body func
+        if(isset($this->options[CURLOPT_READFUNCTION]) && !empty($client->body)){
+            $call = $this->options[CURLOPT_READFUNCTION];
+            $file = $this->options[CURLOPT_FILE] ?: null;
+            call_user_func($call,$this,$file,strlen($client->body));
+        }
+
+        if(!empty($this->options[CURLOPT_RETURNTRANSFER])){
+            return $this->result['body'] ?: null;
+        }else{
+            $file = $this->options[CURLOPT_FILE] ?: null;
+            if ($file) {
+                return fwrite($file, $client->body) === strlen($client->body);
+            } else {
+                echo $client->body;
+            }
+            return true;
+        }
     }
 
     function __close(): bool
