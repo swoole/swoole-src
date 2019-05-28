@@ -1266,7 +1266,8 @@ bool PHPCoroutine::disable_hook()
 static PHP_METHOD(swoole_runtime, enableCoroutine)
 {
     zval *zflags = nullptr;
-    zend_long flags = SW_HOOK_ALL;
+    /*TODO: enable SW_HOOK_CURL by default after curl handler completed */
+    zend_long flags = SW_HOOK_ALL ^ SW_HOOK_CURL;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
         Z_PARAM_OPTIONAL
