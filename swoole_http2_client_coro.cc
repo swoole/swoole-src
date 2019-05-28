@@ -568,8 +568,10 @@ enum swReturnType http2_client::parse_frame(zval *return_value)
      */
     case SW_HTTP2_TYPE_PUSH_PROMISE:
     {
+#ifdef SW_DEBUG
         uint32_t promise_stream_id = ntohl(*(uint32_t *) (buf)) & 0x7fffffff;
         swHttp2FrameTraceLog(recv, "promise_stream_id=%d", promise_stream_id);
+#endif
         // auto promise_stream = create_stream(promise_stream_id, false);
         // RETVAL_ZVAL(promise_stream->response_object, 0, 0);
         // return SW_READY;
