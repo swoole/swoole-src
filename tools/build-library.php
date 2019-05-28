@@ -7,13 +7,9 @@ define('PHP_TAG', '<?php');
 
 require __DIR__ . '/functions.php';
 
-$list = file_get_contents(LIB_DIR . '/library.json');
-if (!$list) {
-    swoole_error('can not read library info from ' . LIB_DIR . '/library.json');
-}
-$list = json_decode($list, true);
+$list = require LIB_DIR . '/config.inc';
 if (empty($list)) {
-    swoole_error('can not parse source list from json file');
+    swoole_error('can not read library config');
 }
 $source_str = $eval_str = '';
 foreach ($list as $file) {
