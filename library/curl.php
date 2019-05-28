@@ -25,7 +25,7 @@ class swoole_curl_resource
     function __construct()
     {
         $this->options[CURLOPT_HTTPHEADER] = [
-            "User-Agent" => 'EasySwooleHttpClient/0.1',
+            "User-Agent" => 'SwooleHttpClient/0.1',
             'Accept' => 'text/html,application/xhtml+xml,application/xml',
             'Accept-Encoding' => 'gzip',
             'Pragma' => 'no-cache',
