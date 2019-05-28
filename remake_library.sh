@@ -4,8 +4,8 @@ __DIR__=$(cd "$(dirname "$0")";pwd)
 set -e
 cd ${__DIR__}
 set +e
-echo "rm swoole_runtime.lo"
-rm swoole_runtime.lo
+echo "rm swoole.lo"
+rm swoole.lo
 echo "rm php_swoole_library.h"
 rm php_swoole_library.h
 set -e

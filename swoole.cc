@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 #include "php_swoole_cxx.h"
-#include "zend_variables.h"
+#include "php_swoole_library.h"
 
 #if (HAVE_PCRE || HAVE_BUNDLED_PCRE) && !defined(COMPILE_DL_PCRE)
 #include "ext/pcre/php_pcre.h"
@@ -933,8 +933,9 @@ PHP_MINFO_FUNCTION(swoole)
 PHP_RINIT_FUNCTION(swoole)
 {
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
-    php_swoole_register_shutdown_function("swoole_internal_call_user_shutdown_begin");
     SwooleG.running = 1;
+    php_swoole_register_shutdown_function("swoole_internal_call_user_shutdown_begin");
+    php_swoole_load_library();
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_END;
     return SUCCESS;
 }
