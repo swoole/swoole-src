@@ -149,6 +149,7 @@ void swoole_runtime_init(int module_number)
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STREAM_SELECT", SW_HOOK_STREAM_FUNCTION); // backward compatibility
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_FILE", SW_HOOK_FILE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SLEEP", SW_HOOK_SLEEP);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_CURL", SW_HOOK_CURL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_BLOCKING_FUNCTION", SW_HOOK_BLOCKING_FUNCTION);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_ALL", SW_HOOK_ALL);
 }
@@ -992,7 +993,7 @@ bool PHPCoroutine::enable_hook(int flags)
         ori_gethostbyname = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("gethostbyname"));
         ori_gethostbyname_handler = ori_gethostbyname->internal_function.handler;
 
-        php_swoole_load_library();
+        inject_function();
 
         hook_init = true;
     }
@@ -1207,12 +1208,6 @@ bool PHPCoroutine::enable_hook(int flags)
         }
     }
 
-    if (!function_table)
-    {
-        function_table = (zend_array*) emalloc(sizeof(zend_array));
-        zend_hash_init(function_table, 8, NULL, NULL, 0);
-    }
-
     if (flags & SW_HOOK_CURL)
     {
         if (!(hook_flags & SW_HOOK_CURL))
@@ -1248,12 +1243,22 @@ bool PHPCoroutine::enable_hook(int flags)
 
 bool PHPCoroutine::inject_function()
 {
+    if (function_table)
+    {
+        return false;
+    }
+
     php_swoole_load_library();
+
+    function_table = (zend_array*) emalloc(sizeof(zend_array));
+    zend_hash_init(function_table, 8, NULL, NULL, 0);
     /**
-     * array_walk, array_walk_recursive cannot use with coroutine, replace with swoole library
+     * array_walk, array_walk_recursive can not work in coroutine
+     * replace them with the php swoole library
      */
     replace_internal_function(ZEND_STRL("array_walk"));
     replace_internal_function(ZEND_STRL("array_walk_recursive"));
+
     return true;
 }
 
