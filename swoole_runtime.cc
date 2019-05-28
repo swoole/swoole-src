@@ -992,8 +992,6 @@ bool PHPCoroutine::enable_hook(int flags)
         ori_gethostbyname = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("gethostbyname"));
         ori_gethostbyname_handler = ori_gethostbyname->internal_function.handler;
 
-        swoole_load_library();
-
         hook_init = true;
     }
     // php_stream
@@ -1213,26 +1211,6 @@ bool PHPCoroutine::enable_hook(int flags)
         zend_hash_init(function_table, 8, NULL, NULL, 0);
     }
 
-    /**
-     * array_walk, array_walk_recursive ...
-     */
-    if (flags & SW_HOOK_ARRAY_FUNCTION)
-    {
-        if (!(hook_flags & SW_HOOK_ARRAY_FUNCTION))
-        {
-            replace_internal_function(ZEND_STRL("array_walk"));
-            replace_internal_function(ZEND_STRL("array_walk_recursive"));
-        }
-    }
-    else
-    {
-        if (hook_flags & SW_HOOK_ARRAY_FUNCTION)
-        {
-            recover_internal_function(ZEND_STRL("array_walk"));
-            recover_internal_function(ZEND_STRL("array_walk_recursive"));
-        }
-    }
-
     if (flags & SW_HOOK_CURL)
     {
         if (!(hook_flags & SW_HOOK_CURL))
@@ -1263,6 +1241,17 @@ bool PHPCoroutine::enable_hook(int flags)
     }
 
     hook_flags = flags;
+    return true;
+}
+
+bool PHPCoroutine::inject_function()
+{
+    swoole_load_library();
+    /**
+     * array_walk, array_walk_recursive cannot use with coroutine, replace with swoole library
+     */
+    replace_internal_function(ZEND_STRL("array_walk"));
+    replace_internal_function(ZEND_STRL("array_walk_recursive"));
     return true;
 }
 

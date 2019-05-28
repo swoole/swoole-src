@@ -461,6 +461,8 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
             swoole_php_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
         }
 
+        inject_function();
+
         // init reactor and register event wait
         php_swoole_check_reactor();
 

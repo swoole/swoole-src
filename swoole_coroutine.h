@@ -51,7 +51,6 @@ enum sw_coro_hook_type
     SW_HOOK_SLEEP             = 1u << 9,
 
     SW_HOOK_CURL              = 1u << 28,
-    SW_HOOK_ARRAY_FUNCTION    = 1u << 29,
     SW_HOOK_BLOCKING_FUNCTION = 1u << 30,
 
     SW_HOOK_ALL               = 0x7fffffff,
@@ -107,6 +106,7 @@ public:
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(php_swoole_fci *fci);
 
+    static bool inject_function();
     static bool enable_hook(int flags);
     static bool disable_hook();
 
