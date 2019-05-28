@@ -992,6 +992,8 @@ bool PHPCoroutine::enable_hook(int flags)
         ori_gethostbyname = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("gethostbyname"));
         ori_gethostbyname_handler = ori_gethostbyname->internal_function.handler;
 
+        php_swoole_load_library();
+
         hook_init = true;
     }
     // php_stream
@@ -1246,7 +1248,7 @@ bool PHPCoroutine::enable_hook(int flags)
 
 bool PHPCoroutine::inject_function()
 {
-    swoole_load_library();
+    php_swoole_load_library();
     /**
      * array_walk, array_walk_recursive cannot use with coroutine, replace with swoole library
      */

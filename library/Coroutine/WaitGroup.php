@@ -4,8 +4,8 @@ namespace Swoole\Coroutine;
 
 class WaitGroup
 {
-    private $count = 0;
-    private $chan;
+    protected $chan;
+    protected $count = 0;
 
     public function __construct()
     {

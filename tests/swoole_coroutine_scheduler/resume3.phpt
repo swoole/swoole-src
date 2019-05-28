@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine_util: user yield and resume3
+swoole_coroutine_scheduler: user yield and resume3
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

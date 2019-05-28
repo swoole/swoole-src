@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine_util: gethostbyname timeout
+swoole_coroutine_system: gethostbyname timeout
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
