@@ -312,7 +312,9 @@ static const char* swoole_library_source_coroutine_wait_group =
 
 static const char* swoole_library_source_alias =
     "\n"
-    "class_alias(Swoole\\Coroutine\\WaitGroup::class, Co\\WaitGroup::class, false);\n";
+    "if (ini_get('swoole.use_shortname') === 'On') {\n"
+    "    class_alias(Swoole\\Coroutine\\WaitGroup::class, Co\\WaitGroup::class, false);\n"
+    "}\n";
 
 static void php_swoole_load_library()
 {
