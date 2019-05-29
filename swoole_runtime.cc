@@ -910,7 +910,7 @@ static php_stream *socket_create(
     else if (strncmp(proto, "ssl", protolen) == 0 || strncmp(proto, "tls", protolen) == 0)
     {
 #ifdef SW_USE_OPENSSL
-        sock = new Socket(SW_SOCK_TCP);
+        sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
         sock->open_ssl = true;
 #else
         swoole_php_error(E_WARNING, "you must configure with `enable-openssl` to support ssl connection");
@@ -919,7 +919,7 @@ static php_stream *socket_create(
     }
     else
     {
-        sock = new Socket(SW_SOCK_TCP);
+        sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
     }
 
     if (UNEXPECTED(sock->socket == nullptr))
