@@ -400,9 +400,16 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
 
         bool keep_alive = swoole_http_should_keep_alive(&ctx->parser) && !ctx->websocket;
 
-        if (UNEXPECTED(!zend::function::call(&fci->fci_cache, 2, args, NULL, 0)))
+        if (fci)
         {
-            swoole_php_error(E_WARNING, "handler error");
+            if (UNEXPECTED(!zend::function::call(&fci->fci_cache, 2, args, NULL, 0)))
+            {
+                swoole_php_error(E_WARNING, "handler error");
+            }
+        }
+        else
+        {
+            ctx->response.status = 404;
         }
 
         zval_dtor(&args[0]);
