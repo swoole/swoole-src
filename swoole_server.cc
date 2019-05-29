@@ -4206,6 +4206,8 @@ static PHP_METHOD(swoole_connection_iterator, offsetUnset)
 
 static PHP_METHOD(swoole_connection_iterator, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT();
+
     swConnectionIterator *iterator = (swConnectionIterator *) swoole_get_object(getThis());
     if (!iterator)
     {
