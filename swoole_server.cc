@@ -2369,6 +2369,7 @@ static PHP_METHOD(swoole_server, set)
     }
     else if (serv->heartbeat_check_interval > 0)
     {
+        swoole_php_fatal_error(E_WARNING, "heartbeat_idle_time must be set");
         serv->heartbeat_idle_time = serv->heartbeat_check_interval * 2;
     }
     //max_request
