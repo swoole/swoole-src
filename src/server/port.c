@@ -246,7 +246,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     else if (n == 0)
     {
         _close_fd:
-        swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
+        swReactor_trigger_close_event(reactor, event);
         return SW_OK;
     }
     else
@@ -269,7 +269,7 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, sw
     if (swProtocol_recv_check_length(protocol, conn, buffer) < 0)
     {
         swTrace("Close Event.FD=%d|From=%d", event->fd, event->reactor_id);
-        swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
+        swReactor_trigger_close_event(reactor, event);
     }
 
     return SW_OK;
@@ -331,7 +331,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         //alloc memory failed.
         if (!request->buffer)
         {
-            swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
+            swReactor_trigger_close_event(reactor, event);
             return SW_ERR;
         }
     }
@@ -361,7 +361,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     {
         close_fd:
         swHttpRequest_free(conn);
-        swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
+        swReactor_trigger_close_event(reactor, event);
         return SW_OK;
     }
     else
@@ -556,7 +556,7 @@ static int swPort_onRead_redis(swReactor *reactor, swListenPort *port, swEvent *
 
     if (swRedis_recv(protocol, conn, buffer) < 0)
     {
-        swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
+        swReactor_trigger_close_event(reactor, event);
     }
 
     return SW_OK;
@@ -575,7 +575,7 @@ static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *port, swEve
 
     if (swProtocol_recv_check_eof(protocol, conn, buffer) < 0)
     {
-        swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
+        swReactor_trigger_close_event(reactor, event);
     }
 
     return SW_OK;

@@ -2026,6 +2026,11 @@ static sw_inline swReactor_handle swReactor_getHandle(swReactor *reactor, int ev
     return reactor->handle[fdtype];
 }
 
+static sw_inline int swReactor_trigger_close_event(swReactor *reactor, swEvent *event)
+{
+    return swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
+}
+
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
 int swReactorPoll_create(swReactor *reactor, int max_event_num);
 int swReactorKqueue_create(swReactor *reactor, int max_event_num);
