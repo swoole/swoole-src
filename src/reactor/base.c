@@ -49,8 +49,6 @@ int swReactor_create(swReactor *reactor, int max_event)
 
     reactor->running = 1;
 
-    reactor->setHandle = swReactor_setHandle;
-
     reactor->onFinish = swReactor_onFinish;
     reactor->onTimeout = swReactor_onTimeout;
 
@@ -68,7 +66,7 @@ int swReactor_create(swReactor *reactor, int max_event)
     return ret;
 }
 
-int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle)
+int swReactor_set_handler(swReactor *reactor, int _fdtype, swReactor_handler handle)
 {
     int fdtype = swReactor_fdtype(_fdtype);
 
@@ -80,15 +78,15 @@ int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle
 
     if (swReactor_event_read(_fdtype))
     {
-        reactor->handle[fdtype] = handle;
+        reactor->handler[fdtype] = handle;
     }
     else if (swReactor_event_write(_fdtype))
     {
-        reactor->write_handle[fdtype] = handle;
+        reactor->write_handler[fdtype] = handle;
     }
     else if (swReactor_event_error(_fdtype))
     {
-        reactor->error_handle[fdtype] = handle;
+        reactor->error_handler[fdtype] = handle;
     }
     else
     {
@@ -115,7 +113,7 @@ int swReactor_empty(swReactor *reactor)
         event_num--;
     }
     //signalfd
-    if (swReactor_handle_isset(reactor, SW_FD_SIGNAL) && reactor->signal_listener_num == 0)
+    if (swReactor_isset_handler(reactor, SW_FD_SIGNAL) && reactor->signal_listener_num == 0)
     {
         event_num--;
     }

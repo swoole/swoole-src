@@ -258,8 +258,6 @@ struct _swFactory
     void *object;
     void *ptr; //server object
 
-    swReactor *reactor; //reserve for reactor
-
     int (*start)(struct _swFactory *);
     int (*shutdown)(struct _swFactory *);
     int (*dispatch)(struct _swFactory *, swSendData *);
@@ -278,13 +276,6 @@ int swFactory_check_callback(swFactory *factory);
 int swFactoryProcess_create(swFactory *factory, int worker_num);
 
 //------------------------------------Server-------------------------------------------
-enum swServer_callback_type
-{
-    SW_SERVER_CALLBACK_onConnect = 1,
-    SW_SERVER_CALLBACK_onReceive,
-    SW_SERVER_CALLBACK_onClose,
-};
-
 enum swServer_hook_type
 {
     SW_SERVER_HOOK_MASTER_START,
@@ -564,9 +555,6 @@ struct _swServer
      */
     uint8_t request_slowlog_timeout;
     FILE *request_slowlog_file;
-
-    swReactor *reactor_ptr; //Main Reactor
-    swFactory *factory_ptr; //Factory
 
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];
 

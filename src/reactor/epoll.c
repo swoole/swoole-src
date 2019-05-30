@@ -161,7 +161,7 @@ static int swReactorEpoll_del(swReactor *reactor, int fd)
 
 static int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
 {
-    swReactorEpoll *object = reactor->object;
+    swReactorEpoll *object = (swReactorEpoll *) reactor->object;
     swFd fd_;
     struct epoll_event e;
     int ret;
@@ -194,7 +194,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 {
     swEvent event;
     swReactorEpoll *object = reactor->object;
-    swReactor_handle handle;
+    swReactor_handler handler;
     int i, n, ret;
 
     int reactor_id = reactor->id;
@@ -253,8 +253,8 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             //read
             if ((events[i].events & EPOLLIN) && !event.socket->removed)
             {
-                handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
-                ret = handle(reactor, &event);
+                handler = swReactor_get_handler(reactor, SW_EVENT_READ, event.type);
+                ret = handler(reactor, &event);
                 if (ret < 0)
                 {
                     swSysWarn("EPOLLIN handle failed. fd=%d", event.fd);
@@ -263,8 +263,8 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             //write
             if ((events[i].events & EPOLLOUT) && !event.socket->removed)
             {
-                handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
-                ret = handle(reactor, &event);
+                handler = swReactor_get_handler(reactor, SW_EVENT_WRITE, event.type);
+                ret = handler(reactor, &event);
                 if (ret < 0)
                 {
                     swSysWarn("EPOLLOUT handle failed. fd=%d", event.fd);
@@ -278,8 +278,8 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
                 {
                     continue;
                 }
-                handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
-                ret = handle(reactor, &event);
+                handler = swReactor_get_handler(reactor, SW_EVENT_ERROR, event.type);
+                ret = handler(reactor, &event);
                 if (ret < 0)
                 {
                     swSysWarn("EPOLLERR handle failed. fd=%d", event.fd);

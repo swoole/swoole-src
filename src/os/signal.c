@@ -256,7 +256,7 @@ int swSignalfd_setup(swReactor *reactor)
             swSysWarn("sigprocmask() failed");
             return SW_ERR;
         }
-        reactor->setHandle(reactor, SW_FD_SIGNAL, swSignalfd_onSignal);
+        swReactor_set_handler(reactor, SW_FD_SIGNAL, swSignalfd_onSignal);
         reactor->add(reactor, signal_fd, SW_FD_SIGNAL);
         return SW_OK;
     }

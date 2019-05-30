@@ -73,6 +73,7 @@ struct server_event {
     std::string name;
     server_event(enum php_swoole_server_callback_type type, std::string &&name) : type(type) , name(name) { }
 };
+
 static unordered_map<string, server_event> server_event_map({
     { "start",        server_event(SW_SERVER_CB_onStart,        "Start") },
     { "shutdown",     server_event(SW_SERVER_CB_onShutdown,     "Shutdown") },

@@ -369,12 +369,12 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     //set event handler
     //connect
-    reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);
+    swReactor_set_handler(reactor, SW_FD_LISTEN, swServer_master_onAccept);
     //close
-    reactor->setHandle(reactor, SW_FD_CLOSE, swReactorProcess_onClose);
+    swReactor_set_handler(reactor, SW_FD_CLOSE, swReactorProcess_onClose);
     //pipe
-    reactor->setHandle(reactor, SW_FD_WRITE, swReactor_onWrite);
-    reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorProcess_onPipeRead);
+    swReactor_set_handler(reactor, SW_FD_WRITE, swReactor_onWrite);
+    swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorProcess_onPipeRead);
 
     swServer_store_listen_socket(serv);
 

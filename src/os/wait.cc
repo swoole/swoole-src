@@ -85,7 +85,7 @@ void swoole_coroutine_signal_init()
         signal_init = true;
         swSignal_add(SIGCHLD, signal_handler);
 #ifdef HAVE_SIGNALFD
-        if (SwooleG.use_signalfd && !swReactor_handle_isset(SwooleG.main_reactor, SW_FD_SIGNAL))
+        if (SwooleG.use_signalfd && !swReactor_isset_handler(SwooleG.main_reactor, SW_FD_SIGNAL))
         {
             swSignalfd_setup(SwooleG.main_reactor);
         }

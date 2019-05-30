@@ -699,8 +699,8 @@ int swWorker_loop(swServer *serv, int worker_id)
     swSetNonBlock(pipe_worker);
     SwooleG.main_reactor->ptr = serv;
     SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_worker, SW_FD_PIPE | SW_EVENT_READ);
-    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swWorker_onPipeReceive);
-    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_WRITE, swReactor_onWrite);
+    swReactor_set_handler(SwooleG.main_reactor, SW_FD_PIPE, swWorker_onPipeReceive);
+    swReactor_set_handler(SwooleG.main_reactor, SW_FD_WRITE, swReactor_onWrite);
 
     /**
      * set pipe buffer size
@@ -719,8 +719,8 @@ int swWorker_loop(swServer *serv, int worker_id)
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
     {
         SwooleG.main_reactor->add(SwooleG.main_reactor, serv->stream_fd, SW_FD_LISTEN | SW_EVENT_READ);
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_LISTEN, swWorker_onStreamAccept);
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_STREAM, swWorker_onStreamRead);
+        swReactor_set_handler(SwooleG.main_reactor, SW_FD_LISTEN, swWorker_onStreamAccept);
+        swReactor_set_handler(SwooleG.main_reactor, SW_FD_STREAM, swWorker_onStreamRead);
         swStream_set_protocol(&serv->stream_protocol);
         serv->stream_protocol.private_data_2 = serv;
         serv->stream_protocol.package_max_length = INT_MAX;

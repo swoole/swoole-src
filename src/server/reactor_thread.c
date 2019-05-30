@@ -566,11 +566,11 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
         swString_extend_align(SwooleTG.buffer_stack, SwooleTG.buffer_stack->size * 2);
     }
     //UDP Packet
-    reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPacketReceived);
+    swReactor_set_handler(reactor, SW_FD_UDP, swReactorThread_onPacketReceived);
     //Write
-    reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
+    swReactor_set_handler(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
     //Read
-    reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_READ, swReactorThread_onRead);
+    swReactor_set_handler(reactor, SW_FD_TCP | SW_EVENT_READ, swReactorThread_onRead);
 
     swListenPort *ls;
     //listen the all tcp port
@@ -919,7 +919,7 @@ int swReactorThread_start(swServer *serv)
     SwooleG.process_type = SW_PROCESS_MASTER;
 
     main_reactor->ptr = serv;
-    main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
+    swReactor_set_handler(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
 
     if (serv->hooks[SW_SERVER_HOOK_MASTER_START])
     {
@@ -962,9 +962,9 @@ int swReactorThread_init_reactor(swServer *serv, swReactor *reactor, uint16_t re
     reactor->max_socket = serv->max_connection;
     reactor->close = swReactorThread_close;
 
-    reactor->setHandle(reactor, SW_FD_CLOSE, swReactorThread_onClose);
-    reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorThread_onPipeReceive);
-    reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactorThread_onPipeWrite);
+    swReactor_set_handler(reactor, SW_FD_CLOSE, swReactorThread_onClose);
+    swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorThread_onPipeReceive);
+    swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactorThread_onPipeWrite);
 
     //listen UDP
     if (serv->have_dgram_sock == 1)
