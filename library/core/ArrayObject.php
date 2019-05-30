@@ -82,11 +82,11 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
 
     /**
      * @param $key
-     * @return mixed
+     * @return ArrayObject|StringObject|mixed
      */
     public function get($key)
     {
-        return $this->array[$key];
+        return self::detectType($this->array[$key]);
     }
 
     /**
@@ -187,6 +187,7 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
 
     /**
      * @param $value
+     * @param bool $strict
      * @return bool
      */
     public function contains($value, bool $strict = true): bool
@@ -337,7 +338,8 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
 
     /**
      * @param $offset
-     * @param $length
+     * @param int $length
+     * @param bool $preserve_keys
      * @return static
      */
     public function slice($offset, int $length = null, bool $preserve_keys = false): self
@@ -348,9 +350,9 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
     /**
      * @return mixed
      */
-    public function rand()
+    public function randGet()
     {
-        return $this->array[array_rand($this->array, 1)];
+        return  self::detectType($this->array[array_rand($this->array, 1)]);
     }
 
     /**
@@ -384,7 +386,7 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
     }
 
     /**
-     * @param null $search_value
+     * @param int $search_value
      * @param bool $strict
      * @return static
      */
@@ -403,7 +405,7 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
 
     /**
      * @param $column_key
-     * @param null $index
+     * @param mixed ...$index
      * @return static
      */
     public function column($column_key, ...$index): self
@@ -595,7 +597,7 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
     }
 
     /**
-     * @param int $sort_flags
+     * @param callable $value_compare_func
      * @return $this
      */
     public function uasort(callable $value_compare_func): self
@@ -607,7 +609,7 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
     }
 
     /**
-     * @param int $sort_flags
+     * @param callable $value_compare_func
      * @return $this
      */
     public function uksort(callable $value_compare_func): self
@@ -619,7 +621,7 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
     }
 
     /**
-     * @param int $sort_flags
+     * @param callable $value_compare_func
      * @return $this
      */
     public function usort(callable $value_compare_func): self
@@ -628,6 +630,26 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
             throw new RuntimeException('usort() failed');
         }
         return $this;
+    }
+
+    /**
+     * @param $value
+     * @return ArrayObject|StringObject|mixed
+     */
+    static function detectType($value)
+    {
+        if (is_array($value))
+        {
+            return new static($value);
+        }
+        elseif (is_string($value))
+        {
+            return new StringObject($value);
+        }
+        else
+        {
+            return $value;
+        }
     }
 
     /**

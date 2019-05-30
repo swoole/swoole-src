@@ -117,8 +117,8 @@ class StringObject
 
     /**
      * @param int $offset
-     * @param int|null $length
-     * @return static
+     * @param mixed ...$length
+     * @return StringObject
      */
     public function substr(int $offset, ...$length): self
     {
@@ -170,11 +170,11 @@ class StringObject
     /**
      * @param string $delimiter
      * @param int $limit
-     * @return array
+     * @return ArrayObject
      */
-    public function split(string $delimiter, int $limit = PHP_INT_MAX): array
+    public function split(string $delimiter, int $limit = PHP_INT_MAX): ArrayObject
     {
-        return explode($delimiter, $this->string, $limit);
+        return new ArrayObject(explode($delimiter, $this->string, $limit));
     }
 
     /**
@@ -189,22 +189,30 @@ class StringObject
     /**
      * @param int $chunkLength
      * @param string $chunkEnd
-     * @return array
+     * @return StringObject
      */
-    public function chunk(int $chunkLength = 1, string $chunkEnd = ''): array
+    public function chunkSplit(int $chunkLength = 1, string $chunkEnd = ''): StringObject
     {
-        return chunk_split($this->string, $chunkLength, $chunkEnd);
+        return new static(chunk_split($this->string, $chunkLength, $chunkEnd));
     }
 
     /**
-     * @param bool $assoc
+     * @param int $splitLength
+     * @return ArrayObject
+     */
+    public function chunk($splitLength = 1)
+    {
+        return new ArrayObject(str_split($this->string, $splitLength));
+    }
+
+    /**
      * @param int $depth
      * @param int $options
      * @return mixed
      */
-    public function jsonDecode(bool $assoc = true, int $depth = 512, int $options = 0)
+    public function jsonDecode(int $depth = 512, int $options = 0)
     {
-        return json_decode($this->string, $assoc, $depth, $options);
+        return new ArrayObject(json_decode($this->string, true, $depth, $options));
     }
 
     /**
