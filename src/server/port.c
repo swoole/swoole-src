@@ -257,11 +257,10 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
 
 static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, swEvent *event)
 {
-    swServer *serv = reactor->ptr;
     swConnection *conn = event->socket;
     swProtocol *protocol = &port->protocol;
 
-    swString *buffer = swServer_get_buffer(serv, event->fd);
+    swString *buffer = swConnection_get_buffer(conn);
     if (!buffer)
     {
         return SW_ERR;
@@ -406,7 +405,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                 swHttpRequest_free(conn);
                 return SW_OK;
             }
-            swString *buffer = swServer_get_buffer(serv, event->fd);
+            swString *buffer = swConnection_get_buffer(conn);
             if (!buffer)
             {
                 goto close_fd;
@@ -548,9 +547,8 @@ static int swPort_onRead_redis(swReactor *reactor, swListenPort *port, swEvent *
 {
     swConnection *conn = event->socket;
     swProtocol *protocol = &port->protocol;
-    swServer *serv = reactor->ptr;
 
-    swString *buffer = swServer_get_buffer(serv, event->fd);
+    swString *buffer = swConnection_get_buffer(conn);
     if (!buffer)
     {
         return SW_ERR;
@@ -568,9 +566,8 @@ static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *port, swEve
 {
     swConnection *conn = event->socket;
     swProtocol *protocol = &port->protocol;
-    swServer *serv = reactor->ptr;
 
-    swString *buffer = swServer_get_buffer(serv, event->fd);
+    swString *buffer = swConnection_get_buffer(conn);
     if (!buffer)
     {
         return SW_ERR;

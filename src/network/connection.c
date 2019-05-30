@@ -169,19 +169,6 @@ int swConnection_buffer_send(swConnection *conn)
     return SW_OK;
 }
 
-swString* swConnection_get_string_buffer(swConnection *conn)
-{
-    swString *buffer = conn->object;
-    if (buffer == NULL)
-    {
-        return swString_new(SW_IPC_BUFFER_SIZE);
-    }
-    else
-    {
-        return buffer;
-    }
-}
-
 static char tmp_address[INET6_ADDRSTRLEN];
 
 const char* swConnection_get_ip(swConnection *conn)

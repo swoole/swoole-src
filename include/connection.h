@@ -57,12 +57,36 @@ typedef struct _swSSL_option
 
 int swConnection_buffer_send(swConnection *conn);
 
-swString* swConnection_get_string_buffer(swConnection *conn);
 int swConnection_sendfile(swConnection *conn, char *filename, off_t offset, size_t length);
 int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk);
 void swConnection_sendfile_destructor(swBuffer_chunk *chunk);
 const char* swConnection_get_ip(swConnection *conn);
 int swConnection_get_port(swConnection *conn);
+
+static sw_inline swString *swConnection_get_buffer(swConnection *conn)
+{
+    swString *buffer = conn->recv_buffer;
+    if (buffer == NULL)
+    {
+        buffer = swString_new(SW_BUFFER_SIZE_BIG);
+        //alloc memory failed.
+        if (!buffer)
+        {
+            return NULL;
+        }
+        conn->recv_buffer = buffer;
+    }
+    return buffer;
+}
+
+static sw_inline void swConnection_free_buffer(swConnection *conn)
+{
+    if (conn->recv_buffer)
+    {
+        swString_free(conn->recv_buffer);
+        conn->recv_buffer = NULL;
+    }
+}
 
 #ifdef SW_USE_OPENSSL
 enum swSSLState
