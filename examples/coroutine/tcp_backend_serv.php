@@ -7,7 +7,7 @@ $serv->set(array(
 $serv->on('connect', function ($serv, $fd){
     echo "Client:Connect.\n";
 });
-$serv->on('receive', function ($serv, $fd, $from_id, $data) {
+$serv->on('receive', function ($serv, $fd, $reactor_id, $data) {
     $serv->send($fd, 'Swoole: '.$data);
     $serv->close($fd);
 });

@@ -39,7 +39,7 @@ $pm->childFunc = function () use ($pm,$atomic) {
     });
     $serv->on('receive', function ($serv, $fd, $tid, $data) {
     });
-    $serv->on('task', function ($serv,$task_id, $from_id, $params) {
+    $serv->on('task', function ($serv,$task_id, $reactor_id, $params) {
     });
     $serv->start();
 };

@@ -35,17 +35,17 @@ class ProxyServer
         echo "Server: onShutdown\n";
     }
 
-    function onClose($serv, $fd, $from_id)
+    function onClose($serv, $fd, $reactor_id)
     {
 
     }
 
-    function onConnect($serv, $fd, $from_id)
+    function onConnect($serv, $fd, $reactor_id)
     {
 
     }
 
-    function onReceive($serv, $fd, $from_id, $data)
+    function onReceive($serv, $fd, $reactor_id, $data)
     {
 		$socket = new swoole_client(SWOOLE_SOCK_TCP);
         if($socket->connect('127.0.0.1', 80, 0.5))

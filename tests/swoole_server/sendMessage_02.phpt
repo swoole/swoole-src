@@ -71,7 +71,7 @@ $pm->childFunc = function () use ($pm)
     $serv->on('connect', function (swoole_server $serv, $fd) use ($process) {
         $process->write(json_encode(["fd" => $fd]));
     });
-    $serv->on('receive', function ($serv, $fd, $from_id, $data) {
+    $serv->on('receive', function ($serv, $fd, $reactor_id, $data) {
 
     });
 
