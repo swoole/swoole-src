@@ -390,6 +390,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                 default:
                 {
                     swWarn("unknown event filter[%d]", kevent->filter);
+                    break;
                 }
                 }
             }
