@@ -17,19 +17,19 @@ if (ini_get('swoole.use_shortname') === 'On') {
     {
         return new Swoole\ArrayObject($array);
     }
+}
 
-    /**
-     * @param $value
-     * @return \Swoole\StringObject|\Swoole\ArrayObject
-     */
-    function _detectType($value)
-    {
-        if (is_array($value)) {
-            return new \Swoole\ArrayObject($value);
-        } elseif (is_string($value)) {
-            return new \Swoole\StringObject($value);
-        } else {
-            return $value;
-        }
+/**
+ * @param $value
+ * @return \Swoole\StringObject|\Swoole\ArrayObject
+ */
+function swoole_detect_type($value)
+{
+    if (is_array($value)) {
+        return new \Swoole\ArrayObject($value);
+    } elseif (is_string($value)) {
+        return new \Swoole\StringObject($value);
+    } else {
+        return $value;
     }
 }

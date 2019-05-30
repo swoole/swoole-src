@@ -86,7 +86,7 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
      */
     public function get($key)
     {
-        return _detectType($this->array[$key]);
+        return swoole_detect_type($this->array[$key]);
     }
 
     /**
@@ -342,7 +342,7 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
      */
     public function randomGet()
     {
-        return _detectType($this->array[array_rand($this->array, 1)]);
+        return swoole_detect_type($this->array[array_rand($this->array, 1)]);
     }
 
     /**
