@@ -17,13 +17,11 @@
  +----------------------------------------------------------------------+
  */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 
-#ifdef SW_COROUTINE
-#include "swoole_coroutine.h"
-#include "channel.h"
+#include "coroutine_channel.h"
 
-using namespace swoole;
+using swoole::coroutine::Channel;
 
 static zend_class_entry *swoole_channel_coro_ce;
 static zend_object_handlers swoole_channel_coro_handlers;
@@ -257,4 +255,3 @@ static PHP_METHOD(swoole_channel_coro, stats)
     add_assoc_long_ex(return_value, ZEND_STRL("queue_num"), chan->length());
 }
 
-#endif

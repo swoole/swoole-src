@@ -1,5 +1,8 @@
 #include "tests.h"
-#include "channel.h"
+
+#include "coroutine_channel.h"
+
+using swoole::coroutine::Channel;
 
 using namespace swoole;
 using namespace std;

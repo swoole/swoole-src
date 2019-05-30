@@ -10,8 +10,8 @@
 #include <list>
 #include <queue>
 
-namespace swoole
-{
+namespace swoole { namespace coroutine {
+//-------------------------------------------------------------------------------
 class Channel
 {
 public:
@@ -124,4 +124,5 @@ protected:
         return co;
     }
 };
-};
+//-------------------------------------------------------------------------------
+}}
