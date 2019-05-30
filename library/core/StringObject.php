@@ -205,53 +205,6 @@ class StringObject
         return new ArrayObject(str_split($this->string, $splitLength));
     }
 
-    /**
-     * @param int $depth
-     * @param int $options
-     * @return mixed
-     */
-    public function jsonDecode(int $depth = 512, int $options = 0)
-    {
-        return new ArrayObject(json_decode($this->string, true, $depth, $options));
-    }
-
-    /**
-     * @param string $pattern
-     * @param int $flags
-     * @param int $offset
-     * @param null $count
-     * @return mixed
-     */
-    public function pregMatch(string $pattern, $flags = 0, $offset = 0, &$count = null)
-    {
-        $count = preg_match($pattern, $this->string, $matches, $flags, $offset);
-        return $matches;
-    }
-
-    /**
-     * @param string $pattern
-     * @param int $flags
-     * @param int $offset
-     * @param null $count
-     * @return mixed
-     */
-    public function pregMatchAll(string $pattern, $flags = 0, $offset = 0, &$count = null)
-    {
-        $count = preg_match_all($pattern, $this->string, $matches, $flags, $offset);
-        return $matches;
-    }
-
-    /**
-     * @param string $pattern
-     * @param string $replacement
-     * @param int $limit
-     * @param null $count
-     * @return string
-     */
-    public function pregReplace(string $pattern, string $replacement, int $limit = -1, &$count = null): string
-    {
-        return preg_replace($pattern, $replacement, $this->string, $limit, $count);
-    }
 
     /**
      * @return string

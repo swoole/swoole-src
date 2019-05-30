@@ -86,7 +86,7 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
      */
     public function get($key)
     {
-        return self::detectType($this->array[$key]);
+        return _detectType($this->array[$key]);
     }
 
     /**
@@ -263,16 +263,6 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
     }
 
     /**
-     * @param int $options
-     * @param int $depth
-     * @return string
-     */
-    public function jsonEncode(int $options = 0, int $depth = 512): string
-    {
-        return json_encode($this->array, $options, $depth);
-    }
-
-    /**
      * @return float|int
      */
     public function sum()
@@ -348,11 +338,11 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
     }
 
     /**
-     * @return mixed
+     * @return ArrayObject|StringObject
      */
     public function randomGet()
     {
-        return self::detectType($this->array[array_rand($this->array, 1)]);
+        return _detectType($this->array[array_rand($this->array, 1)]);
     }
 
     /**
@@ -630,21 +620,6 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
             throw new RuntimeException('usort() failed');
         }
         return $this;
-    }
-
-    /**
-     * @param $value
-     * @return ArrayObject|StringObject|mixed
-     */
-    static function detectType($value)
-    {
-        if (is_array($value)) {
-            return new static($value);
-        } elseif (is_string($value)) {
-            return new StringObject($value);
-        } else {
-            return $value;
-        }
     }
 
     /**
