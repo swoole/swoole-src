@@ -350,9 +350,9 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
     /**
      * @return mixed
      */
-    public function randGet()
+    public function randomGet()
     {
-        return  self::detectType($this->array[array_rand($this->array, 1)]);
+        return self::detectType($this->array[array_rand($this->array, 1)]);
     }
 
     /**
@@ -638,16 +638,11 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
      */
     static function detectType($value)
     {
-        if (is_array($value))
-        {
+        if (is_array($value)) {
             return new static($value);
-        }
-        elseif (is_string($value))
-        {
+        } elseif (is_string($value)) {
             return new StringObject($value);
-        }
-        else
-        {
+        } else {
             return $value;
         }
     }
