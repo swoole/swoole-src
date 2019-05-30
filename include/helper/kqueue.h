@@ -22,6 +22,9 @@
 
 #include <stdint.h>
 
+#define EVFILT_READ             (-1)
+#define EVFILT_WRITE            (-2)
+
 /* kevent system call flags */
 #define KEVENT_FLAG_NONE                         0x000000       /* no flag value */
 #define KEVENT_FLAG_IMMEDIATE                    0x000001       /* immediate timeout */
