@@ -99,7 +99,8 @@ function skip_if_no_http2()
 
 function skip_if_no_ipv6()
 {
-    skip('no ipv6 address', !_string(`ifconfig`)->contains('inet6 ::1'));
+    $socket = socket_create(AF_INET6, SOCK_STREAM, SOL_TCP);
+    skip('no ipv6 address', !socket_bind($socket, "::1", 0));
 }
 
 function skip_if_no_top()
