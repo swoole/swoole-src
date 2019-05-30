@@ -24,6 +24,7 @@
 
 #define EVFILT_READ             (-1)
 #define EVFILT_WRITE            (-2)
+#define EVFILT_SIGNAL           (-6)
 
 /* kevent system call flags */
 #define KEVENT_FLAG_NONE                         0x000000       /* no flag value */
