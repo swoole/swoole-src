@@ -169,6 +169,11 @@ static sw_inline http_server* http_server_get_object(zend_object *obj)
     return swoole_http_server_coro_fetch_object(obj)->server;
 }
 
+static inline void http_server_set_error(zval *zobject, Socket *sock)
+{
+    zend_update_property_long(swoole_http_server_coro_ce, zobject, ZEND_STRL("errCode"), sock->errCode);
+}
+
 static bool http_context_send_data(http_context* ctx, const char *data, size_t length)
 {
     Socket *sock = (Socket *) ctx->private_data;
@@ -222,6 +227,7 @@ void swoole_http_server_coro_init(int module_number)
     zend_declare_property_null(swoole_http_server_coro_ce, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_server_coro_ce, ZEND_STRL("fd"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_server_coro_ce, ZEND_STRL("port"), -1, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http_server_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_http_server_coro_ce, ZEND_STRL("ssl"), 0, ZEND_ACC_PUBLIC);
 }
 
@@ -423,6 +429,17 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
         zend_throw_exception_ex(swoole_exception_ce, EINVAL, "host is empty");
         RETURN_FALSE;
     }
+
+    http_server_coro_t *hsc = swoole_http_server_coro_fetch_object(Z_OBJ_P(getThis()));
+    string host_str(host, l_host);
+    hsc->server = new http_server(Socket::get_type(host_str));
+    Socket *sock = hsc->server->socket;
+    if (!sock->bind(host_str, port))
+    {
+        http_server_set_error(getThis(), sock);
+        zend_throw_exception_ex(swoole_exception_ce, EINVAL, "bind(%s:%d) failed", host, (int) port);
+        RETURN_FALSE
+    }
     //check ssl
 #ifndef SW_USE_OPENSSL
     if (ssl)
@@ -433,18 +450,10 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
         );
         RETURN_FALSE;
     }
+#else
+    sock->open_ssl = ssl;
 #endif
 
-    http_server_coro_t *hsc = swoole_http_server_coro_fetch_object(Z_OBJ_P(getThis()));
-    string host_str(host, l_host);
-    hsc->server = new http_server(Socket::get_type(host_str));
-    Socket *sock = hsc->server->socket;
-    if (!sock->bind(host_str, port))
-    {
-        zend_throw_exception_ex(swoole_exception_ce, EINVAL, "bind(%s:%d) failed", host, (int) port);
-        RETURN_FALSE
-    }
-    sock->open_ssl = ssl;
     zend_update_property_long(swoole_http_server_coro_ce, getThis(), ZEND_STRL("fd"), sock->get_fd());
 }
 
@@ -508,7 +517,7 @@ static PHP_METHOD(swoole_http_server_coro, start)
 
     if (!sock->listen())
     {
-        zend_throw_exception_ex(swoole_exception_ce, EINVAL, "listen() failed");
+        http_server_set_error(getThis(), sock);
         RETURN_FALSE
     }
 
@@ -538,10 +547,12 @@ static PHP_METHOD(swoole_http_server_coro, start)
             }
             else if (sock->errCode == ECANCELED)
             {
+                http_server_set_error(getThis(), sock);
                 break;
             }
             else
             {
+                http_server_set_error(getThis(), sock);
                 swoole_php_fatal_error(E_WARNING, "accept failed, Error: %s[%d]", sock->errMsg, sock->errCode);
                 break;
             }
