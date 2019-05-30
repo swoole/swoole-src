@@ -1,4 +1,5 @@
 <?php
+
 namespace Swoole;
 
 class StringObject
@@ -12,182 +13,243 @@ class StringObject
      * StringObject constructor.
      * @param $string
      */
-    function __construct(string $string)
+    public function __construct(string $string = '')
     {
         $this->string = $string;
     }
 
     /**
-     * @return string
-     */
-    function __toString()
-    {
-        return $this->string;
-    }
-
-    /**
-     * @param $find_str
-     * @return bool|int
-     */
-    function indexOf($find_str)
-    {
-        return strpos($this->string, $find_str);
-    }
-
-    /**
-     * @param $find_str
-     * @return bool|int
-     */
-    function lastIndexOf($find_str)
-    {
-        return strrpos($this->string, $find_str);
-    }
-
-    /**
-     * @param $find_str
-     * @return bool|int
-     */
-    function pos($find_str)
-    {
-        return strpos($this->string, $find_str);
-    }
-
-    /**
-     * @param $find_str
-     * @return bool|int
-     */
-    function rpos($find_str)
-    {
-        return strrpos($this->string, $find_str);
-    }
-
-    /**
-     * @param $find_str
      * @return int
      */
-    function ipos($find_str)
-    {
-        return stripos($this->string, $find_str);
-    }
-
-    /**
-     * @return StringObject
-     */
-    function lower()
-    {
-        return new StringObject(strtolower($this->string));
-    }
-
-    /**
-     * @return StringObject
-     */
-    function upper()
-    {
-        return new StringObject(strtoupper($this->string));
-    }
-
-    /**
-     * @return StringObject
-     */
-    function trim()
-    {
-        return new StringObject(trim($this->string));
-    }
-
-    /**
-     * @return int
-     */
-    function len()
+    public function length(): int
     {
         return strlen($this->string);
     }
 
     /**
-     * @param $offset
-     * @param null $length
-     * @return StringObject
+     * @param string $needle
+     * @param int $offset
+     * @return bool|int
      */
-    function substr($offset, $length = null)
+    public function indexOf(string $needle, int $offset = 0)
     {
-        return new StringObject(substr($this->string, $offset, $length));
+        return strpos($this->string, $needle, $offset);
     }
 
     /**
-     * @param $search
-     * @param $replace
+     * @param string $needle
+     * @param int $offset
+     * @return bool|int
+     */
+    public function lastIndexOf(string $needle, int $offset = 0)
+    {
+        return strrpos($this->string, $needle, $offset);
+    }
+
+    /**
+     * @param string $needle
+     * @param int $offset
+     * @return bool|int
+     */
+    public function pos(string $needle, int $offset = 0)
+    {
+        return strpos($this->string, $needle, $offset);
+    }
+
+    /**
+     * @param string $needle
+     * @param int $offset
+     * @return bool|int
+     */
+    public function rpos(string $needle, int $offset = 0)
+    {
+        return strrpos($this->string, $needle, $offset);
+    }
+
+    /**
+     * @param string $needle
+     * @return bool|int
+     */
+    public function ipos(string $needle)
+    {
+        return stripos($this->string, $needle);
+    }
+
+    /**
+     * @return static
+     */
+    public function lower(): self
+    {
+        return new static(strtolower($this->string));
+    }
+
+    /**
+     * @return static
+     */
+    public function upper(): self
+    {
+        return new static(strtoupper($this->string));
+    }
+
+    /**
+     * @return static
+     */
+    public function trim(): self
+    {
+        return new static(trim($this->string));
+    }
+
+    /**
+     * @return static
+     */
+    public function lrim(): self
+    {
+        return new static(ltrim($this->string));
+    }
+
+    /**
+     * @return static
+     */
+    public function rtrim(): self
+    {
+        return new static(rtrim($this->string));
+    }
+
+    /**
+     * @param int $offset
+     * @param int|null $length
+     * @return static
+     */
+    public function substr(int $offset, ...$length): self
+    {
+        return new static(substr($this->string, $offset, ...$length));
+    }
+
+    /**
+     * @param string $search
+     * @param string $replace
      * @param null $count
-     * @return StringObject
+     * @return static
      */
-    function replace($search, $replace, &$count = null)
+    public function replace(string $search, string $replace, &$count = null): self
     {
-        return new StringObject(str_replace($search, $replace, $this->string, $count));
+        return new static(str_replace($search, $replace, $this->string, $count));
     }
 
     /**
-     * @param $needle
+     * @param string $needle
      * @return bool
      */
-    function  startsWith($needle)
+    public function startsWith(string $needle): bool
     {
         return $this->pos($needle) === 0;
     }
 
     /**
-     * @param $subString
+     * @param string $subString
      * @return bool
      */
-    function contains($subString)
+    public function contains(string $subString): bool
     {
         return $this->pos($subString) !== false;
     }
 
     /**
-     * @param $needle
+     * @param string $needle
      * @return bool
      */
-    function endsWith($needle)
+    public function endsWith(string $needle): bool
     {
         $length = strlen($needle);
-        if ($length == 0)
-        {
+        if ($length == 0) {
             return true;
         }
-        return (substr($this->string, -$length) === $needle);
+        return substr($this->string, -$length) === $needle;
     }
 
     /**
-     * @param $sp
+     * @param string $delimiter
      * @param int $limit
-     * @return ArrayObject
+     * @return array
      */
-    function split($sp, $limit = PHP_INT_MAX)
+    public function split(string $delimiter, int $limit = PHP_INT_MAX): array
     {
-        return new ArrayObject(explode($sp, $this->string, $limit));
+        return explode($delimiter, $this->string, $limit);
     }
 
     /**
-     * @param $index
+     * @param int $index
      * @return string
      */
-    function char($index)
+    public function char(int $index): string
     {
         return $this->string[$index];
     }
 
     /**
-     * @param int $splitLength
-     * @return ArrayObject
+     * @param int $chunkLength
+     * @param string $chunkEnd
+     * @return array
      */
-    function toArray($splitLength = 1)
+    public function chunk(int $chunkLength = 1, string $chunkEnd = ''): array
     {
-        return new ArrayObject(str_split($this->string, $splitLength));
+        return chunk_split($this->string, $chunkLength, $chunkEnd);
     }
 
     /**
+     * @param bool $assoc
+     * @param int $depth
+     * @param int $options
      * @return mixed
      */
-    function toSring()
+    public function jsonDecode(bool $assoc = true, int $depth = 512, int $options = 0)
     {
-        return $this->__toString();
+        return json_decode($this->string, $assoc, $depth, $options);
+    }
+
+    /**
+     * @param string $pattern
+     * @param int $flags
+     * @param int $offset
+     * @param null $count
+     * @return mixed
+     */
+    public function pregMatch(string $pattern, $flags = 0, $offset = 0, &$count = null)
+    {
+        $count = preg_match($pattern, $this->string, $matches, $flags, $offset);
+        return $matches;
+    }
+
+    /**
+     * @param string $pattern
+     * @param int $flags
+     * @param int $offset
+     * @param null $count
+     * @return mixed
+     */
+    public function pregMatchAll(string $pattern, $flags = 0, $offset = 0, &$count = null)
+    {
+        $count = preg_match_all($pattern, $this->string, $matches, $flags, $offset);
+        return $matches;
+    }
+
+    /**
+     * @param string $pattern
+     * @param string $replacement
+     * @param int $limit
+     * @param null $count
+     * @return string
+     */
+    public function pregReplace(string $pattern, string $replacement, int $limit = -1, &$count = null): string
+    {
+        return preg_replace($pattern, $replacement, $this->string, $limit, $count);
+    }
+
+    /**
+     * @return string
+     */
+    public function __toString(): string
+    {
+        return $this->string;
     }
 }
