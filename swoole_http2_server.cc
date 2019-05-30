@@ -18,7 +18,6 @@
 
 #ifdef SW_USE_HTTP2
 #include "swoole_http.h"
-#include "swoole_coroutine.h"
 
 #include "http2.h"
 #include "main/php_variables.h"

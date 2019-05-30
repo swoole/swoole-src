@@ -66,10 +66,8 @@ typedef struct
     swString *buffer;
 } process_stream;
 
-#ifdef SW_COROUTINE
 static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void *data);
 static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode);
-#endif
 
 static std::unordered_map<std::string, dns_cache*> request_cache_map;
 

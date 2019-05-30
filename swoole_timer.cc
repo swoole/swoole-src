@@ -17,7 +17,6 @@
  */
 
 #include "php_swoole_cxx.h"
-#include "swoole_coroutine.h"
 
 #include "ext/spl/spl_array.h"
 

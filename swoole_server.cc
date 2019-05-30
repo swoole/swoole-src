@@ -16,7 +16,6 @@
 
 #include "php_swoole_cxx.h"
 #include "connection.h"
-#include "swoole_coroutine.h"
 #include "websocket.h"
 #include "ext/standard/php_var.h"
 #include "zend_smart_str.h"
@@ -188,12 +187,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_taskwait, 0, 0, 1)
     ZEND_ARG_INFO(0, worker_id)
 ZEND_END_ARG_INFO()
 
-#ifdef SW_COROUTINE
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_taskCo, 0, 0, 1)
     ZEND_ARG_ARRAY_INFO(0, tasks, 0)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
-#endif
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_taskWaitMulti, 0, 0, 1)
     ZEND_ARG_ARRAY_INFO(0, tasks, 0)
@@ -345,9 +342,7 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, task, arginfo_swoole_server_task, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, taskwait, arginfo_swoole_server_taskwait, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, taskWaitMulti, arginfo_swoole_server_taskWaitMulti, ZEND_ACC_PUBLIC)
-#ifdef SW_COROUTINE
     PHP_ME(swoole_server, taskCo, arginfo_swoole_server_taskCo, ZEND_ACC_PUBLIC)
-#endif
     PHP_ME(swoole_server, finish, arginfo_swoole_server_finish, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, reload, arginfo_swoole_server_reload, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, shutdown, arginfo_swoole_void, ZEND_ACC_PUBLIC)
@@ -850,7 +845,6 @@ static void php_swoole_task_wait_co(swServer *serv, swEventData *req, double tim
     PHPCoroutine::yield_m(return_value, &task_co->context);
 }
 
-#ifdef SW_COROUTINE
 static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     swTaskCo *task_co = (swTaskCo *) tnode->data;
@@ -892,7 +886,6 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
     sw_zval_free(result);
     efree(task_co);
 }
-#endif
 
 static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
 {
@@ -1673,15 +1666,6 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     }
 }
 
-#ifdef SW_COROUTINE
-//static void php_swoole_onConnect_finish(void *param)
-//{
-//    swServer *serv = SwooleG.serv;
-//    swTrace("onConnect finish and send confirm");
-//    serv->feedback(serv, (uint32_t) (long) param, SW_EVENT_CONFIRM);
-//}
-#endif
-
 void php_swoole_onConnect(swServer *serv, swDataHead *info)
 {
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onConnect);
@@ -2181,7 +2165,6 @@ static PHP_METHOD(swoole_server, set)
     {
         serv->max_wait_time = (uint32_t) zval_get_long(v);
     }
-#ifdef SW_COROUTINE
     if (php_swoole_array_get_value(vht, "enable_coroutine", v))
     {
         serv->enable_coroutine = SwooleG.enable_coroutine = zval_is_true(v);
@@ -2204,7 +2187,6 @@ static PHP_METHOD(swoole_server, set)
     {
         serv->send_timeout = zval_get_double(v);
     }
-#endif
     //dispatch_mode
     if (php_swoole_array_get_value(vht, "dispatch_mode", v))
     {
@@ -3112,9 +3094,7 @@ static PHP_METHOD(swoole_server, stats)
         }
     }
 
-#ifdef SW_COROUTINE
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
-#endif
 }
 
 static PHP_METHOD(swoole_server, reload)
@@ -3436,7 +3416,6 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
     unlink(_tmpfile);
 }
 
-#ifdef SW_COROUTINE
 static PHP_METHOD(swoole_server, taskCo)
 {
     swEventData buf;
@@ -3541,7 +3520,6 @@ static PHP_METHOD(swoole_server, taskCo)
     }
     PHPCoroutine::yield_m(return_value, &task_co->context);
 }
-#endif
 
 static PHP_METHOD(swoole_server, task)
 {

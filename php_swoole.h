@@ -469,9 +469,7 @@ int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length)
 zend_bool php_swoole_signal_isset_handler(int signo);
 void php_swoole_event_onDefer(void *_cb);
 
-#ifdef SW_COROUTINE
 int php_coroutine_reactor_can_exit(swReactor *reactor);
-#endif
 
 #ifdef SW_USE_OPENSSL
 void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset);

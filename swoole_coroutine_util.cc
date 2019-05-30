@@ -17,7 +17,6 @@
  */
 #include "php_swoole_cxx.h"
 
-#include "swoole_coroutine.h"
 #include "coroutine_c_api.h"
 #include "async.h"
 
