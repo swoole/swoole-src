@@ -23,8 +23,6 @@
 #endif
 #endif
 
-#define SW_COROUTINE               1
-
 #define SW_MAX_FDTYPE              32   // 32 kinds of event
 #define SW_MAX_HOOK_TYPE           32
 #define SW_ERROR_MSG_SIZE          16384

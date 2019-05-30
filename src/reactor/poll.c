@@ -63,7 +63,7 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
     }
     object->max_fd_num = max_fd_num;
     reactor->max_event_num = max_fd_num;
-    bzero(reactor->handle, sizeof(reactor->handle));
+    bzero(reactor->handler, sizeof(reactor->handler));
     reactor->object = object;
     //binding method
     reactor->add = swReactorPoll_add;
@@ -188,9 +188,9 @@ static int swReactorPoll_del(swReactor *reactor, int fd)
 
 static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 {
-    swReactorPoll *object = reactor->object;
+    swReactorPoll *object = (swReactorPoll *) reactor->object;
     swEvent event;
-    swReactor_handle handle;
+    swReactor_handler handler;
 
     int ret, i;
 
@@ -236,16 +236,16 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
             for (i = 0; i < reactor->event_num; i++)
             {
                 event.fd = object->events[i].fd;
-                event.from_id = reactor->id;
+                event.reactor_id = reactor->id;
                 event.type = object->fds[i].fdtype;
                 event.socket = swReactor_get(reactor, event.fd);
 
-                swTrace("Event: fd=%d|from_id=%d|type=%d", event.fd, reactor->id, object->fds[i].fdtype);
+                swTrace("Event: fd=%d|reactor_id=%d|type=%d", event.fd, reactor->id, object->fds[i].fdtype);
                 //in
                 if ((object->events[i].revents & POLLIN) && !event.socket->removed)
                 {
-                    handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
-                    ret = handle(reactor, &event);
+                    handler = swReactor_get_handler(reactor, SW_EVENT_READ, event.type);
+                    ret = handler(reactor, &event);
                     if (ret < 0)
                     {
                         swSysWarn("poll[POLLIN] handler failed. fd=%d", event.fd);
@@ -254,8 +254,8 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
                 //out
                 if ((object->events[i].revents & POLLOUT) && !event.socket->removed)
                 {
-                    handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
-                    ret = handle(reactor, &event);
+                    handler = swReactor_get_handler(reactor, SW_EVENT_WRITE, event.type);
+                    ret = handler(reactor, &event);
                     if (ret < 0)
                     {
                         swSysWarn("poll[POLLOUT] handler failed. fd=%d", event.fd);
@@ -269,8 +269,8 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
                     {
                         continue;
                     }
-                    handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
-                    ret = handle(reactor, &event);
+                    handler = swReactor_get_handler(reactor, SW_EVENT_ERROR, event.type);
+                    ret = handler(reactor, &event);
                     if (ret < 0)
                     {
                         swSysWarn("poll[POLLERR] handler failed. fd=%d", event.fd);

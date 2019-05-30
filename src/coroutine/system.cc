@@ -445,11 +445,11 @@ static int socket_poll_error_callback(swReactor *reactor, swEvent *event)
 bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout)
 {
     swReactor *reactor = SwooleG.main_reactor;
-    if (unlikely(!swReactor_handle_isset(reactor, SW_FD_CORO_POLL)))
+    if (unlikely(!swReactor_isset_handler(reactor, SW_FD_CORO_POLL)))
     {
-        reactor->setHandle(reactor, SW_FD_CORO_POLL | SW_EVENT_READ, socket_poll_read_callback);
-        reactor->setHandle(reactor, SW_FD_CORO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
-        reactor->setHandle(reactor, SW_FD_CORO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
+        swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_READ, socket_poll_read_callback);
+        swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
+        swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
     }
 
     if (timeout == 0)

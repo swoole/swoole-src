@@ -57,17 +57,6 @@ enum http_client_error_flags
     HTTP_CLIENT_EFLAG_UPGRADE = 1 << 1,
 };
 
-#ifdef SW_COROUTINE
-typedef enum
-{
-    HTTP_CLIENT_STATE_DEFER_INIT,
-    HTTP_CLIENT_STATE_DEFER_SEND,
-    HTTP_CLIENT_STATE_DEFER_WAIT,
-    HTTP_CLIENT_STATE_DEFER_DONE,
-} http_client_defer_state;
-#endif
-
-
 static sw_inline void http_client_create_token(int length, char *buf)
 {
     char characters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"§$%&/()=[]{}";

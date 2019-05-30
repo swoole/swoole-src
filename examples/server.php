@@ -131,7 +131,7 @@ function forkChildInWorker() {
 // 		$serv->set(array(
 // 				'worker_num' => 1
 // 		));
-// 		$serv->on ( 'receive', function (swoole_server $serv, $fd, $from_id, $data) {
+// 		$serv->on ( 'receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
 // 			$serv->send ( $fd, "Swoole: " . $data );
 // 			$serv->close ( $fd );
 // 		});
@@ -188,9 +188,9 @@ function my_onShutdown($serv)
     echo "Server: onShutdown\n";
 }
 
-function my_onClose(swoole_server $serv, $fd, $from_id)
+function my_onClose(swoole_server $serv, $fd, $reactor_id)
 {
-    my_log("Client[$fd@$from_id]: fd=$fd is closed");
+    my_log("Client[$fd@$reactor_id]: fd=$fd is closed");
     $buffer = G::getBuffer($fd);
     if ($buffer)
     {
@@ -199,12 +199,12 @@ function my_onClose(swoole_server $serv, $fd, $from_id)
     //var_dump($serv->getClientInfo($fd));
 }
 
-function my_onConnect(swoole_server $serv, $fd, $from_id)
+function my_onConnect(swoole_server $serv, $fd, $reactor_id)
 {
     //throw new Exception("hello world");
 //    var_dump($serv->connection_info($fd));
-    //var_dump($serv, $fd, $from_id);
-//    echo "Worker#{$serv->worker_pid} Client[$fd@$from_id]: Connect.\n";
+    //var_dump($serv, $fd, $reactor_id);
+//    echo "Worker#{$serv->worker_pid} Client[$fd@$reactor_id]: Connect.\n";
     $serv->after(2000, function() use ($serv, $fd) {
         $serv->confirm($fd);
     });
@@ -281,9 +281,9 @@ function my_onPacket($serv, $data, $clientInfo)
     var_dump($clientInfo);
 }
 
-function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
+function my_onReceive(swoole_server $serv, $fd, $reactor_id, $data)
 {
-    my_log("Worker#{$serv->worker_pid} Client[$fd@$from_id]: received: $data");
+    my_log("Worker#{$serv->worker_pid} Client[$fd@$reactor_id]: received: $data");
     $cmd = trim($data);
     if($cmd == "reload")
     {
@@ -359,7 +359,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     }
     elseif($cmd == "info")
     {
-        $info = $serv->connection_info(strval($fd), $from_id);
+        $info = $serv->connection_info(strval($fd), $reactor_id);
         var_dump($info["remote_ip"]);
         $serv->send($fd, 'Info: '.var_export($info, true).PHP_EOL);
     }
@@ -458,23 +458,23 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
                 echo "deferd\n";
             });
         });
-        $serv->send($fd, 'Swoole: '.$data, $from_id);
+        $serv->send($fd, 'Swoole: '.$data, $reactor_id);
     }
     else
     {
-        $serv->send($fd, 'Swoole: '.$data, $from_id);
+        $serv->send($fd, 'Swoole: '.$data, $reactor_id);
         //$serv->close($fd);
     }
-    //echo "Client:Data. fd=$fd|from_id=$from_id|data=$data";
+    //echo "Client:Data. fd=$fd|reactor_id=$reactor_id|data=$data";
 //    $serv->after(
 //        800, function () {
 //            echo "hello";
 //        }
 //    );
-    //swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
+    //swoole_server_send($serv, $other_fd, "Server: $data", $other_reactor_id);
 }
 
-function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
+function my_onTask(swoole_server $serv, $task_id, $reactor_id, $data)
 {
     if ($data == 'taskwait')
     {

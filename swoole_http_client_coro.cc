@@ -428,20 +428,7 @@ static int http_parser_on_message_complete(swoole_http_parser *parser)
 
 http_client::http_client(zval* zobject, std::string host, zend_long port, zend_bool ssl)
 {
-    if (host.compare(0, 6, "unix:/", 0, 6) == 0)
-    {
-        host = host.substr(sizeof("unix:") - 1);
-        host.erase(0, host.find_first_not_of('/') - 1);
-        socket_type = SW_SOCK_UNIX_STREAM;
-    }
-    else if (host.find(':') != std::string::npos)
-    {
-        socket_type = SW_SOCK_TCP6;
-    }
-    else
-    {
-        socket_type = SW_SOCK_TCP;
-    }
+    this->socket_type = Socket::get_type(host);
     this->host = host;
     this->port = port;
 #ifdef SW_USE_OPENSSL

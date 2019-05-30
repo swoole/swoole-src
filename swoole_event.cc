@@ -218,10 +218,10 @@ void php_swoole_reactor_init()
         php_swoole_register_shutdown_function_prepend("swoole_event_wait");
     }
 
-    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_READ, php_swoole_event_onRead);
-    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_WRITE, php_swoole_event_onWrite);
-    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_ERROR, php_swoole_event_onError);
-    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_WRITE, swReactor_onWrite);
+    swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_READ, php_swoole_event_onRead);
+    swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_WRITE, php_swoole_event_onWrite);
+    swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_ERROR, php_swoole_event_onError);
+    swReactor_set_handler(SwooleG.main_reactor, SW_FD_WRITE, swReactor_onWrite);
 
     SwooleWG.reactor_init = 1;
 }

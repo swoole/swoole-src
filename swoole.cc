@@ -833,9 +833,7 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_row(2, "Version", SWOOLE_VERSION);
     snprintf(buf, sizeof(buf), "%s %s", __DATE__, __TIME__);
     php_info_print_table_row(2, "Built", buf);
-#ifdef SW_COROUTINE
     php_info_print_table_row(2, "coroutine", "enabled");
-#endif
 #ifdef SW_DEBUG
     php_info_print_table_row(2, "debug", "enabled");
 #endif

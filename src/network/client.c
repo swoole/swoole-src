@@ -135,12 +135,12 @@ int swClient_create(swClient *cli, int type, int async)
     {
         swSetNonBlock(cli->socket->fd);
         cli->socket->nonblock = 1;
-        if (!swReactor_handle_isset(cli->reactor, SW_FD_STREAM_CLIENT))
+        if (!swReactor_isset_handler(cli->reactor, SW_FD_STREAM_CLIENT))
         {
-            cli->reactor->setHandle(cli->reactor, SW_FD_STREAM_CLIENT | SW_EVENT_READ, swClient_onStreamRead);
-            cli->reactor->setHandle(cli->reactor, SW_FD_DGRAM_CLIENT | SW_EVENT_READ, swClient_onDgramRead);
-            cli->reactor->setHandle(cli->reactor, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE, swClient_onWrite);
-            cli->reactor->setHandle(cli->reactor, SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, swClient_onError);
+            swReactor_set_handler(cli->reactor, SW_FD_STREAM_CLIENT | SW_EVENT_READ, swClient_onStreamRead);
+            swReactor_set_handler(cli->reactor, SW_FD_DGRAM_CLIENT | SW_EVENT_READ, swClient_onDgramRead);
+            swReactor_set_handler(cli->reactor, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE, swClient_onWrite);
+            swReactor_set_handler(cli->reactor, SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, swClient_onError);
         }
     }
     else

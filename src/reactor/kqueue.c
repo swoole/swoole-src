@@ -57,7 +57,7 @@ static sw_inline enum swBool_type swReactorKqueue_fetch_event(swReactor *reactor
     swFd *fd = (swFd *) &udata;
     event->fd = fd->fd;
     event->type = fd->fdtype;
-    event->from_id = reactor->id;
+    event->reactor_id = reactor->id;
     event->socket = swReactor_get(reactor, event->fd);
     if (event->socket->removed)
     {
@@ -274,8 +274,8 @@ static int swReactorKqueue_del(swReactor *reactor, int fd)
 static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 {
     swEvent event;
-    swReactorKqueue *object = reactor->object;
-    swReactor_handle handle;
+    swReactorKqueue *object = (swReactorKqueue *) reactor->object;
+    swReactor_handler handler;
 
     int i, n;
     struct timespec t = {0};
@@ -355,8 +355,8 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                 {
                     if (swReactorKqueue_fetch_event(reactor, &event, udata))
                     {
-                        handle = swReactor_getHandle(reactor, likely(kevent->filter == EVFILT_READ) ? SW_EVENT_READ : SW_EVENT_WRITE, event.type);
-                        if (unlikely(handle(reactor, &event) < 0))
+                        handler = swReactor_get_handler(reactor, likely(kevent->filter == EVFILT_READ) ? SW_EVENT_READ : SW_EVENT_WRITE, event.type);
+                        if (unlikely(handler(reactor, &event) < 0))
                         {
                             swSysWarn("kqueue event %s socket#%d handler failed", kevent->filter == EVFILT_READ ? "read" : "write", event.fd);
                         }
@@ -390,6 +390,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                 default:
                 {
                     swWarn("unknown event filter[%d]", kevent->filter);
+                    break;
                 }
                 }
             }

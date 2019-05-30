@@ -128,6 +128,24 @@ public:
         }
     }
 
+    static inline enum swSocket_type get_type(std::string &host)
+    {
+        if (host.compare(0, 6, "unix:/", 0, 6) == 0)
+        {
+            host = host.substr(sizeof("unix:") - 1);
+            host.erase(0, host.find_first_not_of('/') - 1);
+            return SW_SOCK_UNIX_STREAM;
+        }
+        else if (host.find(':') != std::string::npos)
+        {
+            return SW_SOCK_TCP6;
+        }
+        else
+        {
+            return SW_SOCK_TCP;
+        }
+    }
+
     inline int get_fd()
     {
         return socket ? socket->fd : -1;

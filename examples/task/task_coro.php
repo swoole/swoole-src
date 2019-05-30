@@ -6,7 +6,7 @@ $serv->set(array(
     //'task_tmpdir' => '/data/task/',
 ));
 
-$serv->on('Receive', function(swoole_server $serv, $fd, $from_id, $data) {
+$serv->on('Receive', function(swoole_server $serv, $fd, $reactor_id, $data) {
     $tasks[] = mt_rand(1000, 9999);
     $tasks[] = mt_rand(1000, 9999);
     $tasks[] = mt_rand(1000, 9999);
@@ -17,7 +17,7 @@ $serv->on('Receive', function(swoole_server $serv, $fd, $from_id, $data) {
     var_dump($results);
 });
 
-$serv->on('Task', function (swoole_server $serv, $task_id, $from_id, $data) {
+$serv->on('Task', function (swoole_server $serv, $task_id, $reactor_id, $data) {
     echo "onTask: [ID={$serv->worker_id}]: task_id=$task_id, data=$data, data_len=".strlen($data).".".PHP_EOL;
     //测试超时
     if ($serv->worker_id % 4 == 3)

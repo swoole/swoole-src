@@ -122,7 +122,7 @@ bool Server::close(int fd, bool reset)
         swDataHead ev;
         ev.type = SW_EVENT_CLOSE;
         ev.fd = fd;
-        ev.from_id = conn->from_id;
+        ev.reactor_id = conn->reactor_id;
         ret = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
     }
     else
@@ -139,8 +139,8 @@ static int task_pack(swEventData *task, const DataBuffer &data)
     task->info.type = SW_EVENT_TASK;
     //field fd save task_id
     task->info.fd = task_id++;
-    //field from_id save the worker_id
-    task->info.from_id = SwooleWG.id;
+    //field reactor_id save the worker_id
+    task->info.reactor_id = SwooleWG.id;
     swTask_type(task) = 0;
 
     if (data.length >= SW_IPC_MAX_SIZE - sizeof(task->info))
@@ -354,7 +354,7 @@ bool Server::sendMessage(int worker_id, DataBuffer &data)
     }
 
     buf.info.type = SW_EVENT_PIPE_MESSAGE;
-    buf.info.from_id = SwooleWG.id;
+    buf.info.reactor_id = SwooleWG.id;
 
     swWorker *to_worker = swServer_get_worker(&serv, (uint16_t) worker_id);
     return swWorker_send2worker(to_worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER | SW_PIPE_NONBLOCK)
@@ -468,7 +468,7 @@ int Server::_onPacket(swServer *serv, swEventData *req)
     char *data = NULL;
     int length = 0;
     ClientInfo clientInfo;
-    clientInfo.server_socket = req->info.from_fd;
+    clientInfo.server_socket = req->info.server_fd;
     data = packet->data;
     length = packet->length;
 
@@ -531,14 +531,14 @@ void Server::_onPipeMessage(swServer *serv, swEventData *req)
 {
     DataBuffer data = task_unpack(req);
     Server *_this = (Server *) serv->ptr2;
-    _this->onPipeMessage(req->info.from_id, data);
+    _this->onPipeMessage(req->info.reactor_id, data);
 }
 
 int Server::_onTask(swServer *serv, swEventData *task)
 {
     Server *_this = (Server *) serv->ptr2;
     DataBuffer data = task_unpack(task);
-    _this->onTask(task->info.fd, task->info.from_fd, data);
+    _this->onTask(task->info.fd, task->info.server_fd, data);
     return SW_OK;
 }
 

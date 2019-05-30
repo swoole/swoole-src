@@ -83,12 +83,12 @@ class TestHttpServer {
 	 * [onClose description]
 	 * @param  [type] $server  [description]
 	 * @param  [type] $fd      [description]
-	 * @param  [type] $from_id [description]
+	 * @param  [type] $reactor_id [description]
 	 * @return [type]          [description]
 	 */
-	public function onClose($server, $fd, $from_id){
+	public function onClose($server, $fd, $reactor_id){
 
-		//echo " on close fd = $fd from_id = $from_id \n";
+		//echo " on close fd = $fd reactor_id = $reactor_id \n";
 	}
 
 	/**

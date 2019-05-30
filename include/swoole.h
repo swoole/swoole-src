@@ -605,8 +605,6 @@ typedef struct _swString
     char *str;
 } swString;
 
-typedef void* swObject;
-
 typedef struct _swLinkedList_node
 {
     struct _swLinkedList_node *prev;
@@ -708,7 +706,7 @@ typedef struct _swConnection
     /**
      * ReactorThread id
      */
-    uint16_t from_id;
+    uint16_t reactor_id;
 
     /**
      * close error code
@@ -718,7 +716,7 @@ typedef struct _swConnection
     /**
      * from which socket fd
      */
-    sw_atomic_t from_fd;
+    sw_atomic_t server_fd;
 
     /**
      * socket address
@@ -817,6 +815,7 @@ typedef struct _swProtocol
     ssize_t (*get_package_length)(struct _swProtocol *, swConnection *, char *, uint32_t);
     uint8_t (*get_package_length_size)(swConnection *);
 } swProtocol;
+
 typedef ssize_t (*swProtocol_length_function)(struct _swProtocol *, swConnection *, char *, uint32_t);
 //------------------------------String--------------------------------
 #define swoole_tolower(c)      (uchar) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
@@ -932,10 +931,10 @@ typedef struct _swDataHead
 {
     int fd;
     uint32_t len;
-    int16_t from_id;
+    int16_t reactor_id;
     uint8_t type;
     uint8_t flags;
-    uint16_t from_fd;
+    uint16_t server_fd;
 #ifdef SW_BUFFER_RECV_TIME
     double time;
 #endif
@@ -944,7 +943,7 @@ typedef struct _swDataHead
 typedef struct _swEvent
 {
     int fd;
-    int16_t from_id;
+    int16_t reactor_id;
     uint8_t type;
     swConnection *socket;
 } swEvent;
@@ -981,12 +980,10 @@ typedef struct
     char filename[0];
 } swSendFile_request;
 
-typedef void * (*swThreadStartFunc)(void *);
-typedef int (*swHandle)(swEventData *buf);
 typedef void (*swSignalHandler)(int);
 typedef struct _swReactor swReactor;
 
-typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
+typedef int (*swReactor_handler)(swReactor *reactor, swEvent *event);
 //------------------Pipe--------------------
 typedef struct _swPipe
 {
@@ -1051,17 +1048,11 @@ int swMsgQueue_free(swMsgQueue *q);
 enum SW_LOCKS
 {
     SW_RWLOCK = 1,
-#define SW_RWLOCK SW_RWLOCK
     SW_FILELOCK = 2,
-#define SW_FILELOCK SW_FILELOCK
     SW_MUTEX = 3,
-#define SW_MUTEX SW_MUTEX
     SW_SEM = 4,
-#define SW_SEM SW_SEM
     SW_SPINLOCK = 5,
-#define SW_SPINLOCK SW_SPINLOCK
     SW_ATOMLOCK = 6,
-#define SW_ATOMLOCK SW_ATOMLOCK
 };
 
 enum swDNSLookup_cache_type
@@ -1654,17 +1645,15 @@ struct _swReactor
      */
     swArray *socket_array;
 
-    swReactor_handle handle[SW_MAX_FDTYPE];        // default event
-    swReactor_handle write_handle[SW_MAX_FDTYPE];  // ext event 1 (maybe writable event)
-    swReactor_handle error_handle[SW_MAX_FDTYPE];  // ext event 2 (error event, maybe socket closed)
+    swReactor_handler handler[SW_MAX_FDTYPE];        // default event
+    swReactor_handler write_handler[SW_MAX_FDTYPE];  // ext event 1 (maybe writable event)
+    swReactor_handler error_handler[SW_MAX_FDTYPE];  // ext event 2 (error event, maybe socket closed)
 
     int (*add)(swReactor *, int fd, int fdtype);
     int (*set)(swReactor *, int fd, int fdtype);
     int (*del)(swReactor *, int fd);
     int (*wait)(swReactor *, struct timeval *);
     void (*free)(swReactor *);
-
-    int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
 
     void *defer_tasks;
     void (*do_defer_tasks)(swReactor *);
@@ -1897,7 +1886,6 @@ static sw_inline int swReactor_events(int fdtype)
 }
 
 int swReactor_create(swReactor *reactor, int max_event);
-int swReactor_setHandle(swReactor *, int, swReactor_handle);
 
 static inline void swReactor_before_wait(swReactor *reactor)
 {
@@ -1922,9 +1910,9 @@ static sw_inline swConnection* swReactor_get(swReactor *reactor, int fd)
     return socket;
 }
 
-static sw_inline int swReactor_handle_isset(swReactor *reactor, int _fdtype)
+static sw_inline int swReactor_isset_handler(swReactor *reactor, int _fdtype)
 {
-    return reactor->handle[_fdtype] != NULL;
+    return reactor->handler[_fdtype] != NULL;
 }
 
 static sw_inline void swReactor_add(swReactor *reactor, int fd, int type)
@@ -2013,17 +2001,24 @@ static sw_inline int swReactor_remove_write_event(swReactor *reactor, int fd)
     }
 }
 
-static sw_inline swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype)
+static sw_inline swReactor_handler swReactor_get_handler(swReactor *reactor, int event_type, int fdtype)
 {
     if (event_type == SW_EVENT_WRITE)
     {
-        return (reactor->write_handle[fdtype] != NULL) ? reactor->write_handle[fdtype] : reactor->handle[SW_FD_WRITE];
+        return (reactor->write_handler[fdtype] != NULL) ? reactor->write_handler[fdtype] : reactor->handler[SW_FD_WRITE];
     }
     else if (event_type == SW_EVENT_ERROR)
     {
-        return (reactor->error_handle[fdtype] != NULL) ? reactor->error_handle[fdtype] : reactor->handle[SW_FD_CLOSE];
+        return (reactor->error_handler[fdtype] != NULL) ? reactor->error_handler[fdtype] : reactor->handler[SW_FD_CLOSE];
     }
-    return reactor->handle[fdtype];
+    return reactor->handler[fdtype];
+}
+
+int swReactor_set_handler(swReactor *, int, swReactor_handler);
+
+static sw_inline int swReactor_trigger_close_event(swReactor *reactor, swEvent *event)
+{
+    return swReactor_get_handler(reactor, 0, SW_FD_CLOSE)(reactor, event);
 }
 
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);

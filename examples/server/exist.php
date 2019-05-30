@@ -74,9 +74,9 @@ function my_onShutdown($serv)
     echo "Server: onShutdown\n";
 }
 
-function my_onClose($serv, $fd, $from_id)
+function my_onClose($serv, $fd, $reactor_id)
 {
-    my_log("Worker#{$serv->worker_pid} Client[$fd@$from_id]: fd=$fd is closed");
+    my_log("Worker#{$serv->worker_pid} Client[$fd@$reactor_id]: fd=$fd is closed");
     $buffer = G::getBuffer($fd);
     if ($buffer)
     {
@@ -89,7 +89,7 @@ function my_onClose($serv, $fd, $from_id)
     }
 }
 
-function my_onConnect(swoole_server $serv, $fd, $from_id)
+function my_onConnect(swoole_server $serv, $fd, $reactor_id)
 {
     if($serv->exist($fd)) {
         echo 'FD[' . $fd . '] exist' . PHP_EOL;
@@ -98,7 +98,7 @@ function my_onConnect(swoole_server $serv, $fd, $from_id)
     }
 }
 
-function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
+function my_onReceive(swoole_server $serv, $fd, $reactor_id, $data)
 {
     if($serv->exist($fd)) {
         echo 'FD[' . $fd . '] exist' . PHP_EOL;
@@ -108,7 +108,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     $serv->task($data . '-' . $fd);
 }
 
-function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
+function my_onTask(swoole_server $serv, $task_id, $reactor_id, $data)
 {
     list($str, $fd) = explode('-', $data);
     if($serv->exist($fd)) {

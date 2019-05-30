@@ -132,7 +132,7 @@ int my_onPacket(swServer *serv, swEventData *req)
     swWorker_get_data(serv, req, &data);
     packet = (swDgramPacket*) data;
 
-    int serv_sock = req->info.from_fd;
+    int serv_sock = req->info.server_fd;
 
     //udp ipv4
     if (req->info.type == SW_EVENT_UDP)
@@ -204,10 +204,10 @@ void my_onShutdown(swServer *serv)
 
 void my_onConnect(swServer *serv, swDataHead *info)
 {
-    swNotice("PID=%d\tConnect fd=%d|from_id=%d", getpid(), info->fd, info->from_id);
+    swNotice("PID=%d\tConnect fd=%d|reactor_id=%d", getpid(), info->fd, info->reactor_id);
 }
 
 void my_onClose(swServer *serv, swDataHead *info)
 {
-    swNotice("PID=%d\tClose fd=%d|from_id=%d", getpid(), info->fd, info->from_id);
+    swNotice("PID=%d\tClose fd=%d|reactor_id=%d", getpid(), info->fd, info->reactor_id);
 }

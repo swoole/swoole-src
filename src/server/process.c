@@ -259,7 +259,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
         }
         //converted fd to session_id
         task->info.fd = conn->session_id;
-        task->info.from_fd = conn->from_fd;
+        task->info.server_fd = conn->server_fd;
     }
 
     swWorker *worker = swServer_get_worker(serv, target_worker_id);
@@ -428,7 +428,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         //worker process
         if (SwooleG.main_reactor)
         {
-            int _pipe_fd = swWorker_get_send_pipe(serv, session_id, conn->from_id);
+            int _pipe_fd = swWorker_get_send_pipe(serv, session_id, conn->reactor_id);
             swConnection *_pipe_socket = swReactor_get(SwooleG.main_reactor, _pipe_fd);
 
             //cannot use send_shm
@@ -438,7 +438,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
                 {
                     return SW_ERR;
                 }
-                buf->info.from_fd = SW_RESPONSE_TMPFILE;
+                buf->info.server_fd = SW_RESPONSE_TMPFILE;
                 goto send_to_reactor_thread;
             }
         }
@@ -446,7 +446,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         swPackage_response response;
         response.length = resp->info.len;
         response.worker_id = SwooleWG.id;
-        buf->info.from_fd = SW_RESPONSE_SHM;
+        buf->info.server_fd = SW_RESPONSE_SHM;
         buf->info.len = sizeof(response);
         memcpy(buf->data, &response, sizeof(response));
 
@@ -460,10 +460,10 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         //copy data
         memcpy(buf->data, resp->data, resp->info.len);
         buf->info.len = resp->info.len;
-        buf->info.from_fd = SW_RESPONSE_SMALL;
+        buf->info.server_fd = SW_RESPONSE_SMALL;
     }
 
-    send_to_reactor_thread: buf->info.from_id = conn->from_id;
+    send_to_reactor_thread: buf->info.reactor_id = conn->reactor_id;
     sendn = buf->info.len + sizeof(resp->info);
 
     swTrace("[Worker] send: sendn=%d|type=%d|content=<<EOF\n%.*s\nEOF", sendn, resp->info.type, resp->info.len, resp->data);
@@ -514,13 +514,13 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
             info.fd = fd;
             if (conn->close_actively)
             {
-                info.from_id = -1;
+                info.reactor_id = -1;
             }
             else
             {
-                info.from_id = conn->from_id;
+                info.reactor_id = conn->reactor_id;
             }
-            info.from_fd = conn->from_fd;
+            info.server_fd = conn->server_fd;
             serv->onClose(serv, &info);
         }
         conn->closing = 0;

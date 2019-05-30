@@ -10,17 +10,17 @@ $serv->on('pipeMessage', function($serv, $src_worker_id, $data) {
 	echo "#{$serv->worker_id} message from #$src_worker_id: $data\n";
 });
 
-$serv->on('task', function (swoole_server $serv, $task_id, $from_id, $data){
+$serv->on('task', function (swoole_server $serv, $task_id, $reactor_id, $data){
     echo "#{$serv->worker_id} NewTask: $data\n";
     $serv->sendMessage($data, 0);
 	//$serv->send($fd, str_repeat('B', 1024*rand(40, 60)).rand(10000, 99999)."\n");
 });
 
-$serv->on('finish', function ($serv, $fd, $from_id){
+$serv->on('finish', function ($serv, $fd, $reactor_id){
 
 });
 
-$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
+$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
     $cmd = trim($data);
     if($cmd == 'totask')
     {
@@ -41,8 +41,8 @@ $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
     }
 });
 
-$serv->on('close', function ($serv, $fd, $from_id) {
-	//echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Close.\n";
+$serv->on('close', function ($serv, $fd, $reactor_id) {
+	//echo "[#".posix_getpid()."]\tClient@[$fd:$reactor_id]: Close.\n";
 });
 
 $serv->start();

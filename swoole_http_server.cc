@@ -527,7 +527,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
             swWarn("connection[%d] is closed", ctx->fd);
             return SW_ERR;
         }
-        swListenPort *port = (swListenPort *) serv->connection_list[conn->from_fd].object;
+        swListenPort *port = (swListenPort *) serv->connection_list[conn->server_fd].object;
         if (port->open_websocket_protocol)
         {
             conn->websocket_status = WEBSOCKET_STATUS_CONNECTION;
@@ -926,7 +926,7 @@ static int http_request_message_complete(swoole_http_parser *parser)
 int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 {
     int fd = req->info.fd;
-    int from_fd = req->info.from_fd;
+    int from_fd = req->info.server_fd;
 
     swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
     if (!conn)
@@ -976,7 +976,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     args[0] = *ctx->request.zobject;
     args[1] = *ctx->response.zobject;
 
-    add_assoc_long(zserver, "server_port", swConnection_get_port(&serv->connection_list[conn->from_fd]));
+    add_assoc_long(zserver, "server_port", swConnection_get_port(&serv->connection_list[conn->server_fd]));
     add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
     add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(conn));
     add_assoc_long(zserver, "master_time", conn->last_time);

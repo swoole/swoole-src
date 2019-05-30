@@ -96,6 +96,13 @@ function skip_if_no_http2()
     skip('no http2', !class_exists(Swoole\Http2\Request::class, false));
 }
 
+
+function skip_if_no_ipv6()
+{
+    $socket = socket_create(AF_INET6, SOCK_STREAM, SOL_TCP);
+    skip('no ipv6 address', !socket_bind($socket, "::1", 0));
+}
+
 function skip_if_no_top()
 {
     skip_if_darwin();

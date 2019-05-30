@@ -257,9 +257,6 @@ struct _swFactory
 {
     void *object;
     void *ptr; //server object
-    int last_from_id;
-
-    swReactor *reactor; //reserve for reactor
 
     int (*start)(struct _swFactory *);
     int (*shutdown)(struct _swFactory *);
@@ -279,13 +276,6 @@ int swFactory_check_callback(swFactory *factory);
 int swFactoryProcess_create(swFactory *factory, int worker_num);
 
 //------------------------------------Server-------------------------------------------
-enum swServer_callback_type
-{
-    SW_SERVER_CALLBACK_onConnect = 1,
-    SW_SERVER_CALLBACK_onReceive,
-    SW_SERVER_CALLBACK_onClose,
-};
-
 enum swServer_hook_type
 {
     SW_SERVER_HOOK_MASTER_START,
@@ -566,9 +556,6 @@ struct _swServer
     uint8_t request_slowlog_timeout;
     FILE *request_slowlog_file;
 
-    swReactor *reactor_ptr; //Main Reactor
-    swFactory *factory_ptr; //Factory
-
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];
 
     void (*onStart)(swServer *serv);
@@ -641,39 +628,11 @@ int swServer_create(swServer *serv);
 int swServer_free(swServer *serv);
 int swServer_shutdown(swServer *serv);
 
-static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
-{
-    swString *buffer = serv->connection_list[fd].recv_buffer;
-    if (buffer == NULL)
-    {
-        buffer = swString_new(SW_BUFFER_SIZE_STD);
-        //alloc memory failed.
-        if (!buffer)
-        {
-            return NULL;
-        }
-        serv->connection_list[fd].recv_buffer = buffer;
-    }
-    return buffer;
-}
-
-static sw_inline void swServer_free_buffer(swServer *serv, int fd)
-{
-    swString *buffer = serv->connection_list[fd].recv_buffer;
-    if (buffer)
-    {
-        swString_free(buffer);
-        serv->connection_list[fd].recv_buffer = NULL;
-    }
-}
-
 static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
 {
-    sw_atomic_t server_fd = serv->connection_list[fd].from_fd;
+    sw_atomic_t server_fd = serv->connection_list[fd].server_fd;
     return (swListenPort*) serv->connection_list[server_fd].object;
 }
-
-int swServer_udp_send(swServer *serv, swSendData *resp);
 
 #define SW_MAX_SESSION_ID             0x1000000
 
@@ -731,7 +690,7 @@ void swTaskWorker_onStop(swProcessPool *pool, int worker_id);
 int swTaskWorker_large_pack(swEventData *task, void *data, int data_len);
 int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swEventData *current_task);
 
-#define swTask_type(task)                  ((task)->info.from_fd)
+#define swTask_type(task)                  ((task)->info.server_fd)
 
 static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
 {
@@ -762,9 +721,6 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
     SwooleTG.buffer_stack->length = _pkg.length;
     return SwooleTG.buffer_stack;
 }
-
-#define swPackage_data(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->str:task->data)
-#define swPackage_length(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->length:task->info.len)
 
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
@@ -947,7 +903,7 @@ static sw_inline size_t swWorker_get_data(swServer *serv, swEventData *req, char
     }
     else if (req->info.flags & SW_EVENT_DATA_END)
     {
-        swString *worker_buffer = swWorker_get_buffer(serv, req->info.from_id);
+        swString *worker_buffer = swWorker_get_buffer(serv, req->info.reactor_id);
         *data_ptr = worker_buffer->str;
         length = worker_buffer->length;
     }

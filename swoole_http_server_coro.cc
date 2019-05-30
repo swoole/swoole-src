@@ -50,9 +50,9 @@ public:
     bool running;
 
 public:
-    http_server()
+    http_server(enum swSocket_type type)
     {
-        socket = new Socket(SW_SOCK_TCP);
+        socket = new Socket(type);
         running = true;
         default_handler = nullptr;
     }
@@ -148,7 +148,6 @@ static zend_object *swoole_http_server_coro_create_object(zend_class_entry *ce)
     zend_object_std_init(&hsc->std, ce);
     object_properties_init(&hsc->std, ce);
     hsc->std.handlers = &swoole_http_server_coro_handlers;
-    hsc->server = new http_server();
     return &hsc->std;
 }
 
@@ -209,6 +208,7 @@ void swoole_http_server_coro_init(int module_number)
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_http_server_coro);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_server_coro, swoole_http_server_coro_create_object, swoole_http_server_coro_free_object, http_server_coro_t, std);
+    swoole_http_server_coro_ce->ce_flags |= ZEND_ACC_FINAL;
 }
 
 static PHP_METHOD(swoole_http_server_coro, __construct)
@@ -246,9 +246,12 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
         RETURN_FALSE;
     }
 #endif
-    http_server *hs = http_server_get_object(Z_OBJ_P(getThis()));
-    Socket *sock = hs->socket;
-    if (!sock->bind(string(host, l_host), port))
+
+    http_server_coro_t *hsc = swoole_http_server_coro_fetch_object(Z_OBJ_P(getThis()));
+    string host_str(host, l_host);
+    hsc->server = new http_server(Socket::get_type(host_str));
+    Socket *sock = hsc->server->socket;
+    if (!sock->bind(host_str, port))
     {
         zend_throw_exception_ex(swoole_exception_ce, EINVAL, "bind(%s:%d) failed", host, (int) port);
         RETURN_FALSE
@@ -400,9 +403,16 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
 
         bool keep_alive = swoole_http_should_keep_alive(&ctx->parser) && !ctx->websocket;
 
-        if (UNEXPECTED(!zend::function::call(&fci->fci_cache, 2, args, NULL, 0)))
+        if (fci)
         {
-            swoole_php_error(E_WARNING, "handler error");
+            if (UNEXPECTED(!zend::function::call(&fci->fci_cache, 2, args, NULL, 0)))
+            {
+                swoole_php_error(E_WARNING, "handler error");
+            }
+        }
+        else
+        {
+            ctx->response.status = 404;
         }
 
         zval_dtor(&args[0]);

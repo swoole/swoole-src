@@ -395,9 +395,9 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         }
     }
 
-    if (!swReactor_handle_isset(SwooleG.main_reactor, SW_FD_DNS_RESOLVER))
+    if (!swReactor_isset_handler(SwooleG.main_reactor, SW_FD_DNS_RESOLVER))
     {
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_DNS_RESOLVER, swDNSResolver_onReceive);
+        swReactor_set_handler(SwooleG.main_reactor, SW_FD_DNS_RESOLVER, swDNSResolver_onReceive);
     }
 
     if (!swReactor_exists(SwooleG.main_reactor, resolver_socket->socket->fd)

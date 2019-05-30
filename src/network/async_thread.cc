@@ -78,7 +78,7 @@ public:
         _pipe_read = _aio_pipe.getFd(&_aio_pipe, 0);
         _pipe_write = _aio_pipe.getFd(&_aio_pipe, 1);
 
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_AIO, [] (swReactor *reactor, swEvent *_event)
+        swReactor_set_handler(SwooleG.main_reactor, SW_FD_AIO, [] (swReactor *reactor, swEvent *_event)
         {
             int i;
             async_event *events[SW_AIO_EVENT_NUM];

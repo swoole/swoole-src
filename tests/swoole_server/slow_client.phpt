@@ -56,7 +56,7 @@ $pm->childFunc = function () use ($pm, $port)
         $_send_data = str_repeat("A", N);
         $serv->send($fd, $_send_data);
     });
-    $serv->on('receive', function ($serv, $fd, $from_id, $data)
+    $serv->on('receive', function ($serv, $fd, $reactor_id, $data)
     {
 
     });

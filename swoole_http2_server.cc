@@ -18,7 +18,6 @@
 
 #ifdef SW_USE_HTTP2
 #include "swoole_http.h"
-#include "swoole_coroutine.h"
 
 #include "http2.h"
 #include "main/php_variables.h"
@@ -641,7 +640,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
 int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData *req)
 {
     int fd = req->info.fd;
-    int from_fd = req->info.from_fd;
+    int from_fd = req->info.server_fd;
 
     http2_session *client = http2_sessions[conn->session_id];
     if (client == nullptr)
@@ -735,7 +734,7 @@ int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData 
 
             add_assoc_long(zserver, "request_time", serv->gs->now);
             add_assoc_double(zserver, "request_time_float", swoole_microtime());
-            add_assoc_long(zserver, "server_port", swConnection_get_port(&serv->connection_list[conn->from_fd]));
+            add_assoc_long(zserver, "server_port", swConnection_get_port(&serv->connection_list[conn->server_fd]));
             add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
             add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(conn));
             add_assoc_long(zserver, "master_time", conn->last_time);

@@ -37,7 +37,7 @@ function onStart($serv) {
     echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
 }
 
-function onReceive($serv, $fd, $from_id, $key)
+function onReceive($serv, $fd, $reactor_id, $key)
 {
 	$key = trim($key);
     if($key === SERVER_RELOAD) { // check if this is a reload cmd
@@ -59,7 +59,7 @@ function onReceive($serv, $fd, $from_id, $key)
     }
 }
 
-function onTask($serv, $task_id, $from_id, $key)
+function onTask($serv, $task_id, $reactor_id, $key)
 {
     static $redis = null;
     if ($redis == null) {

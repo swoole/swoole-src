@@ -16,10 +16,6 @@
 
 #include "php_swoole_cxx.h"
 
-#ifdef SW_COROUTINE
-#include "swoole_coroutine.h"
-#endif
-
 using namespace std;
 using namespace swoole;
 

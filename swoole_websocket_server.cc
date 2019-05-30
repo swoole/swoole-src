@@ -211,7 +211,7 @@ void swoole_websocket_onOpen(swServer *serv, http_context *ctx)
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed", ctx->fd);
         return;
     }
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, conn->from_fd, SW_SERVER_CB_onOpen);
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, conn->server_fd, SW_SERVER_CB_onOpen);
     if (fci_cache)
     {
         zval args[2];
@@ -292,7 +292,7 @@ bool swoole_websocket_handshake(http_context *ctx)
             return false;
         }
         conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
-        swListenPort *port = (swListenPort *) serv->connection_list[conn->from_fd].object;
+        swListenPort *port = (swListenPort *) serv->connection_list[conn->server_fd].object;
         if (port && port->websocket_subprotocol)
         {
             swoole_http_response_set_header(ctx, ZEND_STRL("Sec-WebSocket-Protocol"), port->websocket_subprotocol,
@@ -336,7 +336,7 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
         return SW_OK;
     }
 
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.server_fd, SW_SERVER_CB_onMessage);
     zval args[2];
 
     args[0] = *(zval *) serv->ptr2;

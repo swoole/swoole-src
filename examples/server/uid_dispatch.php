@@ -24,19 +24,19 @@ $serv->on('workerStart', function($serv, $worker_id) {
 	//if($worker_id == 0) $serv->addtimer(1000);
 });
 
-$serv->on('connect', function ($serv, $fd, $from_id){
-	//echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Connect.\n";
+$serv->on('connect', function ($serv, $fd, $reactor_id){
+	//echo "[#".posix_getpid()."]\tClient@[$fd:$reactor_id]: Connect.\n";
 	echo "{$fd} connect, worker:".$serv->worker_id.PHP_EOL;
 });
 
-$serv->on('task', function ($serv, $task_id, $from_id, $data){
+$serv->on('task', function ($serv, $task_id, $reactor_id, $data){
 });
 
-$serv->on('finish', function ($serv, $fd, $from_id){
+$serv->on('finish', function ($serv, $fd, $reactor_id){
 
 });
 
-$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
+$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
     $conn = $serv->connection_info($fd);
     print_r($conn);
     echo "worker_id: " . $serv->worker_id . PHP_EOL;
@@ -56,8 +56,8 @@ $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
     }
 });
 
-$serv->on('close', function ($serv, $fd, $from_id) {
-	//echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Close.\n";
+$serv->on('close', function ($serv, $fd, $reactor_id) {
+	//echo "[#".posix_getpid()."]\tClient@[$fd:$reactor_id]: Close.\n";
 	unset($serv->fdlist[$fd]);
 });
 
