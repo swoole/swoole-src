@@ -268,7 +268,7 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, sw
 
     if (swProtocol_recv_check_length(protocol, conn, buffer) < 0)
     {
-        swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
+        swTrace("Close Event.FD=%d|From=%d", event->fd, event->reactor_id);
         swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
     }
 

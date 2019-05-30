@@ -242,7 +242,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
             LL_FOREACH_SAFE(object->fds, ev, tmp)
             {
                 event.fd = ev->fd;
-                event.from_id = reactor->id;
+                event.reactor_id = reactor->id;
                 event.type = swReactor_fdtype(ev->fdtype);
                 event.socket = swReactor_get(reactor, event.fd);
 

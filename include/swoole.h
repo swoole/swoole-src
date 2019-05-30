@@ -708,7 +708,7 @@ typedef struct _swConnection
     /**
      * ReactorThread id
      */
-    uint16_t from_id;
+    uint16_t reactor_id;
 
     /**
      * close error code
@@ -718,7 +718,7 @@ typedef struct _swConnection
     /**
      * from which socket fd
      */
-    sw_atomic_t from_fd;
+    sw_atomic_t server_fd;
 
     /**
      * socket address
@@ -932,10 +932,10 @@ typedef struct _swDataHead
 {
     int fd;
     uint32_t len;
-    int16_t from_id;
+    int16_t reactor_id;
     uint8_t type;
     uint8_t flags;
-    uint16_t from_fd;
+    uint16_t server_fd;
 #ifdef SW_BUFFER_RECV_TIME
     double time;
 #endif
@@ -944,7 +944,7 @@ typedef struct _swDataHead
 typedef struct _swEvent
 {
     int fd;
-    int16_t from_id;
+    int16_t reactor_id;
     uint8_t type;
     swConnection *socket;
 } swEvent;

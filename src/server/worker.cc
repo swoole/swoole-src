@@ -273,14 +273,13 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     swConnection *conn;
 #endif
 
-    factory->last_from_id = task->info.from_id;
     swWorker *worker = SwooleWG.worker;
     //worker busy
     worker->status = SW_WORKER_BUSY;
     //packet chunk
     if (task->info.flags & SW_EVENT_DATA_CHUNK)
     {
-        package = swWorker_get_buffer(serv, task->info.from_id);
+        package = swWorker_get_buffer(serv, task->info.reactor_id);
         //merge data to package buffer
         swString_append_ptr(package, task->data, task->info.len);
         //wait more data
@@ -750,7 +749,7 @@ int swWorker_loop(swServer *serv, int worker_id)
 int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int session_id)
 {
     int ret;
-    int _pipe_fd = swWorker_get_send_pipe(serv, session_id, ev_data->info.from_id);
+    int _pipe_fd = swWorker_get_send_pipe(serv, session_id, ev_data->info.reactor_id);
 
     if (SwooleG.main_reactor)
     {

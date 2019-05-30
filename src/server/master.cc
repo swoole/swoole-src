@@ -32,7 +32,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
-static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int from_fd, int reactor_id);
+static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd, int reactor_id);
 
 int16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
@@ -865,23 +865,6 @@ int swServer_free(swServer *serv)
     return SW_OK;
 }
 
-int swServer_udp_send(swServer *serv, swSendData *resp)
-{
-    struct sockaddr_in addr_in;
-    int sock = resp->info.from_fd;
-
-    addr_in.sin_family = AF_INET;
-    addr_in.sin_port = htons((uint16_t) resp->info.from_id); //from_id is remote port
-    addr_in.sin_addr.s_addr = (uint32_t) resp->info.fd; //fd is remote ip address
-
-    int ret = swSocket_sendto_blocking(sock, resp->data, resp->info.len, 0, (struct sockaddr*) &addr_in, sizeof(addr_in));
-    if (ret < 0)
-    {
-        swSysWarn("sendto to client[%s:%d] failed", inet_ntoa(addr_in.sin_addr), resp->info.from_id);
-    }
-    return ret;
-}
-
 /**
  * worker to master process
  */
@@ -902,7 +885,7 @@ static int swServer_tcp_feedback(swServer *serv, int session_id, int event)
     bzero(&_send, sizeof(_send));
     _send.info.type = event;
     _send.info.fd = session_id;
-    _send.info.from_id = conn->from_id;
+    _send.info.reactor_id = conn->reactor_id;
 
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
@@ -994,7 +977,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     }
     else
     {
-        reactor = &(serv->reactor_threads[conn->from_id].reactor);
+        reactor = &(serv->reactor_threads[conn->reactor_id].reactor);
         assert(fd % serv->reactor_num == reactor->id);
         assert(fd % serv->reactor_num == SwooleTG.id);
     }
@@ -1186,9 +1169,9 @@ static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
 {
     swDataHead notify_event;
     notify_event.type = event;
-    notify_event.from_id = conn->from_id;
+    notify_event.reactor_id = conn->reactor_id;
     notify_event.fd = conn->fd;
-    notify_event.from_fd = conn->from_fd;
+    notify_event.server_fd = conn->server_fd;
     notify_event.len = 0;
     notify_event.flags = 0;
     return serv->factory.notify(&serv->factory, &notify_event);
@@ -1311,7 +1294,7 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset)
         swDataHead ev = {0};
         ev.type = SW_EVENT_CLOSE;
         ev.fd = session_id;
-        ev.from_id = conn->from_id;
+        ev.reactor_id = conn->reactor_id;
         ret = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
     }
     else
@@ -1765,7 +1748,7 @@ static void swServer_signal_handler(int sig)
 /**
  * new connection
  */
-static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int from_fd, int reactor_id)
+static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd, int reactor_id)
 {
     swConnection* connection = NULL;
 
@@ -1811,8 +1794,8 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     }
 
     connection->fd = fd;
-    connection->from_id = serv->factory_mode == SW_MODE_BASE ? SwooleWG.id : reactor_id;
-    connection->from_fd = (sw_atomic_t) from_fd;
+    connection->reactor_id = serv->factory_mode == SW_MODE_BASE ? SwooleWG.id : reactor_id;
+    connection->server_fd = (sw_atomic_t) server_fd;
     connection->connect_time = serv->gs->now;
     connection->last_time = serv->gs->now;
     connection->active = 1;
@@ -1844,7 +1827,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
         {
             session->fd = fd;
             session->id = session_id;
-            session->reactor_id = connection->from_id;
+            session->reactor_id = connection->reactor_id;
             break;
         }
     }

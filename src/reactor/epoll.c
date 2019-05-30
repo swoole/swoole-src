@@ -246,7 +246,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
         for (i = 0; i < n; i++)
         {
             event.fd = events[i].data.u64;
-            event.from_id = reactor_id;
+            event.reactor_id = reactor_id;
             event.type = events[i].data.u64 >> 32;
             event.socket = swReactor_get(reactor, event.fd);
 

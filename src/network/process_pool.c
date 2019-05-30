@@ -475,7 +475,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
     /**
      * Use from_fd save the task_worker->id
      */
-    out.buf.info.from_fd = worker->id;
+    out.buf.info.server_fd = worker->id;
 
     if (pool->dispatch_mode == SW_DISPATCH_QUEUE)
     {

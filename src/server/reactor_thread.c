@@ -57,7 +57,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                         swSendData task;
                         task.info.fd = conn->fd;
                         task.info.type = SW_EVENT_CONNECT;
-                        task.info.from_id = conn->from_id;
+                        task.info.reactor_id = conn->reactor_id;
                         task.info.len = ret;
                         task.data = SwooleTG.buffer_stack->str;
                         factory->dispatch(factory, &task);
@@ -134,8 +134,8 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
     pkt->info.len = sizeof(pkt->info.addr);
 
     bzero(&task.info, sizeof(task.info));
-    task.info.from_fd = fd;
-    task.info.from_id = SwooleTG.id;
+    task.info.server_fd = fd;
+    task.info.reactor_id = SwooleTG.id;
 #ifdef SW_BUFFER_RECV_TIME
     task.info.time = swoole_microtime();
 #endif
@@ -301,7 +301,7 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     assert(fd % serv->reactor_num == reactor->id);
     assert(fd % serv->reactor_num == SwooleTG.id);
 
-    notify_ev.from_id = reactor->id;
+    notify_ev.reactor_id = reactor->id;
     notify_ev.fd = fd;
     notify_ev.type = SW_EVENT_CLOSE;
 
@@ -357,14 +357,14 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
         {
             memcpy(&_send.info, &resp->info, sizeof(_send.info));
             //pipe data
-            if (_send.info.from_fd == SW_RESPONSE_SMALL)
+            if (_send.info.server_fd == SW_RESPONSE_SMALL)
             {
                 _send.data = resp->data;
                 _send.info.len = resp->info.len;
                 swServer_master_send(serv, &_send);
             }
             //use send shm
-            else if (_send.info.from_fd == SW_RESPONSE_SHM)
+            else if (_send.info.server_fd == SW_RESPONSE_SHM)
             {
                 memcpy(&pkg_resp, resp->data, sizeof(pkg_resp));
                 worker = swServer_get_worker(serv, pkg_resp.worker_id);
@@ -387,7 +387,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
                 worker->lock.unlock(&worker->lock);
             }
             //use tmp file
-            else if (_send.info.from_fd == SW_RESPONSE_TMPFILE)
+            else if (_send.info.server_fd == SW_RESPONSE_TMPFILE)
             {
                 swString *data = swTaskWorker_large_unpack((swEventData *) resp);
                 if (data == NULL)
@@ -399,7 +399,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
                 swServer_master_send(serv, &_send);
             }
             //reactor thread exit
-            else if (_send.info.from_fd == SW_RESPONSE_EXIT)
+            else if (_send.info.server_fd == SW_RESPONSE_EXIT)
             {
                 reactor->running = 0;
                 return SW_OK;
@@ -432,7 +432,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
     if (SwooleTG.type == SW_THREAD_REACTOR)
     {
         int pipe_fd = worker->pipe_master;
-        int thread_id = serv->connection_list[pipe_fd].from_id;
+        int thread_id = serv->connection_list[pipe_fd].reactor_id;
         swReactorThread *thread = swServer_get_thread(serv, thread_id);
         swLock *lock = serv->connection_list[pipe_fd].object;
 
@@ -538,7 +538,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     //remove EPOLLOUT event
     if (swBuffer_empty(buffer))
     {
-        if (serv->connection_list[ev->fd].from_id == SwooleTG.id)
+        if (serv->connection_list[ev->fd].reactor_id == SwooleTG.id)
         {
             ret = reactor->set(reactor, ev->fd, SW_FD_PIPE | SW_EVENT_READ);
         }
@@ -591,7 +591,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
      * invalid event
      * The server has been actively closed the connection, the client also initiated off, fd has been reused.
      */
-    if (event->socket->from_fd == 0)
+    if (event->socket->server_fd == 0)
     {
         return SW_OK;
     }
@@ -1035,7 +1035,7 @@ int swReactorThread_init_reactor(swServer *serv, swReactor *reactor, uint16_t re
         /**
          * mapping reactor_id and worker pipe
          */
-        serv->connection_list[pipe_fd].from_id = reactor_id;
+        serv->connection_list[pipe_fd].reactor_id = reactor_id;
         serv->connection_list[pipe_fd].fd = pipe_fd;
         serv->connection_list[pipe_fd].object = sw_malloc(sizeof(swLock));
 
@@ -1140,8 +1140,8 @@ int swReactorThread_dispatch(swProtocol *proto, swConnection *conn, char *data, 
     swSendData task;
 
     bzero(&task.info, sizeof(task.info));
-    task.info.from_fd = conn->from_fd;
-    task.info.from_id = conn->from_id;
+    task.info.server_fd = conn->server_fd;
+    task.info.reactor_id = conn->reactor_id;
     task.info.type = SW_EVENT_TCP;
 #ifdef SW_BUFFER_RECV_TIME
     task.info.info.time = conn->last_time_usec;
@@ -1200,7 +1200,7 @@ void swReactorThread_free(swServer *serv)
         {
             swDataHead ev;
             memset(&ev, 0, sizeof(ev));
-            ev.from_fd = SW_RESPONSE_EXIT;
+            ev.server_fd = SW_RESPONSE_EXIT;
             if (swSocket_write_blocking(thread->notify_pipe, (void *) &ev, sizeof(ev)) < 0)
             {
                 goto cancel;
@@ -1286,7 +1286,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                 }
                 else
                 {
-                    reactor = &serv->reactor_threads[conn->from_id].reactor;
+                    reactor = &serv->reactor_threads[conn->reactor_id].reactor;
                 }
                 //notify to reactor thread
                 if (conn->removed)

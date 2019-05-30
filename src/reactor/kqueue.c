@@ -57,7 +57,7 @@ static sw_inline enum swBool_type swReactorKqueue_fetch_event(swReactor *reactor
     swFd *fd = (swFd *) &udata;
     event->fd = fd->fd;
     event->type = fd->fdtype;
-    event->from_id = reactor->id;
+    event->reactor_id = reactor->id;
     event->socket = swReactor_get(reactor, event->fd);
     if (event->socket->removed)
     {

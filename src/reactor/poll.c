@@ -236,11 +236,11 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
             for (i = 0; i < reactor->event_num; i++)
             {
                 event.fd = object->events[i].fd;
-                event.from_id = reactor->id;
+                event.reactor_id = reactor->id;
                 event.type = object->fds[i].fdtype;
                 event.socket = swReactor_get(reactor, event.fd);
 
-                swTrace("Event: fd=%d|from_id=%d|type=%d", event.fd, reactor->id, object->fds[i].fdtype);
+                swTrace("Event: fd=%d|reactor_id=%d|type=%d", event.fd, reactor->id, object->fds[i].fdtype);
                 //in
                 if ((object->events[i].revents & POLLIN) && !event.socket->removed)
                 {

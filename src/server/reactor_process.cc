@@ -228,7 +228,7 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
         break;
     case SW_EVENT_PROXY_START:
     case SW_EVENT_PROXY_END:
-        buffer_output = SwooleWG.buffer_output[task.info.from_id];
+        buffer_output = SwooleWG.buffer_output[task.info.reactor_id];
         swString_append_ptr(buffer_output, task.data, task.info.len);
         if (task.info.type == SW_EVENT_PROXY_END)
         {
@@ -537,7 +537,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
         if (_send->info.type == SW_EVENT_TCP)
         {
             proxy_msg.info.fd = session_id;
-            proxy_msg.info.from_id = SwooleWG.id;
+            proxy_msg.info.reactor_id = SwooleWG.id;
             proxy_msg.info.type = SW_EVENT_PROXY_START;
 
             size_t send_n = _send->info.len;
@@ -623,7 +623,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
             }
 #endif
             notify_ev.fd = fd;
-            notify_ev.from_id = conn->from_id;
+            notify_ev.reactor_id = conn->reactor_id;
             swReactorProcess_onClose(reactor, &notify_ev);
         }
     }

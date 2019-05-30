@@ -289,7 +289,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
         return SW_ERR;
     }
 
-    uint16_t source_worker_id = current_task->info.from_id;
+    uint16_t source_worker_id = current_task->info.reactor_id;
     swWorker *worker = swServer_get_worker(serv, source_worker_id);
 
     if (worker == NULL)
