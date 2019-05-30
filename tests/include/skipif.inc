@@ -96,6 +96,12 @@ function skip_if_no_http2()
     skip('no http2', !class_exists(Swoole\Http2\Request::class, false));
 }
 
+
+function skip_if_no_ipv6()
+{
+    skip('no ipv6 address', !_string(`ifconfig`)->contains('inet6 ::1'));
+}
+
 function skip_if_no_top()
 {
     skip_if_darwin();
