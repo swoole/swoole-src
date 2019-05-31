@@ -447,7 +447,7 @@ static PHP_METHOD(swoole_coroutine_util, resume)
     auto coroutine_iterator = user_yield_coros.find(cid);
     if (coroutine_iterator == user_yield_coros.end())
     {
-        swoole_php_fatal_error(E_WARNING, "you can not resume the coroutine which is in IO operation");
+        swoole_php_fatal_error(E_WARNING, "you can not resume the coroutine which is in IO operation or non-existent");
         RETURN_FALSE;
     }
 
