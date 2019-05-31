@@ -1005,6 +1005,7 @@ bool Socket::bind(std::string address, int port)
             return false;
         }
         retval = ::bind(socket->fd, (struct sockaddr *) sa, sizeof(struct sockaddr_in));
+        bind_port = sa->sin_port;
         break;
     }
 
@@ -1019,6 +1020,7 @@ bool Socket::bind(std::string address, int port)
             return false;
         }
         retval = ::bind(socket->fd, (struct sockaddr *) sa, sizeof(struct sockaddr_in6));
+        bind_port = sa->sin6_port;
         break;
     }
     default:

@@ -314,7 +314,6 @@ static PHP_METHOD(swoole_http_server_coro, handle)
 
 static PHP_METHOD(swoole_http_server_coro, set)
 {
-    http_server *hs = http_server_get_object(Z_OBJ_P(getThis()));
     zval *zset;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -329,7 +328,6 @@ static PHP_METHOD(swoole_http_server_coro, set)
     {
         zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, getThis(), ZEND_STRL("setting"), 0);
         php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
-        php_swoole_socket_set_protocol(hs->socket, zset);
         RETURN_TRUE;
     }
 }
@@ -351,25 +349,10 @@ static PHP_METHOD(swoole_http_server_coro, start)
     }
     efree(func_name);
 
-#ifdef SW_USE_OPENSSL
-    if (sock->open_ssl)
-    {
-        if ( sock->ssl_option.cert_file == NULL || sock->ssl_option.key_file == NULL)
-        {
-            sock->errCode = EINVAL;
-            http_server_set_error( getThis(), sock);
-            swWarn("SSL error, require ssl_cert_file and ssl_key_file");
-            RETURN_FALSE
-        }
-        else if (!sock->ssl_init_context())
-        {
-            http_server_set_error( getThis(), sock);
-            RETURN_FALSE
-        }
-    }
-#endif
-
     zval argv[1];
+
+    zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, getThis(), ZEND_STRL("setting"), 0);
+    php_swoole_socket_set_protocol(hs->socket, zsettings);
 
     php_swoole_http_server_init_global_variant();
 

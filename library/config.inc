@@ -10,6 +10,8 @@ return [
     'core/Coroutine/WaitGroup.php',
     'core/StringObject.php',
     'core/ArrayObject.php',
+    'core/Coroutine/Server.php',
+    'core/Coroutine/Server/Connection.php',
     # <finalizer> #
     'functions.php',
     'alias.php',

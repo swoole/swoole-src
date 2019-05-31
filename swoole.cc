@@ -224,6 +224,7 @@ PHP_INI_BEGIN()
  * enable swoole coroutine
  */
 STD_ZEND_INI_BOOLEAN("swoole.enable_coroutine", "On", PHP_INI_ALL, OnUpdateBool, enable_coroutine, zend_swoole_globals, swoole_globals)
+STD_ZEND_INI_BOOLEAN("swoole.enable_library", "On", PHP_INI_ALL, OnUpdateBool, enable_library, zend_swoole_globals, swoole_globals)
 /**
  * enable swoole coroutine epreemptive scheduler
  */
@@ -245,6 +246,7 @@ PHP_INI_END()
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
 {
     swoole_globals->enable_coroutine = 1;
+    swoole_globals->enable_library = 1;
     swoole_globals->enable_preemptive_scheduler = 0;
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
@@ -933,7 +935,10 @@ PHP_RINIT_FUNCTION(swoole)
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
     SwooleG.running = 1;
     php_swoole_register_shutdown_function("swoole_internal_call_user_shutdown_begin");
-    php_swoole_load_library();
+    if (SWOOLE_G(enable_library))
+    {
+        php_swoole_load_library();
+    }
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_END;
     return SUCCESS;
 }

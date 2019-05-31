@@ -566,7 +566,7 @@ void php_swoole_client_set(Socket *cli, zval *zset)
 }
 
 #ifdef SW_USE_OPENSSL
-void php_swoole_socket_set_ssl(Socket *sock, zval *zset)
+bool php_swoole_socket_set_ssl(Socket *sock, zval *zset)
 {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *v;
@@ -593,6 +593,7 @@ void php_swoole_socket_set_ssl(Socket *sock, zval *zset)
         else
         {
             swoole_php_fatal_error(E_WARNING, "ssl cert file[%s] not found", sock->ssl_option.cert_file);
+            return false;
         }
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", v))
@@ -609,6 +610,7 @@ void php_swoole_socket_set_ssl(Socket *sock, zval *zset)
         else
         {
             swoole_php_fatal_error(E_WARNING, "ssl key file[%s] not found", sock->ssl_option.key_file);
+            return false;
         }
     }
     if (sock->ssl_option.cert_file && !sock->ssl_option.key_file)
@@ -666,6 +668,7 @@ void php_swoole_socket_set_ssl(Socket *sock, zval *zset)
     {
         sock->ssl_option.verify_depth = (int) zval_get_long(v);
     }
+    return true;
 }
 #endif
 
