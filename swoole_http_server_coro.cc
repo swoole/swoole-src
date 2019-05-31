@@ -245,7 +245,6 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zend_update_property_stringl(swoole_http_server_coro_ce, getThis(), ZEND_STRL("host"), host, l_host);
-    zend_update_property_long(swoole_http_server_coro_ce, getThis(), ZEND_STRL("port"), port);
     zend_update_property_bool(swoole_http_server_coro_ce, getThis(), ZEND_STRL("ssl"), ssl);
 
     // check host
@@ -293,6 +292,7 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
 #endif
 
     zend_update_property_long(swoole_http_server_coro_ce, getThis(), ZEND_STRL("fd"), sock->get_fd());
+    zend_update_property_long(swoole_http_server_coro_ce, getThis(), ZEND_STRL("port"), sock->get_bind_port());
 }
 
 static PHP_METHOD(swoole_http_server_coro, handle)
