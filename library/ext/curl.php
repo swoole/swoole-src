@@ -5,6 +5,7 @@ class swoole_curl_handler
     /** @var Swoole\Coroutine\Http\Client */
     private $client;
     private $info;
+    private $postData;
     private $outputStream;
 
     /** @var callable */
@@ -39,6 +40,9 @@ class swoole_curl_handler
         $client->setMethod($this->method);
         if ($this->headers) {
             $client->setHeaders($this->headers);
+        }
+        if ($this->postData) {
+            $client->setData($this->postData);
         }
         if (!$client->execute($this->getUrl())) {
             return false;
@@ -103,6 +107,12 @@ class swoole_curl_handler
         return $url;
     }
 
+    /**
+     * @param int $opt
+     * @param $value
+     * @return bool
+     * @throws swoole_curl_exception
+     */
     function setOption(int $opt, $value): bool
     {
         switch ($opt) {
@@ -121,6 +131,11 @@ class swoole_curl_handler
             case CURLOPT_POST:
                 $this->method = 'POST';
                 break;
+            case CURLOPT_POSTFIELDS:
+                $this->headers['Content-Type'] = 'application/x-www-form-urlencoded';
+                $this->postData = $value;
+                break;
+
             case CURLOPT_HTTPHEADER:
                 foreach ($value as $header) {
                     list($k, $v) = explode(':', $header);
