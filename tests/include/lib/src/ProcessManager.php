@@ -46,6 +46,10 @@ class ProcessManager
     protected $childPid;
     protected $childStatus = 255;
     protected $parentFirst = false;
+    /**
+     * @var Swoole\Process
+     */
+    protected $childProcess;
 
     public function __construct()
     {
@@ -203,7 +207,7 @@ class ProcessManager
         }
     }
 
-    public function run()
+    public function run($redirectStdout = false)
     {
         global $argv, $argc;
         if ($argc > 1) {
@@ -219,14 +223,14 @@ class ProcessManager
             }
         }
         $this->initFreePorts();
-        $childProcess = new Swoole\Process(function () {
+        $this->childProcess = new Swoole\Process(function () {
             if ($this->parentFirst) {
                 $this->wait();
             }
             $this->runChildFunc();
             exit;
-        });
-        if (!$childProcess || !$childProcess->start()) {
+        }, $redirectStdout, $redirectStdout);
+        if (!$this->childProcess || !$this->childProcess->start()) {
             exit("ERROR: CAN NOT CREATE PROCESS\n");
         }
         register_shutdown_function(function () {
@@ -235,11 +239,26 @@ class ProcessManager
         if (!$this->parentFirst) {
             $this->wait();
         }
-        $this->runParentFunc($this->childPid = $childProcess->pid);
+        $this->runParentFunc($this->childPid = $this->childProcess->pid);
         Swoole\Event::wait();
         $waitInfo = Swoole\Process::wait(true);
         $this->childStatus = $waitInfo['code'];
         return true;
+    }
+
+    public function getChildOutput()
+    {
+        $this->childProcess->setBlocking(false);
+        $output = '';
+        while (1) {
+            $data = @$this->childProcess->read();
+            if (!$data) {
+                break;
+            } else {
+                $output .= $data;
+            }
+        }
+        return $output;
     }
 
     public function expectExitCode($code = 0)

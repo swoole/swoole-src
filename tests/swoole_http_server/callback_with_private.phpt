@@ -5,11 +5,15 @@ swoole_http_server: http server with private callback
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->setWaitTimeout(0);
-$pm->parentFunc = function () { };
+$pm->parentFunc = function () {
+};
 $pm->childFunc = function () use ($pm) {
-    class TestCo
+    fclose(STDERR);
+    fclose(STDOUT);
+
+    class TestCo_9
     {
         private function foo(swoole_http_request $request, swoole_http_response $response)
         {
@@ -28,20 +32,15 @@ $pm->childFunc = function () use ($pm) {
         'worker_num' => 1,
         'log_file' => '/dev/null'
     ]);
-    $http->on('request', [new TestCo, 'foo']);
+    $http->on('request', [new TestCo_9, 'foo']);
     $http->start();
 };
 $pm->childFirst();
-$pm->run();
+$pm->run(true);
+//Fatal Error
+$pm->expectExitCode(255);
+$output = $pm->getChildOutput();
+\Swoole\Assert::contains($output, 'Swoole\Server::on() must be callable');
 ?>
---EXPECTF--
-Fatal error: Uncaught TypeError: Argument 2 passed to Swoole\Server::on() must be callable, array given in %s/tests/swoole_http_server/callback_with_private.php:%d
-Stack trace:
-#0 %s/tests/swoole_http_server/callback_with_private.php(%d): Swoole\Server->on('request', Array)
-#1 %s/tests/include/functions.php(%d): {closure}()
-#2 %s/tests/include/functions.php(%d): ProcessManager->runChildFunc()
-#3 [internal function]: ProcessManager->{closure}(Object(Swoole\Process))
-#4 %s/tests/include/functions.php(%d): Swoole\Process->start()
-#5 %s/tests/swoole_http_server/callback_with_private.php(%d): ProcessManager->run()
-#6 {main}
-  thrown in %s/tests/swoole_http_server/callback_with_private.php on line %d
+--EXPECT--
+

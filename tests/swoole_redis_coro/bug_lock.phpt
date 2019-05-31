@@ -7,8 +7,8 @@ require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\Bug\Redis\Lock;
-use Swoole\Bug\Redis\SQLPool;
+use SwooleTest\Bug\Redis\Lock;
+use SwooleTest\Bug\Redis\SQLPool;
 
 SQLPool::init();
 
