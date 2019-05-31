@@ -33,3 +33,8 @@ function swoole_detect_type($value)
         return $value;
     }
 }
+
+function swoole_default_value($array, $key, $default_value = '')
+{
+    return array_key_exists($key, $array) ? $array[$key] : $default_value;
+}

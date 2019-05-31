@@ -16,14 +16,14 @@ class swoole_curl_handler
     /** @var callable */
     private $progressFunction;
 
-    public $returnTransfer = true;
+    public $returnTransfer = false;
     public $method = 'GET';
     public $headers = [];
 
     function create(string $url)
     {
         $info = parse_url($url);
-        $ssl = $info['scheme'] === 'https';
+        $ssl = swoole_default_value($info, 'scheme') === 'https';
         if (empty($info['port'])) {
             $port = $ssl ? 443 : 80;
         } else {
@@ -66,7 +66,7 @@ class swoole_curl_handler
             if ($this->outputStream) {
                 return fwrite($this->outputStream, $client->body) === strlen($client->body);
             } else {
-                echo $this->outputStream;
+                echo $client->body;
             }
             return true;
         }
@@ -97,7 +97,7 @@ class swoole_curl_handler
         if (!empty($this->info['query'])) {
             $url .= '?' . $this->info['query'];
         }
-        if (!empty($this->info['query'])) {
+        if (!empty($this->info['fragment'])) {
             $url .= '#' . $this->info['fragment'];
         }
         return $url;
