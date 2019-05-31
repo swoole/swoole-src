@@ -954,6 +954,11 @@ bool Socket::bind(std::string address, int port)
     {
         return false;
     }
+    if ((sock_domain == AF_INET || sock_domain == AF_INET6) && (port < 0 || port > 65535))
+    {
+        swWarn("invalid port [%d]", port);
+        return false;
+    }
 
     bind_address = address;
     bind_port = port;
@@ -977,6 +982,7 @@ bool Socket::bind(std::string address, int port)
 #endif
 
     int retval;
+    socklen_t len;
     switch (sock_domain)
     {
     case AF_UNIX:
@@ -1005,7 +1011,14 @@ bool Socket::bind(std::string address, int port)
             return false;
         }
         retval = ::bind(socket->fd, (struct sockaddr *) sa, sizeof(struct sockaddr_in));
-        bind_port = sa->sin_port;
+        if (retval == 0 && bind_port == 0)
+        {
+            len = sizeof(struct sockaddr_in);
+            if (getsockname(socket->fd, (struct sockaddr *) sa, &len) != -1)
+            {
+                bind_port = ntohs(sa->sin_port);
+            }
+        }
         break;
     }
 
@@ -1020,7 +1033,14 @@ bool Socket::bind(std::string address, int port)
             return false;
         }
         retval = ::bind(socket->fd, (struct sockaddr *) sa, sizeof(struct sockaddr_in6));
-        bind_port = sa->sin6_port;
+        if (retval == 0 && bind_port == 0)
+        {
+            len = sizeof(struct sockaddr_in6);
+            if (getsockname(socket->fd, (struct sockaddr *) sa, &len) != -1)
+            {
+                bind_port = ntohs(sa->sin6_port);
+            }
+        }
         break;
     }
     default:
