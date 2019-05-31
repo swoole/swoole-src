@@ -963,7 +963,7 @@ bool Socket::bind(std::string address, int port)
     bind_address = address;
     bind_port = port;
 
-    struct sockaddr *sock_type = (struct sockaddr*) &bind_address_info.addr.un;
+    struct sockaddr *sock_addr = (struct sockaddr*) &bind_address_info.addr;
 
     int option = 1;
     if (::setsockopt(socket->fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
@@ -987,7 +987,7 @@ bool Socket::bind(std::string address, int port)
     {
     case AF_UNIX:
     {
-        struct sockaddr_un *sa = (struct sockaddr_un *) sock_type;
+        struct sockaddr_un *sa = (struct sockaddr_un *) sock_addr;
         sa->sun_family = AF_UNIX;
 
         if (bind_address.size() >= sizeof(sa->sun_path))
@@ -1003,7 +1003,7 @@ bool Socket::bind(std::string address, int port)
 
     case AF_INET:
     {
-        struct sockaddr_in *sa = (struct sockaddr_in *) sock_type;
+        struct sockaddr_in *sa = (struct sockaddr_in *) sock_addr;
         sa->sin_family = AF_INET;
         sa->sin_port = htons((unsigned short) bind_port);
         if (!inet_aton(bind_address.c_str(), &sa->sin_addr))
@@ -1024,7 +1024,7 @@ bool Socket::bind(std::string address, int port)
 
     case AF_INET6:
     {
-        struct sockaddr_in6 *sa = (struct sockaddr_in6 *) sock_type;
+        struct sockaddr_in6 *sa = (struct sockaddr_in6 *) sock_addr;
         sa->sin6_family = AF_INET6;
         sa->sin6_port = htons((unsigned short) bind_port);
 
