@@ -1162,7 +1162,7 @@ static PHP_METHOD(swoole_socket_coro, recvPacket)
 {
     double timeout = 0;
 
-    ZEND_PARSE_PARAMETERS_START(0, 2)
+    ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
