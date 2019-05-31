@@ -10,8 +10,6 @@ $pm->setWaitTimeout(0);
 $pm->parentFunc = function () {
 };
 $pm->childFunc = function () use ($pm) {
-    fclose(STDERR);
-    fclose(STDOUT);
 
     class TestCo_9
     {

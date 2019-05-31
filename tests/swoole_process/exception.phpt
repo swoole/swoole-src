@@ -26,7 +26,7 @@ abstract class AbstractProcess
     }
 }
 
-class Process extends AbstractProcess
+class Process1 extends AbstractProcess
 {
     public function run()
     {
@@ -39,7 +39,7 @@ class Process extends AbstractProcess
     }
 }
 
-(new Process())->start();
+(new Process1())->start();
 
 ?>
 --EXPECTF--
