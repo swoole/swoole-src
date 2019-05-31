@@ -37,7 +37,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
             if (!Assert::assert($ret)) {
                 throw new RuntimeException('connect failed');
             } else {
-                set_socket_buffer_size($client->getSocket(), BUFFER_SIZE);
+                set_socket_coro_buffer_size($client, BUFFER_SIZE);
                 $client->set([
                     'open_eof_check' => true,
                     'package_eof' => "\n"
