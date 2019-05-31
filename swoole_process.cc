@@ -880,7 +880,7 @@ static PHP_METHOD(swoole_process, exportSocket)
     php::process *proc = (php::process *) process->ptr2;
     if (!proc->zsocket)
     {
-        proc->zsocket = php_swoole_export_socket_ex(process->pipe, proc->pipe_type == php::PIPE_TYPE_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM);
+        proc->zsocket = php_swoole_dup_socket(process->pipe, proc->pipe_type == php::PIPE_TYPE_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM);
         if (!proc->zsocket)
         {
             RETURN_FALSE;

@@ -33,9 +33,7 @@ static zend_object_handlers swoole_socket_coro_exception_handlers;
 typedef struct
 {
     Socket *socket;
-#ifdef SWOOLE_SOCKETS_SUPPORT
-    zval *resource;
-#endif
+    bool reference;
     zend_object std;
 } socket_coro;
 
@@ -172,14 +170,7 @@ static sw_inline socket_coro* swoole_socket_coro_fetch_object(zend_object *obj)
 static void swoole_socket_coro_free_object(zend_object *object)
 {
     socket_coro *sock = (socket_coro *) swoole_socket_coro_fetch_object(object);
-#ifdef SWOOLE_SOCKETS_SUPPORT
-    if (sock->resource)
-    {
-        swoole_php_socket_free(sock->resource);
-        sock->resource = nullptr;
-    }
-#endif
-    if (sock->socket && sock->socket != SW_BAD_SOCKET)
+    if (sock->socket && sock->socket != SW_BAD_SOCKET && !sock->reference)
     {
         sock->socket->close();
         delete sock->socket;
@@ -771,7 +762,24 @@ static void sw_inline php_swoole_init_socket(zval *zobject, socket_coro *sock)
     zend_update_property_long(swoole_socket_coro_ce, zobject, ZEND_STRL("fd"), sock->socket->get_fd());
 }
 
-SW_API bool php_swoole_export_socket(zval *zobject, int fd, enum swSocket_type type)
+SW_API bool php_swoole_export_socket(zval *zobject, Socket *_socket)
+{
+    zend_object *object = swoole_socket_coro_create_object(swoole_socket_coro_ce);
+    if (!object)
+    {
+        return false;
+    }
+
+    socket_coro *sock = (socket_coro *) swoole_socket_coro_fetch_object(object);
+    sock->reference = 1;
+    sock->socket = _socket;
+
+    ZVAL_OBJ(zobject, object);
+    php_swoole_init_socket(zobject, sock);
+    return true;
+}
+
+SW_API zend_object* php_swoole_dup_socket(int fd, enum swSocket_type type)
 {
     zend_object *object = swoole_socket_coro_create_object(swoole_socket_coro_ce);
     socket_coro *sock = (socket_coro *) swoole_socket_coro_fetch_object(object);
@@ -781,7 +789,7 @@ SW_API bool php_swoole_export_socket(zval *zobject, int fd, enum swSocket_type t
     if (new_fd < 0)
     {
         swoole_php_sys_error(E_WARNING, "dup(%d) failed", fd);
-        return false;
+        return nullptr;
     }
     sock->socket = new Socket(new_fd, type);
     if (UNEXPECTED(sock->socket->socket == nullptr))
@@ -790,18 +798,9 @@ SW_API bool php_swoole_export_socket(zval *zobject, int fd, enum swSocket_type t
         delete sock->socket;
         sock->socket = nullptr;
         OBJ_RELEASE(object);
-        ZVAL_NULL(zobject);
-        return false;
+        return nullptr;
     }
-    ZVAL_OBJ(zobject, object);
-    php_swoole_init_socket(zobject, sock);
-    return true;
-}
-
-SW_API zend_object* php_swoole_export_socket_ex(int fd, enum swSocket_type type)
-{
-    zval zobject;
-    return php_swoole_export_socket(&zobject, fd, type) ? Z_OBJ_P(&zobject) : nullptr;
+    return object;
 }
 
 SW_API Socket* php_swoole_get_socket(zval *zobject)
@@ -1292,15 +1291,10 @@ static PHP_METHOD(swoole_socket_coro, shutdown)
 static PHP_METHOD(swoole_socket_coro, close)
 {
     swoole_get_socket_coro(sock, getThis());
-
-#ifdef SWOOLE_SOCKETS_SUPPORT
-    if (sock->resource)
+    if (sock->reference)
     {
-        swoole_php_socket_free(sock->resource);
-        sock->resource = nullptr;
+        RETURN_FALSE;
     }
-#endif
-
     if (sock->socket->close())
     {
         delete sock->socket;

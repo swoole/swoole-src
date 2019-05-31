@@ -25,8 +25,8 @@
 #define SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(module) \
     module##_ce->create_object = [](zend_class_entry *ce) { return sw_zend_create_object(ce, &module##_handlers); }
 
-SW_API bool php_swoole_export_socket(zval *object, int fd, enum swSocket_type type);
-SW_API zend_object* php_swoole_export_socket_ex(int fd, enum swSocket_type type);
+SW_API bool php_swoole_export_socket(zval *zobject, swoole::coroutine::Socket *_socket);
+SW_API zend_object* php_swoole_dup_socket(int fd, enum swSocket_type type);
 SW_API void php_swoole_init_socket_object(zval *zobject, swoole::coroutine::Socket *socket);
 SW_API swoole::coroutine::Socket* php_swoole_get_socket(zval *zobject);
 SW_API void php_swoole_client_set(swoole::coroutine::Socket *cli, zval *zset);
