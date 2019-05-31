@@ -5,12 +5,10 @@ swoole_coroutine: call_user_func_array
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/api/bug_2387/DbWrapper.php';
-require_once __DIR__ . '/../include/api/bug_2387/MysqlPool.php';
 
-use App\MysqlPool;
+use SwooleTest\MysqlPool;
 
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/list");

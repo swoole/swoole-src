@@ -1,6 +1,6 @@
 <?php
 
-namespace App;
+namespace SwooleTest;
 
 use RuntimeException;
 use Swoole\Coroutine\Channel;
@@ -52,7 +52,9 @@ class MysqlPool
 
     public function get()
     {
-        /* @var Mysql $mysql */
+        /**
+         * @var \Swoole\Coroutine\Mysql $mysql
+         */
         $mysql = $this->pool->pop($this->config['pool_get_timeout']);
         if ($mysql === false) {
             throw new RuntimeException('Get mysql timeout, all mysql connection is used');

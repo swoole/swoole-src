@@ -1,6 +1,6 @@
 <?php
 
-namespace App;
+namespace SwooleTest;
 
 use Swoole\Coroutine\MySQL;
 
