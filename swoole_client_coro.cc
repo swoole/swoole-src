@@ -22,13 +22,6 @@
 
 using swoole::coroutine::Socket;
 
-enum client_property
-{
-    client_property_callback = 0,
-    client_property_coroutine = 1,
-    client_property_socket = 2,
-};
-
 using namespace swoole;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_void, 0, 0, 0)
@@ -215,14 +208,6 @@ static bool client_coro_close(zval *zobject)
         zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), 0);
         if (!cli->get_bound_cid())
         {
-#ifdef SWOOLE_SOCKETS_SUPPORT
-            zval *zsocket = (zval *) swoole_get_property(zobject, client_property_socket);
-            if (zsocket)
-            {
-                swoole_php_socket_free(zsocket);
-                swoole_set_property(zobject, client_property_socket, NULL);
-            }
-#endif
             swoole_set_object(zobject, NULL);
         }
         php_swoole_client_coro_socket_free(cli);
@@ -691,10 +676,6 @@ static PHP_METHOD(swoole_client_coro, __construct)
     zend_update_property_long(swoole_client_coro_ce, getThis(), ZEND_STRL("type"), type);
     //init
     swoole_set_object(getThis(), NULL);
-    swoole_set_property(getThis(), client_property_callback, NULL);
-#ifdef SWOOLE_SOCKETS_SUPPORT
-    swoole_set_property(getThis(), client_property_socket, NULL);
-#endif
     RETURN_TRUE;
 }
 
@@ -1083,18 +1064,11 @@ static PHP_METHOD(swoole_client_coro, getsockname)
  */
 static PHP_METHOD(swoole_client_coro, exportSocket)
 {
-    zval *zsocket = (zval *) swoole_get_property(getThis(), client_property_socket);
-    if (zsocket)
-    {
-        RETURN_ZVAL(zsocket, 1, NULL);
-    }
-
     zval rv;
-    zsocket = zend_read_property(swoole_client_coro_ce, getThis(), ZEND_STRL("socket"), 1, &rv);
+    zval *zsocket = zend_read_property(swoole_client_coro_ce, getThis(), ZEND_STRL("socket"), 1, &rv);
     if (!ZVAL_IS_NULL(zsocket))
     {
-        ZVAL_COPY_DEREF(return_value, zsocket);
-        return;
+        RETURN_ZVAL(zsocket, 1, NULL);
     }
 
     Socket *cli = client_get_ptr(getThis());

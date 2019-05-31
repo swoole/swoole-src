@@ -170,7 +170,7 @@ static sw_inline socket_coro* swoole_socket_coro_fetch_object(zend_object *obj)
 static void swoole_socket_coro_free_object(zend_object *object)
 {
     socket_coro *sock = (socket_coro *) swoole_socket_coro_fetch_object(object);
-    if (sock->socket && sock->socket != SW_BAD_SOCKET && !sock->reference)
+    if (!sock->reference && sock->socket && sock->socket != SW_BAD_SOCKET)
     {
         sock->socket->close();
         delete sock->socket;
