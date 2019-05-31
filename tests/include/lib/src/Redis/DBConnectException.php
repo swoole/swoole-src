@@ -1,6 +1,6 @@
 <?php
 
-namespace SwooleTest\Bug\Redis;
+namespace SwooleTest\Redis;
 
 
 class DBConnectException extends \Exception
