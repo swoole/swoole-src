@@ -28,10 +28,10 @@ if (empty(getenv('SWOOLE_DEBUG'))) {
 (function () {
     require __DIR__ . '/lib/vendor/autoload.php';
 
-    class ProcessManager extends SwooleTest\ProcessManager{}
-    class ServerManager extends SwooleTest\ServerManager{}
-    class RandStr extends SwooleTest\RandStr{}
-    class TcpStat extends SwooleTest\TcpStat{}
+    class_alias(SwooleTest\ProcessManager::class, ProcessManager::class);
+    class_alias(SwooleTest\ServerManager::class, ServerManager::class);
+    class_alias(SwooleTest\RandStr::class, RandStr::class);
+    class_alias(SwooleTest\TcpStat::class, TcpStat::class);
 
     class Assert extends \Swoole\Assert
     {
