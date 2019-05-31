@@ -111,6 +111,7 @@ public:
     bool ssl_handshake();
     int ssl_verify(bool allow_self_signed);
     bool ssl_accept();
+    bool ssl_init_context();
 #endif
 
     static inline enum swSocket_type get_type(int domain, int type, int protocol = 0)
