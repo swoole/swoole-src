@@ -1106,6 +1106,13 @@ Socket* Socket::accept()
 #ifdef SW_USE_OPENSSL
 bool Socket::ssl_init_context()
 {
+    /**
+     * Already initialized
+     */
+    if (ssl_context)
+    {
+        return false;
+    }
     ssl_context = swSSL_get_context(&ssl_option);
     if (ssl_context == nullptr)
     {
@@ -1547,7 +1554,7 @@ ssize_t Socket::recv_packet(double timeout)
     }
     else
     {
-        return -1;
+        retval = recv(read_buffer->str, read_buffer->size);
     }
 
     return retval;

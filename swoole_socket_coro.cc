@@ -46,6 +46,7 @@ static PHP_METHOD(swoole_socket_coro, recv);
 static PHP_METHOD(swoole_socket_coro, send);
 static PHP_METHOD(swoole_socket_coro, recvAll);
 static PHP_METHOD(swoole_socket_coro, sendAll);
+static PHP_METHOD(swoole_socket_coro, recvPacket);
 static PHP_METHOD(swoole_socket_coro, recvfrom);
 static PHP_METHOD(swoole_socket_coro, sendto);
 static PHP_METHOD(swoole_socket_coro, getOption);
@@ -84,6 +85,10 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_recv, 0, 0, 0)
     ZEND_ARG_INFO(0, length)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_recvPacket, 0, 0, 0)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
@@ -133,6 +138,7 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, accept,      arginfo_swoole_socket_coro_accept,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, connect,     arginfo_swoole_socket_coro_connect,   ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recv,        arginfo_swoole_socket_coro_recv,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, recvPacket,  arginfo_swoole_socket_coro_recvPacket,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, send,        arginfo_swoole_socket_coro_send,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvAll,     arginfo_swoole_socket_coro_recv,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, sendAll,     arginfo_swoole_socket_coro_send,      ZEND_ACC_PUBLIC)
@@ -1150,6 +1156,33 @@ static PHP_METHOD(swoole_socket_coro, recv)
 static PHP_METHOD(swoole_socket_coro, recvAll)
 {
     swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
+}
+
+static PHP_METHOD(swoole_socket_coro, recvPacket)
+{
+    double timeout = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    swoole_get_socket_coro(sock, getThis());
+    ssize_t retval = sock->socket->recv_packet(timeout);
+    swoole_socket_coro_sync_properties(getThis(), sock);
+    if (retval < 0)
+    {
+        RETURN_FALSE;
+    }
+    else if (retval == 0)
+    {
+        RETURN_EMPTY_STRING();
+    }
+    else
+    {
+        swString *buf = sock->socket->get_read_buffer();
+        RETURN_STRINGL(buf->str, retval);
+    }
 }
 
 static sw_inline void swoole_socket_coro_send(INTERNAL_FUNCTION_PARAMETERS, const bool all)

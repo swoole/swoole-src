@@ -91,8 +91,12 @@ class Server
         }
 
         while ($this->running) {
+            /**
+             * @var $conn Socket
+             */
             $conn = $socket->accept();
             if ($conn) {
+                $conn->setProtocol($this->setting);
                 if (Coroutine::create($this->fn, new Connection($conn)) < 0) {
                     goto _wait;
                 }
@@ -101,10 +105,12 @@ class Server
                     _wait:
                     Coroutine::sleep(1);
                     continue;
+                } elseif ($socket->errCode == SOCKET_ETIMEDOUT) {
+                    continue;
                 } elseif ($socket->errCode == SOCKET_ECANCELED) {
                     break;
                 } else {
-                    trigger_error("accept failed, Error: {$socket->errMsg}[{$socket->errCode}]", E_WARNING);
+                    trigger_error("accept failed, Error: {$socket->errMsg}[{$socket->errCode}]", E_USER_WARNING);
                     break;
                 }
             }

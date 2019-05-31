@@ -14,9 +14,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $r = $client->connect("127.0.0.1", $pm->getFreePort(), 0.5);
         Assert::assert($r);
 
-        $socket = $client->getSocket();
-        socket_set_option($socket, SOL_SOCKET, SO_SNDBUF, 65536);
-        socket_set_option($socket, SOL_SOCKET, SO_RCVBUF, 65536);
+        set_socket_coro_buffer_size($client->exportSocket(), 65536);
 
         $header = "POST /post.php HTTP/1.1\r\n";
         $header .= "Host: weibo.com\r\n";

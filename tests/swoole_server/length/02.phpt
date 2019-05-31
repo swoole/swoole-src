@@ -7,7 +7,7 @@ swoole_server/length: (length protocol) no body
 require __DIR__ . '/../../include/bootstrap.php';
 require __DIR__ . '/../../include/api/swoole_server/TestServer.php';
 
-class PkgServer extends TestServer
+class PkgServer_2 extends TestServer
 {
     protected $show_lost_package = true;
     function onReceive($serv, $fd, $reactor_id, $data)
@@ -68,7 +68,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new PkgServer($pm->getFreePort(), true);
+    $serv = new PkgServer_2($pm->getFreePort(), true);
     $serv->set([
         'worker_num' => 1,
         //'dispatch_mode'         => 1,

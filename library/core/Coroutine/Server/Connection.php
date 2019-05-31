@@ -13,9 +13,9 @@ class Connection
         $this->socket = $conn;
     }
 
-    function recv($length = 8192)
+    function recv($timeout = 0)
     {
-        return $this->socket->recv($length);
+        return $this->socket->recvPacket($timeout);
     }
 
     function send($data)

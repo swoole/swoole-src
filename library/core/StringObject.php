@@ -126,6 +126,15 @@ class StringObject
     }
 
     /**
+     * @param $n
+     * @return StringObject
+     */
+    public function repeat($n)
+    {
+        return new static(str_repeat($this->string, $n));
+    }
+
+    /**
      * @param string $search
      * @param string $replace
      * @param null $count
@@ -205,6 +214,13 @@ class StringObject
         return new ArrayObject(str_split($this->string, $splitLength));
     }
 
+    /**
+     * @return string
+     */
+    public function toString()
+    {
+        return $this->string;
+    }
 
     /**
      * @return string
