@@ -123,6 +123,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_sendto, 0, 0, 3)
     ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_cancel, 0, 0, 0)
+    ZEND_ARG_INFO(0, event)
+ZEND_END_ARG_INFO()
+
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_shutdown, 0, 0, 1)
     ZEND_ARG_INFO(0, how)
 ZEND_END_ARG_INFO()
@@ -148,7 +153,7 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, setProtocol, arginfo_swoole_socket_coro_setProtocol, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, setOption,   arginfo_swoole_socket_coro_setOption, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, shutdown,    arginfo_swoole_socket_coro_shutdown,  ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, cancel,      arginfo_swoole_void,                  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, cancel,      arginfo_swoole_socket_coro_cancel,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, close,       arginfo_swoole_void,                  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, getpeername, arginfo_swoole_void,                  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, getsockname, arginfo_swoole_void,                  ZEND_ACC_PUBLIC)
@@ -1651,7 +1656,14 @@ static PHP_METHOD(swoole_socket_coro, setOption)
 static PHP_METHOD(swoole_socket_coro, cancel)
 {
     swoole_get_socket_coro(sock, getThis());
-    RETURN_BOOL(sock->socket->cancel(SW_EVENT_READ));
+    zend_long event = SW_EVENT_READ;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(event)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    RETURN_BOOL(sock->socket->cancel(event == SW_EVENT_READ ? SW_EVENT_READ : SW_EVENT_WRITE));
 }
 
 static PHP_METHOD(swoole_socket_coro, setProtocol)
