@@ -90,12 +90,6 @@ function get_one_free_port_coro()
     return $port;
 }
 
-function set_socket_buffer_size($php_socket, int $size)
-{
-    socket_set_option($php_socket, SOL_SOCKET, SO_SNDBUF, $size);
-    socket_set_option($php_socket, SOL_SOCKET, SO_RCVBUF, $size);
-}
-
 function set_socket_coro_buffer_size(Swoole\Coroutine\Socket $cosocket, int $size)
 {
     $cosocket->setOption(SOL_SOCKET, SO_SNDBUF, $size);
