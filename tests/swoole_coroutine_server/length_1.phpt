@@ -48,6 +48,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 //        }
         if (!$client->send(TestServer_5::getPacket()))
         {
+            echo "send [$i] failed.\n";
             break;
         }
         $bytes += 2;
@@ -70,6 +71,6 @@ $pm->childFunc = function () use ($pm) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECTREGEX--
+--EXPECTF--
 end
-Total count=100000?, bytes=\d+
+Total count=%d, bytes=%d
