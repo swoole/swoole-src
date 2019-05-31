@@ -4,11 +4,12 @@
  * Date: 2019/3/28 10:30 AM
  */
 
-namespace Co;
+namespace SwooleTest;
 
+use Co\Socket;
 use RuntimeException;
 
-class TestServer
+class CoServer
 {
     /** @var Socket */
     protected $server = null;

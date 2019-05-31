@@ -1,6 +1,6 @@
 <?php
 
-namespace Swoole\Bug\Redis;
+namespace SwooleTest\Bug\Redis;
 
 Class SQLPool
 {

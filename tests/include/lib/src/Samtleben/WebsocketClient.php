@@ -7,7 +7,7 @@
  * @version 2011-10-18
  */
 
-namespace Samtleben;
+namespace SwooleTest\Samtleben;
 
 class WebsocketClient
 {

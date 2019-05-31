@@ -1,17 +1,17 @@
 {
-    "autoload": {
-        "classmap": [
-            "misc"
-        ]
-    },
-    "require": {
-        "swoole/assert": "^2.0"
-    },
-    "minimum-stability": "rc",
-    "repositories": {
-        "packagist": {
-            "type": "composer",
-            "url": "https://php.cnpkg.org"
-        }
+  "autoload": {
+    "psr-4": {
+      "SwooleTest\\": "src/"
     }
+  },
+  "require": {
+    "swoole/assert": "^2.0"
+  },
+  "minimum-stability": "rc",
+  "repositories": {
+    "packagist": {
+      "type": "composer",
+      "url": "https://php.cnpkg.org"
+    }
+  }
 }

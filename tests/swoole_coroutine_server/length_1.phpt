@@ -5,9 +5,10 @@ swoole_coroutine_server: (length protocol) 1
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/../include/api/TestServer_Co.php';
 
-class PkgServer_co_length_1 extends TestServer_Co
+use SwooleTest\LengthServer;
+
+class TestServer_5 extends LengthServer
 {
     protected $show_lost_package = true;
 
@@ -24,8 +25,8 @@ class PkgServer_co_length_1 extends TestServer_Co
     }
 }
 
-PkgServer_co_length_1::$random_bytes = true;
-PkgServer_co_length_1::$pkg_num = 10000;
+TestServer_5::$random_bytes = true;
+TestServer_5::$pkg_num = 10000;
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
@@ -39,13 +40,13 @@ $pm->parentFunc = function ($pid) use ($pm)
     $bytes = 0;
     $pkg_bytes = 0;
 
-    for ($i = 0; $i < PkgServer_co_length_1::$pkg_num; $i++)
+    for ($i = 0; $i < TestServer_5::$pkg_num; $i++)
     {
 //        if ($i % 1000 == 0)
 //        {
 //            echo "#{$i} send package. sid={$sid}, length=" . ($len + 10) . ", total bytes={$pkg_bytes}\n";
 //        }
-        if (!$client->send(PkgServer_co_length_1::getPacket()))
+        if (!$client->send(TestServer_5::getPacket()))
         {
             break;
         }
@@ -60,7 +61,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
 $pm->childFunc = function () use ($pm) {
     go(function () use ($pm) {
-        $serv = new PkgServer_co_length_1($pm->getFreePort(), false);
+        $serv = new TestServer_5($pm->getFreePort(), false);
         $serv->start();
     });
     swoole_event::wait();
