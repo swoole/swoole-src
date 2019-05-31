@@ -954,6 +954,11 @@ bool Socket::bind(std::string address, int port)
     {
         return false;
     }
+    if ((sock_domain == AF_INET || sock_domain == AF_INET6) && (port < 0 || port > 65535))
+    {
+        swWarn("invalid port [%d]", port);
+        return false;
+    }
 
     bind_address = address;
     bind_port = port;
