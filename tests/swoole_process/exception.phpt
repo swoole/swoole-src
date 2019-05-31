@@ -26,7 +26,7 @@ abstract class AbstractProcess
     }
 }
 
-class Process1 extends AbstractProcess
+class Process6 extends AbstractProcess
 {
     public function run()
     {
@@ -39,13 +39,13 @@ class Process1 extends AbstractProcess
     }
 }
 
-(new Process1())->start();
+(new Process6())->start();
 
 ?>
 --EXPECTF--
 Fatal error: Uncaught Error: Call to undefined function AAAA() in %s:%d
 Stack trace:
-#0 %s(%d): Process->run()
+#0 %s(%d): Process6->run()
 #1 [internal function]: AbstractProcess->{closure}(Object(Swoole\Process))
 #2 %s(%d): Swoole\Process->start()
 #3 %s(%d): AbstractProcess->start()
