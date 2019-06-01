@@ -515,6 +515,8 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_client.cc \
         swoole_client_coro.cc \
         swoole_coroutine.cc \
+        swoole_coroutine_scheduler.cc \
+        swoole_coroutine_system.cc \
         swoole_coroutine_util.cc \
         swoole_event.cc \
         swoole_http2_client_coro.cc \
