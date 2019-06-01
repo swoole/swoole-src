@@ -29,9 +29,6 @@ extern "C"
 #include "ext/standard/md5.h"
 }
 
-#include "main/rfc1867.h"
-#include "main/php_variables.h"
-
 #include "websocket.h"
 #include "connection.h"
 #include "base64.h"
@@ -439,55 +436,6 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
 }
 
 #ifdef SW_HAVE_ZLIB
-void swoole_http_get_compression_method(http_context *ctx, const char *accept_encoding, size_t length)
-{
-#ifdef SW_HAVE_BROTLI
-    if (swoole_strnpos((char *) accept_encoding, length, (char *) ZEND_STRL("br")) >= 0)
-    {
-        ctx->enable_compression = 1;
-        ctx->compression_level = SwooleG.serv->http_compression_level;
-        ctx->compression_method = HTTP_COMPRESS_BR;
-    }
-    else
-#endif
-    if (swoole_strnpos((char *) accept_encoding, length, (char *) ZEND_STRL("gzip")) >= 0)
-    {
-        ctx->accept_compression = 1;
-        ctx->compression_method = HTTP_COMPRESS_GZIP;
-    }
-    else if (swoole_strnpos((char *) accept_encoding, length, (char *) ZEND_STRL("deflate")) >= 0)
-    {
-        ctx->accept_compression = 1;
-        ctx->compression_method = HTTP_COMPRESS_DEFLATE;
-    }
-    else
-    {
-        ctx->accept_compression = 0;
-    }
-}
-
-const char* swoole_http_get_content_encoding(http_context *ctx)
-{
-    if (ctx->compression_method == HTTP_COMPRESS_GZIP)
-    {
-       return "gzip";
-    }
-    else if (ctx->compression_method == HTTP_COMPRESS_DEFLATE)
-    {
-        return "deflate";
-    }
-#ifdef SW_HAVE_BROTLI
-    else if (ctx->compression_method == HTTP_COMPRESS_BR)
-    {
-        return "br";
-    }
-#endif
-    else
-    {
-        return NULL;
-    }
-}
-
 int swoole_http_response_compress(swString *body, int method, int level)
 {
     int encoding;

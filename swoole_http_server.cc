@@ -16,33 +16,9 @@
 
 #include "php_swoole_cxx.h"
 #include "swoole_http.h"
-
-extern "C"
-{
-#include "ext/standard/url.h"
-#include "ext/standard/sha1.h"
-#include "ext/standard/php_var.h"
-#include "ext/standard/php_string.h"
-#include "ext/standard/php_math.h"
-#include "ext/standard/php_array.h"
-#include "ext/date/php_date.h"
-#include "ext/standard/md5.h"
-}
+#include "websocket.h"
 
 #include "main/rfc1867.h"
-#include "main/php_variables.h"
-
-#include "websocket.h"
-#include "connection.h"
-#include "base64.h"
-
-#ifdef SW_HAVE_ZLIB
-#include <zlib.h>
-#endif
-
-#ifdef SW_HAVE_BROTLI
-#include <brotli/encode.h>
-#endif
 
 #ifdef SW_USE_HTTP2
 #include "http2.h"
