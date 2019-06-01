@@ -11,13 +11,13 @@ TestFest 2009 - AFUP - Jean-Marc Fontaine
 <?php
 require __DIR__ . '/../../../include/bootstrap.php';
 
-$tm = new \SwooleTest\Curl();
+$cm = new SwooleTest\CurlManager();
 
-$tm->run(function () use ($tm) {
+$cm->run(function ($host) {
     // start testing
     echo "*** Testing curl_exec() : basic functionality ***\n";
 
-    $url = $tm->getUrlBase() . "/get.php?test=get";
+    $url = $host. "/get.php?test=get";
     $ch = curl_init();
 
     ob_start(); // start output buffering

@@ -7,9 +7,8 @@ TestFest 2009 - AFUP - Jean-Marc Fontaine <jmf@durcommefaire.net>
 <?php
 require __DIR__ . '/../../../include/bootstrap.php';
 
-$tm = new \SwooleTest\Curl();
-$tm->run(function () use ($tm) {
-    $host = $tm->getUrlBase();
+$cm = new \SwooleTest\CurlManager();
+$cm->run(function ($host) {
 
     // start testing
     echo '*** Testing curl sending through GET an POST ***' . "\n";

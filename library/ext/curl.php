@@ -21,10 +21,22 @@ class swoole_curl_handler
     public $method = 'GET';
     public $headers = [];
 
+    public $errCode;
+    public $errMsg;
+
+    const ERRORS = [
+        CURLE_URL_MALFORMAT => 'No URL set!',
+    ];
+
     function create(string $url)
     {
         $info = parse_url($url);
-        $ssl = swoole_default_value($info, 'scheme') === 'https';
+        $proto =  swoole_default_value($info, 'scheme') ;
+        if ($proto != 'http' and $proto != 'https') {
+            $this->setError(CURLE_UNSUPPORTED_PROTOCOL, "Protocol \"{$proto}\" not supported or disabled in libcurl");
+            return;
+        }
+        $ssl = $proto=== 'https';
         if (empty($info['port'])) {
             $port = $ssl ? 443 : 80;
         } else {
@@ -37,6 +49,12 @@ class swoole_curl_handler
     function execute()
     {
         $client = $this->client;
+        if (!$client) {
+            if (!$this->errCode) {
+                $this->setError(CURLE_URL_MALFORMAT);
+            }
+            return false;
+        }
         $client->setMethod($this->method);
         if ($this->headers) {
             $client->setHeaders($this->headers);
@@ -45,6 +63,11 @@ class swoole_curl_handler
             $client->setData($this->postData);
         }
         if (!$client->execute($this->getUrl())) {
+
+            $errCode = $this->client->errCode;
+            if ($errCode == 1 and $this->client->errMsg == 'Unknown host') {
+                $this->setError(CURLE_COULDNT_RESOLVE_HOST, 'Could not resolve host: ' . $this->client->host);
+            }
             return false;
         }
 
@@ -81,14 +104,10 @@ class swoole_curl_handler
         $this->client = null;
     }
 
-    function getErrorCode(): int
+    function setError($code, $msg = '')
     {
-        return $this->client->errCode;
-    }
-
-    function getErrorMsg(): string
-    {
-        return $this->client->errMsg;
+        $this->errCode = $code;
+        $this->errMsg = $msg ? $msg : self::ERRORS[$code];
     }
 
     private function getUrl(): string
@@ -128,6 +147,9 @@ class swoole_curl_handler
                 }
                 $this->headers['Accept-Encoding'] = $value;
                 break;
+            /**
+             * Http Post
+             */
             case CURLOPT_POST:
                 $this->method = 'POST';
                 break;
@@ -136,6 +158,9 @@ class swoole_curl_handler
                 $this->postData = $value;
                 break;
 
+            /**
+             * Http Header
+             */
             case CURLOPT_HTTPHEADER:
                 foreach ($value as $header) {
                     list($k, $v) = explode(':', $header);
@@ -145,6 +170,14 @@ class swoole_curl_handler
                     }
                 }
                 break;
+            case CURLOPT_REFERER:
+                $this->headers['Referer'] = $value;
+                break;
+
+            case CURLOPT_USERAGENT:
+                $this->headers['User-Agent'] = $value;
+                break;
+
             case CURLOPT_CUSTOMREQUEST:
                 break;
             case CURLOPT_PROTOCOLS:
@@ -228,12 +261,12 @@ function swoole_curl_close(swoole_curl_handler $obj): void
 
 function swoole_curl_error(swoole_curl_handler $obj): string
 {
-    return $obj->getErrorMsg();
+    return $obj->errMsg;
 }
 
 function swoole_curl_errno(swoole_curl_handler $obj): int
 {
-    return $obj->getErrorCode();
+    return $obj->errCode;
 }
 
 function swoole_curl_reset(swoole_curl_handler $obj): void

@@ -1,10 +1,11 @@
 <?php
+
 namespace SwooleTest;
 
 use Swoole\Process;
 use Swoole;
 
-class Curl
+class CurlManager
 {
     protected $port;
 
@@ -21,24 +22,29 @@ class Curl
         }, true, 1);
 
         $proc->start();
-        while(true) {
+        while (true) {
             usleep(10000);
-            if (@file_get_contents($this->getUrlBase().'/')) {
+            if (@file_get_contents($this->getUrlBase() . '/')) {
                 break;
             }
         }
         return $proc;
     }
 
-    function run(callable $fn) {
-
+    function run(callable $fn)
+    {
         $this->port = get_one_free_port();
-        $proc = $this->run_cli_server(  $this->port);
+        $proc = $this->run_cli_server($this->port);
 
-        Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_CURL);
+        global $argc, $argv;
+        if ($argc > 1 and $argv[1] == 'ori') {
+
+        } else {
+            Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_CURL);
+        }
 
         go(function () use ($fn, $proc) {
-            $fn();
+            $fn($this->getUrlBase());
             Swoole\Process::kill($proc->pid);
         });
         Swoole\Event::wait();
