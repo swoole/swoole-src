@@ -1215,6 +1215,7 @@ bool PHPCoroutine::enable_hook(int flags)
             replace_internal_function(ZEND_STRL("curl_exec"));
             replace_internal_function(ZEND_STRL("curl_setopt_array"));
             replace_internal_function(ZEND_STRL("curl_error"));
+            replace_internal_function(ZEND_STRL("curl_getinfo"));
             replace_internal_function(ZEND_STRL("curl_errno"));
             replace_internal_function(ZEND_STRL("curl_close"));
             replace_internal_function(ZEND_STRL("curl_reset"));
@@ -1229,6 +1230,7 @@ bool PHPCoroutine::enable_hook(int flags)
             recover_internal_function(ZEND_STRL("curl_exec"));
             recover_internal_function(ZEND_STRL("curl_setopt_array"));
             recover_internal_function(ZEND_STRL("curl_error"));
+            recover_internal_function(ZEND_STRL("curl_getinfo"));
             recover_internal_function(ZEND_STRL("curl_errno"));
             recover_internal_function(ZEND_STRL("curl_close"));
             recover_internal_function(ZEND_STRL("curl_reset"));

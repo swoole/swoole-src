@@ -19,7 +19,7 @@ $cm->run(function ($host) {
     var_dump(curl_errno($ch));
     curl_close($ch);
 
-});
+}, false);
 ?>
 --EXPECTREGEX--
 string\(\d+\) "([^\r\n]*rotocol[^\r\n]+|Could not resolve host: .+)"

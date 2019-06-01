@@ -5,7 +5,7 @@ Test curl_opt() function with CURLOPT_WRITEFUNCTION parameter set to a closure
 TestFest 2009 - AFUP - Jean-Marc Fontaine <jmf@durcommefaire.net>
 --SKIPIF--
 <?php
-exit("SKIP not support");
+exit("skip not support");
 ?>
 --FILE--
 <?php
