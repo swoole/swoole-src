@@ -342,6 +342,8 @@ void swoole_http2_client_coro_init(int module_number);
 // server
 void swoole_server_init(int module_number);
 void swoole_server_port_init(int module_number);
+void swoole_http_request_init(int module_number);
+void swoole_http_response_init(int module_number);
 void swoole_http_server_init(int module_number);
 void swoole_http_server_coro_init(int module_number);
 void swoole_websocket_server_init(int module_number);

@@ -787,6 +787,8 @@ PHP_MINIT_FUNCTION(swoole)
     // server
     swoole_server_init(module_number);
     swoole_server_port_init(module_number);
+    swoole_http_request_init(module_number);
+    swoole_http_response_init(module_number);
     swoole_http_server_init(module_number);
     swoole_http_server_coro_init(module_number);
     swoole_websocket_server_init(module_number);

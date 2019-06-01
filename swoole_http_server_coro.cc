@@ -100,8 +100,6 @@ public:
     http_context* create_context(Socket *conn, zval *zconn)
     {
         http_context *ctx = swoole_http_context_new(conn->get_fd());
-        swoole_http_parser *parser = &ctx->parser;
-        parser->data = ctx;
         ctx->parse_body = 1;
         ctx->parse_cookie = 1;
 #ifdef SW_HAVE_ZLIB
@@ -115,8 +113,6 @@ public:
         ctx->close = http_context_disconnect;
 
         zend_update_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("socket"), zconn);
-
-        swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
 
         return ctx;
     }
@@ -443,7 +439,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
             break;
         }
 
-        parsed_n = swoole_http_parser_execute(&ctx->parser, swoole_http_get_parser_setting(), buffer->str, retval);
+        parsed_n = swoole_http_requset_parse(ctx, buffer->str, retval);
         swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d", parsed_n, retval, total_bytes, ctx->completed);
 
         if (!ctx->completed)

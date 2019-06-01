@@ -156,6 +156,7 @@ extern zend_class_entry *swoole_http_request_ce;
 extern zend_class_entry *swoole_http_response_ce;
 
 extern swString *swoole_http_buffer;
+extern swString *swoole_http_form_data_buffer;
 #ifdef SW_HAVE_ZLIB
 extern swString *swoole_zlib_buffer;
 #endif
@@ -165,6 +166,7 @@ extern swString *swoole_zlib_buffer;
     (strncasecmp(at, ZEND_STRL(const_str)) == 0))
 
 http_context* swoole_http_context_new(int fd);
+http_context* swoole_http_context_get(zval *zobject, const bool check_end);
 void swoole_http_context_free(http_context *ctx);
 static sw_inline zval* swoole_http_init_and_read_property(zend_class_entry *ce, zval *zobject, zval** zproperty_store_pp, const char *name, size_t name_len)
 {
@@ -180,9 +182,10 @@ static sw_inline zval* swoole_http_init_and_read_property(zend_class_entry *ce, 
 }
 int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len);
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
-const swoole_http_parser_settings* swoole_http_get_parser_setting();
 
 void swoole_http_server_init_context(swServer *serv, http_context *ctx);
+
+size_t swoole_http_requset_parse(http_context *ctx, const char *data, size_t length);
 
 bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t klen, const char *v, size_t vlen, bool ucwords);
 void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value);
