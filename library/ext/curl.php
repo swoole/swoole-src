@@ -236,6 +236,10 @@ class swoole_curl_handler
              * Http Header
              */
             case CURLOPT_HTTPHEADER:
+                if (!is_array($value) and !($value instanceof Iterator)) {
+                    trigger_error('swoole_curl_setopt(): You must pass either an object or an array with the CURLOPT_HTTPHEADER argument', E_USER_WARNING);
+                    return false;
+                }
                 foreach ($value as $header) {
                     list($k, $v) = explode(':', $header);
                     $v = trim($v);
