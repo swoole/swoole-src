@@ -68,7 +68,7 @@ tests/.idea
 /tests/swoole_*/*.exp
 /tests/swoole_*/*.mem
 /tests/swoole_*/*.php
-/tests/swoole_library/curl/_skip
+/tests/swoole_library/curl/skip
 /core-tests/server/*.log
 cmake-build-debug/
 *.cbp
