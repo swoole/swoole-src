@@ -34,6 +34,30 @@ function swoole_detect_type($value)
     }
 }
 
+/**
+ * @param array $array
+ * @return \Swoole\ArrayObject
+ */
+function swoole_array(array $array = []): Swoole\ArrayObject
+{
+    return new Swoole\ArrayObject($array);
+}
+
+/**
+ * @param string $string
+ * @return \Swoole\StringObject
+ */
+function swoole_string(string $string = ''): Swoole\StringObject
+{
+    return new Swoole\StringObject($string);
+}
+
+/**
+ * @param $array
+ * @param $key
+ * @param string $default_value
+ * @return string
+ */
 function swoole_default_value($array, $key, $default_value = '')
 {
     return array_key_exists($key, $array) ? $array[$key] : $default_value;

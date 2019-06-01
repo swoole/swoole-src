@@ -21,7 +21,7 @@ $source_str = $eval_str = '';
 foreach ($list as $file) {
 
     $php_file = LIB_DIR . '/' . $file;
-    if (!swoole_detect_type(`/usr/bin/env php -n -l $php_file`)->contains('No syntax errors detected')) {
+    if (!swoole_string(`/usr/bin/env php -n -l $php_file`)->contains('No syntax errors detected')) {
         swoole_error("syntax error in [$php_file]");
     } else {
         swoole_ok("syntax correct in [$php_file]");

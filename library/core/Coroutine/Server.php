@@ -37,7 +37,7 @@ class Server
      */
     function __construct(string $host, int $port = 0, bool $ssl = false)
     {
-        $_host = swoole_detect_type($host);
+        $_host = swoole_string($host);
         if ($_host->contains('::')) {
             $this->type = AF_INET6;
         } else if ($_host->startsWith('unix:/')) {
