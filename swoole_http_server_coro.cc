@@ -111,6 +111,11 @@ public:
         ctx->send = http_context_send_data;
         ctx->sendfile = http_context_send_file;
         ctx->close = http_context_disconnect;
+        ctx->upload_tmp_dir = "/tmp";
+
+        swoole_http_parser *parser = &ctx->parser;
+        parser->data = ctx;
+        swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
 
         zend_update_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("socket"), zconn);
 
@@ -440,7 +445,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
         }
 
         parsed_n = swoole_http_requset_parse(ctx, buffer->str, retval);
-        swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d", parsed_n, retval, total_bytes, ctx->completed);
+        swTraceLog(SW_TRACE_CO_HTTP_SERVER, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d", parsed_n, retval, total_bytes, ctx->completed);
 
         if (!ctx->completed)
         {

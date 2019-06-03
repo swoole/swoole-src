@@ -47,7 +47,7 @@ enum http_compress_method
     HTTP_COMPRESS_BR,
 };
 
-typedef struct
+struct http_request
 {
     enum swoole_http_method method;
     int version;
@@ -81,9 +81,9 @@ typedef struct
     zval _zfiles;
     zval *ztmpfiles;
     zval _ztmpfiles;
-} http_request;
+};
 
-typedef struct
+struct http_response
 {
     enum swoole_http_method method;
     int version;
@@ -99,9 +99,9 @@ typedef struct
     zval _zcookie;
     zval *ztrailer;
     zval _ztrailer;
-} http_response;
+};
 
-typedef struct _http_context
+struct http_context
 {
     int fd;
     uint32_t completed :1;
@@ -143,13 +143,14 @@ typedef struct _http_context
     size_t current_form_data_name_len;
     zval *current_multipart_header;
 
+    const char *upload_tmp_dir;
+
     void *private_data;
     void *private_data_2;
-    bool (*send)(struct _http_context* ctx, const char *data, size_t length);
-    bool (*sendfile)(struct _http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
-    bool (*close)(struct _http_context* ctx);
-
-} http_context;
+    bool (*send)(http_context* ctx, const char *data, size_t length);
+    bool (*sendfile)(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
+    bool (*close)(http_context* ctx);
+};
 
 extern zend_class_entry *swoole_http_server_ce;
 extern zend_class_entry *swoole_http_request_ce;

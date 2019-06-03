@@ -222,12 +222,7 @@ static const multipart_parser_settings mt_parser_settings =
 
 size_t swoole_http_requset_parse(http_context *ctx, const char *data, size_t length)
 {
-    swoole_http_parser *parser = &ctx->parser;
-
-    parser->data = ctx;
-    swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
-
-    return swoole_http_parser_execute(parser, &http_parser_settings, data, length);
+    return swoole_http_parser_execute(&ctx->parser, &http_parser_settings, data, length);
 }
 
 void swoole_http_request_init(int module_number)
@@ -449,6 +444,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
                     boundary_str++;
                     boundary_len -= 2;
                 }
+                swTraceLog(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
                 swoole_http_parse_form_data(ctx, boundary_str, boundary_len);
             }
         }
@@ -640,7 +636,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     }
 
     char file_path[SW_HTTP_UPLOAD_TMPDIR_SIZE];
-    snprintf(file_path, SW_HTTP_UPLOAD_TMPDIR_SIZE, "%s/swoole.upfile.XXXXXX", SwooleG.serv->upload_tmp_dir);
+    snprintf(file_path, SW_HTTP_UPLOAD_TMPDIR_SIZE, "%s/swoole.upfile.XXXXXX", ctx->upload_tmp_dir);
     int tmpfile = swoole_tmpfile(file_path);
     if (tmpfile < 0)
     {
@@ -727,6 +723,8 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
     http_context *ctx = (http_context *) parser->data;
 
     ctx->request.post_length = length;
+
+    swTraceLog(SW_TRACE_HTTP, "length=%ld", length);
 
     if (ctx->parse_body && ctx->request.post_form_urlencoded)
     {

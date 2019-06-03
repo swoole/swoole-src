@@ -82,6 +82,10 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     args[0] = *ctx->request.zobject;
     args[1] = *ctx->response.zobject;
 
+    swoole_http_parser *parser = &ctx->parser;
+    parser->data = ctx;
+    swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
+
     size_t parsed_n = swoole_http_requset_parse(ctx, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     if (parsed_n < Z_STRLEN_P(zdata))
     {
@@ -208,6 +212,7 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx)
     ctx->enable_compression = serv->http_compression;
 #endif
     ctx->private_data = serv;
+    ctx->upload_tmp_dir = serv->upload_tmp_dir;
     ctx->send = http_context_send_data;
     ctx->sendfile = http_context_send_file;
     ctx->close = http_context_disconnect;

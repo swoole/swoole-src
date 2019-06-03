@@ -1151,6 +1151,11 @@ static PHP_METHOD(swoole_http_response, create)
     }
     ctx->fd = (int) fd;
 
+    if (!SwooleG.serv)
+    {
+        RETURN_FALSE;
+    }
+
     swoole_http_server_init_context(SwooleG.serv, ctx);
 
     object_init_ex(return_value, swoole_http_response_ce);

@@ -528,6 +528,9 @@ enum swWorker_status
 
 enum swTraceType
 {
+    /**
+     * Server
+     */
     SW_TRACE_SERVER           = 1u << 1,
     SW_TRACE_CLIENT           = 1u << 2,
     SW_TRACE_BUFFER           = 1u << 3,
@@ -537,27 +540,30 @@ enum swTraceType
     SW_TRACE_MEMORY           = 1u << 7,
     SW_TRACE_REACTOR          = 1u << 8,
     SW_TRACE_PHP              = 1u << 9,
-    SW_TRACE_HTTP2            = 1u << 10,
-    SW_TRACE_EOF_PROTOCOL     = 1u << 11,
-    SW_TRACE_LENGTH_PROTOCOL  = 1u << 12,
-    SW_TRACE_CLOSE            = 1u << 13,
-    SW_TRACE_HTTP_CLIENT      = 1u << 14,
+    SW_TRACE_HTTP             = 1u << 10,
+    SW_TRACE_HTTP2            = 1u << 11,
+    SW_TRACE_EOF_PROTOCOL     = 1u << 12,
+    SW_TRACE_LENGTH_PROTOCOL  = 1u << 13,
+    SW_TRACE_CLOSE            = 1u << 14,
     SW_TRACE_WEBSOCEKT        = 1u << 15,
-    //skip
+    /**
+     * Client
+     */
     SW_TRACE_REDIS_CLIENT     = 1u << 16,
     SW_TRACE_MYSQL_CLIENT     = 1u << 17,
-    SW_TRACE_AIO              = 1u << 18,
-    SW_TRACE_SSL              = 1u << 19,
-    SW_TRACE_NORMAL           = 1u << 20,
-    SW_TRACE_CHANNEL          = 1u << 21,
-    SW_TRACE_TIMER            = 1u << 22,
-    SW_TRACE_SOCKET           = 1u << 23,
+    SW_TRACE_HTTP_CLIENT      = 1u << 18,
+    SW_TRACE_AIO              = 1u << 19,
+    SW_TRACE_SSL              = 1u << 20,
+    SW_TRACE_NORMAL           = 1u << 21,
     /**
      * Coroutine
      */
-    SW_TRACE_COROUTINE        = 1u << 24,
-    SW_TRACE_CONTEXT          = 1u << 25,
-    SW_TRACE_CO_HTTP_SERVER   = 1u << 26,
+    SW_TRACE_CHANNEL          = 1u << 22,
+    SW_TRACE_TIMER            = 1u << 23,
+    SW_TRACE_SOCKET           = 1u << 24,
+    SW_TRACE_COROUTINE        = 1u << 25,
+    SW_TRACE_CONTEXT          = 1u << 26,
+    SW_TRACE_CO_HTTP_SERVER   = 1u << 27,
 
     SW_TRACE_ALL              = 0xffffffff
 };
