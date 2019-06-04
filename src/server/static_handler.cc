@@ -279,6 +279,11 @@ bool static_handler::done()
     p += n;
     *p = '\0';
 
+    if (swoole_strnpos(url, n, SW_STRL("..")) == -1)
+    {
+        goto _detect_mime_type;
+    }
+
     char real_path[PATH_MAX];
     if (!realpath(task.filename, real_path))
     {
@@ -306,7 +311,7 @@ bool static_handler::done()
     /**
      * non-static file
      */
-    if (!swoole_mime_type_exists(task.filename))
+    _detect_mime_type: if (!swoole_mime_type_exists(task.filename))
     {
         return false;
     }
