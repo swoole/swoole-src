@@ -1,5 +1,5 @@
 --TEST--
-swoole_table: Github Issue#2231
+swoole_table: read/write random data
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
