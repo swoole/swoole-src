@@ -56,7 +56,7 @@ class swoole_curl_handler
     public $headers = [];
 
     public $errCode;
-    public $errMsg;
+    public $errMsg = '';
 
     const ERRORS = [
         CURLE_URL_MALFORMAT => 'No URL set!',
