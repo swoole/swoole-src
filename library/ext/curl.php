@@ -366,7 +366,11 @@ function swoole_curl_close(swoole_curl_handler $obj): void
 
 function swoole_curl_error(swoole_curl_handler $obj): string
 {
-    return $obj->errMsg;
+    if (empty($obj->errMsg)){
+        return '';
+    }else{
+        return $obj->errMsg;
+    }
 }
 
 function swoole_curl_errno(swoole_curl_handler $obj): int
