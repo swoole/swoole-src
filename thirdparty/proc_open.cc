@@ -27,12 +27,11 @@ using swoole::PHPCoroutine;
 static int le_proc_open;
 static const char *le_proc_name = "process/coroutine";
 
-
 /* {{{ _php_array_to_envp */
-static php_co_process_env_t _php_array_to_envp(zval *environment)
+static proc_co_env_t _php_array_to_envp(zval *environment)
 {
     zval *element;
-    php_co_process_env_t env;
+    proc_co_env_t env;
     zend_string *key, *str;
     char **ep;
     char *p;
@@ -124,7 +123,7 @@ static php_co_process_env_t _php_array_to_envp(zval *environment)
 /* }}} */
 
 /* {{{ _php_free_envp */
-static void _php_free_envp(php_co_process_env_t env)
+static void _php_free_envp(proc_co_env_t env)
 {
     if (env.envarray)
     {
@@ -137,9 +136,9 @@ static void _php_free_envp(php_co_process_env_t env)
 }
 /* }}} */
 
-static void proc_open_rsrc_dtor(zend_resource *rsrc)
+static void proc_co_rsrc_dtor(zend_resource *rsrc)
 {
-    php_co_process_t *proc = (php_co_process_t*) rsrc->ptr;
+    proc_co_t *proc = (proc_co_t*) rsrc->ptr;
     int i;
     int wstatus = 0;
 
@@ -154,7 +153,7 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc)
         }
     }
 
-    if (!proc->exited)
+    if (proc->running)
     {
         swoole_coroutine_waitpid(proc->child, &wstatus, 0);
     }
@@ -171,7 +170,7 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc)
 
 void swoole_proc_open_init(int module_number)
 {
-	le_proc_open = zend_register_list_destructors_ex(proc_open_rsrc_dtor, NULL, le_proc_name, module_number);
+	le_proc_open = zend_register_list_destructors_ex(proc_co_rsrc_dtor, NULL, le_proc_name, module_number);
 }
 
 /* {{{ proto bool proc_terminate(resource process [, int signal])
@@ -179,7 +178,7 @@ void swoole_proc_open_init(int module_number)
 PHP_FUNCTION(swoole_proc_terminate)
 {
 	zval *zproc;
-	php_co_process_t *proc;
+	proc_co_t *proc;
 	zend_long sig_no = SIGTERM;
 
 	ZEND_PARSE_PARAMETERS_START(1, 2)
@@ -188,7 +187,7 @@ PHP_FUNCTION(swoole_proc_terminate)
 		Z_PARAM_LONG(sig_no)
 	ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if ((proc = (php_co_process_t *) zend_fetch_resource(Z_RES_P(zproc), le_proc_name, le_proc_open)) == NULL)
+    if ((proc = (proc_co_t *) zend_fetch_resource(Z_RES_P(zproc), le_proc_name, le_proc_open)) == NULL)
     {
         RETURN_FALSE
     }
@@ -201,14 +200,14 @@ PHP_FUNCTION(swoole_proc_terminate)
 PHP_FUNCTION(swoole_proc_close)
 {
 	zval *zproc;
-	php_co_process_t *proc;
+	proc_co_t *proc;
 	int wstatus;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
 		Z_PARAM_RESOURCE(zproc)
 	ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if ((proc = (php_co_process_t *) zend_fetch_resource(Z_RES_P(zproc), le_proc_name, le_proc_open)) == NULL)
+    if ((proc = (proc_co_t *) zend_fetch_resource(Z_RES_P(zproc), le_proc_name, le_proc_open)) == NULL)
     {
         RETURN_FALSE
     }
@@ -221,7 +220,7 @@ PHP_FUNCTION(swoole_proc_close)
 PHP_FUNCTION(swoole_proc_get_status)
 {
 	zval *zproc;
-	php_co_process_t *proc;
+	proc_co_t *proc;
 	int wstatus;
 	pid_t wait_pid;
 	int running = 1, signaled = 0, stopped = 0;
@@ -231,7 +230,7 @@ PHP_FUNCTION(swoole_proc_get_status)
 		Z_PARAM_RESOURCE(zproc)
 	ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if ((proc = (php_co_process_t *) zend_fetch_resource(Z_RES_P(zproc), le_proc_name, le_proc_open)) == NULL)
+    if ((proc = (proc_co_t *) zend_fetch_resource(Z_RES_P(zproc), le_proc_name, le_proc_open)) == NULL)
     {
         RETURN_FALSE
     }
@@ -240,7 +239,6 @@ PHP_FUNCTION(swoole_proc_get_status)
 
 	add_assoc_string(return_value, "command", proc->command);
 	add_assoc_long(return_value, "pid", (zend_long) proc->child);
-
 
 	errno = 0;
     wait_pid = swoole_coroutine_waitpid(proc->child, &wstatus, WNOHANG | WUNTRACED);
@@ -264,12 +262,13 @@ PHP_FUNCTION(swoole_proc_get_status)
             stopped = 1;
             stopsig = WSTOPSIG(wstatus);
         }
-        proc->exited = true;
     }
     else if (wait_pid == -1)
     {
         running = 0;
     }
+
+    proc->running = running;
 
 	add_assoc_bool(return_value, "running", running);
 	add_assoc_bool(return_value, "signaled", signaled);
@@ -280,15 +279,13 @@ PHP_FUNCTION(swoole_proc_get_status)
 }
 /* }}} */
 
-# define close_descriptor(fd)	close(fd)
-
 #define DESC_PIPE		1
 #define DESC_FILE		2
 #define DESC_PARENT_MODE_WRITE	8
 
 struct php_proc_open_descriptor_item {
 	int index; 							/* desired fd number in child process */
-	php_file_descriptor_t parentend, childend;	/* fds for pipes in parent/child */
+	int parentend, childend;	        /* fds for pipes in parent/child */
 	int mode;							/* mode for proc_open code */
 	int mode_flags;						/* mode flags for opening fds */
 };
@@ -304,7 +301,7 @@ PHP_FUNCTION(swoole_proc_open)
 	zval *pipes;
 	zval *environment = NULL;
 	zval *other_options = NULL;
-	php_co_process_env_t env;
+	proc_co_env_t env;
 	int ndesc = 0;
 	int i;
 	zval *descitem = NULL;
@@ -313,8 +310,8 @@ PHP_FUNCTION(swoole_proc_open)
 	struct php_proc_open_descriptor_item *descriptors = NULL;
 	int ndescriptors_array;
 
-	php_process_id_t child;
-	php_co_process_t *proc;
+	pid_t child;
+	proc_co_t *proc;
 
 	ZEND_PARSE_PARAMETERS_START(3, 6)
 		Z_PARAM_STRING(command, command_len)
@@ -398,7 +395,7 @@ PHP_FUNCTION(swoole_proc_open)
 			}
 
 			if (strcmp(Z_STRVAL_P(ztype), "pipe") == 0) {
-				php_file_descriptor_t newpipe[2];
+				int newpipe[2];
 				zval *zmode;
 
 				if ((zmode = zend_hash_index_find(Z_ARRVAL_P(descitem), 1)) != NULL) {
@@ -522,14 +519,14 @@ PHP_FUNCTION(swoole_proc_open)
 
     /* we forked/spawned and this is the parent */
 
-    proc = (php_co_process_t*) emalloc(sizeof(php_co_process_t));
+    proc = (proc_co_t*) emalloc(sizeof(proc_co_t));
     proc->wstatus = nullptr;
     proc->command = command;
     proc->pipes = (zend_resource **) emalloc(sizeof(zend_resource *) * ndesc);
     proc->npipes = ndesc;
     proc->child = child;
     proc->env = env;
-    proc->exited = false;
+    proc->running = true;
 
 	zval_ptr_dtor(pipes);
 	array_init(pipes);
@@ -541,7 +538,7 @@ PHP_FUNCTION(swoole_proc_open)
     {
         php_stream *stream = NULL;
 
-        close_descriptor(descriptors[i].childend);
+        close(descriptors[i].childend);
 
         switch (descriptors[i].mode & ~DESC_PARENT_MODE_WRITE)
         {
