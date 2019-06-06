@@ -93,7 +93,7 @@ static const char* swoole_library_source_ext_curl =
     "    public $headers = [];\n"
     "\n"
     "    public $errCode;\n"
-    "    public $errMsg;\n"
+    "    public $errMsg = '';\n"
     "\n"
     "    const ERRORS = [\n"
     "        CURLE_URL_MALFORMAT => 'No URL set!',\n"
