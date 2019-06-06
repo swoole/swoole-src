@@ -46,10 +46,9 @@ enum sw_coro_hook_type
     SW_HOOK_SSL               = 1u << 5,
     SW_HOOK_TLS               = 1u << 6,
     SW_HOOK_STREAM_FUNCTION   = 1u << 7,
-
     SW_HOOK_FILE              = 1u << 8,
     SW_HOOK_SLEEP             = 1u << 9,
-
+    SW_HOOK_PROC              = 1u << 10,
     SW_HOOK_CURL              = 1u << 28,
     SW_HOOK_BLOCKING_FUNCTION = 1u << 30,
 
