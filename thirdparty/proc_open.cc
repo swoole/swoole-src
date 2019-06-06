@@ -65,7 +65,7 @@ static php_co_process_env_t _php_array_to_envp(zval *environment)
 
         if (ZSTR_LEN(str) == 0)
         {
-            zend_string_release_ex(str, 0);
+            zend_string_release(str);
             continue;
         }
 
@@ -110,7 +110,7 @@ static php_co_process_env_t _php_array_to_envp(zval *environment)
             ++ep;
             p += ZSTR_LEN(str) + 1;
         }
-        zend_string_release_ex(str, 0);
+        zend_string_release(str);
     }
     ZEND_HASH_FOREACH_END();
 
