@@ -793,6 +793,9 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     struct timeval default_timeout = { 0, 0 };
     switch (option)
     {
+    case PHP_STREAM_OPTION_BLOCKING:
+        // The coroutine socket always consistent with the sync blocking socket
+        return value ? PHP_STREAM_OPTION_RETURN_OK : PHP_STREAM_OPTION_RETURN_ERR;
     case PHP_STREAM_OPTION_XPORT_API:
     {
         return socket_xport_api(stream, sock, (php_stream_xport_param *) ptrparam STREAMS_CC);
