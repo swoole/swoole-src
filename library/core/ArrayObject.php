@@ -86,7 +86,7 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
      */
     public function get($key)
     {
-        return swoole_detect_type($this->array[$key]);
+        return static::detectType($this->array[$key]);
     }
 
     /**
@@ -226,39 +226,39 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
     }
 
     /**
-     * @param $find
+     * @param $needle
      * @param $strict
      * @return mixed
      */
-    public function search($find, $strict = true)
+    public function search($needle, $strict = true)
     {
-        return array_search($find, $this->array, $strict);
+        return array_search($needle, $this->array, $strict);
     }
 
     /**
-     * @param string $str
-     * @return string
+     * @param string $glue
+     * @return StringObject
      */
-    public function join(string $str = ''): string
+    public function join(string $glue = ''): StringObject
     {
-        return implode($str, $this->array);
+        return static::detectStringType(implode($glue, $this->array));
     }
 
     /**
-     * @return string
+     * @return StringObject
      */
-    public function serialize(): string
+    public function serialize(): StringObject
     {
-        return serialize($this->array);
+        return static::detectStringType(serialize($this->array));
     }
 
     /**
-     * @param string $str
+     * @param string $string
      * @return $this
      */
-    public function unserialize($str): self
+    public function unserialize($string): self
     {
-        $this->array = (array)unserialize($str);
+        $this->array = (array)unserialize($string);
         return $this;
     }
 
@@ -338,11 +338,11 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
     }
 
     /**
-     * @return ArrayObject|StringObject
+     * @return ArrayObject|StringObject|mixed
      */
     public function randomGet()
     {
-        return swoole_detect_type($this->array[array_rand($this->array, 1)]);
+        return static::detectType($this->array[array_rand($this->array, 1)]);
     }
 
     /**
@@ -630,4 +630,36 @@ class ArrayObject implements ArrayAccess, Serializable, Countable, Iterator
         return $this->array;
     }
 
+    /**
+     * @param $value
+     * @return ArrayObject|StringObject|mixed
+     */
+    protected static function detectType($value)
+    {
+        if (is_string($value)) {
+            return static::detectStringType($value);
+        } elseif (is_array($value)) {
+            return static::detectArrayType($value);
+        } else {
+            return $value;
+        }
+    }
+
+    /**
+     * @param string $value
+     * @return StringObject
+     */
+    protected static function detectStringType(string $value): StringObject
+    {
+        return new StringObject($value);
+    }
+
+    /**
+     * @param array $value
+     * @return static
+     */
+    protected static function detectArrayType(array $value): self
+    {
+        return new static($value);
+    }
 }

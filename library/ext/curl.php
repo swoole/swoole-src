@@ -76,7 +76,7 @@ class swoole_curl_handler
         }
         $this->info['url'] = $url;
         $info = parse_url($url);
-        $proto = swoole_default_value($info, 'scheme');
+        $proto = swoole_array_default_value($info, 'scheme');
         if ($proto != 'http' and $proto != 'https') {
             $this->setError(CURLE_UNSUPPORTED_PROTOCOL, "Protocol \"{$proto}\" not supported or disabled in libcurl");
             return;
