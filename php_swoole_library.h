@@ -92,7 +92,7 @@ static const char* swoole_library_source_ext_curl =
     "    public $method = 'GET';\n"
     "    public $headers = [];\n"
     "\n"
-    "    public $errCode;\n"
+    "    public $errCode = 0;\n"
     "    public $errMsg = '';\n"
     "\n"
     "    const ERRORS = [\n"

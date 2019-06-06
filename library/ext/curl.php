@@ -55,7 +55,7 @@ class swoole_curl_handler
     public $method = 'GET';
     public $headers = [];
 
-    public $errCode;
+    public $errCode = 0;
     public $errMsg = '';
 
     const ERRORS = [
