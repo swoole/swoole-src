@@ -1,5 +1,5 @@
 --TEST--
-Test curl_opt() function with setting referer
+swoole_library/curl/basic: Test curl_opt() function with setting referer
 --CREDITS--
 Sebastian Deutsch <sebastian.deutsch@9elements.com>
 TestFest 2009 - AFUP - Jean-Marc Fontaine <jmf@durcommefaire.net>

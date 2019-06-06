@@ -1,5 +1,5 @@
 --TEST--
-Test curl_error() & curl_errno() function with problematic host
+swoole_library/curl/basic: Test curl_error() & curl_errno() function with problematic host
 --CREDITS--
 TestFest 2009 - AFUP - Perrick Penet <perrick@noparking.net>
 --SKIPIF--

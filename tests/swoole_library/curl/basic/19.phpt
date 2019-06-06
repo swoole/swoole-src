@@ -1,5 +1,5 @@
 --TEST--
-Test curl_getinfo() function with CURLINFO_EFFECTIVE_URL parameter
+swoole_library/curl/basic: Test curl_getinfo() function with CURLINFO_EFFECTIVE_URL parameter
 --CREDITS--
 Jean-Marc Fontaine <jmf@durcommefaire.net>
 --SKIPIF--

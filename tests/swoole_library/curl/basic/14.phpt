@@ -1,5 +1,5 @@
 --TEST--
-Test curl_init() function with basic functionality
+swoole_library/curl/basic: Test curl_init() function with basic functionality
 --CREDITS--
 Jean-Marc Fontaine <jmf@durcommefaire.net>
 --SKIPIF--

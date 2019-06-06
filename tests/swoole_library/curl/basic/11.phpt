@@ -1,5 +1,5 @@
 --TEST--
-Test curl_opt() function with COOKIE
+swoole_library/curl/basic: Test curl_opt() function with COOKIE
 --CREDITS--
 TestFest 2009 - AFUP - Xavier Gorse <xgorse@elao.com>
 --SKIPIF--

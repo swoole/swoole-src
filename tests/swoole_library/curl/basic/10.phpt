@@ -1,5 +1,5 @@
 --TEST--
-Test curl_error() & curl_errno() function with problematic proxy
+swoole_library/curl/basic: Test curl_error() & curl_errno() function with problematic proxy
 --CREDITS--
 TestFest 2009 - AFUP - Perrick Penet <perrick@noparking.net>
 --SKIPIF--

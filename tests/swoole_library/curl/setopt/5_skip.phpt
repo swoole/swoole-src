@@ -1,5 +1,5 @@
 --TEST--
-cURL option CURLOPT_READFUNCTION
+swoole_library/curl/setopt: cURL option CURLOPT_READFUNCTION
 --CREDITS--
 WHITE new media architects - Jeroen Vermeulen
 #testfest Utrecht 2009

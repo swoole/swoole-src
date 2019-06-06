@@ -1,5 +1,5 @@
 --TEST--
-Test curl_exec() function with basic functionality
+swoole_library/curl/basic: Test curl_exec() function with basic functionality
 --CREDITS--
 Sebastian Deutsch
 <sebastian.deutsch@9elements.com>

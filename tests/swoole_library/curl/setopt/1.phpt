@@ -1,5 +1,5 @@
 --TEST--
-curl_setopt_array() function - tests setting multiple cURL options with curl_setopt_array()
+swoole_library/curl/setopt: curl_setopt_array() function - tests setting multiple cURL options with curl_setopt_array()
 --CREDITS--
 Mattijs Hoitink mattijshoitink@gmail.com
 #Testfest Utrecht 2009

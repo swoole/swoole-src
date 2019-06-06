@@ -1,5 +1,5 @@
 --TEST--
-Test curl_opt() function with CURLOPT_RETURNTRANSFER parameter set to 1
+swoole_library/curl/basic: Test curl_opt() function with CURLOPT_RETURNTRANSFER parameter set to 1
 --CREDITS--
 Sebastian Deutsch <sebastian.deutsch@9elements.com>
 TestFest 2009 - AFUP - Jean-Marc Fontaine <jmf@durcommefaire.net>
