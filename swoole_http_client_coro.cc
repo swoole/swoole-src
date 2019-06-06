@@ -1115,6 +1115,8 @@ bool http_client::send()
         {
             goto _send_fail;
         }
+        wait = true;
+        return true;
     }
     // ============ x-www-form-urlencoded or raw ============
     else if (zbody)
