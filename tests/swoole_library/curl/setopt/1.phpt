@@ -4,6 +4,7 @@ swoole_library/curl/setopt: curl_setopt_array() function - tests setting multipl
 Mattijs Hoitink mattijshoitink@gmail.com
 #Testfest Utrecht 2009
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 --FILE--
 <?php
 /*

@@ -4,6 +4,7 @@ swoole_library/curl/setopt: cURL option CURLOPT_READFUNCTION
 WHITE new media architects - Jeroen Vermeulen
 #testfest Utrecht 2009
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 exit('skip')
 ?>

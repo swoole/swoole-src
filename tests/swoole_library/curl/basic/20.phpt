@@ -3,6 +3,7 @@ swoole_library/curl/basic: Test curl_getinfo() function with CURLINFO_HTTP_CODE 
 --CREDITS--
 Jean-Marc Fontaine <jmf@durcommefaire.net>
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../../include/bootstrap.php';

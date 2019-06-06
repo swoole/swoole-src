@@ -3,6 +3,8 @@ swoole_socket_coro/setopt: setOption SO_RCVTIMEO
 --DESCRIPTION--
 -wrong params
 -set/get params comparison
+--SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

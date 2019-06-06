@@ -3,6 +3,7 @@ swoole_library/curl/basic: Test curl_error() & curl_errno() function with proble
 --CREDITS--
 TestFest 2009 - AFUP - Perrick Penet <perrick@noparking.net>
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 	if (!extension_loaded("curl")) print "skip";
 	$addr = "www.".uniqid().".".uniqid();

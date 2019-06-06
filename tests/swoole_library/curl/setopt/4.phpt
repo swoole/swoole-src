@@ -4,6 +4,7 @@ swoole_library/curl/setopt: curl_setopt() call with CURLOPT_RETURNTRANSFER
 Paul Sohier
 #phptestfest utrecht
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 --FILE--
 <?php
 
