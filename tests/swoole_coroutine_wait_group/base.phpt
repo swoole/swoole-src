@@ -36,4 +36,3 @@ go(function () use ($wg) {
 TASK[1] DONE
 TASK[2] DONE
 TASK[3] DONE
-

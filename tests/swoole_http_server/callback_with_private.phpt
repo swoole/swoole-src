@@ -41,4 +41,3 @@ $output = $pm->getChildOutput();
 \Swoole\Assert::contains($output, 'Swoole\Server::on() must be callable');
 ?>
 --EXPECT--
-

@@ -38,4 +38,3 @@ $cm->run(function ($host) {
 *** Testing curl with HTTP/1.1 ***
 string(8) "HTTP/1.1"
 ===DONE===
-                     

@@ -40,4 +40,3 @@ $cm->run(function ($host) {
 Warning: swoole_curl: http version[1] not supported in %s on line %d
 string(8) "HTTP/1.1"
 ===DONE===
-                     

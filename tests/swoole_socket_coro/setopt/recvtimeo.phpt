@@ -19,4 +19,3 @@ Assert::assert($retval_2 === true);
 ?>
 --EXPECTF--
 Warning: Swoole\Coroutine\Socket::setOption(): no key "sec" passed in optval in %s on line %d
-

@@ -42,4 +42,3 @@ swoole_event_wait();
 
 ?>
 --EXPECTF--
-

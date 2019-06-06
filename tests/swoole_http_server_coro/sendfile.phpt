@@ -43,4 +43,3 @@ $pm->run();
 --EXPECT--
 shutdown
 DONE
-

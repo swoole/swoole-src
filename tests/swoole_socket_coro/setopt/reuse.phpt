@@ -15,4 +15,3 @@ Assert::assert($socket->setOption(SOL_SOCKET, SO_REUSEPORT, true));
 
 ?>
 --EXPECTF--
-

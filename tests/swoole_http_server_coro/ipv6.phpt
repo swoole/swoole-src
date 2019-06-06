@@ -38,4 +38,3 @@ $pm->run();
 --EXPECT--
 <h1>Index</h1>
 <h1>Stop</h1>
-
