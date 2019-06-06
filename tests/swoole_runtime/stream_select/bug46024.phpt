@@ -50,6 +50,6 @@ go(function () {
 Swoole\Event::wait();
 ?>
 --EXPECTF--
-resource(%d) of type (process)
+resource(%d) of type (process/coroutine)
 bool(true)
 bool(true)

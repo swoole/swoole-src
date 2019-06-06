@@ -32,6 +32,8 @@ SW_API swoole::coroutine::Socket* php_swoole_get_socket(zval *zobject);
 SW_API void php_swoole_client_set(swoole::coroutine::Socket *cli, zval *zset);
 SW_API bool php_swoole_socket_set_protocol(swoole::coroutine::Socket *sock, zval *zset);
 
+php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC);
+
 #ifdef SW_USE_OPENSSL
 SW_API bool php_swoole_socket_set_ssl(swoole::coroutine::Socket *sock, zval *zset);
 #endif
@@ -135,8 +137,6 @@ private:
     zend_string *str;
 };
 
-namespace array
-{
 class key_value
 {
 public:
@@ -169,7 +169,126 @@ public:
         zval_ptr_dtor(&zvalue);
     }
 };
-}
+
+class ArrayIterator
+{
+public:
+    ArrayIterator(Bucket *p)
+    {
+        _ptr = p;
+        _key = _ptr->key;
+        _val = &_ptr->val;
+        _index = _ptr->h;
+        pe = p;
+    }
+    ArrayIterator(Bucket *p, Bucket *_pe)
+    {
+        _ptr = p;
+        _key = _ptr->key;
+        _val = &_ptr->val;
+        _index = _ptr->h;
+        pe = _pe;
+        skipUndefBucket();
+    }
+    void operator ++(int i)
+    {
+        ++_ptr;
+        skipUndefBucket();
+    }
+    bool operator !=(ArrayIterator b)
+    {
+        return b.ptr() != _ptr;
+    }
+    std::string key()
+    {
+        return std::string(_key->val, _key->len);
+    }
+    zend_ulong index()
+    {
+        return _index;
+    }
+    zval* value()
+    {
+        return _val;
+    }
+    Bucket *ptr()
+    {
+        return _ptr;
+    }
+private:
+    void skipUndefBucket()
+    {
+        while (_ptr != pe)
+        {
+            _val = &_ptr->val;
+            if (_val && Z_TYPE_P(_val) == IS_INDIRECT)
+            {
+                _val = Z_INDIRECT_P(_val);
+            }
+            if (UNEXPECTED(Z_TYPE_P(_val) == IS_UNDEF))
+            {
+                ++_ptr;
+                continue;
+            }
+            if (_ptr->key)
+            {
+                _key = _ptr->key;
+                _index = 0;
+            }
+            else
+            {
+                _index = _ptr->h;
+                _key = NULL;
+            }
+            break;
+        }
+    }
+
+    zval *_val;
+    zend_string *_key;
+    Bucket *_ptr;
+    Bucket *pe;
+    zend_ulong _index;
+};
+
+class array
+{
+public:
+    zval *arr;
+
+    array(zval *_arr)
+    {
+        assert(Z_TYPE_P(_arr) == IS_ARRAY);
+        arr = _arr;
+    }
+
+    inline size_t count()
+    {
+        return zend_hash_num_elements(Z_ARRVAL_P(arr));
+    }
+
+    inline bool set(zend_ulong index, zval *value)
+    {
+        return add_index_zval(arr, index, value) == SUCCESS;
+    }
+
+    inline bool set(zend_ulong index, zend_resource *res)
+    {
+        zval tmp;
+        ZVAL_RES(&tmp, res);
+        return set(index, &tmp);
+    }
+
+    ArrayIterator begin()
+    {
+        return ArrayIterator(Z_ARRVAL_P(arr)->arData, Z_ARRVAL_P(arr)->arData + Z_ARRVAL_P(arr)->nNumUsed);
+    }
+
+    ArrayIterator end()
+    {
+        return ArrayIterator(Z_ARRVAL_P(arr)->arData + Z_ARRVAL_P(arr)->nNumUsed);
+    }
+};
 
 namespace function
 {

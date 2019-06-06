@@ -392,7 +392,7 @@ static PHP_METHOD(swoole_table, set)
     if (!row)
     {
         swTableRow_unlock(_rowlock);
-        swoole_php_error(E_WARNING, "failed to set('%*s'), unable to allocate memory", keylen, key);
+        swoole_php_error(E_WARNING, "failed to set('%*s'), unable to allocate memory", (int )keylen, key);
         RETURN_FALSE;
     }
 

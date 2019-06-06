@@ -547,8 +547,9 @@ if test "$PHP_SWOOLE" != "no"; then
         thirdparty/sockets/sendrecvmsg.cc \
         thirdparty/sockets/conversions.cc \
         thirdparty/sockets/sockaddr_conv.cc \
+        thirdparty/proc_open.cc \
         thirdparty/swoole_http_parser.c \
-        thirdparty/multipart_parser.c"
+	thirdparty/multipart_parser.c"
 
     swoole_source_file="$swoole_source_file \
         thirdparty/hiredis/async.c \
