@@ -4,12 +4,14 @@ swoole_library/curl/setopt: cURL option CURLOPT_READFUNCTION
 WHITE new media architects - Jeroen Vermeulen
 #testfest Utrecht 2009
 --SKIPIF--
-<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
-exit('skip')
+require __DIR__ . '/../../../include/skipif.inc';
+skip_unsupported();
 ?>
 --FILE--
 <?php
+require __DIR__ . '/../../../include/bootstrap.php';
+
 function custom_readfunction($oCurl, $hReadHandle, $iMaxOut)
 {
   $sData = fread($hReadHandle,$iMaxOut-10); # -10 to have space to add "custom:"
