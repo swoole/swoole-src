@@ -18,7 +18,6 @@ Swoole
 
 The network layer in Swoole is event-based and takes full advantage of the underlying epoll/kqueue implementation, making it really easy to serve millions of requests.
 
-
 Swoole 4.x use a brand new engine kernel and now it has a full-time developer team, so we are entering an unprecedented period in PHP history which offers a unique possibility for rapid evolution in performance.
 
 ## ⚡️Coroutine
@@ -60,17 +59,17 @@ You can create multiple services on the single event loop: TCP, HTTP, Websocket 
 ```php
 function tcp_pack(string $data): string
 {
-    return pack('n', strlen($data)) . $data;
+    return pack('N', strlen($data)) . $data;
 }
 function tcp_unpack(string $data): string
 {
-    return substr($data, 2, unpack('n', substr($data, 0, 2))[1]);
+    return substr($data, 4, unpack('N', substr($data, 0, 4))[1]);
 }
 $tcp_options = [
     'open_length_check' => true,
-    'package_length_type' => 'n',
+    'package_length_type' => 'N',
     'package_length_offset' => 0,
-    'package_body_offset' => 2
+    'package_body_offset' => 4
 ];
 ```
 
