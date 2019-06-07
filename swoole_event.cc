@@ -20,6 +20,9 @@
 
 using namespace swoole;
 
+zend_class_entry *swoole_event_ce;
+static zend_object_handlers swoole_event_handlers;
+
 typedef struct
 {
     struct
@@ -37,6 +40,89 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event);
 static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event);
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event);
 static void php_swoole_event_onEndCallback(void *_cb);
+
+static PHP_FUNCTION(swoole_event_add);
+static PHP_FUNCTION(swoole_event_set);
+static PHP_FUNCTION(swoole_event_del);
+static PHP_FUNCTION(swoole_event_write);
+static PHP_FUNCTION(swoole_event_wait);
+static PHP_FUNCTION(swoole_event_exit);
+static PHP_FUNCTION(swoole_event_defer);
+static PHP_FUNCTION(swoole_event_cycle);
+static PHP_FUNCTION(swoole_event_dispatch);
+static PHP_FUNCTION(swoole_event_isset);
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_add, 0, 0, 2)
+    ZEND_ARG_INFO(0, fd)
+    ZEND_ARG_CALLABLE_INFO(0, read_callback, 1)
+    ZEND_ARG_CALLABLE_INFO(0, write_callback, 1)
+    ZEND_ARG_INFO(0, events)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_set, 0, 0, 1)
+    ZEND_ARG_INFO(0, fd)
+    ZEND_ARG_CALLABLE_INFO(0, read_callback, 1)
+    ZEND_ARG_CALLABLE_INFO(0, write_callback, 1)
+    ZEND_ARG_INFO(0, events)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_write, 0, 0, 2)
+    ZEND_ARG_INFO(0, fd)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_defer, 0, 0, 1)
+    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_cycle, 0, 0, 1)
+    ZEND_ARG_CALLABLE_INFO(0, callback, 1)
+    ZEND_ARG_INFO(0, before)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_del, 0, 0, 1)
+    ZEND_ARG_INFO(0, fd)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_isset, 0, 0, 1)
+    ZEND_ARG_INFO(0, fd)
+    ZEND_ARG_INFO(0, events)
+ZEND_END_ARG_INFO()
+
+static const zend_function_entry swoole_event_methods[] =
+{
+    ZEND_FENTRY(add, ZEND_FN(swoole_event_add), arginfo_swoole_event_add, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(del, ZEND_FN(swoole_event_del), arginfo_swoole_event_del, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(set, ZEND_FN(swoole_event_set), arginfo_swoole_event_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(isset, ZEND_FN(swoole_event_isset), arginfo_swoole_event_isset, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(dispatch, ZEND_FN(swoole_event_dispatch), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(defer, ZEND_FN(swoole_event_defer), arginfo_swoole_event_defer, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(cycle, ZEND_FN(swoole_event_cycle), arginfo_swoole_event_cycle, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(write, ZEND_FN(swoole_event_write), arginfo_swoole_event_write, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(wait, ZEND_FN(swoole_event_wait), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(exit, ZEND_FN(swoole_event_exit), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_FE_END
+};
+
+void swoole_event_init(int module_number)
+{
+    SW_INIT_CLASS_ENTRY(swoole_event, "Swoole\\Event", "swoole_event", NULL, swoole_event_methods);
+    SW_SET_CLASS_CREATE(swoole_event, sw_zend_create_object_deny);
+
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "add", CG(function_table), "swoole_event_add");
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "del", CG(function_table), "swoole_event_del");
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "set", CG(function_table), "swoole_event_set");
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "isset", CG(function_table), "swoole_event_isset");
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "dispatch", CG(function_table), "swoole_event_dispatch");
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "defer", CG(function_table), "swoole_event_defer");
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "cycle", CG(function_table), "swoole_event_cycle");
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "write", CG(function_table), "swoole_event_write");
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "wait", CG(function_table), "swoole_event_wait");
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "exit", CG(function_table), "swoole_event_exit");
+}
 
 static void free_event_callback(void* data)
 {
@@ -438,7 +524,7 @@ void swoole_php_socket_free(zval *zsocket)
 }
 #endif
 
-PHP_FUNCTION(swoole_event_add)
+static PHP_FUNCTION(swoole_event_add)
 {
     zval *zfd;
     zval *cb_read = NULL;
@@ -525,7 +611,7 @@ PHP_FUNCTION(swoole_event_add)
     RETURN_LONG(socket_fd);
 }
 
-PHP_FUNCTION(swoole_event_write)
+static PHP_FUNCTION(swoole_event_write)
 {
     zval *zfd;
     char *data;
@@ -560,7 +646,7 @@ PHP_FUNCTION(swoole_event_write)
     }
 }
 
-PHP_FUNCTION(swoole_event_set)
+static PHP_FUNCTION(swoole_event_set)
 {
     zval *zfd;
     zval *cb_read = NULL;
@@ -661,7 +747,7 @@ PHP_FUNCTION(swoole_event_set)
     RETURN_TRUE;
 }
 
-PHP_FUNCTION(swoole_event_del)
+static PHP_FUNCTION(swoole_event_del)
 {
     zval *zfd;
 
@@ -695,7 +781,7 @@ PHP_FUNCTION(swoole_event_del)
     SW_CHECK_RETURN(ret);
 }
 
-PHP_FUNCTION(swoole_event_defer)
+static PHP_FUNCTION(swoole_event_defer)
 {
     zval *callback;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &callback) == FAILURE)
@@ -721,7 +807,7 @@ PHP_FUNCTION(swoole_event_defer)
     RETURN_TRUE;
 }
 
-PHP_FUNCTION(swoole_event_cycle)
+static PHP_FUNCTION(swoole_event_cycle)
 {
     if (!SwooleG.main_reactor)
     {
@@ -792,12 +878,12 @@ PHP_FUNCTION(swoole_event_cycle)
     RETURN_TRUE;
 }
 
-PHP_FUNCTION(swoole_event_exit)
+static PHP_FUNCTION(swoole_event_exit)
 {
     php_swoole_event_exit();
 }
 
-PHP_FUNCTION(swoole_event_wait)
+static PHP_FUNCTION(swoole_event_wait)
 {
     if (!SwooleG.main_reactor)
     {
@@ -806,7 +892,7 @@ PHP_FUNCTION(swoole_event_wait)
     php_swoole_event_wait();
 }
 
-PHP_FUNCTION(swoole_event_dispatch)
+static PHP_FUNCTION(swoole_event_dispatch)
 {
     if (!SwooleG.main_reactor)
     {
@@ -831,7 +917,7 @@ PHP_FUNCTION(swoole_event_dispatch)
     RETURN_TRUE;
 }
 
-PHP_FUNCTION(swoole_event_isset)
+static PHP_FUNCTION(swoole_event_isset)
 {
     if (!SwooleG.main_reactor)
     {

@@ -245,6 +245,7 @@ typedef struct
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 
+extern zend_class_entry *swoole_event_ce;
 extern zend_class_entry *swoole_timer_ce;
 extern zend_class_entry *swoole_socket_coro_ce;
 extern zend_class_entry *swoole_client_ce;
@@ -287,16 +288,6 @@ PHP_FUNCTION(swoole_coroutine_defer);
 //---------------------------------------------------------
 //                  event
 //---------------------------------------------------------
-PHP_FUNCTION(swoole_event_add);
-PHP_FUNCTION(swoole_event_set);
-PHP_FUNCTION(swoole_event_del);
-PHP_FUNCTION(swoole_event_write);
-PHP_FUNCTION(swoole_event_wait);
-PHP_FUNCTION(swoole_event_exit);
-PHP_FUNCTION(swoole_event_defer);
-PHP_FUNCTION(swoole_event_cycle);
-PHP_FUNCTION(swoole_event_dispatch);
-PHP_FUNCTION(swoole_event_isset);
 PHP_FUNCTION(swoole_client_select);
 //---------------------------------------------------------
 //                  async[coro]
@@ -316,6 +307,7 @@ PHP_FUNCTION(swoole_errno);
 PHP_FUNCTION(swoole_last_error);
 
 /** <Sort by dependency> **/
+void swoole_event_init(int module_number);
 // base
 void swoole_atomic_init(int module_number);
 void swoole_buffer_init(int module_number);
