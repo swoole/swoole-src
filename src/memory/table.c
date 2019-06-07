@@ -427,11 +427,11 @@ int swTableRow_del(swTable *table, char *key, int keylen)
         if (strncmp(row->key, key, keylen) == 0)
         {
             bzero(row, sizeof(swTableRow) + table->item_size);
-            goto delete_element;
+            goto _delete_element;
         }
         else
         {
-            goto not_exists;
+            goto _not_exists;
         }
     }
     else
@@ -451,7 +451,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
 
         if (tmp == NULL)
         {
-            not_exists:
+            _not_exists:
             swTableRow_unlock(row);
             return SW_ERR;
         }
@@ -475,7 +475,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
         table->lock.unlock(&table->lock);
     }
 
-    delete_element:
+    _delete_element:
     sw_atomic_fetch_sub(&(table->row_num), 1);
     swTableRow_unlock(row);
 

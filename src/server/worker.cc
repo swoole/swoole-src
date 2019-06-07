@@ -112,20 +112,20 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
         {
             return SW_FALSE;
         }
-        goto discard_data;
+        goto _discard_data;
     }
     else
     {
         if (conn->closed)
         {
-            goto discard_data;
+            goto _discard_data;
         }
         else
         {
             return SW_FALSE;
         }
     }
-    discard_data:
+    _discard_data:
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", task->info.len, session_id);
     }
@@ -551,7 +551,7 @@ void swWorker_stop(swWorker *worker)
             SwooleG.main_reactor->del(SwooleG.main_reactor, worker->pipe_master);
         }
 
-        goto try_to_exit;
+        goto _try_to_exit;
     }
 
     swWorkerStopMessage msg;
@@ -568,7 +568,7 @@ void swWorker_stop(swWorker *worker)
         swKill(serv->gs->manager_pid, SIGIO);
     }
 
-    try_to_exit:
+    _try_to_exit:
     SwooleWG.wait_exit = 1;
     SwooleWG.exit_time = serv->gs->now;
 
@@ -772,7 +772,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     swPipeBuffer *buffer = serv->pipe_buffers[0];
     int ret;
 
-    read_from_pipe:
+    _read_from_pipe:
 
     if (read(event->fd, buffer, serv->ipc_max_size) > 0)
     {
@@ -791,7 +791,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
             }
             else if (ret > 0)
             {
-                goto read_from_pipe;
+                goto _read_from_pipe;
             }
         }
         return ret;

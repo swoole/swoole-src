@@ -145,14 +145,14 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
     int ret = PHPCoroutine::resume_m(req->context, &zaddress, retval);
     if (ret > 0)
     {
-        goto free_zdata;
+        goto _free_zdata;
     }
 
     if (retval)
     {
         zval_ptr_dtor(retval);
     }
-    free_zdata:
+    _free_zdata:
     zval_ptr_dtor(&zaddress);
     efree(req->context);
     efree(req);
@@ -178,14 +178,14 @@ static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
     int ret = PHPCoroutine::resume_m(req->context, &zaddress, retval);
     if (ret > 0)
     {
-        goto free_zdata;
+        goto _free_zdata;
     }
 
     if (retval)
     {
         zval_ptr_dtor(retval);
     }
-    free_zdata:
+    _free_zdata:
     zval_ptr_dtor(&zaddress);
     efree(req->context);
     req->useless = 1;

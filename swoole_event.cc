@@ -411,7 +411,7 @@ php_socket* swoole_convert_to_socket(int sock)
     else
     {
         swoole_php_sys_error(E_WARNING, "unable to obtain socket family");
-        error:
+        _error:
         efree(socket_object);
         return NULL;
     }
@@ -420,7 +420,7 @@ php_socket* swoole_convert_to_socket(int sock)
     if (t == -1)
     {
         swoole_php_sys_error(E_WARNING, "unable to obtain blocking state");
-        goto error;
+        goto _error;
     }
     else
     {

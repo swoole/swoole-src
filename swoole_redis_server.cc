@@ -382,7 +382,7 @@ static PHP_METHOD(swoole_redis_server, format)
     {
         if (!value)
         {
-            goto no_value;
+            goto _no_value;
         }
 
         length = sw_snprintf(message, sizeof(message), ":" ZEND_LONG_FMT "\r\n", zval_get_long(value));
@@ -392,7 +392,7 @@ static PHP_METHOD(swoole_redis_server, format)
     {
         if (!value)
         {
-            no_value:
+            _no_value:
             swoole_php_fatal_error(E_WARNING, "require more parameters");
             RETURN_FALSE;
         }
@@ -413,7 +413,7 @@ static PHP_METHOD(swoole_redis_server, format)
     {
         if (!value)
         {
-            goto no_value;
+            goto _no_value;
         }
         if (!ZVAL_IS_ARRAY(value))
         {
@@ -448,7 +448,7 @@ static PHP_METHOD(swoole_redis_server, format)
     {
         if (!value)
         {
-            goto no_value;
+            goto _no_value;
         }
         if (!ZVAL_IS_ARRAY(value))
         {
