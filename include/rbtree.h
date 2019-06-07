@@ -27,20 +27,20 @@ typedef struct swRbtree_node_s swRbtree_node;
 
 struct swRbtree_node_s
 {
-	uint32_t key;
-	void *value;
-	swRbtree_node *left;
-	swRbtree_node *right;
-	swRbtree_node *parent;
-	char color;
+    uint32_t key;
+    void *value;
+    swRbtree_node *left;
+    swRbtree_node *right;
+    swRbtree_node *parent;
+    char color;
 };
 
 typedef struct swRbtree_s swRbtree;
 
 struct swRbtree_s
 {
-	swRbtree_node *root;
-	swRbtree_node *sentinel;
+    swRbtree_node *root;
+    swRbtree_node *sentinel;
 };
 
 swRbtree* swRbtree_new();
@@ -59,11 +59,11 @@ void* swRbtree_find(swRbtree *tree, uint32_t key);
 
 static inline swRbtree_node *swRbtree_min(swRbtree_node *node, swRbtree_node *sentinel)
 {
-	while (node->left != sentinel)
-	{
-		node = node->left;
-	}
-	return node;
+    while (node->left != sentinel)
+    {
+        node = node->left;
+    }
+    return node;
 }
 
 #ifdef __cplusplus

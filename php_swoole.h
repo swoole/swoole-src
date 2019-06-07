@@ -85,11 +85,11 @@ extern zend_module_entry swoole_module_entry;
 #define phpext_swoole_ptr &swoole_module_entry
 
 #ifdef PHP_WIN32
-#	define PHP_SWOOLE_API __declspec(dllexport)
+# define PHP_SWOOLE_API __declspec(dllexport)
 #elif defined(__GNUC__) && __GNUC__ >= 4
-#	define PHP_SWOOLE_API __attribute__ ((visibility("default")))
+# define PHP_SWOOLE_API __attribute__ ((visibility("default")))
 #else
-#	define PHP_SWOOLE_API
+# define PHP_SWOOLE_API
 #endif
 
 #ifdef __APPLE__
@@ -568,8 +568,8 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 /* PHP 7.3 compatibility macro {{{*/
 #ifndef GC_SET_REFCOUNT
 # define GC_SET_REFCOUNT(p, rc) do { \
-		GC_REFCOUNT(p) = rc; \
-	} while (0)
+    GC_REFCOUNT(p) = rc; \
+} while (0)
 #endif
 
 #ifndef GC_ADDREF
@@ -579,11 +579,11 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 
 #ifndef GC_IS_RECURSIVE
 #define GC_IS_RECURSIVE(p) \
-	(ZEND_HASH_GET_APPLY_COUNT(p) >= 1)
+    (ZEND_HASH_GET_APPLY_COUNT(p) >= 1)
 #define GC_PROTECT_RECURSION(p) \
-	ZEND_HASH_INC_APPLY_COUNT(p)
+    ZEND_HASH_INC_APPLY_COUNT(p)
 #define GC_UNPROTECT_RECURSION(p) \
-	ZEND_HASH_DEC_APPLY_COUNT(p)
+    ZEND_HASH_DEC_APPLY_COUNT(p)
 #endif
 
 #ifndef ZEND_CLOSURE_OBJECT
@@ -1188,4 +1188,4 @@ static sw_inline zend_string* sw_get_debug_print_backtrace(zend_long options, ze
 
 END_EXTERN_C()
 
-#endif	/* PHP_SWOOLE_H */
+#endif /* PHP_SWOOLE_H */

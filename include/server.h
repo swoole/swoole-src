@@ -228,11 +228,11 @@ typedef struct _swUserWorker_node
 } swUserWorker_node;
 
 typedef struct {
-	char *filename;
-	uint16_t name_len;
-	int fd;
-	size_t length;
-	off_t offset;
+    char *filename;
+    uint16_t name_len;
+    int fd;
+    size_t length;
+    off_t offset;
 } swTask_sendfile;
 
 typedef struct
@@ -603,8 +603,8 @@ typedef struct
 
 typedef struct
 {
-	int length;
-	int worker_id;
+    int length;
+    int worker_id;
 } swPackage_response;
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
@@ -825,7 +825,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
 #ifdef HAVE_KQUEUE
             key = *(((uint32_t *) &conn->info.addr.inet_v6.sin6_addr) + 3);
 #elif defined(_WIN32)
-			key = conn->info.addr.inet_v6.sin6_addr.u.Word[3];
+            key = conn->info.addr.inet_v6.sin6_addr.u.Word[3];
 #else
             key = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3];
 #endif
