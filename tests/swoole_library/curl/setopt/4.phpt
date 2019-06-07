@@ -1,9 +1,10 @@
 --TEST--
-curl_setopt() call with CURLOPT_RETURNTRANSFER
+swoole_library/curl/setopt: curl_setopt() call with CURLOPT_RETURNTRANSFER
 --CREDITS--
 Paul Sohier
 #phptestfest utrecht
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 --FILE--
 <?php
 

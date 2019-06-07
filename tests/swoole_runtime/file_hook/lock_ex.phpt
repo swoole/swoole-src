@@ -35,5 +35,3 @@ unlink(FILE);
 %d OK
 %d OK
 %d OK
-
-

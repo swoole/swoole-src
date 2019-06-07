@@ -19,12 +19,11 @@ if (empty($list)) {
 }
 $source_str = $eval_str = '';
 foreach ($list as $file) {
-
     $php_file = LIB_DIR . '/' . $file;
-    if (!swoole_string(`/usr/bin/env php -n -l $php_file`)->contains('No syntax errors detected')) {
-        swoole_error("syntax error in [$php_file]");
+    if (strpos(`/usr/bin/env php -n -l {$php_file} 2>&1`, 'No syntax errors detected') === false) {
+        swoole_error("syntax error in file {$php_file}");
     } else {
-        swoole_ok("syntax correct in [$php_file]");
+        swoole_ok("syntax correct in [{$file}]");
     }
     $code = file_get_contents($php_file);
     if ($code === false) {

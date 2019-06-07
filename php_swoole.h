@@ -1000,6 +1000,9 @@ static sw_inline int sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint
     return ret;
 }
 
+/**
+ * Deprecated: use zend::function::call
+ */
 static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval* object_p, zval *function_name, zval **retval_ptr_ptr, uint32_t param_count, zval *params, int no_separation, HashTable* ymbol_table)
 {
     static zval _retval;

@@ -32,4 +32,3 @@ $pm->run();
 ?>
 --EXPECT--
 <h1>Stop</h1>
-

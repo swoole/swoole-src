@@ -171,6 +171,7 @@ static sw_inline http_server* http_server_get_object(zend_object *obj)
 static inline void http_server_set_error(zval *zobject, Socket *sock)
 {
     zend_update_property_long(swoole_http_server_coro_ce, zobject, ZEND_STRL("errCode"), sock->errCode);
+    zend_update_property_string(swoole_http_server_coro_ce, zobject, ZEND_STRL("errMsg"), sock->errMsg);
 }
 
 static bool http_context_send_data(http_context* ctx, const char *data, size_t length)
@@ -222,12 +223,13 @@ void swoole_http_server_coro_init(int module_number)
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_server_coro, swoole_http_server_coro_create_object, swoole_http_server_coro_free_object, http_server_coro_t, std);
     swoole_http_server_coro_ce->ce_flags |= ZEND_ACC_FINAL;
 
-    zend_declare_property_null(swoole_http_server_coro_ce, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_server_coro_ce, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_server_coro_ce, ZEND_STRL("fd"), -1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_server_coro_ce, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_server_coro_ce, ZEND_STRL("port"), -1, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_http_server_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_http_server_coro_ce, ZEND_STRL("ssl"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_server_coro_ce, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http_server_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_http_server_coro_ce, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);
 }
 
 

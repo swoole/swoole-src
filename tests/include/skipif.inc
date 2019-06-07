@@ -69,6 +69,11 @@ function skip_if_class_not_exist(string $class_name)
     skip("{$class_name} not exist", !class_exists($class_name, false));
 }
 
+function skip_if_extension_not_exist(string $extension_name)
+{
+    skip("{$extension_name} not exist", !extension_loaded($extension_name));
+}
+
 function skip_if_file_not_exist(string $filename)
 {
     skip("file {$filename} is not exist", !file_exists($filename));

@@ -1,5 +1,7 @@
 --TEST--
 swoole_runtime/stream_select: Bug #60602 proc_open() modifies environment if it contains arrays
+--SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
