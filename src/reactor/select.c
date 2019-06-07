@@ -226,8 +226,12 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
             if (swReactor_error(reactor) < 0)
             {
                 swSysWarn("select error");
+                break;
             }
-            continue;
+            else
+            {
+            	goto _continue;
+            }
         }
         else if (ret == 0)
         {
@@ -282,7 +286,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                 }
             }
         }
-        if (reactor->onFinish != NULL)
+        _continue: if (reactor->onFinish != NULL)
         {
             reactor->onFinish(reactor);
         }

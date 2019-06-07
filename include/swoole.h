@@ -1839,11 +1839,6 @@ static sw_inline int swReactor_error(swReactor *reactor)
     switch (errno)
     {
     case EINTR:
-        if (reactor->singal_no)
-        {
-            swSignal_callback(reactor->singal_no);
-            reactor->singal_no = 0;
-        }
         return SW_OK;
     }
     return SW_ERR;

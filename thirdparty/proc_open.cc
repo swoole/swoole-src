@@ -323,6 +323,7 @@ PHP_FUNCTION(swoole_proc_open)
 		Z_PARAM_ARRAY_EX(other_options, 1, 0)
 	ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+	php_swoole_check_reactor();
     if (php_swoole_signal_isset_handler(SIGCHLD))
     {
         swoole_php_error(E_WARNING, "The signal [SIGCHLD] is registered, cannot execute swoole_proc_open");

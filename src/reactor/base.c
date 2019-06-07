@@ -152,12 +152,17 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         swWorker_try_to_exit();
     }
+    //check signal
+    if (unlikely(reactor->singal_no))
+    {
+        swSignal_callback(reactor->singal_no);
+        reactor->singal_no = 0;
+    }
     //not server, the event loop is empty
     if ((SwooleG.serv == NULL || swIsUserWorker()) && swReactor_empty(reactor))
     {
         reactor->running = 0;
     }
-
 #ifdef SW_USE_MALLOC_TRIM
     time_t now = time(NULL);
     if (reactor->last_malloc_trim_time < now - SW_MALLOC_TRIM_INTERVAL)
@@ -182,12 +187,6 @@ static void swReactor_onTimeout(swReactor *reactor)
 static void swReactor_onFinish(swReactor *reactor)
 {
     swReactor_onTimeout_and_Finish(reactor);
-    //check signal
-    if (unlikely(reactor->singal_no))
-    {
-        swSignal_callback(reactor->singal_no);
-        reactor->singal_no = 0;
-    }
 }
 
 void swReactor_activate_future_task(swReactor *reactor)
