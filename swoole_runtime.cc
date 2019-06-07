@@ -101,8 +101,8 @@ static php_stream_wrapper ori_php_plain_files_wrapper;
 typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
 #endif
 
-#define SW_HOOK(f)       hook_func(ZEND_STRL(#f), PHP_FN(swoole_##f))
-#define SW_UNHOOK(f)     unhook_func(ZEND_STRL(#f))
+#define SW_HOOK_FUNC(f)       hook_func(ZEND_STRL(#f), PHP_FN(swoole_##f))
+#define SW_UNHOOK_FUNC(f)     unhook_func(ZEND_STRL(#f))
 
 static void hook_func(const char *name, size_t l_name, zif_handler handler = nullptr);
 static void unhook_func(const char *name, size_t l_name);
@@ -475,8 +475,7 @@ static inline int socket_bind(php_stream *stream, Socket *sock, php_stream_xport
     int portno = 0;
     char *ip_address = NULL;
 
-    if (sock->type == SW_SOCK_TCP || sock->type == SW_SOCK_TCP6 || sock->type == SW_SOCK_UDP
-            || sock->type == SW_SOCK_UDP6)
+    if (sock->type == SW_SOCK_TCP || sock->type == SW_SOCK_TCP6 || sock->type == SW_SOCK_UDP || sock->type == SW_SOCK_UDP6)
     {
         ip_address = parse_ip_address_ex(xparam->inputs.name, xparam->inputs.namelen, &portno, xparam->want_errortext,
                 &xparam->outputs.error_text);
@@ -1088,16 +1087,16 @@ bool PHPCoroutine::enable_hook(int flags)
     {
         if (!(hook_flags & SW_HOOK_STREAM_FUNCTION))
         {
-            SW_HOOK(stream_select);
-            SW_HOOK(stream_socket_pair);
+            SW_HOOK_FUNC(stream_select);
+            SW_HOOK_FUNC(stream_socket_pair);
         }
     }
     else
     {
         if (hook_flags & SW_HOOK_STREAM_FUNCTION)
         {
-            SW_UNHOOK(stream_select);
-            SW_UNHOOK(stream_socket_pair);
+            SW_UNHOOK_FUNC(stream_select);
+            SW_UNHOOK_FUNC(stream_socket_pair);
         }
     }
     // file
@@ -1120,20 +1119,20 @@ bool PHPCoroutine::enable_hook(int flags)
     {
         if (!(hook_flags & SW_HOOK_SLEEP))
         {
-            SW_HOOK(sleep);
-            SW_HOOK(usleep);
-            SW_HOOK(time_nanosleep);
-            SW_HOOK(time_sleep_until);
+            SW_HOOK_FUNC(sleep);
+            SW_HOOK_FUNC(usleep);
+            SW_HOOK_FUNC(time_nanosleep);
+            SW_HOOK_FUNC(time_sleep_until);
         }
     }
     else
     {
         if (hook_flags & SW_HOOK_SLEEP)
         {
-            SW_UNHOOK(sleep);
-            SW_UNHOOK(usleep);
-            SW_UNHOOK(time_nanosleep);
-            SW_UNHOOK(time_sleep_until);
+            SW_UNHOOK_FUNC(sleep);
+            SW_UNHOOK_FUNC(usleep);
+            SW_UNHOOK_FUNC(time_nanosleep);
+            SW_UNHOOK_FUNC(time_sleep_until);
         }
     }
     // proc_open
@@ -1141,20 +1140,20 @@ bool PHPCoroutine::enable_hook(int flags)
     {
         if (!(hook_flags & SW_HOOK_PROC))
         {
-            SW_HOOK(proc_open);
-            SW_HOOK(proc_close);
-            SW_HOOK(proc_get_status);
-            SW_HOOK(proc_terminate);
+            SW_HOOK_FUNC(proc_open);
+            SW_HOOK_FUNC(proc_close);
+            SW_HOOK_FUNC(proc_get_status);
+            SW_HOOK_FUNC(proc_terminate);
         }
     }
     else
     {
         if (hook_flags & SW_HOOK_PROC)
         {
-            SW_UNHOOK(proc_open);
-            SW_UNHOOK(proc_close);
-            SW_UNHOOK(proc_get_status);
-            SW_UNHOOK(proc_terminate);
+            SW_UNHOOK_FUNC(proc_open);
+            SW_UNHOOK_FUNC(proc_close);
+            SW_UNHOOK_FUNC(proc_get_status);
+            SW_UNHOOK_FUNC(proc_terminate);
         }
     }
     // blocking function
@@ -1169,7 +1168,7 @@ bool PHPCoroutine::enable_hook(int flags)
     {
         if (hook_flags & SW_HOOK_BLOCKING_FUNCTION)
         {
-            SW_UNHOOK(gethostbyname);
+            SW_UNHOOK_FUNC(gethostbyname);
         }
     }
 
