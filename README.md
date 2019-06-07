@@ -265,9 +265,9 @@ go(function () {
 
 ## 🔥 Amazing runtime hooks
 
-**In the latest version of Swoole, we have added a new feature to make sync PHP network libraires to be coroutine libraires with only one line of code.**
+**As of Swoole v4.1.0, we added the ability to transform synchronous PHP network libraries into co-routine libraries using a single line of code.**
 
-Just call `Swoole\Runtime::enableCoroutine()` method on the top of the script and use php-redis, 10K concurrent requests reading data from Redis takes only 0.1s!
+Simply call the `Swoole\Runtime::enableCoroutine()` method at the top of your script. In the sample below we connect to php-redis and concurrently read 10k requests in 0.1s:
 
 ```php
 Swoole\Runtime::enableCoroutine();
@@ -284,7 +284,7 @@ Swoole\Event::wait();
 echo 'use ' . (microtime(true) - $s) . ' s';
 ```
 
-After you call it, the Swoole kernel will replace the function pointers of streams in ZendVM, if you use `php_stream` based extensions, all socket operations can be dynamically converted to be asynchronous IO scheduled by coroutine at runtime.
+By calling this method, the Swoole kernel replaces ZendVM stream function pointers. If you use `php_stream` based extensions, all socket operations can be dynamically converted to be asynchronous IO scheduled by coroutine at runtime!
 
 ### How many things you can do in 1s?
 
