@@ -1146,7 +1146,7 @@ int swoole_gethostbyname(int flags, const char *name, char *addr)
 #else
 int swoole_gethostbyname(int flags, const char *name, char *addr)
 {
-	int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
+    int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
     int index = 0;
 
     struct hostent *host_entry;

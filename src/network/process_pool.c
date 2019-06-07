@@ -123,15 +123,15 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
     }
     else if (ipc_mode == SW_IPC_SOCKET)
     {
-		pool->use_socket = 1;
-		pool->stream = sw_malloc(sizeof(swStreamInfo));
-		if (pool->stream == NULL)
-		{
-			swWarn("malloc[2] failed");
-			return SW_ERR;
-		}
-		bzero(pool->stream, sizeof(swStreamInfo));
-	}
+        pool->use_socket = 1;
+        pool->stream = sw_malloc(sizeof(swStreamInfo));
+        if (pool->stream == NULL)
+        {
+            swWarn("malloc[2] failed");
+            return SW_ERR;
+        }
+        bzero(pool->stream, sizeof(swStreamInfo));
+    }
     else
     {
         ipc_mode = SW_IPC_NONE;
@@ -361,7 +361,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
     swWorker *worker;
     SwooleG.running = 0;
 
-	swSignal_none();
+    swSignal_none();
     //concurrent kill
     for (i = 0; i < pool->worker_num; i++)
     {

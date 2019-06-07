@@ -224,7 +224,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
             }
             else
             {
-            	goto _continue;
+                goto _continue;
             }
         }
         else if (ret == 0)

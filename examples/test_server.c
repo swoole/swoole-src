@@ -50,7 +50,7 @@ int main(int argc, char **argv)
     serv.onWorkerStart = my_onWorkerStart;
     serv.onWorkerStop = my_onWorkerStop;
 
-//	swSignal_add(SIGINT, user_signal);
+    // swSignal_add(SIGINT, user_signal);
 
     //create Server
     ret = swServer_create(&serv);

@@ -125,10 +125,10 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
     }
 
     do_recv:
-	if (conn->active == 0)
-	{
-		return SW_OK;
-	}
+    if (conn->active == 0)
+    {
+        return SW_OK;
+    }
     if (buffer->offset > 0)
     {
         recv_size = buffer->offset - buffer->length;
@@ -178,7 +178,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 
                 if (buffer->length > buffer->offset)
                 {
-                	swString_pop_front(buffer, buffer->offset);
+                    swString_pop_front(buffer, buffer->offset);
                     goto _do_get_length;
                 }
                 else

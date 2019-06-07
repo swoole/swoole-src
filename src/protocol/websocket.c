@@ -52,7 +52,7 @@ ssize_t swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn,
     char mask = (buf[1] >> 7) & 0x1;
     //0-125
     uint64_t payload_length = buf[1] & 0x7f;
-	size_t header_length = SW_WEBSOCKET_HEADER_LEN;
+    size_t header_length = SW_WEBSOCKET_HEADER_LEN;
     buf += SW_WEBSOCKET_HEADER_LEN;
 
     //uint16_t, 2byte
