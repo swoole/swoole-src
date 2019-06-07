@@ -878,7 +878,8 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
     {
         cli = (swClient*) emalloc(sizeof(swClient));
 
-        create_socket: if (swClient_create(cli, php_swoole_socktype(type), async) < 0)
+        create_socket:
+        if (swClient_create(cli, php_swoole_socktype(type), async) < 0)
         {
             swoole_php_sys_error(E_WARNING, "swClient_create() failed");
             zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), errno);
@@ -1365,7 +1366,8 @@ static PHP_METHOD(swoole_client, recv)
                 continue;
             }
 
-            find_eof: eof = swoole_strnpos(buffer->str, buffer->length, protocol->package_eof, protocol->package_eof_len);
+            find_eof:
+            eof = swoole_strnpos(buffer->str, buffer->length, protocol->package_eof, protocol->package_eof_len);
             if (eof >= 0)
             {
                 eof += protocol->package_eof_len;

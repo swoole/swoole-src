@@ -114,7 +114,8 @@ static int swAio_onTask(swThreadPool *pool, void *task, int task_len)
 
     swTrace("aio_thread ok. ret=%d, error=%d", event->ret, event->error);
 
-    _error: do
+    _error:
+    do
     {
         SwooleAIO.lock.lock(&SwooleAIO.lock);
         int ret = write(_pipe_write, &task, sizeof(task));
@@ -302,7 +303,8 @@ void swAio_handler_read_file(swAio_event *event)
     if (fstat(fd, &file_stat) < 0)
     {
         swSysWarn("fstat(%s) failed", (char * )event->req);
-        _error: close(fd);
+        _error:
+        close(fd);
         event->ret = ret;
         event->error = errno;
         return;

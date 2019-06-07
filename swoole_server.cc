@@ -1361,7 +1361,8 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
         if (task_co_iterator == task_coroutine_map.end())
         {
             swWarn("task[%d] has expired", task_id);
-            _fail: sw_zval_free(zdata);
+            _fail:
+            sw_zval_free(zdata);
             return SW_OK;
         }
         swTaskCo *task_co = task_co_iterator->second;
@@ -1905,7 +1906,8 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
         }
     }
 
-    _callback: fci_cache = php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onBufferEmpty);
+    _callback:
+    fci_cache = php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onBufferEmpty);
     if (!fci_cache)
     {
         return;

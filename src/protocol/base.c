@@ -249,7 +249,8 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
     int recv_again = SW_FALSE;
     int buf_size;
 
-    recv_data: buf_size = buffer->size - buffer->length;
+    _recv_data:
+    buf_size = buffer->size - buffer->length;
     char *buf_ptr = buffer->str + buffer->length;
 
     if (buf_size > SW_BUFFER_SIZE_STD)
@@ -315,7 +316,7 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
 #ifdef SW_USE_OPENSSL
             if (conn->ssl && SSL_pending(conn->ssl) > 0)
             {
-                goto recv_data;
+                goto _recv_data;
             }
 #endif
             return SW_OK;
@@ -348,7 +349,7 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
         //no eof
         if (recv_again)
         {
-            goto recv_data;
+            goto _recv_data;
         }
     }
     return SW_OK;

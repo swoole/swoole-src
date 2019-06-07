@@ -59,7 +59,8 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
         request = (swRedis_request *) conn->object;
     }
 
-    recv_data: buf_ptr = buffer->str + buffer->length;
+    _recv_data:
+    buf_ptr = buffer->str + buffer->length;
     buf_size = buffer->size - buffer->length;
 
     int n = swConnection_recv(conn, buf_ptr, buf_size, 0);
@@ -105,7 +106,7 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
                 swWarn("Package is too big. package_length=%ld", buffer->length);
                 return SW_ERR;
             }
-            goto recv_data;
+            goto _recv_data;
         }
 
         p = buffer->str;

@@ -305,7 +305,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
                 }
             }
 
-            goto append_buffer;
+            goto _append_buffer;
         }
         else if (errno == EINTR)
         {
@@ -319,7 +319,8 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     }
     else
     {
-        append_buffer: if (buffer->length > socket->buffer_size)
+        _append_buffer:
+        if (buffer->length > socket->buffer_size)
         {
             if (socket->dontwait)
             {

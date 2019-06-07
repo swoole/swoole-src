@@ -855,7 +855,8 @@ static PHP_METHOD(swoole_process, write)
     }
     else
     {
-        _blocking_read: ret = swSocket_write_blocking(process->pipe, data, data_len);
+        _blocking_read:
+        ret = swSocket_write_blocking(process->pipe, data, data_len);
     }
 
     if (ret < 0)

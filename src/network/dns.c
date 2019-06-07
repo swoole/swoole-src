@@ -385,7 +385,8 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         }
         if (resolver_socket->connect(resolver_socket, dns_server_host, dns_server_port, 1, 0) < 0)
         {
-            do_close: resolver_socket->close(resolver_socket);
+            do_close:
+            resolver_socket->close(resolver_socket);
             swClient_free(resolver_socket);
             sw_free(resolver_socket);
             sw_free(request->domain);

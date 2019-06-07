@@ -292,7 +292,8 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             }
         }
 
-        _continue: if (reactor->onFinish != NULL)
+        _continue:
+        if (reactor->onFinish != NULL)
         {
             reactor->onFinish(reactor);
         }

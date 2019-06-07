@@ -540,7 +540,8 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         {
             if (errno == EINTR && SwooleG.signal_alarm)
             {
-                alarm_handler: SwooleG.signal_alarm = 0;
+                alarm_handler:
+                SwooleG.signal_alarm = 0;
                 swTimer_select(&SwooleG.timer);
             }
             continue;
@@ -665,7 +666,8 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
             }
             if (swSocket_recv_blocking(fd, pool->packet_buffer, n, MSG_WAITALL) <= 0)
             {
-                _close: close(fd);
+                _close:
+                close(fd);
                 continue;
             }
             data = pool->packet_buffer;
@@ -688,7 +690,8 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
         {
             if (errno == EINTR && SwooleG.signal_alarm)
             {
-                alarm_handler: SwooleG.signal_alarm = 0;
+                alarm_handler:
+                SwooleG.signal_alarm = 0;
                 swTimer_select(&SwooleG.timer);
             }
             continue;
@@ -820,7 +823,8 @@ int swProcessPool_wait(swProcessPool *pool)
             }
         }
         //reload worker
-        kill_worker: if (pool->reloading == 1)
+        kill_worker:
+        if (pool->reloading == 1)
         {
             //reload finish
             if (pool->reload_worker_i >= pool->worker_num)

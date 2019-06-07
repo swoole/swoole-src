@@ -483,9 +483,9 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
     if (X509_check_host(cert, tls_host_name, strlen(tls_host_name), 0, NULL) != 1)
     {
         swWarn("X509_check_host(): no match");
-        goto failed;
+        goto _failed;
     }
-    goto found;
+    goto _found;
 #else
     int n, i;
     X509_NAME *sname;
@@ -565,10 +565,12 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
     swTrace("SSL commonName: no match");
 #endif
 
-    failed: X509_free(cert);
+    _failed:
+    X509_free(cert);
     return SW_ERR;
 
-    found: X509_free(cert);
+    _found:
+    X509_free(cert);
     return SW_OK;
 }
 

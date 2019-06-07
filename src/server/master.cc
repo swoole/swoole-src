@@ -1054,12 +1054,13 @@ int swServer_master_send(swServer *serv, swSendData *_send)
         {
             if (!conn->direct_send)
             {
-                goto buffer_send;
+                goto _buffer_send;
             }
 
             ssize_t n;
 
-            direct_send: n = swConnection_send(conn, _send_data, _send_length, 0);
+            _direct_send:
+            n = swConnection_send(conn, _send_data, _send_length, 0);
             if (n == _send_length)
             {
                 return SW_OK;
@@ -1068,15 +1069,15 @@ int swServer_master_send(swServer *serv, swSendData *_send)
             {
                 _send_data += n;
                 _send_length -= n;
-                goto buffer_send;
+                goto _buffer_send;
             }
             else if (errno == EINTR)
             {
-                goto direct_send;
+                goto _direct_send;
             }
             else
             {
-                goto buffer_send;
+                goto _buffer_send;
             }
         }
 #endif
@@ -1084,7 +1085,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
         else
         {
 #ifdef SW_REACTOR_SYNC_SEND
-            buffer_send:
+            _buffer_send:
 #endif
             if (!conn->out_buffer)
             {

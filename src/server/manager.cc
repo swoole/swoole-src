@@ -310,7 +310,8 @@ static int swManager_loop(swServer *serv)
 
     while (SwooleG.running > 0)
     {
-        _wait: pid = wait(&status);
+        _wait:
+        pid = wait(&status);
 
         if (ManagerProcess.read_message)
         {
@@ -347,7 +348,8 @@ static int swManager_loop(swServer *serv)
         {
             if (ManagerProcess.reloading == 0)
             {
-                error: if (errno > 0 && errno != EINTR)
+                _error:
+                if (errno > 0 && errno != EINTR)
                 {
                     swSysWarn("wait() failed");
                 }
@@ -391,7 +393,7 @@ static int swManager_loop(swServer *serv)
                         ManagerProcess.reload_worker_i = 0;
                     }
                 }
-                goto kill_worker;
+                goto _kill_worker;
             }
             //only reload task workers
             else if (ManagerProcess.reload_task_worker == 1)
@@ -411,11 +413,11 @@ static int swManager_loop(swServer *serv)
                     ManagerProcess.reload_init = 1;
                     ManagerProcess.reload_task_worker = 0;
                 }
-                goto kill_worker;
+                goto _kill_worker;
             }
             else
             {
-                goto error;
+                goto _error;
             }
         }
         if (SwooleG.running == 1)
@@ -483,7 +485,8 @@ static int swManager_loop(swServer *serv)
             }
         }
         //reload worker
-        kill_worker: if (ManagerProcess.reloading == 1)
+        _kill_worker:
+        if (ManagerProcess.reloading == 1)
         {
             //reload finish
             if (ManagerProcess.reload_worker_i >= ManagerProcess.reload_worker_num)
@@ -497,7 +500,7 @@ static int swManager_loop(swServer *serv)
                 if (errno == ECHILD || errno == ESRCH)
                 {
                     ManagerProcess.reload_worker_i++;
-                    goto kill_worker;
+                    goto _kill_worker;
                 }
                 swSysWarn("swKill(%d, SIGTERM) [%d] failed", ManagerProcess.reload_workers[ManagerProcess.reload_worker_i].pid, ManagerProcess.reload_worker_i);
             }
