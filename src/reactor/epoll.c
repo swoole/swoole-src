@@ -232,7 +232,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             }
             else
             {
-                continue;
+                goto _continue;
             }
         }
         else if (n == 0)
@@ -292,7 +292,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             }
         }
 
-        if (reactor->onFinish != NULL)
+        _continue: if (reactor->onFinish != NULL)
         {
             reactor->onFinish(reactor);
         }
