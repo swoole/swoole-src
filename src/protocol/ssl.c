@@ -520,13 +520,13 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
             {
                 swTrace("SSL subjectAltName: match");
                 GENERAL_NAMES_free(altnames);
-                goto found;
+                goto _found;
             }
         }
 
         swTrace("SSL subjectAltName: no match");
         GENERAL_NAMES_free(altnames);
-        goto failed;
+        goto _failed;
     }
 
     /*
@@ -538,7 +538,7 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
 
     if (sname == NULL)
     {
-        goto failed;
+        goto _failed;
     }
 
     i = -1;
@@ -559,7 +559,7 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
         if (swSSL_check_name(tls_host_name, str) == SW_OK)
         {
             swTrace("SSL commonName: match");
-            goto found;
+            goto _found;
         }
     }
     swTrace("SSL commonName: no match");
@@ -629,14 +629,14 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
     if (PEM_write_bio_X509(bio, cert) == 0)
     {
         swWarn("PEM_write_bio_X509() failed");
-        goto failed;
+        goto _failed;
     }
 
     len = BIO_pending(bio);
     if (len < 0 && len > length)
     {
         swWarn("certificate length[%ld] is too big", len);
-        goto failed;
+        goto _failed;
     }
 
     int n = BIO_read(bio, buffer, len);
@@ -646,7 +646,7 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
 
     return n;
 
-    failed:
+    _failed:
 
     BIO_free(bio);
     X509_free(cert);

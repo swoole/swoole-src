@@ -1496,7 +1496,7 @@ ssize_t Socket::recv_packet(double timeout)
 
         if (read_buffer->length > 0)
         {
-            goto find_eof;
+            goto _find_eof;
         }
 
         while (1)
@@ -1528,7 +1528,7 @@ ssize_t Socket::recv_packet(double timeout)
                 continue;
             }
 
-            find_eof:
+            _find_eof:
             eof = swoole_strnpos(read_buffer->str, read_buffer->length, protocol.package_eof, protocol.package_eof_len);
             if (eof >= 0)
             {

@@ -496,7 +496,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     }
     else if (conn->close_force)
     {
-        goto do_close;
+        goto _do_close;
     }
     else if (conn->closing)
     {
@@ -509,7 +509,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     }
     else
     {
-        do_close:
+        _do_close:
         conn->closing = 1;
         if (serv->onClose != NULL)
         {

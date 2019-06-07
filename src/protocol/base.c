@@ -124,7 +124,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
         goto _do_get_length;
     }
 
-    do_recv:
+    _do_recv:
     if (conn->active == 0)
     {
         return SW_OK;
@@ -165,7 +165,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
         {
             if (buffer->length >= buffer->offset)
             {
-                do_dispatch:
+                _do_dispatch:
                 if (protocol->onPackage(protocol, conn, buffer->str, buffer->offset) < 0)
                 {
                     return SW_ERR;
@@ -187,7 +187,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 #ifdef SW_USE_OPENSSL
                     if (conn->ssl)
                     {
-                        goto do_recv;
+                        goto _do_recv;
                     }
 #endif
                 }
@@ -228,11 +228,11 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 
                 if (buffer->length >= package_length)
                 {
-                    goto do_dispatch;
+                    goto _do_dispatch;
                 }
                 else
                 {
-                    goto do_recv;
+                    goto _do_recv;
                 }
             }
         }

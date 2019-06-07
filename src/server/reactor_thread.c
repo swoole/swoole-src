@@ -47,7 +47,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                 ret = swSSL_get_client_certificate(conn->ssl, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
                 if (ret < 0)
                 {
-                    goto no_client_cert;
+                    goto _no_client_cert;
                 }
                 else
                 {
@@ -61,7 +61,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                         task.info.len = ret;
                         task.data = SwooleTG.buffer_stack->str;
                         factory->dispatch(factory, &task);
-                        goto delay_receive;
+                        goto _delay_receive;
                     }
                     else
                     {
@@ -69,7 +69,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                     }
                 }
             }
-            no_client_cert:
+            _no_client_cert:
             if (port->ssl_option.verify_peer)
             {
                 return SW_ERR;
@@ -78,7 +78,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
             {
                 serv->notify(serv, conn, SW_EVENT_CONNECT);
             }
-            delay_receive:
+            _delay_receive:
             if (serv->enable_delay_receive)
             {
                 conn->listen_wait = 1;
@@ -452,12 +452,12 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
                 {
                     swSysWarn("reactor->set(%d, PIPE | READ | WRITE) failed", pipe_fd);
                 }
-                goto append_pipe_buffer;
+                goto _append_pipe_buffer;
             }
         }
         else
         {
-            append_pipe_buffer:
+            _append_pipe_buffer:
             if (swBuffer_append(buffer, data, len) < 0)
             {
                 swWarn("append to pipe_buffer failed");
@@ -643,7 +643,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 #ifdef SW_USE_OPENSSL
         if (conn->ssl)
         {
-            goto listen_read_event;
+            goto _listen_read_event;
         }
 #endif
         //notify worker process
@@ -664,7 +664,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         else
         {
 #ifdef SW_USE_OPENSSL
-            listen_read_event:
+            _listen_read_event:
 #endif
             return reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_READ);
         }
@@ -823,7 +823,8 @@ int swReactorThread_start(swServer *serv)
         }
         if (swPort_listen(ls) < 0)
         {
-            _failed: main_reactor->free(main_reactor);
+            _failed:
+            main_reactor->free(main_reactor);
             sw_free(main_reactor);
             return SW_ERR;
         }

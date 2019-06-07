@@ -1000,7 +1000,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
      */
     if (_send->info.type == SW_EVENT_CLOSE && (conn->close_reset || conn->removed))
     {
-        goto close_fd;
+        goto _close_fd;
     }
     else if (_send->info.type == SW_EVENT_CONFIRM)
     {
@@ -1044,7 +1044,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
          */
         if (_send->info.type == SW_EVENT_CLOSE)
         {
-            close_fd:
+            _close_fd:
             reactor->close(reactor, fd);
             return SW_OK;
         }
@@ -1157,7 +1157,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     if (reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ) < 0
             && (errno == EBADF || errno == ENOENT))
     {
-        goto close_fd;
+        goto _close_fd;
     }
 
     return SW_OK;

@@ -540,7 +540,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         {
             if (errno == EINTR && SwooleG.signal_alarm)
             {
-                alarm_handler:
+                _alarm_handler:
                 SwooleG.signal_alarm = 0;
                 swTimer_select(&SwooleG.timer);
             }
@@ -570,7 +570,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
          */
         if (SwooleG.signal_alarm)
         {
-            goto alarm_handler;
+            goto _alarm_handler;
         }
 
         if (ret >= 0 && !worker_task_always)
@@ -690,7 +690,7 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
         {
             if (errno == EINTR && SwooleG.signal_alarm)
             {
-                alarm_handler:
+                _alarm_handler:
                 SwooleG.signal_alarm = 0;
                 swTimer_select(&SwooleG.timer);
             }
@@ -718,7 +718,7 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
          */
         if (SwooleG.signal_alarm)
         {
-            goto alarm_handler;
+            goto _alarm_handler;
         }
     }
     return SW_OK;
@@ -782,7 +782,7 @@ int swProcessPool_wait(swProcessPool *pool)
                         swTimer_add(&SwooleG.timer, (long) (pool->max_wait_time * 1000), 0, pool, swProcessPool_killTimeout);
                     }
                 }
-                goto kill_worker;
+                goto _kill_worker;
             }
         }
 
@@ -823,7 +823,7 @@ int swProcessPool_wait(swProcessPool *pool)
             }
         }
         //reload worker
-        kill_worker:
+        _kill_worker:
         if (pool->reloading == 1)
         {
             //reload finish
@@ -839,7 +839,7 @@ int swProcessPool_wait(swProcessPool *pool)
                 if (errno == ECHILD)
                 {
                     pool->reload_worker_i++;
-                    goto kill_worker;
+                    goto _kill_worker;
                 }
                 swSysWarn("[Manager]swKill(%d) failed", pool->reload_workers[pool->reload_worker_i].pid);
                 continue;

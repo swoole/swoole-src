@@ -319,18 +319,18 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
     if (!fci_cache)
     {
         swoole_php_fatal_error(E_WARNING, "Swoole\\Client object has no 'onReceive' callback function");
-        goto free_zdata;
+        goto _free_zdata;
     }
     if (sw_call_user_function_fast_ex(NULL, &cb->cache_onReceive, 2, args, retval) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onReactorCallback handler error");
-        goto free_zdata;
+        goto _free_zdata;
     }
     if (retval)
     {
         zval_ptr_dtor(retval);
     }
-    free_zdata:
+    _free_zdata:
     zval_ptr_dtor(&args[1]);
 }
 
@@ -854,7 +854,7 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
         if (i == long_connections.end() || i->second->empty())
         {
             cli = (swClient*) pemalloc(sizeof(swClient), 1);
-            goto create_socket;
+            goto _create_socket;
         }
         else
         {
@@ -868,7 +868,7 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
                 cli->close(cli);
                 php_swoole_client_free(zobject, cli);
                 cli = (swClient*) pemalloc(sizeof(swClient), 1);
-                goto create_socket;
+                goto _create_socket;
             }
             cli->reuse_count++;
             zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("reuseCount"), cli->reuse_count);
@@ -878,7 +878,7 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
     {
         cli = (swClient*) emalloc(sizeof(swClient));
 
-        create_socket:
+        _create_socket:
         if (swClient_create(cli, php_swoole_socktype(type), async) < 0)
         {
             swoole_php_sys_error(E_WARNING, "swClient_create() failed");
@@ -1333,7 +1333,7 @@ static PHP_METHOD(swoole_client, recv)
 
         if (buffer->length > 0)
         {
-            goto find_eof;
+            goto _find_eof;
         }
 
         while (1)
@@ -1366,7 +1366,7 @@ static PHP_METHOD(swoole_client, recv)
                 continue;
             }
 
-            find_eof:
+            _find_eof:
             eof = swoole_strnpos(buffer->str, buffer->length, protocol->package_eof, protocol->package_eof_len);
             if (eof >= 0)
             {

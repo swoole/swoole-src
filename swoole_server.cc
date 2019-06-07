@@ -3336,7 +3336,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
         if (task_id < 0)
         {
             swoole_php_fatal_error(E_WARNING, "task pack failed");
-            goto fail;
+            goto _fail;
         }
         swTask_type(&buf) |= SW_TASK_WAITALL;
         dst_worker_id = -1;
@@ -3345,7 +3345,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
         {
             swoole_php_sys_error(E_WARNING, "taskwait failed");
             task_id = -1;
-            fail:
+            _fail:
             add_index_bool(return_value, i, 0);
             n_task --;
         }
@@ -3481,7 +3481,7 @@ static PHP_METHOD(swoole_server, taskCo)
         if (task_id < 0)
         {
             swoole_php_fatal_error(E_WARNING, "failed to pack task");
-            goto fail;
+            goto _fail;
         }
         swTask_type(&buf) |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
         dst_worker_id = -1;
@@ -3489,7 +3489,7 @@ static PHP_METHOD(swoole_server, taskCo)
         if (swProcessPool_dispatch(&serv->gs->task_workers, &buf, &dst_worker_id) < 0)
         {
             task_id = -1;
-            fail:
+            _fail:
             add_index_bool(result, i, 0);
             n_task --;
             sw_atomic_fetch_sub(&serv->stats->tasking_num, 1);

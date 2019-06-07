@@ -102,7 +102,7 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
             }
             else if (buffer->length == buffer->size)
             {
-                package_too_big:
+                _package_too_big:
                 swWarn("Package is too big. package_length=%ld", buffer->length);
                 return SW_ERR;
             }
@@ -134,7 +134,7 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
                     }
                     if (ret + (p - buffer->str) > protocol->package_max_length)
                     {
-                        goto package_too_big;
+                        goto _package_too_big;
                     }
                     request->n_bytes_total = ret;
                     request->state = SW_REDIS_RECEIVE_STRING;
@@ -178,11 +178,11 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
                 break;
 
             default:
-                goto failed;
+                goto _failed;
             }
         } while(p < pe);
     }
-    failed:
+    _failed:
     swWarn("redis protocol error");
     return SW_ERR;
 }
