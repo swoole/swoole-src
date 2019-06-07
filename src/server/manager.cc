@@ -172,7 +172,7 @@ int swManager_start(swServer *serv)
         return SW_ERR;
     }
 
-    pid = swoole_fork();
+    pid = swoole_fork(0);
     switch (pid)
     {
     //fork manager process
@@ -544,7 +544,7 @@ static pid_t swManager_spawn_worker(swServer *serv, int worker_id)
     pid_t pid;
     int ret;
 
-    pid = swoole_fork();
+    pid = swoole_fork(0);
 
     //fork() failed
     if (pid < 0)
@@ -684,7 +684,7 @@ pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker)
 
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
 {
-    pid_t pid = swoole_fork();
+    pid_t pid = swoole_fork(0);
 
     if (pid < 0)
     {

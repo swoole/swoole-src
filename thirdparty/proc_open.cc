@@ -353,170 +353,218 @@ PHP_FUNCTION(swoole_proc_open)
 
     memset(descriptors, 0, sizeof(struct php_proc_open_descriptor_item) * ndescriptors_array);
 
-	/* walk the descriptor spec and set up files/pipes */
-	ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(descriptorspec), nindex, str_index, descitem) {
-		zval *ztype;
+    /* walk the descriptor spec and set up files/pipes */
+    ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(descriptorspec), nindex, str_index, descitem)
+    {
+        zval *ztype;
 
-		if (str_index) {
-			php_error_docref(NULL, E_WARNING, "descriptor spec must be an integer indexed array");
-			goto exit_fail;
-		}
+        if (str_index)
+        {
+            swoole_php_fatal_error(E_WARNING, "descriptor spec must be an integer indexed array");
+            goto exit_fail;
+        }
 
-		descriptors[ndesc].index = (int)nindex;
+        descriptors[ndesc].index = (int) nindex;
 
-		if (Z_TYPE_P(descitem) == IS_RESOURCE) {
-			/* should be a stream - try and dup the descriptor */
-			php_stream *stream;
-			php_socket_t fd;
+        if (Z_TYPE_P(descitem) == IS_RESOURCE)
+        {
+            /* should be a stream - try and dup the descriptor */
+            php_stream *stream;
+            php_socket_t fd;
 
-			php_stream_from_zval(stream, descitem);
+            php_stream_from_zval(stream, descitem);
 
-			if (FAILURE == php_stream_cast(stream, PHP_STREAM_AS_FD, (void **)&fd, REPORT_ERRORS)) {
-				goto exit_fail;
-			}
+            if (FAILURE == php_stream_cast(stream, PHP_STREAM_AS_FD, (void ** )&fd, REPORT_ERRORS))
+            {
+                goto exit_fail;
+            }
 
-			descriptors[ndesc].childend = dup(fd);
-			if (descriptors[ndesc].childend < 0) {
-				php_error_docref(NULL, E_WARNING, "unable to dup File-Handle for descriptor " ZEND_ULONG_FMT " - %s", nindex, strerror(errno));
-				goto exit_fail;
-			}
+            descriptors[ndesc].childend = dup(fd);
+            if (descriptors[ndesc].childend < 0)
+            {
+                swoole_php_fatal_error(E_WARNING,
+                        "unable to dup File-Handle for descriptor " ZEND_ULONG_FMT " - %s", nindex,
+                        strerror(errno));
+                goto exit_fail;
+            }
 
-			descriptors[ndesc].mode = DESC_FILE;
+            descriptors[ndesc].mode = DESC_FILE;
 
-		} else if (Z_TYPE_P(descitem) != IS_ARRAY) {
-			php_error_docref(NULL, E_WARNING, "Descriptor item must be either an array or a File-Handle");
-			goto exit_fail;
-		} else {
+        }
+        else if (Z_TYPE_P(descitem) != IS_ARRAY)
+        {
+            swoole_php_fatal_error(E_WARNING, "Descriptor item must be either an array or a File-Handle");
+            goto exit_fail;
+        }
+        else
+        {
 
-			if ((ztype = zend_hash_index_find(Z_ARRVAL_P(descitem), 0)) != NULL) {
-				convert_to_string_ex(ztype);
-			} else {
-				php_error_docref(NULL, E_WARNING, "Missing handle qualifier in array");
-				goto exit_fail;
-			}
+            if ((ztype = zend_hash_index_find(Z_ARRVAL_P(descitem), 0)) != NULL)
+            {
+                convert_to_string_ex(ztype);
+            }
+            else
+            {
+                swoole_php_fatal_error(E_WARNING, "Missing handle qualifier in array");
+                goto exit_fail;
+            }
 
-			if (strcmp(Z_STRVAL_P(ztype), "pipe") == 0) {
-				int newpipe[2];
-				zval *zmode;
+            if (strcmp(Z_STRVAL_P(ztype), "pipe") == 0)
+            {
+                int newpipe[2];
+                zval *zmode;
 
-				if ((zmode = zend_hash_index_find(Z_ARRVAL_P(descitem), 1)) != NULL) {
-					convert_to_string_ex(zmode);
-				} else {
-					php_error_docref(NULL, E_WARNING, "Missing mode parameter for 'pipe'");
-					goto exit_fail;
-				}
+                if ((zmode = zend_hash_index_find(Z_ARRVAL_P(descitem), 1)) != NULL)
+                {
+                    convert_to_string_ex(zmode);
+                }
+                else
+                {
+                    swoole_php_fatal_error(E_WARNING, "Missing mode parameter for 'pipe'");
+                    goto exit_fail;
+                }
 
-				descriptors[ndesc].mode = DESC_PIPE;
+                descriptors[ndesc].mode = DESC_PIPE;
 
-				if (0 != socketpair(AF_UNIX, SOCK_STREAM, 0, newpipe)) {
-					php_error_docref(NULL, E_WARNING, "unable to create pipe %s", strerror(errno));
-					goto exit_fail;
-				}
+                if (0 != socketpair(AF_UNIX, SOCK_STREAM, 0, newpipe))
+                {
+                    swoole_php_fatal_error(E_WARNING, "unable to create pipe %s", strerror(errno));
+                    goto exit_fail;
+                }
 
-				if (strncmp(Z_STRVAL_P(zmode), "w", 1) != 0) {
-					descriptors[ndesc].parentend = newpipe[1];
-					descriptors[ndesc].childend = newpipe[0];
-					descriptors[ndesc].mode |= DESC_PARENT_MODE_WRITE;
-				} else {
-					descriptors[ndesc].parentend = newpipe[0];
-					descriptors[ndesc].childend = newpipe[1];
-				}
-				descriptors[ndesc].mode_flags = descriptors[ndesc].mode & DESC_PARENT_MODE_WRITE ? O_WRONLY : O_RDONLY;
+                if (strncmp(Z_STRVAL_P(zmode), "w", 1) != 0)
+                {
+                    descriptors[ndesc].parentend = newpipe[1];
+                    descriptors[ndesc].childend = newpipe[0];
+                    descriptors[ndesc].mode |= DESC_PARENT_MODE_WRITE;
+                }
+                else
+                {
+                    descriptors[ndesc].parentend = newpipe[0];
+                    descriptors[ndesc].childend = newpipe[1];
+                }
+                descriptors[ndesc].mode_flags =
+                        descriptors[ndesc].mode & DESC_PARENT_MODE_WRITE ? O_WRONLY : O_RDONLY;
 
+            }
+            else if (strcmp(Z_STRVAL_P(ztype), "file") == 0)
+            {
+                zval *zfile, *zmode;
+                php_socket_t fd;
+                php_stream *stream;
 
-			} else if (strcmp(Z_STRVAL_P(ztype), "file") == 0) {
-				zval *zfile, *zmode;
-				php_socket_t fd;
-				php_stream *stream;
+                descriptors[ndesc].mode = DESC_FILE;
 
-				descriptors[ndesc].mode = DESC_FILE;
+                if ((zfile = zend_hash_index_find(Z_ARRVAL_P(descitem), 1)) != NULL)
+                {
+                    convert_to_string_ex(zfile);
+                }
+                else
+                {
+                    swoole_php_fatal_error(E_WARNING, "Missing file name parameter for 'file'");
+                    goto exit_fail;
+                }
 
-				if ((zfile = zend_hash_index_find(Z_ARRVAL_P(descitem), 1)) != NULL) {
-					convert_to_string_ex(zfile);
-				} else {
-					php_error_docref(NULL, E_WARNING, "Missing file name parameter for 'file'");
-					goto exit_fail;
-				}
+                if ((zmode = zend_hash_index_find(Z_ARRVAL_P(descitem), 2)) != NULL)
+                {
+                    convert_to_string_ex(zmode);
+                }
+                else
+                {
+                    swoole_php_fatal_error(E_WARNING, "Missing mode parameter for 'file'");
+                    goto exit_fail;
+                }
 
-				if ((zmode = zend_hash_index_find(Z_ARRVAL_P(descitem), 2)) != NULL) {
-					convert_to_string_ex(zmode);
-				} else {
-					php_error_docref(NULL, E_WARNING, "Missing mode parameter for 'file'");
-					goto exit_fail;
-				}
+                /* try a wrapper */
+                stream = php_stream_open_wrapper(Z_STRVAL_P(zfile), Z_STRVAL_P(zmode), REPORT_ERRORS|STREAM_WILL_CAST, NULL);
 
-				/* try a wrapper */
-				stream = php_stream_open_wrapper(Z_STRVAL_P(zfile), Z_STRVAL_P(zmode),
-						REPORT_ERRORS|STREAM_WILL_CAST, NULL);
+                /* force into an fd */
+                if (stream == NULL || FAILURE == php_stream_cast(stream, PHP_STREAM_CAST_RELEASE|PHP_STREAM_AS_FD, (void ** )&fd, REPORT_ERRORS))
+                {
+                    goto exit_fail;
+                }
 
-				/* force into an fd */
-				if (stream == NULL || FAILURE == php_stream_cast(stream,
-							PHP_STREAM_CAST_RELEASE|PHP_STREAM_AS_FD,
-							(void **)&fd, REPORT_ERRORS)) {
-					goto exit_fail;
-				}
+                descriptors[ndesc].childend = fd;
+            }
+            else if (strcmp(Z_STRVAL_P(ztype), "pty") == 0)
+            {
 
+                swoole_php_fatal_error(E_WARNING, "pty pseudo terminal not supported on this system");
+                goto exit_fail;
+            }
+            else
+            {
+                swoole_php_fatal_error(E_WARNING, "%s is not a valid descriptor spec/mode", Z_STRVAL_P(ztype));
+                goto exit_fail;
+            }
+        }
+        ndesc++;
+    }
+    ZEND_HASH_FOREACH_END();
 
-				descriptors[ndesc].childend = fd;
-			} else if (strcmp(Z_STRVAL_P(ztype), "pty") == 0) {
+    /* the unix way */
+    child = swoole_fork(SW_FORK_EXEC);
 
-				php_error_docref(NULL, E_WARNING, "pty pseudo terminal not supported on this system");
-				goto exit_fail;
-			} else {
-				php_error_docref(NULL, E_WARNING, "%s is not a valid descriptor spec/mode", Z_STRVAL_P(ztype));
-				goto exit_fail;
-			}
-		}
-		ndesc++;
-	} ZEND_HASH_FOREACH_END();
+    if (child == 0)
+    {
+        /* this is the child process */
 
-	/* the unix way */
-	child = fork();
+        /* close those descriptors that we just opened for the parent stuff,
+         * dup new descriptors into required descriptors and close the original
+         * cruft */
+        for (i = 0; i < ndesc; i++)
+        {
+            switch (descriptors[i].mode & ~DESC_PARENT_MODE_WRITE)
+            {
+            case DESC_PIPE:
+                close(descriptors[i].parentend);
+                break;
+            }
+            if (dup2(descriptors[i].childend, descriptors[i].index) < 0)
+            {
+                perror("dup2");
+            }
+            if (descriptors[i].childend != descriptors[i].index)
+            {
+                close(descriptors[i].childend);
+            }
+        }
 
-	if (child == 0) {
-		/* this is the child process */
+        if (cwd)
+        {
+            php_ignore_value(chdir(cwd));
+        }
 
-		/* close those descriptors that we just opened for the parent stuff,
-		 * dup new descriptors into required descriptors and close the original
-		 * cruft */
-		for (i = 0; i < ndesc; i++) {
-			switch (descriptors[i].mode & ~DESC_PARENT_MODE_WRITE) {
-				case DESC_PIPE:
-					close(descriptors[i].parentend);
-					break;
-			}
-			if (dup2(descriptors[i].childend, descriptors[i].index) < 0)
-				perror("dup2");
-			if (descriptors[i].childend != descriptors[i].index)
-				close(descriptors[i].childend);
-		}
+        if (env.envarray)
+        {
+            execle("/bin/sh", "sh", "-c", command, NULL, env.envarray);
+        }
+        else
+        {
+            execl("/bin/sh", "sh", "-c", command, NULL);
+        }
+        _exit(127);
 
-		if (cwd) {
-			php_ignore_value(chdir(cwd));
-		}
+    }
+    else if (child < 0)
+    {
+        /* failed to fork() */
 
-		if (env.envarray) {
-			execle("/bin/sh", "sh", "-c", command, NULL, env.envarray);
-		} else {
-			execl("/bin/sh", "sh", "-c", command, NULL);
-		}
-		_exit(127);
+        /* clean up all the descriptors */
+        for (i = 0; i < ndesc; i++)
+        {
+            close(descriptors[i].childend);
+            if (descriptors[i].parentend)
+            {
+                close(descriptors[i].parentend);
+            }
+        }
 
-	} else if (child < 0) {
-		/* failed to fork() */
+        swoole_php_fatal_error(E_WARNING, "fork failed - %s", strerror(errno));
 
-		/* clean up all the descriptors */
-		for (i = 0; i < ndesc; i++) {
-			close(descriptors[i].childend);
-			if (descriptors[i].parentend)
-				close(descriptors[i].parentend);
-		}
+        goto exit_fail;
 
-		php_error_docref(NULL, E_WARNING, "fork failed - %s", strerror(errno));
-
-		goto exit_fail;
-
-	}
+    }
 
     /* we forked/spawned and this is the parent */
 

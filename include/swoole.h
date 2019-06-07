@@ -371,6 +371,12 @@ enum swGlobal_hook_type
     SW_GLOBAL_HOOK_ON_CORO_STOP,
 };
 
+enum swFork_type
+{
+    SW_FORK_SPAWN   = 0,
+    SW_FORK_EXEC    = 1u << 2,
+};
+
 //-------------------------------------------------------------------------------
 enum swServer_mode
 {
@@ -1492,7 +1498,7 @@ static sw_inline int swSocket_is_stream(uint8_t type)
 
 void swoole_init(void);
 void swoole_clean(void);
-pid_t swoole_fork();
+pid_t swoole_fork(int flags);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
