@@ -158,19 +158,19 @@ void swoole_clean(void)
 
 pid_t swoole_fork(int flags)
 {
-	if (!(flags & SW_FORK_EXEC))
-	{
-	    if (swoole_coroutine_is_in())
-	    {
-	        swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "must be forked outside the coroutine");
-	        return -1;
-	    }
-	    if (SwooleAIO.init)
-	    {
-	        swError("can not create server after using async file operation");
-	        return -1;
-	    }
-	}
+    if (!(flags & SW_FORK_EXEC))
+    {
+        if (swoole_coroutine_is_in())
+        {
+            swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "must be forked outside the coroutine");
+            return -1;
+        }
+        if (SwooleAIO.init)
+        {
+            swError("can not create server after using async file operation");
+            return -1;
+        }
+    }
 
     pid_t pid = fork();
     if (pid == 0)
@@ -185,11 +185,14 @@ pid_t swoole_fork(int flags)
         /**
          * reset SwooleG.memory_pool
          */
-        SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-        if (SwooleG.memory_pool == NULL)
+        if (!(flags & SW_FORK_EXEC))
         {
-            printf("[Worker] Fatal Error: global memory allocation failure");
-            exit(1);
+            SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
+            if (SwooleG.memory_pool == NULL)
+            {
+                printf("[Worker] Fatal Error: global memory allocation failure");
+                exit(1);
+            }
         }
         /**
          * reset eventLoop
