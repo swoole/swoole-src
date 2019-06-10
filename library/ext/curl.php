@@ -290,6 +290,15 @@ class swoole_curl_handler
             case CURLOPT_CONNECTTIMEOUT:
                 $this->clientOptions['connect_timeout'] = $value;
                 break;
+            case CURLOPT_CONNECTTIMEOUT_MS:
+                $this->clientOptions['connect_timeout'] = $value * 1000;
+                break;
+            case CURLOPT_TIMEOUT:
+                $this->clientOptions['timeout'] = $value;
+                break;
+            case CURLOPT_TIMEOUT_MS:
+                $this->clientOptions['timeout'] = $value * 1000;
+                break;
             case CURLOPT_FILE:
                 $this->outputStream = $value;
                 break;
