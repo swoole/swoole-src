@@ -219,23 +219,23 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *dat
 {
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache*) serv->private_data_3;
     zval args[4];
-    zval *zserver = &args[0], *zfd = &args[1], *ztype = &args[2], *zdata = NULL;
+    zval *zserv = &args[0], *zfd = &args[1], *ztype = &args[2], *zdata = NULL;
     zval _retval, *retval = &_retval;
     int worker_id = -1;
 
     SwooleG.lock.lock(&SwooleG.lock);
-    *zserver = *((zval *) serv->ptr2);
+    *zserv = *((zval *) serv->ptr2);
     ZVAL_LONG(zfd, (zend_long) (conn ? conn->session_id : data->info.fd));
     ZVAL_LONG(ztype, (zend_long) data->info.type);
     if (sw_zend_function_max_num_args(fci_cache->function_handler) > 3)
     {
-        // optimization: reduce memory copy
+        // TODO: reduce memory copy
         zdata = &args[3];
         ZVAL_STRINGL(zdata, data->data, data->info.len > SW_IPC_BUFFER_SIZE ? SW_IPC_BUFFER_SIZE : data->info.len);
     }
-    if (sw_call_user_function_fast_ex(NULL, fci_cache, zdata ? 4 : 3, args, retval) == FAILURE)
+    if (UNEXPECTED(!zend::function::call(fci_cache, zdata ? 4 : 3, args, retval, false)))
     {
-        swoole_php_fatal_error(E_WARNING, "dispatch function handler error");
+        swoole_php_error(E_WARNING, "%s->onDispatch handler error", ZSTR_VAL(Z_OBJCE_P(zserv)->name));
     }
     else if (!ZVAL_IS_NULL(retval))
     {

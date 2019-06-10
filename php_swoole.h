@@ -1004,6 +1004,7 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval* o
     return ret;
 }
 
+/* this API can work well when retval is NULL, but sometimes you need to check the EG(exception) manually */
 static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fcall_info_cache *fci_cache, uint32_t param_count, zval *params, zval *retval)
 {
     zend_fcall_info fci;
@@ -1031,11 +1032,6 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
 
     ret = zend_call_function(&fci, fci_cache);
 
-    /* we have no chance to return to ZendVM to check the exception  */
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
     if (!retval)
     {
         zval_ptr_dtor(&_retval);
@@ -1166,7 +1162,7 @@ static sw_inline zend_string* sw_get_debug_print_backtrace(zend_long options, ze
         sw_call_user_function_fast_ex(&fcn, NULL, 2, args, &zoutput);
         zval_ptr_dtor(&fcn);
     } SW_PHP_OB_END();
-    if (UNEXPECTED(ZVAL_IS_NULL(&zoutput)))
+    if (UNEXPECTED(Z_TYPE_P(&zoutput) != IS_STRING))
     {
         return NULL;
     }
