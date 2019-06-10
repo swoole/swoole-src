@@ -261,10 +261,6 @@ extern zend_class_entry *swoole_server_port_ce;
 extern zend_class_entry *swoole_exception_ce;
 extern zend_object_handlers swoole_exception_handlers;
 
-extern zval *php_sw_server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
-extern zend_fcall_info_cache *php_sw_server_caches[PHP_SWOOLE_SERVER_CALLBACK_NUM];
-extern zval _php_sw_server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
-
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);
 PHP_RINIT_FUNCTION(swoole);
