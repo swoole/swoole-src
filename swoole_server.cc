@@ -63,7 +63,7 @@ zval *php_sw_server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
 zval _php_sw_server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
 zend_fcall_info_cache *php_sw_server_caches[PHP_SWOOLE_SERVER_CALLBACK_NUM];
 
-static unordered_map<int, zval*> task_callbacks;
+static unordered_map<int, zend_fcall_info_cache> task_callbacks;
 static unordered_map<int, swTaskCo*> task_coroutine_map;
 static unordered_map<int, list<php_coro_context *> *> send_coroutine_map;
 
@@ -1174,7 +1174,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, is_enable_coroutine(serv))))
     {
-        swoole_php_error(E_WARNING, "%s->onPipeMessage handler error", ZSTR_VAL(swoole_server_ce->name));
+        swoole_php_error(E_WARNING, "%s->onPipeMessage handler error", ZSTR_VAL(Z_OBJCE_P(zserv)->name));
     }
 
     sw_zval_free(zdata);
@@ -1193,7 +1193,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 4, args, NULL, SwooleG.enable_coroutine)))
     {
-        swoole_php_error(E_WARNING, "%s->onReceive handler error", ZSTR_VAL(swoole_server_ce->name));
+        swoole_php_error(E_WARNING, "%s->onReceive handler error", ZSTR_VAL(Z_OBJCE_P(zserv)->name));
         serv->close(serv, req->info.fd, 0);
     }
 
@@ -1252,7 +1252,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, SwooleG.enable_coroutine)))
     {
-        swoole_php_error(E_WARNING, "%s->onPipeMessage handler error", ZSTR_VAL(swoole_server_ce->name));
+        swoole_php_error(E_WARNING, "%s->onPipeMessage handler error", ZSTR_VAL(Z_OBJCE_P(zserv)->name));
     }
 
     zval_ptr_dtor(&zaddr);
@@ -1341,10 +1341,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     zval *zserv = (zval *) serv->ptr2;
     zval args[3];
 
-    zval *zdata;
-    zval *retval = NULL;
-
-    zdata = php_swoole_task_unpack(req);
+    zval *zdata = php_swoole_task_unpack(req);
     if (zdata == NULL)
     {
         return SW_ERR;
@@ -1366,6 +1363,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
         //Server->taskwait
         if (task_co->list == NULL)
         {
+            zval *retval = NULL;
             if (task_co->timer)
             {
                 swTimer_del(&SwooleG.timer, task_co->timer);
@@ -1404,6 +1402,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 
         if (php_swoole_array_length(result) == task_co->count)
         {
+            zval *retval = NULL;
             if (task_co->timer)
             {
                 swTimer_del(&SwooleG.timer, task_co->timer);
@@ -1425,7 +1424,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     ZVAL_LONG(&args[1], (zend_long) req->info.fd);
     args[2] = *zdata;
 
-    zval *callback = NULL;
+    zend_fcall_info_cache *fci_cache = NULL;
     if (swTask_type(req) & SW_TASK_CALLBACK)
     {
         auto callback_iterator = task_callbacks.find(req->info.fd);
@@ -1435,33 +1434,30 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
         }
         else
         {
-            callback = callback_iterator->second;
+            fci_cache = &callback_iterator->second;
         }
     }
-    if (callback == NULL)
+    else
     {
-        callback = php_sw_server_callbacks[SW_SERVER_CB_onFinish];
-        if (callback == NULL)
-        {
-            sw_zval_free(zdata);
-            swoole_php_fatal_error(E_WARNING, "require onFinish callback");
-            return SW_ERR;
-        }
+        fci_cache = php_sw_server_caches[SW_SERVER_CB_onFinish];
     }
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL) == FAILURE)
+    if (UNEXPECTED(fci_cache == NULL))
     {
-        swoole_php_fatal_error(E_WARNING, "onFinish handler error");
+        sw_zval_free(zdata);
+        swoole_php_fatal_error(E_WARNING, "require onFinish callback");
+        return SW_ERR;
     }
-    sw_zval_free(zdata);
-    if (retval)
+    if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, SwooleG.enable_coroutine)))
     {
-        zval_ptr_dtor(retval);
+        swoole_php_error(E_WARNING, "%s->onFinish handler error", ZSTR_VAL(Z_OBJCE_P(zserv)->name));
     }
     if (swTask_type(req) & SW_TASK_CALLBACK)
     {
+        sw_fci_cache_discard(fci_cache);
         task_callbacks.erase(req->info.fd);
-        sw_zval_free(callback);
     }
+    sw_zval_free(zdata);
+
     return SW_OK;
 }
 
@@ -1576,7 +1572,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
         ZVAL_LONG(&args[1], worker_id);
         if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, is_enable_coroutine(serv))))
         {
-            swoole_php_error(E_WARNING, "%s->onWorkerStart handler error", ZSTR_VAL(swoole_server_ce->name));
+            swoole_php_error(E_WARNING, "%s->onWorkerStart handler error", ZSTR_VAL(Z_OBJCE_P(zserv)->name));
         }
     }
 }
@@ -1669,13 +1665,14 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onConnect);
     if (fci_cache)
     {
+        zval *zserv = (zval *) serv->ptr2;
         zval args[3];
-        args[0] = *((zval *) serv->ptr2);
+        args[0] = *zserv;
         ZVAL_LONG(&args[1], info->fd);
         ZVAL_LONG(&args[2], info->reactor_id);
         if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, SwooleG.enable_coroutine)))
         {
-            swoole_php_error(E_WARNING, "%s->onConnect handler error", ZSTR_VAL(swoole_server_ce->name));
+            swoole_php_error(E_WARNING, "%s->onConnect handler error", ZSTR_VAL(Z_OBJCE_P(zserv)->name));
         }
     }
 }
@@ -1719,7 +1716,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
         ZVAL_LONG(&args[2], info->reactor_id);
         if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, SwooleG.enable_coroutine)))
         {
-            swoole_php_error(E_WARNING, "%s->onClose handler error", ZSTR_VAL(swoole_server_ce->name));
+            swoole_php_error(E_WARNING, "%s->onClose handler error", ZSTR_VAL(Z_OBJCE_P(zserv)->name));
         }
     }
 }
@@ -3525,9 +3522,9 @@ static PHP_METHOD(swoole_server, task)
     swEventData buf;
     bzero(&buf.info, sizeof(buf.info));
     zval *data;
-    zval *callback = NULL;
-
     zend_long dst_worker_id = -1;
+    zend_fcall_info fci = empty_fcall_info;
+    zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
@@ -3540,7 +3537,7 @@ static PHP_METHOD(swoole_server, task)
         Z_PARAM_ZVAL(data)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(dst_worker_id)
-        Z_PARAM_ZVAL_EX(callback, 1, 0)
+        Z_PARAM_FUNC_EX(fci, fci_cache, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (php_swoole_check_task_param(serv, dst_worker_id) < 0)
@@ -3557,15 +3554,11 @@ static PHP_METHOD(swoole_server, task)
     {
         swTask_type(&buf) |= SW_TASK_NOREPLY;
     }
-    else if (callback)
+    else if (fci.size)
     {
-        if (!php_swoole_is_callable(callback))
-        {
-            RETURN_FALSE;
-        }
         swTask_type(&buf) |= SW_TASK_CALLBACK;
-        Z_TRY_ADDREF_P(callback);
-        task_callbacks[buf.info.fd] = sw_zval_dup(callback);
+        sw_fci_cache_persist(&fci_cache);
+        task_callbacks[buf.info.fd] = fci_cache;
     }
 
     swTask_type(&buf) |= SW_TASK_NONBLOCK;
