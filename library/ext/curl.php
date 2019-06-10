@@ -42,6 +42,7 @@ class swoole_curl_handler
     private $outputStream;
     private $proxy;
     private $clientOptions = [];
+    private $userPwd;
 
     /** @var callable */
     private $headerFunction;
@@ -128,6 +129,13 @@ class swoole_curl_handler
             $client->set($this->clientOptions);
         }
         $client->setMethod($this->method);
+        /**
+         * userPwd
+         */
+        if($this->userPwd)
+        {
+            $this->headers['Authorization'] = 'Basic ' . base64_encode($this->userPwd);
+        }
         if ($this->headers) {
             $client->setHeaders($this->headers);
         }
@@ -315,6 +323,9 @@ class swoole_curl_handler
                 break;
             case CURLOPT_PROGRESSFUNCTION:
                 $this->progressFunction = $value;
+                break;
+            case CURLOPT_USERPWD:
+                $this->userPwd = $value;
                 break;
             default:
                 throw new swoole_curl_exception("option[{$opt}] not supported");
