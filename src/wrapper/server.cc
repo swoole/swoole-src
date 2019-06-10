@@ -491,7 +491,8 @@ int Server::_onPacket(swServer *serv, swEventData *req)
     }
     else
     {
-        assert(0);
+        abort();
+        return SW_ERR;
     }
 
     DataBuffer _data;

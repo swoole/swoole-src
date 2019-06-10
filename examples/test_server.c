@@ -153,7 +153,7 @@ int my_onPacket(swServer *serv, swEventData *req)
     }
     else
     {
-        assert(0);
+        abort();
     }
 
     data = packet->data;

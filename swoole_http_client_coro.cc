@@ -482,7 +482,7 @@ bool http_client::init_compression(enum http_compress_method method)
     case HTTP_COMPRESS_BR:
         break;
     default:
-        assert(0);
+        abort();
     }
 
     return true;

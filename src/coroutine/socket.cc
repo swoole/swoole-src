@@ -34,7 +34,7 @@ void Socket::timer_callback(swTimer *timer, swTimer_node *tnode)
     }
     else
     {
-        assert(0);
+        abort();
     }
 }
 
