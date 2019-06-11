@@ -1858,7 +1858,7 @@ static PHP_METHOD(swoole_server, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "%s only can be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        swoole_php_fatal_error(E_ERROR, "%s can only be used in CLI mode", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 

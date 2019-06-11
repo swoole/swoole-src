@@ -706,7 +706,7 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 
 //----------------------------------Class API------------------------------------
 
-#define SW_Z_OBJCE_NAME_VAL_P(ce) ZSTR_VAL(Z_OBJCE_P(ce)->name)
+#define SW_Z_OBJCE_NAME_VAL_P(zobject) ZSTR_VAL(Z_OBJCE_P(zobject)->name)
 
 /* PHP 7 class declaration macros */
 
