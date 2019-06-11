@@ -603,7 +603,7 @@ PHP_FUNCTION(swoole_proc_open)
                 stream->flags |= PHP_STREAM_FLAG_NO_SEEK;
 
                 php_stream_to_zval(stream, &retfp);
-                add_index_zval(pipes, descriptors[i].index, &retfp);
+                (void) add_index_zval(pipes, descriptors[i].index, &retfp);
 
                 proc->pipes[i] = Z_RES(retfp);
                 Z_ADDREF(retfp);

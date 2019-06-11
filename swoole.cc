@@ -232,7 +232,7 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *dat
     }
     if (UNEXPECTED(!zend::function::call(fci_cache, zdata ? 4 : 3, args, retval, false)))
     {
-        swoole_php_error(E_WARNING, "%s->onDispatch handler error", ZSTR_VAL(Z_OBJCE_P(zserv)->name));
+        swoole_php_error(E_WARNING, "%s->onDispatch handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
     else if (!ZVAL_IS_NULL(retval))
     {

@@ -632,7 +632,6 @@ static sw_inline void sw_zval_free(zval *val)
 #define sw_add_assoc_stringl_ex                     add_assoc_stringl_ex
 #endif
 
-
 //----------------------------------Constant API------------------------------------
 #define SW_REGISTER_NULL_CONSTANT(name)           REGISTER_NULL_CONSTANT(name, CONST_CS | CONST_PERSISTENT)
 #define SW_REGISTER_BOOL_CONSTANT(name, value)    REGISTER_BOOL_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
@@ -643,6 +642,7 @@ static sw_inline void sw_zval_free(zval *val)
 
 //----------------------------------Number API-----------------------------------
 #define sw_php_math_round(value, places, mode)    _php_math_round(value, places, mode)
+
 //----------------------------------String API-----------------------------------
 
 #define SW_PHP_OB_START(zoutput) \
@@ -705,6 +705,8 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 }
 
 //----------------------------------Class API------------------------------------
+
+#define SW_Z_OBJCE_NAME_VAL_P(ce) ZSTR_VAL(Z_OBJCE_P(ce)->name)
 
 /* PHP 7 class declaration macros */
 

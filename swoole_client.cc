@@ -131,13 +131,13 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
 
     if (!fci_cache->function_handler)
     {
-        swoole_php_fatal_error(E_WARNING, "%s has no %s callback", Z_OBJCE_P(zobject)->name, callback_name);
+        swoole_php_fatal_error(E_WARNING, "%s has no %s callback", SW_Z_OBJCE_NAME_VAL_P(zobject), callback_name);
         return;
     }
 
     if (UNEXPECTED(sw_call_user_function_fast_ex(NULL, fci_cache, 1, zobject, NULL) != SUCCESS))
     {
-        swoole_php_fatal_error(E_WARNING, "%s->%s handler error", Z_OBJCE_P(zobject)->name, callback_name);
+        swoole_php_fatal_error(E_WARNING, "%s->%s handler error", SW_Z_OBJCE_NAME_VAL_P(zobject), callback_name);
         return;
     }
 
@@ -313,7 +313,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
 
     if (UNEXPECTED(sw_call_user_function_fast_ex(NULL, fci_cache, 2, args, NULL) != SUCCESS))
     {
-        swoole_php_fatal_error(E_WARNING, "%s->onReceive handler error", Z_OBJCE_P(zobject)->name);
+        swoole_php_fatal_error(E_WARNING, "%s->onReceive handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
 
     zval_ptr_dtor(&args[1]);
