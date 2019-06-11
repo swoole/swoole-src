@@ -41,6 +41,7 @@ class swoole_curl_handler
     private $postData;
     private $outputStream;
     private $proxy;
+    private $clientOptions = [];
 
     /** @var callable */
     private $headerFunction;
@@ -119,15 +120,36 @@ class swoole_curl_handler
             }
             $client->set(['http_proxy_host' => $proxy_host, 'http_proxy_port' => $proxy_port]);
         }
+        /**
+         * Client Options
+         */
+        if($this->clientOptions)
+        {
+            $client->set($this->clientOptions);
+        }
         $client->setMethod($this->method);
         if ($this->headers) {
             $client->setHeaders($this->headers);
         }
+        /**
+         * Upload File
+         */
+        if ($this->postData) {
+            foreach ($this->postData as $k => $v) {
+                if ($v instanceof CURLFile) {
+                    $client->addFile($v->getFilename(), $k, $v->getMimeType() ?: 'application/octet-stream', $v->getPostFilename());
+                    unset($this->postData[$k]);
+                }
+            }
+        }
+        /**
+         * Post Data
+         */
         if ($this->postData) {
             $client->setData($this->postData);
+            $this->postData = [];
         }
         if (!$client->execute($this->getUrl())) {
-
             $errCode = $this->client->errCode;
             if ($errCode == 1 and $this->client->errMsg == 'Unknown host') {
                 $this->setError(CURLE_COULDNT_RESOLVE_HOST, 'Could not resolve host: ' . $this->client->host);
@@ -159,8 +181,6 @@ class swoole_curl_handler
             if ($this->outputStream) {
                 return fwrite($this->outputStream, $client->body) === strlen($client->body);
             } else {
-
-
                 echo $client->body;
             }
             return true;
@@ -228,10 +248,17 @@ class swoole_curl_handler
                 $this->method = 'POST';
                 break;
             case CURLOPT_POSTFIELDS:
-                $this->headers['Content-Type'] = 'application/x-www-form-urlencoded';
                 $this->postData = $value;
+                $this->method = 'POST';
                 break;
-
+            /**
+             * Upload
+             */
+            case CURLOPT_SAFE_UPLOAD:
+                if (!$value) {
+                    trigger_error('curl_setopt(): Disabling safe uploads is no longer supported', E_USER_WARNING);
+                }
+                break;
             /**
              * Http Header
              */
@@ -277,10 +304,19 @@ class swoole_curl_handler
             case CURLOPT_SSL_VERIFYHOST:
                 break;
             case CURLOPT_SSL_VERIFYPEER:
-                $this->client->set(['ssl_verify_peer' => $value]);
+                $this->clientOptions['ssl_verify_peer'] = $value;
                 break;
             case CURLOPT_CONNECTTIMEOUT:
-                $this->client->set(['connect_timeout' => $value]);
+                $this->clientOptions['connect_timeout'] = $value;
+                break;
+            case CURLOPT_CONNECTTIMEOUT_MS:
+                $this->clientOptions['connect_timeout'] = $value / 1000;
+                break;
+            case CURLOPT_TIMEOUT:
+                $this->clientOptions['timeout'] = $value;
+                break;
+            case CURLOPT_TIMEOUT_MS:
+                $this->clientOptions['timeout'] = $value / 1000;
                 break;
             case CURLOPT_FILE:
                 $this->outputStream = $value;
@@ -299,6 +335,9 @@ class swoole_curl_handler
             case CURLOPT_PROGRESSFUNCTION:
                 $this->progressFunction = $value;
                 break;
+            case CURLOPT_USERPWD:
+                $this->headers['Authorization'] = 'Basic ' . base64_encode($value);
+                break;
             default:
                 throw new swoole_curl_exception("option[{$opt}] not supported");
         }
@@ -307,7 +346,6 @@ class swoole_curl_handler
 
     function reset(): void
     {
-        $this->client->body = '';
     }
 
     public function getInfo()

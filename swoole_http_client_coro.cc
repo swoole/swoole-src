@@ -1422,8 +1422,6 @@ bool http_client::close()
         zend_update_property_bool(swoole_http_client_coro_ce, zobject, ZEND_STRL("connected"), 0);
         if (!socket->has_bound())
         {
-            // reset some request period states
-            reset();
             // reset the properties that depend on the connection
             this->websocket = false;
             this->socket = nullptr;
