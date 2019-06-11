@@ -299,10 +299,18 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
         buf->info.flags = 0;
         buf->info.len = send_n;
         memcpy(buf->data, data, buf->info.len);
-        return swReactorThread_send2worker(serv, worker, buf, sizeof(buf->info) + buf->info.len);
+        int retval = swReactorThread_send2worker(serv, worker, buf, sizeof(buf->info) + buf->info.len);
+#ifdef __linux__
+        if (retval < 0 && errno == ENOBUFS)
+        {
+            max_length = SW_BUFFER_SIZE_STD;
+            goto _ipc_use_chunk;
+        }
+#endif
+        return retval;
     }
 
-    buf->info.flags = SW_EVENT_DATA_CHUNK;
+    _ipc_use_chunk: buf->info.flags = SW_EVENT_DATA_CHUNK;
 
     while (send_n > 0)
     {
@@ -318,15 +326,22 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
 
         memcpy(buf->data, data + offset, buf->info.len);
 
-        send_n -= buf->info.len;
-        offset += buf->info.len;
-
         swTrace("dispatch, type=%d|len=%d", buf->info.type, buf->info.len);
 
         if (swReactorThread_send2worker(serv, worker, buf, sizeof(buf->info) + buf->info.len) < 0)
         {
+#ifdef __linux__
+            if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD)
+            {
+                max_length = SW_BUFFER_SIZE_STD;
+                continue;
+            }
+#endif
             return SW_ERR;
         }
+
+        send_n -= buf->info.len;
+        offset += buf->info.len;
     }
 
     return SW_OK;
@@ -420,7 +435,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
      */
     if (resp->info.len > max_length)
     {
-        if (worker == NULL || worker->send_shm == NULL)
+        _ipc_use_shm: if (worker == NULL || worker->send_shm == NULL)
         {
             goto _pack_data;
         }
@@ -472,6 +487,12 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     ret = swWorker_send2reactor(serv, (swEventData *) buf, sendn, session_id);
     if (ret < 0)
     {
+#ifdef __linux__
+        if (errno == ENOBUFS && resp->info.len <= max_length)
+        {
+            goto _ipc_use_shm;
+        }
+#endif
         swSysWarn("sendto to reactor failed");
     }
     return ret;
