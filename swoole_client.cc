@@ -754,8 +754,9 @@ void php_swoole_client_free(zval *zobject, swClient *cli)
     }
     if (cli->protocol.private_data)
     {
-        zval *zcallback = (zval *) cli->protocol.private_data;
-        sw_zval_free(zcallback);
+        sw_fci_cache_discard((zend_fcall_info_cache *) cli->protocol.private_data);
+        efree(cli->protocol.private_data);
+        cli->protocol.private_data = nullptr;
     }
     //long tcp connection, delete from php_sw_long_connections
     if (cli->keep)
