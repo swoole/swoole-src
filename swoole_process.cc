@@ -531,7 +531,7 @@ static PHP_METHOD(swoole_process, signal)
         RETURN_FALSE
     }
 
-    if (Z_TYPE_P(zcallback) == IS_LONG && Z_LVAL_P(zcallback) == SIG_IGN)
+    if (Z_TYPE_P(zcallback) == IS_LONG && Z_LVAL_P(zcallback) == (zend_long) SIG_IGN)
     {
         handler = NULL;
     }
@@ -555,7 +555,7 @@ static PHP_METHOD(swoole_process, signal)
     else
     {
         char *func_name;
-        fci_cache = ecalloc(1, sizeof(zend_fcall_info_cache));
+        fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
         if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, 0, fci_cache, NULL))
         {
             swoole_php_error(E_WARNING, "function '%s' is not callable", func_name);
@@ -660,7 +660,7 @@ static void php_swoole_onSignal(int signo)
 
     if (sw_call_user_function_fast_ex(NULL, fci_cache, 1, &zsigno, NULL) != SUCCESS)
     {
-        swoole_php_fatal_error(E_WARNING, "%s: signal [" ZEND_LONG_FMT "] handler error", signo, ZSTR_VAL(swoole_process_ce->name));
+        swoole_php_fatal_error(E_WARNING, "%s: signal [%d] handler error", ZSTR_VAL(swoole_process_ce->name), signo);
     }
 
     if (UNEXPECTED(EG(exception)))
