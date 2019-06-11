@@ -123,18 +123,14 @@ class swoole_curl_handler
         /**
          * Client Options
          */
-        if($this->clientOptions)
-        {
+        if ($this->clientOptions) {
             $client->set($this->clientOptions);
         }
         $client->setMethod($this->method);
-        if ($this->headers) {
-            $client->setHeaders($this->headers);
-        }
         /**
          * Upload File
          */
-        if ($this->postData) {
+        if ($this->postData and is_array($this->postData)) {
             foreach ($this->postData as $k => $v) {
                 if ($v instanceof CURLFile) {
                     $client->addFile($v->getFilename(), $k, $v->getMimeType() ?: 'application/octet-stream', $v->getPostFilename());
@@ -146,9 +142,21 @@ class swoole_curl_handler
          * Post Data
          */
         if ($this->postData) {
+            if (is_string($this->postData) and empty($this->headers['Content-Type'])) {
+                $this->headers['Content-Type'] = 'application/x-www-form-urlencoded';
+            }
             $client->setData($this->postData);
             $this->postData = [];
         }
+        /**
+         * Http Header
+         */
+        if ($this->headers) {
+            $client->setHeaders($this->headers);
+        }
+        /**
+         * Execute
+         */
         if (!$client->execute($this->getUrl())) {
             $errCode = $this->client->errCode;
             if ($errCode == 1 and $this->client->errMsg == 'Unknown host') {
@@ -158,7 +166,7 @@ class swoole_curl_handler
         }
 
         $this->info['http_code'] = $client->statusCode;
-        $this->info['content_type'] = $client->headers['content-type'];
+        $this->info['content_type'] = $client->headers['content-type'] ?? '';
 
         if ($client->headers and $this->headerFunction) {
             $cb = $this->headerFunction;
