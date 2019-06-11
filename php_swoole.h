@@ -960,26 +960,6 @@ static sw_inline zend_bool sw_zend_is_callable(zval *cb, int a, char **name)
     return ret;
 }
 
-static sw_inline enum swBool_type php_swoole_is_callable(zval *callback)
-{
-    if (!callback || ZVAL_IS_NULL(callback))
-    {
-        return SW_FALSE;
-    }
-    char *func_name = NULL;
-    if (!sw_zend_is_callable(callback, 0, &func_name))
-    {
-        swoole_php_fatal_error(E_WARNING, "function '%s' is not callable", func_name);
-        efree(func_name);
-        return SW_FALSE;
-    }
-    else
-    {
-        efree(func_name);
-        return SW_TRUE;
-    }
-}
-
 static sw_inline zend_bool sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint check_flags, char **callable_name, size_t *callable_name_len, zend_fcall_info_cache *fci_cache, char **error)
 {
     zend_string *name;
