@@ -420,7 +420,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
      */
     if (resp->info.len > max_length)
     {
-        if (worker == NULL || worker->send_shm == NULL)
+        _ipc_use_shm: if (worker == NULL || worker->send_shm == NULL)
         {
             goto _pack_data;
         }
@@ -470,6 +470,10 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     ret = swWorker_send2reactor(serv, (swEventData *) buf, sendn, session_id);
     if (ret < 0)
     {
+        if (errno == ENOBUFS && resp->info.len <= max_length)
+        {
+            goto _ipc_use_shm;
+        }
         swSysWarn("sendto to reactor failed");
     }
     return ret;
