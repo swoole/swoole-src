@@ -950,13 +950,12 @@ static sw_inline int sw_zend_function_max_num_args(zend_function *function)
 }
 
 // TODO: remove it after remove async modules
-static sw_inline zend_bool sw_zend_is_callable(zval *cb, int a, char **name)
+static sw_inline zend_bool sw_zend_is_callable(zval *callable, int check_flags, char **callable_name)
 {
-    zend_string *key = NULL;
-    zend_bool ret = zend_is_callable(cb, a, &key);
-    char *tmp = estrndup(ZSTR_VAL(key), ZSTR_LEN(key));
-    zend_string_release(key);
-    *name = tmp;
+    zend_string *name;
+    zend_bool ret = zend_is_callable(callable, check_flags, &name);
+    *callable_name = estrndup(ZSTR_VAL(name), ZSTR_LEN(name));
+    zend_string_release(name);
     return ret;
 }
 
