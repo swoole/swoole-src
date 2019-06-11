@@ -41,6 +41,7 @@ class swoole_curl_handler
     private $postData;
     private $outputStream;
     private $proxy;
+    private $clientOptions = [];
 
     /** @var callable */
     private $headerFunction;
@@ -118,6 +119,13 @@ class swoole_curl_handler
                 }
             }
             $client->set(['http_proxy_host' => $proxy_host, 'http_proxy_port' => $proxy_port]);
+        }
+        /**
+         * Client Options
+         */
+        if($this->clientOptions)
+        {
+            $client->set($this->clientOptions);
         }
         $client->setMethod($this->method);
         if ($this->headers) {
@@ -296,10 +304,19 @@ class swoole_curl_handler
             case CURLOPT_SSL_VERIFYHOST:
                 break;
             case CURLOPT_SSL_VERIFYPEER:
-                $this->client->set(['ssl_verify_peer' => $value]);
+                $this->clientOptions['ssl_verify_peer'] = $value;
                 break;
             case CURLOPT_CONNECTTIMEOUT:
-                $this->client->set(['connect_timeout' => $value]);
+                $this->clientOptions['connect_timeout'] = $value;
+                break;
+            case CURLOPT_CONNECTTIMEOUT_MS:
+                $this->clientOptions['connect_timeout'] = $value / 1000;
+                break;
+            case CURLOPT_TIMEOUT:
+                $this->clientOptions['timeout'] = $value;
+                break;
+            case CURLOPT_TIMEOUT_MS:
+                $this->clientOptions['timeout'] = $value / 1000;
                 break;
             case CURLOPT_FILE:
                 $this->outputStream = $value;
@@ -317,6 +334,9 @@ class swoole_curl_handler
                 break;
             case CURLOPT_PROGRESSFUNCTION:
                 $this->progressFunction = $value;
+                break;
+            case CURLOPT_USERPWD:
+                $this->headers['Authorization'] = 'Basic ' . base64_encode($value);
                 break;
             default:
                 throw new swoole_curl_exception("option[{$opt}] not supported");
