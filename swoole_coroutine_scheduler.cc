@@ -289,3 +289,22 @@ PHP_METHOD(swoole_coroutine_scheduler, list)
     );
     zval_ptr_dtor(&zlist);
 }
+
+PHP_METHOD(swoole_coroutine_scheduler, disableScheduler)
+{
+    if (PHPCoroutine::disenable_scheduler())
+    {
+        RETURN_TRUE;
+    }
+    RETURN_FALSE;
+}
+
+PHP_METHOD(swoole_coroutine_scheduler, enableScheduler)
+{
+    if (PHPCoroutine::enable_scheduler())
+    {
+        RETURN_TRUE;
+    }
+    RETURN_FALSE;
+}
+
