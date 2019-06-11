@@ -93,62 +93,62 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
 {
     zval *zset = NULL;
     HashTable *vht = NULL;
-    zval *v;
+    zval *ztmp;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     vht = Z_ARRVAL_P(zset);
-    if (php_swoole_array_get_value(vht, "max_coroutine", v))
+    if (php_swoole_array_get_value(vht, "max_coroutine", ztmp))
     {
-        zend_long max_num = zval_get_long(v);
+        zend_long max_num = zval_get_long(ztmp);
         PHPCoroutine::set_max_num(max_num <= 0 ? SW_DEFAULT_MAX_CORO_NUM : max_num);
     }
-    if (php_swoole_array_get_value(vht, "c_stack_size", v) || php_swoole_array_get_value(vht, "stack_size", v))
+    if (php_swoole_array_get_value(vht, "c_stack_size", ztmp) || php_swoole_array_get_value(vht, "stack_size", ztmp))
     {
-        Coroutine::set_stack_size(zval_get_long(v));
+        Coroutine::set_stack_size(zval_get_long(ztmp));
     }
-    if (php_swoole_array_get_value(vht, "socket_connect_timeout", v))
+    if (php_swoole_array_get_value(vht, "socket_connect_timeout", ztmp))
     {
-        double t = zval_get_double(v);
+        double t = zval_get_double(ztmp);
         if (t != 0) { Socket::default_connect_timeout = t; }
     }
-    if (php_swoole_array_get_value(vht, "socket_timeout", v))
+    if (php_swoole_array_get_value(vht, "socket_timeout", ztmp))
     {
-        double t = zval_get_double(v);
+        double t = zval_get_double(ztmp);
         if (t != 0) { Socket::default_read_timeout = Socket::default_write_timeout = t; }
     }
-    if (php_swoole_array_get_value(vht, "socket_read_timeout", v))
+    if (php_swoole_array_get_value(vht, "socket_read_timeout", ztmp))
     {
-        double t = zval_get_double(v);
+        double t = zval_get_double(ztmp);
         if (t != 0) { Socket::default_read_timeout = t; }
     }
-    if (php_swoole_array_get_value(vht, "socket_write_timeout", v))
+    if (php_swoole_array_get_value(vht, "socket_write_timeout", ztmp))
     {
-        double t = zval_get_double(v);
+        double t = zval_get_double(ztmp);
         if (t != 0) { Socket::default_write_timeout = t; }
     }
-    if (php_swoole_array_get_value(vht, "log_level", v))
+    if (php_swoole_array_get_value(vht, "log_level", ztmp))
     {
-        zend_long level = zval_get_long(v);
+        zend_long level = zval_get_long(ztmp);
         SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
     }
-    if (php_swoole_array_get_value(vht, "trace_flags", v))
+    if (php_swoole_array_get_value(vht, "trace_flags", ztmp))
     {
-        SwooleG.trace_flags = (uint32_t) SW_MAX(0, zval_get_long(v));
+        SwooleG.trace_flags = (uint32_t) SW_MAX(0, zval_get_long(ztmp));
     }
-    if (php_swoole_array_get_value(vht, "dns_cache_expire", v))
+    if (php_swoole_array_get_value(vht, "dns_cache_expire", ztmp))
     {
-        System::set_dns_cache_expire((time_t) zval_get_long(v));
+        System::set_dns_cache_expire((time_t) zval_get_long(ztmp));
     }
-    if (php_swoole_array_get_value(vht, "dns_cache_capacity", v))
+    if (php_swoole_array_get_value(vht, "dns_cache_capacity", ztmp))
     {
-        System::set_dns_cache_capacity((size_t) zval_get_long(v));
+        System::set_dns_cache_capacity((size_t) zval_get_long(ztmp));
     }
-    if (php_swoole_array_get_value(vht, "display_errors", v))
+    if (php_swoole_array_get_value(vht, "display_errors", ztmp))
     {
-        SWOOLE_G(display_errors) = zval_is_true(v);
+        SWOOLE_G(display_errors) = zval_is_true(ztmp);
     }
 }
 

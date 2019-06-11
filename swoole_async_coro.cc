@@ -201,75 +201,75 @@ PHP_FUNCTION(swoole_async_set)
 
     zval *zset = NULL;
     HashTable *vht;
-    zval *v;
+    zval *ztmp;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     vht = Z_ARRVAL_P(zset);
-    if (php_swoole_array_get_value(vht, "enable_signalfd", v))
+    if (php_swoole_array_get_value(vht, "enable_signalfd", ztmp))
     {
-        SwooleG.enable_signalfd = zval_is_true(v);
+        SwooleG.enable_signalfd = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "dns_cache_refresh_time", v))
+    if (php_swoole_array_get_value(vht, "dns_cache_refresh_time", ztmp))
     {
-          SwooleG.dns_cache_refresh_time = zval_get_double(v);
+          SwooleG.dns_cache_refresh_time = zval_get_double(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "socket_buffer_size", v))
+    if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp))
     {
-        SwooleG.socket_buffer_size = zval_get_long(v);
+        SwooleG.socket_buffer_size = zval_get_long(ztmp);
         if (SwooleG.socket_buffer_size <= 0 || SwooleG.socket_buffer_size > INT_MAX)
         {
             SwooleG.socket_buffer_size = INT_MAX;
         }
     }
-    if (php_swoole_array_get_value(vht, "log_level", v))
+    if (php_swoole_array_get_value(vht, "log_level", ztmp))
     {
-        zend_long level = zval_get_long(v);
+        zend_long level = zval_get_long(ztmp);
         SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
     }
-    if (php_swoole_array_get_value(vht, "thread_num", v) || php_swoole_array_get_value(vht, "min_thread_num", v))
+    if (php_swoole_array_get_value(vht, "thread_num", ztmp) || php_swoole_array_get_value(vht, "min_thread_num", ztmp))
     {
-        SwooleAIO.max_thread_count = SwooleAIO.min_thread_count = zval_get_long(v);
+        SwooleAIO.max_thread_count = SwooleAIO.min_thread_count = zval_get_long(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "max_thread_num", v))
+    if (php_swoole_array_get_value(vht, "max_thread_num", ztmp))
     {
-        SwooleAIO.max_thread_count = zval_get_long(v);
+        SwooleAIO.max_thread_count = zval_get_long(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "display_errors", v))
+    if (php_swoole_array_get_value(vht, "display_errors", ztmp))
     {
-        SWOOLE_G(display_errors) = zval_is_true(v);
+        SWOOLE_G(display_errors) = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "socket_dontwait", v))
+    if (php_swoole_array_get_value(vht, "socket_dontwait", ztmp))
     {
-        SwooleG.socket_dontwait = zval_is_true(v);
+        SwooleG.socket_dontwait = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "dns_lookup_random", v))
+    if (php_swoole_array_get_value(vht, "dns_lookup_random", ztmp))
     {
-        SwooleG.dns_lookup_random = zval_is_true(v);
+        SwooleG.dns_lookup_random = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "dns_server", v))
+    if (php_swoole_array_get_value(vht, "dns_server", ztmp))
     {
         if (SwooleG.dns_server_v4)
         {
             sw_free(SwooleG.dns_server_v4);
         }
-        SwooleG.dns_server_v4 = zend::string(v).dup();
+        SwooleG.dns_server_v4 = zend::string(ztmp).dup();
     }
-    if (php_swoole_array_get_value(vht, "use_async_resolver", v))
+    if (php_swoole_array_get_value(vht, "use_async_resolver", ztmp))
     {
-        SwooleG.use_async_resolver = zval_is_true(v);
+        SwooleG.use_async_resolver = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "enable_coroutine", v))
+    if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp))
     {
-        SwooleG.enable_coroutine = zval_is_true(v);
+        SwooleG.enable_coroutine = zval_is_true(ztmp);
     }
 #if defined(HAVE_REUSEPORT) && defined(HAVE_EPOLL)
     //reuse port
-    if (php_swoole_array_get_value(vht, "enable_reuse_port", v))
+    if (php_swoole_array_get_value(vht, "enable_reuse_port", ztmp))
     {
-        if (zval_is_true(v) && swoole_version_compare(SwooleG.uname.release, "3.9.0") >= 0)
+        if (zval_is_true(ztmp) && swoole_version_compare(SwooleG.uname.release, "3.9.0") >= 0)
         {
             SwooleG.reuse_port = 1;
         }

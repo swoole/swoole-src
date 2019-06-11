@@ -1072,7 +1072,7 @@ bool Socket::listen(int backlog)
 #ifdef SW_USE_OPENSSL
     if (open_ssl)
     {
-        return ssl_init_context();
+        return ssl_check_context();
     }
 #endif
     return true;
@@ -1124,14 +1124,11 @@ Socket* Socket::accept()
 }
 
 #ifdef SW_USE_OPENSSL
-bool Socket::ssl_init_context()
+bool Socket::ssl_check_context()
 {
-    /**
-     * Already initialized
-     */
     if (ssl_context)
     {
-        return false;
+        return true;
     }
     ssl_context = swSSL_get_context(&ssl_option);
     if (ssl_context == nullptr)
