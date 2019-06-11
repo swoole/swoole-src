@@ -15,7 +15,7 @@
  */
 #include "php_swoole_cxx.h"
 
-#include "thirdparty/proc_open.h"
+#include "thirdparty/php/standard/proc_open.h"
 #include <unordered_map>
 #include <initializer_list>
 
@@ -112,7 +112,7 @@ static zend_array *function_table = nullptr;
 extern "C"
 {
 #include "ext/standard/file.h"
-#include "thirdparty/plain_wrapper.c"
+#include "thirdparty/php/streams/plain_wrapper.c"
 }
 
 static const zend_function_entry swoole_runtime_methods[] =

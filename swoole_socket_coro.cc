@@ -18,7 +18,7 @@
 
 #include "php_swoole_cxx.h"
 #include "mqtt.h"
-#include "thirdparty/sockets/php_sockets_cxx.h"
+#include "thirdparty/php/sockets/php_sockets_cxx.h"
 
 #include <string>
 

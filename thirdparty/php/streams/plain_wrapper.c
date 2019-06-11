@@ -38,7 +38,7 @@
 #endif
 #include "SAPI.h"
 
-#include "php_streams_int.h"
+#include "thirdparty/php/streams/php_streams_int.h"
 #ifdef PHP_WIN32
 # include "win32/winutil.h"
 # include "win32/time.h"
