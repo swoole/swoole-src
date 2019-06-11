@@ -310,7 +310,10 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
         return retval;
     }
 
-    _ipc_use_chunk: buf->info.flags = SW_EVENT_DATA_CHUNK;
+#ifdef __linux__
+    _ipc_use_chunk:
+#endif
+    buf->info.flags = SW_EVENT_DATA_CHUNK;
 
     while (send_n > 0)
     {
@@ -435,7 +438,10 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
      */
     if (resp->info.len > max_length)
     {
-        _ipc_use_shm: if (worker == NULL || worker->send_shm == NULL)
+#ifdef __linux__
+        _ipc_use_shm:
+#endif
+        if (worker == NULL || worker->send_shm == NULL)
         {
             goto _pack_data;
         }
