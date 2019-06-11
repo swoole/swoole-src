@@ -2,11 +2,15 @@
 
 class swoole_curl_handler
 {
+    private const ERRORS = [
+        CURLE_URL_MALFORMAT => 'No URL set!',
+    ];
+
     /** @var Swoole\Coroutine\Http\Client */
     private $client;
     private $info = [
         'url' => '',
-        'content_type' => NULL,
+        'content_type' => '',
         'http_code' => 0,
         'header_size' => 0,
         'request_size' => 0,
@@ -27,8 +31,7 @@ class swoole_curl_handler
         'redirect_time' => 0.0,
         'redirect_url' => '',
         'primary_ip' => '',
-        'certinfo' =>
-            array(),
+        'certinfo' => [],
         'primary_port' => 0,
         'local_ip' => '',
         'local_port' => 0,
@@ -59,18 +62,14 @@ class swoole_curl_handler
     public $errCode = 0;
     public $errMsg = '';
 
-    const ERRORS = [
-        CURLE_URL_MALFORMAT => 'No URL set!',
-    ];
-
-    function __construct($url = null)
+    public function __construct($url = null)
     {
         if ($url) {
             $this->create($url);
         }
     }
 
-    function create(string $url)
+    private function create(string $url): void
     {
         if (!swoole_string($url)->contains('://')) {
             $url = 'http://' . $url;
@@ -92,7 +91,7 @@ class swoole_curl_handler
         $this->client = new Swoole\Coroutine\Http\Client($info['host'], $port, $ssl);
     }
 
-    function execute()
+    public function execute()
     {
         /**
          * Socket
@@ -195,12 +194,12 @@ class swoole_curl_handler
         }
     }
 
-    function close(): void
+    public function close(): void
     {
         $this->client = null;
     }
 
-    function setError($code, $msg = '')
+    private function setError($code, $msg = ''): void
     {
         $this->errCode = $code;
         $this->errMsg = $msg ? $msg : self::ERRORS[$code];
@@ -228,7 +227,7 @@ class swoole_curl_handler
      * @return bool
      * @throws swoole_curl_exception
      */
-    function setOption(int $opt, $value): bool
+    public function setOption(int $opt, $value): bool
     {
         switch ($opt) {
             /**
@@ -352,7 +351,7 @@ class swoole_curl_handler
         return true;
     }
 
-    function reset(): void
+    public function reset(): void
     {
     }
 
@@ -436,6 +435,8 @@ function swoole_curl_getinfo(swoole_curl_handler $obj, int $opt = 0)
                 return $info['http_code'];
             case CURLINFO_CONTENT_TYPE:
                 return $info['content_type'];
+            default:
+                return null;
         }
     } else {
         return $info;
