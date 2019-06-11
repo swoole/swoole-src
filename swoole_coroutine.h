@@ -73,6 +73,7 @@ struct php_coro_task
     long pcid;
     zend_object *context;
     int64_t last_msec;
+    zend_bool enable_scheduler;
 };
 
 struct php_coro_args
@@ -152,7 +153,35 @@ public:
 
     static inline bool is_schedulable(php_coro_task *task)
     {
-        return (swTimer_get_absolute_msec() - task->last_msec > MAX_EXEC_MSEC);
+        return task->enable_scheduler && (swTimer_get_absolute_msec() - task->last_msec > MAX_EXEC_MSEC);
+    }
+
+    static inline bool enable_scheduler()
+    {
+        if (get_cid() > 0)
+        {
+            php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
+            if (task->enable_scheduler == 0)
+            {
+                task->enable_scheduler = 1;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static inline bool disenable_scheduler()
+    {
+        if (get_cid() > 0)
+        {
+            php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
+            if (task->enable_scheduler == 1)
+            {
+                task->enable_scheduler = 0;
+                return true;
+            }
+        }
+        return false;
     }
 
 protected:

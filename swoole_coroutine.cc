@@ -355,6 +355,7 @@ void PHPCoroutine::create_func(void *arg)
     task->defer_tasks = nullptr;
     task->pcid = task->co->get_origin_cid();
     task->context = nullptr;
+    task->enable_scheduler = 1;
 
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
