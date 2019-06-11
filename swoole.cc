@@ -191,13 +191,13 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
 
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
     zval zdata;
-    zval *retval = NULL;
+    zval retval;
     bool success;
     ssize_t ret = -1;
 
     // TODO: reduce memory copy
     ZVAL_STRINGL(&zdata, data, length);
-    success = sw_call_user_function_fast_ex(NULL, fci_cache, 1, &zdata, retval) == SUCCESS;
+    success = sw_call_user_function_fast_ex(NULL, fci_cache, 1, &zdata, &retval) == SUCCESS;
     zval_ptr_dtor(&zdata);
     if (!success)
     {
@@ -205,8 +205,8 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
     }
     else
     {
-        ret = zval_get_long(retval);
-        zval_ptr_dtor(retval);
+        ret = zval_get_long(&retval);
+        zval_ptr_dtor(&retval);
     }
     SwooleG.lock.unlock(&SwooleG.lock);
     return ret;
@@ -217,7 +217,7 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *dat
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache*) serv->private_data_3;
     zval args[4];
     zval *zserv = &args[0], *zfd = &args[1], *ztype = &args[2], *zdata = NULL;
-    zval _retval, *retval = &_retval;
+    zval retval;
     int worker_id = -1;
 
     SwooleG.lock.lock(&SwooleG.lock);
@@ -230,19 +230,19 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *dat
         zdata = &args[3];
         ZVAL_STRINGL(zdata, data->data, data->info.len > SW_IPC_BUFFER_SIZE ? SW_IPC_BUFFER_SIZE : data->info.len);
     }
-    if (UNEXPECTED(!zend::function::call(fci_cache, zdata ? 4 : 3, args, retval, false)))
+    if (UNEXPECTED(!zend::function::call(fci_cache, zdata ? 4 : 3, args, &retval, false)))
     {
         swoole_php_error(E_WARNING, "%s->onDispatch handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
-    else if (!ZVAL_IS_NULL(retval))
+    else if (!ZVAL_IS_NULL(&retval))
     {
-        worker_id = (int) zval_get_long(retval);
+        worker_id = (int) zval_get_long(&retval);
         if (worker_id >= serv->worker_num)
         {
             swoole_php_fatal_error(E_WARNING, "invalid target worker-id[%d]", worker_id);
             worker_id = -1;
         }
-        zval_ptr_dtor(retval);
+        zval_ptr_dtor(&retval);
     }
     if (zdata)
     {
