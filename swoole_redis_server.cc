@@ -221,16 +221,16 @@ static int redis_onReceive(swServer *serv, swEventData *req)
 
 static PHP_METHOD(swoole_redis_server, start)
 {
-    int ret;
+    zval *zserv = getThis();
 
-    swServer *serv = (swServer *) swoole_get_object(getThis());
+    swServer *serv = (swServer *) swoole_get_object(zserv);
     if (serv->gs->start > 0)
     {
-        swoole_php_error(E_WARNING, "Server is running. Unable to execute swoole_server::start");
+        swoole_php_error(E_WARNING, "server is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
-    php_swoole_register_callback(serv);
+    php_swoole_server_register_callbacks(serv);
 
     serv->onReceive = redis_onReceive;
 
@@ -241,10 +241,7 @@ static PHP_METHOD(swoole_redis_server, start)
         RETURN_FALSE;
     }
 
-    zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_ce, getThis(), ZEND_STRL("setting"), 0);
-#ifdef HT_ALLOW_COW_VIOLATION
-    HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(zsetting));
-#endif
+    zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_ce, zserv, ZEND_STRL("setting"), 0);
 
     add_assoc_bool(zsetting, "open_http_protocol", 0);
     add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
@@ -258,14 +255,13 @@ static PHP_METHOD(swoole_redis_server, start)
     serv->listen_list->open_length_check = 0;
     serv->listen_list->open_redis_protocol = 1;
 
-    php_swoole_server_before_start(serv, getThis());
+    php_swoole_server_before_start(serv, zserv);
 
-    ret = swServer_start(serv);
-    if (ret < 0)
+    if (swServer_start(serv) < 0)
     {
         swoole_php_fatal_error(E_ERROR, "server failed to start. Error: %s", sw_error);
-        RETURN_LONG(ret);
     }
+
     RETURN_TRUE;
 }
 

@@ -1061,7 +1061,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     }
 }
 
-void php_swoole_register_callback(swServer *serv)
+void php_swoole_server_register_callbacks(swServer *serv)
 {
     /*
      * optional callback
@@ -1993,7 +1993,7 @@ static PHP_METHOD(swoole_server, set)
     swServer *serv = (swServer *) swoole_get_object(zserv);
     if (serv->gs->start > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "server is running. unable to execute function 'swoole_server_set'");
+        swoole_php_fatal_error(E_WARNING, "server is running, unable to execute %s->set", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
@@ -2473,7 +2473,7 @@ static PHP_METHOD(swoole_server, on)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (serv->gs->start > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "server is running. unable to register event callback function");
+        swoole_php_fatal_error(E_WARNING, "server is running, unable to register event callback function");
         RETURN_FALSE;
     }
 
@@ -2554,7 +2554,7 @@ static PHP_METHOD(swoole_server, listen)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (serv->gs->start > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "server is running. can't add listener");
+        swoole_php_fatal_error(E_WARNING, "server is running, can't add listener");
         RETURN_FALSE;
     }
 
@@ -2578,7 +2578,7 @@ static PHP_METHOD(swoole_server, addProcess)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (serv->gs->start > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "server is running. can't add process");
+        swoole_php_fatal_error(E_WARNING, "server is running, can't add process");
         RETURN_FALSE;
     }
 
@@ -2638,15 +2638,17 @@ static PHP_METHOD(swoole_server, start)
 {
     zval *zserv = getThis();
 
-    swServer *serv = (swServer *) swoole_get_object(getThis());
+    swServer *serv = (swServer *) swoole_get_object(zserv);
     if (serv->gs->start > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "server is running. unable to execute swoole_server->start");
+        swoole_php_fatal_error(E_WARNING, "server is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
-    php_swoole_register_callback(serv);
+    php_swoole_server_register_callbacks(serv);
+
     serv->onReceive = php_swoole_onReceive;
+
     if (is_websocket_server(zserv) || is_http_server(zserv))
     {
         zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_ce, getThis(), ZEND_STRL("setting"), 0);
@@ -2677,9 +2679,10 @@ static PHP_METHOD(swoole_server, start)
         ls->open_http2_protocol = !!(protocol_flag & SW_HTTP2_PROTOCOL);
         ls->open_websocket_protocol = !!(protocol_flag & SW_WEBSOCKET_PROTOCOL);
     }
+
     php_swoole_server_before_start(serv, zserv);
 
-    if (UNEXPECTED(swServer_start(serv) < 0))
+    if (swServer_start(serv) < 0)
     {
         swoole_php_fatal_error(E_ERROR, "failed to start server. Error: %s", sw_error);
     }
