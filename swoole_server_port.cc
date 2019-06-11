@@ -376,7 +376,7 @@ static PHP_METHOD(swoole_server_port, set)
             }
             char *func_name;
             zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
-            if (!sw_zend_is_callable_ex(ztmp, NULL, 0, &func_name, 0, fci_cache, NULL))
+            if (!sw_zend_is_callable_ex(ztmp, NULL, 0, &func_name, NULL, fci_cache, NULL))
             {
                 swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
                 return;
