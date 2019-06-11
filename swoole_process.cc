@@ -531,11 +531,7 @@ static PHP_METHOD(swoole_process, signal)
         RETURN_FALSE
     }
 
-    if (Z_TYPE_P(zcallback) == IS_LONG && Z_LVAL_P(zcallback) == (zend_long) SIG_IGN)
-    {
-        handler = NULL;
-    }
-    else if (zcallback == NULL)
+    if (zcallback == NULL)
     {
         fci_cache = signal_fci_caches[signo];
         if (fci_cache)
@@ -551,6 +547,10 @@ static PHP_METHOD(swoole_process, signal)
             swoole_php_error(E_WARNING, "unable to find the callback of signal [" ZEND_LONG_FMT "]", signo);
             RETURN_FALSE;
         }
+    }
+    else if (Z_TYPE_P(zcallback) == IS_LONG && Z_LVAL_P(zcallback) == (zend_long) SIG_IGN)
+    {
+        handler = NULL;
     }
     else
     {
