@@ -131,13 +131,13 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
 
     if (!fci_cache->function_handler)
     {
-        swoole_php_fatal_error(E_WARNING, "%s has no %s callback", Z_OBJCE_P(zobject)->name, callback_name);
+        swoole_php_fatal_error(E_WARNING, "%s has no %s callback", SW_Z_OBJCE_NAME_VAL_P(zobject), callback_name);
         return;
     }
 
     if (UNEXPECTED(sw_call_user_function_fast_ex(NULL, fci_cache, 1, zobject, NULL) != SUCCESS))
     {
-        swoole_php_fatal_error(E_WARNING, "%s->%s handler error", Z_OBJCE_P(zobject)->name, callback_name);
+        swoole_php_fatal_error(E_WARNING, "%s->%s handler error", SW_Z_OBJCE_NAME_VAL_P(zobject), callback_name);
         return;
     }
 
@@ -313,7 +313,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
 
     if (UNEXPECTED(sw_call_user_function_fast_ex(NULL, fci_cache, 2, args, NULL) != SUCCESS))
     {
-        swoole_php_fatal_error(E_WARNING, "%s->onReceive handler error", Z_OBJCE_P(zobject)->name);
+        swoole_php_fatal_error(E_WARNING, "%s->onReceive handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
 
     zval_ptr_dtor(&args[1]);
@@ -381,19 +381,19 @@ static void client_onBufferEmpty(swClient *cli)
 void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset)
 {
     HashTable *vht = Z_ARRVAL_P(zset);
-    zval *v;
+    zval *ztmp;
 
-    if (php_swoole_array_get_value(vht, "ssl_method", v))
+    if (php_swoole_array_get_value(vht, "ssl_method", ztmp))
     {
-        cli->ssl_option.method = (int) zval_get_long(v);
+        cli->ssl_option.method = (int) zval_get_long(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "ssl_compress", v))
+    if (php_swoole_array_get_value(vht, "ssl_compress", ztmp))
     {
-        cli->ssl_option.disable_compress = !zval_is_true(v);
+        cli->ssl_option.disable_compress = !zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
+    if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp))
     {
-        zend::string str_v(v);
+        zend::string str_v(ztmp);
         if (access(str_v.val(), R_OK) < 0)
         {
             swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found", str_v.val());
@@ -401,9 +401,9 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset)
         }
         cli->ssl_option.cert_file = sw_strdup(str_v.val());
     }
-    if (php_swoole_array_get_value(vht, "ssl_key_file", v))
+    if (php_swoole_array_get_value(vht, "ssl_key_file", ztmp))
     {
-        zend::string str_v(v);
+        zend::string str_v(ztmp);
         if (access(str_v.val(), R_OK) < 0)
         {
             swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found", str_v.val());
@@ -411,39 +411,39 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset)
         }
         cli->ssl_option.key_file = sw_strdup(str_v.val());
     }
-    if (php_swoole_array_get_value(vht, "ssl_passphrase", v))
+    if (php_swoole_array_get_value(vht, "ssl_passphrase", ztmp))
     {
-        zend::string str_v(v);
+        zend::string str_v(ztmp);
         cli->ssl_option.passphrase = sw_strdup(str_v.val());
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (php_swoole_array_get_value(vht, "ssl_host_name", v))
+    if (php_swoole_array_get_value(vht, "ssl_host_name", ztmp))
     {
-        zend::string str_v(v);
+        zend::string str_v(ztmp);
         cli->ssl_option.tls_host_name = sw_strdup(str_v.val());
     }
 #endif
-    if (php_swoole_array_get_value(vht, "ssl_verify_peer", v))
+    if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp))
     {
-        cli->ssl_option.verify_peer = zval_is_true(v);
+        cli->ssl_option.verify_peer = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", v))
+    if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", ztmp))
     {
-        cli->ssl_option.allow_self_signed = zval_is_true(v);
+        cli->ssl_option.allow_self_signed = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "ssl_cafile", v))
+    if (php_swoole_array_get_value(vht, "ssl_cafile", ztmp))
     {
-        zend::string str_v(v);
+        zend::string str_v(ztmp);
         cli->ssl_option.cafile = sw_strdup(str_v.val());
     }
-    if (php_swoole_array_get_value(vht, "ssl_capath", v))
+    if (php_swoole_array_get_value(vht, "ssl_capath", ztmp))
     {
-        zend::string str_v(v);
+        zend::string str_v(ztmp);
         cli->ssl_option.capath = sw_strdup(str_v.val());
     }
-    if (php_swoole_array_get_value(vht, "ssl_verify_depth", v))
+    if (php_swoole_array_get_value(vht, "ssl_verify_depth", ztmp))
     {
-        cli->ssl_option.verify_depth = (int) zval_get_long(v);
+        cli->ssl_option.verify_depth = (int) zval_get_long(ztmp);
     }
     if (cli->ssl_option.cert_file && !cli->ssl_option.key_file)
     {
@@ -456,29 +456,29 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset)
 void php_swoole_client_check_setting(swClient *cli, zval *zset)
 {
     HashTable *vht;
-    zval *v;
+    zval *ztmp;
     int value = 1;
 
     vht = Z_ARRVAL_P(zset);
 
     //buffer: eof check
-    if (php_swoole_array_get_value(vht, "open_eof_check", v))
+    if (php_swoole_array_get_value(vht, "open_eof_check", ztmp))
     {
-        cli->open_eof_check = zval_is_true(v);
+        cli->open_eof_check = zval_is_true(ztmp);
     }
     //buffer: split package with eof
-    if (php_swoole_array_get_value(vht, "open_eof_split", v))
+    if (php_swoole_array_get_value(vht, "open_eof_split", ztmp))
     {
-        cli->protocol.split_by_eof = zval_is_true(v);
+        cli->protocol.split_by_eof = zval_is_true(ztmp);
         if (cli->protocol.split_by_eof)
         {
             cli->open_eof_check = 1;
         }
     }
     //package eof
-    if (php_swoole_array_get_value(vht, "package_eof", v))
+    if (php_swoole_array_get_value(vht, "package_eof", ztmp))
     {
-        zend::string str_v(v);
+        zend::string str_v(ztmp);
         cli->protocol.package_eof_len = str_v.len();
         if (cli->protocol.package_eof_len == 0)
         {
@@ -494,21 +494,21 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
         memcpy(cli->protocol.package_eof, str_v.val(), str_v.len());
     }
     //open mqtt protocol
-    if (php_swoole_array_get_value(vht, "open_mqtt_protocol", v))
+    if (php_swoole_array_get_value(vht, "open_mqtt_protocol", ztmp))
     {
-        cli->open_length_check = zval_is_true(v);
+        cli->open_length_check = zval_is_true(ztmp);
         cli->protocol.get_package_length = swMqtt_get_package_length;
     }
     //open length check
-    if (php_swoole_array_get_value(vht, "open_length_check", v))
+    if (php_swoole_array_get_value(vht, "open_length_check", ztmp))
     {
-        cli->open_length_check = zval_is_true(v);
+        cli->open_length_check = zval_is_true(ztmp);
         cli->protocol.get_package_length = swProtocol_get_package_length;
     }
     //package length size
-    if (php_swoole_array_get_value(vht, "package_length_type", v))
+    if (php_swoole_array_get_value(vht, "package_length_type", ztmp))
     {
-        zend::string str_v(v);
+        zend::string str_v(ztmp);
         cli->protocol.package_length_type = str_v.val()[0];
         cli->protocol.package_length_size = swoole_type_size(cli->protocol.package_length_type);
 
@@ -519,24 +519,24 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
         }
     }
     //package length offset
-    if (php_swoole_array_get_value(vht, "package_length_offset", v))
+    if (php_swoole_array_get_value(vht, "package_length_offset", ztmp))
     {
-        cli->protocol.package_length_offset = (int) zval_get_long(v);
+        cli->protocol.package_length_offset = (int) zval_get_long(ztmp);
     }
     //package body start
-    if (php_swoole_array_get_value(vht, "package_body_offset", v))
+    if (php_swoole_array_get_value(vht, "package_body_offset", ztmp))
     {
-        cli->protocol.package_body_offset = (int) zval_get_long(v);
+        cli->protocol.package_body_offset = (int) zval_get_long(ztmp);
     }
     //length function
-    if (php_swoole_array_get_value(vht, "package_length_func", v))
+    if (php_swoole_array_get_value(vht, "package_length_func", ztmp))
     {
         while(1)
         {
-            if (Z_TYPE_P(v) == IS_STRING)
+            if (Z_TYPE_P(ztmp) == IS_STRING)
             {
-                swProtocol_length_function func = (swProtocol_length_function) swoole_get_function(Z_STRVAL_P(v),
-                        Z_STRLEN_P(v));
+                swProtocol_length_function func = (swProtocol_length_function) swoole_get_function(Z_STRVAL_P(ztmp),
+                        Z_STRLEN_P(ztmp));
                 if (func != NULL)
                 {
                     cli->protocol.get_package_length = func;
@@ -545,7 +545,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
             }
 
             char *func_name = NULL;
-            if (!sw_zend_is_callable(v, 0, &func_name))
+            if (!sw_zend_is_callable(ztmp, 0, &func_name))
             {
                 swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
                 return;
@@ -557,8 +557,8 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
                 zval_ptr_dtor((zval *)cli->protocol.private_data);
                 efree(cli->protocol.private_data);
             }
-            Z_TRY_ADDREF_P(v);
-            cli->protocol.private_data = sw_zval_dup(v);
+            Z_TRY_ADDREF_P(ztmp);
+            cli->protocol.private_data = sw_zval_dup(ztmp);
             break;
         }
 
@@ -569,9 +569,9 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
     /**
      * package max length
      */
-    if (php_swoole_array_get_value(vht, "package_max_length", v))
+    if (php_swoole_array_get_value(vht, "package_max_length", ztmp))
     {
-        cli->protocol.package_max_length = (int) zval_get_long(v);
+        cli->protocol.package_max_length = (int) zval_get_long(ztmp);
     }
     else
     {
@@ -580,9 +580,9 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
     /**
      * socket send/recv buffer size
      */
-    if (php_swoole_array_get_value(vht, "socket_buffer_size", v))
+    if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp))
     {
-        value = (int) zval_get_long(v);
+        value = (int) zval_get_long(ztmp);
         if (value <= 0)
         {
             value = INT_MAX;
@@ -590,37 +590,37 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
         swSocket_set_buffer_size(cli->socket->fd, value);
         cli->socket->buffer_size = value;
     }
-    if (php_swoole_array_get_value(vht, "buffer_high_watermark", v))
+    if (php_swoole_array_get_value(vht, "buffer_high_watermark", ztmp))
     {
-        value = (int) zval_get_long(v);
+        value = (int) zval_get_long(ztmp);
         cli->buffer_high_watermark = value;
     }
-    if (php_swoole_array_get_value(vht, "buffer_low_watermark", v))
+    if (php_swoole_array_get_value(vht, "buffer_low_watermark", ztmp))
     {
-        value = (int) zval_get_long(v);
+        value = (int) zval_get_long(ztmp);
         cli->buffer_low_watermark = value;
     }
     /**
      * bind port
      */
-    if (php_swoole_array_get_value(vht, "bind_port", v))
+    if (php_swoole_array_get_value(vht, "bind_port", ztmp))
     {
-        int bind_port = (int) zval_get_long(v);
+        int bind_port = (int) zval_get_long(ztmp);
         /**
          * bind address
          */
-        if (php_swoole_array_get_value(vht, "bind_address", v))
+        if (php_swoole_array_get_value(vht, "bind_address", ztmp))
         {
-            zend::string str_v(v);
+            zend::string str_v(ztmp);
             swSocket_bind(cli->socket->fd, cli->type, str_v.val(), &bind_port);
         }
     }
     /**
      * client: tcp_nodelay
      */
-    if (php_swoole_array_get_value(vht, "open_tcp_nodelay", v))
+    if (php_swoole_array_get_value(vht, "open_tcp_nodelay", ztmp))
     {
-        if (zval_is_true(v))
+        if (zval_is_true(ztmp))
         {
             goto _open_tcp_nodelay;
         }
@@ -640,21 +640,21 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
     /**
      * socks5 proxy
      */
-    if (php_swoole_array_get_value(vht, "socks5_host", v))
+    if (php_swoole_array_get_value(vht, "socks5_host", ztmp))
     {
-        zend::string host(v);
-        if (php_swoole_array_get_value(vht, "socks5_port", v))
+        zend::string host(ztmp);
+        if (php_swoole_array_get_value(vht, "socks5_port", ztmp))
         {
             cli->socks5_proxy = (struct _swSocks5 *) ecalloc(1, sizeof(swSocks5));
             cli->socks5_proxy->host = estrdup(host.val());
-            cli->socks5_proxy->port = zval_get_long(v);
+            cli->socks5_proxy->port = zval_get_long(ztmp);
             cli->socks5_proxy->dns_tunnel = 1;
-            if (php_swoole_array_get_value(vht, "socks5_username", v))
+            if (php_swoole_array_get_value(vht, "socks5_username", ztmp))
             {
-                zend::string username(v);
-                if (php_swoole_array_get_value(vht, "socks5_password", v))
+                zend::string username(ztmp);
+                if (php_swoole_array_get_value(vht, "socks5_password", ztmp))
                 {
-                    zend::string password(v);
+                    zend::string password(ztmp);
                     cli->socks5_proxy->method = 0x02;
                     cli->socks5_proxy->username = username.val();
                     cli->socks5_proxy->l_username = username.len();
@@ -675,20 +675,20 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
     /**
      * http proxy
      */
-    else if (php_swoole_array_get_value(vht, "http_proxy_host", v))
+    else if (php_swoole_array_get_value(vht, "http_proxy_host", ztmp))
     {
-        zend::string host(v);
-        if (php_swoole_array_get_value(vht, "http_proxy_port", v))
+        zend::string host(ztmp);
+        if (php_swoole_array_get_value(vht, "http_proxy_port", ztmp))
         {
             cli->http_proxy = (struct _http_proxy*) ecalloc(1, sizeof(struct _http_proxy));
             cli->http_proxy->proxy_host = estrdup(host.val());
-            cli->http_proxy->proxy_port = zval_get_long(v);
-            if (php_swoole_array_get_value(vht, "http_proxy_username", v) || php_swoole_array_get_value(vht, "http_proxy_user", v))
+            cli->http_proxy->proxy_port = zval_get_long(ztmp);
+            if (php_swoole_array_get_value(vht, "http_proxy_username", ztmp) || php_swoole_array_get_value(vht, "http_proxy_user", ztmp))
             {
-                zend::string username(v);
-                if (php_swoole_array_get_value(vht, "http_proxy_password", v))
+                zend::string username(ztmp);
+                if (php_swoole_array_get_value(vht, "http_proxy_password", ztmp))
                 {
-                    zend::string password(v);
+                    zend::string password(ztmp);
                     cli->http_proxy->user = estrdup(username.val());
                     cli->http_proxy->l_user = username.len();
                     cli->http_proxy->password = estrdup(password.val());

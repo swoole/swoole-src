@@ -227,7 +227,7 @@ void swoole_http_server_coro_init(int module_number)
     zend_declare_property_null(swoole_http_server_coro_ce, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_server_coro_ce, ZEND_STRL("port"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_http_server_coro_ce, ZEND_STRL("ssl"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_server_coro_ce, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_server_coro_ce, ZEND_STRL("settings"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_server_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_http_server_coro_ce, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);
 }
@@ -329,7 +329,7 @@ static PHP_METHOD(swoole_http_server_coro, set)
     }
     else
     {
-        zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, getThis(), ZEND_STRL("setting"), 0);
+        zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, getThis(), ZEND_STRL("settings"), 0);
         php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
         RETURN_TRUE;
     }
@@ -341,20 +341,20 @@ static PHP_METHOD(swoole_http_server_coro, start)
 
     auto sock = hs->socket;
     char *func_name = NULL;
-    zend_fcall_info_cache func_cache;
+    zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
     zval zcallback;
     ZVAL_STRING(&zcallback, "onAccept");
 
-    if (!sw_zend_is_callable_ex(&zcallback, getThis(), 0, &func_name, NULL, &func_cache, NULL))
+    if (!sw_zend_is_callable_ex(&zcallback, getThis(), 0, &func_name, NULL, &fci_cache, NULL))
     {
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;
     }
     efree(func_name);
 
-    zval argv[1];
+    zval zsocket;
 
-    zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, getThis(), ZEND_STRL("setting"), 0);
+    zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, getThis(), ZEND_STRL("settings"), 0);
     php_swoole_socket_set_protocol(hs->socket, zsettings);
 
     php_swoole_http_server_init_global_variant();
@@ -364,9 +364,9 @@ static PHP_METHOD(swoole_http_server_coro, start)
         auto conn = sock->accept();
         if (conn)
         {
-            php_swoole_init_socket_object(&argv[0], conn);
-            long cid = PHPCoroutine::create(&func_cache, 1, argv);
-            zval_dtor(&argv[0]);
+            php_swoole_init_socket_object(&zsocket, conn);
+            long cid = PHPCoroutine::create(&fci_cache, 1, &zsocket);
+            zval_dtor(&zsocket);
             if (cid < 0)
             {
                 goto _wait_1s;

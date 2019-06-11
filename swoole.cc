@@ -189,30 +189,27 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
 {
     SwooleG.lock.lock(&SwooleG.lock);
 
-    zval *callback = (zval *) protocol->private_data;
-    zval args[1];
+    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
+    zval zdata;
     zval *retval = NULL;
-    int ret;
+    bool success;
+    ssize_t ret = -1;
 
-    ZVAL_STRINGL(&args[0], data, length);
-
-    ret = sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL);
-    zval_ptr_dtor(&args[0]);
-    if (ret == FAILURE)
+    // TODO: reduce memory copy
+    ZVAL_STRINGL(&zdata, data, length);
+    success = sw_call_user_function_fast_ex(NULL, fci_cache, 1, &zdata, retval) == SUCCESS;
+    zval_ptr_dtor(&zdata);
+    if (!success)
     {
         swoole_php_fatal_error(E_WARNING, "length function handler error");
-        goto _error;
     }
-    if (retval)
+    else
     {
-        ssize_t length = zval_get_long(retval);
+        ret = zval_get_long(retval);
         zval_ptr_dtor(retval);
-        SwooleG.lock.unlock(&SwooleG.lock);
-        return length;
     }
-    _error:
     SwooleG.lock.unlock(&SwooleG.lock);
-    return -1;
+    return ret;
 }
 
 int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *data)
@@ -235,7 +232,7 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *dat
     }
     if (UNEXPECTED(!zend::function::call(fci_cache, zdata ? 4 : 3, args, retval, false)))
     {
-        swoole_php_error(E_WARNING, "%s->onDispatch handler error", ZSTR_VAL(Z_OBJCE_P(zserv)->name));
+        swoole_php_error(E_WARNING, "%s->onDispatch handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
     else if (!ZVAL_IS_NULL(retval))
     {

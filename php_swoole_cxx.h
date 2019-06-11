@@ -29,14 +29,14 @@ SW_API bool php_swoole_export_socket(zval *zobject, swoole::coroutine::Socket *_
 SW_API zend_object* php_swoole_dup_socket(int fd, enum swSocket_type type);
 SW_API void php_swoole_init_socket_object(zval *zobject, swoole::coroutine::Socket *socket);
 SW_API swoole::coroutine::Socket* php_swoole_get_socket(zval *zobject);
-SW_API void php_swoole_client_set(swoole::coroutine::Socket *cli, zval *zset);
-SW_API bool php_swoole_socket_set_protocol(swoole::coroutine::Socket *sock, zval *zset);
-
-php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC);
-
 #ifdef SW_USE_OPENSSL
 SW_API bool php_swoole_socket_set_ssl(swoole::coroutine::Socket *sock, zval *zset);
 #endif
+SW_API bool php_swoole_socket_set_protocol(swoole::coroutine::Socket *sock, zval *zset);
+
+SW_API bool php_swoole_client_set(swoole::coroutine::Socket *cli, zval *zset);
+
+php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC);
 
 namespace zend {
 //-----------------------------------namespace begin--------------------------------------------

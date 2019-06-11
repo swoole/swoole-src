@@ -632,7 +632,6 @@ static sw_inline void sw_zval_free(zval *val)
 #define sw_add_assoc_stringl_ex                     add_assoc_stringl_ex
 #endif
 
-
 //----------------------------------Constant API------------------------------------
 #define SW_REGISTER_NULL_CONSTANT(name)           REGISTER_NULL_CONSTANT(name, CONST_CS | CONST_PERSISTENT)
 #define SW_REGISTER_BOOL_CONSTANT(name, value)    REGISTER_BOOL_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
@@ -643,6 +642,7 @@ static sw_inline void sw_zval_free(zval *val)
 
 //----------------------------------Number API-----------------------------------
 #define sw_php_math_round(value, places, mode)    _php_math_round(value, places, mode)
+
 //----------------------------------String API-----------------------------------
 
 #define SW_PHP_OB_START(zoutput) \
@@ -705,6 +705,8 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 }
 
 //----------------------------------Class API------------------------------------
+
+#define SW_Z_OBJCE_NAME_VAL_P(ce) ZSTR_VAL(Z_OBJCE_P(ce)->name)
 
 /* PHP 7 class declaration macros */
 
@@ -948,17 +950,17 @@ static sw_inline int sw_zend_function_max_num_args(zend_function *function)
 }
 
 // TODO: remove it after remove async modules
-static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
+static sw_inline zend_bool sw_zend_is_callable(zval *cb, int a, char **name)
 {
     zend_string *key = NULL;
-    int ret = zend_is_callable(cb, a, &key);
+    zend_bool ret = zend_is_callable(cb, a, &key);
     char *tmp = estrndup(ZSTR_VAL(key), ZSTR_LEN(key));
     zend_string_release(key);
     *name = tmp;
     return ret;
 }
 
-static sw_inline int php_swoole_is_callable(zval *callback)
+static sw_inline enum swBool_type php_swoole_is_callable(zval *callback)
 {
     if (!callback || ZVAL_IS_NULL(callback))
     {
@@ -978,13 +980,19 @@ static sw_inline int php_swoole_is_callable(zval *callback)
     }
 }
 
-static sw_inline int sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint check_flags, char **callable_name, int *callable_name_len, zend_fcall_info_cache *fci_cache, char **error)
+static sw_inline zend_bool sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint check_flags, char **callable_name, size_t *callable_name_len, zend_fcall_info_cache *fci_cache, char **error)
 {
-    zend_string *key;
-    int ret = zend_is_callable_ex(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, check_flags, &key, fci_cache, error);
-    char *tmp = estrndup(ZSTR_VAL(key), ZSTR_LEN(key));
-    zend_string_release(key);
-    *callable_name = tmp;
+    zend_string *name;
+    zend_bool ret = zend_is_callable_ex(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, check_flags, &name, fci_cache, error);
+    if (callable_name)
+    {
+        *callable_name = estrndup(ZSTR_VAL(name), ZSTR_LEN(name));
+    }
+    if (callable_name_len)
+    {
+        *callable_name_len = ZSTR_LEN(name);
+    }
+    zend_string_release(name);
     return ret;
 }
 

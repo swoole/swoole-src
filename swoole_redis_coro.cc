@@ -2281,10 +2281,10 @@ static PHP_METHOD(swoole_redis_coro, set)
 
         zend_string *zkey;
         zend_ulong idx;
-        zval *v;
+        zval *zv;
 
         /* Iterate our option array */
-        ZEND_HASH_FOREACH_KEY_VAL(kt, idx, zkey, v)
+        ZEND_HASH_FOREACH_KEY_VAL(kt, idx, zkey, zv)
         {
             /* Detect PX or EX argument and validate timeout */
             if (!exp_type && zkey && IS_EX_PX_ARG(ZSTR_VAL(zkey)))
@@ -2293,13 +2293,13 @@ static PHP_METHOD(swoole_redis_coro, set)
                 exp_type = ZSTR_VAL(zkey);
 
                 /* Try to extract timeout */
-                if (Z_TYPE_P(v) == IS_LONG)
+                if (Z_TYPE_P(zv) == IS_LONG)
                 {
-                    expire = Z_LVAL_P(v);
+                    expire = Z_LVAL_P(zv);
                 }
-                else if (Z_TYPE_P(v) == IS_STRING)
+                else if (Z_TYPE_P(zv) == IS_STRING)
                 {
-                    expire = atol(Z_STRVAL_P(v));
+                    expire = atol(Z_STRVAL_P(zv));
                 }
 
                 /* Expiry can't be set < 1 */
@@ -2309,10 +2309,10 @@ static PHP_METHOD(swoole_redis_coro, set)
                 }
                 argc += 2;
             }
-            else if (!set_type && Z_TYPE_P(v) == IS_STRING && IS_NX_XX_ARG(Z_STRVAL_P(v)))
+            else if (!set_type && Z_TYPE_P(zv) == IS_STRING && IS_NX_XX_ARG(Z_STRVAL_P(zv)))
             {
                 argc += 1;
-                set_type = Z_STRVAL_P(v);
+                set_type = Z_STRVAL_P(zv);
             }
             (void) idx;
         }

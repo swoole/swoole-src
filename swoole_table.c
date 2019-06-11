@@ -396,14 +396,14 @@ static PHP_METHOD(swoole_table, set)
         RETURN_FALSE;
     }
 
-    swTableColumn *col;
-    zval *v;
+    HashTable *ht = Z_ARRVAL_P(array);
     char *k;
     uint32_t klen;
     int ktype;
-    HashTable *_ht = Z_ARRVAL_P(array);
+    zval *zv;
+    swTableColumn *col;
 
-    SW_HASHTABLE_FOREACH_START2(_ht, k, klen, ktype, v)
+    SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, zv)
     {
         col = swTableColumn_get(table, k, klen);
         if (k == NULL || col == NULL)
@@ -412,18 +412,18 @@ static PHP_METHOD(swoole_table, set)
         }
         else if (col->type == SW_TABLE_STRING)
         {
-            zend_string *str = zval_get_string(v);
+            zend_string *str = zval_get_string(zv);
             swTableRow_set_value(row, col, ZSTR_VAL(str), ZSTR_LEN(str));
             zend_string_release(str);
         }
         else if (col->type == SW_TABLE_FLOAT)
         {
-            double _value = zval_get_double(v);
+            double _value = zval_get_double(zv);
             swTableRow_set_value(row, col, &_value, 0);
         }
         else
         {
-            long _value = zval_get_long(v);
+            long _value = zval_get_long(zv);
             swTableRow_set_value(row, col, &_value, 0);
         }
     }

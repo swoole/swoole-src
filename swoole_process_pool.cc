@@ -109,7 +109,7 @@ static void pool_onWorkerStart(swProcessPool *pool, int worker_id)
 
     if (UNEXPECTED(!zend::function::call(pp->onWorkerStart, 2, args, NULL, pp->enable_coroutine)))
     {
-        swoole_php_error(E_WARNING, "%s->onWorkerStart handler error", ZSTR_VAL(Z_OBJCE_P(zobject)->name));
+        swoole_php_error(E_WARNING, "%s->onWorkerStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
 
     if (SwooleG.main_reactor)
@@ -130,7 +130,7 @@ static void pool_onMessage(swProcessPool *pool, char *data, uint32_t length)
 
     if (UNEXPECTED(!zend::function::call(pp->onMessage, 2, args, NULL, false)))
     {
-        swoole_php_error(E_WARNING, "%s->onMessage handler error", ZSTR_VAL(Z_OBJCE_P(zobject)->name));
+        swoole_php_error(E_WARNING, "%s->onMessage handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
 
     zval_ptr_dtor(&args[1]);
@@ -152,7 +152,7 @@ static void pool_onWorkerStop(swProcessPool *pool, int worker_id)
 
     if (UNEXPECTED(!zend::function::call(pp->onWorkerStop, 2, args, NULL, false)))
     {
-        swoole_php_error(E_WARNING, "%s->onWorkerStop handler error", ZSTR_VAL(Z_OBJCE_P(zobject)->name));
+        swoole_php_error(E_WARNING, "%s->onWorkerStop handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
 }
 
@@ -184,13 +184,13 @@ static PHP_METHOD(swoole_process_pool, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "%s only can be used in PHP CLI mode", Z_OBJCE_P(zobject)->name);
+        swoole_php_fatal_error(E_ERROR, "%s only can be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
         RETURN_FALSE;
     }
 
     if (SwooleG.serv)
     {
-        swoole_php_fatal_error(E_ERROR, "%s cannot use in server process", Z_OBJCE_P(zobject)->name);
+        swoole_php_fatal_error(E_ERROR, "%s cannot use in server process", SW_Z_OBJCE_NAME_VAL_P(zobject));
         RETURN_FALSE;
     }
 
@@ -210,7 +210,7 @@ static PHP_METHOD(swoole_process_pool, __construct)
         ipc_type = SW_IPC_UNIXSOCK;
         swoole_php_fatal_error(
             E_NOTICE, "%s object's ipc_type will be reset to SWOOLE_IPC_UNIXSOCK after enable coroutine",
-            Z_OBJCE_P(zobject)->name
+            SW_Z_OBJCE_NAME_VAL_P(zobject)
         );
     }
 
