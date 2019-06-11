@@ -59,7 +59,7 @@ typedef struct
     swTimer_node *timer;
 } swTaskCo;
 
-static zend_fcall_info_cache *php_sw_server_caches[PHP_SWOOLE_SERVER_CALLBACK_NUM];
+static zend_fcall_info_cache *server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
 
 static unordered_map<int, zend_fcall_info_cache> task_callbacks;
 static unordered_map<int, swTaskCo*> task_coroutine_map;
@@ -1066,7 +1066,7 @@ void php_swoole_server_register_callbacks(swServer *serv)
     /*
      * optional callback
      */
-    if (php_sw_server_caches[SW_SERVER_CB_onStart] != NULL)
+    if (server_callbacks[SW_SERVER_CB_onStart] != NULL)
     {
         serv->onStart = php_swoole_onStart;
     }
@@ -1076,18 +1076,18 @@ void php_swoole_server_register_callbacks(swServer *serv)
      */
     serv->onWorkerStart = php_swoole_onWorkerStart;
 
-    if (php_sw_server_caches[SW_SERVER_CB_onWorkerStop] != NULL)
+    if (server_callbacks[SW_SERVER_CB_onWorkerStop] != NULL)
     {
         serv->onWorkerStop = php_swoole_onWorkerStop;
     }
-    if (php_sw_server_caches[SW_SERVER_CB_onWorkerExit] != NULL)
+    if (server_callbacks[SW_SERVER_CB_onWorkerExit] != NULL)
     {
         serv->onWorkerExit = php_swoole_onWorkerExit;
     }
     /**
      * Task Worker
      */
-    if (php_sw_server_caches[SW_SERVER_CB_onTask] != NULL)
+    if (server_callbacks[SW_SERVER_CB_onTask] != NULL)
     {
         if (serv->task_enable_coroutine)
         {
@@ -1099,19 +1099,19 @@ void php_swoole_server_register_callbacks(swServer *serv)
         }
         serv->onFinish = php_swoole_onFinish;
     }
-    if (php_sw_server_caches[SW_SERVER_CB_onWorkerError] != NULL)
+    if (server_callbacks[SW_SERVER_CB_onWorkerError] != NULL)
     {
         serv->onWorkerError = php_swoole_onWorkerError;
     }
-    if (php_sw_server_caches[SW_SERVER_CB_onManagerStart] != NULL)
+    if (server_callbacks[SW_SERVER_CB_onManagerStart] != NULL)
     {
         serv->onManagerStart = php_swoole_onManagerStart;
     }
-    if (php_sw_server_caches[SW_SERVER_CB_onManagerStop] != NULL)
+    if (server_callbacks[SW_SERVER_CB_onManagerStop] != NULL)
     {
         serv->onManagerStop = php_swoole_onManagerStop;
     }
-    if (php_sw_server_caches[SW_SERVER_CB_onPipeMessage] != NULL)
+    if (server_callbacks[SW_SERVER_CB_onPipeMessage] != NULL)
     {
         serv->onPipeMessage = php_swoole_onPipeMessage;
     }
@@ -1156,7 +1156,7 @@ static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *curre
 
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 {
-    zend_fcall_info_cache *fci_cache = php_sw_server_caches[SW_SERVER_CB_onPipeMessage];
+    zend_fcall_info_cache *fci_cache = server_callbacks[SW_SERVER_CB_onPipeMessage];
     zval *zserv = (zval *) serv->ptr2;
     zval *zdata = php_swoole_task_unpack(req);
     zval args[3];
@@ -1279,7 +1279,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     args[3] = *zdata;
 
 
-    if (UNEXPECTED(!zend::function::call(php_sw_server_caches[SW_SERVER_CB_onTask], 4, args, &retval, false)))
+    if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onTask], 4, args, &retval, false)))
     {
         swoole_php_error(E_WARNING, "%s->onTask handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
@@ -1323,7 +1323,7 @@ static int php_swoole_onTaskCo(swServer *serv, swEventData *req)
     args[0] = *zserv;
     args[1] = ztask;
 
-    if (UNEXPECTED(PHPCoroutine::create(php_sw_server_caches[SW_SERVER_CB_onTask], 2, args) < 0))
+    if (UNEXPECTED(PHPCoroutine::create(server_callbacks[SW_SERVER_CB_onTask], 2, args) < 0))
     {
         swoole_php_error(E_WARNING, "%s->onTaskCo handler error", ZSTR_VAL(swoole_server_ce->name));
     }
@@ -1437,7 +1437,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     }
     else
     {
-        fci_cache = php_sw_server_caches[SW_SERVER_CB_onFinish];
+        fci_cache = server_callbacks[SW_SERVER_CB_onFinish];
     }
     if (UNEXPECTED(fci_cache == NULL))
     {
@@ -1465,7 +1465,7 @@ static void php_swoole_onStart(swServer *serv)
     zval *zserv = (zval *) serv->ptr2;
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("master_pid"), serv->gs->master_pid);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("manager_pid"), serv->gs->manager_pid);
-    if (UNEXPECTED(!zend::function::call(php_sw_server_caches[SW_SERVER_CB_onStart], 1, zserv, NULL, false)))
+    if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onStart], 1, zserv, NULL, false)))
     {
         swoole_php_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
@@ -1477,7 +1477,7 @@ static void php_swoole_onManagerStart(swServer *serv)
     zval *zserv = (zval *) serv->ptr2;
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("master_pid"), serv->gs->master_pid);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("manager_pid"), serv->gs->manager_pid);
-    if (UNEXPECTED(!zend::function::call(php_sw_server_caches[SW_SERVER_CB_onManagerStart], 1, zserv, NULL, false)))
+    if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onManagerStart], 1, zserv, NULL, false)))
     {
         swoole_php_error(E_WARNING, "%s->onManagerStart handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
@@ -1486,7 +1486,7 @@ static void php_swoole_onManagerStart(swServer *serv)
 static void php_swoole_onManagerStop(swServer *serv)
 {
     zval *zserv = (zval *) serv->ptr2;
-    if (UNEXPECTED(!zend::function::call(php_sw_server_caches[SW_SERVER_CB_onManagerStop], 1, zserv, NULL, false)))
+    if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onManagerStop], 1, zserv, NULL, false)))
     {
         swoole_php_error(E_WARNING, "%s->onManagerStop handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
@@ -1496,9 +1496,9 @@ static void php_swoole_onShutdown(swServer *serv)
 {
     SwooleG.lock.lock(&SwooleG.lock);
     zval *zserv = (zval *) serv->ptr2;
-    if (php_sw_server_caches[SW_SERVER_CB_onShutdown] != NULL)
+    if (server_callbacks[SW_SERVER_CB_onShutdown] != NULL)
     {
-        if (UNEXPECTED(!zend::function::call(php_sw_server_caches[SW_SERVER_CB_onShutdown], 1, zserv, NULL, false)))
+        if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onShutdown], 1, zserv, NULL, false)))
         {
             swoole_php_error(E_WARNING, "%s->onShutdown handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
@@ -1508,7 +1508,7 @@ static void php_swoole_onShutdown(swServer *serv)
 
 static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 {
-    zend_fcall_info_cache *fci_cache = php_sw_server_caches[SW_SERVER_CB_onWorkerStart];
+    zend_fcall_info_cache *fci_cache = server_callbacks[SW_SERVER_CB_onWorkerStart];
     zval *zserv = (zval *) serv->ptr2;
 
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("master_pid"), serv->gs->master_pid);
@@ -1547,7 +1547,7 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     zval args[2];
     args[0] = *zserv;
     ZVAL_LONG(&args[1], worker_id);
-    if (UNEXPECTED(!zend::function::call(php_sw_server_caches[SW_SERVER_CB_onWorkerStop], 2, args, NULL, false)))
+    if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onWorkerStop], 2, args, NULL, false)))
     {
         swoole_php_error(E_WARNING, "%s->onWorkerStop handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
@@ -1559,7 +1559,7 @@ static void php_swoole_onWorkerExit(swServer *serv, int worker_id)
     zval args[2];
     args[0] = *zserv;
     ZVAL_LONG(&args[1], worker_id);
-    if (UNEXPECTED(!zend::function::call(php_sw_server_caches[SW_SERVER_CB_onWorkerExit], 2, args, NULL, false)))
+    if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onWorkerExit], 2, args, NULL, false)))
     {
         swoole_php_error(E_WARNING, "%s->onWorkerExit handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
@@ -1592,7 +1592,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     ZVAL_LONG(&args[3], exit_code);
     ZVAL_LONG(&args[4], signo);
 
-    if (UNEXPECTED(!zend::function::call(php_sw_server_caches[SW_SERVER_CB_onWorkerError], 5, args, NULL, false)))
+    if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onWorkerError], 5, args, NULL, false)))
     {
         swoole_php_error(E_WARNING, "%s->onWorkerError handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
@@ -1968,10 +1968,12 @@ static PHP_METHOD(swoole_server, __destruct)
     }
     for (int i = 0; i < PHP_SWOOLE_SERVER_CALLBACK_NUM; i++)
     {
-        if (php_sw_server_caches[i])
+        zend_fcall_info_cache *fci_cache = server_callbacks[i];
+        if (fci_cache)
         {
-            efree(php_sw_server_caches[i]);
-            php_sw_server_caches[i] = NULL;
+            sw_fci_cache_discard(fci_cache);
+            efree(fci_cache);
+            server_callbacks[i] = NULL;
         }
     }
     for (int i = 0; i < server_port_list.num; i++)
@@ -2510,11 +2512,12 @@ static PHP_METHOD(swoole_server, on)
 
         zend_update_property(swoole_server_ce, getThis(), property_name.c_str(), property_name.length(), cb);
 
-        if (php_sw_server_caches[event_type])
+        if (server_callbacks[event_type])
         {
-            efree(php_sw_server_caches[event_type]);
+            sw_fci_cache_discard(server_callbacks[event_type]);
+            efree(server_callbacks[event_type]);
         }
-        php_sw_server_caches[event_type] = fci_cache;
+        server_callbacks[event_type] = fci_cache;
 
         RETURN_TRUE
     }
