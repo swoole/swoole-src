@@ -273,6 +273,7 @@ static PHP_METHOD(swoole_process_pool, on)
         if (pp->onWorkerStart)
         {
             sw_fci_cache_discard(pp->onWorkerStart);
+            efree(pp->onWorkerStart);
         }
         else
         {
@@ -297,6 +298,7 @@ static PHP_METHOD(swoole_process_pool, on)
         if (pp->onMessage)
         {
             sw_fci_cache_discard(pp->onMessage);
+            efree(pp->onMessage);
         }
         else
         {
@@ -311,6 +313,7 @@ static PHP_METHOD(swoole_process_pool, on)
         if (pp->onWorkerStop)
         {
             sw_fci_cache_discard(pp->onWorkerStop);
+            efree(pp->onWorkerStop);
         }
         else
         {

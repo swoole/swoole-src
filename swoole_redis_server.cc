@@ -31,7 +31,7 @@ static zend_class_entry *swoole_redis_server_ce;
 static zend_object_handlers swoole_redis_server_handlers;
 
 static swString *format_buffer;
-static unordered_map<string, zend_fcall_info_cache *> redis_handlers;
+static unordered_map<string, zend_fcall_info_cache> redis_handlers;
 
 static PHP_METHOD(swoole_redis_server, start);
 static PHP_METHOD(swoole_redis_server, setHandler);
@@ -85,10 +85,9 @@ void swoole_redis_server_shutdown()
 {
     for (auto i = redis_handlers.begin(); i != redis_handlers.end(); i++)
     {
-        zend_fcall_info_cache *fci_cache = i->second;
-        sw_fci_cache_discard(fci_cache);
-        efree(fci_cache);
+        sw_fci_cache_discard(&i->second);
     }
+    redis_handlers.clear();
 }
 
 static int redis_onReceive(swServer *serv, swEventData *req)
@@ -196,7 +195,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         return SW_OK; // TODO: return SW_ERR?
     }
 
-    zend_fcall_info_cache *fci_cache = i->second;
+    zend_fcall_info_cache *fci_cache = &i->second;
     zval args[2];
     zval retval;
 
@@ -283,8 +282,8 @@ static PHP_METHOD(swoole_redis_server, setHandler)
     }
 
     char *func_name;
-    zend_fcall_info_cache *func_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
-    if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, NULL, func_cache, NULL))
+    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, NULL, fci_cache, NULL))
     {
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;
@@ -301,12 +300,11 @@ static PHP_METHOD(swoole_redis_server, setHandler)
     auto i = redis_handlers.find(key);
     if (i != redis_handlers.end())
     {
-        sw_fci_cache_discard(i->second);
-        efree(i->second);
+        sw_fci_cache_discard(&i->second);
     }
 
-    sw_fci_cache_persist(func_cache);
-    redis_handlers[key] = func_cache;
+    sw_fci_cache_persist(fci_cache);
+    redis_handlers[key] = *fci_cache;
 
     RETURN_TRUE;
 }
