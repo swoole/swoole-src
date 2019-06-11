@@ -158,28 +158,22 @@ public:
 
     static inline bool enable_scheduler()
     {
-        if (get_cid() > 0)
+        php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
+        if (task && task->enable_scheduler == 0)
         {
-            php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
-            if (task->enable_scheduler == 0)
-            {
-                task->enable_scheduler = 1;
-                return true;
-            }
+            task->enable_scheduler = 1;
+            return true;
         }
         return false;
     }
 
-    static inline bool disenable_scheduler()
+    static inline bool disable_scheduler()
     {
-        if (get_cid() > 0)
+        php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
+        if (task && task->enable_scheduler == 1)
         {
-            php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
-            if (task->enable_scheduler == 1)
-            {
-                task->enable_scheduler = 0;
-                return true;
-            }
+            task->enable_scheduler = 0;
+            return true;
         }
         return false;
     }

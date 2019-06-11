@@ -30,5 +30,5 @@ PHP_METHOD(swoole_coroutine_scheduler, getPcid);
 PHP_METHOD(swoole_coroutine_scheduler, getContext);
 PHP_METHOD(swoole_coroutine_scheduler, getBackTrace);
 PHP_METHOD(swoole_coroutine_scheduler, list);
-PHP_METHOD(swoole_coroutine_scheduler, disableScheduler);
 PHP_METHOD(swoole_coroutine_scheduler, enableScheduler);
+PHP_METHOD(swoole_coroutine_scheduler, disableScheduler);
