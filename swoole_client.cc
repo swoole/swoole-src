@@ -544,8 +544,9 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
                 }
             }
 
-            char *func_name = NULL;
-            if (!sw_zend_is_callable(ztmp, 0, &func_name))
+            char *func_name;
+            zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
+            if (!sw_zend_is_callable_ex(ztmp, NULL, 0, &func_name, 0, fci_cache, NULL))
             {
                 swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
                 return;
@@ -554,11 +555,11 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
             cli->protocol.get_package_length = php_swoole_length_func;
             if (cli->protocol.private_data)
             {
-                zval_ptr_dtor((zval *)cli->protocol.private_data);
+                sw_fci_cache_discard((zend_fcall_info_cache *) cli->protocol.private_data);
                 efree(cli->protocol.private_data);
             }
-            Z_TRY_ADDREF_P(ztmp);
-            cli->protocol.private_data = sw_zval_dup(ztmp);
+            sw_fci_cache_persist(fci_cache);
+            cli->protocol.private_data = fci_cache;
             break;
         }
 

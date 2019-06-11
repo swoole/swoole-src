@@ -191,7 +191,8 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
 
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
     zval zdata;
-    zval *retval = NULL;
+    zval _retval;
+    zval *retval = &_retval;
     bool success;
     ssize_t ret = -1;
 
