@@ -756,7 +756,7 @@ static PHP_METHOD(swoole_process, start)
         RETURN_FALSE;
     }
 
-    pid_t pid = swoole_fork();
+    pid_t pid = swoole_fork(0);
     if (pid < 0)
     {
         swoole_php_sys_error(E_WARNING, "fork() failed");
@@ -855,7 +855,8 @@ static PHP_METHOD(swoole_process, write)
     }
     else
     {
-        _blocking_read: ret = swSocket_write_blocking(process->pipe, data, data_len);
+        _blocking_read:
+        ret = swSocket_write_blocking(process->pipe, data, data_len);
     }
 
     if (ret < 0)

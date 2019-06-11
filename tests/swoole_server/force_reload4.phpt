@@ -43,4 +43,3 @@ $pm->run();
 [%s]	INFO	Server is shutdown now
 [%s]	WARNING	swWorker_try_to_exit (ERRNO 9012): worker exit timeout, forced to terminate
 OK
-

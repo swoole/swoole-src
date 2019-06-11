@@ -1,8 +1,9 @@
 --TEST--
-Test curl_init() function with $url parameter defined
+swoole_library/curl/basic: Test curl_init() function with $url parameter defined
 --CREDITS--
 Jean-Marc Fontaine <jmf@durcommefaire.net>
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php if (!extension_loaded("curl")) exit("skip curl extension not loaded"); ?>
 --FILE--
 <?php

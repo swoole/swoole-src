@@ -491,7 +491,8 @@ int Server::_onPacket(swServer *serv, swEventData *req)
     }
     else
     {
-        assert(0);
+        abort();
+        return SW_ERR;
     }
 
     DataBuffer _data;
@@ -646,7 +647,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         if (task_id < 0)
         {
             swWarn("task pack failed");
-            goto fail;
+            goto _fail;
         }
         swTask_type(&buf) |= SW_TASK_WAITALL;
         dst_worker_id = -1;
@@ -658,7 +659,8 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         else
         {
             swSysWarn("taskwait failed");
-            fail: retval[i] = DataBuffer();
+            _fail:
+            retval[i] = DataBuffer();
             n_task--;
         }
         i++;

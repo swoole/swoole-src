@@ -47,7 +47,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                 ret = swSSL_get_client_certificate(conn->ssl, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
                 if (ret < 0)
                 {
-                    goto no_client_cert;
+                    goto _no_client_cert;
                 }
                 else
                 {
@@ -61,7 +61,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                         task.info.len = ret;
                         task.data = SwooleTG.buffer_stack->str;
                         factory->dispatch(factory, &task);
-                        goto delay_receive;
+                        goto _delay_receive;
                     }
                     else
                     {
@@ -69,7 +69,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                     }
                 }
             }
-            no_client_cert:
+            _no_client_cert:
             if (port->ssl_option.verify_peer)
             {
                 return SW_ERR;
@@ -78,7 +78,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
             {
                 serv->notify(serv, conn, SW_EVENT_CONNECT);
             }
-            delay_receive:
+            _delay_receive:
             if (serv->enable_delay_receive)
             {
                 conn->listen_wait = 1;
@@ -155,8 +155,11 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
         break;
     }
 
-    do_recvfrom: ret = recvfrom(fd, pkt->data, SwooleTG.buffer_stack->size - sizeof(*pkt), 0,
-            (struct sockaddr *) &pkt->info.addr, &pkt->info.len);
+    _do_recvfrom:
+    ret = recvfrom(
+        fd, pkt->data, SwooleTG.buffer_stack->size - sizeof(*pkt), 0,
+        (struct sockaddr *) &pkt->info.addr, &pkt->info.len
+    );
 
     if (ret <= 0)
     {
@@ -196,7 +199,7 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
     }
     else
     {
-        goto do_recvfrom;
+        goto _do_recvfrom;
     }
 }
 
@@ -449,12 +452,12 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
                 {
                     swSysWarn("reactor->set(%d, PIPE | READ | WRITE) failed", pipe_fd);
                 }
-                goto append_pipe_buffer;
+                goto _append_pipe_buffer;
             }
         }
         else
         {
-            append_pipe_buffer:
+            _append_pipe_buffer:
             if (swBuffer_append(buffer, data, len) < 0)
             {
                 swWarn("append to pipe_buffer failed");
@@ -510,7 +513,8 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
                 if (conn->closed)
                 {
                     swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_SERVER, "Session#%d is closed by server", send_data->info.fd);
-                    _discard: swBuffer_pop_chunk(buffer, chunk);
+                    _discard:
+                    swBuffer_pop_chunk(buffer, chunk);
                     continue;
                 }
             }
@@ -639,7 +643,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 #ifdef SW_USE_OPENSSL
         if (conn->ssl)
         {
-            goto listen_read_event;
+            goto _listen_read_event;
         }
 #endif
         //notify worker process
@@ -660,7 +664,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         else
         {
 #ifdef SW_USE_OPENSSL
-            listen_read_event:
+            _listen_read_event:
 #endif
             return reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_READ);
         }
@@ -682,12 +686,14 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         return swReactorThread_close(reactor, fd);
     }
 
-    _pop_chunk: while (!swBuffer_empty(conn->out_buffer))
+    _pop_chunk:
+    while (!swBuffer_empty(conn->out_buffer))
     {
         chunk = swBuffer_get_chunk(conn->out_buffer);
         if (chunk->type == SW_CHUNK_CLOSE)
         {
-            close_fd: reactor->close(reactor, fd);
+            _close_fd:
+            reactor->close(reactor, fd);
             return SW_OK;
         }
         else if (chunk->type == SW_CHUNK_SENDFILE)
@@ -703,7 +709,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         {
             if (conn->close_wait)
             {
-                goto close_fd;
+                goto _close_fd;
             }
             else if (conn->send_wait)
             {
@@ -817,7 +823,8 @@ int swReactorThread_start(swServer *serv)
         }
         if (swPort_listen(ls) < 0)
         {
-            _failed: main_reactor->free(main_reactor);
+            _failed:
+            main_reactor->free(main_reactor);
             sw_free(main_reactor);
             return SW_ERR;
         }
@@ -900,7 +907,7 @@ int swReactorThread_start(swServer *serv)
     SW_START_SLEEP;
 #endif
 
-    _init_master_thread: 
+    _init_master_thread:
 
     /**
      * heartbeat thread
@@ -1165,7 +1172,8 @@ int swReactorThread_dispatch(swProtocol *proto, swConnection *conn, char *data, 
 
         if (swStream_send(stream, (char*) &task.info, sizeof(task.info)) < 0)
         {
-            _cancel: stream->cancel = 1;
+            _cancel:
+            stream->cancel = 1;
             return SW_ERR;
         }
         if (swStream_send(stream, data, length) < 0)
@@ -1203,12 +1211,13 @@ void swReactorThread_free(swServer *serv)
             ev.server_fd = SW_RESPONSE_EXIT;
             if (swSocket_write_blocking(thread->notify_pipe, (void *) &ev, sizeof(ev)) < 0)
             {
-                goto cancel;
+                goto _cancel;
             }
         }
         else
         {
-            cancel: if (pthread_cancel(thread->thread_id) < 0)
+            _cancel:
+            if (pthread_cancel(thread->thread_id) < 0)
             {
                 swSysWarn("pthread_cancel(%ld) failed", (long ) thread->thread_id);
             }

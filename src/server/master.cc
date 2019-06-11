@@ -1000,7 +1000,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
      */
     if (_send->info.type == SW_EVENT_CLOSE && (conn->close_reset || conn->removed))
     {
-        goto close_fd;
+        goto _close_fd;
     }
     else if (_send->info.type == SW_EVENT_CONFIRM)
     {
@@ -1044,7 +1044,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
          */
         if (_send->info.type == SW_EVENT_CLOSE)
         {
-            close_fd:
+            _close_fd:
             reactor->close(reactor, fd);
             return SW_OK;
         }
@@ -1054,12 +1054,13 @@ int swServer_master_send(swServer *serv, swSendData *_send)
         {
             if (!conn->direct_send)
             {
-                goto buffer_send;
+                goto _buffer_send;
             }
 
             ssize_t n;
 
-            direct_send: n = swConnection_send(conn, _send_data, _send_length, 0);
+            _direct_send:
+            n = swConnection_send(conn, _send_data, _send_length, 0);
             if (n == _send_length)
             {
                 return SW_OK;
@@ -1068,15 +1069,15 @@ int swServer_master_send(swServer *serv, swSendData *_send)
             {
                 _send_data += n;
                 _send_length -= n;
-                goto buffer_send;
+                goto _buffer_send;
             }
             else if (errno == EINTR)
             {
-                goto direct_send;
+                goto _direct_send;
             }
             else
             {
-                goto buffer_send;
+                goto _buffer_send;
             }
         }
 #endif
@@ -1084,7 +1085,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
         else
         {
 #ifdef SW_REACTOR_SYNC_SEND
-            buffer_send:
+            _buffer_send:
 #endif
             if (!conn->out_buffer)
             {
@@ -1156,7 +1157,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     if (reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ) < 0
             && (errno == EBADF || errno == ENOENT))
     {
-        goto close_fd;
+        goto _close_fd;
     }
 
     return SW_OK;

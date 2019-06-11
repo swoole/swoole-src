@@ -35,44 +35,6 @@ extern sapi_module_struct sapi_module;
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-//arginfo event
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_add, 0, 0, 2)
-    ZEND_ARG_INFO(0, fd)
-    ZEND_ARG_CALLABLE_INFO(0, read_callback, 1)
-    ZEND_ARG_CALLABLE_INFO(0, write_callback, 1)
-    ZEND_ARG_INFO(0, events)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_set, 0, 0, 1)
-    ZEND_ARG_INFO(0, fd)
-    ZEND_ARG_CALLABLE_INFO(0, read_callback, 1)
-    ZEND_ARG_CALLABLE_INFO(0, write_callback, 1)
-    ZEND_ARG_INFO(0, events)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_write, 0, 0, 2)
-    ZEND_ARG_INFO(0, fd)
-    ZEND_ARG_INFO(0, data)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_defer, 0, 0, 1)
-    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_cycle, 0, 0, 1)
-    ZEND_ARG_CALLABLE_INFO(0, callback, 1)
-    ZEND_ARG_INFO(0, before)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_del, 0, 0, 1)
-    ZEND_ARG_INFO(0, fd)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_isset, 0, 0, 1)
-    ZEND_ARG_INFO(0, fd)
-    ZEND_ARG_INFO(0, events)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_set, 0, 0, 1)
     ZEND_ARG_ARRAY_INFO(0, settings, 0)
 ZEND_END_ARG_INFO()
@@ -120,8 +82,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_get_mime_type, 0, 0, 1)
     ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
 
-//arginfo end
-
 #include "zend_exceptions.h"
 
 static PHP_FUNCTION(swoole_get_mime_type);
@@ -132,17 +92,6 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_version, arginfo_swoole_void)
     PHP_FE(swoole_cpu_num, arginfo_swoole_void)
     PHP_FE(swoole_last_error, arginfo_swoole_void)
-    /*------swoole_event-----*/
-    PHP_FE(swoole_event_add, arginfo_swoole_event_add)
-    PHP_FE(swoole_event_set, arginfo_swoole_event_set)
-    PHP_FE(swoole_event_del, arginfo_swoole_event_del)
-    PHP_FE(swoole_event_exit, arginfo_swoole_void)
-    PHP_FE(swoole_event_wait, arginfo_swoole_void)
-    PHP_FE(swoole_event_write, arginfo_swoole_event_write)
-    PHP_FE(swoole_event_defer, arginfo_swoole_event_defer)
-    PHP_FE(swoole_event_cycle, arginfo_swoole_event_cycle)
-    PHP_FE(swoole_event_dispatch, arginfo_swoole_void)
-    PHP_FE(swoole_event_isset, arginfo_swoole_event_isset)
     /*------swoole_async_io------*/
     PHP_FE(swoole_async_dns_lookup_coro, arginfo_swoole_async_dns_lookup_coro)
     PHP_FE(swoole_async_set, arginfo_swoole_async_set)
@@ -167,27 +116,9 @@ const zend_function_entry swoole_functions[] =
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
-static const zend_function_entry swoole_event_methods[] =
-{
-    ZEND_FENTRY(add, ZEND_FN(swoole_event_add), arginfo_swoole_event_add, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(del, ZEND_FN(swoole_event_del), arginfo_swoole_event_del, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(set, ZEND_FN(swoole_event_set), arginfo_swoole_event_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(exit, ZEND_FN(swoole_event_exit), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(write, ZEND_FN(swoole_event_write), arginfo_swoole_event_write, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(wait, ZEND_FN(swoole_event_wait), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(defer, ZEND_FN(swoole_event_defer), arginfo_swoole_event_defer, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(cycle, ZEND_FN(swoole_event_cycle), arginfo_swoole_event_cycle, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(dispatch, ZEND_FN(swoole_event_dispatch), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(isset, ZEND_FN(swoole_event_isset), arginfo_swoole_event_isset, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_FE_END
-};
-
 #if PHP_MEMORY_DEBUG
 php_vmstat_t php_vmstat;
 #endif
-
-static zend_class_entry *swoole_event_ce;
-static zend_object_handlers swoole_event_handlers;
 
 zend_class_entry *swoole_exception_ce;
 zend_object_handlers swoole_exception_handlers;
@@ -288,23 +219,23 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *dat
 {
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache*) serv->private_data_3;
     zval args[4];
-    zval *zserver = &args[0], *zfd = &args[1], *ztype = &args[2], *zdata = NULL;
+    zval *zserv = &args[0], *zfd = &args[1], *ztype = &args[2], *zdata = NULL;
     zval _retval, *retval = &_retval;
     int worker_id = -1;
 
     SwooleG.lock.lock(&SwooleG.lock);
-    *zserver = *((zval *) serv->ptr2);
+    *zserv = *((zval *) serv->ptr2);
     ZVAL_LONG(zfd, (zend_long) (conn ? conn->session_id : data->info.fd));
     ZVAL_LONG(ztype, (zend_long) data->info.type);
     if (sw_zend_function_max_num_args(fci_cache->function_handler) > 3)
     {
-        // optimization: reduce memory copy
+        // TODO: reduce memory copy
         zdata = &args[3];
         ZVAL_STRINGL(zdata, data->data, data->info.len > SW_IPC_BUFFER_SIZE ? SW_IPC_BUFFER_SIZE : data->info.len);
     }
-    if (sw_call_user_function_fast_ex(NULL, fci_cache, zdata ? 4 : 3, args, retval) == FAILURE)
+    if (UNEXPECTED(!zend::function::call(fci_cache, zdata ? 4 : 3, args, retval, false)))
     {
-        swoole_php_fatal_error(E_WARNING, "dispatch function handler error");
+        swoole_php_error(E_WARNING, "%s->onDispatch handler error", ZSTR_VAL(Z_OBJCE_P(zserv)->name));
     }
     else if (!ZVAL_IS_NULL(retval))
     {
@@ -747,11 +678,6 @@ PHP_MINIT_FUNCTION(swoole)
         zend_hash_str_del(CG(function_table), ZEND_STRL("defer"));
     }
 
-    SW_INIT_CLASS_ENTRY(swoole_event, "Swoole\\Event", "swoole_event", NULL, swoole_event_methods);
-    SW_SET_CLASS_CREATE(swoole_event, sw_zend_create_object_deny);
-
-    SW_INIT_EXCEPTION_CLASS_ENTRY(swoole_exception, "Swoole\\Exception", "swoole_exception", NULL, NULL);
-
     swoole_init();
     if (!SWOOLE_G(enable_coroutine))
     {
@@ -762,7 +688,10 @@ PHP_MINIT_FUNCTION(swoole)
         SWOOLE_G(cli) = 1;
     }
 
+    SW_INIT_EXCEPTION_CLASS_ENTRY(swoole_exception, "Swoole\\Exception", "swoole_exception", NULL, NULL);
+
     /** <Sort by dependency> **/
+    swoole_event_init(module_number);
     // base
     swoole_atomic_init(module_number);
     swoole_buffer_init(module_number);

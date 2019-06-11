@@ -118,7 +118,7 @@ class StringObject
     /**
      * @param int $offset
      * @param mixed ...$length
-     * @return StringObject
+     * @return static
      */
     public function substr(int $offset, ...$length): self
     {
@@ -151,7 +151,7 @@ class StringObject
      */
     public function startsWith(string $needle): bool
     {
-        return $this->pos($needle) === 0;
+        return strpos($this->string, $needle) === 0;
     }
 
     /**
@@ -160,7 +160,7 @@ class StringObject
      */
     public function contains(string $subString): bool
     {
-        return $this->pos($subString) !== false;
+        return strpos($this->string, $subString) !== false;
     }
 
     /**
@@ -169,11 +169,7 @@ class StringObject
      */
     public function endsWith(string $needle): bool
     {
-        $length = strlen($needle);
-        if ($length == 0) {
-            return true;
-        }
-        return substr($this->string, -$length) === $needle;
+        return strrpos($this->string, $needle) === (strlen($needle) - 1);
     }
 
     /**
@@ -183,7 +179,7 @@ class StringObject
      */
     public function split(string $delimiter, int $limit = PHP_INT_MAX): ArrayObject
     {
-        return new ArrayObject(explode($delimiter, $this->string, $limit));
+        return static::detectArrayType(explode($delimiter, $this->string, $limit));
     }
 
     /**
@@ -198,9 +194,9 @@ class StringObject
     /**
      * @param int $chunkLength
      * @param string $chunkEnd
-     * @return StringObject
+     * @return static
      */
-    public function chunkSplit(int $chunkLength = 1, string $chunkEnd = ''): StringObject
+    public function chunkSplit(int $chunkLength = 1, string $chunkEnd = ''): self
     {
         return new static(chunk_split($this->string, $chunkLength, $chunkEnd));
     }
@@ -209,9 +205,9 @@ class StringObject
      * @param int $splitLength
      * @return ArrayObject
      */
-    public function chunk($splitLength = 1)
+    public function chunk($splitLength = 1): ArrayObject
     {
-        return new ArrayObject(str_split($this->string, $splitLength));
+        return static::detectArrayType(str_split($this->string, $splitLength));
     }
 
     /**
@@ -228,5 +224,14 @@ class StringObject
     public function __toString(): string
     {
         return $this->string;
+    }
+
+    /**
+     * @param array $value
+     * @return ArrayObject
+     */
+    protected static function detectArrayType(array $value): ArrayObject
+    {
+        return new ArrayObject($value);
     }
 }

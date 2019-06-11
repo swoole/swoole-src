@@ -1,5 +1,7 @@
 --TEST--
 swoole_runtime/stream_select: Bug #64770 stream_select() fails with pipes from proc_open()
+--SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

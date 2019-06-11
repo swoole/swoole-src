@@ -117,7 +117,7 @@ void Coroutine::print_list()
             state = "[END]";
             break;
         default:
-            assert(0);
+            abort();
             return;
         }
         printf("Coroutine\t%ld\t%s\n", i->first, state);

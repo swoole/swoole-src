@@ -39,4 +39,3 @@ echo "DONE\n";
 --EXPECT--
 <h1>Stop</h1>
 DONE
-

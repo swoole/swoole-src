@@ -41,9 +41,7 @@ class CurlManager
         }
 
         global $argc, $argv;
-        if ($argc > 1 and $argv[1] == 'ori') {
-
-        } else {
+        if (!($argc > 1 and $argv[1] == 'ori')) {
             Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_CURL);
         }
 

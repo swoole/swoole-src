@@ -59,35 +59,35 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 ```php
 function tcp_pack(string $data): string
 {
-    return pack('n', strlen($data)) . $data;
+    return pack('N', strlen($data)) . $data;
 }
 function tcp_unpack(string $data): string
 {
-    return substr($data, 2, unpack('n', substr($data, 0, 2))[1]);
+    return substr($data, 4, unpack('N', substr($data, 0, 4))[1]);
 }
 $tcp_options = [
     'open_length_check' => true,
-    'package_length_type' => 'n',
+    'package_length_type' => 'N',
     'package_length_offset' => 0,
-    'package_body_offset' => 2
+    'package_body_offset' => 4
 ];
 ```
 
 ```php
-$server = new swoole_websocket_server('127.0.0.1', 9501, SWOOLE_BASE);
+$server = new Swoole\WebSocket\Server('127.0.0.1', 9501, SWOOLE_BASE);
 $server->set(['open_http2_protocol' => true]);
 // http && http2
-$server->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+$server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
     $response->end('Hello ' . $request->rawcontent());
 });
 // websocket
-$server->on('message', function (swoole_websocket_server $server, swoole_websocket_frame $frame) {
+$server->on('message', function (Swoole\WebSocket\Server $server, Swoole\WebSocket\Frame $frame) {
     $server->push($frame->fd, 'Hello ' . $frame->data);
 });
 // tcp
 $tcp_server = $server->listen('127.0.0.1', 9502, SWOOLE_TCP);
 $tcp_server->set($tcp_options);
-$tcp_server->on('receive', function (swoole_server $server, int $fd, int $reactor_id, string $data) {
+$tcp_server->on('receive', function (Swoole\Server $server, int $fd, int $reactor_id, string $data) {
     $server->send($fd, tcp_pack('Hello ' . tcp_unpack($data)));
 });
 $server->start();

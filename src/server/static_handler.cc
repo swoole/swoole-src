@@ -133,7 +133,7 @@ int static_handler::send_response()
             if (strncasecmp(p, SW_STRL("\r\n")) == 0)
             {
                 length_if_modified_since = p - date_if_modified_since;
-                goto check_modify_date;
+                goto _check_modify_date;
             }
             break;
         default:
@@ -144,7 +144,8 @@ int static_handler::send_response()
     char date_[64];
     struct tm *tm1;
 
-    check_modify_date: tm1 = gmtime(&serv->gs->now);
+    _check_modify_date:
+    tm1 = gmtime(&serv->gs->now);
     strftime(date_, sizeof(date_), "%a, %d %b %Y %H:%M:%S %Z", tm1);
 
     char date_last_modified[64];
@@ -230,7 +231,8 @@ int static_handler::send_response()
 
     swServer_master_send(serv, &response);
 
-    _finish: if (!request->keep_alive)
+    _finish:
+    if (!request->keep_alive)
     {
         response.info.type = SW_EVENT_CLOSE;
         response.data = NULL;
@@ -311,7 +313,8 @@ bool static_handler::done()
     /**
      * non-static file
      */
-    _detect_mime_type: if (!swoole_mime_type_exists(task.filename))
+    _detect_mime_type:
+    if (!swoole_mime_type_exists(task.filename))
     {
         return false;
     }

@@ -31,4 +31,3 @@ swoole_event_wait();
 --EXPECT--
 <h1>Index</h1>
 <h1>Stop</h1>
-

@@ -195,7 +195,8 @@ private:
 
             atomic<bool> &_flag = *flag;
             async_event *event;
-            _accept: event = queue.pop();
+            _accept:
+            event = queue.pop();
             if (event)
             {
                 if (unlikely(event->handler == nullptr))
@@ -217,7 +218,8 @@ private:
 
                 swTrace("aio_thread ok. ret=%d, error=%d", event->ret, event->error);
 
-                _error: while (true)
+                _error:
+                while (true)
                 {
                     SwooleAIO.lock.lock(&SwooleAIO.lock);
                     int ret = write(_pipe_write, &event, sizeof(event));

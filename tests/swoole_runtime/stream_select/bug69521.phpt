@@ -1,5 +1,7 @@
 --TEST--
 swoole_runtime/stream_select: Bug #69521 Segfault in gc_collect_cycles()
+--SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

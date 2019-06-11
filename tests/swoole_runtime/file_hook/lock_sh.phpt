@@ -32,5 +32,3 @@ swoole_event_wait();
 %d OK
 %d OK
 %d OK
-
-

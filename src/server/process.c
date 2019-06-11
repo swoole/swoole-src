@@ -434,12 +434,13 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
             //cannot use send_shm
             if (!swBuffer_empty(_pipe_socket->out_buffer))
             {
-                _pack_data: if (swTaskWorker_large_pack((swEventData *) buf, resp->data, resp->info.len) < 0)
+                _pack_data:
+                if (swTaskWorker_large_pack((swEventData *) buf, resp->data, resp->info.len) < 0)
                 {
                     return SW_ERR;
                 }
                 buf->info.server_fd = SW_RESPONSE_TMPFILE;
-                goto send_to_reactor_thread;
+                goto _send_to_reactor_thread;
             }
         }
 
@@ -463,7 +464,8 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         buf->info.server_fd = SW_RESPONSE_SMALL;
     }
 
-    send_to_reactor_thread: buf->info.reactor_id = conn->reactor_id;
+    _send_to_reactor_thread:
+    buf->info.reactor_id = conn->reactor_id;
     sendn = buf->info.len + sizeof(resp->info);
 
     swTrace("[Worker] send: sendn=%d|type=%d|content=<<EOF\n%.*s\nEOF", sendn, resp->info.type, resp->info.len, resp->data);
@@ -498,7 +500,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     }
     else if (conn->close_force)
     {
-        goto do_close;
+        goto _do_close;
     }
     else if (conn->closing)
     {
@@ -511,7 +513,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     }
     else
     {
-        do_close:
+        _do_close:
         conn->closing = 1;
         if (serv->onClose != NULL)
         {

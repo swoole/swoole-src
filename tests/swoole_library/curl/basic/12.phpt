@@ -1,8 +1,9 @@
 --TEST--
-Test curl_opt() function with CURLOPT_HTTP_VERSION/CURL_HTTP_VERSION_1_0
+swoole_library/curl/basic: Test curl_opt() function with CURLOPT_HTTP_VERSION/CURL_HTTP_VERSION_1_0
 --CREDITS--
 TestFest 2009 - AFUP - Xavier Gorse <xgorse@elao.com>
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 --FILE--
 <?php
 /* Prototype  : bool curl_setopt(resource ch, int option, mixed value)
@@ -40,4 +41,3 @@ $cm->run(function ($host) {
 Warning: swoole_curl: http version[1] not supported in %s on line %d
 string(8) "HTTP/1.1"
 ===DONE===
-                     

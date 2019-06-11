@@ -296,7 +296,8 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
 #endif
     else
     {
-        _excepted: request->excepted = 1;
+        _excepted:
+        request->excepted = 1;
         return SW_ERR;
     }
 
@@ -335,12 +336,12 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
             if (memcmp(p, "HTTP/1.1", 8) == 0)
             {
                 request->version = SW_HTTP_VERSION_11;
-                goto end;
+                goto _end;
             }
             else if (memcmp(p, "HTTP/1.0", 8) == 0)
             {
                 request->version = SW_HTTP_VERSION_10;
-                goto end;
+                goto _end;
             }
             else
             {
@@ -350,7 +351,8 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
             break;
         }
     }
-    end: p += 8;
+    _end:
+    p += 8;
     request->buffer->offset = p - request->buffer->str;
     return SW_OK;
 }
@@ -501,7 +503,7 @@ ssize_t swHttpMix_get_package_length(swProtocol *protocol, swConnection *conn, c
     }
     else
     {
-        assert(0);
+        abort();
         return SW_ERR;
     }
 }
@@ -518,7 +520,7 @@ uint8_t swHttpMix_get_package_length_size(swConnection *conn)
     }
     else
     {
-        assert(0);
+        abort();
         return 0;
     }
 }
@@ -535,7 +537,7 @@ int swHttpMix_dispatch_frame(swProtocol *proto, swConnection *conn, char *data, 
     }
     else
     {
-        assert(0);
+        abort();
         return SW_ERR;
     }
 }

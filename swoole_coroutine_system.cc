@@ -249,7 +249,8 @@ static void co_socket_write(int fd, char* str, size_t l_str, INTERNAL_FUNCTION_P
         RETURN_LONG(ret);
     }
 
-    _yield: if (SwooleG.main_reactor->add(SwooleG.main_reactor, fd, PHP_SWOOLE_FD_SOCKET | SW_EVENT_WRITE) < 0)
+    _yield:
+    if (SwooleG.main_reactor->add(SwooleG.main_reactor, fd, PHP_SWOOLE_FD_SOCKET | SW_EVENT_WRITE) < 0)
     {
         SwooleG.error = errno;
         RETURN_FALSE;

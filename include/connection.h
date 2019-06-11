@@ -293,16 +293,16 @@ static sw_inline int swConnection_error(int err)
     case EHOSTDOWN:
     case EHOSTUNREACH:
     case SW_ERROR_SSL_BAD_CLIENT:
-		return SW_CLOSE;
-	case EAGAIN:
+        return SW_CLOSE;
+    case EAGAIN:
 #ifdef HAVE_KQUEUE
-	case ENOBUFS:
+    case ENOBUFS:
 #endif
-	case 0:
-		return SW_WAIT;
-	default:
-		return SW_ERROR;
-	}
+    case 0:
+        return SW_WAIT;
+    default:
+        return SW_ERROR;
+    }
 }
 
 #ifdef __cplusplus

@@ -999,7 +999,7 @@ static uint8_t pack_first_byte(int indexing_mode) {
   case NGHTTP2_HD_NEVER_INDEXING:
     return 0x10u;
   default:
-    assert(0);
+    abort();
   }
   /* This is required to compile with android NDK r10d +
      --enable-werror */

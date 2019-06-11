@@ -91,9 +91,6 @@ static void client_onBufferEmpty(swClient *cli);
 
 static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
-    zval _retval, *retval = &_retval;
-    zval args[1];
-
     client_callback *cb = (client_callback *) swoole_get_property(zobject, client_property_callback);
     const char *callback_name;
 
@@ -128,24 +125,25 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
         break;
 #endif
     default:
+        abort();
         return;
     }
 
-    if (!fci_cache)
+    if (!fci_cache->function_handler)
     {
-        swoole_php_fatal_error(E_WARNING, "object have not %s callback", callback_name);
+        swoole_php_fatal_error(E_WARNING, "%s has no %s callback", Z_OBJCE_P(zobject)->name, callback_name);
         return;
     }
 
-    args[0] = *zobject;
-    if (sw_call_user_function_fast_ex(NULL, fci_cache, 1, args, retval) == FAILURE)
+    if (UNEXPECTED(sw_call_user_function_fast_ex(NULL, fci_cache, 1, zobject, NULL) != SUCCESS))
     {
-        swoole_php_fatal_error(E_WARNING, "%s handler error", callback_name);
+        swoole_php_fatal_error(E_WARNING, "%s->%s handler error", Z_OBJCE_P(zobject)->name, callback_name);
         return;
     }
-    if (retval)
+
+    if (UNEXPECTED(EG(exception)))
     {
-        zval_ptr_dtor(retval);
+        zend_exception_error(EG(exception), E_ERROR);
     }
 }
 
@@ -307,31 +305,23 @@ void swoole_client_init(int module_number)
 static void client_onReceive(swClient *cli, char *data, uint32_t length)
 {
     zval *zobject = (zval *) cli->object;
-    zend_fcall_info_cache *fci_cache;
+    zend_fcall_info_cache *fci_cache = &((client_callback *) swoole_get_property(zobject, 0))->cache_onReceive;
     zval args[2];
-    zval _retval, *retval = &_retval;
 
     args[0] = *zobject;
     ZVAL_STRINGL(&args[1], data, length);
 
-    client_callback *cb = (client_callback *) swoole_get_property(zobject, 0);
-    fci_cache = &cb->cache_onReceive;
-    if (!fci_cache)
+    if (UNEXPECTED(sw_call_user_function_fast_ex(NULL, fci_cache, 2, args, NULL) != SUCCESS))
     {
-        swoole_php_fatal_error(E_WARNING, "Swoole\\Client object has no 'onReceive' callback function");
-        goto free_zdata;
+        swoole_php_fatal_error(E_WARNING, "%s->onReceive handler error", Z_OBJCE_P(zobject)->name);
     }
-    if (sw_call_user_function_fast_ex(NULL, &cb->cache_onReceive, 2, args, retval) == FAILURE)
-    {
-        swoole_php_fatal_error(E_WARNING, "onReactorCallback handler error");
-        goto free_zdata;
-    }
-    if (retval)
-    {
-        zval_ptr_dtor(retval);
-    }
-    free_zdata:
+
     zval_ptr_dtor(&args[1]);
+
+    if (UNEXPECTED(EG(exception)))
+    {
+        zend_exception_error(EG(exception), E_ERROR);
+    }
 }
 
 static void client_onConnect(swClient *cli)
@@ -353,7 +343,7 @@ static void client_onConnect(swClient *cli)
         client_callback *cb = (client_callback *) swoole_get_property(zobject, 0);
         if (!cb || !cb->cache_onReceive.function_handler)
         {
-            swoole_php_fatal_error(E_ERROR, "has no 'onReceive' callback function");
+            swoole_php_fatal_error(E_ERROR, "has no onReceive callback");
         }
     }
 }
@@ -854,7 +844,7 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
         if (i == long_connections.end() || i->second->empty())
         {
             cli = (swClient*) pemalloc(sizeof(swClient), 1);
-            goto create_socket;
+            goto _create_socket;
         }
         else
         {
@@ -868,7 +858,7 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
                 cli->close(cli);
                 php_swoole_client_free(zobject, cli);
                 cli = (swClient*) pemalloc(sizeof(swClient), 1);
-                goto create_socket;
+                goto _create_socket;
             }
             cli->reuse_count++;
             zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("reuseCount"), cli->reuse_count);
@@ -878,7 +868,8 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
     {
         cli = (swClient*) emalloc(sizeof(swClient));
 
-        create_socket: if (swClient_create(cli, php_swoole_socktype(type), async) < 0)
+        _create_socket:
+        if (swClient_create(cli, php_swoole_socktype(type), async) < 0)
         {
             swoole_php_sys_error(E_WARNING, "swClient_create() failed");
             zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), errno);
@@ -1332,7 +1323,7 @@ static PHP_METHOD(swoole_client, recv)
 
         if (buffer->length > 0)
         {
-            goto find_eof;
+            goto _find_eof;
         }
 
         while (1)
@@ -1365,7 +1356,8 @@ static PHP_METHOD(swoole_client, recv)
                 continue;
             }
 
-            find_eof: eof = swoole_strnpos(buffer->str, buffer->length, protocol->package_eof, protocol->package_eof_len);
+            _find_eof:
+            eof = swoole_strnpos(buffer->str, buffer->length, protocol->package_eof, protocol->package_eof_len);
             if (eof >= 0)
             {
                 eof += protocol->package_eof_len;

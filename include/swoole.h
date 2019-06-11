@@ -371,6 +371,12 @@ enum swGlobal_hook_type
     SW_GLOBAL_HOOK_ON_CORO_STOP,
 };
 
+enum swFork_type
+{
+    SW_FORK_SPAWN   = 0,
+    SW_FORK_EXEC    = 1u << 2,
+};
+
 //-------------------------------------------------------------------------------
 enum swServer_mode
 {
@@ -1120,7 +1126,7 @@ typedef struct _swSem
 
 typedef struct _swLock
 {
-	int type;
+    int type;
     union
     {
         swMutex mutex;
@@ -1179,10 +1185,10 @@ int swShareMemory_mmap_free(swShareMemory *object);
 //-------------------memory manager-------------------------
 typedef struct _swMemoryPool
 {
-	void *object;
-	void* (*alloc)(struct _swMemoryPool *pool, uint32_t size);
-	void (*free)(struct _swMemoryPool *pool, void *ptr);
-	void (*destroy)(struct _swMemoryPool *pool);
+    void *object;
+    void* (*alloc)(struct _swMemoryPool *pool, uint32_t size);
+    void (*free)(struct _swMemoryPool *pool, void *ptr);
+    void (*destroy)(struct _swMemoryPool *pool);
 } swMemoryPool;
 
 typedef struct _swFixedPool_slice
@@ -1269,8 +1275,8 @@ int swCond_create(swCond *cond);
 
 typedef struct _swThreadParam
 {
-	void *object;
-	int pti;
+    void *object;
+    int pti;
 } swThreadParam;
 
 extern char sw_error[SW_ERROR_MSG_SIZE];
@@ -1492,7 +1498,7 @@ static sw_inline int swSocket_is_stream(uint8_t type)
 
 void swoole_init(void);
 void swoole_clean(void);
-pid_t swoole_fork();
+pid_t swoole_fork(int flags);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
@@ -1627,13 +1633,13 @@ struct _swReactor
      */
     uint32_t thread :1;
 
-	/**
-	 * reactor->wait timeout (millisecond) or -1
-	 */
-	int32_t timeout_msec;
+    /**
+     * reactor->wait timeout (millisecond) or -1
+     */
+    int32_t timeout_msec;
 
-	uint16_t id; //Reactor ID
-	uint16_t flag; //flag
+    uint16_t id; //Reactor ID
+    uint16_t flag; //flag
 
     uint32_t max_socket;
 
@@ -1685,21 +1691,21 @@ typedef struct _swProcessPool swProcessPool;
 
 struct _swWorker
 {
-	/**
-	 * worker process
-	 */
-	pid_t pid;
+    /**
+     * worker process
+     */
+    pid_t pid;
 
-	/**
-	 * worker thread
-	 */
-	pthread_t tid;
+    /**
+     * worker thread
+     */
+    pthread_t tid;
 
-	swProcessPool *pool;
+    swProcessPool *pool;
 
-	swMemoryPool *pool_output;
+    swMemoryPool *pool_output;
 
-	swMsgQueue *queue;
+    swMsgQueue *queue;
 
     /**
      * redirect stdout to pipe_master
@@ -1716,9 +1722,9 @@ struct _swWorker
      */
     uint8_t redirect_stderr :1;
 
-	/**
-	 * worker status, IDLE or BUSY
-	 */
+    /**
+     * worker status, IDLE or BUSY
+     */
     uint8_t status;
     uint8_t type;
     uint8_t ipc_mode;
@@ -1738,23 +1744,23 @@ struct _swWorker
     long dispatch_count;
     long request_count;
 
-	/**
-	 * worker id
-	 */
-	uint32_t id;
+    /**
+     * worker id
+     */
+    uint32_t id;
 
-	swLock lock;
+    swLock lock;
 
-	void *send_shm;
+    void *send_shm;
 
-	swPipe *pipe_object;
+    swPipe *pipe_object;
 
-	int pipe_master;
-	int pipe_worker;
+    int pipe_master;
+    int pipe_worker;
 
-	int pipe;
-	void *ptr;
-	void *ptr2;
+    int pipe;
+    void *ptr;
+    void *ptr2;
 };
 
 typedef struct
@@ -1839,11 +1845,6 @@ static sw_inline int swReactor_error(swReactor *reactor)
     switch (errno)
     {
     case EINTR:
-        if (reactor->singal_no)
-        {
-            swSignal_callback(reactor->singal_no);
-            reactor->singal_no = 0;
-        }
         return SW_OK;
     }
     return SW_ERR;

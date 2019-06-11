@@ -25,4 +25,3 @@ swoole_event_wait();
 --EXPECT--
 open
 read
-

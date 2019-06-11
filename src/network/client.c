@@ -986,13 +986,13 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
 
     if (udp_connect != 1)
     {
-        goto connect_ok;
+        goto _connect_ok;
     }
 
     if (connect(cli->socket->fd, (struct sockaddr *) (&cli->server_addr), cli->server_addr.len) == 0)
     {
         swSocket_clean(cli->socket->fd);
-        connect_ok:
+        _connect_ok:
 
         setsockopt(cli->socket->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
         setsockopt(cli->socket->fd, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
@@ -1147,7 +1147,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
             if (swClient_https_proxy_handshake(cli) < 0)
             {
                 swoole_error_log(SW_LOG_NOTICE, SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR, "failed to handshake with http proxy");
-                goto connect_fail;
+                goto _connect_fail;
             }
             else
             {
@@ -1156,13 +1156,13 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
             }
             if (swClient_enable_ssl_encrypt(cli) < 0)
             {
-                goto connect_fail;
+                goto _connect_fail;
             }
             else
             {
                 if (swClient_ssl_handshake(cli) < 0)
                 {
-                    goto connect_fail;
+                    goto _connect_fail;
                 }
                 else
                 {
@@ -1198,7 +1198,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
         {
             if (swClient_enable_ssl_encrypt(cli) < 0)
             {
-                connect_fail:
+                _connect_fail:
                 cli->socket->active = 0;
                 cli->close(cli);
                 if (cli->onError)
@@ -1210,7 +1210,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
             {
                 if (swClient_ssl_handshake(cli) < 0)
                 {
-                    goto connect_fail;
+                    goto _connect_fail;
                 }
                 else
                 {
@@ -1235,7 +1235,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
     {
         if (swClient_ssl_handshake(cli) < 0)
         {
-            goto connect_fail;
+            goto _connect_fail;
         }
         if (cli->socket->ssl_state != SW_SSL_STATE_READY)
         {
@@ -1323,7 +1323,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
     }
 
 #ifdef SW_CLIENT_RECV_AGAIN
-    recv_again:
+    _recv_again:
 #endif
     n = swConnection_recv(event->socket, buf, buf_size, 0);
     if (n < 0)
@@ -1353,7 +1353,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
 #ifdef SW_CLIENT_RECV_AGAIN
         if (n == buf_size)
         {
-            goto recv_again;
+            goto _recv_again;
         }
 #endif
         return SW_OK;
@@ -1460,11 +1460,11 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
         {
             if (swClient_ssl_handshake(cli) < 0)
             {
-                goto connect_fail;
+                goto _connect_fail;
             }
             else if (_socket->ssl_state == SW_SSL_STATE_READY)
             {
-                goto connect_success;
+                goto _connect_success;
             }
             else
             {
@@ -1527,11 +1527,11 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
         {
             if (swClient_enable_ssl_encrypt(cli) < 0)
             {
-                goto connect_fail;
+                goto _connect_fail;
             }
             if (swClient_ssl_handshake(cli) < 0)
             {
-                goto connect_fail;
+                goto _connect_fail;
             }
             else
             {
@@ -1539,7 +1539,7 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
             }
             return SW_OK;
         }
-        connect_success:
+        _connect_success:
 #endif
         if (cli->onConnect)
         {
@@ -1549,7 +1549,7 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
     else
     {
 #ifdef SW_USE_OPENSSL
-        connect_fail:
+        _connect_fail:
 #endif
         _socket->active = 0;
         cli->close(cli);

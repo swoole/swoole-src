@@ -152,12 +152,17 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         swWorker_try_to_exit();
     }
+    //check signal
+    if (unlikely(reactor->singal_no))
+    {
+        swSignal_callback(reactor->singal_no);
+        reactor->singal_no = 0;
+    }
     //not server, the event loop is empty
     if ((SwooleG.serv == NULL || swIsUserWorker()) && swReactor_empty(reactor))
     {
         reactor->running = 0;
     }
-
 #ifdef SW_USE_MALLOC_TRIM
     time_t now = time(NULL);
     if (reactor->last_malloc_trim_time < now - SW_MALLOC_TRIM_INTERVAL)
@@ -182,12 +187,6 @@ static void swReactor_onTimeout(swReactor *reactor)
 static void swReactor_onFinish(swReactor *reactor)
 {
     swReactor_onTimeout_and_Finish(reactor);
-    //check signal
-    if (unlikely(reactor->singal_no))
-    {
-        swSignal_callback(reactor->singal_no);
-        reactor->singal_no = 0;
-    }
 }
 
 void swReactor_activate_future_task(swReactor *reactor)
@@ -256,10 +255,10 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     {
         if (socket->ssl_send)
         {
-            goto do_buffer;
+            goto _do_buffer;
         }
 
-        do_send:
+        _do_send:
         ret = swConnection_send(socket, buf, n, 0);
 
         if (ret > 0)
@@ -272,12 +271,12 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
             {
                 buf += ret;
                 n -= ret;
-                goto do_buffer;
+                goto _do_buffer;
             }
         }
         else if (swConnection_error(errno) == SW_WAIT)
         {
-            do_buffer:
+            _do_buffer:
             if (!socket->out_buffer)
             {
                 buffer = swBuffer_new(socket->fdtype == SW_FD_PIPE ? 0 : SW_SEND_BUFFER_SIZE);
@@ -306,11 +305,11 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
                 }
             }
 
-            goto append_buffer;
+            goto _append_buffer;
         }
         else if (errno == EINTR)
         {
-            goto do_send;
+            goto _do_send;
         }
         else
         {
@@ -320,7 +319,8 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     }
     else
     {
-        append_buffer: if (buffer->length > socket->buffer_size)
+        _append_buffer:
+        if (buffer->length > socket->buffer_size)
         {
             if (socket->dontwait)
             {
@@ -358,7 +358,7 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
         chunk = swBuffer_get_chunk(buffer);
         if (chunk->type == SW_CHUNK_CLOSE)
         {
-            close_fd:
+            _close_fd:
             reactor->close(reactor, ev->fd);
             return SW_OK;
         }
@@ -375,7 +375,7 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
         {
             if (socket->close_wait)
             {
-                goto close_fd;
+                goto _close_fd;
             }
             else if (socket->send_wait)
             {

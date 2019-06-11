@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server_coro: bind random port
+swoole_coroutine_server: bind random port
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

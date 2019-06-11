@@ -109,7 +109,7 @@ static void pool_onWorkerStart(swProcessPool *pool, int worker_id)
 
     if (UNEXPECTED(!zend::function::call(pp->onWorkerStart, 2, args, NULL, pp->enable_coroutine)))
     {
-        swoole_php_error(E_WARNING, "%s->onWorkerStart handler error", ZSTR_VAL(swoole_process_pool_ce->name));
+        swoole_php_error(E_WARNING, "%s->onWorkerStart handler error", ZSTR_VAL(Z_OBJCE_P(zobject)->name));
     }
 
     if (SwooleG.main_reactor)
@@ -122,40 +122,38 @@ static void pool_onWorkerStart(swProcessPool *pool, int worker_id)
 static void pool_onMessage(swProcessPool *pool, char *data, uint32_t length)
 {
     zval *zobject = (zval *) pool->ptr;
-    zval _retval, *retval = &_retval;
+    process_pool_property *pp = (process_pool_property *) swoole_get_property(zobject, 0);
     zval args[2];
+
     args[0] = *zobject;
     ZVAL_STRINGL(&args[1], data, length);
 
-    process_pool_property *pp = (process_pool_property *) swoole_get_property(zobject, 0);
-
-    if (sw_call_user_function_fast_ex(NULL, pp->onMessage, 2, args, retval) == FAILURE)
+    if (UNEXPECTED(!zend::function::call(pp->onMessage, 2, args, NULL, false)))
     {
-        swoole_php_fatal_error(E_WARNING, "onMessage handler error");
+        swoole_php_error(E_WARNING, "%s->onMessage handler error", ZSTR_VAL(Z_OBJCE_P(zobject)->name));
     }
+
     zval_ptr_dtor(&args[1]);
-    zval_ptr_dtor(retval);
 }
 
 static void pool_onWorkerStop(swProcessPool *pool, int worker_id)
 {
     zval *zobject = (zval *) pool->ptr;
-    zval _retval, *retval = &_retval;
-
-    zval args[2];
-    args[0] = *zobject;
-    ZVAL_LONG(&args[1], worker_id);
-
     process_pool_property *pp = (process_pool_property *) swoole_get_property(zobject, 0);
+    zval args[2];
+
     if (pp->onWorkerStop == NULL)
     {
         return;
     }
-    if (sw_call_user_function_fast_ex(NULL, pp->onWorkerStop, 2, args, retval) == FAILURE)
+
+    args[0] = *zobject;
+    ZVAL_LONG(&args[1], worker_id);
+
+    if (UNEXPECTED(!zend::function::call(pp->onWorkerStop, 2, args, NULL, false)))
     {
-        swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error");
+        swoole_php_error(E_WARNING, "%s->onWorkerStop handler error", ZSTR_VAL(Z_OBJCE_P(zobject)->name));
     }
-    zval_ptr_dtor(retval);
 }
 
 static void pool_signal_handler(int sig)
@@ -177,6 +175,7 @@ static void pool_signal_handler(int sig)
 
 static PHP_METHOD(swoole_process_pool, __construct)
 {
+    zval *zobject = getThis();
     zend_long worker_num;
     zend_long ipc_type = SW_IPC_NONE;
     zend_long msgq_key = 0;
@@ -185,13 +184,13 @@ static PHP_METHOD(swoole_process_pool, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "Swoole\\Process\\Pool only can be used in PHP CLI mode");
+        swoole_php_fatal_error(E_ERROR, "%s only can be used in PHP CLI mode", Z_OBJCE_P(zobject)->name);
         RETURN_FALSE;
     }
 
     if (SwooleG.serv)
     {
-        swoole_php_fatal_error(E_ERROR, "Swoole\\Process\\Pool cannot use in server process");
+        swoole_php_fatal_error(E_ERROR, "%s cannot use in server process", Z_OBJCE_P(zobject)->name);
         RETURN_FALSE;
     }
 
@@ -209,7 +208,10 @@ static PHP_METHOD(swoole_process_pool, __construct)
     if (enable_coroutine && ipc_type > 0 && ipc_type != SW_IPC_UNIXSOCK)
     {
         ipc_type = SW_IPC_UNIXSOCK;
-        swoole_php_fatal_error(E_NOTICE, "Swoole\\Process\\Pool can only use unixsocket when enable coroutine");
+        swoole_php_fatal_error(
+            E_NOTICE, "%s object's ipc_type will be reset to SWOOLE_IPC_UNIXSOCK after enable coroutine",
+            Z_OBJCE_P(zobject)->name
+        );
     }
 
     swProcessPool *pool = (swProcessPool *) emalloc(sizeof(swProcessPool));
@@ -219,7 +221,7 @@ static PHP_METHOD(swoole_process_pool, __construct)
         RETURN_FALSE;
     }
 
-    pool->ptr = sw_zval_dup(getThis());
+    pool->ptr = sw_zval_dup(zobject);
 
     if (enable_coroutine)
     {
@@ -237,11 +239,10 @@ static PHP_METHOD(swoole_process_pool, __construct)
         }
     }
 
-    process_pool_property *pp = (process_pool_property *) emalloc(sizeof(process_pool_property));
-    bzero(pp, sizeof(process_pool_property));
+    process_pool_property *pp = (process_pool_property *) ecalloc(1, sizeof(process_pool_property));
     pp->enable_coroutine = enable_coroutine;
-    swoole_set_property(getThis(), 0, pp);
-    swoole_set_object(getThis(), pool);
+    swoole_set_property(zobject, 0, pp);
+    swoole_set_object(zobject, pool);
 }
 
 static PHP_METHOD(swoole_process_pool, on)

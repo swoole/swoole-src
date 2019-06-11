@@ -560,7 +560,7 @@ static int _php_source_op_to_rfc3678_op(enum source_op sop)
 		return MCAST_UNBLOCK_SOURCE;
 	}
 
-	assert(0);
+	abort();
 	return 0;
 }
 #else
@@ -577,7 +577,7 @@ static const char *_php_source_op_to_string(enum source_op sop)
 		return "MCAST_UNBLOCK_SOURCE";
 	}
 
-	assert(0);
+	abort();
 	return "";
 }
 
@@ -594,7 +594,7 @@ static int _php_source_op_to_ipv4_op(enum source_op sop)
 		return IP_UNBLOCK_SOURCE;
 	}
 
-	assert(0);
+	abort();
 	return 0;
 }
 #endif

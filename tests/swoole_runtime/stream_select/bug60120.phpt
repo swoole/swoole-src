@@ -1,5 +1,7 @@
 --TEST--
 swoole_runtime/stream_select: Bug #60120 proc_open hangs with stdin/out with 2048+ bytes
+--SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

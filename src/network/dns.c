@@ -385,7 +385,8 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         }
         if (resolver_socket->connect(resolver_socket, dns_server_host, dns_server_port, 1, 0) < 0)
         {
-            do_close: resolver_socket->close(resolver_socket);
+            _do_close:
+            resolver_socket->close(resolver_socket);
             swClient_free(resolver_socket);
             sw_free(resolver_socket);
             sw_free(request->domain);
@@ -400,15 +401,17 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         swReactor_set_handler(SwooleG.main_reactor, SW_FD_DNS_RESOLVER, swDNSResolver_onReceive);
     }
 
-    if (!swReactor_exists(SwooleG.main_reactor, resolver_socket->socket->fd)
-            && SwooleG.main_reactor->add(SwooleG.main_reactor, resolver_socket->socket->fd, SW_FD_DNS_RESOLVER) < 0)
+    if (!swReactor_exists(SwooleG.main_reactor, resolver_socket->socket->fd))
     {
-        goto do_close;
+        if (SwooleG.main_reactor->add(SwooleG.main_reactor, resolver_socket->socket->fd, SW_FD_DNS_RESOLVER) < 0)
+        {
+            goto _do_close;
+        }
     }
 
     if (resolver_socket->send(resolver_socket, (char *) packet, steps, 0) < 0)
     {
-        goto do_close;
+        goto _do_close;
     }
 
     swHashMap_add(request_map, key, key_len, request);

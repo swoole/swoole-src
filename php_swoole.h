@@ -85,11 +85,11 @@ extern zend_module_entry swoole_module_entry;
 #define phpext_swoole_ptr &swoole_module_entry
 
 #ifdef PHP_WIN32
-#	define PHP_SWOOLE_API __declspec(dllexport)
+# define PHP_SWOOLE_API __declspec(dllexport)
 #elif defined(__GNUC__) && __GNUC__ >= 4
-#	define PHP_SWOOLE_API __attribute__ ((visibility("default")))
+# define PHP_SWOOLE_API __attribute__ ((visibility("default")))
 #else
-#	define PHP_SWOOLE_API
+# define PHP_SWOOLE_API
 #endif
 
 #ifdef __APPLE__
@@ -245,6 +245,7 @@ typedef struct
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 
+extern zend_class_entry *swoole_event_ce;
 extern zend_class_entry *swoole_timer_ce;
 extern zend_class_entry *swoole_socket_coro_ce;
 extern zend_class_entry *swoole_client_ce;
@@ -259,10 +260,6 @@ extern zend_class_entry *swoole_websocket_server_ce;
 extern zend_class_entry *swoole_server_port_ce;
 extern zend_class_entry *swoole_exception_ce;
 extern zend_object_handlers swoole_exception_handlers;
-
-extern zval *php_sw_server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
-extern zend_fcall_info_cache *php_sw_server_caches[PHP_SWOOLE_SERVER_CALLBACK_NUM];
-extern zval _php_sw_server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
 
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);
@@ -287,16 +284,6 @@ PHP_FUNCTION(swoole_coroutine_defer);
 //---------------------------------------------------------
 //                  event
 //---------------------------------------------------------
-PHP_FUNCTION(swoole_event_add);
-PHP_FUNCTION(swoole_event_set);
-PHP_FUNCTION(swoole_event_del);
-PHP_FUNCTION(swoole_event_write);
-PHP_FUNCTION(swoole_event_wait);
-PHP_FUNCTION(swoole_event_exit);
-PHP_FUNCTION(swoole_event_defer);
-PHP_FUNCTION(swoole_event_cycle);
-PHP_FUNCTION(swoole_event_dispatch);
-PHP_FUNCTION(swoole_event_isset);
 PHP_FUNCTION(swoole_client_select);
 //---------------------------------------------------------
 //                  async[coro]
@@ -316,6 +303,7 @@ PHP_FUNCTION(swoole_errno);
 PHP_FUNCTION(swoole_last_error);
 
 /** <Sort by dependency> **/
+void swoole_event_init(int module_number);
 // base
 void swoole_atomic_init(int module_number);
 void swoole_buffer_init(int module_number);
@@ -568,8 +556,8 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 /* PHP 7.3 compatibility macro {{{*/
 #ifndef GC_SET_REFCOUNT
 # define GC_SET_REFCOUNT(p, rc) do { \
-		GC_REFCOUNT(p) = rc; \
-	} while (0)
+    GC_REFCOUNT(p) = rc; \
+} while (0)
 #endif
 
 #ifndef GC_ADDREF
@@ -579,11 +567,11 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 
 #ifndef GC_IS_RECURSIVE
 #define GC_IS_RECURSIVE(p) \
-	(ZEND_HASH_GET_APPLY_COUNT(p) >= 1)
+    (ZEND_HASH_GET_APPLY_COUNT(p) >= 1)
 #define GC_PROTECT_RECURSION(p) \
-	ZEND_HASH_INC_APPLY_COUNT(p)
+    ZEND_HASH_INC_APPLY_COUNT(p)
 #define GC_UNPROTECT_RECURSION(p) \
-	ZEND_HASH_DEC_APPLY_COUNT(p)
+    ZEND_HASH_DEC_APPLY_COUNT(p)
 #endif
 
 #ifndef ZEND_CLOSURE_OBJECT
@@ -1000,6 +988,9 @@ static sw_inline int sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint
     return ret;
 }
 
+/**
+ * Deprecated: use zend::function::call
+ */
 static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval* object_p, zval *function_name, zval **retval_ptr_ptr, uint32_t param_count, zval *params, int no_separation, HashTable* ymbol_table)
 {
     static zval _retval;
@@ -1013,6 +1004,7 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval* o
     return ret;
 }
 
+/* this API can work well when retval is NULL, but sometimes you need to check the EG(exception) manually */
 static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fcall_info_cache *fci_cache, uint32_t param_count, zval *params, zval *retval)
 {
     zend_fcall_info fci;
@@ -1040,11 +1032,6 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
 
     ret = zend_call_function(&fci, fci_cache);
 
-    /* we have no chance to return to ZendVM to check the exception  */
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
     if (!retval)
     {
         zval_ptr_dtor(&_retval);
@@ -1175,7 +1162,7 @@ static sw_inline zend_string* sw_get_debug_print_backtrace(zend_long options, ze
         sw_call_user_function_fast_ex(&fcn, NULL, 2, args, &zoutput);
         zval_ptr_dtor(&fcn);
     } SW_PHP_OB_END();
-    if (UNEXPECTED(ZVAL_IS_NULL(&zoutput)))
+    if (UNEXPECTED(Z_TYPE_P(&zoutput) != IS_STRING))
     {
         return NULL;
     }
@@ -1185,4 +1172,4 @@ static sw_inline zend_string* sw_get_debug_print_backtrace(zend_long options, ze
 
 END_EXTERN_C()
 
-#endif	/* PHP_SWOOLE_H */
+#endif /* PHP_SWOOLE_H */

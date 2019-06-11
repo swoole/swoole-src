@@ -292,20 +292,29 @@ public:
 
 namespace function
 {
-    inline bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, bool enable_coroutine)
+    /* must use this API to call event callbacks to ensure that exceptions are handled correctly */
+    inline bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine)
     {
+        bool success;
         if (enable_coroutine)
         {
             if (retval)
             {
+                /* the coroutine has no return value */
                 ZVAL_NULL(retval);
             }
-            return swoole::PHPCoroutine::create(fci_cache, argc, argv) >= 0;
+            success = swoole::PHPCoroutine::create(fci_cache, argc, argv) >= 0;
         }
         else
         {
-            return sw_call_user_function_fast_ex(NULL, fci_cache, argc, argv, retval) == SUCCESS;
+            success = sw_call_user_function_fast_ex(NULL, fci_cache, argc, argv, retval) == SUCCESS;
         }
+        /* we have no chance to return to ZendVM to check the exception  */
+        if (UNEXPECTED(EG(exception)))
+        {
+            zend_exception_error(EG(exception), E_ERROR);
+        }
+        return success;
     }
 }
 
