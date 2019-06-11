@@ -33,17 +33,6 @@ extern "C" {
 #include <zlib.h>
 #endif
 
-enum http_client_state
-{
-    HTTP_CLIENT_STATE_WAIT,
-    HTTP_CLIENT_STATE_READY,
-    HTTP_CLIENT_STATE_BUSY,
-    //WebSocket
-    HTTP_CLIENT_STATE_UPGRADE,
-    HTTP_CLIENT_STATE_WAIT_CLOSE,
-    HTTP_CLIENT_STATE_CLOSED,
-};
-
 enum http_client_error_status_code
 {
     HTTP_CLIENT_ESTATUS_CONNECT_FAILED = -1,

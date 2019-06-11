@@ -10,8 +10,9 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Fang  <coooold@live.com>                                     |
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Twosee  <twose@qq.com>                                       |
+ | Author: Fang  <coooold@live.com>                                     |
  | Author: Yuanyi   Zhi  <syyuanyizhi@163.com>                          |
  +----------------------------------------------------------------------+
  */
@@ -53,11 +54,6 @@ static const swoole_http_parser_settings http_parser_settings =
 class http_client
 {
 public:
-    /* states */
-    http_client_state state = HTTP_CLIENT_STATE_WAIT;
-    bool wait = false;
-    bool defer = false;
-
     /* request info */
     std::string host = "127.0.0.1";
     uint16_t port = 80;
@@ -65,7 +61,9 @@ public:
     uint8_t ssl = false;
 #endif
     double connect_timeout = Socket::default_connect_timeout;
-    int8_t method = SW_HTTP_GET;       // method
+    bool defer = false;
+
+    int8_t method = SW_HTTP_GET;
     std::string path;
     std::string basic_auth;
 
@@ -82,7 +80,7 @@ public:
     /* options */
     uint8_t reconnect_interval = 1;
     uint8_t reconnected_count = 0;
-    bool keep_alive = true;          // enable default
+    bool keep_alive = true;          // enable by default
     bool websocket = false;          // if upgrade successfully
     bool gzip = false;               // enable gzip
     bool chunked = false;            // Transfer-Encoding: chunked
@@ -118,8 +116,8 @@ public:
     void recv(zval *zframe, double timeout = 0);
     bool recv_http_response(double timeout = 0);
     bool upgrade(std::string path);
-    bool push(zval *zdata, zend_long opcode = WEBSOCKET_OPCODE_TEXT, bool _fin = true);
-    bool close();
+    bool push(zval *zdata, zend_long opcode = WEBSOCKET_OPCODE_TEXT, bool fin = true);
+    bool close(const bool should_be_reset = true);
 
     ~http_client();
 
@@ -127,6 +125,7 @@ private:
     Socket* socket = nullptr;
     swSocket_type socket_type = SW_SOCK_TCP;
     swoole_http_parser parser = {0};
+    bool wait = false;
 };
 
 static zend_class_entry *swoole_http_client_coro_ce;
@@ -650,7 +649,7 @@ bool http_client::keep_liveness()
             zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), socket->errCode);
             zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), socket->errMsg);
             zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
-            close();
+            close(false);
         }
         for (; reconnected_count < reconnect_interval; reconnected_count++)
         {
@@ -1414,7 +1413,7 @@ void http_client::reset()
     }
 }
 
-bool http_client::close()
+bool http_client::close(const bool should_be_reset)
 {
     Socket *socket = this->socket;
     if (socket)
@@ -1422,6 +1421,10 @@ bool http_client::close()
         zend_update_property_bool(swoole_http_client_coro_ce, zobject, ZEND_STRL("connected"), 0);
         if (!socket->has_bound())
         {
+            if (should_be_reset)
+            {
+                reset();
+            }
             // reset the properties that depend on the connection
             this->websocket = false;
             this->socket = nullptr;
