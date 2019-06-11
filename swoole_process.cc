@@ -64,10 +64,10 @@ static PHP_METHOD(swoole_process, exec);
 static PHP_METHOD(swoole_process, exportSocket);
 
 static void php_swoole_onSignal(int signo);
-static void free_signal_callback(void* data);
+static void free_signal_fci_cache(void* data);
 
 static uint32_t php_swoole_worker_round_id = 0;
-static zval *signal_callback[SW_SIGNO_MAX] = {0};
+static zend_fcall_info_cache *signal_fci_caches[SW_SIGNO_MAX] = {0};
 
 zend_class_entry *swoole_process_ce;
 static zend_object_handlers swoole_process_handlers;
@@ -263,19 +263,19 @@ static PHP_METHOD(swoole_process, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "%s only can be used in PHP CLI mode", ZSTR_VAL(swoole_process_ce->name));
+        swoole_php_fatal_error(E_ERROR, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(getThis()));
         RETURN_FALSE;
     }
 
     if (SwooleG.serv && SwooleG.serv->gs->start == 1 && swIsMaster())
     {
-        swoole_php_fatal_error(E_ERROR, "%s can't be used in master process", ZSTR_VAL(swoole_process_ce->name));
+        swoole_php_fatal_error(E_ERROR, "%s can't be used in master process", SW_Z_OBJCE_NAME_VAL_P(getThis()));
         RETURN_FALSE;
     }
 
     if (SwooleAIO.init)
     {
-        swoole_php_fatal_error(E_ERROR, "unable to create %s with async-io threads", ZSTR_VAL(swoole_process_ce->name));
+        swoole_php_fatal_error(E_ERROR, "unable to create %s with async-io threads", SW_Z_OBJCE_NAME_VAL_P(getThis()));
         RETURN_FALSE;
     }
 
@@ -499,92 +499,90 @@ static PHP_METHOD(swoole_process, kill)
 
 static PHP_METHOD(swoole_process, signal)
 {
-    zval *callback = NULL;
-    long signo = 0;
+    zend_long signo = 0;
+    zval *zcallback = NULL;
+    zend_fcall_info_cache *fci_cache = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "lz", &signo, &callback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_LONG(signo)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ZVAL_EX(zcallback, 1, 0)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "cannot use %s::signal here", ZSTR_VAL(swoole_process_ce->name));
+        swoole_php_fatal_error(E_ERROR, "%s::signal can only be used in CLI mode", SW_Z_OBJCE_NAME_VAL_P(getThis()));
         RETURN_FALSE;
     }
 
     if (signo < 0 || signo >= SW_SIGNO_MAX)
     {
-        swoole_php_fatal_error(E_WARNING, "invalid signal number [%ld]", signo);
+        swoole_php_fatal_error(E_WARNING, "invalid signal number [" ZEND_LONG_FMT "]", signo);
         RETURN_FALSE;
     }
 
     php_swoole_check_reactor();
+
     swSignalHandler handler = swSignal_get_handler(signo);
 
     if (handler && handler != php_swoole_onSignal)
     {
-        swoole_php_fatal_error(E_WARNING, "This signal [%ld] processor has been registered by the system", signo);
+        swoole_php_fatal_error(E_WARNING, "signal [" ZEND_LONG_FMT "] processor has been registered by the system", signo);
         RETURN_FALSE
     }
 
-    if (callback == NULL || ZVAL_IS_NULL(callback))
+    if (Z_TYPE_P(zcallback) == IS_LONG && Z_LVAL_P(zcallback) == SIG_IGN)
     {
-        callback = signal_callback[signo];
-        if (callback)
+        handler = NULL;
+    }
+    else if (zcallback == NULL)
+    {
+        fci_cache = signal_fci_caches[signo];
+        if (fci_cache)
         {
             swSignal_add(signo, NULL);
-            SwooleG.main_reactor->defer(SwooleG.main_reactor, free_signal_callback, callback);
-            signal_callback[signo] = NULL;
+            signal_fci_caches[signo] = NULL;
+            SwooleG.main_reactor->defer(SwooleG.main_reactor, free_signal_fci_cache, fci_cache);
             SwooleG.main_reactor->signal_listener_num--;
             RETURN_TRUE;
         }
         else
         {
-            swoole_php_error(E_WARNING, "no callback");
+            swoole_php_error(E_WARNING, "unable to find the callback of signal [" ZEND_LONG_FMT "]", signo);
             RETURN_FALSE;
         }
-    }
-    else if (Z_TYPE_P(callback) == IS_LONG && Z_LVAL_P(callback) == (long) SIG_IGN)
-    {
-        handler = NULL;
     }
     else
     {
         char *func_name;
-        if (!sw_zend_is_callable(callback, 0, &func_name))
+        fci_cache = ecalloc(1, sizeof(zend_fcall_info_cache));
+        if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, 0, fci_cache, NULL))
         {
             swoole_php_error(E_WARNING, "function '%s' is not callable", func_name);
             efree(func_name);
+            efree(fci_cache);
             RETURN_FALSE;
         }
         efree(func_name);
-
-        callback = sw_zval_dup(callback);
-        Z_TRY_ADDREF_P(callback);
-
+        sw_fci_cache_persist(fci_cache);
         handler = php_swoole_onSignal;
     }
 
-    /**
-     * for swSignalfd_setup
-     */
+    // for swSignalfd_setup
     SwooleG.main_reactor->check_signalfd = 1;
 
-    //free the old callback
-    if (signal_callback[signo])
+    if (signal_fci_caches[signo])
     {
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, free_signal_callback, signal_callback[signo]);
+        // free the old fci_cache
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, free_signal_fci_cache, signal_fci_caches[signo]);
     }
     else
     {
         SwooleG.main_reactor->signal_listener_num++;
     }
-    signal_callback[signo] = callback;
+    signal_fci_caches[signo] = fci_cache;
 
-    /**
-     * use user settings
-     */
+    // use user settings
     SwooleG.use_signalfd = SwooleG.enable_signalfd;
 
     swSignal_add(signo, handler);
@@ -604,7 +602,7 @@ static PHP_METHOD(swoole_process, alarm)
 
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "cannot use %s::alarm here", ZSTR_VAL(swoole_process_ce->name));
+        swoole_php_fatal_error(E_ERROR, "cannot use %s::alarm here", SW_Z_OBJCE_NAME_VAL_P(getThis()));
         RETURN_FALSE;
     }
 
@@ -643,10 +641,11 @@ static PHP_METHOD(swoole_process, alarm)
     RETURN_TRUE;
 }
 
-static void free_signal_callback(void* data)
+static void free_signal_fci_cache(void* data)
 {
-    zval *callback = (zval*) data;
-    sw_zval_free(callback);
+    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) data;
+    sw_fci_cache_discard(fci_cache);
+    efree(fci_cache);
 }
 
 /**
@@ -654,19 +653,19 @@ static void free_signal_callback(void* data)
  */
 static void php_swoole_onSignal(int signo)
 {
-    zval *retval = NULL;
-    zval args[1];
-    zval *callback = signal_callback[signo];
+    zend_fcall_info_cache *fci_cache = signal_fci_caches[signo];
+    zval zsigno;
 
-    ZVAL_LONG(& args[0], signo);
+    ZVAL_LONG(&zsigno, signo);
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, fci_cache, 1, &zsigno, NULL) != SUCCESS)
     {
-        swoole_php_fatal_error(E_WARNING, "user_signal handler error");
+        swoole_php_fatal_error(E_WARNING, "%s: signal [" ZEND_LONG_FMT "] handler error", signo, ZSTR_VAL(swoole_process_ce->name));
     }
-    if (retval)
+
+    if (UNEXPECTED(EG(exception)))
     {
-        zval_ptr_dtor(retval);
+        zend_exception_error(EG(exception), E_ERROR);
     }
 }
 
@@ -675,19 +674,21 @@ zend_bool php_swoole_signal_isset_handler(int signo)
     if (signo < 0 || signo >= SW_SIGNO_MAX)
     {
         swoole_php_fatal_error(E_WARNING, "invalid signal number [%d]", signo);
-        return SW_FALSE;
+        return 0;
     }
-    return signal_callback[signo] != NULL;
+    return signal_fci_caches[signo] != NULL;
 }
 
 void php_swoole_process_clean()
 {
     for (int i = 0; i < SW_SIGNO_MAX; i++)
     {
-        if (signal_callback[i])
+        zend_fcall_info_cache *fci_cache = signal_fci_caches[i];
+        if (fci_cache)
         {
-            sw_zval_free(signal_callback[i]);
-            signal_callback[i] = NULL;
+            sw_fci_cache_discard(fci_cache);
+            efree(fci_cache);
+            signal_fci_caches[i] = NULL;
         }
     }
 
@@ -737,7 +738,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
 
     if (UNEXPECTED(!zend::function::call(&proc->fci_cache, 1, zobject, NULL, proc->enable_coroutine)))
     {
-        swoole_php_error(E_WARNING, "%s->onStart handler error", ZSTR_VAL(swoole_process_ce->name));
+        swoole_php_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
 
     // equivalent to exit
