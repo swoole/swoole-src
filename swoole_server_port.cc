@@ -114,7 +114,7 @@ static ssize_t php_swoole_server_length_func(swProtocol *protocol, swConnection 
 {
     swServer *serv = (swServer *) protocol->private_data_2;
 
-    serv->lock.lock(&serv->lock);
+    swServer_lock(serv);
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
     zval zdata;
     zval retval;
@@ -134,7 +134,7 @@ static ssize_t php_swoole_server_length_func(swProtocol *protocol, swConnection 
         ret = zval_get_long(&retval);
         zval_ptr_dtor(&retval);
     }
-    serv->lock.unlock(&serv->lock);
+    swServer_unlock(serv);
 
     return ret;
 }

@@ -1439,7 +1439,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 
 static void php_swoole_onStart(swServer *serv)
 {
-    serv->lock.lock(&serv->lock);
+    swServer_lock(serv);
     zval *zserv = (zval *) serv->ptr2;
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("master_pid"), serv->gs->master_pid);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("manager_pid"), serv->gs->manager_pid);
@@ -1447,7 +1447,7 @@ static void php_swoole_onStart(swServer *serv)
     {
         swoole_php_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
-    serv->lock.unlock(&serv->lock);
+    swServer_unlock(serv);
 }
 
 static void php_swoole_onManagerStart(swServer *serv)
@@ -1472,7 +1472,7 @@ static void php_swoole_onManagerStop(swServer *serv)
 
 static void php_swoole_onShutdown(swServer *serv)
 {
-    serv->lock.lock(&serv->lock);
+    swServer_lock(serv);
     zval *zserv = (zval *) serv->ptr2;
     if (server_callbacks[SW_SERVER_CB_onShutdown] != NULL)
     {
@@ -1481,7 +1481,7 @@ static void php_swoole_onShutdown(swServer *serv)
             swoole_php_error(E_WARNING, "%s->onShutdown handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
-    serv->lock.unlock(&serv->lock);
+    swServer_unlock(serv);
 }
 
 static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
@@ -1778,7 +1778,7 @@ static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, s
     zval retval;
     int worker_id = -1;
 
-    serv->lock.lock(&serv->lock);
+    swServer_lock(serv);
     *zserv = *((zval *) serv->ptr2);
     ZVAL_LONG(zfd, (zend_long) (conn ? conn->session_id : data->info.fd));
     ZVAL_LONG(ztype, (zend_long) data->info.type);
@@ -1806,7 +1806,7 @@ static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, s
     {
         zval_ptr_dtor(zdata);
     }
-    serv->lock.unlock(&serv->lock);
+    swServer_unlock(serv);
     return worker_id;
 }
 

@@ -276,7 +276,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
      */
     if (fd == swServer_get_maxfd(serv))
     {
-        serv->lock.lock(&serv->lock);
+        swServer_lock(serv);
         int find_max_fd = fd - 1;
         swTrace("set_maxfd=%d|close_fd=%d\n", find_max_fd, fd);
         /**
@@ -287,7 +287,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
             //pass
         }
         swServer_set_maxfd(serv, find_max_fd);
-        serv->lock.unlock(&serv->lock);
+        swServer_unlock(serv);
     }
 
     return swReactor_close(reactor, fd);
