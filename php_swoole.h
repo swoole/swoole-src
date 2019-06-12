@@ -540,9 +540,19 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
             _real_arg = ZEND_CALL_ARG(execute_data, 0);
 #endif
 
+/* PHP 7.0 compatibility macro {{{*/
+#if PHP_VERSION_ID < 70100
+// Fixed typo error in (https://github.com/php/php-src/commit/4c9e4caab40c5a1b3c8a52ad06c21175d091c3e4)
+#define ZEND_VM_STACK_ELEMENTS ZEND_VM_STACK_ELEMETS
+// Fixed >= 7.1 by using (EG(fake_scope))
+#define SW_DECLARE_EG_SCOPE(_scope) zend_class_entry *_scope
+#define SW_SAVE_EG_SCOPE(_scope) _scope = EG(scope)
+#define SW_SET_EG_SCOPE(_scope) EG(scope) = _scope
+#else
 #define SW_DECLARE_EG_SCOPE(_scope)
 #define SW_SAVE_EG_SCOPE(scope)
 #define SW_SET_EG_SCOPE(scope)
+#endif/*}}}*/
 
 /* PHP 7.3 compatibility macro {{{*/
 #ifndef GC_SET_REFCOUNT
@@ -626,6 +636,7 @@ static sw_inline void sw_zval_free(zval *val)
 }
 
 //----------------------------------Constant API------------------------------------
+
 #define SW_REGISTER_NULL_CONSTANT(name)           REGISTER_NULL_CONSTANT(name, CONST_CS | CONST_PERSISTENT)
 #define SW_REGISTER_BOOL_CONSTANT(name, value)    REGISTER_BOOL_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
 #define SW_REGISTER_LONG_CONSTANT(name, value)    REGISTER_LONG_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
@@ -634,7 +645,12 @@ static sw_inline void sw_zval_free(zval *val)
 #define SW_REGISTER_STRINGL_CONSTANT(name, value) REGISTER_STRINGL_CONSTANT(name, (char *) value, CONST_CS | CONST_PERSISTENT)
 
 //----------------------------------Number API-----------------------------------
-#define sw_php_math_round(value, places, mode)    _php_math_round(value, places, mode)
+
+#if PHP_VERSION_ID >= 70011
+#define sw_php_math_round(value, places, mode) _php_math_round(value, places, mode)
+#else
+#define sw_php_math_round(value, places, mode) ((double) (value))
+#endif
 
 //----------------------------------String API-----------------------------------
 
