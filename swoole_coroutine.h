@@ -67,7 +67,6 @@ struct php_coro_task
     zend_class_entry *exception_class;
     zend_object *exception;
     zend_output_globals *output_ptr;
-    SW_DECLARE_EG_SCOPE(scope);
     swoole::Coroutine *co;
     std::stack<php_swoole_fci *> *defer_tasks;
     long pcid;

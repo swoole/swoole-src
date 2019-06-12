@@ -160,7 +160,6 @@ inline void PHPCoroutine::save_vm_stack(php_coro_task *task)
     task->error_handling = EG(error_handling);
     task->exception_class = EG(exception_class);
     task->exception = EG(exception);
-    SW_SAVE_EG_SCOPE(task->scope);
 }
 
 inline void PHPCoroutine::restore_vm_stack(php_coro_task *task)
@@ -178,7 +177,6 @@ inline void PHPCoroutine::restore_vm_stack(php_coro_task *task)
     EG(error_handling) = task->error_handling;
     EG(exception_class) = task->exception_class;
     EG(exception) = task->exception;
-    SW_SET_EG_SCOPE(task->scope);
 }
 
 inline void PHPCoroutine::save_og(php_coro_task *task)
@@ -312,8 +310,6 @@ void PHPCoroutine::create_func(void *arg)
         call = zend_vm_stack_push_call_frame(call_info, func, argc, object_or_called_scope);
     } while (0);
 #endif
-
-    SW_SET_EG_SCOPE(func->common.scope);
 
     for (i = 0; i < argc; ++i)
     {
