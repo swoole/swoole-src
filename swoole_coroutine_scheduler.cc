@@ -85,7 +85,7 @@ PHP_FUNCTION(swoole_coroutine_defer)
     defer_fci = (php_swoole_fci *) emalloc(sizeof(php_swoole_fci));
     defer_fci->fci = fci;
     defer_fci->fci_cache = fci_cache;
-    sw_fci_cache_persist(&defer_fci->fci_cache);
+    sw_zend_fci_cache_persist(&defer_fci->fci_cache);
     PHPCoroutine::defer(defer_fci);
 }
 

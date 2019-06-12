@@ -273,7 +273,7 @@ void php_swoole_client_coro_socket_free(Socket *cli)
         php_swoole_client_coro_socket_free_http_proxy(cli);
         if (cli->protocol.private_data)
         {
-            sw_fci_cache_discard((zend_fcall_info_cache *) cli->protocol.private_data);
+            sw_zend_fci_cache_discard((zend_fcall_info_cache *) cli->protocol.private_data);
             efree(cli->protocol.private_data);
             cli->protocol.private_data = nullptr;
         }

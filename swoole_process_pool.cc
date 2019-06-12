@@ -272,7 +272,7 @@ static PHP_METHOD(swoole_process_pool, on)
     {
         if (pp->onWorkerStart)
         {
-            sw_fci_cache_discard(pp->onWorkerStart);
+            sw_zend_fci_cache_discard(pp->onWorkerStart);
             efree(pp->onWorkerStart);
         }
         else
@@ -280,7 +280,7 @@ static PHP_METHOD(swoole_process_pool, on)
             pp->onWorkerStart = (zend_fcall_info_cache*) emalloc(sizeof(zend_fcall_info_cache));
         }
         *pp->onWorkerStart = fci_cache;
-        sw_fci_cache_persist(pp->onWorkerStart);
+        sw_zend_fci_cache_persist(pp->onWorkerStart);
         RETURN_TRUE;
     }
     else if (strncasecmp("Message", name, l_name) == 0)
@@ -297,7 +297,7 @@ static PHP_METHOD(swoole_process_pool, on)
         }
         if (pp->onMessage)
         {
-            sw_fci_cache_discard(pp->onMessage);
+            sw_zend_fci_cache_discard(pp->onMessage);
             efree(pp->onMessage);
         }
         else
@@ -305,14 +305,14 @@ static PHP_METHOD(swoole_process_pool, on)
             pp->onMessage = (zend_fcall_info_cache*) emalloc(sizeof(zend_fcall_info_cache));
         }
         *pp->onMessage = fci_cache;
-        sw_fci_cache_persist(pp->onMessage);
+        sw_zend_fci_cache_persist(pp->onMessage);
         RETURN_TRUE;
     }
     else if (strncasecmp("WorkerStop", name, l_name) == 0)
     {
         if (pp->onWorkerStop)
         {
-            sw_fci_cache_discard(pp->onWorkerStop);
+            sw_zend_fci_cache_discard(pp->onWorkerStop);
             efree(pp->onWorkerStop);
         }
         else
@@ -320,7 +320,7 @@ static PHP_METHOD(swoole_process_pool, on)
             pp->onWorkerStop = (zend_fcall_info_cache*) emalloc(sizeof(zend_fcall_info_cache));
         }
         *pp->onWorkerStop = fci_cache;
-        sw_fci_cache_persist(pp->onWorkerStop);
+        sw_zend_fci_cache_persist(pp->onWorkerStop);
         RETURN_TRUE;
     }
     else
@@ -527,17 +527,17 @@ static PHP_METHOD(swoole_process_pool, __destruct)
     process_pool_property *pp = (process_pool_property *) swoole_get_property(getThis(), 0);
     if (pp->onWorkerStart)
     {
-        sw_fci_cache_discard(pp->onWorkerStart);
+        sw_zend_fci_cache_discard(pp->onWorkerStart);
         efree(pp->onWorkerStart);
     }
     if (pp->onMessage)
     {
-        sw_fci_cache_discard(pp->onMessage);
+        sw_zend_fci_cache_discard(pp->onMessage);
         efree(pp->onMessage);
     }
     if (pp->onWorkerStop)
     {
-        sw_fci_cache_discard(pp->onWorkerStop);
+        sw_zend_fci_cache_discard(pp->onWorkerStop);
         efree(pp->onWorkerStop);
     }
     efree(pp);

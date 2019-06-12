@@ -952,10 +952,10 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset)
                 sock->protocol.get_package_length = php_swoole_length_func;
                 if (sock->protocol.private_data)
                 {
-                    sw_fci_cache_discard((zend_fcall_info_cache *) sock->protocol.private_data);
+                    sw_zend_fci_cache_discard((zend_fcall_info_cache *) sock->protocol.private_data);
                     efree(sock->protocol.private_data);
                 }
-                sw_fci_cache_persist(fci_cache);
+                sw_zend_fci_cache_persist(fci_cache);
                 sock->protocol.private_data = fci_cache;
             }
             sock->protocol.package_length_size = 0;

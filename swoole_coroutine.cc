@@ -401,7 +401,7 @@ void PHPCoroutine::create_func(void *arg)
             {
                 swoole_php_fatal_error(E_WARNING, "defer callback handler error");
             }
-            sw_fci_cache_discard(&defer_fci->fci_cache);
+            sw_zend_fci_cache_discard(&defer_fci->fci_cache);
             efree(defer_fci);
         }
         delete task->defer_tasks;

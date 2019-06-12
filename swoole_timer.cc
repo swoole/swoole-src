@@ -101,8 +101,8 @@ void swoole_timer_init(int module_number)
 static void php_swoole_timer_dtor(swTimer_node *tnode)
 {
     php_swoole_fci *fci = (php_swoole_fci *) tnode->data;
-    sw_fci_params_discard(&fci->fci);
-    sw_fci_cache_discard(&fci->fci_cache);
+    sw_zend_fci_params_discard(&fci->fci);
+    sw_zend_fci_cache_discard(&fci->fci_cache);
     efree(fci);
 }
 
@@ -202,9 +202,9 @@ static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent)
     }
     else
     {
-        sw_fci_params_persist(&fci->fci);
+        sw_zend_fci_params_persist(&fci->fci);
     }
-    sw_fci_cache_persist(&fci->fci_cache);
+    sw_zend_fci_cache_persist(&fci->fci_cache);
     RETURN_LONG(tnode->id);
 }
 

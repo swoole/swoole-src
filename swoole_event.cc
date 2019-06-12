@@ -124,11 +124,11 @@ static void php_event_object_free(void* data)
     php_event_object *peo = (php_event_object*) data;
     if (peo->fci_cache_read.function_handler)
     {
-        sw_fci_cache_discard(&peo->fci_cache_read);
+        sw_zend_fci_cache_discard(&peo->fci_cache_read);
     }
     if (peo->fci_cache_write.function_handler)
     {
-        sw_fci_cache_discard(&peo->fci_cache_write);
+        sw_zend_fci_cache_discard(&peo->fci_cache_write);
     }
     zval_ptr_dtor((&peo->zsocket));
     efree(peo);
@@ -198,7 +198,7 @@ static void php_swoole_event_onDefer(void *data)
         swoole_php_error(E_WARNING, "%s::defer callback handler error", ZSTR_VAL(swoole_event_ce->name));
     }
 
-    sw_fci_cache_discard(fci_cache);
+    sw_zend_fci_cache_discard(fci_cache);
     efree(fci_cache);
 }
 
@@ -523,12 +523,12 @@ static PHP_FUNCTION(swoole_event_add)
 
     if (fci_read.size != 0)
     {
-        sw_fci_cache_persist(&fci_cache_read);
+        sw_zend_fci_cache_persist(&fci_cache_read);
         peo->fci_cache_read = fci_cache_read;
     }
     if (fci_write.size != 0)
     {
-        sw_fci_cache_persist(&fci_cache_write);
+        sw_zend_fci_cache_persist(&fci_cache_write);
         peo->fci_cache_write = fci_cache_write;
     }
 
@@ -628,7 +628,7 @@ static PHP_FUNCTION(swoole_event_set)
     {
         if (reactor_fd->fci_cache_read.function_handler)
         {
-            sw_fci_cache_discard(&reactor_fd->fci_cache_read);
+            sw_zend_fci_cache_discard(&reactor_fd->fci_cache_read);
         }
         reactor_fd->fci_cache_read = fci_cache_read;
     }
@@ -636,7 +636,7 @@ static PHP_FUNCTION(swoole_event_set)
     {
         if (reactor_fd->fci_cache_write.function_handler)
         {
-            sw_fci_cache_discard(&reactor_fd->fci_cache_write);
+            sw_zend_fci_cache_discard(&reactor_fd->fci_cache_write);
         }
         reactor_fd->fci_cache_write = fci_cache_read;
     }
@@ -705,7 +705,7 @@ static PHP_FUNCTION(swoole_event_defer)
 
     php_swoole_check_reactor();
 
-    sw_fci_cache_persist(fci_cache);
+    sw_zend_fci_cache_persist(fci_cache);
     SwooleG.main_reactor->defer(SwooleG.main_reactor, php_swoole_event_onDefer, fci_cache);
 
     RETURN_TRUE;
@@ -737,7 +737,7 @@ static PHP_FUNCTION(swoole_event_cycle)
         }
         else
         {
-            SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_fci_cache_free, SwooleG.main_reactor->idle_task.data);
+            SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_zend_fci_cache_free, SwooleG.main_reactor->idle_task.data);
             SwooleG.main_reactor->idle_task.callback = NULL;
             SwooleG.main_reactor->idle_task.data = NULL;
             RETURN_TRUE;
@@ -747,13 +747,13 @@ static PHP_FUNCTION(swoole_event_cycle)
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
 
     *fci_cache = _fci_cache;
-    sw_fci_cache_persist(fci_cache);
+    sw_zend_fci_cache_persist(fci_cache);
 
     if (!before)
     {
         if (SwooleG.main_reactor->idle_task.data != NULL)
         {
-            SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_fci_cache_free, SwooleG.main_reactor->idle_task.data);
+            SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_zend_fci_cache_free, SwooleG.main_reactor->idle_task.data);
         }
 
         SwooleG.main_reactor->idle_task.callback = php_swoole_event_onEndCallback;
@@ -763,7 +763,7 @@ static PHP_FUNCTION(swoole_event_cycle)
     {
         if (SwooleG.main_reactor->future_task.data != NULL)
         {
-            SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_fci_cache_free, SwooleG.main_reactor->future_task.data);
+            SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_zend_fci_cache_free, SwooleG.main_reactor->future_task.data);
         }
 
         SwooleG.main_reactor->future_task.callback = php_swoole_event_onEndCallback;

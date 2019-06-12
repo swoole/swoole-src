@@ -1040,7 +1040,7 @@ static sw_inline int sw_zend_call_function_anyway(zend_fcall_info *fci, zend_fca
     return ret;
 }
 
-static sw_inline void sw_fci_params_persist(zend_fcall_info *fci)
+static sw_inline void sw_zend_fci_params_persist(zend_fcall_info *fci)
 {
     if (fci->param_count > 0)
     {
@@ -1054,7 +1054,7 @@ static sw_inline void sw_fci_params_persist(zend_fcall_info *fci)
     }
 }
 
-static sw_inline void sw_fci_params_discard(zend_fcall_info *fci)
+static sw_inline void sw_zend_fci_params_discard(zend_fcall_info *fci)
 {
     if (fci->param_count > 0)
     {
@@ -1067,7 +1067,7 @@ static sw_inline void sw_fci_params_discard(zend_fcall_info *fci)
     }
 }
 
-static sw_inline void sw_fci_cache_persist(zend_fcall_info_cache *fci_cache)
+static sw_inline void sw_zend_fci_cache_persist(zend_fcall_info_cache *fci_cache)
 {
     if (fci_cache->object)
     {
@@ -1079,7 +1079,7 @@ static sw_inline void sw_fci_cache_persist(zend_fcall_info_cache *fci_cache)
     }
 }
 
-static sw_inline void sw_fci_cache_discard(zend_fcall_info_cache *fci_cache)
+static sw_inline void sw_zend_fci_cache_discard(zend_fcall_info_cache *fci_cache)
 {
     if (fci_cache->object)
     {
@@ -1092,9 +1092,9 @@ static sw_inline void sw_fci_cache_discard(zend_fcall_info_cache *fci_cache)
 }
 
 /* use void* to match some C callback function pointers */
-static sw_inline void sw_fci_cache_free(void* fci_cache)
+static sw_inline void sw_zend_fci_cache_free(void* fci_cache)
 {
-    sw_fci_cache_discard((zend_fcall_info_cache *) fci_cache);
+    sw_zend_fci_cache_discard((zend_fcall_info_cache *) fci_cache);
     efree((zend_fcall_info_cache *) fci_cache);
 }
 

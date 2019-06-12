@@ -544,10 +544,10 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
             cli->protocol.get_package_length = php_swoole_length_func;
             if (cli->protocol.private_data)
             {
-                sw_fci_cache_discard((zend_fcall_info_cache *) cli->protocol.private_data);
+                sw_zend_fci_cache_discard((zend_fcall_info_cache *) cli->protocol.private_data);
                 efree(cli->protocol.private_data);
             }
-            sw_fci_cache_persist(fci_cache);
+            sw_zend_fci_cache_persist(fci_cache);
             cli->protocol.private_data = fci_cache;
             break;
         }
@@ -743,7 +743,7 @@ void php_swoole_client_free(zval *zobject, swClient *cli)
     }
     if (cli->protocol.private_data)
     {
-        sw_fci_cache_discard((zend_fcall_info_cache *) cli->protocol.private_data);
+        sw_zend_fci_cache_discard((zend_fcall_info_cache *) cli->protocol.private_data);
         efree(cli->protocol.private_data);
         cli->protocol.private_data = nullptr;
     }

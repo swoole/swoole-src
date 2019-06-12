@@ -67,7 +67,7 @@ public:
         {
             if (default_handler)
             {
-                sw_fci_cache_discard(&default_handler->fci_cache);
+                sw_zend_fci_cache_discard(&default_handler->fci_cache);
                 efree(default_handler);
             }
             default_handler = fci;
@@ -77,12 +77,12 @@ public:
             auto find_fci = handlers.find(pattern);
             if (find_fci != handlers.end())
             {
-                sw_fci_cache_discard(&find_fci->second->fci_cache);
+                sw_zend_fci_cache_discard(&find_fci->second->fci_cache);
                 efree(find_fci->second);
             }
             handlers[pattern] = fci;
         }
-        sw_fci_cache_persist(&fci->fci_cache);
+        sw_zend_fci_cache_persist(&fci->fci_cache);
     }
 
     php_swoole_fci* get_handler(http_context *ctx)
@@ -200,12 +200,12 @@ static void swoole_http_server_coro_free_object(zend_object *object)
         http_server *hs = hsc->server;
         if (hs->default_handler)
         {
-            sw_fci_cache_discard(&hs->default_handler->fci_cache);
+            sw_zend_fci_cache_discard(&hs->default_handler->fci_cache);
             efree(hs->default_handler);
         }
         for (auto i = hs->handlers.begin(); i != hs->handlers.end(); i++)
         {
-            sw_fci_cache_discard(&i->second->fci_cache);
+            sw_zend_fci_cache_discard(&i->second->fci_cache);
             efree(i->second);
         }
         delete hs;

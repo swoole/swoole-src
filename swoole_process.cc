@@ -334,7 +334,7 @@ static PHP_METHOD(swoole_process, __construct)
 
     process->ptr2 = proc;
 
-    sw_fci_cache_persist(&proc->fci_cache);
+    sw_zend_fci_cache_persist(&proc->fci_cache);
     swoole_set_object(getThis(), process);
 }
 
@@ -357,7 +357,7 @@ static PHP_METHOD(swoole_process, __destruct)
     php::process *proc = (php::process *) process->ptr2;
     if (proc)
     {
-        sw_fci_cache_discard(&proc->fci_cache);
+        sw_zend_fci_cache_discard(&proc->fci_cache);
         if (proc->zsocket)
         {
             OBJ_RELEASE(proc->zsocket);
@@ -537,7 +537,7 @@ static PHP_METHOD(swoole_process, signal)
         {
             swSignal_add(signo, NULL);
             signal_fci_caches[signo] = NULL;
-            SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_fci_cache_free, fci_cache);
+            SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_zend_fci_cache_free, fci_cache);
             SwooleG.main_reactor->signal_listener_num--;
             RETURN_TRUE;
         }
@@ -563,7 +563,7 @@ static PHP_METHOD(swoole_process, signal)
             RETURN_FALSE;
         }
         efree(func_name);
-        sw_fci_cache_persist(fci_cache);
+        sw_zend_fci_cache_persist(fci_cache);
         handler = php_swoole_onSignal;
     }
 
@@ -573,7 +573,7 @@ static PHP_METHOD(swoole_process, signal)
     if (signal_fci_caches[signo])
     {
         // free the old fci_cache
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_fci_cache_free, signal_fci_caches[signo]);
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_zend_fci_cache_free, signal_fci_caches[signo]);
     }
     else
     {
@@ -673,7 +673,7 @@ void php_swoole_process_clean()
         zend_fcall_info_cache *fci_cache = signal_fci_caches[i];
         if (fci_cache)
         {
-            sw_fci_cache_discard(fci_cache);
+            sw_zend_fci_cache_discard(fci_cache);
             efree(fci_cache);
             signal_fci_caches[i] = NULL;
         }

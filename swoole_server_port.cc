@@ -131,7 +131,7 @@ static PHP_METHOD(swoole_server_port, __destruct)
 
     if (port->protocol.private_data)
     {
-        sw_fci_cache_discard((zend_fcall_info_cache *) port->protocol.private_data);
+        sw_zend_fci_cache_discard((zend_fcall_info_cache *) port->protocol.private_data);
         efree(port->protocol.private_data);
         port->protocol.private_data = nullptr;
     }
@@ -385,10 +385,10 @@ static PHP_METHOD(swoole_server_port, set)
             port->protocol.get_package_length = php_swoole_length_func;
             if (port->protocol.private_data)
             {
-                sw_fci_cache_discard((zend_fcall_info_cache *) port->protocol.private_data);
+                sw_zend_fci_cache_discard((zend_fcall_info_cache *) port->protocol.private_data);
                 efree(port->protocol.private_data);
             }
-            sw_fci_cache_persist(fci_cache);
+            sw_zend_fci_cache_persist(fci_cache);
             port->protocol.private_data = fci_cache;
             break;
         }

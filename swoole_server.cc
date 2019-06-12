@@ -1451,7 +1451,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     }
     if (swTask_type(req) & SW_TASK_CALLBACK)
     {
-        sw_fci_cache_discard(fci_cache);
+        sw_zend_fci_cache_discard(fci_cache);
         task_callbacks.erase(req->info.fd);
     }
     sw_zval_free(zdata);
@@ -1971,7 +1971,7 @@ static PHP_METHOD(swoole_server, __destruct)
         zend_fcall_info_cache *fci_cache = server_callbacks[i];
         if (fci_cache)
         {
-            sw_fci_cache_discard(fci_cache);
+            sw_zend_fci_cache_discard(fci_cache);
             efree(fci_cache);
             server_callbacks[i] = NULL;
         }
@@ -2132,10 +2132,10 @@ static PHP_METHOD(swoole_server, set)
                 return;
             }
             efree(func_name);
-            sw_fci_cache_persist(fci_cache);
+            sw_zend_fci_cache_persist(fci_cache);
             if (serv->private_data_3)
             {
-                sw_fci_cache_discard((zend_fcall_info_cache *) serv->private_data_3);
+                sw_zend_fci_cache_discard((zend_fcall_info_cache *) serv->private_data_3);
                 efree(serv->private_data_3);
             }
             serv->private_data_3 = (void *) fci_cache;
@@ -2514,7 +2514,7 @@ static PHP_METHOD(swoole_server, on)
 
         if (server_callbacks[event_type])
         {
-            sw_fci_cache_discard(server_callbacks[event_type]);
+            sw_zend_fci_cache_discard(server_callbacks[event_type]);
             efree(server_callbacks[event_type]);
         }
         server_callbacks[event_type] = fci_cache;
@@ -3481,7 +3481,7 @@ static PHP_METHOD(swoole_server, task)
     else if (fci.size)
     {
         swTask_type(&buf) |= SW_TASK_CALLBACK;
-        sw_fci_cache_persist(&fci_cache);
+        sw_zend_fci_cache_persist(&fci_cache);
         task_callbacks[buf.info.fd] = fci_cache;
     }
 

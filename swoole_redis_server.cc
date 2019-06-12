@@ -85,7 +85,7 @@ void swoole_redis_server_shutdown()
 {
     for (auto i = redis_handlers.begin(); i != redis_handlers.end(); i++)
     {
-        sw_fci_cache_discard(&i->second);
+        sw_zend_fci_cache_discard(&i->second);
     }
     redis_handlers.clear();
 }
@@ -300,10 +300,10 @@ static PHP_METHOD(swoole_redis_server, setHandler)
     auto i = redis_handlers.find(key);
     if (i != redis_handlers.end())
     {
-        sw_fci_cache_discard(&i->second);
+        sw_zend_fci_cache_discard(&i->second);
     }
 
-    sw_fci_cache_persist(fci_cache);
+    sw_zend_fci_cache_persist(fci_cache);
     redis_handlers[key] = *fci_cache;
 
     RETURN_TRUE;
