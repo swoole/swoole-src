@@ -586,8 +586,12 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 
 //----------------------------------Zval API------------------------------------
 
+// Deprecated: do not use it anymore
 // do not use sw_copy_to_stack(return_value, foo);
-#define sw_copy_to_stack(ptr, val) val = *(zval *) ptr, ptr = &val
+#define sw_copy_to_stack(ptr, val) do { \
+    (val) = *(zval *) (ptr); \
+    (ptr) = &(val); \
+} while (0)
 
 #define SW_ZEND_REGISTER_RESOURCE(return_value, result, le_result)  ZVAL_RES(return_value,zend_register_resource(result, le_result))
 
@@ -598,15 +602,19 @@ static sw_inline zend_bool ZVAL_IS_BOOL(zval *v)
 }
 #endif
 
+#ifndef Z_BVAL_P
 static sw_inline zend_bool Z_BVAL_P(zval *v)
 {
     return Z_TYPE_P(v) == IS_TRUE;
 }
+#endif
 
+#ifndef ZVAL_IS_ARRAY
 static sw_inline zend_bool ZVAL_IS_ARRAY(zval *v)
 {
     return Z_TYPE_P(v) == IS_ARRAY;
 }
+#endif
 
 static sw_inline zval* sw_malloc_zval()
 {
@@ -625,12 +633,6 @@ static sw_inline void sw_zval_free(zval *val)
     zval_ptr_dtor(val);
     efree(val);
 }
-
-#if PHP_VERSION_ID < 70200
-#define sw_add_assoc_stringl_ex(arg, k, kl, v, vl)  add_assoc_stringl_ex(arg, k, kl, (char*) v, vl)
-#else
-#define sw_add_assoc_stringl_ex                     add_assoc_stringl_ex
-#endif
 
 //----------------------------------Constant API------------------------------------
 #define SW_REGISTER_NULL_CONSTANT(name)           REGISTER_NULL_CONSTANT(name, CONST_CS | CONST_PERSISTENT)

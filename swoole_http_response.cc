@@ -751,7 +751,7 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
         }
         else
         {
-            sw_add_assoc_stringl_ex(zheader, key_buf, klen, v, vlen);
+            add_assoc_stringl_ex(zheader, key_buf, klen, (char *) v, vlen);
         }
     }
     else
@@ -762,7 +762,7 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
         }
         else
         {
-            sw_add_assoc_stringl_ex(zheader, k, klen, v, vlen);
+            add_assoc_stringl_ex(zheader, k, klen, (char *) v, vlen);
         }
     }
     return true;
