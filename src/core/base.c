@@ -30,8 +30,9 @@
 #endif
 
 swGlobal_t SwooleG;
-__thread swThreadGlobal_t SwooleTG;
 swWorkerGlobal_t SwooleWG;
+__thread swThreadGlobal_t SwooleTG;
+__thread char sw_error[SW_ERROR_MSG_SIZE];
 
 static void swoole_fatal_error(int code, const char *format, ...);
 

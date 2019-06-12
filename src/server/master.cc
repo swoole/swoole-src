@@ -34,8 +34,6 @@ static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd, int reactor_id);
 
-__thread char sw_error[SW_ERROR_MSG_SIZE];
-
 static void swServer_disable_accept(swReactor *reactor)
 {
     swListenPort *ls;
