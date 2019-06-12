@@ -432,7 +432,6 @@ php_socket *swoole_convert_to_socket(int sock);
 void swoole_php_socket_free(zval *zsocket);
 #endif
 
-zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type);
 zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int server_fd, int event_type);
 void php_swoole_server_before_start(swServer *serv, zval *zobject);
 void php_swoole_http_server_init_global_variant();
@@ -448,7 +447,6 @@ void php_swoole_onClose(swServer *, swDataHead *);
 void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
 ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
-int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *data);
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
 zend_bool php_swoole_signal_isset_handler(int signo);
 

@@ -276,16 +276,18 @@ int swReactorThread_close(swReactor *reactor, int fd)
      */
     if (fd == swServer_get_maxfd(serv))
     {
-        SwooleGS->lock.lock(&SwooleGS->lock);
+        swServer_lock(serv);
         int find_max_fd = fd - 1;
         swTrace("set_maxfd=%d|close_fd=%d\n", find_max_fd, fd);
         /**
          * Find the new max_fd
          */
         for (; serv->connection_list[find_max_fd].active == 0 && find_max_fd > swServer_get_minfd(serv); find_max_fd--)
-            ;
+        {
+            //pass
+        }
         swServer_set_maxfd(serv, find_max_fd);
-        SwooleGS->lock.unlock(&SwooleGS->lock);
+        swServer_unlock(serv);
     }
 
     return swReactor_close(reactor, fd);

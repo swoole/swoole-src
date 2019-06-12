@@ -30,7 +30,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     //reload
     echo "[-1] start to reload\n";
     Swoole\Process::kill($pid, SIGUSR1);
-    sleep(2);
+    sleep(4);
     $pm->kill();
 };
 
