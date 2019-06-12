@@ -107,6 +107,38 @@ void swoole_server_port_init(int module_number)
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("connections"), ZEND_ACC_PUBLIC);
 }
 
+/**
+ * [Master-Process]
+ */
+static ssize_t php_swoole_server_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
+{
+    swServer *serv = (swServer *) protocol->private_data_2;
+
+    serv->lock.lock(&serv->lock);
+    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
+    zval zdata;
+    zval retval;
+    bool success;
+    ssize_t ret = -1;
+
+    // TODO: reduce memory copy
+    ZVAL_STRINGL(&zdata, data, length);
+    success = sw_call_user_function_fast_ex(NULL, fci_cache, 1, &zdata, &retval) == SUCCESS;
+    zval_ptr_dtor(&zdata);
+    if (!success)
+    {
+        swoole_php_fatal_error(E_WARNING, "length function handler error");
+    }
+    else
+    {
+        ret = zval_get_long(&retval);
+        zval_ptr_dtor(&retval);
+    }
+    serv->lock.unlock(&serv->lock);
+
+    return ret;
+}
+
 static PHP_METHOD(swoole_server_port, __construct)
 {
     swoole_php_fatal_error(E_ERROR, "please use the Swoole\\Server->listen method");
@@ -382,7 +414,7 @@ static PHP_METHOD(swoole_server_port, set)
                 return;
             }
             efree(func_name);
-            port->protocol.get_package_length = php_swoole_length_func;
+            port->protocol.get_package_length = php_swoole_server_length_func;
             if (port->protocol.private_data)
             {
                 sw_fci_cache_discard((zend_fcall_info_cache *) port->protocol.private_data);

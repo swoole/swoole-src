@@ -2362,7 +2362,6 @@ typedef struct
     char *dns_server_v6;
     double dns_cache_refresh_time;
 
-    swLock lock;
     swHashMap *functions;
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];
 

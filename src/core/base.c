@@ -77,9 +77,6 @@ void swoole_init(void)
         exit(1);
     }
 
-    //init global lock
-    swMutex_create(&SwooleG.lock, 0);
-
     SwooleG.max_sockets = 1024;
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)

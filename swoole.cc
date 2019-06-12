@@ -125,13 +125,9 @@ zend_object_handlers swoole_exception_handlers;
 
 zend_module_entry swoole_module_entry =
 {
-#if ZEND_MODULE_API_NO >= 20050922
     STANDARD_MODULE_HEADER_EX,
     NULL,
     NULL,
-#else
-    STANDARD_MODULE_HEADER,
-#endif
     "swoole",
     swoole_functions,
     PHP_MINIT(swoole),
@@ -183,73 +179,6 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->display_errors = 1;
     swoole_globals->use_shortname = 1;
     swoole_globals->rshutdown_functions = NULL;
-}
-
-ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
-{
-    SwooleG.lock.lock(&SwooleG.lock);
-
-    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
-    zval zdata;
-    zval retval;
-    bool success;
-    ssize_t ret = -1;
-
-    // TODO: reduce memory copy
-    ZVAL_STRINGL(&zdata, data, length);
-    success = sw_call_user_function_fast_ex(NULL, fci_cache, 1, &zdata, &retval) == SUCCESS;
-    zval_ptr_dtor(&zdata);
-    if (!success)
-    {
-        swoole_php_fatal_error(E_WARNING, "length function handler error");
-    }
-    else
-    {
-        ret = zval_get_long(&retval);
-        zval_ptr_dtor(&retval);
-    }
-    SwooleG.lock.unlock(&SwooleG.lock);
-    return ret;
-}
-
-int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *data)
-{
-    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache*) serv->private_data_3;
-    zval args[4];
-    zval *zserv = &args[0], *zfd = &args[1], *ztype = &args[2], *zdata = NULL;
-    zval retval;
-    int worker_id = -1;
-
-    SwooleG.lock.lock(&SwooleG.lock);
-    *zserv = *((zval *) serv->ptr2);
-    ZVAL_LONG(zfd, (zend_long) (conn ? conn->session_id : data->info.fd));
-    ZVAL_LONG(ztype, (zend_long) data->info.type);
-    if (sw_zend_function_max_num_args(fci_cache->function_handler) > 3)
-    {
-        // TODO: reduce memory copy
-        zdata = &args[3];
-        ZVAL_STRINGL(zdata, data->data, data->info.len > SW_IPC_BUFFER_SIZE ? SW_IPC_BUFFER_SIZE : data->info.len);
-    }
-    if (UNEXPECTED(!zend::function::call(fci_cache, zdata ? 4 : 3, args, &retval, false)))
-    {
-        swoole_php_error(E_WARNING, "%s->onDispatch handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
-    }
-    else if (!ZVAL_IS_NULL(&retval))
-    {
-        worker_id = (int) zval_get_long(&retval);
-        if (worker_id >= serv->worker_num)
-        {
-            swoole_php_fatal_error(E_WARNING, "invalid target worker-id[%d]", worker_id);
-            worker_id = -1;
-        }
-        zval_ptr_dtor(&retval);
-    }
-    if (zdata)
-    {
-        zval_ptr_dtor(zdata);
-    }
-    SwooleG.lock.unlock(&SwooleG.lock);
-    return worker_id;
 }
 
 static sw_inline uint32_t swoole_get_new_size(uint32_t old_size, int handle)
@@ -1030,20 +959,14 @@ PHP_FUNCTION(swoole_errno)
 
 PHP_FUNCTION(swoole_set_process_name)
 {
-#ifdef __MACH__
-    // OSX doesn't support 'cli_set_process_title'
-    swoole_php_fatal_error(E_WARNING, "swoole_set_process_name is not supported on OSX");
-    RETURN_FALSE;
-#else
     zend_function *cli_set_process_title = (zend_function *) zend_hash_str_find_ptr(EG(function_table),
             ZEND_STRL("cli_set_process_title"));
     if (!cli_set_process_title)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_set_process_name only support in CLI mode");
-        RETURN_FALSE;
+        RETURN_FALSE
     }
     cli_set_process_title->internal_function.handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-#endif
 }
 
 PHP_FUNCTION(swoole_get_local_ip)

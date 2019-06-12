@@ -795,6 +795,30 @@ void php_swoole_client_free(zval *zobject, swClient *cli)
     swoole_set_object(zobject, NULL);
 }
 
+ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
+{
+    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
+    zval zdata;
+    zval retval;
+    bool success;
+    ssize_t ret = -1;
+
+    // TODO: reduce memory copy
+    ZVAL_STRINGL(&zdata, data, length);
+    success = sw_call_user_function_fast_ex(NULL, fci_cache, 1, &zdata, &retval) == SUCCESS;
+    zval_ptr_dtor(&zdata);
+    if (!success)
+    {
+        swoole_php_fatal_error(E_WARNING, "length function handler error");
+    }
+    else
+    {
+        ret = zval_get_long(&retval);
+        zval_ptr_dtor(&retval);
+    }
+    return ret;
+}
+
 swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int port)
 {
     zval *ztype;

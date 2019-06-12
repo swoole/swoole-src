@@ -409,11 +409,10 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 static void php_swoole_onManagerStart(swServer *serv);
 static void php_swoole_onManagerStop(swServer *serv);
 
-//static void php_swoole_onConnect_finish(void *param);
 static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode);
 static int php_swoole_server_send_resume(swServer *serv, php_coro_context *context, int fd);
 static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode);
-
+static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, swSendData *data);
 static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port);
 
 static inline zend_bool php_swoole_server_isset_callback(swListenPort *port, int event_type)
@@ -531,27 +530,6 @@ void swoole_server_init(int module_number)
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_DISCARD_PACKET", SW_DISPATCH_RESULT_DISCARD_PACKET);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_CLOSE_CONNECTION", SW_DISPATCH_RESULT_CLOSE_CONNECTION);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_USERFUNC_FALLBACK", SW_DISPATCH_RESULT_USERFUNC_FALLBACK);
-}
-
-zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
-{
-    swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
-    swoole_server_port_property *property;
-    zval *callback;
-
-    if (unlikely(!port))
-    {
-        swWarn("invalid server_fd[%d]", server_fd);
-        return NULL;
-    }
-    if ((property = (swoole_server_port_property *) port->ptr) && (callback = property->callbacks[event_type]))
-    {
-        return callback;
-    }
-    else
-    {
-        return server_port_list.primary_port->callbacks[event_type];
-    }
 }
 
 zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int server_fd, int event_type)
@@ -1792,6 +1770,47 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
     PHPCoroutine::yield_m(return_value, context);
 }
 
+static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, swSendData *data)
+{
+    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache*) serv->private_data_3;
+    zval args[4];
+    zval *zserv = &args[0], *zfd = &args[1], *ztype = &args[2], *zdata = NULL;
+    zval retval;
+    int worker_id = -1;
+
+    serv->lock.lock(&serv->lock);
+    *zserv = *((zval *) serv->ptr2);
+    ZVAL_LONG(zfd, (zend_long) (conn ? conn->session_id : data->info.fd));
+    ZVAL_LONG(ztype, (zend_long) data->info.type);
+    if (sw_zend_function_max_num_args(fci_cache->function_handler) > 3)
+    {
+        // TODO: reduce memory copy
+        zdata = &args[3];
+        ZVAL_STRINGL(zdata, data->data, data->info.len > SW_IPC_BUFFER_SIZE ? SW_IPC_BUFFER_SIZE : data->info.len);
+    }
+    if (UNEXPECTED(!zend::function::call(fci_cache, zdata ? 4 : 3, args, &retval, false)))
+    {
+        swoole_php_error(E_WARNING, "%s->onDispatch handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+    }
+    else if (!ZVAL_IS_NULL(&retval))
+    {
+        worker_id = (int) zval_get_long(&retval);
+        if (worker_id >= serv->worker_num)
+        {
+            swoole_php_fatal_error(E_WARNING, "invalid target worker-id[%d]", worker_id);
+            worker_id = -1;
+        }
+        zval_ptr_dtor(&retval);
+    }
+    if (zdata)
+    {
+        zval_ptr_dtor(zdata);
+    }
+    serv->lock.unlock(&serv->lock);
+    return worker_id;
+}
+
+
 void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
 {
     zval *zserv = (zval *) serv->ptr2;
@@ -1971,7 +1990,6 @@ static PHP_METHOD(swoole_server, __destruct)
         zend_fcall_info_cache *fci_cache = server_callbacks[i];
         if (fci_cache)
         {
-            sw_fci_cache_discard(fci_cache);
             efree(fci_cache);
             server_callbacks[i] = NULL;
         }
@@ -2143,7 +2161,7 @@ static PHP_METHOD(swoole_server, set)
                 efree(serv->private_data_3);
             }
             serv->private_data_3 = (void *) fci_cache;
-            c_dispatch_func = php_swoole_dispatch_func;
+            c_dispatch_func = php_swoole_server_dispatch_func;
             break;
         }
         serv->dispatch_func = c_dispatch_func;
