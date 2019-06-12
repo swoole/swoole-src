@@ -641,7 +641,7 @@ static PHP_FUNCTION(swoole_event_set)
         {
             sw_zend_fci_cache_discard(&reactor_fd->fci_cache_write);
         }
-        reactor_fd->fci_cache_write = fci_cache_read;
+        reactor_fd->fci_cache_write = fci_cache_write;
     }
 
     if ((event_flag & SW_EVENT_READ) && reactor_fd->fci_cache_read.function_handler == NULL)
