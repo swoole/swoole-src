@@ -307,7 +307,7 @@ namespace function
         }
         else
         {
-            success = sw_call_user_function_fast_ex(NULL, fci_cache, argc, argv, retval) == SUCCESS;
+            success = sw_zend_call_function_ex(NULL, fci_cache, argc, argv, retval) == SUCCESS;
         }
         /* we have no chance to return to ZendVM to check the exception  */
         if (UNEXPECTED(EG(exception)))
@@ -317,7 +317,6 @@ namespace function
         return success;
     }
 }
-
 
 bool include(std::string file);
 bool eval(std::string code, std::string filename = "");

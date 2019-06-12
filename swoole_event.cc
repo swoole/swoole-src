@@ -138,7 +138,7 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
 {
     php_event_object *peo = (php_event_object *) event->socket->object;
 
-    if (UNEXPECTED(sw_call_user_function_fast_ex(NULL, &peo->fci_cache_read, 1, &peo->zsocket, NULL) != SUCCESS))
+    if (UNEXPECTED(sw_zend_call_function_ex2(NULL, &peo->fci_cache_read, 1, &peo->zsocket, NULL) != SUCCESS))
     {
         swoole_php_fatal_error(E_WARNING, "%s: onRead callback handler error, fd [%d] will be removed from reactor", ZSTR_VAL(swoole_event_ce->name), swoole_convert_to_fd(&peo->zsocket));
         event->socket->object = NULL;
@@ -154,7 +154,7 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 {
     php_event_object *peo = (php_event_object *) event->socket->object;
 
-    if (UNEXPECTED(sw_call_user_function_fast_ex(NULL, &peo->fci_cache_write, 1, &peo->zsocket, NULL) != SUCCESS))
+    if (UNEXPECTED(sw_zend_call_function_ex2(NULL, &peo->fci_cache_write, 1, &peo->zsocket, NULL) != SUCCESS))
     {
         swoole_php_fatal_error(E_WARNING, "%s: onWrite callback handler error, fd [%d] will be removed from reactor", ZSTR_VAL(swoole_event_ce->name), swoole_convert_to_fd(&peo->zsocket));
         event->socket->object = NULL;
@@ -193,32 +193,22 @@ static void php_swoole_event_onDefer(void *data)
 {
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) data;
 
-    if (UNEXPECTED(sw_call_user_function_fast_ex(NULL, fci_cache, 0, NULL, NULL) != SUCCESS))
+    if (UNEXPECTED(sw_zend_call_function_ex2(NULL, fci_cache, 0, NULL, NULL) != SUCCESS))
     {
         swoole_php_error(E_WARNING, "%s::defer callback handler error", ZSTR_VAL(swoole_event_ce->name));
     }
 
     sw_fci_cache_discard(fci_cache);
     efree(fci_cache);
-
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
 }
 
 static void php_swoole_event_onEndCallback(void *data)
 {
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) data;
 
-    if (UNEXPECTED(sw_call_user_function_fast_ex(NULL, (zend_fcall_info_cache *) fci_cache, 0, NULL, NULL) != SUCCESS))
+    if (UNEXPECTED(sw_zend_call_function_ex2(NULL, (zend_fcall_info_cache *) fci_cache, 0, NULL, NULL) != SUCCESS))
     {
         swoole_php_error(E_WARNING, "%s::defer callback handler error", ZSTR_VAL(swoole_event_ce->name));
-    }
-
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
     }
 }
 

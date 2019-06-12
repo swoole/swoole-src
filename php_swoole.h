@@ -970,8 +970,8 @@ static sw_inline zend_bool sw_zend_is_callable_ex(zval *zcallable, zval *zobject
     return ret;
 }
 
-/* this API can work well when retval is NULL, but sometimes you need to check the EG(exception) manually */
-static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fcall_info_cache *fci_cache, uint32_t param_count, zval *params, zval *retval)
+/* this API can work well when retval is NULL */
+static sw_inline int sw_zend_call_function_ex(zval *function_name, zend_fcall_info_cache *fci_cache, uint32_t param_count, zval *params, zval *retval)
 {
     zend_fcall_info fci;
     zval _retval;
@@ -1005,7 +1005,18 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
     return ret;
 }
 
-static sw_inline int sw_call_function_anyway(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache)
+/* we must check for exception immediately if we don't have chances to go back to ZendVM (e.g event loop) */
+static sw_inline int sw_zend_call_function_ex2(zval *function_name, zend_fcall_info_cache *fci_cache, uint32_t param_count, zval *params, zval *retval)
+{
+    int ret = sw_zend_call_function_ex(function_name, fci_cache, param_count, params, retval);
+    if (UNEXPECTED(EG(exception)))
+    {
+        zend_exception_error(EG(exception), E_ERROR);
+    }
+    return ret;
+}
+
+static sw_inline int sw_zend_call_function_anyway(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache)
 {
     zval retval;
     zend_object* exception = EG(exception);
@@ -1132,7 +1143,7 @@ static sw_inline zend_string* sw_get_debug_print_backtrace(zend_long options, ze
         ZVAL_STRING(&fcn, "debug_print_backtrace");
         ZVAL_LONG(&args[0], options);
         ZVAL_LONG(&args[1], limit);
-        sw_call_user_function_fast_ex(&fcn, NULL, 2, args, &zoutput);
+        sw_zend_call_function_ex(&fcn, NULL, 2, args, &zoutput);
         zval_ptr_dtor(&fcn);
     } SW_PHP_OB_END();
     if (UNEXPECTED(Z_TYPE_P(&zoutput) != IS_STRING))

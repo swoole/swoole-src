@@ -197,7 +197,7 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
 
     // TODO: reduce memory copy
     ZVAL_STRINGL(&zdata, data, length);
-    success = sw_call_user_function_fast_ex(NULL, fci_cache, 1, &zdata, &retval) == SUCCESS;
+    success = sw_zend_call_function_ex(NULL, fci_cache, 1, &zdata, &retval) == SUCCESS;
     zval_ptr_dtor(&zdata);
     if (UNEXPECTED(!success))
     {

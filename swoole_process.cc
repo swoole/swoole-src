@@ -650,14 +650,9 @@ static void php_swoole_onSignal(int signo)
 
     ZVAL_LONG(&zsigno, signo);
 
-    if (UNEXPECTED(sw_call_user_function_fast_ex(NULL, fci_cache, 1, &zsigno, NULL) != SUCCESS))
+    if (UNEXPECTED(sw_zend_call_function_ex2(NULL, fci_cache, 1, &zsigno, NULL) != SUCCESS))
     {
         swoole_php_fatal_error(E_WARNING, "%s: signal [%d] handler error", ZSTR_VAL(swoole_process_ce->name), signo);
-    }
-
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
     }
 }
 

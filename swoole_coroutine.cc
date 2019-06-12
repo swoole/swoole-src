@@ -397,7 +397,7 @@ void PHPCoroutine::create_func(void *arg)
             tasks->pop();
             defer_fci->fci.param_count = 1;
             defer_fci->fci.params = retval;
-            if (UNEXPECTED(sw_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) == FAILURE))
+            if (UNEXPECTED(sw_zend_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) != SUCCESS))
             {
                 swoole_php_fatal_error(E_WARNING, "defer callback handler error");
             }
@@ -419,10 +419,12 @@ void PHPCoroutine::create_func(void *arg)
         OBJ_RELEASE(task->context);
     }
 
+    // TODO: exceptions will only cause the coroutine to exit
     if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
+
 #ifdef SW_CORO_SUPPORT_BAILOUT
     } zend_catch {
         Coroutine::bailout([](){ sw_zend_bailout(); });
