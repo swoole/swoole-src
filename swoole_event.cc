@@ -282,19 +282,23 @@ void php_swoole_reactor_init()
     {
         swTraceLog(SW_TRACE_PHP, "init reactor");
 
-        SwooleG.main_reactor = (swReactor *) sw_malloc(sizeof(swReactor));
-        if (SwooleG.main_reactor == NULL)
+        swReactor *reactor = (swReactor *) sw_malloc(sizeof(swReactor));
+        if (reactor == NULL)
         {
             swoole_php_fatal_error(E_ERROR, "malloc failed");
             return;
         }
-        if (swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
+        if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
         {
             swoole_php_fatal_error(E_ERROR, "failed to create reactor");
             return;
         }
 
-        SwooleG.main_reactor->can_exit = php_coroutine_reactor_can_exit;
+        reactor->is_empty = swReactor_empty;
+        reactor->can_exit = php_coroutine_reactor_can_exit;
+        reactor->wait_exit = 1;
+
+        SwooleG.main_reactor = reactor;
 
         //client, swoole_event_exit will set swoole_running = 0
         SwooleWG.in_client = 1;

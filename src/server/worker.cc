@@ -27,6 +27,7 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamRead(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamPackage(swProtocol *proto, swConnection *conn, char *data, uint32_t length);
 static int swWorker_onStreamClose(swReactor *reactor, swEvent *event);
+static int swWorker_reactor_is_empty(swReactor *reactor);
 
 void swWorker_free(swWorker *worker)
 {
@@ -568,17 +569,20 @@ void swWorker_stop(swWorker *worker)
         swKill(serv->gs->manager_pid, SIGIO);
     }
 
-    _try_to_exit:
-    SwooleWG.wait_exit = 1;
+    _try_to_exit: SwooleG.main_reactor->wait_exit = 1;
+    SwooleG.main_reactor->is_empty = swWorker_reactor_is_empty;
     SwooleWG.exit_time = serv->gs->now;
 
-    swWorker_try_to_exit();
+    if (swWorker_reactor_is_empty(SwooleG.main_reactor))
+    {
+        SwooleG.main_reactor->running = 0;
+        SwooleG.running = 0;
+    }
 }
 
-void swWorker_try_to_exit()
+static int swWorker_reactor_is_empty(swReactor *reactor)
 {
-    swWorker *worker = SwooleWG.worker;
-    swServer *serv = (swServer *) worker->pool->ptr;
+    swServer *serv = (swServer *) reactor->ptr;
 
     //close all client connections
     if (serv->factory_mode == SW_MODE_BASE)
@@ -614,8 +618,7 @@ void swWorker_try_to_exit()
     {
         if (swReactor_empty(SwooleG.main_reactor))
         {
-            SwooleG.main_reactor->running = 0;
-            SwooleG.running = 0;
+            return SW_TRUE;
         }
         else
         {
@@ -628,10 +631,8 @@ void swWorker_try_to_exit()
             int remaining_time = serv->max_wait_time - (time(NULL) - SwooleWG.exit_time);
             if (remaining_time <= 0)
             {
-                SwooleG.running = 0;
-                SwooleG.main_reactor->running = 0;
-                swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
-                        "worker exit timeout, forced to terminate");
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced to terminate");
+                return SW_TRUE;
             }
             else
             {
@@ -644,6 +645,8 @@ void swWorker_try_to_exit()
         }
         break;
     }
+
+    return SW_FALSE;
 }
 
 void swWorker_clean(void)

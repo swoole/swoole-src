@@ -17,7 +17,6 @@
 #include "swoole.h"
 #include "connection.h"
 #include "async.h"
-#include "server.h"
 
 #ifdef SW_USE_MALLOC_TRIM
 #ifdef __APPLE__
@@ -147,19 +146,14 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         reactor->idle_task.callback(reactor->idle_task.data);
     }
-    //server worker
-    if (SwooleWG.worker && SwooleWG.wait_exit == 1)
-    {
-        swWorker_try_to_exit();
-    }
     //check signal
     if (unlikely(reactor->singal_no))
     {
         swSignal_callback(reactor->singal_no);
         reactor->singal_no = 0;
     }
-    //not server, the event loop is empty
-    if ((SwooleG.serv == NULL || swIsUserWorker()) && swReactor_empty(reactor))
+    //the event loop is empty
+    if (reactor->wait_exit && reactor->is_empty(reactor))
     {
         reactor->running = 0;
     }

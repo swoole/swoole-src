@@ -1606,6 +1606,7 @@ struct _swReactor
     uint32_t running :1;
     uint32_t start :1;
     uint32_t once :1;
+    uint32_t wait_exit :1;
 
     /**
      * disable accept new connection
@@ -1665,6 +1666,7 @@ struct _swReactor
 
     void (*enable_accept)(swReactor *);
     int (*can_exit)(swReactor *);
+    int (*is_empty)(swReactor *);
 
     int (*write)(swReactor *, int, void *, int);
     int (*close)(swReactor *, int);
@@ -2269,7 +2271,6 @@ typedef struct
     uint32_t reactor_exit :1;
     uint32_t in_client :1;
     uint32_t shutdown :1;
-    uint32_t wait_exit :1;
 
     int max_request;
 

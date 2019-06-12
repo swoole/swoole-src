@@ -113,7 +113,11 @@ class ProcessManager
         }
     }
 
-    public function getFreePort(int $index = 0)
+    /**
+     * @param int $index
+     * @return mixed
+     */
+    public function getFreePort($index = 0)
     {
         return $this->freePorts[$index];
     }
