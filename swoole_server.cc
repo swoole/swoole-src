@@ -1461,7 +1461,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 
 static void php_swoole_onStart(swServer *serv)
 {
-    SwooleG.lock.lock(&SwooleG.lock);
+    serv->lock.lock(&serv->lock);
     zval *zserv = (zval *) serv->ptr2;
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("master_pid"), serv->gs->master_pid);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("manager_pid"), serv->gs->manager_pid);
@@ -1469,7 +1469,7 @@ static void php_swoole_onStart(swServer *serv)
     {
         swoole_php_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
-    SwooleG.lock.unlock(&SwooleG.lock);
+    serv->lock.unlock(&serv->lock);
 }
 
 static void php_swoole_onManagerStart(swServer *serv)
@@ -1494,7 +1494,7 @@ static void php_swoole_onManagerStop(swServer *serv)
 
 static void php_swoole_onShutdown(swServer *serv)
 {
-    SwooleG.lock.lock(&SwooleG.lock);
+    serv->lock.lock(&serv->lock);
     zval *zserv = (zval *) serv->ptr2;
     if (server_callbacks[SW_SERVER_CB_onShutdown] != NULL)
     {
@@ -1503,7 +1503,7 @@ static void php_swoole_onShutdown(swServer *serv)
             swoole_php_error(E_WARNING, "%s->onShutdown handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
-    SwooleG.lock.unlock(&SwooleG.lock);
+    serv->lock.unlock(&serv->lock);
 }
 
 static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
@@ -2068,6 +2068,10 @@ static PHP_METHOD(swoole_server, set)
         {
             serv->reactor_num = SwooleG.cpu_num;
         }
+    }
+    if (php_swoole_array_get_value(vht, "single_thread", v))
+    {
+        serv->single_thread = zval_is_true(v);
     }
     //worker_num
     if (php_swoole_array_get_value(vht, "worker_num", v))

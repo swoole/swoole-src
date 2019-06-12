@@ -434,54 +434,42 @@ enum swWorker_status
 
 #define swNotice(str,...) \
     if (SW_LOG_NOTICE >= SwooleG.log_level) {\
-        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
         size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
         SwooleG.write_log(SW_LOG_NOTICE, sw_error, _sw_errror_len);\
-        SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
     }
 
 #define swInfo(str,...) \
     if (SW_LOG_INFO >= SwooleG.log_level) {\
-        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
         size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
         SwooleG.write_log(SW_LOG_INFO, sw_error, _sw_errror_len);\
-        SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
     }
 
 #define swWarn(str,...) \
     if (SW_LOG_WARNING >= SwooleG.log_level) {\
-        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
         size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: " str,__func__,##__VA_ARGS__);\
         SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_errror_len);\
-        SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
     }
 
 #define swSysWarn(str,...) \
     do{\
         SwooleG.error = errno;\
         if (SW_LOG_ERROR >= SwooleG.log_level) {\
-            SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
             size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str ", Error: %s[%d]",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
             SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_errror_len);\
-            SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
         }\
     } while(0)
 
 #define swError(str,...) \
     do{\
-        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
         size_t _sw_errror_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
         SwooleG.write_log(SW_LOG_ERROR, sw_error, _sw_errror_len);\
-        SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
         exit(1);\
     } while(0)
 
 #define swSysError(str,...) \
     do{\
-        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
         size_t _sw_errror_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str ", Error: %s[%d]",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
         SwooleG.write_log(SW_LOG_ERROR, sw_error, _sw_errror_len);\
-        SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
         exit(1);\
     } while(0)
 
@@ -493,19 +481,15 @@ enum swWorker_status
         SwooleG.error = __errno;\
         if (level >= SwooleG.log_level){\
             size_t _sw_errror_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERRNO %d): " str,__func__,__errno,##__VA_ARGS__);\
-            SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
             SwooleG.write_log(level, sw_error, _sw_errror_len);\
-            SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
         }\
     } while(0)
 
 #ifdef SW_DEBUG
 #define swDebug(str,...) \
     if (SW_LOG_DEBUG >= SwooleG.log_level) {\
-        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
         size_t _sw_errror_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__);\
         SwooleG.write_log(SW_LOG_DEBUG, sw_error, _sw_errror_len);\
-        SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
     }
 
 #define swHexDump(data, length) \
@@ -1279,7 +1263,7 @@ typedef struct _swThreadParam
     int pti;
 } swThreadParam;
 
-extern char sw_error[SW_ERROR_MSG_SIZE];
+extern __thread char sw_error[SW_ERROR_MSG_SIZE];
 
 enum swProcessType
 {
@@ -1296,11 +1280,13 @@ enum swProcessType
 #define swIsManager()         (SwooleG.process_type==SW_PROCESS_MANAGER)
 #define swIsUserWorker()      (SwooleG.process_type==SW_PROCESS_USERWORKER)
 
-//----------------------tool function---------------------
+//----------------------Logger---------------------
 int swLog_init(char *logfile);
 void swLog_put(int level, char *content, size_t length);
+void swLog_reopen(enum swBool_type redirect);
 void swLog_free(void);
 
+//----------------------Tool Function---------------------
 uint64_t swoole_hash_key(char *str, int str_len);
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v);
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
@@ -2258,12 +2244,6 @@ static sw_inline swTimer_node* swTimer_get_ex(swTimer *timer, long id, const enu
 int swSystemTimer_init(swTimer *timer, long msec);
 void swSystemTimer_signal_handler(int sig);
 //--------------------------------------------------------------
-//Share Memory
-typedef struct
-{
-    swLock lock;
-    swLock lock_2;
-} swGlobalS_t;
 
 //Worker process global Variable
 typedef struct
@@ -2389,7 +2369,6 @@ typedef struct
 } swGlobal_t;
 
 extern swGlobal_t SwooleG;              //Local Global Variable
-extern swGlobalS_t *SwooleGS;           //Share Memory Global Variable
 extern swWorkerGlobal_t SwooleWG;             //Worker Global Variable
 extern __thread swThreadGlobal_t SwooleTG;   //Thread Global Variable
 
