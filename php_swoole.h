@@ -231,12 +231,6 @@ typedef enum
 //---------------------------------------------------------
 typedef struct
 {
-    zval _callback;
-    zval *callback;
-} php_defer_callback;
-
-typedef struct
-{
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
 } php_swoole_fci;
@@ -457,7 +451,6 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
 int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swSendData *data);
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
 zend_bool php_swoole_signal_isset_handler(int signo);
-void php_swoole_event_onDefer(void *_cb);
 
 int php_coroutine_reactor_can_exit(swReactor *reactor);
 
@@ -977,22 +970,6 @@ static sw_inline zend_bool sw_zend_is_callable_ex(zval *zcallable, zval *zobject
     return ret;
 }
 
-/**
- * Deprecated: use zend::function::call
- */
-static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval* object_p, zval *function_name, zval **retval_ptr_ptr, uint32_t param_count, zval *params, int no_separation, HashTable* ymbol_table)
-{
-    static zval _retval;
-    int ret;
-    *retval_ptr_ptr = &_retval;
-    ret = call_user_function_ex(function_table, object_p, function_name, &_retval, param_count, param_count ? params : NULL, no_separation, ymbol_table);
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
-    return ret;
-}
-
 /* this API can work well when retval is NULL, but sometimes you need to check the EG(exception) manually */
 static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fcall_info_cache *fci_cache, uint32_t param_count, zval *params, zval *retval)
 {
@@ -1101,6 +1078,13 @@ static sw_inline void sw_fci_cache_discard(zend_fcall_info_cache *fci_cache)
     {
         OBJ_RELEASE(ZEND_CLOSURE_OBJECT(fci_cache->function_handler));
     }
+}
+
+/* use void* to match some C callback function pointers */
+static sw_inline void sw_fci_cache_free(void* fci_cache)
+{
+    sw_fci_cache_discard((zend_fcall_info_cache *) fci_cache);
+    efree((zend_fcall_info_cache *) fci_cache);
 }
 
 //----------------------------------Misc API------------------------------------

@@ -64,7 +64,6 @@ static PHP_METHOD(swoole_process, exec);
 static PHP_METHOD(swoole_process, exportSocket);
 
 static void php_swoole_onSignal(int signo);
-static void free_signal_fci_cache(void* data);
 
 static uint32_t php_swoole_worker_round_id = 0;
 static zend_fcall_info_cache *signal_fci_caches[SW_SIGNO_MAX] = {0};
@@ -538,7 +537,7 @@ static PHP_METHOD(swoole_process, signal)
         {
             swSignal_add(signo, NULL);
             signal_fci_caches[signo] = NULL;
-            SwooleG.main_reactor->defer(SwooleG.main_reactor, free_signal_fci_cache, fci_cache);
+            SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_fci_cache_free, fci_cache);
             SwooleG.main_reactor->signal_listener_num--;
             RETURN_TRUE;
         }
@@ -574,7 +573,7 @@ static PHP_METHOD(swoole_process, signal)
     if (signal_fci_caches[signo])
     {
         // free the old fci_cache
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, free_signal_fci_cache, signal_fci_caches[signo]);
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_fci_cache_free, signal_fci_caches[signo]);
     }
     else
     {
@@ -641,13 +640,6 @@ static PHP_METHOD(swoole_process, alarm)
     RETURN_TRUE;
 }
 
-static void free_signal_fci_cache(void* data)
-{
-    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) data;
-    sw_fci_cache_discard(fci_cache);
-    efree(fci_cache);
-}
-
 /**
  * safe signal
  */
@@ -658,7 +650,7 @@ static void php_swoole_onSignal(int signo)
 
     ZVAL_LONG(&zsigno, signo);
 
-    if (sw_call_user_function_fast_ex(NULL, fci_cache, 1, &zsigno, NULL) != SUCCESS)
+    if (UNEXPECTED(sw_call_user_function_fast_ex(NULL, fci_cache, 1, &zsigno, NULL) != SUCCESS))
     {
         swoole_php_fatal_error(E_WARNING, "%s: signal [%d] handler error", ZSTR_VAL(swoole_process_ce->name), signo);
     }
