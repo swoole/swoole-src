@@ -26,7 +26,7 @@
 #endif
 
 #ifdef SW_USE_HTTP2
-#include "thirdparty/http2/nghttp2.h"
+#include "thirdparty/nghttp2/nghttp2.h"
 #endif
 
 enum http_header_flag
