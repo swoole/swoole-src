@@ -5,8 +5,8 @@
 #include <php_network.h>
 #include <netinet/in.h>
 
-#include "thirdparty/sockets/multicast.h"
-#include "thirdparty/sockets/conversions.h"
+#include "thirdparty/php/sockets/multicast.h"
+#include "thirdparty/php/sockets/conversions.h"
 
 using swoole::coroutine::Socket;
 

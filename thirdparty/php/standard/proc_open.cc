@@ -16,7 +16,7 @@
    +----------------------------------------------------------------------+
  */
 
-#include "thirdparty/proc_open.h"
+#include "thirdparty/php/standard/proc_open.h"
 #include "coroutine_c_api.h"
 
 using namespace std;
