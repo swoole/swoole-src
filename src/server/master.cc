@@ -34,8 +34,7 @@ static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd, int reactor_id);
 
-int16_t sw_errno;
-char sw_error[SW_ERROR_MSG_SIZE];
+__thread char sw_error[SW_ERROR_MSG_SIZE];
 
 static void swServer_disable_accept(swReactor *reactor)
 {
@@ -603,6 +602,11 @@ int swServer_start(swServer *serv)
         return SW_ERR;
     }
 
+    if (swMutex_create(&serv->lock, 0) < 0)
+    {
+        return SW_ERR;
+    }
+
     /**
      * store to swProcessPool object
      */
@@ -862,6 +866,7 @@ int swServer_free(swServer *serv)
     {
         serv->onShutdown(serv);
     }
+    serv->lock.free(&serv->lock);
     return SW_OK;
 }
 
@@ -1739,7 +1744,7 @@ static void swServer_signal_handler(int sig)
             {
                 swKill(serv->gs->manager_pid, SIGRTMIN);
             }
-            swServer_reopen_log_file(SwooleG.serv);
+            swLog_reopen(SwooleG.serv->daemonize ? SW_TRUE : SW_FALSE);
         }
 #endif
         break;

@@ -16,12 +16,12 @@
 
 #include "swoole.h"
 
-#define SW_LOG_BUFFER_SIZE  16384
+#define SW_LOG_BUFFER_SIZE  4096
 #define SW_LOG_DATE_STRLEN  64
 
 int swLog_init(char *logfile)
 {
-    SwooleG.log_fd = open(logfile, O_APPEND| O_RDWR | O_CREAT, 0666);
+    SwooleG.log_fd = open(logfile, O_APPEND | O_RDWR | O_CREAT, 0666);
     if (SwooleG.log_fd < 0)
     {
         printf("open(%s) failed. Error: %s[%d]\n", logfile, strerror(errno), errno);
@@ -36,6 +36,26 @@ void swLog_free(void)
     if (SwooleG.log_fd > STDOUT_FILENO)
     {
         close(SwooleG.log_fd);
+    }
+}
+
+void swLog_reopen(enum swBool_type redirect)
+{
+    if (!SwooleG.log_file)
+    {
+        return;
+    }
+    /**
+     * reopen log file
+     */
+    close(SwooleG.log_fd);
+    swLog_init(SwooleG.log_file);
+    /**
+     * redirect STDOUT & STDERR to log file
+     */
+    if (redirect)
+    {
+        swoole_redirect_stdout(SwooleG.log_fd);
     }
 }
 

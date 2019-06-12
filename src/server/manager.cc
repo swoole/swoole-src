@@ -111,8 +111,10 @@ static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int 
     memcpy(reload_workers, workers, sizeof(swWorker) * n);
     reload_info->reload_worker_num = n;
     reload_info->workers = reload_workers;
-
-    swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, reload_info, swManager_kill_timeout_process);
+    /**
+     * Multiply max_wait_time by 2 to prevent conflict with worker
+     */
+    swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 2 * 1000), 0, reload_info, swManager_kill_timeout_process);
 }
 
 //create worker child proccess
@@ -605,7 +607,7 @@ static void swManager_signal_handler(int sig)
 #ifdef SIGRTMIN
         if (sig == SIGRTMIN)
         {
-            swServer_reopen_log_file(SwooleG.serv);
+            swLog_reopen(SwooleG.serv->daemonize ? SW_TRUE : SW_FALSE);
         }
 #endif
         break;

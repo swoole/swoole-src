@@ -502,6 +502,7 @@ struct _swServer
     swReactorThread *reactor_threads;
     swWorker *workers;
 
+    swLock lock;
     swChannel *message_box;
 
     swServerStats *stats;

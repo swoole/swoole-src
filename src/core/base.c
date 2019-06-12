@@ -30,7 +30,6 @@
 #endif
 
 swGlobal_t SwooleG;
-swGlobalS_t *SwooleGS;
 __thread swThreadGlobal_t SwooleTG;
 swWorkerGlobal_t SwooleWG;
 
@@ -77,16 +76,8 @@ void swoole_init(void)
         printf("[Master] Fatal Error: global memory allocation failure");
         exit(1);
     }
-    SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swGlobalS_t));
-    if (SwooleGS == NULL)
-    {
-        printf("[Master] Fatal Error: failed to allocate memory for SwooleGS");
-        exit(2);
-    }
 
     //init global lock
-    swMutex_create(&SwooleGS->lock, 1);
-    swMutex_create(&SwooleGS->lock_2, 1);
     swMutex_create(&SwooleG.lock, 0);
 
     SwooleG.max_sockets = 1024;
@@ -182,17 +173,29 @@ pid_t swoole_fork(int flags)
         {
             swTimer_free(&SwooleG.timer);
         }
-        /**
-         * reset SwooleG.memory_pool
-         */
+
         if (!(flags & SW_FORK_EXEC))
         {
+            /**
+             * reset SwooleG.memory_pool
+             */
             SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
             if (SwooleG.memory_pool == NULL)
             {
                 printf("[Worker] Fatal Error: global memory allocation failure");
                 exit(1);
             }
+            /**
+             * reopen log file
+             */
+            swLog_reopen(0);
+        }
+        else
+        {
+            /**
+             * close log fd
+             */
+            swLog_free();
         }
         /**
          * reset eventLoop
@@ -1419,12 +1422,10 @@ static void swoole_fatal_error(int code, const char *format, ...)
     size_t retval = 0;
     va_list args;
 
-    SwooleGS->lock_2.lock(&SwooleGS->lock_2);
     retval += sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "(ERROR %d): ", code);
     va_start(args, format);
     retval += sw_vsnprintf(sw_error + retval, SW_ERROR_MSG_SIZE - retval, format, args);
     va_end(args);
     SwooleG.write_log(SW_LOG_ERROR, sw_error, retval);
-    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);
     exit(255);
 }
