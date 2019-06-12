@@ -123,12 +123,17 @@ php_vmstat_t php_vmstat;
 zend_class_entry *swoole_exception_ce;
 zend_object_handlers swoole_exception_handlers;
 
+static const zend_module_dep deps[] = {
+    ZEND_MOD_CONFLICTS("Xdebug")
+    ZEND_MOD_END
+};
+
 zend_module_entry swoole_module_entry =
 {
 #if ZEND_MODULE_API_NO >= 20050922
     STANDARD_MODULE_HEADER_EX,
     NULL,
-    NULL,
+    deps,
 #else
     STANDARD_MODULE_HEADER,
 #endif
