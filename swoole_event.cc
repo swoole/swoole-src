@@ -493,8 +493,7 @@ static PHP_FUNCTION(swoole_event_add)
     zend_fcall_info_cache fci_cache_write = empty_fcall_info_cache;
     zend_long event_flag = 0;
 
-
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 4)
         Z_PARAM_ZVAL(zfd)
         Z_PARAM_OPTIONAL
         Z_PARAM_FUNC_EX(fci_read, fci_cache_read, 1, 0)
@@ -605,7 +604,7 @@ static PHP_FUNCTION(swoole_event_set)
     zend_long event_flag = 0;
 
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 4)
         Z_PARAM_ZVAL(zfd)
         Z_PARAM_OPTIONAL
         Z_PARAM_FUNC_EX(fci_read, fci_cache_read, 1, 0)
@@ -727,7 +726,7 @@ static PHP_FUNCTION(swoole_event_cycle)
     zend_fcall_info_cache _fci_cache = empty_fcall_info_cache;
     zend_bool before = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_FUNC_EX(_fci, _fci_cache, 1, 0)
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(before)
