@@ -789,14 +789,11 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
     zval zdata;
     zval retval;
-    bool success;
     ssize_t ret = -1;
 
     // TODO: reduce memory copy
     ZVAL_STRINGL(&zdata, data, length);
-    success = sw_call_user_function_fast_ex(NULL, fci_cache, 1, &zdata, &retval) == SUCCESS;
-    zval_ptr_dtor(&zdata);
-    if (!success)
+    if (UNEXPECTED(sw_zend_call_function_ex2(NULL, fci_cache, 1, &zdata, &retval) != SUCCESS))
     {
         swoole_php_fatal_error(E_WARNING, "length function handler error");
     }
@@ -805,6 +802,8 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
         ret = zval_get_long(&retval);
         zval_ptr_dtor(&retval);
     }
+    zval_ptr_dtor(&zdata);
+
     return ret;
 }
 

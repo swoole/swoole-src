@@ -1772,13 +1772,14 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
 
 static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, swSendData *data)
 {
+    swServer_lock(serv);
+
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache*) serv->private_data_3;
     zval args[4];
     zval *zserv = &args[0], *zfd = &args[1], *ztype = &args[2], *zdata = NULL;
     zval retval;
     int worker_id = -1;
 
-    swServer_lock(serv);
     *zserv = *((zval *) serv->ptr2);
     ZVAL_LONG(zfd, (zend_long) (conn ? conn->session_id : data->info.fd));
     ZVAL_LONG(ztype, (zend_long) data->info.type);
@@ -1788,7 +1789,7 @@ static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, s
         zdata = &args[3];
         ZVAL_STRINGL(zdata, data->data, data->info.len > SW_IPC_BUFFER_SIZE ? SW_IPC_BUFFER_SIZE : data->info.len);
     }
-    if (UNEXPECTED(!zend::function::call(fci_cache, zdata ? 4 : 3, args, &retval, false)))
+    if (UNEXPECTED(sw_zend_call_function_ex(NULL, fci_cache, zdata ? 4 : 3, args, &retval) != SUCCESS))
     {
         swoole_php_error(E_WARNING, "%s->onDispatch handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
@@ -1806,7 +1807,15 @@ static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, s
     {
         zval_ptr_dtor(zdata);
     }
+
     swServer_unlock(serv);
+
+    /* the exception should only be thrown after unlocked */
+    if (UNEXPECTED(EG(exception)))
+    {
+        zend_exception_error(EG(exception), E_ERROR);
+    }
+
     return worker_id;
 }
 

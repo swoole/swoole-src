@@ -113,19 +113,16 @@ void swoole_server_port_init(int module_number)
 static ssize_t php_swoole_server_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
 {
     swServer *serv = (swServer *) protocol->private_data_2;
-
     swServer_lock(serv);
+
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
     zval zdata;
     zval retval;
-    bool success;
     ssize_t ret = -1;
 
     // TODO: reduce memory copy
     ZVAL_STRINGL(&zdata, data, length);
-    success = sw_call_user_function_fast_ex(NULL, fci_cache, 1, &zdata, &retval) == SUCCESS;
-    zval_ptr_dtor(&zdata);
-    if (!success)
+    if (UNEXPECTED(sw_zend_call_function_ex(NULL, fci_cache, 1, &zdata, &retval) != SUCCESS))
     {
         swoole_php_fatal_error(E_WARNING, "length function handler error");
     }
@@ -134,7 +131,15 @@ static ssize_t php_swoole_server_length_func(swProtocol *protocol, swConnection 
         ret = zval_get_long(&retval);
         zval_ptr_dtor(&retval);
     }
+    zval_ptr_dtor(&zdata);
+
     swServer_unlock(serv);
+
+    /* the exception should only be thrown after unlocked */
+    if (UNEXPECTED(EG(exception)))
+    {
+        zend_exception_error(EG(exception), E_ERROR);
+    }
 
     return ret;
 }
