@@ -127,14 +127,16 @@ void swLog_put(int level, char *content, size_t length)
         break;
     }
 
-    n = sw_snprintf(log_str, SW_LOG_BUFFER_SIZE, "[%.*s %c%d.%d]\t%s\t%.*s\n", l_data_str, date_str, process_flag, SwooleG.pid, process_id, level_str, (int) length, content);
+    n = sw_snprintf(log_str, SW_LOG_BUFFER_SIZE, "[%.*s %c%d.%d]\t%s\t%.*s\n", l_data_str, date_str, process_flag,
+            SwooleG.pid, process_id, level_str, (int) length, content);
     if (flock(SwooleG.log_fd, LOCK_EX) == -1)
     {
-        _print: printf("write(log_fd, size=%d) failed. Error: %s[%d].\nMessage: %.*s\n", n, strerror(errno), errno, n, log_str);
+        goto _print;
     }
     if (write(SwooleG.log_fd, log_str, n) < 0)
     {
-        goto _print;
+        _print: printf("write(log_fd, size=%d) failed. Error: %s[%d].\nMessage: %.*s\n", n, strerror(errno), errno, n,
+                log_str);
     }
     if (flock(SwooleG.log_fd, LOCK_UN) == -1)
     {
