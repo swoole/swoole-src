@@ -184,7 +184,7 @@ static PHP_METHOD(swoole_process_pool, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "%s only can be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        swoole_php_fatal_error(E_ERROR, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
         RETURN_FALSE;
     }
 
@@ -273,6 +273,7 @@ static PHP_METHOD(swoole_process_pool, on)
         if (pp->onWorkerStart)
         {
             sw_fci_cache_discard(pp->onWorkerStart);
+            efree(pp->onWorkerStart);
         }
         else
         {
@@ -297,6 +298,7 @@ static PHP_METHOD(swoole_process_pool, on)
         if (pp->onMessage)
         {
             sw_fci_cache_discard(pp->onMessage);
+            efree(pp->onMessage);
         }
         else
         {
@@ -311,6 +313,7 @@ static PHP_METHOD(swoole_process_pool, on)
         if (pp->onWorkerStop)
         {
             sw_fci_cache_discard(pp->onWorkerStop);
+            efree(pp->onWorkerStop);
         }
         else
         {

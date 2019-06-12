@@ -372,7 +372,7 @@ void php_swoole_event_exit();
 enum swBool_type php_swoole_timer_clear(swTimer_node *tnode);
 enum swBool_type php_swoole_timer_clear_all();
 
-void php_swoole_register_callback(swServer *serv);
+void php_swoole_server_register_callbacks(swServer *serv);
 void php_swoole_trace_check(void *arg);
 void php_swoole_client_free(zval *zobject, swClient *cli);
 swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int port);
@@ -706,7 +706,7 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 
 //----------------------------------Class API------------------------------------
 
-#define SW_Z_OBJCE_NAME_VAL_P(ce) ZSTR_VAL(Z_OBJCE_P(ce)->name)
+#define SW_Z_OBJCE_NAME_VAL_P(zobject) ZSTR_VAL(Z_OBJCE_P(zobject)->name)
 
 /* PHP 7 class declaration macros */
 
