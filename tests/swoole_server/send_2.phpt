@@ -9,7 +9,7 @@ require __DIR__ . '/../include/skipif.inc';
 require __DIR__ . '/../include/bootstrap.php';
 
 const REQ_N = 128;
-const CLIENT_N = 8;
+const CLIENT_N = 16;
 
 $pm = new SwooleTest\ProcessManager;
 
@@ -51,7 +51,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $serv->set(array(
-        "worker_num" => 1,
+        "worker_num" => 4,
         'log_level' => SWOOLE_LOG_ERROR,
         'open_length_check' => true,
         'package_max_length' => 4 * 1024 * 1024,
