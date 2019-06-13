@@ -110,8 +110,7 @@ class swoole_curl_handler
         }
         $isRedirect = false;
         do {
-            if($isRedirect)
-            {
+            if ($isRedirect && !$client) {
                 $proto = swoole_array_default_value($this->urlInfo, 'scheme');
                 if ($proto != 'http' and $proto != 'https') {
                     $this->setError(CURLE_UNSUPPORTED_PROTOCOL, "Protocol \"{$proto}\" not supported or disabled in libcurl");
@@ -187,45 +186,46 @@ class swoole_curl_handler
                 $this->info['total_time'] = microtime(true) - $timeBegin;
                 return false;
             }
-            if($client->statusCode >= 300 && $client->statusCode < 400
-            && isset($client->headers['location']))
-            {
+            if (
+                $client->statusCode >= 300 && $client->statusCode < 400
+                && isset($client->headers['location'])
+            ) {
                 $redirectUri = $this->getRedirectUrl($client->headers['location']);
                 $redirectUrl = $this->unparseUrl($redirectUri);
-                if($this->followLocation
-                    && (null === $this->maxRedirs || $this->info['redirect_count'] < $this->maxRedirs)) {
+                if (
+                    $this->followLocation
+                    && (null === $this->maxRedirs || $this->info['redirect_count'] < $this->maxRedirs)
+                ) {
                     $isRedirect = true;
-                    if(0 === $this->info['redirect_count'])
-                    {
+                    if (0 === $this->info['redirect_count']) {
                         $this->info['starttransfer_time'] = microtime(true) - $timeBegin;
                         $redirectBeginTime = microtime(true);
                     }
                     // force GET
-                    if(in_array($client->statusCode, [301, 302, 303]))
-                    {
-                        $client->setMethod('GET');
+                    if (in_array($client->statusCode, [301, 302, 303])) {
+                        $this->method = 'GET';
+                    }
+                    if ($this->urlInfo['host'] !== $redirectUri['host'] || ($this->urlInfo['port'] ?? null) !== ($redirectUri['port'] ?? null) || $this->urlInfo['scheme'] !== $redirectUri['scheme']) {
+                        // If host, port, and scheme are the same, reuse $client. Otherwise, release the old $client
+                        $client = null;
                     }
                     $this->urlInfo = $redirectUri;
                     $this->info['url'] = $redirectUrl;
                     ++$this->info['redirect_count'];
-                }
-                else {
+                } else {
                     $this->info['redirect_url'] = $redirectUrl;
                     break;
                 }
-            }
-            else
-            {
+            } else {
                 break;
             }
-        } while(true);
+        } while (true);
         $this->info['total_time'] = microtime(true) - $timeBegin;
         $this->info['http_code'] = $client->statusCode;
         $this->info['content_type'] = $client->headers['content-type'];
         $this->info['size_download'] = $this->info['download_content_length'] = strlen($client->body);;
         $this->info['speed_download'] = 1 / $this->info['total_time'] * $this->info['size_download'];
-        if(isset($redirectBeginTime))
-        {
+        if (isset($redirectBeginTime)) {
             $this->info['redirect_time'] = microtime(true) - $redirectBeginTime;
         }
 
@@ -445,28 +445,27 @@ class swoole_curl_handler
     private function getRedirectUrl($location)
     {
         $uri = parse_url($location);
-        if(isset($uri['host'])) {
+        if (isset($uri['host'])) {
             $redirectUri = $uri;
         } else {
-            if(!isset($location[0])) {
+            if (!isset($location[0])) {
                 return;
             }
             $redirectUri = $this->urlInfo;
-            if('/' === $location[0]) {
+            if ('/' === $location[0]) {
                 $redirectUri['path'] = $location;
-            }
-            else {
+            } else {
                 $path = dirname($redirectUri['path'] ?? '');
-                if('.' === $path) {
+                if ('.' === $path) {
                     $path = '/';
                 }
-                if(isset($location[1]) && './' === substr($location, 0, 2)) {
+                if (isset($location[1]) && './' === substr($location, 0, 2)) {
                     $location = substr($location, 2);
                 }
                 $redirectUri['path'] = $path . $location;
             }
-            foreach($uri as $k => $v) {
-                if('path' !== $k) {
+            foreach ($uri as $k => $v) {
+                if ('path' !== $k) {
                     $redirectUri[$k] = $v;
                 }
             }
