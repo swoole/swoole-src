@@ -122,5 +122,3 @@ int php_do_getsockopt_ipv6_rfc3542(Socket *php_sock, int level, int optname, zva
 
 	return res == 0 ? SUCCESS : FAILURE;
 }
-
-

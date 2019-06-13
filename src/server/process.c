@@ -19,6 +19,8 @@
 
 #include <signal.h>
 
+#define SW_IPC_USE_SHM              1
+
 typedef struct _swFactoryProcess
 {
     swPipe *pipes;
@@ -441,19 +443,23 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 #ifdef __linux__
         _ipc_use_shm:
 #endif
+
+#if SW_IPC_USE_SHM
         if (worker == NULL || worker->send_shm == NULL)
         {
             goto _pack_data;
         }
-
         //worker process
         if (SwooleG.main_reactor)
+#endif
         {
             int _pipe_fd = swWorker_get_send_pipe(serv, session_id, conn->reactor_id);
             swConnection *_pipe_socket = swReactor_get(SwooleG.main_reactor, _pipe_fd);
 
+#if SW_IPC_USE_SHM
             //cannot use send_shm
             if (!swBuffer_empty(_pipe_socket->out_buffer))
+#endif
             {
                 _pack_data:
                 if (swTaskWorker_large_pack((swEventData *) buf, resp->data, resp->info.len) < 0)

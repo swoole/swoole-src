@@ -1171,13 +1171,11 @@ int swServer_master_send(swServer *serv, swSendData *_send)
  */
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
 {
-    swDataHead notify_event;
+    swDataHead notify_event = {0};
     notify_event.type = event;
     notify_event.reactor_id = conn->reactor_id;
     notify_event.fd = conn->fd;
     notify_event.server_fd = conn->server_fd;
-    notify_event.len = 0;
-    notify_event.flags = 0;
     return serv->factory.notify(&serv->factory, &notify_event);
 }
 

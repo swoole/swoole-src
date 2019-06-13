@@ -543,28 +543,31 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_websocket_server.cc"
 
     swoole_source_file="$swoole_source_file \
-        thirdparty/sockets/multicast.cc \
-        thirdparty/sockets/sendrecvmsg.cc \
-        thirdparty/sockets/conversions.cc \
-        thirdparty/sockets/sockaddr_conv.cc \
-        thirdparty/proc_open.cc \
+        thirdparty/php/sockets/multicast.cc \
+        thirdparty/php/sockets/sendrecvmsg.cc \
+        thirdparty/php/sockets/conversions.cc \
+        thirdparty/php/sockets/sockaddr_conv.cc \
+        thirdparty/php/standard/proc_open.cc"
+
+    swoole_source_file="$swoole_source_file \
         thirdparty/swoole_http_parser.c \
-	thirdparty/multipart_parser.c"
+	    thirdparty/multipart_parser.c"
 
     swoole_source_file="$swoole_source_file \
         thirdparty/hiredis/async.c \
         thirdparty/hiredis/hiredis.c \
         thirdparty/hiredis/net.c \
         thirdparty/hiredis/read.c \
-        thirdparty/hiredis/sds.c \
-        thirdparty/http2/nghttp2_hd.c \
-        thirdparty/http2/nghttp2_rcbuf.c \
-        thirdparty/http2/nghttp2_helper.c \
-        thirdparty/http2/nghttp2_buf.c \
-        thirdparty/http2/nghttp2_mem.c \
-        thirdparty/http2/nghttp2_hd_huffman.c \
-        thirdparty/http2/nghttp2_hd_huffman_data.c \
-        "
+        thirdparty/hiredis/sds.c"
+
+    swoole_source_file="$swoole_source_file \
+        thirdparty/nghttp2/nghttp2_hd.c \
+        thirdparty/nghttp2/nghttp2_rcbuf.c \
+        thirdparty/nghttp2/nghttp2_helper.c \
+        thirdparty/nghttp2/nghttp2_buf.c \
+        thirdparty/nghttp2/nghttp2_mem.c \
+        thirdparty/nghttp2/nghttp2_hd_huffman.c \
+        thirdparty/nghttp2/nghttp2_hd_huffman_data.c"
 
     SW_NO_USE_ASM_CONTEXT="no"
     SW_ASM_DIR="thirdparty/boost/asm/"
@@ -664,9 +667,10 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/src/protocol)
     PHP_ADD_BUILD_DIR($ext_builddir/src/coroutine)
     PHP_ADD_BUILD_DIR($ext_builddir/src/wrapper)
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/http2)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/sockets)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/sockets)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/standard)
 fi
