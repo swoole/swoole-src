@@ -235,7 +235,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
         }
         else if (ret == 0)
         {
-            if (reactor->onTimeout != NULL)
+            if (reactor->onTimeout)
             {
                 reactor->onTimeout(reactor);
             }
@@ -287,7 +287,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
             }
         }
         _continue:
-        if (reactor->onFinish != NULL)
+        if (reactor->onFinish)
         {
             reactor->onFinish(reactor);
         }

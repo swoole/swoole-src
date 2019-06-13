@@ -755,7 +755,6 @@ int swReactorThread_create(swServer *serv)
         swError("calloc[reactor_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swReactorThread)));
         return SW_ERR;
     }
-
     /**
      * alloc the memory for connection_list
      */
@@ -958,7 +957,6 @@ int swReactorThread_start(swServer *serv)
 
     return retval;
 }
-
 
 int swReactorThread_init_reactor(swServer *serv, swReactor *reactor, uint16_t reactor_id)
 {
