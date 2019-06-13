@@ -131,13 +131,13 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
 
     if (!fci_cache->function_handler)
     {
-        swoole_php_fatal_error(E_WARNING, "%s has no %s callback", SW_Z_OBJCE_NAME_VAL_P(zobject), callback_name);
+        php_swoole_fatal_error(E_WARNING, "%s has no %s callback", SW_Z_OBJCE_NAME_VAL_P(zobject), callback_name);
         return;
     }
 
     if (UNEXPECTED(sw_zend_call_function_ex2(NULL, fci_cache, 1, zobject, NULL) != SUCCESS))
     {
-        swoole_php_fatal_error(E_WARNING, "%s->%s handler error", SW_Z_OBJCE_NAME_VAL_P(zobject), callback_name);
+        php_swoole_fatal_error(E_WARNING, "%s->%s handler error", SW_Z_OBJCE_NAME_VAL_P(zobject), callback_name);
     }
 }
 
@@ -152,7 +152,7 @@ static sw_inline swClient* client_get_ptr(zval *zobject)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
         zend_update_property_long(swoole_client_ce, zobject, ZEND_STRL("errCode"), SwooleG.error);
-        swoole_php_error(E_WARNING, "client is not connected to server");
+        php_swoole_error(E_WARNING, "client is not connected to server");
         return NULL;
     }
 }
@@ -307,7 +307,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
 
     if (UNEXPECTED(sw_zend_call_function_ex2(NULL, fci_cache, 2, args, NULL) != SUCCESS))
     {
-        swoole_php_fatal_error(E_WARNING, "%s->onReceive handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        php_swoole_fatal_error(E_WARNING, "%s->onReceive handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
 
     zval_ptr_dtor(&args[1]);
@@ -332,7 +332,7 @@ static void client_onConnect(swClient *cli)
         client_callback *cb = (client_callback *) swoole_get_property(zobject, 0);
         if (!cb || !cb->cache_onReceive.function_handler)
         {
-            swoole_php_fatal_error(E_ERROR, "has no onReceive callback");
+            php_swoole_fatal_error(E_ERROR, "has no onReceive callback");
         }
     }
 }
@@ -385,7 +385,7 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset)
         zend::string str_v(ztmp);
         if (access(str_v.val(), R_OK) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found", str_v.val());
+            php_swoole_fatal_error(E_ERROR, "ssl cert file[%s] not found", str_v.val());
             return;
         }
         cli->ssl_option.cert_file = sw_strdup(str_v.val());
@@ -395,7 +395,7 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset)
         zend::string str_v(ztmp);
         if (access(str_v.val(), R_OK) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found", str_v.val());
+            php_swoole_fatal_error(E_ERROR, "ssl key file[%s] not found", str_v.val());
             return;
         }
         cli->ssl_option.key_file = sw_strdup(str_v.val());
@@ -436,7 +436,7 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset)
     }
     if (cli->ssl_option.cert_file && !cli->ssl_option.key_file)
     {
-        swoole_php_fatal_error(E_ERROR, "ssl require key file");
+        php_swoole_fatal_error(E_ERROR, "ssl require key file");
         return;
     }
 }
@@ -471,12 +471,12 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
         cli->protocol.package_eof_len = str_v.len();
         if (cli->protocol.package_eof_len == 0)
         {
-            swoole_php_fatal_error(E_ERROR, "pacakge_eof cannot be an empty string");
+            php_swoole_fatal_error(E_ERROR, "pacakge_eof cannot be an empty string");
             return;
         }
         else if (cli->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
         {
-            swoole_php_fatal_error(E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
+            php_swoole_fatal_error(E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
             return;
         }
         bzero(cli->protocol.package_eof, SW_DATA_EOF_MAXLEN);
@@ -503,7 +503,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
 
         if (cli->protocol.package_length_size == 0)
         {
-            swoole_php_fatal_error(E_ERROR, "Unknown package_length_type name '%c', see pack(). Link: http://php.net/pack", cli->protocol.package_length_type);
+            php_swoole_fatal_error(E_ERROR, "Unknown package_length_type name '%c', see pack(). Link: http://php.net/pack", cli->protocol.package_length_type);
             return;
         }
     }
@@ -537,7 +537,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
             zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
             if (!sw_zend_is_callable_ex(ztmp, NULL, 0, &func_name, NULL, fci_cache, NULL))
             {
-                swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+                php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
                 return;
             }
             efree(func_name);
@@ -653,13 +653,13 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
                 }
                 else
                 {
-                    swoole_php_fatal_error(E_WARNING, "socks5_password should not be null");
+                    php_swoole_fatal_error(E_WARNING, "socks5_password should not be null");
                 }
             }
         }
         else
         {
-            swoole_php_fatal_error(E_WARNING, "socks5_port should not be null");
+            php_swoole_fatal_error(E_WARNING, "socks5_port should not be null");
         }
     }
     /**
@@ -686,13 +686,13 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
                 }
                 else
                 {
-                    swoole_php_fatal_error(E_WARNING, "http_proxy_password should not be null");
+                    php_swoole_fatal_error(E_WARNING, "http_proxy_password should not be null");
                 }
             }
         }
         else
         {
-            swoole_php_fatal_error(E_WARNING, "http_proxy_port should not be null");
+            php_swoole_fatal_error(E_WARNING, "http_proxy_port should not be null");
         }
     }
     /**
@@ -795,7 +795,7 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
     ZVAL_STRINGL(&zdata, data, length);
     if (UNEXPECTED(sw_zend_call_function_ex2(NULL, fci_cache, 1, &zdata, &retval) != SUCCESS))
     {
-        swoole_php_fatal_error(E_WARNING, "length function handler error");
+        php_swoole_fatal_error(E_WARNING, "length function handler error");
     }
     else
     {
@@ -818,7 +818,7 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
 
     if (ztype == NULL || ZVAL_IS_NULL(ztype))
     {
-        swoole_php_fatal_error(E_ERROR, "failed to get swoole_client->type");
+        php_swoole_fatal_error(E_ERROR, "failed to get swoole_client->type");
         return NULL;
     }
 
@@ -832,7 +832,7 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
     int client_type = php_swoole_socktype(type);
     if ((client_type == SW_SOCK_TCP || client_type == SW_SOCK_TCP6) && (port <= 0 || port > SW_CLIENT_MAX_PORT))
     {
-        swoole_php_fatal_error(E_WARNING, "The port is invalid");
+        php_swoole_fatal_error(E_WARNING, "The port is invalid");
         SwooleG.error = SW_ERROR_INVALID_PARAMS;
         return NULL;
     }
@@ -885,7 +885,7 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
         _create_socket:
         if (swClient_create(cli, php_swoole_socktype(type), async) < 0)
         {
-            swoole_php_sys_error(E_WARNING, "swClient_create() failed");
+            php_swoole_sys_error(E_WARNING, "swClient_create() failed");
             zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), errno);
             return NULL;
         }
@@ -921,7 +921,7 @@ static PHP_METHOD(swoole_client, __construct)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|bs", &type, &async, &id, &len) == FAILURE)
     {
-        swoole_php_fatal_error(E_ERROR, "socket type param is required");
+        php_swoole_fatal_error(E_ERROR, "socket type param is required");
         RETURN_FALSE;
     }
 
@@ -934,7 +934,7 @@ static PHP_METHOD(swoole_client, __construct)
     {
         if ((type & SW_FLAG_KEEP) && SWOOLE_G(cli))
         {
-            swoole_php_fatal_error(E_ERROR, "The 'SWOOLE_KEEP' flag can only be used in the php-fpm or apache environment");
+            php_swoole_fatal_error(E_ERROR, "The 'SWOOLE_KEEP' flag can only be used in the php-fpm or apache environment");
         }
         php_swoole_check_reactor();
     }
@@ -1019,14 +1019,14 @@ static PHP_METHOD(swoole_client, connect)
 
     if (host_len == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "The host is empty");
+        php_swoole_fatal_error(E_WARNING, "The host is empty");
         RETURN_FALSE;
     }
 
     swClient *cli = (swClient *) swoole_get_object(getThis());
     if (cli)
     {
-        swoole_php_fatal_error(E_WARNING, "connection to the server has already been established");
+        php_swoole_fatal_error(E_WARNING, "connection to the server has already been established");
         RETURN_FALSE;
     }
 
@@ -1054,7 +1054,7 @@ static PHP_METHOD(swoole_client, connect)
     }
     else if (cli->socket->active == 1)
     {
-        swoole_php_fatal_error(E_WARNING, "connection to the server has already been established");
+        php_swoole_fatal_error(E_WARNING, "connection to the server has already been established");
         RETURN_FALSE;
     }
 
@@ -1070,29 +1070,29 @@ static PHP_METHOD(swoole_client, connect)
         client_callback *cb = (client_callback *) swoole_get_property(getThis(), 0);
         if (!cb)
         {
-            swoole_php_fatal_error(E_ERROR, "no event callback function");
+            php_swoole_fatal_error(E_ERROR, "no event callback function");
             RETURN_FALSE;
         }
         if (!cb->cache_onReceive.function_handler)
         {
-            swoole_php_fatal_error(E_ERROR, "no 'onReceive' callback function");
+            php_swoole_fatal_error(E_ERROR, "no 'onReceive' callback function");
             RETURN_FALSE;
         }
         if (swSocket_is_stream(cli->type))
         {
             if (!cb->cache_onConnect.function_handler)
             {
-                swoole_php_fatal_error(E_ERROR, "no 'onConnect' callback function");
+                php_swoole_fatal_error(E_ERROR, "no 'onConnect' callback function");
                 RETURN_FALSE;
             }
             if (!cb->cache_onError.function_handler)
             {
-                swoole_php_fatal_error(E_ERROR, "no 'onError' callback function");
+                php_swoole_fatal_error(E_ERROR, "no 'onError' callback function");
                 RETURN_FALSE;
             }
             if (!cb->cache_onClose.function_handler)
             {
-                swoole_php_fatal_error(E_ERROR, "no 'onClose' callback function");
+                php_swoole_fatal_error(E_ERROR, "no 'onClose' callback function");
                 RETURN_FALSE;
             }
             cli->onConnect = client_onConnect;
@@ -1140,13 +1140,13 @@ static PHP_METHOD(swoole_client, connect)
         {
             if (SwooleG.error == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED)
             {
-                swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int) port, hstrerror(h_errno), h_errno);
+                php_swoole_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int) port, hstrerror(h_errno), h_errno);
             }
             zend_update_property_long(swoole_client_ce, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         }
         else
         {
-            swoole_php_sys_error(E_WARNING, "connect to server[%s:%d] failed", host, (int )port);
+            php_swoole_sys_error(E_WARNING, "connect to server[%s:%d] failed", host, (int )port);
             zend_update_property_long(swoole_client_ce, getThis(), ZEND_STRL("errCode"), errno);
         }
         if (cli->async && cli->onError == NULL)
@@ -1177,7 +1177,7 @@ static PHP_METHOD(swoole_client, send)
 
     if (data_len == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "data to send is empty");
+        php_swoole_fatal_error(E_WARNING, "data to send is empty");
         RETURN_FALSE;
     }
 
@@ -1192,7 +1192,7 @@ static PHP_METHOD(swoole_client, send)
     int ret = cli->send(cli, data, data_len, flags);
     if (ret < 0)
     {
-        swoole_php_sys_error(E_WARNING, "failed to send(%d) %zu bytes", cli->socket->fd, data_len);
+        php_swoole_sys_error(E_WARNING, "failed to send(%d) %zu bytes", cli->socket->fd, data_len);
         zend_update_property_long(swoole_client_ce, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         RETVAL_FALSE;
     }
@@ -1217,7 +1217,7 @@ static PHP_METHOD(swoole_client, sendto)
 
     if (len == 0)
     {
-        swoole_php_error(E_WARNING, "data to send is empty");
+        php_swoole_error(E_WARNING, "data to send is empty");
         RETURN_FALSE;
     }
 
@@ -1248,7 +1248,7 @@ static PHP_METHOD(swoole_client, sendto)
     }
     else
     {
-        swoole_php_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
+        php_swoole_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
         RETURN_FALSE;
     }
     SW_CHECK_RETURN(ret);
@@ -1267,7 +1267,7 @@ static PHP_METHOD(swoole_client, sendfile)
     }
     if (file_len == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "file to send is empty");
+        php_swoole_fatal_error(E_WARNING, "file to send is empty");
         RETURN_FALSE;
     }
 
@@ -1279,7 +1279,7 @@ static PHP_METHOD(swoole_client, sendfile)
     //only stream socket can sendfile
     if (!(cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6 || cli->type == SW_SOCK_UNIX_STREAM))
     {
-        swoole_php_error(E_WARNING, "dgram socket cannot use sendfile");
+        php_swoole_error(E_WARNING, "dgram socket cannot use sendfile");
         RETURN_FALSE;
     }
     //clear errno
@@ -1288,7 +1288,7 @@ static PHP_METHOD(swoole_client, sendfile)
     if (ret < 0)
     {
         SwooleG.error = errno;
-        swoole_php_fatal_error(E_WARNING, "sendfile() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
+        php_swoole_fatal_error(E_WARNING, "sendfile() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
         zend_update_property_long(swoole_client_ce, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         RETVAL_FALSE;
     }
@@ -1353,7 +1353,7 @@ static PHP_METHOD(swoole_client, recv)
             ret = cli->recv(cli, buf, buf_len, 0);
             if (ret < 0)
             {
-                swoole_php_sys_error(E_WARNING, "recv() failed");
+                php_swoole_sys_error(E_WARNING, "recv() failed");
                 buffer->length = 0;
                 RETURN_FALSE;
             }
@@ -1391,7 +1391,7 @@ static PHP_METHOD(swoole_client, recv)
             {
                 if (buffer->length == protocol->package_max_length)
                 {
-                    swoole_php_error(E_WARNING, "no package eof");
+                    php_swoole_error(E_WARNING, "no package eof");
                     buffer->length = 0;
                     RETURN_FALSE;
                 }
@@ -1499,7 +1499,7 @@ static PHP_METHOD(swoole_client, recv)
     if (ret < 0)
     {
         SwooleG.error = errno;
-        swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
+        php_swoole_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
         zend_update_property_long(swoole_client_ce, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         if (buf)
         {
@@ -1550,14 +1550,14 @@ static PHP_METHOD(swoole_client, getsockname)
 
     if (cli->type == SW_SOCK_UNIX_STREAM || cli->type == SW_SOCK_UNIX_DGRAM)
     {
-        swoole_php_fatal_error(E_WARNING, "getsockname() only support AF_INET family socket");
+        php_swoole_fatal_error(E_WARNING, "getsockname() only support AF_INET family socket");
         RETURN_FALSE;
     }
 
     cli->socket->info.len = sizeof(cli->socket->info.addr);
     if (getsockname(cli->socket->fd, (struct sockaddr*) &cli->socket->info.addr, &cli->socket->info.len) < 0)
     {
-        swoole_php_sys_error(E_WARNING, "getsockname() failed");
+        php_swoole_sys_error(E_WARNING, "getsockname() failed");
         RETURN_FALSE;
     }
 
@@ -1572,7 +1572,7 @@ static PHP_METHOD(swoole_client, getsockname)
         }
         else
         {
-            swoole_php_fatal_error(E_WARNING, "inet_ntop() failed");
+            php_swoole_fatal_error(E_WARNING, "inet_ntop() failed");
         }
     }
     else
@@ -1597,7 +1597,7 @@ static PHP_METHOD(swoole_client, getSocket)
     }
     if (cli->keep)
     {
-        swoole_php_fatal_error(E_WARNING, "the 'getSocket' method can't be used on persistent connection");
+        php_swoole_fatal_error(E_WARNING, "the 'getSocket' method can't be used on persistent connection");
         RETURN_FALSE;
     }
     php_socket *socket_object = swoole_convert_to_socket(cli->socket->fd);
@@ -1638,7 +1638,7 @@ static PHP_METHOD(swoole_client, getpeername)
         }
         else
         {
-            swoole_php_fatal_error(E_WARNING, "inet_ntop() failed");
+            php_swoole_fatal_error(E_WARNING, "inet_ntop() failed");
         }
     }
     else if (cli->type == SW_SOCK_UNIX_DGRAM)
@@ -1647,7 +1647,7 @@ static PHP_METHOD(swoole_client, getpeername)
     }
     else
     {
-        swoole_php_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
+        php_swoole_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
         RETURN_FALSE;
     }
 }
@@ -1665,12 +1665,12 @@ static PHP_METHOD(swoole_client, close)
     swClient *cli = (swClient *) swoole_get_object(getThis());
     if (!cli || !cli->socket)
     {
-        swoole_php_fatal_error(E_WARNING, "client is not connected to the server");
+        php_swoole_fatal_error(E_WARNING, "client is not connected to the server");
         RETURN_FALSE;
     }
     if (cli->socket->closed)
     {
-        swoole_php_error(E_WARNING, "client socket is closed");
+        php_swoole_error(E_WARNING, "client socket is closed");
         RETURN_FALSE;
     }
     if (cli->async && cli->socket->active == 0)
@@ -1727,13 +1727,13 @@ static PHP_METHOD(swoole_client, on)
     zval *ztype = sw_zend_read_property(swoole_client_ce, getThis(), ZEND_STRL("type"), 0);
     if (ztype == NULL || ZVAL_IS_NULL(ztype))
     {
-        swoole_php_fatal_error(E_ERROR, "get swoole_client->type failed");
+        php_swoole_fatal_error(E_ERROR, "get swoole_client->type failed");
         return;
     }
 
     if (!(Z_LVAL_P(ztype) & SW_FLAG_ASYNC))
     {
-        swoole_php_fatal_error(E_ERROR, "can't register event callback functions in SYNC mode");
+        php_swoole_fatal_error(E_ERROR, "can't register event callback functions in SYNC mode");
         return;
     }
 
@@ -1749,7 +1749,7 @@ static PHP_METHOD(swoole_client, on)
     zend_fcall_info_cache func_cache;
     if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, NULL, &func_cache, NULL))
     {
-        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+        php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;
     }
     efree(func_name);
@@ -1786,7 +1786,7 @@ static PHP_METHOD(swoole_client, on)
     }
     else
     {
-        swoole_php_fatal_error(E_WARNING, "Unknown event callback type name '%s'", cb_name);
+        php_swoole_fatal_error(E_WARNING, "Unknown event callback type name '%s'", cb_name);
         RETURN_FALSE;
     }
     RETURN_TRUE;
@@ -1822,12 +1822,12 @@ static PHP_METHOD(swoole_client, enableSSL)
     }
     if (cli->type != SW_SOCK_TCP && cli->type != SW_SOCK_TCP6)
     {
-        swoole_php_fatal_error(E_WARNING, "cannot use enableSSL");
+        php_swoole_fatal_error(E_WARNING, "cannot use enableSSL");
         RETURN_FALSE;
     }
     if (cli->socket->ssl)
     {
-        swoole_php_fatal_error(E_WARNING, "SSL has been enabled");
+        php_swoole_fatal_error(E_WARNING, "SSL has been enabled");
         RETURN_FALSE;
     }
     cli->open_ssl = 1;
@@ -1851,7 +1851,7 @@ static PHP_METHOD(swoole_client, enableSSL)
         zend_fcall_info_cache func_cache;
         if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, NULL, &func_cache, NULL))
         {
-            swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+            php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
             return;
         }
         efree(func_name);
@@ -1859,7 +1859,7 @@ static PHP_METHOD(swoole_client, enableSSL)
         client_callback *cb = (client_callback *) swoole_get_property(getThis(), client_property_callback);
         if (!cb)
         {
-            swoole_php_fatal_error(E_WARNING, "the object is not an instance of swoole_client");
+            php_swoole_fatal_error(E_WARNING, "the object is not an instance of swoole_client");
             RETURN_FALSE;
         }
         zend_update_property(swoole_client_ce, getThis(), ZEND_STRL("onSSLReady"), zcallback);
@@ -1889,7 +1889,7 @@ static PHP_METHOD(swoole_client, getPeerCert)
     }
     if (!cli->socket->ssl)
     {
-        swoole_php_fatal_error(E_WARNING, "SSL is not ready");
+        php_swoole_fatal_error(E_WARNING, "SSL is not ready");
         RETURN_FALSE;
     }
     char buf[8192];
@@ -1910,7 +1910,7 @@ static PHP_METHOD(swoole_client, verifyPeerCert)
     }
     if (!cli->socket->ssl)
     {
-        swoole_php_fatal_error(E_WARNING, "SSL is not ready");
+        php_swoole_fatal_error(E_WARNING, "SSL is not ready");
         RETURN_FALSE;
     }
     zend_bool allow_self_signed = 0;
@@ -2005,7 +2005,7 @@ PHP_FUNCTION(swoole_client_select)
     if (index == 0)
     {
         efree(fds);
-        swoole_php_fatal_error(E_WARNING, "no resource arrays were passed to select");
+        php_swoole_fatal_error(E_WARNING, "no resource arrays were passed to select");
         RETURN_FALSE;
     }
 
@@ -2013,7 +2013,7 @@ PHP_FUNCTION(swoole_client_select)
     if (retval == -1)
     {
         efree(fds);
-        swoole_php_sys_error(E_WARNING, "unable to poll()");
+        php_swoole_sys_error(E_WARNING, "unable to poll()");
         RETURN_FALSE;
     }
 
@@ -2055,13 +2055,13 @@ PHP_FUNCTION(swoole_client_select)
 
     if (!sets)
     {
-        swoole_php_fatal_error(E_WARNING, "no resource arrays were passed to select");
+        php_swoole_fatal_error(E_WARNING, "no resource arrays were passed to select");
         RETURN_FALSE;
     }
 
     if (max_fd >= FD_SETSIZE)
     {
-        swoole_php_fatal_error(E_WARNING, "select max_fd > FD_SETSIZE[%d]", FD_SETSIZE);
+        php_swoole_fatal_error(E_WARNING, "select max_fd > FD_SETSIZE[%d]", FD_SETSIZE);
         RETURN_FALSE;
     }
     timeo.tv_sec = (int) timeout;
@@ -2070,7 +2070,7 @@ PHP_FUNCTION(swoole_client_select)
     retval = select(max_fd + 1, &rfds, &wfds, &efds, &timeo);
     if (retval == -1)
     {
-        swoole_php_sys_error(E_WARNING, "unable to select");
+        php_swoole_sys_error(E_WARNING, "unable to select");
         RETURN_FALSE;
     }
     if (r_array != NULL)
@@ -2131,7 +2131,7 @@ static int client_poll_wait(zval *sock_array, struct pollfd *fds, int maxevents,
         poll_key = client_poll_get(fds, maxevents, sock);
         if (poll_key == -1)
         {
-            swoole_php_fatal_error(E_WARNING, "bad fd[%d]", sock);
+            php_swoole_fatal_error(E_WARNING, "bad fd[%d]", sock);
             continue;
         }
         if (!(fds[poll_key].revents & revent))
@@ -2266,7 +2266,7 @@ static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd)
         }
         else
         {
-            swoole_php_fatal_error(E_WARNING, "socket[%d] > FD_SETSIZE[%d]", sock, FD_SETSIZE);
+            php_swoole_fatal_error(E_WARNING, "socket[%d] > FD_SETSIZE[%d]", sock, FD_SETSIZE);
             continue;
         }
         if (sock > *max_fd)

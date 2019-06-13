@@ -139,7 +139,7 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
     php_swoole_fci *fci = (php_swoole_fci *) tnode->data;
     if (UNEXPECTED(!zend::function::call(&fci->fci_cache, fci->fci.param_count, fci->fci.params, NULL, SwooleG.enable_coroutine)))
     {
-        swoole_php_error(E_WARNING, "%s->onTimeout handler error", ZSTR_VAL(swoole_timer_ce->name));
+        php_swoole_error(E_WARNING, "%s->onTimeout handler error", ZSTR_VAL(swoole_timer_ce->name));
     }
     if (!tnode->interval || tnode->removed)
     {
@@ -161,7 +161,7 @@ static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent)
 
     if (UNEXPECTED(ms < SW_TIMER_MIN_MS))
     {
-        swoole_php_fatal_error(E_WARNING, "Timer must be greater than or equal to " ZEND_TOSTR(SW_TIMER_MIN_MS));
+        php_swoole_fatal_error(E_WARNING, "Timer must be greater than or equal to " ZEND_TOSTR(SW_TIMER_MIN_MS));
         _failed:
         efree(fci);
         RETURN_FALSE;
@@ -176,7 +176,7 @@ static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent)
     tnode = swTimer_add(&SwooleG.timer, ms, persistent, fci, php_swoole_onTimeout);
     if (UNEXPECTED(!tnode))
     {
-        swoole_php_fatal_error(E_WARNING, "add timer failed");
+        php_swoole_fatal_error(E_WARNING, "add timer failed");
         goto _failed;
     }
     tnode->type = SW_TIMER_TYPE_PHP;

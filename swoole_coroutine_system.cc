@@ -33,7 +33,7 @@ PHP_METHOD(swoole_coroutine_system, sleep)
 
     if (UNEXPECTED(seconds < SW_TIMER_MIN_SEC))
     {
-        swoole_php_fatal_error(E_WARNING, "Timer must be greater than or equal to " ZEND_TOSTR(SW_TIMER_MIN_SEC));
+        php_swoole_fatal_error(E_WARNING, "Timer must be greater than or equal to " ZEND_TOSTR(SW_TIMER_MIN_SEC));
         RETURN_FALSE;
     }
     System::sleep(seconds);
@@ -373,7 +373,7 @@ PHP_METHOD(swoole_coroutine_system, fgets)
 
     if (async == 1)
     {
-        swoole_php_fatal_error(E_WARNING, "only support file resources");
+        php_swoole_fatal_error(E_WARNING, "only support file resources");
         RETURN_FALSE;
     }
 
@@ -583,13 +583,13 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname)
 
     if (l_domain_name == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "domain name is empty");
+        php_swoole_fatal_error(E_WARNING, "domain name is empty");
         RETURN_FALSE;
     }
 
     if (family != AF_INET && family != AF_INET6)
     {
-        swoole_php_fatal_error(E_WARNING, "unknown protocol family, must be AF_INET or AF_INET6");
+        php_swoole_fatal_error(E_WARNING, "unknown protocol family, must be AF_INET or AF_INET6");
         RETURN_FALSE;
     }
 
@@ -628,13 +628,13 @@ PHP_METHOD(swoole_coroutine_system, getaddrinfo)
 
     if (l_hostname == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "hostname is empty");
+        php_swoole_fatal_error(E_WARNING, "hostname is empty");
         RETURN_FALSE;
     }
 
     if (family != AF_INET && family != AF_INET6)
     {
-        swoole_php_fatal_error(E_WARNING, "unknown protocol family, must be AF_INET or AF_INET6");
+        php_swoole_fatal_error(E_WARNING, "unknown protocol family, must be AF_INET or AF_INET6");
         RETURN_FALSE;
     }
 
@@ -693,7 +693,7 @@ PHP_FUNCTION(swoole_coroutine_exec)
 
     if (php_swoole_signal_isset_handler(SIGCHLD))
     {
-        swoole_php_error(E_WARNING, "The signal [SIGCHLD] is registered, cannot execute swoole_coroutine_exec");
+        php_swoole_error(E_WARNING, "The signal [SIGCHLD] is registered, cannot execute swoole_coroutine_exec");
         RETURN_FALSE;
     }
 
@@ -704,7 +704,7 @@ PHP_FUNCTION(swoole_coroutine_exec)
     int fd = swoole_shell_exec(command, &pid, get_error_stream);
     if (fd < 0)
     {
-        swoole_php_error(E_WARNING, "Unable to execute '%s'", command);
+        php_swoole_error(E_WARNING, "Unable to execute '%s'", command);
         RETURN_FALSE;
     }
 

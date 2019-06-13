@@ -99,7 +99,7 @@ static void swoole_buffer_recycle(swString *buffer)
 
 static PHP_METHOD(swoole_buffer, __construct)
 {
-    swoole_php_fatal_error(
+    php_swoole_fatal_error(
         E_DEPRECATED, "Class %s is deprecated, it will be removed in v4.5.0",
         ZSTR_VAL(swoole_buffer_ce->name)
     );
@@ -212,7 +212,7 @@ static PHP_METHOD(swoole_buffer, substr)
     }
     if (length + offset > buffer->length)
     {
-        swoole_php_error(E_WARNING, "offset(" ZEND_LONG_FMT ", " ZEND_LONG_FMT ") is out of bounds", offset, length);
+        php_swoole_error(E_WARNING, "offset(" ZEND_LONG_FMT ", " ZEND_LONG_FMT ") is out of bounds", offset, length);
         RETURN_FALSE;
     }
     if (remove)

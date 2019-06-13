@@ -654,7 +654,7 @@ bool mysql_client::connect(std::string host, uint16_t port, bool ssl)
         }
         if (unlikely(socket->socket == nullptr))
         {
-            swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
+            php_swoole_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
             non_sql_error(MYSQLND_CR_CONNECTION_ERROR, strerror(errno));
             delete socket;
             socket = nullptr;
@@ -1894,7 +1894,7 @@ static sw_inline zend_object* swoole_mysql_coro_statement_create_object(mysql_st
 
 static zend_object* swoole_mysql_coro_statement_create_object(zend_class_entry *ce)
 {
-    swoole_php_fatal_error(E_ERROR, "you must create mysql statement object by prepare method");
+    php_swoole_fatal_error(E_ERROR, "you must create mysql statement object by prepare method");
     return nullptr;
 }
 
@@ -2370,19 +2370,19 @@ static PHP_METHOD(swoole_mysql_coro, escape)
     char *newstr = (char *) safe_emalloc(2, str_length + 1, 1);
     if (!newstr)
     {
-        swoole_php_fatal_error(E_ERROR, "emalloc(%ld) failed", str_length + 1);
+        php_swoole_fatal_error(E_ERROR, "emalloc(%ld) failed", str_length + 1);
         RETURN_FALSE;
     }
     const MYSQLND_CHARSET* cset = mysqlnd_find_charset_nr(mc->charset);
     if (!cset)
     {
-        swoole_php_fatal_error(E_ERROR, "unknown mysql charset[%d]", mc->charset);
+        php_swoole_fatal_error(E_ERROR, "unknown mysql charset[%d]", mc->charset);
         RETURN_FALSE;
     }
     zend_ulong newstr_len = mysqlnd_cset_escape_slashes(cset, newstr, str, str_length);
     if (newstr_len == (zend_ulong) ~0)
     {
-        swoole_php_fatal_error(E_ERROR, "mysqlnd_cset_escape_slashes() failed");
+        php_swoole_fatal_error(E_ERROR, "mysqlnd_cset_escape_slashes() failed");
         RETURN_FALSE;
     }
     RETVAL_STRINGL(newstr, newstr_len);

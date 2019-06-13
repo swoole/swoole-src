@@ -87,7 +87,7 @@ void swoole_lock_init(int module_number)
 
 static PHP_METHOD(swoole_lock, __construct)
 {
-    swoole_php_fatal_error(
+    php_swoole_fatal_error(
         E_DEPRECATED, "Class %s is deprecated, it will be removed in v4.5.0",
         ZSTR_VAL(swoole_lock_ce->name)
     );
@@ -199,7 +199,7 @@ static PHP_METHOD(swoole_lock, trylock)
     swLock *lock = swoole_get_object(getThis());
     if (lock->trylock == NULL)
     {
-        swoole_php_error(E_WARNING, "lock[type=%d] can't use trylock", lock->type);
+        php_swoole_error(E_WARNING, "lock[type=%d] can't use trylock", lock->type);
         RETURN_FALSE;
     }
     SW_LOCK_CHECK_RETURN(lock->trylock(lock));
@@ -210,7 +210,7 @@ static PHP_METHOD(swoole_lock, trylock_read)
     swLock *lock = swoole_get_object(getThis());
     if (lock->trylock_rd == NULL)
     {
-        swoole_php_error(E_WARNING, "lock[type=%d] can't use trylock_read", lock->type);
+        php_swoole_error(E_WARNING, "lock[type=%d] can't use trylock_read", lock->type);
         RETURN_FALSE;
     }
     SW_LOCK_CHECK_RETURN(lock->trylock_rd(lock));
@@ -221,7 +221,7 @@ static PHP_METHOD(swoole_lock, lock_read)
     swLock *lock = swoole_get_object(getThis());
     if (lock->lock_rd == NULL)
     {
-        swoole_php_error(E_WARNING, "lock[type=%d] can't use lock_read", lock->type);
+        php_swoole_error(E_WARNING, "lock[type=%d] can't use lock_read", lock->type);
         RETURN_FALSE;
     }
     SW_LOCK_CHECK_RETURN(lock->lock_rd(lock));

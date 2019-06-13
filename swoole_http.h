@@ -307,7 +307,7 @@ public:
         }
         else
         {
-            swoole_php_fatal_error(E_WARNING, "unexpect http2 header [%.*s] (duplicated or overflow)", (int) name_len, name);
+            php_swoole_fatal_error(E_WARNING, "unexpect http2 header [%.*s] (duplicated or overflow)", (int) name_len, name);
         }
     }
 

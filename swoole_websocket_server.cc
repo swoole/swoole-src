@@ -183,7 +183,7 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
     }
     if (unlikely(opcode > SW_WEBSOCKET_OPCODE_MAX))
     {
-        swoole_php_fatal_error(E_WARNING, "the maximum value of opcode is %d", SW_WEBSOCKET_OPCODE_MAX);
+        php_swoole_fatal_error(E_WARNING, "the maximum value of opcode is %d", SW_WEBSOCKET_OPCODE_MAX);
         return SW_ERR;
     }
     zend::string str_zdata;
@@ -219,7 +219,7 @@ void swoole_websocket_onOpen(swServer *serv, http_context *ctx)
         args[1] = *ctx->request.zobject;
         if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
         {
-            swoole_php_error(E_WARNING, "%s->onOpen handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
+            php_swoole_error(E_WARNING, "%s->onOpen handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
             serv->close(serv, ctx->fd, 0);
         }
     }
@@ -262,7 +262,7 @@ bool swoole_websocket_handshake(http_context *ctx)
 
     if (!(pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-key"))))
     {
-        swoole_php_fatal_error(E_WARNING, "header no sec-websocket-key");
+        php_swoole_fatal_error(E_WARNING, "header no sec-websocket-key");
         return false;
     }
 
@@ -345,7 +345,7 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
     {
-        swoole_php_error(E_WARNING, "%s->onMessage handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
+        php_swoole_error(E_WARNING, "%s->onMessage handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
         serv->close(serv, fd, 0);
     }
 
@@ -454,7 +454,7 @@ static sw_inline int swoole_websocket_server_push(swServer *serv, int fd, swStri
 {
     if (unlikely(fd <= 0))
     {
-        swoole_php_fatal_error(E_WARNING, "fd[%d] is invalid", fd);
+        php_swoole_fatal_error(E_WARNING, "fd[%d] is invalid", fd);
         return SW_ERR;
     }
 
@@ -462,7 +462,7 @@ static sw_inline int swoole_websocket_server_push(swServer *serv, int fd, swStri
     if (!conn || conn->websocket_status < WEBSOCKET_STATUS_HANDSHAKE)
     {
         SwooleG.error = SW_ERROR_WEBSOCKET_UNCONNECTED;
-        swoole_php_fatal_error(E_WARNING, "the connected client of connection[%d] is not a websocket client or closed", (int ) fd);
+        php_swoole_fatal_error(E_WARNING, "the connected client of connection[%d] is not a websocket client or closed", (int ) fd);
         return SW_ERR;
     }
 

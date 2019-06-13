@@ -195,7 +195,7 @@ PHP_FUNCTION(swoole_async_set)
 {
     if (SwooleG.main_reactor != NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings");
+        php_swoole_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings");
         RETURN_FALSE;
     }
 
@@ -288,13 +288,13 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
 
     if (Z_TYPE_P(domain) != IS_STRING)
     {
-        swoole_php_fatal_error(E_WARNING, "invalid domain name");
+        php_swoole_fatal_error(E_WARNING, "invalid domain name");
         RETURN_FALSE;
     }
 
     if (Z_STRLEN_P(domain) == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "domain name empty");
+        php_swoole_fatal_error(E_WARNING, "domain name empty");
         RETURN_FALSE;
     }
 

@@ -55,7 +55,7 @@ PHP_FUNCTION(swoole_coroutine_create)
         zend_function *func = (zend_function *) EG(current_execute_data)->prev_execute_data->func;
         if (func->common.function_name && unlikely(memcmp(ZSTR_VAL(func->common.function_name), ZEND_STRS("__destruct")) == 0))
         {
-            swoole_php_fatal_error(E_ERROR, "can not use coroutine in __destruct after php_request_shutdown");
+            php_swoole_fatal_error(E_ERROR, "can not use coroutine in __destruct after php_request_shutdown");
             RETURN_FALSE;
         }
     }
@@ -222,7 +222,7 @@ PHP_METHOD(swoole_coroutine_scheduler, resume)
     auto coroutine_iterator = user_yield_coros.find(cid);
     if (coroutine_iterator == user_yield_coros.end())
     {
-        swoole_php_fatal_error(E_WARNING, "you can not resume the coroutine which is in IO operation or non-existent");
+        php_swoole_fatal_error(E_WARNING, "you can not resume the coroutine which is in IO operation or non-existent");
         RETURN_FALSE;
     }
 

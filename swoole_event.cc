@@ -140,7 +140,7 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
 
     if (UNEXPECTED(sw_zend_call_function_ex2(NULL, &peo->fci_cache_read, 1, &peo->zsocket, NULL) != SUCCESS))
     {
-        swoole_php_fatal_error(E_WARNING, "%s: onRead callback handler error, fd [%d] will be removed from reactor", ZSTR_VAL(swoole_event_ce->name), swoole_convert_to_fd(&peo->zsocket));
+        php_swoole_fatal_error(E_WARNING, "%s: onRead callback handler error, fd [%d] will be removed from reactor", ZSTR_VAL(swoole_event_ce->name), swoole_convert_to_fd(&peo->zsocket));
         event->socket->object = NULL;
         SwooleG.main_reactor->defer(SwooleG.main_reactor, php_event_object_free, peo);
         SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
@@ -156,7 +156,7 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 
     if (UNEXPECTED(sw_zend_call_function_ex2(NULL, &peo->fci_cache_write, 1, &peo->zsocket, NULL) != SUCCESS))
     {
-        swoole_php_fatal_error(E_WARNING, "%s: onWrite callback handler error, fd [%d] will be removed from reactor", ZSTR_VAL(swoole_event_ce->name), swoole_convert_to_fd(&peo->zsocket));
+        php_swoole_fatal_error(E_WARNING, "%s: onWrite callback handler error, fd [%d] will be removed from reactor", ZSTR_VAL(swoole_event_ce->name), swoole_convert_to_fd(&peo->zsocket));
         event->socket->object = NULL;
         SwooleG.main_reactor->defer(SwooleG.main_reactor, php_event_object_free, peo);
         SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
@@ -173,12 +173,12 @@ static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
 
     if (getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
     {
-        swoole_php_sys_error(E_WARNING, "swoole_event->onError[1]: getsockopt[sock=%d] failed", event->fd);
+        php_swoole_sys_error(E_WARNING, "swoole_event->onError[1]: getsockopt[sock=%d] failed", event->fd);
     }
 
     if (error != 0)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_event->onError[1]: socket error. Error: %s [%d]", strerror(error), error);
+        php_swoole_fatal_error(E_WARNING, "swoole_event->onError[1]: socket error. Error: %s [%d]", strerror(error), error);
     }
 
     php_event_object_free(event->socket->object);
@@ -195,11 +195,16 @@ static void php_swoole_event_onDefer(void *data)
 
     if (UNEXPECTED(sw_zend_call_function_ex2(NULL, fci_cache, 0, NULL, NULL) != SUCCESS))
     {
-        swoole_php_error(E_WARNING, "%s::defer callback handler error", ZSTR_VAL(swoole_event_ce->name));
+        php_swoole_error(E_WARNING, "%s::defer callback handler error", ZSTR_VAL(swoole_event_ce->name));
     }
 
     sw_zend_fci_cache_discard(fci_cache);
     efree(fci_cache);
+}
+
+static int reactor_can_exit(swReactor *reactor)
+{
+    return Coroutine::count() == 0;
 }
 
 static void php_swoole_event_onEndCallback(void *data)
@@ -208,7 +213,7 @@ static void php_swoole_event_onEndCallback(void *data)
 
     if (UNEXPECTED(sw_zend_call_function_ex2(NULL, (zend_fcall_info_cache *) fci_cache, 0, NULL, NULL) != SUCCESS))
     {
-        swoole_php_error(E_WARNING, "%s::defer callback handler error", ZSTR_VAL(swoole_event_ce->name));
+        php_swoole_error(E_WARNING, "%s::defer callback handler error", ZSTR_VAL(swoole_event_ce->name));
     }
 }
 
@@ -216,7 +221,7 @@ void php_swoole_reactor_init()
 {
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "async-io must be used in PHP CLI mode");
+        php_swoole_fatal_error(E_ERROR, "async-io must be used in PHP CLI mode");
         return;
     }
 
@@ -224,12 +229,12 @@ void php_swoole_reactor_init()
     {
         if (swIsTaskWorker() && !SwooleG.serv->task_enable_coroutine)
         {
-            swoole_php_fatal_error(E_ERROR, "Unable to use async-io in task processes, please set `task_enable_coroutine` to true");
+            php_swoole_fatal_error(E_ERROR, "Unable to use async-io in task processes, please set `task_enable_coroutine` to true");
             return;
         }
         if (swIsManager())
         {
-            swoole_php_fatal_error(E_ERROR, "Unable to use async-io in manager process");
+            php_swoole_fatal_error(E_ERROR, "Unable to use async-io in manager process");
             return;
         }
     }
@@ -241,17 +246,17 @@ void php_swoole_reactor_init()
         swReactor *reactor = (swReactor *) sw_malloc(sizeof(swReactor));
         if (reactor == NULL)
         {
-            swoole_php_fatal_error(E_ERROR, "malloc failed");
+            php_swoole_fatal_error(E_ERROR, "malloc failed");
             return;
         }
         if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "failed to create reactor");
+            php_swoole_fatal_error(E_ERROR, "failed to create reactor");
             return;
         }
 
         reactor->is_empty = swReactor_empty;
-        reactor->can_exit = php_coroutine_reactor_can_exit;
+        reactor->can_exit = reactor_can_exit;
         reactor->wait_exit = 1;
 
         SwooleG.main_reactor = reactor;
@@ -308,7 +313,7 @@ void php_swoole_event_wait()
             int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
             if (ret < 0)
             {
-                swoole_php_sys_error(E_ERROR, "reactor wait failed");
+                php_swoole_sys_error(E_ERROR, "reactor wait failed");
             }
 #if defined(EG_FLAGS_IN_SHUTDOWN) && !defined(EG_FLAGS_OBJECT_STORE_NO_REUSE)
             if (in_shutdown)
@@ -363,7 +368,7 @@ int swoole_convert_to_fd(zval *zsocket)
             }
         }
 #endif
-        swoole_php_fatal_error(E_WARNING, "fd argument must be either valid PHP stream or valid PHP socket resource");
+        php_swoole_fatal_error(E_WARNING, "fd argument must be either valid PHP stream or valid PHP socket resource");
         return SW_ERR;
     }
     case IS_LONG:
@@ -371,7 +376,7 @@ int swoole_convert_to_fd(zval *zsocket)
         fd = Z_LVAL_P(zsocket);
         if (fd < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "invalid file descriptor#%d passed", fd);
+            php_swoole_fatal_error(E_WARNING, "invalid file descriptor#%d passed", fd);
             return SW_ERR;
         }
         return fd;
@@ -398,7 +403,7 @@ int swoole_convert_to_fd(zval *zsocket)
         return Z_LVAL_P(zfd);
     }
     default:
-        swoole_php_fatal_error(E_WARNING, "invalid file descriptor passed");
+        php_swoole_fatal_error(E_WARNING, "invalid file descriptor passed");
         return SW_ERR;
     }
 }
@@ -432,7 +437,7 @@ int swoole_convert_to_fd_ex(zval *zsocket, int *async)
         }
 #endif
     }
-    swoole_php_fatal_error(E_WARNING, "fd argument must be either valid PHP stream or valid PHP socket resource");
+    php_swoole_fatal_error(E_WARNING, "fd argument must be either valid PHP stream or valid PHP socket resource");
     return SW_ERR;
 }
 
@@ -453,7 +458,7 @@ php_socket* swoole_convert_to_socket(int sock)
     }
     else
     {
-        swoole_php_sys_error(E_WARNING, "unable to obtain socket family");
+        php_swoole_sys_error(E_WARNING, "unable to obtain socket family");
         _error:
         efree(socket_object);
         return NULL;
@@ -462,7 +467,7 @@ php_socket* swoole_convert_to_socket(int sock)
     int t = fcntl(sock, F_GETFL);
     if (t == -1)
     {
-        swoole_php_sys_error(E_WARNING, "unable to obtain blocking state");
+        php_swoole_sys_error(E_WARNING, "unable to obtain blocking state");
         goto _error;
     }
     else
@@ -500,19 +505,19 @@ static PHP_FUNCTION(swoole_event_add)
 
     if (fci_read.size == 0 && fci_write.size == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "both read and write callbacks are emoty");
+        php_swoole_fatal_error(E_WARNING, "both read and write callbacks are emoty");
         RETURN_FALSE;
     }
 
     int socket_fd = swoole_convert_to_fd(zfd);
     if (socket_fd < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "unknow fd type");
+        php_swoole_fatal_error(E_WARNING, "unknow fd type");
         RETURN_FALSE;
     }
     if (socket_fd == 0 && (event_flag & SW_EVENT_WRITE))
     {
-        swoole_php_fatal_error(E_WARNING, "invalid socket fd [%d]", socket_fd);
+        php_swoole_fatal_error(E_WARNING, "invalid socket fd [%d]", socket_fd);
         RETURN_FALSE;
     }
 
@@ -538,7 +543,7 @@ static PHP_FUNCTION(swoole_event_add)
 
     if (SwooleG.main_reactor->add(SwooleG.main_reactor, socket_fd, SW_FD_USER | event_flag) < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_event_add failed");
+        php_swoole_fatal_error(E_WARNING, "swoole_event_add failed");
         RETURN_FALSE;
     }
 
@@ -563,14 +568,14 @@ static PHP_FUNCTION(swoole_event_write)
 
     if (len == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "data empty");
+        php_swoole_fatal_error(E_WARNING, "data empty");
         RETURN_FALSE;
     }
 
     int socket_fd = swoole_convert_to_fd(zfd);
     if (socket_fd < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "unknow type");
+        php_swoole_fatal_error(E_WARNING, "unknow type");
         RETURN_FALSE;
     }
 
@@ -589,7 +594,7 @@ static PHP_FUNCTION(swoole_event_set)
 {
     if (!SwooleG.main_reactor)
     {
-        swoole_php_fatal_error(E_WARNING, "reactor is not ready, cannot call swoole_event_set");
+        php_swoole_fatal_error(E_WARNING, "reactor is not ready, cannot call swoole_event_set");
         RETURN_FALSE;
     }
 
@@ -612,14 +617,14 @@ static PHP_FUNCTION(swoole_event_set)
     int socket_fd = swoole_convert_to_fd(zfd);
     if (socket_fd < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "unknow type");
+        php_swoole_fatal_error(E_WARNING, "unknow type");
         RETURN_FALSE;
     }
 
     swConnection *socket = swReactor_get(SwooleG.main_reactor, socket_fd);
     if (!socket->active)
     {
-        swoole_php_fatal_error(E_WARNING, "socket[%d] is not found in the reactor", socket_fd);
+        php_swoole_fatal_error(E_WARNING, "socket[%d] is not found in the reactor", socket_fd);
         RETURN_FALSE;
     }
 
@@ -643,17 +648,17 @@ static PHP_FUNCTION(swoole_event_set)
 
     if ((event_flag & SW_EVENT_READ) && reactor_fd->fci_cache_read.function_handler == NULL)
     {
-        swoole_php_fatal_error(E_WARNING, "%s: unable to find read callback of fd [%d]", ZSTR_VAL(swoole_event_ce->name), socket_fd);
+        php_swoole_fatal_error(E_WARNING, "%s: unable to find read callback of fd [%d]", ZSTR_VAL(swoole_event_ce->name), socket_fd);
         RETURN_FALSE;
     }
     if ((event_flag & SW_EVENT_WRITE) && reactor_fd->fci_cache_write.function_handler == NULL)
     {
-        swoole_php_fatal_error(E_WARNING, "%s: unable to find write callback of fd [%d]", ZSTR_VAL(swoole_event_ce->name), socket_fd);
+        php_swoole_fatal_error(E_WARNING, "%s: unable to find write callback of fd [%d]", ZSTR_VAL(swoole_event_ce->name), socket_fd);
         RETURN_FALSE;
     }
     if (SwooleG.main_reactor->set(SwooleG.main_reactor, socket_fd, SW_FD_USER | event_flag) < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "%s::set failed", ZSTR_VAL(swoole_event_ce->name));
+        php_swoole_fatal_error(E_WARNING, "%s::set failed", ZSTR_VAL(swoole_event_ce->name));
         RETURN_FALSE;
     }
 
@@ -666,7 +671,7 @@ static PHP_FUNCTION(swoole_event_del)
 
     if (!SwooleG.main_reactor)
     {
-        swoole_php_fatal_error(E_WARNING, "reactor is not ready, cannot call swoole_event_del");
+        php_swoole_fatal_error(E_WARNING, "reactor is not ready, cannot call swoole_event_del");
         RETURN_FALSE;
     }
 
@@ -678,7 +683,7 @@ static PHP_FUNCTION(swoole_event_del)
     int socket_fd = swoole_convert_to_fd(zfd);
     if (socket_fd < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "unknow type");
+        php_swoole_fatal_error(E_WARNING, "unknow type");
         RETURN_FALSE;
     }
 
@@ -715,7 +720,7 @@ static PHP_FUNCTION(swoole_event_cycle)
 {
     if (!SwooleG.main_reactor)
     {
-        swoole_php_fatal_error(E_WARNING, "reactor is not ready, cannot call %s", ZSTR_VAL(swoole_event_ce->name));
+        php_swoole_fatal_error(E_WARNING, "reactor is not ready, cannot call %s", ZSTR_VAL(swoole_event_ce->name));
         RETURN_FALSE;
     }
 
@@ -807,7 +812,7 @@ static PHP_FUNCTION(swoole_event_dispatch)
     int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
     if (ret < 0)
     {
-        swoole_php_sys_error(E_ERROR, "reactor wait failed");
+        php_swoole_sys_error(E_ERROR, "reactor wait failed");
     }
 
     SwooleG.main_reactor->once = 0;
@@ -832,7 +837,7 @@ static PHP_FUNCTION(swoole_event_isset)
     int socket_fd = swoole_convert_to_fd(zfd);
     if (socket_fd < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "unknow type");
+        php_swoole_fatal_error(E_WARNING, "unknow type");
         RETURN_FALSE;
     }
 
@@ -850,3 +855,4 @@ static PHP_FUNCTION(swoole_event_isset)
         RETURN_FALSE;
     }
 }
+

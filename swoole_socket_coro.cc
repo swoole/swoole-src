@@ -165,7 +165,7 @@ static const zend_function_entry swoole_socket_coro_methods[] =
         socket_coro* _sock = swoole_socket_coro_fetch_object(Z_OBJ_P(_zobject)); \
         if (UNEXPECTED(!sock->socket)) \
         { \
-            swoole_php_fatal_error(E_ERROR, "you must call Socket constructor first"); \
+            php_swoole_fatal_error(E_ERROR, "you must call Socket constructor first"); \
         } \
         if (UNEXPECTED(_sock->socket == SW_BAD_SOCKET)) { \
             zend_update_property_long(swoole_socket_coro_ce, _zobject, ZEND_STRL("errCode"), EBADF); \
@@ -798,13 +798,13 @@ SW_API zend_object* php_swoole_dup_socket(int fd, enum swSocket_type type)
     int new_fd = dup(fd);
     if (new_fd < 0)
     {
-        swoole_php_sys_error(E_WARNING, "dup(%d) failed", fd);
+        php_swoole_sys_error(E_WARNING, "dup(%d) failed", fd);
         return nullptr;
     }
     sock->socket = new Socket(new_fd, type);
     if (UNEXPECTED(sock->socket->socket == nullptr))
     {
-        swoole_php_sys_error(E_WARNING, "new Socket() failed");
+        php_swoole_sys_error(E_WARNING, "new Socket() failed");
         delete sock->socket;
         sock->socket = nullptr;
         OBJ_RELEASE(object);
@@ -878,12 +878,12 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset)
         zend::string str_v(ztmp);
         if (str_v.len() == 0)
         {
-            swoole_php_fatal_error(E_WARNING, "pacakge_eof cannot be an empty string");
+            php_swoole_fatal_error(E_WARNING, "pacakge_eof cannot be an empty string");
             ret = false;
         }
         else if (str_v.len() > SW_DATA_EOF_MAXLEN)
         {
-            swoole_php_fatal_error(E_WARNING, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
+            php_swoole_fatal_error(E_WARNING, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
             ret = false;
         }
         else
@@ -912,7 +912,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset)
         sock->protocol.package_length_size = swoole_type_size(sock->protocol.package_length_type);
         if (sock->protocol.package_length_size == 0)
         {
-            swoole_php_fatal_error(E_WARNING, "Unknown package_length_type name '%c', see pack(). Link: http://php.net/pack", sock->protocol.package_length_type);
+            php_swoole_fatal_error(E_WARNING, "Unknown package_length_type name '%c', see pack(). Link: http://php.net/pack", sock->protocol.package_length_type);
             ret = false;
         }
     }
@@ -942,7 +942,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset)
                 zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
                 if (!sw_zend_is_callable_ex(ztmp, NULL, 0, &func_name, NULL, fci_cache, NULL))
                 {
-                    swoole_php_fatal_error(E_WARNING, "function '%s' is not callable", func_name);
+                    php_swoole_fatal_error(E_WARNING, "function '%s' is not callable", func_name);
                     efree(func_name);
                     efree(fci_cache);
                     ret = false;
@@ -1098,12 +1098,12 @@ static PHP_METHOD(swoole_socket_coro, connect)
     {
         if (ZEND_NUM_ARGS() == 1)
         {
-            swoole_php_error(E_WARNING, "Socket of type AF_INET/AF_INET6 requires port argument");
+            php_swoole_error(E_WARNING, "Socket of type AF_INET/AF_INET6 requires port argument");
             RETURN_FALSE;
         }
         else if (port == 0 || port >= 65536)
         {
-            swoole_php_error(E_WARNING, "Invalid port argument[" ZEND_LONG_FMT "]", port);
+            php_swoole_error(E_WARNING, "Invalid port argument[" ZEND_LONG_FMT "]", port);
             RETURN_FALSE;
         }
     }
@@ -1375,7 +1375,7 @@ static PHP_METHOD(swoole_socket_coro, getsockname)
         add_assoc_string(return_value, "address", info.addr.un.sun_path);
         break;
     default:
-        swoole_php_error(E_WARNING, "unsupported address family %d for socket#%d", sock->socket->sock_domain, sock->socket->get_fd());
+        php_swoole_error(E_WARNING, "unsupported address family %d for socket#%d", sock->socket->sock_domain, sock->socket->get_fd());
         sock->socket->set_err(EOPNOTSUPP);
         swoole_socket_coro_sync_properties(getThis(), sock);
         zval_ptr_dtor(return_value);
@@ -1414,7 +1414,7 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
         add_assoc_string(return_value, "address", info.addr.un.sun_path);
         break;
     default:
-        swoole_php_error(E_WARNING, "unsupported address family %d for socket#%d", sock->socket->sock_domain, sock->socket->get_fd());
+        php_swoole_error(E_WARNING, "unsupported address family %d for socket#%d", sock->socket->sock_domain, sock->socket->get_fd());
         sock->socket->set_err(EOPNOTSUPP);
         swoole_socket_coro_sync_properties(getThis(), sock);
         zval_ptr_dtor(return_value);
@@ -1448,7 +1448,7 @@ static PHP_METHOD(swoole_socket_coro, getOption)
             optlen = sizeof(if_addr);
             if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &if_addr, &optlen) != 0)
             {
-                swoole_php_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
+                php_swoole_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
                 RETURN_FALSE;
             }
             if (php_add4_to_if_index(&if_addr, sock->socket, &if_index) == SUCCESS)
@@ -1483,7 +1483,7 @@ static PHP_METHOD(swoole_socket_coro, getOption)
 
         if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &linger_val, &optlen) != 0)
         {
-            swoole_php_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
+            php_swoole_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
             RETURN_FALSE;
         }
 
@@ -1498,7 +1498,7 @@ static PHP_METHOD(swoole_socket_coro, getOption)
 
         if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &tv, &optlen) != 0)
         {
-            swoole_php_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
+            php_swoole_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
             RETURN_FALSE;
         }
 
@@ -1513,7 +1513,7 @@ static PHP_METHOD(swoole_socket_coro, getOption)
 
         if (getsockopt(sock->socket->get_fd(), level, optname, (char*) &other_val, &optlen) != 0)
         {
-            swoole_php_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
+            php_swoole_sys_error(E_WARNING, "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")", sock->socket->get_fd(), level, optname);
             RETURN_FALSE;
         }
         if (optlen == 1)
@@ -1646,7 +1646,7 @@ static PHP_METHOD(swoole_socket_coro, setOption)
     retval = setsockopt(sock->socket->get_fd(), level, optname, opt_ptr, optlen);
     if (retval != 0)
     {
-        swoole_php_sys_error(E_WARNING, "setsockopt(%d) failed", sock->socket->get_fd());
+        php_swoole_sys_error(E_WARNING, "setsockopt(%d) failed", sock->socket->get_fd());
         RETURN_FALSE;
     }
 

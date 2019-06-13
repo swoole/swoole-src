@@ -176,7 +176,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
 
     if (command_len >= SW_REDIS_MAX_COMMAND_SIZE)
     {
-        swoole_php_error(E_WARNING, "command [%.8s...](length=%d) is too long", command, command_len);
+        php_swoole_error(E_WARNING, "command [%.8s...](length=%d) is too long", command, command_len);
         serv->close(serv, fd, 0);
         return SW_OK;
     }
@@ -204,7 +204,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, &retval, SwooleG.enable_coroutine)))
     {
-        swoole_php_error(E_WARNING, "%s->onRequest with command '%.*s' handler error", ZSTR_VAL(swoole_redis_server_ce->name), command_len, command);
+        php_swoole_error(E_WARNING, "%s->onRequest with command '%.*s' handler error", ZSTR_VAL(swoole_redis_server_ce->name), command_len, command);
     }
 
     if (Z_TYPE_P(&retval) == IS_STRING)
@@ -225,7 +225,7 @@ static PHP_METHOD(swoole_redis_server, start)
     swServer *serv = (swServer *) swoole_get_object(zserv);
     if (serv->gs->start > 0)
     {
-        swoole_php_error(E_WARNING, "server is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_error(E_WARNING, "server is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
@@ -236,7 +236,7 @@ static PHP_METHOD(swoole_redis_server, start)
     format_buffer = swString_new(SW_BUFFER_SIZE_STD);
     if (!format_buffer)
     {
-        swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_BUFFER_SIZE_STD);
+        php_swoole_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_BUFFER_SIZE_STD);
         RETURN_FALSE;
     }
 
@@ -258,7 +258,7 @@ static PHP_METHOD(swoole_redis_server, start)
 
     if (swServer_start(serv) < 0)
     {
-        swoole_php_fatal_error(E_ERROR, "server failed to start. Error: %s", sw_error);
+        php_swoole_fatal_error(E_ERROR, "server failed to start. Error: %s", sw_error);
     }
 
     RETURN_TRUE;
@@ -277,7 +277,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
 
     if (command_len == 0 || command_len >= SW_REDIS_MAX_COMMAND_SIZE)
     {
-        swoole_php_fatal_error(E_ERROR, "invalid command");
+        php_swoole_fatal_error(E_ERROR, "invalid command");
         RETURN_FALSE;
     }
 
@@ -285,7 +285,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, NULL, fci_cache, NULL))
     {
-        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+        php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;
     }
     efree(func_name);
@@ -387,13 +387,13 @@ static PHP_METHOD(swoole_redis_server, format)
         if (!value)
         {
             _no_value:
-            swoole_php_fatal_error(E_WARNING, "require more parameters");
+            php_swoole_fatal_error(E_WARNING, "require more parameters");
             RETURN_FALSE;
         }
         convert_to_string(value);
         if (Z_STRLEN_P(value) > SW_REDIS_MAX_STRING_SIZE || Z_STRLEN_P(value) < 1)
         {
-            swoole_php_fatal_error(E_WARNING, "invalid string size");
+            php_swoole_fatal_error(E_WARNING, "invalid string size");
             RETURN_FALSE;
         }
         swString_clear(format_buffer);
@@ -411,7 +411,7 @@ static PHP_METHOD(swoole_redis_server, format)
         }
         if (!ZVAL_IS_ARRAY(value))
         {
-            swoole_php_fatal_error(E_WARNING, "the second parameter should be an array");
+            php_swoole_fatal_error(E_WARNING, "the second parameter should be an array");
         }
         swString_clear(format_buffer);
         length = sw_snprintf(message, sizeof(message), "*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
@@ -446,7 +446,7 @@ static PHP_METHOD(swoole_redis_server, format)
         }
         if (!ZVAL_IS_ARRAY(value))
         {
-            swoole_php_fatal_error(E_WARNING, "the second parameter should be an array");
+            php_swoole_fatal_error(E_WARNING, "the second parameter should be an array");
         }
         swString_clear(format_buffer);
         length = sw_snprintf(message, sizeof(message), "*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));
@@ -485,7 +485,7 @@ static PHP_METHOD(swoole_redis_server, format)
     }
     else
     {
-        swoole_php_error(E_WARNING, "Unknown type[" ZEND_LONG_FMT "]", type);
+        php_swoole_error(E_WARNING, "Unknown type[" ZEND_LONG_FMT "]", type);
         RETURN_FALSE;
     }
 }

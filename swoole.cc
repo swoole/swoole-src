@@ -186,7 +186,7 @@ static sw_inline uint32_t swoole_get_new_size(uint32_t old_size, int handle)
     uint32_t new_size = old_size * 2;
     if (handle > SWOOLE_OBJECT_MAX)
     {
-        swoole_php_fatal_error(E_ERROR, "handle %d exceed %d", handle, SWOOLE_OBJECT_MAX);
+        php_swoole_fatal_error(E_ERROR, "handle %d exceed %d", handle, SWOOLE_OBJECT_MAX);
         return 0;
     }
     while (new_size <= (uint32_t) handle)
@@ -215,7 +215,7 @@ void swoole_set_object_by_handle(uint32_t handle, void *ptr)
         new_ptr = sw_realloc(old_ptr, sizeof(void*) * new_size);
         if (!new_ptr)
         {
-            swoole_php_fatal_error(E_ERROR, "malloc(%d) failed", (int )(new_size * sizeof(void *)));
+            php_swoole_fatal_error(E_ERROR, "malloc(%d) failed", (int )(new_size * sizeof(void *)));
             return;
         }
         bzero((char*) new_ptr + (old_size * sizeof(void*)), (new_size - old_size) * sizeof(void*));
@@ -256,7 +256,7 @@ void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr)
         }
         if (new_ptr == NULL)
         {
-            swoole_php_fatal_error(E_ERROR, "malloc(%d) failed", (int )(new_size * sizeof(void *)));
+            php_swoole_fatal_error(E_ERROR, "malloc(%d) failed", (int )(new_size * sizeof(void *)));
             return;
         }
         if (old_size > 0)
@@ -657,7 +657,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_objects.array = (void**) sw_calloc(swoole_objects.size, sizeof(void*));
     if (!swoole_objects.array)
     {
-        swoole_php_fatal_error(E_ERROR, "malloc([swoole_objects]) failed");
+        php_swoole_fatal_error(E_ERROR, "malloc([swoole_objects]) failed");
         exit(253);
     }
 
@@ -963,7 +963,7 @@ PHP_FUNCTION(swoole_set_process_name)
             ZEND_STRL("cli_set_process_title"));
     if (!cli_set_process_title)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_set_process_name only support in CLI mode");
+        php_swoole_fatal_error(E_WARNING, "swoole_set_process_name only support in CLI mode");
         RETURN_FALSE;
     }
     cli_set_process_title->internal_function.handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
@@ -978,7 +978,7 @@ PHP_FUNCTION(swoole_get_local_ip)
 
     if (getifaddrs(&ipaddrs) != 0)
     {
-        swoole_php_sys_error(E_WARNING, "getifaddrs() failed");
+        php_swoole_sys_error(E_WARNING, "getifaddrs() failed");
         RETURN_FALSE;
     }
     array_init(return_value);
@@ -1031,7 +1031,7 @@ PHP_FUNCTION(swoole_get_local_mac)
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        swoole_php_sys_error(E_WARNING, "new socket failed");
+        php_swoole_sys_error(E_WARNING, "new socket failed");
         RETURN_FALSE;
     }
     array_init(return_value);

@@ -114,15 +114,15 @@ extern swoole_object_array swoole_objects;
 #define SW_CHECK_RETURN(s)      if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}
 #define SW_LOCK_CHECK_RETURN(s) if(s==0){RETURN_TRUE;}else{zend_update_property_long(NULL,getThis(),SW_STRL("errCode"),s);RETURN_FALSE;}
 
-#define swoole_php_fatal_error(level, fmt_str, ...) \
+#define php_swoole_fatal_error(level, fmt_str, ...) \
         php_error_docref(NULL, level, (const char *) (fmt_str), ##__VA_ARGS__)
 
-#define swoole_php_error(level, fmt_str, ...) \
+#define php_swoole_error(level, fmt_str, ...) \
     if (SWOOLE_G(display_errors) || level == E_ERROR) \
-        swoole_php_fatal_error(level, fmt_str, ##__VA_ARGS__)
+        php_swoole_fatal_error(level, fmt_str, ##__VA_ARGS__)
 
-#define swoole_php_sys_error(level, fmt_str, ...) \
-        swoole_php_error(level, fmt_str ", Error: %s[%d]", ##__VA_ARGS__, strerror(errno), errno)
+#define php_swoole_sys_error(level, fmt_str, ...) \
+        php_swoole_error(level, fmt_str ", Error: %s[%d]", ##__VA_ARGS__, strerror(errno), errno)
 
 #ifdef SW_USE_OPENSSL
 #ifndef HAVE_OPENSSL
@@ -449,8 +449,6 @@ void php_swoole_onBufferEmpty(swServer *, swDataHead *);
 ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
 zend_bool php_swoole_signal_isset_handler(int signo);
-
-int php_coroutine_reactor_can_exit(swReactor *reactor);
 
 #ifdef SW_USE_OPENSSL
 void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset);
@@ -1149,8 +1147,7 @@ static sw_inline void sw_zend_fci_cache_free(void* fci_cache)
 }
 
 //----------------------------------Misc API------------------------------------
-
-static sw_inline char* sw_php_format_date(char *format, size_t format_len, time_t ts, int localtime)
+static sw_inline char* php_swoole_format_date(char *format, size_t format_len, time_t ts, int localtime)
 {
     zend_string *time = php_format_date(format, format_len, ts, localtime);
     char *return_str = estrndup(ZSTR_VAL(time), ZSTR_LEN(time));
@@ -1158,7 +1155,7 @@ static sw_inline char* sw_php_format_date(char *format, size_t format_len, time_
     return return_str;
 }
 
-static sw_inline char* sw_php_url_encode(char *value, size_t value_len, int* exten)
+static sw_inline char* php_swoole_url_encode(char *value, size_t value_len, int* exten)
 {
     zend_string *str = php_url_encode(value, value_len);
     *exten = ZSTR_LEN(str);
@@ -1167,7 +1164,7 @@ static sw_inline char* sw_php_url_encode(char *value, size_t value_len, int* ext
     return return_str;
 }
 
-static sw_inline char* sw_http_build_query(zval *zdata, size_t *length, smart_str *formstr)
+static sw_inline char* php_swoole_http_build_query(zval *zdata, size_t *length, smart_str *formstr)
 {
     if (php_url_encode_hash_ex(HASH_OF(zdata), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738) == FAILURE)
     {
@@ -1186,7 +1183,7 @@ static sw_inline char* sw_http_build_query(zval *zdata, size_t *length, smart_st
     return formstr->s->val;
 }
 
-static sw_inline zend_string* sw_get_debug_print_backtrace(zend_long options, zend_long limit)
+static sw_inline zend_string* php_swoole_get_debug_print_backtrace(zend_long options, zend_long limit)
 {
     SW_PHP_OB_START(zoutput) {
         zval fcn, args[2];
@@ -1195,7 +1192,8 @@ static sw_inline zend_string* sw_get_debug_print_backtrace(zend_long options, ze
         ZVAL_LONG(&args[1], limit);
         sw_zend_call_function_ex(&fcn, NULL, 2, args, &zoutput);
         zval_ptr_dtor(&fcn);
-    } SW_PHP_OB_END();
+    }
+    SW_PHP_OB_END();
     if (UNEXPECTED(Z_TYPE_P(&zoutput) != IS_STRING))
     {
         return NULL;

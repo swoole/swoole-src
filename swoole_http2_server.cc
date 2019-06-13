@@ -159,7 +159,7 @@ static ssize_t http2_build_trailer(http_context *ctx, uchar *buffer)
         buflen = nghttp2_hd_deflate_bound(deflater, trailer.get(), trailer.len());
         if (buflen > SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE)
         {
-            swoole_php_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u", SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE);
+            php_swoole_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u", SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE);
             return -1;
         }
         rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, trailer.get(), trailer.len());
@@ -181,7 +181,7 @@ static sw_inline void http2_onRequest(swServer *serv, http2_stream *stream, int 
     if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
     {
         http2_server_send_rst_stream(ctx, stream->id, SW_HTTP2_ERROR_INTERNAL_ERROR);
-        swoole_php_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));
+        php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));
     }
     zval_ptr_dtor(&args[0]);
     zval_ptr_dtor(&args[1]);
@@ -248,7 +248,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
         }
         if (!(header_flag & HTTP_HEADER_DATE))
         {
-            date_str = sw_php_format_date((char *)ZEND_STRL(SW_HTTP_DATE_FORMAT), time(NULL), 0);
+            date_str = php_swoole_format_date((char *)ZEND_STRL(SW_HTTP_DATE_FORMAT), time(NULL), 0);
             headers.add(ZEND_STRL("date"), date_str, strlen(date_str));
         }
         if (!(header_flag & HTTP_HEADER_CONTENT_TYPE))
@@ -260,7 +260,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     {
         headers.add(ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
         headers.add(ZEND_STRL("content-type"), ZEND_STRL("text/html"));
-        date_str = sw_php_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), time(NULL), 0);
+        date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), time(NULL), 0);
         headers.add(ZEND_STRL("date"), date_str, strlen(date_str));
     }
     if (date_str)
@@ -320,7 +320,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     size_t buflen = nghttp2_hd_deflate_bound(deflater, headers.get(), headers.len());
     if (buflen > SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE)
     {
-        swoole_php_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u", SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE);
+        php_swoole_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u", SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE);
         return -1;
     }
     ssize_t rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, headers.get(), headers.len());

@@ -347,7 +347,7 @@ static PHP_METHOD(swoole_http_server_coro, start)
 
     if (!sw_zend_is_callable_ex(&zcallback, getThis(), 0, &func_name, NULL, &fci_cache, NULL))
     {
-        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+        php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;
     }
     efree(func_name);
@@ -393,7 +393,7 @@ static PHP_METHOD(swoole_http_server_coro, start)
             else
             {
                 http_server_set_error(getThis(), sock);
-                swoole_php_fatal_error(E_WARNING, "accept failed, Error: %s[%d]", sock->errMsg, sock->errCode);
+                php_swoole_fatal_error(E_WARNING, "accept failed, Error: %s[%d]", sock->errMsg, sock->errCode);
                 break;
             }
         }
@@ -479,7 +479,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
         {
             if (UNEXPECTED(!zend::function::call(&fci->fci_cache, 2, args, NULL, 0)))
             {
-                swoole_php_error(E_WARNING, "handler error");
+                php_swoole_error(E_WARNING, "handler error");
             }
         }
         else

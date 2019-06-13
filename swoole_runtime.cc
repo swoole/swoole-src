@@ -666,7 +666,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
 
             if (!certfile || !private_key)
             {
-                swoole_php_fatal_error(E_ERROR, "ssl cert/key file not found");
+                php_swoole_fatal_error(E_ERROR, "ssl cert/key file not found");
                 return FAILURE;
             }
 
@@ -735,7 +735,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
     case STREAM_XPORT_OP_SEND:
         if ((xparam->inputs.flags & STREAM_OOB) == STREAM_OOB)
         {
-            swoole_php_error(E_WARNING, "STREAM_OOB flags is not supports");
+            php_swoole_error(E_WARNING, "STREAM_OOB flags is not supports");
             xparam->outputs.returncode = -1;
             break;
         }
@@ -752,7 +752,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
     case STREAM_XPORT_OP_RECV:
         if ((xparam->inputs.flags & STREAM_OOB) == STREAM_OOB)
         {
-            swoole_php_error(E_WARNING, "STREAM_OOB flags is not supports");
+            php_swoole_error(E_WARNING, "STREAM_OOB flags is not supports");
             xparam->outputs.returncode = -1;
             break;
         }
@@ -774,7 +774,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
         break;
     default:
 #ifdef SW_DEBUG
-        swoole_php_fatal_error(E_WARNING, "socket_xport_api: unsupported option %d", xparam->op);
+        php_swoole_fatal_error(E_WARNING, "socket_xport_api: unsupported option %d", xparam->op);
 #endif
         break;
     }
@@ -880,7 +880,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     }
     default:
 #ifdef SW_DEBUG
-        swoole_php_fatal_error(E_WARNING, "socket_set_option: unsupported option %d with value %d", option, value);
+        php_swoole_fatal_error(E_WARNING, "socket_set_option: unsupported option %d with value %d", option, value);
 #endif
         break;
     }
@@ -916,7 +916,7 @@ static php_stream *socket_create(
         sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
         sock->open_ssl = true;
 #else
-        swoole_php_error(E_WARNING, "you must configure with `enable-openssl` to support ssl connection");
+        php_swoole_error(E_WARNING, "you must configure with `enable-openssl` to support ssl connection");
         return NULL;
 #endif
     }
@@ -959,7 +959,7 @@ bool PHPCoroutine::enable_hook(int flags)
 {
     if (unlikely(enable_strict_mode))
     {
-        swoole_php_fatal_error(E_ERROR, "unable to enable the coroutine mode after you enable the strict mode");
+        php_swoole_fatal_error(E_ERROR, "unable to enable the coroutine mode after you enable the strict mode");
         return false;
     }
     if (!hook_init)
@@ -1353,7 +1353,7 @@ static PHP_FUNCTION(swoole_time_nanosleep)
         }
         else if (errno == EINVAL)
         {
-            swoole_php_error(E_WARNING, "nanoseconds was not in the range 0 to 999 999 999 or seconds was negative");
+            php_swoole_error(E_WARNING, "nanoseconds was not in the range 0 to 999 999 999 or seconds was negative");
         }
     }
 }
@@ -1665,7 +1665,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler)
         zend_fcall_info_cache *func_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
         if (!sw_zend_is_callable_ex(&rf->name, NULL, 0, &func_name, NULL, func_cache, NULL))
         {
-            swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+            php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
             return;
         }
         efree(func_name);
@@ -1730,7 +1730,7 @@ static PHP_FUNCTION(swoole_stream_socket_pair)
 
     if (0 != socketpair((int) domain, (int) type, (int) protocol, pair))
     {
-        swoole_php_error(E_WARNING, "failed to create sockets: [%d]: %s", errno, strerror(errno));
+        php_swoole_error(E_WARNING, "failed to create sockets: [%d]: %s", errno, strerror(errno));
         RETURN_FALSE;
     }
 

@@ -129,7 +129,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
     {
-        swoole_php_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
+        php_swoole_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
 #ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
         ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
 #endif
@@ -245,14 +245,14 @@ void php_swoole_http_server_init_global_variant()
     swoole_http_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_http_buffer)
     {
-        swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
+        php_swoole_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
         return;
     }
 
     swoole_http_form_data_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_http_form_data_buffer)
     {
-        swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
+        php_swoole_fatal_error(E_ERROR, "[2] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
         return;
     }
 
@@ -269,7 +269,7 @@ http_context* swoole_http_context_get(zval *zobject, const bool check_end)
     http_context *ctx = (http_context *) swoole_get_object(zobject);
     if (!ctx || (check_end && ctx->end))
     {
-        swoole_php_fatal_error(E_WARNING, "http context is unavailable (maybe it has been ended or detached)");
+        php_swoole_fatal_error(E_WARNING, "http context is unavailable (maybe it has been ended or detached)");
         return NULL;
     }
     return ctx;

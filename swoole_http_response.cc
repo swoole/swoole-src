@@ -218,7 +218,7 @@ static PHP_METHOD(swoole_http_response, write)
 #ifdef SW_USE_HTTP2
     if (ctx->stream)
     {
-        swoole_php_error(E_WARNING, "Http2 client does not support HTTP-CHUNK");
+        php_swoole_error(E_WARNING, "Http2 client does not support HTTP-CHUNK");
         RETURN_FALSE;
     }
 #endif
@@ -247,7 +247,7 @@ static PHP_METHOD(swoole_http_response, write)
 
     if (length == 0)
     {
-        swoole_php_error(E_WARNING, "data to send is empty");
+        php_swoole_error(E_WARNING, "data to send is empty");
         RETURN_FALSE;
     }
     else
@@ -378,7 +378,7 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
     }
     if (!(header_flag & HTTP_HEADER_DATE))
     {
-        date_str = sw_php_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), time(NULL), 0);
+        date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), time(NULL), 0);
         n = sw_snprintf(buf, l_buf, "Date: %s\r\n", date_str);
         swString_append_ptr(response, buf, n);
         efree(date_str);
@@ -722,12 +722,12 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
 {
     if (UNEXPECTED(klen > SW_HTTP_HEADER_KEY_SIZE - 1))
     {
-        swoole_php_error(E_WARNING, "header key is too long");
+        php_swoole_error(E_WARNING, "header key is too long");
         return false;
     }
     if (UNEXPECTED(vlen > SW_HTTP_HEADER_VALUE_SIZE - 1))
     {
-        swoole_php_error(E_WARNING, "header value is too long");
+        php_swoole_error(E_WARNING, "header value is too long");
         return false;
     }
     zval *zheader = swoole_http_init_and_read_property(swoole_http_response_ce, ctx->response.zobject, &ctx->response.zheader, ZEND_STRL("header"));
@@ -781,7 +781,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
     if (l_file <= 0)
     {
-        swoole_php_error(E_WARNING, "file name is empty");
+        php_swoole_error(E_WARNING, "file name is empty");
         RETURN_FALSE;
     }
 
@@ -797,29 +797,29 @@ static PHP_METHOD(swoole_http_response, sendfile)
 
     if (ctx->chunk)
     {
-        swoole_php_fatal_error(E_ERROR, "can't use sendfile when Http-Chunk is enabled");
+        php_swoole_fatal_error(E_ERROR, "can't use sendfile when Http-Chunk is enabled");
         RETURN_FALSE;
     }
 
     struct stat file_stat;
     if (stat(file, &file_stat) < 0)
     {
-        swoole_php_sys_error(E_WARNING, "stat(%s) failed", file);
+        php_swoole_sys_error(E_WARNING, "stat(%s) failed", file);
         RETURN_FALSE;
     }
     if (file_stat.st_size == 0)
     {
-        swoole_php_sys_error(E_WARNING, "can't send empty file[%s]", file);
+        php_swoole_sys_error(E_WARNING, "can't send empty file[%s]", file);
         RETURN_FALSE;
     }
     if (file_stat.st_size <= offset)
     {
-        swoole_php_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] exceeds the file size", offset);
+        php_swoole_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] exceeds the file size", offset);
         RETURN_FALSE;
     }
     if (length > file_stat.st_size - offset)
     {
-        swoole_php_sys_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] exceeds the file size", length);
+        php_swoole_sys_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] exceeds the file size", length);
         RETURN_FALSE;
     }
     if (length == 0)
@@ -877,13 +877,13 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool
 
     if (name_len > 0 && strpbrk(name, "=,; \t\r\n\013\014") != NULL)
     {
-        swoole_php_error(E_WARNING, "Cookie names can't contain any of the following '=,; \\t\\r\\n\\013\\014'");
+        php_swoole_error(E_WARNING, "Cookie names can't contain any of the following '=,; \\t\\r\\n\\013\\014'");
         RETURN_FALSE;
     }
     if (value_len == 0)
     {
         cookie = (char *) emalloc(cookie_size);
-        date = sw_php_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0);
+        date = php_swoole_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0);
         snprintf(cookie, cookie_size, "%s=deleted; expires=%s", name, date);
         efree(date);
     }
@@ -893,7 +893,7 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool
         {
             char *encoded_value;
             int encoded_value_len;
-            encoded_value = sw_php_url_encode(value, value_len, &encoded_value_len);
+            encoded_value = php_swoole_url_encode(value, value_len, &encoded_value_len);
             cookie_size += encoded_value_len;
             cookie = (char *) emalloc(cookie_size);
             snprintf(cookie, cookie_size, "%s=%s", name, encoded_value);
@@ -908,11 +908,11 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool
         if (expires > 0)
         {
             strlcat(cookie, "; expires=", cookie_size);
-            date = sw_php_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), expires, 0);
+            date = php_swoole_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), expires, 0);
             const char *p = (const char *) zend_memrchr(date, '-', strlen(date));
             if (!p || *(p + 5) != ' ')
             {
-                swoole_php_error(E_WARNING, "Expiry date can't be a year greater than 9999");
+                php_swoole_error(E_WARNING, "Expiry date can't be a year greater than 9999");
                 efree(date);
                 efree(cookie);
                 RETURN_FALSE;
@@ -1025,12 +1025,12 @@ static PHP_METHOD(swoole_http_response, trailer)
     }
     if (UNEXPECTED(klen > SW_HTTP_HEADER_KEY_SIZE - 1))
     {
-        swoole_php_error(E_WARNING, "trailer key is too long");
+        php_swoole_error(E_WARNING, "trailer key is too long");
         RETURN_FALSE;
     }
     if (UNEXPECTED(vlen > SW_HTTP_HEADER_VALUE_SIZE - 1))
     {
-        swoole_php_error(E_WARNING, "trailer value is too long");
+        php_swoole_error(E_WARNING, "trailer value is too long");
         RETURN_FALSE;
     }
     zval *ztrailer = swoole_http_init_and_read_property(swoole_http_response_ce, ctx->response.zobject, &ctx->response.ztrailer, ZEND_STRL("trailer"));

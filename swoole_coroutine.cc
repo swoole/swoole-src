@@ -395,7 +395,7 @@ void PHPCoroutine::create_func(void *arg)
             defer_fci->fci.params = retval;
             if (UNEXPECTED(sw_zend_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) != SUCCESS))
             {
-                swoole_php_fatal_error(E_WARNING, "defer callback handler error");
+                php_swoole_fatal_error(E_WARNING, "defer callback handler error");
             }
             sw_zend_fci_cache_discard(&defer_fci->fci_cache);
             efree(defer_fci);
@@ -432,18 +432,18 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
 {
     if (unlikely(Coroutine::count() >= max_num))
     {
-        swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %zu", (uintmax_t) Coroutine::count());
+        php_swoole_fatal_error(E_WARNING, "exceed max number of coroutine %zu", (uintmax_t) Coroutine::count());
         return SW_CORO_ERR_LIMIT;
     }
     if (unlikely(!fci_cache || !fci_cache->function_handler))
     {
-        swoole_php_fatal_error(E_ERROR, "invalid function call info cache");
+        php_swoole_fatal_error(E_ERROR, "invalid function call info cache");
         return SW_CORO_ERR_INVALID;
     }
     zend_uchar type = fci_cache->function_handler->type;
     if (unlikely(type != ZEND_USER_FUNCTION && type != ZEND_INTERNAL_FUNCTION))
     {
-        swoole_php_fatal_error(E_ERROR, "invalid function type %u", fci_cache->function_handler->type);
+        php_swoole_fatal_error(E_ERROR, "invalid function type %u", fci_cache->function_handler->type);
         return SW_CORO_ERR_INVALID;
     }
 
@@ -457,7 +457,7 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
 
         if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug")))
         {
-            swoole_php_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
+            php_swoole_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
         }
 
         inject_function();

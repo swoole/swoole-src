@@ -318,7 +318,7 @@ PHP_METHOD(swoole_table, column)
     {
         if (size < 1)
         {
-            swoole_php_fatal_error(E_WARNING, "the length of string type values has to be more than zero");
+            php_swoole_fatal_error(E_WARNING, "the length of string type values has to be more than zero");
             RETURN_FALSE;
         }
         size = SW_MEM_ALIGNED_SIZE(size);
@@ -331,7 +331,7 @@ PHP_METHOD(swoole_table, column)
     swTable *table = swoole_get_object(getThis());
     if (table->memory)
     {
-        swoole_php_fatal_error(E_WARNING, "can't add column after the creation of swoole table");
+        php_swoole_fatal_error(E_WARNING, "can't add column after the creation of swoole table");
         RETURN_FALSE;
     }
     swTableColumn_add(table, name, len, type, size);
@@ -343,12 +343,12 @@ static PHP_METHOD(swoole_table, create)
     swTable *table = swoole_get_object(getThis());
     if (table->memory)
     {
-        swoole_php_fatal_error(E_WARNING, "the swoole table has been created already");
+        php_swoole_fatal_error(E_WARNING, "the swoole table has been created already");
         RETURN_FALSE;
     }
     if (swTable_create(table) < 0)
     {
-        swoole_php_fatal_error(E_ERROR, "unable to allocate memory");
+        php_swoole_fatal_error(E_ERROR, "unable to allocate memory");
         RETURN_FALSE;
     }
     zend_update_property_long(swoole_buffer_ce, getThis(), ZEND_STRL("size"), table->size);
@@ -361,7 +361,7 @@ static PHP_METHOD(swoole_table, destroy)
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
-        swoole_php_fatal_error(E_ERROR, "the swoole table does not exist");
+        php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
         RETURN_FALSE;
     }
 
@@ -383,7 +383,7 @@ static PHP_METHOD(swoole_table, set)
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
-        swoole_php_fatal_error(E_ERROR, "the swoole table does not exist");
+        php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
         RETURN_FALSE;
     }
 
@@ -392,7 +392,7 @@ static PHP_METHOD(swoole_table, set)
     if (!row)
     {
         swTableRow_unlock(_rowlock);
-        swoole_php_error(E_WARNING, "failed to set('%*s'), unable to allocate memory", (int )keylen, key);
+        php_swoole_error(E_WARNING, "failed to set('%*s'), unable to allocate memory", (int )keylen, key);
         RETURN_FALSE;
     }
 
@@ -455,7 +455,7 @@ static PHP_METHOD(swoole_table, incr)
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
-        swoole_php_fatal_error(E_ERROR, "the swoole table does not exist");
+        php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
         RETURN_FALSE;
     }
 
@@ -463,7 +463,7 @@ static PHP_METHOD(swoole_table, incr)
     if (!row)
     {
         swTableRow_unlock(_rowlock);
-        swoole_php_fatal_error(E_WARNING, "unable to allocate memory");
+        php_swoole_fatal_error(E_WARNING, "unable to allocate memory");
         RETURN_FALSE;
     }
 
@@ -472,13 +472,13 @@ static PHP_METHOD(swoole_table, incr)
     if (column == NULL)
     {
         swTableRow_unlock(_rowlock);
-        swoole_php_fatal_error(E_WARNING, "column[%s] does not exist", col);
+        php_swoole_fatal_error(E_WARNING, "column[%s] does not exist", col);
         RETURN_FALSE;
     }
     else if (column->type == SW_TABLE_STRING)
     {
         swTableRow_unlock(_rowlock);
-        swoole_php_fatal_error(E_WARNING, "can't execute 'incr' on a string type column");
+        php_swoole_fatal_error(E_WARNING, "can't execute 'incr' on a string type column");
         RETURN_FALSE;
     }
     else if (column->type == SW_TABLE_FLOAT)
@@ -531,7 +531,7 @@ static PHP_METHOD(swoole_table, decr)
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
-        swoole_php_fatal_error(E_ERROR, "the swoole table does not exist");
+        php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
         RETURN_FALSE;
     }
 
@@ -539,7 +539,7 @@ static PHP_METHOD(swoole_table, decr)
     if (!row)
     {
         swTableRow_unlock(_rowlock);
-        swoole_php_fatal_error(E_WARNING, "unable to allocate memory");
+        php_swoole_fatal_error(E_WARNING, "unable to allocate memory");
         RETURN_FALSE;
     }
 
@@ -548,13 +548,13 @@ static PHP_METHOD(swoole_table, decr)
     if (column == NULL)
     {
         swTableRow_unlock(_rowlock);
-        swoole_php_fatal_error(E_WARNING, "column[%s] does not exist", col);
+        php_swoole_fatal_error(E_WARNING, "column[%s] does not exist", col);
         RETURN_FALSE;
     }
     else if (column->type == SW_TABLE_STRING)
     {
         swTableRow_unlock(_rowlock);
-        swoole_php_fatal_error(E_WARNING, "can't execute 'decr' on a string type column");
+        php_swoole_fatal_error(E_WARNING, "can't execute 'decr' on a string type column");
         RETURN_FALSE;
     }
     else if (column->type == SW_TABLE_FLOAT)
@@ -606,7 +606,7 @@ static PHP_METHOD(swoole_table, get)
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
-        swoole_php_fatal_error(E_ERROR, "the swoole table does not exist");
+        php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
         RETURN_FALSE;
     }
 
@@ -642,7 +642,7 @@ static PHP_METHOD(swoole_table, offsetGet)
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
-        swoole_php_fatal_error(E_ERROR, "Must create table first");
+        php_swoole_fatal_error(E_ERROR, "Must create table first");
         RETURN_FALSE;
     }
 
@@ -679,7 +679,7 @@ static PHP_METHOD(swoole_table, exists)
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
-        swoole_php_fatal_error(E_ERROR, "the swoole table does not exist");
+        php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
         RETURN_FALSE;
     }
 
@@ -714,7 +714,7 @@ static PHP_METHOD(swoole_table, del)
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
-        swoole_php_fatal_error(E_ERROR, "the swoole table does not exist");
+        php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
         RETURN_FALSE;
     }
     SW_CHECK_RETURN(swTableRow_del(table, key, keylen));
@@ -740,7 +740,7 @@ static PHP_METHOD(swoole_table, count)
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
-        swoole_php_fatal_error(E_ERROR, "the swoole table does not exist");
+        php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
         RETURN_FALSE;
     }
 
@@ -772,7 +772,7 @@ static PHP_METHOD(swoole_table, rewind)
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
-        swoole_php_fatal_error(E_ERROR, "the swoole table does not exist");
+        php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
         RETURN_FALSE;
     }
     swTable_iterator_rewind(table);
@@ -784,7 +784,7 @@ static PHP_METHOD(swoole_table, current)
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
-        swoole_php_fatal_error(E_ERROR, "the swoole table does not exist");
+        php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
         RETURN_FALSE;
     }
     swTableRow *row = swTable_iterator_current(table);
@@ -798,7 +798,7 @@ static PHP_METHOD(swoole_table, key)
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
-        swoole_php_fatal_error(E_ERROR, "the swoole table does not exist");
+        php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
         RETURN_FALSE;
     }
     swTableRow *row = swTable_iterator_current(table);
@@ -812,7 +812,7 @@ static PHP_METHOD(swoole_table, next)
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
-        swoole_php_fatal_error(E_ERROR, "the swoole table does not exist");
+        php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
         RETURN_FALSE;
     }
     swTable_iterator_forward(table);
@@ -823,7 +823,7 @@ static PHP_METHOD(swoole_table, valid)
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
-        swoole_php_fatal_error(E_ERROR, "the swoole table does not exist");
+        php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
         RETURN_FALSE;
     }
     swTableRow *row = swTable_iterator_current(table);
@@ -877,7 +877,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     swTable *table = swoole_get_object(getThis());
     if (table == NULL || table->memory == NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "Must create table first");
+        php_swoole_fatal_error(E_ERROR, "Must create table first");
         RETURN_FALSE;
     }
 
@@ -888,7 +888,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     if (!row)
     {
         swTableRow_unlock(_rowlock);
-        swoole_php_error(E_WARNING, "Unable to allocate memory");
+        php_swoole_error(E_WARNING, "Unable to allocate memory");
         RETURN_FALSE;
     }
 
@@ -897,7 +897,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     if (col == NULL)
     {
         swTableRow_unlock(_rowlock);
-        swoole_php_fatal_error(E_WARNING, "column[%s] does not exist", key);
+        php_swoole_fatal_error(E_WARNING, "column[%s] does not exist", key);
         RETURN_FALSE;
     }
     if (col->type == SW_TABLE_STRING)
@@ -927,7 +927,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
 
 static PHP_METHOD(swoole_table_row, offsetUnset)
 {
-    swoole_php_fatal_error(E_WARNING, "not supported");
+    php_swoole_fatal_error(E_WARNING, "not supported");
     RETURN_FALSE;
 }
 

@@ -280,8 +280,3 @@ static PHP_METHOD(swoole_exit_exception, getStatus)
 {
     RETURN_ZVAL(sw_zend_read_property(swoole_exit_exception_ce, getThis(), ZEND_STRL("status"), 0), 1, 0);
 }
-
-int php_coroutine_reactor_can_exit(swReactor *reactor)
-{
-    return Coroutine::count() == 0;
-}

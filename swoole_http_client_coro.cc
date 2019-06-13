@@ -602,7 +602,7 @@ bool http_client::connect()
         socket = new Socket(socket_type);
         if (UNEXPECTED(socket->socket == nullptr))
         {
-            swoole_php_sys_error(E_WARNING, "new Socket() failed");
+            php_swoole_sys_error(E_WARNING, "new Socket() failed");
             zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), errno);
             zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), strerror(errno));
             delete socket;
@@ -632,7 +632,7 @@ bool http_client::connect()
             body = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
             if (!body)
             {
-                swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
+                php_swoole_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
                 return false;
             }
         }
@@ -671,7 +671,7 @@ bool http_client::send()
 
     if (path.length() == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "path is empty");
+        php_swoole_fatal_error(E_WARNING, "path is empty");
         return false;
     }
 
@@ -900,7 +900,7 @@ bool http_client::send()
             swString_append_ptr(http_client_buffer, "=", 1);
 
             int encoded_value_len;
-            encoded_value = sw_php_url_encode(str_value.val(), str_value.len(), &encoded_value_len);
+            encoded_value = php_swoole_url_encode(str_value.val(), str_value.len(), &encoded_value_len);
             if (encoded_value)
             {
                 swString_append_ptr(http_client_buffer, encoded_value, encoded_value_len);
@@ -1127,10 +1127,10 @@ bool http_client::send()
             if (php_swoole_array_length(zbody) > 0)
             {
                 smart_str formstr_s = { 0 };
-                char *formstr = sw_http_build_query(zbody, &len, &formstr_s);
+                char *formstr = php_swoole_http_build_query(zbody, &len, &formstr_s);
                 if (formstr == NULL)
                 {
-                    swoole_php_error(E_WARNING, "http_build_query failed");
+                    php_swoole_error(E_WARNING, "http_build_query failed");
                     return SW_ERR;
                 }
                 http_client_append_content_length(http_client_buffer, len);
@@ -1354,7 +1354,7 @@ bool http_client::push(zval *zdata, zend_long opcode, bool fin)
 {
     if (!websocket)
     {
-        swoole_php_fatal_error(E_WARNING, "websocket handshake failed, cannot push data");
+        php_swoole_fatal_error(E_WARNING, "websocket handshake failed, cannot push data");
         zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), SwooleG.error = SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED);
         zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), "websocket handshake failed, cannot push data");
         zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
@@ -1461,7 +1461,7 @@ static sw_inline http_client * swoole_get_phc(zval *zobject)
     http_client *phc = swoole_http_client_coro_fetch_object(Z_OBJ_P(zobject))->phc;
     if (UNEXPECTED(!phc))
     {
-        swoole_php_fatal_error(E_ERROR, "you must call Http Client constructor first");
+        php_swoole_fatal_error(E_ERROR, "you must call Http Client constructor first");
     }
     return phc;
 }
@@ -1530,14 +1530,14 @@ void swoole_http_client_coro_init(int module_number)
     http_client_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!http_client_buffer)
     {
-        swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
+        php_swoole_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
     }
 
 #ifdef SW_HAVE_ZLIB
     swoole_zlib_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_zlib_buffer)
     {
-        swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
+        php_swoole_fatal_error(E_ERROR, "[2] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
     }
 #endif
 }
@@ -1728,22 +1728,22 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     struct stat file_stat;
     if (stat(path, &file_stat) < 0)
     {
-        swoole_php_sys_error(E_WARNING, "stat(%s) failed", path);
+        php_swoole_sys_error(E_WARNING, "stat(%s) failed", path);
         RETURN_FALSE;
     }
     if (file_stat.st_size == 0)
     {
-        swoole_php_sys_error(E_WARNING, "cannot send empty file[%s]", filename);
+        php_swoole_sys_error(E_WARNING, "cannot send empty file[%s]", filename);
         RETURN_FALSE;
     }
     if (file_stat.st_size <= offset)
     {
-        swoole_php_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] exceeds the file size", offset);
+        php_swoole_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] exceeds the file size", offset);
         RETURN_FALSE;
     }
     if (length > file_stat.st_size - offset)
     {
-        swoole_php_sys_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] exceeds the file size", length);
+        php_swoole_sys_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] exceeds the file size", length);
         RETURN_FALSE;
     }
     if (length == 0)

@@ -124,7 +124,7 @@ static ssize_t php_swoole_server_length_func(swProtocol *protocol, swConnection 
     ZVAL_STRINGL(&zdata, data, length);
     if (UNEXPECTED(sw_zend_call_function_ex(NULL, fci_cache, 1, &zdata, &retval) != SUCCESS))
     {
-        swoole_php_fatal_error(E_WARNING, "length function handler error");
+        php_swoole_fatal_error(E_WARNING, "length function handler error");
     }
     else
     {
@@ -146,7 +146,7 @@ static ssize_t php_swoole_server_length_func(swProtocol *protocol, swConnection 
 
 static PHP_METHOD(swoole_server_port, __construct)
 {
-    swoole_php_fatal_error(E_ERROR, "please use the Swoole\\Server->listen method");
+    php_swoole_fatal_error(E_ERROR, "please use the Swoole\\Server->listen method");
     return;
 }
 
@@ -195,7 +195,7 @@ static PHP_METHOD(swoole_server_port, set)
 
     if (port == NULL || property == NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "please use the swoole_server->listen method");
+        php_swoole_fatal_error(E_ERROR, "please use the swoole_server->listen method");
         return;
     }
 
@@ -282,12 +282,12 @@ static PHP_METHOD(swoole_server_port, set)
         port->protocol.package_eof_len = str_v.len();
         if (port->protocol.package_eof_len == 0)
         {
-            swoole_php_fatal_error(E_ERROR, "pacakge_eof cannot be an empty string");
+            php_swoole_fatal_error(E_ERROR, "pacakge_eof cannot be an empty string");
             RETURN_FALSE;
         }
         else if (port->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
         {
-            swoole_php_fatal_error(E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
+            php_swoole_fatal_error(E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
             RETURN_FALSE;
         }
         bzero(port->protocol.package_eof, SW_DATA_EOF_MAXLEN);
@@ -375,7 +375,7 @@ static PHP_METHOD(swoole_server_port, set)
         port->protocol.package_length_size = swoole_type_size(port->protocol.package_length_type);
         if (port->protocol.package_length_size == 0)
         {
-            swoole_php_fatal_error(E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
+            php_swoole_fatal_error(E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
             RETURN_FALSE;
         }
     }
@@ -385,7 +385,7 @@ static PHP_METHOD(swoole_server_port, set)
         port->protocol.package_length_offset = (int) zval_get_long(ztmp);
         if (port->protocol.package_length_offset > SW_IPC_BUFFER_SIZE)
         {
-            swoole_php_fatal_error(E_ERROR, "'package_length_offset' value is too large");
+            php_swoole_fatal_error(E_ERROR, "'package_length_offset' value is too large");
         }
     }
     //package body start
@@ -394,7 +394,7 @@ static PHP_METHOD(swoole_server_port, set)
         port->protocol.package_body_offset = (int) zval_get_long(ztmp);
         if (port->protocol.package_body_offset > SW_IPC_BUFFER_SIZE)
         {
-            swoole_php_fatal_error(E_ERROR, "'package_body_offset' value is too large");
+            php_swoole_fatal_error(E_ERROR, "'package_body_offset' value is too large");
         }
     }
     //length function
@@ -415,14 +415,14 @@ static PHP_METHOD(swoole_server_port, set)
             swServer *serv = property->serv;
             if (serv->factory_mode == SW_MODE_PROCESS && !serv->single_thread)
             {
-                swoole_php_fatal_error(E_ERROR, "option [package_length_func] does not support with ZTS");
+                php_swoole_fatal_error(E_ERROR, "option [package_length_func] does not support with ZTS");
             }
 #endif
             char *func_name;
             zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
             if (!sw_zend_is_callable_ex(ztmp, NULL, 0, &func_name, NULL, fci_cache, NULL))
             {
-                swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+                php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
                 return;
             }
             efree(func_name);
@@ -457,7 +457,7 @@ static PHP_METHOD(swoole_server_port, set)
             zend::string str_v(ztmp);
             if (access(str_v.val(), R_OK) < 0)
             {
-                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found", str_v.val());
+                php_swoole_fatal_error(E_ERROR, "ssl cert file[%s] not found", str_v.val());
                 return;
             }
             if (port->ssl_option.cert_file)
@@ -472,7 +472,7 @@ static PHP_METHOD(swoole_server_port, set)
             zend::string str_v(ztmp);
             if (access(str_v.val(), R_OK) < 0)
             {
-                swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found", str_v.val());
+                php_swoole_fatal_error(E_ERROR, "ssl key file[%s] not found", str_v.val());
                 return;
             }
             if (port->ssl_option.key_file)
@@ -499,7 +499,7 @@ static PHP_METHOD(swoole_server_port, set)
             zend::string str_v(ztmp);
             if (access(str_v.val(), R_OK) < 0)
             {
-                swoole_php_fatal_error(E_ERROR, "ssl_client_cert_file[%s] not found", str_v.val());
+                php_swoole_fatal_error(E_ERROR, "ssl_client_cert_file[%s] not found", str_v.val());
                 return;
             }
             if (port->ssl_option.client_cert_file)
@@ -558,7 +558,7 @@ static PHP_METHOD(swoole_server_port, set)
         //    }
         if (swPort_enable_ssl_encrypt(port) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "swPort_enable_ssl_encrypt() failed");
+            php_swoole_fatal_error(E_ERROR, "swPort_enable_ssl_encrypt() failed");
             RETURN_FALSE;
         }
     }
@@ -579,7 +579,7 @@ static PHP_METHOD(swoole_server_port, on)
     swServer *serv = property->serv;
     if (serv->gs->start > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "can't register event callback function after server started");
+        php_swoole_fatal_error(E_WARNING, "can't register event callback function after server started");
         RETURN_FALSE;
     }
 
@@ -592,7 +592,7 @@ static PHP_METHOD(swoole_server_port, on)
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, fci_cache, NULL))
     {
-        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+        php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;
     }
     efree(func_name);
@@ -662,7 +662,7 @@ static PHP_METHOD(swoole_server_port, on)
 
     if (l_property_name == 0)
     {
-        swoole_php_error(E_WARNING, "unknown event types[%s]", name);
+        php_swoole_error(E_WARNING, "unknown event types[%s]", name);
         efree(fci_cache);
         RETURN_FALSE;
     }

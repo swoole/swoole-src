@@ -326,7 +326,7 @@ PHP_FUNCTION(swoole_proc_open)
 	php_swoole_check_reactor();
     if (php_swoole_signal_isset_handler(SIGCHLD))
     {
-        swoole_php_error(E_WARNING, "The signal [SIGCHLD] is registered, cannot execute swoole_proc_open");
+        php_swoole_error(E_WARNING, "The signal [SIGCHLD] is registered, cannot execute swoole_proc_open");
         RETURN_FALSE;
     }
 
@@ -360,7 +360,7 @@ PHP_FUNCTION(swoole_proc_open)
 
         if (str_index)
         {
-            swoole_php_fatal_error(E_WARNING, "descriptor spec must be an integer indexed array");
+            php_swoole_fatal_error(E_WARNING, "descriptor spec must be an integer indexed array");
             goto exit_fail;
         }
 
@@ -382,7 +382,7 @@ PHP_FUNCTION(swoole_proc_open)
             descriptors[ndesc].childend = dup(fd);
             if (descriptors[ndesc].childend < 0)
             {
-                swoole_php_fatal_error(E_WARNING,
+                php_swoole_fatal_error(E_WARNING,
                         "unable to dup File-Handle for descriptor " ZEND_ULONG_FMT " - %s", nindex,
                         strerror(errno));
                 goto exit_fail;
@@ -393,7 +393,7 @@ PHP_FUNCTION(swoole_proc_open)
         }
         else if (Z_TYPE_P(descitem) != IS_ARRAY)
         {
-            swoole_php_fatal_error(E_WARNING, "Descriptor item must be either an array or a File-Handle");
+            php_swoole_fatal_error(E_WARNING, "Descriptor item must be either an array or a File-Handle");
             goto exit_fail;
         }
         else
@@ -405,7 +405,7 @@ PHP_FUNCTION(swoole_proc_open)
             }
             else
             {
-                swoole_php_fatal_error(E_WARNING, "Missing handle qualifier in array");
+                php_swoole_fatal_error(E_WARNING, "Missing handle qualifier in array");
                 goto exit_fail;
             }
 
@@ -420,7 +420,7 @@ PHP_FUNCTION(swoole_proc_open)
                 }
                 else
                 {
-                    swoole_php_fatal_error(E_WARNING, "Missing mode parameter for 'pipe'");
+                    php_swoole_fatal_error(E_WARNING, "Missing mode parameter for 'pipe'");
                     goto exit_fail;
                 }
 
@@ -428,7 +428,7 @@ PHP_FUNCTION(swoole_proc_open)
 
                 if (0 != socketpair(AF_UNIX, SOCK_STREAM, 0, newpipe))
                 {
-                    swoole_php_fatal_error(E_WARNING, "unable to create pipe %s", strerror(errno));
+                    php_swoole_fatal_error(E_WARNING, "unable to create pipe %s", strerror(errno));
                     goto exit_fail;
                 }
 
@@ -461,7 +461,7 @@ PHP_FUNCTION(swoole_proc_open)
                 }
                 else
                 {
-                    swoole_php_fatal_error(E_WARNING, "Missing file name parameter for 'file'");
+                    php_swoole_fatal_error(E_WARNING, "Missing file name parameter for 'file'");
                     goto exit_fail;
                 }
 
@@ -471,7 +471,7 @@ PHP_FUNCTION(swoole_proc_open)
                 }
                 else
                 {
-                    swoole_php_fatal_error(E_WARNING, "Missing mode parameter for 'file'");
+                    php_swoole_fatal_error(E_WARNING, "Missing mode parameter for 'file'");
                     goto exit_fail;
                 }
 
@@ -489,12 +489,12 @@ PHP_FUNCTION(swoole_proc_open)
             else if (strcmp(Z_STRVAL_P(ztype), "pty") == 0)
             {
 
-                swoole_php_fatal_error(E_WARNING, "pty pseudo terminal not supported on this system");
+                php_swoole_fatal_error(E_WARNING, "pty pseudo terminal not supported on this system");
                 goto exit_fail;
             }
             else
             {
-                swoole_php_fatal_error(E_WARNING, "%s is not a valid descriptor spec/mode", Z_STRVAL_P(ztype));
+                php_swoole_fatal_error(E_WARNING, "%s is not a valid descriptor spec/mode", Z_STRVAL_P(ztype));
                 goto exit_fail;
             }
         }
@@ -560,7 +560,7 @@ PHP_FUNCTION(swoole_proc_open)
             }
         }
 
-        swoole_php_fatal_error(E_WARNING, "fork failed - %s", strerror(errno));
+        php_swoole_fatal_error(E_WARNING, "fork failed - %s", strerror(errno));
 
         goto exit_fail;
 

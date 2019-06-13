@@ -1018,7 +1018,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
             swString_clear(buffer);
             swString_append_ptr(buffer, ZSTR_VAL(key), ZSTR_LEN(key));
             swString_append_ptr(buffer, "=", 1);
-            encoded_value = sw_php_url_encode(str_value.val(), str_value.len(), &encoded_value_len);
+            encoded_value = php_swoole_url_encode(str_value.val(), str_value.len(), &encoded_value_len);
             if (encoded_value)
             {
                 swString_append_ptr(buffer, encoded_value, encoded_value_len);
@@ -1032,7 +1032,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
     size_t buflen = nghttp2_hd_deflate_bound(h2c->deflater, headers.get(), headers.len());
     if (buflen > h2c->remote_settings.max_header_list_size)
     {
-        swoole_php_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u", h2c->remote_settings.max_header_list_size);
+        php_swoole_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u", h2c->remote_settings.max_header_list_size);
         return -1;
     }
     ssize_t rv = nghttp2_hd_deflate_hd(h2c->deflater, (uchar *) buffer, buflen, headers.get(), headers.len());
@@ -1157,10 +1157,10 @@ uint32_t http2_client::send_request(zval *req)
         int flag = stream->type == SW_HTTP2_STREAM_PIPELINE ? 0 : SW_HTTP2_FLAG_END_STREAM;
         if (ZVAL_IS_ARRAY(zdata))
         {
-            p = sw_http_build_query(zdata, &len, &formstr_s);
+            p = php_swoole_http_build_query(zdata, &len, &formstr_s);
             if (p == NULL)
             {
-                swoole_php_error(E_WARNING, "http_build_query failed");
+                php_swoole_error(E_WARNING, "http_build_query failed");
                 return 0;
             }
         }
@@ -1226,10 +1226,10 @@ bool http2_client::send_data(uint32_t stream_id, zval *data, bool end)
     {
         size_t len;
         smart_str formstr_s = { 0 };
-        char *formstr = sw_http_build_query(data, &len, &formstr_s);
+        char *formstr = php_swoole_http_build_query(data, &len, &formstr_s);
         if (formstr == NULL)
         {
-            swoole_php_error(E_WARNING, "http_build_query failed");
+            php_swoole_error(E_WARNING, "http_build_query failed");
             return false;
         }
         memset(buffer, 0, SW_HTTP2_FRAME_HEADER_SIZE);
@@ -1252,7 +1252,7 @@ bool http2_client::send_data(uint32_t stream_id, zval *data, bool end)
     }
     else
     {
-        swoole_php_error(E_WARNING, "unknown data type[%d]", Z_TYPE_P(data) );
+        php_swoole_error(E_WARNING, "unknown data type[%d]", Z_TYPE_P(data) );
         return false;
     }
     return true;
@@ -1292,7 +1292,7 @@ static PHP_METHOD(swoole_http2_client_coro, send)
     }
     if (Z_TYPE_P(request) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(request), swoole_http2_request_ce))
     {
-        swoole_php_fatal_error(E_ERROR, "object is not instanceof swoole_http2_request");
+        php_swoole_fatal_error(E_ERROR, "object is not instanceof swoole_http2_request");
         RETURN_FALSE;
     }
 

@@ -62,16 +62,16 @@ static sw_inline int http_client_check_data(zval *data)
 {
     if (Z_TYPE_P(data) != IS_ARRAY && Z_TYPE_P(data) != IS_STRING)
     {
-        swoole_php_error(E_WARNING, "parameter $data must be an array or string");
+        php_swoole_error(E_WARNING, "parameter $data must be an array or string");
         return SW_ERR;
     }
     else if (Z_TYPE_P(data) == IS_ARRAY && php_swoole_array_length(data) == 0)
     {
-        swoole_php_error(E_WARNING, "parameter $data is empty");
+        php_swoole_error(E_WARNING, "parameter $data is empty");
     }
     else if (Z_TYPE_P(data) == IS_STRING && Z_STRLEN_P(data) == 0)
     {
-        swoole_php_error(E_WARNING, "parameter $data is empty");
+        php_swoole_error(E_WARNING, "parameter $data is empty");
     }
     return SW_OK;
 }

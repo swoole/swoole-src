@@ -571,7 +571,7 @@ static int php_swoole_create_dir(const char* path, size_t length)
     {
         if (getcwd(curpath, sizeof(curpath)) == NULL)
         {
-            swoole_php_sys_error(E_WARNING, "getcwd() failed");
+            php_swoole_sys_error(E_WARNING, "getcwd() failed");
             return -1;
         }
         strcat(curpath, "/");
@@ -602,7 +602,7 @@ static int php_swoole_create_dir(const char* path, size_t length)
             {
                 if (mkdir(curpath, 0755) == -1)
                 {
-                    swoole_php_sys_error(E_WARNING, "mkdir(%s, 0755)", path);
+                    php_swoole_sys_error(E_WARNING, "mkdir(%s, 0755)", path);
                     return -1;
                 }
             }
@@ -658,7 +658,7 @@ int php_swoole_task_pack(swEventData *task, zval *data)
     {
         if (swTaskWorker_large_pack(task, task_data_str, task_data_len) < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "large task pack failed");
+            php_swoole_fatal_error(E_WARNING, "large task pack failed");
             task->info.fd = SW_ERR;
             task->info.len = 0;
         }
@@ -715,17 +715,17 @@ static sw_inline int php_swoole_check_task_param(swServer *serv, zend_long dst_w
 {
     if (UNEXPECTED(serv->task_worker_num == 0))
     {
-        swoole_php_fatal_error(E_WARNING, "task method can't be executed without task worker");
+        php_swoole_fatal_error(E_WARNING, "task method can't be executed without task worker");
         return SW_ERR;
     }
     if (UNEXPECTED(dst_worker_id >= serv->task_worker_num))
     {
-        swoole_php_fatal_error(E_WARNING, "worker_id must be less than task_worker_num[%u]", serv->task_worker_num);
+        php_swoole_fatal_error(E_WARNING, "worker_id must be less than task_worker_num[%u]", serv->task_worker_num);
         return SW_ERR;
     }
     if (UNEXPECTED(swIsTaskWorker()))
     {
-        swoole_php_fatal_error(E_WARNING, "Server->task() cannot use in the task-worker");
+        php_swoole_fatal_error(E_WARNING, "Server->task() cannot use in the task-worker");
         return SW_ERR;
     }
     return SW_OK;
@@ -904,7 +904,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
      */
     if (swServer_create(serv) < 0)
     {
-        swoole_php_fatal_error(E_ERROR, "failed to create the server. Error: %s", sw_error);
+        php_swoole_fatal_error(E_ERROR, "failed to create the server. Error: %s", sw_error);
         return;
     }
 
@@ -953,7 +953,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
         serv->manager_alarm = serv->request_slowlog_timeout;
         if (swServer_add_hook(serv, SW_SERVER_HOOK_MANAGER_TIMER, php_swoole_trace_check, 1) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "Unable to add server hook");
+            php_swoole_fatal_error(E_ERROR, "Unable to add server hook");
             return;
         }
     }
@@ -984,14 +984,14 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
 
         if (swSocket_is_dgram(port->type) && !php_swoole_server_isset_callback(port, SW_SERVER_CB_onPacket))
         {
-            swoole_php_fatal_error(E_ERROR, "require onPacket callback");
+            php_swoole_fatal_error(E_ERROR, "require onPacket callback");
             return;
         }
 
 #ifdef SW_USE_OPENSSL
         if (port->ssl_option.verify_peer && !port->ssl_option.client_cert_file)
         {
-            swoole_php_fatal_error(E_ERROR, "server open verify peer require client_cert_file config");
+            php_swoole_fatal_error(E_ERROR, "server open verify peer require client_cert_file config");
             return;
         }
 #endif
@@ -1007,13 +1007,13 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
             {
                 if (!php_swoole_server_isset_callback(port, SW_SERVER_CB_onMessage))
                 {
-                    swoole_php_fatal_error(E_ERROR, "require onMessage callback");
+                    php_swoole_fatal_error(E_ERROR, "require onMessage callback");
                     return;
                 }
             }
             else if (port->open_http_protocol && !php_swoole_server_isset_callback(port, SW_SERVER_CB_onRequest))
             {
-                swoole_php_fatal_error(E_ERROR, "require onRequest callback");
+                php_swoole_fatal_error(E_ERROR, "require onRequest callback");
                 return;
             }
         }
@@ -1021,7 +1021,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
         {
             if (swSocket_is_stream(port->type) && !php_swoole_server_isset_callback(port, SW_SERVER_CB_onReceive))
             {
-                swoole_php_fatal_error(E_ERROR, "require onReceive callback");
+                php_swoole_fatal_error(E_ERROR, "require onReceive callback");
                 return;
             }
         }
@@ -1033,7 +1033,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
         serv->onClose = php_swoole_http_onClose;
         if (!instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce))
         {
-            swoole_php_error(E_WARNING, "use %s class and open http related protocols may lead to some errors (inconsistent class type)", SW_Z_OBJCE_NAME_VAL_P(zobject));
+            php_swoole_error(E_WARNING, "use %s class and open http related protocols may lead to some errors (inconsistent class type)", SW_Z_OBJCE_NAME_VAL_P(zobject));
         }
         php_swoole_http_server_init_global_variant();
     }
@@ -1150,7 +1150,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, is_enable_coroutine(serv))))
     {
-        swoole_php_error(E_WARNING, "%s->onPipeMessage handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_error(E_WARNING, "%s->onPipeMessage handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
 
     sw_zval_free(zdata);
@@ -1169,7 +1169,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 4, args, NULL, SwooleG.enable_coroutine)))
     {
-        swoole_php_error(E_WARNING, "%s->onReceive handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_error(E_WARNING, "%s->onReceive handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         serv->close(serv, req->info.fd, 0);
     }
 
@@ -1228,7 +1228,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, SwooleG.enable_coroutine)))
     {
-        swoole_php_error(E_WARNING, "%s->onPipeMessage handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_error(E_WARNING, "%s->onPipeMessage handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
 
     zval_ptr_dtor(&zaddr);
@@ -1259,7 +1259,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 
     if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onTask], 4, args, &retval, false)))
     {
-        swoole_php_error(E_WARNING, "%s->onTask handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_error(E_WARNING, "%s->onTask handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
 
     sw_zval_free(zdata);
@@ -1303,7 +1303,7 @@ static int php_swoole_onTaskCo(swServer *serv, swEventData *req)
 
     if (UNEXPECTED(PHPCoroutine::create(server_callbacks[SW_SERVER_CB_onTask], 2, args) < 0))
     {
-        swoole_php_error(E_WARNING, "%s->onTaskCo handler error", ZSTR_VAL(swoole_server_ce->name));
+        php_swoole_error(E_WARNING, "%s->onTaskCo handler error", ZSTR_VAL(swoole_server_ce->name));
     }
 
     zval_ptr_dtor(&ztask);
@@ -1369,7 +1369,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
         }
         if (task_index < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "task[%d] is invalid", task_id);
+            php_swoole_fatal_error(E_WARNING, "task[%d] is invalid", task_id);
             goto _fail;
         }
         (void) add_index_zval(result, task_index, zdata);
@@ -1420,12 +1420,12 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     if (UNEXPECTED(fci_cache == NULL))
     {
         sw_zval_free(zdata);
-        swoole_php_fatal_error(E_WARNING, "require onFinish callback");
+        php_swoole_fatal_error(E_WARNING, "require onFinish callback");
         return SW_ERR;
     }
     if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, SwooleG.enable_coroutine)))
     {
-        swoole_php_error(E_WARNING, "%s->onFinish handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_error(E_WARNING, "%s->onFinish handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
     if (swTask_type(req) & SW_TASK_CALLBACK)
     {
@@ -1445,7 +1445,7 @@ static void php_swoole_onStart(swServer *serv)
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("manager_pid"), serv->gs->manager_pid);
     if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onStart], 1, zserv, NULL, false)))
     {
-        swoole_php_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
     swServer_unlock(serv);
 }
@@ -1457,7 +1457,7 @@ static void php_swoole_onManagerStart(swServer *serv)
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("manager_pid"), serv->gs->manager_pid);
     if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onManagerStart], 1, zserv, NULL, false)))
     {
-        swoole_php_error(E_WARNING, "%s->onManagerStart handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_error(E_WARNING, "%s->onManagerStart handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
 }
 
@@ -1466,7 +1466,7 @@ static void php_swoole_onManagerStop(swServer *serv)
     zval *zserv = (zval *) serv->ptr2;
     if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onManagerStop], 1, zserv, NULL, false)))
     {
-        swoole_php_error(E_WARNING, "%s->onManagerStop handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_error(E_WARNING, "%s->onManagerStop handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
 }
 
@@ -1478,7 +1478,7 @@ static void php_swoole_onShutdown(swServer *serv)
     {
         if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onShutdown], 1, zserv, NULL, false)))
         {
-            swoole_php_error(E_WARNING, "%s->onShutdown handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            php_swoole_error(E_WARNING, "%s->onShutdown handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
     swServer_unlock(serv);
@@ -1508,7 +1508,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
         ZVAL_LONG(&args[1], worker_id);
         if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, is_enable_coroutine(serv))))
         {
-            swoole_php_error(E_WARNING, "%s->onWorkerStart handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            php_swoole_error(E_WARNING, "%s->onWorkerStart handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
 }
@@ -1527,7 +1527,7 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     ZVAL_LONG(&args[1], worker_id);
     if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onWorkerStop], 2, args, NULL, false)))
     {
-        swoole_php_error(E_WARNING, "%s->onWorkerStop handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_error(E_WARNING, "%s->onWorkerStop handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
 }
 
@@ -1539,7 +1539,7 @@ static void php_swoole_onWorkerExit(swServer *serv, int worker_id)
     ZVAL_LONG(&args[1], worker_id);
     if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onWorkerExit], 2, args, NULL, false)))
     {
-        swoole_php_error(E_WARNING, "%s->onWorkerExit handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_error(E_WARNING, "%s->onWorkerExit handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
 }
 
@@ -1572,7 +1572,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 
     if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onWorkerError], 5, args, NULL, false)))
     {
-        swoole_php_error(E_WARNING, "%s->onWorkerError handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_error(E_WARNING, "%s->onWorkerError handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
 }
 
@@ -1588,7 +1588,7 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
         ZVAL_LONG(&args[2], info->reactor_id);
         if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, SwooleG.enable_coroutine)))
         {
-            swoole_php_error(E_WARNING, "%s->onConnect handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            php_swoole_error(E_WARNING, "%s->onConnect handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
 }
@@ -1605,7 +1605,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
             list<php_coro_context *> *coros_list = _i_coros_list->second;
             if (coros_list->size() == 0)
             {
-                swoole_php_fatal_error(E_WARNING, "nothing can be resumed");
+                php_swoole_fatal_error(E_WARNING, "nothing can be resumed");
             }
             else
             {
@@ -1632,7 +1632,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
         ZVAL_LONG(&args[2], info->reactor_id);
         if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, NULL, SwooleG.enable_coroutine)))
         {
-            swoole_php_error(E_WARNING, "%s->onClose handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            php_swoole_error(E_WARNING, "%s->onClose handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
 }
@@ -1651,7 +1651,7 @@ void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
 
         if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, false)))
         {
-            swoole_php_error(E_WARNING, "%s->onBufferFull handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            php_swoole_error(E_WARNING, "%s->onBufferFull handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
 }
@@ -1791,14 +1791,14 @@ static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, s
     }
     if (UNEXPECTED(sw_zend_call_function_ex(NULL, fci_cache, zdata ? 4 : 3, args, &retval) != SUCCESS))
     {
-        swoole_php_error(E_WARNING, "%s->onDispatch handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_error(E_WARNING, "%s->onDispatch handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
     else if (!ZVAL_IS_NULL(&retval))
     {
         worker_id = (int) zval_get_long(&retval);
         if (worker_id >= serv->worker_num)
         {
-            swoole_php_fatal_error(E_WARNING, "invalid target worker-id[%d]", worker_id);
+            php_swoole_fatal_error(E_WARNING, "invalid target worker-id[%d]", worker_id);
             worker_id = -1;
         }
         zval_ptr_dtor(&retval);
@@ -1837,7 +1837,7 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
             list<php_coro_context *> *coros_list = _i_coros_list->second;
             if (coros_list->size() == 0)
             {
-                swoole_php_fatal_error(E_WARNING, "nothing can resume");
+                php_swoole_fatal_error(E_WARNING, "nothing can resume");
                 goto _callback;
             }
             php_coro_context *context = coros_list->front();
@@ -1869,7 +1869,7 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
 
         if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, false)))
         {
-            swoole_php_error(E_WARNING, "%s->onBufferEmpty handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            php_swoole_error(E_WARNING, "%s->onBufferEmpty handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
 }
@@ -1886,7 +1886,7 @@ static PHP_METHOD(swoole_server, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "%s can only be used in CLI mode", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_fatal_error(E_ERROR, "%s can only be used in CLI mode", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
@@ -1898,14 +1898,14 @@ static PHP_METHOD(swoole_server, __construct)
 
     if (SwooleG.serv != NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "server is running. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_fatal_error(E_ERROR, "server is running. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
     swServer *serv = (swServer *) sw_malloc(sizeof (swServer));
     if (!serv)
     {
-        swoole_php_fatal_error(E_ERROR, "malloc(%ld) failed", sizeof(swServer));
+        php_swoole_fatal_error(E_ERROR, "malloc(%ld) failed", sizeof(swServer));
         RETURN_FALSE;
     }
 
@@ -1913,13 +1913,13 @@ static PHP_METHOD(swoole_server, __construct)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lll", &host, &host_len, &serv_port, &serv_mode, &sock_type) == FAILURE)
     {
-        swoole_php_fatal_error(E_ERROR, "invalid %s parameters", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_fatal_error(E_ERROR, "invalid %s parameters", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
     if (serv_mode != SW_MODE_BASE && serv_mode != SW_MODE_PROCESS)
     {
-        swoole_php_fatal_error(E_ERROR, "invalid $mode parameters %d", (int) serv_mode);
+        php_swoole_fatal_error(E_ERROR, "invalid $mode parameters %d", (int) serv_mode);
         RETURN_FALSE;
     }
 
@@ -1934,7 +1934,7 @@ static PHP_METHOD(swoole_server, __construct)
     {
         if (swServer_add_systemd_socket(serv) <= 0)
         {
-            swoole_php_fatal_error(E_ERROR, "failed to add systemd socket");
+            php_swoole_fatal_error(E_ERROR, "failed to add systemd socket");
             RETURN_FALSE;
         }
     }
@@ -2026,7 +2026,7 @@ static PHP_METHOD(swoole_server, set)
     swServer *serv = (swServer *) swoole_get_object(zserv);
     if (serv->gs->start > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "server is running, unable to execute %s->set", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_fatal_error(E_WARNING, "server is running, unable to execute %s->set", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
@@ -2162,14 +2162,14 @@ static PHP_METHOD(swoole_server, set)
 #ifdef ZTS
             if (serv->factory_mode == SW_MODE_PROCESS && !serv->single_thread)
             {
-                swoole_php_fatal_error(E_ERROR, "option [dispatch_func] does not support with ZTS");
+                php_swoole_fatal_error(E_ERROR, "option [dispatch_func] does not support with ZTS");
             }
 #endif
             char *func_name = NULL;
             zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
             if (!sw_zend_is_callable_ex(v, NULL, 0, &func_name, NULL, fci_cache, NULL))
             {
-                swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+                php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
                 return;
             }
             efree(func_name);
@@ -2247,7 +2247,7 @@ static PHP_METHOD(swoole_server, set)
         serv->request_slowlog_file = fopen(str_v.val(), "a+");
         if (serv->request_slowlog_file == NULL)
         {
-            swoole_php_fatal_error(E_ERROR, "Unable to open request_slowlog_file[%s]", str_v.val());
+            php_swoole_fatal_error(E_ERROR, "Unable to open request_slowlog_file[%s]", str_v.val());
             return;
         }
         if (serv->request_slowlog_timeout == 0)
@@ -2268,7 +2268,7 @@ static PHP_METHOD(swoole_server, set)
         zend::string str_v(v);
         if (php_swoole_create_dir(str_v.val(), str_v.len()) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "Unable to create task_tmpdir[%s]", str_v.val());
+            php_swoole_fatal_error(E_ERROR, "Unable to create task_tmpdir[%s]", str_v.val());
             return;
         }
         if (SwooleG.task_tmpdir)
@@ -2278,7 +2278,7 @@ static PHP_METHOD(swoole_server, set)
         SwooleG.task_tmpdir = (char*) sw_malloc(str_v.len() + sizeof(SW_TASK_TMP_FILE) + 1);
         if (!SwooleG.task_tmpdir)
         {
-            swoole_php_fatal_error(E_ERROR, "malloc() failed");
+            php_swoole_fatal_error(E_ERROR, "malloc() failed");
             RETURN_FALSE;
         }
         SwooleG.task_tmpdir_len = sw_snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/swoole.task.XXXXXX", str_v.val()) + 1;
@@ -2305,7 +2305,7 @@ static PHP_METHOD(swoole_server, set)
 
         if (serv->heartbeat_check_interval > serv->heartbeat_idle_time)
         {
-            swoole_php_fatal_error(E_WARNING, "heartbeat_idle_time must be greater than heartbeat_check_interval");
+            php_swoole_fatal_error(E_WARNING, "heartbeat_idle_time must be greater than heartbeat_check_interval");
             serv->heartbeat_check_interval = serv->heartbeat_idle_time / 2;
         }
     }
@@ -2334,14 +2334,14 @@ static PHP_METHOD(swoole_server, set)
         int ignore_num = zend_hash_num_elements(Z_ARRVAL_P(v));
         if (ignore_num >= SW_CPU_NUM)
         {
-            swoole_php_fatal_error(E_ERROR, "cpu_affinity_ignore num must be less than cpu num (%d)", SW_CPU_NUM);
+            php_swoole_fatal_error(E_ERROR, "cpu_affinity_ignore num must be less than cpu num (%d)", SW_CPU_NUM);
             RETURN_FALSE;
         }
         int available_num = SW_CPU_NUM - ignore_num;
         int *available_cpu = (int *) sw_malloc(sizeof(int) * available_num);
         if (!available_cpu)
         {
-            swoole_php_fatal_error(E_WARNING, "malloc() failed");
+            php_swoole_fatal_error(E_WARNING, "malloc() failed");
             RETURN_FALSE;
         }
         int flag, i, available_i = 0;
@@ -2408,7 +2408,7 @@ static PHP_METHOD(swoole_server, set)
         zend::string str_v(v);
         if (php_swoole_create_dir(str_v.val(), str_v.len()) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "Unable to create upload_tmp_dir[%s]", str_v.val());
+            php_swoole_fatal_error(E_ERROR, "Unable to create upload_tmp_dir[%s]", str_v.val());
             return;
         }
         if (serv->upload_tmp_dir)
@@ -2429,7 +2429,7 @@ static PHP_METHOD(swoole_server, set)
         zend::string str_v(v);
         if (str_v.len() >= PATH_MAX)
         {
-            swoole_php_fatal_error(E_ERROR, "The length of document_root must be less than %d", PATH_MAX);
+            php_swoole_fatal_error(E_ERROR, "The length of document_root must be less than %d", PATH_MAX);
             return;
         }
         if (serv->document_root)
@@ -2439,12 +2439,12 @@ static PHP_METHOD(swoole_server, set)
         serv->document_root = (char *) sw_malloc(PATH_MAX);
         if (!serv->document_root)
         {
-            swoole_php_fatal_error(E_ERROR, "malloc() failed");
+            php_swoole_fatal_error(E_ERROR, "malloc() failed");
             RETURN_FALSE;
         }
         if (!realpath(str_v.val(), serv->document_root))
         {
-            swoole_php_fatal_error(E_ERROR, "document_root[%s] does not exist", serv->document_root);
+            php_swoole_fatal_error(E_ERROR, "document_root[%s] does not exist", serv->document_root);
             sw_free(serv->document_root);
             serv->document_root = nullptr;
             RETURN_FALSE;
@@ -2469,7 +2469,7 @@ static PHP_METHOD(swoole_server, set)
         }
         else
         {
-            swoole_php_fatal_error(E_ERROR, "static_handler_locations num must be array");
+            php_swoole_fatal_error(E_ERROR, "static_handler_locations num must be array");
             RETURN_FALSE;
         }
     }
@@ -2496,7 +2496,7 @@ static PHP_METHOD(swoole_server, set)
     if (serv->task_enable_coroutine
             && (serv->task_ipc_mode == SW_TASK_IPC_MSGQUEUE || serv->task_ipc_mode == SW_TASK_IPC_PREEMPTIVE))
     {
-        swoole_php_fatal_error(E_ERROR, "cannot use msgqueue when task_enable_coroutine is enable");
+        php_swoole_fatal_error(E_ERROR, "cannot use msgqueue when task_enable_coroutine is enable");
         RETURN_FALSE;
     }
 
@@ -2516,7 +2516,7 @@ static PHP_METHOD(swoole_server, on)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (serv->gs->start > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "server is running, unable to register event callback function");
+        php_swoole_fatal_error(E_WARNING, "server is running, unable to register event callback function");
         RETURN_FALSE;
     }
 
@@ -2529,7 +2529,7 @@ static PHP_METHOD(swoole_server, on)
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, fci_cache, NULL))
     {
-        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+        php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;
     }
     efree(func_name);
@@ -2597,7 +2597,7 @@ static PHP_METHOD(swoole_server, listen)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (serv->gs->start > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "server is running, can't add listener");
+        php_swoole_fatal_error(E_WARNING, "server is running, can't add listener");
         RETURN_FALSE;
     }
 
@@ -2621,7 +2621,7 @@ static PHP_METHOD(swoole_server, addProcess)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (serv->gs->start > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "server is running, can't add process");
+        php_swoole_fatal_error(E_WARNING, "server is running, can't add process");
         RETURN_FALSE;
     }
 
@@ -2633,13 +2633,13 @@ static PHP_METHOD(swoole_server, addProcess)
 
     if (ZVAL_IS_NULL(process))
     {
-        swoole_php_fatal_error(E_WARNING, "the first parameter can't be empty");
+        php_swoole_fatal_error(E_WARNING, "the first parameter can't be empty");
         RETURN_FALSE;
     }
 
     if (!instanceof_function(Z_OBJCE_P(process), swoole_process_ce))
     {
-        swoole_php_fatal_error(E_ERROR, "object is not instanceof swoole_process");
+        php_swoole_fatal_error(E_ERROR, "object is not instanceof swoole_process");
         RETURN_FALSE;
     }
 
@@ -2660,7 +2660,7 @@ static PHP_METHOD(swoole_server, addProcess)
     int id = swServer_add_worker(serv, worker);
     if (id < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "swServer_add_worker failed");
+        php_swoole_fatal_error(E_WARNING, "swServer_add_worker failed");
         RETURN_FALSE;
     }
     zend_update_property_long(swoole_process_ce, process, ZEND_STRL("id"), id);
@@ -2684,7 +2684,7 @@ static PHP_METHOD(swoole_server, start)
     swServer *serv = (swServer *) swoole_get_object(zserv);
     if (serv->gs->start > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "server is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        php_swoole_fatal_error(E_WARNING, "server is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
@@ -2727,7 +2727,7 @@ static PHP_METHOD(swoole_server, start)
 
     if (swServer_start(serv) < 0)
     {
-        swoole_php_fatal_error(E_ERROR, "failed to start server. Error: %s", sw_error);
+        php_swoole_fatal_error(E_ERROR, "failed to start server. Error: %s", sw_error);
     }
 
     /**
@@ -2755,7 +2755,7 @@ static PHP_METHOD(swoole_server, send)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -2768,7 +2768,7 @@ static PHP_METHOD(swoole_server, send)
 
     if (UNEXPECTED(ZVAL_IS_NULL(zfd)))
     {
-        swoole_php_fatal_error(E_WARNING, "fd can not be null");
+        php_swoole_fatal_error(E_WARNING, "fd can not be null");
         RETURN_FALSE;
     }
 
@@ -2777,7 +2777,7 @@ static PHP_METHOD(swoole_server, send)
 
     if (length == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "data is empty");
+        php_swoole_fatal_error(E_WARNING, "data is empty");
         RETURN_FALSE;
     }
 
@@ -2799,7 +2799,7 @@ static PHP_METHOD(swoole_server, send)
     fd = zval_get_long(zfd);
     if (UNEXPECTED((int) fd <= 0))
     {
-        swoole_php_fatal_error(E_WARNING, "invalid fd[" ZEND_LONG_FMT "]", fd);
+        php_swoole_fatal_error(E_WARNING, "invalid fd[" ZEND_LONG_FMT "]", fd);
         RETURN_FALSE;
     }
     ret = serv->send(serv, fd, data, length);
@@ -2828,7 +2828,7 @@ static PHP_METHOD(swoole_server, sendto)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -2842,7 +2842,7 @@ static PHP_METHOD(swoole_server, sendto)
 
     if (len == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "data is empty");
+        php_swoole_fatal_error(E_WARNING, "data is empty");
         RETURN_FALSE;
     }
 
@@ -2853,12 +2853,12 @@ static PHP_METHOD(swoole_server, sendto)
 
     if (ipv6 == 0 && serv->udp_socket_ipv4 <= 0)
     {
-        swoole_php_fatal_error(E_WARNING, "UDP listener has to be added before executing sendto");
+        php_swoole_fatal_error(E_WARNING, "UDP listener has to be added before executing sendto");
         RETURN_FALSE;
     }
     else if (ipv6 == 1 && serv->udp_socket_ipv6 <= 0)
     {
-        swoole_php_fatal_error(E_WARNING, "UDP6 listener has to be added before executing sendto");
+        php_swoole_fatal_error(E_WARNING, "UDP6 listener has to be added before executing sendto");
         RETURN_FALSE;
     }
 
@@ -2891,7 +2891,7 @@ static PHP_METHOD(swoole_server, sendfile)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -2902,7 +2902,7 @@ static PHP_METHOD(swoole_server, sendfile)
 
     if (swIsMaster())
     {
-        swoole_php_fatal_error(E_WARNING, "can't sendfile[%s] to the connections in master process", filename);
+        php_swoole_fatal_error(E_WARNING, "can't sendfile[%s] to the connections in master process", filename);
         RETURN_FALSE;
     }
 
@@ -2917,13 +2917,13 @@ static PHP_METHOD(swoole_server, close)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
     if (swIsMaster())
     {
-        swoole_php_fatal_error(E_WARNING, "can't close the connections in master process");
+        php_swoole_fatal_error(E_WARNING, "can't close the connections in master process");
         RETURN_FALSE;
     }
 
@@ -2943,13 +2943,13 @@ static PHP_METHOD(swoole_server, confirm)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
     if (swIsMaster())
     {
-        swoole_php_fatal_error(E_WARNING, "can't confirm the connections in master process");
+        php_swoole_fatal_error(E_WARNING, "can't confirm the connections in master process");
         RETURN_FALSE;
     }
 
@@ -2968,7 +2968,7 @@ static PHP_METHOD(swoole_server, pause)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -2987,7 +2987,7 @@ static PHP_METHOD(swoole_server, resume)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -3005,7 +3005,7 @@ static PHP_METHOD(swoole_server, stats)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -3064,7 +3064,7 @@ static PHP_METHOD(swoole_server, reload)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -3076,7 +3076,7 @@ static PHP_METHOD(swoole_server, reload)
     int sig = only_reload_taskworker ? SIGUSR2 : SIGUSR1;
     if (swKill(serv->gs->manager_pid, sig) < 0)
     {
-        swoole_php_sys_error(E_WARNING, "failed to send the reload signal");
+        php_swoole_sys_error(E_WARNING, "failed to send the reload signal");
         RETURN_FALSE;
     }
     RETURN_TRUE;
@@ -3089,7 +3089,7 @@ static PHP_METHOD(swoole_server, heartbeat)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -3142,12 +3142,12 @@ static PHP_METHOD(swoole_server, taskwait)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
     if (!swIsWorker())
     {
-        swoole_php_fatal_error(E_WARNING, "taskwait method can only be used in the worker process");
+        php_swoole_fatal_error(E_WARNING, "taskwait method can only be used in the worker process");
         RETURN_FALSE;
     }
 
@@ -3214,7 +3214,7 @@ static PHP_METHOD(swoole_server, taskwait)
             }
             else
             {
-                swoole_php_sys_error(E_WARNING, "taskwait failed");
+                php_swoole_sys_error(E_WARNING, "taskwait failed");
                 break;
             }
         }
@@ -3236,12 +3236,12 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
     if (!swIsWorker())
     {
-        swoole_php_fatal_error(E_WARNING, "taskWaitMulti method can only be used in the worker process");
+        php_swoole_fatal_error(E_WARNING, "taskWaitMulti method can only be used in the worker process");
         RETURN_FALSE;
     }
 
@@ -3259,7 +3259,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
 
     if (n_task >= SW_MAX_CONCURRENT_TASK)
     {
-        swoole_php_fatal_error(E_WARNING, "too many concurrent tasks");
+        php_swoole_fatal_error(E_WARNING, "too many concurrent tasks");
         RETURN_FALSE;
     }
 
@@ -3293,7 +3293,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
         task_id = php_swoole_task_pack(&buf, task);
         if (task_id < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "task pack failed");
+            php_swoole_fatal_error(E_WARNING, "task pack failed");
             goto _fail;
         }
         swTask_type(&buf) |= SW_TASK_WAITALL;
@@ -3301,7 +3301,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
         sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
         if (swProcessPool_dispatch_blocking(&serv->gs->task_workers, &buf, &dst_worker_id) < 0)
         {
-            swoole_php_sys_error(E_WARNING, "taskwait failed");
+            php_swoole_sys_error(E_WARNING, "taskwait failed");
             task_id = -1;
             _fail:
             add_index_bool(return_value, i, 0);
@@ -3387,13 +3387,13 @@ static PHP_METHOD(swoole_server, taskCo)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
     if (!swIsWorker())
     {
-        swoole_php_fatal_error(E_WARNING, "taskCo method can only be used in the worker process");
+        php_swoole_fatal_error(E_WARNING, "taskCo method can only be used in the worker process");
         RETURN_FALSE;
     }
 
@@ -3409,7 +3409,7 @@ static PHP_METHOD(swoole_server, taskCo)
 
     if (n_task >= SW_MAX_CONCURRENT_TASK)
     {
-        swoole_php_fatal_error(E_WARNING, "too many concurrent tasks");
+        php_swoole_fatal_error(E_WARNING, "too many concurrent tasks");
         RETURN_FALSE;
     }
 
@@ -3438,7 +3438,7 @@ static PHP_METHOD(swoole_server, taskCo)
         task_id = php_swoole_task_pack(&buf, task);
         if (task_id < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "failed to pack task");
+            php_swoole_fatal_error(E_WARNING, "failed to pack task");
             goto _fail;
         }
         swTask_type(&buf) |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
@@ -3493,7 +3493,7 @@ static PHP_METHOD(swoole_server, task)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -3552,7 +3552,7 @@ static PHP_METHOD(swoole_server, sendMessage)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -3563,19 +3563,19 @@ static PHP_METHOD(swoole_server, sendMessage)
 
     if (worker_id == SwooleWG.id)
     {
-        swoole_php_fatal_error(E_WARNING, "can't send messages to self");
+        php_swoole_fatal_error(E_WARNING, "can't send messages to self");
         RETURN_FALSE;
     }
 
     if (worker_id >= serv->worker_num + serv->task_worker_num)
     {
-        swoole_php_fatal_error(E_WARNING, "worker_id[%d] is invalid", (int) worker_id);
+        php_swoole_fatal_error(E_WARNING, "worker_id[%d] is invalid", (int) worker_id);
         RETURN_FALSE;
     }
 
     if (!serv->onPipeMessage)
     {
-        swoole_php_fatal_error(E_WARNING, "onPipeMessage is null, can't use sendMessage");
+        php_swoole_fatal_error(E_WARNING, "onPipeMessage is null, can't use sendMessage");
         RETURN_FALSE;
     }
 
@@ -3598,12 +3598,12 @@ static PHP_METHOD(swoole_server, finish)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
     if (unlikely(serv->task_enable_coroutine))
     {
-        swoole_php_fatal_error(E_ERROR, "please use %s->finish instead when task_enable_coroutine is enable", ZSTR_VAL(swoole_server_task_ce->name));
+        php_swoole_fatal_error(E_ERROR, "please use %s->finish instead when task_enable_coroutine is enable", ZSTR_VAL(swoole_server_task_ce->name));
         RETURN_FALSE;
     }
 
@@ -3621,7 +3621,7 @@ static PHP_METHOD(swoole_server_task, finish)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -3641,7 +3641,7 @@ static PHP_METHOD(swoole_server, bind)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -3652,7 +3652,7 @@ static PHP_METHOD(swoole_server, bind)
 
     if (uid > UINT32_MAX)
     {
-        swoole_php_fatal_error(E_WARNING, "uid can not be greater than %u", UINT32_MAX);
+        php_swoole_fatal_error(E_WARNING, "uid can not be greater than %u", UINT32_MAX);
         RETURN_FALSE;
     }
 
@@ -3708,7 +3708,7 @@ static PHP_METHOD(swoole_server, connection_info)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -3774,7 +3774,7 @@ static PHP_METHOD(swoole_server, connection_list)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -3786,7 +3786,7 @@ static PHP_METHOD(swoole_server, connection_list)
     // exceeded the maximum number of searches
     if (find_count > SW_MAX_FIND_COUNT)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole connection list max_find_count=%d", SW_MAX_FIND_COUNT);
+        php_swoole_fatal_error(E_WARNING, "swoole connection list max_find_count=%d", SW_MAX_FIND_COUNT);
         RETURN_FALSE;
     }
 
@@ -3848,7 +3848,7 @@ static PHP_METHOD(swoole_server, sendwait)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -3862,13 +3862,13 @@ static PHP_METHOD(swoole_server, sendwait)
 
     if (length == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "data is empty");
+        php_swoole_fatal_error(E_WARNING, "data is empty");
         RETURN_FALSE;
     }
 
     if (serv->factory_mode != SW_MODE_BASE || swIsTaskWorker())
     {
-        swoole_php_fatal_error(E_WARNING, "can't sendwait");
+        php_swoole_fatal_error(E_WARNING, "can't sendwait");
         RETURN_FALSE;
     }
 
@@ -3882,7 +3882,7 @@ static PHP_METHOD(swoole_server, exists)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -3914,7 +3914,7 @@ static PHP_METHOD(swoole_server, protect)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -3946,7 +3946,7 @@ static PHP_METHOD(swoole_server, getReceivedTime)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
     if (serv->last_receive_usec > 0)
@@ -3965,13 +3965,13 @@ static PHP_METHOD(swoole_server, shutdown)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
     if (swKill(serv->gs->master_pid, SIGTERM) < 0)
     {
-        swoole_php_sys_error(E_WARNING, "failed to shutdown. swKill(%d, SIGTERM) failed", serv->gs->master_pid);
+        php_swoole_sys_error(E_WARNING, "failed to shutdown. swKill(%d, SIGTERM) failed", serv->gs->master_pid);
         RETURN_FALSE;
     }
     else
@@ -3985,7 +3985,7 @@ static PHP_METHOD(swoole_server, stop)
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (unlikely(!serv->gs->start))
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running");
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
@@ -4013,7 +4013,7 @@ static PHP_METHOD(swoole_server, stop)
         }
         else if (swKill(worker->pid, SIGTERM) < 0)
         {
-            swoole_php_sys_error(E_WARNING, "swKill(%d, SIGTERM) failed", worker->pid);
+            php_swoole_sys_error(E_WARNING, "swKill(%d, SIGTERM) failed", worker->pid);
             RETURN_FALSE;
         }
     }
@@ -4024,7 +4024,7 @@ static PHP_METHOD(swoole_server, stop)
 
 static PHP_METHOD(swoole_connection_iterator, __construct)
 {
-    swoole_php_fatal_error(E_ERROR, "please use the Swoole\\Server->connections");
+    php_swoole_fatal_error(E_ERROR, "please use the Swoole\\Server->connections");
     return;
 }
 

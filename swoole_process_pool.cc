@@ -109,7 +109,7 @@ static void pool_onWorkerStart(swProcessPool *pool, int worker_id)
 
     if (UNEXPECTED(!zend::function::call(pp->onWorkerStart, 2, args, NULL, pp->enable_coroutine)))
     {
-        swoole_php_error(E_WARNING, "%s->onWorkerStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        php_swoole_error(E_WARNING, "%s->onWorkerStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
 
     if (SwooleG.main_reactor)
@@ -130,7 +130,7 @@ static void pool_onMessage(swProcessPool *pool, char *data, uint32_t length)
 
     if (UNEXPECTED(!zend::function::call(pp->onMessage, 2, args, NULL, false)))
     {
-        swoole_php_error(E_WARNING, "%s->onMessage handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        php_swoole_error(E_WARNING, "%s->onMessage handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
 
     zval_ptr_dtor(&args[1]);
@@ -152,7 +152,7 @@ static void pool_onWorkerStop(swProcessPool *pool, int worker_id)
 
     if (UNEXPECTED(!zend::function::call(pp->onWorkerStop, 2, args, NULL, false)))
     {
-        swoole_php_error(E_WARNING, "%s->onWorkerStop handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        php_swoole_error(E_WARNING, "%s->onWorkerStop handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
 }
 
@@ -184,13 +184,13 @@ static PHP_METHOD(swoole_process_pool, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        php_swoole_fatal_error(E_ERROR, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
         RETURN_FALSE;
     }
 
     if (SwooleG.serv)
     {
-        swoole_php_fatal_error(E_ERROR, "%s cannot use in server process", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        php_swoole_fatal_error(E_ERROR, "%s cannot use in server process", SW_Z_OBJCE_NAME_VAL_P(zobject));
         RETURN_FALSE;
     }
 
@@ -208,7 +208,7 @@ static PHP_METHOD(swoole_process_pool, __construct)
     if (enable_coroutine && ipc_type > 0 && ipc_type != SW_IPC_UNIXSOCK)
     {
         ipc_type = SW_IPC_UNIXSOCK;
-        swoole_php_fatal_error(
+        php_swoole_fatal_error(
             E_NOTICE, "%s object's ipc_type will be reset to SWOOLE_IPC_UNIXSOCK after enable coroutine",
             SW_Z_OBJCE_NAME_VAL_P(zobject)
         );
@@ -257,7 +257,7 @@ static PHP_METHOD(swoole_process_pool, on)
 
     if (pool->started > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "process pool is started. unable to register event callback function");
+        php_swoole_fatal_error(E_WARNING, "process pool is started. unable to register event callback function");
         RETURN_FALSE;
     }
 
@@ -287,12 +287,12 @@ static PHP_METHOD(swoole_process_pool, on)
     {
         if (pp->enable_coroutine)
         {
-            swoole_php_fatal_error(E_NOTICE, "cannot set onMessage event with enable_coroutine");
+            php_swoole_fatal_error(E_NOTICE, "cannot set onMessage event with enable_coroutine");
             RETURN_FALSE;
         }
         if (pool->ipc_mode == SW_IPC_NONE)
         {
-            swoole_php_fatal_error(E_WARNING, "cannot set onMessage event with ipc_type=0");
+            php_swoole_fatal_error(E_WARNING, "cannot set onMessage event with ipc_type=0");
             RETURN_FALSE;
         }
         if (pp->onMessage)
@@ -325,7 +325,7 @@ static PHP_METHOD(swoole_process_pool, on)
     }
     else
     {
-        swoole_php_error(E_WARNING, "unknown event type[%s]", name);
+        php_swoole_error(E_WARNING, "unknown event type[%s]", name);
         RETURN_FALSE;
     }
 }
@@ -341,7 +341,7 @@ static PHP_METHOD(swoole_process_pool, listen)
 
     if (pool->started > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "process pool is started. unable to listen");
+        php_swoole_fatal_error(E_WARNING, "process pool is started. unable to listen");
         RETURN_FALSE;
     }
 
@@ -352,7 +352,7 @@ static PHP_METHOD(swoole_process_pool, listen)
 
     if (pool->ipc_mode != SW_IPC_SOCKET)
     {
-        swoole_php_fatal_error(E_WARNING, "unsupported ipc type[%d]", pool->ipc_mode);
+        php_swoole_fatal_error(E_WARNING, "unsupported ipc type[%d]", pool->ipc_mode);
         RETURN_FALSE;
     }
 
@@ -383,7 +383,7 @@ static PHP_METHOD(swoole_process_pool, write)
     swProcessPool *pool = (swProcessPool *) swoole_get_object(getThis());
     if (pool->ipc_mode != SW_IPC_SOCKET)
     {
-        swoole_php_fatal_error(E_WARNING, "unsupported ipc type[%d]", pool->ipc_mode);
+        php_swoole_fatal_error(E_WARNING, "unsupported ipc type[%d]", pool->ipc_mode);
         RETURN_FALSE;
     }
     if (length == 0)
@@ -398,7 +398,7 @@ static PHP_METHOD(swoole_process_pool, start)
     swProcessPool *pool = (swProcessPool *) swoole_get_object(getThis());
     if (pool->started)
     {
-        swoole_php_fatal_error(E_WARNING, "process pool is started. unable to execute swoole_process_pool->start");
+        php_swoole_fatal_error(E_WARNING, "process pool is started. unable to execute swoole_process_pool->start");
         RETURN_FALSE;
     }
 
@@ -414,7 +414,7 @@ static PHP_METHOD(swoole_process_pool, start)
     {
         if (pp->onWorkerStart == NULL)
         {
-            swoole_php_fatal_error(E_ERROR, "require onWorkerStart callback");
+            php_swoole_fatal_error(E_ERROR, "require onWorkerStart callback");
             RETURN_FALSE;
         }
     }
@@ -422,7 +422,7 @@ static PHP_METHOD(swoole_process_pool, start)
     {
         if (pp->onMessage == NULL)
         {
-            swoole_php_fatal_error(E_ERROR, "require onMessage callback");
+            php_swoole_fatal_error(E_ERROR, "require onMessage callback");
             RETURN_FALSE;
         }
         pool->onMessage = pool_onMessage;
@@ -460,7 +460,7 @@ static PHP_METHOD(swoole_process_pool, getProcess)
 
     if (worker_id >= current_pool->worker_num)
     {
-        swoole_php_error(E_WARNING, "invalid worker_id[%ld]", worker_id);
+        php_swoole_error(E_WARNING, "invalid worker_id[%ld]", worker_id);
         RETURN_FALSE;
     }
     else if (worker_id < 0)

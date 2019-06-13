@@ -912,7 +912,7 @@ static sw_inline swRedisClient* swoole_get_redis_client(zval *zobject)
     swRedisClient *redis = (swRedisClient *) swoole_get_object(zobject);
     if (UNEXPECTED(!redis))
     {
-        swoole_php_fatal_error(E_ERROR, "you must call Redis constructor first");
+        php_swoole_fatal_error(E_ERROR, "you must call Redis constructor first");
     }
     return redis;
 }
@@ -1023,7 +1023,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
 
     if (host.len() == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "The host is empty");
+        php_swoole_fatal_error(E_WARNING, "The host is empty");
         return false;
     }
 
@@ -1065,7 +1065,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     {
         if (port <= 0 || port > SW_CLIENT_MAX_PORT)
         {
-            swoole_php_fatal_error(E_WARNING, "The port " ZEND_LONG_FMT " is invalid", port);
+            php_swoole_fatal_error(E_WARNING, "The port " ZEND_LONG_FMT " is invalid", port);
             return false;
         }
         context = redisConnectWithTimeout(host.val(), (int) port, tv);
@@ -2029,7 +2029,7 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 
     if (redis)
     {
-        swoole_php_fatal_error(E_ERROR, "constructor can only be called once");
+        php_swoole_fatal_error(E_ERROR, "constructor can only be called once");
         RETURN_FALSE;
     }
 
@@ -2152,7 +2152,7 @@ static PHP_METHOD(swoole_redis_coro, setDefer)
 
     if (redis->session.subscribe)
     {
-        swoole_php_fatal_error(E_WARNING, "you should not use setDefer after subscribe");
+        php_swoole_fatal_error(E_WARNING, "you should not use setDefer after subscribe");
         RETURN_FALSE;
     }
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &defer) == FAILURE)
@@ -2174,7 +2174,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
     }
     if (UNEXPECTED(!redis->defer && !redis->session.subscribe))
     {
-        swoole_php_fatal_error(E_WARNING, "you should not use recv without defer or subscribe");
+        php_swoole_fatal_error(E_WARNING, "you should not use recv without defer or subscribe");
         RETURN_FALSE;
     }
 
@@ -4093,7 +4093,7 @@ static PHP_METHOD(swoole_redis_coro, lInsert)
     }
 
     if (strncasecmp(pos, "after", 5) && strncasecmp(pos, "before", 6)) {
-        swoole_php_error(E_WARNING, "Position must be either 'BEFORE' or 'AFTER'");
+        php_swoole_error(E_WARNING, "Position must be either 'BEFORE' or 'AFTER'");
         RETURN_FALSE;
     }
 

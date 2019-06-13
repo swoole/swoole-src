@@ -274,7 +274,7 @@ int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int
     multipart_parser *mt_parser = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
     if (!mt_parser)
     {
-        swoole_php_fatal_error(E_WARNING, "multipart_parser_init() failed");
+        php_swoole_fatal_error(E_WARNING, "multipart_parser_init() failed");
         return SW_ERR;
     }
 
@@ -488,7 +488,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
      */
     if (ctx->input_var_num > PG(max_input_vars))
     {
-        swoole_php_error(E_WARNING, "Input variables exceeded " ZEND_LONG_FMT ". "
+        php_swoole_error(E_WARNING, "Input variables exceeded " ZEND_LONG_FMT ". "
                 "To increase the limit change max_input_vars in php.ini", PG(max_input_vars));
         return SW_OK;
     }
