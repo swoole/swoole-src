@@ -259,7 +259,7 @@ static const char* swoole_library_source_ext_curl =
     "        } while (true);\n"
     "        $this->info['total_time'] = microtime(true) - $timeBegin;\n"
     "        $this->info['http_code'] = $client->statusCode;\n"
-    "        $this->info['content_type'] = $client->headers['content-type'];\n"
+    "        $this->info['content_type'] = $client->headers['content-type'] ?? '';\n"
     "        $this->info['size_download'] = $this->info['download_content_length'] = strlen($client->body);;\n"
     "        $this->info['speed_download'] = 1 / $this->info['total_time'] * $this->info['size_download'];\n"
     "        if (isset($redirectBeginTime)) {\n"
