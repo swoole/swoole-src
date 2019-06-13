@@ -26,7 +26,6 @@
 #endif
 #endif
 
-static void swReactor_onTimeout_and_Finish(swReactor *reactor);
 static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);
 static void swReactor_onBegin(swReactor *reactor);
@@ -132,7 +131,7 @@ int swReactor_empty(swReactor *reactor)
 /**
  * execute when reactor timeout and reactor finish
  */
-static void swReactor_onTimeout_and_Finish(swReactor *reactor)
+static void swReactor_onFinish(swReactor *reactor)
 {
     //check timer
     if (reactor->check_timer)
@@ -169,18 +168,13 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
 
 static void swReactor_onTimeout(swReactor *reactor)
 {
-    swReactor_onTimeout_and_Finish(reactor);
+    swReactor_onFinish(reactor);
 
     if (reactor->disable_accept)
     {
         reactor->enable_accept(reactor);
         reactor->disable_accept = 0;
     }
-}
-
-static void swReactor_onFinish(swReactor *reactor)
-{
-    swReactor_onTimeout_and_Finish(reactor);
 }
 
 void swReactor_activate_future_task(swReactor *reactor)

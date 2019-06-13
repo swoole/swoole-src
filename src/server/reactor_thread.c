@@ -21,7 +21,7 @@
 #include "websocket.h"
 
 static int swReactorThread_loop(swThreadParam *param);
-static int swReactorThread_init_reactor(swServer *serv, swReactor *reactor, uint16_t reactor_id);
+static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t reactor_id);
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onRead(swReactor *reactor, swEvent *ev);
@@ -29,6 +29,8 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event);
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint32_t length);
+static int swReactorThread_is_empty(swReactor *reactor);
+static void swReactorThread_shutdown(swReactor *reactor);
 
 static void swHeartbeatThread_start(swServer *serv);
 static void swHeartbeatThread_loop(swThreadParam *param);
@@ -340,6 +342,28 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     }
 }
 
+static void swReactorThread_shutdown(swReactor *reactor)
+{
+    swServer *serv = reactor->ptr;
+    //stop listen UDP Port
+    if (serv->have_dgram_sock == 1)
+    {
+        swListenPort *ls;
+        LL_FOREACH(serv->listen_list, ls)
+        {
+            if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
+            {
+                if (ls->sock % serv->reactor_num != reactor->id)
+                {
+                    continue;
+                }
+                reactor->del(reactor, ls->sock);
+            }
+        }
+    }
+    reactor->wait_exit = 1;
+}
+
 /**
  * receive data from worker process pipe
  */
@@ -406,7 +430,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
             //reactor thread exit
             else if (_send.info.server_fd == SW_RESPONSE_EXIT)
             {
-                reactor->running = 0;
+                swReactorThread_shutdown(reactor);
                 return SW_OK;
             }
             //will never be here
@@ -861,7 +885,7 @@ int swReactorThread_start(swServer *serv)
 
     if (serv->single_thread)
     {
-        swReactorThread_init_reactor(serv, main_reactor, 0);
+        swReactorThread_init(serv, main_reactor, 0);
         goto _init_master_thread;
     }
     /**
@@ -958,16 +982,18 @@ int swReactorThread_start(swServer *serv)
     return retval;
 }
 
-int swReactorThread_init_reactor(swServer *serv, swReactor *reactor, uint16_t reactor_id)
+static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t reactor_id)
 {
     swReactorThread *thread = swServer_get_thread(serv, reactor_id);
 
     reactor->ptr = serv;
     reactor->id = reactor_id;
     reactor->thread = 1;
+    reactor->wait_exit = 0;
     reactor->socket_list = serv->connection_list;
     reactor->max_socket = serv->max_connection;
     reactor->close = swReactorThread_close;
+    reactor->is_empty = swReactorThread_is_empty;
 
     swReactor_set_handler(reactor, SW_FD_CLOSE, swReactorThread_onClose);
     swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorThread_onPipeReceive);
@@ -1060,6 +1086,17 @@ int swReactorThread_init_reactor(swServer *serv, swReactor *reactor, uint16_t re
     return SW_OK;
 }
 
+static int swReactorThread_is_empty(swReactor *reactor)
+{
+    if (reactor->defer_tasks)
+    {
+        return SW_FALSE;
+    }
+
+    swServer *serv = (swServer *) reactor->ptr;
+    return reactor->event_num == serv->reactor_pipe_num;
+}
+
 /**
  * ReactorThread main Loop
  */
@@ -1114,10 +1151,7 @@ static int swReactorThread_loop(swThreadParam *param)
 
     swSignal_none();
 
-    reactor->onFinish = NULL;
-    reactor->onTimeout = NULL;
-
-    if (swReactorThread_init_reactor(serv, reactor, reactor_id) < 0)
+    if (swReactorThread_init(serv, reactor, reactor_id) < 0)
     {
         return SW_ERR;
     }
