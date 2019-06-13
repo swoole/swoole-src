@@ -327,7 +327,27 @@ void php_swoole_register_shutdown_function_prepend(const char *function)
     FREE_HASHTABLE(old_user_shutdown_function_names);
 }
 
-static void php_swoole_fatal_error(int code, const char *format, ...)
+static sw_inline zend_string* get_debug_print_backtrace(zend_long options, zend_long limit)
+{
+    SW_PHP_OB_START(zoutput)
+    {
+        zval fcn, args[2];
+        ZVAL_STRING(&fcn, "debug_print_backtrace");
+        ZVAL_LONG(&args[0], options);
+        ZVAL_LONG(&args[1], limit);
+        sw_zend_call_function_ex(&fcn, NULL, 2, args, &zoutput);
+        zval_ptr_dtor(&fcn);
+    }
+    SW_PHP_OB_END();
+    if (UNEXPECTED(Z_TYPE_P(&zoutput) != IS_STRING))
+    {
+        return nullptr;
+    }
+    Z_STRVAL(zoutput)[--Z_STRLEN(zoutput)] = '\0'; // replace \n to \0
+    return Z_STR(zoutput);
+}
+
+static void fatal_error(int code, const char *format, ...)
 {
     va_list args;
     swString *buffer = SwooleTG.buffer_stack;
@@ -340,7 +360,7 @@ static void php_swoole_fatal_error(int code, const char *format, ...)
     buffer->length += sw_vsnprintf(buffer->str + buffer->length, buffer->size - buffer->length, format, args);
     va_end(args);
     swString_append_ptr(buffer, SW_STRL("\nStack trace:\n"));
-    backtrace = sw_get_debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 0);
+    backtrace = get_debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 0);
     if (likely(backtrace))
     {
         swString_append_ptr(buffer, ZSTR_VAL(backtrace), ZSTR_LEN(backtrace));
@@ -649,7 +669,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_websocket_server_init(module_number);
     swoole_redis_server_init(module_number);
 
-    SwooleG.fatal_error = php_swoole_fatal_error;
+    SwooleG.fatal_error = fatal_error;
     SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
     SwooleG.dns_cache_refresh_time = 60;
 

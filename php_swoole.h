@@ -1183,25 +1183,6 @@ static sw_inline char* php_swoole_http_build_query(zval *zdata, size_t *length, 
     return formstr->s->val;
 }
 
-static sw_inline zend_string* php_swoole_get_debug_print_backtrace(zend_long options, zend_long limit)
-{
-    SW_PHP_OB_START(zoutput) {
-        zval fcn, args[2];
-        ZVAL_STRING(&fcn, "debug_print_backtrace");
-        ZVAL_LONG(&args[0], options);
-        ZVAL_LONG(&args[1], limit);
-        sw_zend_call_function_ex(&fcn, NULL, 2, args, &zoutput);
-        zval_ptr_dtor(&fcn);
-    }
-    SW_PHP_OB_END();
-    if (UNEXPECTED(Z_TYPE_P(&zoutput) != IS_STRING))
-    {
-        return NULL;
-    }
-    Z_STRVAL(zoutput)[--Z_STRLEN(zoutput)] = '\0'; // replace \n to \0
-    return Z_STR(zoutput);
-}
-
 END_EXTERN_C()
 
 #endif /* PHP_SWOOLE_H */
