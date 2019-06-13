@@ -1647,7 +1647,7 @@ static PHP_METHOD(swoole_socket_coro, setOption)
     if (retval != 0)
     {
         swoole_php_sys_error(E_WARNING, "setsockopt(%d) failed", sock->socket->get_fd());
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     RETURN_TRUE;

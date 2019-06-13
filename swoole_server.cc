@@ -2555,12 +2555,11 @@ static PHP_METHOD(swoole_server, on)
 
         if (server_callbacks[event_type])
         {
-            sw_zend_fci_cache_discard(server_callbacks[event_type]);
             efree(server_callbacks[event_type]);
         }
         server_callbacks[event_type] = fci_cache;
 
-        RETURN_TRUE
+        RETURN_TRUE;
     }
 }
 

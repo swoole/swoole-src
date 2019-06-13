@@ -3328,7 +3328,7 @@ static PHP_METHOD(swoole_redis_coro, zUnion)
             zend_update_property_long(swoole_redis_coro_ce, getThis(), ZEND_STRL("errType"), SW_REDIS_ERR_OTHER);
             zend_update_property_long(swoole_redis_coro_ce, getThis(), ZEND_STRL("errCode"), sw_redis_convert_err(SW_REDIS_ERR_OTHER));
             zend_update_property_string(swoole_redis_coro_ce, getThis(), ZEND_STRL("errMsg"), "WEIGHTS and keys array should be the same size!");
-            RETURN_FALSE
+            RETURN_FALSE;
         }
         argc += keys_count + 1;
     }
@@ -3431,7 +3431,7 @@ static PHP_METHOD(swoole_redis_coro, zInter)
 
     if ((keys_count = zend_hash_num_elements(ht_keys)) == 0)
     {
-        RETURN_FALSE
+        RETURN_FALSE;
     }
     else
     {
@@ -4501,7 +4501,7 @@ static PHP_METHOD(swoole_redis_coro, script)
     int argc = ZEND_NUM_ARGS();
     if (argc < 1)
     {
-        RETURN_FALSE
+        RETURN_FALSE;
     }
     SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
@@ -4527,7 +4527,7 @@ static PHP_METHOD(swoole_redis_coro, script)
         if (argc < 2)
         {
             efree(z_args);
-            RETURN_FALSE
+            RETURN_FALSE;
         }
         else
         {
@@ -4554,7 +4554,7 @@ static PHP_METHOD(swoole_redis_coro, script)
         if (argc < 2 || SW_REDIS_COMMAND_ARGS_TYPE(z_args[1]) != IS_STRING)
         {
             efree(z_args);
-            RETURN_FALSE
+            RETURN_FALSE;
         }
         else
         {
@@ -4570,7 +4570,7 @@ static PHP_METHOD(swoole_redis_coro, script)
     else
     {
         efree(z_args);
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 }
 

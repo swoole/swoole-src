@@ -1545,12 +1545,12 @@ static PHP_FUNCTION(swoole_stream_select)
         if (sec < 0)
         {
             php_error_docref(NULL, E_WARNING, "The seconds parameter must be greater than 0");
-            RETURN_FALSE
+            RETURN_FALSE;
         }
         else if (usec < 0)
         {
             php_error_docref(NULL, E_WARNING, "The microseconds parameter must be greater than 0");
-            RETURN_FALSE
+            RETURN_FALSE;
         }
         timeout = (double) sec + ((double) usec / 1000000);
     }

@@ -573,6 +573,58 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 
 //----------------------------------Zval API------------------------------------
 
+// ide-helper
+#ifdef SW_DEBUG
+#undef RETURN_BOOL
+#undef RETURN_NULL
+#undef RETURN_LONG
+#undef RETURN_DOUBLE
+#undef RETURN_STR
+#undef RETURN_INTERNED_STR
+#undef RETURN_NEW_STR
+#undef RETURN_STR_COPY
+#undef RETURN_STRING
+#undef RETURN_STRINGL
+#undef RETURN_EMPTY_STRING
+#undef RETURN_RES
+#undef RETURN_ARR
+#undef RETURN_EMPTY_ARRAY
+#undef RETURN_OBJ
+#undef RETURN_ZVAL
+#undef RETURN_FALSE
+#undef RETURN_TRUE
+#undef ZVAL_LONG
+#undef ZVAL_DOUBLE
+#define RETURN_BOOL(b)                  do { RETVAL_BOOL(b); return; } while (0)
+#define RETURN_NULL()                   do { RETVAL_NULL(); return;} while (0)
+#define RETURN_LONG(l)                  do { RETVAL_LONG(l); return; } while (0)
+#define RETURN_DOUBLE(d)                do { RETVAL_DOUBLE(d); return; } while (0)
+#define RETURN_STR(s)                   do { RETVAL_STR(s); return; } while (0)
+#define RETURN_INTERNED_STR(s)          do { RETVAL_INTERNED_STR(s); return; } while (0)
+#define RETURN_NEW_STR(s)               do { RETVAL_NEW_STR(s); return; } while (0)
+#define RETURN_STR_COPY(s)              do { RETVAL_STR_COPY(s); return; } while (0)
+#define RETURN_STRING(s)                do { RETVAL_STRING(s); return; } while (0)
+#define RETURN_STRINGL(s, l)            do { RETVAL_STRINGL(s, l); return; } while (0)
+#define RETURN_EMPTY_STRING()           do { RETVAL_EMPTY_STRING(); return; } while (0)
+#define RETURN_RES(r)                   do { RETVAL_RES(r); return; } while (0)
+#define RETURN_ARR(r)                   do { RETVAL_ARR(r); return; } while (0)
+#define RETURN_EMPTY_ARRAY()            do { RETVAL_EMPTY_ARRAY(); return; } while (0)
+#define RETURN_OBJ(r)                   do { RETVAL_OBJ(r); return; } while (0)
+#define RETURN_ZVAL(zv, copy, dtor)     do { RETVAL_ZVAL(zv, copy, dtor); return; } while (0)
+#define RETURN_FALSE                    do { RETVAL_FALSE; return; } while (0)
+#define RETURN_TRUE                     do { RETVAL_TRUE; return; } while (0)
+#define ZVAL_LONG(z, l) do {            \
+        zval *__z = (z);                \
+        Z_LVAL_P(__z) = l;              \
+        Z_TYPE_INFO_P(__z) = IS_LONG;   \
+    } while (0)
+#define ZVAL_DOUBLE(z, d) do {          \
+        zval *__z = (z);                \
+        Z_DVAL_P(__z) = d;              \
+        Z_TYPE_INFO_P(__z) = IS_DOUBLE; \
+    } while (0)
+#endif
+
 // Deprecated: do not use it anymore
 // do not use sw_copy_to_stack(return_value, foo);
 #define sw_copy_to_stack(ptr, val) do { \
@@ -841,15 +893,15 @@ static sw_inline zend_object* sw_zend_create_object_deny(zend_class_entry *ce)
 #if PHP_VERSION_ID < 80000
 static sw_inline void sw_zend_class_unset_property_deny(zval *zobject, zval *zmember, void **cache_slot)
 {
-    if (!Z_OBJCE_P(zobject)->parent && EXPECTED(zend_hash_find(&(Z_OBJCE_P(zobject)->properties_info), Z_STR_P(zmember))))
+    zend_class_entry *ce = Z_OBJCE_P(zobject);
+    while (ce->parent)
     {
-        zend_throw_error(NULL, "Property %s of class %s cannot be unset", Z_STRVAL_P(zmember), ZSTR_VAL(Z_OBJCE_P(zobject)->name));
-        return;
+        ce = ce->parent;
     }
-    else if (Z_OBJCE_P(zobject)->parent && Z_OBJCE_P(zobject)->parent->type == ZEND_INTERNAL_CLASS && \
-            EXPECTED(zend_hash_find(&(Z_OBJCE_P(zobject)->parent->properties_info), Z_STR_P(zmember))))
+    SW_ASSERT(ce->type == ZEND_INTERNAL_CLASS);
+    if (EXPECTED(zend_hash_find(&ce->properties_info, Z_STR_P(zmember))))
     {
-        zend_throw_error(NULL, "Property %s of class %s cannot be unset", Z_STRVAL_P(zmember), ZSTR_VAL(Z_OBJCE_P(zobject)->parent->name));
+        zend_throw_error(NULL, "Property %s of class %s cannot be unset", Z_STRVAL_P(zmember), SW_Z_OBJCE_NAME_VAL_P(zobject));
         return;
     }
     std_object_handlers.unset_property(zobject, zmember, cache_slot);
@@ -857,7 +909,13 @@ static sw_inline void sw_zend_class_unset_property_deny(zval *zobject, zval *zme
 #else
 static sw_inline void sw_zend_class_unset_property_deny(zend_object *object, zend_string *member, void **cache_slot)
 {
-    if (EXPECTED(zend_hash_find(object->properties, member)))
+    zend_class_entry *ce = object->ce;
+    while (ce->parent)
+    {
+        ce = ce->parent;
+    }
+    SW_ASSERT(ce->type == ZEND_INTERNAL_CLASS);
+    if (EXPECTED(zend_hash_find(&ce->properties_info, member)))
     {
         zend_throw_error(NULL, "Property %s of class %s cannot be unset", ZSTR_VAL(member), ZSTR_VAL(object->ce->name));
         return;

@@ -150,11 +150,11 @@ public:
 
     inline bool set_fetch_mode(bool v)
     {
-        // if (unlikely(socket && v))
-        // {
-        //     non_sql_error(ENOTSUP, "Can not use fetch mode after the connection is established");
-        //     return false;
-        // }
+         if (unlikely(socket && v))
+         {
+             non_sql_error(ENOTSUP, "Can not use fetch mode after the connection is established");
+             return false;
+         }
         fetch_mode = v;
         return true;
     }

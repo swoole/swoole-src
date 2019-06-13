@@ -614,7 +614,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
     {
         if (!ctx->send(ctx, ZEND_STRL("0\r\n\r\n")))
         {
-            RETURN_FALSE
+            RETURN_FALSE;
         }
         ctx->chunk = 0;
     }
@@ -660,7 +660,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
                 if (swString_append_ptr(swoole_http_buffer, send_body_str, send_body_len) < 0)
                 {
                     ctx->send_header = 0;
-                    RETURN_FALSE
+                    RETURN_FALSE;
                 }
             }
 #ifdef SW_HTTP_SEND_TWICE
@@ -669,13 +669,13 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
                 if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
                 {
                     ctx->send_header = 0;
-                    RETURN_FALSE
+                    RETURN_FALSE;
                 }
                 if (!ctx->send(ctx, send_body_str, send_body_len))
                 {
                     ctx->close(ctx);
                     swoole_http_context_free(ctx);
-                    RETURN_FALSE
+                    RETURN_FALSE;
                 }
                 goto _skip_copy;
             }
@@ -685,7 +685,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
         if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
         {
             ctx->send_header = 0;
-            RETURN_FALSE
+            RETURN_FALSE;
         }
     }
 
@@ -1083,13 +1083,13 @@ static PHP_METHOD(swoole_http_response, push)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lb", &zdata, &opcode, &finished) == FAILURE)
     {
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     swString_clear(swoole_http_buffer);
     if (php_swoole_websocket_frame_pack(swoole_http_buffer, zdata, opcode, finished, 0) < 0)
     {
-        RETURN_FALSE
+        RETURN_FALSE;
     }
     RETURN_BOOL(ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length));
 }

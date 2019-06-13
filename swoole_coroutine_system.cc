@@ -392,7 +392,7 @@ PHP_METHOD(swoole_coroutine_system, fgets)
     {
         if (php_stream_cast(stream, PHP_STREAM_AS_STDIO, (void**)&file, 1) != SUCCESS || file == NULL)
         {
-            RETURN_FALSE
+            RETURN_FALSE;
         }
     }
 
@@ -561,7 +561,7 @@ PHP_METHOD(swoole_coroutine_system, writeFile)
     ssize_t retval = System::write_file(filename, data, l_data, flags & LOCK_EX, _flags);
     if (retval < 0)
     {
-        RETURN_FALSE
+        RETURN_FALSE;
     }
     else
     {
@@ -623,19 +623,19 @@ PHP_METHOD(swoole_coroutine_system, getaddrinfo)
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lllsd", &hostname, &l_hostname, &family, &socktype, &protocol,
             &service, &l_service, &timeout) == FAILURE)
     {
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     if (l_hostname == 0)
     {
         swoole_php_fatal_error(E_WARNING, "hostname is empty");
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     if (family != AF_INET && family != AF_INET6)
     {
         swoole_php_fatal_error(E_WARNING, "unknown protocol family, must be AF_INET or AF_INET6");
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     string str_service(service ? service : "");
@@ -643,7 +643,7 @@ PHP_METHOD(swoole_coroutine_system, getaddrinfo)
 
     if (result.empty())
     {
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     array_init(return_value);

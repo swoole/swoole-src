@@ -527,7 +527,7 @@ static PHP_METHOD(swoole_process, signal)
     if (handler && handler != php_swoole_onSignal)
     {
         swoole_php_fatal_error(E_WARNING, "signal [" ZEND_LONG_FMT "] processor has been registered by the system", signo);
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     if (zcallback == NULL)
