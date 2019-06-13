@@ -2549,7 +2549,7 @@ static PHP_METHOD(swoole_server, on)
         }
         server_callbacks[event_type] = fci_cache;
 
-        RETURN_TRUE
+        RETURN_TRUE;
     }
 }
 

@@ -189,7 +189,7 @@ PHP_FUNCTION(swoole_proc_terminate)
 
     if ((proc = (proc_co_t *) zend_fetch_resource(Z_RES_P(zproc), le_proc_name, le_proc_open)) == NULL)
     {
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     RETURN_BOOL(kill(proc->child, sig_no) == 0);
@@ -209,7 +209,7 @@ PHP_FUNCTION(swoole_proc_close)
 
     if ((proc = (proc_co_t *) zend_fetch_resource(Z_RES_P(zproc), le_proc_name, le_proc_open)) == NULL)
     {
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     proc->wstatus = &wstatus;
@@ -232,7 +232,7 @@ PHP_FUNCTION(swoole_proc_get_status)
 
     if ((proc = (proc_co_t *) zend_fetch_resource(Z_RES_P(zproc), le_proc_name, le_proc_open)) == NULL)
     {
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
 	array_init(return_value);

@@ -964,7 +964,7 @@ PHP_FUNCTION(swoole_set_process_name)
     if (!cli_set_process_title)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_set_process_name only support in CLI mode");
-        RETURN_FALSE
+        RETURN_FALSE;
     }
     cli_set_process_title->internal_function.handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }

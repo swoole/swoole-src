@@ -265,7 +265,7 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
     {
         http_server_set_error(getThis(), sock);
         zend_throw_exception_ex(swoole_exception_ce, sock->errCode, "bind(%s:%d) failed", host, (int) port);
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
 #ifdef SW_USE_OPENSSL
@@ -278,7 +278,7 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
     {
         http_server_set_error(getThis(), sock);
         zend_throw_exception_ex(swoole_exception_ce, sock->errCode, "listen() failed");
-        RETURN_FALSE
+        RETURN_FALSE;
     }
     //check ssl
 #ifndef SW_USE_OPENSSL
@@ -401,7 +401,7 @@ static PHP_METHOD(swoole_http_server_coro, start)
 
     zval_dtor(&zcallback);
 
-    RETURN_TRUE
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_http_server_coro, __destruct)
