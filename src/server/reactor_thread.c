@@ -373,7 +373,7 @@ static void swReactorThread_shutdown(swReactor *reactor)
             continue;
         }
         swConnection *conn = swServer_connection_get(serv, fd);
-        if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_TCP)
+        if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->removed == 0 && conn->fdtype == SW_FD_TCP)
         {
             swReactor_remove_read_event(reactor, fd);
         }
