@@ -1083,6 +1083,8 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
             thread->notify_pipe = serv->workers[i].pipe_worker;
         }
 
+        thread->pipe_num++;
+
         /**
          * mapping reactor_id and worker pipe
          */
@@ -1112,7 +1114,8 @@ static int swReactorThread_is_empty(swReactor *reactor)
     }
 
     swServer *serv = (swServer *) reactor->ptr;
-    return reactor->event_num == serv->reactor_pipe_num;
+    swReactorThread *thread = swServer_get_thread(serv, reactor->id);
+    return reactor->event_num == thread->pipe_num;
 }
 
 /**

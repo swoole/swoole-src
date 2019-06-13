@@ -113,6 +113,7 @@ typedef struct _swReactorThread
     pthread_t thread_id;
     swReactor reactor;
     int notify_pipe;
+    int pipe_num;
 } swReactorThread;
 
 typedef struct _swListenPort
