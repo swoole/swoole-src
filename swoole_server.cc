@@ -1999,7 +1999,6 @@ static PHP_METHOD(swoole_server, __destruct)
         zend_fcall_info_cache *fci_cache = server_callbacks[i];
         if (fci_cache)
         {
-            sw_zend_fci_cache_discard(fci_cache);
             efree(fci_cache);
             server_callbacks[i] = NULL;
         }
