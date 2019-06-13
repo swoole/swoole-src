@@ -411,6 +411,13 @@ static PHP_METHOD(swoole_server_port, set)
                     break;
                 }
             }
+#ifdef ZTS
+            swServer *serv = property->serv;
+            if (serv->factory_mode == SW_MODE_PROCESS && !serv->single_thread)
+            {
+                swoole_php_fatal_error(E_ERROR, "option [package_length_func] does not support with ZTS");
+            }
+#endif
             char *func_name;
             zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
             if (!sw_zend_is_callable_ex(ztmp, NULL, 0, &func_name, NULL, fci_cache, NULL))

@@ -1989,6 +1989,11 @@ static PHP_METHOD(swoole_server, __construct)
 static PHP_METHOD(swoole_server, __destruct)
 {
     swServer *serv = (swServer *) swoole_get_object(getThis());
+    if (serv->private_data_3)
+    {
+        sw_zend_fci_cache_discard((zend_fcall_info_cache *) serv->private_data_3);
+        efree(serv->private_data_3);
+    }
     if (serv->ptr2)
     {
         efree(serv->ptr2);
@@ -2010,7 +2015,6 @@ static PHP_METHOD(swoole_server, __destruct)
     }
     sw_zval_free(server_port_list.zports);
     server_port_list.zports = NULL;
-
 }
 
 static PHP_METHOD(swoole_server, set)
@@ -2155,6 +2159,12 @@ static PHP_METHOD(swoole_server, set)
                     break;
                 }
             }
+#ifdef ZTS
+            if (serv->factory_mode == SW_MODE_PROCESS && !serv->single_thread)
+            {
+                swoole_php_fatal_error(E_ERROR, "option [dispatch_func] does not support with ZTS");
+            }
+#endif
             char *func_name = NULL;
             zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
             if (!sw_zend_is_callable_ex(v, NULL, 0, &func_name, NULL, fci_cache, NULL))

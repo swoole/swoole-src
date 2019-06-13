@@ -45,6 +45,13 @@ function skip_if_not_debug_version()
     skip('only in swoole debug version', !SWOOLE_DEBUG);
 }
 
+function skip_if($value, $msg)
+{
+    if ($value) {
+        skip($msg);
+    }
+}
+
 function skip_if_ini_bool_equal_to(string $name, bool $value)
 {
     if (((bool)ini_get($name)) === $value) {
