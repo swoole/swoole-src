@@ -361,6 +361,24 @@ static void swReactorThread_shutdown(swReactor *reactor)
             }
         }
     }
+
+    int fd;
+    int serv_max_fd = swServer_get_maxfd(serv);
+    int serv_min_fd = swServer_get_minfd(serv);
+
+    for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
+    {
+        if (fd % serv->reactor_num != reactor->id)
+        {
+            continue;
+        }
+        swConnection *conn = swServer_connection_get(serv, fd);
+        if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_TCP)
+        {
+            swReactor_remove_read_event(reactor, fd);
+        }
+    }
+
     reactor->wait_exit = 1;
 }
 
