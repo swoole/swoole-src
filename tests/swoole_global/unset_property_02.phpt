@@ -13,7 +13,7 @@ $c = new C;
 unset($c->capacity);
 ?>
 --EXPECTF--
-Fatal error: Uncaught Error: Property capacity of class Swoole\Coroutine\Channel cannot be unset in %s/tests/%s/unset%s.php:%d
+Fatal error: Uncaught Error: Property capacity of class %s cannot be unset in %s:%d
 Stack trace:
 #0 {main}
   thrown in %s
