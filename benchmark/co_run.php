@@ -10,8 +10,27 @@ $shortopts .= "s:";
 $shortopts .= "f:";
 $shortopts .= "p::";
 $shortopts .= "l:";
+$shortopts .= "h";
 
 $opt = getopt($shortopts);
+
+if (isset($opt['h'])) {
+    exit(<<<HELP
+Usage: php co_run.php [OPTIONS]
+
+A bench script
+
+Options:
+  -c      Number of coroutines
+  -n      Number of requests
+  -s      URL
+  -f      Supported pressure measurement objects
+  -l      The length of the data sent per request
+\n
+HELP
+    );
+}
+
 //并发数量
 if (!isset($opt['c'])) {
     exit("require -c [process_num]. ep: -c 100\n");
