@@ -701,8 +701,10 @@ int swWorker_loop(swServer *serv, int worker_id)
         worker = swServer_get_worker(serv, i);
         pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_master);
         pipe_socket->buffer_size = INT_MAX;
+        pipe_socket->fdtype = SW_FD_PIPE;
         pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_worker);
         pipe_socket->buffer_size = INT_MAX;
+        pipe_socket->fdtype = SW_FD_PIPE;
     }
 
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
