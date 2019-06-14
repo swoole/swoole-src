@@ -233,6 +233,9 @@ static PHP_METHOD(swoole_http_client_coro, __construct);
 static PHP_METHOD(swoole_http_client_coro, __destruct);
 static PHP_METHOD(swoole_http_client_coro, set);
 static PHP_METHOD(swoole_http_client_coro, getDefer);
+static PHP_METHOD(swoole_http_client_coro, getBody);
+static PHP_METHOD(swoole_http_client_coro, getHeaders);
+static PHP_METHOD(swoole_http_client_coro, getCookies);
 static PHP_METHOD(swoole_http_client_coro, setDefer);
 static PHP_METHOD(swoole_http_client_coro, setMethod);
 static PHP_METHOD(swoole_http_client_coro, setHeaders);
@@ -269,6 +272,9 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
     PHP_ME(swoole_http_client_coro, upgrade, arginfo_swoole_http_client_coro_upgrade, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, addFile, arginfo_swoole_http_client_coro_addFile, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, addData, arginfo_swoole_http_client_coro_addData, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getBody, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getHeaders, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getCookies, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, recv, arginfo_swoole_http_client_coro_recv, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, push, arginfo_swoole_http_client_coro_push, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
@@ -1948,4 +1954,34 @@ static PHP_METHOD(swoole_http_client_coro, close)
     http_client* phc = swoole_get_phc(getThis());
 
     RETURN_BOOL(phc->close());
+}
+
+static PHP_METHOD(swoole_http_client_coro, getBody)
+{
+    zval rv;
+    zval *zbody = zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("body"), 1, &rv);
+    if (zbody)
+    {
+        RETURN_ZVAL(zbody, 1, 0);
+    }
+}
+
+static PHP_METHOD(swoole_http_client_coro, getHeaders)
+{
+    zval rv;
+    zval *zbody = zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("headers"), 1, &rv);
+    if (zbody)
+    {
+        RETURN_ZVAL(zbody, 1, 0);
+    }
+}
+
+static PHP_METHOD(swoole_http_client_coro, getCookies)
+{
+    zval rv;
+    zval *zbody = zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("cookies"), 1, &rv);
+    if (zbody)
+    {
+        RETURN_ZVAL(zbody, 1, 0);
+    }
 }
