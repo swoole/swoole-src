@@ -187,8 +187,8 @@ class swoole_curl_handler
                 return false;
             }
             if ($client->statusCode >= 300 and $client->statusCode < 400 and isset($client->headers['location'])) {
-                $redirectUri = $this->getRedirectUrl($client->headers['location']);
-                $redirectUrl = $this->unparseUrl($redirectUri);
+                $redirectParsedUrl = $this->getRedirectUrl($client->headers['location']);
+                $redirectUrl = $this->unparseUrl($redirectParsedUrl);
                 if ($this->followLocation and (null === $this->maxRedirs or $this->info['redirect_count'] < $this->maxRedirs)) {
                     $isRedirect = true;
                     if (0 === $this->info['redirect_count']) {
@@ -199,13 +199,13 @@ class swoole_curl_handler
                     if (in_array($client->statusCode, [301, 302, 303])) {
                         $this->method = 'GET';
                     }
-                    if ($this->urlInfo['host'] !== $redirectUri['host'] or ($this->urlInfo['port'] ?? null) !== ($redirectUri['port'] ?? null) or $this->urlInfo['scheme'] !== $redirectUri['scheme']) {
+                    if ($this->urlInfo['host'] !== $redirectParsedUrl['host'] or ($this->urlInfo['port'] ?? null) !== ($redirectParsedUrl['port'] ?? null) or $this->urlInfo['scheme'] !== $redirectParsedUrl['scheme']) {
                         // If host, port, and scheme are the same, reuse $client. Otherwise, release the old $client
                         $client = null;
                     }
-                    $this->urlInfo = $redirectUri;
+                    $this->urlInfo = $redirectParsedUrl;
                     $this->info['url'] = $redirectUrl;
-                    ++$this->info['redirect_count'];
+                    $this->info['redirect_count']++;
                 } else {
                     $this->info['redirect_url'] = $redirectUrl;
                     break;
@@ -431,7 +431,7 @@ class swoole_curl_handler
         $pass     = isset($parsedUrl['pass']) ? ':' . $parsedUrl['pass']  : '';
         $pass     = ($user or $pass) ? "$pass@" : '';
         $path     = $parsedUrl['path'] ?? '';
-        $query    = isset($parsedUrl['query']) and '' !== $parsedUrl['query'] ? '?' . $parsedUrl['query'] : '';
+        $query    = (isset($parsedUrl['query']) and '' !== $parsedUrl['query']) ? '?' . $parsedUrl['query'] : '';
         $fragment = isset($parsedUrl['fragment']) ? '#' . $parsedUrl['fragment'] : '';
         return $scheme . $user . $pass . $host . $port . $path . $query . $fragment;
     }
