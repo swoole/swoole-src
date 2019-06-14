@@ -25,7 +25,7 @@
 
 #include <stack>
 
-#define SW_DEFAULT_MAX_CORO_NUM              3000
+#define SW_DEFAULT_MAX_CORO_NUM              100000
 #define SW_DEFAULT_PHP_STACK_PAGE_SIZE       8192
 
 #define SWOG ((zend_output_globals *) &OG(handlers))
