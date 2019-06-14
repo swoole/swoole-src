@@ -735,6 +735,8 @@ void swServer_init(swServer *serv)
     serv->task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
 
     serv->enable_coroutine = 1;
+    serv->reload_async = 1;
+    serv->send_yield = 1;
 
 #ifdef __linux__
     serv->timezone = timezone;
