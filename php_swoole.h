@@ -745,14 +745,6 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     return add_assoc_ulong_safe_ex(arg, key, strlen(key), value);
 }
 
-#define SW_RETURN_PROPERTY(name)     \
-    zval rv; \
-    zval *zvalue = zend_read_property(Z_OBJCE_P(getThis()), getThis(), name, sizeof(name) - 1, 1, &rv); \
-    if (zvalue) \
-    { \
-        RETURN_ZVAL(zvalue, 1, 0); \
-    }
-
 //----------------------------------Class API------------------------------------
 
 #define SW_Z_OBJCE_NAME_VAL_P(zobject) ZSTR_VAL(Z_OBJCE_P(zobject)->name)
@@ -778,7 +770,7 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 #define SW_INIT_EXCEPTION_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
     SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, zend_exception_get_default()); \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers)); \
-    SW_SET_CLASS_CLONEABLE(module, zend_class_clone_deny)
+    SW_SET_CLASS_CLONEABLE(module, sw_zend_class_clone_deny)
 
 #define SW_CLASS_ALIAS(name, module) do { \
     if (name) { \
@@ -976,6 +968,10 @@ static sw_inline zval* sw_zend_read_and_convert_property_array(zend_class_entry 
 
     return property;
 }
+
+#define SW_RETURN_PROPERTY(name) do { \
+    RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL(name), 0), 1, 0); \
+} while (0)
 
 //----------------------------------Function API------------------------------------
 
