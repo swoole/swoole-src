@@ -130,7 +130,7 @@ class swoole_curl_handler
             if ($this->proxy) {
                 list($proxy_host, $proxy_port) = explode(':', $this->proxy);
                 if (!filter_var($proxy_host, FILTER_VALIDATE_IP)) {
-                    $ip = Co::gethostbyname($proxy_host);
+                    $ip = \Swoole\Coroutine::gethostbyname($proxy_host);
                     if (!$ip) {
                         $this->setError(CURLE_COULDNT_RESOLVE_PROXY, 'Could not resolve proxy: ' . $proxy_host);
                         return false;
@@ -186,16 +186,10 @@ class swoole_curl_handler
                 $this->info['total_time'] = microtime(true) - $timeBegin;
                 return false;
             }
-            if (
-                $client->statusCode >= 300 && $client->statusCode < 400
-                && isset($client->headers['location'])
-            ) {
+            if ($client->statusCode >= 300 && $client->statusCode < 400 && isset($client->headers['location'])) {
                 $redirectUri = $this->getRedirectUrl($client->headers['location']);
                 $redirectUrl = $this->unparseUrl($redirectUri);
-                if (
-                    $this->followLocation
-                    && (null === $this->maxRedirs || $this->info['redirect_count'] < $this->maxRedirs)
-                ) {
+                if ($this->followLocation && (null === $this->maxRedirs || $this->info['redirect_count'] < $this->maxRedirs)) {
                     $isRedirect = true;
                     if (0 === $this->info['redirect_count']) {
                         $this->info['starttransfer_time'] = microtime(true) - $timeBegin;
@@ -428,30 +422,31 @@ class swoole_curl_handler
         return $this->info;
     }
 
-    private function unparseUrl($parsed_url)
+    private function unparseUrl(array $parsedUrl): string
     {
-        $scheme   = isset($parsed_url['scheme']) ? $parsed_url['scheme'] . '://' : '';
-        $host     = isset($parsed_url['host']) ? $parsed_url['host'] : '';
-        $port     = isset($parsed_url['port']) ? ':' . $parsed_url['port'] : '';
-        $user     = isset($parsed_url['user']) ? $parsed_url['user'] : '';
-        $pass     = isset($parsed_url['pass']) ? ':' . $parsed_url['pass']  : '';
+        $scheme   = ($parsedUrl['scheme'] ?? 'http') . '://';
+        $host     = $parsedUrl['host'] ?? '';
+        $port     = isset($parsedUrl['port']) ? ':' . $parsedUrl['port'] : '';
+        $user     = $parsedUrl['user'] ?? '';
+        $pass     = isset($parsedUrl['pass']) ? ':' . $parsedUrl['pass']  : '';
         $pass     = ($user || $pass) ? "$pass@" : '';
-        $path     = isset($parsed_url['path']) ? $parsed_url['path'] : '';
-        $query    = isset($parsed_url['query']) ? '?' . $parsed_url['query'] : '';
-        $fragment = isset($parsed_url['fragment']) ? '#' . $parsed_url['fragment'] : '';
+        $path     = $parsedUrl['path'] ?? '';
+        $query    = isset($parsedUrl['query']) && '' !== $parsedUrl['query'] ? '?' . $parsedUrl['query'] : '';
+        $fragment = isset($parsedUrl['fragment']) ? '#' . $parsedUrl['fragment'] : '';
         return $scheme . $user . $pass . $host . $port . $path . $query . $fragment;
     }
 
-    private function getRedirectUrl($location)
+    private function getRedirectUrl(string $location): array
     {
         $uri = parse_url($location);
         if (isset($uri['host'])) {
             $redirectUri = $uri;
         } else {
             if (!isset($location[0])) {
-                return;
+                return [];
             }
             $redirectUri = $this->urlInfo;
+            $redirectUri['query'] = '';
             if ('/' === $location[0]) {
                 $redirectUri['path'] = $location;
             } else {
@@ -465,7 +460,7 @@ class swoole_curl_handler
                 $redirectUri['path'] = $path . $location;
             }
             foreach ($uri as $k => $v) {
-                if ('path' !== $k) {
+                if (!in_array($k, ['path', 'query'])) {
                     $redirectUri[$k] = $v;
                 }
             }
