@@ -120,6 +120,14 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #endif
 typedef unsigned long ulong_t;
 
+#ifndef PRIu64
+#define PRIu64 "llu"
+#endif
+
+#ifndef PRIx64
+#define PRIx64 "llx"
+#endif
+
 #if defined(__GNUC__)
 #if __GNUC__ >= 3
 #define sw_inline inline __attribute__((always_inline))

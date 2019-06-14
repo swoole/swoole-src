@@ -701,11 +701,10 @@ int swWorker_loop(swServer *serv, int worker_id)
     /**
      * set pipe buffer size
      */
-    int i;
-    swConnection *pipe_socket;
-    for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
+    for (int i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
         swWorker *_worker = swServer_get_worker(serv, i);
+        swConnection *pipe_socket;
         pipe_socket = swReactor_get(reactor, _worker->pipe_master);
         pipe_socket->buffer_size = INT_MAX;
         pipe_socket->fdtype = SW_FD_PIPE;
