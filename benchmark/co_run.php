@@ -64,12 +64,15 @@ class CoBenchMarkTest
     protected $beginSendTime;
     protected $testMethod;
 
+    protected $nShow;
+
     protected $sentData = "hello world\n";
 
     function __construct($opt)
     {
-        $this->nConcurrency = $opt['c'];
-        $this->nRequest = $opt['n'];
+        $this->nConcurrency = intval($opt['c']);
+        $this->nRequest = intval($opt['n']);
+        $this->nShow = $this->nRequest / 10;
         $serv = parse_url($opt['s']);
         $this->host = $serv['host'];
         $this->port = $serv['port'];
@@ -92,23 +95,26 @@ class CoBenchMarkTest
 
     protected function finish()
     {
-        echo "============================================================\n";
-        echo "              Swoole Version " . SWOOLE_VERSION . "\n";
-        echo "============================================================\n";
-        echo "{$this->requestCount}\tbenchmark tests is finished.\n";
-        echo "SendBytes:\t" . number_format($this->nSendBytes) . "\n";
-        echo "RecvBytes:\t" . number_format($this->nRecvBytes) . "\n";
-        echo "concurrency:\t" . $this->nConcurrency, "\n";
-        echo "connect failed:\t" . $this->connectErrorCount, "\n";
-        echo "request num:\t" . $this->nRequest, "\n";
         $costTime = $this->format(microtime(true) - $this->startTime);
-        echo "total time:\t" . ($costTime) . "\n";
-        if ($this->requestCount > 0) {
-            echo "request per second:\t" . intval($this->requestCount / $costTime), "\n";
-        } else {
-            echo "request per second:\t0\n";
-        }
-        echo "connection time:\t" . $this->format($this->connectTime) . "\n";
+        $nRequest = number_format($this->nRequest);
+        $requestErrorCount = number_format($this->nRequest - $this->requestCount);
+        $nSendBytes = number_format($this->nSendBytes);
+        $nRecvBytes = number_format($this->nRecvBytes);
+        $requestPerSec = $this->requestCount / $costTime;
+        $connectTime = $this->format($this->connectTime);
+
+        echo <<<EOF
+Concurrency Level:      $this->nConcurrency 
+Time taken for tests:   $costTime seconds
+Complete requests:      $nRequest 
+Failed requests:        $requestErrorCount
+Connect failed:         $requestErrorCount
+Total send:             $nSendBytes bytes
+Total reveive:          $nRecvBytes bytes
+Requests per second:    $requestPerSec
+Connection time:        $connectTime seconds
+\n
+EOF;
     }
 
     function format($time)
@@ -121,10 +127,10 @@ class CoBenchMarkTest
         $cli = new Swoole\Coroutine\http\client($this->host, $this->port);
         $cli->set(array('websocket_mask' => true));
         $cli->upgrade('/');
+        $data = $this->sentData;
         $n = $this->nRequest / $this->nConcurrency;
         while ($n--) {
             //requset
-            $data = $this->sentData;
             $cli->push($data);
             $this->nSendBytes += strlen($data);
             $this->requestCount++;
@@ -133,6 +139,37 @@ class CoBenchMarkTest
             $this->nRecvBytes += strlen($frame->data);
         }
         $cli->close();
+    }
+
+    function tcp()
+    {
+        $cli = new Coroutine\Client(SWOOLE_TCP);
+        $data = $this->sentData;
+        $sendLen = strlen($data);
+        $n = $this->nRequest / $this->nConcurrency;
+
+        if ($cli->connect($this->host, $this->port) === false) {
+            $this->connectErrorCount++;
+            $this->nRequestErrorCount += $n;
+            $cli->close();
+            echo swoole_strerror($cli->errCode) . PHP_EOL;
+        } else {
+            while ($n--) {
+                //requset
+                if ($cli->send($data) === false) {
+                    echo swoole_strerror($cli->errCode);
+                } else {
+                    $this->nSendBytes += $sendLen;
+                    $this->requestCount++;
+                    if ($this->requestCount % $this->nShow === 0) {
+                        echo "Completed {$this->requestCount} requests" . PHP_EOL;
+                    }
+                    //response
+                    $this->nRecvBytes += strlen($cli->recv());
+                }
+            }
+            $cli->close();
+        }
     }
 
     function eof()
@@ -189,9 +226,19 @@ class CoBenchMarkTest
         $this->beginSendTime = microtime(true);
         $this->connectTime = $this->beginSendTime - $this->startTime;
         swoole_event::wait();
+        echo "\n\n";
         $this->finish();
     }
 }
+
+$swooleVersion = SWOOLE_VERSION;
+
+echo <<<EOF
+============================================================
+Swoole Version          $swooleVersion
+============================================================
+\n
+EOF;
 
 $bench = new CoBenchMarkTest($opt);
 $bench->setSentData(str_repeat('A', 1024));
