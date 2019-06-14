@@ -144,8 +144,8 @@ EOF;
     function tcp()
     {
         $cli = new Coroutine\Client(SWOOLE_TCP);
-        $data = $this->sentData;
-        $sendLen = strlen($data);
+        $sendData = $this->sentData;
+        $sendLen = strlen($sendData);
         $n = $this->nRequest / $this->nConcurrency;
 
         if ($cli->connect($this->host, $this->port) === false) {
@@ -155,7 +155,7 @@ EOF;
 
         while ($n--) {
             //requset
-            if ($cli->send($data) === false) {
+            if ($cli->send($sendData) === false) {
                 echo swoole_strerror($cli->errCode);
             } else {
                 $this->nSendBytes += $sendLen;
@@ -164,7 +164,12 @@ EOF;
                     echo "Completed {$this->requestCount} requests" . PHP_EOL;
                 }
                 //response
-                $this->nRecvBytes += strlen($cli->recv());
+                $recvData = $cli->recv();
+                if ($recvData === false) {
+                    echo swoole_strerror($cli->errCode);
+                } else {
+                    $this->nRecvBytes += strlen($recvData);
+                }
             }
         }
 
