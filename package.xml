@@ -36,10 +36,11 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-05-16</date>
-    <time>20:00:00</time>
+    
+    <date>2019-06-14</date>
+    <time>09:50:10</time>
     <version>
-        <release>4.3.4</release>
+        <release>4.3.5</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -50,11 +51,7 @@
     <notes>
         Fixed
         ---
-        * Fixed SSL certificate configuration failure (#2573) (@twose)
-        * Fixed onReceive callback null pointer (#2568) (@twose)
-        * Fixed ssl->ciphers null pointer (#2553) (@matyhtf)
-        * Fixed document_root can't be a relative path (#2513) (@windrunner)
-        * Fixed HTTP proxy that does not need to handshake (16ea176f) (@matyhtf)
+        * Fixed #2610
     </notes>
     <contents>
         <dir name="/">
