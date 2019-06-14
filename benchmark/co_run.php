@@ -78,7 +78,7 @@ class CoBenchMarkTest
         echo "============================================================\n";
         echo "{$this->requestCount}\tbenchmark tests is finished.\n";
         echo "SendBytes:\t" . number_format($this->nSendBytes) . "\n";
-        echo "nReceBytes:\t" . number_format($this->nRecvBytes) . "\n";
+        echo "RecvBytes:\t" . number_format($this->nRecvBytes) . "\n";
         echo "concurrency:\t" . $this->nConcurrency, "\n";
         echo "connect failed:\t" . $this->connectErrorCount, "\n";
         echo "request num:\t" . $this->nRequest, "\n";
