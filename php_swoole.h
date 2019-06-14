@@ -788,7 +788,7 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     module##_ce->serialize = _serialize; \
     module##_ce->unserialize = _unserialize
 
-#define zend_class_clone_deny NULL
+#define sw_zend_class_clone_deny NULL
 #define SW_SET_CLASS_CLONEABLE(module, _clone_obj) \
     module##_handlers.clone_obj = _clone_obj
 

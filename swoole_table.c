@@ -255,7 +255,7 @@ void swoole_table_init(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_table, "Swoole\\Table", "swoole_table", NULL, swoole_table_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_table, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SW_SET_CLASS_CLONEABLE(swoole_table, zend_class_clone_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_table, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_table, sw_zend_class_unset_property_deny);
     // SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_table);
     zend_class_implements(swoole_table_ce, 2, zend_ce_iterator, zend_ce_arrayaccess);
@@ -269,7 +269,7 @@ void swoole_table_init(int module_number)
 
     SW_INIT_CLASS_ENTRY(swoole_table_row, "Swoole\\Table\\Row", "swoole_table_row", NULL, swoole_table_row_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_table_row, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SW_SET_CLASS_CLONEABLE(swoole_table_row, zend_class_clone_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_table_row, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_table_row, sw_zend_class_unset_property_deny);
     // SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_table_row);
     zend_class_implements(swoole_table_row_ce, 1, zend_ce_arrayaccess);
