@@ -128,11 +128,12 @@ EOF;
         $cli->set(array('websocket_mask' => true));
         $cli->upgrade('/');
         $data = $this->sentData;
+        $sendLen = strlen($data);
         $n = $this->nRequest / $this->nConcurrency;
         while ($n--) {
             //requset
             $cli->push($data);
-            $this->nSendBytes += strlen($data);
+            $this->nSendBytes += $sendLen;
             $this->requestCount++;
             //response
             $frame = $cli->recv();
