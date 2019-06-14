@@ -705,11 +705,11 @@ int swWorker_loop(swServer *serv, int worker_id)
     swConnection *pipe_socket;
     for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
-        worker = swServer_get_worker(serv, i);
-        pipe_socket = swReactor_get(reactor, worker->pipe_master);
+        swWorker *_worker = swServer_get_worker(serv, i);
+        pipe_socket = swReactor_get(reactor, _worker->pipe_master);
         pipe_socket->buffer_size = INT_MAX;
         pipe_socket->fdtype = SW_FD_PIPE;
-        pipe_socket = swReactor_get(reactor, worker->pipe_worker);
+        pipe_socket = swReactor_get(reactor, _worker->pipe_worker);
         pipe_socket->buffer_size = INT_MAX;
         pipe_socket->fdtype = SW_FD_PIPE;
     }
