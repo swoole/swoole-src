@@ -62,7 +62,7 @@ class CoBenchMarkTest
         }
 
         if (!method_exists($this, $this->testMethod)) {
-            throw new RuntimeException("method [{$this->testMethod}] is not exists.");
+            throw new RuntimeException("method [{$this->testMethod}] is non-existent.");
         }
     }
 
