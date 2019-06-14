@@ -56,7 +56,6 @@ class CoBenchMarkTest
     protected $nSendBytes = 0;
 
     protected $requestCount = 0;
-    protected $connectErrorCount = 0;
 
     protected $connectTime = 0;
 
@@ -150,27 +149,27 @@ EOF;
         $n = $this->nRequest / $this->nConcurrency;
 
         if ($cli->connect($this->host, $this->port) === false) {
-            $this->connectErrorCount++;
-            $this->nRequestErrorCount += $n;
-            $cli->close();
             echo swoole_strerror($cli->errCode) . PHP_EOL;
-        } else {
-            while ($n--) {
-                //requset
-                if ($cli->send($data) === false) {
-                    echo swoole_strerror($cli->errCode);
-                } else {
-                    $this->nSendBytes += $sendLen;
-                    $this->requestCount++;
-                    if ($this->requestCount % $this->nShow === 0) {
-                        echo "Completed {$this->requestCount} requests" . PHP_EOL;
-                    }
-                    //response
-                    $this->nRecvBytes += strlen($cli->recv());
-                }
-            }
-            $cli->close();
+            goto end;
         }
+
+        while ($n--) {
+            //requset
+            if ($cli->send($data) === false) {
+                echo swoole_strerror($cli->errCode);
+            } else {
+                $this->nSendBytes += $sendLen;
+                $this->requestCount++;
+                if ($this->requestCount % $this->nShow === 0) {
+                    echo "Completed {$this->requestCount} requests" . PHP_EOL;
+                }
+                //response
+                $this->nRecvBytes += strlen($cli->recv());
+            }
+        }
+
+        end:
+        $cli->close();
     }
 
     function eof()
