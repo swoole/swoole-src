@@ -698,7 +698,20 @@ int swWorker_loop(swServer *serv, int worker_id)
     }
     SwooleG.main_reactor = reactor;
 
-    worker->status = SW_WORKER_IDLE;
+    /**
+     * set pipe buffer size
+     */
+    for (int i = 0; i < serv->worker_num + serv->task_worker_num; i++)
+    {
+        swWorker *_worker = swServer_get_worker(serv, i);
+        swConnection *pipe_socket;
+        pipe_socket = swReactor_get(reactor, _worker->pipe_master);
+        pipe_socket->buffer_size = INT_MAX;
+        pipe_socket->fdtype = SW_FD_PIPE;
+        pipe_socket = swReactor_get(reactor, _worker->pipe_worker);
+        pipe_socket->buffer_size = INT_MAX;
+        pipe_socket->fdtype = SW_FD_PIPE;
+    }
 
     int pipe_worker = worker->pipe_worker;
 
@@ -707,20 +720,6 @@ int swWorker_loop(swServer *serv, int worker_id)
     reactor->add(reactor, pipe_worker, SW_FD_PIPE | SW_EVENT_READ);
     swReactor_set_handler(reactor, SW_FD_PIPE, swWorker_onPipeReceive);
     swReactor_set_handler(reactor, SW_FD_WRITE, swReactor_onWrite);
-
-    /**
-     * set pipe buffer size
-     */
-    int i;
-    swConnection *pipe_socket;
-    for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
-    {
-        worker = swServer_get_worker(serv, i);
-        pipe_socket = swReactor_get(reactor, worker->pipe_master);
-        pipe_socket->buffer_size = INT_MAX;
-        pipe_socket = swReactor_get(reactor, worker->pipe_worker);
-        pipe_socket->buffer_size = INT_MAX;
-    }
 
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
     {
@@ -738,6 +737,7 @@ int swWorker_loop(swServer *serv, int worker_id)
         }
     }
 
+    worker->status = SW_WORKER_IDLE;
     swWorker_onStart(serv);
 
     //main loop

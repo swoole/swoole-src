@@ -745,6 +745,14 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     return add_assoc_ulong_safe_ex(arg, key, strlen(key), value);
 }
 
+#define SW_RETURN_PROPERTY(name)     \
+    zval rv; \
+    zval *zvalue = zend_read_property(Z_OBJCE_P(getThis()), getThis(), name, sizeof(name) - 1, 1, &rv); \
+    if (zvalue) \
+    { \
+        RETURN_ZVAL(zvalue, 1, 0); \
+    }
+
 //----------------------------------Class API------------------------------------
 
 #define SW_Z_OBJCE_NAME_VAL_P(zobject) ZSTR_VAL(Z_OBJCE_P(zobject)->name)
