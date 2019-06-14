@@ -110,7 +110,7 @@ class swoole_curl_handler
         }
         $isRedirect = false;
         do {
-            if ($isRedirect && !$client) {
+            if ($isRedirect and !$client) {
                 $proto = swoole_array_default_value($this->urlInfo, 'scheme');
                 if ($proto != 'http' and $proto != 'https') {
                     $this->setError(CURLE_UNSUPPORTED_PROTOCOL, "Protocol \"{$proto}\" not supported or disabled in libcurl");
@@ -186,10 +186,10 @@ class swoole_curl_handler
                 $this->info['total_time'] = microtime(true) - $timeBegin;
                 return false;
             }
-            if ($client->statusCode >= 300 && $client->statusCode < 400 && isset($client->headers['location'])) {
+            if ($client->statusCode >= 300 and $client->statusCode < 400 and isset($client->headers['location'])) {
                 $redirectUri = $this->getRedirectUrl($client->headers['location']);
                 $redirectUrl = $this->unparseUrl($redirectUri);
-                if ($this->followLocation && (null === $this->maxRedirs || $this->info['redirect_count'] < $this->maxRedirs)) {
+                if ($this->followLocation and (null === $this->maxRedirs or $this->info['redirect_count'] < $this->maxRedirs)) {
                     $isRedirect = true;
                     if (0 === $this->info['redirect_count']) {
                         $this->info['starttransfer_time'] = microtime(true) - $timeBegin;
@@ -199,7 +199,7 @@ class swoole_curl_handler
                     if (in_array($client->statusCode, [301, 302, 303])) {
                         $this->method = 'GET';
                     }
-                    if ($this->urlInfo['host'] !== $redirectUri['host'] || ($this->urlInfo['port'] ?? null) !== ($redirectUri['port'] ?? null) || $this->urlInfo['scheme'] !== $redirectUri['scheme']) {
+                    if ($this->urlInfo['host'] !== $redirectUri['host'] or ($this->urlInfo['port'] ?? null) !== ($redirectUri['port'] ?? null) or $this->urlInfo['scheme'] !== $redirectUri['scheme']) {
                         // If host, port, and scheme are the same, reuse $client. Otherwise, release the old $client
                         $client = null;
                     }
@@ -429,9 +429,9 @@ class swoole_curl_handler
         $port     = isset($parsedUrl['port']) ? ':' . $parsedUrl['port'] : '';
         $user     = $parsedUrl['user'] ?? '';
         $pass     = isset($parsedUrl['pass']) ? ':' . $parsedUrl['pass']  : '';
-        $pass     = ($user || $pass) ? "$pass@" : '';
+        $pass     = ($user or $pass) ? "$pass@" : '';
         $path     = $parsedUrl['path'] ?? '';
-        $query    = isset($parsedUrl['query']) && '' !== $parsedUrl['query'] ? '?' . $parsedUrl['query'] : '';
+        $query    = isset($parsedUrl['query']) and '' !== $parsedUrl['query'] ? '?' . $parsedUrl['query'] : '';
         $fragment = isset($parsedUrl['fragment']) ? '#' . $parsedUrl['fragment'] : '';
         return $scheme . $user . $pass . $host . $port . $path . $query . $fragment;
     }
@@ -454,7 +454,7 @@ class swoole_curl_handler
                 if ('.' === $path) {
                     $path = '/';
                 }
-                if (isset($location[1]) && './' === substr($location, 0, 2)) {
+                if (isset($location[1]) and './' === substr($location, 0, 2)) {
                     $location = substr($location, 2);
                 }
                 $redirectUri['path'] = $path . $location;
