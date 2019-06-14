@@ -2121,10 +2121,7 @@ static PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "enable_coroutine", v))
     {
         serv->enable_coroutine = SwooleG.enable_coroutine = zval_is_true(v);
-        /**
-         * GitHub Issue#2555
-         */
-        serv->reload_async = serv->enable_coroutine;
+        serv->send_yield = serv->reload_async = serv->enable_coroutine;
     }
     if (php_swoole_array_get_value(vht, "max_coro_num", v) || php_swoole_array_get_value(vht, "max_coroutine", v))
     {
