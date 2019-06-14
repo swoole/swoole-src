@@ -273,10 +273,10 @@ void swoole_coroutine_shutdown()
 
 static PHP_METHOD(swoole_exit_exception, getFlags)
 {
-    RETURN_LONG(Z_LVAL_P(sw_zend_read_property(swoole_exit_exception_ce, getThis(), ZEND_STRL("flags"), 0)));
+    SW_RETURN_PROPERTY("flags");
 }
 
 static PHP_METHOD(swoole_exit_exception, getStatus)
 {
-    RETURN_ZVAL(sw_zend_read_property(swoole_exit_exception_ce, getThis(), ZEND_STRL("status"), 0), 1, 0);
+    SW_RETURN_PROPERTY("status");
 }
