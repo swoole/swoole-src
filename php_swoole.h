@@ -567,6 +567,12 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 #define ZEND_HASH_APPLY_PROTECTION(p) 1
 #endif/*}}}*/
 
+/* PHP 7.4 compatibility macro {{{*/
+#ifndef E_FATAL_ERRORS
+#define E_FATAL_ERRORS (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR | E_RECOVERABLE_ERROR | E_PARSE)
+#endif
+/*}}}*/
+
 /* PHP 7 wrapper functions / macros */
 
 //----------------------------------Zval API------------------------------------
@@ -1150,6 +1156,7 @@ static sw_inline void sw_zend_fci_cache_free(void* fci_cache)
 }
 
 //----------------------------------Misc API------------------------------------
+
 static sw_inline char* php_swoole_format_date(char *format, size_t format_len, time_t ts, int localtime)
 {
     zend_string *time = php_format_date(format, format_len, ts, localtime);
