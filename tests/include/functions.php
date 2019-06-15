@@ -153,12 +153,14 @@ function httpRequest(string $uri, array $options = [])
     $path = $url_info['path'] ?? null ?: '/';
     $query = $url_info['query'] ?? null ? "?{$url_info['query']}" : '';
     $port = (int)($url_info['port'] ?? null ?: 80);
-    $cli = new Swoole\Coroutine\Http\Client($domain, $port, $scheme === 'https' || $port == 443);
+    $cli = new Swoole\Coroutine\Http\Client($domain, $port, $scheme === 'https' || $port === 443);
     $cli->set($options + ['timeout' => 5]);
     if (isset($options['method'])) {
         $cli->setMethod($options['method']);
     }
-    $cli->setHeaders(['Host' => $domain]);
+    if (isset($options['headers'])) {
+        $cli->setHeaders($options['headers']);
+    }
     if (isset($options['data'])) {
         $cli->setData($options['data']);
     }
