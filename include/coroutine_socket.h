@@ -197,7 +197,8 @@ public:
                 "Socket#%d has already been bound to another coroutine#%ld, "
                 "%s of the same socket in coroutine#%ld at the same time is not allowed",
                 socket->fd, cid,
-                (event == SW_EVENT_READ ? "reading" : (event == SW_EVENT_WRITE ? "writing" : "reading or writing")),
+                (event == SW_EVENT_READ ? "reading" : (event == SW_EVENT_WRITE ? "writing" :
+                        (read_co && write_co ? "reading or writing" : (read_co ? "reading" : "writing")))),
                 Coroutine::get_current_cid()
             );
         }
