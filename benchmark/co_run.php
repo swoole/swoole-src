@@ -65,7 +65,8 @@ class CoBenchMarkTest
 
     protected $nShow;
 
-    protected $sentData = "hello world\n";
+    protected $sentData;
+    protected $sentLen = 1024;
 
     function __construct($opt)
     {
@@ -77,11 +78,11 @@ class CoBenchMarkTest
         $this->port = $serv['port'];
         $this->testMethod = $opt['f'];
 
-        //data length
         if (isset($opt['l']) and intval($opt['l']) > 0) {
-            $this->setSentData(str_repeat('A', intval($opt['l'])));
+            $this->sentLen = intval($opt['l']);
         }
-
+        $this->setSentData(str_repeat('A', $this->sentLen));
+        
         if (!method_exists($this, $this->testMethod)) {
             throw new RuntimeException("method [{$this->testMethod}] is non-existent.");
         }
@@ -90,6 +91,7 @@ class CoBenchMarkTest
     function setSentData($data)
     {
         $this->sentData = $data;
+        $this->sentLen = strlen($data);
     }
 
     protected function finish()
@@ -144,8 +146,6 @@ EOF;
     function tcp()
     {
         $cli = new Coroutine\Client(SWOOLE_TCP);
-        $sendData = $this->sentData;
-        $sendLen = strlen($sendData);
         $n = $this->nRequest / $this->nConcurrency;
 
         if ($cli->connect($this->host, $this->port) === false) {
@@ -155,21 +155,21 @@ EOF;
 
         while ($n--) {
             //requset
-            if ($cli->send($sendData) === false) {
+            if ($cli->send($this->sentData) === false) {
+                echo swoole_strerror($cli->errCode);
+                continue;
+            }
+            $this->nSendBytes += $this->sentLen;
+            $this->requestCount++;
+            if ($this->requestCount % $this->nShow === 0) {
+                echo "Completed {$this->requestCount} requests" . PHP_EOL;
+            }
+            //response
+            $recvData = $cli->recv();
+            if ($recvData === false) {
                 echo swoole_strerror($cli->errCode);
             } else {
-                $this->nSendBytes += $sendLen;
-                $this->requestCount++;
-                if ($this->requestCount % $this->nShow === 0) {
-                    echo "Completed {$this->requestCount} requests" . PHP_EOL;
-                }
-                //response
-                $recvData = $cli->recv();
-                if ($recvData === false) {
-                    echo swoole_strerror($cli->errCode);
-                } else {
-                    $this->nRecvBytes += strlen($recvData);
-                }
+                $this->nRecvBytes += strlen($recvData);
             }
         }
 
@@ -246,5 +246,4 @@ Swoole Version          $swooleVersion
 EOF;
 
 $bench = new CoBenchMarkTest($opt);
-$bench->setSentData(str_repeat('A', 1024));
 $bench->run();
