@@ -566,21 +566,6 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
     }
 }
 
-#ifdef SW_USE_OPENSSL
-#define PHP_SSL_MAX_VERSION_LEN 32
-
-static char *php_ssl_cipher_get_version(const SSL_CIPHER *c, char *buffer, size_t max_len)
-{
-    const char *version = SSL_CIPHER_get_version(c);
-    strncpy(buffer, version, max_len);
-    if (max_len <= strlen(version))
-    {
-        buffer[max_len - 1] = 0;
-    }
-    return buffer;
-}
-#endif
-
 static inline int socket_recvfrom(Socket *sock, char *buf, size_t buflen, zend_string **textaddr, struct sockaddr **addr,
         socklen_t *addrlen)
 {
@@ -806,7 +791,6 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         {
             zval tmp;
             const char *proto_str;
-            char version_str[PHP_SSL_MAX_VERSION_LEN];
             const SSL_CIPHER *cipher;
 
             array_init(&tmp);
@@ -839,7 +823,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
             add_assoc_string(&tmp, "protocol", (char* )proto_str);
             add_assoc_string(&tmp, "cipher_name", (char * ) SSL_CIPHER_get_name(cipher));
             add_assoc_long(&tmp, "cipher_bits", SSL_CIPHER_get_bits(cipher, NULL));
-            add_assoc_string(&tmp, "cipher_version", php_ssl_cipher_get_version(cipher, version_str, PHP_SSL_MAX_VERSION_LEN));
+            add_assoc_string(&tmp, "cipher_version", (char *) SSL_CIPHER_get_version(cipher));
             add_assoc_zval((zval *)ptrparam, "crypto", &tmp);
         }
 #endif
