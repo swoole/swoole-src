@@ -13,7 +13,7 @@ class CoBenchMarkTest
 
     protected $scheme;
     protected $host;
-    protected $port;
+    protected $port = 9501;
 
     protected $nRecvBytes = 0;
     protected $nSendBytes = 0;
@@ -35,7 +35,7 @@ class CoBenchMarkTest
         $this->parseOpts();
         $this->setSentData(str_repeat('A', $this->sentLen));
         if (!isset($this->scheme) or !method_exists($this, $this->scheme)) {
-            throw new RuntimeException("Not support pressure measurement objects [{$this->scheme}].");
+            throw new \RuntimeException("Not support pressure measurement objects [{$this->scheme}].");
         }
         $this->testMethod = $this->scheme;
     }
@@ -68,7 +68,9 @@ class CoBenchMarkTest
         $serv = parse_url($opts['s']);
         $this->scheme = $serv['scheme'];
         $this->host = $serv['host'];
-        $this->port = $serv['port'];
+        if (isset($serv['port']) and intval($serv['port']) > 0) {
+            $this->port = $serv['port'];
+        }
     }
 
     function showHelp()
