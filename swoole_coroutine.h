@@ -184,6 +184,9 @@ protected:
 
     static bool schedule_thread_created;
 
+    static void activate();
+    static void error(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args);
+
     static inline void vm_stack_init(void);
     static inline void vm_stack_destroy(void);
     static inline void save_vm_stack(php_coro_task *task);

@@ -34,6 +34,9 @@ static pthread_t pidt;
 
 static void (*orig_interrupt_function)(zend_execute_data *execute_data);
 
+static void (*orig_error_function)(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args);
+
+
 static void swoole_interrupt_resume(void *data)
 {
     Coroutine *co = (Coroutine *) data;
@@ -65,6 +68,53 @@ void PHPCoroutine::init()
     Coroutine::set_on_close(on_close);
     orig_interrupt_function = zend_interrupt_function;
     zend_interrupt_function = swoole_interrupt_function;
+}
+
+inline void PHPCoroutine::activate()
+{
+    if (unlikely(active))
+    {
+        return;
+    }
+
+    if (SWOOLE_G(enable_preemptive_scheduler))
+    {
+        /* create a thread to interrupt the coroutine that takes up too much time */
+        create_scheduler_thread();
+    }
+
+    if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug")))
+    {
+        php_swoole_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
+    }
+
+    /* replace the error function to save execute_data */
+    orig_error_function = zend_error_cb;
+    zend_error_cb = error;
+
+    /* replace functions that can not work correctly in coroutine */
+    inject_function();
+
+    /* init reactor and register event wait */
+    php_swoole_check_reactor();
+
+    /* TODO: enable hook in v5.0.0 */
+    // enable_hook(SW_HOOK_ALL);
+
+    active = true;
+}
+
+void PHPCoroutine::error(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args)
+{
+    if (unlikely(type & E_FATAL_ERRORS))
+    {
+        /* update the last coroutine's info */
+        save_task(get_task());
+    }
+    if (likely(orig_error_function))
+    {
+        orig_error_function(type, error_filename, error_lineno, format, args);
+    }
 }
 
 void PHPCoroutine::shutdown()
@@ -449,26 +499,7 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
 
     if (unlikely(!active))
     {
-        if (SWOOLE_G(enable_preemptive_scheduler))
-        {
-            // create a thread to interrupt the coroutine that takes up too much time
-            create_scheduler_thread();
-        }
-
-        if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug")))
-        {
-            php_swoole_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
-        }
-
-        inject_function();
-
-        // init reactor and register event wait
-        php_swoole_check_reactor();
-
-        // TODO: enable hook in v5.0.0
-        // enable_hook(SW_HOOK_ALL);
-
-        active = true;
+        activate();
     }
 
     php_coro_args php_coro_args;
