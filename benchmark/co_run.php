@@ -30,7 +30,7 @@ class CoBenchMarkTest
     protected $sentData;
     protected $sentLen = 1024;
 
-    function __construct($opt)
+    public function __construct($opt)
     {
         $this->parseOpts();
         $this->setSentData(str_repeat('A', $this->sentLen));
@@ -40,7 +40,7 @@ class CoBenchMarkTest
         $this->testMethod = $this->scheme;
     }
 
-    function parseOpts()
+    protected function parseOpts()
     {
         $shortOpts = "c:n:l:s:h";
         $opts = getopt($shortOpts);
@@ -73,7 +73,7 @@ class CoBenchMarkTest
         }
     }
 
-    function showHelp()
+    public function showHelp()
     {
         exit(<<<HELP
 Usage: php co_run.php [OPTIONS]
@@ -90,7 +90,7 @@ HELP
         );
     }
 
-    function setSentData($data)
+    public function setSentData($data)
     {
         $this->sentData = $data;
         $this->sentLen = strlen($data);
@@ -121,12 +121,12 @@ Connection time:        {$connectTime} seconds
 EOF;
     }
 
-    function format($time)
+    public function format($time)
     {
         return round($time, 4);
     }
 
-    function websocket()
+    protected function websocket()
     {
         $cli = new Coroutine\http\client($this->host, $this->port);
         $cli->set(array('websocket_mask' => true));
@@ -146,21 +146,25 @@ EOF;
         $cli->close();
     }
 
-    function tcp()
+    protected function tcp()
     {
+
         $cli = new Coroutine\Client(SWOOLE_TCP);
+        Coroutine::defer(function () use ($cli) {
+            $cli->close();
+        });
         $n = $this->nRequest / $this->nConcurrency;
 
         if ($cli->connect($this->host, $this->port) === false) {
             echo swoole_strerror($cli->errCode) . PHP_EOL;
-            goto end;
+            return;
         }
         $this->connectCount++;
 
         while ($n--) {
             //requset
             if ($cli->send($this->sentData) === false) {
-                echo swoole_strerror($cli->errCode);
+                echo swoole_strerror($cli->errCode) . PHP_EOL;
                 continue;
             }
             $this->nSendBytes += $this->sentLen;
@@ -176,12 +180,9 @@ EOF;
                 $this->nRecvBytes += strlen($recvData);
             }
         }
-
-        end:
-        $cli->close();
     }
 
-    function eof()
+    protected function eof()
     {
         $eof = "\r\n\r\n";
         $cli = new Coroutine\Client(SWOOLE_TCP);
@@ -201,7 +202,7 @@ EOF;
         $cli->close();
     }
 
-    function length()
+    protected function length()
     {
         $cli = new Coroutine\Client(SWOOLE_TCP);
         $cli->set(array(
@@ -224,7 +225,7 @@ EOF;
         $cli->close();
     }
 
-    function run()
+    public function run()
     {
         $this->startTime = microtime(true);
         for ($i = 0; $i < $this->nConcurrency; $i++) {
