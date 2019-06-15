@@ -34,6 +34,26 @@
     case 'method':
       echo $_SERVER['REQUEST_METHOD'];
       break;
+    case 'redirect_301':
+      header('HTTP/1.1 301 Moved Permanently');
+      header('location:get.php?test=getpost');
+      exit;
+      break;
+    case 'redirect_302':
+      header('HTTP/1.1 302 Found');
+      header('location:get.php?test=getpost');
+      exit;
+      break;
+    case 'redirect_307':
+      header('HTTP/1.1 307 Temporary Redirect');
+      header('location:get.php?test=getpost');
+      exit;
+      break;
+    case 'redirect_308':
+      header('HTTP/1.1 308 Permanent Redirect');
+      header('location:get.php?test=getpost');
+      exit;
+      break;
     default:
       echo "Hello World!\n";
       echo "Hello World!";

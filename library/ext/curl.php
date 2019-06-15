@@ -45,6 +45,8 @@ class swoole_curl_handler
     private $outputStream;
     private $proxy;
     private $clientOptions = [];
+    private $followLocation = false;
+    private $maxRedirs;
 
     /** @var callable */
     private $headerFunction;
@@ -93,6 +95,9 @@ class swoole_curl_handler
 
     public function execute()
     {
+        $this->info['redirect_count'] = $this->info['starttransfer_time'] = 0;
+        $this->info['redirect_url'] = '';
+        $timeBegin = microtime(true);
         /**
          * Socket
          */
@@ -103,69 +108,120 @@ class swoole_curl_handler
             }
             return false;
         }
-        /**
-         * Http Proxy
-         */
-        if ($this->proxy) {
-            list($proxy_host, $proxy_port) = explode(':', $this->proxy);
-            if (!filter_var($proxy_host, FILTER_VALIDATE_IP)) {
-                $ip = Co::gethostbyname($proxy_host);
-                if (!$ip) {
-                    $this->setError(CURLE_COULDNT_RESOLVE_PROXY, 'Could not resolve proxy: ' . $proxy_host);
-                    return false;
+        $isRedirect = false;
+        do {
+            if ($isRedirect and !$client) {
+                $proto = swoole_array_default_value($this->urlInfo, 'scheme');
+                if ($proto != 'http' and $proto != 'https') {
+                    $this->setError(CURLE_UNSUPPORTED_PROTOCOL, "Protocol \"{$proto}\" not supported or disabled in libcurl");
+                    return;
+                }
+                $ssl = $proto === 'https';
+                if (empty($this->urlInfo['port'])) {
+                    $port = $ssl ? 443 : 80;
                 } else {
-                    $proxy_host = $ip;
+                    $port = intval($this->urlInfo['port']);
+                }
+                $client = new Swoole\Coroutine\Http\Client($this->urlInfo['host'], $port, $ssl);
+            }
+            /**
+             * Http Proxy
+             */
+            if ($this->proxy) {
+                list($proxy_host, $proxy_port) = explode(':', $this->proxy);
+                if (!filter_var($proxy_host, FILTER_VALIDATE_IP)) {
+                    $ip = \Swoole\Coroutine::gethostbyname($proxy_host);
+                    if (!$ip) {
+                        $this->setError(CURLE_COULDNT_RESOLVE_PROXY, 'Could not resolve proxy: ' . $proxy_host);
+                        return false;
+                    } else {
+                        $proxy_host = $ip;
+                    }
+                }
+                $client->set(['http_proxy_host' => $proxy_host, 'http_proxy_port' => $proxy_port]);
+            }
+            /**
+             * Client Options
+             */
+            if ($this->clientOptions) {
+                $client->set($this->clientOptions);
+            }
+            $client->setMethod($this->method);
+            /**
+             * Upload File
+             */
+            if ($this->postData and is_array($this->postData)) {
+                foreach ($this->postData as $k => $v) {
+                    if ($v instanceof CURLFile) {
+                        $client->addFile($v->getFilename(), $k, $v->getMimeType() ?: 'application/octet-stream', $v->getPostFilename());
+                        unset($this->postData[$k]);
+                    }
                 }
             }
-            $client->set(['http_proxy_host' => $proxy_host, 'http_proxy_port' => $proxy_port]);
-        }
-        /**
-         * Client Options
-         */
-        if ($this->clientOptions) {
-            $client->set($this->clientOptions);
-        }
-        $client->setMethod($this->method);
-        /**
-         * Upload File
-         */
-        if ($this->postData and is_array($this->postData)) {
-            foreach ($this->postData as $k => $v) {
-                if ($v instanceof CURLFile) {
-                    $client->addFile($v->getFilename(), $k, $v->getMimeType() ?: 'application/octet-stream', $v->getPostFilename());
-                    unset($this->postData[$k]);
+            /**
+             * Post Data
+             */
+            if ($this->postData) {
+                if (is_string($this->postData) and empty($this->headers['Content-Type'])) {
+                    $this->headers['Content-Type'] = 'application/x-www-form-urlencoded';
                 }
+                $client->setData($this->postData);
+                $this->postData = [];
             }
-        }
-        /**
-         * Post Data
-         */
-        if ($this->postData) {
-            if (is_string($this->postData) and empty($this->headers['Content-Type'])) {
-                $this->headers['Content-Type'] = 'application/x-www-form-urlencoded';
+            /**
+             * Http Header
+             */
+            if ($this->headers) {
+                $client->setHeaders($this->headers);
             }
-            $client->setData($this->postData);
-            $this->postData = [];
-        }
-        /**
-         * Http Header
-         */
-        if ($this->headers) {
-            $client->setHeaders($this->headers);
-        }
-        /**
-         * Execute
-         */
-        if (!$client->execute($this->getUrl())) {
-            $errCode = $this->client->errCode;
-            if ($errCode == 1 and $this->client->errMsg == 'Unknown host') {
-                $this->setError(CURLE_COULDNT_RESOLVE_HOST, 'Could not resolve host: ' . $this->client->host);
+            /**
+             * Execute
+             */
+            $executeResult = $client->execute($this->getUrl());
+            if (!$executeResult) {
+                $errCode = $client->errCode;
+                if ($errCode == 1 and $client->errMsg == 'Unknown host') {
+                    $this->setError(CURLE_COULDNT_RESOLVE_HOST, 'Could not resolve host: ' . $client->host);
+                }
+                $this->info['total_time'] = microtime(true) - $timeBegin;
+                return false;
             }
-            return false;
-        }
-
+            if ($client->statusCode >= 300 and $client->statusCode < 400 and isset($client->headers['location'])) {
+                $redirectParsedUrl = $this->getRedirectUrl($client->headers['location']);
+                $redirectUrl = $this->unparseUrl($redirectParsedUrl);
+                if ($this->followLocation and (null === $this->maxRedirs or $this->info['redirect_count'] < $this->maxRedirs)) {
+                    $isRedirect = true;
+                    if (0 === $this->info['redirect_count']) {
+                        $this->info['starttransfer_time'] = microtime(true) - $timeBegin;
+                        $redirectBeginTime = microtime(true);
+                    }
+                    // force GET
+                    if (in_array($client->statusCode, [301, 302, 303])) {
+                        $this->method = 'GET';
+                    }
+                    if ($this->urlInfo['host'] !== $redirectParsedUrl['host'] or ($this->urlInfo['port'] ?? null) !== ($redirectParsedUrl['port'] ?? null) or $this->urlInfo['scheme'] !== $redirectParsedUrl['scheme']) {
+                        // If host, port, and scheme are the same, reuse $client. Otherwise, release the old $client
+                        $client = null;
+                    }
+                    $this->urlInfo = $redirectParsedUrl;
+                    $this->info['url'] = $redirectUrl;
+                    $this->info['redirect_count']++;
+                } else {
+                    $this->info['redirect_url'] = $redirectUrl;
+                    break;
+                }
+            } else {
+                break;
+            }
+        } while (true);
+        $this->info['total_time'] = microtime(true) - $timeBegin;
         $this->info['http_code'] = $client->statusCode;
         $this->info['content_type'] = $client->headers['content-type'] ?? '';
+        $this->info['size_download'] = $this->info['download_content_length'] = strlen($client->body);;
+        $this->info['speed_download'] = 1 / $this->info['total_time'] * $this->info['size_download'];
+        if (isset($redirectBeginTime)) {
+            $this->info['redirect_time'] = microtime(true) - $redirectBeginTime;
+        }
 
         if ($client->headers and $this->headerFunction) {
             $cb = $this->headerFunction;
@@ -345,6 +401,12 @@ class swoole_curl_handler
             case CURLOPT_USERPWD:
                 $this->headers['Authorization'] = 'Basic ' . base64_encode($value);
                 break;
+            case CURLOPT_FOLLOWLOCATION:
+                $this->followLocation = $value;
+                break;
+            case CURLOPT_MAXREDIRS:
+                $this->maxRedirs = $value;
+                break;
             default:
                 throw new swoole_curl_exception("option[{$opt}] not supported");
         }
@@ -358,6 +420,52 @@ class swoole_curl_handler
     public function getInfo()
     {
         return $this->info;
+    }
+
+    private function unparseUrl(array $parsedUrl): string
+    {
+        $scheme   = ($parsedUrl['scheme'] ?? 'http') . '://';
+        $host     = $parsedUrl['host'] ?? '';
+        $port     = isset($parsedUrl['port']) ? ':' . $parsedUrl['port'] : '';
+        $user     = $parsedUrl['user'] ?? '';
+        $pass     = isset($parsedUrl['pass']) ? ':' . $parsedUrl['pass']  : '';
+        $pass     = ($user or $pass) ? "$pass@" : '';
+        $path     = $parsedUrl['path'] ?? '';
+        $query    = (isset($parsedUrl['query']) and '' !== $parsedUrl['query']) ? '?' . $parsedUrl['query'] : '';
+        $fragment = isset($parsedUrl['fragment']) ? '#' . $parsedUrl['fragment'] : '';
+        return $scheme . $user . $pass . $host . $port . $path . $query . $fragment;
+    }
+
+    private function getRedirectUrl(string $location): array
+    {
+        $uri = parse_url($location);
+        if (isset($uri['host'])) {
+            $redirectUri = $uri;
+        } else {
+            if (!isset($location[0])) {
+                return [];
+            }
+            $redirectUri = $this->urlInfo;
+            $redirectUri['query'] = '';
+            if ('/' === $location[0]) {
+                $redirectUri['path'] = $location;
+            } else {
+                $path = dirname($redirectUri['path'] ?? '');
+                if ('.' === $path) {
+                    $path = '/';
+                }
+                if (isset($location[1]) and './' === substr($location, 0, 2)) {
+                    $location = substr($location, 2);
+                }
+                $redirectUri['path'] = $path . $location;
+            }
+            foreach ($uri as $k => $v) {
+                if (!in_array($k, ['path', 'query'])) {
+                    $redirectUri[$k] = $v;
+                }
+            }
+        }
+        return $redirectUri;
     }
 }
 
@@ -435,6 +543,20 @@ function swoole_curl_getinfo(swoole_curl_handler $obj, int $opt = 0)
                 return $info['http_code'];
             case CURLINFO_CONTENT_TYPE:
                 return $info['content_type'];
+            case CURLINFO_REDIRECT_COUNT:
+                return $info['redirect_count'];
+            case CURLINFO_REDIRECT_URL:
+                return $info['redirect_url'];
+            case CURLINFO_TOTAL_TIME:
+                return $info['total_time'];
+            case CURLINFO_STARTTRANSFER_TIME:
+                return $info['starttransfer_time'];
+            case CURLINFO_SIZE_DOWNLOAD:
+                return $info['size_download'];
+            case CURLINFO_SPEED_DOWNLOAD:
+                return $info['speed_download'];
+            case CURLINFO_REDIRECT_TIME:
+                return $info['redirect_time'];
             default:
                 return null;
         }
