@@ -62,11 +62,14 @@ class CoBenchMarkTest
         }
 
         if (!isset($opts['s'])) {
-            exit("require -s [server_url]. E.g: -s tcp://127.0.0.1:9501\n");
+            exit("Require -s [server_url]. E.g: -s tcp://127.0.0.1:9501" . PHP_EOL);
         }
 
         $serv = parse_url($opts['s']);
         $this->scheme = $serv['scheme'];
+        if (filter_var($serv['host'], FILTER_VALIDATE_IP) === false) {
+            exit("Invalid ip address" . PHP_EOL);
+        }
         $this->host = $serv['host'];
         if (isset($serv['port']) and intval($serv['port']) > 0) {
             $this->port = $serv['port'];
@@ -148,12 +151,11 @@ EOF;
 
     protected function tcp()
     {
-
         $cli = new Coroutine\Client(SWOOLE_TCP);
+        $n = $this->nRequest / $this->nConcurrency;
         Coroutine::defer(function () use ($cli) {
             $cli->close();
         });
-        $n = $this->nRequest / $this->nConcurrency;
 
         if ($cli->connect($this->host, $this->port) === false) {
             echo swoole_strerror($cli->errCode) . PHP_EOL;
@@ -175,7 +177,7 @@ EOF;
             //response
             $recvData = $cli->recv();
             if ($recvData === false) {
-                echo swoole_strerror($cli->errCode);
+                echo swoole_strerror($cli->errCode) . PHP_EOL;
             } else {
                 $this->nRecvBytes += strlen($recvData);
             }
