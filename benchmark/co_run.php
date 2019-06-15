@@ -4,51 +4,14 @@ use Swoole\Coroutine;
 
 //关闭错误输出
 //error_reporting(0);
-$shortopts = "c:";
-$shortopts .= "n:";
-$shortopts .= "s:";
-$shortopts .= "f:";
-$shortopts .= "p::";
-$shortopts .= "l:";
-$shortopts .= "h";
-
-$opt = getopt($shortopts);
-
-if (isset($opt['h'])) {
-    exit(<<<HELP
-Usage: php co_run.php [OPTIONS]
-
-A bench script
-
-Options:
-  -c      Number of coroutines
-  -n      Number of requests
-  -s      URL
-  -f      Supported pressure measurement objects
-  -l      The length of the data sent per request
-\n
-HELP
-    );
-}
-
-//并发数量
-if (!isset($opt['c'])) {
-    exit("require -c [process_num]. ep: -c 100\n");
-}
-if (!isset($opt['n'])) {
-    exit("require -n [request_num]. ep: -n 10000\n");
-}
-if (!isset($opt['s'])) {
-    exit("require -s [server_url]. ep: -s tcp://127.0.0.1:9999\n");
-}
-if (!isset($opt['f'])) {
-    exit("require -f [test_function]. ep: -f websocket|http|tcp|udp|length\n");
-}
 
 class CoBenchMarkTest
 {
-    protected $nConcurrency;
-    protected $nRequest;
+    protected $nConcurrency = 100;
+    protected $nRequest = 10000;
+    protected $nShow;
+
+    protected $scheme;
     protected $host;
     protected $port;
 
@@ -63,29 +26,65 @@ class CoBenchMarkTest
     protected $beginSendTime;
     protected $testMethod;
 
-    protected $nShow;
-
     protected $sentData;
     protected $sentLen = 1024;
 
     function __construct($opt)
     {
-        $this->nConcurrency = intval($opt['c']);
-        $this->nRequest = intval($opt['n']);
+        $this->parseOpts();
+        $this->setSentData(str_repeat('A', $this->sentLen));
+        if (!isset($this->scheme) or !method_exists($this, $this->scheme)) {
+            throw new RuntimeException("Not support pressure measurement objects [{$this->scheme}].");
+        }
+        $this->testMethod = $this->scheme;
+    }
+
+    function parseOpts()
+    {
+        $shortOpts = "c:n:l:s:h";
+        $opts = getopt($shortOpts);
+
+        if (isset($opts['h'])) {
+            $this->showHelp();
+        }
+
+        if (isset($opts['c']) and intval($opts['c']) > 0) {
+            $this->nConcurrency = intval($opts['c']);
+        }
+        if (isset($opts['n']) and intval($opts['n']) > 0) {
+            $this->nRequest = intval($opts['n']);
+        }
         $this->nShow = $this->nRequest / 10;
-        $serv = parse_url($opt['s']);
+        
+        if (isset($opts['l']) and intval($opts['l']) > 0) {
+            $this->sentLen = intval($opts['l']);
+        }
+
+        if (!isset($opts['s'])) {
+            exit("require -s [server_url]. E.g: -s tcp://127.0.0.1:9501\n");
+        }
+
+        $serv = parse_url($opts['s']);
+        $this->scheme = $serv['scheme'];
         $this->host = $serv['host'];
         $this->port = $serv['port'];
-        $this->testMethod = $opt['f'];
+    }
 
-        if (isset($opt['l']) and intval($opt['l']) > 0) {
-            $this->sentLen = intval($opt['l']);
-        }
-        $this->setSentData(str_repeat('A', $this->sentLen));
-        
-        if (!method_exists($this, $this->testMethod)) {
-            throw new RuntimeException("method [{$this->testMethod}] is non-existent.");
-        }
+    function showHelp()
+    {
+        exit(<<<HELP
+Usage: php co_run.php [OPTIONS]
+
+A bench script
+
+Options:
+  -c      Number of coroutines      E.g: -c 100
+  -n      Number of requests        E.g: -n 10000
+  -l      The length of the data sent per request       E.g: -l 1024
+  -s      URL       E.g: -s tcp://127.0.0.1:9999
+\n
+HELP
+        );
     }
 
     function setSentData($data)
