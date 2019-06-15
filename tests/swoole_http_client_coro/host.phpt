@@ -3,7 +3,8 @@ swoole_http_client_coro: host
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_constant_not_defined('HTTPBIN_LOCALLY');
+require __DIR__ . '/../include/config.php';
+skip('HTTPBIN_SERVER_PORT can not be 80', HTTPBIN_SERVER_PORT === 80);
 ?>
 --FILE--
 <?php

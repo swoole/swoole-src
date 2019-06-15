@@ -824,6 +824,7 @@ bool http_client::send()
     }
     else
     {
+        // See: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.23
         const std::string *_host = &host;
         std::string __host;
         if (port != 80 && port != 443)
