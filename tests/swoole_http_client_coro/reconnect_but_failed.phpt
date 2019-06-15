@@ -21,11 +21,11 @@ $pm->parentFunc = function () use ($pm) {
         }
 
         $pm->kill();
-        usleep(1000);
+        usleep(10000);
 
         Assert::assert(!$cli->get('/'));
-        Assert::eq($cli->errCode, SOCKET_ECONNRESET);
-        Assert::eq($cli->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
+        Assert::eq($cli->errCode, SOCKET_ECONNREFUSED);
+        Assert::eq($cli->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
         for ($n = MAX_REQUESTS; $n--;) {
             Assert::assert(!$cli->get('/'));
             Assert::eq($cli->errCode, SOCKET_ECONNREFUSED);

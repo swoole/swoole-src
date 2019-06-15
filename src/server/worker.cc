@@ -539,7 +539,6 @@ void swWorker_stop(swWorker *worker)
         LL_FOREACH(serv->listen_list, port)
         {
             reactor->del(reactor, port->sock);
-            swPort_free(port);
         }
         if (worker->pipe_worker)
         {
@@ -556,16 +555,9 @@ void swWorker_stop(swWorker *worker)
         for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
         {
             swConnection *conn = swServer_connection_get(serv, fd);
-            if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->removed == 0 && conn->fdtype == SW_FD_TCP)
+            if (conn != NULL && conn->active && !conn->removed && conn->fdtype == SW_FD_TCP)
             {
-                if (conn->events & SW_EVENT_WRITE)
-                {
-                    swReactor_remove_read_event(reactor, fd);
-                }
-                else
-                {
-                    reactor->close(reactor, fd);
-                }
+                swReactor_remove_read_event(reactor, fd);
             }
         }
         goto _try_to_exit;
