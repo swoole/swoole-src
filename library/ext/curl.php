@@ -186,7 +186,6 @@ class swoole_curl_handler
     private $clientOptions = [];
     private $followLocation = false;
     private $maxRedirs;
-    private $headerContent = '';
     private $withHeader = false;
 
     /** @var callable */

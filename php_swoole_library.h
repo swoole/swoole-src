@@ -223,7 +223,6 @@ static const char* swoole_library_source_ext_curl =
     "    private $clientOptions = [];\n"
     "    private $followLocation = false;\n"
     "    private $maxRedirs;\n"
-    "    private $headerContent = '';\n"
     "    private $withHeader = false;\n"
     "\n"
     "    /** @var callable */\n"
