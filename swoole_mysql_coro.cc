@@ -260,7 +260,7 @@ public:
             }
             non_sql_error(
                 EINPROGRESS,
-                "Mysql client is busy now on state#%d, "
+                "MySQL client is busy now on state#%d, "
                 "please use recv/fetchAll/nextResult to get all unread data "
                 "and wait for response then try again",
                 state
@@ -419,7 +419,7 @@ public:
         if (unlikely(!client))
         {
             error_code = ECONNRESET;
-            error_msg = "the statement must to be recompiled after the connection is broken";
+            error_msg = "statement must to be recompiled after the connection is broken";
             return false;
         }
         return true;
@@ -2026,7 +2026,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         }
         else
         {
-            zend_throw_exception(swoole_mysql_coro_exception_ce, "HOST parameter is required.", EINVAL);
+            zend_throw_exception(swoole_mysql_coro_exception_ce, "Parameter [host] is required", EINVAL);
             RETURN_FALSE;
         }
         if (php_swoole_array_get_value(ht, "port", ztmp))
@@ -2053,7 +2053,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         }
         else
         {
-            zend_throw_exception(swoole_mysql_coro_exception_ce, "USER parameter is required.", EINVAL);
+            zend_throw_exception(swoole_mysql_coro_exception_ce, "Parameter [user] is required", EINVAL);
             RETURN_FALSE;
         }
         if (php_swoole_array_get_value(ht, "password", ztmp))
@@ -2062,7 +2062,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         }
         else
         {
-            zend_throw_exception(swoole_mysql_coro_exception_ce, "PASSWORD parameter is required.", EINVAL);
+            zend_throw_exception(swoole_mysql_coro_exception_ce, "Parameter [password] is required", EINVAL);
             RETURN_FALSE;
         }
         if (php_swoole_array_get_value(ht, "database", ztmp))
@@ -2071,7 +2071,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         }
         else
         {
-            zend_throw_exception(swoole_mysql_coro_exception_ce, "DATABASE parameter is required.", EINVAL);
+            zend_throw_exception(swoole_mysql_coro_exception_ce, "Parameter [database] is required", EINVAL);
             RETURN_FALSE;
         }
         if (php_swoole_array_get_value(ht, "timeout", ztmp))
@@ -2084,7 +2084,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
             char charset = mysql::get_charset(zstr_charset.val());
             if (UNEXPECTED(charset < 0))
             {
-                zend_throw_exception_ex(swoole_mysql_coro_exception_ce, EINVAL, "Unknown charset [%s].", zstr_charset.val());
+                zend_throw_exception_ex(swoole_mysql_coro_exception_ce, EINVAL, "Unknown charset [%s]", zstr_charset.val());
                 RETURN_FALSE;
             }
             mc->charset = charset;
@@ -2302,14 +2302,13 @@ static PHP_METHOD(swoole_mysql_coro, recv)
     default:
         if (UNEXPECTED(mc->state & SW_MYSQL_COMMAND_FLAG_EXECUTE))
         {
-            swoole_mysql_coro_sync_error_properties(getThis(), EPERM, "please use statement to get result");
+            swoole_mysql_coro_sync_error_properties(getThis(), EPERM, "please use statement to receive data");
         }
         else
         {
             swoole_mysql_coro_sync_error_properties(getThis(), EPERM, "please use fetch/fetchAll/nextResult to get result");
         }
         RETVAL_FALSE;
-        break;
     }
     mc->del_timeout_controller();
 }
@@ -2509,14 +2508,13 @@ static PHP_METHOD(swoole_mysql_coro_statement, recv)
     default:
         if (UNEXPECTED(state & SW_MYSQL_COMMAND_FLAG_QUERY))
         {
-            swoole_mysql_coro_sync_error_properties(getThis(), EPERM, "please use client to get result");
+            swoole_mysql_coro_sync_error_properties(getThis(), EPERM, "please use client to receive data");
         }
         else
         {
             swoole_mysql_coro_sync_error_properties(getThis(), EPERM, "please use fetch/fetchAll/nextResult to get result");
         }
         RETVAL_FALSE;
-        break;
     }
     ms->del_timeout_controller();
 }
