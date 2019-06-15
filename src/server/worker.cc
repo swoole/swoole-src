@@ -539,7 +539,6 @@ void swWorker_stop(swWorker *worker)
         LL_FOREACH(serv->listen_list, port)
         {
             reactor->del(reactor, port->sock);
-            swPort_free(port);
         }
         if (worker->pipe_worker)
         {
