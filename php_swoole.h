@@ -767,10 +767,9 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce); \
     memcpy(&module##_handlers, &parent_module##_handlers, sizeof(zend_object_handlers))
 
-#define SW_INIT_EXCEPTION_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
-    SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, zend_exception_get_default()); \
-    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers)); \
-    SW_SET_CLASS_CLONEABLE(module, sw_zend_class_clone_deny)
+#define SW_INIT_CLASS_ENTRY_EX2(module, namespaceName, snake_name, shortName, methods, parent_module_ce, parent_module_handlers) \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_module_ce); \
+    memcpy(&module##_handlers, parent_module_handlers, sizeof(zend_object_handlers))
 
 #define SW_CLASS_ALIAS(name, module) do { \
     if (name) { \
