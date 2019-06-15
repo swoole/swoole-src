@@ -520,12 +520,6 @@ void swWorker_stop(swWorker *worker)
         return;
     }
 
-    //remove read event
-    if (worker->pipe_worker)
-    {
-        swReactor_remove_read_event(reactor, worker->pipe_worker);
-    }
-
     if (serv->stream_fd > 0)
     {
         reactor->del(reactor, serv->stream_fd);
@@ -545,18 +539,37 @@ void swWorker_stop(swWorker *worker)
         LL_FOREACH(serv->listen_list, port)
         {
             reactor->del(reactor, port->sock);
-            swPort_free(port);
         }
-
         if (worker->pipe_worker)
         {
-            reactor->del(reactor, worker->pipe_worker);
-            reactor->del(reactor, worker->pipe_master);
+            swReactor_remove_read_event(reactor, worker->pipe_worker);
         }
+        if (worker->pipe_master)
+        {
+            swReactor_remove_read_event(reactor, worker->pipe_master);
+        }
+        int fd;
+        int serv_max_fd = swServer_get_maxfd(serv);
+        int serv_min_fd = swServer_get_minfd(serv);
 
+        for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
+        {
+            swConnection *conn = swServer_connection_get(serv, fd);
+            if (conn != NULL && conn->active && !conn->removed && conn->fdtype == SW_FD_TCP)
+            {
+                swReactor_remove_read_event(reactor, fd);
+            }
+        }
         goto _try_to_exit;
     }
-
+    else
+    {
+        if (worker->pipe_worker)
+        {
+            swReactor_remove_read_event(reactor, worker->pipe_worker);
+        }
+    }
+    
     swWorkerStopMessage msg;
     msg.pid = SwooleG.pid;
     msg.worker_id = SwooleWG.id;

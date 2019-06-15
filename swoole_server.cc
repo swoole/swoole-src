@@ -912,6 +912,11 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
 
     serv->ptr2 = sw_zval_dup(zobject);
 
+    if (serv->enable_coroutine)
+    {
+        serv->reload_async = 1;
+    }
+
     if (serv->send_yield)
     {
         if (serv->onClose == NULL)
@@ -2121,7 +2126,6 @@ static PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "enable_coroutine", v))
     {
         serv->enable_coroutine = SwooleG.enable_coroutine = zval_is_true(v);
-        serv->send_yield = serv->reload_async = serv->enable_coroutine;
     }
     if (php_swoole_array_get_value(vht, "max_coro_num", v) || php_swoole_array_get_value(vht, "max_coroutine", v))
     {
