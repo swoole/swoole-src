@@ -55,7 +55,7 @@ define('REDIS_SERVER_DB', (int)(getenv('REDIS_SERVER_DB') ?: 0));
 /** ============== HttpBin ============== */
 if (IS_IN_TRAVIS) {
     define('HTTPBIN_SERVER_HOST', 'httpbin');
-    define('HTTPBIN_SERVER_PORT', 8080);
+    define('HTTPBIN_SERVER_PORT', 80);
     define('HTTPBIN_LOCALLY', true);
 } elseif (!empty($info = `docker ps 2>&1 | grep httpbin 2>&1`) &&
     preg_match('/\s+?[^:]+:(\d+)->\d+\/tcp\s+/', $info, $matches) &&
