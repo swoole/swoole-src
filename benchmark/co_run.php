@@ -1,6 +1,6 @@
 <?php
 
-use Swoole\Coroutine;
+namespace Swoole;
 
 //关闭错误输出
 //error_reporting(0);
@@ -8,7 +8,7 @@ use Swoole\Coroutine;
 class CoBenchMarkTest
 {
     protected $nConcurrency = 100;
-    protected $nRequest = 10000;
+    protected $nRequest = 10000; // total
     protected $nShow;
 
     protected $scheme;
@@ -18,7 +18,8 @@ class CoBenchMarkTest
     protected $nRecvBytes = 0;
     protected $nSendBytes = 0;
 
-    protected $requestCount = 0;
+    protected $requestCount = 0; // success
+    protected $connectCount = 0;
 
     protected $connectTime = 0;
 
@@ -81,7 +82,7 @@ Options:
   -c      Number of coroutines      E.g: -c 100
   -n      Number of requests        E.g: -n 10000
   -l      The length of the data sent per request       E.g: -l 1024
-  -s      URL       E.g: -s tcp://127.0.0.1:9999
+  -s      URL       E.g: -s tcp://127.0.0.1:9501
 \n
 HELP
         );
@@ -98,21 +99,22 @@ HELP
         $costTime = $this->format(microtime(true) - $this->startTime);
         $nRequest = number_format($this->nRequest);
         $requestErrorCount = number_format($this->nRequest - $this->requestCount);
+        $connectErrorCount = number_format($this->nConcurrency - $this->connectCount);
         $nSendBytes = number_format($this->nSendBytes);
         $nRecvBytes = number_format($this->nRecvBytes);
         $requestPerSec = $this->requestCount / $costTime;
         $connectTime = $this->format($this->connectTime);
 
         echo <<<EOF
-Concurrency Level:      $this->nConcurrency 
-Time taken for tests:   $costTime seconds
-Complete requests:      $nRequest 
-Failed requests:        $requestErrorCount
-Connect failed:         $requestErrorCount
-Total send:             $nSendBytes bytes
-Total reveive:          $nRecvBytes bytes
-Requests per second:    $requestPerSec
-Connection time:        $connectTime seconds
+Concurrency Level:      {$this->nConcurrency}
+Time taken for tests:   {$costTime} seconds
+Complete requests:      {$nRequest}
+Failed requests:        {$requestErrorCount}
+Connect failed:         {$connectErrorCount}
+Total send:             {$nSendBytes} bytes
+Total reveive:          {$nRecvBytes} bytes
+Requests per second:    {$requestPerSec}
+Connection time:        {$connectTime} seconds
 \n
 EOF;
     }
@@ -124,7 +126,7 @@ EOF;
 
     function websocket()
     {
-        $cli = new Swoole\Coroutine\http\client($this->host, $this->port);
+        $cli = new Coroutine\http\client($this->host, $this->port);
         $cli->set(array('websocket_mask' => true));
         $cli->upgrade('/');
         $data = $this->sentData;
@@ -151,6 +153,7 @@ EOF;
             echo swoole_strerror($cli->errCode) . PHP_EOL;
             goto end;
         }
+        $this->connectCount++;
 
         while ($n--) {
             //requset
@@ -229,7 +232,7 @@ EOF;
         }
         $this->beginSendTime = microtime(true);
         $this->connectTime = $this->beginSendTime - $this->startTime;
-        swoole_event::wait();
+        Event::wait();
         echo "\n\n";
         $this->finish();
     }
@@ -239,7 +242,7 @@ $swooleVersion = SWOOLE_VERSION;
 
 echo <<<EOF
 ============================================================
-Swoole Version          $swooleVersion
+Swoole Version          {$swooleVersion}
 ============================================================
 \n
 EOF;
