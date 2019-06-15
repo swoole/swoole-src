@@ -815,19 +815,28 @@ bool http_client::send()
     uint32_t keylen;
     int keytype;
 
+    // As much as possible to ensure that Host is the first header.
+    // See: http://tools.ietf.org/html/rfc7230#section-5.4
+    if ((ZVAL_IS_ARRAY(zheaders)) && ((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))) || (zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("host")))))
+    {
+        zend::string str_value(zvalue);
+        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), str_value.val(), str_value.len());
+    }
+    else
+    {
+        // See: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.23
+        const std::string *_host = &host;
+        std::string __host;
+        if (port != 80 && port != 443)
+        {
+            __host = cpp_string::format("%s:%u", host.c_str(), port);
+            _host = &__host;
+        }
+        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), _host->c_str(), _host->length());
+    }
+
     if (ZVAL_IS_ARRAY(zheaders))
     {
-        // As much as possible to ensure that Host is the first header.
-        // See: http://tools.ietf.org/html/rfc7230#section-5.4
-        if ((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))))
-        {
-            http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue));
-        }
-        else
-        {
-            http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), host.c_str(), host.length());
-        }
-
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zheaders), key, keylen, keytype, zvalue)
         {
             if (UNEXPECTED(HASH_KEY_IS_STRING != keytype || ZVAL_IS_NULL(zvalue)))
@@ -856,10 +865,6 @@ bool http_client::send()
             http_client_swString_append_headers(http_client_buffer, key, keylen, str_value.val(), str_value.len());
         }
         SW_HASHTABLE_FOREACH_END();
-    }
-    else
-    {
-        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), host.c_str(), host.length());
     }
 
     if (!basic_auth.empty())
