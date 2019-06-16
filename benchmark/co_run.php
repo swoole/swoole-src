@@ -263,16 +263,19 @@ EOF;
 
         while ($n--) {
             $httpCli->get('/');
-            if ($httpCli->statusCode === -1 and $httpCli->errCode === 111) { // connection refused
-                throw new \RuntimeException(swoole_strerror($httpCli->errCode));
-            }
-            if (!$httpCli->connected and $this->keepAlive) {
-                $httpCli->connectErrorCount++;
-                if ($this->verbose) {
-                    echo "connection failed" . PHP_EOL;
+            if ($httpCli->statusCode === -1) { // connection failed
+                if ($httpCli->errCode === 111) { // connection refused
+                    throw new \RuntimeException(swoole_strerror($httpCli->errCode));
                 }
-                continue;
+                if ($httpCli->errCode === 110) { // connection timeout
+                    $httpCli->connectErrorCount++;
+                    if ($this->verbose) {
+                        echo swoole_strerror($httpCli->errCode) . PHP_EOL;
+                    }
+                    continue;
+                }
             }
+            
             if ($httpCli->statusCode === -2) { // request timeout
                 if ($this->verbose) {
                     echo swoole_strerror($httpCli->errCode) . PHP_EOL;
