@@ -70,7 +70,7 @@ class CoBenchMarkTest
 
     protected function parseOpts()
     {
-        $shortOpts = "c:n:l:s:t:khv";
+        $shortOpts = "c:n:l:s:t:d:khv";
         $opts = getopt($shortOpts);
 
         if (isset($opts['h'])) {
@@ -113,6 +113,10 @@ class CoBenchMarkTest
             $this->keepAlive = true;
         }
 
+        if (isset($opts['d'])) {
+            $this->setSentData($opts['d']);
+        }
+
         if (isset($opts['v'])) {
             $this->verbose = true;
         }
@@ -134,6 +138,7 @@ Options:
   -t      Http request timeout detection
                     Default is 3 seconds, -1 means disable
   -k      Use HTTP KeepAlive
+  -d      HTTP post data
   -h      Help list
   -v      Flag enables verbose progress and debug output
 \n
@@ -260,9 +265,12 @@ EOF;
             'keep_alive' => $this->keepAlive,
         ];
         $httpCli->set($setting);
+        if (isset($this->sentData)) {
+            $httpCli->setData($this->sentData);
+        }
 
         while ($n--) {
-            $httpCli->get('/');
+            $httpCli->execute('/');
             if ($httpCli->statusCode === -1) { // connection failed
                 if ($httpCli->errCode === 111) { // connection refused
                     throw new \RuntimeException(swoole_strerror($httpCli->errCode));
