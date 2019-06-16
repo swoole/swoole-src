@@ -8,6 +8,7 @@ namespace Swoole;
 class CoBenchMarkTest
 {
     protected const TCP_SENT_LEN = 1024;
+    protected const HTTP_SERVER_PORT = 80;
 
     protected $nConcurrency = 100;
     protected $nRequest = 10000; // total
@@ -15,7 +16,7 @@ class CoBenchMarkTest
 
     protected $scheme;
     protected $host;
-    protected $port = 9501;
+    protected $port;
 
     protected $nRecvBytes = 0;
     protected $nSendBytes = 0;
@@ -39,11 +40,32 @@ class CoBenchMarkTest
 
     public function __construct($opt)
     {
+        $this->init();
+    }
+
+    protected function init()
+    {
         $this->parseOpts();
         if (!isset($this->scheme) or !method_exists($this, $this->scheme)) {
             exit("Not support pressure measurement objects [{$this->scheme}]." . PHP_EOL);
         }
         $this->testMethod = $this->scheme;
+
+        if (!isset($this->port)) {
+            switch ($this->scheme) {
+                case 'tcp':
+                    $this->port = 9501;
+                    break;
+                case 'http':
+                    $this->port = 80;
+                    break;
+                case 'https':
+                    $this->port = 443;
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 
     protected function parseOpts()
@@ -240,15 +262,24 @@ EOF;
         $httpCli->set($setting);
 
         while ($n--) {
-            if ($httpCli->get('/') === false) {
-                if (!$httpCli->connected) {
-                    $this->connectErrorCount++;
+            $httpCli->get('/');
+            if ($httpCli->statusCode === -1 and $httpCli->errCode === 111) { // connection refused
+                throw new \RuntimeException(swoole_strerror($httpCli->errCode));
+            }
+            if (!$httpCli->connected and $this->keepAlive) {
+                $httpCli->connectErrorCount++;
+                if ($this->verbose) {
+                    echo "connection failed" . PHP_EOL;
                 }
+                continue;
+            }
+            if ($httpCli->statusCode === -2) { // request timeout
                 if ($this->verbose) {
                     echo swoole_strerror($httpCli->errCode) . PHP_EOL;
                 }
                 continue;
             }
+
             $this->requestCount++;
             if ($this->requestCount % $this->nShow === 0 and $this->verbose) {
                 echo "Completed {$this->requestCount} requests" . PHP_EOL;
