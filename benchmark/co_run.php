@@ -9,6 +9,9 @@ class CoBenchMarkTest
 {
     protected const TCP_SENT_LEN = 1024;
     protected const HTTP_SERVER_PORT = 80;
+    protected const TIMEOUT = 3; // seconds
+    protected const PATH = '/';
+    protected const QUERY = '';
 
     protected $nConcurrency = 100;
     protected $nRequest = 10000; // total
@@ -17,6 +20,8 @@ class CoBenchMarkTest
     protected $scheme;
     protected $host;
     protected $port;
+    protected $path;
+    protected $query;
 
     protected $nRecvBytes = 0;
     protected $nSendBytes = 0;
@@ -26,8 +31,8 @@ class CoBenchMarkTest
     protected $connectErrorCount = 0;
     protected $connectTime = 0;
 
-    protected $keepAlive = false;
-    protected $timeout = 3; // seconds
+    protected $keepAlive; // default disable
+    protected $timeout; // seconds
 
     protected $startTime;
     protected $beginSendTime;
@@ -36,7 +41,7 @@ class CoBenchMarkTest
     protected $sentData;
     protected $sentLen = 0;
 
-    protected $verbose = false; // debug info
+    protected $verbose; // default disable
 
     public function __construct($opt)
     {
@@ -104,21 +109,15 @@ class CoBenchMarkTest
         if (isset($serv['port']) and intval($serv['port']) > 0) {
             $this->port = $serv['port'];
         }
+        $this->path = $serv['path'] ?? SELF::PATH;
+        $this->query = $serv['query'] ?? SELF::QUERY;
 
-        if (isset($opts['t'])) {
-            $this->timeout = intval($opts['t']);
-        }
-
-        if (isset($opts['k'])) {
-            $this->keepAlive = true;
-        }
+        $this->timeout = $opts['t'] ? intval($opts['t']) : SELF::TIMEOUT;
+        $this->keepAlive = isset($opts['k']);
+        $this->verbose = isset($opts['v']);
 
         if (isset($opts['d'])) {
             $this->setSentData($opts['d']);
-        }
-
-        if (isset($opts['v'])) {
-            $this->verbose = true;
         }
     }
 
