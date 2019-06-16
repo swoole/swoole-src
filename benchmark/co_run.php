@@ -7,7 +7,7 @@ namespace Swoole;
 
 class CoBenchMarkTest
 {
-    const TCP_SENT_LEN = 1024;
+    protected const TCP_SENT_LEN = 1024;
 
     protected $nConcurrency = 100;
     protected $nRequest = 10000; // total
@@ -23,8 +23,10 @@ class CoBenchMarkTest
     protected $requestCount = 0; // success
     // protected $connectCount = 0;
     protected $connectErrorCount = 0;
-
     protected $connectTime = 0;
+
+    protected $keepAlive = false;
+    protected $timeout = 3; // seconds
 
     protected $startTime;
     protected $beginSendTime;
@@ -46,7 +48,7 @@ class CoBenchMarkTest
 
     protected function parseOpts()
     {
-        $shortOpts = "c:n:l:s:hv";
+        $shortOpts = "c:n:l:s:t:khv";
         $opts = getopt($shortOpts);
 
         if (isset($opts['h'])) {
@@ -81,6 +83,14 @@ class CoBenchMarkTest
             $this->port = $serv['port'];
         }
 
+        if (isset($opts['t'])) {
+            $this->timeout = intval($opts['t']);
+        }
+
+        if (isset($opts['k'])) {
+            $this->keepAlive = true;
+        }
+
         if (isset($opts['v'])) {
             $this->verbose = true;
         }
@@ -98,7 +108,10 @@ Options:
   -n      Number of requests        E.g: -n 10000
   -l      The length of the data sent per request       E.g: -l 1024
   -s      URL       E.g: -s tcp://127.0.0.1:9501
-                    Support: tcp、longHttp
+                    Support: tcp、http
+  -t      Http request timeout detection
+                    Default is 3 seconds, -1 means disable
+  -k      Use HTTP KeepAlive
   -h      Help list
   -v      Flag enables verbose progress and debug output
 \n
@@ -206,17 +219,25 @@ EOF;
         }
     }
 
-    protected function longHttp()
+    protected function http()
     {
         $httpCli = new Coroutine\Http\Client($this->host, $this->port);
         $n = $this->nRequest / $this->nConcurrency;
-        $httpCli->setHeaders([
-            'Host' => "{$this->host}:{$this->port}",
-            'Accept' => 'text/html,application/xhtml+xml,application/xml',
-        ]);
         Coroutine::defer(function () use ($httpCli) {
             $httpCli->close();
         });
+
+        $headers = [
+            'Host' => "{$this->host}:{$this->port}",
+            'Accept' => 'text/html,application/xhtml+xml,application/xml',
+        ];
+        $httpCli->setHeaders($headers);
+
+        $setting = [
+            'timeout' => $this->timeout,
+            'keep_alive' => $this->keepAlive,
+        ];
+        $httpCli->set($setting);
 
         while ($n--) {
             if ($httpCli->get('/') === false) {
