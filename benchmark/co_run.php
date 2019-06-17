@@ -163,6 +163,7 @@ HELP
         $connectTime = $this->format($this->connectTime);
 
         echo <<<EOF
+\n
 Concurrency Level:      {$this->nConcurrency}
 Time taken for tests:   {$costTime} seconds
 Complete requests:      {$nRequest}
@@ -291,7 +292,7 @@ EOF;
     {
         if ($httpCli->statusCode === -1) { // connection failed
             if ($httpCli->errCode === 111) { // connection refused
-                throw new \RuntimeException(swoole_strerror($httpCli->errCode));
+                throw new ExitException(swoole_strerror($httpCli->errCode));
             }
             if ($httpCli->errCode === 110) { // connection timeout
                 $this->connectErrorCount++;
@@ -312,7 +313,7 @@ EOF;
         if ($httpCli->statusCode === 404) {
             $query = empty($this->query) ? '' : "?$this->query";
             $url = "{$this->scheme}://{$this->host}:{$this->port}{$this->path}{$query}";
-            throw new \RuntimeException("The URL [$url] is non-existent");
+            throw new ExitException("The URL [$url] is non-existent");
         }
 
         return true;
@@ -363,16 +364,26 @@ EOF;
 
     public function run()
     {
+        $exitException = false;
+        $exitExceptiontMsg;
         $this->startTime = microtime(true);
+
         for ($i = 0; $i < $this->nConcurrency; $i++) {
-            go(function () {
-                call_user_func([$this, $this->testMethod]);
+            go(function () use (&$exitException, &$exitExceptiontMsg){
+                try {
+                    call_user_func([$this, $this->testMethod]);
+                } catch (ExitException $e) {
+                    $exitException = true;
+                    $exitExceptiontMsg = $e->getMessage();
+                }
             });
         }
         $this->beginSendTime = microtime(true);
         $this->connectTime = $this->beginSendTime - $this->startTime;
         Event::wait();
-        echo "\n\n";
+        if ($exitException) {
+            exit($exitExceptiontMsg . PHP_EOL);
+        }
         $this->finish();
     }
 }
