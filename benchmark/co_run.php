@@ -256,6 +256,7 @@ EOF;
         $headers = [
             'Host' => "{$this->host}:{$this->port}",
             'Accept' => 'text/html,application/xhtml+xml,application/xml',
+            'content-type' => 'application/x-www-form-urlencoded',
         ];
         $httpCli->setHeaders($headers);
 
@@ -268,25 +269,12 @@ EOF;
             $httpCli->setData($this->sentData);
         }
 
+        $query = empty($this->query) ? '' : "?$this->query";
+
         while ($n--) {
-            $httpCli->execute('/');
-            if ($httpCli->statusCode === -1) { // connection failed
-                if ($httpCli->errCode === 111) { // connection refused
-                    throw new \RuntimeException(swoole_strerror($httpCli->errCode));
-                }
-                if ($httpCli->errCode === 110) { // connection timeout
-                    $httpCli->connectErrorCount++;
-                    if ($this->verbose) {
-                        echo swoole_strerror($httpCli->errCode) . PHP_EOL;
-                    }
-                    continue;
-                }
-            }
-            
-            if ($httpCli->statusCode === -2) { // request timeout
-                if ($this->verbose) {
-                    echo swoole_strerror($httpCli->errCode) . PHP_EOL;
-                }
+            $httpCli->execute("{$this->path}{$query}");
+
+            if (!$this->checkStatusCode($httpCli)) {
                 continue;
             }
 
@@ -297,6 +285,37 @@ EOF;
             $recvData = $httpCli->body;
             $this->nRecvBytes += strlen($recvData);
         }
+    }
+
+    protected function checkStatusCode(Coroutine\Http\Client $httpCli): bool
+    {
+        if ($httpCli->statusCode === -1) { // connection failed
+            if ($httpCli->errCode === 111) { // connection refused
+                throw new \RuntimeException(swoole_strerror($httpCli->errCode));
+            }
+            if ($httpCli->errCode === 110) { // connection timeout
+                $this->connectErrorCount++;
+                if ($this->verbose) {
+                    echo swoole_strerror($httpCli->errCode) . PHP_EOL;
+                }
+                return false;
+            }
+        }
+        
+        if ($httpCli->statusCode === -2) { // request timeout
+            if ($this->verbose) {
+                echo swoole_strerror($httpCli->errCode) . PHP_EOL;
+            }
+            return false;
+        }
+
+        if ($httpCli->statusCode === 404) {
+            $query = empty($this->query) ? '' : "?$this->query";
+            $url = "{$this->scheme}://{$this->host}:{$this->port}{$this->path}{$query}";
+            throw new \RuntimeException("The URL [$url] is non-existent");
+        }
+
+        return true;
     }
 
     protected function eof()
