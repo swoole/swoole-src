@@ -509,6 +509,7 @@ Enable it by adding a new line `extension=swoole_async.so` to `php.ini`.
 ## 💎 Frameworks & Components
 
 - [**Swoft**](https://github.com/swoft-cloud) is a modern, high-performance AOP and coroutine PHP framework.
+- [**ESD**](https://github.com/esd-projects/esd-server) Modern Full Stack Framework Inspired by Springboot，Power by SwooleDistributed & EasySwoole.
 - [**Easyswoole**](https://www.easyswoole.com) EasySwoole is a distributed, persistent memory PHP framework based on the Swoole extension. It was created specifically for APIs to get rid of the performance penalties associated with process calls and file loading. EasySwoole highly encapsulates the Swoole Server and still maintains the original features of the Swoole server, supports simultaneous monitoring of HTTP, custom TCP, and UDP protocols, allowing developers to write multi-process, asynchronous, and highly available applications with minimal learning cost and effort.
     - Base on Swoole extension
     - Built-in HTTP, TCP, WebSocket,Udp Coroutine Server
