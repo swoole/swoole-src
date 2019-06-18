@@ -630,7 +630,6 @@ int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback f
 void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg);
 
 int swServer_create(swServer *serv);
-int swServer_free(swServer *serv);
 int swServer_shutdown(swServer *serv);
 
 static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)

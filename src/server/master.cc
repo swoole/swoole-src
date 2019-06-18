@@ -20,6 +20,7 @@
 #include <sys/time.h>
 #include <time.h>
 
+static int swServer_destory(swServer *serv);
 static int swServer_start_check(swServer *serv);
 static void swServer_signal_handler(int sig);
 static void swServer_disable_accept(swReactor *reactor);
@@ -691,7 +692,7 @@ int swServer_start(swServer *serv)
     {
         return SW_ERR;
     }
-    swServer_free(serv);
+    swServer_destory(serv);
     serv->gs->start = 0;
     //remove PID file
     if (serv->pid_file)
@@ -797,7 +798,7 @@ int swServer_shutdown(swServer *serv)
     return SW_OK;
 }
 
-int swServer_free(swServer *serv)
+static int swServer_destory(swServer *serv)
 {
     swTraceLog(SW_TRACE_SERVER, "release service");
 
