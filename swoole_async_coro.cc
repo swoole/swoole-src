@@ -193,7 +193,7 @@ static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
 
 PHP_FUNCTION(swoole_async_set)
 {
-    if (SwooleG.main_reactor != NULL)
+    if (SwooleG.main_reactor)
     {
         php_swoole_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings");
         RETURN_FALSE;

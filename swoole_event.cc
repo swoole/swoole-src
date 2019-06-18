@@ -324,8 +324,8 @@ void php_swoole_event_wait()
         }
         php_swoole_timer_clear_all();
         SwooleWG.reactor_exit = 1;
-        SwooleG.running = 0;
-        SwooleG.main_reactor->running = 0;
+        SwooleG.main_reactor->free(SwooleG.main_reactor);
+        SwooleG.main_reactor = NULL;
     }
 }
 

@@ -8,8 +8,9 @@ skip_unsupported();
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-define('SECRET', RandStr::getBytes(rand(1024, 8192)));
-$pm = new ProcessManager;
+define('SECRET', SwooleTest\RandStr::getBytes(rand(1024, 8192)));
+
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     go(function () use ($pm) {
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");

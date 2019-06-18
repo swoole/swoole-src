@@ -1897,8 +1897,8 @@ static PHP_METHOD(swoole_server, __construct)
 
     if (SwooleG.main_reactor)
     {
-        SwooleG.origin_main_reactor = SwooleG.main_reactor;
-        SwooleG.main_reactor = NULL;
+        php_swoole_fatal_error(E_ERROR, "eventLoop has already been created. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        RETURN_FALSE;
     }
 
     if (SwooleG.serv != NULL)
@@ -2729,17 +2729,6 @@ static PHP_METHOD(swoole_server, start)
     if (swServer_start(serv) < 0)
     {
         php_swoole_fatal_error(E_ERROR, "failed to start server. Error: %s", sw_error);
-    }
-
-    /**
-     * recovery
-     */
-    if (SwooleG.origin_main_reactor)
-    {
-        SwooleG.main_reactor = SwooleG.origin_main_reactor;
-        SwooleG.origin_main_reactor = NULL;
-        SwooleG.serv = NULL;
-        SwooleWG.worker = NULL;
     }
 
     RETURN_TRUE;
