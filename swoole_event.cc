@@ -238,7 +238,7 @@ void php_swoole_reactor_init()
             return;
         }
     }
-    else
+    if (!SwooleG.main_reactor)
     {
         swTraceLog(SW_TRACE_PHP, "init reactor");
 
