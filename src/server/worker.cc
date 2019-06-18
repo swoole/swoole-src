@@ -312,10 +312,10 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     case SW_EVENT_CLOSE:
 #ifdef SW_USE_OPENSSL
         conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
-        if (conn && conn->ssl_client_cert.length > 0)
+        if (conn && conn->ssl_client_cert && conn->ssl_client_cert_pid == SwooleG.pid)
         {
-            sw_free(conn->ssl_client_cert.str);
-            bzero(&conn->ssl_client_cert, sizeof(conn->ssl_client_cert.str));
+            sw_free(conn->ssl_client_cert);
+            conn->ssl_client_cert = nullptr;
         }
 #endif
         factory->end(factory, task->info.fd);
@@ -327,8 +327,10 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         if (task->info.len > 0)
         {
             conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
-            conn->ssl_client_cert.str = sw_strndup(task->data, task->info.len);
-            conn->ssl_client_cert.size = conn->ssl_client_cert.length = task->info.len;
+            char *cert_data = NULL;
+            size_t length = swWorker_get_data(serv, task, &cert_data);
+            conn->ssl_client_cert = swString_dup(cert_data, length);
+            conn->ssl_client_cert_pid = SwooleG.pid;
         }
 #endif
         if (serv->onConnect)
