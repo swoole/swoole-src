@@ -1890,6 +1890,7 @@ static sw_inline int swReactor_events(int fdtype)
 }
 
 int swReactor_create(swReactor *reactor, int max_event);
+void swReactor_destory(swReactor *reactor);
 
 static inline void swReactor_before_wait(swReactor *reactor)
 {
@@ -2274,11 +2275,6 @@ typedef struct
      */
     int pipe_used;
 
-    uint32_t reactor_wait_onexit :1;
-    uint32_t reactor_init :1;
-    uint32_t reactor_ready :1;
-    uint32_t reactor_exit :1;
-    uint32_t in_client :1;
     uint32_t shutdown :1;
 
     int max_request;

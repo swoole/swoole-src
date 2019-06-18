@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: http redirect
+swoole_coroutine: co::create before server create [1]
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';

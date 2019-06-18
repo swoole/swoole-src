@@ -395,3 +395,9 @@ int swReactor_wait_write_buffer(swReactor *reactor, int fd)
     }
     return SW_OK;
 }
+
+void swReactor_destory(swReactor *reactor)
+{
+    swAio_free();
+    reactor->free(reactor);
+}

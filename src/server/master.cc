@@ -890,6 +890,8 @@ static int swServer_destory(swServer *serv)
         serv->onShutdown(serv);
     }
     serv->lock.free(&serv->lock);
+    swSignal_clear();
+    SwooleG.serv = nullptr;
     return SW_OK;
 }
 

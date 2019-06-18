@@ -455,17 +455,9 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_CLOSE, hook_args);
     }
 
-    if (serv->master_timer)
-    {
-        swTimer_del(&SwooleG.timer, serv->master_timer);
-        serv->master_timer = NULL;
-    }
-
-    if (serv->heartbeat_timer)
-    {
-        swTimer_del(&SwooleG.timer, serv->heartbeat_timer);
-        serv->heartbeat_timer = NULL;
-    }
+    swReactor_destory(reactor);
+    SwooleG.main_reactor = nullptr;
+    sw_free(reactor);
 
     if (serv->onWorkerStop)
     {
