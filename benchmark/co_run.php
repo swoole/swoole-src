@@ -8,7 +8,6 @@ namespace Swoole;
 class CoBenchMarkTest
 {
     protected const TCP_SENT_LEN = 1024;
-    protected const HTTP_SERVER_PORT = 80;
     protected const TIMEOUT = 3; // seconds
     protected const PATH = '/';
     protected const QUERY = '';
@@ -215,12 +214,17 @@ EOF;
         }
         $this->setSentData(str_repeat('A', $this->sentLen));
 
-        if (!$cli->connect($this->host, $this->port)) {
-            if ($this->verbose) {
-                echo swoole_strerror($cli->errCode) . PHP_EOL;
+        if (!$cli->connect($this->host, $this->port)) { // connection failed
+            if ($cli->errCode === 111) { // connection refuse
+                throw new ExitException(swoole_strerror($cli->errCode));
             }
-            $this->connectErrorCount++;
-            return;
+            if ($cli->errCode === 110) { // connection timeout
+                $this->connectErrorCount++;
+                if ($this->verbose) {
+                    echo swoole_strerror($cli->errCode) . PHP_EOL;
+                }
+                return;
+            }
         }
 
         while ($n--) {
