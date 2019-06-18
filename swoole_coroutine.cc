@@ -31,6 +31,7 @@ bool PHPCoroutine::schedule_thread_created = false;
 
 static zend_bool* zend_vm_interrupt = nullptr;
 static pthread_t pidt;
+static bool running = true;
 
 static void (*orig_interrupt_function)(zend_execute_data *execute_data);
 
@@ -71,6 +72,7 @@ void PHPCoroutine::shutdown()
 {
     if (schedule_thread_created)
     {
+        running = false;
         //wait thread
         if (pthread_join(pidt, NULL) < 0)
         {
@@ -98,7 +100,7 @@ void PHPCoroutine::schedule()
 {
     static const useconds_t interval = (MAX_EXEC_MSEC / 2) * 1000;
     swSignal_none();
-    while (SwooleG.running)
+    while (running)
     {
         *zend_vm_interrupt = 1;
         usleep(interval);

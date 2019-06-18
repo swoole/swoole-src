@@ -1891,26 +1891,29 @@ static PHP_METHOD(swoole_server, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
+        zend_throw_exception_ex(swoole_exception_ce, -1, "%s can only be used in CLI mode", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        RETURN_FALSE;
+
         php_swoole_fatal_error(E_ERROR, "%s can only be used in CLI mode", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
     if (SwooleG.main_reactor)
     {
-        php_swoole_fatal_error(E_ERROR, "eventLoop has already been created. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        zend_throw_exception_ex(swoole_exception_ce, -2, "eventLoop has already been created. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
     if (SwooleG.serv != NULL)
     {
-        php_swoole_fatal_error(E_ERROR, "server is running. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        zend_throw_exception_ex(swoole_exception_ce, -3, "server is running. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
     swServer *serv = (swServer *) sw_malloc(sizeof (swServer));
     if (!serv)
     {
-        php_swoole_fatal_error(E_ERROR, "malloc(%ld) failed", sizeof(swServer));
+        zend_throw_exception_ex(swoole_exception_ce, errno, "malloc(%ld) failed", sizeof(swServer));
         RETURN_FALSE;
     }
 

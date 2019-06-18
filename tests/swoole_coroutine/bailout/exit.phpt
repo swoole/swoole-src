@@ -10,7 +10,13 @@ $process = new Swoole\Process(function () {
         echo 'shutdown' . PHP_EOL;
     });
     go(function () {
-        exit(0);
+        try
+        {
+            exit(0);
+        } catch (Swoole\ExitException $e)
+        {
+            echo $e->getMessage()."\n";
+        }
     });
 });
 $process->start();
@@ -23,4 +29,5 @@ if (Assert::isArray($status)) {
 }
 ?>
 --EXPECT--
+swoole exit
 shutdown

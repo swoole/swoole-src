@@ -856,8 +856,6 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
         }
     }
 
-    swAio_free();
-
     swoole_async_coro_shutdown();
     swoole_redis_server_shutdown();
     swoole_coroutine_shutdown();

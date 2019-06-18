@@ -29,9 +29,9 @@ makeTcpClient(TCP_SERVER_HOST, $port, function(\swoole_client $cli) {
     list($op, $data) = opcode_decode($recv);
     Assert::assert(is_array($data) && count($data) === 1);
     swoole_event_exit();
-    echo "SUCCESS";
+    echo "SUCCESS\n";
 });
-
+swoole_event::wait();
 ?>
 --EXPECT--
 SUCCESS

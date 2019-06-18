@@ -15,6 +15,7 @@ $id = go(function () {
 echo "start to resume $id\n";
 Co::resume($id);
 echo "main\n";
+swoole_event::wait();
 ?>
 --EXPECTF--
 [%s]	ERROR	(PHP Fatal Error: 10001):
