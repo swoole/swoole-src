@@ -49,6 +49,7 @@ int swReactor_create(swReactor *reactor, int max_event)
 
     reactor->onFinish = swReactor_onFinish;
     reactor->onTimeout = swReactor_onTimeout;
+    reactor->is_empty = swReactor_empty;
 
     reactor->write = swReactor_write;
     reactor->close = swReactor_close;

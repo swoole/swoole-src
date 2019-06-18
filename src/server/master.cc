@@ -794,7 +794,29 @@ int swServer_create(swServer *serv)
 int swServer_shutdown(swServer *serv)
 {
     //stop all thread
-    SwooleG.main_reactor->running = 0;
+    if (SwooleG.main_reactor)
+    {
+        swReactor *reactor = SwooleG.main_reactor;
+        reactor->wait_exit = 1;
+        swListenPort *port;
+        LL_FOREACH(serv->listen_list, port)
+        {
+            if (swSocket_is_stream(port->type))
+            {
+                reactor->del(reactor, port->sock);
+            }
+        }
+        if (serv->master_timer)
+        {
+            swTimer_del(&SwooleG.timer, serv->master_timer);
+            serv->master_timer = NULL;
+        }
+    }
+    else
+    {
+        SwooleG.running = 0;
+    }
+    swInfo("Server is shutdown now");
     return SW_OK;
 }
 
@@ -1677,15 +1699,7 @@ static void swServer_signal_handler(int sig)
     switch (sig)
     {
     case SIGTERM:
-        if (SwooleG.main_reactor)
-        {
-            SwooleG.main_reactor->running = 0;
-        }
-        else
-        {
-            SwooleG.running = 0;
-        }
-        swInfo("Server is shutdown now");
+        swServer_shutdown(serv);
         break;
     case SIGALRM:
         swSystemTimer_signal_handler(SIGALRM);
