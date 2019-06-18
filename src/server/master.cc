@@ -921,7 +921,8 @@ swPipe * swServer_get_pipe_object(swServer *serv, int pipe_fd)
 }
 
 /**
- * [Worker]
+ * @process Worker
+ * @return SW_OK or SW_ERR
  */
 static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_t length)
 {
@@ -1182,7 +1183,8 @@ static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
 }
 
 /**
- * [Worker]
+ * @process Worker
+ * @return SW_OK or SW_ERR
  */
 static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length)
 {
@@ -1236,11 +1238,11 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
     send_data.info.len = sizeof(swSendFile_request) + l_file + 1;
     send_data.data = _buffer;
 
-    return serv->factory.finish(&serv->factory, &send_data);
+    return serv->factory.finish(&serv->factory, &send_data) < 0 ? SW_ERR : SW_OK;
 }
 
 /**
- * [Worker]
+ * [Worker] Returns the number of bytes sent
  */
 static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uint32_t length)
 {

@@ -262,6 +262,9 @@ struct _swFactory
     int (*start)(struct _swFactory *);
     int (*shutdown)(struct _swFactory *);
     int (*dispatch)(struct _swFactory *, swSendData *);
+    /**
+     * Returns the number of bytes sent
+     */
     int (*finish)(struct _swFactory *, swSendData *);
     int (*notify)(struct _swFactory *, swDataHead *);    //send a event notify
     int (*end)(struct _swFactory *, int fd);
