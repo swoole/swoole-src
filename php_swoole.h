@@ -347,7 +347,7 @@ void php_swoole_reactor_init();
 
 static sw_inline void php_swoole_check_reactor()
 {
-    if (unlikely(!SwooleWG.reactor_init))
+    if (unlikely(!SwooleG.main_reactor))
     {
         php_swoole_reactor_init();
     }

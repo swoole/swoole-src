@@ -312,10 +312,10 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     case SW_EVENT_CLOSE:
 #ifdef SW_USE_OPENSSL
         conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
-        if (conn && conn->ssl_client_cert.length > 0)
+        if (conn && conn->ssl_client_cert && conn->ssl_client_cert_pid == SwooleG.pid)
         {
-            sw_free(conn->ssl_client_cert.str);
-            bzero(&conn->ssl_client_cert, sizeof(conn->ssl_client_cert.str));
+            sw_free(conn->ssl_client_cert);
+            conn->ssl_client_cert = nullptr;
         }
 #endif
         factory->end(factory, task->info.fd);
@@ -327,8 +327,10 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         if (task->info.len > 0)
         {
             conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
-            conn->ssl_client_cert.str = sw_strndup(task->data, task->info.len);
-            conn->ssl_client_cert.size = conn->ssl_client_cert.length = task->info.len;
+            char *cert_data = NULL;
+            size_t length = swWorker_get_data(serv, task, &cert_data);
+            conn->ssl_client_cert = swString_dup(cert_data, length);
+            conn->ssl_client_cert_pid = SwooleG.pid;
         }
 #endif
         if (serv->onConnect)
@@ -533,16 +535,17 @@ void swWorker_stop(swWorker *worker)
         serv->onWorkerStop = NULL;
     }
 
+    if (worker->pipe_worker)
+    {
+        swReactor_remove_read_event(reactor, worker->pipe_worker);
+    }
+
     if (serv->factory_mode == SW_MODE_BASE)
     {
         swListenPort *port;
         LL_FOREACH(serv->listen_list, port)
         {
             reactor->del(reactor, port->sock);
-        }
-        if (worker->pipe_worker)
-        {
-            swReactor_remove_read_event(reactor, worker->pipe_worker);
         }
         if (worker->pipe_master)
         {
@@ -560,14 +563,18 @@ void swWorker_stop(swWorker *worker)
                 swReactor_remove_read_event(reactor, fd);
             }
         }
-        goto _try_to_exit;
-    }
-    else
-    {
-        if (worker->pipe_worker)
+        //clear timer
+        if (serv->master_timer)
         {
-            swReactor_remove_read_event(reactor, worker->pipe_worker);
+            swTimer_del(&SwooleG.timer, serv->master_timer);
+            serv->master_timer = NULL;
         }
+        if (serv->heartbeat_timer)
+        {
+            swTimer_del(&SwooleG.timer, serv->heartbeat_timer);
+            serv->heartbeat_timer = NULL;
+        }
+        goto _try_to_exit;
     }
     
     swWorkerStopMessage msg;
@@ -598,35 +605,6 @@ void swWorker_stop(swWorker *worker)
 static int swWorker_reactor_is_empty(swReactor *reactor)
 {
     swServer *serv = (swServer *) reactor->ptr;
-
-    //close all client connections
-    if (serv->factory_mode == SW_MODE_BASE)
-    {
-        int find_fd = swServer_get_minfd(serv);
-        int max_fd = swServer_get_maxfd(serv);
-        swConnection *conn;
-        for (; find_fd <= max_fd; find_fd++)
-        {
-            conn = &serv->connection_list[find_fd];
-            if (conn->active == 1 && swSocket_is_stream(conn->socket_type) && !(conn->events & SW_EVENT_WRITE))
-            {
-                serv->close(serv, conn->session_id, 0);
-            }
-        }
-        //clear timer
-        if (serv->master_timer)
-        {
-            swTimer_del(&SwooleG.timer, serv->master_timer);
-            serv->master_timer = NULL;
-        }
-
-        if (serv->heartbeat_timer)
-        {
-            swTimer_del(&SwooleG.timer, serv->heartbeat_timer);
-            serv->heartbeat_timer = NULL;
-        }
-    }
-
     uint8_t call_worker_exit_func = 0;
 
     while (1)

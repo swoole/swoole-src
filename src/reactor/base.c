@@ -49,6 +49,7 @@ int swReactor_create(swReactor *reactor, int max_event)
 
     reactor->onFinish = swReactor_onFinish;
     reactor->onTimeout = swReactor_onTimeout;
+    reactor->is_empty = swReactor_empty;
 
     reactor->write = swReactor_write;
     reactor->close = swReactor_close;
@@ -393,4 +394,10 @@ int swReactor_wait_write_buffer(swReactor *reactor, int fd)
         return swReactor_onWrite(reactor, &event);
     }
     return SW_OK;
+}
+
+void swReactor_destory(swReactor *reactor)
+{
+    swAio_free();
+    reactor->free(reactor);
 }

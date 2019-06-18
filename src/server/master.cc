@@ -20,6 +20,7 @@
 #include <sys/time.h>
 #include <time.h>
 
+static int swServer_destory(swServer *serv);
 static int swServer_start_check(swServer *serv);
 static void swServer_signal_handler(int sig);
 static void swServer_disable_accept(swReactor *reactor);
@@ -691,7 +692,7 @@ int swServer_start(swServer *serv)
     {
         return SW_ERR;
     }
-    swServer_free(serv);
+    swServer_destory(serv);
     serv->gs->start = 0;
     //remove PID file
     if (serv->pid_file)
@@ -793,11 +794,33 @@ int swServer_create(swServer *serv)
 int swServer_shutdown(swServer *serv)
 {
     //stop all thread
-    SwooleG.main_reactor->running = 0;
+    if (SwooleG.main_reactor)
+    {
+        swReactor *reactor = SwooleG.main_reactor;
+        reactor->wait_exit = 1;
+        swListenPort *port;
+        LL_FOREACH(serv->listen_list, port)
+        {
+            if (swSocket_is_stream(port->type))
+            {
+                reactor->del(reactor, port->sock);
+            }
+        }
+        if (serv->master_timer)
+        {
+            swTimer_del(&SwooleG.timer, serv->master_timer);
+            serv->master_timer = NULL;
+        }
+    }
+    else
+    {
+        SwooleG.running = 0;
+    }
+    swInfo("Server is shutdown now");
     return SW_OK;
 }
 
-int swServer_free(swServer *serv)
+static int swServer_destory(swServer *serv)
 {
     swTraceLog(SW_TRACE_SERVER, "release service");
 
@@ -867,6 +890,8 @@ int swServer_free(swServer *serv)
         serv->onShutdown(serv);
     }
     serv->lock.free(&serv->lock);
+    swSignal_clear();
+    SwooleG.serv = nullptr;
     return SW_OK;
 }
 
@@ -921,7 +946,8 @@ swPipe * swServer_get_pipe_object(swServer *serv, int pipe_fd)
 }
 
 /**
- * [Worker]
+ * @process Worker
+ * @return SW_OK or SW_ERR
  */
 static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_t length)
 {
@@ -1182,7 +1208,8 @@ static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
 }
 
 /**
- * [Worker]
+ * @process Worker
+ * @return SW_OK or SW_ERR
  */
 static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length)
 {
@@ -1236,11 +1263,11 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
     send_data.info.len = sizeof(swSendFile_request) + l_file + 1;
     send_data.data = _buffer;
 
-    return serv->factory.finish(&serv->factory, &send_data);
+    return serv->factory.finish(&serv->factory, &send_data) < 0 ? SW_ERR : SW_OK;
 }
 
 /**
- * [Worker]
+ * [Worker] Returns the number of bytes sent
  */
 static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uint32_t length)
 {
@@ -1674,15 +1701,7 @@ static void swServer_signal_handler(int sig)
     switch (sig)
     {
     case SIGTERM:
-        if (SwooleG.main_reactor)
-        {
-            SwooleG.main_reactor->running = 0;
-        }
-        else
-        {
-            SwooleG.running = 0;
-        }
-        swInfo("Server is shutdown now");
+        swServer_shutdown(serv);
         break;
     case SIGALRM:
         swSystemTimer_signal_handler(SIGALRM);

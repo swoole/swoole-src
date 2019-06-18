@@ -224,12 +224,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addProcess, 0, 0, 1)
     ZEND_ARG_OBJ_INFO(0, process, swoole_process, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_info, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_getClientInfo, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
     ZEND_ARG_INFO(0, reactor_id)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_list, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_getClientList, 0, 0, 1)
     ZEND_ARG_INFO(0, start_fd)
     ZEND_ARG_INFO(0, find_count)
 ZEND_END_ARG_INFO()
@@ -283,8 +283,8 @@ static PHP_METHOD(swoole_server, finish);
 static PHP_METHOD(swoole_server, reload);
 static PHP_METHOD(swoole_server, shutdown);
 static PHP_METHOD(swoole_server, heartbeat);
-static PHP_METHOD(swoole_server, connection_list);
-static PHP_METHOD(swoole_server, connection_info);
+static PHP_METHOD(swoole_server, getClientList);
+static PHP_METHOD(swoole_server, getClientInfo);
 #ifdef SW_BUFFER_RECV_TIME
 static PHP_METHOD(swoole_server, getReceivedTime);
 #endif
@@ -343,11 +343,11 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, stop, arginfo_swoole_server_stop, ZEND_ACC_PUBLIC)
     PHP_FALIAS(getLastError, swoole_last_error, arginfo_swoole_void)
     PHP_ME(swoole_server, heartbeat, arginfo_swoole_server_heartbeat, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, connection_info, arginfo_swoole_connection_info, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, connection_list, arginfo_swoole_connection_list, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, getClientInfo, arginfo_swoole_getClientInfo, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, getClientList, arginfo_swoole_getClientList, ZEND_ACC_PUBLIC)
     //psr-0 style
-    PHP_MALIAS(swoole_server, getClientInfo, connection_info, arginfo_swoole_connection_info, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_server, getClientList, connection_list, arginfo_swoole_connection_list, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_server, connection_info, getClientInfo, arginfo_swoole_getClientInfo, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_server, connection_list, getClientList, arginfo_swoole_getClientList, ZEND_ACC_PUBLIC)
     //process
     PHP_ME(swoole_server, sendMessage, arginfo_swoole_server_sendMessage, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, addProcess, arginfo_swoole_server_addProcess, ZEND_ACC_PUBLIC)
@@ -1897,8 +1897,8 @@ static PHP_METHOD(swoole_server, __construct)
 
     if (SwooleG.main_reactor)
     {
-        SwooleG.origin_main_reactor = SwooleG.main_reactor;
-        SwooleG.main_reactor = NULL;
+        php_swoole_fatal_error(E_ERROR, "eventLoop has already been created. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        RETURN_FALSE;
     }
 
     if (SwooleG.serv != NULL)
@@ -2729,17 +2729,6 @@ static PHP_METHOD(swoole_server, start)
     if (swServer_start(serv) < 0)
     {
         php_swoole_fatal_error(E_ERROR, "failed to start server. Error: %s", sw_error);
-    }
-
-    /**
-     * recovery
-     */
-    if (SwooleG.origin_main_reactor)
-    {
-        SwooleG.main_reactor = SwooleG.origin_main_reactor;
-        SwooleG.origin_main_reactor = NULL;
-        SwooleG.serv = NULL;
-        SwooleWG.worker = NULL;
     }
 
     RETURN_TRUE;
@@ -3700,7 +3689,7 @@ static PHP_METHOD(swoole_server, getSocket)
 }
 #endif
 
-static PHP_METHOD(swoole_server, connection_info)
+static PHP_METHOD(swoole_server, getClientInfo)
 {
     zend_long fd;
     zend_long reactor_id = -1;
@@ -3744,9 +3733,9 @@ static PHP_METHOD(swoole_server, connection_info)
         }
 
 #ifdef SW_USE_OPENSSL
-        if (conn->ssl_client_cert.length > 0)
+        if (conn->ssl_client_cert && conn->ssl_client_cert_pid == SwooleG.pid)
         {
-            add_assoc_stringl(return_value, "ssl_client_cert", conn->ssl_client_cert.str, conn->ssl_client_cert.length - 1);
+            add_assoc_stringl(return_value, "ssl_client_cert", conn->ssl_client_cert->str, conn->ssl_client_cert->length);
         }
 #endif
         //server socket
@@ -3767,7 +3756,7 @@ static PHP_METHOD(swoole_server, connection_info)
     }
 }
 
-static PHP_METHOD(swoole_server, connection_list)
+static PHP_METHOD(swoole_server, getClientList)
 {
     long start_fd = 0;
     long find_count = 10;
@@ -4124,7 +4113,7 @@ static PHP_METHOD(swoole_connection_iterator, offsetGet)
     {
         RETURN_FALSE;
     }
-    sw_zend_call_method_with_1_params(zserv, swoole_server_ce, NULL, "connection_info", &retval, zfd);
+    sw_zend_call_method_with_1_params(zserv, swoole_server_ce, NULL, "getClientInfo", &retval, zfd);
     RETVAL_ZVAL(&retval, 0, 0);
 }
 

@@ -864,7 +864,6 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
     swoole_runtime_shutdown();
 
     SwooleG.running = 0;
-    SwooleWG.reactor_wait_onexit = 0;
 
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;
 
@@ -1088,7 +1087,6 @@ PHP_FUNCTION(swoole_internal_call_user_shutdown_begin)
 {
     if (SWOOLE_G(req_status) == PHP_SWOOLE_RINIT_END)
     {
-
         SWOOLE_G(req_status) = PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN;
         RETURN_TRUE;
     }

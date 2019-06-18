@@ -27,28 +27,28 @@ void event_init(void)
 
 void event_wait(void)
 {
-    if (SwooleWG.in_client == 1 && SwooleWG.reactor_ready == 0 && SwooleG.running)
+    if (!SwooleG.main_reactor)
     {
-        SwooleWG.reactor_ready = 1;
+        return;
+    }
 
 #ifdef HAVE_SIGNALFD
-        if (SwooleG.main_reactor->check_signalfd)
-        {
-            swSignalfd_setup(SwooleG.main_reactor);
-        }
+    if (SwooleG.main_reactor->check_signalfd)
+    {
+        swSignalfd_setup(SwooleG.main_reactor);
+    }
 #endif
-        int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
-        if (ret < 0)
-        {
-            swSysWarn("reactor wait failed");
-        }
+    int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
+    if (ret < 0)
+    {
+        swSysWarn("reactor wait failed");
     }
 }
 
 void check_reactor(void)
 {
     swoole_init();
-    if (SwooleWG.reactor_init)
+    if (SwooleG.main_reactor)
     {
         return;
     }
@@ -71,13 +71,8 @@ void check_reactor(void)
         {
             swWarn("create reactor failed");
         }
-        //client, swoole_event_exit will set swoole_running = 0
-        SwooleWG.in_client = 1;
-        SwooleWG.reactor_wait_onexit = 1;
-        SwooleWG.reactor_ready = 0;
     }
 
     event_init();
-    SwooleWG.reactor_init = 1;
 }
 }
