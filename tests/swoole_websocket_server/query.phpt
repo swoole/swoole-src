@@ -1,19 +1,27 @@
 --TEST--
-swoole_websocket_server: websocket server disconnect with one param code
+swoole_websocket_server: query
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
+$pm->useConstantPorts = true;
+$pm->initFreePorts();
+
 $pm->parentFunc = function (int $pid) use ($pm) {
-    $cli = new SwooleTest\Samtleben\WebsocketClient;
-    $connected = $cli->connect('127.0.0.1', $pm->getFreePort(), '/');
-    Assert::assert($connected);
-    $response = $cli->sendRecv("shutdown");
-    $byteArray = unpack('n', $response);
-    echo $byteArray[1] . "\n";
-    echo substr($response, 2);
+    go(function() use ($pm) {
+        $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
+        $connected = $cli->upgrade('/?test=a&b=hello');
+        Assert::assert($connected);
+        $response = $cli->recv();
+        \Swoole\Assert::assert($response);
+        $json = json_decode($response->data, true);
+        \Swoole\Assert::assert(is_array($json));
+        \Swoole\Assert::eq($json['test'], 'a');
+        \Swoole\Assert::eq($json['b'], 'hello');
+    });
+    swoole_event::wait();
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
@@ -25,10 +33,11 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('WorkerStart', function () use ($pm) {
         $pm->wakeup();
     });
+    $serv->on('open', function (swoole_websocket_server $serv, swoole_http_request $req) {
+        $serv->push($req->fd, json_encode($req->get));
+    });
     $serv->on('Message', function (swoole_websocket_server $serv, swoole_websocket_frame $frame) {
-        if ($frame->data == 'shutdown') {
-            $serv->disconnect($frame->fd, 4001);
-        }
+
     });
     $serv->start();
 };
@@ -36,4 +45,3 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-4001
