@@ -345,14 +345,6 @@ int php_swoole_process_start(swWorker *process, zval *zobject);
 
 void php_swoole_reactor_init();
 
-static sw_inline void php_swoole_check_reactor()
-{
-    if (unlikely(!SwooleG.main_reactor))
-    {
-        php_swoole_reactor_init();
-    }
-}
-
 // shutdown
 void php_swoole_register_shutdown_function(const char *function);
 void php_swoole_register_shutdown_function_prepend(const char *function);
@@ -1151,6 +1143,18 @@ static sw_inline void sw_zend_fci_cache_free(void* fci_cache)
 }
 
 //----------------------------------Misc API------------------------------------
+static sw_inline void php_swoole_check_reactor()
+{
+    if (SWOOLE_G(req_status) == PHP_SWOOLE_RSHUTDOWN_BEGIN)
+    {
+        return ;
+    }
+    if (unlikely(!SwooleG.main_reactor))
+    {
+        php_swoole_reactor_init();
+    }
+}
+
 static sw_inline char* php_swoole_format_date(char *format, size_t format_len, time_t ts, int localtime)
 {
     zend_string *time = php_format_date(format, format_len, ts, localtime);

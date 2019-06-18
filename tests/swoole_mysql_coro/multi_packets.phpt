@@ -45,11 +45,6 @@ SQL
     if (!$ret) {
         exit('unable to create table: ' . $mysql->error);
     }
-    register_shutdown_function(function () use ($mysql) {
-        go(function () use ($mysql) {
-            $mysql->query('DROP TABLE `firmware`');
-        });
-    });
     $max_allowed_packet = $mysql->query('show VARIABLES like \'max_allowed_packet\'');
     $max_allowed_packet = $max_allowed_packet[0]['Value'] / 1024 / 1024;
     phpt_var_dump("max_allowed_packet: {$max_allowed_packet}M");
@@ -124,6 +119,7 @@ SQL
     }
     echo "DONE\n";
 });
+swoole_event::wait();
 ?>
 --EXPECT--
 DONE

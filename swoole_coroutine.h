@@ -108,6 +108,8 @@ public:
     static bool enable_hook(int flags);
     static bool disable_hook();
 
+    static void stop_scheduler_thread();
+
     // TODO: remove old coro APIs (Manual)
     static void yield_m(zval *return_value, php_coro_context *sw_php_context);
     static int resume_m(php_coro_context *sw_current_context, zval *retval, zval *coro_retval);
@@ -198,7 +200,6 @@ protected:
     static void create_func(void *arg);
 
     static void start_scheduler_thread();
-    static void stop_scheduler_thread();
     static void schedule();
     static inline void record_last_msec(php_coro_task *task)
     {
