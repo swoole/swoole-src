@@ -6,7 +6,7 @@ swoole_coroutine: user process
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$pm = new ProcessManager();
+$pm = new SwooleTest\ProcessManager();
 
 const SIZE = 8192 * 5;
 const TIMES = 10;

@@ -36,4 +36,4 @@ echo "end\n";
 call function
 end
 
-Fatal error: go(): can not use coroutine in __destruct after php_request_shutdown %s
+Fatal error: go(): can not use coroutine after php_request_shutdown %s

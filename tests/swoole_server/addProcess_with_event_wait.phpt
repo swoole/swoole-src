@@ -12,7 +12,7 @@ $pm->parentFunc = function () use ($pm) {
 };
 $pm->childFunc = function () use ($pm) {
 
-    class Process2 extends Swoole\Process
+    class Process5 extends Swoole\Process
     {
         public function __construct()
         {
@@ -32,10 +32,10 @@ $pm->childFunc = function () use ($pm) {
         }
     }
 
-    $server = new Swoole\Server('0.0.0.0', get_one_free_port(), SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
+    $server = new Swoole\Server('0.0.0.0', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
     $server->set(['log_file' => '/dev/null']);
     $server->on('packet', function () { });
-    $server->addProcess(new Process2);
+    $server->addProcess(new Process5);
     $server->start();
 };
 $pm->childFirst();
