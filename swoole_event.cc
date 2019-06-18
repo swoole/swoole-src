@@ -315,6 +315,7 @@ void php_swoole_event_wait()
         }
 #endif
     }
+    PHPCoroutine::stop_scheduler_thread();
     swReactor_destory(SwooleG.main_reactor);
     efree(SwooleG.main_reactor);
     SwooleG.main_reactor = NULL;

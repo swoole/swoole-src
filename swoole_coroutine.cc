@@ -27,11 +27,10 @@ bool PHPCoroutine::active = false;
 uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
 php_coro_task PHPCoroutine::main_task = {0};
 
-bool PHPCoroutine::schedule_thread_created = false;
+bool PHPCoroutine::schedule_thread_running = false;
 
 static zend_bool* zend_vm_interrupt = nullptr;
 static pthread_t pidt;
-static bool running = true;
 
 static void (*orig_interrupt_function)(zend_execute_data *execute_data);
 
@@ -70,37 +69,44 @@ void PHPCoroutine::init()
 
 void PHPCoroutine::shutdown()
 {
-    if (schedule_thread_created)
-    {
-        running = false;
-        //wait thread
-        if (pthread_join(pidt, NULL) < 0)
-        {
-            swSysWarn("pthread_join(%ld) failed", (ulong_t )pidt);
-        }
-    }
+    stop_scheduler_thread();
     Coroutine::bailout(nullptr);
 }
 
-void PHPCoroutine::create_scheduler_thread()
+void PHPCoroutine::stop_scheduler_thread()
 {
-    if (schedule_thread_created)
+    if (!schedule_thread_running)
+    {
+        return;
+    }
+    schedule_thread_running = false;
+    if (pthread_join(pidt, NULL) < 0)
+    {
+        swSysWarn("pthread_join(%ld) failed", (ulong_t )pidt);
+        schedule_thread_running = true;
+    }
+}
+
+void PHPCoroutine::start_scheduler_thread()
+{
+    if (schedule_thread_running)
     {
         return;
     }
     zend_vm_interrupt = &EG(vm_interrupt);
+    schedule_thread_running = true;
     if (pthread_create(&pidt, NULL, (void * (*)(void *)) schedule, NULL) < 0)
     {
         swSysError("pthread_create[PHPCoroutine Scheduler] failed");
+        schedule_thread_running = false;
     }
-    schedule_thread_created = true;
 }
 
 void PHPCoroutine::schedule()
 {
     static const useconds_t interval = (MAX_EXEC_MSEC / 2) * 1000;
     swSignal_none();
-    while (running)
+    while (schedule_thread_running)
     {
         *zend_vm_interrupt = 1;
         usleep(interval);
@@ -454,7 +460,7 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
         if (SWOOLE_G(enable_preemptive_scheduler))
         {
             // create a thread to interrupt the coroutine that takes up too much time
-            create_scheduler_thread();
+            start_scheduler_thread();
         }
 
         if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug")))

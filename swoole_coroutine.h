@@ -182,7 +182,7 @@ protected:
     static uint64_t max_num;
     static php_coro_task main_task;
 
-    static bool schedule_thread_created;
+    static bool schedule_thread_running;
 
     static inline void vm_stack_init(void);
     static inline void vm_stack_destroy(void);
@@ -197,11 +197,12 @@ protected:
     static void on_close(void *arg);
     static void create_func(void *arg);
 
-    static void create_scheduler_thread();
+    static void start_scheduler_thread();
+    static void stop_scheduler_thread();
     static void schedule();
     static inline void record_last_msec(php_coro_task *task)
     {
-        if (schedule_thread_created)
+        if (schedule_thread_running)
         {
             task->last_msec = swTimer_get_absolute_msec();
         }
