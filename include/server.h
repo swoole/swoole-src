@@ -316,7 +316,6 @@ typedef struct
 
     uint32_t session_round :24;
     sw_atomic_t start;  //after swServer_start will set start=1
-    uint8_t shutdown;
 
     time_t now;
 

@@ -477,7 +477,7 @@ void swoole_server_rshutdown()
 
     swWorker_clean_pipe_buffer(serv);
 
-    if (serv->gs->start > 0 && !serv->gs->shutdown)
+    if (serv->gs->start > 0)
     {
         if (PG(last_error_message))
         {
@@ -1536,8 +1536,6 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_id"), worker_id);
     zend_update_property_bool(swoole_server_ce, zserv, ZEND_STRL("taskworker"), worker_id >= serv->worker_num);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_pid"), getpid());
-
-    php_swoole_register_rshutdown_callback((swCallback) swWorker_clean_pipe_buffer, serv);
 
     if (!is_enable_coroutine(serv))
     {
