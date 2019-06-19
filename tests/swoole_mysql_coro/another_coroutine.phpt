@@ -55,7 +55,7 @@ $process->start();
 Swoole\Process::wait();
 ?>
 --EXPECTF--
-Fatal error: Uncaught Swoole\Error: Socket#4 has already been bound to another coroutine#%d, reading of the same socket in coroutine#%d at the same time is not allowed in %s:%d
+Fatal error: Uncaught Swoole\Error: Socket#%d has already been bound to another coroutine#%d, reading of the same socket in coroutine#%d at the same time is not allowed in %s:%d
 Stack trace:
 #0 %s(%d): Swoole\Coroutine\MySQL->query('SELECT SLEEP(%d)')
 #1 %s(%d): get(Object(Swoole\Coroutine\MySQL))
