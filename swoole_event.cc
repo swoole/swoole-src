@@ -323,13 +323,9 @@ void php_swoole_event_wait()
 
 void php_swoole_event_exit()
 {
-    if (!SwooleG.serv)
+    if (SwooleG.main_reactor)
     {
-        if (SwooleG.main_reactor)
-        {
-            SwooleG.main_reactor->running = 0;
-        }
-        SwooleG.running = 0;
+        SwooleG.main_reactor->running = 0;
     }
 }
 
