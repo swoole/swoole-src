@@ -291,8 +291,7 @@ void php_swoole_register_shutdown_function(const char *function)
     shutdown_function_entry.arg_count = 1;
     shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
     ZVAL_STRING(&shutdown_function_entry.arguments[0], function);
-    register_user_shutdown_function((char *) function, ZSTR_LEN(Z_STR(shutdown_function_entry.arguments[0])),
-            &shutdown_function_entry);
+    register_user_shutdown_function((char *) function, ZSTR_LEN(Z_STR(shutdown_function_entry.arguments[0])), &shutdown_function_entry);
 }
 
 static void php_swoole_old_shutdown_function_move(zval *zv)

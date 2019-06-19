@@ -117,6 +117,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
     ssize_t package_length;
     uint8_t package_length_size = protocol->get_package_length_size ? protocol->get_package_length_size(conn) : protocol->package_length_size;
     uint32_t recv_size;
+    ssize_t recv_n = 0;
 
     if (conn->skip_recv)
     {
@@ -138,8 +139,8 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
         recv_size = protocol->package_length_offset + package_length_size;
     }
 
-    int n = swConnection_recv(conn, buffer->str + buffer->length, recv_size, 0);
-    if (n < 0)
+    recv_n = swConnection_recv(conn, buffer->str + buffer->length, recv_size, 0);
+    if (recv_n < 0)
     {
         switch (swConnection_error(errno))
         {
@@ -153,17 +154,17 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
             return SW_OK;
         }
     }
-    else if (n == 0)
+    else if (recv_n == 0)
     {
         return SW_ERR;
     }
     else
     {
-        buffer->length += n;
+        buffer->length += recv_n;
 
         if (conn->recv_wait)
         {
-            if (buffer->length >= buffer->offset)
+            if (buffer->length >= (size_t) buffer->offset)
             {
                 _do_dispatch:
                 if (protocol->onPackage(protocol, conn, buffer->str, buffer->offset) < 0)
@@ -176,7 +177,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 }
                 conn->recv_wait = 0;
 
-                if (buffer->length > buffer->offset)
+                if (buffer->length > (size_t) buffer->offset)
                 {
                     swString_pop_front(buffer, buffer->offset);
                     goto _do_get_length;
@@ -206,17 +207,26 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
             //no length
             else if (package_length == 0)
             {
-                return SW_OK;
+                if (buffer->length == protocol->package_length_offset + package_length_size)
+                {
+                    swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_NOT_FOUND, "bad request, No length found in %ld bytes", buffer->length);
+                    return SW_ERR;
+                }
+                else
+                {
+                    return SW_OK;
+                }
             }
             else if (package_length > protocol->package_max_length)
             {
-                swWarn("package is too big, remote_addr=%s:%d, length=%d", swConnection_get_ip(conn), swConnection_get_port(conn), package_length);
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "package is too big, remote_addr=%s:%d, length=%d",
+                        swConnection_get_ip(conn), swConnection_get_port(conn), package_length);
                 return SW_ERR;
             }
             //get length success
             else
             {
-                if (buffer->size < package_length)
+                if (buffer->size < (size_t) package_length)
                 {
                     if (swString_extend(buffer, package_length) < 0)
                     {
@@ -226,7 +236,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 conn->recv_wait = 1;
                 buffer->offset = package_length;
 
-                if (buffer->length >= package_length)
+                if (buffer->length >= (size_t) package_length)
                 {
                     goto _do_dispatch;
                 }
