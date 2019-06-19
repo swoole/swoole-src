@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: co::create before server create [2]
+swoole_coroutine: co::create after server start [1]
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -19,11 +19,6 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    go(function () use ($pm) {
-        co::sleep(0.1);
-        echo "co shutdown\n";
-    });
-    swoole_event_wait();
 
     $http = new swoole_http_server('127.0.0.1', $pm->getFreePort());
 
@@ -43,14 +38,17 @@ $pm->childFunc = function () use ($pm) {
     $http->start();
 
     echo "server shutdown\n";
+
+    go(function () use ($pm) {
+        Co::readFile(__FILE__);
+        echo "co shutdown\n";
+    });
+    swoole_event_wait();
 };
 
 $pm->childFirst();
 $pm->run();
-
-
-
 ?>
 --EXPECT--
-co shutdown
 server shutdown
+co shutdown

@@ -81,7 +81,7 @@ void swoole_redis_server_init(int module_number)
     zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("MAP"), SW_REDIS_REPLY_MAP);
 }
 
-void swoole_redis_server_shutdown()
+void swoole_redis_server_rshutdown()
 {
     for (auto i = redis_handlers.begin(); i != redis_handlers.end(); i++)
     {

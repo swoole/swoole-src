@@ -68,6 +68,8 @@ for ($i = 0; $i < count($exit_status_list); $i++) {
     });
 }
 
+swoole_event::wait();
+
 ?>
 --EXPECTF--
 NULL
@@ -86,3 +88,4 @@ object(stdClass)#%d (%d) {
   string(2) "ok"
 }
 resource(%d) of type (stream)
+int(0)

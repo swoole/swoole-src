@@ -188,11 +188,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     {
         flags |= SW_EXIT_IN_SERVER;
     }
-    if (flags == SW_EXIT_IN_COROUTINE && Coroutine::count() == 1)
-    {
-        php_swoole_event_exit();
-    }
-    else if (flags)
+    if (flags)
     {
         const zend_op *opline = EX(opline);
         zval _exit_status;
@@ -266,7 +262,7 @@ void swoole_coroutine_util_init(int module_number)
     }
 }
 
-void swoole_coroutine_shutdown()
+void swoole_coroutine_rshutdown()
 {
     PHPCoroutine::shutdown();
 }

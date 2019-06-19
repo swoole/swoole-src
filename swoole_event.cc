@@ -238,12 +238,11 @@ void php_swoole_reactor_init()
             return;
         }
     }
-
-    if (SwooleG.main_reactor == NULL)
+    if (!SwooleG.main_reactor)
     {
         swTraceLog(SW_TRACE_PHP, "init reactor");
 
-        swReactor *reactor = (swReactor *) sw_malloc(sizeof(swReactor));
+        swReactor *reactor = (swReactor *) emalloc(sizeof(swReactor));
         if (reactor == NULL)
         {
             php_swoole_fatal_error(E_ERROR, "malloc failed");
@@ -260,12 +259,6 @@ void php_swoole_reactor_init()
         reactor->wait_exit = 1;
 
         SwooleG.main_reactor = reactor;
-
-        //client, swoole_event_exit will set swoole_running = 0
-        SwooleWG.in_client = 1;
-        SwooleWG.reactor_wait_onexit = 1;
-        SwooleWG.reactor_ready = 0;
-        //only client side
         php_swoole_register_shutdown_function_prepend("swoole_event_wait");
     }
 
@@ -273,71 +266,66 @@ void php_swoole_reactor_init()
     swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_WRITE, php_swoole_event_onWrite);
     swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_ERROR, php_swoole_event_onError);
     swReactor_set_handler(SwooleG.main_reactor, SW_FD_WRITE, swReactor_onWrite);
-
-    SwooleWG.reactor_init = 1;
 }
 
 void php_swoole_event_wait()
 {
-    if (SwooleWG.in_client == 1 && SwooleWG.reactor_ready == 0 && SwooleG.running)
+    if (PG(last_error_message))
     {
-        if (PG(last_error_message))
+        switch (PG(last_error_type))
         {
-            switch (PG(last_error_type))
-            {
-            case E_ERROR:
-            case E_CORE_ERROR:
-            case E_USER_ERROR:
-            case E_COMPILE_ERROR:
-                return;
-            default:
-                break;
-            }
+        case E_ERROR:
+        case E_CORE_ERROR:
+        case E_USER_ERROR:
+        case E_COMPILE_ERROR:
+            return;
+        default:
+            break;
         }
-        SwooleWG.reactor_ready = 1;
+    }
+
+    if (!SwooleG.main_reactor)
+    {
+        return;
+    }
 
 #ifdef HAVE_SIGNALFD
-        if (SwooleG.main_reactor->check_signalfd)
-        {
-            swSignalfd_setup(SwooleG.main_reactor);
-        }
-#endif
-        if (!swReactor_empty(SwooleG.main_reactor))
-        {
-            // Don't disable object slot reuse while running shutdown functions:
-            // https://github.com/php/php-src/commit/bd6eabd6591ae5a7c9ad75dfbe7cc575fa907eac
-#if defined(EG_FLAGS_IN_SHUTDOWN) && !defined(EG_FLAGS_OBJECT_STORE_NO_REUSE)
-            zend_bool in_shutdown = EG(flags) & EG_FLAGS_IN_SHUTDOWN;
-            EG(flags) &= ~EG_FLAGS_IN_SHUTDOWN;
-#endif
-            int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
-            if (ret < 0)
-            {
-                php_swoole_sys_error(E_ERROR, "reactor wait failed");
-            }
-#if defined(EG_FLAGS_IN_SHUTDOWN) && !defined(EG_FLAGS_OBJECT_STORE_NO_REUSE)
-            if (in_shutdown)
-            {
-                EG(flags) |= EG_FLAGS_IN_SHUTDOWN;
-            }
-#endif
-        }
-        php_swoole_timer_clear_all();
-        SwooleWG.reactor_exit = 1;
-        SwooleG.running = 0;
-        SwooleG.main_reactor->running = 0;
+    if (SwooleG.main_reactor->check_signalfd)
+    {
+        swSignalfd_setup(SwooleG.main_reactor);
     }
+#endif
+    if (!swReactor_empty(SwooleG.main_reactor))
+    {
+        // Don't disable object slot reuse while running shutdown functions:
+        // https://github.com/php/php-src/commit/bd6eabd6591ae5a7c9ad75dfbe7cc575fa907eac
+#if defined(EG_FLAGS_IN_SHUTDOWN) && !defined(EG_FLAGS_OBJECT_STORE_NO_REUSE)
+        zend_bool in_shutdown = EG(flags) & EG_FLAGS_IN_SHUTDOWN;
+        EG(flags) &= ~EG_FLAGS_IN_SHUTDOWN;
+#endif
+        int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
+        if (ret < 0)
+        {
+            php_swoole_sys_error(E_ERROR, "reactor wait failed");
+        }
+#if defined(EG_FLAGS_IN_SHUTDOWN) && !defined(EG_FLAGS_OBJECT_STORE_NO_REUSE)
+        if (in_shutdown)
+        {
+            EG(flags) |= EG_FLAGS_IN_SHUTDOWN;
+        }
+#endif
+    }
+    PHPCoroutine::stop_scheduler_thread();
+    swReactor_destory(SwooleG.main_reactor);
+    efree(SwooleG.main_reactor);
+    SwooleG.main_reactor = NULL;
 }
 
 void php_swoole_event_exit()
 {
-    if (SwooleWG.in_client == 1)
+    if (SwooleG.main_reactor)
     {
-        if (SwooleG.main_reactor)
-        {
-            SwooleG.main_reactor->running = 0;
-        }
-        SwooleG.running = 0;
+        SwooleG.main_reactor->running = 0;
     }
 }
 

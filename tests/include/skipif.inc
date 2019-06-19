@@ -187,15 +187,19 @@ function skip_if_pdo_not_support_mysql8()
 function skip_if_not_mysql8()
 {
     require_once __DIR__ . '/config.php';
-    go(function () {
+    $skip = false;
+    go(function () use (&$skip) {
         if (!preg_match(
             '/caching_sha2_password/',
             httpGetBody('http://' . MYSQL_SERVER_HOST . ':' . MYSQL_SERVER_PORT))
         ) {
-            skip('require mysql8');
+            $skip = true;
         }
     });
     Swoole\Event::wait();
+    if ($skip) {
+        skip('require mysql8');
+    }
 }
 
 function skip_unsupported(string $message = '')

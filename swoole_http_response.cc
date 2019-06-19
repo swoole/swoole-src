@@ -591,7 +591,7 @@ static PHP_METHOD(swoole_http_response, end)
 #endif
     {
         swoole_http_response_end(ctx, zdata, return_value);
-        if (!ctx->end)
+        if (!ctx->upgrade)
         {
             swoole_http_context_free(ctx);
         }

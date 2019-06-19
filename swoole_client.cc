@@ -1683,7 +1683,10 @@ static PHP_METHOD(swoole_client, close)
     if (force || !cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
     {
         uint8_t need_free = !cli->async;
-        ret = cli->close(cli);
+        if (unlikely(SWOOLE_G(req_status) != PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN))
+        {
+            ret = cli->close(cli);
+        }
         if (need_free)
         {
             php_swoole_client_free(getThis(), cli);

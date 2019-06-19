@@ -78,7 +78,7 @@ void swoole_async_coro_init(int module_number)
     SwooleAIO.max_thread_count = SW_AIO_THREAD_MAX_NUM;
 }
 
-void swoole_async_coro_shutdown()
+void swoole_async_coro_rshutdown()
 {
     for(auto i = request_cache_map.begin(); i != request_cache_map.end(); i++)
     {
@@ -193,7 +193,7 @@ static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
 
 PHP_FUNCTION(swoole_async_set)
 {
-    if (SwooleG.main_reactor != NULL)
+    if (SwooleG.main_reactor)
     {
         php_swoole_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings");
         RETURN_FALSE;

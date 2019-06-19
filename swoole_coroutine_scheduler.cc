@@ -22,6 +22,7 @@
 #include "coroutine_c_api.h"
 
 #include <unordered_map>
+#include <queue>
 
 using namespace std;
 using swoole::coroutine::System;
@@ -29,15 +30,90 @@ using swoole::coroutine::Socket;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
 
+struct scheduler_t
+{
+    queue<php_swoole_fci*> *list;
+    zend_object std;
+};
+
 static zend_class_entry *swoole_coroutine_iterator_ce;
 static zend_class_entry *swoole_coroutine_context_ce;
+static zend_class_entry *swoole_coroutine_scheduler_ce;
+static zend_object_handlers swoole_coroutine_scheduler_handlers;
 
 static unordered_map<long, Coroutine *> user_yield_coros;
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_add, 0, 0, 1)
+    ZEND_ARG_CALLABLE_INFO(0, func, 0)
+    ZEND_ARG_VARIADIC_INFO(0, params)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_set, 0, 0, 1)
+    ZEND_ARG_ARRAY_INFO(0, settings, 0)
+ZEND_END_ARG_INFO()
+
+static PHP_METHOD(swoole_coroutine_scheduler, add);
+static PHP_METHOD(swoole_coroutine_scheduler, start);
+
+static sw_inline scheduler_t* scheduler_get_object(zend_object *obj)
+{
+    return (scheduler_t *) ((char *) obj - swoole_coroutine_scheduler_handlers.offset);
+}
+
+static zend_object *scheduler_create_object(zend_class_entry *ce)
+{
+    scheduler_t *s = (scheduler_t *) ecalloc(1, sizeof(scheduler_t) + zend_object_properties_size(ce));
+    zend_object_std_init(&s->std, ce);
+    object_properties_init(&s->std, ce);
+    s->std.handlers = &swoole_coroutine_scheduler_handlers;
+    return &s->std;
+}
+
+static void scheduler_free_object(zend_object *object)
+{
+    scheduler_t *s = scheduler_get_object(object);
+    if (s->list)
+    {
+        while(!s->list->empty())
+        {
+            php_swoole_fci *fci = s->list->front();
+            s->list->pop();
+            sw_zend_fci_cache_discard(&fci->fci_cache);
+            sw_zend_fci_params_discard(&fci->fci);
+            efree(fci);
+        }
+        delete s->list;
+        s->list = nullptr;
+    }
+    zend_object_std_dtor(&s->std);
+}
+
+
+static const zend_function_entry swoole_coroutine_scheduler_methods[] =
+{
+    PHP_ME(swoole_coroutine_scheduler, add, arginfo_swoole_coroutine_scheduler_add, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_coroutine_scheduler, set, arginfo_swoole_coroutine_scheduler_set, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_coroutine_scheduler, start, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
 
 void swoole_coroutine_scheduler_init(int module_number)
 {
     SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", NULL, spl_ce_ArrayIterator);
     SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_context, "Swoole\\Coroutine\\Context", NULL, "Co\\Context", NULL, spl_ce_ArrayObject);
+
+    SW_INIT_CLASS_ENTRY(swoole_coroutine_scheduler, "Swoole\\Coroutine\\Scheduler", NULL, "Co\\Scheduler", swoole_coroutine_scheduler_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_coroutine_scheduler, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_coroutine_scheduler, sw_zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_scheduler, sw_zend_class_unset_property_deny);
+    SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_coroutine_scheduler);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_coroutine_scheduler, scheduler_create_object, scheduler_free_object, scheduler_t, std);
+    swoole_coroutine_scheduler_ce->ce_flags |= ZEND_ACC_FINAL;
+
+    zend_declare_property_null(swoole_coroutine_scheduler_ce, ZEND_STRL("_list"), ZEND_ACC_PRIVATE);
 }
 
 PHP_FUNCTION(swoole_coroutine_create)
@@ -288,6 +364,45 @@ PHP_METHOD(swoole_coroutine_scheduler, list)
         &zlist
     );
     zval_ptr_dtor(&zlist);
+}
+
+static PHP_METHOD(swoole_coroutine_scheduler, add)
+{
+    auto s = scheduler_get_object(Z_OBJ_P(getThis()));
+    php_swoole_fci *fci = (php_swoole_fci *) ecalloc(1, sizeof(php_swoole_fci));
+
+    ZEND_PARSE_PARAMETERS_START(1, -1)
+        Z_PARAM_FUNC(fci->fci, fci->fci_cache)
+        Z_PARAM_VARIADIC('*', fci->fci.params, fci->fci.param_count)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (!s->list)
+    {
+        s->list = new queue<php_swoole_fci*>;
+    }
+    sw_zend_fci_cache_persist(&fci->fci_cache);
+    sw_zend_fci_params_persist(&fci->fci);
+    s->list->push(fci);
+}
+
+static PHP_METHOD(swoole_coroutine_scheduler, start)
+{
+    php_swoole_reactor_init();
+
+    scheduler_t *s = scheduler_get_object(Z_OBJ_P(getThis()));
+    while (!s->list->empty())
+    {
+        php_swoole_fci *fci = s->list->front();
+        s->list->pop();
+        PHPCoroutine::create(&fci->fci_cache, fci->fci.param_count, fci->fci.params);
+        sw_zend_fci_cache_discard(&fci->fci_cache);
+        sw_zend_fci_params_discard(&fci->fci);
+        efree(fci);
+    }
+
+    php_swoole_event_wait();
+    delete s->list;
+    s->list = nullptr;
 }
 
 PHP_METHOD(swoole_coroutine_scheduler, enableScheduler)

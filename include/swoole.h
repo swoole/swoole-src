@@ -787,7 +787,8 @@ typedef struct _swConnection
 #ifdef SW_USE_OPENSSL
     SSL *ssl;
     uint32_t ssl_state;
-    swString ssl_client_cert;
+    uint16_t ssl_client_cert_pid;
+    swString *ssl_client_cert;
 #endif
     sw_atomic_t lock;
 
@@ -1889,6 +1890,7 @@ static sw_inline int swReactor_events(int fdtype)
 }
 
 int swReactor_create(swReactor *reactor, int max_event);
+void swReactor_destory(swReactor *reactor);
 
 static inline void swReactor_before_wait(swReactor *reactor)
 {
@@ -2273,11 +2275,6 @@ typedef struct
      */
     int pipe_used;
 
-    uint32_t reactor_wait_onexit :1;
-    uint32_t reactor_init :1;
-    uint32_t reactor_ready :1;
-    uint32_t reactor_exit :1;
-    uint32_t in_client :1;
     uint32_t shutdown :1;
 
     int max_request;
@@ -2362,7 +2359,6 @@ typedef struct
 
     swMemoryPool *memory_pool;
     swReactor *main_reactor;
-    swReactor *origin_main_reactor;
 
     char *task_tmpdir;
     uint16_t task_tmpdir_len;

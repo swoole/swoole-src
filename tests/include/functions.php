@@ -381,10 +381,11 @@ function killself_in_syncmode($lifetime = 1000, $sig = SIGKILL)
  * @param int $lifetime
  * @param int $sig
  * @param callable $cb
+ * @return mixed
  */
 function suicide($lifetime, $sig = SIGKILL, callable $cb = null)
 {
-    swoole_timer_after($lifetime, function () use ($lifetime, $sig, $cb) {
+    return swoole_timer_after($lifetime, function () use ($lifetime, $sig, $cb) {
         if ($cb) {
             $cb();
         }

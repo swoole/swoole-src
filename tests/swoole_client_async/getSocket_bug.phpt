@@ -1,7 +1,7 @@
 --TEST--
 swoole_client_async: getSocket debug
 --SKIPIF--
-<?php require  __DIR__ . '/../include/skipif.inc';
+<?php require __DIR__ . '/../include/skipif.inc';
 if (method_exists('swoole_client', 'getSocket') === false) {
     exit("require sockets supports.");
 }
@@ -13,27 +13,32 @@ require __DIR__ . '/../include/bootstrap.php';
 $simple_tcp_server = __DIR__ . "/../include/api/swoole_server/simple_server.php";
 start_server($simple_tcp_server, TCP_SERVER_HOST, TCP_SERVER_PORT);
 
-suicide(1000);
+$timer = suicide(1000);
 
 $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 
-$cli->on("connect", function(swoole_client $cli) {
+$cli->on("connect", function (swoole_client $cli) use ($timer) {
     // getSocket BUG
     $cli->getSocket();
     $cli->getSocket();
 
-    echo "SUCCESS";
+    echo "SUCCESS\n";
     /*
     @$cli->getSocket();
     $err = error_get_last();
     Assert::eq($err["message"], "swoole_client_async::getSocket(): unable to obtain socket family Error: Bad file descriptor[9].");
     */
-     swoole_event_exit();
+    $cli->close();
+    Swoole\Timer::clear($timer);
 });
 
-$cli->on("receive", function(swoole_client $cli, $data){});
-$cli->on("error", function(swoole_client $cli) {echo "error\n";});
-$cli->on("close", function(swoole_client $cli) {});
+$cli->on("receive", function (swoole_client $cli, $data) {
+});
+$cli->on("error", function (swoole_client $cli) {
+    echo "error\n";
+});
+$cli->on("close", function (swoole_client $cli) {
+});
 
 $cli->connect(TCP_SERVER_HOST, TCP_SERVER_PORT, 1);
 Swoole\Event::wait();

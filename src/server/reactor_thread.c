@@ -991,11 +991,9 @@ int swReactorThread_start(swServer *serv)
 
     int retval = main_reactor->wait(main_reactor, NULL);
 
-    if (serv->master_timer)
-    {
-        swTimer_del(&SwooleG.timer, serv->master_timer);
-        serv->master_timer = NULL;
-    }
+    swReactor_destory(main_reactor);
+    SwooleG.main_reactor = NULL;
+    sw_free(main_reactor);
 
     return retval;
 }

@@ -46,6 +46,7 @@ go(function () {
     // drop
     Assert::assert($root->query('DROP ROLE readonly'));
 });
+swoole_event::wait();
 ?>
 --EXPECTF--
 1142

@@ -12,13 +12,8 @@ go(function () {
 });
 ?>
 --EXPECTF--
-Fatal error: Uncaught Swoole\Error: must be forked outside the coroutine in %s:%d
+Fatal error: Uncaught Swoole\Exception: eventLoop has already been created. unable to create Swoole\Server in %s:%d
 Stack trace:
-#0 %s(6): Swoole\Server->start()
-#1 {main}
-  thrown in %s on line %d
-[%s]	ERROR	zm_deactivate_swoole (ERRNO 503): Fatal error: Uncaught Swoole\Error: must be forked outside the coroutine in %s:%d
-Stack trace:
-#0 %s(6): Swoole\Server->start()
+#0 %s(%d): Swoole\Server->__construct('127.0.0.1')
 #1 {main}
   thrown in %s on line %d

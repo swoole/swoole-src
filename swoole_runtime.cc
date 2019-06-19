@@ -173,7 +173,7 @@ struct real_func
     zval name;
 };
 
-void swoole_runtime_shutdown()
+void swoole_runtime_rshutdown()
 {
     if (!function_table)
     {
