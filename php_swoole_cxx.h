@@ -251,12 +251,12 @@ private:
     zend_ulong _index;
 };
 
-class array
+class Array
 {
 public:
     zval *arr;
 
-    array(zval *_arr)
+    Array(zval *_arr)
     {
         assert(Z_TYPE_P(_arr) == IS_ARRAY);
         arr = _arr;
@@ -270,6 +270,11 @@ public:
     inline bool set(zend_ulong index, zval *value)
     {
         return add_index_zval(arr, index, value) == SUCCESS;
+    }
+
+    inline bool append(zval *value)
+    {
+        return add_next_index_zval(arr, value) == SUCCESS;
     }
 
     inline bool set(zend_ulong index, zend_resource *res)
