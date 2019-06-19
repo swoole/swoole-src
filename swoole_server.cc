@@ -481,16 +481,14 @@ void swoole_server_rshutdown()
     {
         if (PG(last_error_message))
         {
-            switch(PG(last_error_type))
+            switch (PG(last_error_type))
             {
             case E_ERROR:
             case E_CORE_ERROR:
             case E_USER_ERROR:
             case E_COMPILE_ERROR:
-                swoole_error_log(
-                    SW_LOG_ERROR, SW_ERROR_PHP_FATAL_ERROR, "Fatal error: %s in %s on line %d",
-                    PG(last_error_message), PG(last_error_file)?PG(last_error_file):"-", PG(last_error_lineno)
-                );
+                swoole_error_log(SW_LOG_ERROR, SW_ERROR_PHP_FATAL_ERROR, "Fatal error: %s in %s on line %d", PG(last_error_message),
+                        PG(last_error_file)?PG(last_error_file):"-", PG(last_error_lineno));
                 break;
             default:
                 break;
@@ -524,7 +522,7 @@ void swoole_server_init(int module_number)
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_task, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CREATE_AND_FREE(swoole_server_task, swoole_server_task_create_object, swoole_server_task_free_object);
 
-    SW_INIT_CLASS_ENTRY(swoole_connection_iterator, "Swoole\\Connection\\Iterator", "swoole_connection_iterator", NULL,  swoole_connection_iterator_methods);
+    SW_INIT_CLASS_ENTRY(swoole_connection_iterator, "Swoole\\Connection\\Iterator", "swoole_connection_iterator", NULL, swoole_connection_iterator_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_connection_iterator, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_connection_iterator, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_connection_iterator, sw_zend_class_unset_property_deny);
