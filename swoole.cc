@@ -28,9 +28,19 @@
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
 
+#include <queue>
+
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
 extern sapi_module_struct sapi_module;
+
+struct rshutdown_func
+{
+    swCallback callback;
+    void *private_data;
+};
+
+std::queue<rshutdown_func *> rshutdown_functions;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -275,26 +285,6 @@ void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr)
     swoole_objects.property[property_id][handle] = ptr;
 }
 
-int swoole_register_rshutdown_function(swCallback func, int push_back)
-{
-    if (SWOOLE_G(rshutdown_functions) == NULL)
-    {
-        SWOOLE_G(rshutdown_functions) = swLinkedList_new(0, NULL);
-        if (SWOOLE_G(rshutdown_functions) == NULL)
-        {
-            return SW_ERR;
-        }
-    }
-    if (push_back)
-    {
-        return swLinkedList_append(SWOOLE_G(rshutdown_functions), (void*) func);
-    }
-    else
-    {
-        return swLinkedList_prepend(SWOOLE_G(rshutdown_functions), (void*) func);
-    }
-}
-
 void php_swoole_register_shutdown_function(const char *function)
 {
     php_shutdown_function_entry shutdown_function_entry;
@@ -325,6 +315,23 @@ void php_swoole_register_shutdown_function_prepend(const char *function)
     old_user_shutdown_function_names->pDestructor = php_swoole_old_shutdown_function_move;
     zend_hash_destroy(old_user_shutdown_function_names);
     FREE_HASHTABLE(old_user_shutdown_function_names);
+}
+
+void php_swoole_register_rshutdown_callback(swCallback cb, void *private_data)
+{
+    rshutdown_func *rf = (rshutdown_func*) emalloc(sizeof(rshutdown_func));
+    rshutdown_functions.push(rf);
+}
+
+static void execute_rshutdown_callback()
+{
+    while(!rshutdown_functions.empty())
+    {
+        rshutdown_func *rf = rshutdown_functions.front();
+        rshutdown_functions.pop();
+        rf->callback(rf->private_data);
+        efree(rf);
+    }
 }
 
 static sw_inline zend_string* get_debug_print_backtrace(zend_long options, zend_long limit)
@@ -368,23 +375,6 @@ static void fatal_error(int code, const char *format, ...)
     }
     SwooleG.write_log(SW_LOG_ERROR, buffer->str, buffer->length);
     exit(255);
-}
-
-void swoole_call_rshutdown_function(void *arg)
-{
-    if (SWOOLE_G(rshutdown_functions))
-    {
-        swLinkedList *rshutdown_functions = SWOOLE_G(rshutdown_functions);
-        swLinkedList_node *node = rshutdown_functions->head;
-        swCallback func = NULL;
-
-        while (node)
-        {
-            func = (swCallback) node->data;
-            func(arg);
-            node = node->next;
-        }
-    }
 }
 
 swoole_object_array swoole_objects;
@@ -823,46 +813,15 @@ PHP_RINIT_FUNCTION(swoole)
 PHP_RSHUTDOWN_FUNCTION(swoole)
 {
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_BEGIN;
-    swoole_call_rshutdown_function(NULL);
+    execute_rshutdown_callback();
 
-    //clear pipe buffer
-    if (SwooleG.serv && swIsWorker())
-    {
-        swWorker_clean();
-    }
-
-    if (SwooleG.serv && SwooleG.serv->gs->start > 0 && !SwooleG.serv->gs->shutdown)
-    {
-        if (PG(last_error_message))
-        {
-            switch(PG(last_error_type))
-            {
-            case E_ERROR:
-            case E_CORE_ERROR:
-            case E_USER_ERROR:
-            case E_COMPILE_ERROR:
-                swoole_error_log(
-                    SW_LOG_ERROR, SW_ERROR_PHP_FATAL_ERROR, "Fatal error: %s in %s on line %d",
-                    PG(last_error_message), PG(last_error_file)?PG(last_error_file):"-", PG(last_error_lineno)
-                );
-                break;
-            default:
-                break;
-            }
-        }
-        else
-        {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SERVER_WORKER_TERMINATED, "worker process is terminated by exit()/die()");
-        }
-    }
-
-    swoole_async_coro_shutdown();
-    swoole_redis_server_shutdown();
-    swoole_coroutine_shutdown();
-    swoole_runtime_shutdown();
+    swoole_server_rshutdown();
+    swoole_async_coro_rshutdown();
+    swoole_redis_server_rshutdown();
+    swoole_coroutine_rshutdown();
+    swoole_runtime_rshutdown();
 
     SwooleG.running = 0;
-
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;
 
     return SUCCESS;

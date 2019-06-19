@@ -642,11 +642,9 @@ static int swWorker_reactor_is_empty(swReactor *reactor)
     return SW_FALSE;
 }
 
-void swWorker_clean(void)
+void swWorker_clean_pipe_buffer(swServer *serv)
 {
     int i;
-    swServer *serv = (swServer *) SwooleWG.worker->pool->ptr;
-
     for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
         swWorker *worker = swServer_get_worker(serv, i);
@@ -734,7 +732,7 @@ int swWorker_loop(swServer *serv, int worker_id)
     //main loop
     reactor->wait(reactor, NULL);
     //clear pipe buffer
-    swWorker_clean();
+    swWorker_clean_pipe_buffer(serv);
     //worker shutdown
     swWorker_onStop(serv);
     return SW_OK;

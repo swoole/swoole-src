@@ -262,7 +262,7 @@ void swoole_coroutine_util_init(int module_number)
     }
 }
 
-void swoole_coroutine_shutdown()
+void swoole_coroutine_rshutdown()
 {
     PHPCoroutine::shutdown();
 }

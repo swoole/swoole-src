@@ -296,7 +296,11 @@ PHP_FUNCTION(swoole_strerror);
 PHP_FUNCTION(swoole_errno);
 PHP_FUNCTION(swoole_last_error);
 
-/** <Sort by dependency> **/
+
+/**
+ * MINIT <Sort by dependency>
+ * ==============================================================
+ */
 void swoole_event_init(int module_number);
 // base
 void swoole_atomic_init(int module_number);
@@ -335,10 +339,11 @@ void swoole_redis_server_init(int module_number);
  * RSHUTDOWN
  * ==============================================================
  */
-void swoole_async_coro_shutdown();
-void swoole_redis_server_shutdown();
-void swoole_coroutine_shutdown();
-void swoole_runtime_shutdown();
+void swoole_async_coro_rshutdown();
+void swoole_redis_server_rshutdown();
+void swoole_coroutine_rshutdown();
+void swoole_runtime_rshutdown();
+void swoole_server_rshutdown();
 
 void php_swoole_process_clean();
 int php_swoole_process_start(swWorker *process, zval *zobject);
@@ -348,6 +353,7 @@ void php_swoole_reactor_init();
 // shutdown
 void php_swoole_register_shutdown_function(const char *function);
 void php_swoole_register_shutdown_function_prepend(const char *function);
+void php_swoole_register_rshutdown_callback(swCallback cb, void *private_data);
 
 // event
 void php_swoole_event_init();
@@ -416,8 +422,6 @@ static sw_inline void swoole_set_property(zval *zobject, int property_id, void *
 
 int swoole_convert_to_fd(zval *zsocket);
 int swoole_convert_to_fd_ex(zval *zsocket, int *async);
-int swoole_register_rshutdown_function(swCallback func, int push_back);
-void swoole_call_rshutdown_function(void *arg);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
 php_socket *swoole_convert_to_socket(int sock);
