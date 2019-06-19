@@ -477,7 +477,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/pipe/base.c \
         src/pipe/eventfd.c \
         src/pipe/unix_socket.c \
-        src/protocol/base.c \
+        src/protocol/base.cc \
         src/protocol/base64.c \
         src/protocol/http.c \
         src/protocol/http2.c \
