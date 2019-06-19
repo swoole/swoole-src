@@ -7,11 +7,13 @@ swoole_coroutine: create coroutine after RSHTUDOWN
 require __DIR__ . '/../include/bootstrap.php';
 register_shutdown_function(function () {
     go(function () {
-        co::sleep(1);
+        co::sleep(.01);
+        echo "DONE\n";
     });
+    swoole_event::wait();
 });
 exit(0);
 
 ?>
 --EXPECTF--
-Fatal error: go(): can not use coroutine after php_request_shutdown in %s on line %d
+DONE
