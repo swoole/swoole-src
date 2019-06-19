@@ -12,7 +12,13 @@ go(function () {
 });
 ?>
 --EXPECTF--
-[%s]	ERROR	(PHP Fatal Error: %d):
-Swoole\Server::start: must be forked outside the coroutine
+Fatal error: Uncaught Swoole\Error: must be forked outside the coroutine in %s:%d
 Stack trace:
-#0  Swoole\Server->start() called at [%s/tests/swoole_coroutine/new_server.php:%d]
+#0 %s(6): Swoole\Server->start()
+#1 {main}
+  thrown in %s on line %d
+[%s]	ERROR	zm_deactivate_swoole (ERRNO 503): Fatal error: Uncaught Swoole\Error: must be forked outside the coroutine in %s:%d
+Stack trace:
+#0 %s(6): Swoole\Server->start()
+#1 {main}
+  thrown in %s on line %d
