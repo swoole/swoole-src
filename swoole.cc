@@ -30,6 +30,8 @@
 
 #include <queue>
 
+#include "zend_exceptions.h"
+
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
 extern sapi_module_struct sapi_module;
@@ -92,8 +94,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_get_mime_type, 0, 0, 1)
     ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
 
-#include "zend_exceptions.h"
-
 static PHP_FUNCTION(swoole_get_mime_type);
 static PHP_FUNCTION(swoole_hashcode);
 
@@ -132,6 +132,9 @@ php_vmstat_t php_vmstat;
 
 zend_class_entry *swoole_exception_ce;
 zend_object_handlers swoole_exception_handlers;
+
+zend_class_entry *swoole_error_ce;
+zend_object_handlers swoole_error_handlers;
 
 zend_module_entry swoole_module_entry =
 {
@@ -333,47 +336,16 @@ static void execute_rshutdown_callback()
     }
 }
 
-static sw_inline zend_string* get_debug_print_backtrace(zend_long options, zend_long limit)
-{
-    SW_PHP_OB_START(zoutput)
-    {
-        zval fcn, args[2];
-        ZVAL_STRING(&fcn, "debug_print_backtrace");
-        ZVAL_LONG(&args[0], options);
-        ZVAL_LONG(&args[1], limit);
-        sw_zend_call_function_ex(&fcn, NULL, 2, args, &zoutput);
-        zval_ptr_dtor(&fcn);
-    }
-    SW_PHP_OB_END();
-    if (UNEXPECTED(Z_TYPE_P(&zoutput) != IS_STRING))
-    {
-        return nullptr;
-    }
-    Z_STRVAL(zoutput)[--Z_STRLEN(zoutput)] = '\0'; // replace \n to \0
-    return Z_STR(zoutput);
-}
-
 static void fatal_error(int code, const char *format, ...)
 {
     va_list args;
-    swString *buffer = SwooleTG.buffer_stack;
-    zend_string *backtrace;
-    const char *space, *class_name = get_active_class_name(&space);
-
-    swString_clear(buffer);
-    buffer->length += sw_snprintf(buffer->str, buffer->size, "(PHP Fatal Error: %d):\n%s%s%s: ", code, class_name, space, get_active_function_name());
+    zend_object *exception;
     va_start(args, format);
-    buffer->length += sw_vsnprintf(buffer->str + buffer->length, buffer->size - buffer->length, format, args);
+    exception = zend_throw_error_exception(swoole_error_ce, swoole::cpp_string::vformat(format, args).c_str(), code, E_ERROR);
     va_end(args);
-    swString_append_ptr(buffer, SW_STRL("\nStack trace:\n"));
-    backtrace = get_debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 0);
-    if (likely(backtrace))
-    {
-        swString_append_ptr(buffer, ZSTR_VAL(backtrace), ZSTR_LEN(backtrace));
-        zend_string_release(backtrace);
-    }
-    SwooleG.write_log(SW_LOG_ERROR, buffer->str, buffer->length);
-    exit(255);
+    zend_exception_error(exception, E_ERROR);
+    // should never here
+    exit(1);
 }
 
 swoole_object_array swoole_objects;
@@ -621,7 +593,9 @@ PHP_MINIT_FUNCTION(swoole)
         SWOOLE_G(cli) = 1;
     }
 
-    SW_INIT_EXCEPTION_CLASS_ENTRY(swoole_exception, "Swoole\\Exception", "swoole_exception", NULL, NULL);
+    SW_INIT_CLASS_ENTRY_EX2(swoole_exception, "Swoole\\Exception", "swoole_exception", NULL, NULL, zend_ce_exception, zend_get_std_object_handlers());
+
+    SW_INIT_CLASS_ENTRY_EX2(swoole_error, "Swoole\\Error", "swoole_error", NULL, NULL, zend_ce_error, zend_get_std_object_handlers());
 
     /** <Sort by dependency> **/
     swoole_event_init(module_number);

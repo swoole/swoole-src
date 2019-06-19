@@ -779,7 +779,12 @@ static PHP_FUNCTION(swoole_event_wait)
     {
         return;
     }
-    php_swoole_event_wait();
+    /* prevent the program from jumping out of the rshutdown */
+    zend_try
+    {
+        php_swoole_event_wait();
+    }
+    zend_end_try();
 }
 
 static PHP_FUNCTION(swoole_event_dispatch)
