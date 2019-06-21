@@ -1,30 +1,40 @@
 <?php
-class RedisPool extends \Swoole\Coroutine\ObjectPool
+class R
 {
     public function __construct()
     {
-        parent::__construct(__CLASS__);
+        $cid = \Swoole\Coroutine::getCid();
+        echo "cid:$cid ".__CLASS__ . '#' . \spl_object_id((object)$this) . ' constructed' . PHP_EOL;
+    }
+    
+    public function __destruct()
+    {
+        $cid = \Swoole\Coroutine::getCid();
+        echo "cid:$cid ".__CLASS__ . '#' . \spl_object_id((object)$this) . ' destructed' . PHP_EOL;
+    }
+}
+
+class Pool extends \Swoole\Coroutine\ObjectPool
+{
+    public function __construct($type)
+    {
+        parent::__construct($type);
     }
     
     public function create()
     {
-        $cid = \Swoole\Coroutine::getCid();
-        echo "cid:$cid create redis\n";
-        $redis = new Redis;
-        $retval = $redis->connect("127.0.0.1", 6379);
-        return $redis;
+        return new R;
     }
 }
-$pool = new RedisPool();
+
+$pool = new Pool("test");
 go(function() use ($pool){
     $object = $pool->get();
-    var_dump($object);
-    var_dump($pool);
-    $pool->free();
+    $cid = \Swoole\Coroutine::getCid();
+    echo "cid:$cid ".var_export($object,1)."\n";
 });
 go(function() use ($pool){
     $object = $pool->get();
-    var_dump($object);
-    $pool->free();
+    $cid = \Swoole\Coroutine::getCid();
+    echo "cid:$cid ".var_export($object,1)."\n";
 });
-    

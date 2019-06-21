@@ -34,12 +34,16 @@ abstract class ObjectPool
             throw new BadMethodCallException('ObjectPool misuse: get must be used in coroutine');
         }
         $type = $this->type;
-        if (isset(self::$context[$cid][$type])) {
-            return self::$context[$cid][$type];
+        $context = \Swoole\Coroutine::getContext();
+        \Swoole\Coroutine::defer(function () {
+            $this->free();
+        });
+        if (isset($context[$cid][$type])) {
+            return $context[$cid][$type];
         }
         if (!$this->object_pool->isEmpty()) {
             $object = $this->object_pool->pop();
-            self::$context[$cid]["new"] = false;
+            $context[$cid]["new"] = false;
         } else {
             /* create concurrency control */
             $this->busy_pool->push(true);
@@ -47,10 +51,10 @@ abstract class ObjectPool
             if (empty($object)) {
                 throw new RuntimeException('ObjectPool misuse: create object failed');
             }
-            self::$context[$cid]["new"] = true;
+            $context[$cid]["new"] = true;
         }
         
-        self::$context[$cid][$type] = $object;
+        $context[$cid][$type] = $object;
         return $object;
     }
     
@@ -61,12 +65,12 @@ abstract class ObjectPool
             throw new BadMethodCallException('ObjectPool misuse: free must be used in coroutine');
         }
         $type = $this->type;
-        $object = self::$context[$cid][$type];
+        $context = \Swoole\Coroutine::getContext();
+        $object = $context[$cid][$type];
         $this->object_pool->push($object);
-        if (self::$context[$cid]["new"]) {
+        if ($context[$cid]["new"]) {
             $this->busy_pool->pop();
         }
-        unset(self::$context[$cid]);
     }
     
     abstract function create();
