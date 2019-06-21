@@ -1683,13 +1683,18 @@ static PHP_METHOD(swoole_http_client_coro, setBasicAuth)
 
 static PHP_METHOD(swoole_http_client_coro, setCookies)
 {
-    zval *cookies;
+    zval *cookies, newCookies;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_ARRAY(cookies)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("cookies"), cookies);
+    array_init(&newCookies);
+    php_array_merge(Z_ARRVAL_P(&newCookies), Z_ARRVAL_P(cookies));
+
+    zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("cookies"), &newCookies);
+
+    zval_ptr_dtor(&newCookies);
 
     RETURN_TRUE;
 }
