@@ -66,6 +66,8 @@ class CoBenchMarkTest
                 case 'https':
                     $this->port = 443;
                     break;
+                case 'ws':
+                    $this->port = 80;
                 default:
                     break;
             }
@@ -132,7 +134,7 @@ Options:
   -n      Number of requests        E.g: -n 10000
   -l      The length of the data sent per request       E.g: -l 1024
   -s      URL       E.g: -s tcp://127.0.0.1:9501
-                    Support: tcp、http
+                    Support: tcp、http、ws
   -t      Http request timeout detection
                     Default is 3 seconds, -1 means disable
   -k      Use HTTP KeepAlive
@@ -181,24 +183,54 @@ EOF;
         return round($time, 4);
     }
 
-    protected function websocket()
+    protected function ws()
     {
-        $cli = new Coroutine\http\client($this->host, $this->port);
-        $cli->set(array('websocket_mask' => true));
-        $cli->upgrade('/');
-        $data = $this->sentData;
-        $sendLen = strlen($data);
+        $wsCli = new Coroutine\http\client($this->host, $this->port);
         $n = $this->nRequest / $this->nConcurrency;
+        Coroutine::defer(function () use ($wsCli) {
+            $wsCli->close();
+        });
+
+        $setting = [
+            'timeout' => $this->timeout,
+            'websocket_mask' => true,
+        ];
+        $wsCli->set($setting);
+        if (!$wsCli->upgrade($this->path)) {
+            if ($wsCli->errCode === 111) {
+                throw new ExitException(swoole_strerror($wsCli->errCode));
+            } else if ($wsCli->errCode === 110) {
+                throw new ExitException(swoole_strerror($wsCli->errCode));
+            } else {
+                throw new ExitException("Handshake failed");
+            }
+        }
+
+        if ($this->sentLen === 0) {
+            $this->sentLen = SELF::TCP_SENT_LEN;
+        }
+        $this->setSentData(str_repeat('A', $this->sentLen));
+       
         while ($n--) {
             //requset
-            $cli->push($data);
-            $this->nSendBytes += $sendLen;
+            if (!$wsCli->push($this->data)) {
+                if ($wsCli->errCode === 8502) {
+                    throw new ExitException("Error OPCODE");
+                } else if ($wsCli->errCode === 8503) {
+                    throw new ExitException("Not connected to the server or the connection has been closed");
+                } else {
+                    throw new ExitException("Handshake failed");
+                }
+            }
+            $this->nSendBytes += $this->sentLen;
             $this->requestCount++;
+            if (($this->requestCount % $this->nShow === 0) and $this->verbose) {
+                echo "Completed {$this->requestCount} requests" . PHP_EOL;
+            }
             //response
-            $frame = $cli->recv();
+            $frame = $wsCli->recv();
             $this->nRecvBytes += strlen($frame->data);
         }
-        $cli->close();
     }
 
     protected function tcp()
