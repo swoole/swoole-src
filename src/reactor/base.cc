@@ -212,11 +212,12 @@ int swReactor_close(swReactor *reactor, int fd)
     return close(fd);
 }
 
-int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
+int swReactor_write(swReactor *reactor, int fd, const void *buf, int n)
 {
     int ret;
     swConnection *socket = swReactor_get(reactor, fd);
     swBuffer *buffer = socket->out_buffer;
+    const char *ptr = (const char *) buf;
 
     if (socket->fd <= 0)
     {
@@ -234,7 +235,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
         socket->nonblock = 1;
     }
 
-    if (n > socket->buffer_size)
+    if ((uint32_t) n > socket->buffer_size)
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "data is too large, cannot exceed buffer size");
         return SW_ERR;
@@ -248,7 +249,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
         }
 
         _do_send:
-        ret = swConnection_send(socket, buf, n, 0);
+        ret = swConnection_send(socket, ptr, n, 0);
 
         if (ret > 0)
         {
@@ -258,7 +259,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
             }
             else
             {
-                buf += ret;
+                ptr += ret;
                 n -= ret;
                 goto _do_buffer;
             }
@@ -324,7 +325,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
             }
         }
 
-        if (swBuffer_append(buffer, buf, n) < 0)
+        if (swBuffer_append(buffer, ptr, n) < 0)
         {
             return SW_ERR;
         }

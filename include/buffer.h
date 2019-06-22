@@ -67,7 +67,7 @@ typedef struct _swBuffer
 swBuffer* swBuffer_new(uint32_t chunk_size);
 swBuffer_chunk *swBuffer_new_chunk(swBuffer *buffer, uint32_t type, uint32_t size);
 void swBuffer_pop_chunk(swBuffer *buffer, swBuffer_chunk *chunk);
-int swBuffer_append(swBuffer *buffer, void *data, uint32_t size);
+int swBuffer_append(swBuffer *buffer, const void *data, uint32_t size);
 
 void swBuffer_debug(swBuffer *buffer, int print_data);
 int swBuffer_free(swBuffer *buffer);

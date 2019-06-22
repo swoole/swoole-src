@@ -488,7 +488,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/socks5.c \
         src/protocol/ssl.c \
         src/protocol/websocket.c \
-        src/reactor/base.c \
+        src/reactor/base.cc \
         src/reactor/defer_task.cc \
         src/reactor/epoll.c \
         src/reactor/kqueue.c \

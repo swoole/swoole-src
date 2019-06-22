@@ -152,7 +152,7 @@ int swSSL_accept(swConnection *conn);
 int swSSL_connect(swConnection *conn);
 void swSSL_close(swConnection *conn);
 ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n);
-ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n);
+ssize_t swSSL_send(swConnection *conn, const void *__buf, size_t __n);
 int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size);
 #endif
 
@@ -213,7 +213,7 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
 /**
  * Send data to connection
  */
-static sw_inline ssize_t swConnection_send(swConnection *conn, void *__buf, size_t __n, int __flags)
+static sw_inline ssize_t swConnection_send(swConnection *conn, const void *__buf, size_t __n, int __flags)
 {
     ssize_t retval;
 

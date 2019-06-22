@@ -20,7 +20,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
 static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
 static int swReactorProcess_onClose(swReactor *reactor, swEvent *event);
 static int swReactorProcess_send2client(swFactory *, swSendData *);
-static int swReactorProcess_send2worker(int, void *, int);
+static int swReactorProcess_send2worker(int, const void *, int);
 static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode);
 
 #ifdef HAVE_REUSEPORT
@@ -494,7 +494,7 @@ static int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
     }
 }
 
-static int swReactorProcess_send2worker(int pipe_fd, void *data, int length)
+static int swReactorProcess_send2worker(int pipe_fd, const void *data, int length)
 {
     if (!SwooleG.main_reactor)
     {
@@ -549,15 +549,16 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
                 memcpy(proxy_msg.data, _send->data + offset, proxy_msg.info.len);
                 send_n -= proxy_msg.info.len;
                 offset += proxy_msg.info.len;
-                swReactorProcess_send2worker(worker->pipe_master, &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
+                swReactorProcess_send2worker(worker->pipe_master, (const char *) &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
             }
+
             swTrace("proxy message, fd=%d, len=%ld",worker->pipe_master, sizeof(proxy_msg.info) + proxy_msg.info.len);
         }
         else if (_send->info.type == SW_EVENT_SENDFILE)
         {
             memcpy(&proxy_msg.info, &_send->info, sizeof(proxy_msg.info));
             memcpy(proxy_msg.data, _send->data, _send->info.len);
-            return swReactorProcess_send2worker(worker->pipe_master, &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
+            return swReactorProcess_send2worker(worker->pipe_master, (const char *) &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
         }
         else
         {

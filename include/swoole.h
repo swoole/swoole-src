@@ -1677,7 +1677,7 @@ struct _swReactor
     int (*can_exit)(swReactor *);
     int (*is_empty)(swReactor *);
 
-    int (*write)(swReactor *, int, void *, int);
+    int (*write)(swReactor *, int, const void *, int);
     int (*close)(swReactor *, int);
     void (*defer)(swReactor *, swCallback, void *);
 };
@@ -1954,7 +1954,7 @@ static sw_inline int swReactor_get_timeout_msec(swReactor *reactor)
 
 int swReactor_onWrite(swReactor *reactor, swEvent *ev);
 int swReactor_close(swReactor *reactor, int fd);
-int swReactor_write(swReactor *reactor, int fd, void *buf, int n);
+int swReactor_write(swReactor *reactor, int fd, const void *buf, int n);
 int swReactor_wait_write_buffer(swReactor *reactor, int fd);
 void swReactor_activate_future_task(swReactor *reactor);
 

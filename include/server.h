@@ -986,7 +986,7 @@ void swWorker_onStop(swServer *serv);
 int swWorker_loop(swServer *serv, int worker_pti);
 void swWorker_clean_pipe_buffer(swServer *serv);
 int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int fd);
-int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag);
+int swWorker_send2worker(swWorker *dst_worker, const void *buf, int n, int flag);
 void swWorker_signal_handler(int signo);
 void swWorker_signal_init(void);
 
