@@ -24,8 +24,14 @@
 #endif
 
 #ifdef __cplusplus
-extern "C" {
+#define SW_EXTERN_C_BEGIN extern "C" {
+#define SW_EXTERN_C_END   }
+#else
+#define SW_EXTERN_C_BEGIN
+#define SW_EXTERN_C_END
 #endif
+
+SW_EXTERN_C_BEGIN
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -2437,8 +2443,6 @@ static sw_inline int64_t swTimer_get_absolute_msec()
     return msec1 + msec2;
 }
 
-#ifdef __cplusplus
-}
-#endif
+SW_EXTERN_C_END
 
 #endif /* SWOOLE_H_ */
