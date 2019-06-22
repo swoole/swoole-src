@@ -316,11 +316,6 @@ void php_swoole_register_rshutdown_callback(swCallback cb, void *private_data)
     rshutdown_callbacks.append(cb, private_data);
 }
 
-static void execute_rshutdown_callback()
-{
-    rshutdown_callbacks.execute();
-}
-
 static void fatal_error(int code, const char *format, ...)
 {
     va_list args;
@@ -767,7 +762,8 @@ PHP_RINIT_FUNCTION(swoole)
 PHP_RSHUTDOWN_FUNCTION(swoole)
 {
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_BEGIN;
-    execute_rshutdown_callback();
+
+    rshutdown_callbacks.execute();
 
     swoole_server_rshutdown();
     swoole_async_coro_rshutdown();
