@@ -11,14 +11,14 @@ $sch = scheduler();
 $sch->set(['hook_flags' => SWOOLE_HOOK_ALL,]);
 
 $sch->add(function ($t, $n) {
-    sleep($t);
+    usleep($t);
     echo "$n\n";
-}, 0.2, 'A');
+}, 200000, 'A');
 
 $sch->add(function ($t, $n) {
-    sleep($t);
+    usleep($t);
     echo "$n\n";
-}, 0.1, 'B');
+}, 100000, 'B');
 
 $sch->add(function () {
     var_dump(Co::getCid());
