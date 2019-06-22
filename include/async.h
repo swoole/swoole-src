@@ -77,7 +77,6 @@ typedef struct
 
 extern swAsyncIO SwooleAIO;
 
-void swAio_free(void);
 int swAio_dispatch(const swAio_event *request);
 swAio_event* swAio_dispatch2(const swAio_event *request);
 int swAio_cancel(int task_id);

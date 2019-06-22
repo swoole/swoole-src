@@ -15,8 +15,11 @@
 */
 
 #include "swoole.h"
+#include "swoole_cxx.h"
 #include "connection.h"
 #include "async.h"
+
+using swoole::CallbackManager;
 
 #ifdef SW_USE_MALLOC_TRIM
 #ifdef __APPLE__
@@ -26,9 +29,11 @@
 #endif
 #endif
 
-static void swReactor_onTimeout(swReactor *reactor);
-static void swReactor_onFinish(swReactor *reactor);
-static void swReactor_onBegin(swReactor *reactor);
+static void reactor_timeout(swReactor *reactor);
+static void reactor_finish(swReactor *reactor);
+static void reactor_begin(swReactor *reactor);
+static void defer_task_do(swReactor *reactor);
+static void defer_task_add(swReactor *reactor, swCallback callback, void *data);
 
 int swReactor_create(swReactor *reactor, int max_event)
 {
@@ -47,13 +52,15 @@ int swReactor_create(swReactor *reactor, int max_event)
 
     reactor->running = 1;
 
-    reactor->onFinish = swReactor_onFinish;
-    reactor->onTimeout = swReactor_onTimeout;
+    reactor->onFinish = reactor_finish;
+    reactor->onTimeout = reactor_timeout;
     reactor->is_empty = swReactor_empty;
 
     reactor->write = swReactor_write;
     reactor->close = swReactor_close;
-    swReactor_defer_task_create(reactor);
+
+    reactor->defer = defer_task_add;
+    reactor->defer_tasks = nullptr;
 
     reactor->socket_array = swArray_new(1024, sizeof(swConnection));
     if (!reactor->socket_array)
@@ -132,7 +139,7 @@ int swReactor_empty(swReactor *reactor)
 /**
  * execute when reactor timeout and reactor finish
  */
-static void swReactor_onFinish(swReactor *reactor)
+static void reactor_finish(swReactor *reactor)
 {
     //check timer
     if (reactor->check_timer)
@@ -140,7 +147,10 @@ static void swReactor_onFinish(swReactor *reactor)
         swTimer_select(&SwooleG.timer);
     }
     //defer tasks
-    reactor->do_defer_tasks(reactor);
+    if (reactor->defer_tasks)
+    {
+        defer_task_do(reactor);
+    }
     //callback at the end
     if (reactor->idle_task.callback)
     {
@@ -167,9 +177,9 @@ static void swReactor_onFinish(swReactor *reactor)
 #endif
 }
 
-static void swReactor_onTimeout(swReactor *reactor)
+static void reactor_timeout(swReactor *reactor)
 {
-    swReactor_onFinish(reactor);
+    reactor_finish(reactor);
 
     if (reactor->disable_accept)
     {
@@ -180,10 +190,10 @@ static void swReactor_onTimeout(swReactor *reactor)
 
 void swReactor_activate_future_task(swReactor *reactor)
 {
-    reactor->onBegin = swReactor_onBegin;
+    reactor->onBegin = reactor_begin;
 }
 
-static void swReactor_onBegin(swReactor *reactor)
+static void reactor_begin(swReactor *reactor)
 {
     if (reactor->future_task.callback)
     {
@@ -397,8 +407,50 @@ int swReactor_wait_write_buffer(swReactor *reactor, int fd)
     return SW_OK;
 }
 
+void swReactor_add_destroy_callback(swReactor *reactor, swCallback cb, void *data)
+{
+    CallbackManager *cm = (CallbackManager *) reactor->destroy_callbacks;
+    if (cm == nullptr)
+    {
+        cm = new CallbackManager;
+        reactor->destroy_callbacks = cm;
+    }
+    cm->append(cb, data);
+}
+
+void swReactor_defer_task_destroy(swReactor *reactor)
+{
+    CallbackManager *tasks = (CallbackManager *) reactor->defer_tasks;
+    delete tasks;
+}
+
+static void defer_task_do(swReactor *reactor)
+{
+    CallbackManager *cm = (CallbackManager *) reactor->defer_tasks;
+    cm->execute();
+    reactor->defer_tasks = nullptr;
+    delete cm;
+}
+
+static void defer_task_add(swReactor *reactor, swCallback callback, void *data)
+{
+    CallbackManager *cm = (CallbackManager *) reactor->defer_tasks;
+    if (cm == nullptr)
+    {
+        cm = new CallbackManager;
+        reactor->defer_tasks = cm;
+    }
+    cm->append(callback, data);
+}
+
 void swReactor_destory(swReactor *reactor)
 {
-    swAio_free();
+    if (reactor->destroy_callbacks)
+    {
+        CallbackManager *cm = (CallbackManager *) reactor->destroy_callbacks;
+        cm->execute();
+        reactor->destroy_callbacks = nullptr;
+        delete cm;
+    }
     reactor->free(reactor);
 }

@@ -1664,7 +1664,7 @@ struct _swReactor
     void (*free)(swReactor *);
 
     void *defer_tasks;
-    void (*do_defer_tasks)(swReactor *);
+    void *destroy_callbacks;
 
     swDefer_callback idle_task;
     swDefer_callback future_task;
@@ -1891,6 +1891,7 @@ static sw_inline int swReactor_events(int fdtype)
 
 int swReactor_create(swReactor *reactor, int max_event);
 void swReactor_destory(swReactor *reactor);
+void swReactor_add_destroy_callback(swReactor *reactor, swCallback cb, void *data);
 
 static inline void swReactor_before_wait(swReactor *reactor)
 {
@@ -1901,9 +1902,6 @@ static inline void swReactor_before_wait(swReactor *reactor)
 #define SW_REACTOR_CONTINUE   if (reactor->once) {break;} else {continue;}
 
 int swReactor_empty(swReactor *reactor);
-
-void swReactor_defer_task_create(swReactor *reactor);
-void swReactor_defer_task_destroy(swReactor *reactor);
 
 static sw_inline swConnection* swReactor_get(swReactor *reactor, int fd)
 {

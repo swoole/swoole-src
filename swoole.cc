@@ -28,21 +28,13 @@
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
 
-#include <queue>
-
 #include "zend_exceptions.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
 extern sapi_module_struct sapi_module;
 
-struct rshutdown_func
-{
-    swCallback callback;
-    void *private_data;
-};
-
-std::queue<rshutdown_func *> rshutdown_functions;
+static swoole::CallbackManager rshutdown_callbacks;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -321,19 +313,12 @@ void php_swoole_register_shutdown_function_prepend(const char *function)
 
 void php_swoole_register_rshutdown_callback(swCallback cb, void *private_data)
 {
-    rshutdown_func *rf = (rshutdown_func*) emalloc(sizeof(rshutdown_func));
-    rshutdown_functions.push(rf);
+    rshutdown_callbacks.append(cb, private_data);
 }
 
 static void execute_rshutdown_callback()
 {
-    while(!rshutdown_functions.empty())
-    {
-        rshutdown_func *rf = rshutdown_functions.front();
-        rshutdown_functions.pop();
-        rf->callback(rf->private_data);
-        efree(rf);
-    }
+    rshutdown_callbacks.execute();
 }
 
 static void fatal_error(int code, const char *format, ...)

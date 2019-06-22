@@ -270,6 +270,11 @@ static void swoole_interrupt_function(zend_execute_data *execute_data)
     }
 }
 
+static void swoole_stop_scheduler_thread(void *ptr)
+{
+    PHPCoroutine::stop_scheduler_thread();
+}
+
 void PHPCoroutine::init()
 {
     Coroutine::set_on_yield(on_yield);
@@ -286,10 +291,14 @@ inline void PHPCoroutine::activate()
         return;
     }
 
+    /* init reactor and register event wait */
+    php_swoole_check_reactor();
+
     if (SWOOLE_G(enable_preemptive_scheduler))
     {
         /* create a thread to interrupt the coroutine that takes up too much time */
         start_scheduler_thread();
+        swReactor_add_destroy_callback(SwooleG.main_reactor, swoole_stop_scheduler_thread, nullptr);
     }
 
     if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug")))
@@ -303,9 +312,6 @@ inline void PHPCoroutine::activate()
 
     /* replace functions that can not work correctly in coroutine */
     inject_function();
-
-    /* init reactor and register event wait */
-    php_swoole_check_reactor();
 
     /* TODO: enable hook in v5.0.0 */
     // enable_hook(SW_HOOK_ALL);
