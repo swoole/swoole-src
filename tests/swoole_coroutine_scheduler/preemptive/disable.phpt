@@ -17,7 +17,7 @@ echo "start\n";
 $flag = 1;
 
 go(function () use (&$flag, $max_msec, $start) {
-    Swoole\Coroutine\Scheduler::disableScheduler();
+    Swoole\Coroutine::disableScheduler();
     echo "coro 1 start to loop\n";
     $i = 0;
     while ($flag) {
@@ -30,7 +30,7 @@ go(function () use (&$flag, $max_msec, $start) {
         }
     }
     echo "coro 1 can exit\n";
-    Swoole\Coroutine\Scheduler::enableScheduler();
+    Swoole\Coroutine::enableScheduler();
 });
 
 $end = microtime(1);
