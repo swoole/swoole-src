@@ -296,7 +296,11 @@ PHP_FUNCTION(swoole_strerror);
 PHP_FUNCTION(swoole_errno);
 PHP_FUNCTION(swoole_last_error);
 
-/** <Sort by dependency> **/
+
+/**
+ * MINIT <Sort by dependency>
+ * ==============================================================
+ */
 void swoole_event_init(int module_number);
 // base
 void swoole_atomic_init(int module_number);
@@ -308,7 +312,7 @@ void swoole_table_init(int module_number);
 void swoole_timer_init(int module_number);
 // coroutine
 void swoole_async_coro_init(int module_number);
-void swoole_coroutine_util_init(int module_number);
+void swoole_coroutine_init(int module_number);
 void swoole_channel_coro_init(int module_number);
 void swoole_runtime_init(int module_number);
 // client
@@ -335,27 +339,21 @@ void swoole_redis_server_init(int module_number);
  * RSHUTDOWN
  * ==============================================================
  */
-void swoole_async_coro_shutdown();
-void swoole_redis_server_shutdown();
-void swoole_coroutine_shutdown();
-void swoole_runtime_shutdown();
+void swoole_async_coro_rshutdown();
+void swoole_redis_server_rshutdown();
+void swoole_coroutine_rshutdown();
+void swoole_runtime_rshutdown();
+void swoole_server_rshutdown();
 
 void php_swoole_process_clean();
 int php_swoole_process_start(swWorker *process, zval *zobject);
 
 void php_swoole_reactor_init();
 
-static sw_inline void php_swoole_check_reactor()
-{
-    if (unlikely(!SwooleG.main_reactor))
-    {
-        php_swoole_reactor_init();
-    }
-}
-
 // shutdown
 void php_swoole_register_shutdown_function(const char *function);
 void php_swoole_register_shutdown_function_prepend(const char *function);
+void php_swoole_register_rshutdown_callback(swCallback cb, void *private_data);
 
 // event
 void php_swoole_event_init();
@@ -424,8 +422,6 @@ static sw_inline void swoole_set_property(zval *zobject, int property_id, void *
 
 int swoole_convert_to_fd(zval *zsocket);
 int swoole_convert_to_fd_ex(zval *zsocket, int *async);
-int swoole_register_rshutdown_function(swCallback func, int push_back);
-void swoole_call_rshutdown_function(void *arg);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
 php_socket *swoole_convert_to_socket(int sock);
@@ -566,6 +562,12 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 #ifndef ZEND_HASH_APPLY_PROTECTION
 #define ZEND_HASH_APPLY_PROTECTION(p) 1
 #endif/*}}}*/
+
+/* PHP 7.4 compatibility macro {{{*/
+#ifndef E_FATAL_ERRORS
+#define E_FATAL_ERRORS (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR | E_RECOVERABLE_ERROR | E_PARSE)
+#endif
+/*}}}*/
 
 /* PHP 7 wrapper functions / macros */
 
@@ -767,10 +769,9 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce); \
     memcpy(&module##_handlers, &parent_module##_handlers, sizeof(zend_object_handlers))
 
-#define SW_INIT_EXCEPTION_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
-    SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, zend_exception_get_default()); \
-    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers)); \
-    SW_SET_CLASS_CLONEABLE(module, sw_zend_class_clone_deny)
+#define SW_INIT_CLASS_ENTRY_EX2(module, namespaceName, snake_name, shortName, methods, parent_module_ce, parent_module_handlers) \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_module_ce); \
+    memcpy(&module##_handlers, parent_module_handlers, sizeof(zend_object_handlers))
 
 #define SW_CLASS_ALIAS(name, module) do { \
     if (name) { \
@@ -1151,6 +1152,19 @@ static sw_inline void sw_zend_fci_cache_free(void* fci_cache)
 }
 
 //----------------------------------Misc API------------------------------------
+
+static sw_inline void php_swoole_check_reactor()
+{
+    if (SWOOLE_G(req_status) == PHP_SWOOLE_RSHUTDOWN_BEGIN)
+    {
+        return ;
+    }
+    if (unlikely(!SwooleG.main_reactor))
+    {
+        php_swoole_reactor_init();
+    }
+}
+
 static sw_inline char* php_swoole_format_date(char *format, size_t format_len, time_t ts, int localtime)
 {
     zend_string *time = php_format_date(format, format_len, ts, localtime);

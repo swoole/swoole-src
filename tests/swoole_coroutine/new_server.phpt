@@ -12,7 +12,8 @@ go(function () {
 });
 ?>
 --EXPECTF--
-[%s]	ERROR	(PHP Fatal Error: %d):
-Swoole\Server::start: must be forked outside the coroutine
+Fatal error: Uncaught Swoole\Exception: eventLoop has already been created. unable to create Swoole\Server in %s:%d
 Stack trace:
-#0  Swoole\Server->start() called at [%s/tests/swoole_coroutine/new_server.php:%d]
+#0 %s(%d): Swoole\Server->__construct('127.0.0.1')
+#1 {main}
+  thrown in %s on line %d

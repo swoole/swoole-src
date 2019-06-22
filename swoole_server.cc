@@ -466,6 +466,41 @@ static sw_inline zend_bool is_enable_coroutine(swServer *serv)
     }
 }
 
+void swoole_server_rshutdown()
+{
+    if (!SwooleG.serv)
+    {
+        return;
+    }
+
+    swServer *serv = SwooleG.serv;
+
+    swWorker_clean_pipe_buffer(serv);
+
+    if (serv->gs->start > 0)
+    {
+        if (PG(last_error_message))
+        {
+            switch (PG(last_error_type))
+            {
+            case E_ERROR:
+            case E_CORE_ERROR:
+            case E_USER_ERROR:
+            case E_COMPILE_ERROR:
+                swoole_error_log(SW_LOG_ERROR, SW_ERROR_PHP_FATAL_ERROR, "Fatal error: %s in %s on line %d", PG(last_error_message),
+                        PG(last_error_file)?PG(last_error_file):"-", PG(last_error_lineno));
+                break;
+            default:
+                break;
+            }
+        }
+        else
+        {
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SERVER_WORKER_TERMINATED, "worker process is terminated by exit()/die()");
+        }
+    }
+}
+
 void swoole_server_init(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_server, "Swoole\\Server", "swoole_server", NULL, swoole_server_methods);
@@ -487,7 +522,7 @@ void swoole_server_init(int module_number)
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_task, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CREATE_AND_FREE(swoole_server_task, swoole_server_task_create_object, swoole_server_task_free_object);
 
-    SW_INIT_CLASS_ENTRY(swoole_connection_iterator, "Swoole\\Connection\\Iterator", "swoole_connection_iterator", NULL,  swoole_connection_iterator_methods);
+    SW_INIT_CLASS_ENTRY(swoole_connection_iterator, "Swoole\\Connection\\Iterator", "swoole_connection_iterator", NULL, swoole_connection_iterator_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_connection_iterator, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_connection_iterator, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_connection_iterator, sw_zend_class_unset_property_deny);
@@ -1891,26 +1926,29 @@ static PHP_METHOD(swoole_server, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
+        zend_throw_exception_ex(swoole_exception_ce, -1, "%s can only be used in CLI mode", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        RETURN_FALSE;
+
         php_swoole_fatal_error(E_ERROR, "%s can only be used in CLI mode", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
     if (SwooleG.main_reactor)
     {
-        php_swoole_fatal_error(E_ERROR, "eventLoop has already been created. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        zend_throw_exception_ex(swoole_exception_ce, -2, "eventLoop has already been created. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
     if (SwooleG.serv != NULL)
     {
-        php_swoole_fatal_error(E_ERROR, "server is running. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        zend_throw_exception_ex(swoole_exception_ce, -3, "server is running. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
     swServer *serv = (swServer *) sw_malloc(sizeof (swServer));
     if (!serv)
     {
-        php_swoole_fatal_error(E_ERROR, "malloc(%ld) failed", sizeof(swServer));
+        zend_throw_exception_ex(swoole_exception_ce, errno, "malloc(%ld) failed", sizeof(swServer));
         RETURN_FALSE;
     }
 

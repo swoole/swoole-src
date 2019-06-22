@@ -2,12 +2,13 @@
 
 #include "swoole.h"
 
+#include <list>
 #include <memory>
 #include <string>
 #include <cstdio>
 
-namespace swoole
-{
+namespace swoole {
+//-------------------------------------------------------------------------------
 namespace cpp_string
 {
 template<typename ...Args>
@@ -30,4 +31,44 @@ inline std::string vformat(const char *format, va_list args)
     return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
 }
 }
+
+struct Callback
+{
+    swCallback callback;
+    void *private_data;
+
+    Callback(swCallback cb, void *_private_data)
+
+    {
+        callback = cb;
+        private_data = _private_data;
+    }
+};
+
+class CallbackManager
+{
+public:
+    inline void append(swCallback cb, void *private_data)
+    {
+        list_.push_back(new Callback(cb, private_data));
+    }
+    inline void prepend(swCallback cb, void *private_data)
+    {
+        list_.push_front(new Callback(cb, private_data));
+    }
+    inline void execute()
+    {
+        while (!list_.empty())
+        {
+            Callback *task = list_.front();
+            list_.pop_front();
+            task->callback(task->private_data);
+            delete task;
+        }
+    }
+protected:
+    std::list<Callback *> list_;
+};
+
+//-------------------------------------------------------------------------------
 }

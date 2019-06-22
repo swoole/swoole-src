@@ -817,7 +817,7 @@ ssize_t Socket::send(const void *__buf, size_t __n)
     ssize_t retval;
     timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     do {
-        retval = swConnection_send(socket, (void *) __buf, __n, 0);
+        retval = swConnection_send(socket, __buf, __n, 0);
     } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n));
     set_err(retval < 0 ? errno : 0);
     return retval;

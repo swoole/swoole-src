@@ -238,7 +238,7 @@ void php_swoole_reactor_init()
             return;
         }
     }
-    else
+    if (!SwooleG.main_reactor)
     {
         swTraceLog(SW_TRACE_PHP, "init reactor");
 
@@ -322,13 +322,9 @@ void php_swoole_event_wait()
 
 void php_swoole_event_exit()
 {
-    if (!SwooleG.serv)
+    if (SwooleG.main_reactor)
     {
-        if (SwooleG.main_reactor)
-        {
-            SwooleG.main_reactor->running = 0;
-        }
-        SwooleG.running = 0;
+        SwooleG.main_reactor->running = 0;
     }
 }
 
@@ -782,7 +778,12 @@ static PHP_FUNCTION(swoole_event_wait)
     {
         return;
     }
-    php_swoole_event_wait();
+    /* prevent the program from jumping out of the rshutdown */
+    zend_try
+    {
+        php_swoole_event_wait();
+    }
+    zend_end_try();
 }
 
 static PHP_FUNCTION(swoole_event_dispatch)

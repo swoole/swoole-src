@@ -23,13 +23,12 @@
 #include <sys/mman.h>
 #endif
 
-#ifdef USE_BOOST_CONTEXT
-    typedef boost::context::fcontext_t coroutine_context_t;
-#elif USE_UCONTEXT
+#ifdef USE_UCONTEXT
     typedef ucontext_t coroutine_context_t;
 #else
     typedef fcontext_t coroutine_context_t;
 #endif
+
 typedef void (*coroutine_func_t)(void*);
 
 namespace swoole

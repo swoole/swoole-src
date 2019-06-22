@@ -949,7 +949,7 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
     return n;
 }
 
-ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n)
+ssize_t swSSL_send(swConnection *conn, const void *__buf, size_t __n)
 {
     swSSL_clear_error(conn);
 

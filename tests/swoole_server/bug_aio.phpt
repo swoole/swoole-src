@@ -6,13 +6,14 @@ swoole_server: bug aio
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 define('__FILE_CONTENTS__', file_get_contents(__FILE__));
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->setWaitTimeout(0);
 $pm->parentFunc = function () { };
 $pm->childFunc = function () use ($pm) {
     go(function () {
         Assert::eq(Co::readFile(__FILE__), __FILE_CONTENTS__); // will be discarded
     });
+    swoole_event::wait();
     $server = new Swoole\Server('127.0.0.1', $pm->getFreePort());
     $server->set(['worker_num' => 1]);
     $server->on('WorkerStart', function (Swoole\Server $server, int $worker_id) use ($pm) {
@@ -29,4 +30,6 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-[%s]	ERROR	can not create server after using async file operation
+read file
+read file ok
+[%s]	INFO	Server is shutdown now

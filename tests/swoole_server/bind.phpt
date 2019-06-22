@@ -14,18 +14,21 @@ $port = get_one_free_port();
 
 start_server($simple_tcp_server, TCP_SERVER_HOST, $port);
 
-suicide(2000);
+$timer = suicide(2000);
 usleep(500 * 1000);
 
-makeTcpClient(TCP_SERVER_HOST, $port, function(\swoole_client $cli) use($port) {
+makeTcpClient(TCP_SERVER_HOST, $port, function (\swoole_client $cli) use ($port) {
     $r = $cli->send(opcode_encode("bind", [2, 42]));
     Assert::assert($r !== false);
-}, function(\swoole_client $cli, $recv) {
+}, function (\swoole_client $cli, $recv) use ($timer) {
     list($op, $binded) = opcode_decode($recv);
     Assert::assert($binded);
-    swoole_event_exit();
-    echo "SUCCESS";
+    $cli->close();
+    swoole_timer::clear($timer);
+    echo "SUCCESS\n";
 });
+
+swoole_event::wait();
 
 ?>
 --EXPECT--

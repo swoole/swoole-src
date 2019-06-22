@@ -151,7 +151,7 @@ public:
     bool send_data(uint32_t stream_id, zval *data, bool end);
     uint32_t send_request(zval *req);
     bool send_goaway_frame(zend_long error_code, const char *debug_data, size_t debug_data_len);
-    enum swReturnType parse_frame(zval *return_value);
+    enum swReturn_type parse_frame(zval *return_value);
     bool close();
 
     ~http2_client()
@@ -417,7 +417,7 @@ bool http2_client::close()
     return true;
 }
 
-enum swReturnType http2_client::parse_frame(zval *return_value)
+enum swReturn_type http2_client::parse_frame(zval *return_value)
 {
     char *buf = client->get_read_buffer()->str;
     uint8_t type = buf[3];
@@ -1329,7 +1329,7 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
             RETURN_FALSE;
         }
 
-        enum swReturnType ret = h2c->parse_frame(return_value);
+        enum swReturn_type ret = h2c->parse_frame(return_value);
         if (ret == SW_CONTINUE)
         {
             continue;

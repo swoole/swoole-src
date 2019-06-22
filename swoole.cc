@@ -28,9 +28,13 @@
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
 
+#include "zend_exceptions.h"
+
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
 extern sapi_module_struct sapi_module;
+
+static swoole::CallbackManager rshutdown_callbacks;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -82,8 +86,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_get_mime_type, 0, 0, 1)
     ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
 
-#include "zend_exceptions.h"
-
 static PHP_FUNCTION(swoole_get_mime_type);
 static PHP_FUNCTION(swoole_hashcode);
 
@@ -122,6 +124,9 @@ php_vmstat_t php_vmstat;
 
 zend_class_entry *swoole_exception_ce;
 zend_object_handlers swoole_exception_handlers;
+
+zend_class_entry *swoole_error_ce;
+zend_object_handlers swoole_error_handlers;
 
 zend_module_entry swoole_module_entry =
 {
@@ -275,34 +280,13 @@ void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr)
     swoole_objects.property[property_id][handle] = ptr;
 }
 
-int swoole_register_rshutdown_function(swCallback func, int push_back)
-{
-    if (SWOOLE_G(rshutdown_functions) == NULL)
-    {
-        SWOOLE_G(rshutdown_functions) = swLinkedList_new(0, NULL);
-        if (SWOOLE_G(rshutdown_functions) == NULL)
-        {
-            return SW_ERR;
-        }
-    }
-    if (push_back)
-    {
-        return swLinkedList_append(SWOOLE_G(rshutdown_functions), (void*) func);
-    }
-    else
-    {
-        return swLinkedList_prepend(SWOOLE_G(rshutdown_functions), (void*) func);
-    }
-}
-
 void php_swoole_register_shutdown_function(const char *function)
 {
     php_shutdown_function_entry shutdown_function_entry;
     shutdown_function_entry.arg_count = 1;
     shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
     ZVAL_STRING(&shutdown_function_entry.arguments[0], function);
-    register_user_shutdown_function((char *) function, ZSTR_LEN(Z_STR(shutdown_function_entry.arguments[0])),
-            &shutdown_function_entry);
+    register_user_shutdown_function((char *) function, ZSTR_LEN(Z_STR(shutdown_function_entry.arguments[0])), &shutdown_function_entry);
 }
 
 static void php_swoole_old_shutdown_function_move(zval *zv)
@@ -327,64 +311,21 @@ void php_swoole_register_shutdown_function_prepend(const char *function)
     FREE_HASHTABLE(old_user_shutdown_function_names);
 }
 
-static sw_inline zend_string* get_debug_print_backtrace(zend_long options, zend_long limit)
+void php_swoole_register_rshutdown_callback(swCallback cb, void *private_data)
 {
-    SW_PHP_OB_START(zoutput)
-    {
-        zval fcn, args[2];
-        ZVAL_STRING(&fcn, "debug_print_backtrace");
-        ZVAL_LONG(&args[0], options);
-        ZVAL_LONG(&args[1], limit);
-        sw_zend_call_function_ex(&fcn, NULL, 2, args, &zoutput);
-        zval_ptr_dtor(&fcn);
-    }
-    SW_PHP_OB_END();
-    if (UNEXPECTED(Z_TYPE_P(&zoutput) != IS_STRING))
-    {
-        return nullptr;
-    }
-    Z_STRVAL(zoutput)[--Z_STRLEN(zoutput)] = '\0'; // replace \n to \0
-    return Z_STR(zoutput);
+    rshutdown_callbacks.append(cb, private_data);
 }
 
 static void fatal_error(int code, const char *format, ...)
 {
     va_list args;
-    swString *buffer = SwooleTG.buffer_stack;
-    zend_string *backtrace;
-    const char *space, *class_name = get_active_class_name(&space);
-
-    swString_clear(buffer);
-    buffer->length += sw_snprintf(buffer->str, buffer->size, "(PHP Fatal Error: %d):\n%s%s%s: ", code, class_name, space, get_active_function_name());
+    zend_object *exception;
     va_start(args, format);
-    buffer->length += sw_vsnprintf(buffer->str + buffer->length, buffer->size - buffer->length, format, args);
+    exception = zend_throw_error_exception(swoole_error_ce, swoole::cpp_string::vformat(format, args).c_str(), code, E_ERROR);
     va_end(args);
-    swString_append_ptr(buffer, SW_STRL("\nStack trace:\n"));
-    backtrace = get_debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 0);
-    if (likely(backtrace))
-    {
-        swString_append_ptr(buffer, ZSTR_VAL(backtrace), ZSTR_LEN(backtrace));
-        zend_string_release(backtrace);
-    }
-    SwooleG.write_log(SW_LOG_ERROR, buffer->str, buffer->length);
-    exit(255);
-}
-
-void swoole_call_rshutdown_function(void *arg)
-{
-    if (SWOOLE_G(rshutdown_functions))
-    {
-        swLinkedList *rshutdown_functions = SWOOLE_G(rshutdown_functions);
-        swLinkedList_node *node = rshutdown_functions->head;
-        swCallback func = NULL;
-
-        while (node)
-        {
-            func = (swCallback) node->data;
-            func(arg);
-            node = node->next;
-        }
-    }
+    zend_exception_error(exception, E_ERROR);
+    // should never here
+    exit(1);
 }
 
 swoole_object_array swoole_objects;
@@ -632,7 +573,9 @@ PHP_MINIT_FUNCTION(swoole)
         SWOOLE_G(cli) = 1;
     }
 
-    SW_INIT_EXCEPTION_CLASS_ENTRY(swoole_exception, "Swoole\\Exception", "swoole_exception", NULL, NULL);
+    SW_INIT_CLASS_ENTRY_EX2(swoole_exception, "Swoole\\Exception", "swoole_exception", NULL, NULL, zend_ce_exception, zend_get_std_object_handlers());
+
+    SW_INIT_CLASS_ENTRY_EX2(swoole_error, "Swoole\\Error", "swoole_error", NULL, NULL, zend_ce_error, zend_get_std_object_handlers());
 
     /** <Sort by dependency> **/
     swoole_event_init(module_number);
@@ -646,7 +589,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_timer_init(module_number);
     // coroutine
     swoole_async_coro_init(module_number);
-    swoole_coroutine_util_init(module_number);
+    swoole_coroutine_init(module_number);
     swoole_channel_coro_init(module_number);
     swoole_runtime_init(module_number);
     // client
@@ -720,11 +663,7 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_row(2, "trace_log", "enabled");
 #endif
 #ifdef SW_NO_USE_ASM_CONTEXT
-#ifdef HAVE_BOOST_CONTEXT
-    php_info_print_table_row(2, "boost.context", "enabled");
-#else
     php_info_print_table_row(2, "ucontext", "enabled");
-#endif
 #endif
 #ifdef HAVE_EPOLL
     php_info_print_table_row(2, "epoll", "enabled");
@@ -823,48 +762,16 @@ PHP_RINIT_FUNCTION(swoole)
 PHP_RSHUTDOWN_FUNCTION(swoole)
 {
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_BEGIN;
-    swoole_call_rshutdown_function(NULL);
 
-    //clear pipe buffer
-    if (SwooleG.serv && swIsWorker())
-    {
-        swWorker_clean();
-    }
+    rshutdown_callbacks.execute();
 
-    if (SwooleG.serv && SwooleG.serv->gs->start > 0 && SwooleG.running > 0)
-    {
-        if (PG(last_error_message))
-        {
-            switch(PG(last_error_type))
-            {
-            case E_ERROR:
-            case E_CORE_ERROR:
-            case E_USER_ERROR:
-            case E_COMPILE_ERROR:
-                swoole_error_log(
-                    SW_LOG_ERROR, SW_ERROR_PHP_FATAL_ERROR, "Fatal error: %s in %s on line %d",
-                    PG(last_error_message), PG(last_error_file)?PG(last_error_file):"-", PG(last_error_lineno)
-                );
-                break;
-            default:
-                break;
-            }
-        }
-        else
-        {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SERVER_WORKER_TERMINATED, "worker process is terminated by exit()/die()");
-        }
-    }
-
-    swAio_free();
-
-    swoole_async_coro_shutdown();
-    swoole_redis_server_shutdown();
-    swoole_coroutine_shutdown();
-    swoole_runtime_shutdown();
+    swoole_server_rshutdown();
+    swoole_async_coro_rshutdown();
+    swoole_redis_server_rshutdown();
+    swoole_coroutine_rshutdown();
+    swoole_runtime_rshutdown();
 
     SwooleG.running = 0;
-
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;
 
     return SUCCESS;

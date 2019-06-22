@@ -15,9 +15,11 @@ $id = go(function () {
 echo "start to resume $id\n";
 Co::resume($id);
 echo "main\n";
+swoole_event::wait();
 ?>
 --EXPECTF--
-[%s]	ERROR	(PHP Fatal Error: 10001):
-Swoole\Coroutine::yield: API must be called in the coroutine
+Fatal error: Uncaught Swoole\Error: API must be called in the coroutine in %s:%d
 Stack trace:
-#0  Swoole\Coroutine::yield() called at [%s:%d]
+#0 %s(3): Swoole\Coroutine::yield()
+#1 {main}
+  thrown in %s on line %d
