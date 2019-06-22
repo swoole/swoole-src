@@ -62,7 +62,7 @@ enum swServer_event_type
     SW_EVENT_BUFFER_EMPTY,
 };
 
-enum swIPCType
+enum swIPC_type
 {
     SW_IPC_NONE     = 0,
     SW_IPC_UNIXSOCK = 1,
@@ -70,7 +70,7 @@ enum swIPCType
     SW_IPC_SOCKET   = 3,
 };
 
-enum swTaskIPCMode
+enum swTask_ipc_mode
 {
     SW_TASK_IPC_UNIXSOCK    = 1,
     SW_TASK_IPC_MSGQUEUE    = 2,
@@ -78,7 +78,7 @@ enum swTaskIPCMode
     SW_TASK_IPC_STREAM      = 4,
 };
 
-enum swResponseType
+enum swResponse_type
 {
     SW_RESPONSE_SMALL = 0,
     SW_RESPONSE_SHM = 1,
@@ -86,7 +86,7 @@ enum swResponseType
     SW_RESPONSE_EXIT,
 };
 
-enum swWorkerPipeType
+enum swWorker_pipe_type
 {
     SW_PIPE_WORKER     = 0,
     SW_PIPE_MASTER     = 1,
@@ -96,7 +96,7 @@ enum swWorkerPipeType
 /**
  * use swDataHead->from_fd, 1 byte 8 bit
  */
-enum swTaskType
+enum swTask_type
 {
     SW_TASK_TMPFILE    = 1,  //tmp file
     SW_TASK_SERIALIZE  = 2,  //php serialize
@@ -113,7 +113,7 @@ typedef struct _swReactorThread
     pthread_t thread_id;
     swReactor reactor;
     int notify_pipe;
-    int pipe_num;
+    uint32_t pipe_num;
 } swReactorThread;
 
 typedef struct _swListenPort
