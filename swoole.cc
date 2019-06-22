@@ -683,11 +683,7 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_row(2, "trace_log", "enabled");
 #endif
 #ifdef SW_NO_USE_ASM_CONTEXT
-#ifdef HAVE_BOOST_CONTEXT
-    php_info_print_table_row(2, "boost.context", "enabled");
-#else
     php_info_print_table_row(2, "ucontext", "enabled");
-#endif
 #endif
 #ifdef HAVE_EPOLL
     php_info_print_table_row(2, "epoll", "enabled");

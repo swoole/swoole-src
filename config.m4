@@ -150,23 +150,6 @@ AC_DEFUN([AC_SWOOLE_HAVE_UCONTEXT],
     ])
 ])
 
-AC_DEFUN([AC_SWOOLE_HAVE_BOOST_CONTEXT],
-[
-    AC_MSG_CHECKING([for boost.context])
-    AC_LANG([C++])
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-        #include <boost/context/all.hpp>
-    ]], [[
-
-    ]])],[
-        AC_DEFINE([HAVE_BOOST_CONTEXT], 1, [have boost.context?])
-        SW_HAVE_BOOST_CONTEXT=yes
-        AC_MSG_RESULT([yes])
-    ],[
-        AC_MSG_RESULT([no])
-    ])
-])
-
 AC_DEFUN([AC_SWOOLE_HAVE_VALGRIND],
 [
     AC_MSG_CHECKING([for valgrind])
@@ -359,7 +342,6 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_HAVE_REUSEPORT
     AC_SWOOLE_HAVE_FUTEX
     AC_SWOOLE_HAVE_UCONTEXT
-    AC_SWOOLE_HAVE_BOOST_CONTEXT
     AC_SWOOLE_HAVE_VALGRIND
     AC_SWOOLE_CHECK_SOCKETS
 
@@ -438,7 +420,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/socket.c \
         src/core/string.c \
         src/coroutine/base.cc \
-        src/coroutine/boost.cc \
         src/coroutine/channel.cc \
         src/coroutine/context.cc \
         src/coroutine/file_lock.cc \
@@ -633,8 +614,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_source_file="$swoole_source_file \
             ${SW_ASM_DIR}make_${SW_CONTEXT_ASM_FILE} \
             ${SW_ASM_DIR}jump_${SW_CONTEXT_ASM_FILE} "
-    elif test "$SW_HAVE_BOOST_CONTEXT" = "yes"; then
-         LDFLAGS="$LDFLAGS -lboost_context"
     fi
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared,,, cxx)
