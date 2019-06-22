@@ -7,7 +7,7 @@ swoole_coroutine: check if is in the coroutine
 require __DIR__ . '/../include/bootstrap.php';
 $map = [
     function () {
-        Co::sleep(0.0001);
+        Co::sleep(0.001);
         Assert::assert(0); // never here
     },
     function () {
@@ -132,12 +132,11 @@ foreach ($map as $i => $f) {
     $process->start();
     $info = $process->read(8192);
     $process::wait();
-    if (Assert::contains($info, 'ERROR')) {
-        $info = preg_replace('/[^\n]+?\n/', '', $info, 2);
-        $info = preg_replace('/\b\:\d+\b/', ':%d', $info);
-        $info = preg_replace('/\[[^\]]+tests\/swoole_coroutine[^:]+/', '[%s', $info);
-        $info = preg_replace('/(#0 +)[^(]+/', '$1%s', $info);
-        $info = preg_replace('/^\[[^\]]+]/', '[%s]', $info);
+    if (Assert::contains($info, 'Swoole\\Error')) {
+        $info = trim($info);
+        $info = preg_replace('/(\#0.+?: )[^\n]+/', '$1%s', $info, 1);
+        $info = preg_replace('/(: )[^\n]+( in )/', '$1%s$2', $info, 1);
+        $info = preg_replace('/\/[^(:]+:?\(?\d+\)?/', '%s:%d', $info);
         $info_list[] = $info;
         if (!Assert::assert($info_list[0] === $info)) {
             var_dump($map[$i]);
@@ -150,11 +149,15 @@ foreach ($map as $i => $f) {
 echo current($info_list);
 ?>
 --EXPECT--
+Fatal error: %s in %s:%d
 Stack trace:
-#0  %s() called at [%s:%d]
-#1  {closure}() called at [%s:%d]
-#2  c() called at [%s:%d]
-#3  b() called at [%s:%d]
-#4  a() called at [%s:%d]
-#5  {closure}()
-#6  Swoole\Process->start() called at [%s:%d]
+#0 %s:%d: %s
+#1 %s:%d: {closure}()
+#2 %s:%d: c()
+#3 %s:%d: b()
+#4 %s:%d: a()
+#5 [internal function]: {closure}(Object(Swoole\Process))
+#6 %s:%d: Swoole\Process->start()
+#7 {main}
+  thrown in %s:%d
+

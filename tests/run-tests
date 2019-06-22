@@ -129,15 +129,17 @@ if ((substr(PHP_OS, 0, 3) == "WIN") && empty($environment["SystemRoot"])) {
 // swoole patch (composer)
 (function () {
     $composer_dir = __DIR__ . '/include/lib';
-    $vendor_dir = $composer_dir . '/vendor';
-    $expired = microtime(true) - filectime($vendor_dir) > 600;
-    if ($expired) {
-        $composer_info = `cd {$composer_dir} && composer update 2>&1`;
-        echo $composer_info;
+    $composer_autoloader = $composer_dir . '/vendor/autoload.php';
+    $composer_time = filectime($composer_dir . '/composer.json');
+    $composer_time_recorder = sys_get_temp_dir() . '/.swoole-phpt-composer-time.record';
+    $composer_last_time = ((int)@file_get_contents($composer_time_recorder)) ?: 0;
+    if (!file_exists($composer_autoloader) || ($composer_last_time && $composer_time !== $composer_last_time)) {
+        system("cd {$composer_dir} && composer update 2>&1");
     }
-    if (!file_exists($vendor_dir . '/autoload.php')) {
+    if (!file_exists($composer_autoloader)) {
         throw new RuntimeException('Composer install failed');
     }
+    file_put_contents($composer_time_recorder, $composer_time);
 })();
 
 // Don't ever guess at the PHP executable location.

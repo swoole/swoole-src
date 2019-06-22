@@ -5,7 +5,7 @@ swoole_runtime: base
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$server = Co\TestServer::createTcpGreeting();
+$server = SwooleTest\CoServer::createTcpGreeting();
 $server->run();
 Swoole\Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL ^ SWOOLE_HOOK_SLEEP);
 go(function () {
@@ -28,7 +28,7 @@ go(function () use ($server) {
     Assert::count($write, 1);
 });
 echo '3' . PHP_EOL;
-Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL ^ SWOOLE_HOOK_FILE ^ SWOOLE_HOOK_STREAM_SELECT);
+Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL ^ SWOOLE_HOOK_FILE ^ SWOOLE_HOOK_STREAM_FUNCTION);
 go(function () {
     $read = [fopen(__FILE__, 'r')];
     $n = stream_select($read, $write, $except, 1);

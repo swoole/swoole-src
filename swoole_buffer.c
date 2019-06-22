@@ -80,8 +80,9 @@ void swoole_buffer_init(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_buffer, "Swoole\\Buffer", "swoole_buffer", NULL, swoole_buffer_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_buffer, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SW_SET_CLASS_CLONEABLE(swoole_buffer, zend_class_clone_deny);
-    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_buffer, zend_class_unset_property_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_buffer, sw_zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_buffer, sw_zend_class_unset_property_deny);
+    // SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_buffer);
 
     zend_declare_property_long(swoole_buffer_ce, ZEND_STRL("capacity"), SW_STRING_BUFFER_DEFAULT, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_buffer_ce, ZEND_STRL("length"), 0, ZEND_ACC_PUBLIC);
@@ -98,6 +99,11 @@ static void swoole_buffer_recycle(swString *buffer)
 
 static PHP_METHOD(swoole_buffer, __construct)
 {
+    php_swoole_fatal_error(
+        E_DEPRECATED, "Class %s is deprecated, it will be removed in v4.5.0",
+        ZSTR_VAL(swoole_buffer_ce->name)
+    );
+
     zend_long size = SW_STRING_BUFFER_DEFAULT;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
@@ -206,7 +212,7 @@ static PHP_METHOD(swoole_buffer, substr)
     }
     if (length + offset > buffer->length)
     {
-        swoole_php_error(E_WARNING, "offset(" ZEND_LONG_FMT ", " ZEND_LONG_FMT ") is out of bounds", offset, length);
+        php_swoole_error(E_WARNING, "offset(" ZEND_LONG_FMT ", " ZEND_LONG_FMT ") is out of bounds", offset, length);
         RETURN_FALSE;
     }
     if (remove)

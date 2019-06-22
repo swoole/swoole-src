@@ -16,13 +16,10 @@ go(function () {
         'timeout' => 0.5
     ]);
     echo 'Connection: ' . ($connected ? 'Connected' : 'Not connected') . PHP_EOL;
-    if (is_musl_libc()) {
-        Assert::eq($mysql->connect_errno, SOCKET_EINVAL);
-        Assert::eq($mysql->connect_error, swoole_strerror(SOCKET_EINVAL));
-    } else {
-        Assert::eq($mysql->connect_error, swoole_strerror($mysql->connect_errno, SWOOLE_STRERROR_DNS));
-    }
+    Assert::eq($mysql->connect_errno, SWOOLE_MYSQLND_CR_CONNECTION_ERROR);
+    echo $mysql->connect_error . PHP_EOL;
 });
 ?>
---EXPECT--
+--EXPECTF--
 Connection: Not connected
+SQLSTATE[HY000] [2002] %s

@@ -68,4 +68,3 @@ echo "DONE\n";
 ?>
 --EXPECT--
 DONE
-

@@ -115,9 +115,9 @@ int my_onReceive(swServer *serv, swEventData *req)
 
 int my_onPacket(swServer *serv, swEventData *req)
 {
-    int serv_sock = req->info.from_fd;
+    int serv_sock = req->info.server_fd;
     char *data;
-    swWorker_get_data(req, &data);
+    swWorker_get_data(serv, req, &data);
     swDgramPacket *packet = (swDgramPacket *) data;
 
     int length;
@@ -194,12 +194,12 @@ void my_onShutdown(swServer *serv)
 
 void my_onConnect(swServer *serv, swDataHead *info)
 {
-    printf("PID=%d\tConnect fd=%d|from_id=%d\n", getpid(), info->fd, info->from_id);
+    printf("PID=%d\tConnect fd=%d|reactor_id=%d\n", getpid(), info->fd, info->reactor_id);
 }
 
 void my_onClose(swServer *serv, swDataHead *info)
 {
-    printf("PID=%d\tClose fd=%d|from_id=%d\n", getpid(), info->fd, info->from_id);
+    printf("PID=%d\tClose fd=%d|reactor_id=%d\n", getpid(), info->fd, info->reactor_id);
 }
 
 }

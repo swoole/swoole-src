@@ -33,7 +33,7 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
 #ifdef SW_CONTEXT_PROTECT_STACK_PAGE
     protect_page_ = 0;
 #endif
-    end = false;
+    end_ = false;
 
     stack_ = (char*) sw_malloc(stack_size);
     swTraceLog(SW_TRACE_COROUTINE, "alloc stack: size=%lu, ptr=%p", stack_size, stack_);
@@ -94,7 +94,7 @@ void Context::context_func(void *arg)
 {
     Context *_this = (Context *) arg;
     _this->fn_(_this->private_data_);
-    _this->end = true;
+    _this->end_ = true;
     _this->swap_out();
 }
 

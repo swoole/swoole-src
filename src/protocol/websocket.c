@@ -52,7 +52,7 @@ ssize_t swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn,
     char mask = (buf[1] >> 7) & 0x1;
     //0-125
     uint64_t payload_length = buf[1] & 0x7f;
-	ssize_t header_length = SW_WEBSOCKET_HEADER_LEN;
+    size_t header_length = SW_WEBSOCKET_HEADER_LEN;
     buf += SW_WEBSOCKET_HEADER_LEN;
 
     //uint16_t, 2byte
@@ -71,7 +71,7 @@ ssize_t swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn,
     else if (payload_length > 0x7e)
     {
         header_length += sizeof(uint64_t);
-        if (length < 10)
+        if (length < header_length)
         {
             protocol->real_header_length = header_length;
             return 0;
@@ -88,11 +88,28 @@ ssize_t swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn,
             return 0;
         }
     }
-    swTrace("header_length=%d, payload_length=%d", (int )header_length, (int )payload_length);
+    swTraceLog(SW_TRACE_LENGTH_PROTOCOL, "header_length=%zu, payload_length=%u", header_length, payload_length);
     return header_length + payload_length;
 }
 
-void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, uint8_t finish, uint8_t mask)
+static sw_inline void swWebSocket_mask(char *data, size_t len, const char *mask_key)
+{
+    size_t n = len / 8;
+    uint64_t mask_key64 = ((uint64_t) (*((uint32_t *) mask_key)) << 32) | *((uint32_t *) mask_key);
+    size_t i;
+
+    for (i = 0; i < n; i++)
+    {
+        ((uint64_t *) data)[i] ^= mask_key64;
+    }
+
+    for (i = n * 8; i < len; i++)
+    {
+        data[i] ^= mask_key[i % SW_WEBSOCKET_MASK_LEN];
+    }
+}
+
+void swWebSocket_encode(swString *buffer, const char *data, size_t length, char opcode, uint8_t finish, uint8_t mask)
 {
     int pos = 0;
     char frame_header[16];
@@ -129,25 +146,20 @@ void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode
     /**
      * frame body
      */
-    if (data && length > 0)
+    if (mask)
     {
-        if (mask)
+        swString_append_ptr(buffer, SW_WEBSOCKET_MASK_DATA, SW_WEBSOCKET_MASK_LEN);
+        if (length > 0)
         {
-            char *_mask_data = SW_WEBSOCKET_MASK_DATA;
-            swString_append_ptr(buffer, _mask_data, SW_WEBSOCKET_MASK_LEN);
-
             size_t offset = buffer->length;
             // Warn: buffer may be extended, string pointer will change
             swString_append_ptr(buffer, data, length);
-            char *_data = buffer->str + offset;
-
-            int i;
-            for (i = 0; i < length; i++)
-            {
-                _data[i] ^= _mask_data[i % SW_WEBSOCKET_MASK_LEN];
-            }
+            swWebSocket_mask(buffer->str + offset, length, SW_WEBSOCKET_MASK_DATA);
         }
-        else
+    }
+    else
+    {
+        if (length > 0)
         {
             swString_append_ptr(buffer, data, length);
         }
@@ -178,19 +190,17 @@ void swWebSocket_decode(swWebSocket_frame *frame, swString *data)
 
     if (frame->header.MASK)
     {
-        char *mask_key = frame->mask_key;
-        memcpy(mask_key, data->str + header_length, SW_WEBSOCKET_MASK_LEN);
+        memcpy(frame->mask_key, data->str + header_length, SW_WEBSOCKET_MASK_LEN);
         header_length += SW_WEBSOCKET_MASK_LEN;
-        buf = data->str + header_length;
-        int i;
-        for (i = 0; i < payload_length; i++)
+        if (payload_length > 0)
         {
-            buf[i] ^= mask_key[i % SW_WEBSOCKET_MASK_LEN];
+            swWebSocket_mask(data->str + header_length, payload_length, frame->mask_key);
         }
     }
-    frame->payload_length = payload_length;
+
     frame->header_length = header_length;
     frame->payload = data->str + header_length;
+    frame->payload_length = payload_length;
 }
 
 int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_t length, uint8_t mask)
@@ -221,19 +231,19 @@ void swWebSocket_print_frame(swWebSocket_frame *frame)
 
     if (frame->payload_length)
     {
-        printf("payload: %s\n", frame->payload);
+        printf("payload: %.*s\n", (int) frame->payload_length, frame->payload);
     }
 }
 
-int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
+int swWebSocket_dispatch_frame(swProtocol *proto, swConnection *conn, char *data, uint32_t length)
 {
+    swServer *serv = (swServer *) proto->private_data_2;
     swString frame;
     bzero(&frame, sizeof(frame));
     frame.str = data;
     frame.length = length;
 
-    swString send_frame;
-    bzero(&send_frame, sizeof(send_frame));
+    swString send_frame = {0};
     char buf[SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN + SW_WEBSOCKET_CLOSE_REASON_MAX_LEN];
     send_frame.str = buf;
     send_frame.size = sizeof(buf);
@@ -257,7 +267,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
         }
         offset = length - ws.payload_length;
         frame_length = length - offset;
-        port = swServer_get_port(SwooleG.serv, conn->fd);
+        port = swServer_get_port(serv, conn->fd);
         //frame data overflow
         if (frame_buffer->length + frame_length > port->protocol.package_max_length)
         {
@@ -269,7 +279,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
         //frame is finished, do dispatch
         if (ws.header.FIN)
         {
-            swReactorThread_dispatch(conn, frame_buffer->str, frame_buffer->length);
+            swReactorThread_dispatch(proto, conn, frame_buffer->str, frame_buffer->length);
             swString_free(frame_buffer);
             conn->websocket_buffer = NULL;
         }
@@ -291,7 +301,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
         }
         else
         {
-            swReactorThread_dispatch(conn, data + offset, length - offset);
+            swReactorThread_dispatch(proto, conn, data + offset, length - offset);
         }
         break;
 
@@ -328,7 +338,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
             offset = length - ws.payload_length - SW_WEBSOCKET_HEADER_LEN;
             data[offset] = 1;
             data[offset + 1] = WEBSOCKET_OPCODE_CLOSE;
-            swReactorThread_dispatch(conn, data + offset, length - offset);
+            swReactorThread_dispatch(proto, conn, data + offset, length - offset);
 
             // Client attempt to close
             send_frame.str[0] = 0x88; // FIN | OPCODE: WEBSOCKET_OPCODE_CLOSE

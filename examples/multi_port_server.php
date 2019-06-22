@@ -10,8 +10,8 @@ $port->on('packet', function($serv, $data, $client) {
 $serv->on('connect', function ($serv, $fd) {
     echo "Client:Connect.\n";
 });
-$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
-    $info = $serv->connection_info($fd, $from_id);
+$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
+    $info = $serv->connection_info($fd, $reactor_id);
     //来自9502的内网管理端口
     if($info['server_port'] == 9502) {
 		$serv->send($fd, "welcome admin\n");

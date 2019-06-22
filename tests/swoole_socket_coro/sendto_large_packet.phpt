@@ -36,4 +36,3 @@ go(function () {
 swoole_event_wait();
 ?>
 --EXPECTF--
-

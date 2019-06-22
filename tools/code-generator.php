@@ -6,6 +6,7 @@ $swoole_c = __DIR__ . '/../swoole.c';
 $swoole_c_content = file_get_contents($swoole_c);
 $error_h = __DIR__ . '/../include/error.h';
 $error_h_content = file_get_contents($error_h);
+
 if (!preg_match_all('/SW_ERROR_[0-9A-Z_]+/', $error_h_content, $matches, PREG_PATTERN_ORDER) || empty($matches[0])) {
     swoole_error('Match ERROR enums error!');
 }
@@ -19,7 +20,7 @@ foreach ($matches[0] as $match) {
     // convert error code to define
     $constant_name = str_replace('SW_', 'SWOOLE_', $match);
     $constant_value = $match;
-    $define_output .= "{$_space()}SW_REGISTER_LONG_CONSTANT(\"{$constant_name}\", {$constant_value});\n";
+    $define_output .= space(4) . "SW_REGISTER_LONG_CONSTANT(\"{$constant_name}\", {$constant_value});\n";
 }
 $swoole_c_content = preg_replace(
     '/ *?(?:SW_REGISTER_LONG_CONSTANT\("SWOOLE_ERROR_[0-9A-Z_]+?", SW_ERROR_[0-9A-Z_]+?\);\n *)+/',
@@ -31,7 +32,7 @@ file_put_contents($swoole_c, $swoole_c_content);
 // generate ERROR strings
 $swoole_error_cc = __DIR__ . '/../src/core/error.cc';
 $swoole_error_cc_content = file_get_contents($swoole_error_cc);
-$swstrerror_output = "{$_space()}switch(code)\n{$_space()}{\n";
+$swstrerror_output = space(4) . "switch(code)\n" . space(4) . "{\n";
 foreach ($matches[0] as $match) {
     // convert error code to swstrerror
     $sw_error_str = implode(' ', explode('_', strtolower(str_replace('SW_ERROR_', '', $match))));
@@ -43,7 +44,7 @@ foreach ($matches[0] as $match) {
     ];
     $sw_error_str = str_replace(array_keys($replaces), array_values($replaces), $sw_error_str);
     $sw_error_str{0} = strtoupper($sw_error_str{0});
-    $swstrerror_output .= "{$_space()}case {$match}:\n{$_space(8)}return \"{$sw_error_str}\";\n";
+    $swstrerror_output .= space(4) . "case {$match}:\n" . space(8) . "return \"{$sw_error_str}\";\n";
 }
 $swstrerror_output .= <<<CPP
     default:

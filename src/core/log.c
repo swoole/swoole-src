@@ -16,26 +16,54 @@
 
 #include "swoole.h"
 
-#define SW_LOG_BUFFER_SIZE  16384
+#include <sys/file.h>
+
+#define SW_LOG_BUFFER_SIZE  (SW_ERROR_MSG_SIZE+256)
 #define SW_LOG_DATE_STRLEN  64
+
+static int is_file = SW_FALSE;
 
 int swLog_init(char *logfile)
 {
-    SwooleG.log_fd = open(logfile, O_APPEND| O_RDWR | O_CREAT, 0666);
+    SwooleG.log_fd = open(logfile, O_APPEND | O_RDWR | O_CREAT, 0666);
     if (SwooleG.log_fd < 0)
     {
         printf("open(%s) failed. Error: %s[%d]\n", logfile, strerror(errno), errno);
-        SwooleG.log_fd = 0;
+        SwooleG.log_fd = STDOUT_FILENO;
+        is_file = SW_FALSE;
         return SW_ERR;
     }
+    is_file = SW_TRUE;
     return SW_OK;
 }
 
 void swLog_free(void)
 {
-    if (SwooleG.log_fd > STDOUT_FILENO)
+    if (is_file)
     {
         close(SwooleG.log_fd);
+        SwooleG.log_fd = STDOUT_FILENO;
+        is_file = SW_FALSE;
+    }
+}
+
+/**
+ * reopen log file
+ */
+void swLog_reopen(enum swBool_type redirect)
+{
+    if (!SwooleG.log_file)
+    {
+        return;
+    }
+    swLog_free();
+    swLog_init(SwooleG.log_file);
+    /**
+     * redirect STDOUT & STDERR to log file
+     */
+    if (redirect)
+    {
+        swoole_redirect_stdout(SwooleG.log_fd);
     }
 }
 
@@ -105,9 +133,19 @@ void swLog_put(int level, char *content, size_t length)
         break;
     }
 
-    n = sw_snprintf(log_str, SW_LOG_BUFFER_SIZE, "[%.*s %c%d.%d]\t%s\t%.*s\n", l_data_str, date_str, process_flag, SwooleG.pid, process_id, level_str, (int) length, content);
+    n = sw_snprintf(log_str, SW_LOG_BUFFER_SIZE, "[%.*s %c%d.%d]\t%s\t%.*s\n", l_data_str, date_str, process_flag,
+            SwooleG.pid, process_id, level_str, (int) length, content);
+    if (is_file && flock(SwooleG.log_fd, LOCK_EX) == -1)
+    {
+        goto _print;
+    }
     if (write(SwooleG.log_fd, log_str, n) < 0)
     {
-        printf("write(log_fd, size=%d) failed. Error: %s[%d].\nMessage: %.*s\n", n, strerror(errno), errno, n, log_str);
+        _print: printf("write(log_fd, size=%d) failed. Error: %s[%d].\nMessage: %.*s\n", n, strerror(errno), errno, n,
+                log_str);
+    }
+    if (is_file && flock(SwooleG.log_fd, LOCK_UN) == -1)
+    {
+        printf("flock(%d, LOCK_UN) failed. Error: %s[%d]", SwooleG.log_fd, strerror(errno), errno);
     }
 }

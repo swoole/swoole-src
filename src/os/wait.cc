@@ -85,7 +85,7 @@ void swoole_coroutine_signal_init()
         signal_init = true;
         swSignal_add(SIGCHLD, signal_handler);
 #ifdef HAVE_SIGNALFD
-        if (SwooleG.use_signalfd && !swReactor_handle_isset(SwooleG.main_reactor, SW_FD_SIGNAL))
+        if (SwooleG.use_signalfd && !swReactor_isset_handler(SwooleG.main_reactor, SW_FD_SIGNAL))
         {
             swSignalfd_setup(SwooleG.main_reactor);
         }
@@ -95,17 +95,17 @@ void swoole_coroutine_signal_init()
 
 pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options)
 {
-    if (unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current() || (__options & WNOHANG)))
-    {
-        return waitpid(__pid, __stat_loc, __options);
-    }
-
     auto i = child_processes.find(__pid);
     if (i != child_processes.end())
     {
         *__stat_loc = i->second;
         child_processes.erase(i);
         return __pid;
+    }
+
+    if (unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current() || (__options & WNOHANG)))
+    {
+        return waitpid(__pid, __stat_loc, __options);
     }
 
     wait_task task;

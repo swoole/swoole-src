@@ -57,7 +57,7 @@ $pm->childFunc = function () use ($pm)
     $serv->on('connect', function (swoole_server $serv, $fd) {
         $serv->task([str_repeat("A", 1024 * 1024 * 2), 'task', $fd]);
     });
-    $serv->on('receive', function ($serv, $fd, $from_id, $data) {
+    $serv->on('receive', function ($serv, $fd, $reactor_id, $data) {
         sleep(2);
         $serv->send($fd, "Hello World\n");
     });

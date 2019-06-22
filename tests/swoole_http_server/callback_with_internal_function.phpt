@@ -52,6 +52,8 @@ object(Swoole\Http\Request)#%d (%d) {
     int(%d)
     ["request_time_float"]=>
     float(%f)
+    ["server_protocol"]=>
+    string(8) "HTTP/1.1"
     ["server_port"]=>
     int(%d)
     ["remote_port"]=>
@@ -60,8 +62,6 @@ object(Swoole\Http\Request)#%d (%d) {
     string(9) "127.0.0.1"
     ["master_time"]=>
     int(%d)
-    ["server_protocol"]=>
-    string(8) "HTTP/1.1"
   }
   ["request"]=>
   NULL
@@ -79,6 +79,8 @@ object(Swoole\Http\Request)#%d (%d) {
 object(Swoole\Http\Response)#%d (%d) {
   ["fd"]=>
   int(1)
+  ["socket"]=>
+  NULL
   ["header"]=>
   NULL
   ["cookie"]=>

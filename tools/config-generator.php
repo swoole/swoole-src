@@ -15,18 +15,6 @@ if ($count !== 1) {
 file_put_contents($config_m4, $output);
 swoole_ok('Generate config.m4 ok!');
 
-// config.w32
-$config_w32 = __DIR__ . '/../config.w32';
-$config_w32_content = file_get_contents($config_w32);
-$glue = " '\n" . space(8) . "+ '";
-$output = space(8) . "'" . implode($glue, $source_list) . "'";
-$output = preg_replace('/(EXTENSION\(\'swoole\',\n)[^,]+,/', "$1{$output},", $config_w32_content, 1, $count);
-if ($count !== 1) {
-    swoole_error('Update source files in config.w32 error!');
-}
-file_put_contents($config_w32, $output);
-swoole_ok('Generate config.w32 ok!');
-
 // cmake
 // $cmake_lists = __DIR__ . '/../CMakeLists.txt';
 // $cmake_lists_content = file_get_contents($cmake_lists);

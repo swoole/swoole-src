@@ -9,10 +9,10 @@ $serv->set(array(
     'task_tmpdir' => '/data/task/',
 ));
 
-$serv->on('Receive', function(swoole_server $serv, $fd, $from_id, $data) {
+$serv->on('Receive', function(swoole_server $serv, $fd, $reactor_id, $data) {
 });
 
-$serv->on('Task', function (swoole_server $serv, $task_id, $from_id, $data) {
+$serv->on('Task', function (swoole_server $serv, $task_id, $reactor_id, $data) {
     echo "#{$serv->worker_id}\tonTask: [PID={$serv->worker_pid}]: TASK_ID=$task_id]\n";
     var_dump($data);
 });

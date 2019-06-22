@@ -23,8 +23,6 @@
 #endif
 #endif
 
-#define SW_COROUTINE               1
-
 #define SW_MAX_FDTYPE              32   // 32 kinds of event
 #define SW_MAX_HOOK_TYPE           32
 #define SW_ERROR_MSG_SIZE          16384
@@ -256,8 +254,8 @@
  * Coroutine
  */
 #define SW_DEFAULT_C_STACK_SIZE          (2 *1024 * 1024)
-#define SW_CORO_SWAP_BAILOUT
-// #define SW_CORO_ZEND_TRY
+#define SW_CORO_SUPPORT_BAILOUT          1
+#define SW_CORO_SWAP_BAILOUT             1
 
 #ifdef SW_DEBUG
 #ifndef SW_LOG_TRACE_OPEN

@@ -19,14 +19,14 @@
 
 typedef struct _swRingQueue
 {
-	int head;
-	int tail;
-	/**
-	 * empty or full
-	 */
-	int tag;
-	int size;
-	void **data;
+    int head;
+    int tail;
+    /**
+     * empty or full
+     */
+    int tag;
+    int size;
+    void **data;
 } swRingQueue;
 
 int swRingQueue_init(swRingQueue *queue, int buffer_size);

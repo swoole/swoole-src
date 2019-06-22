@@ -21,9 +21,6 @@ PHP_ARG_ENABLE(debug-log, enable debug log,
 PHP_ARG_ENABLE(trace-log, enable trace log,
 [  --enable-trace-log        Enable swoole trace log], no, no)
 
-PHP_ARG_ENABLE(scheduler-tick, enable coroutine scheduler powered by tick,
-[  --enable-scheduler-tick    Enable swoole coroutine scheduler powered by tick], no, no)
-
 PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets          Do you have sockets extension?], no, no)
 
@@ -147,23 +144,6 @@ AC_DEFUN([AC_SWOOLE_HAVE_UCONTEXT],
         getcontext(&context);
     ]])],[
         AC_DEFINE([HAVE_UCONTEXT], 1, [have ucontext?])
-        AC_MSG_RESULT([yes])
-    ],[
-        AC_MSG_RESULT([no])
-    ])
-])
-
-AC_DEFUN([AC_SWOOLE_HAVE_BOOST_CONTEXT],
-[
-    AC_MSG_CHECKING([for boost.context])
-    AC_LANG([C++])
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-        #include <boost/context/all.hpp>
-    ]], [[
-
-    ]])],[
-        AC_DEFINE([HAVE_BOOST_CONTEXT], 1, [have boost.context?])
-        SW_HAVE_BOOST_CONTEXT=yes
         AC_MSG_RESULT([yes])
     ],[
         AC_MSG_RESULT([no])
@@ -333,10 +313,6 @@ if test "$PHP_SWOOLE" != "no"; then
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
     fi
 
-    if test "$PHP_SCHEDULER_TICK" != "no"; then
-        AC_DEFINE(SW_CORO_SCHEDULER_TICK, 1, [enable coroutine scheduler powered by tick])
-    fi
-
     if test "$PHP_TRACE_LOG" != "no"; then
         AC_DEFINE(SW_LOG_TRACE_OPEN, 1, [enable trace log])
     fi
@@ -366,7 +342,6 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_HAVE_REUSEPORT
     AC_SWOOLE_HAVE_FUTEX
     AC_SWOOLE_HAVE_UCONTEXT
-    AC_SWOOLE_HAVE_BOOST_CONTEXT
     AC_SWOOLE_HAVE_VALGRIND
     AC_SWOOLE_CHECK_SOCKETS
 
@@ -431,6 +406,7 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     swoole_source_file=" \
+        php_swoole_cxx.cc \
         src/core/array.c \
         src/core/base.c \
         src/core/channel.c \
@@ -444,13 +420,12 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/socket.c \
         src/core/string.c \
         src/coroutine/base.cc \
-        src/coroutine/boost.cc \
         src/coroutine/channel.cc \
         src/coroutine/context.cc \
         src/coroutine/file_lock.cc \
         src/coroutine/hook.cc \
-        src/coroutine/system.cc \
         src/coroutine/socket.cc \
+        src/coroutine/system.cc \
         src/coroutine/ucontext.cc \
         src/lock/atomic.c \
         src/lock/cond.c \
@@ -483,20 +458,18 @@ if test "$PHP_SWOOLE" != "no"; then
         src/pipe/base.c \
         src/pipe/eventfd.c \
         src/pipe/unix_socket.c \
-        src/protocol/base.c \
+        src/protocol/base.cc \
         src/protocol/base64.c \
         src/protocol/http.c \
         src/protocol/http2.c \
         src/protocol/mime_types.cc \
         src/protocol/mqtt.c \
-        src/protocol/mysql.cc \
         src/protocol/redis.c \
         src/protocol/sha1.c \
         src/protocol/socks5.c \
         src/protocol/ssl.c \
         src/protocol/websocket.c \
-        src/reactor/base.c \
-        src/reactor/defer_task.cc \
+        src/reactor/base.cc \
         src/reactor/epoll.c \
         src/reactor/kqueue.c \
         src/reactor/poll.c \
@@ -522,14 +495,19 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_client.cc \
         swoole_client_coro.cc \
         swoole_coroutine.cc \
-        swoole_coroutine_util.cc \
-        swoole_event.c \
-        swoole_http_client_coro.cc \
-        swoole_http_server.cc \
+        swoole_coroutine_scheduler.cc \
+        swoole_coroutine_system.cc \
+        swoole_event.cc \
         swoole_http2_client_coro.cc \
         swoole_http2_server.cc \
+        swoole_http_client_coro.cc \
+        swoole_http_request.cc \
+        swoole_http_response.cc \
+        swoole_http_server.cc \
+        swoole_http_server_coro.cc \
         swoole_lock.c \
         swoole_mysql_coro.cc \
+        swoole_mysql_proto.cc \
         swoole_process.cc \
         swoole_process_pool.cc \
         swoole_redis_coro.cc \
@@ -544,27 +522,31 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_websocket_server.cc"
 
     swoole_source_file="$swoole_source_file \
-        thirdparty/sockets/multicast.cc \
-        thirdparty/sockets/sendrecvmsg.cc \
-        thirdparty/sockets/conversions.cc \
-        thirdparty/sockets/sockaddr_conv.cc \
+        thirdparty/php/sockets/multicast.cc \
+        thirdparty/php/sockets/sendrecvmsg.cc \
+        thirdparty/php/sockets/conversions.cc \
+        thirdparty/php/sockets/sockaddr_conv.cc \
+        thirdparty/php/standard/proc_open.cc"
+
+    swoole_source_file="$swoole_source_file \
         thirdparty/swoole_http_parser.c \
-        thirdparty/multipart_parser.c"
+	    thirdparty/multipart_parser.c"
 
     swoole_source_file="$swoole_source_file \
         thirdparty/hiredis/async.c \
         thirdparty/hiredis/hiredis.c \
         thirdparty/hiredis/net.c \
         thirdparty/hiredis/read.c \
-        thirdparty/hiredis/sds.c \
-        thirdparty/http2/nghttp2_hd.c \
-        thirdparty/http2/nghttp2_rcbuf.c \
-        thirdparty/http2/nghttp2_helper.c \
-        thirdparty/http2/nghttp2_buf.c \
-        thirdparty/http2/nghttp2_mem.c \
-        thirdparty/http2/nghttp2_hd_huffman.c \
-        thirdparty/http2/nghttp2_hd_huffman_data.c \
-        "
+        thirdparty/hiredis/sds.c"
+
+    swoole_source_file="$swoole_source_file \
+        thirdparty/nghttp2/nghttp2_hd.c \
+        thirdparty/nghttp2/nghttp2_rcbuf.c \
+        thirdparty/nghttp2/nghttp2_helper.c \
+        thirdparty/nghttp2/nghttp2_buf.c \
+        thirdparty/nghttp2/nghttp2_mem.c \
+        thirdparty/nghttp2/nghttp2_hd_huffman.c \
+        thirdparty/nghttp2/nghttp2_hd_huffman_data.c"
 
     SW_NO_USE_ASM_CONTEXT="no"
     SW_ASM_DIR="thirdparty/boost/asm/"
@@ -631,15 +613,12 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_source_file="$swoole_source_file \
             ${SW_ASM_DIR}make_${SW_CONTEXT_ASM_FILE} \
             ${SW_ASM_DIR}jump_${SW_CONTEXT_ASM_FILE} "
-    elif test "$SW_HAVE_BOOST_CONTEXT" = "yes"; then
-         LDFLAGS="$LDFLAGS -lboost_context"
     fi
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared,,, cxx)
 
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
-
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
 
     PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h])
@@ -665,9 +644,10 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/src/protocol)
     PHP_ADD_BUILD_DIR($ext_builddir/src/coroutine)
     PHP_ADD_BUILD_DIR($ext_builddir/src/wrapper)
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/http2)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/sockets)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/sockets)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/standard)
 fi

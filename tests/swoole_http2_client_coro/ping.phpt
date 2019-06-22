@@ -5,6 +5,7 @@ swoole_http2_client_coro: http2 ping
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+Co::set(['log_level' => SWOOLE_LOG_WARNING]);
 go(function () {
     $domain = 'nghttp2.org';
     $cli = new Swoole\Coroutine\Http2\Client($domain, 443, true);
@@ -27,4 +28,3 @@ go(function () {
 });
 ?>
 --EXPECT--
-

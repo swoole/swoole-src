@@ -7,7 +7,7 @@ swoole_websocket_server: websocket server active close with close frame flag fal
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
-    $cli = new Samtleben\WebsocketClient;
+    $cli = new SwooleTest\Samtleben\WebsocketClient;
     $connected = $cli->connect('127.0.0.1', $pm->getFreePort(), '/');
     Assert::assert($connected);
     $cli->sendRecv('shutdown');

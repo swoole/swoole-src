@@ -27,12 +27,12 @@ function my_onTimer($serv, $interval)
     echo "Server:Timer Call.Interval=$interval\n";
 }
 
-function my_onClose($serv, $fd, $from_id)
+function my_onClose($serv, $fd, $reactor_id)
 {
 	//echo "Client: fd=$fd is closed.\n";
 }
 
-function my_onConnect($serv, $fd, $from_id)
+function my_onConnect($serv, $fd, $reactor_id)
 {
 	//throw new Exception("hello world");
 // 	echo "Client:Connect.\n";
@@ -61,7 +61,7 @@ function my_onWorkerStop($serv, $worker_id)
 	echo "WorkerStop[$worker_id]|pid=".posix_getpid().".\n";
 }
 
-function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
+function my_onReceive(swoole_server $serv, $fd, $reactor_id, $data)
 {
 	$cmd = trim($data);
     if($cmd == "reload")
@@ -109,15 +109,15 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 	{
         global $class;
         $data .= $class->getData();
-		$serv->send($fd, 'Swoole: '.$data, $from_id);
+		$serv->send($fd, 'Swoole: '.$data, $reactor_id);
 		//$serv->close($fd);
 	}
-	//echo "Client:Data. fd=$fd|from_id=$from_id|data=$data";
+	//echo "Client:Data. fd=$fd|reactor_id=$reactor_id|data=$data";
 	//$serv->deltimer(800);
-	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
+	//swoole_server_send($serv, $other_fd, "Server: $data", $other_reactor_id);
 }
 
-function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
+function my_onTask(swoole_server $serv, $task_id, $reactor_id, $data)
 {
     echo "AsyncTask[PID=".posix_getpid()."]: task_id=$task_id.".PHP_EOL;
     $serv->finish("OK");

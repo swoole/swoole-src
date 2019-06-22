@@ -241,8 +241,8 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
     swSetNonBlock(pipe_worker);
     SwooleG.main_reactor->ptr = pool;
     SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_worker, SW_FD_PIPE | SW_EVENT_READ);
-    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swTaskWorker_onPipeReceive);
-    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_WRITE, swReactor_onWrite);
+    swReactor_set_handler(SwooleG.main_reactor, SW_FD_PIPE, swTaskWorker_onPipeReceive);
+    swReactor_set_handler(SwooleG.main_reactor, SW_FD_WRITE, swReactor_onWrite);
 
     /**
      * set pipe buffer size
@@ -289,7 +289,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
         return SW_ERR;
     }
 
-    uint16_t source_worker_id = current_task->info.from_id;
+    uint16_t source_worker_id = current_task->info.reactor_id;
     swWorker *worker = swServer_get_worker(serv, source_worker_id);
 
     if (worker == NULL)

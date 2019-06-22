@@ -75,7 +75,7 @@ class DBServer
         }
     }
 
-    function onReceive($serv, $fd, $from_id, $data)
+    function onReceive($serv, $fd, $reactor_id, $data)
     {
 	echo "Received: $data\n";
         //没有空闲的数据库连接

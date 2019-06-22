@@ -11,7 +11,8 @@ go(function () {
 });
 ?>
 --EXPECTF--
-[%s]	ERROR	(PHP Fatal Error: %d):
-Swoole\Process::start: must be forked outside the coroutine
+Fatal error: Uncaught Swoole\Error: must be forked outside the coroutine in %s:%d
 Stack trace:
-#0  Swoole\Process->start() called at [%s/tests/swoole_coroutine/new_process.php:%d]
+#0 %s(5): Swoole\Process->start()
+#1 {main}
+  thrown in %s on line %d

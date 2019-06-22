@@ -28,7 +28,7 @@ for ($c = MAX_CONCURRENCY_LOW; $c--;) {
         }
         time_approximate($timeout, microtime(true) - $s);
         Assert::assert(!$ret);
-        Assert::eq($use_query ? $mysql->errno : $statement->errno, SOCKET_ETIMEDOUT);
+        Assert::eq($use_query ? $mysql->errno : $statement->errno, SWOOLE_MYSQLND_CR_SERVER_GONE_ERROR);
     });
 }
 Swoole\Event::wait();

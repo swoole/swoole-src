@@ -11,7 +11,7 @@ $pm->parentFunc = function () use ($pm) {
         $cli = new Co\Client(SWOOLE_SOCK_TCP);
         Assert::assert($cli->connect('127.0.0.1', $pm->getFreePort()));
         Assert::assert($cli->connected);
-        set_socket_buffer_size($cli->getSocket(), 8192);
+        set_socket_coro_buffer_size($cli->exportSocket(), 8192);
         go(function () use ($pm, $cli) {
             Co::sleep(0.001);
             echo "CLOSE\n";

@@ -19,7 +19,7 @@ $serv->on('Request', function ($req, $resp)
     });
 
 });
-$serv->on('Task', function (swoole_server $serv, $task_id, $from_id, $data) {
+$serv->on('Task', function (swoole_server $serv, $task_id, $reactor_id, $data) {
     //echo "#{$serv->worker_id}\tonTask: [PID={$serv->worker_pid}]: task_id=$task_id, data_len=".strlen($data).".".PHP_EOL;
 //    $serv->finish($data);
     return $data;

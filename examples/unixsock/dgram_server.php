@@ -6,9 +6,9 @@ $serv->set(array(
     //'daemonize' => true,
     //'log_file' => '/tmp/swoole.log'
 ));
-//$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
+//$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
 //    echo "[#".posix_getpid()."]\tClient[$fd]: $data\n";
-//    $serv->send($fd, json_encode(array("hello" => $data, "from" => $from_id)).PHP_EOL);
+//    $serv->send($fd, json_encode(array("hello" => $data, "from" => $reactor_id)).PHP_EOL);
 //});
 
 $serv->on('Packet', function (swoole_server $serv, $data, $addr) {

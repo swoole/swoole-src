@@ -57,12 +57,36 @@ typedef struct _swSSL_option
 
 int swConnection_buffer_send(swConnection *conn);
 
-swString* swConnection_get_string_buffer(swConnection *conn);
 int swConnection_sendfile(swConnection *conn, char *filename, off_t offset, size_t length);
 int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk);
 void swConnection_sendfile_destructor(swBuffer_chunk *chunk);
 const char* swConnection_get_ip(swConnection *conn);
 int swConnection_get_port(swConnection *conn);
+
+static sw_inline swString *swConnection_get_buffer(swConnection *conn)
+{
+    swString *buffer = conn->recv_buffer;
+    if (buffer == NULL)
+    {
+        buffer = swString_new(SW_BUFFER_SIZE_BIG);
+        //alloc memory failed.
+        if (!buffer)
+        {
+            return NULL;
+        }
+        conn->recv_buffer = buffer;
+    }
+    return buffer;
+}
+
+static sw_inline void swConnection_free_buffer(swConnection *conn)
+{
+    if (conn->recv_buffer)
+    {
+        swString_free(conn->recv_buffer);
+        conn->recv_buffer = NULL;
+    }
+}
 
 #ifdef SW_USE_OPENSSL
 enum swSSLState
@@ -128,7 +152,7 @@ int swSSL_accept(swConnection *conn);
 int swSSL_connect(swConnection *conn);
 void swSSL_close(swConnection *conn);
 ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n);
-ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n);
+ssize_t swSSL_send(swConnection *conn, const void *__buf, size_t __n);
 int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size);
 #endif
 
@@ -189,7 +213,7 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
 /**
  * Send data to connection
  */
-static sw_inline ssize_t swConnection_send(swConnection *conn, void *__buf, size_t __n, int __flags)
+static sw_inline ssize_t swConnection_send(swConnection *conn, const void *__buf, size_t __n, int __flags)
 {
     ssize_t retval;
 
@@ -269,16 +293,16 @@ static sw_inline int swConnection_error(int err)
     case EHOSTDOWN:
     case EHOSTUNREACH:
     case SW_ERROR_SSL_BAD_CLIENT:
-		return SW_CLOSE;
-	case EAGAIN:
+        return SW_CLOSE;
+    case EAGAIN:
 #ifdef HAVE_KQUEUE
-	case ENOBUFS:
+    case ENOBUFS:
 #endif
-	case 0:
-		return SW_WAIT;
-	default:
-		return SW_ERROR;
-	}
+    case 0:
+        return SW_WAIT;
+    default:
+        return SW_ERROR;
+    }
 }
 
 #ifdef __cplusplus

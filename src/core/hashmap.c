@@ -123,7 +123,7 @@ swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
     return hmap;
 }
 
-int swHashMap_add(swHashMap* hmap, char *key, uint16_t key_len, void *data)
+int swHashMap_add(swHashMap* hmap, const char *key, uint16_t key_len, void *data)
 {
     swHashMap_node *node = (swHashMap_node*) sw_malloc(sizeof(swHashMap_node));
     if (node == NULL)
@@ -155,7 +155,7 @@ int swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data)
     return SW_OK;
 }
 
-static sw_inline swHashMap_node *swHashMap_node_find(swHashMap_node *root, char *key_str, uint16_t key_len)
+static sw_inline swHashMap_node *swHashMap_node_find(swHashMap_node *root, const char *key_str, uint16_t key_len)
 {
     swHashMap_node *out;
     unsigned bucket, hash;
@@ -205,7 +205,7 @@ static int swHashMap_node_delete(swHashMap_node *root, swHashMap_node *del_node)
     return SW_OK;
 }
 
-void* swHashMap_find(swHashMap* hmap, char *key, uint16_t key_len)
+void* swHashMap_find(swHashMap* hmap, const char *key, uint16_t key_len)
 {
     swHashMap_node *root = hmap->root;
     swHashMap_node *ret = swHashMap_node_find(root, key, key_len);
@@ -228,7 +228,7 @@ void* swHashMap_find_int(swHashMap* hmap, uint64_t key)
     return ret->data;
 }
 
-int swHashMap_update(swHashMap* hmap, char *key, uint16_t key_len, void *data)
+int swHashMap_update(swHashMap* hmap, const char *key, uint16_t key_len, void *data)
 {
     swHashMap_node *root = hmap->root;
     swHashMap_node *node = swHashMap_node_find(root, key, key_len);
@@ -254,7 +254,7 @@ void swHashMap_update_int(swHashMap* hmap, uint64_t key, void *data)
     ret->data = data;
 }
 
-int swHashMap_del(swHashMap* hmap, char *key, uint16_t key_len)
+int swHashMap_del(swHashMap* hmap, const char *key, uint16_t key_len)
 {
     swHashMap_node *root = hmap->root;
     swHashMap_node *node = swHashMap_node_find(root, key, key_len);
@@ -282,7 +282,7 @@ int swHashMap_del_int(swHashMap *hmap, uint64_t key)
     return SW_OK;
 }
 
-int swHashMap_move(swHashMap *hmap, char *old_key, uint16_t old_key_len, char *new_key, uint16_t new_key_len)
+int swHashMap_move(swHashMap *hmap, const char *old_key, uint16_t old_key_len, const char *new_key, uint16_t new_key_len)
 {
     swHashMap_node *root = hmap->root;
     swHashMap_node *node = swHashMap_node_find(root, old_key, old_key_len);
@@ -462,7 +462,7 @@ static unsigned int crc32_tab[] = {
     0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d,
 };
 
-static inline uint32_t crc32(char *buf, unsigned int size)
+static inline uint32_t crc32(const char *buf, unsigned int size)
 {
     const char *p;
     register int crc = 0;
@@ -476,7 +476,7 @@ static inline uint32_t crc32(char *buf, unsigned int size)
     return crc ^ ~0U;
 }
 
-uint32_t swoole_crc32(char *data, uint32_t size)
+uint32_t swoole_crc32(const char *data, uint32_t size)
 {
     if (size < CRC_STRING_MAXLEN)
     {
@@ -489,7 +489,7 @@ uint32_t swoole_crc32(char *data, uint32_t size)
         int head = CRC_STRING_MAXLEN >> 2;
         int tail = CRC_STRING_MAXLEN >> 4;
         int body = CRC_STRING_MAXLEN - head - tail;
-        char *p = data + head;
+        const char *p = data + head;
         char *q = crc_contents + head;
         int step = (size - tail - head) / body;
 

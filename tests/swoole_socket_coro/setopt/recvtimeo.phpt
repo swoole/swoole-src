@@ -3,6 +3,8 @@ swoole_socket_coro/setopt: setOption SO_RCVTIMEO
 --DESCRIPTION--
 -wrong params
 -set/get params comparison
+--SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
@@ -19,4 +21,3 @@ Assert::assert($retval_2 === true);
 ?>
 --EXPECTF--
 Warning: Swoole\Coroutine\Socket::setOption(): no key "sec" passed in optval in %s on line %d
-

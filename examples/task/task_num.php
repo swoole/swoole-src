@@ -6,7 +6,7 @@ $serv->set(array(
     //'task_tmpdir' => '/data/task/',
 ));
 
-$serv->on('Receive', function(swoole_server $serv, $fd, $from_id, $data) {
+$serv->on('Receive', function(swoole_server $serv, $fd, $reactor_id, $data) {
 	//AsyncTask
     $data = intval($data);
     for($i=0;$i<$data;$i++) {
@@ -16,7 +16,7 @@ $serv->on('Receive', function(swoole_server $serv, $fd, $from_id, $data) {
     }
 
 });
-$serv->on('Task', function (swoole_server $serv, $task_id, $from_id, $data) {
+$serv->on('Task', function (swoole_server $serv, $task_id, $reactor_id, $data) {
     echo "onTask: [PID=".posix_getpid()."]: task_id=$task_id, data_len=".strlen($data).".".PHP_EOL;
     sleep(10);
     //$serv->finish($data);

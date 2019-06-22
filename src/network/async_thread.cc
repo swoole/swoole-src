@@ -30,6 +30,8 @@ typedef swAio_event async_event;
 
 swAsyncIO SwooleAIO;
 
+static void swAio_free(void *private_data);
+
 class async_event_queue
 {
 public:
@@ -78,7 +80,7 @@ public:
         _pipe_read = _aio_pipe.getFd(&_aio_pipe, 0);
         _pipe_write = _aio_pipe.getFd(&_aio_pipe, 1);
 
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_AIO, [] (swReactor *reactor, swEvent *_event)
+        swReactor_set_handler(SwooleG.main_reactor, SW_FD_AIO, [] (swReactor *reactor, swEvent *_event)
         {
             int i;
             async_event *events[SW_AIO_EVENT_NUM];
@@ -195,7 +197,8 @@ private:
 
             atomic<bool> &_flag = *flag;
             async_event *event;
-            _accept: event = queue.pop();
+            _accept:
+            event = queue.pop();
             if (event)
             {
                 if (unlikely(event->handler == nullptr))
@@ -217,7 +220,8 @@ private:
 
                 swTrace("aio_thread ok. ret=%d, error=%d", event->ret, event->error);
 
-                _error: while (true)
+                _error:
+                while (true)
                 {
                     SwooleAIO.lock.lock(&SwooleAIO.lock);
                     int ret = write(_pipe_write, &event, sizeof(event));
@@ -315,6 +319,8 @@ static int swAio_init()
         SwooleAIO.max_thread_count = SwooleAIO.min_thread_count;
     }
 
+    swReactor_add_destroy_callback(SwooleG.main_reactor, swAio_free, nullptr);
+
     pool = new async_thread_pool(SwooleAIO.min_thread_count, SwooleAIO.min_thread_count);
     pool->start();
     SwooleAIO.init = 1;
@@ -343,7 +349,7 @@ swAio_event* swAio_dispatch2(const swAio_event *request)
     return pool->dispatch(request);
 }
 
-void swAio_free(void)
+static void swAio_free(void *private_data)
 {
     if (!SwooleAIO.init)
     {

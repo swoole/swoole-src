@@ -17,7 +17,7 @@ $serv->set(array(
     'package_max_length' => 2000000,  //协议最大长度
 ));
 
-$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data)
+$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data)
 {
     var_dump($data);
     echo "#{$serv->worker_id}>> received length=" . strlen($data) . "\n";

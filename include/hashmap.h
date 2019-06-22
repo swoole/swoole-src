@@ -33,20 +33,20 @@ typedef struct
 swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor);
 void swHashMap_free(swHashMap *hmap);
 
-int swHashMap_add(swHashMap *hmap, char *key, uint16_t key_len, void *data);
+int swHashMap_add(swHashMap *hmap, const char *key, uint16_t key_len, void *data);
 int swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data);
-void* swHashMap_find(swHashMap *hmap, char *key, uint16_t key_len);
+void* swHashMap_find(swHashMap *hmap, const char *key, uint16_t key_len);
 void* swHashMap_find_int(swHashMap *hmap, uint64_t key);
 void swHashMap_update_int(swHashMap *hmap, uint64_t key, void *data);
-int swHashMap_update(swHashMap *hmap, char *key, uint16_t key_len, void *data);
-int swHashMap_del(swHashMap *hmap, char *key, uint16_t key_len);
+int swHashMap_update(swHashMap *hmap, const char *key, uint16_t key_len, void *data);
+int swHashMap_del(swHashMap *hmap, const char *key, uint16_t key_len);
 int swHashMap_del_int(swHashMap *hmap, uint64_t key);
-int swHashMap_move(swHashMap *hmap, char *old_key, uint16_t old_key_len, char *new_key, uint16_t new_key_len);
+int swHashMap_move(swHashMap *hmap, const char *old_key, uint16_t old_key_len, const char *new_key, uint16_t new_key_len);
 int swHashMap_move_int(swHashMap *hmap, uint64_t old_key, uint64_t new_key);
 void swHashMap_rewind(swHashMap* hmap);
 void* swHashMap_each(swHashMap* hmap, char **key);
 void* swHashMap_each_int(swHashMap* hmap, uint64_t *key);
-#define swHashMap_each_reset(hmap)    (hmap->iterator = NULL)
+#define swHashMap_each_reset(hmap)    ((hmap)->iterator = NULL)
 uint32_t swHashMap_count(swHashMap* hmap);
 
 #ifdef __cplusplus

@@ -18,16 +18,16 @@ $serv->on('workerstart', function($server, $id) {
 
 });
 
-$serv->on('connect', function (swoole_server $serv, $fd, $from_id) {
+$serv->on('connect', function (swoole_server $serv, $fd, $reactor_id) {
 	//echo "connect\n";;
 });
 
-$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
+$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
 	$serv->send($fd, "Swoole: ".$data);
 	//$serv->close($fd);
 });
 
-$serv->on('close', function (swoole_server $serv, $fd, $from_id) {
+$serv->on('close', function (swoole_server $serv, $fd, $reactor_id) {
 	//var_dump($serv->connection_info($fd));
 	//echo "onClose\n";
 });

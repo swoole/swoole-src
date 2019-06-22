@@ -66,10 +66,8 @@ typedef struct
     swString *buffer;
 } process_stream;
 
-#ifdef SW_COROUTINE
 static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void *data);
 static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode);
-#endif
 
 static std::unordered_map<std::string, dns_cache*> request_cache_map;
 
@@ -80,7 +78,7 @@ void swoole_async_coro_init(int module_number)
     SwooleAIO.max_thread_count = SW_AIO_THREAD_MAX_NUM;
 }
 
-void swoole_async_coro_shutdown()
+void swoole_async_coro_rshutdown()
 {
     for(auto i = request_cache_map.begin(); i != request_cache_map.end(); i++)
     {
@@ -110,7 +108,7 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
     }
     else
     {
-        ZVAL_STRING(&zaddress, "");
+        ZVAL_EMPTY_STRING(&zaddress);
     }
 
     std::string key(Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain));
@@ -147,14 +145,14 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
     int ret = PHPCoroutine::resume_m(req->context, &zaddress, retval);
     if (ret > 0)
     {
-        goto free_zdata;
+        goto _free_zdata;
     }
 
     if (retval)
     {
         zval_ptr_dtor(retval);
     }
-    free_zdata:
+    _free_zdata:
     zval_ptr_dtor(&zaddress);
     efree(req->context);
     efree(req);
@@ -174,20 +172,20 @@ static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
     }
     else
     {
-        ZVAL_STRING(&zaddress, "");
+        ZVAL_EMPTY_STRING(&zaddress);
     }
 
     int ret = PHPCoroutine::resume_m(req->context, &zaddress, retval);
     if (ret > 0)
     {
-        goto free_zdata;
+        goto _free_zdata;
     }
 
     if (retval)
     {
         zval_ptr_dtor(retval);
     }
-    free_zdata:
+    _free_zdata:
     zval_ptr_dtor(&zaddress);
     efree(req->context);
     req->useless = 1;
@@ -195,83 +193,83 @@ static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
 
 PHP_FUNCTION(swoole_async_set)
 {
-    if (SwooleG.main_reactor != NULL)
+    if (SwooleG.main_reactor)
     {
-        swoole_php_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings");
+        php_swoole_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings");
         RETURN_FALSE;
     }
 
     zval *zset = NULL;
     HashTable *vht;
-    zval *v;
+    zval *ztmp;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     vht = Z_ARRVAL_P(zset);
-    if (php_swoole_array_get_value(vht, "enable_signalfd", v))
+    if (php_swoole_array_get_value(vht, "enable_signalfd", ztmp))
     {
-        SwooleG.enable_signalfd = zval_is_true(v);
+        SwooleG.enable_signalfd = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "dns_cache_refresh_time", v))
+    if (php_swoole_array_get_value(vht, "dns_cache_refresh_time", ztmp))
     {
-          SwooleG.dns_cache_refresh_time = zval_get_double(v);
+          SwooleG.dns_cache_refresh_time = zval_get_double(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "socket_buffer_size", v))
+    if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp))
     {
-        SwooleG.socket_buffer_size = zval_get_long(v);
+        SwooleG.socket_buffer_size = zval_get_long(ztmp);
         if (SwooleG.socket_buffer_size <= 0 || SwooleG.socket_buffer_size > INT_MAX)
         {
             SwooleG.socket_buffer_size = INT_MAX;
         }
     }
-    if (php_swoole_array_get_value(vht, "log_level", v))
+    if (php_swoole_array_get_value(vht, "log_level", ztmp))
     {
-        zend_long level = zval_get_long(v);
+        zend_long level = zval_get_long(ztmp);
         SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
     }
-    if (php_swoole_array_get_value(vht, "thread_num", v) || php_swoole_array_get_value(vht, "min_thread_num", v))
+    if (php_swoole_array_get_value(vht, "thread_num", ztmp) || php_swoole_array_get_value(vht, "min_thread_num", ztmp))
     {
-        SwooleAIO.max_thread_count = SwooleAIO.min_thread_count = zval_get_long(v);
+        SwooleAIO.max_thread_count = SwooleAIO.min_thread_count = zval_get_long(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "max_thread_num", v))
+    if (php_swoole_array_get_value(vht, "max_thread_num", ztmp))
     {
-        SwooleAIO.max_thread_count = zval_get_long(v);
+        SwooleAIO.max_thread_count = zval_get_long(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "display_errors", v))
+    if (php_swoole_array_get_value(vht, "display_errors", ztmp))
     {
-        SWOOLE_G(display_errors) = zval_is_true(v);
+        SWOOLE_G(display_errors) = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "socket_dontwait", v))
+    if (php_swoole_array_get_value(vht, "socket_dontwait", ztmp))
     {
-        SwooleG.socket_dontwait = zval_is_true(v);
+        SwooleG.socket_dontwait = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "dns_lookup_random", v))
+    if (php_swoole_array_get_value(vht, "dns_lookup_random", ztmp))
     {
-        SwooleG.dns_lookup_random = zval_is_true(v);
+        SwooleG.dns_lookup_random = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "dns_server", v))
+    if (php_swoole_array_get_value(vht, "dns_server", ztmp))
     {
         if (SwooleG.dns_server_v4)
         {
             sw_free(SwooleG.dns_server_v4);
         }
-        SwooleG.dns_server_v4 = zend::string(v).dup();
+        SwooleG.dns_server_v4 = zend::string(ztmp).dup();
     }
-    if (php_swoole_array_get_value(vht, "use_async_resolver", v))
+    if (php_swoole_array_get_value(vht, "use_async_resolver", ztmp))
     {
-        SwooleG.use_async_resolver = zval_is_true(v);
+        SwooleG.use_async_resolver = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "enable_coroutine", v))
+    if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp))
     {
-        SwooleG.enable_coroutine = zval_is_true(v);
+        SwooleG.enable_coroutine = zval_is_true(ztmp);
     }
 #if defined(HAVE_REUSEPORT) && defined(HAVE_EPOLL)
     //reuse port
-    if (php_swoole_array_get_value(vht, "enable_reuse_port", v))
+    if (php_swoole_array_get_value(vht, "enable_reuse_port", ztmp))
     {
-        if (zval_is_true(v) && swoole_version_compare(SwooleG.uname.release, "3.9.0") >= 0)
+        if (zval_is_true(ztmp) && swoole_version_compare(SwooleG.uname.release, "3.9.0") >= 0)
         {
             SwooleG.reuse_port = 1;
         }
@@ -290,13 +288,13 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
 
     if (Z_TYPE_P(domain) != IS_STRING)
     {
-        swoole_php_fatal_error(E_WARNING, "invalid domain name");
+        php_swoole_fatal_error(E_WARNING, "invalid domain name");
         RETURN_FALSE;
     }
 
     if (Z_STRLEN_P(domain) == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "domain name empty");
+        php_swoole_fatal_error(E_WARNING, "domain name empty");
         RETURN_FALSE;
     }
 

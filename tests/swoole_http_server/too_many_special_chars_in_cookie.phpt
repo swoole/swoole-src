@@ -42,4 +42,3 @@ $pm->run();
 ?>
 --EXPECT--
 DONE
-

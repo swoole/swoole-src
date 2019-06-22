@@ -51,7 +51,6 @@ static int swFactory_shutdown(swFactory *factory)
 static int swFactory_dispatch(swFactory *factory, swSendData *task)
 {
     swServer *serv = factory->ptr;
-    factory->last_from_id = task->info.from_id;
     swPackagePtr pkg;
 
     if (swEventData_is_stream(task->info.type))
@@ -71,7 +70,7 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
         }
         //converted fd to session_id
         task->info.fd = conn->session_id;
-        task->info.from_fd = conn->from_fd;
+        task->info.server_fd = conn->server_fd;
     }
     //with data
     if (task->info.len > 0)
@@ -111,7 +110,7 @@ static int swFactory_notify(swFactory *factory, swDataHead *info)
     }
     //converted fd to session_id
     info->fd = conn->session_id;
-    info->from_fd = conn->from_fd;
+    info->server_fd = conn->server_fd;
     info->flags = SW_EVENT_DATA_NORMAL;
     return swWorker_onTask(factory, (swEventData *) info);
 }
@@ -135,7 +134,7 @@ static int swFactory_end(swFactory *factory, int fd)
     }
     else if (conn->close_force)
     {
-        goto do_close;
+        goto _do_close;
     }
     else if (conn->closing)
     {
@@ -148,20 +147,20 @@ static int swFactory_end(swFactory *factory, int fd)
     }
     else
     {
-        do_close:
+        _do_close:
         conn->closing = 1;
         if (serv->onClose != NULL)
         {
             info.fd = fd;
             if (conn->close_actively)
             {
-                info.from_id = -1;
+                info.reactor_id = -1;
             }
             else
             {
-                info.from_id = conn->from_id;
+                info.reactor_id = conn->reactor_id;
             }
-            info.from_fd = conn->from_fd;
+            info.server_fd = conn->server_fd;
             serv->onClose(serv, &info);
         }
         conn->closing = 0;

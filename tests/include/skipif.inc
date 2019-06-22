@@ -45,6 +45,13 @@ function skip_if_not_debug_version()
     skip('only in swoole debug version', !SWOOLE_DEBUG);
 }
 
+function skip_if($value, $msg)
+{
+    if ($value) {
+        skip($msg);
+    }
+}
+
 function skip_if_ini_bool_equal_to(string $name, bool $value)
 {
     if (((bool)ini_get($name)) === $value) {
@@ -67,6 +74,11 @@ function skip_if_function_not_exist(string $function_name)
 function skip_if_class_not_exist(string $class_name)
 {
     skip("{$class_name} not exist", !class_exists($class_name, false));
+}
+
+function skip_if_extension_not_exist(string $extension_name)
+{
+    skip("{$extension_name} not exist", !extension_loaded($extension_name));
 }
 
 function skip_if_file_not_exist(string $filename)
@@ -94,6 +106,13 @@ function skip_if_openssl_version_lower_than($version = '1.0.0')
 function skip_if_no_http2()
 {
     skip('no http2', !class_exists(Swoole\Http2\Request::class, false));
+}
+
+
+function skip_if_no_ipv6()
+{
+    $socket = socket_create(AF_INET6, SOCK_STREAM, SOL_TCP);
+    skip('no ipv6 address', !socket_bind($socket, "::1", 0));
 }
 
 function skip_if_no_top()
@@ -168,15 +187,19 @@ function skip_if_pdo_not_support_mysql8()
 function skip_if_not_mysql8()
 {
     require_once __DIR__ . '/config.php';
-    go(function () {
+    $skip = false;
+    go(function () use (&$skip) {
         if (!preg_match(
             '/caching_sha2_password/',
             httpGetBody('http://' . MYSQL_SERVER_HOST . ':' . MYSQL_SERVER_PORT))
         ) {
-            skip('require mysql8');
+            $skip = true;
         }
     });
     Swoole\Event::wait();
+    if ($skip) {
+        skip('require mysql8');
+    }
 }
 
 function skip_unsupported(string $message = '')

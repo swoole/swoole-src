@@ -7,9 +7,9 @@ swoole_runtime/stream_select: never timeout
 require __DIR__ . '/../../include/bootstrap.php';
 Swoole\Runtime::enableCoroutine();
 go(function () {
-    $server1 = Co\TestServer::createHttpHelloWorld();
+    $server1 = SwooleTest\CoServer::createHttpHelloWorld();
     $server1->run();
-    $server2 = Co\TestServer::createHttpHelloWorld();
+    $server2 = SwooleTest\CoServer::createHttpHelloWorld();
     $server2->run();
     $fp1 = stream_socket_client("tcp://127.0.0.1:{$server1->getPort()}", $errno, $errstr, 1);
     $fp2 = stream_socket_client("tcp://127.0.0.1:{$server2->getPort()}", $errno, $errstr, 1);

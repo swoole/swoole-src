@@ -6,7 +6,10 @@ swoole_websocket_server: websocket frame pack/unpack
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-use swoole_websocket_frame as f;
+error_reporting(error_reporting() & ~(E_NOTICE));
+
+use Swoole\WebSocket\Frame as f;
+use Swoole\WebSocket\CloseFrame as cf;
 
 for ($i = 1000; $i--;) {
     // generate some rand frames
@@ -22,11 +25,11 @@ for ($i = 1000; $i--;) {
     // pack them
     if (mt_rand(0, 1) || $opcode === WEBSOCKET_OPCODE_CLOSE) {
         if ($opcode === WEBSOCKET_OPCODE_CLOSE) {
-            $frame = new swoole_websocket_closeframe;
+            $frame = new cf;
             $frame->code = $code;
             $frame->reason = $data;
         } else {
-            $frame = new swoole_websocket_frame;
+            $frame = new f;
             $frame->data = $data;
         }
         $frame->opcode = $opcode;

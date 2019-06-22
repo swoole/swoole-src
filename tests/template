@@ -5,7 +5,7 @@
 --FILE--
 <?php
 require __DIR__ . '{{dir_deep}}/include/bootstrap.php';
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
 
 };

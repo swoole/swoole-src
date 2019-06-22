@@ -122,7 +122,7 @@ bool Server::close(int fd, bool reset)
         swDataHead ev;
         ev.type = SW_EVENT_CLOSE;
         ev.fd = fd;
-        ev.from_id = conn->from_id;
+        ev.reactor_id = conn->reactor_id;
         ret = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
     }
     else
@@ -139,8 +139,8 @@ static int task_pack(swEventData *task, const DataBuffer &data)
     task->info.type = SW_EVENT_TASK;
     //field fd save task_id
     task->info.fd = task_id++;
-    //field from_id save the worker_id
-    task->info.from_id = SwooleWG.id;
+    //field reactor_id save the worker_id
+    task->info.reactor_id = SwooleWG.id;
     swTask_type(task) = 0;
 
     if (data.length >= SW_IPC_MAX_SIZE - sizeof(task->info))
@@ -170,11 +170,11 @@ static DataBuffer task_unpack(swEventData *task_result)
     return retval;
 }
 
-static DataBuffer get_recv_data(swEventData *req, char *header, uint32_t header_length)
+static DataBuffer get_recv_data(swServer *serv, swEventData *req, char *header, uint32_t header_length)
 {
     char *data_ptr = NULL;
     DataBuffer retval;
-    size_t data_len = swWorker_get_data(req, &data_ptr);
+    size_t data_len = swWorker_get_data(serv, req, &data_ptr);
 
     if (header_length >= (uint32_t) data_len)
     {
@@ -195,12 +195,12 @@ static DataBuffer get_recv_data(swEventData *req, char *header, uint32_t header_
 
 int Server::check_task_param(int dst_worker_id)
 {
-    if (SwooleG.serv->task_worker_num < 1)
+    if (serv.task_worker_num < 1)
     {
         swWarn("Task method cannot use, Please set task_worker_num");
         return SW_ERR;
     }
-    if (dst_worker_id >= SwooleG.serv->task_worker_num)
+    if (dst_worker_id >= serv.task_worker_num)
     {
         swWarn("worker_id must be less than serv->task_worker_num");
         return SW_ERR;
@@ -354,7 +354,7 @@ bool Server::sendMessage(int worker_id, DataBuffer &data)
     }
 
     buf.info.type = SW_EVENT_PIPE_MESSAGE;
-    buf.info.from_id = SwooleWG.id;
+    buf.info.reactor_id = SwooleWG.id;
 
     swWorker *to_worker = swServer_get_worker(&serv, (uint16_t) worker_id);
     return swWorker_send2worker(to_worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER | SW_PIPE_NONBLOCK)
@@ -439,7 +439,7 @@ bool Server::start(void)
 
 int Server::_onReceive(swServer *serv, swEventData *req)
 {
-    DataBuffer data = get_recv_data(req, NULL, 0);
+    DataBuffer data = get_recv_data(serv, req, NULL, 0);
     Server *_this = (Server *) serv->ptr2;
     _this->onReceive(req->info.fd, data);
     return SW_OK;
@@ -462,13 +462,13 @@ int Server::_onPacket(swServer *serv, swEventData *req)
     swDgramPacket *packet;
 
     char *buffer;
-    swWorker_get_data(req, &buffer);
+    swWorker_get_data(serv, req, &buffer);
     packet = (swDgramPacket *) buffer;
 
     char *data = NULL;
     int length = 0;
     ClientInfo clientInfo;
-    clientInfo.server_socket = req->info.from_fd;
+    clientInfo.server_socket = req->info.server_fd;
     data = packet->data;
     length = packet->length;
 
@@ -491,7 +491,8 @@ int Server::_onPacket(swServer *serv, swEventData *req)
     }
     else
     {
-        assert(0);
+        abort();
+        return SW_ERR;
     }
 
     DataBuffer _data;
@@ -531,14 +532,14 @@ void Server::_onPipeMessage(swServer *serv, swEventData *req)
 {
     DataBuffer data = task_unpack(req);
     Server *_this = (Server *) serv->ptr2;
-    _this->onPipeMessage(req->info.from_id, data);
+    _this->onPipeMessage(req->info.reactor_id, data);
 }
 
 int Server::_onTask(swServer *serv, swEventData *task)
 {
     Server *_this = (Server *) serv->ptr2;
     DataBuffer data = task_unpack(task);
-    _this->onTask(task->info.fd, task->info.from_fd, data);
+    _this->onTask(task->info.fd, task->info.server_fd, data);
     return SW_OK;
 }
 
@@ -646,7 +647,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         if (task_id < 0)
         {
             swWarn("task pack failed");
-            goto fail;
+            goto _fail;
         }
         swTask_type(&buf) |= SW_TASK_WAITALL;
         dst_worker_id = -1;
@@ -658,7 +659,8 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         else
         {
             swSysWarn("taskwait failed");
-            fail: retval[i] = DataBuffer();
+            _fail:
+            retval[i] = DataBuffer();
             n_task--;
         }
         i++;

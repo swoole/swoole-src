@@ -32,16 +32,10 @@ $pm->childFunc = function () use ($pm) {
     $http->start();
 };
 $pm->childFirst();
-$pm->run();
+$pm->run(true);
+//Fatal Error
+$pm->expectExitCode(255);
+$output = $pm->getChildOutput();
+\Swoole\Assert::contains($output, 'Swoole\Server::on() must be callable');
 ?>
---EXPECTF--
-Fatal error: Uncaught TypeError: Argument 2 passed to Swoole\Server::on() must be callable, array given in %s/tests/swoole_http_server/callback_with_protected.php:%d
-Stack trace:
-#0 %s/tests/swoole_http_server/callback_with_protected.php(%d): Swoole\Server->on('request', Array)
-#1 %s/tests/include/functions.php(%d): {closure}()
-#2 %s/tests/include/functions.php(%d): ProcessManager->runChildFunc()
-#3 [internal function]: ProcessManager->{closure}(Object(Swoole\Process))
-#4 %s/tests/include/functions.php(%d): Swoole\Process->start()
-#5 %s/tests/swoole_http_server/callback_with_protected.php(%d): ProcessManager->run()
-#6 {main}
-  thrown in %s/tests/swoole_http_server/callback_with_protected.php on line %d
+--EXPECT--

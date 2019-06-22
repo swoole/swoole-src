@@ -30,8 +30,6 @@ go(function () {
     Assert::eq($socket->errCode, SOCKET_EBADF);
     Assert::assert(!$socket->getpeername());
     Assert::eq($socket->errCode, SOCKET_EBADF);
-    Assert::assert(!$socket->getSocket());
-    Assert::eq($socket->errCode, SOCKET_EBADF);
     echo "DONE\n";
 });
 ?>

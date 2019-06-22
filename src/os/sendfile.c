@@ -35,7 +35,7 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
 #endif
 
 
-    do_sendfile:
+    _do_sendfile:
 #ifdef __MACH__
     ret = sendfile(in_fd, out_fd, *offset, (off_t *) &size, &hdtr, 0);
 #else
@@ -55,7 +55,7 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
     {
         if (errno == EINTR)
         {
-            goto do_sendfile;
+            goto _do_sendfile;
         }
         else
         {

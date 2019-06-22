@@ -4,8 +4,8 @@ function dump($var)
     return highlight_string("<?php\n\$array = ".var_export($var, true).";", true);
 }
 $key_dir = dirname(dirname(__DIR__)) . '/tests/ssl';
-$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE);
-//$http = new swoole_http_server("0.0.0.0", 9501);
+//$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE);
+$http = new swoole_http_server("0.0.0.0", 9501);
 //$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 //https
 //$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
@@ -17,7 +17,7 @@ $http->set([
     //'open_cpu_affinity' => 1,
     //'task_worker_num' => 100,
     //'enable_port_reuse' => true,
-//    'worker_num' => 4,
+    'worker_num' => 1,
     //'log_file' => __DIR__.'/swoole.log',
 //    'reactor_num' => 24,
     //'dispatch_mode' => 3,
@@ -30,8 +30,8 @@ $http->set([
 //'daemonize' => true,
 //    'ssl_cert_file' => $key_dir.'/ssl.crt',
 //    'ssl_key_file' => $key_dir.'/ssl.key',
-    'enable_static_handler' => true,
-    'document_root' => '/home/htf/workspace/php/www.swoole.com/web/'
+//    'enable_static_handler' => true,
+//    'document_root' => '/home/htf/workspace/php/www.swoole.com/web/'
 ]);
 
 $http->listen('127.0.0.1', 9502, SWOOLE_SOCK_TCP);
@@ -68,46 +68,34 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
 //	}
     //var_dump($request->server['request_uri'], substr($request->server['request_uri'], -4, 4));
 
-    if (substr($request->server['request_uri'], -8, 8) == 'test.jpg')
-    {
+    if (substr($request->server['request_uri'], -8, 8) == 'test.jpg') {
         $response->header('Content-Type', 'image/jpeg');
-        $response->sendfile(dirname(__DIR__).'/test.jpg');
-        return;
-    }
-    if ($request->server['request_uri'] == '/test.txt')
-    {
+        $response->sendfile(dirname(__DIR__) . '/test.jpg');
+    } elseif ($request->server['request_uri'] == '/test.txt') {
         $last_modified_time = filemtime(__DIR__ . '/test.txt');
         $etag = md5_file(__DIR__ . '/test.txt');
         // always send headers
         $response->header("Last-Modified", gmdate("D, d M Y H:i:s", $last_modified_time) . " GMT");
         $response->header("Etag", $etag);
-        if (strtotime($request->header['if-modified-since']) == $last_modified_time or trim($request->header['if-none-match']) == $etag)
-        {
+        if (strtotime($request->header['if-modified-since']) == $last_modified_time or trim($request->header['if-none-match']) == $etag) {
             $response->status(304);
             $response->end();
-        }
-        else
-        {
+        } else {
             $response->sendfile(__DIR__ . '/test.txt');
         }
-        return;
-    }
-    if ($request->server['request_uri'] == '/favicon.ico')
-    {
+    } else if ($request->server['request_uri'] == '/favicon.ico') {
         $response->status(404);
         $response->end();
+    } else if ($request->server['request_uri'] == '/code') {
+        $response->sendfile(__FILE__);
         return;
-    }
-    if ($request->server['request_uri'] == '/save')
-    {
-        file_put_contents(__DIR__.'/httpdata', $request->getData());
+    } elseif ($request->server['request_uri'] == '/save') {
+        file_put_contents(__DIR__ . '/httpdata', $request->getData());
         $response->end('hello');
         return;
-    }
-//    else
-//    {
+    } else {
         //var_dump($request->post);
-    //var_export($request->cookie);
+        //var_export($request->cookie);
 //    var_dump($request->rawContent());
 //    if ($request->server['request_method'] == 'POST')
 //    {
@@ -117,34 +105,29 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
 //    echo "POST:" . var_export($_POST, true)."\n";
 //    echo "get:" . var_export($request->get, true)."\n";
 //    echo "post:" . var_export($request->post, true)."\n";
-    //var_dump($request->server);
-    $output = '';
-    $output .= "<h2>HEADER:</h2>".dump($request->header);
-    $output .= "<h2>SERVER:</h2>".dump($request->server);
-    if (!empty($request->files))
-    {
-        $output .= "<h2>FILE:</h2>".dump($request->files);
-    }
-    if (!empty($request->cookie))
-    {
-        $output .= "<h2>COOKIES:</h2>".dump($request->cookie);
-    }
-    if (!empty($request->get))
-    {
-        $output .= "<h2>GET:</h2>".dump($request->get);
-    }
-    if (!empty($request->post))
-    {
-        $output .= "<h2>POST:</h2>".dump($request->post);
-    }
-    var_dump($request->post);
-    //$response->header('X-Server', 'Swoole');
-    //unset($request, $response);
+        //var_dump($request->server);
+        $output = '';
+        $output .= "<h2>HEADER:</h2>" . dump($request->header);
+        $output .= "<h2>SERVER:</h2>" . dump($request->server);
+        if (!empty($request->files)) {
+            $output .= "<h2>FILE:</h2>" . dump($request->files);
+        }
+        if (!empty($request->cookie)) {
+            $output .= "<h2>COOKIES:</h2>" . dump($request->cookie);
+        }
+        if (!empty($request->get)) {
+            $output .= "<h2>GET:</h2>" . dump($request->get);
+        }
+        if (!empty($request->post)) {
+            $output .= "<h2>POST:</h2>" . dump($request->post);
+        }
+        var_dump($request->post);
+        //$response->header('X-Server', 'Swoole');
+        //unset($request, $response);
 //    swoole_timer_after(2000, function() use ( $response) {
-        $response->end("<h1>Hello Swoole.</h1>".$output);
+        $response->end("<h1>Hello Swoole.</h1>" . $output);
 //    });
-//    }
-    return;
+    }
     //var_dump($request);
 //    var_dump($_GET);
     //var_dump($_POST);

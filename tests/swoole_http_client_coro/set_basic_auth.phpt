@@ -5,9 +5,8 @@ swoole_http_client_coro: http client set basic auth
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-
-go(function(){
-    $cli = new Swoole\Coroutine\Http\Client('httpbin.org');
+go(function () {
+    $cli = new Swoole\Coroutine\Http\Client(HTTPBIN_SERVER_HOST, HTTPBIN_SERVER_PORT);
     $cli->set(['timeout' => 10]);
     $cli->setHeaders([
         'host' => 'httpbin.org',
@@ -15,10 +14,17 @@ go(function(){
         'Accept' => 'text/html,application/xhtml+xml,application/xml',
         'Accept-Encoding' => 'gzip',
     ]);
-    $cli->setBasicAuth('username','password');
-    $ret = $cli->get('/basic-auth/username/password');
-    if($ret && !empty($cli->body)) echo("OK\n");
+    $username = get_safe_random();
+    $password = get_safe_random();
+    $cli->setBasicAuth($username, $password);
+    $ret = $cli->get("/basic-auth/{$username}/{$password}");
+    if ($ret && !empty($cli->statusCode === 200)) {
+        echo "OK\n";
+    } else {
+        echo "ERROR\n";
+    }
 });
+Swoole\Event::wait();
 ?>
 --EXPECT--
 OK

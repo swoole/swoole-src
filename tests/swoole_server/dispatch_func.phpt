@@ -1,18 +1,20 @@
 --TEST--
 swoole_server: dispatch_func
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc';
+skip_if(ZEND_THREAD_SAFE, 'not support ZTS');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     for ($c = MAX_CONCURRENCY_MID; $c--;) {
         go(function () use ($pm) {
             $client = new Co\Client(SWOOLE_SOCK_UDP);
             Assert::assert($client->connect('127.0.0.1', $pm->getFreePort()));
             Assert::assert($client->send($data = get_safe_random()));
-            Assert::eq($data, $client->recv());
+            Assert::eq($client->recv(), $data);
         });
     }
     Swoole\Event::wait();

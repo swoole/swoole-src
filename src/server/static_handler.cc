@@ -133,7 +133,7 @@ int static_handler::send_response()
             if (strncasecmp(p, SW_STRL("\r\n")) == 0)
             {
                 length_if_modified_since = p - date_if_modified_since;
-                goto check_modify_date;
+                goto _check_modify_date;
             }
             break;
         default:
@@ -144,7 +144,8 @@ int static_handler::send_response()
     char date_[64];
     struct tm *tm1;
 
-    check_modify_date: tm1 = gmtime(&serv->gs->now);
+    _check_modify_date:
+    tm1 = gmtime(&serv->gs->now);
     strftime(date_, sizeof(date_), "%a, %d %b %Y %H:%M:%S %Z", tm1);
 
     char date_last_modified[64];
@@ -182,7 +183,7 @@ int static_handler::send_response()
         {
             date_format = SW_HTTP_ASCTIME_DATE;
         }
-        if (date_format && mktime(&tm3) - (int) timezone >= file_mtime)
+        if (date_format && mktime(&tm3) - (int) serv->timezone >= file_mtime)
         {
             response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer), "HTTP/1.1 304 Not Modified\r\n"
                     "%s"
@@ -230,7 +231,8 @@ int static_handler::send_response()
 
     swServer_master_send(serv, &response);
 
-    _finish: if (!request->keep_alive)
+    _finish:
+    if (!request->keep_alive)
     {
         response.info.type = SW_EVENT_CLOSE;
         response.data = NULL;
@@ -279,6 +281,11 @@ bool static_handler::done()
     p += n;
     *p = '\0';
 
+    if (swoole_strnpos(url, n, SW_STRL("..")) == -1)
+    {
+        goto _detect_mime_type;
+    }
+
     char real_path[PATH_MAX];
     if (!realpath(task.filename, real_path))
     {
@@ -306,6 +313,7 @@ bool static_handler::done()
     /**
      * non-static file
      */
+    _detect_mime_type:
     if (!swoole_mime_type_exists(task.filename))
     {
         return false;

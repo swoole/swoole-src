@@ -6,14 +6,14 @@ swoole_server: addProcess with swoole_timer_tick fatal error
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $atomic = new Swoole\Atomic;
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     $pm->kill();
     echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
 
-    class Process extends Swoole\Process
+    class Process3 extends Swoole\Process
     {
         public function __construct()
         {
@@ -41,7 +41,7 @@ $pm->childFunc = function () use ($pm) {
     $server = new Swoole\Server('127.0.0.1', get_one_free_port(), SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
     $server->set(['log_file' => '/dev/null']);
     $server->on('packet', function () { });
-    $server->addProcess(new Process);
+    $server->addProcess(new Process3);
     $server->start();
 };
 $pm->childFirst();

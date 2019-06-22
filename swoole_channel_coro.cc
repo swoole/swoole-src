@@ -17,13 +17,11 @@
  +----------------------------------------------------------------------+
  */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
 
-#ifdef SW_COROUTINE
-#include "swoole_coroutine.h"
-#include "channel.h"
+#include "coroutine_channel.h"
 
-using namespace swoole;
+using swoole::coroutine::Channel;
 
 static zend_class_entry *swoole_channel_coro_ce;
 static zend_object_handlers swoole_channel_coro_handlers;
@@ -89,7 +87,7 @@ static sw_inline Channel * swoole_get_channel(zval *zobject)
     Channel *chan = swoole_channel_coro_fetch_object(Z_OBJ_P(zobject))->chan;
     if (UNEXPECTED(!chan))
     {
-        swoole_php_fatal_error(E_ERROR, "you must call Channel constructor first");
+        php_swoole_fatal_error(E_ERROR, "you must call Channel constructor first");
     }
     return chan;
 }
@@ -123,8 +121,8 @@ void swoole_channel_coro_init(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_channel_coro, "Swoole\\Coroutine\\Channel", NULL, "Co\\Channel", swoole_channel_coro_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_channel_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SW_SET_CLASS_CLONEABLE(swoole_channel_coro, zend_class_clone_deny);
-    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_channel_coro, zend_class_unset_property_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_channel_coro, sw_zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_channel_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_channel_coro, swoole_channel_coro_create_object, swoole_channel_coro_free_object, channel_coro, std);
     if (SWOOLE_G(use_shortname))
     {
@@ -257,4 +255,3 @@ static PHP_METHOD(swoole_channel_coro, stats)
     add_assoc_long_ex(return_value, ZEND_STRL("queue_num"), chan->length());
 }
 
-#endif

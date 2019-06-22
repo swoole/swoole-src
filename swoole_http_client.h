@@ -33,17 +33,6 @@ extern "C" {
 #include <zlib.h>
 #endif
 
-enum http_client_state
-{
-    HTTP_CLIENT_STATE_WAIT,
-    HTTP_CLIENT_STATE_READY,
-    HTTP_CLIENT_STATE_BUSY,
-    //WebSocket
-    HTTP_CLIENT_STATE_UPGRADE,
-    HTTP_CLIENT_STATE_WAIT_CLOSE,
-    HTTP_CLIENT_STATE_CLOSED,
-};
-
 enum http_client_error_status_code
 {
     HTTP_CLIENT_ESTATUS_CONNECT_FAILED = -1,
@@ -56,17 +45,6 @@ enum http_client_error_flags
     HTTP_CLIENT_EFLAG_TIMEOUT = 1,
     HTTP_CLIENT_EFLAG_UPGRADE = 1 << 1,
 };
-
-#ifdef SW_COROUTINE
-typedef enum
-{
-    HTTP_CLIENT_STATE_DEFER_INIT,
-    HTTP_CLIENT_STATE_DEFER_SEND,
-    HTTP_CLIENT_STATE_DEFER_WAIT,
-    HTTP_CLIENT_STATE_DEFER_DONE,
-} http_client_defer_state;
-#endif
-
 
 static sw_inline void http_client_create_token(int length, char *buf)
 {
@@ -84,16 +62,16 @@ static sw_inline int http_client_check_data(zval *data)
 {
     if (Z_TYPE_P(data) != IS_ARRAY && Z_TYPE_P(data) != IS_STRING)
     {
-        swoole_php_error(E_WARNING, "parameter $data must be an array or string");
+        php_swoole_error(E_WARNING, "parameter $data must be an array or string");
         return SW_ERR;
     }
     else if (Z_TYPE_P(data) == IS_ARRAY && php_swoole_array_length(data) == 0)
     {
-        swoole_php_error(E_WARNING, "parameter $data is empty");
+        php_swoole_error(E_WARNING, "parameter $data is empty");
     }
     else if (Z_TYPE_P(data) == IS_STRING && Z_STRLEN_P(data) == 0)
     {
-        swoole_php_error(E_WARNING, "parameter $data is empty");
+        php_swoole_error(E_WARNING, "parameter $data is empty");
     }
     return SW_OK;
 }

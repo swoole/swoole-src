@@ -88,6 +88,7 @@ function check_source_ver(string $expect_ver, $source_file)
 
 // all check
 swoole_execute_and_check('php ' . __DIR__ . '/arginfo-check.php');
+swoole_execute_and_check('php ' . __DIR__ . '/build-library.php');
 swoole_execute_and_check('php ' . __DIR__ . '/config-generator.php');
 swoole_execute_and_check('php ' . __DIR__ . '/phpt-fixer.php');
 

@@ -53,4 +53,3 @@ foreach ($files as $k => $v)
 swoole_event_wait();
 ?>
 --EXPECT--
-

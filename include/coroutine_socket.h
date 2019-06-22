@@ -87,6 +87,7 @@ public:
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
     bool close();
+    bool cancel(const enum swEvent_type event);
     bool is_connect();
     bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
@@ -110,6 +111,7 @@ public:
     bool ssl_handshake();
     int ssl_verify(bool allow_self_signed);
     bool ssl_accept();
+    bool ssl_check_context();
 #endif
 
     static inline enum swSocket_type get_type(int domain, int type, int protocol = 0)
@@ -127,25 +129,54 @@ public:
         }
     }
 
+    static inline enum swSocket_type get_type(std::string &host)
+    {
+        if (host.compare(0, 6, "unix:/", 0, 6) == 0)
+        {
+            host = host.substr(sizeof("unix:") - 1);
+            host.erase(0, host.find_first_not_of('/') - 1);
+            return SW_SOCK_UNIX_STREAM;
+        }
+        else if (host.find(':') != std::string::npos)
+        {
+            return SW_SOCK_TCP6;
+        }
+        else
+        {
+            return SW_SOCK_TCP;
+        }
+    }
+
     inline int get_fd()
     {
         return socket ? socket->fd : -1;
     }
 
+    inline int get_bind_port()
+    {
+        return bind_port;
+    }
+
     inline bool has_bound(const enum swEvent_type event = SW_EVENT_RDWR)
     {
-        return !!get_bound_co(event);
+        return get_bound_co(event) != nullptr;
     }
 
     inline Coroutine* get_bound_co(const enum swEvent_type event)
     {
         if (likely(event & SW_EVENT_READ))
         {
-            return read_co;
+            if (read_co)
+            {
+                return read_co;
+            }
         }
         if (event & SW_EVENT_WRITE)
         {
-            return write_co;
+            if (write_co)
+            {
+                return write_co;
+            }
         }
         return nullptr;
     }
@@ -154,6 +185,23 @@ public:
     {
         Coroutine *co = get_bound_co(event);
         return co ? co->get_cid() : 0;
+    }
+
+    inline void check_bound_co(const enum swEvent_type event)
+    {
+        long cid = get_bound_cid(event);
+        if (unlikely(cid))
+        {
+            swFatalError(
+                SW_ERROR_CO_HAS_BEEN_BOUND,
+                "Socket#%d has already been bound to another coroutine#%ld, "
+                "%s of the same socket in coroutine#%ld at the same time is not allowed",
+                socket->fd, cid,
+                (event == SW_EVENT_READ ? "reading" : (event == SW_EVENT_WRITE ? "writing" :
+                        (read_co && write_co ? "reading or writing" : (read_co ? "reading" : "writing")))),
+                Coroutine::get_current_cid()
+            );
+        }
     }
 
     inline void set_err(int e)
@@ -247,8 +295,8 @@ private:
     enum swEvent_type want_event = SW_EVENT_NULL;
 #endif
 
-    std::string host;
-    int port = 0;
+    std::string connect_host;
+    int connect_port = 0;
     std::string bind_address;
     int bind_port = 0;
 
@@ -289,20 +337,11 @@ private:
     bool add_event(const enum swEvent_type event);
     bool wait_event(const enum swEvent_type event, const void **__buf = nullptr, size_t __n = 0);
 
-    inline bool is_available(enum swEvent_type event)
+    inline bool is_available(const enum swEvent_type event)
     {
         if (event != SW_EVENT_NULL)
         {
-            long cid = get_bound_cid(event);
-            if (unlikely(cid))
-            {
-                swFatalError(
-                    SW_ERROR_CO_HAS_BEEN_BOUND,
-                    "Socket#%d has already been bound to another coroutine#%ld, "
-                    "%s of the same socket in multiple coroutines at the same time is not allowed",
-                    socket->fd, cid, (event == SW_EVENT_READ ? "reading" : (event == SW_EVENT_WRITE ? "writing" : "reading or writing"))
-                );
-            }
+            check_bound_co(event);
         }
         if (unlikely(socket->closed))
         {

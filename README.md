@@ -18,7 +18,6 @@ Swoole
 
 The network layer in Swoole is event-based and takes full advantage of the underlying epoll/kqueue implementation, making it really easy to serve millions of requests.
 
-
 Swoole 4.x use a brand new engine kernel and now it has a full-time developer team, so we are entering an unprecedented period in PHP history which offers a unique possibility for rapid evolution in performance.
 
 ## ⚡️Coroutine
@@ -60,17 +59,17 @@ You can create multiple services on the single event loop: TCP, HTTP, Websocket 
 ```php
 function tcp_pack(string $data): string
 {
-    return pack('n', strlen($data)) . $data;
+    return pack('N', strlen($data)) . $data;
 }
 function tcp_unpack(string $data): string
 {
-    return substr($data, 2, unpack('n', substr($data, 0, 2))[1]);
+    return substr($data, 4, unpack('N', substr($data, 0, 4))[1]);
 }
 $tcp_options = [
     'open_length_check' => true,
-    'package_length_type' => 'n',
+    'package_length_type' => 'N',
     'package_length_offset' => 0,
-    'package_body_offset' => 2
+    'package_body_offset' => 4
 ];
 ```
 
@@ -265,9 +264,9 @@ go(function () {
 
 ## 🔥 Amazing runtime hooks
 
-**In the latest version of Swoole, we have added a new feature to make sync PHP network libraires to be coroutine libraires with only one line of code.**
+**As of Swoole v4.1.0, we added the ability to transform synchronous PHP network libraries into co-routine libraries using a single line of code.**
 
-Just call `Swoole\Runtime::enableCoroutine()` method on the top of the script and use php-redis, 10K concurrent requests reading data from Redis takes only 0.1s!
+Simply call the `Swoole\Runtime::enableCoroutine()` method at the top of your script. In the sample below we connect to php-redis and concurrently read 10k requests in 0.1s:
 
 ```php
 Swoole\Runtime::enableCoroutine();
@@ -284,7 +283,7 @@ Swoole\Event::wait();
 echo 'use ' . (microtime(true) - $s) . ' s';
 ```
 
-After you call it, the Swoole kernel will replace the function pointers of streams in ZendVM, if you use `php_stream` based extensions, all socket operations can be dynamically converted to be asynchronous IO scheduled by coroutine at runtime.
+By calling this method, the Swoole kernel replaces ZendVM stream function pointers. If you use `php_stream` based extensions, all socket operations can be dynamically converted to be asynchronous IO scheduled by coroutine at runtime!
 
 ### How many things you can do in 1s?
 
@@ -510,7 +509,25 @@ Enable it by adding a new line `extension=swoole_async.so` to `php.ini`.
 ## 💎 Frameworks & Components
 
 - [**Swoft**](https://github.com/swoft-cloud) is a modern, high-performance AOP and coroutine PHP framework.
-- [**Easyswoole**](https://www.easyswoole.com) is a simple, high-performance PHP framework, based on Swoole, which makes using Swoole as easy as `echo "hello world"`.
+- [**ESD**](https://github.com/esd-projects/esd-server) Modern Full Stack Framework Inspired by Springboot，Power by SwooleDistributed & EasySwoole.
+- [**Easyswoole**](https://www.easyswoole.com) EasySwoole is a distributed, persistent memory PHP framework based on the Swoole extension. It was created specifically for APIs to get rid of the performance penalties associated with process calls and file loading. EasySwoole highly encapsulates the Swoole Server and still maintains the original features of the Swoole server, supports simultaneous monitoring of HTTP, custom TCP, and UDP protocols, allowing developers to write multi-process, asynchronous, and highly available applications with minimal learning cost and effort.
+    - Base on Swoole extension
+    - Built-in HTTP, TCP, WebSocket,Udp Coroutine Server
+    - Global dependency injection container
+    - PSR-7 based HTTP message implementation
+    - HTTP,TCP, WebSocket, Udp middleware support
+    - Scalable high performance RPC
+    - Database ORM
+    - Mysql, Redis, RPC, HTTP Coroutine Clients
+    - Coroutine and asynchronous task delivery
+    - Custom user processes
+    - RESTful supported
+    - High performance router
+    - Fast and flexible parameter validator
+    - Powerful log component
+    - Universal connection pools
+    - Remote Console support
+    - Crontab Rule Timer support
 - [**Saber**](https://github.com/swlib/saber) Is a human-friendly, high-performance HTTP client component that has almost everything you can imagine.
 
 ## 🛠 Develop & Discussion
