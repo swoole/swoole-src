@@ -404,19 +404,20 @@ EOF;
         $exitExceptiontMsg;
         $this->startTime = microtime(true);
 
-        for ($i = 0; $i < $this->nConcurrency; $i++) {
-            go(function () use (&$exitException, &$exitExceptiontMsg){
-                try {
-                    call_user_func([$this, $this->testMethod]);
-                } catch (ExitException $e) {
-                    $exitException = true;
-                    $exitExceptiontMsg = $e->getMessage();
-                }
-            });
-        }
+        $sch = new Coroutine\Scheduler;
+
+        $sch->parallel($this->nConcurrency, function() use(&$exitException, &$exitExceptiontMsg) {
+            try {
+                call_user_func([$this, $this->testMethod]);
+            } catch (ExitException $e) {
+                $exitException = true;
+                $exitExceptiontMsg = $e->getMessage();
+            }
+        });
+        $sch->start();
+
         $this->beginSendTime = microtime(true);
         $this->connectTime = $this->beginSendTime - $this->startTime;
-        Event::wait();
         if ($exitException) {
             exit($exitExceptiontMsg . PHP_EOL);
         }
