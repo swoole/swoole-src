@@ -960,8 +960,6 @@ bool PHPCoroutine::enable_hook(int flags)
         // file
         memcpy((void*) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
 
-        inject_function();
-
         hook_init = true;
     }
     // php_stream
