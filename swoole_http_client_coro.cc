@@ -1686,14 +1686,10 @@ static PHP_METHOD(swoole_http_client_coro, setCookies)
     zval *cookies;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_ARRAY(cookies)
+        Z_PARAM_ARRAY_EX(cookies, 0, 1)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zval *newCookies = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, getThis(), ZEND_STRL("cookies"), 0);
-
-    php_array_merge(Z_ARRVAL_P(newCookies), Z_ARRVAL_P(cookies));
-
-    zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("cookies"), newCookies);
+    zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("cookies"), cookies);
 
     RETURN_TRUE;
 }
