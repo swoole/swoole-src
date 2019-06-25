@@ -15,9 +15,6 @@ Swoole\Runtime::enableCoroutine();
 
 echo "*** Testing array_walk_recursive() : basic functionality ***\n";
 
-// associative array
-$fruits = ["a" => "lemon", "b" => ["c" => "orange", "d" => "banana"], "e" => ["f" => "apple"]];
-
 // User defined callback functions
 /*  Prototype : test_alter(mixed $item, mixed $key, string $prefix)
  *  Parameters : item - value in key/value pair
@@ -48,17 +45,21 @@ function test_print($item, $key)
     var_dump($key);  // key
     echo "\n"; // new line to separate the output between each element
 }
+go(function(){
+    // associative array
+    $fruits = ["a" => "lemon", "b" => ["c" => "orange", "d" => "banana"], "e" => ["f" => "apple"]];
+    echo "-- Using array_walk_recursive with default parameters to show array contents --\n";
+    var_dump(array_walk_recursive($fruits, 'test_print'));
+    
+    echo "-- Using array_walk_recursive with one optional parameter to modify contents --\n";
+    var_dump(array_walk_recursive($fruits, 'test_alter', 'fruit'));
+    
+    echo "-- Using array_walk_recursive with default parameters to show modified array contents --\n";
+    var_dump(array_walk_recursive($fruits, 'test_print'));
+    
+    echo "Done";
+});
 
-echo "-- Using array_walk_recursive with default parameters to show array contents --\n";
-var_dump(array_walk_recursive($fruits, 'test_print'));
-
-echo "-- Using array_walk_recursive with one optional parameter to modify contents --\n";
-var_dump(array_walk_recursive($fruits, 'test_alter', 'fruit'));
-
-echo "-- Using array_walk_recursive with default parameters to show modified array contents --\n";
-var_dump(array_walk_recursive($fruits, 'test_print'));
-
-echo "Done";
 ?>
 --EXPECT--
 *** Testing array_walk_recursive() : basic functionality ***
