@@ -158,6 +158,10 @@ void Coroutine::bailout(sw_coro_bailout_t func)
     {
         co = co->origin;
     }
+    if (!co->task)
+    {
+        exit(255);
+    }
     // it will jump to main context directly (it also breaks contexts)
     co->yield();
     // expect that never here
