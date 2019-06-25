@@ -37,6 +37,7 @@ struct scheduler_task_t
 struct scheduler_t
 {
     queue<scheduler_task_t*> *list;
+    bool started;
     zend_object std;
 };
 
@@ -61,7 +62,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_set, 0, 0, 1)
     ZEND_ARG_ARRAY_INFO(0, settings, 0)
 ZEND_END_ARG_INFO()
 
-static PHP_METHOD(swoole_coroutine_scheduler, __construct);
 static PHP_METHOD(swoole_coroutine_scheduler, add);
 static PHP_METHOD(swoole_coroutine_scheduler, parallel);
 static PHP_METHOD(swoole_coroutine_scheduler, start);
@@ -101,7 +101,6 @@ static void scheduler_free_object(zend_object *object)
 
 static const zend_function_entry swoole_coroutine_scheduler_methods[] =
 {
-    PHP_ME(swoole_coroutine_scheduler, __construct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_coroutine_scheduler, add, arginfo_swoole_coroutine_scheduler_add, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_coroutine_scheduler, parallel, arginfo_swoole_coroutine_scheduler_parallel, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_coroutine_scheduler, set, arginfo_swoole_coroutine_scheduler_set, ZEND_ACC_PUBLIC)
@@ -203,18 +202,15 @@ static void scheduler_add_task(scheduler_t *s, scheduler_task_t *task)
     s->list->push(task);
 }
 
-static PHP_METHOD(swoole_coroutine_scheduler, __construct)
-{
-    if (SwooleG.main_reactor)
-    {
-        zend_throw_exception_ex(swoole_exception_ce, -2, "eventLoop has already been created. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(getThis()));
-        RETURN_FALSE;
-    }
-    php_swoole_reactor_init();
-}
-
 static PHP_METHOD(swoole_coroutine_scheduler, add)
 {
+    scheduler_t *s = scheduler_get_object(Z_OBJ_P(getThis()));
+    if (s->started)
+    {
+        php_swoole_fatal_error(E_WARNING, "scheduler is running, unable to execute %s->add", SW_Z_OBJCE_NAME_VAL_P(getThis()));
+        RETURN_FALSE;
+    }
+
     scheduler_task_t *task = (scheduler_task_t *) ecalloc(1, sizeof(scheduler_task_t));
 
     ZEND_PARSE_PARAMETERS_START(1, -1)
@@ -223,11 +219,18 @@ static PHP_METHOD(swoole_coroutine_scheduler, add)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     task->count = 1;
-    scheduler_add_task(scheduler_get_object(Z_OBJ_P(getThis())), task);
+    scheduler_add_task(s, task);
 }
 
 static PHP_METHOD(swoole_coroutine_scheduler, parallel)
 {
+    scheduler_t *s = scheduler_get_object(Z_OBJ_P(getThis()));
+    if (s->started)
+    {
+        php_swoole_fatal_error(E_WARNING, "scheduler is running, unable to execute %s->parallel", SW_Z_OBJCE_NAME_VAL_P(getThis()));
+        RETURN_FALSE;
+    }
+
     scheduler_task_t *task = (scheduler_task_t *) ecalloc(1, sizeof(scheduler_task_t));
     zend_long count;
 
@@ -238,12 +241,25 @@ static PHP_METHOD(swoole_coroutine_scheduler, parallel)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     task->count = count;
-    scheduler_add_task(scheduler_get_object(Z_OBJ_P(getThis())), task);
+    scheduler_add_task(s, task);
 }
 
 static PHP_METHOD(swoole_coroutine_scheduler, start)
 {
     scheduler_t *s = scheduler_get_object(Z_OBJ_P(getThis()));
+
+    if (SwooleG.main_reactor)
+    {
+        zend_throw_exception_ex(swoole_exception_ce, -2, "eventLoop has already been created. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(getThis()));
+        RETURN_FALSE;
+    }
+    if (s->started)
+    {
+        php_swoole_fatal_error(E_WARNING, "scheduler is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(getThis()));
+        RETURN_FALSE;
+    }
+    php_swoole_reactor_init();
+    s->started = true;
     while (!s->list->empty())
     {
         scheduler_task_t *task = s->list->front();
@@ -256,8 +272,8 @@ static PHP_METHOD(swoole_coroutine_scheduler, start)
         sw_zend_fci_params_discard(&task->fci);
         efree(task);
     }
-
     php_swoole_event_wait();
     delete s->list;
     s->list = nullptr;
+    s->started = false;
 }
