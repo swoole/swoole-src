@@ -64,28 +64,30 @@ function for_mixed($value, $key)
     var_dump($value);
     echo "\n"; // new line to separate the output between each element
 }
+go(function(){
+    // Numeric keys
+    $input = [0 => [1 => 25, 5 => 12, 0 => -80], 1 => [-2 => 100, 5 => 30]];
+    echo "-- Associative array with numeric keys --\n";
+    var_dump(array_walk_recursive($input, "for_numeric", 10));
+    
+    // String keys
+    $input = ["a" => "Apple", 'z' => ['b' => 'Bananna', "c" => "carrot"], 'x' => ['o' => "Orange"]];
+    echo "-- Associative array with string keys --\n";
+    var_dump(array_walk_recursive($input, "for_string"));
+    
+    // binary key
+    $input = [b"a" => "Apple", b"b" => "Banana"];
+    echo "-- Associative array with binary keys --\n";
+    var_dump(array_walk_recursive($input, "for_string"));
+    
+    // Mixed keys - numeric/string
+    $input = [0 => [0 => 1, 1 => 2], "x" => ["a" => "Apple", "b" => "Banana"], 2 => 3];
+    echo "-- Associative array with numeric/string keys --\n";
+    var_dump(array_walk_recursive($input, "for_mixed"));
+    
+    echo "Done";
+});
 
-// Numeric keys
-$input = [0 => [1 => 25, 5 => 12, 0 => -80], 1 => [-2 => 100, 5 => 30]];
-echo "-- Associative array with numeric keys --\n";
-var_dump(array_walk_recursive($input, "for_numeric", 10));
-
-// String keys
-$input = ["a" => "Apple", 'z' => ['b' => 'Bananna', "c" => "carrot"], 'x' => ['o' => "Orange"]];
-echo "-- Associative array with string keys --\n";
-var_dump(array_walk_recursive($input, "for_string"));
-
-// binary key
-$input = [b"a" => "Apple", b"b" => "Banana"];
-echo "-- Associative array with binary keys --\n";
-var_dump(array_walk_recursive($input, "for_string"));
-
-// Mixed keys - numeric/string
-$input = [0 => [0 => 1, 1 => 2], "x" => ["a" => "Apple", "b" => "Banana"], 2 => 3];
-echo "-- Associative array with numeric/string keys --\n";
-var_dump(array_walk_recursive($input, "for_mixed"));
-
-echo "Done"
 ?>
 --EXPECT--
 *** Testing array_walk_recursive() : 'input' as an associative array ***

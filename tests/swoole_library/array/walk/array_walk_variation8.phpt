@@ -19,25 +19,26 @@ Swoole\Runtime::enableCoroutine();
  *    min function
  *    echo language construct
 */
-
-echo "*** Testing array_walk() : built-in function as callback ***\n";
-
-$input = [2 => 1, 65, 98, 100, 6 => -4];
-
-echo "-- With 'pow' built-in function --\n";
-var_dump(array_walk($input, 'pow'));
-
-echo "-- With 'min' built-in function --\n";
-var_dump(array_walk($input, "min"));
-
-echo "-- With 'echo' language construct --\n";
-try {
-    var_dump(array_walk($input, "echo"));
-} catch (TypeError $e) {
-    echo $e->getMessage(), "\n";
-}
-
-echo "Done"
+go(function(){
+    echo "*** Testing array_walk() : built-in function as callback ***\n";
+    
+    $input = [2 => 1, 65, 98, 100, 6 => -4];
+    
+    echo "-- With 'pow' built-in function --\n";
+    var_dump(array_walk($input, 'pow'));
+    
+    echo "-- With 'min' built-in function --\n";
+    var_dump(array_walk($input, "min"));
+    
+    echo "-- With 'echo' language construct --\n";
+    try {
+        var_dump(array_walk($input, "echo"));
+    } catch (TypeError $e) {
+        echo $e->getMessage(), "\n";
+    }
+    
+    echo "Done";
+});
 ?>
 --EXPECTF--
 *** Testing array_walk() : built-in function as callback ***

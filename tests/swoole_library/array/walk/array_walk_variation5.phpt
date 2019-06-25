@@ -19,14 +19,6 @@ Swoole\Runtime::enableCoroutine();
 
 echo "*** Testing array_walk() : array with references ***\n";
 
-$value1 = 10;
-$value2 = -20;
-$value3 = &$value1;
-$value4 = 50;
-
-// 'input' array containing references to above variables
-$input = [&$value1, &$value2, -35, &$value3, 0, &$value4];
-
 // callback function
 /* Prototype : callback(int $value, mixed $key)
  * Parameters : $value - values in given input array
@@ -41,10 +33,20 @@ function callback($value, $key)
     var_dump($value); // value
     echo "\n"; // new line to separate the output between each element
 }
+go(function(){
+    $value1 = 10;
+    $value2 = -20;
+    $value3 = &$value1;
+    $value4 = 50;
+    
+    // 'input' array containing references to above variables
+    $input = [&$value1, &$value2, -35, &$value3, 0, &$value4];
 
-var_dump(array_walk($input, "callback"));
+    var_dump(array_walk($input, "callback"));
+    
+    echo "Done";
+});
 
-echo "Done"
 ?>
 --EXPECT--
 *** Testing array_walk() : array with references ***
