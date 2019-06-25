@@ -15,4 +15,4 @@ while ($n--) {
 }
 ?>
 --EXPECTF--
-Fatal error: Allowed memory size of %d bytes exhausted at %s/swoole_coroutine.cc:%s
+Fatal error: Allowed memory size of %d bytes exhausted %s
