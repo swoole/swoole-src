@@ -152,15 +152,15 @@ void Coroutine::bailout(sw_coro_bailout_t func)
     {
         swError("bailout without bailout function");
     }
+    if (!co->task)
+    {
+        exit(255);
+    }
     on_bailout = func;
     // find the coroutine which is closest to the main
     while (co->origin)
     {
         co = co->origin;
-    }
-    if (!co->task)
-    {
-        exit(255);
     }
     // it will jump to main context directly (it also breaks contexts)
     co->yield();
