@@ -185,6 +185,7 @@ protected:
     static php_coro_task main_task;
 
     static bool schedule_thread_running;
+    static pthread_t schedule_thread_id;
 
     static void activate();
     static void error(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args);

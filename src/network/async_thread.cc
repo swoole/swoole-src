@@ -30,6 +30,8 @@ typedef swAio_event async_event;
 
 swAsyncIO SwooleAIO;
 
+static void swAio_free(void *private_data);
+
 class async_event_queue
 {
 public:
@@ -317,6 +319,8 @@ static int swAio_init()
         SwooleAIO.max_thread_count = SwooleAIO.min_thread_count;
     }
 
+    swReactor_add_destroy_callback(SwooleG.main_reactor, swAio_free, nullptr);
+
     pool = new async_thread_pool(SwooleAIO.min_thread_count, SwooleAIO.min_thread_count);
     pool->start();
     SwooleAIO.init = 1;
@@ -345,7 +349,7 @@ swAio_event* swAio_dispatch2(const swAio_event *request)
     return pool->dispatch(request);
 }
 
-void swAio_free(void)
+static void swAio_free(void *private_data)
 {
     if (!SwooleAIO.init)
     {

@@ -19,9 +19,7 @@
 #ifndef _SW_ASYNC_H_
 #define _SW_ASYNC_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+SW_EXTERN_C_BEGIN
 
 #ifndef O_DIRECT
 #define O_DIRECT         040000
@@ -77,7 +75,6 @@ typedef struct
 
 extern swAsyncIO SwooleAIO;
 
-void swAio_free(void);
 int swAio_dispatch(const swAio_event *request);
 swAio_event* swAio_dispatch2(const swAio_event *request);
 int swAio_cancel(int task_id);
@@ -90,8 +87,6 @@ void swAio_handler_fgets(swAio_event *event);
 void swAio_handler_read_file(swAio_event *event);
 void swAio_handler_write_file(swAio_event *event);
 
-#ifdef __cplusplus
-}
-#endif
+SW_EXTERN_C_END
 
 #endif /* _SW_ASYNC_H_ */

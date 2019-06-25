@@ -28,21 +28,13 @@
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
 
-#include <queue>
-
 #include "zend_exceptions.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
 extern sapi_module_struct sapi_module;
 
-struct rshutdown_func
-{
-    swCallback callback;
-    void *private_data;
-};
-
-std::queue<rshutdown_func *> rshutdown_functions;
+static swoole::CallbackManager rshutdown_callbacks;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -321,19 +313,7 @@ void php_swoole_register_shutdown_function_prepend(const char *function)
 
 void php_swoole_register_rshutdown_callback(swCallback cb, void *private_data)
 {
-    rshutdown_func *rf = (rshutdown_func*) emalloc(sizeof(rshutdown_func));
-    rshutdown_functions.push(rf);
-}
-
-static void execute_rshutdown_callback()
-{
-    while(!rshutdown_functions.empty())
-    {
-        rshutdown_func *rf = rshutdown_functions.front();
-        rshutdown_functions.pop();
-        rf->callback(rf->private_data);
-        efree(rf);
-    }
+    rshutdown_callbacks.append(cb, private_data);
 }
 
 static void fatal_error(int code, const char *format, ...)
@@ -609,7 +589,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_timer_init(module_number);
     // coroutine
     swoole_async_coro_init(module_number);
-    swoole_coroutine_util_init(module_number);
+    swoole_coroutine_init(module_number);
     swoole_channel_coro_init(module_number);
     swoole_runtime_init(module_number);
     // client
@@ -683,11 +663,7 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_row(2, "trace_log", "enabled");
 #endif
 #ifdef SW_NO_USE_ASM_CONTEXT
-#ifdef HAVE_BOOST_CONTEXT
-    php_info_print_table_row(2, "boost.context", "enabled");
-#else
     php_info_print_table_row(2, "ucontext", "enabled");
-#endif
 #endif
 #ifdef HAVE_EPOLL
     php_info_print_table_row(2, "epoll", "enabled");
@@ -786,7 +762,8 @@ PHP_RINIT_FUNCTION(swoole)
 PHP_RSHUTDOWN_FUNCTION(swoole)
 {
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_BEGIN;
-    execute_rshutdown_callback();
+
+    rshutdown_callbacks.execute();
 
     swoole_server_rshutdown();
     swoole_async_coro_rshutdown();

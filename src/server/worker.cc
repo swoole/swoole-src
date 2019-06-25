@@ -794,7 +794,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     return SW_ERR;
 }
 
-int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag)
+int swWorker_send2worker(swWorker *dst_worker, const void *buf, int n, int flag)
 {
     int pipefd, ret;
 

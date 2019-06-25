@@ -17,6 +17,8 @@
 #ifndef SW_HASH_H_
 #define SW_HASH_H_
 
+SW_EXTERN_C_BEGIN
+
 #include <stdint.h>
 
 #define HASH_JEN_MIX(a,b,c)                                                      \
@@ -214,5 +216,7 @@ static inline uint64_t swoole_hash_php(const char *key, uint32_t len)
 #define CRC_STRING_MAXLEN      256
 
 uint32_t swoole_crc32(const char *data, uint32_t size);
+
+SW_EXTERN_C_END
 
 #endif /* SW_HASH_H_ */
