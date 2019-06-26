@@ -250,12 +250,12 @@ static PHP_METHOD(swoole_coroutine_scheduler, start)
 
     if (SwooleG.main_reactor)
     {
-        zend_throw_exception_ex(swoole_exception_ce, -2, "eventLoop has already been created. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(getThis()));
+        zend_throw_exception_ex(swoole_exception_ce, -2, "eventLoop has already been created. unable to start %s", SW_Z_OBJCE_NAME_VAL_P(getThis()));
         RETURN_FALSE;
     }
     if (s->started)
     {
-        php_swoole_fatal_error(E_WARNING, "scheduler is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(getThis()));
+        php_swoole_fatal_error(E_WARNING, "scheduler is started, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(getThis()));
         RETURN_FALSE;
     }
     php_swoole_reactor_init();

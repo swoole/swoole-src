@@ -529,12 +529,6 @@ void swWorker_stop(swWorker *worker)
         serv->stream_fd = 0;
     }
 
-    if (serv->onWorkerStop)
-    {
-        serv->onWorkerStop(serv, SwooleWG.id);
-        serv->onWorkerStop = NULL;
-    }
-
     if (worker->pipe_worker)
     {
         swReactor_remove_read_event(reactor, worker->pipe_worker);
