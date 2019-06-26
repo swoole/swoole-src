@@ -130,6 +130,7 @@ ZEND_END_ARG_INFO()
 bool PHPCoroutine::active = false;
 uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
 php_coro_task PHPCoroutine::main_task = {0};
+bool PHPCoroutine::enable_preemptive_scheduler = false;
 pthread_t PHPCoroutine::interrupt_thread_id;
 bool PHPCoroutine::interrupt_thread_running = false;
 

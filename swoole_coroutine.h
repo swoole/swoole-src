@@ -99,6 +99,7 @@ class PHPCoroutine
 {
 public:
     static const uint8_t MAX_EXEC_MSEC = 10;
+    static bool enable_preemptive_scheduler;
 
     static void init();
     static void shutdown();
