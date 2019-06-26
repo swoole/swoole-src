@@ -733,6 +733,10 @@ int swWorker_loop(swServer *serv, int worker_id)
     reactor->wait(reactor, NULL);
     //clear pipe buffer
     swWorker_clean_pipe_buffer(serv);
+    //destroy reactor
+    swReactor_destory(reactor);
+    SwooleG.main_reactor = NULL;
+    sw_free(reactor);
     //worker shutdown
     swWorker_onStop(serv);
     return SW_OK;

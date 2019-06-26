@@ -885,12 +885,12 @@ static int swServer_destory(swServer *serv)
     {
         serv->factory.free(&serv->factory);
     }
+    swSignal_clear();
     if (serv->gs->start > 0 && serv->onShutdown != NULL)
     {
         serv->onShutdown(serv);
     }
     serv->lock.free(&serv->lock);
-    swSignal_clear();
     SwooleG.serv = nullptr;
     return SW_OK;
 }
