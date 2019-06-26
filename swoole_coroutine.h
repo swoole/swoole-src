@@ -108,7 +108,7 @@ public:
     static bool enable_hook(int flags);
     static bool disable_hook();
 
-    static void stop_scheduler_thread();
+    static void interrupt_thread_stop();
 
     // TODO: remove old coro APIs (Manual)
     static void yield_m(zval *return_value, php_coro_context *sw_php_context);
@@ -184,8 +184,8 @@ protected:
     static uint64_t max_num;
     static php_coro_task main_task;
 
-    static bool schedule_thread_running;
-    static pthread_t schedule_thread_id;
+    static bool interrupt_thread_running;
+    static pthread_t interrupt_thread_id;
 
     static void activate();
     static void error(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args);
@@ -203,11 +203,11 @@ protected:
     static void on_close(void *arg);
     static void create_func(void *arg);
 
-    static void start_scheduler_thread();
-    static void schedule();
+    static void interrupt_thread_start();
+    static void interrupt_thread_loop();
     static inline void record_last_msec(php_coro_task *task)
     {
-        if (schedule_thread_running)
+        if (interrupt_thread_running)
         {
             task->last_msec = swTimer_get_absolute_msec();
         }
