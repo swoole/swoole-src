@@ -250,7 +250,7 @@ static PHP_METHOD(swoole_coroutine_scheduler, start)
 
     if (SwooleG.main_reactor)
     {
-        zend_throw_exception_ex(swoole_exception_ce, -2, "eventLoop has already been created. unable to start %s", SW_Z_OBJCE_NAME_VAL_P(getThis()));
+        php_swoole_fatal_error(E_WARNING, "eventLoop has already been created. unable to start %s", SW_Z_OBJCE_NAME_VAL_P(getThis()));
         RETURN_FALSE;
     }
     if (s->started)
@@ -276,4 +276,5 @@ static PHP_METHOD(swoole_coroutine_scheduler, start)
     delete s->list;
     s->list = nullptr;
     s->started = false;
+    RETURN_TRUE;
 }
