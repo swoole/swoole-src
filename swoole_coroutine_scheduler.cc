@@ -261,8 +261,9 @@ static PHP_METHOD(swoole_coroutine_scheduler, start)
     php_swoole_reactor_init();
     s->started = true;
 
-    if (!s->list) {
-        php_swoole_fatal_error(E_ERROR, "no coroutine task");
+    if (!s->list)
+    {
+        php_swoole_fatal_error(E_WARNING, "no coroutine task");
         RETURN_FALSE;
     }
 
