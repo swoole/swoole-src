@@ -16,4 +16,5 @@ return [
     # <finalizer> #
     'functions.php',
     'alias.php',
+    'alias_ns.php',
 ];
