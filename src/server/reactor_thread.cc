@@ -868,6 +868,7 @@ int swReactorThread_start(swServer *serv)
         {
             _failed:
             main_reactor->free(main_reactor);
+            SwooleG.main_reactor = nullptr;
             sw_free(main_reactor);
             return SW_ERR;
         }
