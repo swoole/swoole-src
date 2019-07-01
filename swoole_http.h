@@ -240,7 +240,7 @@ static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, 
     val_len = eof - p;
     if (val_len > SW_HTTP_COOKIE_VALLEN)
     {
-        swWarn("cookie[%.*s]'s value[v=%.8s...] length %d is exceed the max value len %d", (int) key_len, key, p, val_len, SW_HTTP_COOKIE_VALLEN);
+        swWarn("cookie[%.*s]'s value[v=%.8s...] length %d is exceed the max value len %d", (int) key_len, key, p, (int) val_len, SW_HTTP_COOKIE_VALLEN);
         return SW_ERR;
     }
     ZVAL_STRINGL(&val, p, val_len);
