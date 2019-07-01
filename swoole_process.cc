@@ -914,7 +914,7 @@ static PHP_METHOD(swoole_process, push)
         RETURN_FALSE;
     }
 
-    message.type = process->id;
+    message.type = process->id + 1;
     memcpy(message.data, data, length);
 
     if (swMsgQueue_push(process->queue, (swQueue_data *)&message, length) < 0)
@@ -957,7 +957,7 @@ static PHP_METHOD(swoole_process, pop)
     }
     else
     {
-        message.type = process->id;
+        message.type = process->id + 1;
     }
 
     int n = swMsgQueue_pop(process->queue, (swQueue_data *) &message, maxsize);
