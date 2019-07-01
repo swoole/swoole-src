@@ -677,6 +677,7 @@ int swWorker_loop(swServer *serv, int worker_id)
     if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
     {
         swError("[Worker] create worker_reactor failed");
+        sw_free(reactor);
         return SW_ERR;
     }
     SwooleG.main_reactor = reactor;
