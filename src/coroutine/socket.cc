@@ -1636,7 +1636,7 @@ bool Socket::cancel(const enum swEvent_type event)
         read_co->resume();
         return true;
     }
-    else if (event == SW_EVENT_READ)
+    else if (event == SW_EVENT_WRITE)
     {
         set_err(ECANCELED);
         write_co->resume();
