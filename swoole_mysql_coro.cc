@@ -76,6 +76,7 @@ public:
 
     std::string host = SW_MYSQL_DEFAULT_HOST;
     uint16_t port = SW_MYSQL_DEFAULT_PORT;
+    zval zobject;
     bool ssl = false;
 
     std::string user = "root";
@@ -1939,6 +1940,11 @@ static sw_inline void swoole_mysql_coro_sync_execute_result_properties(zval *zob
         mysql::ok_packet *ok_packet = &ms->result.ok;
         zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("affected_rows"), ok_packet->affected_rows);
         zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("insert_id"), ok_packet->last_insert_id);
+
+        mysql_client *client = ms->get_client();
+        zend_update_property_long(Z_OBJCE(client->zobject), &client->zobject, ZEND_STRL("affected_rows"), ok_packet->affected_rows);
+        zend_update_property_long(Z_OBJCE(client->zobject), &client->zobject, ZEND_STRL("insert_id"), ok_packet->last_insert_id);
+
         break;
     }
     case IS_FALSE:
@@ -2117,6 +2123,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     zend_update_property_long(swoole_mysql_coro_ce, getThis(), ZEND_STRL("sock"), mc->get_fd());
     zend_update_property_bool(swoole_mysql_coro_ce, getThis(), ZEND_STRL("connected"), 1);
+    mc->zobject = *getThis();
     RETURN_TRUE;
 }
 

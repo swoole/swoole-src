@@ -20,7 +20,7 @@ set_error_handler(function (int $code, string $msg) {
 /*
  * Testing array_walk() by passing more number of parameters to callback function
  */
-$input = [1];
+
 
 function callback1($value, $key, $user_data)
 {
@@ -33,39 +33,41 @@ function callback2($value, $key, $user_data1, $user_data2)
 }
 
 echo "*** Testing array_walk() : error conditions - callback parameters ***\n";
-
-// expected: Missing argument Warning
-try {
-    var_dump(array_walk($input, "callback1"));
-} catch (Throwable $e) {
-    echo "Exception: " . $e->getMessage() . "\n";
-}
-try {
-    var_dump(array_walk($input, "callback2", 4));
-} catch (Throwable $e) {
-    echo "Exception: " . $e->getMessage() . "\n";
-}
-
-// expected: Warning is suppressed
-try {
-    var_dump(@array_walk($input, "callback1"));
-} catch (Throwable $e) {
-    echo "Exception: " . $e->getMessage() . "\n";
-}
-try {
-    var_dump(@array_walk($input, "callback2", 4));
-} catch (Throwable $e) {
-    echo "Exception: " . $e->getMessage() . "\n";
-}
-
-echo "-- Testing array_walk() function with too many callback parameters --\n";
-try {
-    var_dump(array_walk($input, "callback1", 20, 10));
-} catch (Throwable $e) {
-    echo "Exception: " . $e->getMessage() . "\n";
-}
-
-echo "Done";
+go(function(){
+    $input = [1];
+    // expected: Missing argument Warning
+    try {
+        var_dump(array_walk($input, "callback1"));
+    } catch (Throwable $e) {
+        echo "Exception: " . $e->getMessage() . "\n";
+    }
+    try {
+        var_dump(array_walk($input, "callback2", 4));
+    } catch (Throwable $e) {
+        echo "Exception: " . $e->getMessage() . "\n";
+    }
+    
+    // expected: Warning is suppressed
+    try {
+        var_dump(@array_walk($input, "callback1"));
+    } catch (Throwable $e) {
+        echo "Exception: " . $e->getMessage() . "\n";
+    }
+    try {
+        var_dump(@array_walk($input, "callback2", 4));
+    } catch (Throwable $e) {
+        echo "Exception: " . $e->getMessage() . "\n";
+    }
+    
+    echo "-- Testing array_walk() function with too many callback parameters --\n";
+    try {
+        var_dump(array_walk($input, "callback1", 20, 10));
+    } catch (Throwable $e) {
+        echo "Exception: " . $e->getMessage() . "\n";
+    }
+    
+    echo "Done";
+});
 ?>
 --EXPECTF--
 *** Testing array_walk() : error conditions - callback parameters ***

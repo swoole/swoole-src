@@ -6,7 +6,7 @@ swoole_coroutine_scheduler: hook_flags
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$sch = scheduler();
+$sch = new Swoole\Coroutine\Scheduler();
 
 $sch->set(['hook_flags' => SWOOLE_HOOK_ALL,]);
 

@@ -34,17 +34,20 @@ function callback($value, $key)
     echo "\n"; // new line to separate the output between each element
 }
 
-$input = [
-    [],
-    [1],
-    [1, 2, 3],
-    ["Mango", "Orange"],
-    [[1, 2, 3], [1]]
-];
+go(function(){
+    $input = [
+        [],
+        [1],
+        [1, 2, 3],
+        ["Mango", "Orange"],
+        [[1, 2, 3], [1]]
+    ];
+    
+    var_dump(array_walk_recursive($input, "callback"));
+    
+    echo "Done";
+});
 
-var_dump(array_walk_recursive($input, "callback"));
-
-echo "Done"
 ?>
 --EXPECT--
 *** Testing array_walk_recursive() : array with subarray ***

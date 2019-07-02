@@ -762,6 +762,7 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
             swoole_http2_client_coro_exception_ce,
             EPROTONOSUPPORT, "you must configure with `enable-openssl` to support ssl connection"
         );
+        delete h2c;
         RETURN_FALSE;
 #endif
     }

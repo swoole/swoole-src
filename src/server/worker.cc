@@ -529,12 +529,6 @@ void swWorker_stop(swWorker *worker)
         serv->stream_fd = 0;
     }
 
-    if (serv->onWorkerStop)
-    {
-        serv->onWorkerStop(serv, SwooleWG.id);
-        serv->onWorkerStop = NULL;
-    }
-
     if (worker->pipe_worker)
     {
         swReactor_remove_read_event(reactor, worker->pipe_worker);
@@ -683,6 +677,7 @@ int swWorker_loop(swServer *serv, int worker_id)
     if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
     {
         swError("[Worker] create worker_reactor failed");
+        sw_free(reactor);
         return SW_ERR;
     }
     SwooleG.main_reactor = reactor;
@@ -733,6 +728,10 @@ int swWorker_loop(swServer *serv, int worker_id)
     reactor->wait(reactor, NULL);
     //clear pipe buffer
     swWorker_clean_pipe_buffer(serv);
+    //destroy reactor
+    swReactor_destory(reactor);
+    SwooleG.main_reactor = NULL;
+    sw_free(reactor);
     //worker shutdown
     swWorker_onStop(serv);
     return SW_OK;

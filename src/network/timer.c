@@ -61,6 +61,9 @@ static int swReactorTimer_init(swReactor *reactor, swTimer *timer, long exec_mse
     timer->reactor = reactor;
     timer->set = swReactorTimer_set;
     timer->close = swReactorTimer_close;
+
+    swReactor_add_destroy_callback(reactor, (swCallback) swTimer_free, timer);
+
     return SW_OK;
 }
 

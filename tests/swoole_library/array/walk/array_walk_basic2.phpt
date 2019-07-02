@@ -15,8 +15,6 @@ Swoole\Runtime::enableCoroutine();
 
 echo "*** Testing array_walk() : basic functionality ***\n";
 
-// associative array
-$fruits = ["d" => "lemon", "a" => "orange", "b" => "banana", "c" => "apple"];
 
 // User defined callback functions
 /*  Prototype : test_alter(mixed $item, mixed $key, string $prefix)
@@ -48,17 +46,20 @@ function test_print($item, $key)
     var_dump($key);  // key
     echo "\n"; // new line to separate the output between each element
 }
-
-echo "-- Using array_walk with default parameters to show array contents --\n";
-var_dump(array_walk($fruits, 'test_print'));
-
-echo "-- Using array_walk with one optional parameter to modify contents --\n";
-var_dump(array_walk($fruits, 'test_alter', 'fruit'));
-
-echo "-- Using array_walk with default parameters to show modified array contents --\n";
-var_dump(array_walk($fruits, 'test_print'));
-
-echo "Done";
+go(function(){
+    // associative array
+    $fruits = ["d" => "lemon", "a" => "orange", "b" => "banana", "c" => "apple"];
+    echo "-- Using array_walk with default parameters to show array contents --\n";
+    var_dump(array_walk($fruits, 'test_print'));
+    
+    echo "-- Using array_walk with one optional parameter to modify contents --\n";
+    var_dump(array_walk($fruits, 'test_alter', 'fruit'));
+    
+    echo "-- Using array_walk with default parameters to show modified array contents --\n";
+    var_dump(array_walk($fruits, 'test_print'));
+    
+    echo "Done";
+});
 ?>
 --EXPECT--
 *** Testing array_walk() : basic functionality ***

@@ -1574,7 +1574,7 @@ static sw_inline void sw_redis_command_key_val(INTERNAL_FUNCTION_PARAMETERS, con
     SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_value)
     redis_request(redis, 3, argv, argvlen, return_value);
     
-    if (redis->compatibility_mode && ZVAL_IS_NULL(return_value) && memcmp("ZRANK", cmd, cmd_len) == 0)
+    if (redis->compatibility_mode && ZVAL_IS_NULL(return_value) && strncmp("ZRANK", cmd, cmd_len) == 0)
     {
         RETURN_FALSE;
     }
@@ -1990,7 +1990,7 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
             redis->connect_timeout = redis->timeout;
             if (redis->connect_timeout <= 0)
             {
-                redis->connect_timeout = SW_TIMER_MAX_SEC;
+                redis->connect_timeout = (double) SW_TIMER_MAX_SEC;
             }
         }
         if (redis->context)

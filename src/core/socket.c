@@ -390,7 +390,11 @@ int swSocket_bind(int sock, int type, const char *host, int *port)
     else if (type > SW_SOCK_UDP)
     {
         bzero(&addr_in6, sizeof(addr_in6));
-        inet_pton(AF_INET6, host, &(addr_in6.sin6_addr));
+        if (inet_pton(AF_INET6, host, &(addr_in6.sin6_addr)) < 0)
+        {
+            swSysWarn("inet_pton(AF_INET6, %s) failed", host);
+            return SW_ERR;
+        }
         addr_in6.sin6_port = htons(*port);
         addr_in6.sin6_family = AF_INET6;
         ret = bind(sock, (struct sockaddr *) &addr_in6, sizeof(addr_in6));
@@ -407,7 +411,11 @@ int swSocket_bind(int sock, int type, const char *host, int *port)
     else
     {
         bzero(&addr_in4, sizeof(addr_in4));
-        inet_pton(AF_INET, host, &(addr_in4.sin_addr));
+        if (inet_pton(AF_INET, host, &(addr_in4.sin_addr)) < 0)
+        {
+            swSysWarn("inet_pton(AF_INET, %s) failed", host);
+            return SW_ERR;
+        }
         addr_in4.sin_port = htons(*port);
         addr_in4.sin_family = AF_INET;
         ret = bind(sock, (struct sockaddr *) &addr_in4, sizeof(addr_in4));

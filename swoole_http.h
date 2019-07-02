@@ -226,7 +226,7 @@ static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, 
     }
     if (key_len > SW_HTTP_COOKIE_KEYLEN)
     {
-        swWarn("cookie[%.8s...] name length %d is exceed the max name len %d", key, key_len, SW_HTTP_COOKIE_KEYLEN);
+        swWarn("cookie[%.8s...] name length %d is exceed the max name len %d", key, (int) key_len, SW_HTTP_COOKIE_KEYLEN);
         return SW_ERR;
     }
     add_assoc_stringl_ex(set_cookie_headers, key, key_len, (char *) at, length);
@@ -240,7 +240,7 @@ static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, 
     val_len = eof - p;
     if (val_len > SW_HTTP_COOKIE_VALLEN)
     {
-        swWarn("cookie[%.*s]'s value[v=%.8s...] length %d is exceed the max value len %d", (int) key_len, key, p, val_len, SW_HTTP_COOKIE_VALLEN);
+        swWarn("cookie[%.*s]'s value[v=%.8s...] length %d is exceed the max value len %d", (int) key_len, key, p, (int) val_len, SW_HTTP_COOKIE_VALLEN);
         return SW_ERR;
     }
     ZVAL_STRINGL(&val, p, val_len);

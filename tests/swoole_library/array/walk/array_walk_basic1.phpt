@@ -13,11 +13,6 @@ Swoole\Runtime::enableCoroutine();
  * Source code: ext/standard/array.c
 */
 
-echo "*** Testing array_walk() : basic functionality ***\n";
-
-// regular array
-$fruits = ["lemon", "orange", "banana", "apple"];
-
 /*  Prototype : test_print(mixed $item, mixed $key)
  *  Parameters : item - item in key/item pair
  *               key - key in key/item pair
@@ -42,13 +37,18 @@ function with_userdata($item, $key, $user_data)
     echo "\n"; // new line to separate the output between each element
 }
 
-echo "-- Using array_walk() with default parameters to show array contents --\n";
-var_dump(array_walk($fruits, 'test_print'));
-
-echo "-- Using array_walk() with all parameters --\n";
-var_dump(array_walk($fruits, 'with_userdata', "Added"));
-
-echo "Done";
+echo "*** Testing array_walk() : basic functionality ***\n";
+go(function(){
+    // regular array
+    $fruits = ["lemon", "orange", "banana", "apple"];
+    echo "-- Using array_walk() with default parameters to show array contents --\n";
+    var_dump(array_walk($fruits, 'test_print'));
+    
+    echo "-- Using array_walk() with all parameters --\n";
+    var_dump(array_walk($fruits, 'with_userdata', "Added"));
+    
+    echo "Done";
+});
 ?>
 --EXPECT--
 *** Testing array_walk() : basic functionality ***
