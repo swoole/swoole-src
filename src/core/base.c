@@ -1423,5 +1423,5 @@ static void swoole_fatal_error(int code, const char *format, ...)
     retval += sw_vsnprintf(sw_error + retval, SW_ERROR_MSG_SIZE - retval, format, args);
     va_end(args);
     SwooleG.write_log(SW_LOG_ERROR, sw_error, retval);
-    exit(255);
+    exit(1);
 }

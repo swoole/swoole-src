@@ -154,6 +154,7 @@ void Coroutine::bailout(sw_coro_bailout_t func)
     }
     if (!co->task)
     {
+        // TODO: decoupling
         exit(255);
     }
     on_bailout = func;
