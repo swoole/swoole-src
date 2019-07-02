@@ -416,7 +416,7 @@ size_t swoole_sync_writefile(int fd, const void *data, size_t len)
             {
                 continue;
             }
-            swSysWarn("write(%d, %d) failed", fd, towrite);
+            swSysWarn("write(%d, %ld) failed", fd, towrite);
             break;
         }
     }
