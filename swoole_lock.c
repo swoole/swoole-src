@@ -150,7 +150,7 @@ static PHP_METHOD(swoole_lock, __construct)
         zend_throw_exception(swoole_exception_ce, "failed to create lock", errno);
         RETURN_FALSE;
     }
-    swoole_set_object(getThis(), lock);
+    swoole_set_object(ZEND_THIS, lock);
     RETURN_TRUE;
 }
 
@@ -158,16 +158,16 @@ static PHP_METHOD(swoole_lock, __destruct)
 {
     SW_PREVENT_USER_DESTRUCT();
 
-    swLock *lock = swoole_get_object(getThis());
+    swLock *lock = swoole_get_object(ZEND_THIS);
     if (lock)
     {
-        swoole_set_object(getThis(), NULL);
+        swoole_set_object(ZEND_THIS, NULL);
     }
 }
 
 static PHP_METHOD(swoole_lock, lock)
 {
-    swLock *lock = swoole_get_object(getThis());
+    swLock *lock = swoole_get_object(ZEND_THIS);
     SW_LOCK_CHECK_RETURN(lock->lock(lock));
 }
 
@@ -179,7 +179,7 @@ static PHP_METHOD(swoole_lock, lockwait)
     {
         RETURN_FALSE;
     }
-    swLock *lock = swoole_get_object(getThis());
+    swLock *lock = swoole_get_object(ZEND_THIS);
     if (lock->type != SW_MUTEX)
     {
         zend_throw_exception(swoole_exception_ce, "only mutex supports lockwait", -2);
@@ -190,13 +190,13 @@ static PHP_METHOD(swoole_lock, lockwait)
 
 static PHP_METHOD(swoole_lock, unlock)
 {
-    swLock *lock = swoole_get_object(getThis());
+    swLock *lock = swoole_get_object(ZEND_THIS);
     SW_LOCK_CHECK_RETURN(lock->unlock(lock));
 }
 
 static PHP_METHOD(swoole_lock, trylock)
 {
-    swLock *lock = swoole_get_object(getThis());
+    swLock *lock = swoole_get_object(ZEND_THIS);
     if (lock->trylock == NULL)
     {
         php_swoole_error(E_WARNING, "lock[type=%d] can't use trylock", lock->type);
@@ -207,7 +207,7 @@ static PHP_METHOD(swoole_lock, trylock)
 
 static PHP_METHOD(swoole_lock, trylock_read)
 {
-    swLock *lock = swoole_get_object(getThis());
+    swLock *lock = swoole_get_object(ZEND_THIS);
     if (lock->trylock_rd == NULL)
     {
         php_swoole_error(E_WARNING, "lock[type=%d] can't use trylock_read", lock->type);
@@ -218,7 +218,7 @@ static PHP_METHOD(swoole_lock, trylock_read)
 
 static PHP_METHOD(swoole_lock, lock_read)
 {
-    swLock *lock = swoole_get_object(getThis());
+    swLock *lock = swoole_get_object(ZEND_THIS);
     if (lock->lock_rd == NULL)
     {
         php_swoole_error(E_WARNING, "lock[type=%d] can't use lock_read", lock->type);
@@ -229,6 +229,6 @@ static PHP_METHOD(swoole_lock, lock_read)
 
 static PHP_METHOD(swoole_lock, destroy)
 {
-    swLock *lock = swoole_get_object(getThis());
+    swLock *lock = swoole_get_object(ZEND_THIS);
     lock->free(lock);
 }

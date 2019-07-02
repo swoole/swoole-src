@@ -173,7 +173,7 @@ PHP_METHOD(swoole_atomic, __construct)
         RETURN_FALSE;
     }
     *atomic = (sw_atomic_t) value;
-    swoole_set_object(getThis(), (void*) atomic);
+    swoole_set_object(ZEND_THIS, (void*) atomic);
 
     RETURN_TRUE;
 }
@@ -181,7 +181,7 @@ PHP_METHOD(swoole_atomic, __construct)
 PHP_METHOD(swoole_atomic, add)
 {
     zend_long add_value = 1;
-    sw_atomic_t *atomic = swoole_get_object(getThis());
+    sw_atomic_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
@@ -194,7 +194,7 @@ PHP_METHOD(swoole_atomic, add)
 PHP_METHOD(swoole_atomic, sub)
 {
     zend_long sub_value = 1;
-    sw_atomic_t *atomic = swoole_get_object(getThis());
+    sw_atomic_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
@@ -206,13 +206,13 @@ PHP_METHOD(swoole_atomic, sub)
 
 PHP_METHOD(swoole_atomic, get)
 {
-    sw_atomic_t *atomic = swoole_get_object(getThis());
+    sw_atomic_t *atomic = swoole_get_object(ZEND_THIS);
     RETURN_LONG(*atomic);
 }
 
 PHP_METHOD(swoole_atomic, set)
 {
-    sw_atomic_t *atomic = swoole_get_object(getThis());
+    sw_atomic_t *atomic = swoole_get_object(ZEND_THIS);
     zend_long set_value;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -225,7 +225,7 @@ PHP_METHOD(swoole_atomic, set)
 PHP_METHOD(swoole_atomic, cmpset)
 {
     zend_long cmp_value, set_value;
-    sw_atomic_t *atomic = swoole_get_object(getThis());
+    sw_atomic_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
         Z_PARAM_LONG(cmp_value)
@@ -238,7 +238,7 @@ PHP_METHOD(swoole_atomic, cmpset)
 PHP_METHOD(swoole_atomic, wait)
 {
     double timeout = 1.0;
-    sw_atomic_t *atomic = swoole_get_object(getThis());
+    sw_atomic_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
@@ -269,7 +269,7 @@ PHP_METHOD(swoole_atomic, wait)
 PHP_METHOD(swoole_atomic, wakeup)
 {
     zend_long n = 1;
-    sw_atomic_t *atomic = swoole_get_object(getThis());
+    sw_atomic_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
@@ -300,7 +300,7 @@ PHP_METHOD(swoole_atomic_long, __construct)
         RETURN_FALSE;
     }
     *atomic = (sw_atomic_long_t) value;
-    swoole_set_object(getThis(), (void*) atomic);
+    swoole_set_object(ZEND_THIS, (void*) atomic);
 
     RETURN_TRUE;
 }
@@ -308,7 +308,7 @@ PHP_METHOD(swoole_atomic_long, __construct)
 PHP_METHOD(swoole_atomic_long, add)
 {
     zend_long add_value = 1;
-    sw_atomic_long_t *atomic = swoole_get_object(getThis());
+    sw_atomic_long_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
@@ -321,7 +321,7 @@ PHP_METHOD(swoole_atomic_long, add)
 PHP_METHOD(swoole_atomic_long, sub)
 {
     zend_long sub_value = 1;
-    sw_atomic_long_t *atomic = swoole_get_object(getThis());
+    sw_atomic_long_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
@@ -333,13 +333,13 @@ PHP_METHOD(swoole_atomic_long, sub)
 
 PHP_METHOD(swoole_atomic_long, get)
 {
-    sw_atomic_long_t *atomic = swoole_get_object(getThis());
+    sw_atomic_long_t *atomic = swoole_get_object(ZEND_THIS);
     RETURN_LONG(*atomic);
 }
 
 PHP_METHOD(swoole_atomic_long, set)
 {
-    sw_atomic_long_t *atomic = swoole_get_object(getThis());
+    sw_atomic_long_t *atomic = swoole_get_object(ZEND_THIS);
     zend_long set_value;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -352,7 +352,7 @@ PHP_METHOD(swoole_atomic_long, set)
 PHP_METHOD(swoole_atomic_long, cmpset)
 {
     zend_long cmp_value, set_value;
-    sw_atomic_long_t *atomic = swoole_get_object(getThis());
+    sw_atomic_long_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
         Z_PARAM_LONG(cmp_value)

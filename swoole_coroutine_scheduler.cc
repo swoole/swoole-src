@@ -204,10 +204,10 @@ static void scheduler_add_task(scheduler_t *s, scheduler_task_t *task)
 
 static PHP_METHOD(swoole_coroutine_scheduler, add)
 {
-    scheduler_t *s = scheduler_get_object(Z_OBJ_P(getThis()));
+    scheduler_t *s = scheduler_get_object(Z_OBJ_P(ZEND_THIS));
     if (s->started)
     {
-        php_swoole_fatal_error(E_WARNING, "scheduler is running, unable to execute %s->add", SW_Z_OBJCE_NAME_VAL_P(getThis()));
+        php_swoole_fatal_error(E_WARNING, "scheduler is running, unable to execute %s->add", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
 
@@ -224,10 +224,10 @@ static PHP_METHOD(swoole_coroutine_scheduler, add)
 
 static PHP_METHOD(swoole_coroutine_scheduler, parallel)
 {
-    scheduler_t *s = scheduler_get_object(Z_OBJ_P(getThis()));
+    scheduler_t *s = scheduler_get_object(Z_OBJ_P(ZEND_THIS));
     if (s->started)
     {
-        php_swoole_fatal_error(E_WARNING, "scheduler is running, unable to execute %s->parallel", SW_Z_OBJCE_NAME_VAL_P(getThis()));
+        php_swoole_fatal_error(E_WARNING, "scheduler is running, unable to execute %s->parallel", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
 
@@ -246,16 +246,16 @@ static PHP_METHOD(swoole_coroutine_scheduler, parallel)
 
 static PHP_METHOD(swoole_coroutine_scheduler, start)
 {
-    scheduler_t *s = scheduler_get_object(Z_OBJ_P(getThis()));
+    scheduler_t *s = scheduler_get_object(Z_OBJ_P(ZEND_THIS));
 
     if (SwooleG.main_reactor)
     {
-        php_swoole_fatal_error(E_WARNING, "eventLoop has already been created. unable to start %s", SW_Z_OBJCE_NAME_VAL_P(getThis()));
+        php_swoole_fatal_error(E_WARNING, "eventLoop has already been created. unable to start %s", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
     if (s->started)
     {
-        php_swoole_fatal_error(E_WARNING, "scheduler is started, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(getThis()));
+        php_swoole_fatal_error(E_WARNING, "scheduler is started, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
     php_swoole_reactor_init();

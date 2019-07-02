@@ -1557,7 +1557,7 @@ void swoole_http_client_coro_init(int module_number)
 
 static PHP_METHOD(swoole_http_client_coro, __construct)
 {
-    http_client_coro *hcc = swoole_http_client_coro_fetch_object(Z_OBJ_P(getThis()));
+    http_client_coro *hcc = swoole_http_client_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
     char *host;
     size_t host_len;
     zend_long port = 80;
@@ -1570,9 +1570,9 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
         Z_PARAM_BOOL(ssl)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property_stringl(swoole_http_client_coro_ce, getThis(), ZEND_STRL("host"), host, host_len);
-    zend_update_property_long(swoole_http_client_coro_ce,getThis(), ZEND_STRL("port"), port);
-    zend_update_property_bool(swoole_http_client_coro_ce,getThis(), ZEND_STRL("ssl"), ssl);
+    zend_update_property_stringl(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("host"), host, host_len);
+    zend_update_property_long(swoole_http_client_coro_ce,ZEND_THIS, ZEND_STRL("port"), port);
+    zend_update_property_bool(swoole_http_client_coro_ce,ZEND_THIS, ZEND_STRL("ssl"), ssl);
     // check host
     if (host_len == 0)
     {
@@ -1590,14 +1590,14 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
         RETURN_FALSE;
     }
 #endif
-    hcc->phc = new http_client(getThis(), std::string(host, host_len), port, ssl);
+    hcc->phc = new http_client(ZEND_THIS, std::string(host, host_len), port, ssl);
 }
 
 static PHP_METHOD(swoole_http_client_coro, __destruct) { }
 
 static PHP_METHOD(swoole_http_client_coro, set)
 {
-    http_client* phc = swoole_get_phc(getThis());
+    http_client* phc = swoole_get_phc(ZEND_THIS);
     zval *zset;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -1610,7 +1610,7 @@ static PHP_METHOD(swoole_http_client_coro, set)
     }
     else
     {
-        zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, getThis(), ZEND_STRL("setting"), 0);
+        zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
         php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
         phc->apply_setting(zset);
         RETURN_TRUE;
@@ -1619,14 +1619,14 @@ static PHP_METHOD(swoole_http_client_coro, set)
 
 static PHP_METHOD(swoole_http_client_coro, getDefer)
 {
-    http_client *phc = swoole_get_phc(getThis());
+    http_client *phc = swoole_get_phc(ZEND_THIS);
 
     RETURN_BOOL(phc->defer);
 }
 
 static PHP_METHOD(swoole_http_client_coro, setDefer)
 {
-    http_client *phc = swoole_get_phc(getThis());
+    http_client *phc = swoole_get_phc(ZEND_THIS);
     zend_bool defer = 1;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -1649,7 +1649,7 @@ static PHP_METHOD(swoole_http_client_coro, setMethod)
         Z_PARAM_STRING(method, method_length)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property_stringl(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestMethod"), method, method_length);
+    zend_update_property_stringl(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("requestMethod"), method, method_length);
 
     RETURN_TRUE;
 }
@@ -1662,14 +1662,14 @@ static PHP_METHOD(swoole_http_client_coro, setHeaders)
         Z_PARAM_ARRAY(headers)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestHeaders"), headers);
+    zend_update_property(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("requestHeaders"), headers);
 
     RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_http_client_coro, setBasicAuth)
 {
-    http_client* phc = swoole_get_phc(getThis());
+    http_client* phc = swoole_get_phc(ZEND_THIS);
     char *username, *password;
     size_t username_len, password_len;
 
@@ -1689,7 +1689,7 @@ static PHP_METHOD(swoole_http_client_coro, setCookies)
         Z_PARAM_ARRAY_EX(cookies, 0, 1)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("cookies"), cookies);
+    zend_update_property(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("cookies"), cookies);
 
     RETURN_TRUE;
 }
@@ -1702,7 +1702,7 @@ static PHP_METHOD(swoole_http_client_coro, setData)
         Z_PARAM_ZVAL(zdata)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestBody"), zdata);
+    zend_update_property(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("requestBody"), zdata);
 
     RETURN_TRUE;
 }
@@ -1783,7 +1783,7 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
         }
     }
 
-    zval *zupload_files = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, getThis(), ZEND_STRL("uploadFiles"), 0);
+    zval *zupload_files = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("uploadFiles"), 0);
     zval zupload_file;
     array_init(&zupload_file);
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("path"), path, l_path);
@@ -1826,7 +1826,7 @@ static PHP_METHOD(swoole_http_client_coro, addData)
         l_filename = l_name;
     }
 
-    zval *zupload_files = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, getThis(), ZEND_STRL("uploadFiles"), 0);
+    zval *zupload_files = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("uploadFiles"), 0);
     zval zupload_file;
     array_init(&zupload_file);
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("content"), data, l_data);
@@ -1840,7 +1840,7 @@ static PHP_METHOD(swoole_http_client_coro, addData)
 
 static PHP_METHOD(swoole_http_client_coro, execute)
 {
-    http_client* phc = swoole_get_phc(getThis());
+    http_client* phc = swoole_get_phc(ZEND_THIS);
     char *path = NULL;
     size_t path_len = 0;
 
@@ -1853,7 +1853,7 @@ static PHP_METHOD(swoole_http_client_coro, execute)
 
 static PHP_METHOD(swoole_http_client_coro, get)
 {
-    http_client* phc = swoole_get_phc(getThis());
+    http_client* phc = swoole_get_phc(ZEND_THIS);
     char *path = NULL;
     size_t path_len = 0;
 
@@ -1861,14 +1861,14 @@ static PHP_METHOD(swoole_http_client_coro, get)
         Z_PARAM_STRING(path, path_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property_string(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestMethod"), "GET");
+    zend_update_property_string(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("requestMethod"), "GET");
 
     RETURN_BOOL(phc->exec(std::string(path, path_len)));
 }
 
 static PHP_METHOD(swoole_http_client_coro, post)
 {
-    http_client* phc = swoole_get_phc(getThis());
+    http_client* phc = swoole_get_phc(ZEND_THIS);
     char *path = NULL;
     size_t path_len = 0;
     zval *post_data;
@@ -1878,15 +1878,15 @@ static PHP_METHOD(swoole_http_client_coro, post)
         Z_PARAM_ZVAL(post_data)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property_string(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestMethod"), "POST");
-    zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("requestBody"), post_data);
+    zend_update_property_string(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("requestMethod"), "POST");
+    zend_update_property(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("requestBody"), post_data);
 
     RETURN_BOOL(phc->exec(std::string(path, path_len)));
 }
 
 static PHP_METHOD(swoole_http_client_coro, download)
 {
-    http_client* phc = swoole_get_phc(getThis());
+    http_client* phc = swoole_get_phc(ZEND_THIS);
     char *path;
     size_t path_len;
     zval *download_file;
@@ -1899,15 +1899,15 @@ static PHP_METHOD(swoole_http_client_coro, download)
         Z_PARAM_LONG(offset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property(swoole_http_client_coro_ce, getThis(), ZEND_STRL("downloadFile"), download_file);
-    zend_update_property_long(swoole_http_client_coro_ce, getThis(), ZEND_STRL("downloadOffset"), offset);
+    zend_update_property(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("downloadFile"), download_file);
+    zend_update_property_long(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("downloadOffset"), offset);
 
     RETURN_BOOL(phc->exec(std::string(path, path_len)));
 }
 
 static PHP_METHOD(swoole_http_client_coro, upgrade)
 {
-    http_client* phc = swoole_get_phc(getThis());
+    http_client* phc = swoole_get_phc(ZEND_THIS);
     char *path = NULL;
     size_t path_len = 0;
 
@@ -1920,7 +1920,7 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
 
 static PHP_METHOD(swoole_http_client_coro, push)
 {
-    http_client* phc = swoole_get_phc(getThis());
+    http_client* phc = swoole_get_phc(ZEND_THIS);
     zval *zdata;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
     zend_bool fin = 1;
@@ -1937,7 +1937,7 @@ static PHP_METHOD(swoole_http_client_coro, push)
 
 static PHP_METHOD(swoole_http_client_coro, recv)
 {
-    http_client *phc = swoole_get_phc(getThis());
+    http_client *phc = swoole_get_phc(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -1958,7 +1958,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
 
 static PHP_METHOD(swoole_http_client_coro, close)
 {
-    http_client* phc = swoole_get_phc(getThis());
+    http_client* phc = swoole_get_phc(ZEND_THIS);
 
     RETURN_BOOL(phc->close());
 }

@@ -2006,7 +2006,7 @@ static PHP_METHOD(swoole_mysql_coro, __destruct) { }
 
 static PHP_METHOD(swoole_mysql_coro, connect)
 {
-    mysql_client *mc = swoole_get_mysql_client(getThis());
+    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
     zval *zserver_info = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2103,31 +2103,31 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     if (!mc->connect())
     {
-        zend_update_property_long(swoole_mysql_coro_ce, getThis(), ZEND_STRL("connect_errno"), mc->get_error_code());
-        zend_update_property_string(swoole_mysql_coro_ce, getThis(), ZEND_STRL("connect_error"), mc->get_error_msg());
+        zend_update_property_long(swoole_mysql_coro_ce, ZEND_THIS, ZEND_STRL("connect_errno"), mc->get_error_code());
+        zend_update_property_string(swoole_mysql_coro_ce, ZEND_THIS, ZEND_STRL("connect_error"), mc->get_error_msg());
         RETURN_FALSE;
     }
     if (zserver_info && php_swoole_array_length(zserver_info) > 0)
     {
         php_array_merge(
-            Z_ARRVAL_P(sw_zend_read_and_convert_property_array(swoole_mysql_coro_ce, getThis(), ZEND_STRL("serverInfo"), 0)),
+            Z_ARRVAL_P(sw_zend_read_and_convert_property_array(swoole_mysql_coro_ce, ZEND_THIS, ZEND_STRL("serverInfo"), 0)),
             Z_ARRVAL_P(zserver_info)
         );
     }
-    zend_update_property_long(swoole_mysql_coro_ce, getThis(), ZEND_STRL("sock"), mc->get_fd());
-    zend_update_property_bool(swoole_mysql_coro_ce, getThis(), ZEND_STRL("connected"), 1);
+    zend_update_property_long(swoole_mysql_coro_ce, ZEND_THIS, ZEND_STRL("sock"), mc->get_fd());
+    zend_update_property_bool(swoole_mysql_coro_ce, ZEND_THIS, ZEND_STRL("connected"), 1);
     RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_mysql_coro, getDefer)
 {
-    mysql_client *mc = swoole_get_mysql_client(getThis());
+    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
     RETURN_BOOL(mc->get_defer());
 }
 
 static PHP_METHOD(swoole_mysql_coro, setDefer)
 {
-    mysql_client *mc = swoole_get_mysql_client(getThis());
+    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
     zend_bool defer = 1;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2145,7 +2145,7 @@ static PHP_METHOD(swoole_mysql_coro, setDefer)
 
 static PHP_METHOD(swoole_mysql_coro, query)
 {
-    mysql_client *mc = swoole_get_mysql_client(getThis());
+    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
     char *sql;
     size_t sql_length;
     double timeout = 0;
@@ -2159,12 +2159,12 @@ static PHP_METHOD(swoole_mysql_coro, query)
     mc->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
     mc->query(return_value, sql, sql_length);
     mc->del_timeout_controller();
-    swoole_mysql_coro_sync_query_result_properties(getThis(), mc, return_value);
+    swoole_mysql_coro_sync_query_result_properties(ZEND_THIS, mc, return_value);
 }
 
 static PHP_METHOD(swoole_mysql_coro, fetch)
 {
-    mysql_client *mc = swoole_get_mysql_client(getThis());
+    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2177,13 +2177,13 @@ static PHP_METHOD(swoole_mysql_coro, fetch)
     mc->del_timeout_controller();
     if (unlikely(Z_TYPE_P(return_value) == IS_FALSE))
     {
-        swoole_mysql_coro_sync_error_properties(getThis(), mc->get_error_code(), mc->get_error_msg(), mc->is_connect());
+        swoole_mysql_coro_sync_error_properties(ZEND_THIS, mc->get_error_code(), mc->get_error_msg(), mc->is_connect());
     }
 }
 
 static PHP_METHOD(swoole_mysql_coro, fetchAll)
 {
-    mysql_client *mc = swoole_get_mysql_client(getThis());
+    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2196,13 +2196,13 @@ static PHP_METHOD(swoole_mysql_coro, fetchAll)
     mc->del_timeout_controller();
     if (unlikely(Z_TYPE_P(return_value) == IS_FALSE))
     {
-        swoole_mysql_coro_sync_error_properties(getThis(), mc->get_error_code(), mc->get_error_msg(), mc->is_connect());
+        swoole_mysql_coro_sync_error_properties(ZEND_THIS, mc->get_error_code(), mc->get_error_msg(), mc->is_connect());
     }
 }
 
 static PHP_METHOD(swoole_mysql_coro, nextResult)
 {
-    mysql_client *mc = swoole_get_mysql_client(getThis());
+    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2213,7 +2213,7 @@ static PHP_METHOD(swoole_mysql_coro, nextResult)
     mc->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
     mc->next_result(return_value);
     mc->del_timeout_controller();
-    swoole_mysql_coro_sync_query_result_properties(getThis(), mc, return_value);
+    swoole_mysql_coro_sync_query_result_properties(ZEND_THIS, mc, return_value);
     if (Z_TYPE_P(return_value) == IS_TRUE)
     {
         if (mc->state == SW_MYSQL_STATE_IDLE)
@@ -2226,7 +2226,7 @@ static PHP_METHOD(swoole_mysql_coro, nextResult)
 
 static PHP_METHOD(swoole_mysql_coro, prepare)
 {
-    mysql_client *mc = swoole_get_mysql_client(getThis());
+    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
     char *statement;
     size_t statement_length;
     double timeout = 0;
@@ -2241,7 +2241,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     if (UNEXPECTED(!mc->send_prepare_request(statement, statement_length)))
     {
         _failed:
-        swoole_mysql_coro_sync_error_properties(getThis(), mc->get_error_code(), mc->get_error_msg(), mc->is_connect());
+        swoole_mysql_coro_sync_error_properties(ZEND_THIS, mc->get_error_code(), mc->get_error_msg(), mc->is_connect());
         RETVAL_FALSE;
     }
     else if (UNEXPECTED(mc->get_defer()))
@@ -2255,14 +2255,14 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         {
             goto _failed;
         }
-        RETVAL_OBJ(swoole_mysql_coro_statement_create_object(statement, Z_OBJ_P(getThis())));
+        RETVAL_OBJ(swoole_mysql_coro_statement_create_object(statement, Z_OBJ_P(ZEND_THIS)));
     }
     mc->del_timeout_controller();
 }
 
 static PHP_METHOD(swoole_mysql_coro, recv)
 {
-    mysql_client *mc = swoole_get_mysql_client(getThis());
+    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2272,14 +2272,14 @@ static PHP_METHOD(swoole_mysql_coro, recv)
 
     if (UNEXPECTED(!mc->check_connection()))
     {
-        swoole_mysql_coro_sync_error_properties(getThis(), mc->get_error_code(), mc->get_error_msg(), false);
+        swoole_mysql_coro_sync_error_properties(ZEND_THIS, mc->get_error_code(), mc->get_error_msg(), false);
         RETURN_FALSE;
     }
     mc->add_timeout_controller(timeout, SW_TIMEOUT_READ);
     switch(mc->state)
     {
     case SW_MYSQL_STATE_IDLE:
-        swoole_mysql_coro_sync_error_properties(getThis(), ENOMSG, "no message to receive");
+        swoole_mysql_coro_sync_error_properties(ZEND_THIS, ENOMSG, "no message to receive");
         RETVAL_FALSE;
         break;
     case SW_MYSQL_STATE_QUERY:
@@ -2294,18 +2294,18 @@ static PHP_METHOD(swoole_mysql_coro, recv)
         }
         else
         {
-            RETVAL_OBJ(swoole_mysql_coro_statement_create_object(statement, Z_OBJ_P(getThis())));
+            RETVAL_OBJ(swoole_mysql_coro_statement_create_object(statement, Z_OBJ_P(ZEND_THIS)));
         }
         break;
     }
     default:
         if (UNEXPECTED(mc->state & SW_MYSQL_COMMAND_FLAG_EXECUTE))
         {
-            swoole_mysql_coro_sync_error_properties(getThis(), EPERM, "please use statement to receive data");
+            swoole_mysql_coro_sync_error_properties(ZEND_THIS, EPERM, "please use statement to receive data");
         }
         else
         {
-            swoole_mysql_coro_sync_error_properties(getThis(), EPERM, "please use fetch/fetchAll/nextResult to get result");
+            swoole_mysql_coro_sync_error_properties(ZEND_THIS, EPERM, "please use fetch/fetchAll/nextResult to get result");
         }
         RETVAL_FALSE;
     }
@@ -2314,7 +2314,7 @@ static PHP_METHOD(swoole_mysql_coro, recv)
 
 static void swoole_mysql_coro_query_transcation(INTERNAL_FUNCTION_PARAMETERS, const char* command, size_t command_length)
 {
-    mysql_client *mc = swoole_get_mysql_client(getThis());
+    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2354,7 +2354,7 @@ static PHP_METHOD(swoole_mysql_coro, rollback)
 #ifdef SW_USE_MYSQLND
 static PHP_METHOD(swoole_mysql_coro, escape)
 {
-    mysql_client *mc = swoole_get_mysql_client(getThis());
+    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
     char *str;
     size_t str_length;
     zend_long flags = 0;
@@ -2391,15 +2391,15 @@ static PHP_METHOD(swoole_mysql_coro, escape)
 
 static PHP_METHOD(swoole_mysql_coro, close)
 {
-    mysql_client *mc = swoole_get_mysql_client(getThis());
+    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
     mc->close();
-    zend_update_property_bool(swoole_mysql_coro_ce, getThis(), ZEND_STRL("connected"), 0);
+    zend_update_property_bool(swoole_mysql_coro_ce, ZEND_THIS, ZEND_STRL("connected"), 0);
     RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_mysql_coro_statement, execute)
 {
-    mysql_statement *ms = swoole_get_mysql_statement(getThis());
+    mysql_statement *ms = swoole_get_mysql_statement(ZEND_THIS);
     zval *params = nullptr;
     double timeout = 0;
 
@@ -2412,12 +2412,12 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
     ms->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
     ms->execute(return_value, params);
     ms->del_timeout_controller();
-    swoole_mysql_coro_sync_execute_result_properties(getThis(), return_value);
+    swoole_mysql_coro_sync_execute_result_properties(ZEND_THIS, return_value);
 }
 
 static PHP_METHOD(swoole_mysql_coro_statement, fetch)
 {
-    mysql_statement *ms = swoole_get_mysql_statement(getThis());
+    mysql_statement *ms = swoole_get_mysql_statement(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2430,13 +2430,13 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetch)
     ms->del_timeout_controller();
     if (unlikely(Z_TYPE_P(return_value) == IS_FALSE))
     {
-        swoole_mysql_coro_sync_execute_error_properties(getThis(), ms->get_error_code(), ms->get_error_msg());
+        swoole_mysql_coro_sync_execute_error_properties(ZEND_THIS, ms->get_error_code(), ms->get_error_msg());
     }
 }
 
 static PHP_METHOD(swoole_mysql_coro_statement, fetchAll)
 {
-    mysql_statement *ms = swoole_get_mysql_statement(getThis());
+    mysql_statement *ms = swoole_get_mysql_statement(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2449,13 +2449,13 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetchAll)
     ms->del_timeout_controller();
     if (unlikely(Z_TYPE_P(return_value) == IS_FALSE))
     {
-        swoole_mysql_coro_sync_execute_error_properties(getThis(), ms->get_error_code(), ms->get_error_msg());
+        swoole_mysql_coro_sync_execute_error_properties(ZEND_THIS, ms->get_error_code(), ms->get_error_msg());
     }
 }
 
 static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
 {
-    mysql_statement *ms = swoole_get_mysql_statement(getThis());
+    mysql_statement *ms = swoole_get_mysql_statement(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2466,7 +2466,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
     ms->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
     ms->next_result(return_value);
     ms->del_timeout_controller();
-    swoole_mysql_coro_sync_execute_result_properties(getThis(), return_value);
+    swoole_mysql_coro_sync_execute_result_properties(ZEND_THIS, return_value);
     if (Z_TYPE_P(return_value) == IS_TRUE)
     {
         mysql_client *mc =  ms->get_client();
@@ -2480,7 +2480,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
 
 static PHP_METHOD(swoole_mysql_coro_statement, recv)
 {
-    mysql_statement *ms = swoole_get_mysql_statement(getThis());
+    mysql_statement *ms = swoole_get_mysql_statement(ZEND_THIS);
     double timeout = 0;
     enum sw_mysql_state state;
 
@@ -2491,14 +2491,14 @@ static PHP_METHOD(swoole_mysql_coro_statement, recv)
 
     if (UNEXPECTED(!ms->is_available()))
     {
-        swoole_mysql_coro_sync_execute_error_properties(getThis(), ms->get_error_code(), ms->get_error_msg(), false);
+        swoole_mysql_coro_sync_execute_error_properties(ZEND_THIS, ms->get_error_code(), ms->get_error_msg(), false);
         RETURN_FALSE;
     }
     ms->add_timeout_controller(timeout, SW_TIMEOUT_READ);
     switch((state = ms->get_client()->state))
     {
     case SW_MYSQL_STATE_IDLE:
-        swoole_mysql_coro_sync_execute_error_properties(getThis(), ENOMSG, "no message to receive");
+        swoole_mysql_coro_sync_execute_error_properties(ZEND_THIS, ENOMSG, "no message to receive");
         RETVAL_FALSE;
         break;
     case SW_MYSQL_STATE_EXECUTE:
@@ -2507,11 +2507,11 @@ static PHP_METHOD(swoole_mysql_coro_statement, recv)
     default:
         if (UNEXPECTED(state & SW_MYSQL_COMMAND_FLAG_QUERY))
         {
-            swoole_mysql_coro_sync_execute_error_properties(getThis(), EPERM, "please use client to receive data");
+            swoole_mysql_coro_sync_execute_error_properties(ZEND_THIS, EPERM, "please use client to receive data");
         }
         else
         {
-            swoole_mysql_coro_sync_execute_error_properties(getThis(), EPERM, "please use fetch/fetchAll/nextResult to get result");
+            swoole_mysql_coro_sync_execute_error_properties(ZEND_THIS, EPERM, "please use fetch/fetchAll/nextResult to get result");
         }
         RETVAL_FALSE;
     }
@@ -2520,7 +2520,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, recv)
 
 static PHP_METHOD(swoole_mysql_coro_statement, close)
 {
-    mysql_statement *ms = swoole_get_mysql_statement(getThis());
+    mysql_statement *ms = swoole_get_mysql_statement(ZEND_THIS);
     ms->close();
     RETURN_TRUE;
 }
