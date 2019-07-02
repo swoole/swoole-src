@@ -4,6 +4,7 @@ return [
     'constants.php',
     # <std> #
     'std/array.php',
+    'std/exec.php',
     # <ext> #
     'ext/curl.php',
     # <core> #

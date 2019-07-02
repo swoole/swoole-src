@@ -34,6 +34,37 @@ static const char* swoole_library_source_std_array =
     "    return true;\n"
     "}\n";
 
+static const char* swoole_library_source_std_exec =
+    "\n"
+    "function swoole_exec(string $command, &$output = null, &$returnVar = null): string\n"
+    "{\n"
+    "    $result = Swoole\\Coroutine::exec($command);\n"
+    "    if($result) {\n"
+    "        $outputList = explode(PHP_EOL, $result['output']);\n"
+    "        if($output)\n"
+    "        {\n"
+    "            $output = array_merge($output, $outputList);\n"
+    "        }\n"
+    "        else\n"
+    "        {\n"
+    "            $output = $outputList;\n"
+    "        }\n"
+    "        $returnVar = $result['code'];\n"
+    "        return end($outputList);\n"
+    "    } else {\n"
+    "        return false;\n"
+    "    }\n"
+    "}\n"
+    "\n"
+    "function swoole_shell_exec(string $cmd)\n"
+    "{\n"
+    "    $result = Swoole\\Coroutine::exec($cmd);\n"
+    "    if($result && '' !== $result['output']) {\n"
+    "        return $result['output'];\n"
+    "    }\n"
+    "    return null;\n"
+    "}\n";
+
 static const char* swoole_library_source_ext_curl =
     "\n"
     "\n"
@@ -1980,11 +2011,15 @@ static const char* swoole_library_source_functions =
     "    }\n"
     "\n"
     "    /**\n"
-    "     * @return \\Swoole\\Coroutine\\Scheduler\n"
+    "     * @return Swoole\\Coroutine\\Scheduler\n"
     "     */\n"
     "    function scheduler()\n"
     "    {\n"
-    "        return new Swoole\\Coroutine\\Scheduler();\n"
+    "        static $scheduler = null;\n"
+    "        if (!$scheduler) {\n"
+    "            $scheduler = new Swoole\\Coroutine\\Scheduler();\n"
+    "        }\n"
+    "        return $scheduler;\n"
     "    }\n"
     "}\n"
     "\n"
@@ -2024,10 +2059,31 @@ static const char* swoole_library_source_alias =
     "    class_alias(Swoole\\Coroutine\\Server::class, Co\\Server::class, false);\n"
     "}\n";
 
+static const char* swoole_library_source_alias_ns =
+    "\n"
+    "\n"
+    "namespace Swoole\\Coroutine {\n"
+    "\n"
+    "    function run(callable $fn, ...$args)\n"
+    "    {\n"
+    "        $s = new Scheduler();\n"
+    "        $s->add($fn, ...$args);\n"
+    "        return $s->start();\n"
+    "    }\n"
+    "}\n"
+    "\n"
+    "namespace Co {\n"
+    "    function run(callable $fn, ...$args)\n"
+    "    {\n"
+    "        return \\Swoole\\Coroutine\\Run($fn, ...$args);\n"
+    "    }\n"
+    "}\n";
+
 static void php_swoole_load_library()
 {
     zend::eval(swoole_library_source_constants, "@swoole-src/library/constants.php");
     zend::eval(swoole_library_source_std_array, "@swoole-src/library/std/array.php");
+    zend::eval(swoole_library_source_std_exec, "@swoole-src/library/std/exec.php");
     zend::eval(swoole_library_source_ext_curl, "@swoole-src/library/ext/curl.php");
     zend::eval(swoole_library_source_core_coroutine_wait_group, "@swoole-src/library/core/Coroutine/WaitGroup.php");
     zend::eval(swoole_library_source_core_coroutine_object_pool, "@swoole-src/library/core/Coroutine/ObjectPool.php");
@@ -2037,4 +2093,5 @@ static void php_swoole_load_library()
     zend::eval(swoole_library_source_core_coroutine_server_connection, "@swoole-src/library/core/Coroutine/Server/Connection.php");
     zend::eval(swoole_library_source_functions, "@swoole-src/library/functions.php");
     zend::eval(swoole_library_source_alias, "@swoole-src/library/alias.php");
+    zend::eval(swoole_library_source_alias_ns, "@swoole-src/library/alias_ns.php");
 }
