@@ -1156,6 +1156,8 @@ bool PHPCoroutine::enable_hook(int flags)
         if (!(hook_flags & SW_HOOK_BLOCKING_FUNCTION))
         {
             hook_func(ZEND_STRL("gethostbyname"), PHP_FN(swoole_coroutine_gethostbyname));
+            hook_func(ZEND_STRL("exec"));
+            hook_func(ZEND_STRL("shell_exec"));
         }
     }
     else
@@ -1163,6 +1165,8 @@ bool PHPCoroutine::enable_hook(int flags)
         if (hook_flags & SW_HOOK_BLOCKING_FUNCTION)
         {
             SW_UNHOOK_FUNC(gethostbyname);
+            unhook_func(ZEND_STRL("exec"));
+            unhook_func(ZEND_STRL("shell_exec"));
         }
     }
 
