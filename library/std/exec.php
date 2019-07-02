@@ -1,5 +1,5 @@
 <?php
-function swoole_exec(string $command, &$output = null, &$returnVar = null): string
+function swoole_exec(string $command, &$output = null, &$returnVar = null)
 {
     $result = Swoole\Coroutine::exec($command);
     if ($result) {

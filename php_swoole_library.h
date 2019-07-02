@@ -36,7 +36,7 @@ static const char* swoole_library_source_std_array =
 
 static const char* swoole_library_source_std_exec =
     "\n"
-    "function swoole_exec(string $command, &$output = null, &$returnVar = null): string\n"
+    "function swoole_exec(string $command, &$output = null, &$returnVar = null)\n"
     "{\n"
     "    $result = Swoole\\Coroutine::exec($command);\n"
     "    if ($result) {\n"
