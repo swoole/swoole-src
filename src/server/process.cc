@@ -36,8 +36,7 @@ static void swFactoryProcess_free(swFactory *factory);
 
 int swFactoryProcess_create(swFactory *factory, int worker_num)
 {
-    swFactoryProcess *object;
-    object = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swFactoryProcess));
+    swFactoryProcess *object = (swFactoryProcess *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swFactoryProcess));
     if (object == NULL)
     {
         swWarn("[Master] malloc[object] failed");
@@ -59,7 +58,7 @@ int swFactoryProcess_create(swFactory *factory, int worker_num)
 static int swFactoryProcess_shutdown(swFactory *factory)
 {
     int status;
-    swServer *serv = factory->ptr;
+    swServer *serv = (swServer *) factory->ptr;
 
     if (swKill(serv->gs->manager_pid, SIGTERM) < 0)
     {
@@ -76,7 +75,7 @@ static int swFactoryProcess_shutdown(swFactory *factory)
 
 static void swFactoryProcess_free(swFactory *factory)
 {
-    swServer *serv = factory->ptr;
+    swServer *serv = (swServer *) factory->ptr;
     swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
 
     int i;
@@ -103,7 +102,7 @@ static void swFactoryProcess_free(swFactory *factory)
 static int swFactoryProcess_start(swFactory *factory)
 {
     int i;
-    swServer *serv = factory->ptr;
+    swServer *serv = (swServer *) factory->ptr;
 
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
     {
@@ -179,7 +178,7 @@ static int swFactoryProcess_start(swFactory *factory)
     /**
      * alloc memory
      */
-    serv->pipe_buffers = sw_calloc(serv->reactor_num, sizeof(swPipeBuffer *));
+    serv->pipe_buffers = (swPipeBuffer **) sw_calloc(serv->reactor_num, sizeof(swPipeBuffer *));
     if (serv->pipe_buffers == NULL)
     {
         swSysError("malloc[buffers] failed");
@@ -187,7 +186,7 @@ static int swFactoryProcess_start(swFactory *factory)
     }
     for (i = 0; i < serv->reactor_num; i++)
     {
-        serv->pipe_buffers[i] = sw_malloc(serv->ipc_max_size);
+        serv->pipe_buffers[i] = (swPipeBuffer *) sw_malloc(serv->ipc_max_size);
         if (serv->pipe_buffers[i] == NULL)
         {
             swSysError("malloc[sndbuf][%d] failed", i);
@@ -435,6 +434,9 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     buf->info.type = resp->info.type;
     swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
     uint32_t max_length = serv->ipc_max_size - sizeof(buf->info);
+    int _pipe_fd;
+    swConnection *_pipe_socket;
+
     /**
      * Big response, use shared memory
      */
@@ -453,8 +455,8 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         if (SwooleG.main_reactor)
 #endif
         {
-            int _pipe_fd = swWorker_get_send_pipe(serv, session_id, conn->reactor_id);
-            swConnection *_pipe_socket = swReactor_get(SwooleG.main_reactor, _pipe_fd);
+            _pipe_fd = swWorker_get_send_pipe(serv, session_id, conn->reactor_id);
+            _pipe_socket = swReactor_get(SwooleG.main_reactor, _pipe_fd);
 
 #if SW_IPC_USE_SHM
             //cannot use send_shm
@@ -512,7 +514,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 
 static int swFactoryProcess_end(swFactory *factory, int fd)
 {
-    swServer *serv = factory->ptr;
+    swServer *serv = (swServer *) factory->ptr;
     swSendData _send;
     swDataHead info;
 

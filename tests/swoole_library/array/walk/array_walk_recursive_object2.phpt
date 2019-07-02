@@ -70,26 +70,27 @@ class MyClass
     }
 }
 
-;
+go(function(){
+    // array containing objects of MyClass
+    $input = [
+        [
+            new MyClass(3),
+            new MyClass(10),
+        ],
+        new MyClass(20),
+        [new MyClass(-10)]
+    ];
+    
+    echo "-- For private member --\n";
+    var_dump(array_walk_recursive($input, "callback_private", 1));
+    echo "-- For public member --\n";
+    var_dump(array_walk_recursive($input, "callback_public"));
+    echo "-- For protected member --\n";
+    var_dump(array_walk_recursive($input, "callback_protected"));
+    
+    echo "Done";
+});
 
-// array containing objects of MyClass
-$input = [
-    [
-        new MyClass(3),
-        new MyClass(10),
-    ],
-    new MyClass(20),
-    [new MyClass(-10)]
-];
-
-echo "-- For private member --\n";
-var_dump(array_walk_recursive($input, "callback_private", 1));
-echo "-- For public member --\n";
-var_dump(array_walk_recursive($input, "callback_public"));
-echo "-- For protected member --\n";
-var_dump(array_walk_recursive($input, "callback_protected"));
-
-echo "Done"
 ?>
 --EXPECT--
 *** Testing array_walk_recursive() : array of objects ***

@@ -939,6 +939,16 @@ static php_stream *socket_create(
     return stream;
 }
 
+static void init_function()
+{
+    if (function_table)
+    {
+        return;
+    }
+    function_table = (zend_array*) emalloc(sizeof(zend_array));
+    zend_hash_init(function_table, 8, NULL, NULL, 0);
+}
+
 bool PHPCoroutine::enable_hook(int flags)
 {
     if (unlikely(enable_strict_mode))
@@ -960,7 +970,7 @@ bool PHPCoroutine::enable_hook(int flags)
         // file
         memcpy((void*) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
 
-        inject_function();
+        init_function();
 
         hook_init = true;
     }
@@ -1193,13 +1203,7 @@ bool PHPCoroutine::enable_hook(int flags)
 
 bool PHPCoroutine::inject_function()
 {
-    if (function_table)
-    {
-        return false;
-    }
-
-    function_table = (zend_array*) emalloc(sizeof(zend_array));
-    zend_hash_init(function_table, 8, NULL, NULL, 0);
+    init_function();
     /**
      * array_walk, array_walk_recursive can not work in coroutine
      * replace them with the php swoole library

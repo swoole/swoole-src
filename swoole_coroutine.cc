@@ -21,10 +21,16 @@
 #include "swoole_coroutine_scheduler.h"
 #include "swoole_coroutine_system.h"
 
+#include "zend_builtin_functions.h"
+#include "ext/spl/spl_array.h"
+
+#include <unordered_map>
+
 using swoole::coroutine::System;
 using swoole::coroutine::Socket;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
+using std::unordered_map;
 
 #define PHP_CORO_TASK_SLOT ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(php_coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 
@@ -124,12 +130,13 @@ ZEND_END_ARG_INFO()
 bool PHPCoroutine::active = false;
 uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
 php_coro_task PHPCoroutine::main_task = {0};
-
-bool PHPCoroutine::schedule_thread_running = false;
+bool PHPCoroutine::enable_preemptive_scheduler = false;
+pthread_t PHPCoroutine::interrupt_thread_id;
+bool PHPCoroutine::interrupt_thread_running = false;
 
 static zend_bool* zend_vm_interrupt = nullptr;
-static pthread_t pidt;
 static user_opcode_handler_t ori_exit_handler = NULL;
+static unordered_map<long, Coroutine *> user_yield_coros;
 
 static void (*orig_interrupt_function)(zend_execute_data *execute_data);
 static void (*orig_error_function)(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args);
@@ -137,6 +144,8 @@ static void (*orig_error_function)(int type, const char *error_filename, const u
 static zend_class_entry *swoole_coroutine_util_ce;
 static zend_class_entry *swoole_exit_exception_ce;
 static zend_object_handlers swoole_exit_exception_handlers;
+static zend_class_entry *swoole_coroutine_iterator_ce;
+static zend_class_entry *swoole_coroutine_context_ce;
 
 static const zend_function_entry swoole_coroutine_util_methods[] =
 {
@@ -270,9 +279,9 @@ static void swoole_interrupt_function(zend_execute_data *execute_data)
     }
 }
 
-static void swoole_stop_scheduler_thread(void *ptr)
+static void swoole_interrupt_thread_join(void *ptr)
 {
-    PHPCoroutine::stop_scheduler_thread();
+    PHPCoroutine::interrupt_thread_stop();
 }
 
 void PHPCoroutine::init()
@@ -297,8 +306,8 @@ inline void PHPCoroutine::activate()
     if (SWOOLE_G(enable_preemptive_scheduler))
     {
         /* create a thread to interrupt the coroutine that takes up too much time */
-        start_scheduler_thread();
-        swReactor_add_destroy_callback(SwooleG.main_reactor, swoole_stop_scheduler_thread, nullptr);
+        interrupt_thread_start();
+        swReactor_add_destroy_callback(SwooleG.main_reactor, swoole_interrupt_thread_join, nullptr);
     }
 
     if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug")))
@@ -334,44 +343,44 @@ void PHPCoroutine::error(int type, const char *error_filename, const uint32_t er
 
 void PHPCoroutine::shutdown()
 {
-    stop_scheduler_thread();
+    interrupt_thread_stop();
     Coroutine::bailout(nullptr);
 }
 
-void PHPCoroutine::stop_scheduler_thread()
+void PHPCoroutine::interrupt_thread_stop()
 {
-    if (!schedule_thread_running)
+    if (!interrupt_thread_running)
     {
         return;
     }
-    schedule_thread_running = false;
-    if (pthread_join(pidt, NULL) < 0)
+    interrupt_thread_running = false;
+    if (pthread_join(interrupt_thread_id, NULL) < 0)
     {
-        swSysWarn("pthread_join(%ld) failed", (ulong_t )pidt);
-        schedule_thread_running = true;
+        swSysWarn("pthread_join(%ld) failed", (ulong_t )interrupt_thread_id);
+        interrupt_thread_running = true;
     }
 }
 
-void PHPCoroutine::start_scheduler_thread()
+void PHPCoroutine::interrupt_thread_start()
 {
-    if (schedule_thread_running)
+    if (interrupt_thread_running)
     {
         return;
     }
     zend_vm_interrupt = &EG(vm_interrupt);
-    schedule_thread_running = true;
-    if (pthread_create(&pidt, NULL, (void * (*)(void *)) schedule, NULL) < 0)
+    interrupt_thread_running = true;
+    if (pthread_create(&interrupt_thread_id, NULL, (void * (*)(void *)) interrupt_thread_loop, NULL) < 0)
     {
         swSysError("pthread_create[PHPCoroutine Scheduler] failed");
-        schedule_thread_running = false;
+        interrupt_thread_running = false;
     }
 }
 
-void PHPCoroutine::schedule()
+void PHPCoroutine::interrupt_thread_loop()
 {
     static const useconds_t interval = (MAX_EXEC_MSEC / 2) * 1000;
     swSignal_none();
-    while (schedule_thread_running)
+    while (interrupt_thread_running)
     {
         *zend_vm_interrupt = 1;
         usleep(interval);
@@ -773,6 +782,9 @@ void swoole_coroutine_init(int module_number)
     SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_util, "Swoole\\Coroutine", NULL, "Co", swoole_coroutine_util_methods, NULL);
     SW_SET_CLASS_CREATE(swoole_coroutine_util, sw_zend_create_object_deny);
 
+    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", NULL, spl_ce_ArrayIterator);
+    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_context, "Swoole\\Coroutine\\Context", NULL, "Co\\Context", NULL, spl_ce_ArrayObject);
+
     swoole_coroutine_scheduler_init(module_number);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DEFAULT_MAX_CORO_NUM", SW_DEFAULT_MAX_CORO_NUM);
@@ -810,4 +822,201 @@ static PHP_METHOD(swoole_exit_exception, getFlags)
 static PHP_METHOD(swoole_exit_exception, getStatus)
 {
     SW_RETURN_PROPERTY("status");
+}
+
+PHP_FUNCTION(swoole_coroutine_create)
+{
+    zend_fcall_info fci = empty_fcall_info;
+    zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
+
+    ZEND_PARSE_PARAMETERS_START(1, -1)
+        Z_PARAM_FUNC(fci, fci_cache)
+        Z_PARAM_VARIADIC('*', fci.params, fci.param_count)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (unlikely(SWOOLE_G(req_status) == PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN))
+    {
+        zend_function *func = (zend_function *) EG(current_execute_data)->prev_execute_data->func;
+        if (func->common.function_name && unlikely(memcmp(ZSTR_VAL(func->common.function_name), ZEND_STRS("__destruct")) == 0))
+        {
+            php_swoole_fatal_error(E_ERROR, "can not use coroutine in __destruct after php_request_shutdown");
+            RETURN_FALSE;
+        }
+    }
+
+    long cid = PHPCoroutine::create(&fci_cache, fci.param_count, fci.params);
+    if (likely(cid > 0))
+    {
+        RETURN_LONG(cid);
+    }
+    else
+    {
+        RETURN_FALSE;
+    }
+}
+
+PHP_FUNCTION(swoole_coroutine_defer)
+{
+    zend_fcall_info fci = empty_fcall_info;
+    zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
+    php_swoole_fci *defer_fci;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_FUNC(fci, fci_cache)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    Coroutine::get_current_safe();
+    defer_fci = (php_swoole_fci *) emalloc(sizeof(php_swoole_fci));
+    defer_fci->fci = fci;
+    defer_fci->fci_cache = fci_cache;
+    sw_zend_fci_cache_persist(&defer_fci->fci_cache);
+    PHPCoroutine::defer(defer_fci);
+}
+
+PHP_METHOD(swoole_coroutine_scheduler, stats)
+{
+    array_init(return_value);
+    if (SwooleG.main_reactor)
+    {
+        add_assoc_long_ex(return_value, ZEND_STRL("event_num"), SwooleG.main_reactor->event_num);
+        add_assoc_long_ex(return_value, ZEND_STRL("signal_listener_num"), SwooleG.main_reactor->signal_listener_num);
+    }
+    add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), SwooleAIO.task_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("c_stack_size"), Coroutine::get_stack_size());
+    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
+    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_peak_num"), Coroutine::get_peak_num());
+    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_last_cid"), Coroutine::get_last_cid());
+}
+
+PHP_METHOD(swoole_coroutine_scheduler, getCid)
+{
+    RETURN_LONG(PHPCoroutine::get_cid());
+}
+
+PHP_METHOD(swoole_coroutine_scheduler, getPcid)
+{
+    RETURN_LONG(PHPCoroutine::get_pcid());
+}
+
+PHP_METHOD(swoole_coroutine_scheduler, getContext)
+{
+    zend_long cid = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(cid)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    php_coro_task *task = (php_coro_task *) (EXPECTED(cid == 0) ? Coroutine::get_current_task() : Coroutine::get_task_by_cid(cid));
+    if (UNEXPECTED(!task))
+    {
+        RETURN_NULL();
+    }
+    if (UNEXPECTED(!task->context))
+    {
+        object_init_ex(return_value, swoole_coroutine_context_ce);
+        task->context = Z_OBJ_P(return_value);
+    }
+    GC_ADDREF(task->context);
+    RETURN_OBJ(task->context);
+}
+
+PHP_METHOD(swoole_coroutine_scheduler, exists)
+{
+    zend_long cid;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(cid)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    RETURN_BOOL(Coroutine::get_by_cid(cid) != nullptr);
+}
+
+PHP_METHOD(swoole_coroutine_scheduler, resume)
+{
+    long cid;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &cid) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    auto coroutine_iterator = user_yield_coros.find(cid);
+    if (coroutine_iterator == user_yield_coros.end())
+    {
+        php_swoole_fatal_error(E_WARNING, "you can not resume the coroutine which is in IO operation or non-existent");
+        RETURN_FALSE;
+    }
+
+    Coroutine* co = coroutine_iterator->second;
+    user_yield_coros.erase(cid);
+    co->resume();
+    RETURN_TRUE;
+}
+
+PHP_METHOD(swoole_coroutine_scheduler, yield)
+{
+    Coroutine* co = Coroutine::get_current_safe();
+    user_yield_coros[co->get_cid()] = co;
+    co->yield();
+    RETURN_TRUE;
+}
+
+PHP_METHOD(swoole_coroutine_scheduler, getBackTrace)
+{
+    zend_long cid = 0;
+    zend_long options = DEBUG_BACKTRACE_PROVIDE_OBJECT;
+    zend_long limit = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 3)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(cid)
+        Z_PARAM_LONG(options)
+        Z_PARAM_LONG(limit)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (!cid || cid == PHPCoroutine::get_cid())
+    {
+        zend_fetch_debug_backtrace(return_value, 0, options, limit);
+    }
+    else
+    {
+        php_coro_task *task = (php_coro_task *) PHPCoroutine::get_task_by_cid(cid);
+        if (UNEXPECTED(!task))
+        {
+            RETURN_FALSE;
+        }
+        zend_execute_data *ex_backup = EG(current_execute_data);
+        EG(current_execute_data) = task->execute_data;
+        zend_fetch_debug_backtrace(return_value, 0, options, limit);
+        EG(current_execute_data) = ex_backup;
+    }
+}
+
+PHP_METHOD(swoole_coroutine_scheduler, list)
+{
+    zval zlist;
+    array_init(&zlist);
+    for (auto &co : Coroutine::coroutines) {
+        add_next_index_long(&zlist, co.second->get_cid());
+    }
+    object_init_ex(return_value, swoole_coroutine_iterator_ce);
+    sw_zend_call_method_with_1_params(
+        return_value,
+        swoole_coroutine_iterator_ce,
+        &swoole_coroutine_iterator_ce->constructor,
+        (const char *) "__construct",
+        NULL,
+        &zlist
+    );
+    zval_ptr_dtor(&zlist);
+}
+
+PHP_METHOD(swoole_coroutine_scheduler, enableScheduler)
+{
+    RETURN_BOOL(PHPCoroutine::enable_scheduler());
+}
+
+PHP_METHOD(swoole_coroutine_scheduler, disableScheduler)
+{
+    RETURN_BOOL(PHPCoroutine::disable_scheduler());
 }

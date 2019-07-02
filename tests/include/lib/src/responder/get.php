@@ -54,6 +54,10 @@
       header('location:get.php?test=getpost');
       exit;
       break;
+    case 'header_body':
+      header('abc: 123');
+      echo "a\nb\nc";
+      break;
     default:
       echo "Hello World!\n";
       echo "Hello World!";

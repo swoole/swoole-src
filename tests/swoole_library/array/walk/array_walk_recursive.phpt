@@ -18,9 +18,11 @@ function bar($value)
     echo $value . " bar\n";
 }
 
-$arr = [1, 2, 3];
-var_dump(array_walk_recursive($arr, 'foo'));
-var_dump(array_walk_recursive($arr, 'bar'));
+go(function(){
+    $arr = [1, 2, 3];
+    var_dump(array_walk_recursive($arr, 'foo'));
+    var_dump(array_walk_recursive($arr, 'bar'));
+});
 
 ?>
 --EXPECT--

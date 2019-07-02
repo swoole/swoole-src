@@ -17,6 +17,8 @@
 #ifndef _SW_ARRAY_H_
 #define _SW_ARRAY_H_
 
+SW_EXTERN_C_BEGIN
+
 /**
  * The default swArray->pages pointer array is SW_ARRAY_PAGE_MAX,
  * it means you can manage up to (SW_ARRAY_PAGE_MAX*page_size) elements
@@ -60,5 +62,7 @@ void *swArray_alloc(swArray *array, uint32_t n);
 int swArray_append(swArray *array, void *data);
 int swArray_extend(swArray *array);
 void swArray_clear(swArray *array);
+
+SW_EXTERN_C_END
 
 #endif /* _SW_ARRAY_H_ */

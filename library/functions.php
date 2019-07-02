@@ -17,6 +17,18 @@ if (ini_get('swoole.use_shortname') === 'On') {
     {
         return new Swoole\ArrayObject($array);
     }
+
+    /**
+     * @return Swoole\Coroutine\Scheduler
+     */
+    function scheduler()
+    {
+        static $scheduler = null;
+        if (!$scheduler) {
+            $scheduler = new Swoole\Coroutine\Scheduler();
+        }
+        return $scheduler;
+    }
 }
 
 /**

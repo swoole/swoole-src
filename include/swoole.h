@@ -24,8 +24,14 @@
 #endif
 
 #ifdef __cplusplus
-extern "C" {
+#define SW_EXTERN_C_BEGIN extern "C" {
+#define SW_EXTERN_C_END   }
+#else
+#define SW_EXTERN_C_BEGIN
+#define SW_EXTERN_C_END
 #endif
+
+SW_EXTERN_C_BEGIN
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -305,7 +311,7 @@ static sw_inline char* swoole_strndup(const char *s, size_t n)
 #define SW_DECLINED           -5
 #define SW_ABORT              -6
 //-------------------------------------------------------------------------------
-enum swReturnType
+enum swReturn_type
 {
     SW_CONTINUE = 1,
     SW_WAIT     = 2,
@@ -524,7 +530,7 @@ enum swWorker_status
 #define swHexDump(data, length)
 #endif
 
-enum swTraceType
+enum swTrace_type
 {
     /**
      * Server
@@ -1274,7 +1280,7 @@ typedef struct _swThreadParam
 
 extern __thread char sw_error[SW_ERROR_MSG_SIZE];
 
-enum swProcessType
+enum swProcess_type
 {
     SW_PROCESS_MASTER     = 1,
     SW_PROCESS_WORKER     = 2,
@@ -2071,7 +2077,7 @@ static sw_inline swWorker* swProcessPool_get_worker(swProcessPool *pool, int wor
 }
 
 //-----------------------------Channel---------------------------
-enum SW_CHANNEL_FLAGS
+enum swChannel_flag
 {
     SW_CHAN_LOCK     = 1u << 1,
     SW_CHAN_NOTIFY   = 1u << 2,
@@ -2437,8 +2443,6 @@ static sw_inline int64_t swTimer_get_absolute_msec()
     return msec1 + msec2;
 }
 
-#ifdef __cplusplus
-}
-#endif
+SW_EXTERN_C_END
 
 #endif /* SWOOLE_H_ */

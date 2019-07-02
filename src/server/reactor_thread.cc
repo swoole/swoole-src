@@ -38,7 +38,7 @@ static void swHeartbeatThread_loop(swThreadParam *param);
 #ifdef SW_USE_OPENSSL
 static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swListenPort *port, swConnection *conn)
 {
-    swServer *serv = reactor->ptr;
+    swServer *serv = (swServer *) reactor->ptr;
     if (conn->ssl_state == 0 && conn->ssl)
     {
         int ret = swSSL_accept(conn);
@@ -300,7 +300,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
  */
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 {
-    swServer *serv = reactor->ptr;
+    swServer *serv = (swServer *) reactor->ptr;
     int fd = event->fd;
     swDataHead notify_ev;
     bzero(&notify_ev, sizeof(notify_ev));
@@ -344,7 +344,7 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 
 static void swReactorThread_shutdown(swReactor *reactor)
 {
-    swServer *serv = reactor->ptr;
+    swServer *serv = (swServer *) reactor->ptr;
     //stop listen UDP Port
     if (serv->have_dgram_sock == 1)
     {
@@ -390,7 +390,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
     int n;
     swSendData _send;
 
-    swServer *serv = reactor->ptr;
+    swServer *serv = (swServer *) reactor->ptr;
     swPackage_response pkg_resp;
     swWorker *worker;
     swPipeBuffer *resp = serv->pipe_buffers[reactor->id];
@@ -416,7 +416,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
                 memcpy(&pkg_resp, resp->data, sizeof(pkg_resp));
                 worker = swServer_get_worker(serv, pkg_resp.worker_id);
 
-                _send.data = worker->send_shm;
+                _send.data = (char*) worker->send_shm;
                 _send.info.len = pkg_resp.length;
 
 #if 0
@@ -481,7 +481,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
         int pipe_fd = worker->pipe_master;
         int thread_id = serv->connection_list[pipe_fd].reactor_id;
         swReactorThread *thread = swServer_get_thread(serv, thread_id);
-        swLock *lock = serv->connection_list[pipe_fd].object;
+        swLock *lock = (swLock *) serv->connection_list[pipe_fd].object;
 
         //lock thread
         lock->lock(lock);
@@ -535,9 +535,9 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     swBuffer_chunk *chunk = NULL;
     swEventData *send_data;
     swConnection *conn;
-    swServer *serv = reactor->ptr;
+    swServer *serv = (swServer *) reactor->ptr;
     swBuffer *buffer = serv->connection_list[ev->fd].in_buffer;
-    swLock *lock = serv->connection_list[ev->fd].object;
+    swLock *lock = (swLock *) serv->connection_list[ev->fd].object;
 
     //lock thread
     lock->lock(lock);
@@ -545,7 +545,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     while (!swBuffer_empty(buffer))
     {
         chunk = swBuffer_get_chunk(buffer);
-        send_data = chunk->store.ptr;
+        send_data = (swEventData *) chunk->store.ptr;
 
         //server active close, discard data.
         if (swEventData_is_stream(send_data->info.type))
@@ -634,7 +634,7 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
 
 static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
 {
-    swServer *serv = reactor->ptr;
+    swServer *serv = (swServer *) reactor->ptr;
     /**
      * invalid event
      * The server has been actively closed the connection, the client also initiated off, fd has been reused.
@@ -791,7 +791,7 @@ int swReactorThread_create(swServer *serv)
     /**
      * init reactor thread pool
      */
-    serv->reactor_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, (serv->reactor_num * sizeof(swReactorThread)));
+    serv->reactor_threads = (swReactorThread *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, (serv->reactor_num * sizeof(swReactorThread)));
     if (serv->reactor_threads == NULL)
     {
         swError("calloc[reactor_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swReactorThread)));
@@ -800,7 +800,7 @@ int swReactorThread_create(swServer *serv)
     /**
      * alloc the memory for connection_list
      */
-    serv->connection_list = sw_shm_calloc(serv->max_connection, sizeof(swConnection));
+    serv->connection_list = (swConnection *) sw_shm_calloc(serv->max_connection, sizeof(swConnection));
     if (serv->connection_list == NULL)
     {
         swError("calloc[1] failed");
@@ -829,7 +829,7 @@ int swReactorThread_create(swServer *serv)
 int swReactorThread_start(swServer *serv)
 {
     int ret;
-    swReactor *main_reactor = sw_malloc(sizeof(swReactor));
+    swReactor *main_reactor = (swReactor *) sw_malloc(sizeof(swReactor));
     if (!main_reactor)
     {
         swWarn("malloc(%ld) failed", sizeof(swReactor));
@@ -868,6 +868,7 @@ int swReactorThread_start(swServer *serv)
         {
             _failed:
             main_reactor->free(main_reactor);
+            SwooleG.main_reactor = nullptr;
             sw_free(main_reactor);
             return SW_ERR;
         }
@@ -927,7 +928,7 @@ int swReactorThread_start(swServer *serv)
     for (i = 0; i < serv->reactor_num; i++)
     {
         thread = &(serv->reactor_threads[i]);
-        param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
+        param = (swThreadParam *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
         if (param == NULL)
         {
             swError("malloc failed");
@@ -1098,7 +1099,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
             swWarn("create pipe mutex lock failed");
             return SW_ERR;
         }
-        swMutex_create(serv->connection_list[pipe_fd].object, 0);
+        swMutex_create((swLock *) serv->connection_list[pipe_fd].object, 0);
     }
 
     return SW_OK;
@@ -1121,7 +1122,7 @@ static int swReactorThread_is_empty(swReactor *reactor)
  */
 static int swReactorThread_loop(swThreadParam *param)
 {
-    swServer *serv = param->object;
+    swServer *serv = (swServer *) param->object;
     int reactor_id = param->pti;
     int ret;
 
@@ -1285,12 +1286,11 @@ void swReactorThread_free(swServer *serv)
 
 static void swHeartbeatThread_start(swServer *serv)
 {
-    swThreadParam *param;
     pthread_t thread_id;
-    param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
+    swThreadParam *param = (swThreadParam *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
     if (param == NULL)
     {
-        swError("heartbeat_param malloc fail\n");
+        swError("heartbeat_param malloc failed");
         return;
     }
 
@@ -1299,7 +1299,7 @@ static void swHeartbeatThread_start(swServer *serv)
 
     if (pthread_create(&thread_id, NULL, (void * (*)(void *)) swHeartbeatThread_loop, (void *) param) < 0)
     {
-        swWarn("pthread_create[hbcheck] fail");
+        swWarn("pthread_create[hbcheck] failed");
     }
     serv->heartbeat_pidt = thread_id;
 }
