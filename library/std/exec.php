@@ -2,14 +2,11 @@
 function swoole_exec(string $command, &$output = null, &$returnVar = null): string
 {
     $result = Swoole\Coroutine::exec($command);
-    if($result) {
+    if ($result) {
         $outputList = explode(PHP_EOL, $result['output']);
-        if($output)
-        {
+        if ($output) {
             $output = array_merge($output, $outputList);
-        }
-        else
-        {
+        } else {
             $output = $outputList;
         }
         $returnVar = $result['code'];
@@ -22,7 +19,7 @@ function swoole_exec(string $command, &$output = null, &$returnVar = null): stri
 function swoole_shell_exec(string $cmd)
 {
     $result = Swoole\Coroutine::exec($cmd);
-    if($result && '' !== $result['output']) {
+    if ($result && '' !== $result['output']) {
         return $result['output'];
     }
     return null;
