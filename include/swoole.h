@@ -2188,7 +2188,7 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
 #define SW_TIMER_MIN_MS  1
 #define SW_TIMER_MIN_SEC 0.001
 #define SW_TIMER_MAX_MS  LONG_MAX
-#define SW_TIMER_MAX_SEC (LONG_MAX / 1000)
+#define SW_TIMER_MAX_SEC ((double) (LONG_MAX / 1000))
 
 typedef struct _swTimer swTimer;
 typedef struct _swTimer_node swTimer_node;

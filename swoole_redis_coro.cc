@@ -1990,7 +1990,7 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
             redis->connect_timeout = redis->timeout;
             if (redis->connect_timeout <= 0)
             {
-                redis->connect_timeout = (double) SW_TIMER_MAX_SEC;
+                redis->connect_timeout = SW_TIMER_MAX_SEC;
             }
         }
         if (redis->context)

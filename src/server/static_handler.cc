@@ -63,12 +63,15 @@ int static_handler::send_error_page(int status_code)
     swSendData response;
     response.info.fd = conn->session_id;
     response.info.type = SW_EVENT_TCP;
-    response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer), "HTTP/1.1 %s\r\n"
-            "Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"
-            "Content-Length: %ld\r\n"
-            "\r\n%s",
-            swHttp_get_status_message(status_code),
-            sizeof(SW_HTTP_PAGE_404) - 1, SW_HTTP_PAGE_404);
+    response.info.len = sw_snprintf(
+        header_buffer, sizeof(header_buffer),
+        "HTTP/1.1 %s\r\n"
+        "Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"
+        "Content-Length: %zu\r\n"
+        "\r\n%s",
+        swHttp_get_status_message(status_code),
+        sizeof(SW_HTTP_PAGE_404) - 1, SW_HTTP_PAGE_404
+    );
     response.data = header_buffer;
     return swServer_master_send(serv, &response);
 }
