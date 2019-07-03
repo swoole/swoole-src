@@ -31,6 +31,27 @@ typedef swAio_event async_event;
 swAsyncIO SwooleAIO;
 
 static void swAio_free(void *private_data);
+static int swAio_callback(swReactor *reactor, swEvent *_event)
+{
+    int i;
+    async_event *events[SW_AIO_EVENT_NUM];
+    ssize_t n = read(_event->fd, events, sizeof(async_event*) * SW_AIO_EVENT_NUM);
+    if (n < 0)
+    {
+        swSysWarn("read() failed");
+        return SW_ERR;
+    }
+    for (i = 0; i < n / (int) sizeof(async_event*); i++)
+    {
+        if (!events[i]->canceled)
+        {
+            events[i]->callback(events[i]);
+        }
+        SwooleAIO.task_num--;
+        delete events[i];
+    }
+    return SW_OK;
+}
 
 class async_event_queue
 {
@@ -80,27 +101,7 @@ public:
         _pipe_read = _aio_pipe.getFd(&_aio_pipe, 0);
         _pipe_write = _aio_pipe.getFd(&_aio_pipe, 1);
 
-        swReactor_set_handler(SwooleG.main_reactor, SW_FD_AIO, [] (swReactor *reactor, swEvent *_event)
-        {
-            int i;
-            async_event *events[SW_AIO_EVENT_NUM];
-            ssize_t n = read(_event->fd, events, sizeof(async_event*) * SW_AIO_EVENT_NUM);
-            if (n < 0)
-            {
-                swSysWarn("read() failed");
-                return SW_ERR;
-            }
-            for (i = 0; i < n / (int) sizeof(async_event*); i++)
-            {
-                if (!events[i]->canceled)
-                {
-                    events[i]->callback(events[i]);
-                }
-                SwooleAIO.task_num--;
-                delete events[i];
-            }
-            return SW_OK;
-        });
+        swReactor_set_handler(SwooleG.main_reactor, SW_FD_AIO, swAio_callback);
         SwooleG.main_reactor->add(SwooleG.main_reactor, _pipe_read, SW_FD_AIO);
     }
 
