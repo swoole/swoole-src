@@ -48,6 +48,9 @@ PHP_ARG_WITH(jemalloc_dir, dir of jemalloc,
 PHP_ARG_ENABLE(asan, enable asan,
 [  --enable-asan             Enable asan], no, no)
 
+PHP_ARG_ENABLE(gcov, enable gcov,
+[  --enable-gcov             Enable gcov], no, no)
+
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
     haveext=$[PHP_]translit($1,a-z_-,A-Z__)
@@ -311,6 +314,13 @@ if test "$PHP_SWOOLE" != "no"; then
     if test "$PHP_ASAN" != "no"; then
         PHP_DEBUG=1
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
+        CXXFLAGS="$CXXFLAGS -fsanitize=address -fno-omit-frame-pointer"
+    fi
+    
+    if test "$PHP_GCOV" != "no"; then
+        PHP_DEBUG=1
+        CFLAGS="$CFLAGS -fprofile-arcs -ftest-coverage"
+        CXXFLAGS="$CXXFLAGS -fprofile-arcs -ftest-coverage"
     fi
 
     if test "$PHP_TRACE_LOG" != "no"; then
