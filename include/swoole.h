@@ -1031,8 +1031,6 @@ static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
 #endif
 }
 
-void swBreakPoint(void);
-
 //------------------Queue--------------------
 typedef struct _swQueue_Data
 {
@@ -1557,14 +1555,14 @@ int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t 
 int swSocket_write_blocking(int __fd, const void *__data, int __len);
 int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
 
-static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
+static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options)
 {
     int ret;
     do { ret = waitpid(__pid, __stat_loc, __options); } while (ret < 0 && errno == EINTR);
     return ret;
 }
 
-static sw_inline int swKill(pid_t __pid, int __sig)
+static sw_inline int swoole_kill(pid_t __pid, int __sig)
 {
     if (__pid <= 0)
     {

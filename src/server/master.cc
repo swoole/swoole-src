@@ -743,9 +743,7 @@ void swServer_init(swServer *serv)
     serv->timezone = timezone;
 #else
     struct timezone tz;
-
     gettimeofday(nullptr, &tz);
-
     serv->timezone = tz.tz_minuteswest * 60;
 #endif
 
@@ -1743,7 +1741,7 @@ static void swServer_signal_handler(int sig)
         }
         else
         {
-            swKill(serv->gs->manager_pid, sig);
+            swoole_kill(serv->gs->manager_pid, sig);
         }
         break;
     default:
@@ -1755,11 +1753,11 @@ static void swServer_signal_handler(int sig)
             for (i = 0; i < SwooleG.serv->worker_num + serv->task_worker_num + SwooleG.serv->user_worker_num; i++)
             {
                 worker = swServer_get_worker(SwooleG.serv, i);
-                swKill(worker->pid, SIGRTMIN);
+                swoole_kill(worker->pid, SIGRTMIN);
             }
             if (SwooleG.serv->factory_mode == SW_MODE_PROCESS)
             {
-                swKill(serv->gs->manager_pid, SIGRTMIN);
+                swoole_kill(serv->gs->manager_pid, SIGRTMIN);
             }
             swLog_reopen(SwooleG.serv->daemonize ? SW_TRUE : SW_FALSE);
         }

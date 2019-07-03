@@ -3102,7 +3102,7 @@ static PHP_METHOD(swoole_server, reload)
     }
 
     int sig = only_reload_taskworker ? SIGUSR2 : SIGUSR1;
-    if (swKill(serv->gs->manager_pid, sig) < 0)
+    if (swoole_kill(serv->gs->manager_pid, sig) < 0)
     {
         php_swoole_sys_error(E_WARNING, "failed to send the reload signal");
         RETURN_FALSE;
@@ -3997,7 +3997,7 @@ static PHP_METHOD(swoole_server, shutdown)
         RETURN_FALSE;
     }
 
-    if (swKill(serv->gs->master_pid, SIGTERM) < 0)
+    if (swoole_kill(serv->gs->master_pid, SIGTERM) < 0)
     {
         php_swoole_sys_error(E_WARNING, "failed to shutdown. swKill(%d, SIGTERM) failed", serv->gs->master_pid);
         RETURN_FALSE;
@@ -4039,7 +4039,7 @@ static PHP_METHOD(swoole_server, stop)
         {
             RETURN_FALSE;
         }
-        else if (swKill(worker->pid, SIGTERM) < 0)
+        else if (swoole_kill(worker->pid, SIGTERM) < 0)
         {
             php_swoole_sys_error(E_WARNING, "swKill(%d, SIGTERM) failed", worker->pid);
             RETURN_FALSE;

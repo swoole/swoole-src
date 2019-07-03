@@ -582,7 +582,7 @@ void swWorker_stop(swWorker *worker)
     }
     else
     {
-        swKill(serv->gs->manager_pid, SIGIO);
+        swoole_kill(serv->gs->manager_pid, SIGIO);
     }
 
     _try_to_exit: reactor->wait_exit = 1;

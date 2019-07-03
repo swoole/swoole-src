@@ -383,7 +383,7 @@ static PHP_METHOD(swoole_process, wait)
         options |= WNOHANG;
     }
 
-    pid_t pid = swWaitpid(-1, &status, options);
+    pid_t pid = swoole_waitpid(-1, &status, options);
     if (pid > 0)
     {
         array_init(return_value);
@@ -484,7 +484,7 @@ static PHP_METHOD(swoole_process, kill)
         RETURN_FALSE;
     }
 
-    int ret = swKill((int) pid, (int) sig);
+    int ret = swoole_kill((int) pid, (int) sig);
     if (ret < 0)
     {
         if (!(sig == 0 && errno == ESRCH))
@@ -738,7 +738,7 @@ static PHP_METHOD(swoole_process, start)
 {
     swWorker *process = (swWorker *) swoole_get_object(ZEND_THIS);
 
-    if (process->pid && swKill(process->pid, 0) == 0)
+    if (process->pid && swoole_kill(process->pid, 0) == 0)
     {
         php_swoole_fatal_error(E_WARNING, "process has already been started");
         RETURN_FALSE;

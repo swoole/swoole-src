@@ -821,11 +821,6 @@ uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
     return u * v / n_cup;
 }
 
-/**
- * for GDB
- */
-void swBreakPoint() { }
-
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...)
 {
     va_list args;
