@@ -219,8 +219,10 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
             }
             else if (package_length > protocol->package_max_length)
             {
-                swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "package is too big, remote_addr=%s:%d, length=%d",
-                        swConnection_get_ip(conn), swConnection_get_port(conn), package_length);
+                swoole_error_log(
+                    SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "package is too big, remote_addr=%s:%d, length=%zu",
+                    swConnection_get_ip(conn), swConnection_get_port(conn), package_length
+                );
                 return SW_ERR;
             }
             //get length success

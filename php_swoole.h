@@ -112,7 +112,7 @@ typedef struct
 extern swoole_object_array swoole_objects;
 
 #define SW_CHECK_RETURN(s)      if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}
-#define SW_LOCK_CHECK_RETURN(s) if(s==0){RETURN_TRUE;}else{zend_update_property_long(NULL,getThis(),SW_STRL("errCode"),s);RETURN_FALSE;}
+#define SW_LOCK_CHECK_RETURN(s) if(s==0){RETURN_TRUE;}else{zend_update_property_long(NULL,ZEND_THIS,SW_STRL("errCode"),s);RETURN_FALSE;}
 
 #define php_swoole_fatal_error(level, fmt_str, ...) \
         php_error_docref(NULL, level, (const char *) (fmt_str), ##__VA_ARGS__)
@@ -567,6 +567,10 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 #ifndef E_FATAL_ERRORS
 #define E_FATAL_ERRORS (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR | E_RECOVERABLE_ERROR | E_PARSE)
 #endif
+
+#ifndef ZEND_THIS
+#define ZEND_THIS (&EX(This))
+#endif
 /*}}}*/
 
 /* PHP 7 wrapper functions / macros */
@@ -811,7 +815,7 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     module##_handlers.offset = XtOffsetOf(_struct, _std)
 
 #define SW_PREVENT_USER_DESTRUCT()  do { \
-    if (unlikely(!(GC_FLAGS(Z_OBJ_P(getThis())) & IS_OBJ_DESTRUCTOR_CALLED))) { \
+    if (unlikely(!(GC_FLAGS(Z_OBJ_P(ZEND_THIS)) & IS_OBJ_DESTRUCTOR_CALLED))) { \
         RETURN_NULL(); \
     } \
 } while (0)
@@ -971,7 +975,7 @@ static sw_inline zval* sw_zend_read_and_convert_property_array(zend_class_entry 
 }
 
 #define SW_RETURN_PROPERTY(name) do { \
-    RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL(name), 0), 1, 0); \
+    RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(ZEND_THIS), ZEND_THIS, ZEND_STRL(name), 0), 1, 0); \
 } while (0)
 
 //----------------------------------Function API------------------------------------

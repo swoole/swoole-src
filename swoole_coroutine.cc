@@ -330,7 +330,7 @@ inline void PHPCoroutine::activate()
 
 void PHPCoroutine::error(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args)
 {
-    if (unlikely(type & E_FATAL_ERRORS))
+    if (active && unlikely(type & E_FATAL_ERRORS))
     {
         /* update the last coroutine's info */
         save_task(get_task());

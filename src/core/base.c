@@ -416,7 +416,7 @@ size_t swoole_sync_writefile(int fd, const void *data, size_t len)
             {
                 continue;
             }
-            swSysWarn("write(%d, %d) failed", fd, towrite);
+            swSysWarn("write(%d, %zu) failed", fd, towrite);
             break;
         }
     }
@@ -828,11 +828,9 @@ void swBreakPoint() { }
 
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...)
 {
-    size_t retval;
     va_list args;
-
     va_start(args, format);
-    retval = vsnprintf(buf, size, format, args);
+    int retval = vsnprintf(buf, size, format, args);
     va_end(args);
     if (unlikely(retval < 0))
     {
@@ -849,7 +847,7 @@ size_t sw_snprintf(char *buf, size_t size, const char *format, ...)
 
 size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args)
 {
-    size_t retval = vsnprintf(buf, size, format, args);
+    int retval = vsnprintf(buf, size, format, args);
     if (unlikely(retval < 0))
     {
         retval = 0;
@@ -1425,5 +1423,5 @@ static void swoole_fatal_error(int code, const char *format, ...)
     retval += sw_vsnprintf(sw_error + retval, SW_ERROR_MSG_SIZE - retval, format, args);
     va_end(args);
     SwooleG.write_log(SW_LOG_ERROR, sw_error, retval);
-    exit(255);
+    exit(1);
 }

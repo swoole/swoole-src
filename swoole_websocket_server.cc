@@ -517,7 +517,7 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
     {
         RETURN_FALSE;
     }
-    swServer *serv = (swServer *) swoole_get_object(getThis());
+    swServer *serv = (swServer *) swoole_get_object(ZEND_THIS);
     SW_CHECK_RETURN(swoole_websocket_server_close(serv, fd, swoole_http_buffer, 1));
 }
 
@@ -539,7 +539,7 @@ static PHP_METHOD(swoole_websocket_server, push)
         RETURN_FALSE;
     }
 
-    swServer *serv = (swServer *) swoole_get_object(getThis());
+    swServer *serv = (swServer *) swoole_get_object(ZEND_THIS);
     switch (opcode)
     {
     case WEBSOCKET_OPCODE_CLOSE:
@@ -575,7 +575,7 @@ static PHP_METHOD(swoole_websocket_server, pack)
 static PHP_METHOD(swoole_websocket_frame, __toString)
 {
     swString *buffer = SwooleTG.buffer_stack;
-    zval *zdata = getThis();
+    zval *zdata = ZEND_THIS;
     swString_clear(buffer);
     if (php_swoole_websocket_frame_pack(buffer, zdata, WEBSOCKET_OPCODE_TEXT, 1, 0) < 0)
     {
@@ -604,7 +604,7 @@ static PHP_METHOD(swoole_websocket_server, isEstablished)
 {
     zend_long fd;
 
-    swServer *serv = (swServer *) swoole_get_object(getThis());
+    swServer *serv = (swServer *) swoole_get_object(ZEND_THIS);
     if (unlikely(!serv->gs->start))
     {
         php_error_docref(NULL, E_WARNING, "the server is not running");
