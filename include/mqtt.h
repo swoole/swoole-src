@@ -57,8 +57,7 @@ typedef struct
 
     char protocol_name[8];
 
-} swMqtt_package;
-
+} swMqtt_packet;
 
 #define SETRETAIN(HDR, R)   (HDR | (R))
 #define SETQOS(HDR, Q)      (HDR | ((Q) << 1))

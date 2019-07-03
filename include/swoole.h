@@ -579,7 +579,6 @@ enum swTrace_type
 #define swTrace(str,...)       swTraceLog(SW_TRACE_NORMAL, str, ##__VA_ARGS__)
 
 #define swYield()              sched_yield() //or usleep(1)
-//#define swYield()              usleep(500000)
 #define SW_MAX_FDTYPE          32 //32 kinds of event
 
 //------------------------------Base--------------------------------
@@ -1002,7 +1001,7 @@ typedef struct _swPipe
     int (*close)(struct _swPipe *);
 } swPipe;
 
-enum _swPipe_close_which
+enum swPipe_close_which
 {
     SW_PIPE_CLOSE_MASTER = 1,
     SW_PIPE_CLOSE_WORKER = 2,
