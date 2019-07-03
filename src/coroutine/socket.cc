@@ -215,12 +215,12 @@ bool Socket::socks5_handshake()
     if (version != SW_SOCKS5_VERSION_CODE)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
-        return SW_ERR;
+        return false;
     }
     if (method != ctx->method)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method not supported");
-        return SW_ERR;
+        return false;
     }
     // authentication
     if (method == SW_SOCKS5_METHOD_AUTH)

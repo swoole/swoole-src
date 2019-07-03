@@ -736,7 +736,7 @@ bool http_client::send()
         if (fd < 0)
         {
             swSysWarn("open(%s, O_CREAT | O_WRONLY) failed", download_file_name);
-            return SW_ERR;
+            return false;
         }
         if (download_offset == 0)
         {
@@ -744,7 +744,7 @@ bool http_client::send()
             {
                 swSysWarn("ftruncate(%s) failed", download_file_name);
                 ::close(fd);
-                return SW_ERR;
+                return false;
             }
         }
         else
@@ -753,7 +753,7 @@ bool http_client::send()
             {
                 swSysWarn("fseek(%s, %jd) failed", download_file_name, (intmax_t) download_offset);
                 ::close(fd);
-                return SW_ERR;
+                return false;
             }
         }
         is_download = 1;
@@ -1144,7 +1144,7 @@ bool http_client::send()
                 if (formstr == NULL)
                 {
                     php_swoole_error(E_WARNING, "http_build_query failed");
-                    return SW_ERR;
+                    return false;
                 }
                 http_client_append_content_length(http_client_buffer, len);
                 swString_append_ptr(http_client_buffer, formstr, len);
