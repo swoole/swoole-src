@@ -458,7 +458,7 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
         if (!event_list)
         {
             swWarn("malloc[1] failed");
-            return SW_ERR;
+            return false;
         }
         int j = 0;
         for (auto i = fds.begin(); i != fds.end(); i++)
