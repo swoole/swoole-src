@@ -19,26 +19,20 @@
 #ifndef _SW_ASM_CONTEXT_H_
 #define _SW_ASM_CONTEXT_H_
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+#ifndef SW_NO_USE_ASM_CONTEXT
+
+SW_EXTERN_C_BEGIN
 
 #include <stdint.h>
 #include <stdio.h>
 #include <stddef.h>
-
-#ifndef SW_NO_USE_ASM_CONTEXT
 
 typedef void* fcontext_t;
 
 intptr_t jump_fcontext(fcontext_t *ofc, fcontext_t nfc, intptr_t vp, bool preserve_fpu = false);
 fcontext_t make_fcontext(void *sp, size_t size, void (*fn)(intptr_t));
 
-#endif
+SW_EXTERN_C_END
 
-#ifdef __cplusplus
-}
 #endif
-
 #endif
