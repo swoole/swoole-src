@@ -593,7 +593,7 @@ void http_client::set_basic_auth(const std::string &username, const std::string 
     std::string input = username + ":" + password;
     size_t output_size = sizeof("Basic ") + BASE64_ENCODE_OUT_SIZE(input.size());
     char *output = (char *) emalloc(output_size);
-    if (likely(output))
+    if (sw_likely(output))
     {
         size_t output_len = sprintf(output, "Basic ");
         output_len += swBase64_encode((const unsigned char *) input.c_str(), input.size(), output + output_len);
@@ -1307,12 +1307,12 @@ bool http_client::recv_http_response(double timeout)
     Socket::timeout_controller tc(socket, timeout, SW_TIMEOUT_READ);
     while (true)
     {
-        if (unlikely(tc.has_timedout(SW_TIMEOUT_READ)))
+        if (sw_unlikely(tc.has_timedout(SW_TIMEOUT_READ)))
         {
             return false;
         }
         retval = socket->recv(buffer->str, buffer->size);
-        if (unlikely(retval <= 0))
+        if (sw_unlikely(retval <= 0))
         {
             if (retval == 0)
             {
@@ -1337,7 +1337,7 @@ bool http_client::recv_http_response(double timeout)
             }
             return true;
         }
-        if (unlikely(parser.state == s_dead))
+        if (sw_unlikely(parser.state == s_dead))
         {
             socket->set_err(EPROTO);
             return false;

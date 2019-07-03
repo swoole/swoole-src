@@ -526,7 +526,7 @@ static PHP_FUNCTION(swoole_event_add)
 
     php_swoole_check_reactor();
 
-    swSetNonBlock(socket_fd); // must be nonblock
+    swSocket_set_nonblock(socket_fd); // must be nonblock
 
     if (SwooleG.main_reactor->add(SwooleG.main_reactor, socket_fd, SW_FD_USER | event_flag) < 0)
     {

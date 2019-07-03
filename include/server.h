@@ -879,7 +879,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
                 break;
             }
         }
-        if (unlikely(found == 0))
+        if (sw_unlikely(found == 0))
         {
             serv->scheduler_warning = 1;
         }

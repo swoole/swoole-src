@@ -116,7 +116,7 @@ public:
 
     inline bool is_available()
     {
-        if (unlikely(!client))
+        if (sw_unlikely(!client))
         {
             SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
             zend_update_property_long(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errCode"), ECONNRESET);
@@ -136,7 +136,7 @@ public:
 
     inline bool recv_packet(double timeout)
     {
-        if (unlikely(client->recv_packet(timeout) <= 0))
+        if (sw_unlikely(client->recv_packet(timeout) <= 0))
         {
             io_error();
             return false;
@@ -164,7 +164,7 @@ private:
 
     inline bool send(const char *buf, size_t len)
     {
-        if (unlikely(client->send_all(buf, len) != (ssize_t )len))
+        if (sw_unlikely(client->send_all(buf, len) != (ssize_t )len))
         {
             io_error();
             return false;
@@ -321,7 +321,7 @@ void swoole_http2_client_coro_init(int module_number)
 
 bool http2_client::connect()
 {
-    if (unlikely(client != nullptr))
+    if (sw_unlikely(client != nullptr))
     {
         return false;
     }

@@ -1071,7 +1071,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
         serv->connection_list[pipe_fd].in_buffer = buffer;
 
         //for response
-        swSetNonBlock(pipe_fd);
+        swSocket_set_nonblock(pipe_fd);
         if (reactor->add(reactor, pipe_fd, SW_FD_PIPE) < 0)
         {
             return SW_ERR;

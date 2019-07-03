@@ -646,14 +646,14 @@ auth_signature_response_packet::auth_signature_response_packet(
     // prepare RSA public key
     BIO *bio = NULL;
     RSA *public_rsa = NULL;
-    if (unlikely((bio = BIO_new_mem_buf((void *)rsa_public_key, -1)) == NULL))
+    if (sw_unlikely((bio = BIO_new_mem_buf((void *)rsa_public_key, -1)) == NULL))
     {
         swWarn("BIO_new_mem_buf publicKey error!");
         goto _error;
     }
     // PEM_read_bio_RSA_PUBKEY
     ERR_clear_error();
-    if (unlikely((public_rsa = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL)) == NULL))
+    if (sw_unlikely((public_rsa = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL)) == NULL))
     {
         char err_buf[512];
         ERR_load_crypto_strings();
@@ -670,7 +670,7 @@ auth_signature_response_packet::auth_signature_response_packet(
     size_t flen = rsa_len - 42;
     flen = password_bytes_length > flen ? flen : password_bytes_length;
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "rsa_len=%d", rsa_len);
-    if (unlikely(RSA_public_encrypt(flen, (const unsigned char *) password_bytes, (unsigned char *) encrypt_msg, public_rsa, RSA_PKCS1_OAEP_PADDING) < 0))
+    if (sw_unlikely(RSA_public_encrypt(flen, (const unsigned char *) password_bytes, (unsigned char *) encrypt_msg, public_rsa, RSA_PKCS1_OAEP_PADDING) < 0))
     {
         char err_buf[512];
         ERR_load_crypto_strings();

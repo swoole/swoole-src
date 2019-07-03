@@ -150,7 +150,7 @@ public:
 
     inline bool set_fetch_mode(bool v)
     {
-         if (unlikely(socket && v))
+         if (sw_unlikely(socket && v))
          {
              non_sql_error(ENOTSUP, "Can not use fetch mode after the connection is established");
              return false;
@@ -177,7 +177,7 @@ public:
 
     void add_timeout_controller(double timeout, const enum swTimeout_type type)
     {
-        if (unlikely(!socket))
+        if (sw_unlikely(!socket))
         {
             return;
         }
@@ -222,7 +222,7 @@ public:
 
     inline bool check_connection()
     {
-        if (unlikely(!is_connect()))
+        if (sw_unlikely(!is_connect()))
         {
             non_sql_error(MYSQLND_CR_CONNECTION_ERROR, "%s or %s", strerror(ECONNRESET), strerror(ENOTCONN));
             return false;
@@ -232,11 +232,11 @@ public:
 
     inline bool check_liveness()
     {
-        if (unlikely(!check_connection()))
+        if (sw_unlikely(!check_connection()))
         {
             return false;
         }
-        if (unlikely(!socket->check_liveness()))
+        if (sw_unlikely(!socket->check_liveness()))
         {
             non_sql_error(MYSQLND_CR_SERVER_GONE_ERROR, MYSQLND_SERVER_GONE);
             close();
@@ -252,7 +252,7 @@ public:
 
     bool is_available_for_new_reuqest()
     {
-        if (unlikely(state != SW_MYSQL_STATE_IDLE && state != SW_MYSQL_STATE_CLOSED))
+        if (sw_unlikely(state != SW_MYSQL_STATE_IDLE && state != SW_MYSQL_STATE_CLOSED))
         {
             if (socket)
             {
@@ -267,7 +267,7 @@ public:
             );
             return false;
         }
-        if (unlikely(!check_liveness()))
+        if (sw_unlikely(!check_liveness()))
         {
             return false;
         }
@@ -286,7 +286,7 @@ public:
     inline const char* recv_none_error_packet()
     {
         const char *data = recv_packet();
-        if (unlikely(data && mysql::server_packet::is_err(data)))
+        if (sw_unlikely(data && mysql::server_packet::is_err(data)))
         {
             server_error(data);
             return nullptr;
@@ -297,7 +297,7 @@ public:
     inline const char* recv_eof_packet()
     {
         const char *data = recv_packet();
-        if (unlikely(data && !mysql::server_packet::is_eof(data)))
+        if (sw_unlikely(data && !mysql::server_packet::is_eof(data)))
         {
             proto_error(data, SW_MYSQL_PACKET_EOF);
             return nullptr;
@@ -310,18 +310,18 @@ public:
 
     inline bool send_raw(const char *data, size_t length)
     {
-        if (unlikely(!check_connection()))
+        if (sw_unlikely(!check_connection()))
         {
             return false;
         }
         else
         {
-            if (unlikely(has_timedout(SW_TIMEOUT_WRITE)))
+            if (sw_unlikely(has_timedout(SW_TIMEOUT_WRITE)))
             {
                 io_error();
                 return false;
             }
-            if (unlikely(socket->send_all(data, length) != (ssize_t ) length))
+            if (sw_unlikely(socket->send_all(data, length) != (ssize_t ) length))
             {
                 io_error();
                 return false;
@@ -392,17 +392,17 @@ public:
 
     inline int get_error_code()
     {
-        return likely(client) ? client->get_error_code() : error_code;
+        return sw_likely(client) ? client->get_error_code() : error_code;
     }
 
     inline const char* get_error_msg()
     {
-        return likely(client) ? client->get_error_msg() : error_msg.c_str();
+        return sw_likely(client) ? client->get_error_msg() : error_msg.c_str();
     }
 
     inline bool is_available()
     {
-        if (unlikely(!client))
+        if (sw_unlikely(!client))
         {
             error_code = ECONNRESET;
             error_msg = "statement must to be recompiled after the connection is broken";
@@ -413,11 +413,11 @@ public:
 
     inline bool is_available_for_new_reuqest()
     {
-        if (unlikely(!is_available()))
+        if (sw_unlikely(!is_available()))
         {
             return false;
         }
-        if (unlikely(!client->is_available_for_new_reuqest()))
+        if (sw_unlikely(!client->is_available_for_new_reuqest()))
         {
             return false;
         }
@@ -426,7 +426,7 @@ public:
 
     inline void add_timeout_controller(double timeout, const enum swTimeout_type type)
     {
-        if (likely(client))
+        if (sw_likely(client))
         {
             client->add_timeout_controller(timeout, type);
         }
@@ -434,7 +434,7 @@ public:
 
     inline void del_timeout_controller()
     {
-        if (likely(client))
+        if (sw_likely(client))
         {
             client->del_timeout_controller();
         }
@@ -448,7 +448,7 @@ public:
             // if client point exists, socket is always available
             if (notify)
             {
-                if (likely(client->is_writable()))
+                if (sw_likely(client->is_writable()))
                 {
                     char id[4];
                     sw_mysql_int4store(id, info.id);
@@ -635,7 +635,7 @@ bool mysql_client::connect(std::string host, uint16_t port, bool ssl)
         {
             socket = new Socket(SW_SOCK_TCP);
         }
-        if (unlikely(socket->socket == nullptr))
+        if (sw_unlikely(socket->socket == nullptr))
         {
             php_swoole_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
             non_sql_error(MYSQLND_CR_CONNECTION_ERROR, strerror(errno));
@@ -672,7 +672,7 @@ bool mysql_client::connect(std::string host, uint16_t port, bool ssl)
 
 const char* mysql_client::recv_length(size_t need_length, const bool try_to_recycle)
 {
-    if (likely(check_connection()))
+    if (sw_likely(check_connection()))
     {
         ssize_t retval;
         swString *buffer = socket->get_read_buffer();
@@ -686,15 +686,15 @@ const char* mysql_client::recv_length(size_t need_length, const bool try_to_recy
         }
         while (read_n < need_length)
         {
-            if (unlikely(has_timedout(SW_TIMEOUT_READ)))
+            if (sw_unlikely(has_timedout(SW_TIMEOUT_READ)))
             {
                 io_error();
                 return nullptr;
             }
-            if (unlikely(buffer->length == buffer->size))
+            if (sw_unlikely(buffer->length == buffer->size))
             {
                 /* offset + need_length = new size (min) */
-                if (unlikely(swString_extend(buffer, SW_MEM_ALIGNED_SIZE_EX(offset + need_length, SwooleG.pagesize)) != SW_OK))
+                if (sw_unlikely(swString_extend(buffer, SW_MEM_ALIGNED_SIZE_EX(offset + need_length, SwooleG.pagesize)) != SW_OK))
                 {
                     non_sql_error(MYSQLND_CR_OUT_OF_MEMORY, strerror(ENOMEM));
                     return nullptr;
@@ -705,7 +705,7 @@ const char* mysql_client::recv_length(size_t need_length, const bool try_to_recy
                 }
             }
             retval = socket->recv(buffer->str + buffer->length, buffer->size - buffer->length);
-            if (unlikely(retval <= 0))
+            if (sw_unlikely(retval <= 0))
             {
                 io_error();
                 return nullptr;
@@ -724,14 +724,14 @@ const char* mysql_client::recv_packet()
     const char *p;
     uint32_t length;
     p = recv_length(SW_MYSQL_PACKET_HEADER_SIZE, true);
-    if (unlikely(!p))
+    if (sw_unlikely(!p))
     {
         return nullptr;
     }
     length = mysql::packet::get_length(p);
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "recv packet length=%u, number=%u", length, mysql::packet::get_number(p));
     p = recv_length(length);
-    if (unlikely(!p))
+    if (sw_unlikely(!p))
     {
         return nullptr;
     }
@@ -743,7 +743,7 @@ bool mysql_client::send_packet(mysql::client_packet *packet)
 {
     const char *data = packet->get_data();
     uint32_t length = SW_MYSQL_PACKET_HEADER_SIZE + packet->get_length();
-    if (likely(send_raw(data, length)))
+    if (sw_likely(send_raw(data, length)))
     {
         return true;
     }
@@ -752,7 +752,7 @@ bool mysql_client::send_packet(mysql::client_packet *packet)
 
 bool mysql_client::send_command(enum sw_mysql_command command, const char* sql, size_t length)
 {
-    if (likely(SW_MYSQL_PACKET_HEADER_SIZE + 1 + length <= SwooleG.pagesize))
+    if (sw_likely(SW_MYSQL_PACKET_HEADER_SIZE + 1 + length <= SwooleG.pagesize))
     {
         mysql::command_packet command_packet(command, sql, length);
         return send_raw(command_packet.get_data(), command_packet.get_data_length());
@@ -764,7 +764,7 @@ bool mysql_client::send_command(enum sw_mysql_command command, const char* sql, 
         mysql::command_packet command_packet(command);
         command_packet.set_header(1 + send_s, number++);
 
-        if (unlikely(
+        if (sw_unlikely(
             !send_raw(command_packet.get_data(), SW_MYSQL_PACKET_HEADER_SIZE + 1)) ||
             !send_raw(sql, send_s)
         )
@@ -777,7 +777,7 @@ bool mysql_client::send_command(enum sw_mysql_command command, const char* sql, 
             send_s = length - send_n;
             send_s = SW_MIN(send_s, SW_MYSQL_MAX_PACKET_BODY_SIZE);
             command_packet.set_header(send_s, number++);
-            if (unlikely(
+            if (sw_unlikely(
                 !send_raw(command_packet.get_data(), SW_MYSQL_PACKET_HEADER_SIZE)) ||
                 !send_raw(sql + send_n, send_s)
             )
@@ -794,7 +794,7 @@ bool mysql_client::handshake()
 {
     const char *data;
     // recv greeting pakcet
-    if (unlikely(!(data = recv_none_error_packet())))
+    if (sw_unlikely(!(data = recv_none_error_packet())))
     {
         return false;
     }
@@ -802,7 +802,7 @@ bool mysql_client::handshake()
     // generate login packet
     do {
         mysql::login_packet login_packet(&greeting_packet, user, password, database, charset);
-        if (unlikely(!send_packet(&login_packet)))
+        if (sw_unlikely(!send_packet(&login_packet)))
         {
             return false;
         }
@@ -814,7 +814,7 @@ bool mysql_client::handshake()
     {
         mysql::auth_switch_request_packet request(data);
         mysql::auth_switch_response_packet response(&request, password);
-        if (unlikely(!send_packet(&response)))
+        if (sw_unlikely(!send_packet(&response)))
         {
             return false;
         }
@@ -823,11 +823,11 @@ bool mysql_client::handshake()
     case SW_MYSQL_PACKET_AUTH_SIGNATURE_REQUEST:
     {
         mysql::auth_signature_request_packet request(data);
-        if (unlikely(!request.is_vaild()))
+        if (sw_unlikely(!request.is_vaild()))
         {
             goto _proto_error;
         }
-        if (likely(!request.is_full_auth_required()))
+        if (sw_likely(!request.is_full_auth_required()))
         {
             break;
         }
@@ -836,20 +836,20 @@ bool mysql_client::handshake()
         // tell the server we are prepared
         do {
             mysql::auth_signature_prepared_packet prepared(request.header.number + 1);
-            if (unlikely(!send_packet(&prepared)))
+            if (sw_unlikely(!send_packet(&prepared)))
             {
                 return false;
             }
         } while (0);
         // recv rsa key and encode the password
         do {
-            if (unlikely(!(data = recv_none_error_packet())))
+            if (sw_unlikely(!(data = recv_none_error_packet())))
             {
                 return false;
             }
             mysql::raw_data_packet raw_data_packet(data);
             mysql::auth_signature_response_packet response(&raw_data_packet, password, greeting_packet.auth_plugin_data);
-            if (unlikely(!send_packet(&response)))
+            if (sw_unlikely(!send_packet(&response)))
             {
                 return false;
             }
@@ -880,7 +880,7 @@ bool mysql_client::handshake()
         return false;
     }
     // maybe ok packet or err packet
-    if (unlikely(!(data = recv_none_error_packet())))
+    if (sw_unlikely(!(data = recv_none_error_packet())))
     {
         return false;
     }
@@ -901,11 +901,11 @@ void mysql_client::query(zval *return_value, const char *statement, size_t state
 
 void mysql_client::send_query_request(zval *return_value, const char *statement, size_t statement_length)
 {
-    if (unlikely(!is_available_for_new_reuqest()))
+    if (sw_unlikely(!is_available_for_new_reuqest()))
     {
         RETURN_FALSE;
     }
-    if (unlikely(!send_command(SW_MYSQL_COM_QUERY, statement, statement_length)))
+    if (sw_unlikely(!send_command(SW_MYSQL_COM_QUERY, statement, statement_length)))
     {
         RETURN_FALSE;
     }
@@ -916,7 +916,7 @@ void mysql_client::send_query_request(zval *return_value, const char *statement,
 void mysql_client::recv_query_response(zval *return_value)
 {
     const char *data;
-    if (unlikely(!(data = recv_none_error_packet())))
+    if (sw_unlikely(!(data = recv_none_error_packet())))
     {
         RETURN_FALSE;
     }
@@ -929,7 +929,7 @@ void mysql_client::recv_query_response(zval *return_value)
     }
     do {
         mysql::lcb_packet lcb_packet(data);
-        if (unlikely(lcb_packet.length == 0))
+        if (sw_unlikely(lcb_packet.length == 0))
         {
             // is it possible?
             proto_error(data, SW_MYSQL_PACKET_FIELD);
@@ -938,7 +938,7 @@ void mysql_client::recv_query_response(zval *return_value)
         result.alloc_fields(lcb_packet.length);
         for (uint32_t i = 0; i < lcb_packet.length; i++)
         {
-            if (unlikely(!(data = recv_packet())))
+            if (sw_unlikely(!(data = recv_packet())))
             {
                 RETURN_FALSE;
             }
@@ -946,7 +946,7 @@ void mysql_client::recv_query_response(zval *return_value)
         }
     } while (0);
     // expect eof
-    if (unlikely(!(data = recv_eof_packet())))
+    if (sw_unlikely(!(data = recv_eof_packet())))
     {
         RETURN_FALSE;
     }
@@ -962,16 +962,16 @@ const char* mysql_client::handle_row_data_size(mysql::row_data *row_data, uint8_
 {
     const char *p, *data;
     SW_ASSERT(size < sizeof(row_data->stack_buffer));
-    if (unlikely(!(p = row_data->read(size))))
+    if (sw_unlikely(!(p = row_data->read(size))))
     {
         uint8_t received = row_data->recv(row_data->stack_buffer, size);
-        if (unlikely(!(data = recv_packet())))
+        if (sw_unlikely(!(data = recv_packet())))
         {
             return nullptr;
         }
         row_data->next_packet(data);
         received += row_data->recv(row_data->stack_buffer + received, size - received);
-        if (unlikely(received != size))
+        if (sw_unlikely(received != size))
         {
             proto_error(data, SW_MYSQL_PACKET_ROW_DATA);
             return nullptr;
@@ -985,14 +985,14 @@ bool mysql_client::handle_row_data_lcb(mysql::row_data *row_data)
 {
     const char *p, *data;
     // recv 1 byte to get binary code size
-    if (unlikely(row_data->eof()))
+    if (sw_unlikely(row_data->eof()))
     {
-        if (unlikely(!(data = recv_packet())))
+        if (sw_unlikely(!(data = recv_packet())))
         {
             return false;
         }
         row_data->next_packet(data);
-        if (unlikely(row_data->eof()))
+        if (sw_unlikely(row_data->eof()))
         {
             proto_error(data, SW_MYSQL_PACKET_ROW_DATA);
             return false;
@@ -1001,7 +1001,7 @@ bool mysql_client::handle_row_data_lcb(mysql::row_data *row_data)
     // decode lcb (use 0 to prevent read_ptr from moving)
     // recv "size" bytes to get binary code length
     p = handle_row_data_size(row_data, mysql::read_lcb_size(row_data->read(0)));
-    if (unlikely(!p))
+    if (sw_unlikely(!p))
     {
         return false;
     }
@@ -1012,17 +1012,17 @@ bool mysql_client::handle_row_data_lcb(mysql::row_data *row_data)
 void mysql_client::handle_row_data_text(zval *return_value, mysql::row_data *row_data, mysql::field_packet *field)
 {
     const char *p, *data;
-    if (unlikely(!handle_row_data_lcb(row_data)))
+    if (sw_unlikely(!handle_row_data_lcb(row_data)))
     {
         RETURN_FALSE;
     }
-    if (unlikely(!(p = row_data->read(row_data->text.length))))
+    if (sw_unlikely(!(p = row_data->read(row_data->text.length))))
     {
         size_t received = 0, required = row_data->text.length;
         if (required < sizeof(row_data->stack_buffer))
         {
             p = handle_row_data_size(row_data, required);
-            if (unlikely(!p))
+            if (sw_unlikely(!p))
             {
                 RETURN_FALSE;
             }
@@ -1038,7 +1038,7 @@ void mysql_client::handle_row_data_text(zval *return_value, mysql::row_data *row
                 }
                 if (row_data->eof())
                 {
-                    if (unlikely(!(data = recv_packet())))
+                    if (sw_unlikely(!(data = recv_packet())))
                     {
                         RETURN_FALSE;
                     }
@@ -1070,7 +1070,7 @@ void mysql_client::handle_row_data_text(zval *return_value, mysql::row_data *row
 
 void mysql_client::handle_strict_type(zval *ztext, mysql::field_packet *field)
 {
-    if (likely(Z_TYPE_P(ztext) == IS_STRING))
+    if (sw_likely(Z_TYPE_P(ztext) == IS_STRING))
     {
         char *error;
         switch (field->type)
@@ -1103,7 +1103,7 @@ void mysql_client::handle_strict_type(zval *ztext, mysql::field_packet *field)
             if (field->flags & SW_MYSQL_UNSIGNED_FLAG)
             {
                 ulong_t uint = strtoul(Z_STRVAL_P(ztext), &error, 10);
-                if (likely(*error == '\0'))
+                if (sw_likely(*error == '\0'))
                 {
                     zend_string_release(Z_STR_P(ztext));
                     ZVAL_LONG(ztext, uint);
@@ -1112,7 +1112,7 @@ void mysql_client::handle_strict_type(zval *ztext, mysql::field_packet *field)
             else
             {
                 long sint = strtol(Z_STRVAL_P(ztext), &error, 10);
-                if (likely(*error == '\0'))
+                if (sw_likely(*error == '\0'))
                 {
                     zend_string_release(Z_STR_P(ztext));
                     ZVAL_LONG(ztext, sint);
@@ -1123,7 +1123,7 @@ void mysql_client::handle_strict_type(zval *ztext, mysql::field_packet *field)
             if (field->flags & SW_MYSQL_UNSIGNED_FLAG)
             {
                 unsigned long long ubigint = strtoull(Z_STRVAL_P(ztext), &error, 10);
-                if (likely(*error == '\0' && ubigint <= ZEND_LONG_MAX))
+                if (sw_likely(*error == '\0' && ubigint <= ZEND_LONG_MAX))
                 {
                     zend_string_release(Z_STR_P(ztext));
                     ZVAL_LONG(ztext, ubigint);
@@ -1132,7 +1132,7 @@ void mysql_client::handle_strict_type(zval *ztext, mysql::field_packet *field)
             else
             {
                 long long sbigint = strtoll(Z_STRVAL_P(ztext), &error, 10);
-                if (likely(*error == '\0'))
+                if (sw_likely(*error == '\0'))
                 {
                     zend_string_release(Z_STR_P(ztext));
                     ZVAL_LONG(ztext, sbigint);
@@ -1143,7 +1143,7 @@ void mysql_client::handle_strict_type(zval *ztext, mysql::field_packet *field)
         case SW_MYSQL_TYPE_DOUBLE:
         {
             double mdouble = strtod(Z_STRVAL_P(ztext), &error);
-            if (likely(*error == '\0'))
+            if (sw_likely(*error == '\0'))
             {
                 zend_string_release(Z_STR_P(ztext));
                 ZVAL_DOUBLE(ztext, mdouble);
@@ -1161,12 +1161,12 @@ void mysql_client::handle_strict_type(zval *ztext, mysql::field_packet *field)
 
 void mysql_client::fetch(zval *return_value)
 {
-    if (unlikely(state != SW_MYSQL_STATE_QUERY_FETCH))
+    if (sw_unlikely(state != SW_MYSQL_STATE_QUERY_FETCH))
     {
         RETURN_NULL();
     }
     const char *data;
-    if (unlikely(!(data = recv_packet())))
+    if (sw_unlikely(!(data = recv_packet())))
     {
         RETURN_FALSE;
     }
@@ -1184,7 +1184,7 @@ void mysql_client::fetch(zval *return_value)
             mysql::field_packet *field = result.get_field(i);
             zval ztext;
             handle_row_data_text(&ztext, &row_data, field);
-            if (unlikely(Z_TYPE_P(&ztext) == IS_FALSE))
+            if (sw_unlikely(Z_TYPE_P(&ztext) == IS_FALSE))
             {
                 zval_ptr_dtor(return_value);
                 RETURN_FALSE;
@@ -1200,11 +1200,11 @@ void mysql_client::fetch(zval *return_value)
 
 void mysql_client::fetch_all(zval *return_value)
 {
-    if (likely(state == SW_MYSQL_STATE_QUERY_FETCH))
+    if (sw_likely(state == SW_MYSQL_STATE_QUERY_FETCH))
     {
         zval zrow;
         fetch(return_value);
-        if (unlikely(!ZVAL_IS_ARRAY(return_value)))
+        if (sw_unlikely(!ZVAL_IS_ARRAY(return_value)))
         {
             return;
         }
@@ -1214,12 +1214,12 @@ void mysql_client::fetch_all(zval *return_value)
         {
             (void) add_next_index_zval(return_value, &zrow);
             fetch(&zrow);
-            if (unlikely(ZVAL_IS_NULL(&zrow)))
+            if (sw_unlikely(ZVAL_IS_NULL(&zrow)))
             {
                 // eof
                 return;
             }
-            if (unlikely(Z_TYPE_P(&zrow) == IS_FALSE))
+            if (sw_unlikely(Z_TYPE_P(&zrow) == IS_FALSE))
             {
                 // error
                 zval_ptr_dtor(return_value);
@@ -1232,14 +1232,14 @@ void mysql_client::fetch_all(zval *return_value)
 
 void mysql_client::next_result(zval *return_value)
 {
-    if (unlikely(state == SW_MYSQL_STATE_QUERY_FETCH))
+    if (sw_unlikely(state == SW_MYSQL_STATE_QUERY_FETCH))
     {
         // skip unread data
         fetch_all(return_value);
         zval_ptr_dtor(return_value);
         next_result(return_value);
     }
-    else if (likely(state == SW_MYSQL_STATE_QUERY_MORE_RESULTS))
+    else if (sw_likely(state == SW_MYSQL_STATE_QUERY_MORE_RESULTS))
     {
         recv_query_response(return_value);
     }
@@ -1256,7 +1256,7 @@ void mysql_client::next_result(zval *return_value)
 bool mysql_client::send_prepare_request(const char *statement, size_t statement_length)
 {
     this->statement = new mysql_statement(this, statement, statement_length);
-    if (unlikely(!this->statement->send_prepare_request()))
+    if (sw_unlikely(!this->statement->send_prepare_request()))
     {
         delete this->statement;
         this->statement = nullptr;
@@ -1267,12 +1267,12 @@ bool mysql_client::send_prepare_request(const char *statement, size_t statement_
 
 mysql_statement* mysql_client::recv_prepare_response()
 {
-    if (likely(state == SW_MYSQL_STATE_PREPARE))
+    if (sw_likely(state == SW_MYSQL_STATE_PREPARE))
     {
         mysql_statement *statement = this->statement;
         SW_ASSERT(statement != nullptr);
         this->statement = nullptr;
-        if (unlikely(!statement->recv_prepare_response()))
+        if (sw_unlikely(!statement->recv_prepare_response()))
         {
             delete statement;
             return nullptr;
@@ -1289,12 +1289,12 @@ void mysql_client::close()
     if (socket)
     {
         del_timeout_controller();
-        if (likely(!quit && is_writable()))
+        if (sw_likely(!quit && is_writable()))
         {
             quit = true;
             send_command(SW_MYSQL_COM_QUIT);
         }
-        if (likely(!socket->has_bound()))
+        if (sw_likely(!socket->has_bound()))
         {
             // make statements non-available
             while (!statements.empty())
@@ -1305,7 +1305,7 @@ void mysql_client::close()
             }
             this->socket = nullptr;
         }
-        if (likely(socket->close()))
+        if (sw_likely(socket->close()))
         {
             delete socket;
         }
@@ -1315,11 +1315,11 @@ void mysql_client::close()
 
 bool mysql_statement::send_prepare_request()
 {
-    if (unlikely(!is_available_for_new_reuqest()))
+    if (sw_unlikely(!is_available_for_new_reuqest()))
     {
         return false;
     }
-    if (unlikely(!client->send_command(SW_MYSQL_COM_STMT_PREPARE, statement.c_str(), statement.length())))
+    if (sw_unlikely(!client->send_command(SW_MYSQL_COM_STMT_PREPARE, statement.c_str(), statement.length())))
     {
         return false;
     }
@@ -1329,7 +1329,7 @@ bool mysql_statement::send_prepare_request()
 
 bool mysql_statement::recv_prepare_response()
 {
-    if (unlikely(!is_available()))
+    if (sw_unlikely(!is_available()))
     {
         return false;
     }
@@ -1338,16 +1338,16 @@ bool mysql_statement::recv_prepare_response()
         client->state = SW_MYSQL_STATE_IDLE;
     }
     const char *data;
-    if (unlikely(!(data = client->recv_none_error_packet())))
+    if (sw_unlikely(!(data = client->recv_none_error_packet())))
     {
         return false;
     }
     info = mysql::statement(data);
-    if (likely(info.param_count != 0))
+    if (sw_likely(info.param_count != 0))
     {
         for (uint16_t i = info.param_count; i--;)
         {
-            if (unlikely(!(data = client->recv_packet())))
+            if (sw_unlikely(!(data = client->recv_packet())))
             {
                 return false;
             }
@@ -1355,7 +1355,7 @@ bool mysql_statement::recv_prepare_response()
             mysql::param_packet param_packet(data);
     #endif
         }
-        if (unlikely(!(data = client->recv_eof_packet())))
+        if (sw_unlikely(!(data = client->recv_eof_packet())))
         {
             return false;
         }
@@ -1365,13 +1365,13 @@ bool mysql_statement::recv_prepare_response()
         result.alloc_fields(info.field_count);
         for (uint16_t i = 0; i < info.field_count; i++)
         {
-            if (unlikely(!(data = client->recv_packet())))
+            if (sw_unlikely(!(data = client->recv_packet())))
             {
                 return false;
             }
             result.set_field(i, data);
         }
-        if (unlikely(!(data = client->recv_eof_packet())))
+        if (sw_unlikely(!(data = client->recv_eof_packet())))
         {
             return false;
         }
@@ -1391,14 +1391,14 @@ void mysql_statement::execute(zval *return_value, zval *params)
 
 void mysql_statement::send_execute_request(zval *return_value, zval *params)
 {
-    if (unlikely(!is_available_for_new_reuqest()))
+    if (sw_unlikely(!is_available_for_new_reuqest()))
     {
         RETURN_FALSE;
     }
 
     uint32_t param_count = params ? php_swoole_array_length(params) : 0;
 
-    if (unlikely(param_count != info.param_count))
+    if (sw_unlikely(param_count != info.param_count))
     {
         client->non_sql_error(
             MYSQLND_CR_INVALID_PARAMETER_NO,
@@ -1479,11 +1479,11 @@ void mysql_statement::send_execute_request(zval *return_value, zval *params)
         size_t length = buffer->length - SW_MYSQL_PACKET_HEADER_SIZE;
         size_t send_s =  SW_MIN(length, SW_MYSQL_MAX_PACKET_BODY_SIZE);
         mysql::packet::set_header(buffer->str, send_s, 0);
-        if (unlikely(!client->send_raw(buffer->str, SW_MYSQL_PACKET_HEADER_SIZE + send_s)))
+        if (sw_unlikely(!client->send_raw(buffer->str, SW_MYSQL_PACKET_HEADER_SIZE + send_s)))
         {
             RETURN_FALSE;
         }
-        if (unlikely(length > SW_MYSQL_MAX_PACKET_BODY_SIZE))
+        if (sw_unlikely(length > SW_MYSQL_MAX_PACKET_BODY_SIZE))
         {
             size_t send_n = SW_MYSQL_MAX_PACKET_BODY_SIZE, number = 1;
             /* MySQL single packet size is 16M, we must subpackage */
@@ -1492,7 +1492,7 @@ void mysql_statement::send_execute_request(zval *return_value, zval *params)
                 send_s = length - send_n;
                 send_s = SW_MIN(send_s, SW_MYSQL_MAX_PACKET_BODY_SIZE);
                 mysql::packet::set_header(buffer->str, send_s, number++);
-                if (unlikely(
+                if (sw_unlikely(
                     !client->send_raw(buffer->str, SW_MYSQL_PACKET_HEADER_SIZE)) ||
                     !client->send_raw(buffer->str + SW_MYSQL_PACKET_HEADER_SIZE + send_n, send_s)
                 )
@@ -1509,12 +1509,12 @@ void mysql_statement::send_execute_request(zval *return_value, zval *params)
 
 void mysql_statement::recv_execute_response(zval *return_value)
 {
-    if (unlikely(!is_available()))
+    if (sw_unlikely(!is_available()))
     {
         RETURN_FALSE;
     }
     const char *data;
-    if (unlikely(!(data = client->recv_none_error_packet())))
+    if (sw_unlikely(!(data = client->recv_none_error_packet())))
     {
         RETURN_FALSE;
     }
@@ -1527,7 +1527,7 @@ void mysql_statement::recv_execute_response(zval *return_value)
     }
     do {
         mysql::lcb_packet lcb_packet(data);
-        if (unlikely(lcb_packet.length == 0))
+        if (sw_unlikely(lcb_packet.length == 0))
         {
             // is it possible?
             client->proto_error(data, SW_MYSQL_PACKET_FIELD);
@@ -1539,7 +1539,7 @@ void mysql_statement::recv_execute_response(zval *return_value)
         result.alloc_fields(lcb_packet.length);
         for (size_t i = 0; i < result.get_fields_length(); i++)
         {
-            if (unlikely(!(data = client->recv_packet())))
+            if (sw_unlikely(!(data = client->recv_packet())))
             {
                 RETURN_FALSE;
             }
@@ -1547,7 +1547,7 @@ void mysql_statement::recv_execute_response(zval *return_value)
         }
     } while (0);
     // expect eof
-    if (unlikely(!(data = client->recv_eof_packet())))
+    if (sw_unlikely(!(data = client->recv_eof_packet())))
     {
         RETURN_FALSE;
     }
@@ -1561,16 +1561,16 @@ void mysql_statement::recv_execute_response(zval *return_value)
 
 void mysql_statement::fetch(zval *return_value)
 {
-    if (unlikely(!is_available()))
+    if (sw_unlikely(!is_available()))
     {
         RETURN_FALSE;
     }
-    if (unlikely(client->state != SW_MYSQL_STATE_EXECUTE_FETCH))
+    if (sw_unlikely(client->state != SW_MYSQL_STATE_EXECUTE_FETCH))
     {
         RETURN_NULL();
     }
     const char *data;
-    if (unlikely(!(data = client->recv_packet())))
+    if (sw_unlikely(!(data = client->recv_packet())))
     {
         RETURN_FALSE;
     }
@@ -1617,7 +1617,7 @@ void mysql_statement::fetch(zval *return_value)
                 _add_string:
                 zval ztext;
                 client->handle_row_data_text(&ztext, &row_data, field);
-                if (unlikely(Z_TYPE_P(&ztext) == IS_FALSE))
+                if (sw_unlikely(Z_TYPE_P(&ztext) == IS_FALSE))
                 {
                     zval_ptr_dtor(return_value);
                     RETURN_FALSE;
@@ -1635,7 +1635,7 @@ void mysql_statement::fetch(zval *return_value)
                     lcb = row_data.text.length;
                 }
                 p = client->handle_row_data_size(&row_data, lcb);
-                if (unlikely(!p))
+                if (sw_unlikely(!p))
                 {
                     zval_ptr_dtor(return_value);
                     RETURN_FALSE;
@@ -1746,15 +1746,15 @@ void mysql_statement::fetch(zval *return_value)
 
 void mysql_statement::fetch_all(zval *return_value)
 {
-    if (unlikely(!is_available()))
+    if (sw_unlikely(!is_available()))
     {
         RETURN_FALSE;
     }
-    if (likely(client->state == SW_MYSQL_STATE_EXECUTE_FETCH))
+    if (sw_likely(client->state == SW_MYSQL_STATE_EXECUTE_FETCH))
     {
         zval zrow;
         fetch(return_value);
-        if (unlikely(!ZVAL_IS_ARRAY(return_value)))
+        if (sw_unlikely(!ZVAL_IS_ARRAY(return_value)))
         {
             return;
         }
@@ -1764,12 +1764,12 @@ void mysql_statement::fetch_all(zval *return_value)
         {
             (void) add_next_index_zval(return_value, &zrow);
             fetch(&zrow);
-            if (unlikely(ZVAL_IS_NULL(&zrow)))
+            if (sw_unlikely(ZVAL_IS_NULL(&zrow)))
             {
                 // eof
                 return;
             }
-            if (unlikely(Z_TYPE_P(&zrow) == IS_FALSE))
+            if (sw_unlikely(Z_TYPE_P(&zrow) == IS_FALSE))
             {
                 // error
                 zval_ptr_dtor(return_value);
@@ -1782,18 +1782,18 @@ void mysql_statement::fetch_all(zval *return_value)
 
 void mysql_statement::next_result(zval *return_value)
 {
-    if (unlikely(!is_available()))
+    if (sw_unlikely(!is_available()))
     {
         RETURN_FALSE;
     }
-    if (unlikely(client->state == SW_MYSQL_STATE_EXECUTE_FETCH))
+    if (sw_unlikely(client->state == SW_MYSQL_STATE_EXECUTE_FETCH))
     {
         // skip unread data
         fetch_all(return_value);
         zval_ptr_dtor(return_value);
         next_result(return_value);
     }
-    else if (likely(client->state == SW_MYSQL_STATE_EXECUTE_MORE_RESULTS))
+    else if (sw_likely(client->state == SW_MYSQL_STATE_EXECUTE_MORE_RESULTS))
     {
         recv_execute_response(return_value);
     }
@@ -2036,7 +2036,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         {
             mc->ssl = zval_is_true(ztmp);
 #ifndef SW_USE_OPENSSL
-            if (unlikely(mc->ssl))
+            if (sw_unlikely(mc->ssl))
             {
                 zend_throw_exception_ex(
                     swoole_mysql_coro_exception_ce,
@@ -2175,7 +2175,7 @@ static PHP_METHOD(swoole_mysql_coro, fetch)
     mc->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
     mc->fetch(return_value);
     mc->del_timeout_controller();
-    if (unlikely(Z_TYPE_P(return_value) == IS_FALSE))
+    if (sw_unlikely(Z_TYPE_P(return_value) == IS_FALSE))
     {
         swoole_mysql_coro_sync_error_properties(ZEND_THIS, mc->get_error_code(), mc->get_error_msg(), mc->is_connect());
     }
@@ -2194,7 +2194,7 @@ static PHP_METHOD(swoole_mysql_coro, fetchAll)
     mc->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
     mc->fetch_all(return_value);
     mc->del_timeout_controller();
-    if (unlikely(Z_TYPE_P(return_value) == IS_FALSE))
+    if (sw_unlikely(Z_TYPE_P(return_value) == IS_FALSE))
     {
         swoole_mysql_coro_sync_error_properties(ZEND_THIS, mc->get_error_code(), mc->get_error_msg(), mc->is_connect());
     }
@@ -2428,7 +2428,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetch)
     ms->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
     ms->fetch(return_value);
     ms->del_timeout_controller();
-    if (unlikely(Z_TYPE_P(return_value) == IS_FALSE))
+    if (sw_unlikely(Z_TYPE_P(return_value) == IS_FALSE))
     {
         swoole_mysql_coro_sync_execute_error_properties(ZEND_THIS, ms->get_error_code(), ms->get_error_msg());
     }
@@ -2447,7 +2447,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetchAll)
     ms->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
     ms->fetch_all(return_value);
     ms->del_timeout_controller();
-    if (unlikely(Z_TYPE_P(return_value) == IS_FALSE))
+    if (sw_unlikely(Z_TYPE_P(return_value) == IS_FALSE))
     {
         swoole_mysql_coro_sync_execute_error_properties(ZEND_THIS, ms->get_error_code(), ms->get_error_msg());
     }

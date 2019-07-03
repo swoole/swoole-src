@@ -427,7 +427,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
     {
         auto buffer = sock->get_read_buffer();
         ssize_t retval = sock->recv(buffer->str + buffer->offset, buffer->size - buffer->offset);
-        if (unlikely(retval <= 0))
+        if (sw_unlikely(retval <= 0))
         {
             break;
         }

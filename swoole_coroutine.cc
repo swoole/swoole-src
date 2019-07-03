@@ -295,7 +295,7 @@ void PHPCoroutine::init()
 
 inline void PHPCoroutine::activate()
 {
-    if (unlikely(active))
+    if (sw_unlikely(active))
     {
         return;
     }
@@ -330,12 +330,12 @@ inline void PHPCoroutine::activate()
 
 void PHPCoroutine::error(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args)
 {
-    if (active && unlikely(type & E_FATAL_ERRORS))
+    if (active && sw_unlikely(type & E_FATAL_ERRORS))
     {
         /* update the last coroutine's info */
         save_task(get_task());
     }
-    if (likely(orig_error_function))
+    if (sw_likely(orig_error_function))
     {
         orig_error_function(type, error_filename, error_lineno, format, args);
     }
@@ -712,24 +712,24 @@ void PHPCoroutine::create_func(void *arg)
 
 long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv)
 {
-    if (unlikely(Coroutine::count() >= max_num))
+    if (sw_unlikely(Coroutine::count() >= max_num))
     {
         php_swoole_fatal_error(E_WARNING, "exceed max number of coroutine %zu", (uintmax_t) Coroutine::count());
         return SW_CORO_ERR_LIMIT;
     }
-    if (unlikely(!fci_cache || !fci_cache->function_handler))
+    if (sw_unlikely(!fci_cache || !fci_cache->function_handler))
     {
         php_swoole_fatal_error(E_ERROR, "invalid function call info cache");
         return SW_CORO_ERR_INVALID;
     }
     zend_uchar type = fci_cache->function_handler->type;
-    if (unlikely(type != ZEND_USER_FUNCTION && type != ZEND_INTERNAL_FUNCTION))
+    if (sw_unlikely(type != ZEND_USER_FUNCTION && type != ZEND_INTERNAL_FUNCTION))
     {
         php_swoole_fatal_error(E_ERROR, "invalid function type %u", fci_cache->function_handler->type);
         return SW_CORO_ERR_INVALID;
     }
 
-    if (unlikely(!active))
+    if (sw_unlikely(!active))
     {
         activate();
     }
@@ -834,10 +834,10 @@ PHP_FUNCTION(swoole_coroutine_create)
         Z_PARAM_VARIADIC('*', fci.params, fci.param_count)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (unlikely(SWOOLE_G(req_status) == PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN))
+    if (sw_unlikely(SWOOLE_G(req_status) == PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN))
     {
         zend_function *func = (zend_function *) EG(current_execute_data)->prev_execute_data->func;
-        if (func->common.function_name && unlikely(memcmp(ZSTR_VAL(func->common.function_name), ZEND_STRS("__destruct")) == 0))
+        if (func->common.function_name && sw_unlikely(memcmp(ZSTR_VAL(func->common.function_name), ZEND_STRS("__destruct")) == 0))
         {
             php_swoole_fatal_error(E_ERROR, "can not use coroutine in __destruct after php_request_shutdown");
             RETURN_FALSE;
@@ -845,7 +845,7 @@ PHP_FUNCTION(swoole_coroutine_create)
     }
 
     long cid = PHPCoroutine::create(&fci_cache, fci.param_count, fci.params);
-    if (likely(cid > 0))
+    if (sw_likely(cid > 0))
     {
         RETURN_LONG(cid);
     }

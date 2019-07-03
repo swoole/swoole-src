@@ -202,13 +202,13 @@ private:
             event = queue.pop();
             if (event)
             {
-                if (unlikely(event->handler == nullptr))
+                if (sw_unlikely(event->handler == nullptr))
                 {
                     event->error = SW_ERROR_AIO_BAD_REQUEST;
                     event->ret = -1;
                     goto _error;
                 }
-                else if (unlikely(event->canceled))
+                else if (sw_unlikely(event->canceled))
                 {
                     event->error = SW_ERROR_AIO_BAD_REQUEST;
                     event->ret = -1;
@@ -331,7 +331,7 @@ static int swAio_init()
 
 int swAio_dispatch(const swAio_event *request)
 {
-    if (unlikely(!SwooleAIO.init))
+    if (sw_unlikely(!SwooleAIO.init))
     {
         swAio_init();
     }
@@ -342,7 +342,7 @@ int swAio_dispatch(const swAio_event *request)
 
 swAio_event* swAio_dispatch2(const swAio_event *request)
 {
-    if (unlikely(!SwooleAIO.init))
+    if (sw_unlikely(!SwooleAIO.init))
     {
         swAio_init();
     }

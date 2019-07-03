@@ -167,12 +167,9 @@ typedef unsigned long ulong_t;
 #if !defined(__GNUC__) || __GNUC__ < 3
 #define __builtin_expect(x, expected_value) (x)
 #endif
-#ifndef likely
-#define likely(x)        __builtin_expect(!!(x), 1)
-#endif
-#ifndef unlikely
-#define unlikely(x)      __builtin_expect(!!(x), 0)
-#endif
+
+#define sw_likely(x)        __builtin_expect(!!(x), 1)
+#define sw_unlikely(x)      __builtin_expect(!!(x), 0)
 
 #define SW_START_LINE  "-------------------------START----------------------------"
 #define SW_END_LINE    "--------------------------END-----------------------------"
@@ -191,11 +188,11 @@ typedef unsigned long ulong_t;
 #define SW_COLOR_CYAN             6
 #define SW_COLOR_WHITE            7
 
-#define SW_SPACE       ' '
-#define SW_CRLF        "\r\n"
-#define SW_CRLF_LEN    2
-#define SW_ASCII_CODE_0     64
-#define SW_ASCII_CODE_Z     106
+#define SW_SPACE                  ' '
+#define SW_CRLF                   "\r\n"
+#define SW_CRLF_LEN               2
+#define SW_ASCII_CODE_0           64
+#define SW_ASCII_CODE_Z           106
 /*----------------------------------------------------------------------------*/
 
 #include "swoole_config.h"
@@ -284,7 +281,7 @@ static sw_inline char* swoole_strdup(const char *s)
 {
     size_t l = strlen(s) + 1;
     char *p = (char *) sw_malloc(l);
-    if (likely(p))
+    if (sw_likely(p))
     {
         memcpy(p, s, l);
     }
@@ -294,7 +291,7 @@ static sw_inline char* swoole_strdup(const char *s)
 static sw_inline char* swoole_strndup(const char *s, size_t n)
 {
     char *p = (char *) sw_malloc(n + 1);
-    if (likely(p))
+    if (sw_likely(p))
     {
         strncpy(p, s, n)[n] = '\0';
     }
@@ -908,7 +905,7 @@ static sw_inline int swString_grow(swString *str, size_t incr_value)
 static sw_inline void swString_pop_front(swString *str, off_t offset)
 {
     assert(offset >= 0 && (size_t ) offset <= str->length);
-    if (unlikely(offset == 0)) return;
+    if (sw_unlikely(offset == 0)) return;
     str->length = str->length - offset;
     str->offset = 0;
     if (str->length == 0) return;
@@ -920,7 +917,7 @@ static sw_inline void swString_sub(swString *str, off_t start, size_t length)
     char *from = str->str + start + (start >= 0 ? 0 : str->length);
     str->length = length != 0 ? length : str->length - start;
     str->offset = 0;
-    if (likely(str->length > 0))
+    if (sw_likely(str->length > 0))
     {
         memmove(str->str, from, str->length);
     }
@@ -1395,7 +1392,7 @@ static inline int swoole_strnpos(const char *haystack, uint32_t haystack_length,
     assert(needle_length > 0);
     uint32_t i;
 
-    if (likely(needle_length <= haystack_length))
+    if (sw_likely(needle_length <= haystack_length))
     {
         for (i = 0; i < haystack_length - needle_length + 1; i++)
         {
@@ -1465,8 +1462,8 @@ int swoole_version_compare(const char *version1, const char *version2);
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void);
 #endif
-void swoole_ioctl_set_block(int sock, int nonblock);
-void swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
+int swoole_ioctl_set_block(int sock, int nonblock);
+int swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
 int swoole_gethostbyname(int type, const char *name, char *addr);
 int swoole_getaddrinfo(swRequest_getaddrinfo *req);
 char* swoole_string_format(size_t n, const char *format, ...);
@@ -1483,14 +1480,6 @@ static sw_inline int swSocket_is_stream(uint8_t type)
 {
     return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM);
 }
-
-#ifdef SW_USE_IOCTL
-#define swSetNonBlock(sock)   swoole_ioctl_set_block(sock, 1)
-#define swSetBlock(sock)      swoole_ioctl_set_block(sock, 0)
-#else
-#define swSetNonBlock(sock)   swoole_fcntl_set_option(sock, 1, -1)
-#define swSetBlock(sock)      swoole_fcntl_set_option(sock, 0, -1)
-#endif
 
 void swoole_init(void);
 void swoole_clean(void);
@@ -1551,6 +1540,16 @@ ssize_t swSocket_unix_sendto(int server_sock, const char *dst_path, const char *
 int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t length, double timeout);
 int swSocket_write_blocking(int __fd, const void *__data, int __len);
 int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
+
+static sw_inline int swSocket_set_nonblock(int sock)
+{
+    return swoole_fcntl_set_option(sock, 1, -1);
+}
+
+static sw_inline int swSocket_set_blocking(int sock)
+{
+    return swoole_fcntl_set_option(sock, 0, -1);
+}
 
 static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options)
 {

@@ -293,7 +293,7 @@ public:
         const char *value, size_t value_len,
         const uint8_t flags = NGHTTP2_NV_FLAG_NONE)
     {
-        if (likely(index < size || nvs[index].name == nullptr))
+        if (sw_likely(index < size || nvs[index].name == nullptr))
         {
             nghttp2_nv *nv = &nvs[index];
             name = zend_str_tolower_dup(name, name_len); // auto to lower
@@ -324,7 +324,7 @@ public:
     {
         for (size_t i = 0; i < size; ++i)
         {
-            if (likely(nvs[i].name/* && nvs[i].value */))
+            if (sw_likely(nvs[i].name/* && nvs[i].value */))
             {
                 efree((void *) nvs[i].name);
                 efree((void *) nvs[i].value);

@@ -209,7 +209,7 @@ void swoole_set_object_by_handle(uint32_t handle, void *ptr)
 {
     assert(handle < SWOOLE_OBJECT_MAX);
 
-    if (unlikely(handle >= swoole_objects.size))
+    if (sw_unlikely(handle >= swoole_objects.size))
     {
         uint32_t old_size = swoole_objects.size;
         uint32_t new_size = swoole_get_new_size(old_size, handle);
@@ -240,7 +240,7 @@ void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr)
 {
     assert(handle < SWOOLE_OBJECT_MAX);
 
-    if (unlikely(handle >= swoole_objects.property_size[property_id]))
+    if (sw_unlikely(handle >= swoole_objects.property_size[property_id]))
     {
         uint32_t old_size = swoole_objects.property_size[property_id];
         uint32_t new_size = 0;

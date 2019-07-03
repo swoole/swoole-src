@@ -181,7 +181,7 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
             fin = zval_is_true(ztmp);
         }
     }
-    if (unlikely(opcode > SW_WEBSOCKET_OPCODE_MAX))
+    if (sw_unlikely(opcode > SW_WEBSOCKET_OPCODE_MAX))
     {
         php_swoole_fatal_error(E_WARNING, "the maximum value of opcode is %d", SW_WEBSOCKET_OPCODE_MAX);
         return SW_ERR;
@@ -452,7 +452,7 @@ void swoole_websocket_server_init(int module_number)
 
 static sw_inline int swoole_websocket_server_push(swServer *serv, int fd, swString *buffer)
 {
-    if (unlikely(fd <= 0))
+    if (sw_unlikely(fd <= 0))
     {
         php_swoole_fatal_error(E_WARNING, "fd[%d] is invalid", fd);
         return SW_ERR;
@@ -605,7 +605,7 @@ static PHP_METHOD(swoole_websocket_server, isEstablished)
     zend_long fd;
 
     swServer *serv = (swServer *) swoole_get_object(ZEND_THIS);
-    if (unlikely(!serv->gs->start))
+    if (sw_unlikely(!serv->gs->start))
     {
         php_error_docref(NULL, E_WARNING, "the server is not running");
         RETURN_FALSE;

@@ -951,7 +951,7 @@ static void init_function()
 
 bool PHPCoroutine::enable_hook(int flags)
 {
-    if (unlikely(enable_strict_mode))
+    if (sw_unlikely(enable_strict_mode))
     {
         php_swoole_fatal_error(E_ERROR, "unable to enable the coroutine mode after you enable the strict mode");
         return false;

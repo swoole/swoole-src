@@ -390,7 +390,7 @@ static sw_inline void* swoole_get_object_by_handle(uint32_t handle)
 
 static sw_inline void* swoole_get_property_by_handle(uint32_t handle, int property_id)
 {
-    if (unlikely(handle >= swoole_objects.property_size[property_id]))
+    if (sw_unlikely(handle >= swoole_objects.property_size[property_id]))
     {
         return NULL;
     }
@@ -734,7 +734,7 @@ static sw_inline zend_string* sw_zend_string_recycle(zend_string *s, size_t allo
 
 static sw_inline int add_assoc_ulong_safe_ex(zval *arg, const char *key, size_t key_len, zend_ulong value)
 {
-    if (likely(value <= ZEND_LONG_MAX))
+    if (sw_likely(value <= ZEND_LONG_MAX))
     {
         return add_assoc_long_ex(arg, key, key_len, value);
     }
@@ -815,7 +815,7 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     module##_handlers.offset = XtOffsetOf(_struct, _std)
 
 #define SW_PREVENT_USER_DESTRUCT()  do { \
-    if (unlikely(!(GC_FLAGS(Z_OBJ_P(ZEND_THIS)) & IS_OBJ_DESTRUCTOR_CALLED))) { \
+    if (sw_unlikely(!(GC_FLAGS(Z_OBJ_P(ZEND_THIS)) & IS_OBJ_DESTRUCTOR_CALLED))) { \
         RETURN_NULL(); \
     } \
 } while (0)
@@ -1163,7 +1163,7 @@ static sw_inline void php_swoole_check_reactor()
     {
         return ;
     }
-    if (unlikely(!SwooleG.main_reactor))
+    if (sw_unlikely(!SwooleG.main_reactor))
     {
         php_swoole_reactor_init();
     }

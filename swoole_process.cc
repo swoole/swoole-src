@@ -1186,11 +1186,11 @@ static PHP_METHOD(swoole_process, setBlocking)
     }
     if (blocking)
     {
-        swSetBlock(process->pipe);
+        swSocket_set_blocking(process->pipe);
     }
     else
     {
-        swSetNonBlock(process->pipe);
+        swSocket_set_nonblock(process->pipe);
     }
     if (SwooleG.main_reactor)
     {

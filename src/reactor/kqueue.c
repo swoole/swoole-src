@@ -355,8 +355,8 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                 {
                     if (swReactorKqueue_fetch_event(reactor, &event, udata))
                     {
-                        handler = swReactor_get_handler(reactor, likely(kevent->filter == EVFILT_READ) ? SW_EVENT_READ : SW_EVENT_WRITE, event.type);
-                        if (unlikely(handler(reactor, &event) < 0))
+                        handler = swReactor_get_handler(reactor, sw_likely(kevent->filter == EVFILT_READ) ? SW_EVENT_READ : SW_EVENT_WRITE, event.type);
+                        if (sw_unlikely(handler(reactor, &event) < 0))
                         {
                             swSysWarn("kqueue event %s socket#%d handler failed", kevent->filter == EVFILT_READ ? "read" : "write", event.fd);
                         }

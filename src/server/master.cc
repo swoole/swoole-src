@@ -953,7 +953,7 @@ static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_
     bzero(&_send.info, sizeof(_send.info));
     swFactory *factory = &(serv->factory);
 
-    if (unlikely(swIsMaster()))
+    if (sw_unlikely(swIsMaster()))
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't send data to the connections in master process");
         return SW_ERR;
@@ -1211,13 +1211,13 @@ static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
  */
 static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length)
 {
-    if (unlikely(session_id <= 0 || session_id > SW_MAX_SESSION_ID))
+    if (sw_unlikely(session_id <= 0 || session_id > SW_MAX_SESSION_ID))
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%d]", session_id);
         return SW_ERR;
     }
 
-    if (unlikely(swIsMaster()))
+    if (sw_unlikely(swIsMaster()))
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't send data to the connections in master process");
         return SW_ERR;
@@ -1227,7 +1227,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
     swSendFile_request *req = (swSendFile_request*) _buffer;
 
     // file name size
-    if (unlikely(l_file > SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1))
+    if (sw_unlikely(l_file > SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1))
     {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "sendfile name[%.8s...] length %u is exceed the max name len %u",
@@ -1297,7 +1297,7 @@ SW_API void swServer_call_hook(swServer *serv, enum swServer_hook_type type, voi
  */
 static int swServer_tcp_close(swServer *serv, int session_id, int reset)
 {
-    if (unlikely(swIsMaster()))
+    if (sw_unlikely(swIsMaster()))
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't close the connections in master process");
         return SW_ERR;
@@ -1838,7 +1838,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     {
         session_id++;
         //SwooleGS->session_round just has 24 bits size;
-        if (unlikely(session_id == 1 << 24))
+        if (sw_unlikely(session_id == 1 << 24))
         {
             session_id = 1;
         }

@@ -45,8 +45,8 @@ int swPipeBase_create(swPipe *p, int blocking)
     else
     {
         //Nonblock
-        swSetNonBlock(object->pipes[0]);
-        swSetNonBlock(object->pipes[1]);
+        swSocket_set_nonblock(object->pipes[0]);
+        swSocket_set_nonblock(object->pipes[1]);
         p->timeout = -1;
         p->object = object;
         p->read = swPipeBase_read;

@@ -34,7 +34,7 @@ void Coroutine::yield()
 {
     SW_ASSERT(current == this || on_bailout != nullptr);
     state = SW_CORO_WAITING;
-    if (likely(on_yield))
+    if (sw_likely(on_yield))
     {
         on_yield(task);
     }
@@ -45,12 +45,12 @@ void Coroutine::yield()
 void Coroutine::resume()
 {
     SW_ASSERT(current != this);
-    if (unlikely(on_bailout))
+    if (sw_unlikely(on_bailout))
     {
         return;
     }
     state = SW_CORO_RUNNING;
-    if (likely(on_resume))
+    if (sw_likely(on_resume))
     {
         on_resume(task);
     }
@@ -71,7 +71,7 @@ void Coroutine::yield_naked()
 void Coroutine::resume_naked()
 {
     SW_ASSERT(current != this);
-    if (unlikely(on_bailout))
+    if (sw_unlikely(on_bailout))
     {
         return;
     }

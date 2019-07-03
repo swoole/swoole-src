@@ -117,13 +117,13 @@ public:
 
     static inline long get_cid()
     {
-        return likely(active) ? Coroutine::get_current_cid() : -1;
+        return sw_likely(active) ? Coroutine::get_current_cid() : -1;
     }
 
     static inline long get_pcid()
     {
         php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
-        return likely(task) ? task->pcid : -1;
+        return sw_likely(task) ? task->pcid : -1;
     }
 
     static inline php_coro_task* get_task()

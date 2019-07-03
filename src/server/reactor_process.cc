@@ -380,8 +380,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     if (worker->pipe_worker)
     {
-        swSetNonBlock(worker->pipe_worker);
-        swSetNonBlock(worker->pipe_master);
+        swSocket_set_nonblock(worker->pipe_worker);
+        swSocket_set_nonblock(worker->pipe_master);
         reactor->add(reactor, worker->pipe_worker, SW_FD_PIPE);
         reactor->add(reactor, worker->pipe_master, SW_FD_PIPE);
     }
@@ -402,7 +402,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
                 pfd = p->getFd(p, 1);
                 psock = swReactor_get(reactor, pfd);
                 psock->fdtype = SW_FD_PIPE;
-                swSetNonBlock(pfd);
+                swSocket_set_nonblock(pfd);
             }
         }
     }
@@ -641,7 +641,7 @@ static int swReactorProcess_reuse_port(swListenPort *ls)
     //stream socket, set nonblock
     if (swSocket_is_stream(ls->type))
     {
-        swSetNonBlock(sock);
+        swSocket_set_nonblock(sock);
     }
     ls->sock = sock;
     return swPort_listen(ls);
