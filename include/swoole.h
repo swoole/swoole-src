@@ -302,16 +302,13 @@ static sw_inline char* swoole_strndup(const char *s, size_t n)
 }
 
 /*--------------------------------Constants------------------------------------*/
+enum swResult_code
+{
+    SW_OK = 0,
+    SW_ERR = -1,
+};
 
-#define SW_OK                  0
-#define SW_ERR                -1
-#define SW_AGAIN              -2
-#define SW_BUSY               -3
-#define SW_DONE               -4
-#define SW_DECLINED           -5
-#define SW_ABORT              -6
-//-------------------------------------------------------------------------------
-enum swReturn_type
+enum swReturn_code
 {
     SW_CONTINUE = 1,
     SW_WAIT     = 2,
@@ -319,18 +316,18 @@ enum swReturn_type
     SW_ERROR    = 4,
     SW_READY    = 5,
 };
-//-------------------------------------------------------------------------------
+
 enum swFd_type
 {
     SW_FD_TCP, //tcp socket
-    SW_FD_LISTEN,//server socket
-    SW_FD_CLOSE,//socket closed
-    SW_FD_ERROR,//socket error
-    SW_FD_UDP,//udp socket
-    SW_FD_PIPE,//pipe
-    SW_FD_STREAM,//stream socket
-    SW_FD_WRITE,//fd can write
-    SW_FD_AIO,//aio
+    SW_FD_LISTEN, //server socket
+    SW_FD_CLOSE, //socket closed
+    SW_FD_ERROR, //socket error
+    SW_FD_UDP, //udp socket
+    SW_FD_PIPE, //pipe
+    SW_FD_STREAM, //stream socket
+    SW_FD_WRITE, //fd can write
+    SW_FD_AIO, //aio
     /**
      * Coroutine Socket
      */
@@ -372,7 +369,7 @@ enum swEvent_type
 
 enum swPipe_type
 {
-    SW_PIPE_READ = 0,
+    SW_PIPE_READ  = 0,
     SW_PIPE_WRITE = 1,
 };
 

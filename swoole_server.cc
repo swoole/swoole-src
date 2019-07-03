@@ -410,7 +410,7 @@ static void php_swoole_onManagerStart(swServer *serv);
 static void php_swoole_onManagerStop(swServer *serv);
 
 static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode);
-static int php_swoole_server_send_resume(swServer *serv, php_coro_context *context, int fd);
+static enum swReturn_code php_swoole_server_send_resume(swServer *serv, php_coro_context *context, int fd);
 static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode);
 static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, swSendData *data);
 static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port);
@@ -1737,7 +1737,7 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
     efree(context);
 }
 
-static int php_swoole_server_send_resume(swServer *serv, php_coro_context *context, int fd)
+static enum swReturn_code php_swoole_server_send_resume(swServer *serv, php_coro_context *context, int fd)
 {
     char *data;
     zval *zdata = &context->coro_params;
@@ -1759,7 +1759,7 @@ static int php_swoole_server_send_resume(swServer *serv, php_coro_context *conte
         int ret = serv->send(serv, fd, data, length);
         if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
         {
-            return SW_AGAIN;
+            return SW_CONTINUE;
         }
         ZVAL_BOOL(&result, ret == SW_OK);
     }
@@ -1777,7 +1777,7 @@ static int php_swoole_server_send_resume(swServer *serv, php_coro_context *conte
     }
     zval_ptr_dtor(zdata);
     efree(context);
-    return SW_OK;
+    return SW_READY;
 }
 
 void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value)
@@ -1882,7 +1882,7 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
             }
             php_coro_context *context = coros_list->front();
             //resume coroutine
-            if (php_swoole_server_send_resume(serv, context, info->fd) == SW_AGAIN)
+            if (php_swoole_server_send_resume(serv, context, info->fd) == SW_CONTINUE)
             {
                 return;
             }
