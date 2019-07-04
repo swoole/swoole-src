@@ -654,6 +654,8 @@ bool http_client::keep_liveness()
     {
         if (socket)
         {
+            /* in progress */
+            socket->check_bound_co(SW_EVENT_RDWR);
             zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), socket->errCode);
             zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), socket->errMsg);
             zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
@@ -1127,6 +1129,7 @@ bool http_client::send()
         {
             goto _send_fail;
         }
+        wait = true;
         return true;
     }
     // ============ x-www-form-urlencoded or raw ============
@@ -1191,6 +1194,7 @@ bool http_client::send()
        close();
        return false;
     }
+    wait = true;
     return true;
 }
 
@@ -1199,25 +1203,13 @@ bool http_client::exec(std::string path)
     this->path = path;
     // bzero when make a new reqeust
     reconnected_count = 0;
-    if (wait)
+    if (defer)
     {
-        zend_throw_exception_ex(swoole_http_client_coro_exception_ce, SW_ERROR_CO_BLOCK_OBJECT_WAITING,
-                "Waiting for a response, unable to send a new request");
-        return false;
-    }
-    wait = true;
-    if (send() == false)
-    {
-        wait = false;
-        return false;
-    }
-    if (!defer)
-    {
-        return recv();
+        return send();
     }
     else
     {
-        return true;
+        return send() && recv();
     }
 }
 
