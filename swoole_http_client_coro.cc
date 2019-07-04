@@ -1201,7 +1201,8 @@ bool http_client::exec(std::string path)
     reconnected_count = 0;
     if (wait)
     {
-        printf("error\n");
+        zend_throw_exception_ex(swoole_http_client_coro_exception_ce, SW_ERROR_CO_BLOCK_OBJECT_WAITING,
+                "Waiting for a response, unable to send a new request");
         return false;
     }
     wait = true;
