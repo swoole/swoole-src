@@ -44,6 +44,7 @@ static PHP_METHOD(swoole_socket_coro, accept);
 static PHP_METHOD(swoole_socket_coro, connect);
 static PHP_METHOD(swoole_socket_coro, recv);
 static PHP_METHOD(swoole_socket_coro, send);
+static PHP_METHOD(swoole_socket_coro, sendFile);
 static PHP_METHOD(swoole_socket_coro, recvAll);
 static PHP_METHOD(swoole_socket_coro, sendAll);
 static PHP_METHOD(swoole_socket_coro, recvPacket);
@@ -97,6 +98,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_send, 0, 0, 1)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_sendFile, 0, 0, 1)
+    ZEND_ARG_INFO(0, filename)
+    ZEND_ARG_INFO(0, offset)
+    ZEND_ARG_INFO(0, length)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_recvfrom, 0, 0, 1)
     ZEND_ARG_INFO(1, peername)
     ZEND_ARG_INFO(0, timeout)
@@ -145,6 +152,7 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, recv,        arginfo_swoole_socket_coro_recv,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvPacket,  arginfo_swoole_socket_coro_recvPacket,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, send,        arginfo_swoole_socket_coro_send,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, sendFile,    arginfo_swoole_socket_coro_sendFile,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvAll,     arginfo_swoole_socket_coro_recv,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, sendAll,     arginfo_swoole_socket_coro_send,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvfrom,    arginfo_swoole_socket_coro_recvfrom,  ZEND_ACC_PUBLIC)
@@ -1221,6 +1229,36 @@ static sw_inline void swoole_socket_coro_send(INTERNAL_FUNCTION_PARAMETERS, cons
 static PHP_METHOD(swoole_socket_coro, send)
 {
     swoole_socket_coro_send(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
+}
+
+static PHP_METHOD(swoole_socket_coro, sendFile)
+{
+    char *file;
+    size_t file_len;
+    zend_long offset = 0;
+    zend_long length = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &file, &file_len, &offset, &length) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    if (file_len == 0)
+    {
+        php_swoole_fatal_error(E_WARNING, "file to send is empty");
+        RETURN_FALSE;
+    }
+
+    swoole_get_socket_coro(sock, ZEND_THIS);
+    if (!sock->socket->sendfile(file, offset, length))
+    {
+        zend_update_property_long(swoole_socket_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), sock->socket->errCode);
+        zend_update_property_string(swoole_socket_coro_ce, ZEND_THIS, ZEND_STRL("errMsg"), sock->socket->errMsg);
+        RETVAL_FALSE;
+    }
+    else
+    {
+        RETVAL_TRUE;
+    }
 }
 
 static PHP_METHOD(swoole_socket_coro, sendAll)
