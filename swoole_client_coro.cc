@@ -807,8 +807,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
         zend_update_property_string(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errMsg"), "dgram socket cannot use sendfile");
         RETURN_FALSE;
     }
-    int ret = cli->sendfile(file, offset, length);
-    if (ret < 0)
+    if (!cli->sendfile(file, offset, length))
     {
         zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), cli->errCode);
         zend_update_property_string(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errMsg"), cli->errMsg);
