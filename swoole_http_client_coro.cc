@@ -107,7 +107,7 @@ public:
 #endif
     void apply_setting(zval *zset, const bool check_all = true);
     void set_basic_auth(const std::string & username, const std::string & password);
-    bool exec(std::string path);
+    bool exec(std::string _path);
     bool recv(double timeout = 0);
     void recv(zval *zframe, double timeout = 0);
     bool recv_http_response(double timeout = 0);
@@ -664,6 +664,14 @@ bool http_client::keep_liveness()
 
 bool http_client::send()
 {
+    if (!wait)
+    {
+        zend_throw_exception_ex(
+            swoole_http_client_coro_exception_ce,
+            EPROTONOSUPPORT, "client is waiting for response, cannot send new request"
+        );
+        return false;
+    }
     zval *zvalue = NULL;
     uint32_t header_flag = 0x0;
     zval *zmethod, *zheaders, *zbody, *zupload_files, *zcookies, *z_download_file;
@@ -1188,9 +1196,9 @@ bool http_client::send()
     return true;
 }
 
-bool http_client::exec(std::string path)
+bool http_client::exec(std::string _path)
 {
-    this->path = path;
+    path = _path;
     // bzero when make a new reqeust
     reconnected_count = 0;
     if (defer)
