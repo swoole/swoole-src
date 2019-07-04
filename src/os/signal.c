@@ -353,7 +353,7 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
     int n = kevent(reactor_obj->fd, &ev, 1, NULL, 0, NULL);
     if (n < 0)
     {
-        if (unlikely(handler))
+        if (sw_unlikely(handler))
         {
             swWarn("kevent set signal[%d] error, errno=%d", signo, errno);
         }

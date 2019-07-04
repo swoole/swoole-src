@@ -166,7 +166,7 @@ public:
 
     inline bool set_defer(bool v)
     {
-        // if (unlikely(fetch_mode && v))
+        // if (sw_unlikely(fetch_mode && v))
         // {
         //      non_sql_error(ENOTSUP, "Can not use defer mode when fetch mode is on");
         //    return false;
