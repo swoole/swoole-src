@@ -1227,7 +1227,7 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
 {
     zval *zflags = nullptr;
     /*TODO: enable SW_HOOK_CURL by default after curl handler completed */
-    zend_long flags = SW_HOOK_ALL ^ SW_HOOK_CURL;
+    zend_long flags = SW_HOOK_ALL;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
         Z_PARAM_OPTIONAL
