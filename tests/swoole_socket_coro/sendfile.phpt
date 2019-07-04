@@ -1,5 +1,5 @@
 --TEST--
-swoole_client_coro: sendfile
+swoole_socket_coro: sendfile
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -12,16 +12,16 @@ $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
 {
     Co\Run(function ()  use ($pm) {
-        $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
-        $r = $client->connect(TCP_SERVER_HOST, $pm->getFreePort(), 0.5);
-        Assert::assert($r);
-        $client->send(pack('N', filesize(TEST_IMAGE)));
-        $ret = $client->sendfile(TEST_IMAGE);
+        $conn = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+        Assert::assert($conn->connect('127.0.0.1', $pm->getFreePort()));
+
+        $conn->send(pack('N', filesize(TEST_IMAGE)));
+        $ret = $conn->sendfile(TEST_IMAGE);
         Assert::assert($ret);
 
-        $data = $client->recv();
-        $client->send(pack('N', 8) . 'shutdown');
-        $client->close();
+        $data = $conn->recv();
+        $conn->send(pack('N', 8) . 'shutdown');
+        $conn->close();
         Assert::eq($data, md5_file(TEST_IMAGE));
     });
 };
