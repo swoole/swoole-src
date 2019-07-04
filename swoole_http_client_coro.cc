@@ -1127,7 +1127,6 @@ bool http_client::send()
         {
             goto _send_fail;
         }
-        wait = true;
         return true;
     }
     // ============ x-www-form-urlencoded or raw ============
@@ -1192,8 +1191,6 @@ bool http_client::send()
        close();
        return false;
     }
-
-    wait = true;
     return true;
 }
 
@@ -1202,13 +1199,24 @@ bool http_client::exec(std::string path)
     this->path = path;
     // bzero when make a new reqeust
     reconnected_count = 0;
-    if (defer)
+    if (wait)
     {
-        return send();
+        printf("error\n");
+        return false;
+    }
+    wait = true;
+    if (send() == false)
+    {
+        wait = false;
+        return false;
+    }
+    if (!defer)
+    {
+        return recv();
     }
     else
     {
-        return send() && recv();
+        return true;
     }
 }
 

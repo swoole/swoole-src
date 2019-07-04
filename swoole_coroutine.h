@@ -202,7 +202,7 @@ protected:
     static void on_yield(void *arg);
     static void on_resume(void *arg);
     static void on_close(void *arg);
-    static void create_func(void *arg);
+    static void main_func(void *arg);
 
     static void interrupt_thread_start();
     static void interrupt_thread_loop();

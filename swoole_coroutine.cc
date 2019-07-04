@@ -548,7 +548,7 @@ void PHPCoroutine::on_close(void *arg)
     );
 }
 
-void PHPCoroutine::create_func(void *arg)
+void PHPCoroutine::main_func(void *arg)
 {
 #ifdef SW_CORO_SUPPORT_BAILOUT
     zend_first_try {
@@ -740,7 +740,7 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
     php_coro_args.argc = argc;
     save_task(get_task());
 
-    return Coroutine::create(create_func, (void*) &php_coro_args);
+    return Coroutine::create(main_func, (void*) &php_coro_args);
 }
 
 void PHPCoroutine::defer(php_swoole_fci *fci)
