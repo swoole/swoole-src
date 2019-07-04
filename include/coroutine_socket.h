@@ -164,7 +164,7 @@ public:
 
     inline Coroutine* get_bound_co(const enum swEvent_type event)
     {
-        if (sw_likely(event & SW_EVENT_READ))
+        if (event & SW_EVENT_READ)
         {
             if (read_co)
             {
