@@ -289,28 +289,6 @@ void php_swoole_register_shutdown_function(const char *function)
     register_user_shutdown_function((char *) function, ZSTR_LEN(Z_STR(shutdown_function_entry.arguments[0])), &shutdown_function_entry);
 }
 
-static void php_swoole_old_shutdown_function_move(zval *zv)
-{
-    php_shutdown_function_entry *old_shutdown_function_entry = (php_shutdown_function_entry *) Z_PTR_P(zv);
-    zend_hash_next_index_insert_mem(BG(user_shutdown_function_names), old_shutdown_function_entry, sizeof(php_shutdown_function_entry));
-    efree(old_shutdown_function_entry);
-}
-
-void php_swoole_register_shutdown_function_prepend(const char *function)
-{
-    HashTable *old_user_shutdown_function_names = BG(user_shutdown_function_names);
-    if (!old_user_shutdown_function_names)
-    {
-        php_swoole_register_shutdown_function(function);
-        return;
-    }
-    BG(user_shutdown_function_names) = NULL;
-    php_swoole_register_shutdown_function(function);
-    old_user_shutdown_function_names->pDestructor = php_swoole_old_shutdown_function_move;
-    zend_hash_destroy(old_user_shutdown_function_names);
-    FREE_HASHTABLE(old_user_shutdown_function_names);
-}
-
 void php_swoole_register_rshutdown_callback(swCallback cb, void *private_data)
 {
     rshutdown_callbacks.append(cb, private_data);
