@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: bug Github#2368
+swoole_http_server/task: task_use_object
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc'; ?>
