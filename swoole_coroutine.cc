@@ -671,14 +671,28 @@ void PHPCoroutine::main_func(void *arg)
         std::stack<php_swoole_fci *> *tasks = task->defer_tasks;
         while (!tasks->empty())
         {
+            uint32_t i;
             php_swoole_fci *defer_fci = tasks->top();
             tasks->pop();
-            defer_fci->fci.param_count = 1;
-            defer_fci->fci.params = retval;
+            zval *params = (zval *) ecalloc(defer_fci->fci.param_count + 1, sizeof(zval));
+
+            if (Z_TYPE_P(retval) != IS_NULL) // no return
+            {
+                for (i = 0; i < defer_fci->fci.param_count; i++)
+                {
+                    ZVAL_COPY(&params[i + 1], &defer_fci->fci.params[i]);
+                }
+                defer_fci->fci.params = params;
+                defer_fci->fci.param_count += 1;
+                ZVAL_COPY(defer_fci->fci.params, retval);
+                
+            }
+
             if (UNEXPECTED(sw_zend_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) != SUCCESS))
             {
                 php_swoole_fatal_error(E_WARNING, "defer callback handler error");
             }
+
             sw_zend_fci_cache_discard(&defer_fci->fci_cache);
             efree(defer_fci);
         }
@@ -861,8 +875,9 @@ PHP_FUNCTION(swoole_coroutine_defer)
     zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
     php_swoole_fci *defer_fci;
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, -1)
         Z_PARAM_FUNC(fci, fci_cache)
+        Z_PARAM_VARIADIC('*', fci.params, fci.param_count)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Coroutine::get_current_safe();
