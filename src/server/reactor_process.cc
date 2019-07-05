@@ -445,6 +445,22 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     int retval = reactor->wait(reactor, NULL);
 
     /**
+     * Close all connections
+     */
+    int fd;
+    int serv_max_fd = swServer_get_maxfd(serv);
+    int serv_min_fd = swServer_get_minfd(serv);
+
+    for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
+    {
+        swConnection *conn = swServer_connection_get(serv, fd);
+        if (conn != NULL && conn->active && conn->fdtype == SW_FD_TCP)
+        {
+            serv->close(serv, conn->session_id, 1);
+        }
+    }
+
+    /**
      * call internal serv hooks
      */
     if (serv->hooks[SW_SERVER_HOOK_WORKER_CLOSE])
