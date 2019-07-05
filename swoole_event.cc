@@ -259,7 +259,7 @@ void php_swoole_reactor_init()
         reactor->wait_exit = 1;
 
         SwooleG.main_reactor = reactor;
-        php_swoole_register_shutdown_function_prepend("swoole_event_wait");
+        php_swoole_register_shutdown_function("swoole_event_wait");
     }
 
     swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_READ, php_swoole_event_onRead);

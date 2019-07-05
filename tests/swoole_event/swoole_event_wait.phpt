@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 register_shutdown_function(function () {
     echo "register 1\n";
     register_shutdown_function(function () {
-        echo "register 5\n";
+        echo "register 3\n";
         register_shutdown_function(function () {
             echo "register 7\n";
         });
@@ -18,11 +18,10 @@ register_shutdown_function(function () {
 go(function () {
     co::sleep(0.1);
     register_shutdown_function(function () {
-        echo "register 3\n";
-    });
-    echo "swoole event wait is always the first one\n";
-    register_shutdown_function(function () {
         echo "register 4\n";
+    });
+    register_shutdown_function(function () {
+        echo "register 5\n";
     });
 });
 
@@ -37,7 +36,6 @@ register_shutdown_function(function () {
 });
 ?>
 --EXPECT--
-swoole event wait is always the first one
 register 1
 register 2
 register 3
