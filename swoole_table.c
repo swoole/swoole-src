@@ -788,9 +788,16 @@ static PHP_METHOD(swoole_table, current)
         RETURN_FALSE;
     }
     swTableRow *row = swTable_iterator_current(table);
-    swTableRow_lock(row);
-    php_swoole_table_row2array(table, row, return_value);
-    swTableRow_unlock(row);
+    if (row)
+    {
+        swTableRow_lock(row);
+        php_swoole_table_row2array(table, row, return_value);
+        swTableRow_unlock(row);
+    }
+    else
+    {
+        RETURN_NULL();
+    }
 }
 
 static PHP_METHOD(swoole_table, key)
@@ -802,9 +809,16 @@ static PHP_METHOD(swoole_table, key)
         RETURN_FALSE;
     }
     swTableRow *row = swTable_iterator_current(table);
-    swTableRow_lock(row);
-    RETVAL_STRING(row->key);
-    swTableRow_unlock(row);
+    if (row)
+    {
+        swTableRow_lock(row);
+        RETVAL_STRING(row->key);
+        swTableRow_unlock(row);
+    }
+    else
+    {
+        RETURN_NULL();
+    }
 }
 
 static PHP_METHOD(swoole_table, next)
