@@ -591,8 +591,7 @@ static PHP_METHOD(swoole_http_response, end)
 #endif
     {
         swoole_http_response_end(ctx, zdata, return_value);
-        ctx = (http_context *) swoole_get_object(ZEND_THIS);
-        if (ctx && !ctx->upgrade)
+        if (!ctx->upgrade)
         {
             swoole_http_context_free(ctx);
         }
@@ -678,7 +677,6 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
                 if (!ctx->send(ctx, send_body_str, send_body_len))
                 {
                     ctx->close(ctx);
-                    swoole_http_context_free(ctx);
                     RETURN_FALSE;
                 }
                 goto _skip_copy;
