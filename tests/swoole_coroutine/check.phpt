@@ -160,4 +160,3 @@ Stack trace:
 #6 %s:%d: Swoole\Process->start()
 #7 {main}
   thrown in %s:%d
-

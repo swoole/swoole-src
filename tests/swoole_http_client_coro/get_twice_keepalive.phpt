@@ -20,4 +20,3 @@ Swoole\Coroutine\Run(function () {
 
 ?>
 --EXPECT--
-

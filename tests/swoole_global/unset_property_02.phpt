@@ -1,5 +1,5 @@
 --TEST--
-swoole_channel_coro: unset user class's parent internal property
+swoole_global: unset user class's parent internal property
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
