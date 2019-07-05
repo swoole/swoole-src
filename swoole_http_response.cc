@@ -571,7 +571,7 @@ static PHP_METHOD(swoole_http_response, end)
 {
     zval *zdata = NULL;
 
-    http_context *ctx = swoole_http_context_get(ZEND_THIS, 0);
+    http_context *ctx = swoole_http_context_get(ZEND_THIS, 1);
     if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
@@ -591,7 +591,8 @@ static PHP_METHOD(swoole_http_response, end)
 #endif
     {
         swoole_http_response_end(ctx, zdata, return_value);
-        if (!ctx->upgrade)
+        ctx = (http_context *) swoole_get_object(ZEND_THIS);
+        if (ctx && !ctx->upgrade)
         {
             swoole_http_context_free(ctx);
         }
