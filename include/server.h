@@ -435,6 +435,10 @@ struct _swServer
      */
     uint32_t reload_async :1;
     /**
+     * use task object
+     */
+    uint32_t task_use_object :1;
+    /**
      * enable coroutine in task worker
      */
     uint32_t task_enable_coroutine :1;

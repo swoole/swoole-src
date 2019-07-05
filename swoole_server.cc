@@ -565,6 +565,15 @@ void swoole_server_init(int module_number)
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_DISCARD_PACKET", SW_DISPATCH_RESULT_DISCARD_PACKET);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_CLOSE_CONNECTION", SW_DISPATCH_RESULT_CLOSE_CONNECTION);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_USERFUNC_FALLBACK", SW_DISPATCH_RESULT_USERFUNC_FALLBACK);
+
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TASK_TMPFILE", SW_TASK_TMPFILE);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TASK_SERIALIZE", SW_TASK_SERIALIZE);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TASK_NONBLOCK", SW_TASK_NONBLOCK);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TASK_CALLBACK", SW_TASK_CALLBACK);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TASK_WAITALL", SW_TASK_WAITALL);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TASK_COROUTINE", SW_TASK_COROUTINE);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TASK_PEEK", SW_TASK_PEEK);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TASK_NOREPLY", SW_TASK_NOREPLY);
 }
 
 zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int server_fd, int event_type)
@@ -1107,14 +1116,7 @@ void php_swoole_server_register_callbacks(swServer *serv)
      */
     if (server_callbacks[SW_SERVER_CB_onTask] != NULL)
     {
-        if (serv->task_enable_coroutine)
-        {
-            serv->onTask = php_swoole_onTaskCo;
-        }
-        else
-        {
-            serv->onTask = php_swoole_onTask;
-        }
+        serv->onTask = php_swoole_onTask;
         serv->onFinish = php_swoole_onFinish;
     }
     if (server_callbacks[SW_SERVER_CB_onWorkerError] != NULL)
@@ -1277,8 +1279,24 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     return SW_OK;
 }
 
+static sw_inline void php_swoole_create_task_object(zval *ztask, swServer *serv, swEventData *req, zval *zdata)
+{
+    object_init_ex(ztask, swoole_server_task_ce);
+    swoole_set_object(ztask, serv);
+
+    swDataHead *info = (swDataHead *) swoole_get_property(ztask, 0);
+    *info = req->info;
+
+    zend_update_property_long(swoole_server_task_ce, ztask, ZEND_STRL("worker_id"), (zend_long) req->info.reactor_id);
+    zend_update_property_long(swoole_server_task_ce, ztask, ZEND_STRL("id"), (zend_long) req->info.fd);
+    zend_update_property(swoole_server_task_ce, ztask, ZEND_STRL("data"), zdata);
+    zend_update_property_long(swoole_server_task_ce, ztask, ZEND_STRL("flags"), (zend_long) swTask_type(req));
+}
+
 static int php_swoole_onTask(swServer *serv, swEventData *req)
 {
+    sw_atomic_fetch_sub(&serv->stats->tasking_num, 1);
+
     zval *zserv = (zval *) serv->ptr2;
     zval *zdata = php_swoole_task_unpack(req);
 
@@ -1286,22 +1304,35 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     {
         return SW_ERR;
     }
-    sw_atomic_fetch_sub(&serv->stats->tasking_num, 1);
 
-    zval args[4];
     zval retval;
+    uint32_t argc;
+    zval argv[4];
 
-    args[0] = *zserv;
-    ZVAL_LONG(&args[1], (zend_long) req->info.fd);
-    ZVAL_LONG(&args[2], (zend_long) req->info.reactor_id);
-    args[3] = *zdata;
+    if (serv->task_enable_coroutine || serv->task_use_object)
+    {
+        argc = 2;
+        argv[0] = *zserv;
+        php_swoole_create_task_object(&argv[1], serv, req, zdata);
+    }
+    else
+    {
+        argc = 4;
+        argv[0] = *zserv;
+        ZVAL_LONG(&argv[1], (zend_long) req->info.fd);
+        ZVAL_LONG(&argv[2], (zend_long) req->info.reactor_id);
+        argv[3] = *zdata;
+    }
 
-
-    if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onTask], 4, args, &retval, false)))
+    if (UNEXPECTED(!zend::function::call(server_callbacks[SW_SERVER_CB_onTask], argc, argv, &retval, serv->task_enable_coroutine)))
     {
         php_swoole_error(E_WARNING, "%s->onTask handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
 
+    if (argc == 2)
+    {
+        zval_ptr_dtor(&argv[1]);
+    }
     sw_zval_free(zdata);
 
     if (!ZVAL_IS_NULL(&retval))
@@ -1309,45 +1340,6 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         php_swoole_task_finish(serv, &retval, req);
         zval_ptr_dtor(&retval);
     }
-
-    return SW_OK;
-}
-
-static int php_swoole_onTaskCo(swServer *serv, swEventData *req)
-{
-    zval *zserv = (zval *) serv->ptr2;
-
-    sw_atomic_fetch_sub(&serv->stats->tasking_num, 1);
-
-    zval *zdata = php_swoole_task_unpack(req);
-    if (zdata == NULL)
-    {
-        return SW_ERR;
-    }
-
-    zval ztask;
-    object_init_ex(&ztask, swoole_server_task_ce);
-    swoole_set_object(&ztask, serv);
-
-    swDataHead *info = (swDataHead *) swoole_get_property(&ztask, 0);
-    *info = req->info;
-
-    zend_update_property_long(swoole_server_task_ce, &ztask, ZEND_STRL("worker_id"), (long) req->info.reactor_id);
-    zend_update_property_long(swoole_server_task_ce, &ztask, ZEND_STRL("id"), (long) req->info.fd);
-    zend_update_property(swoole_server_task_ce, &ztask, ZEND_STRL("data"), zdata);
-    zend_update_property_long(swoole_server_task_ce, &ztask, ZEND_STRL("flags"), (long) swTask_type(req));
-
-    zval args[2];
-    args[0] = *zserv;
-    args[1] = ztask;
-
-    if (UNEXPECTED(PHPCoroutine::create(server_callbacks[SW_SERVER_CB_onTask], 2, args) < 0))
-    {
-        php_swoole_error(E_WARNING, "%s->onTaskCo handler error", ZSTR_VAL(swoole_server_ce->name));
-    }
-
-    zval_ptr_dtor(&ztask);
-    sw_zval_free(zdata);
 
     return SW_OK;
 }
@@ -2256,6 +2248,11 @@ static PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "enable_delay_receive", v))
     {
         serv->enable_delay_receive = zval_is_true(v);
+    }
+    //task use object
+    if (php_swoole_array_get_value(vht, "task_use_object", v))
+    {
+        serv->task_use_object = zval_is_true(v);
     }
     //task coroutine
     if (php_swoole_array_get_value(vht, "task_enable_coroutine", v))
