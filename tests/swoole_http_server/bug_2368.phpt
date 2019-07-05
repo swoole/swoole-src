@@ -14,7 +14,7 @@ $pm->parentFunc = function () use ($pm) {
         Assert::eq($cli->statusCode, 200);
         Assert::assert($cli->set_cookie_headers ===
             [
-                'name' => 'name=' . urlencode(COOKIE),
+                'name=' . urlencode(COOKIE),
             ]
         );
     });

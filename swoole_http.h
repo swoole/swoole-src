@@ -207,7 +207,7 @@ static sw_inline void php_zlib_free(voidpf opaque, voidpf address)
 }
 #endif
 
-static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *set_cookie_headers)
+static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *zset_cookie_headers)
 {
     const char *key = at;
     zval val;
@@ -229,7 +229,7 @@ static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, 
         swWarn("cookie[%.8s...] name length %zu is exceed the max name len %d", key, key_len, SW_HTTP_COOKIE_KEYLEN);
         return SW_ERR;
     }
-    add_assoc_stringl_ex(set_cookie_headers, key, key_len, (char *) at, length);
+    add_next_index_stringl(zset_cookie_headers, (char *) at, length);
     // val
     p++;
     eof = (char*) memchr(p, ';', at + length - p);
