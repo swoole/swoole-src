@@ -820,12 +820,6 @@ int swServer_shutdown(swServer *serv)
 static int swServer_destory(swServer *serv)
 {
     swTraceLog(SW_TRACE_SERVER, "release service");
-
-    /**
-     * shutdown status
-     */
-    serv->gs->start = 0;
-    serv->gs->shutdown = 1;
     /**
      * shutdown workers
      */
@@ -888,13 +882,20 @@ static int swServer_destory(swServer *serv)
         serv->factory.free(&serv->factory);
     }
     swSignal_clear();
+    /**
+     * shutdown status
+     */
+    serv->gs->start = 0;
+    serv->gs->shutdown = 1;
+    /**
+     * callback
+     */
     if (serv->onShutdown)
     {
         serv->onShutdown(serv);
     }
     serv->lock.free(&serv->lock);
     SwooleG.serv = nullptr;
-    serv->gs->shutdown = 0;
     return SW_OK;
 }
 
