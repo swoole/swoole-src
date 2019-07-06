@@ -1037,9 +1037,11 @@ static PHP_METHOD(swoole_client, connect)
     }
     swoole_set_object(ZEND_THIS, cli);
 
+    bool is_async = cli->async;
+
     if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
     {
-        if (cli->async == 1)
+        if (is_async == 1)
         {
             //for tcp: nonblock
             //for udp: have udp connect
@@ -1065,7 +1067,7 @@ static PHP_METHOD(swoole_client, connect)
     }
 
     //nonblock async
-    if (cli->async)
+    if (is_async)
     {
         client_callback *cb = (client_callback *) swoole_get_property(ZEND_THIS, 0);
         if (!cb)
@@ -1149,7 +1151,7 @@ static PHP_METHOD(swoole_client, connect)
             php_swoole_sys_error(E_WARNING, "connect to server[%s:%d] failed", host, (int )port);
             zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), errno);
         }
-        if (cli->async)
+        if (is_async)
         {
             swClient *cli = (swClient *) swoole_get_object(ZEND_THIS);
             if (cli && cli->onError == NULL)
