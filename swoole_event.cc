@@ -217,12 +217,12 @@ static void php_swoole_event_onEndCallback(void *data)
     }
 }
 
-void php_swoole_reactor_init()
+int php_swoole_reactor_init()
 {
     if (!SWOOLE_G(cli))
     {
         php_swoole_fatal_error(E_ERROR, "async-io must be used in PHP CLI mode");
-        return;
+        return SW_ERR;
     }
 
     if (SwooleG.serv)
@@ -230,12 +230,12 @@ void php_swoole_reactor_init()
         if (swIsTaskWorker() && !SwooleG.serv->task_enable_coroutine)
         {
             php_swoole_fatal_error(E_ERROR, "Unable to use async-io in task processes, please set `task_enable_coroutine` to true");
-            return;
+            return SW_ERR;
         }
         if (swIsManager())
         {
             php_swoole_fatal_error(E_ERROR, "Unable to use async-io in manager process");
-            return;
+            return SW_ERR;
         }
     }
     if (!SwooleG.main_reactor)
@@ -246,12 +246,12 @@ void php_swoole_reactor_init()
         if (reactor == NULL)
         {
             php_swoole_fatal_error(E_ERROR, "malloc failed");
-            return;
+            return SW_ERR;
         }
         if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
         {
             php_swoole_fatal_error(E_ERROR, "failed to create reactor");
-            return;
+            return SW_ERR;
         }
 
         reactor->is_empty = swReactor_empty;
@@ -266,6 +266,7 @@ void php_swoole_reactor_init()
     swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_WRITE, php_swoole_event_onWrite);
     swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_ERROR, php_swoole_event_onError);
     swReactor_set_handler(SwooleG.main_reactor, SW_FD_WRITE, swReactor_onWrite);
+    return SW_OK;
 }
 
 void php_swoole_event_wait()

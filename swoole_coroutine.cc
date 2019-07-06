@@ -255,7 +255,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     return ZEND_USER_OPCODE_DISPATCH;
 }
 
-static void swoole_interrupt_resume(void *data)
+static void coro_interrupt_resume(void *data)
 {
     Coroutine *co = (Coroutine *) data;
     if (co && !co->is_end())
@@ -265,12 +265,12 @@ static void swoole_interrupt_resume(void *data)
     }
 }
 
-static void swoole_interrupt_function(zend_execute_data *execute_data)
+static void coro_interrupt_function(zend_execute_data *execute_data)
 {
     php_coro_task *task = PHPCoroutine::get_task();
     if (task && task->co && PHPCoroutine::is_schedulable(task))
     {
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_interrupt_resume, (void *) task->co);
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, coro_interrupt_resume, (void *) task->co);
         task->co->yield();
     }
     if (orig_interrupt_function)
@@ -279,18 +279,37 @@ static void swoole_interrupt_function(zend_execute_data *execute_data)
     }
 }
 
-static void swoole_interrupt_thread_join(void *ptr)
-{
-    PHPCoroutine::interrupt_thread_stop();
-}
-
 void PHPCoroutine::init()
 {
     Coroutine::set_on_yield(on_yield);
     Coroutine::set_on_resume(on_resume);
     Coroutine::set_on_close(on_close);
+}
+
+static void coro_reset(void *ptr)
+{
+    PHPCoroutine::interrupt_thread_stop();
+    PHPCoroutine::disable_hook();
+
+    zend_interrupt_function = orig_interrupt_function;
+    zend_error_cb = orig_error_function;
+}
+
+void PHPCoroutine::init_reactor()
+{
+    /* replace interrupt function */
     orig_interrupt_function = zend_interrupt_function;
-    zend_interrupt_function = swoole_interrupt_function;
+    zend_interrupt_function = coro_interrupt_function;
+    
+    /* replace the error function to save execute_data */
+    orig_error_function = zend_error_cb;
+    zend_error_cb = error;
+
+    /* TODO: enable hook in v5.0.0 */
+    // enable_hook(SW_HOOK_ALL);
+
+    /* disable hook */
+    swReactor_add_destroy_callback(SwooleG.main_reactor, coro_reset, nullptr);
 }
 
 inline void PHPCoroutine::activate()
@@ -302,12 +321,12 @@ inline void PHPCoroutine::activate()
 
     /* init reactor and register event wait */
     php_swoole_check_reactor();
+    init_reactor();
 
     if (SWOOLE_G(enable_preemptive_scheduler))
     {
         /* create a thread to interrupt the coroutine that takes up too much time */
         interrupt_thread_start();
-        swReactor_add_destroy_callback(SwooleG.main_reactor, swoole_interrupt_thread_join, nullptr);
     }
 
     if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug")))
@@ -315,15 +334,8 @@ inline void PHPCoroutine::activate()
         php_swoole_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
     }
 
-    /* replace the error function to save execute_data */
-    orig_error_function = zend_error_cb;
-    zend_error_cb = error;
-
     /* replace functions that can not work correctly in coroutine */
     inject_function();
-
-    /* TODO: enable hook in v5.0.0 */
-    // enable_hook(SW_HOOK_ALL);
 
     active = true;
 }
