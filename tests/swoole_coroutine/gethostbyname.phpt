@@ -69,7 +69,7 @@ go(function () {
     Assert::assert($no_cache_multi_time < $no_cache_time);
     echo co::gethostbyname('m.cust.edu.cn') . "\n";
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 210.47.1.47
