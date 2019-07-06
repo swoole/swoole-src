@@ -315,8 +315,8 @@ typedef struct
     pid_t manager_pid;
 
     uint32_t session_round :24;
-    uint8_t start;
-    uint8_t shutdown;
+    sw_atomic_t start;
+    sw_atomic_t shutdown;
 
     time_t now;
 
