@@ -286,7 +286,7 @@ void PHPCoroutine::init()
     Coroutine::set_on_close(on_close);
 }
 
-void PHPCoroutine::reset(void *ptr)
+void PHPCoroutine::deactivate(void *ptr)
 {
     PHPCoroutine::interrupt_thread_stop();
     PHPCoroutine::disable_hook();
@@ -297,8 +297,18 @@ void PHPCoroutine::reset(void *ptr)
     active = false;
 }
 
-void PHPCoroutine::init_reactor()
+static bool coro_global_active = false;
+
+inline void PHPCoroutine::activate()
 {
+    if (sw_unlikely(active))
+    {
+        return;
+    }
+
+    /* init reactor and register event wait */
+    php_swoole_check_reactor();
+
     /* replace interrupt function */
     orig_interrupt_function = zend_interrupt_function;
     zend_interrupt_function = coro_interrupt_function;
@@ -311,19 +321,7 @@ void PHPCoroutine::init_reactor()
     // enable_hook(SW_HOOK_ALL);
 
     /* disable hook */
-    swReactor_add_destroy_callback(SwooleG.main_reactor, reset, nullptr);
-}
-
-inline void PHPCoroutine::activate()
-{
-    if (sw_unlikely(active))
-    {
-        return;
-    }
-
-    /* init reactor and register event wait */
-    php_swoole_check_reactor();
-    init_reactor();
+    swReactor_add_destroy_callback(SwooleG.main_reactor, deactivate, nullptr);
 
     if (SWOOLE_G(enable_preemptive_scheduler))
     {
@@ -331,13 +329,18 @@ inline void PHPCoroutine::activate()
         interrupt_thread_start();
     }
 
-    if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug")))
+    if (!coro_global_active)
     {
-        php_swoole_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
-    }
+        if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug")))
+        {
+            php_swoole_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
+        }
 
-    /* replace functions that can not work correctly in coroutine */
-    inject_function();
+        /* replace functions that can not work correctly in coroutine */
+        inject_function();
+
+        coro_global_active = true;
+    }
 
     active = true;
 }
