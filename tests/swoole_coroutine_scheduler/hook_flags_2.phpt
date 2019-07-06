@@ -15,7 +15,7 @@ $sch->add(function ($t, $n) {
 }, 100000, 'A');
 $sch->start();
 
-usleep(1);
+usleep(10000);
 echo "B\n";
 
 // 2
