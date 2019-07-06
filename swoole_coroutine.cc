@@ -676,7 +676,7 @@ void PHPCoroutine::main_func(void *arg)
             tasks->pop();
             zval *params = (zval *) ecalloc(defer_fci->fci.param_count + 1, sizeof(zval));
 
-            if (Z_TYPE_P(retval) != IS_NULL) // no return
+            if (Z_TYPE_P(retval) != IS_NULL)
             {
                 for (i = 0; i < defer_fci->fci.param_count; i++)
                 {
@@ -685,7 +685,6 @@ void PHPCoroutine::main_func(void *arg)
                 defer_fci->fci.params = params;
                 defer_fci->fci.param_count += 1;
                 ZVAL_COPY(defer_fci->fci.params, retval);
-                
             }
 
             if (UNEXPECTED(sw_zend_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) != SUCCESS))
