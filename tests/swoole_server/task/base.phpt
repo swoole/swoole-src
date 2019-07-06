@@ -3,7 +3,6 @@ swoole_server/task: task & finish
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
-skip_if_in_valgrind();
 ?>
 --FILE--
 <?php
@@ -32,11 +31,12 @@ $cli->on("error", function(swoole_client $cli) {
 });
 
 $cli->on("close", function(swoole_client $cli) use($closeServer) {
-    echo "SUCCESS";
+    echo "SUCCESS\n";
     $closeServer();
 });
 
 $cli->connect(TCP_SERVER_HOST, $port);
+Swoole\Event::wait();
 ?>
 --EXPECT--
 SUCCESS
