@@ -135,11 +135,11 @@ pthread_t PHPCoroutine::interrupt_thread_id;
 bool PHPCoroutine::interrupt_thread_running = false;
 
 static zend_bool* zend_vm_interrupt = nullptr;
-static user_opcode_handler_t ori_exit_handler = NULL;
+static user_opcode_handler_t ori_exit_handler = nullptr;
 static unordered_map<long, Coroutine *> user_yield_coros;
 
-static void (*orig_interrupt_function)(zend_execute_data *execute_data);
-static void (*orig_error_function)(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args);
+static void (*orig_interrupt_function)(zend_execute_data *execute_data) = nullptr;
+static void (*orig_error_function)(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args) = nullptr;
 
 static zend_class_entry *swoole_coroutine_util_ce;
 static zend_class_entry *swoole_exit_exception_ce;
@@ -286,13 +286,15 @@ void PHPCoroutine::init()
     Coroutine::set_on_close(on_close);
 }
 
-static void coro_reset(void *ptr)
+void PHPCoroutine::reset(void *ptr)
 {
     PHPCoroutine::interrupt_thread_stop();
     PHPCoroutine::disable_hook();
 
     zend_interrupt_function = orig_interrupt_function;
     zend_error_cb = orig_error_function;
+
+    active = false;
 }
 
 void PHPCoroutine::init_reactor()
@@ -309,7 +311,7 @@ void PHPCoroutine::init_reactor()
     // enable_hook(SW_HOOK_ALL);
 
     /* disable hook */
-    swReactor_add_destroy_callback(SwooleG.main_reactor, coro_reset, nullptr);
+    swReactor_add_destroy_callback(SwooleG.main_reactor, reset, nullptr);
 }
 
 inline void PHPCoroutine::activate()

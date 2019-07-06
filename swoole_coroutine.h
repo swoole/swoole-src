@@ -103,6 +103,7 @@ public:
 
     static void init();
     static void init_reactor();
+    static void reset(void *ptr);
     static void shutdown();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(php_swoole_fci *fci);

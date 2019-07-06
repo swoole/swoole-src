@@ -262,7 +262,6 @@ static PHP_METHOD(swoole_coroutine_scheduler, start)
     {
         RETURN_FALSE;
     }
-    PHPCoroutine::init_reactor();
 
     s->started = true;
 
