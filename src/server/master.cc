@@ -693,7 +693,6 @@ int swServer_start(swServer *serv)
         return SW_ERR;
     }
     swServer_destory(serv);
-    serv->gs->start = 0;
     //remove PID file
     if (serv->pid_file)
     {
@@ -823,6 +822,11 @@ static int swServer_destory(swServer *serv)
     swTraceLog(SW_TRACE_SERVER, "release service");
 
     /**
+     * shutdown status
+     */
+    serv->gs->start = 0;
+    serv->gs->shutdown = 1;
+    /**
      * shutdown workers
      */
     if (serv->factory.shutdown)
@@ -884,12 +888,13 @@ static int swServer_destory(swServer *serv)
         serv->factory.free(&serv->factory);
     }
     swSignal_clear();
-    if (serv->gs->start > 0 && serv->onShutdown != NULL)
+    if (serv->onShutdown)
     {
         serv->onShutdown(serv);
     }
     serv->lock.free(&serv->lock);
     SwooleG.serv = nullptr;
+    serv->gs->shutdown = 0;
     return SW_OK;
 }
 

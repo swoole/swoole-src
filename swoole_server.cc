@@ -2723,6 +2723,11 @@ static PHP_METHOD(swoole_server, start)
         php_swoole_fatal_error(E_WARNING, "server is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
+    if (serv->gs->shutdown > 0)
+    {
+        php_swoole_fatal_error(E_WARNING, "server have been shutdown, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        RETURN_FALSE;
+    }
 
     php_swoole_server_register_callbacks(serv);
 
