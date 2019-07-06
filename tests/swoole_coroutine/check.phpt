@@ -147,6 +147,7 @@ foreach ($map as $i => $f) {
     }
 }
 echo current($info_list);
+Swoole\Event::wait();
 ?>
 --EXPECT--
 Fatal error: %s in %s:%d
