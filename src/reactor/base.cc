@@ -69,6 +69,11 @@ int swReactor_create(swReactor *reactor, int max_event)
         return SW_ERR;
     }
 
+    if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE])
+    {
+        swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_CREATE, reactor);
+    }
+
     return ret;
 }
 
