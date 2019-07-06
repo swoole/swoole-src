@@ -5,13 +5,22 @@ swoole_server: shutdown in master process
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->initRandomData(1);
+
+$pm->parentFunc = function () use ($pm) {
+
+};
+
 $pm->childFunc = function () use ($pm) {
-    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
-    $server->set(['worker_num' => mt_rand(1, 4), 'log_file' => '/dev/null']);
-    $server->on('start', function (Swoole\Server $server) use ($pm) {
-        echo "START\n";
+    $mode = SERVER_MODE_RANDOM;
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), $mode);
+    $server->set([
+        'worker_num' => mt_rand(1, 4),
+        'log_file' => '/dev/null',
+    ]);
+    $server->on('start', function (Swoole\Server $server) use ($pm, $mode) {
+        echo "START [$mode]\n";
         $pm->wakeup();
         $server->shutdown();
     });
@@ -25,6 +34,6 @@ $pm->childFirst();
 $pm->run();
 $pm->expectExitCode(0);
 ?>
---EXPECT--
-START
+--EXPECTF--
+START [%d]
 SHUTDOWN
