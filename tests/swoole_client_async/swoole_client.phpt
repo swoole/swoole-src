@@ -35,10 +35,12 @@ $cli->on("close", function(swoole_client $cli) {
     // swoole_timer_clear($cli->timeo_id);
     // print("close");
     swoole_event_exit();
-    echo "SUCCESS";
+    echo "SUCCESS\n";
 });
 
 $cli->connect(TCP_SERVER_HOST, TCP_SERVER_PORT, 0.2);
+
+Swoole\Event::wait();
 
 ?>
 --EXPECT--
