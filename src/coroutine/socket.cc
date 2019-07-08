@@ -1184,6 +1184,9 @@ bool Socket::ssl_handshake()
     {
         return false;
     }
+#ifdef SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER
+    SSL_set_mode(socket->ssl, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+#endif
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (ssl_option.tls_host_name)
     {
