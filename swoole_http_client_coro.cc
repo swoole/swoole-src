@@ -612,7 +612,7 @@ bool http_client::connect()
         {
             php_swoole_sys_error(E_WARNING, "new Socket() failed");
             zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), errno);
-            zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), strerror(errno));
+            zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), swoole_strerror(errno));
             delete socket;
             socket = nullptr;
             return false;
@@ -1189,7 +1189,7 @@ bool http_client::send()
     {
        _send_fail:
        zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), SwooleG.error = errno);
-       zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), strerror(SwooleG.error));
+       zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), swoole_strerror(SwooleG.error));
        zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
        close();
        return false;
@@ -1391,7 +1391,7 @@ bool http_client::push(zval *zdata, zend_long opcode, bool fin)
     if (socket->send_all(http_client_buffer->str, http_client_buffer->length) != (ssize_t) http_client_buffer->length)
     {
         zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), SwooleG.error = socket->errCode);
-        zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), strerror(SwooleG.error));
+        zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), swoole_strerror(SwooleG.error));
         zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         close();
         return false;
