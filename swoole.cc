@@ -568,6 +568,7 @@ PHP_MINIT_FUNCTION(swoole)
     // coroutine
     swoole_async_coro_init(module_number);
     swoole_coroutine_init(module_number);
+    swoole_coroutine_scheduler_init(module_number);
     swoole_channel_coro_init(module_number);
     swoole_runtime_init(module_number);
     // client

@@ -16,7 +16,7 @@
   +----------------------------------------------------------------------+
  */
 
-#include "swoole_coroutine_scheduler.h"
+#include "php_swoole_cxx.h"
 #include "coroutine_c_api.h"
 
 #include <queue>

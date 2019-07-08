@@ -313,6 +313,7 @@ void swoole_timer_init(int module_number);
 // coroutine
 void swoole_async_coro_init(int module_number);
 void swoole_coroutine_init(int module_number);
+void swoole_coroutine_scheduler_init(int module_number);
 void swoole_channel_coro_init(int module_number);
 void swoole_runtime_init(int module_number);
 // client

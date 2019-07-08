@@ -18,7 +18,6 @@
  */
 
 #include "php_swoole_cxx.h"
-#include "swoole_coroutine_scheduler.h"
 #include "swoole_coroutine_system.h"
 
 #include "zend_builtin_functions.h"
@@ -147,28 +146,40 @@ static zend_object_handlers swoole_exit_exception_handlers;
 static zend_class_entry *swoole_coroutine_iterator_ce;
 static zend_class_entry *swoole_coroutine_context_ce;
 
+static PHP_METHOD(swoole_coroutine, exists);
+static PHP_METHOD(swoole_coroutine, yield);
+static PHP_METHOD(swoole_coroutine, resume);
+static PHP_METHOD(swoole_coroutine, stats);
+static PHP_METHOD(swoole_coroutine, getCid);
+static PHP_METHOD(swoole_coroutine, getPcid);
+static PHP_METHOD(swoole_coroutine, getContext);
+static PHP_METHOD(swoole_coroutine, getBackTrace);
+static PHP_METHOD(swoole_coroutine, list);
+static PHP_METHOD(swoole_coroutine, enableScheduler);
+static PHP_METHOD(swoole_coroutine, disableScheduler);
+
 static const zend_function_entry swoole_coroutine_util_methods[] =
 {
     /**
-     * Coroutine Scheduler
+     * Coroutine Core API
      */
     ZEND_FENTRY(create, ZEND_FN(swoole_coroutine_create), arginfo_swoole_coroutine_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(defer, ZEND_FN(swoole_coroutine_defer), arginfo_swoole_coroutine_defer, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_scheduler, set, arginfo_swoole_coroutine_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_scheduler, exists, arginfo_swoole_coroutine_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_scheduler, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_MALIAS(swoole_coroutine_scheduler, suspend, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_scheduler, resume, arginfo_swoole_coroutine_resume, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_scheduler, stats, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_scheduler, getCid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_MALIAS(swoole_coroutine_scheduler, getuid, getCid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_scheduler, getPcid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_scheduler, getContext, arginfo_swoole_coroutine_getContext, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_scheduler, getBackTrace, arginfo_swoole_coroutine_getBackTrace, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_scheduler, list, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_MALIAS(swoole_coroutine_scheduler, listCoroutines, list, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_scheduler, enableScheduler, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_scheduler, disableScheduler, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, exists, arginfo_swoole_coroutine_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_MALIAS(swoole_coroutine, suspend, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, resume, arginfo_swoole_coroutine_resume, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, stats, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, getCid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_MALIAS(swoole_coroutine, getuid, getCid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, getPcid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, getContext, arginfo_swoole_coroutine_getContext, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, getBackTrace, arginfo_swoole_coroutine_getBackTrace, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, list, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_MALIAS(swoole_coroutine, listCoroutines, list, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, enableScheduler, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, disableScheduler, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     /**
      * Coroutine System API
      */
@@ -802,8 +813,6 @@ void swoole_coroutine_init(int module_number)
     SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", NULL, spl_ce_ArrayIterator);
     SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_context, "Swoole\\Coroutine\\Context", NULL, "Co\\Context", NULL, spl_ce_ArrayObject);
 
-    swoole_coroutine_scheduler_init(module_number);
-
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DEFAULT_MAX_CORO_NUM", SW_DEFAULT_MAX_CORO_NUM);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_MAX_NUM_LIMIT", SW_CORO_MAX_NUM_LIMIT);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_INIT", SW_CORO_INIT);
@@ -890,7 +899,7 @@ PHP_FUNCTION(swoole_coroutine_defer)
     PHPCoroutine::defer(defer_fci);
 }
 
-PHP_METHOD(swoole_coroutine_scheduler, stats)
+PHP_METHOD(swoole_coroutine, stats)
 {
     array_init(return_value);
     if (SwooleG.main_reactor)
@@ -905,17 +914,17 @@ PHP_METHOD(swoole_coroutine_scheduler, stats)
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_last_cid"), Coroutine::get_last_cid());
 }
 
-PHP_METHOD(swoole_coroutine_scheduler, getCid)
+PHP_METHOD(swoole_coroutine, getCid)
 {
     RETURN_LONG(PHPCoroutine::get_cid());
 }
 
-PHP_METHOD(swoole_coroutine_scheduler, getPcid)
+PHP_METHOD(swoole_coroutine, getPcid)
 {
     RETURN_LONG(PHPCoroutine::get_pcid());
 }
 
-PHP_METHOD(swoole_coroutine_scheduler, getContext)
+PHP_METHOD(swoole_coroutine, getContext)
 {
     zend_long cid = 0;
 
@@ -938,7 +947,7 @@ PHP_METHOD(swoole_coroutine_scheduler, getContext)
     RETURN_OBJ(task->context);
 }
 
-PHP_METHOD(swoole_coroutine_scheduler, exists)
+PHP_METHOD(swoole_coroutine, exists)
 {
     zend_long cid;
 
@@ -949,7 +958,7 @@ PHP_METHOD(swoole_coroutine_scheduler, exists)
     RETURN_BOOL(Coroutine::get_by_cid(cid) != nullptr);
 }
 
-PHP_METHOD(swoole_coroutine_scheduler, resume)
+PHP_METHOD(swoole_coroutine, resume)
 {
     long cid;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &cid) == FAILURE)
@@ -970,7 +979,7 @@ PHP_METHOD(swoole_coroutine_scheduler, resume)
     RETURN_TRUE;
 }
 
-PHP_METHOD(swoole_coroutine_scheduler, yield)
+PHP_METHOD(swoole_coroutine, yield)
 {
     Coroutine* co = Coroutine::get_current_safe();
     user_yield_coros[co->get_cid()] = co;
@@ -978,7 +987,7 @@ PHP_METHOD(swoole_coroutine_scheduler, yield)
     RETURN_TRUE;
 }
 
-PHP_METHOD(swoole_coroutine_scheduler, getBackTrace)
+PHP_METHOD(swoole_coroutine, getBackTrace)
 {
     zend_long cid = 0;
     zend_long options = DEBUG_BACKTRACE_PROVIDE_OBJECT;
@@ -1009,7 +1018,7 @@ PHP_METHOD(swoole_coroutine_scheduler, getBackTrace)
     }
 }
 
-PHP_METHOD(swoole_coroutine_scheduler, list)
+PHP_METHOD(swoole_coroutine, list)
 {
     zval zlist;
     array_init(&zlist);
@@ -1028,12 +1037,12 @@ PHP_METHOD(swoole_coroutine_scheduler, list)
     zval_ptr_dtor(&zlist);
 }
 
-PHP_METHOD(swoole_coroutine_scheduler, enableScheduler)
+PHP_METHOD(swoole_coroutine, enableScheduler)
 {
     RETURN_BOOL(PHPCoroutine::enable_scheduler());
 }
 
-PHP_METHOD(swoole_coroutine_scheduler, disableScheduler)
+PHP_METHOD(swoole_coroutine, disableScheduler)
 {
     RETURN_BOOL(PHPCoroutine::disable_scheduler());
 }

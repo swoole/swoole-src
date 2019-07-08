@@ -93,6 +93,8 @@ struct php_coro_context
     php_coro_task *current_task;
 };
 
+PHP_METHOD(swoole_coroutine_scheduler, set);
+
 namespace swoole
 {
 class PHPCoroutine
