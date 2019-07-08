@@ -348,7 +348,7 @@ void swoole_server_rshutdown();
 void php_swoole_process_clean();
 int php_swoole_process_start(swWorker *process, zval *zobject);
 
-void php_swoole_reactor_init();
+int php_swoole_reactor_init();
 
 // shutdown
 void php_swoole_register_shutdown_function(const char *function);
@@ -1157,15 +1157,19 @@ static sw_inline void sw_zend_fci_cache_free(void* fci_cache)
 
 //----------------------------------Misc API------------------------------------
 
-static sw_inline void php_swoole_check_reactor()
+static sw_inline int php_swoole_check_reactor()
 {
     if (SWOOLE_G(req_status) == PHP_SWOOLE_RSHUTDOWN_BEGIN)
     {
-        return ;
+        return -1;
     }
     if (sw_unlikely(!SwooleG.main_reactor))
     {
-        php_swoole_reactor_init();
+        return php_swoole_reactor_init() == SW_OK ? 1 : -1;
+    }
+    else
+    {
+        return 0;
     }
 }
 

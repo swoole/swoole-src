@@ -258,7 +258,11 @@ static PHP_METHOD(swoole_coroutine_scheduler, start)
         php_swoole_fatal_error(E_WARNING, "scheduler is started, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
-    php_swoole_reactor_init();
+    if (php_swoole_reactor_init() < 0)
+    {
+        RETURN_FALSE;
+    }
+
     s->started = true;
 
     if (!s->list)
