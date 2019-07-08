@@ -137,12 +137,9 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
         zend_long max_num = zval_get_long(ztmp);
         PHPCoroutine::set_max_num(max_num <= 0 ? SW_DEFAULT_MAX_CORO_NUM : max_num);
     }
-    /**
-     * Runtime: hook php function
-     */
     if (php_swoole_array_get_value(vht, "hook_flags", ztmp))
     {
-        PHPCoroutine::enable_hook(zval_get_long(ztmp));
+        PHPCoroutine::config.hook_flags = zval_get_long(ztmp);
     }
     if (php_swoole_array_get_value(vht, "c_stack_size", ztmp) || php_swoole_array_get_value(vht, "stack_size", ztmp))
     {

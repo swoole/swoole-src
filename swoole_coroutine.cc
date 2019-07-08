@@ -127,9 +127,17 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getBackTrace, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 bool PHPCoroutine::active = false;
-uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
+
+swoole::coroutine::Config PHPCoroutine::config =
+{
+    SW_DEFAULT_MAX_CORO_NUM,
+    false,
+    /* TODO: enable hook in v5.0.0 */
+    // SW_HOOK_ALL
+    0,
+};
+
 php_coro_task PHPCoroutine::main_task = {0};
-bool PHPCoroutine::enable_preemptive_scheduler = false;
 pthread_t PHPCoroutine::interrupt_thread_id;
 bool PHPCoroutine::interrupt_thread_running = false;
 
@@ -300,7 +308,11 @@ void PHPCoroutine::init()
 void PHPCoroutine::deactivate(void *ptr)
 {
     PHPCoroutine::interrupt_thread_stop();
+    /**
+     * reset runtime hook
+     */
     PHPCoroutine::disable_hook();
+    config.hook_flags = 0;
 
     zend_interrupt_function = orig_interrupt_function;
     zend_error_cb = orig_error_function;
@@ -328,13 +340,12 @@ inline void PHPCoroutine::activate()
     orig_error_function = zend_error_cb;
     zend_error_cb = error;
 
-    /* TODO: enable hook in v5.0.0 */
-    // enable_hook(SW_HOOK_ALL);
+    if (config.hook_flags)
+    {
+        enable_hook(config.hook_flags);
+    }
 
-    /* disable hook */
-    swReactor_add_destroy_callback(SwooleG.main_reactor, deactivate, nullptr);
-
-    if (SWOOLE_G(enable_preemptive_scheduler))
+    if (config.enable_preemptive_scheduler)
     {
         /* create a thread to interrupt the coroutine that takes up too much time */
         interrupt_thread_start();
@@ -352,7 +363,10 @@ inline void PHPCoroutine::activate()
 
         coro_global_active = true;
     }
-
+    /**
+     * deactivate when reactor free.
+     */
+    swReactor_add_destroy_callback(SwooleG.main_reactor, deactivate, nullptr);
     active = true;
 }
 
@@ -740,7 +754,7 @@ void PHPCoroutine::main_func(void *arg)
 
 long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv)
 {
-    if (sw_unlikely(Coroutine::count() >= max_num))
+    if (sw_unlikely(Coroutine::count() >= config.max_num))
     {
         php_swoole_fatal_error(E_WARNING, "exceed max number of coroutine %zu", (uintmax_t) Coroutine::count());
         return SW_CORO_ERR_LIMIT;
@@ -832,6 +846,10 @@ void swoole_coroutine_init(int module_number)
     {
         ori_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
         zend_set_user_opcode_handler(ZEND_EXIT, coro_exit_handler);
+        if (SWOOLE_G(enable_preemptive_scheduler))
+        {
+            PHPCoroutine::config.enable_preemptive_scheduler = true;
+        }
     }
 }
 

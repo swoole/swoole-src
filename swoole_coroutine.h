@@ -97,11 +97,22 @@ PHP_METHOD(swoole_coroutine_scheduler, set);
 
 namespace swoole
 {
+
+namespace coroutine
+{
+struct Config
+{
+    uint64_t max_num;
+    long hook_flags;
+    bool enable_preemptive_scheduler;
+};
+}
+
 class PHPCoroutine
 {
 public:
     static const uint8_t MAX_EXEC_MSEC = 10;
-    static bool enable_preemptive_scheduler;
+    static coroutine::Config config;
 
     static void init();
     static void deactivate(void *ptr);
@@ -148,12 +159,12 @@ public:
 
     static inline uint64_t get_max_num()
     {
-        return max_num;
+        return config.max_num;
     }
 
     static inline void set_max_num(uint64_t n)
     {
-        max_num = n;
+        config.max_num = n;
     }
 
     static inline bool is_schedulable(php_coro_task *task)
@@ -185,7 +196,6 @@ public:
 
 protected:
     static bool active;
-    static uint64_t max_num;
     static php_coro_task main_task;
 
     static bool interrupt_thread_running;
