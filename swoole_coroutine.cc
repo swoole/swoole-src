@@ -345,7 +345,7 @@ inline void PHPCoroutine::activate()
         enable_hook(config.hook_flags);
     }
 
-    if (config.enable_preemptive_scheduler)
+    if (SWOOLE_G(enable_preemptive_scheduler) || config.enable_preemptive_scheduler)
     {
         /* create a thread to interrupt the coroutine that takes up too much time */
         interrupt_thread_start();
@@ -846,10 +846,6 @@ void swoole_coroutine_init(int module_number)
     {
         ori_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
         zend_set_user_opcode_handler(ZEND_EXIT, coro_exit_handler);
-        if (SWOOLE_G(enable_preemptive_scheduler))
-        {
-            PHPCoroutine::config.enable_preemptive_scheduler = true;
-        }
     }
 }
 
