@@ -17,10 +17,9 @@
 #ifndef SW_HTTP_H_
 #define SW_HTTP_H_
 
-SW_EXTERN_C_BEGIN
+#include "swoole.h"
 
-#include <sys/types.h>
-#include <stdint.h>
+SW_EXTERN_C_BEGIN
 
 enum swHttp_version
 {
