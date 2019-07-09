@@ -6,23 +6,22 @@ swoole_coroutine_scheduler: hook_flags
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$hash = md5_file(TEST_IMAGE);
-
+const URL = "http://www.xinhuanet.com/";
 // 1
 $sch = new Swoole\Coroutine\Scheduler();
 $sch->set(['hook_flags' => SWOOLE_HOOK_ALL,]);
-$sch->add(function () use ($hash) {
-    Assert::eq($hash, md5(file_get_contents(TEST_IMAGE)));
+$sch->add(function () {
+    Assert::contains(file_get_contents(URL), '新华网');
 });
 $sch->start();
 
-Assert::eq($hash, md5(file_get_contents(TEST_IMAGE)));
+Assert::contains(file_get_contents(URL), '新华网');
 
 // 2
 $sch = new Swoole\Coroutine\Scheduler();
 $sch->set(['hook_flags' => SWOOLE_HOOK_ALL,]);
-$sch->add(function () use ($hash) {
-    Assert::eq($hash, md5(file_get_contents(TEST_IMAGE)));
+$sch->add(function ()  {
+    Assert::contains(file_get_contents(URL), '新华网');
 });
 $sch->start();
 
