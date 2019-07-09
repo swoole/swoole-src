@@ -940,13 +940,20 @@ PHP_METHOD(swoole_coroutine, getCid)
 PHP_METHOD(swoole_coroutine, getPcid)
 {
     zend_long cid = 0;
+    zend_long ret;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(cid)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_LONG(PHPCoroutine::get_pcid(cid));
+    ret = PHPCoroutine::get_pcid(cid);
+    if (ret == 0)
+    {
+        RETURN_BOOL(false);
+    }
+
+    RETURN_LONG(ret);
 }
 
 PHP_METHOD(swoole_coroutine, getContext)

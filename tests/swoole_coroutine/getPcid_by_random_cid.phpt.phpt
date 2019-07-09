@@ -6,43 +6,39 @@ swoole_coroutine: getPcid by random cid
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-echo Co::getPcid(-1), "\n";
-echo Co::getPcid(0), "\n";
+var_dump(Co::getPcid(-1)); // -1
+var_dump(Co::getPcid(0)); // -1
 go(function () {
-    echo Co::getPcid(0), "\n";
-    echo Co::getPcid(1), "\n";
-    echo Co::getPcid(2), "\n";
+    var_dump(Co::getPcid(0)); // -1
+    var_dump(Co::getPcid(1)); // -1
+    var_dump(Co::getPcid(2)); // false
     go(function () {
-        echo Co::getPcid(0), "\n";
-        echo Co::getPcid(1), "\n";
+        var_dump(Co::getPcid(0)); // 1
+        var_dump(Co::getPcid(1)); // -1
         go(function () {
-            echo Co::getPcid(0), "\n";
-            echo Co::getPcid(1), "\n";
-            echo Co::getPcid(2), "\n";
-            echo Co::getPcid(3), "\n";
-            echo Co::getPcid(4), "\n";
+            var_dump(Co::getPcid(0)); // 2
+            var_dump(Co::getPcid(1)); // -1
+            var_dump(Co::getPcid(2)); // 1
+            var_dump(Co::getPcid(3)); // 2
+            var_dump(Co::getPcid(4)); // false
         });
-        echo Co::getPcid(2), "\n";
-        echo Co::getPcid(3), "\n";
+        var_dump(Co::getPcid(2)); // 1
+        var_dump(Co::getPcid(3)); // false
     });
-    echo Co::getPcid(), "\n";
 });
-echo Co::getPcid(), "\n";
 ?>
 --EXPECT--
--1
--1
--1
--1
--1
-1
--1
-2
--1
-1
-2
--1
-1
--1
--1
--1
+int(-1)
+int(-1)
+int(-1)
+int(-1)
+bool(false)
+int(1)
+int(-1)
+int(2)
+int(-1)
+int(1)
+int(2)
+bool(false)
+int(1)
+bool(false)
