@@ -134,9 +134,9 @@ public:
         return sw_likely(active) ? Coroutine::get_current_cid() : -1;
     }
 
-    static inline long get_pcid(long cid)
+    static inline long get_pcid(long cid = 0)
     {
-        php_coro_task *task = (php_coro_task *) (EXPECTED(cid == 0) ? Coroutine::get_current_task() : Coroutine::get_task_by_cid(cid));
+        php_coro_task *task = get_task_by_cid(cid);
         return sw_likely(task) ? task->pcid : -1;
     }
 
