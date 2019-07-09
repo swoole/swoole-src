@@ -17,10 +17,7 @@
 #ifndef SW_CLIENT_H_
 #define SW_CLIENT_H_
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+SW_EXTERN_C_BEGIN
 
 #include "buffer.h"
 #include "connection.h"
@@ -201,8 +198,6 @@ void swStream_set_max_length(swStream *stream, uint32_t max_length);
 int swStream_recv_blocking(int fd, void *__buf, size_t __len);
 //----------------------------------------Stream End------------------------------------
 
-#ifdef __cplusplus
-}
-#endif
+SW_EXTERN_C_END
 
 #endif /* SW_CLIENT_H_ */
