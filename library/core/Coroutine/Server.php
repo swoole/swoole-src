@@ -35,7 +35,7 @@ class Server
      * @param bool $ssl
      * @throws Exception
      */
-    function __construct(string $host, int $port = 0, bool $ssl = false)
+    public function __construct(string $host, int $port = 0, bool $ssl = false)
     {
         $_host = swoole_string($host);
         if ($_host->contains('::')) {
@@ -61,23 +61,23 @@ class Server
         $this->setting['open_ssl'] = $ssl;
     }
 
-    function set(array $setting)
+    public function set(array $setting)
     {
         $this->setting = array_merge($this->setting, $setting);
     }
 
-    function handle(callable $fn)
+    public function handle(callable $fn)
     {
         $this->fn = $fn;
     }
 
-    function shutdown()
+    public function shutdown()
     {
         $this->running = false;
         return $this->socket->cancel();
     }
 
-    function start()
+    public function start()
     {
         $this->running = true;
         if ($this->fn == null) {

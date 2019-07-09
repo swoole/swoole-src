@@ -45,8 +45,8 @@ int swPipeBase_create(swPipe *p, int blocking)
     else
     {
         //Nonblock
-        swSetNonBlock(object->pipes[0]);
-        swSetNonBlock(object->pipes[1]);
+        swSocket_set_nonblock(object->pipes[0]);
+        swSocket_set_nonblock(object->pipes[1]);
         p->timeout = -1;
         p->object = object;
         p->read = swPipeBase_read;
@@ -72,8 +72,8 @@ static int swPipeBase_read(swPipe *p, void *data, int length)
 
 static int swPipeBase_write(swPipe *p, void *data, int length)
 {
-    swPipeBase *this = p->object;
-    return write(this->pipes[1], data, length);
+    swPipeBase *object = p->object;
+    return write(object->pipes[1], data, length);
 }
 
 static int swPipeBase_getFd(swPipe *p, int isWriteFd)
@@ -85,9 +85,9 @@ static int swPipeBase_getFd(swPipe *p, int isWriteFd)
 static int swPipeBase_close(swPipe *p)
 {
     int ret1, ret2;
-    swPipeBase *this = p->object;
-    ret1 = close(this->pipes[0]);
-    ret2 = close(this->pipes[1]);
-    sw_free(this);
+    swPipeBase *object = p->object;
+    ret1 = close(object->pipes[0]);
+    ret2 = close(object->pipes[1]);
+    sw_free(object);
     return 0 - ret1 - ret2;
 }

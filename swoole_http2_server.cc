@@ -717,7 +717,7 @@ int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData 
         if (!stream)
         {
             stream = new http2_stream(fd, stream_id);
-            if (unlikely(!stream->ctx))
+            if (sw_unlikely(!stream->ctx))
             {
                 zval_ptr_dtor(&zdata);
                 swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 create stream#%d context error", stream_id);

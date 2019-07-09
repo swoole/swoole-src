@@ -18,6 +18,7 @@ go(function () {
     echo "co[2] exit\n";
 });
 echo "end\n";
+Swoole\Event::wait();
 ?>
 --EXPECT--
 co[1] start

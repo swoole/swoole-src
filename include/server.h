@@ -315,7 +315,8 @@ typedef struct
     pid_t manager_pid;
 
     uint32_t session_round :24;
-    sw_atomic_t start;  //after swServer_start will set start=1
+    sw_atomic_t start;
+    sw_atomic_t shutdown;
 
     time_t now;
 
@@ -434,6 +435,10 @@ struct _swServer
      * asynchronous reloading
      */
     uint32_t reload_async :1;
+    /**
+     * use task object
+     */
+    uint32_t task_use_object :1;
     /**
      * enable coroutine in task worker
      */
@@ -879,7 +884,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
                 break;
             }
         }
-        if (unlikely(found == 0))
+        if (sw_unlikely(found == 0))
         {
             serv->scheduler_warning = 1;
         }

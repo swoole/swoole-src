@@ -133,7 +133,7 @@ int swClient_create(swClient *cli, int type, int async)
 
     if (async)
     {
-        swSetNonBlock(cli->socket->fd);
+        swSocket_set_nonblock(cli->socket->fd);
         cli->socket->nonblock = 1;
         if (!swReactor_isset_handler(cli->reactor, SW_FD_STREAM_CLIENT))
         {
@@ -553,7 +553,7 @@ static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double
 
     if (nonblock)
     {
-        swSetNonBlock(cli->socket->fd);
+        swSocket_set_nonblock(cli->socket->fd);
     }
     else
     {
@@ -562,7 +562,7 @@ static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double
             swSocket_set_timeout(cli->socket->fd, timeout);
         }
 #ifndef HAVE_KQUEUE
-        swSetBlock(cli->socket->fd);
+        swSocket_set_blocking(cli->socket->fd);
 #endif
     }
     while (1)
@@ -575,7 +575,7 @@ static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double
         }
         else
         {
-            swSetNonBlock(cli->socket->fd);
+            swSocket_set_nonblock(cli->socket->fd);
             ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
             if (ret < 0)
             {
@@ -589,7 +589,7 @@ static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double
                 }
                 else
                 {
-                    swSetBlock(cli->socket->fd);
+                    swSocket_set_blocking(cli->socket->fd);
                     ret = 0;
                 }
             }

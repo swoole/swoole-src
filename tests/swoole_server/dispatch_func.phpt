@@ -2,7 +2,7 @@
 swoole_server: dispatch_func
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
-skip_if(ZEND_THREAD_SAFE, 'not support ZTS');
+skip('not support ZTS', ZEND_THREAD_SAFE);
 ?>
 --FILE--
 <?php

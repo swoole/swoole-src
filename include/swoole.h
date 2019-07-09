@@ -106,10 +106,10 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 
 #define SWOOLE_MAJOR_VERSION      4
 #define SWOOLE_MINOR_VERSION      4
-#define SWOOLE_RELEASE_VERSION    0
-#define SWOOLE_EXTRA_VERSION      "beta"
-#define SWOOLE_VERSION            "4.4.0-beta"
-#define SWOOLE_VERSION_ID         40400
+#define SWOOLE_RELEASE_VERSION    1
+#define SWOOLE_EXTRA_VERSION      "alpha"
+#define SWOOLE_VERSION            "4.4.1-alpha"
+#define SWOOLE_VERSION_ID         40401
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -167,12 +167,9 @@ typedef unsigned long ulong_t;
 #if !defined(__GNUC__) || __GNUC__ < 3
 #define __builtin_expect(x, expected_value) (x)
 #endif
-#ifndef likely
-#define likely(x)        __builtin_expect(!!(x), 1)
-#endif
-#ifndef unlikely
-#define unlikely(x)      __builtin_expect(!!(x), 0)
-#endif
+
+#define sw_likely(x)        __builtin_expect(!!(x), 1)
+#define sw_unlikely(x)      __builtin_expect(!!(x), 0)
 
 #define SW_START_LINE  "-------------------------START----------------------------"
 #define SW_END_LINE    "--------------------------END-----------------------------"
@@ -191,11 +188,11 @@ typedef unsigned long ulong_t;
 #define SW_COLOR_CYAN             6
 #define SW_COLOR_WHITE            7
 
-#define SW_SPACE       ' '
-#define SW_CRLF        "\r\n"
-#define SW_CRLF_LEN    2
-#define SW_ASCII_CODE_0     64
-#define SW_ASCII_CODE_Z     106
+#define SW_SPACE                  ' '
+#define SW_CRLF                   "\r\n"
+#define SW_CRLF_LEN               2
+#define SW_ASCII_CODE_0           64
+#define SW_ASCII_CODE_Z           106
 /*----------------------------------------------------------------------------*/
 
 #include "swoole_config.h"
@@ -284,7 +281,7 @@ static sw_inline char* swoole_strdup(const char *s)
 {
     size_t l = strlen(s) + 1;
     char *p = (char *) sw_malloc(l);
-    if (likely(p))
+    if (sw_likely(p))
     {
         memcpy(p, s, l);
     }
@@ -294,7 +291,7 @@ static sw_inline char* swoole_strdup(const char *s)
 static sw_inline char* swoole_strndup(const char *s, size_t n)
 {
     char *p = (char *) sw_malloc(n + 1);
-    if (likely(p))
+    if (sw_likely(p))
     {
         strncpy(p, s, n)[n] = '\0';
     }
@@ -302,16 +299,13 @@ static sw_inline char* swoole_strndup(const char *s, size_t n)
 }
 
 /*--------------------------------Constants------------------------------------*/
+enum swResult_code
+{
+    SW_OK = 0,
+    SW_ERR = -1,
+};
 
-#define SW_OK                  0
-#define SW_ERR                -1
-#define SW_AGAIN              -2
-#define SW_BUSY               -3
-#define SW_DONE               -4
-#define SW_DECLINED           -5
-#define SW_ABORT              -6
-//-------------------------------------------------------------------------------
-enum swReturn_type
+enum swReturn_code
 {
     SW_CONTINUE = 1,
     SW_WAIT     = 2,
@@ -319,18 +313,18 @@ enum swReturn_type
     SW_ERROR    = 4,
     SW_READY    = 5,
 };
-//-------------------------------------------------------------------------------
+
 enum swFd_type
 {
     SW_FD_TCP, //tcp socket
-    SW_FD_LISTEN,//server socket
-    SW_FD_CLOSE,//socket closed
-    SW_FD_ERROR,//socket error
-    SW_FD_UDP,//udp socket
-    SW_FD_PIPE,//pipe
-    SW_FD_STREAM,//stream socket
-    SW_FD_WRITE,//fd can write
-    SW_FD_AIO,//aio
+    SW_FD_LISTEN, //server socket
+    SW_FD_CLOSE, //socket closed
+    SW_FD_ERROR, //socket error
+    SW_FD_UDP, //udp socket
+    SW_FD_PIPE, //pipe
+    SW_FD_STREAM, //stream socket
+    SW_FD_WRITE, //fd can write
+    SW_FD_AIO, //aio
     /**
      * Coroutine Socket
      */
@@ -372,7 +366,7 @@ enum swEvent_type
 
 enum swPipe_type
 {
-    SW_PIPE_READ = 0,
+    SW_PIPE_READ  = 0,
     SW_PIPE_WRITE = 1,
 };
 
@@ -383,6 +377,7 @@ enum swGlobal_hook_type
     SW_GLOBAL_HOOK_BEFORE_WORKER_START,
     SW_GLOBAL_HOOK_ON_CORO_START,
     SW_GLOBAL_HOOK_ON_CORO_STOP,
+    SW_GLOBAL_HOOK_ON_REACTOR_CREATE,
 };
 
 enum swFork_type
@@ -585,7 +580,6 @@ enum swTrace_type
 #define swTrace(str,...)       swTraceLog(SW_TRACE_NORMAL, str, ##__VA_ARGS__)
 
 #define swYield()              sched_yield() //or usleep(1)
-//#define swYield()              usleep(500000)
 #define SW_MAX_FDTYPE          32 //32 kinds of event
 
 //------------------------------Base--------------------------------
@@ -911,7 +905,7 @@ static sw_inline int swString_grow(swString *str, size_t incr_value)
 static sw_inline void swString_pop_front(swString *str, off_t offset)
 {
     assert(offset >= 0 && (size_t ) offset <= str->length);
-    if (unlikely(offset == 0)) return;
+    if (sw_unlikely(offset == 0)) return;
     str->length = str->length - offset;
     str->offset = 0;
     if (str->length == 0) return;
@@ -923,7 +917,7 @@ static sw_inline void swString_sub(swString *str, off_t start, size_t length)
     char *from = str->str + start + (start >= 0 ? 0 : str->length);
     str->length = length != 0 ? length : str->length - start;
     str->offset = 0;
-    if (likely(str->length > 0))
+    if (sw_likely(str->length > 0))
     {
         memmove(str->str, from, str->length);
     }
@@ -1008,7 +1002,7 @@ typedef struct _swPipe
     int (*close)(struct _swPipe *);
 } swPipe;
 
-enum _swPipe_close_which
+enum swPipe_close_which
 {
     SW_PIPE_CLOSE_MASTER = 1,
     SW_PIPE_CLOSE_WORKER = 2,
@@ -1030,8 +1024,6 @@ static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
     return swPipeBase_create(p, blocking);
 #endif
 }
-
-void swBreakPoint(void);
 
 //------------------Queue--------------------
 typedef struct _swQueue_Data
@@ -1400,7 +1392,7 @@ static inline int swoole_strnpos(const char *haystack, uint32_t haystack_length,
     assert(needle_length > 0);
     uint32_t i;
 
-    if (likely(needle_length <= haystack_length))
+    if (sw_likely(needle_length <= haystack_length))
     {
         for (i = 0; i < haystack_length - needle_length + 1; i++)
         {
@@ -1470,8 +1462,8 @@ int swoole_version_compare(const char *version1, const char *version2);
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void);
 #endif
-void swoole_ioctl_set_block(int sock, int nonblock);
-void swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
+int swoole_ioctl_set_block(int sock, int nonblock);
+int swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
 int swoole_gethostbyname(int type, const char *name, char *addr);
 int swoole_getaddrinfo(swRequest_getaddrinfo *req);
 char* swoole_string_format(size_t n, const char *format, ...);
@@ -1488,14 +1480,6 @@ static sw_inline int swSocket_is_stream(uint8_t type)
 {
     return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM);
 }
-
-#ifdef SW_USE_IOCTL
-#define swSetNonBlock(sock)   swoole_ioctl_set_block(sock, 1)
-#define swSetBlock(sock)      swoole_ioctl_set_block(sock, 0)
-#else
-#define swSetNonBlock(sock)   swoole_fcntl_set_option(sock, 1, -1)
-#define swSetBlock(sock)      swoole_fcntl_set_option(sock, 0, -1)
-#endif
 
 void swoole_init(void);
 void swoole_clean(void);
@@ -1557,14 +1541,24 @@ int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t 
 int swSocket_write_blocking(int __fd, const void *__data, int __len);
 int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
 
-static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
+static sw_inline int swSocket_set_nonblock(int sock)
+{
+    return swoole_fcntl_set_option(sock, 1, -1);
+}
+
+static sw_inline int swSocket_set_blocking(int sock)
+{
+    return swoole_fcntl_set_option(sock, 0, -1);
+}
+
+static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options)
 {
     int ret;
     do { ret = waitpid(__pid, __stat_loc, __options); } while (ret < 0 && errno == EINTR);
     return ret;
 }
 
-static sw_inline int swKill(pid_t __pid, int __sig)
+static sw_inline int swoole_kill(pid_t __pid, int __sig)
 {
     if (__pid <= 0)
     {
@@ -2188,7 +2182,7 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
 #define SW_TIMER_MIN_MS  1
 #define SW_TIMER_MIN_SEC 0.001
 #define SW_TIMER_MAX_MS  LONG_MAX
-#define SW_TIMER_MAX_SEC (LONG_MAX / 1000)
+#define SW_TIMER_MAX_SEC ((double) (LONG_MAX / 1000))
 
 typedef struct _swTimer swTimer;
 typedef struct _swTimer_node swTimer_node;

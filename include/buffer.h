@@ -17,10 +17,7 @@
 #ifndef SW_BUFFER_H_
 #define SW_BUFFER_H_
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+SW_EXTERN_C_BEGIN
 
 enum swBufferChunk
 {
@@ -72,8 +69,6 @@ int swBuffer_append(swBuffer *buffer, const void *data, uint32_t size);
 void swBuffer_debug(swBuffer *buffer, int print_data);
 int swBuffer_free(swBuffer *buffer);
 
-#ifdef __cplusplus
-}
-#endif
+SW_EXTERN_C_END
 
 #endif /* SW_BUFFER_H_ */

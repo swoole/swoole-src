@@ -14,8 +14,8 @@ $pm->parentFunc = function () use ($pm) {
         Assert::eq($cli->statusCode, 200);
         Assert::assert($cli->set_cookie_headers ===
             [
-                'cookie' => 'cookie=' . urlencode($cookie),
-                'rawcookie' => 'rawcookie=' . $cookie,
+                'cookie=' . urlencode($cookie),
+                'rawcookie=' . $cookie,
             ]
         );
     });
@@ -27,8 +27,8 @@ $pm->parentFunc = function () use ($pm) {
             Assert::eq($cli->statusCode, 200);
             Assert::assert($cli->set_cookie_headers ===
                 [
-                    'cookie' => 'cookie=' . urlencode($random),
-                    'rawcookie' => 'rawcookie=' . $random
+                    'cookie=' . urlencode($random),
+                    'rawcookie=' . $random
                 ]
             );
         });

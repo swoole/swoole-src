@@ -60,12 +60,12 @@ static int swFactoryProcess_shutdown(swFactory *factory)
     int status;
     swServer *serv = (swServer *) factory->ptr;
 
-    if (swKill(serv->gs->manager_pid, SIGTERM) < 0)
+    if (swoole_kill(serv->gs->manager_pid, SIGTERM) < 0)
     {
         swSysWarn("swKill(%d) failed", serv->gs->manager_pid);
     }
 
-    if (swWaitpid(serv->gs->manager_pid, &status, 0) < 0)
+    if (swoole_waitpid(serv->gs->manager_pid, &status, 0) < 0)
     {
         swSysWarn("waitpid(%d) failed", serv->gs->manager_pid);
     }

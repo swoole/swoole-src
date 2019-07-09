@@ -209,7 +209,7 @@ void swoole_set_object_by_handle(uint32_t handle, void *ptr)
 {
     assert(handle < SWOOLE_OBJECT_MAX);
 
-    if (unlikely(handle >= swoole_objects.size))
+    if (sw_unlikely(handle >= swoole_objects.size))
     {
         uint32_t old_size = swoole_objects.size;
         uint32_t new_size = swoole_get_new_size(old_size, handle);
@@ -240,7 +240,7 @@ void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr)
 {
     assert(handle < SWOOLE_OBJECT_MAX);
 
-    if (unlikely(handle >= swoole_objects.property_size[property_id]))
+    if (sw_unlikely(handle >= swoole_objects.property_size[property_id]))
     {
         uint32_t old_size = swoole_objects.property_size[property_id];
         uint32_t new_size = 0;
@@ -287,28 +287,6 @@ void php_swoole_register_shutdown_function(const char *function)
     shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
     ZVAL_STRING(&shutdown_function_entry.arguments[0], function);
     register_user_shutdown_function((char *) function, ZSTR_LEN(Z_STR(shutdown_function_entry.arguments[0])), &shutdown_function_entry);
-}
-
-static void php_swoole_old_shutdown_function_move(zval *zv)
-{
-    php_shutdown_function_entry *old_shutdown_function_entry = (php_shutdown_function_entry *) Z_PTR_P(zv);
-    zend_hash_next_index_insert_mem(BG(user_shutdown_function_names), old_shutdown_function_entry, sizeof(php_shutdown_function_entry));
-    efree(old_shutdown_function_entry);
-}
-
-void php_swoole_register_shutdown_function_prepend(const char *function)
-{
-    HashTable *old_user_shutdown_function_names = BG(user_shutdown_function_names);
-    if (!old_user_shutdown_function_names)
-    {
-        php_swoole_register_shutdown_function(function);
-        return;
-    }
-    BG(user_shutdown_function_names) = NULL;
-    php_swoole_register_shutdown_function(function);
-    old_user_shutdown_function_names->pDestructor = php_swoole_old_shutdown_function_move;
-    zend_hash_destroy(old_user_shutdown_function_names);
-    FREE_HASHTABLE(old_user_shutdown_function_names);
 }
 
 void php_swoole_register_rshutdown_callback(swCallback cb, void *private_data)
@@ -590,6 +568,7 @@ PHP_MINIT_FUNCTION(swoole)
     // coroutine
     swoole_async_coro_init(module_number);
     swoole_coroutine_init(module_number);
+    swoole_coroutine_scheduler_init(module_number);
     swoole_channel_coro_init(module_number);
     swoole_runtime_init(module_number);
     // client

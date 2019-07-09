@@ -69,6 +69,11 @@ int swReactor_create(swReactor *reactor, int max_event)
         return SW_ERR;
     }
 
+    if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE])
+    {
+        swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_CREATE, reactor);
+    }
+
     return ret;
 }
 
@@ -157,7 +162,7 @@ static void reactor_finish(swReactor *reactor)
         reactor->idle_task.callback(reactor->idle_task.data);
     }
     //check signal
-    if (unlikely(reactor->singal_no))
+    if (sw_unlikely(reactor->singal_no))
     {
         swSignal_callback(reactor->singal_no);
         reactor->singal_no = 0;
@@ -400,7 +405,7 @@ int swReactor_wait_write_buffer(swReactor *reactor, int fd)
 
     if (!swBuffer_empty(conn->out_buffer))
     {
-        swSetBlock(fd);
+        swSocket_set_blocking(fd);
         event.fd = fd;
         return swReactor_onWrite(reactor, &event);
     }

@@ -462,7 +462,7 @@ void swWorker_onStart(swServer *serv)
         }
         if (swIsWorker())
         {
-            swSetNonBlock(worker->pipe_master);
+            swSocket_set_nonblock(worker->pipe_master);
         }
     }
 
@@ -582,7 +582,7 @@ void swWorker_stop(swWorker *worker)
     }
     else
     {
-        swKill(serv->gs->manager_pid, SIGIO);
+        swoole_kill(serv->gs->manager_pid, SIGIO);
     }
 
     _try_to_exit: reactor->wait_exit = 1;
@@ -677,6 +677,7 @@ int swWorker_loop(swServer *serv, int worker_id)
     if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
     {
         swError("[Worker] create worker_reactor failed");
+        sw_free(reactor);
         return SW_ERR;
     }
     SwooleG.main_reactor = reactor;
@@ -698,7 +699,7 @@ int swWorker_loop(swServer *serv, int worker_id)
 
     int pipe_worker = worker->pipe_worker;
 
-    swSetNonBlock(pipe_worker);
+    swSocket_set_nonblock(pipe_worker);
     reactor->ptr = serv;
     reactor->add(reactor, pipe_worker, SW_FD_PIPE | SW_EVENT_READ);
     swReactor_set_handler(reactor, SW_FD_PIPE, swWorker_onPipeReceive);

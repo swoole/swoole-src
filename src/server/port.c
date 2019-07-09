@@ -394,7 +394,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 #ifdef SW_USE_HTTP2
         else if (request->method == SW_HTTP_PRI)
         {
-            if (unlikely(!port->open_http2_protocol))
+            if (sw_unlikely(!port->open_http2_protocol))
             {
                 goto _bad_request;
             }

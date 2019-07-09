@@ -1,7 +1,8 @@
 --TEST--
-CURL file uploading
+swoole_library/curl/upload: CURL file uploading
 --INI--
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../../include/bootstrap.php';

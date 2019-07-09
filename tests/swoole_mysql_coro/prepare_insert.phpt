@@ -36,6 +36,7 @@ Co::create(function () {
         return;
     }
     Assert::assert($stmt->insert_id > 0);
+    Assert::assert($db->insert_id == $stmt->insert_id);
 });
 
 ?>

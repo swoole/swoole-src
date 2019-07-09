@@ -14,14 +14,14 @@ $pm->parentFunc = function () use ($pm) {
         Assert::eq($cli->statusCode, 200);
         Assert::assert($cli->set_cookie_headers ===
             [
-                'cookie1' => 'cookie1=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT',
-                'cookie2' => 'cookie2=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT',
-                'cookie3' => 'cookie3=cookie3',
-                'cookie4' => 'cookie4=cookie4',
-                'cookie5' => 'cookie5=cookie5; expires=Thu, 01-Jan-1970 00:00:01 GMT',
-                'cookie6' => 'cookie6=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT',
-                'cookie7' => 'cookie7=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT',
-                'cookie8' => 'cookie8=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT',
+                'cookie1=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT',
+                'cookie2=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT',
+                'cookie3=cookie3',
+                'cookie4=cookie4',
+                'cookie5=cookie5; expires=Thu, 01-Jan-1970 00:00:01 GMT',
+                'cookie6=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT',
+                'cookie7=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT',
+                'cookie8=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT',
             ]
         );
     });

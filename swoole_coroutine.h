@@ -52,7 +52,7 @@ enum sw_coro_hook_type
     SW_HOOK_CURL              = 1u << 28,
     SW_HOOK_BLOCKING_FUNCTION = 1u << 30,
 
-    SW_HOOK_ALL               = 0x7fffffff,
+    SW_HOOK_ALL               = 0x7fffffff ^ SW_HOOK_CURL /* TODO: remove it */
 };
 
 struct php_coro_task
@@ -93,15 +93,29 @@ struct php_coro_context
     php_coro_task *current_task;
 };
 
+PHP_METHOD(swoole_coroutine_scheduler, set);
+
 namespace swoole
 {
+
+namespace coroutine
+{
+struct Config
+{
+    uint64_t max_num;
+    long hook_flags;
+    bool enable_preemptive_scheduler;
+};
+}
+
 class PHPCoroutine
 {
 public:
     static const uint8_t MAX_EXEC_MSEC = 10;
-    static bool enable_preemptive_scheduler;
+    static coroutine::Config config;
 
     static void init();
+    static void deactivate(void *ptr);
     static void shutdown();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(php_swoole_fci *fci);
@@ -117,13 +131,13 @@ public:
 
     static inline long get_cid()
     {
-        return likely(active) ? Coroutine::get_current_cid() : -1;
+        return sw_likely(active) ? Coroutine::get_current_cid() : -1;
     }
 
     static inline long get_pcid(long cid)
     {
         php_coro_task *task = (php_coro_task *) (EXPECTED(cid == 0) ? Coroutine::get_current_task() : Coroutine::get_task_by_cid(cid));
-        return likely(task) ? task->pcid : -1;
+        return sw_likely(task) ? task->pcid : -1;
     }
 
     static inline php_coro_task* get_task()
@@ -145,12 +159,12 @@ public:
 
     static inline uint64_t get_max_num()
     {
-        return max_num;
+        return config.max_num;
     }
 
     static inline void set_max_num(uint64_t n)
     {
-        max_num = n;
+        config.max_num = n;
     }
 
     static inline bool is_schedulable(php_coro_task *task)
@@ -182,7 +196,6 @@ public:
 
 protected:
     static bool active;
-    static uint64_t max_num;
     static php_coro_task main_task;
 
     static bool interrupt_thread_running;
@@ -202,7 +215,7 @@ protected:
     static void on_yield(void *arg);
     static void on_resume(void *arg);
     static void on_close(void *arg);
-    static void create_func(void *arg);
+    static void main_func(void *arg);
 
     static void interrupt_thread_start();
     static void interrupt_thread_loop();

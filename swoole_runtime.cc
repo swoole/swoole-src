@@ -951,7 +951,7 @@ static void init_function()
 
 bool PHPCoroutine::enable_hook(int flags)
 {
-    if (unlikely(enable_strict_mode))
+    if (sw_unlikely(enable_strict_mode))
     {
         php_swoole_fatal_error(E_ERROR, "unable to enable the coroutine mode after you enable the strict mode");
         return false;
@@ -1156,6 +1156,8 @@ bool PHPCoroutine::enable_hook(int flags)
         if (!(hook_flags & SW_HOOK_BLOCKING_FUNCTION))
         {
             hook_func(ZEND_STRL("gethostbyname"), PHP_FN(swoole_coroutine_gethostbyname));
+            hook_func(ZEND_STRL("exec"));
+            hook_func(ZEND_STRL("shell_exec"));
         }
     }
     else
@@ -1163,6 +1165,8 @@ bool PHPCoroutine::enable_hook(int flags)
         if (hook_flags & SW_HOOK_BLOCKING_FUNCTION)
         {
             SW_UNHOOK_FUNC(gethostbyname);
+            unhook_func(ZEND_STRL("exec"));
+            unhook_func(ZEND_STRL("shell_exec"));
         }
     }
 
@@ -1223,7 +1227,7 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
 {
     zval *zflags = nullptr;
     /*TODO: enable SW_HOOK_CURL by default after curl handler completed */
-    zend_long flags = SW_HOOK_ALL ^ SW_HOOK_CURL;
+    zend_long flags = SW_HOOK_ALL;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
         Z_PARAM_OPTIONAL

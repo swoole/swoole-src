@@ -245,7 +245,7 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
 
     int pipe_worker = worker->pipe_worker;
 
-    swSetNonBlock(pipe_worker);
+    swSocket_set_nonblock(pipe_worker);
     SwooleG.main_reactor->ptr = pool;
     SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_worker, SW_FD_PIPE | SW_EVENT_READ);
     swReactor_set_handler(SwooleG.main_reactor, SW_FD_PIPE, swTaskWorker_onPipeReceive);

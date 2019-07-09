@@ -1,12 +1,14 @@
 --TEST--
-proc_open
+swoole_runtime/proc: proc_open
 --SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 <?php
 if (!is_executable('/bin/sleep')) echo 'skip no sleep';
 if (getenv('SKIP_SLOW_TESTS')) echo 'skip slow test';
 ?>
 --FILE--
 <?php
+require __DIR__ . '/../../include/bootstrap.php';
 
 Swoole\Runtime::enableCoroutine();
 

@@ -147,6 +147,7 @@ foreach ($map as $i => $f) {
     }
 }
 echo current($info_list);
+Swoole\Event::wait();
 ?>
 --EXPECT--
 Fatal error: %s in %s:%d
@@ -160,4 +161,3 @@ Stack trace:
 #6 %s:%d: Swoole\Process->start()
 #7 {main}
   thrown in %s:%d
-

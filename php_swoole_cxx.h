@@ -94,12 +94,12 @@ public:
 
     char* dup()
     {
-        return likely(len() > 0) ? sw_strndup(val(), len()) : nullptr;
+        return sw_likely(len() > 0) ? sw_strndup(val(), len()) : nullptr;
     }
 
     char* edup()
     {
-        return likely(len() > 0) ? estrndup(val(), len()) : nullptr;
+        return sw_likely(len() > 0) ? estrndup(val(), len()) : nullptr;
     }
 
     ~string()

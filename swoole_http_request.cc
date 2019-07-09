@@ -851,7 +851,7 @@ const char* swoole_http_get_content_encoding(http_context *ctx)
 
 static PHP_METHOD(swoole_http_request, rawContent)
 {
-    http_context *ctx = swoole_http_context_get(getThis(), 0);
+    http_context *ctx = swoole_http_context_get(ZEND_THIS, 0);
     if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
@@ -860,7 +860,7 @@ static PHP_METHOD(swoole_http_request, rawContent)
     http_request *req = &ctx->request;
     if (req->post_length > 0)
     {
-        zval *zdata = (zval *) swoole_get_property(getThis(), 0);
+        zval *zdata = (zval *) swoole_get_property(ZEND_THIS, 0);
         RETVAL_STRINGL(Z_STRVAL_P(zdata) + Z_STRLEN_P(zdata) - req->post_length, req->post_length);
     }
 #ifdef SW_USE_HTTP2
@@ -877,7 +877,7 @@ static PHP_METHOD(swoole_http_request, rawContent)
 
 static PHP_METHOD(swoole_http_request, getData)
 {
-    zval *zdata = (zval *) swoole_get_property(getThis(), 0);
+    zval *zdata = (zval *) swoole_get_property(ZEND_THIS, 0);
     if (zdata)
     {
         RETURN_STRINGL(Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
@@ -892,7 +892,7 @@ static PHP_METHOD(swoole_http_request, __destruct)
 {
     SW_PREVENT_USER_DESTRUCT();
 
-    zval *ztmpfiles = sw_zend_read_property(swoole_http_request_ce, getThis(), ZEND_STRL("tmpfiles"), 0);
+    zval *ztmpfiles = sw_zend_read_property(swoole_http_request_ce, ZEND_THIS, ZEND_STRL("tmpfiles"), 0);
     //upload files
     if (ztmpfiles && ZVAL_IS_ARRAY(ztmpfiles))
     {
@@ -911,11 +911,11 @@ static PHP_METHOD(swoole_http_request, __destruct)
         }
         SW_HASHTABLE_FOREACH_END();
     }
-    zval *zdata = (zval *) swoole_get_property(getThis(), 0);
+    zval *zdata = (zval *) swoole_get_property(ZEND_THIS, 0);
     if (zdata)
     {
         sw_zval_free(zdata);
-        swoole_set_property(getThis(), 0, NULL);
+        swoole_set_property(ZEND_THIS, 0, NULL);
     }
-    swoole_set_object(getThis(), NULL);
+    swoole_set_object(ZEND_THIS, NULL);
 }

@@ -205,7 +205,7 @@ void swWebSocket_decode(swWebSocket_frame *frame, swString *data)
 
 int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_t length, uint8_t mask)
 {
-    if (unlikely(length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN))
+    if (sw_unlikely(length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN))
     {
         swWarn("the max length of close reason is %d", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
         return SW_ERR;

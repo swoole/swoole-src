@@ -110,10 +110,10 @@ static int swPipeEventfd_read(swPipe *p, void *data, int length)
 static int swPipeEventfd_write(swPipe *p, void *data, int length)
 {
     int ret;
-    swPipeEventfd *this = p->object;
+    swPipeEventfd *object = p->object;
     while (1)
     {
-        ret = write(this->event_fd, data, sizeof(uint64_t));
+        ret = write(object->event_fd, data, sizeof(uint64_t));
         if (ret < 0)
         {
             if (errno == EINTR)

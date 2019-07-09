@@ -1,7 +1,11 @@
 --TEST--
-proc_open() with > 16 pipes
+swoole_runtime/proc: proc_open() with > 16 pipes
+--SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
+require __DIR__ . '/../../include/bootstrap.php';
+
 include_once dirname(__FILE__) . "/proc_open_pipes.inc";
 Swoole\Runtime::enableCoroutine();
 

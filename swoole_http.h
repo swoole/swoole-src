@@ -207,7 +207,7 @@ static sw_inline void php_zlib_free(voidpf opaque, voidpf address)
 }
 #endif
 
-static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *set_cookie_headers)
+static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *zset_cookie_headers)
 {
     const char *key = at;
     zval val;
@@ -226,10 +226,10 @@ static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, 
     }
     if (key_len > SW_HTTP_COOKIE_KEYLEN)
     {
-        swWarn("cookie[%.8s...] name length %d is exceed the max name len %d", key, key_len, SW_HTTP_COOKIE_KEYLEN);
+        swWarn("cookie[%.8s...] name length %zu is exceed the max name len %d", key, key_len, SW_HTTP_COOKIE_KEYLEN);
         return SW_ERR;
     }
-    add_assoc_stringl_ex(set_cookie_headers, key, key_len, (char *) at, length);
+    add_next_index_stringl(zset_cookie_headers, (char *) at, length);
     // val
     p++;
     eof = (char*) memchr(p, ';', at + length - p);
@@ -240,7 +240,7 @@ static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, 
     val_len = eof - p;
     if (val_len > SW_HTTP_COOKIE_VALLEN)
     {
-        swWarn("cookie[%.*s]'s value[v=%.8s...] length %d is exceed the max value len %d", (int) key_len, key, p, val_len, SW_HTTP_COOKIE_VALLEN);
+        swWarn("cookie[%.*s]'s value[v=%.8s...] length %d is exceed the max value len %d", (int) key_len, key, p, (int) val_len, SW_HTTP_COOKIE_VALLEN);
         return SW_ERR;
     }
     ZVAL_STRINGL(&val, p, val_len);
@@ -293,7 +293,7 @@ public:
         const char *value, size_t value_len,
         const uint8_t flags = NGHTTP2_NV_FLAG_NONE)
     {
-        if (likely(index < size || nvs[index].name == nullptr))
+        if (sw_likely(index < size || nvs[index].name == nullptr))
         {
             nghttp2_nv *nv = &nvs[index];
             name = zend_str_tolower_dup(name, name_len); // auto to lower
@@ -324,7 +324,7 @@ public:
     {
         for (size_t i = 0; i < size; ++i)
         {
-            if (likely(nvs[i].name/* && nvs[i].value */))
+            if (sw_likely(nvs[i].name/* && nvs[i].value */))
             {
                 efree((void *) nvs[i].name);
                 efree((void *) nvs[i].value);

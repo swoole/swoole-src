@@ -247,8 +247,8 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
         Z_PARAM_BOOL(ssl)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property_stringl(swoole_http_server_coro_ce, getThis(), ZEND_STRL("host"), host, l_host);
-    zend_update_property_bool(swoole_http_server_coro_ce, getThis(), ZEND_STRL("ssl"), ssl);
+    zend_update_property_stringl(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("host"), host, l_host);
+    zend_update_property_bool(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("ssl"), ssl);
 
     // check host
     if (l_host == 0)
@@ -257,13 +257,13 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
         RETURN_FALSE;
     }
 
-    http_server_coro_t *hsc = swoole_http_server_coro_fetch_object(Z_OBJ_P(getThis()));
+    http_server_coro_t *hsc = swoole_http_server_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
     string host_str(host, l_host);
     hsc->server = new http_server(Socket::get_type(host_str));
     Socket *sock = hsc->server->socket;
     if (!sock->bind(host_str, port))
     {
-        http_server_set_error(getThis(), sock);
+        http_server_set_error(ZEND_THIS, sock);
         zend_throw_exception_ex(swoole_exception_ce, sock->errCode, "bind(%s:%d) failed", host, (int) port);
         RETURN_FALSE;
     }
@@ -276,7 +276,7 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
 #endif
     if (!sock->listen())
     {
-        http_server_set_error(getThis(), sock);
+        http_server_set_error(ZEND_THIS, sock);
         zend_throw_exception_ex(swoole_exception_ce, sock->errCode, "listen() failed");
         RETURN_FALSE;
     }
@@ -294,8 +294,8 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
     sock->open_ssl = ssl;
 #endif
 
-    zend_update_property_long(swoole_http_server_coro_ce, getThis(), ZEND_STRL("fd"), sock->get_fd());
-    zend_update_property_long(swoole_http_server_coro_ce, getThis(), ZEND_STRL("port"), sock->get_bind_port());
+    zend_update_property_long(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("fd"), sock->get_fd());
+    zend_update_property_long(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("port"), sock->get_bind_port());
 }
 
 static PHP_METHOD(swoole_http_server_coro, handle)
@@ -303,7 +303,7 @@ static PHP_METHOD(swoole_http_server_coro, handle)
     char *pattern;
     size_t pattern_len;
 
-    http_server *hs = http_server_get_object(Z_OBJ_P(getThis()));
+    http_server *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     php_swoole_fci *fci = (php_swoole_fci *) ecalloc(1, sizeof(php_swoole_fci));
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
@@ -329,7 +329,7 @@ static PHP_METHOD(swoole_http_server_coro, set)
     }
     else
     {
-        zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, getThis(), ZEND_STRL("settings"), 0);
+        zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
         php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
         RETURN_TRUE;
     }
@@ -337,7 +337,7 @@ static PHP_METHOD(swoole_http_server_coro, set)
 
 static PHP_METHOD(swoole_http_server_coro, start)
 {
-    http_server *hs = http_server_get_object(Z_OBJ_P(getThis()));
+    http_server *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
 
     auto sock = hs->socket;
     char *func_name = NULL;
@@ -345,7 +345,7 @@ static PHP_METHOD(swoole_http_server_coro, start)
     zval zcallback;
     ZVAL_STRING(&zcallback, "onAccept");
 
-    if (!sw_zend_is_callable_ex(&zcallback, getThis(), 0, &func_name, NULL, &fci_cache, NULL))
+    if (!sw_zend_is_callable_ex(&zcallback, ZEND_THIS, 0, &func_name, NULL, &fci_cache, NULL))
     {
         php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;
@@ -354,7 +354,7 @@ static PHP_METHOD(swoole_http_server_coro, start)
 
     zval zsocket;
 
-    zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, getThis(), ZEND_STRL("settings"), 0);
+    zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
     php_swoole_socket_set_protocol(hs->socket, zsettings);
 
     php_swoole_http_server_init_global_variant();
@@ -387,12 +387,12 @@ static PHP_METHOD(swoole_http_server_coro, start)
             }
             else if (sock->errCode == ECANCELED)
             {
-                http_server_set_error(getThis(), sock);
+                http_server_set_error(ZEND_THIS, sock);
                 break;
             }
             else
             {
-                http_server_set_error(getThis(), sock);
+                http_server_set_error(ZEND_THIS, sock);
                 php_swoole_fatal_error(E_WARNING, "accept failed, Error: %s[%d]", sock->errMsg, sock->errCode);
                 break;
             }
@@ -411,7 +411,7 @@ static PHP_METHOD(swoole_http_server_coro, __destruct)
 
 static PHP_METHOD(swoole_http_server_coro, onAccept)
 {
-    http_server *hs = http_server_get_object(Z_OBJ_P(getThis()));
+    http_server *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     zval *zconn;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
@@ -427,7 +427,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
     {
         auto buffer = sock->get_read_buffer();
         ssize_t retval = sock->recv(buffer->str + buffer->offset, buffer->size - buffer->offset);
-        if (unlikely(retval <= 0))
+        if (sw_unlikely(retval <= 0))
         {
             break;
         }
@@ -505,7 +505,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
 
 static PHP_METHOD(swoole_http_server_coro, shutdown)
 {
-    http_server *hs = http_server_get_object(Z_OBJ_P(getThis()));
+    http_server *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     hs->running = false;
     hs->socket->cancel(SW_EVENT_READ);
 }
