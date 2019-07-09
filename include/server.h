@@ -21,9 +21,7 @@
 #include "buffer.h"
 #include "connection.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+SW_EXTERN_C_BEGIN
 
 #define SW_REACTOR_NUM             SW_CPU_NUM
 #define SW_WORKER_NUM              (SW_CPU_NUM*2)
@@ -228,7 +226,8 @@ typedef struct _swUserWorker_node
     swWorker *worker;
 } swUserWorker_node;
 
-typedef struct {
+typedef struct _swTask_sendfile
+{
     char *filename;
     uint16_t name_len;
     int fd;
@@ -236,24 +235,31 @@ typedef struct {
     off_t offset;
 } swTask_sendfile;
 
-typedef struct
-{
-    uint16_t num;
-} swUserWorker;
-
-typedef struct
+typedef struct _swWorkerStopMessage
 {
     pid_t pid;
     uint16_t worker_id;
 } swWorkerStopMessage;
 
-//-----------------------------------Factory--------------------------------------------
-typedef struct
+//------------------------------------Packet-------------------------------------------
+typedef struct _swPacket_task
+{
+    size_t length;
+    char tmpfile[SW_TASK_TMPDIR_SIZE + sizeof(SW_TASK_TMP_FILE)];
+} swPacket_task;
+
+typedef struct _swPacket_response
+{
+    int length;
+    int worker_id;
+} swPacket_response;
+
+typedef struct _swPacket_ptr
 {
     swDataHead info;
     swString data;
-} swPackagePtr;
-
+} swPacket_ptr;
+//-----------------------------------Factory--------------------------------------------
 struct _swFactory
 {
     void *object;
@@ -299,7 +305,7 @@ enum swServer_hook_type
     SW_SERVER_HOOK_PROCESS_TIMER,
 };
 
-typedef struct
+typedef struct _swServerStats
 {
     time_t start_time;
     sw_atomic_t connection_num;
@@ -309,7 +315,7 @@ typedef struct
     sw_atomic_long_t request_count;
 } swServerStats;
 
-typedef struct
+typedef struct _swServerGS
 {
     pid_t master_pid;
     pid_t manager_pid;
@@ -605,18 +611,6 @@ struct _swServer
     int (*dispatch_func)(swServer *, swConnection *, swSendData *);
 };
 
-typedef struct
-{
-    size_t length;
-    char tmpfile[SW_TASK_TMPDIR_SIZE + sizeof(SW_TASK_TMP_FILE)];
-} swPackage_task;
-
-typedef struct
-{
-    int length;
-    int worker_id;
-} swPackage_response;
-
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode);
 int swServer_master_send(swServer *serv, swSendData *_send);
@@ -721,7 +715,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
 
 static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
 {
-    swPackage_task _pkg;
+    swPacket_task _pkg;
     memcpy(&_pkg, task_result->data, sizeof(_pkg));
 
     int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);
@@ -924,7 +918,7 @@ static sw_inline size_t swWorker_get_data(swServer *serv, swEventData *req, char
     size_t length;
     if (req->info.flags & SW_EVENT_DATA_PTR)
     {
-        swPackagePtr *task = (swPackagePtr *) req;
+        swPacket_ptr *task = (swPacket_ptr *) req;
         *data_ptr = task->data.str;
         length = task->data.length;
     }
@@ -1026,8 +1020,6 @@ pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker);
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);
 void swManager_kill_user_worker(swServer *serv);
 
-#ifdef __cplusplus
-}
-#endif
+SW_EXTERN_C_END
 
 #endif /* SW_SERVER_H_ */

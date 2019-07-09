@@ -473,7 +473,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
             }
         }
 
-        swPackage_response response;
+        swPacket_response response;
         response.length = resp->info.len;
         response.worker_id = SwooleWG.id;
         buf->info.server_fd = SW_RESPONSE_SHM;

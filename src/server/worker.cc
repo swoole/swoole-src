@@ -223,7 +223,7 @@ static int swWorker_onStreamPackage(swProtocol *proto, swConnection *conn, char 
     /**
      * passing memory pointer
      */
-    swPackagePtr task;
+    swPacket_ptr task;
     memcpy(&task.info, data + 4, sizeof(task.info));
     task.info.flags = SW_EVENT_DATA_PTR;
 
