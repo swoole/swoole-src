@@ -127,6 +127,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getBackTrace, 0, 0, 0)
     ZEND_ARG_INFO(0, limit)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getPcid, 0, 0, 0)
+    ZEND_ARG_INFO(0, cid)
+ZEND_END_ARG_INFO()
+
 bool PHPCoroutine::active = false;
 uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
 php_coro_task PHPCoroutine::main_task = {0};
@@ -895,7 +899,14 @@ PHP_METHOD(swoole_coroutine_scheduler, getCid)
 
 PHP_METHOD(swoole_coroutine_scheduler, getPcid)
 {
-    RETURN_LONG(PHPCoroutine::get_pcid());
+    zend_long cid = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(cid)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    RETURN_LONG(PHPCoroutine::get_pcid(cid));
 }
 
 PHP_METHOD(swoole_coroutine_scheduler, getContext)

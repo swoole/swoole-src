@@ -120,9 +120,9 @@ public:
         return likely(active) ? Coroutine::get_current_cid() : -1;
     }
 
-    static inline long get_pcid()
+    static inline long get_pcid(long cid)
     {
-        php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
+        php_coro_task *task = (php_coro_task *) (EXPECTED(cid == 0) ? Coroutine::get_current_task() : Coroutine::get_task_by_cid(cid));
         return likely(task) ? task->pcid : -1;
     }
 
