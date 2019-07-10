@@ -985,7 +985,7 @@ int swReactorThread_start(swServer *serv)
         goto _failed;
     }
 
-    if (serv->onStart != NULL)
+    if (serv->onStart)
     {
         serv->onStart(serv);
     }
