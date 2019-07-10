@@ -137,13 +137,7 @@ public:
     static inline long get_pcid(long cid = 0)
     {
         php_coro_task *task = cid == 0 ? get_task() : get_task_by_cid(cid);
-
-        if (task == nullptr || task == &main_task)
-        {
-            return 0;
-        }
-       
-        return task->pcid;
+        return sw_likely(task) ? task->pcid : 0;
     }
 
     static inline php_coro_task* get_task()
