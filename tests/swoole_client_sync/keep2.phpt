@@ -16,7 +16,7 @@ $client2 = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_KEEP | SWOOLE_SYNC);
 $r = @$client2->connect(TCP_SERVER_HOST, 9999, 0.5);
 Assert::false($r);
 
-Assert::eq($client1->sock, $client2->sock);
+Assert::same($client1->sock, $client2->sock);
 
 ?>
 --EXPECT--

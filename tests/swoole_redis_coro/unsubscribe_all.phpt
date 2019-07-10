@@ -17,7 +17,7 @@ go(function () {
     for ($i = 0; $i < 2; ++$i)
     {
         $ret = $redis->recv();
-        Assert::eq($ret[0], 'subscribe');
+        Assert::same($ret[0], 'subscribe');
     }
 
     $ret = $redis->getDefer();
@@ -35,8 +35,8 @@ go(function () {
     for ($i = 0; $i < 2; ++$i)
     {
         $ret = $redis->recv();
-        Assert::eq($ret[0], 'unsubscribe');
-        Assert::eq($ret[2], 1 - $i);
+        Assert::same($ret[0], 'unsubscribe');
+        Assert::same($ret[2], 1 - $i);
     }
 
     $ret = $redis->getDefer();

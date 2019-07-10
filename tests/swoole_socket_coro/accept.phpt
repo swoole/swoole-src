@@ -16,7 +16,7 @@ go(function () {
 
     $data = $conn->recv();
     $json = json_decode($data, true);
-    Assert::eq(is_array($json), $json['data'], 'hello');
+    Assert::same($json['data'] ?? '', 'hello');
     $conn->send("world\n");
     $conn->close();
 });

@@ -7,7 +7,7 @@ swoole_global: deny unset properties and clone
 require __DIR__ . '/../include/bootstrap.php';
 $chan = new Chan;
 $chan->test = 1;
-Assert::eq($chan->test, 1);
+Assert::same($chan->test, 1);
 unset($chan->test);
 Assert::true(!isset($chan->test));
 

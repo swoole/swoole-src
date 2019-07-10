@@ -16,13 +16,13 @@ $pm->parentFunc = function () use ($pm) {
             echo "SEND\n";
             $size = 16 * 1024 * 1024;
             Assert::assert($cli->send(str_repeat('S', $size)) < $size);
-            Assert::eq($cli->errCode, SOCKET_EPIPE);
+            Assert::same($cli->errCode, SOCKET_EPIPE);
             echo "SEND CLOSED\n";
         });
         go(function () use ($cli) {
             echo "RECV\n";
             Assert::assert(!$cli->recv(-1));
-            Assert::eq($cli->errCode, SOCKET_ECONNRESET);
+            Assert::same($cli->errCode, SOCKET_ECONNRESET);
             echo "RECV CLOSED\n";
         });
         $pm->wakeup();

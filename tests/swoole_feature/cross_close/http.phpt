@@ -20,8 +20,8 @@ $pm->parentFunc = function () use ($pm) {
         });
         Assert::assert(!$http->get('/'));
         echo "CLOSED\n";
-        Assert::eq($http->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
-        Assert::eq($http->errCode, SOCKET_ECONNRESET);
+        Assert::same($http->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
+        Assert::same($http->errCode, SOCKET_ECONNRESET);
         Assert::assert(empty($http->body));
     });
     Swoole\Event::wait();

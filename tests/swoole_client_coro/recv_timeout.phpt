@@ -16,7 +16,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $cli->send(pack('N', strlen($data)) . $data);
         $retData = @$cli->recv(0.5);
         Assert::false($retData);
-        Assert::eq($cli->errCode, SOCKET_ETIMEDOUT);
+        Assert::same($cli->errCode, SOCKET_ETIMEDOUT);
     });
     swoole_event_wait();
     $pm->kill();

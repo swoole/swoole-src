@@ -24,7 +24,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $retData = $cli->recv();
         Assert::assert($retData != false);
         $len = unpack('Nlen', $retData)['len'];
-        Assert::eq(strlen($retData), $len + 4);
+        Assert::same(strlen($retData), $len + 4);
     });
     swoole_event_wait();
     $pm->kill();

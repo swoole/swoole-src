@@ -35,7 +35,7 @@ for ($i = MAX_CONCURRENCY_LOW; $i--;) {
     go('onRequest');
 }
 swoole_event_wait();
-Assert::eq($count, MAX_CONCURRENCY_LOW);
+Assert::same($count, MAX_CONCURRENCY_LOW);
 Assert::assert((microtime(true) - $start) < .5);
 //关闭协程，否则会致命错误
 Swoole\Runtime::enableCoroutine(false);

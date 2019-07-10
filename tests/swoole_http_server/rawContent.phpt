@@ -19,9 +19,9 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $httpClient->setData($payload);
         $ok = $httpClient->execute("/rawcontent");
         Assert::assert($ok);
-        Assert::eq($httpClient->statusCode, 200);
-        Assert::eq($httpClient->errCode, 0);
-        Assert::eq($httpClient->body, $payload);
+        Assert::same($httpClient->statusCode, 200);
+        Assert::same($httpClient->errCode, 0);
+        Assert::same($httpClient->body, $payload);
         $pm->kill();
     });
     swoole_event_wait();

@@ -47,9 +47,9 @@ SQL;
         Assert::true($stmt->execute(['hello mysql!']));
         do {
             $res = $stmt->fetchAll();
-            Assert::eq(current($res[0]), array_shift($_map));
+            Assert::same(current($res[0]), array_shift($_map));
         } while ($ret = $stmt->nextResult());
-        Assert::eq($stmt->affected_rows, 1);
+        Assert::same($stmt->affected_rows, 1);
         Assert::assert(empty($_map), 'there are some results lost!');
 
         //PDO
@@ -65,12 +65,12 @@ SQL;
                 Assert::true($stmt->execute(['hello mysql!']));
                 do {
                     $res = $stmt->fetchAll();
-                    Assert::eq(current($res[0]), array_shift($_map));
+                    Assert::same(current($res[0]), array_shift($_map));
                 } while ($ret = $stmt->nextRowset());
-                Assert::eq($stmt->rowCount(), 1, 'get the affected rows failed!');
+                Assert::same($stmt->rowCount(), 1, 'get the affected rows failed!');
                 Assert::assert(empty($_map), 'there are some results lost!');
             } catch (\PDOException $e) {
-                Assert::eq($e->getCode(), 2054); // not support auth plugin
+                Assert::same($e->getCode(), 2054); // not support auth plugin
             }
         }
     }

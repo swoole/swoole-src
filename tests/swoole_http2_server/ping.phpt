@@ -15,7 +15,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $s = microtime(true);
         $response = $cli->recv();
         time_approximate(0.5, microtime(true) - $s);
-        Assert::eq($response->streamId, $streamId);
+        Assert::same($response->streamId, $streamId);
         $pm->kill();
     });
     Swoole\Event::wait();

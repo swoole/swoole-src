@@ -20,7 +20,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
             $c = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             $c->set(['timeout' => 5,]);
             Assert::assert($c->get('/task?n='.$n));
-            Assert::eq($c->body, "OK");
+            Assert::same($c->body, "OK");
         });
     }
     swoole_event_wait();
@@ -51,7 +51,7 @@ $pm->childFunc = function () use ($pm, $randoms) {
         $response->end('OK');
     });
     $server->on('task', function (swoole_http_server $server, Swoole\Server\Task $task) use ($pm, $randoms) {
-        Assert::eq($task->worker_id, 0);
+        Assert::same($task->worker_id, 0);
         Assert::assert($task->flags > 0);
         Assert::assert($task->id >= 0);
         $n = $task->data;

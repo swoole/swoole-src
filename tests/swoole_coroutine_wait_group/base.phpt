@@ -9,7 +9,7 @@ $wg = new Swoole\Coroutine\WaitGroup;
 go(function () use ($wg) {
     go(function () use ($wg) {
         $wg->add();
-        Assert::eq(
+        Assert::same(
             file_get_contents(__FILE__),
             Co::readFile(__FILE__)
         );
@@ -24,7 +24,7 @@ go(function () use ($wg) {
     });
     go(function () use ($wg, $cid) {
         $wg->add();
-        Assert::notEq(Co::sleep(0.001), false);
+        Assert::notSame(Co::sleep(0.001), false);
         Co::resume($cid);
         echo "TASK[3] DONE\n";
         $wg->done();

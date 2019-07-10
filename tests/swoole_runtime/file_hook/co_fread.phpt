@@ -17,7 +17,7 @@ go(function () {
     echo "read\n";
     swoole\runtime::enableCoroutine(false);
     Assert::assert(!empty($data));
-    Assert::eq(md5($data), md5_file(__FILE__));
+    Assert::same(md5($data), md5_file(__FILE__));
 });
 
 swoole_event_wait();

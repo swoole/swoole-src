@@ -22,7 +22,7 @@ $cli->on("connect", function(swoole_client $cli) {
 
 $cli->on("receive", function(swoole_client $cli, $data){
     //echo "RECEIVE: $data\n";
-    Assert::eq($data, "OK");
+    Assert::same($data, "OK");
     $cli->close();
     Assert::false($cli->isConnected());
 });

@@ -17,7 +17,7 @@ go(function () {
 
     for ($i = 0; $i < MAX_REQUESTS; $i++) {
         $val = $redis->recv();
-        Assert::eq($val and $val[0], 'message');
+        Assert::same($val[0] ?? '', 'message');
     }
 
     $redis->close();

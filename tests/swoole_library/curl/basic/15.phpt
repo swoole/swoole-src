@@ -15,7 +15,7 @@ $cm->run(function ($host) {
     $url = 'http://www.example.com/';
     $ch = curl_init($url);
 
-    Assert::eq($url, curl_getinfo($ch, CURLINFO_EFFECTIVE_URL));
+    Assert::same($url, curl_getinfo($ch, CURLINFO_EFFECTIVE_URL));
 }, false);
 
 ?>

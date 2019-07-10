@@ -22,7 +22,7 @@ go(function () {
         'Accept-Encoding' => 'gzip'
     ]);
     Assert::assert($cli->post($path, []));
-    Assert::eq($cli->statusCode, 204);
+    Assert::same($cli->statusCode, 204);
     Assert::assert(empty($cli->body));
 });
 

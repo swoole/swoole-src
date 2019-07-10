@@ -12,8 +12,8 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $name = "SWOOLE_PROCESS_TEST_" . rand(1, 100);
 swoole_set_process_name($name);
-$count = trim(`ps aux|grep $name|grep -v grep|wc -l`);
-Assert::eq($count, 1);
+$count = (int)trim(`ps aux|grep $name|grep -v grep|wc -l`);
+Assert::same($count, 1);
 echo "SUCCESS";
 
 ?>

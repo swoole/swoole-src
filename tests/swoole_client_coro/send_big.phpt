@@ -29,7 +29,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         Assert::assert($client->send($_postBody));
 
         $data = $client->recv(5);
-        Assert::eq($data, "HTTP/1.1 200 OK\r\n\r\n");
+        Assert::same($data, "HTTP/1.1 200 OK\r\n\r\n");
         $client->close();
     });
     swoole_event::wait();

@@ -27,7 +27,7 @@ makeTcpClient(TCP_SERVER_HOST, $port, function (\swoole_client $cli) {
     Assert::assert($r !== false);
 }, function (\swoole_client $cli, $recv) use($timer) {
     list($op, $data) = opcode_decode($recv);
-    Assert::eq($data, 0);
+    Assert::same($data, 0);
     $cli->close();
     Swoole\Timer::clear($timer);
     echo "SUCCESS\n";

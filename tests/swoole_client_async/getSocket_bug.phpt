@@ -26,7 +26,7 @@ $cli->on("connect", function (swoole_client $cli) use ($timer) {
     /*
     @$cli->getSocket();
     $err = error_get_last();
-    Assert::eq($err["message"], "swoole_client_async::getSocket(): unable to obtain socket family Error: Bad file descriptor[9].");
+    Assert::same($err["message"], "swoole_client_async::getSocket(): unable to obtain socket family Error: Bad file descriptor[9].");
     */
     $cli->close();
     Swoole\Timer::clear($timer);

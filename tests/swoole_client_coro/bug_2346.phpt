@@ -21,7 +21,7 @@ $pm->parentFunc = function () use ($pm) {
             // 0.2
             $s = microtime(true);
             Assert::assert(@!$client->recv(0.2));
-            Assert::eq($client->errCode, SOCKET_ETIMEDOUT);
+            Assert::same($client->errCode, SOCKET_ETIMEDOUT);
             approximate(0.2, microtime(true) - $s);
             // -1 & 0.3
             go(function () use ($client) {
@@ -29,7 +29,7 @@ $pm->parentFunc = function () use ($pm) {
                 $client->close();
             });
             Assert::assert(@!$client->recv(-1)); // connection closed
-            Assert::eq($client->errCode, SOCKET_ECONNRESET);
+            Assert::same($client->errCode, SOCKET_ECONNRESET);
             approximate(0.5, microtime(true) - $s);
             // canceled
             echo "DONE\n";

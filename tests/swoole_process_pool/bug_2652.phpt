@@ -12,7 +12,7 @@ $pool = new Swoole\Process\Pool(1);
 $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) {
     $pool->getProcess($workerId)->useQueue(MSGQ_KEY);
     $pool->getProcess($workerId)->push('test');
-    Assert::eq('test', $pool->getProcess($workerId)->pop());
+    Assert::same('test', $pool->getProcess($workerId)->pop());
     $pool->shutdown();
     sleep(20);
     echo "ERROR\n";

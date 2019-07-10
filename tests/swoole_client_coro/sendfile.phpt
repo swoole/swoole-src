@@ -22,7 +22,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $data = $client->recv();
         $client->send(pack('N', 8) . 'shutdown');
         $client->close();
-        Assert::eq($data, md5_file(TEST_IMAGE));
+        Assert::same($data, md5_file(TEST_IMAGE));
     });
 };
 

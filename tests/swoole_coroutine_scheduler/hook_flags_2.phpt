@@ -27,4 +27,3 @@ $sch->start();
 
 ?>
 --EXPECT--
-

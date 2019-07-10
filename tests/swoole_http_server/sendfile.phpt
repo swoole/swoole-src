@@ -12,7 +12,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $send_file = openssl_random_pseudo_bytes(mt_rand(0, 65535 * 10));
         file_put_contents('/tmp/sendfile.txt', $send_file);
         $recv_file = file_get_contents("http://127.0.0.1:{$pm->getFreePort()}");
-        Assert::eq($send_file, $recv_file);
+        Assert::same($send_file, $recv_file);
     }
     echo "DONE\n";
     $pm->kill();

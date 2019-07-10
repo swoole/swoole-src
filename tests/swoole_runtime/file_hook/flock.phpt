@@ -13,7 +13,7 @@ function test_flock()
     Assert::assert(flock($fp, LOCK_EX));
     Co::sleep(0.001);
     $ret = fwrite($fp, ($date = date('Y-m-d H:i:s')));
-    Assert::eq($ret, strlen($date));
+    Assert::same($ret, strlen($date));
     flock($fp, LOCK_UN);
     fclose($fp);
 }

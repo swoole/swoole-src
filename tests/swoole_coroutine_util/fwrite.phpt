@@ -17,7 +17,7 @@ co::create(function () {
         $ret = co::fwrite($fp, $data);
         if ($ret)
         {
-            Assert::eq(md5($data), md5_file($file));
+            Assert::same(md5($data), md5_file($file));
             unlink($file);
 
             return;

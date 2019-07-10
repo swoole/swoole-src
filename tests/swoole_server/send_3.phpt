@@ -37,8 +37,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
                 $info = unpack('Nlen', substr($data, 0, 4));
 
 //                echo "c=$i, n=$n, len={$info['len']}\n---------------------------------------------------------------------\n";
-                Assert::eq($info['len'], strlen($data) - 4);
-                Assert::eq(str_repeat($char, 1024), substr($data, rand(4, $info['len'] - 1024 - 4), 1024));
+                Assert::same($info['len'], strlen($data) - 4);
+                Assert::same(str_repeat($char, 1024), substr($data, rand(4, $info['len'] - 1024 - 4), 1024));
                 $total += strlen($data);
             }
         });

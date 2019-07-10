@@ -35,7 +35,7 @@ class TestCo
             $ret = $send->push($data);
             Assert::assert($ret);
             $response = $recv->pop();
-            Assert::eq($response, $data);
+            Assert::same($response, $data);
         }
     }
 }

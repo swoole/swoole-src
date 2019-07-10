@@ -22,7 +22,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $server->on('receive', function (Swoole\Server $server, int $fd, int $rid, string $data) use ($pm) {
-        Assert::eq($data, $pm->getRandomData());
+        Assert::same($data, $pm->getRandomData());
         $server->shutdown();
     });
     $server->on('shutdown', function () {

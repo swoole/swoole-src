@@ -28,8 +28,8 @@ go(function () {
         $runtime .= fgets($fp);
     }
 
-    Assert::eq($standard, $coroutine);
-    Assert::eq($standard, $runtime);
+    Assert::same($standard, $coroutine);
+    Assert::same($standard, $runtime);
 
     echo "DONE\n";
 });

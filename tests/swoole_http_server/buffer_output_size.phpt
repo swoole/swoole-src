@@ -12,7 +12,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $response = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}", ['timeout' => 0.1]);
-        Assert::eq(strrpos($response, RANDOM_CHAR) + 1, BUFFER_OUTPUT_SIZE - HTTP_HEADER_SIZE);
+        Assert::same(strrpos($response, RANDOM_CHAR) + 1, BUFFER_OUTPUT_SIZE - HTTP_HEADER_SIZE);
         $response = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/full", ['timeout' => 0.1]);
         Assert::assert(!$response);
         echo file_get_contents(TEST_LOG_FILE);

@@ -17,8 +17,8 @@ if (!$table->create())
 }
 $table->set('test1', ['v1' => 0, 'v2' => 0]);
 
-Assert::eq($table->decr('test1', 'v1', 1), -1);
-Assert::eq($table->decr('test1', 'v2', 1.5), -1.5);
+Assert::same($table->decr('test1', 'v1', 1), -1);
+Assert::same($table->decr('test1', 'v2', 1.5), -1.5);
 
 ?>
 --EXPECT--

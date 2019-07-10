@@ -14,7 +14,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     $file = __DIR__ . '/../../benchmark/post.big.data';
     if (Assert::assert(!empty($res = `nghttp -d {$file} https://127.0.0.1:{$pm->getFreePort()}/ > /dev/stdout 2>/dev/null`))) {
-        Assert::eq(md5($res), md5_file($file));
+        Assert::same(md5($res), md5_file($file));
     }
     $pm->kill();
 };

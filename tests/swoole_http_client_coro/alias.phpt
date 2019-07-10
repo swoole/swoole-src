@@ -15,9 +15,9 @@ go(function () {
     $random = get_safe_random(16);
     Assert::assert($cli->get('/'));
     Assert::contains($cli->getBody(), 'baidu.com');
-    \Swoole\Assert::eq($cli->getStatusCode(), 200);
-    \Swoole\Assert::assert(count($cli->getHeaders()) > 5);
-    \Swoole\Assert::assert(count($cli->getCookies()) > 2);
+    Assert::same($cli->getStatusCode(), 200);
+    Assert::assert(count($cli->getHeaders()) > 5);
+    Assert::assert(count($cli->getCookies()) > 2);
     echo "DONE\n";
 });
 swoole_event_wait();

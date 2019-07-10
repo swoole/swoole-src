@@ -13,7 +13,7 @@ $pm->parentFunc = function () use ($pm) {
         $cli->set(['timeout' => -1]);
         for ($n = MAX_REQUESTS; $n--;) {
             Assert::assert($cli->get('/'));
-            Assert::eq($cli->body, $pm->getRandomData(), var_dump_return($cli));
+            Assert::same($cli->body, $pm->getRandomData(), var_dump_return($cli));
             co::sleep(0.005);
         }
     });

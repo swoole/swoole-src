@@ -13,7 +13,7 @@ try
 }
 catch(swoole_exception $e)
 {
-    Assert::eq($e->getCode(), SOCKET_EADDRNOTAVAIL);
+    Assert::same($e->getCode(), SOCKET_EADDRNOTAVAIL);
     echo "DONE\n";
 }
 ?>

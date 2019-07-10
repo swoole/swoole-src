@@ -29,9 +29,9 @@ go(function () {
     $qq->get('/');
     $baidu->recv(10);
     $qq->recv(10);
-    Assert::eq($baidu->statusCode, 200);
+    Assert::same($baidu->statusCode, 200);
     Assert::assert(stripos($baidu->body, 'baidu') !== false);
-    Assert::eq($qq->statusCode, 200);
+    Assert::same($qq->statusCode, 200);
     Assert::assert(stripos($qq->body, 'tencent') !== false);
 
     //reuse
@@ -39,9 +39,9 @@ go(function () {
     $qq->get('/contract.shtml');
     $baidu->recv(10);
     $qq->recv(10);
-    Assert::eq($baidu->statusCode, 200);
+    Assert::same($baidu->statusCode, 200);
     Assert::assert(stripos($baidu->body, 'baidu') !== false);
-    Assert::eq($qq->statusCode, 200);
+    Assert::same($qq->statusCode, 200);
     Assert::assert(stripos($qq->body, 'tencent') !== false);
 });
 ?>

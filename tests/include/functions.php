@@ -332,7 +332,7 @@ function makeTcpClient_without_protocol($host, $port, callable $onConnect = null
 function opcode_encode($op, $data)
 {
     $r = json_encode([$op, $data]);
-    Assert::eq(json_last_error(), JSON_ERROR_NONE);
+    Assert::same(json_last_error(), JSON_ERROR_NONE);
     return pack("N", strlen($r) + 4) . $r;
 }
 
@@ -340,7 +340,7 @@ function opcode_decode($raw)
 {
     $json = substr($raw, 4);
     $r = json_decode($json, true);
-    Assert::eq(json_last_error(), JSON_ERROR_NONE);
+    Assert::same(json_last_error(), JSON_ERROR_NONE);
     assert(is_array($r) && count($r) === 2);
     return $r;
 }
