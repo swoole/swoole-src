@@ -21,7 +21,7 @@ SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 add_definitions(-DHAVE_CONFIG_H)
 
-INCLUDE_DIRECTORIES(BEFORE ./include ./include/wrapper ./ /usr/local/php/include /usr/local/php/include/Zend /usr/local/php/include/main)
+INCLUDE_DIRECTORIES(BEFORE ./include ./include/wrapper ./)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 #shared library
