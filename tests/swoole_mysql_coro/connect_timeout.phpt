@@ -33,8 +33,8 @@ go(function () {
     ]);
     time_approximate($timeout, microtime(true) - $s);
     Assert::false($connected);
-    Assert::eq($mysql->connected, false);
-    Assert::eq($mysql->connect_errno, SWOOLE_MYSQLND_CR_CONNECTION_ERROR);
+    Assert::same($mysql->connected, false);
+    Assert::same($mysql->connect_errno, SWOOLE_MYSQLND_CR_CONNECTION_ERROR);
 });
 Swoole\Event::wait();
 echo "DONE\n";

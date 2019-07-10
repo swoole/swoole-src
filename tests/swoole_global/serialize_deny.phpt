@@ -11,42 +11,42 @@ go(function () {
         serialize($hcc);
         Assert::true(false, 'never here');
     } catch (\Exception $exception) {
-        Assert::eq(strpos($exception->getMessage(), 'Serialization'), 0);
+        Assert::same(strpos($exception->getMessage(), 'Serialization'), 0);
     }
     try {
         $hcc = new \Swoole\Buffer();
         serialize($hcc);
         Assert::true(false, 'never here');
     } catch (\Exception $exception) {
-        Assert::eq(strpos($exception->getMessage(), 'Serialization'), 0);
+        Assert::same(strpos($exception->getMessage(), 'Serialization'), 0);
     }
     try {
         $hcc = new \Swoole\Client(SWOOLE_TCP);
         serialize($hcc);
         Assert::true(false, 'never here');
     } catch (\Exception $exception) {
-        Assert::eq(strpos($exception->getMessage(), 'Serialization'), 0);
+        Assert::same(strpos($exception->getMessage(), 'Serialization'), 0);
     }
     try {
         $hcc = new \Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         serialize($hcc);
         Assert::true(false, 'never here');
     } catch (\Exception $exception) {
-        Assert::eq(strpos($exception->getMessage(), 'Serialization'), 0);
+        Assert::same(strpos($exception->getMessage(), 'Serialization'), 0);
     }
     try {
         $hcc = new \Swoole\Coroutine\Http\Client('127.0.0.1');
         serialize($hcc);
         Assert::true(false, 'never here');
     } catch (\Exception $exception) {
-        Assert::eq(strpos($exception->getMessage(), 'Serialization'), 0);
+        Assert::same(strpos($exception->getMessage(), 'Serialization'), 0);
     }
     try {
         $hcc = new \Swoole\Coroutine\Mysql();
         serialize($hcc);
         Assert::true(false, 'never here');
     } catch (\Exception $exception) {
-        Assert::eq(strpos($exception->getMessage(), 'Serialization'), 0);
+        Assert::same(strpos($exception->getMessage(), 'Serialization'), 0);
     }
     if (HAS_ASYNC_REDIS) {
         try {
@@ -54,7 +54,7 @@ go(function () {
             serialize($hcc);
             Assert::true(false, 'never here');
         } catch (\Exception $exception) {
-            Assert::eq(strpos($exception->getMessage(), 'Serialization'), 0);
+            Assert::same(strpos($exception->getMessage(), 'Serialization'), 0);
         }
     }
     try {
@@ -62,7 +62,7 @@ go(function () {
         serialize($hcc);
         Assert::true(false, 'never here');
     } catch (\Exception $exception) {
-        Assert::eq(strpos($exception->getMessage(), 'Serialization'), 0);
+        Assert::same(strpos($exception->getMessage(), 'Serialization'), 0);
     }
 });
 ?>

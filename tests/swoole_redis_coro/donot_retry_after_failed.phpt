@@ -22,17 +22,17 @@ go(function () use ($cid, $port) {
     $redis = new Swoole\Coroutine\Redis();
     $ret = $redis->connect('127.0.0.1', 65535);
     Assert::assert(!$ret);
-    Assert::eq($redis->errCode, SOCKET_ECONNREFUSED);
+    Assert::same($redis->errCode, SOCKET_ECONNREFUSED);
     for ($n = MAX_REQUESTS; $n--;) {
         $ret = $redis->get('foo');
         Assert::assert(!$ret);
-        Assert::eq($redis->errType, SWOOLE_REDIS_ERR_CLOSED);
+        Assert::same($redis->errType, SWOOLE_REDIS_ERR_CLOSED);
     }
     $ret = $redis->connect('127.0.0.1', $port);
     Assert::assert($ret);
     Assert::assert($redis->connected);
-    Assert::eq($redis->errCode, 0, $redis->errCode);
-    Assert::eq($redis->errMsg, '', $redis->errMsg);
+    Assert::same($redis->errCode, 0, $redis->errCode);
+    Assert::same($redis->errMsg, '', $redis->errMsg);
     co::sleep(0.001);
     co::resume($cid);
 });

@@ -16,7 +16,7 @@ go(function () {
     ];
     $mysql = new Swoole\Coroutine\MySQL;
     Assert::true($mysql->connect($config));
-    Assert::eq($mysql->query('SELECT 1')[0][1], 1);
+    Assert::same($mysql->query('SELECT 1')[0][1], 1);
 
     $killer = new Swoole\Coroutine\MySQL;
     Assert::true($killer->connect($config));
@@ -30,7 +30,7 @@ go(function () {
 
     switch_process();
     Assert::false($mysql->query('SELECT 1'));
-    Assert::eq($mysql->errno, SWOOLE_MYSQLND_CR_SERVER_GONE_ERROR);
+    Assert::same($mysql->errno, SWOOLE_MYSQLND_CR_SERVER_GONE_ERROR);
     echo $mysql->error . PHP_EOL;
 });
 Swoole\Event::wait();

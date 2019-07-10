@@ -13,6 +13,6 @@ function send_small_request_data($host, $port)
     {
         $client->send($data);
         $response = $client->recv();
-        Assert::eq($response, "SUCCESS", "response failed");
+        Assert::same($response, "SUCCESS", "response failed");
     }
 }

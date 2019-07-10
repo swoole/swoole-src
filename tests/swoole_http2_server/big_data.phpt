@@ -26,8 +26,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
             $req->data = openssl_random_pseudo_bytes(65535 + mt_rand(0, 65535));
             Assert::assert($cli->send($req));
             $res = $cli->recv();
-            Assert::eq($res->statusCode, 200);
-            Assert::eq(md5($req->data), md5($res->data));
+            Assert::same($res->statusCode, 200);
+            Assert::same(md5($req->data), md5($res->data));
         }
         $pm->kill();
     });

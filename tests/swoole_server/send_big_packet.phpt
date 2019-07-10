@@ -34,8 +34,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
                 $send_data = str_repeat('A', 1000) . $sid;
                 $cli->send(pack('N', strlen($send_data)) . $send_data);
                 $data = $cli->recv();
-                Assert::eq(strlen($data), SIZE);
-                Assert::eq($sid, substr($data, -8, 8));
+                Assert::same(strlen($data), SIZE);
+                Assert::same($sid, substr($data, -8, 8));
             }
         });
     }

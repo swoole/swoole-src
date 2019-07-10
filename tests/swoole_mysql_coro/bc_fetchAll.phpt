@@ -23,17 +23,17 @@ Co\run(function () {
         if (Assert::true($client->query("CREATE TABLE `empty` (`id` int(11))"))) {
             // query
             Assert::notEmpty($client->query('SELECT * FROM `ckl`'));
-            Assert::eq($client->query('SELECT * FROM `empty`'), []);
-            Assert::eq($client->query('SELECT * FROM `notexist`'), false);
+            Assert::same($client->query('SELECT * FROM `empty`'), []);
+            Assert::same($client->query('SELECT * FROM `notexist`'), false);
             // execute
             Assert::notEmpty($client->prepare('SELECT * FROM `ckl`')->execute());
-            Assert::eq(($statement = $client->prepare('SELECT * FROM `empty`'))->execute(), []);
-            Assert::eq($client->prepare('SELECT * FROM `notexist`'), false);
+            Assert::same(($statement = $client->prepare('SELECT * FROM `empty`'))->execute(), []);
+            Assert::same($client->prepare('SELECT * FROM `notexist`'), false);
             // closed
             Assert::true($client->close());
-            Assert::eq($client->query('SELECT * FROM `empty`'), false);
-            Assert::eq($client->prepare('SELECT * FROM `empty`'), false);
-            Assert::eq($statement->execute(), false);
+            Assert::same($client->query('SELECT * FROM `empty`'), false);
+            Assert::same($client->prepare('SELECT * FROM `empty`'), false);
+            Assert::same($statement->execute(), false);
 
             if (Assert::true($client->connect($server + ['fetch_mode' => true]))) {
                 // query
@@ -41,22 +41,22 @@ Co\run(function () {
                 Assert::notEmpty($client->fetch());
                 Assert::null($client->fetch());
                 Assert::null($client->fetch());
-                Assert::eq($client->fetchAll(), []);
+                Assert::same($client->fetchAll(), []);
                 Assert::true($client->query('SELECT * FROM `ckl` LIMIT 1'));
                 Assert::count($client->fetchAll(), 1);
-                Assert::eq($client->fetchAll(), []);
+                Assert::same($client->fetchAll(), []);
                 // execute
                 Assert::isInstanceOf(
                     $statement = $client->prepare('SELECT * FROM `ckl` LIMIT 1'),
                     Swoole\Coroutine\MySQL\Statement::class
                 );
-                Assert::eq($statement->fetchAll(), []);
+                Assert::same($statement->fetchAll(), []);
                 Assert::true($statement->execute());
                 Assert::notEmpty($statement->fetch());
                 Assert::null($statement->fetch());
                 Assert::true($statement->execute());
                 Assert::notEmpty($statement->fetchAll());
-                Assert::eq($statement->fetchAll(), []);
+                Assert::same($statement->fetchAll(), []);
                 // closed
                 Assert::true($client->close());
                 Assert::false($client->query('SELECT * FROM `ckl` LIMIT 1'));

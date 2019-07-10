@@ -105,9 +105,9 @@ SQL
             for ($i = 3; $i--;) {
                 list($from, $result) = $chan->pop();
                 if ($result['fid'] === $fid) {
-                    Assert::eq($result['firmware'], $firmware);
-                    Assert::eq($result['f_md5'], $f_md5);
-                    Assert::eq($result['f_remark'], $f_remark);
+                    Assert::same($result['firmware'], $firmware);
+                    Assert::same($result['f_md5'], $f_md5);
+                    Assert::same($result['f_remark'], $f_remark);
                 } else {
                     Assert::assert(0, 'wrong result from ' . $from);
                     unset($result['firmware']); // too long to show

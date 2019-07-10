@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
-        \Swoole\Assert::assert(httpGetStatusCode("http://127.0.0.1:{$pm->getFreePort()}/test") == 404);
+        Assert::assert(httpGetStatusCode("http://127.0.0.1:{$pm->getFreePort()}/test") == 404);
         echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/stop?hello=1") . PHP_EOL;
     });
 };

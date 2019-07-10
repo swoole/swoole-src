@@ -59,7 +59,7 @@ for ($i = 0; $i < count($exit_status_list); $i++) {
             Assert::assert($e->getFlags() & SWOOLE_EXIT_IN_COROUTINE);
             $exit_status = $chan->pop();
             $exit_status = $exit_status === 'undef' ? null : $exit_status;
-            Assert::eq($e->getStatus(), $exit_status);
+            Assert::same($e->getStatus(), $exit_status);
             var_dump($e->getStatus());
             // exit coroutine
             return;

@@ -14,7 +14,7 @@ go(function () {
     $ret = $redis->set('foo', 'bar');
     Assert::assert($ret);
     $ret = $redis->get('foo');
-    Assert::eq($ret, 'bar');
+    Assert::same($ret, 'bar');
 });
 swoole_event_wait();
 echo "DONE\n";

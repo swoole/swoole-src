@@ -12,7 +12,7 @@ $proc = new \swoole_process(function() {
 $pid = $proc->start();
 swoole_process::kill($pid, SIGKILL);
 $i = \swoole_process::wait(true);
-Assert::eq($i["signal"], SIGKILL);
+Assert::same($i["signal"], SIGKILL);
 echo "SUCCESS";
 ?>
 --EXPECT--

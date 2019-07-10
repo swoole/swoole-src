@@ -14,7 +14,7 @@ $pm->parentFunc = function () use ($pm) {
             $client = new Co\Client(SWOOLE_SOCK_UDP);
             Assert::assert($client->connect('127.0.0.1', $pm->getFreePort()));
             Assert::assert($client->send($data = get_safe_random()));
-            Assert::eq($client->recv(), $data);
+            Assert::same($client->recv(), $data);
         });
     }
     Swoole\Event::wait();
@@ -40,7 +40,7 @@ $pm->childFunc = function () use ($pm) {
     });
     $server->on('packet', function (Swoole\Server $server, $data, $client) {
         $fd = unpack('L', pack('N', ip2long($client['address'])))[1];
-        Assert::eq($fd % $server->setting['worker_num'], $server->worker_id);
+        Assert::same($fd % $server->setting['worker_num'], $server->worker_id);
         $server->sendto($client['address'], $client['port'], $data);
     });
     $server->start();

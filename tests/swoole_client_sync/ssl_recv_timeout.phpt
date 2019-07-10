@@ -15,7 +15,7 @@ $pm->parentFunc = function () use ($pm) {
     $time = time();
     $data = $cli->recv(1024);
     Assert::assert((time() - $time) < 2);
-    Assert::eq($data, "Swoole hello world\n");
+    Assert::same($data, "Swoole hello world\n");
     $pm->kill();
 };
 

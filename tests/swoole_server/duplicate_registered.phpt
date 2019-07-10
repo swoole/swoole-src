@@ -9,7 +9,7 @@ $server = new Swoole\Server('127.0.0.1', 9501);
 $server->on('start', function () { });
 $mem = memory_get_usage();
 for ($n = 1000; $n--;) {
-    Assert::eq($mem, memory_get_usage());
+    Assert::same($mem, memory_get_usage());
     $server->on('start', function () { });
 }
 echo "DONE\n";

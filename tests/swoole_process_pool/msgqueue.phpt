@@ -35,7 +35,7 @@ $pm->childFunc = function () use ($pm) {
         $data = json_decode($message, true);
         Assert::assert($data);
         Assert::assert(is_array($data));
-        Assert::eq(strlen(base64_decode($data['data'])), 1024);
+        Assert::same(strlen(base64_decode($data['data'])), 1024);
     });
 
     $pool->on('workerStop', function (Swoole\Process\Pool $pool, int $workerId) {

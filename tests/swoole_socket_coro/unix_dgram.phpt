@@ -11,7 +11,7 @@ go(function () {
     $server->bind('/tmp/test-server.sock');
     go(function () use ($server) {
         while ($data = $server->recvfrom($peer)) {
-            Assert::eq($data, 'hello');
+            Assert::same($data, 'hello');
             $server->sendto($peer['address'], 0, 'world');
         }
         var_dump($peer);
@@ -28,7 +28,7 @@ go(function () {
             if (empty($data)) {
                 break;
             }
-            Assert::eq($data, 'world');
+            Assert::same($data, 'world');
         }
         var_dump($peer);
         $client->close();

@@ -27,7 +27,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         for ($n = MAX_REQUESTS; $n--;) {
             Assert::assert($cli->send($req));
             $response = $cli->recv(1);
-            Assert::eq($response->data, co::readFile(__FILE__));
+            Assert::same($response->data, co::readFile(__FILE__));
         }
         `ps -A | grep nghttpd | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1`;
         echo "DONE\n";

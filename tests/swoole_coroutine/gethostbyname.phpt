@@ -34,7 +34,7 @@ go(function () {
     for ($n = MAX_CONCURRENCY; $n--;) {
         foreach ($map as $host => $ip) {
             $_ip = co::gethostbyname($host);
-            Assert::eq($ip, $_ip);
+            Assert::same($ip, $_ip);
         }
     }
     $cache_time = microtime(true) - $cache_time;

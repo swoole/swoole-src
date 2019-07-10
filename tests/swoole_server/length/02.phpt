@@ -14,8 +14,8 @@ class PkgServer_2 extends TestServer
     {
         static $index = 0;
         $header = unpack('nlen', $data);
-        Assert::eq(strlen($data), 2);
-        Assert::eq($header['len'], 2);
+        Assert::same(strlen($data), 2);
+        Assert::same($header['len'], 2);
         if ($index % 1000 == 0) {
             //echo "#{$header['index']} recv package. sid={$header['sid']}, length=" . strlen($data) . ", bytes={$this->recv_bytes}\n";
         }

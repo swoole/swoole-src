@@ -12,7 +12,7 @@ go(function () {
         co::sleep(0.001);
         $chan->push("data");
     });
-    Assert::eq($chan->pop(0.001), "data");
+    Assert::same($chan->pop(0.001), "data");
     Assert::false($chan->pop(0.001));
 });
 

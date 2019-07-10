@@ -14,9 +14,9 @@ $pm->parentFunc = function ($pid) use ($port)
     $cli->connect('127.0.0.1', $port, 0.5) or die("ERROR");
 
     $cli->send("task-01") or die("ERROR");
-    Assert::eq($cli->recv(), 'OK');
+    Assert::same($cli->recv(), 'OK');
     $cli->send("task-02") or die("ERROR");
-    Assert::eq($cli->recv(), 'OK');
+    Assert::same($cli->recv(), 'OK');
     $cli->close();
     swoole_process::kill($pid);
 };

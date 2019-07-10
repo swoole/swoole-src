@@ -17,15 +17,15 @@ $pm->parentFunc = function () use ($pm) {
         $ret = $redis->set('random_val', $random = get_safe_random(128));
         Assert::assert($ret);
         $ret = $redis->get('random_val');
-        Assert::eq($ret and $ret, $random);
+        Assert::same($ret, $random);
         $pm->kill();
         Assert::assert(!$redis->get('random_val'));
-        Assert::eq($redis->errCode, SOCKET_ECONNRESET);
+        Assert::same($redis->errCode, SOCKET_ECONNRESET);
         for ($n = MAX_REQUESTS; $n--;) {
             Assert::assert(!$redis->set('random_val', get_safe_random(128)));
-            Assert::eq($redis->errCode, SOCKET_ECONNREFUSED);
+            Assert::same($redis->errCode, SOCKET_ECONNREFUSED);
             Assert::assert(!$redis->get('random_val'));
-            Assert::eq($redis->errCode, SOCKET_ECONNREFUSED);
+            Assert::same($redis->errCode, SOCKET_ECONNREFUSED);
         }
     });
 };

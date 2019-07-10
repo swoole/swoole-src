@@ -24,8 +24,8 @@ $status = $process::wait();
 if (Assert::isArray($status)) {
     list($pid, $code, $signal) = array_values($status);
     Assert::greaterThan($pid, 0);
-    Assert::eq($code, 0);
-    Assert::eq($signal, 0);
+    Assert::same($code, 0);
+    Assert::same($signal, 0);
 }
 ?>
 --EXPECT--

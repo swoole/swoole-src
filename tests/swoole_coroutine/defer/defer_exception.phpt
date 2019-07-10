@@ -11,14 +11,14 @@ go(function () {
         $bar = 'cha';
         defer(function () use ($foo, $bar) {
             echo "defer 1\n";
-            Assert::eq($foo, 1);
-            Assert::eq($bar, 'cha');
+            Assert::same($foo, 1);
+            Assert::same($bar, 'cha');
         });
         $foo = 2;
         $bar = 'gua';
         defer(function () use ($foo, &$bar) {
             echo "defer 2\n";
-            Assert::eq($foo, 2);
+            Assert::same($foo, 2);
             Assert::assert($foo !== 'gua'); // because of &
         });
         $foo = 3;

@@ -35,7 +35,7 @@ go(function () use ($sock, $port) {
     Assert::false($val);
 
     Assert::false($redis->connected);
-    Assert::eq($redis->errType, SWOOLE_REDIS_ERR_EOF);
+    Assert::same($redis->errType, SWOOLE_REDIS_ERR_EOF);
 
     $redis->close();
     $sock->close();

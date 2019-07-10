@@ -35,7 +35,7 @@ while ($rd_bytes < N) {
     $rd_bytes += strlen($recv);
 }
 
-Assert::eq($process->statQueue()['queue_bytes'], 0);
+Assert::same($process->statQueue()['queue_bytes'], 0);
 
 $process->freeQueue();
 ?>

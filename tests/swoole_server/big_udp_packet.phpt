@@ -21,7 +21,7 @@ $pm->parentFunc = function ($pid) use ($port)
     }
     $client->send(str_repeat('A',  N));
     $data = $client->recv();
-    Assert::eq(strlen($data), N);
+    Assert::same(strlen($data), N);
     swoole_process::kill($pid);
 };
 

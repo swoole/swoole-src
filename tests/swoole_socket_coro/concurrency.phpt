@@ -42,7 +42,7 @@ for ($i = 0; $i < N; $i++)
         if ($ret)
         {
             $cli->send("hello\n");
-            Assert::eq($cli->recv(), 'Server: hello'."\n");
+            Assert::same($cli->recv(), 'Server: hello'."\n");
             $cli->close();
         }
         else

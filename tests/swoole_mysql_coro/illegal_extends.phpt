@@ -48,11 +48,11 @@ go(function () {
     Assert::true($db->connect($server));
     Assert::false($db->connected);
     Assert::false($db->query('select 1'));
-    Assert::eq($db->errno, SWOOLE_MYSQLND_CR_CONNECTION_ERROR);
+    Assert::same($db->errno, SWOOLE_MYSQLND_CR_CONNECTION_ERROR);
 
     // right implementation
     Assert::true($db->connectRaw($server));
-    Assert::eq($db->query('select 1')[0][1], 1);
+    Assert::same($db->query('select 1')[0][1], 1);
 });
 
 Swoole\Event::wait();

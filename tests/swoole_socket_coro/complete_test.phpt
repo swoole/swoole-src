@@ -10,14 +10,14 @@ $port = get_one_free_port();
 $pm->parentFunc = function ($pid) use ($pm, $port) {
     $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, 0);
     Assert::isInstanceOf($socket, Swoole\Coroutine\Socket::class);
-    Assert::eq($socket->errCode, 0);
+    Assert::same($socket->errCode, 0);
     go(function () use ($socket, $port) {
         Assert::assert($socket->connect('localhost', $port));
         $i = 0.000;
         while (true) {
             $socket->send("hello");
             $server_reply = $socket->recv(1024, 0.1);
-            Assert::eq($server_reply, 'swoole');
+            Assert::same($server_reply, 'swoole');
             co::sleep($i += .001); // after 10 times we sleep 0.01s to trigger server timeout
             if ($i > .01) {
                 break;
@@ -41,11 +41,11 @@ $pm->childFunc = function () use ($pm, $port) {
         while (true) {
             $client_data = $client->recv(1024, 0.1);
             if ($client->errCode > 0) {
-                Assert::eq($client->errCode, SOCKET_ETIMEDOUT);
+                Assert::same($client->errCode, SOCKET_ETIMEDOUT);
                 break;
             } else {
                 $i++;
-                Assert::eq($client_data, 'hello');
+                Assert::same($client_data, 'hello');
                 $client->send('swoole');
             }
         }

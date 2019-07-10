@@ -30,7 +30,7 @@ go(function () {
         Assert::true($statement->recv());
         $result = $statement->fetchAll();
         if (Assert::isArray($result)) {
-            Assert::eq(reset($result[0]), (float)($a + $b));
+            Assert::same(reset($result[0]), (float)($a + $b));
         }
     }
 });

@@ -26,8 +26,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
         for ($n = MAX_REQUESTS; $n--;) {
             Assert::assert($cli->send($req));
             $response = $cli->recv();
-            Assert::eq($response->statusCode, 200);
-            Assert::eq(md5_file(__DIR__ . '/../../README.md'), md5($response->data));
+            Assert::same($response->statusCode, 200);
+            Assert::same(md5_file(__DIR__ . '/../../README.md'), md5($response->data));
         }
         $pm->kill();
     });

@@ -11,8 +11,8 @@ $server->on('shutdown', function ($server) { });
 Assert::isInstanceOf($server->getCallback('start'), Closure::class);
 Assert::assert(is_callable($server->getCallback('start')));
 $cb = $server->getCallback('start');
-Assert::eq($cb, $server->getCallback('start'));
-Assert::eq($server->getCallback('Receive'), null);
+Assert::same($cb, $server->getCallback('start'));
+Assert::same($server->getCallback('Receive'), null);
 $server->on('receive', function () { });
 Assert::isInstanceOf($server->getCallback('receive'), Closure::class);
 echo "DONE\n"

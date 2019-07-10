@@ -12,10 +12,10 @@ $pm->parentFunc = function () use ($pm) {
     Assert::assert($r);
     $r = $w = $e = [$cli];
     $n = swoole_client_select($r, $w, $e, 0);
-    Assert::eq($n, 1);
-    Assert::eq(count($w), 1);
-    Assert::eq(count($e), 0);
-    Assert::eq(count($r), 0);
+    Assert::same($n, 1);
+    Assert::same(count($w), 1);
+    Assert::same(count($e), 0);
+    Assert::same(count($r), 0);
     $cli->close();
     echo "SUCCESS\n";
     $pm->kill();

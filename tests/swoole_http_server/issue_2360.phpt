@@ -24,8 +24,8 @@ $pm->parentFunc = function () use ($pm) {
         for ($n = MAX_REQUESTS; $n--;) {
             $data = $pm->getRandomData();
             Assert::true($cli->post('/', $data));
-            Assert::eq($cli->statusCode, 200);
-            Assert::eq($cli->body, $data);
+            Assert::same($cli->statusCode, 200);
+            Assert::same($cli->body, $data);
             phpt_echo("posting " . strlen($data) . " bytes\n");
         }
         $cli->close();

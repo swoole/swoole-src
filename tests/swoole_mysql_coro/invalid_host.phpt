@@ -16,7 +16,7 @@ go(function () {
         'timeout' => 0.5
     ]);
     echo 'Connection: ' . ($connected ? 'Connected' : 'Not connected') . PHP_EOL;
-    Assert::eq($mysql->connect_errno, SWOOLE_MYSQLND_CR_CONNECTION_ERROR);
+    Assert::same($mysql->connect_errno, SWOOLE_MYSQLND_CR_CONNECTION_ERROR);
     echo $mysql->connect_error . PHP_EOL;
 });
 ?>
