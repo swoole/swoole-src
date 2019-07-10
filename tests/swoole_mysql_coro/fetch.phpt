@@ -28,7 +28,7 @@ go(function () {
         echo "FETCH2 ERROR#{$stmt->errno}: {$stmt->error}\n";
     }
     Assert::eq($stmt->fetch(), null);
-    Assert::eq($stmt->fetchAll(), null);
+    Assert::eq($stmt->fetchAll(), []);
 });
 ?>
 --EXPECT--

@@ -11,7 +11,8 @@ go(function () {
         'port' => MYSQL_SERVER_PORT,
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
-        'database' => MYSQL_SERVER_DB
+        'database' => MYSQL_SERVER_DB,
+        'strict_type' => true
     ];
     $mysql = new Swoole\Coroutine\MySQL;
     Assert::true($mysql->connect($config));

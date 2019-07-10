@@ -5,7 +5,7 @@
     }
   },
   "require": {
-    "swoole/assert": "^2.0"
+    "swoole/assert": "^2"
   },
   "minimum-stability": "rc",
   "repositories": {

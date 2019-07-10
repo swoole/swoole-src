@@ -1161,6 +1161,10 @@ void mysql_client::handle_strict_type(zval *ztext, mysql::field_packet *field)
 
 void mysql_client::fetch(zval *return_value)
 {
+    if (sw_unlikely(!is_connect()))
+    {
+        RETURN_FALSE;
+    }
     if (sw_unlikely(state != SW_MYSQL_STATE_QUERY_FETCH))
     {
         RETURN_NULL();
@@ -1200,34 +1204,24 @@ void mysql_client::fetch(zval *return_value)
 
 void mysql_client::fetch_all(zval *return_value)
 {
-    if (sw_likely(state == SW_MYSQL_STATE_QUERY_FETCH))
+    array_init(return_value);
+    while (true)
     {
         zval zrow;
-        fetch(return_value);
-        if (sw_unlikely(!ZVAL_IS_ARRAY(return_value)))
+        fetch(&zrow);
+        if (sw_unlikely(ZVAL_IS_NULL(&zrow)))
         {
+            // eof
             return;
         }
-        zrow = *return_value;
-        array_init(return_value);
-        do
+        if (sw_unlikely(Z_TYPE_P(&zrow) == IS_FALSE))
         {
-            (void) add_next_index_zval(return_value, &zrow);
-            fetch(&zrow);
-            if (sw_unlikely(ZVAL_IS_NULL(&zrow)))
-            {
-                // eof
-                return;
-            }
-            if (sw_unlikely(Z_TYPE_P(&zrow) == IS_FALSE))
-            {
-                // error
-                zval_ptr_dtor(return_value);
-                RETURN_FALSE;
-            }
-        } while (true);
+            // error
+            zval_ptr_dtor(return_value);
+            RETURN_FALSE;
+        }
+        (void) add_next_index_zval(return_value, &zrow);
     }
-    RETURN_NULL();
 }
 
 void mysql_client::next_result(zval *return_value)
@@ -1750,34 +1744,25 @@ void mysql_statement::fetch_all(zval *return_value)
     {
         RETURN_FALSE;
     }
-    if (sw_likely(client->state == SW_MYSQL_STATE_EXECUTE_FETCH))
+
+    zval zrow;
+    array_init(return_value);
+    while (true)
     {
-        zval zrow;
-        fetch(return_value);
-        if (sw_unlikely(!ZVAL_IS_ARRAY(return_value)))
+        fetch(&zrow);
+        if (sw_unlikely(ZVAL_IS_NULL(&zrow)))
         {
+            // eof
             return;
         }
-        zrow = *return_value;
-        array_init(return_value);
-        do
+        if (sw_unlikely(Z_TYPE_P(&zrow) == IS_FALSE))
         {
-            (void) add_next_index_zval(return_value, &zrow);
-            fetch(&zrow);
-            if (sw_unlikely(ZVAL_IS_NULL(&zrow)))
-            {
-                // eof
-                return;
-            }
-            if (sw_unlikely(Z_TYPE_P(&zrow) == IS_FALSE))
-            {
-                // error
-                zval_ptr_dtor(return_value);
-                RETURN_FALSE;
-            }
-        } while (true);
+            // error
+            zval_ptr_dtor(return_value);
+            RETURN_FALSE;
+        }
+        (void) add_next_index_zval(return_value, &zrow);
     }
-    RETURN_NULL();
 }
 
 void mysql_statement::next_result(zval *return_value)
