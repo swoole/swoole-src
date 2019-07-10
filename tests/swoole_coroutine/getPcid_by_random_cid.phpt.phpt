@@ -26,10 +26,18 @@ go(function () {
         var_dump(Co::getPcid(3)); // false
     });
 });
+
+$cid = Co::getCid();
+$traces = [];
+do {
+    $traces[] = Co::getBackTrace($cid);
+    $cid = Co::getPcid();
+    var_dump($cid); // false
+} while ($cid !== false);
 ?>
 --EXPECT--
-int(-1)
-int(-1)
+bool(false)
+bool(false)
 int(-1)
 int(-1)
 bool(false)
@@ -41,4 +49,5 @@ int(1)
 int(2)
 bool(false)
 int(1)
+bool(false)
 bool(false)

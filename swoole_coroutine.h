@@ -138,13 +138,9 @@ public:
     {
         php_coro_task *task = cid == 0 ? get_task() : get_task_by_cid(cid);
 
-        if (task == nullptr)
+        if (task == nullptr || task == &main_task)
         {
             return 0;
-        }
-        if (task == &main_task)
-        {
-            return -1;
         }
        
         return task->pcid;
