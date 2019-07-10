@@ -18,7 +18,7 @@ $pm->parentFunc = function ($pid) use ($pm, $port1, $port2, $port3)
         $r = $cli->send("$port1\r\n");
         Assert::assert($r !== false);
     }, function(\swoole_client $cli, $data) use($port1) {
-        Assert::same($data, $port1);
+        Assert::same((int)$data, $port1);
         $cli->close();
     });
 
@@ -26,7 +26,7 @@ $pm->parentFunc = function ($pid) use ($pm, $port1, $port2, $port3)
         $r = $cli->send("$port2\n");
         Assert::assert($r !== false);
     }, function(\swoole_client $cli, $data) use($port2) {
-        Assert::same($data, $port2);
+        Assert::same((int)$data, $port2);
         $cli->close();
     });
 
@@ -34,7 +34,7 @@ $pm->parentFunc = function ($pid) use ($pm, $port1, $port2, $port3)
         $r = $cli->send("$port3\r");
         Assert::assert($r !== false);
     }, function(\swoole_client $cli, $data) use($port1, $port3) {
-        Assert::same($data, $port1);
+        Assert::same((int)$data, $port1);
         $cli->close();
     });
     swoole_event_wait();
