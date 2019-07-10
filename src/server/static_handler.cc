@@ -249,16 +249,20 @@ bool static_handler::done()
 {
     char *p = task.filename;
     char *url = request->buffer->str + request->url_offset;
+
     /**
      * discard the url parameter
-     * [/test.jpg?version=1] -> [/test.jpg]
+     * [/test.jpg?version=1#position] -> [/test.jpg]
      */
     char *params = (char*) memchr(url, '?', request->url_length);
+    if (params == NULL)
+    {
+        params = (char*) memchr(url, '#', request->url_length);
+    }
+    size_t n = params ? params - url : request->url_length;
 
     memcpy(p, serv->document_root, serv->document_root_len);
     p += serv->document_root_len;
-
-    size_t n = params ? params - url : request->url_length;
 
     if (locations.size() > 0)
     {
@@ -283,6 +287,8 @@ bool static_handler::done()
     memcpy(p, url, n);
     p += n;
     *p = '\0';
+
+    task.filename[swHttp_url_decode(task.filename, p - task.filename)] = '\0';
 
     if (swoole_strnpos(url, n, SW_STRL("..")) == -1)
     {

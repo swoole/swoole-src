@@ -174,6 +174,86 @@ const char *swHttp_get_status_message(int code)
     }
 }
 
+static int sw_htoi(char *s)
+{
+    int value;
+    int c;
+
+    c = ((unsigned char *)s)[0];
+    if (isupper(c))
+    {
+        c = tolower(c);
+    }
+    value = (c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10) * 16;
+
+    c = ((unsigned char *)s)[1];
+    if (isupper(c))
+    {
+        c = tolower(c);
+    }
+    value += c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10;
+
+    return (value);
+}
+
+/* return value: length of decoded string */
+size_t swHttp_url_decode(char *str, size_t len)
+{
+    char *dest = str;
+    char *data = str;
+
+    while (len--) {
+        if (*data == '+') {
+            *dest = ' ';
+        }
+        else if (*data == '%' && len >= 2 && isxdigit((int) *(data + 1)) && isxdigit((int) *(data + 2))) {
+            *dest = (char) sw_htoi(data + 1);
+            data += 2;
+            len -= 2;
+        } else {
+            *dest = *data;
+        }
+        data++;
+        dest++;
+    }
+    *dest = '\0';
+
+    return dest - str;
+}
+
+char* swHttp_url_encode(char const *str, size_t len)
+{
+    static unsigned char hexchars[] = "0123456789ABCDEF";
+
+    register size_t x, y;
+    char *ret = sw_malloc(len * 3);
+
+    for (x = 0, y = 0; len--; x++, y++) {
+        char c = str[x];
+
+        ret[y] = c;
+        if ((c < '0' && c != '-' &&  c != '.') ||
+            (c < 'A' && c > '9') ||
+            (c > 'Z' && c < 'a' && c != '_') ||
+            (c > 'z' && c != '~')) {
+            ret[y++] = '%';
+            ret[y++] = hexchars[(unsigned char) c >> 4];
+            ret[y] = hexchars[(unsigned char) c & 15];
+        }
+    }
+    ret[y] = '\0';
+
+    do {
+        size_t size = y + 1;
+        char *tmp = sw_malloc(size);
+        memcpy(tmp, ret, size);
+        sw_free(ret);
+        ret = tmp;
+    } while (0);
+
+    return ret;
+}
+
 /**
  * only GET/POST
  */
