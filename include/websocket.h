@@ -17,12 +17,9 @@
 #ifndef SW_WEBSOCKET_H_
 #define SW_WEBSOCKET_H_
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 #include "http.h"
+
+SW_EXTERN_C_BEGIN
 
 #define SW_WEBSOCKET_GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 #define SW_WEBSOCKET_HEADER_LEN  2
@@ -71,7 +68,9 @@ typedef struct
     char *payload;
 } swWebSocket_frame;
 
-enum swWebsocketCode
+#define WEBSOCKET_VERSION    13
+
+enum swWebsocket_opcode
 {
     WEBSOCKET_OPCODE_CONTINUATION = 0x0,
     WEBSOCKET_OPCODE_TEXT = 0x1,
@@ -79,7 +78,10 @@ enum swWebsocketCode
     WEBSOCKET_OPCODE_CLOSE = 0x8,
     WEBSOCKET_OPCODE_PING = 0x9,
     WEBSOCKET_OPCODE_PONG = 0xa,
+};
 
+enum swWebsocket_close_reason
+{
     WEBSOCKET_CLOSE_NORMAL = 1000,
     WEBSOCKET_CLOSE_GOING_AWAY = 1001,
     WEBSOCKET_CLOSE_PROTOCOL_ERROR = 1002,
@@ -92,7 +94,6 @@ enum swWebsocketCode
     WEBSOCKET_CLOSE_EXTENSION_MISSING = 1010,
     WEBSOCKET_CLOSE_SERVER_ERROR = 1011,
     WEBSOCKET_CLOSE_TLS = 1015,
-    WEBSOCKET_VERSION = 13,
 };
 
 void swWebSocket_encode(swString *buffer, const char *data, size_t length, char opcode, uint8_t finish, uint8_t mask);
@@ -103,8 +104,6 @@ void swWebSocket_print_frame(swWebSocket_frame *frame);
 ssize_t swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 int swWebSocket_dispatch_frame(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 
-#ifdef __cplusplus
-}
-#endif
+SW_EXTERN_C_END
 
 #endif /* SW_WEBSOCKET_H_ */

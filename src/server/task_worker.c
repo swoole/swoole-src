@@ -88,7 +88,7 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
 
 int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
 {
-    swPackage_task pkg;
+    swPacket_task pkg;
     bzero(&pkg, sizeof(pkg));
 
     memcpy(pkg.tmpfile, SwooleG.task_tmpdir, SwooleG.task_tmpdir_len);
@@ -107,12 +107,12 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
         return SW_ERR;
     }
 
-    task->info.len = sizeof(swPackage_task);
+    task->info.len = sizeof(swPacket_task);
     //use tmp file
     swTask_type(task) |= SW_TASK_TMPFILE;
 
     pkg.length = data_len;
-    memcpy(task->data, &pkg, sizeof(swPackage_task));
+    memcpy(task->data, &pkg, sizeof(swPacket_task));
     close(tmp_fd);
     return SW_OK;
 }

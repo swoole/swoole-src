@@ -17,14 +17,11 @@
 #ifndef SW_HTTP2_H_
 #define SW_HTTP2_H_
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+SW_EXTERN_C_BEGIN
 
 #define SW_HTTP2_PRI_STRING  "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
-enum swHttp2ErrorCode
+enum swHttp2_error_code
 {
     SW_HTTP2_ERROR_NO_ERROR = 0,
     SW_HTTP2_ERROR_PROTOCOL_ERROR = 1,
@@ -41,7 +38,7 @@ enum swHttp2ErrorCode
     SW_HTTP2_ERROR_INADEQUATE_SECURITY = 12,
 };
 
-enum swHttp2FrameType
+enum swHttp2_frame_type
 {
     SW_HTTP2_TYPE_DATA = 0,
     SW_HTTP2_TYPE_HEADERS = 1,
@@ -65,7 +62,7 @@ enum swHttp2FrameFlag
     SW_HTTP2_FLAG_PRIORITY = 0x20,
 };
 
-enum swHttp2SettingId
+enum swHttp2_setting_id
 {
     SW_HTTP2_SETTING_HEADER_TABLE_SIZE       = 0x1,
     SW_HTTP2_SETTINGS_ENABLE_PUSH            = 0x2,
@@ -75,7 +72,7 @@ enum swHttp2SettingId
     SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE   = 0x6,
 };
 
-enum swHttp2StreamType
+enum swHttp2_stream_type
 {
     SW_HTTP2_STREAM_NORMAL      = 0,
     SW_HTTP2_STREAM_PIPELINE    = 1,
@@ -100,6 +97,7 @@ enum swHttp2StreamType
     ((flags & SW_HTTP2_FLAG_END_HEADERS) ? "\nEND_HEADERS |" : ""), \
     ((flags & SW_HTTP2_FLAG_PADDED) ? "\nEND_PADDED |" : ""), \
     ((flags & SW_HTTP2_FLAG_PRIORITY) ? "\nEND_PRIORITY |" : "")
+
 #define swHttp2FrameTraceLog(recv, str, ...) \
     swTraceLog( \
         SW_TRACE_HTTP2, \
@@ -109,7 +107,7 @@ enum swHttp2StreamType
         swHttp2FrameTraceLogFlags \
     );
 
-typedef struct
+typedef struct _swHttp2_settings
 {
     uint32_t header_table_size;
     uint32_t window_size;
@@ -129,7 +127,7 @@ typedef struct
  |                   Frame Payload (0...)                      ...
  +---------------------------------------------------------------+
  */
-typedef struct
+typedef struct _swHttp2_frame
 {
     uint32_t length :24;
     uint32_t type :8;
@@ -179,8 +177,6 @@ static sw_inline void swHttp2_set_frame_header(char *buffer, uint8_t type, uint3
     *(uint32_t *) (buffer + 5) = htonl(stream_id);
 }
 
-#ifdef __cplusplus
-}
-#endif
+SW_EXTERN_C_END
 
 #endif /* SW_HTTP2_H_ */

@@ -51,7 +51,7 @@ static int swFactory_shutdown(swFactory *factory)
 static int swFactory_dispatch(swFactory *factory, swSendData *task)
 {
     swServer *serv = factory->ptr;
-    swPackagePtr pkg;
+    swPacket_ptr pkg;
 
     if (swEventData_is_stream(task->info.type))
     {

@@ -5,37 +5,38 @@ swoole_coroutine: getPcid
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-echo Co::getPcid(), "\n";
+
+var_dump(Co::getPcid());
 go(function () {
-    echo Co::getPcid(), "\n";
+    var_dump(Co::getPcid());
     go(function () {
-        echo Co::getPcid(), "\n";
+        var_dump(Co::getPcid());
         go(function () {
-            echo Co::getPcid(), "\n";
+            var_dump(Co::getPcid());
             go(function () {
-                echo Co::getPcid(), "\n";
+                var_dump(Co::getPcid());
             });
             go(function () {
-                echo Co::getPcid(), "\n";
+                var_dump(Co::getPcid());
             });
             go(function () {
-                echo Co::getPcid(), "\n";
+                var_dump(Co::getPcid());
             });
         });
-        echo Co::getPcid(), "\n";
+        var_dump(Co::getPcid());
     });
-    echo Co::getPcid(), "\n";
+    var_dump(Co::getPcid());
 });
-echo Co::getPcid(), "\n";
+var_dump(Co::getPcid());
 ?>
 --EXPECT--
--1
--1
-1
-2
-3
-3
-3
-1
--1
--1
+bool(false)
+int(-1)
+int(1)
+int(2)
+int(3)
+int(3)
+int(3)
+int(1)
+int(-1)
+bool(false)

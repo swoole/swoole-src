@@ -93,13 +93,26 @@ struct php_coro_context
     php_coro_task *current_task;
 };
 
+PHP_METHOD(swoole_coroutine_scheduler, set);
+
 namespace swoole
 {
+
+namespace coroutine
+{
+struct Config
+{
+    uint64_t max_num;
+    long hook_flags;
+    bool enable_preemptive_scheduler;
+};
+}
+
 class PHPCoroutine
 {
 public:
     static const uint8_t MAX_EXEC_MSEC = 10;
-    static bool enable_preemptive_scheduler;
+    static coroutine::Config config;
 
     static void init();
     static void deactivate(void *ptr);
@@ -121,10 +134,10 @@ public:
         return sw_likely(active) ? Coroutine::get_current_cid() : -1;
     }
 
-    static inline long get_pcid()
+    static inline long get_pcid(long cid = 0)
     {
-        php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
-        return sw_likely(task) ? task->pcid : -1;
+        php_coro_task *task = cid == 0 ? get_task() : get_task_by_cid(cid);
+        return sw_likely(task) ? task->pcid : 0;
     }
 
     static inline php_coro_task* get_task()
@@ -146,12 +159,12 @@ public:
 
     static inline uint64_t get_max_num()
     {
-        return max_num;
+        return config.max_num;
     }
 
     static inline void set_max_num(uint64_t n)
     {
-        max_num = n;
+        config.max_num = n;
     }
 
     static inline bool is_schedulable(php_coro_task *task)
@@ -183,7 +196,6 @@ public:
 
 protected:
     static bool active;
-    static uint64_t max_num;
     static php_coro_task main_task;
 
     static bool interrupt_thread_running;

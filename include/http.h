@@ -17,21 +17,17 @@
 #ifndef SW_HTTP_H_
 #define SW_HTTP_H_
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+#include "swoole.h"
 
-#include <sys/types.h>
-#include <stdint.h>
+SW_EXTERN_C_BEGIN
 
-enum swHttpVersion
+enum swHttp_version
 {
     SW_HTTP_VERSION_10 = 1,
     SW_HTTP_VERSION_11,
 };
 
-enum swHttpMethod
+enum swHttp_method
 {
     SW_HTTP_DELETE = 1, SW_HTTP_GET, SW_HTTP_HEAD, SW_HTTP_POST, SW_HTTP_PUT, SW_HTTP_PATCH,
     /* pathological */
@@ -46,7 +42,7 @@ enum swHttpMethod
     SW_HTTP_PRI,
 };
 
-enum swHttpStatusCode
+enum swHttp_status_code
 {
     SW_HTTP_CONTINUE = 100,
     SW_HTTP_SWITCHING_PROTOCOLS = 101,
@@ -135,8 +131,6 @@ uint8_t swHttpMix_get_package_length_size(swConnection *conn);
 int swHttpMix_dispatch_frame(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 #endif
 
-#ifdef __cplusplus
-}
-#endif
+SW_EXTERN_C_END
 
 #endif /* SW_HTTP_H_ */
