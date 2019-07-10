@@ -534,6 +534,9 @@ void swWorker_stop(swWorker *worker)
         swReactor_remove_read_event(reactor, worker->pipe_worker);
     }
 
+    //ignore signal
+    reactor->signal_listener_num = 0;
+
     if (serv->factory_mode == SW_MODE_BASE)
     {
         swListenPort *port;
