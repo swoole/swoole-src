@@ -21,7 +21,7 @@ function send_large_request_data($host, $port)
             return false;
         }
         $response = $client->recv();
-        assert($response == "SUCCESS", "response failed");
+        Assert::same($response, "SUCCESS", "response failed");
     }
     return true;
 }

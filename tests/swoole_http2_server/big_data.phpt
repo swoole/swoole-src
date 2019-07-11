@@ -11,7 +11,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $domain = '127.0.0.1';
         $cli = new Swoole\Coroutine\Http2\Client($domain, $pm->getFreePort(), true);
         $cli->set(['timeout' => 10]);
-        assert($cli->connect());
+        Assert::assert($cli->connect());
 
         $req = new Swoole\Http2\Request;
         $req->method = 'POST';
@@ -24,10 +24,10 @@ $pm->parentFunc = function ($pid) use ($pm) {
         ];
         for ($n = MAX_REQUESTS; $n--;) {
             $req->data = openssl_random_pseudo_bytes(65535 + mt_rand(0, 65535));
-            assert($cli->send($req));
+            Assert::assert($cli->send($req));
             $res = $cli->recv();
-            assert($res->statusCode === 200);
-            assert(md5($req->data) === md5($res->data));
+            Assert::same($res->statusCode, 200);
+            Assert::same(md5($req->data), md5($res->data));
         }
         $pm->kill();
     });

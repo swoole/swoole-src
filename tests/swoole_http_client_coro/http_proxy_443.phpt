@@ -11,17 +11,17 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
-        $domain = 'www.baidu.com';
+        $domain = 'www.swoole.com';
         $cli = new Swoole\Coroutine\Http\Client($domain, 443, true);
         $cli->setHeaders(['Host' => $domain]);
         $cli->set([
-            'timeout'         => 5,
+            'timeout'         => 30,
             'http_proxy_host' => HTTP_PROXY_HOST,
             'http_proxy_port' => HTTP_PROXY_PORT
         ]);
         $result = $cli->get('/');
-        assert($result);
-        assert(stripos($cli->body, 'baidu.com') !== false);
+        Assert::assert($result);
+        Assert::assert(stripos($cli->body, 'swoole') !== false);
         $pm->kill();
     });
 };

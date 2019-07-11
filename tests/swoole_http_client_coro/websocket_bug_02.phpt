@@ -11,7 +11,7 @@ $pm->parentFunc = function () use ($pm) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cli->set(['timeout' => -1]);
         $ret = $cli->upgrade('/');
-        assert($ret);
+        Assert::assert($ret);
         echo $cli->recv()->data;
         for ($i = 0; $i < 5; $i++) {
             $cli->push("hello server\n");

@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: task & finish
+swoole_server/task: task & finish
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -9,8 +9,8 @@ $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
     for ($i = MAX_CONCURRENCY_LOW; $i--;) {
         go(function () use ($pm) {
-            $ret = httpCoroGet("http://127.0.0.1:{$pm->getFreePort()}");
-            assert($ret === 'Hello Swoole!');
+            $ret = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}");
+            Assert::same($ret, 'Hello Swoole!');
         });
     }
     swoole_event_wait();
@@ -24,7 +24,7 @@ $pm->childFunc = function () use ($pm) {
         'task_worker_num' => 4
     ]);
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($http) {
-        assert($response->detach());
+        Assert::assert($response->detach());
         $http->task($response->fd);
     });
     $http->on('task', function ($a, $b, $c, string $fd) {

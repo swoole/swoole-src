@@ -12,44 +12,32 @@ $pm->parentFunc = function () use ($pm) {
         $cli_map = [];
         for ($c = MAX_CONCURRENCY_MID; $c--;) {
             $cli_map[] = $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-            $cli->set(['timeout' => -1]);
             $cli->setDefer(true);
             $cli->get('/');
         }
         foreach ($cli_map as $cli) {
-            assert($cli->recv());
-            assert($cli->body === $pm->getRandomData());
+            Assert::assert($cli->recv());
+            Assert::same($cli->body, $pm->getRandomData());
         }
 
         $pm->kill();
-        usleep(1000);
+        $pm->wait();
 
-        // will get connection is reset by peer
+        // disable reconnect so we will get the first reason (conn was closed by server side)
         foreach ($cli_map as $cli) {
-            $cli->get('/');
-        }
-        foreach ($cli_map as $cli) {
-            assert(!$cli->recv());
-            assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
-            assert($cli->errCode === SOCKET_ECONNRESET);
-        }
-
-        // if developer not hold the error and try again, he will get `connection is not available` error here.
-        foreach ($cli_map as $cli) {
-            assert(!$cli->get('/'));
-        }
-        foreach ($cli_map as $cli) {
-            assert(!$cli->recv());
-            assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
-            assert($cli->errCode === SWOOLE_ERROR_CLIENT_NO_CONNECTION);
-        }
-
-        // set defer to false, it will auto retry
-        foreach ($cli_map as $cli) {
+            $cli->set(['reconnect' => false]);
             $cli->setDefer(false);
-            assert(!$cli->get('/'));
-            assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
-            assert($cli->errCode === SOCKET_ECONNREFUSED, swoole_strerror($cli->errCode));
+            Assert::assert(!$cli->get('/'));
+            Assert::same($cli->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
+            Assert::same($cli->errCode, SOCKET_ECONNRESET);
+        }
+
+        // when we enable reconnect, we will get connect error
+        foreach ($cli_map as $cli) {
+            $cli->set(['reconnect' => true]);
+            Assert::assert(!$cli->get('/'));
+            Assert::same($cli->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
+            Assert::same($cli->errCode, SOCKET_ECONNREFUSED);
         }
     });
     swoole_event_wait();
@@ -72,6 +60,12 @@ $pm->childFunc = function () use ($pm) {
         } else {
             $server->close($request->fd);
         }
+    });
+    $server->on('shutdown', function (swoole_http_server $server) use ($pm) {
+        foreach ($server->connections as $fd) {
+            $server->close($fd);
+        }
+        $pm->wakeup();
     });
     $server->start();
 };

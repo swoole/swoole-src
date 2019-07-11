@@ -43,7 +43,7 @@ uint32_t swHeap_size(swHeap *heap);
 swHeap_node* swHeap_push(swHeap *heap, uint64_t priority, void *data);
 void *swHeap_pop(swHeap *heap);
 void swHeap_change_priority(swHeap *heap, uint64_t new_priority, void* ptr);
-int swHeap_remove(swHeap *heap, swHeap_node *node);
+void swHeap_remove(swHeap *heap, swHeap_node *node);
 void *swHeap_peek(swHeap *heap);
 void swHeap_print(swHeap *heap);
 

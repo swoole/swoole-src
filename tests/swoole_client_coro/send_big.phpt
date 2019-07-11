@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_coro: send
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -13,11 +12,9 @@ $pm->parentFunc = function ($pid) use ($pm)
     go(function () use ($pm) {
         $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $r = $client->connect("127.0.0.1", $pm->getFreePort(), 0.5);
-        assert($r);
+        Assert::assert($r);
 
-        $socket = $client->getSocket();
-        socket_set_option($socket, SOL_SOCKET, SO_SNDBUF, 65536);
-        socket_set_option($socket, SOL_SOCKET, SO_RCVBUF, 65536);
+        set_socket_coro_buffer_size($client->exportSocket(), 65536);
 
         $header = "POST /post.php HTTP/1.1\r\n";
         $header .= "Host: weibo.com\r\n";
@@ -28,11 +25,11 @@ $pm->parentFunc = function ($pid) use ($pm)
         $_postBody = http_build_query($_postData)."_END\r\n\r\n";
         $header .=  "Content-Length: " . strlen($_postBody);
 
-        assert($client->send($header));
-        assert($client->send($_postBody));
+        Assert::assert($client->send($header));
+        Assert::assert($client->send($_postBody));
 
-        $data = $client->recv();
-        assert($data == "HTTP/1.1 200 OK\r\n\r\n");
+        $data = $client->recv(5);
+        Assert::same($data, "HTTP/1.1 200 OK\r\n\r\n");
         $client->close();
     });
     swoole_event::wait();

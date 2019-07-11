@@ -14,34 +14,33 @@
   +----------------------------------------------------------------------+
 */
 
-#include "channel.h"
+#include "coroutine_channel.h"
+
+using swoole::coroutine::Channel;
 
 #include <unordered_map>
 
 using namespace swoole;
 
-static void channel_operation_timeout(swTimer *timer, swTimer_node *tnode)
+void Channel::timer_callback(swTimer *timer, swTimer_node *tnode)
 {
-    timeout_msg_t *msg = (timeout_msg_t *) tnode->data;
+    timer_msg_t *msg = (timer_msg_t *) tnode->data;
     msg->error = true;
     msg->timer = nullptr;
-    msg->chan->remove(msg->co);
+    if (msg->type == CONSUMER)
+    {
+        msg->chan->consumer_remove(msg->co);
+    }
+    else
+    {
+        msg->chan->producer_remove(msg->co);
+    }
     msg->co->resume();
 }
 
-Channel::Channel(size_t _capacity)
+void Channel::yield(enum opcode type)
 {
-    capacity = _capacity;
-    closed = false;
-}
-
-void Channel::yield(enum channel_op type)
-{
-    Coroutine *co = coroutine_get_current();
-    if (unlikely(!co))
-    {
-        swError("Channel::yield() must be called in the coroutine.");
-    }
+    Coroutine *co = Coroutine::get_current_safe();
     if (type == PRODUCER)
     {
         producer_queue.push_back(co);
@@ -57,21 +56,23 @@ void Channel::yield(enum channel_op type)
 
 void* Channel::pop(double timeout)
 {
+    Coroutine *current_co = Coroutine::get_current_safe();
     if (closed)
     {
         return nullptr;
     }
-    if (is_empty() || consumer_queue.size() > 0)
+    if (is_empty() || !consumer_queue.empty())
     {
-        timeout_msg_t msg;
+        timer_msg_t msg;
         msg.error = false;
         msg.timer = NULL;
         if (timeout > 0)
         {
-            int msec = (int) (timeout * 1000);
+            long msec = (long) (timeout * 1000);
             msg.chan = this;
-            msg.co = coroutine_get_current();
-            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_operation_timeout);
+            msg.type = CONSUMER;
+            msg.co = current_co;
+            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, timer_callback);
         }
 
         yield(CONSUMER);
@@ -93,7 +94,7 @@ void* Channel::pop(double timeout)
     /**
      * notify producer
      */
-    if (producer_queue.size() > 0)
+    if (!producer_queue.empty())
     {
         Coroutine *co = pop_coroutine(PRODUCER);
         co->resume();
@@ -103,21 +104,23 @@ void* Channel::pop(double timeout)
 
 bool Channel::push(void *data, double timeout)
 {
+    Coroutine *current_co = Coroutine::get_current_safe();
     if (closed)
     {
         return false;
     }
-    if (is_full() || producer_queue.size() > 0)
+    if (is_full() || !producer_queue.empty())
     {
-        timeout_msg_t msg;
+        timer_msg_t msg;
         msg.error = false;
         msg.timer = NULL;
         if (timeout > 0)
         {
-            int msec = (int) (timeout * 1000);
+            long msec = (long) (timeout * 1000);
             msg.chan = this;
-            msg.co = coroutine_get_current();
-            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_operation_timeout);
+            msg.type = PRODUCER;
+            msg.co = current_co;
+            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, timer_callback);
         }
 
         yield(PRODUCER);
@@ -139,7 +142,7 @@ bool Channel::push(void *data, double timeout)
     /**
      * notify consumer
      */
-    if (consumer_queue.size() > 0)
+    if (!consumer_queue.empty())
     {
         Coroutine *co = pop_coroutine(CONSUMER);
         co->resume();
@@ -155,12 +158,12 @@ bool Channel::close()
     }
     swTraceLog(SW_TRACE_CHANNEL, "channel closed");
     closed = true;
-    while (producer_queue.size() > 0)
+    while (!producer_queue.empty())
     {
         Coroutine *co = pop_coroutine(PRODUCER);
         co->resume();
     }
-    while (consumer_queue.size() > 0)
+    while (!consumer_queue.empty())
     {
         Coroutine *co = pop_coroutine(CONSUMER);
         co->resume();

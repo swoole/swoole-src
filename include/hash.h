@@ -17,6 +17,8 @@
 #ifndef SW_HASH_H_
 #define SW_HASH_H_
 
+SW_EXTERN_C_BEGIN
+
 #include <stdint.h>
 
 #define HASH_JEN_MIX(a,b,c)                                                      \
@@ -35,7 +37,7 @@ do {                                                                            
 /**
  * jenkins
  */
-static inline uint64_t swoole_hash_jenkins(char *key, uint32_t keylen)
+static inline uint64_t swoole_hash_jenkins(const char *key, uint32_t keylen)
 {
     uint64_t hashv;
 
@@ -101,7 +103,7 @@ static inline uint64_t swoole_hash_jenkins(char *key, uint32_t keylen)
 /**
  * MurmurHash2(Austin Appleby)
  */
-static inline uint32_t swoole_hash_austin(char *key, unsigned int keylen)
+static inline uint32_t swoole_hash_austin(const char *key, unsigned int keylen)
 {
     unsigned int h, k;
     h = 0 ^ keylen;
@@ -174,7 +176,7 @@ static inline uint32_t swoole_hash_austin(char *key, unsigned int keylen)
  *
  *                  -- Ralf S. Engelschall <rse@engelschall.com>
  */
-static inline uint64_t swoole_hash_php(char *key, uint32_t len)
+static inline uint64_t swoole_hash_php(const char *key, uint32_t len)
 {
     register ulong_t hash = 5381;
     /* variant with the hash unrolled eight times */
@@ -213,6 +215,8 @@ static inline uint64_t swoole_hash_php(char *key, uint32_t len)
 
 #define CRC_STRING_MAXLEN      256
 
-uint32_t swoole_crc32(char *data, uint32_t size);
+uint32_t swoole_crc32(const char *data, uint32_t size);
+
+SW_EXTERN_C_END
 
 #endif /* SW_HASH_H_ */

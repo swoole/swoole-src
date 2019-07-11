@@ -3,8 +3,7 @@
 #include <thread>
 
 #define READ_THREAD_N       4
-#define WRITE_N             100000
-#define PRINT_SERNUM_N      1000
+#define WRITE_N             10000
 
 static swMemoryPool *pool = NULL;
 
@@ -61,7 +60,6 @@ static void thread_write(void)
     for (i = 0; i < WRITE_N; i++)
     {
         size = 10000 + rand() % 90000;
-        //printf("alloc size=%d\n", size);
 
         yield_count = 0;
         do
@@ -79,11 +77,7 @@ static void thread_write(void)
             }
         } while (yield_count < 100);
 
-        if (!ptr)
-        {
-            printf("alloc failed. break\n");
-            break;
-        }
+        ASSERT_NE(ptr, nullptr);
 
         send_pkg.ptr = ptr;
         send_pkg.size = size;
@@ -94,23 +88,13 @@ static void thread_write(void)
         //在指针末尾保存一个串号
         memcpy((char*) ptr + size - 4, &(send_pkg.serial_num), sizeof(send_pkg.serial_num));
 
-#ifdef PRINT_SERNUM_OPEN
-        if (i % PRINT_SERNUM_N == 0)
-        {
-            printf("send. send_count=%d, serial_num=%d\n", i, send_pkg.serial_num);
-        }
-#endif
-        if (threads[i % READ_THREAD_N].pipe.write(&threads[i % READ_THREAD_N].pipe, &send_pkg, sizeof(send_pkg)) < 0)
-        {
-            printf("write() failed. Error: %s\n", strerror(errno));
-        }
+        ASSERT_FALSE(threads[i % READ_THREAD_N].pipe.write(&threads[i % READ_THREAD_N].pipe, &send_pkg, sizeof(send_pkg)) < 0);
+
         if (i % 100 == 0)
         {
             usleep(10);
         }
-        //sleep(1);
     }
-    printf("alloc count = %d, yield_total_count = %d\n", i, yield_total_count);
 }
 
 static void thread_read(int i)
@@ -126,35 +110,15 @@ static void thread_read(int i)
     for (j = 0; j < task_n; j++)
     {
         ret = sock->read(sock, &recv_pkg, sizeof(recv_pkg));
-        if (ret < 0)
-        {
-            printf("read() failed. Error: %s\n", strerror(errno));
-            break;
-        }
+        ASSERT_FALSE(ret < 0);
+
         memcpy(&tmp, recv_pkg.ptr, sizeof(tmp));
-        if (tmp != recv_pkg.size)
-        {
-            printf("Thread#%d: size error, recv_count=%d, length1=%d, length2=%d\n", i, recv_count, recv_pkg.size, tmp);
-            continue;
-        }
+        ASSERT_EQ(tmp, recv_pkg.size);
 
         memcpy(&tmp, (char*) recv_pkg.ptr + recv_pkg.size - 4, sizeof(tmp));
-        if (tmp != recv_pkg.serial_num)
-        {
-            printf("Thread#%d: serial_num error, recv_count=%d, num1=%d, num2=%d\n", i, recv_count, recv_pkg.serial_num,
-                    tmp);
-            continue;
-        }
+        ASSERT_EQ(tmp, recv_pkg.serial_num);
 
-#ifdef PRINT_SERNUM_OPEN
-        if (j % PRINT_SERNUM_N == 0)
-        {
-            printf("recv. recv_count=%d, serial_num=%d\n", recv_count, tmp);
-        }
-#endif
-        //printf("Thread#%d: ptr=%p,size=%d\n", i, recv_pkg.ptr, recv_pkg.size);
         pool->free(pool, recv_pkg.ptr);
         recv_count++;
     }
-    printf("worker #%d finish, recv_count=%d\n", i, recv_count);
 }

@@ -17,7 +17,7 @@ $pm->parentFunc = function ($pid) use ($pm)
             'package_length_offset' => 0,
             'package_body_offset' => 4,
         ]);
-        if (!$client->connect('127.0.0.1', $pm->getFreePort(), 0.5, 0))
+        if (!$client->connect('127.0.0.1', $pm->getFreePort(), 5, 0))
         {
             echo "Over flow. errno=" . $client->errCode;
             die("\n");
@@ -28,25 +28,25 @@ $pm->parentFunc = function ($pid) use ($pm)
         for ($i = 0; $i < 1000; $i++)
         {
             $pkg = $client->recv();
-            assert($pkg and strlen($pkg) <= 2048);
+            Assert::assert($pkg and strlen($pkg) <= 2048);
         }
         echo "SUCCESS\n";
         //慢速发送
         for ($i = 0; $i < 100; $i++)
         {
             $pkg = $client->recv();
-            assert($pkg and strlen($pkg) <= 8192);
+            Assert::assert($pkg and strlen($pkg) <= 8192);
         }
         echo "SUCCESS\n";
         //大包
         for ($i = 0; $i < 1000; $i++)
         {
             $pkg = $client->recv();
-            assert($pkg != false);
+            Assert::assert($pkg != false);
             $_pkg = unserialize(substr($pkg, 4));
-            assert(is_array($_pkg));
-            assert($_pkg['i'] == $i);
-            assert($_pkg['data'] <= 256 * 1024);
+            Assert::assert(is_array($_pkg));
+            Assert::same($_pkg['i'], $i);
+            Assert::assert($_pkg['data'] <= 256 * 1024);
         }
         echo "SUCCESS\n";
         $client->close();

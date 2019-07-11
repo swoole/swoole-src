@@ -59,35 +59,35 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 ```php
 function tcp_pack(string $data): string
 {
-    return pack('n', strlen($data)) . $data;
+    return pack('N', strlen($data)) . $data;
 }
 function tcp_unpack(string $data): string
 {
-    return substr($data, 2, unpack('n', substr($data, 0, 2))[1]);
+    return substr($data, 4, unpack('N', substr($data, 0, 4))[1]);
 }
 $tcp_options = [
     'open_length_check' => true,
-    'package_length_type' => 'n',
+    'package_length_type' => 'N',
     'package_length_offset' => 0,
-    'package_body_offset' => 2
+    'package_body_offset' => 4
 ];
 ```
 
 ```php
-$server = new swoole_websocket_server('127.0.0.1', 9501, SWOOLE_BASE);
+$server = new Swoole\WebSocket\Server('127.0.0.1', 9501, SWOOLE_BASE);
 $server->set(['open_http2_protocol' => true]);
 // http && http2
-$server->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+$server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
     $response->end('Hello ' . $request->rawcontent());
 });
 // websocket
-$server->on('message', function (swoole_websocket_server $server, swoole_websocket_frame $frame) {
+$server->on('message', function (Swoole\WebSocket\Server $server, Swoole\WebSocket\Frame $frame) {
     $server->push($frame->fd, 'Hello ' . $frame->data);
 });
 // tcp
 $tcp_server = $server->listen('127.0.0.1', 9502, SWOOLE_TCP);
 $tcp_server->set($tcp_options);
-$tcp_server->on('receive', function (swoole_server $server, int $fd, int $reactor_id, string $data) {
+$tcp_server->on('receive', function (Swoole\Server $server, int $fd, int $reactor_id, string $data) {
     $server->send($fd, tcp_pack('Hello ' . tcp_unpack($data)));
 });
 $server->start();
@@ -111,7 +111,7 @@ go(function () {
     // http2
     $http2_client = new Swoole\Coroutine\Http2\Client('localhost', 9501);
     $http2_client->connect();
-    $http2_request = new Swoole\Http2\Reuqest;
+    $http2_request = new Swoole\Http2\Request;
     $http2_request->method = 'POST';
     $http2_request->data = 'Swoole Http2';
     $http2_client->send($http2_request);
@@ -152,7 +152,7 @@ class RedisPool
     {
         $this->pool = new \Swoole\Coroutine\Channel($size);
         for ($i = 0; $i < $size; $i++) {
-            $redis = new Swoole\Coroutine\Redis();
+            $redis = new \Swoole\Coroutine\Redis();
             $res = $redis->connect('127.0.0.1', 6379);
             if ($res == false) {
                 throw new \RuntimeException("failed to connect redis server.");
@@ -440,22 +440,27 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 
 > 和任何开源项目一样, Swoole总是在**最新的发行版**提供最可靠的稳定性和最强的功能, 请尽量保证你使用的是最新版本
 
-### 需要
+### 1. 直接使用Swoole官方的二进制包 (初学者 + 开发环境)
 
-- Linux, OS X 系统 或使用 CygWin
+访问我们官网的[下载页面](https://www.swoole.com/page/download)
+
+### 编译需求
+
+- Linux, OS X 系统 或 CygWin, WSL
 - PHP 7.0.0 或以上版本 (版本越高性能越好)
 - GCC 4.8 及以上
 
-### 1. 使用PHP官方的PECL工具安装 (初学者)
+### 2. 使用PHP官方的PECL工具安装 (初学者)
 
 ```shell
 pecl install swoole
 ```
 
-### 2. 从源码编译安装 (推荐)
+### 3. 从源码编译安装 (推荐)
+
+> 非内核开发研究之用途, 请下载[发布版本](https://github.com/swoole/swoole-src/releases)的源码编译
 
 ```shell
-git clone https://github.com/swoole/swoole-src.git && \
 cd swoole-src && \
 phpize && \
 ./configure && \
@@ -470,11 +475,10 @@ make && sudo make install
 
 > 使用例子: `./configure --enable-openssl --enable-sockets`
 
-- `--enable-openssl`
+- `--enable-openssl` 或 `--with-openssl-dir=DIR`
 - `--enable-sockets`
-- `--enable-http2`, `--with-nghttp2-dir=/path/to` (需要 nghttp2)
-- `--enable-mysqlnd` (need mysqlnd)
-- `--enable-async-redis`, `--with-hiredis-dir=/path/to` (需要 hiredis, v4.2.6 或以上内置)
+- `--enable-http2`
+- `--enable-mysqlnd` (需要 mysqlnd, 只是为了支持`mysql->escape`方法)
 
 ### 升级
 
@@ -487,6 +491,7 @@ make && sudo make install
 ## 💎 框架 & 组件
 
 - [**Swoft**](https://github.com/swoft-cloud) 是一个现代化的面向切面的高性能协程全栈组件化框架
+- [**ESD**](https://github.com/esd-projects/esd-server) 以Springboot为灵感的现代全栈框架,由SwooleDistributed和EasySwoole联合发起，强大易用且高性能。
 - [**Easyswoole**](https://www.easyswoole.com) 是一个极简的高性能的框架, 让代码开发就好像写`echo "hello world"`一样简单
 - [**Saber**](https://github.com/swlib/saber) 是一个人性化的高性能HTTP客户端组件，几乎拥有一切你可以想象的强大功能
 

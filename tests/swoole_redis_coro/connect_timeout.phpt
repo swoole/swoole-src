@@ -1,24 +1,21 @@
 --TEST--
-swoole_redis_coro: connect twice
+swoole_redis_coro: redis client connect timeout
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-
-//Co::set(['log_level' => SWOOLE_LOG_TRACE, 'trace_flags' => SWOOLE_TRACE_ALL]);
-
 go(function () {
-    $redis = new Swoole\Coroutine\Redis(['timeout' => 0.5]);
-    echo "connect [1]\n";
-    $redis->connect('192.0.0.1', 6379);
-    echo "close [1]\n";
-    assert($redis->connected === false);
-    assert($redis->close() === false);
+    $timeout = mt_rand(100, 500) / 1000;
+    $redis = new Swoole\Coroutine\Redis(['timeout' => $timeout]);
+    $s = microtime(true);
+    $ret = $redis->connect('192.0.0.1', 9000);
+    Assert::assert(!$ret);
+    Assert::assert($redis->errCode === SOCKET_ETIMEDOUT);
+    time_approximate($timeout, microtime(true) - $s);
 });
-
-swoole_event::wait();
+Swoole\Event::wait();
+echo "DONE\n";
 ?>
 --EXPECT--
-connect [1]
-close [1]
+DONE

@@ -11,7 +11,7 @@ $serv->set(array(
 //$serv->on('connect', function ($serv, $fd) {
 //    //echo "[#" . posix_getpid() . "]\tClient:Connect.\n";
 //});
-$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data)
+$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data)
 {
     echo '#' . $serv->worker_id . " recv: " . strlen($data) . "\n";
     for ($i = 0; $i < 1000; $i++)

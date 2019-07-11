@@ -36,7 +36,7 @@ go(function () {
     } else {
         $data = fread($fp, 8192);
         fclose($fp);
-        assert(strpos($data,'local time') !== false);
+        Assert::assert(strpos($data,'local time') !== false);
         echo "OK\n";
     }
 });

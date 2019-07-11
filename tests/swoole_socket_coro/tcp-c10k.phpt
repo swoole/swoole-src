@@ -11,13 +11,13 @@ Swoole\Runtime::enableCoroutine();
 $port = get_one_free_port();
 go(function () use ($port) {
     $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-    assert($socket->bind('127.0.0.1', $port));
-    assert($socket->listen(MAX_CONCURRENCY_MID));
+    Assert::assert($socket->bind('127.0.0.1', $port));
+    Assert::assert($socket->listen(MAX_CONCURRENCY_MID));
     $i = 0;
     while ($conn = $socket->accept()) {
         for ($n = MAX_REQUESTS; $n--;) {
             $data = $conn->recv(tcp_length($conn->recv(tcp_type_length())));
-            assert($data === "Hello Swoole Server #{$n}!");
+            Assert::same($data, "Hello Swoole Server #{$n}!");
             $conn->send(tcp_pack("Hello Swoole Client #{$n}!"));
         }
         $conn->close();
@@ -31,11 +31,11 @@ go(function () use ($port) {
 for ($c = MAX_CONCURRENCY_MID; $c--;) {
     go(function () use ($port) {
         $client = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, 0);
-        assert($client->connect('127.0.0.1', $port));
+        Assert::assert($client->connect('127.0.0.1', $port));
         for ($n = MAX_REQUESTS; $n--;) {
             $client->send(tcp_pack("Hello Swoole Server #{$n}!"));
             $data = $client->recv(tcp_length($client->recv(tcp_type_length())));
-            assert($data === "Hello Swoole Client #{$n}!");
+            Assert::same($data, "Hello Swoole Client #{$n}!");
         }
         $client->close();
     });

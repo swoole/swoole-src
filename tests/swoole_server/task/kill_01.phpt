@@ -1,7 +1,11 @@
 --TEST--
-swoole_server: kill task worker [SWOOLE_BASE]
+swoole_server/task: kill task worker [SWOOLE_BASE]
 --SKIPIF--
-<?php require __DIR__ . "/../../include/skipif.inc"; ?>
+<?php
+require __DIR__ . '/../../include/skipif.inc';
+skip_if_darwin();
+skip_if_in_valgrind();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
@@ -13,15 +17,15 @@ $pm->parentFunc = function ($pid) use ($pm) {
     for ($i = 0; $i < 5; $i++)
     {
         //杀死进程
-        shell_exec("ps aux | grep \"" . PROC_NAME . "\" |grep -v grep| awk '{ print $2}' | xargs kill");
+        kill_process_by_name(PROC_NAME);
         usleep(10000);
         //判断进程是否存在
-        assert(intval(shell_exec("ps aux | grep \"" . PROC_NAME . "\" |grep -v grep| awk '{ print $2}'")) > 0);
+        Assert::assert(get_process_pid_by_name(PROC_NAME) > 0);
     }
     $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $cli->connect('127.0.0.1', $pm->getFreePort(), 10) or die("ERROR");
     $cli->send("task-01") or die("ERROR");
-    assert($cli->recv() == "task-01");
+    Assert::same($cli->recv(), "task-01");
     $cli->close();
     $pm->kill();
 };

@@ -5,40 +5,45 @@ swoole_socket_coro: recv timeout
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-
 $pm = new ProcessManager;
-$port = get_one_free_port();
-$pm->parentFunc = function ($pid) use ($pm, $port)
-{
-    go(function () use ($pm, $port) {
-        $conn = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-        assert($conn->connect('127.0.0.1', $port));
-        $conn->send(json_encode(['data' => 'hello']));
-        $ret = $conn->recv(1024, 0.2);
-        assert($ret === false);
-        assert($conn->errCode == SOCKET_ETIMEDOUT);
-    });
-    swoole_event_wait();
+$pm->parentFunc = function ($pid) use ($pm) {
+    for ($c = MAX_CONCURRENCY_MID; $c--;) {
+        go(function () use ($pm) {
+            $conn = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+            Assert::assert($conn->connect('127.0.0.1', $pm->getFreePort()));
+            $conn->send(json_encode(['data' => 'hello']));
+            $timeout = ms_random(0.1, 1);
+            $s = microtime(true);
+            switch (mt_rand(0, 2)) {
+                case 0:
+                    $ret = $conn->recv(1024, $timeout);
+                    break;
+                case 1:
+                    $ret = $conn->recvAll(1024, $timeout);
+                    break;
+                case 2:
+                    $ret = $conn->recvfrom($peer, $timeout);
+                    break;
+            }
+            time_approximate($timeout, microtime(true) - $s);
+            Assert::assert($ret === false);
+            Assert::assert($conn->errCode == SOCKET_ETIMEDOUT);
+        });
+    }
+    Swoole\Event::wait();
     $pm->kill();
+    echo "DONE\n";
 };
-
-$pm->childFunc = function () use ($pm, $port)
-{
-
-    $serv = new \swoole_server('127.0.0.1', $port, SWOOLE_BASE);
-    $serv->set(["worker_num" => 1, ]);
-    $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
-    {
+$pm->childFunc = function () use ($pm) {
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $server->on('WorkerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on("Receive", function (\swoole_server $serv, $fd, $reactorId, $data)
-    {
-
-    });
-    $serv->start();
+    $server->on('Receive', function () { });
+    $server->start();
 };
-
 $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+DONE

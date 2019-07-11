@@ -57,11 +57,14 @@ static sw_inline int swoole_futex_wait(sw_atomic_t *atomic, double timeout)
     {
         ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, NULL, NULL, 0);
     }
-    if (ret == SW_OK)
+    if (ret == SW_OK && sw_atomic_cmp_set(atomic, 1, 0))
     {
-        sw_atomic_cmp_set(atomic, 1, 0);
+        return SW_OK;
     }
-    return ret;
+    else
+    {
+        return SW_ERR;
+    }
 }
 
 static sw_inline int swoole_futex_wakeup(sw_atomic_t *atomic, int n)
@@ -109,12 +112,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_waitup, 0, 0, 0)
     ZEND_ARG_INFO(0, count)
 ZEND_END_ARG_INFO()
 
-static zend_class_entry swoole_atomic_ce;
-zend_class_entry *swoole_atomic_ce_ptr;
+zend_class_entry *swoole_atomic_ce;
 static zend_object_handlers swoole_atomic_handlers;
 
-static zend_class_entry swoole_atomic_long_ce;
-zend_class_entry *swoole_atomic_long_ce_ptr;
+zend_class_entry *swoole_atomic_long_ce;
 static zend_object_handlers swoole_atomic_long_handlers;
 
 static const zend_function_entry swoole_atomic_methods[] =
@@ -143,22 +144,24 @@ static const zend_function_entry swoole_atomic_long_methods[] =
 
 void swoole_atomic_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_atomic, "Swoole\\Atomic", "swoole_atomic", NULL, swoole_atomic_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_atomic, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_atomic, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY(swoole_atomic, "Swoole\\Atomic", "swoole_atomic", NULL, swoole_atomic_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_atomic, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_atomic, sw_zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic, sw_zend_class_unset_property_deny);
+    // SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_atomic);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_atomic_long, "Swoole\\Atomic\\Long", "swoole_atomic_long", NULL, swoole_atomic_long_methods);
-    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_atomic_long, zend_class_serialize_deny, zend_class_unserialize_deny);
-    SWOOLE_SET_CLASS_CLONEABLE(swoole_atomic_long, zend_class_clone_deny);
-    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic_long, zend_class_unset_property_deny);
+    SW_INIT_CLASS_ENTRY(swoole_atomic_long, "Swoole\\Atomic\\Long", "swoole_atomic_long", NULL, swoole_atomic_long_methods);
+    SW_SET_CLASS_SERIALIZABLE(swoole_atomic_long, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_CLONEABLE(swoole_atomic_long, sw_zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic_long, sw_zend_class_unset_property_deny);
+    // SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_atomic_long);
 }
 
 PHP_METHOD(swoole_atomic, __construct)
 {
     zend_long value = 0;
 
-    ZEND_PARSE_PARAMETERS_START(0, 1)
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
@@ -166,11 +169,11 @@ PHP_METHOD(swoole_atomic, __construct)
     sw_atomic_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_t));
     if (atomic == NULL)
     {
-        zend_throw_exception(swoole_exception_ce_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL);
+        zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     *atomic = (sw_atomic_t) value;
-    swoole_set_object(getThis(), (void*) atomic);
+    swoole_set_object(ZEND_THIS, (void*) atomic);
 
     RETURN_TRUE;
 }
@@ -178,38 +181,38 @@ PHP_METHOD(swoole_atomic, __construct)
 PHP_METHOD(swoole_atomic, add)
 {
     zend_long add_value = 1;
-    sw_atomic_t *atomic = swoole_get_object(getThis());
+    sw_atomic_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(add_value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_LONG(sw_atomic_add_fetch(atomic, (uint32_t ) add_value));
+    RETURN_LONG(sw_atomic_add_fetch(atomic, (uint32_t) add_value));
 }
 
 PHP_METHOD(swoole_atomic, sub)
 {
     zend_long sub_value = 1;
-    sw_atomic_t *atomic = swoole_get_object(getThis());
+    sw_atomic_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(sub_value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_LONG(sw_atomic_sub_fetch(atomic, (uint32_t ) sub_value));
+    RETURN_LONG(sw_atomic_sub_fetch(atomic, (uint32_t) sub_value));
 }
 
 PHP_METHOD(swoole_atomic, get)
 {
-    sw_atomic_t *atomic = swoole_get_object(getThis());
+    sw_atomic_t *atomic = swoole_get_object(ZEND_THIS);
     RETURN_LONG(*atomic);
 }
 
 PHP_METHOD(swoole_atomic, set)
 {
-    sw_atomic_t *atomic = swoole_get_object(getThis());
+    sw_atomic_t *atomic = swoole_get_object(ZEND_THIS);
     zend_long set_value;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -222,7 +225,7 @@ PHP_METHOD(swoole_atomic, set)
 PHP_METHOD(swoole_atomic, cmpset)
 {
     zend_long cmp_value, set_value;
-    sw_atomic_t *atomic = swoole_get_object(getThis());
+    sw_atomic_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
         Z_PARAM_LONG(cmp_value)
@@ -235,7 +238,7 @@ PHP_METHOD(swoole_atomic, cmpset)
 PHP_METHOD(swoole_atomic, wait)
 {
     double timeout = 1.0;
-    sw_atomic_t *atomic = swoole_get_object(getThis());
+    sw_atomic_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
@@ -245,11 +248,11 @@ PHP_METHOD(swoole_atomic, wait)
 #ifdef HAVE_FUTEX
     SW_CHECK_RETURN(swoole_futex_wait(atomic, timeout));
 #else
-    timeout = timeout <= 0 ? SW_MAX_INT : timeout;
-    sw_atomic_long_t i = sw_atomic_add_fetch(atomic, 1);
+    timeout = timeout <= 0 ? INT_MAX : timeout;
+    int32_t i = (int32_t) sw_atomic_add_fetch(atomic, 1);
     while (timeout > 0)
     {
-        if (*atomic < i)
+        if ((int32_t) *atomic < i)
         {
             RETURN_TRUE;
         }
@@ -259,13 +262,14 @@ PHP_METHOD(swoole_atomic, wait)
             timeout -= 0.001;
         }
     }
+    RETURN_FALSE;
 #endif
 }
 
 PHP_METHOD(swoole_atomic, wakeup)
 {
     zend_long n = 1;
-    sw_atomic_t *atomic = swoole_get_object(getThis());
+    sw_atomic_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
@@ -276,6 +280,7 @@ PHP_METHOD(swoole_atomic, wakeup)
     SW_CHECK_RETURN(swoole_futex_wakeup(atomic, (int ) n));
 #else
     sw_atomic_fetch_sub(atomic, n);
+    RETURN_TRUE;
 #endif
 }
 
@@ -291,11 +296,11 @@ PHP_METHOD(swoole_atomic_long, __construct)
     sw_atomic_long_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_long_t));
     if (atomic == NULL)
     {
-        zend_throw_exception(swoole_exception_ce_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL);
+        zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     *atomic = (sw_atomic_long_t) value;
-    swoole_set_object(getThis(), (void*) atomic);
+    swoole_set_object(ZEND_THIS, (void*) atomic);
 
     RETURN_TRUE;
 }
@@ -303,38 +308,38 @@ PHP_METHOD(swoole_atomic_long, __construct)
 PHP_METHOD(swoole_atomic_long, add)
 {
     zend_long add_value = 1;
-    sw_atomic_long_t *atomic = swoole_get_object(getThis());
+    sw_atomic_long_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(add_value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_LONG(sw_atomic_add_fetch(atomic, (sw_atomic_long_t ) add_value));
+    RETURN_LONG(sw_atomic_add_fetch(atomic, (sw_atomic_long_t) add_value));
 }
 
 PHP_METHOD(swoole_atomic_long, sub)
 {
     zend_long sub_value = 1;
-    sw_atomic_long_t *atomic = swoole_get_object(getThis());
+    sw_atomic_long_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(sub_value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_LONG(sw_atomic_sub_fetch(atomic, (sw_atomic_long_t ) sub_value));
+    RETURN_LONG(sw_atomic_sub_fetch(atomic, (sw_atomic_long_t) sub_value));
 }
 
 PHP_METHOD(swoole_atomic_long, get)
 {
-    sw_atomic_long_t *atomic = swoole_get_object(getThis());
+    sw_atomic_long_t *atomic = swoole_get_object(ZEND_THIS);
     RETURN_LONG(*atomic);
 }
 
 PHP_METHOD(swoole_atomic_long, set)
 {
-    sw_atomic_long_t *atomic = swoole_get_object(getThis());
+    sw_atomic_long_t *atomic = swoole_get_object(ZEND_THIS);
     zend_long set_value;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -347,7 +352,7 @@ PHP_METHOD(swoole_atomic_long, set)
 PHP_METHOD(swoole_atomic_long, cmpset)
 {
     zend_long cmp_value, set_value;
-    sw_atomic_long_t *atomic = swoole_get_object(getThis());
+    sw_atomic_long_t *atomic = swoole_get_object(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
         Z_PARAM_LONG(cmp_value)

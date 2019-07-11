@@ -156,23 +156,23 @@ class OpcodeServer
     public function onTask(\swoole_server $swooleServer, $taskId, $fromWorkerId, $recv)
     {
         $recv = json_decode($recv);
-        assert(json_last_error() === JSON_ERROR_NONE);
+        Assert::same(json_last_error(), JSON_ERROR_NONE);
         return json_encode($recv);
     }
 
     public function onFinish(\swoole_server $swooleServer, $taskId, $recv)
     {
         $recv = json_decode($recv);
-        assert(json_last_error() === JSON_ERROR_NONE);
-        assert(isset($recv["fd"]) && isset($recv["data"]));
+        Assert::same(json_last_error(), JSON_ERROR_NONE);
+        Assert::true(isset($recv["fd"]) && isset($recv["data"]));
         $this->swooleServer->send($recv["fd"], opcode_encode("return", $recv["data"]));
     }
 
     public function onPipeMessage(\swoole_server $swooleServer, $fromWorkerId, $recv)
     {
         $recv = json_decode($recv, true);
-        assert(json_last_error() === JSON_ERROR_NONE);
-        assert(isset($recv["fd"]) && isset($recv["msg"]));
+        Assert::same(json_last_error(), JSON_ERROR_NONE);
+        Assert::true(isset($recv["fd"]) && isset($recv["msg"]));
         $this->swooleServer->send($recv["fd"], opcode_encode("return", $recv["msg"]));
     }
 

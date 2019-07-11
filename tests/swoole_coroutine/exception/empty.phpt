@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: IO empty Exception
+swoole_coroutine/exception: IO empty Exception
 --SKIPIF--
 <?php require  __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -16,7 +16,7 @@ go(function () {
         echo "finally.\n";
     }
 });
-    echo "end\n";
+echo "end\n";
 
 ?>
 --EXPECT--

@@ -15,122 +15,92 @@
 */
 
 #include "coroutine.h"
-#include "async.h"
+#include "coroutine_c_api.h"
 
 using namespace swoole;
 
-CoroutineG swCoroG;
+size_t Coroutine::stack_size = SW_DEFAULT_C_STACK_SIZE;
+Coroutine* Coroutine::current = nullptr;
+long Coroutine::last_cid = 0;
+uint64_t Coroutine::peak_num = 0;
+sw_coro_on_swap_t Coroutine::on_yield = nullptr;
+sw_coro_on_swap_t Coroutine::on_resume = nullptr;
+sw_coro_on_swap_t Coroutine::on_close = nullptr;
+sw_coro_bailout_t Coroutine::on_bailout = nullptr;
 
-long Coroutine::create(coroutine_func_t fn, void* args)
-{
-    if (unlikely(swCoroG.call_stack_size == SW_MAX_CORO_NESTING_LEVEL))
-    {
-        swWarn("reaches the max coroutine nesting level %d", SW_MAX_CORO_NESTING_LEVEL);
-        return CORO_LIMIT;
-    }
-    long cid = swCoroG.last_cid++;
-    Coroutine *co = new Coroutine(cid, swCoroG.stack_size, fn, args);
-    swCoroG.coroutines[cid] = co;
-    swCoroG.call_stack[swCoroG.call_stack_size++] = co;
-    co->ctx.SwapIn();
-    if (co->ctx.end)
-    {
-        co->state = SW_CORO_END;
-        co->release();
-    }
-    return cid;
-}
+std::unordered_map<long, Coroutine*> Coroutine::coroutines;
 
 void Coroutine::yield()
 {
+    SW_ASSERT(current == this || on_bailout != nullptr);
     state = SW_CORO_WAITING;
-    if (swCoroG.onYield)
+    if (sw_likely(on_yield))
     {
-        swCoroG.onYield(task);
+        on_yield(task);
     }
-    swCoroG.call_stack_size--;
-    ctx.SwapOut();
+    current = origin;
+    ctx.swap_out();
 }
 
 void Coroutine::resume()
 {
+    SW_ASSERT(current != this);
+    if (sw_unlikely(on_bailout))
+    {
+        return;
+    }
     state = SW_CORO_RUNNING;
-    if (swCoroG.onResume)
+    if (sw_likely(on_resume))
     {
-        swCoroG.onResume(task);
+        on_resume(task);
     }
-    swCoroG.call_stack[swCoroG.call_stack_size++] = this;
-    ctx.SwapIn();
-    if (ctx.end)
-    {
-        release();
-    }
+    origin = current;
+    current = this;
+    ctx.swap_in();
+    check_end();
 }
 
 void Coroutine::yield_naked()
 {
+    SW_ASSERT(current == this);
     state = SW_CORO_WAITING;
-    swCoroG.call_stack_size--;
-    ctx.SwapOut();
+    current = origin;
+    ctx.swap_out();
 }
 
 void Coroutine::resume_naked()
 {
-    state = SW_CORO_RUNNING;
-    swCoroG.call_stack[swCoroG.call_stack_size++] = this;
-    ctx.SwapIn();
-    if (ctx.end)
+    SW_ASSERT(current != this);
+    if (sw_unlikely(on_bailout))
     {
-        release();
+        return;
     }
+    state = SW_CORO_RUNNING;
+    origin = current;
+    current = this;
+    ctx.swap_in();
+    check_end();
 }
 
-void Coroutine::release()
+void Coroutine::close()
 {
+    SW_ASSERT(current == this);
     state = SW_CORO_END;
-    if (swCoroG.onClose)
+    if (on_close)
     {
-        swCoroG.onClose();
+        on_close(task);
     }
-    swCoroG.call_stack_size--;
-    swCoroG.coroutines.erase(cid);
+#ifndef SW_NO_USE_ASM_CONTEXT
+    swTraceLog(SW_TRACE_CONTEXT, "coroutine#%ld stack memory use less than %ld bytes", get_cid(), ctx.get_stack_usage());
+#endif
+    current = origin;
+    coroutines.erase(cid);
     delete this;
 }
 
-void* coroutine_get_task_by_cid(long cid)
+void Coroutine::print_list()
 {
-    Coroutine *co = coroutine_get_by_id(cid);
-    if (co == nullptr)
-    {
-        return nullptr;
-    }
-    else
-    {
-        return co->get_task();
-    }
-}
-
-Coroutine* coroutine_get_by_id(long cid)
-{
-    auto coroutine_iterator = swCoroG.coroutines.find(cid);
-    if (coroutine_iterator == swCoroG.coroutines.end())
-    {
-        return nullptr;
-    }
-    else
-    {
-        return coroutine_iterator->second;
-    }
-}
-
-Coroutine* coroutine_get_current()
-{
-    return likely(swCoroG.call_stack_size > 0) ? swCoroG.call_stack[swCoroG.call_stack_size - 1] : nullptr;
-}
-
-void coroutine_print_list()
-{
-    for (auto i = swCoroG.coroutines.begin(); i != swCoroG.coroutines.end(); i++)
+    for (auto i = coroutines.begin(); i != coroutines.end(); i++)
     {
         const char *state;
         switch(i->second->state){
@@ -147,48 +117,106 @@ void coroutine_print_list()
             state = "[END]";
             break;
         default:
-            assert(0);
+            abort();
             return;
         }
         printf("Coroutine\t%ld\t%s\n", i->first, state);
     }
 }
 
-void* coroutine_get_current_task()
+void Coroutine::set_on_yield(sw_coro_on_swap_t func)
 {
-    Coroutine* co = coroutine_get_current();
-    if (co == nullptr)
+    on_yield = func;
+}
+
+void Coroutine::set_on_resume(sw_coro_on_swap_t func)
+{
+    on_resume = func;
+}
+
+void Coroutine::set_on_close(sw_coro_on_swap_t func)
+{
+    on_close = func;
+}
+
+void Coroutine::bailout(sw_coro_bailout_t func)
+{
+    Coroutine *co = current;
+    if (!co)
+    {
+        // marks that it can no longer resume any coroutine
+        on_bailout = (sw_coro_bailout_t) -1;
+        return;
+    }
+    if (!func)
+    {
+        swError("bailout without bailout function");
+    }
+    if (!co->task)
+    {
+        // TODO: decoupling
+        exit(255);
+    }
+    on_bailout = func;
+    // find the coroutine which is closest to the main
+    while (co->origin)
+    {
+        co = co->origin;
+    }
+    // it will jump to main context directly (it also breaks contexts)
+    co->yield();
+    // expect that never here
+    exit(1);
+}
+
+uint8_t swoole_coroutine_is_in()
+{
+    return !!Coroutine::get_current();
+}
+
+long swoole_coroutine_get_current_id()
+{
+    return Coroutine::get_current_cid();
+}
+
+/**
+ * for gdb
+ */
+static std::unordered_map<long, Coroutine*>::iterator _gdb_iterator;
+
+void swoole_coro_iterator_reset()
+{
+    _gdb_iterator = Coroutine::coroutines.begin();
+}
+
+Coroutine* swoole_coro_iterator_each()
+{
+    if (_gdb_iterator == Coroutine::coroutines.end())
     {
         return nullptr;
     }
     else
     {
-        return co->get_task();
+        Coroutine *co = _gdb_iterator->second;
+        _gdb_iterator++;
+        return co;
     }
 }
 
-long coroutine_get_current_cid()
+Coroutine* swoole_coro_get(long cid)
 {
-    Coroutine* co = coroutine_get_current();
-    return likely(co) ? co->get_cid() : -1;
+    auto i = Coroutine::coroutines.find(cid);
+    if (i == Coroutine::coroutines.end())
+    {
+        return nullptr;
+    }
+    else
+    {
+        return i->second;
+    }
 }
 
-void coroutine_set_onYield(coro_php_yield_t func)
+size_t swoole_coro_count()
 {
-    swCoroG.onYield = func;
-}
-
-void coroutine_set_onResume(coro_php_resume_t func)
-{
-    swCoroG.onResume = func;
-}
-
-void coroutine_set_onClose(coro_php_close_t func)
-{
-    swCoroG.onClose = func;
-}
-
-void coroutine_set_stack_size(int stack_size)
-{
-    swCoroG.stack_size = stack_size;
+    return Coroutine::coroutines.size();
 }

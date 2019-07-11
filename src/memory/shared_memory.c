@@ -15,12 +15,11 @@
 */
 
 #include "swoole.h"
-#ifndef _WIN32
 #include <sys/shm.h>
-#endif
 
 void* sw_shm_malloc(size_t size)
 {
+    size = SW_MEM_ALIGNED_SIZE(size);
     swShareMemory object;
     void *mem;
     size += sizeof(swShareMemory);
@@ -41,7 +40,9 @@ void* sw_shm_calloc(size_t num, size_t _size)
     swShareMemory object;
     void *mem;
     void *ret_mem;
-    int size = sizeof(swShareMemory) + (num * _size);
+    size_t size = sizeof(swShareMemory) + (num * _size);
+    size = SW_MEM_ALIGNED_SIZE(size);
+
     mem = swShareMemory_mmap_create(&object, size, NULL);
     if (mem == NULL)
     {
@@ -85,7 +86,6 @@ void* sw_shm_realloc(void *ptr, size_t new_size)
     }
 }
 
-#ifndef _WIN32
 void *swShareMemory_mmap_create(swShareMemory *object, size_t size, char *mapfile)
 {
     void *mem;
@@ -122,7 +122,7 @@ void *swShareMemory_mmap_create(swShareMemory *object, size_t size, char *mapfil
     if (!mem)
 #endif
     {
-        swWarn("mmap(%ld) failed. Error: %s[%d]", size, strerror(errno), errno);
+        swSysWarn("mmap(%ld) failed", size);
         return NULL;
     }
     else
@@ -151,12 +151,12 @@ void *swShareMemory_sysv_create(swShareMemory *object, size_t size, int key)
     //SHM_R | SHM_W
     if ((shmid = shmget(key, size, IPC_CREAT)) < 0)
     {
-        swSysError("shmget(%d, %ld) failed.", key, size);
+        swSysWarn("shmget(%d, %ld) failed", key, size);
         return NULL;
     }
     if ((mem = shmat(shmid, NULL, 0)) == (void *) -1)
     {
-        swWarn("shmat() failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("shmat() failed");
         return NULL;
     }
     else
@@ -179,28 +179,3 @@ int swShareMemory_sysv_free(swShareMemory *object, int rm)
     }
     return ret;
 }
-#else
-void *swShareMemory_mmap_create(swShareMemory *object, size_t size, char *mapfile)
-{
-	bzero(object, sizeof(swShareMemory));
-	SECURITY_ATTRIBUTES sa;
-	sa.nLength = sizeof(sa);
-	sa.lpSecurityDescriptor = NULL;
-	sa.bInheritHandle = TRUE;
-	HANDLE handle = CreateFileMapping(INVALID_HANDLE_VALUE, &sa, PAGE_READWRITE, 0, size, NULL);
-	void* p = MapViewOfFile(handle, FILE_MAP_ALL_ACCESS, 0, 0, size);
-	if (!p)
-	{
-		CloseHandle(handle);
-		return MAP_FAILED;
-	}
-	object->mem = handle;
-	return p;
-}
-
-int swShareMemory_mmap_free(swShareMemory *object)
-{
-	return CloseHandle(object->mem);
-}
-
-#endif

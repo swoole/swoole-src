@@ -17,8 +17,8 @@ go(function () {
         'Accept-Encoding' => 'gzip',
     ]);
     $ret = $cli->get('/');
-    assert($ret);
-    assert(strpos($cli->body, 'Swoole') !== false);
+    Assert::assert($ret);
+    Assert::assert(strpos($cli->body, 'Swoole') !== false);
 });
 ?>
 --EXPECT--

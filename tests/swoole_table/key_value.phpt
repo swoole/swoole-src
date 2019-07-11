@@ -1,6 +1,5 @@
 --TEST--
 swoole_table: key-value operate
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

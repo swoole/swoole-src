@@ -9,9 +9,10 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
 {
-    $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
-    echo $data;
-    swoole_process::kill($pid);
+    go(function () use ($pm) {
+        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        $pm->kill();
+    });
 };
 
 $pm->childFunc = function () use ($pm)
@@ -47,7 +48,7 @@ $pm->childFunc = function () use ($pm)
         if (!$ret) {
             goto fail;
         }
-        assert($ret == "value");
+        Assert::same($ret, "value");
         if (strlen($ret) > 0) {
             $response->end("OK\n");
         }

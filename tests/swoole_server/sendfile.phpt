@@ -1,7 +1,10 @@
 --TEST--
 swoole_server: sendfile
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_in_valgrind();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -21,10 +24,10 @@ usleep(500 * 1000);
 
 makeTcpClient(TCP_SERVER_HOST, $port, function(\swoole_client $cli) {
     $r = $cli->send(opcode_encode("sendfile", [2, __FILE__]));
-    assert($r !== false);
+    Assert::assert($r !== false);
 }, function(\swoole_client $cli, $recv) {
     $len = unpack("N", substr($recv, 0, 4))[1];
-    assert($len - 4 === strlen(substr($recv, 4)));
+    Assert::same($len - 4, strlen(substr($recv, 4)));
     swoole_event_exit();
     echo "SUCCESS";
 });

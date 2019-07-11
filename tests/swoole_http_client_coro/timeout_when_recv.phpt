@@ -16,8 +16,8 @@ $pm->parentFunc = function ($pid) use ($pm, $port) {
         ]);
         $cli->setDefer();
         $cli->get('/');
-        assert(!$cli->recv());
-        assert(empty($cli->body));
+        Assert::assert(!$cli->recv());
+        Assert::assert(empty($cli->body));
         $pm->kill();
     });
     swoole_event_wait();
@@ -33,7 +33,7 @@ $pm->childFunc = function () use ($pm, $port) {
         $pm->wakeup();
     });
     $serv->on('request', function (swoole_http_request $request, swoole_http_response $response) {
-        assert($request->header['hello'] === 'swoole');
+        Assert::same($request->header['hello'], 'swoole');
         co::sleep(2);
         $response->end('ok!');
     });

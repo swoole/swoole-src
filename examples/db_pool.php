@@ -25,7 +25,7 @@ function my_onRequest_sync($req, $resp)
     }
 }
 
-function my_onTask($serv, $task_id, $from_id, $sql)
+function my_onTask($serv, $task_id, $reactor_id, $sql)
 {
     static $link = null;
     if ($link == null)

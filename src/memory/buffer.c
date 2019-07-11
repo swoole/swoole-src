@@ -20,17 +20,17 @@
 /**
  * create new buffer
  */
-swBuffer* swBuffer_new(int chunk_size)
+swBuffer* swBuffer_new(uint32_t chunk_size)
 {
     swBuffer *buffer = sw_malloc(sizeof(swBuffer));
     if (buffer == NULL)
     {
-        swWarn("malloc for buffer failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("malloc for buffer failed");
         return NULL;
     }
 
     bzero(buffer, sizeof(swBuffer));
-    buffer->chunk_size = chunk_size;
+    buffer->chunk_size = chunk_size == 0 ? INT_MAX : chunk_size;
 
     return buffer;
 }
@@ -43,7 +43,7 @@ swBuffer_chunk *swBuffer_new_chunk(swBuffer *buffer, uint32_t type, uint32_t siz
     swBuffer_chunk *chunk = sw_malloc(sizeof(swBuffer_chunk));
     if (chunk == NULL)
     {
-        swWarn("malloc for chunk failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("malloc for chunk failed");
         return NULL;
     }
 
@@ -55,7 +55,7 @@ swBuffer_chunk *swBuffer_new_chunk(swBuffer *buffer, uint32_t type, uint32_t siz
         void *buf = sw_malloc(size);
         if (buf == NULL)
         {
-            swWarn("malloc(%d) for data failed. Error: %s[%d]", size, strerror(errno), errno);
+            swSysWarn("malloc(%d) for data failed", size);
             sw_free(chunk);
             return NULL;
         }
@@ -136,21 +136,34 @@ int swBuffer_free(swBuffer *buffer)
 /**
  * append to buffer queue
  */
-int swBuffer_append(swBuffer *buffer, void *data, uint32_t size)
+int swBuffer_append(swBuffer *buffer, const void *data, uint32_t size)
 {
-    swBuffer_chunk *chunk = swBuffer_new_chunk(buffer, SW_CHUNK_DATA, size);
-    if (chunk == NULL)
+    uint32_t _length = size;
+    const void* _pos = data;
+    uint32_t _n;
+
+    //buffer enQueue
+    while (_length > 0)
     {
-        return SW_ERR;
+        _n = _length >= buffer->chunk_size ? buffer->chunk_size : _length;
+
+        swBuffer_chunk *chunk = swBuffer_new_chunk(buffer, SW_CHUNK_DATA, _n);
+        if (chunk == NULL)
+        {
+            return SW_ERR;
+        }
+
+        buffer->length += _n;
+        chunk->length = _n;
+
+        memcpy(chunk->store.ptr, _pos, _n);
+
+        swTraceLog(SW_TRACE_BUFFER, "chunk_n=%d|size=%d|chunk_len=%d|chunk=%p", buffer->chunk_num, _n,
+                chunk->length, chunk);
+
+        _pos += _n;
+        _length -= _n;
     }
-
-    buffer->length += size;
-    chunk->length = size;
-
-    memcpy(chunk->store.ptr, data, size);
-
-    swTraceLog(SW_TRACE_BUFFER, "chunk_n=%d|size=%d|chunk_len=%d|chunk=%p", buffer->chunk_num, size,
-            chunk->length, chunk);
 
     return SW_OK;
 }

@@ -5,25 +5,25 @@ swoole_http_server: disable coroutine and use go
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-
-use Swoole\Http\Request;
-use Swoole\Http\Response;
-
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    for ($n = 0; $n > MAX_REQUESTS; $n++) {
-        assert(curlGet("http://127.0.0.1:{$pm->getFreePort()}/") == $n);
-    }
+    go(function () use ($pm) {
+        for ($n = 0; $n > MAX_REQUESTS; $n++) {
+            Assert::assert(httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/") == $n);
+        }
+    });
+    Swoole\Event::wait();
     $pm->kill();
+    echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $http->set([
         'worker_num' => 1,
         'log_file' => '/dev/null',
         'enable_coroutine' => false, // close build-in coroutine
     ]);
-    $http->on("request", function (Request $request, Response $response) {
+    $http->on("request", function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         go(function () use ($response) {
             co::sleep(0.001);
             $cid = go(function () use ($response) {
@@ -39,3 +39,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+DONE

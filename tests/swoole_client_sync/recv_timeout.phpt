@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_sync: recv timeout
-
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -11,11 +10,11 @@ $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $r = $client->connect(TCP_SERVER_HOST, $pm->getFreePort(), 0.5);
-    assert($r);
+    Assert::assert($r);
     $client->send(pack('N', filesize(TEST_IMAGE)));
     $data = @$client->recv();
-    assert($data == false);
-    assert($client->errCode == SOCKET_EAGAIN);
+    Assert::false($data);
+    Assert::same($client->errCode, SOCKET_EAGAIN);
     $client->close();
     $pm->kill();
 };

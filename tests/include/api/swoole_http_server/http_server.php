@@ -25,7 +25,6 @@ class HttpServer
             // 'enable_port_reuse' => true,
             'user' => 'www-data',
             'group' => 'www-data',
-            'log_file' => '/tmp/swoole.log',
             'dispatch_mode' => 3,
             'open_tcp_nodelay' => 1,
             'open_cpu_affinity' => 1,
@@ -33,6 +32,7 @@ class HttpServer
             'reactor_num' => 1,
             'worker_num' => 2,
             'max_request' => 100000,
+            'log_file' => TEST_LOG_FILE,
 
             /*
             'package_max_length' => 1024 * 1024 * 2
@@ -245,9 +245,7 @@ class HttpServer
         }
 
         if ($uri === "/code") {
-            swoole_async_readfile(__FILE__, function($filename, $contents) use($response) {
-                $response->end(highlight_string($contents, true));
-            });
+            $response->end(highlight_string(file_get_contents(__FILE__), true));
             return;
         }
 

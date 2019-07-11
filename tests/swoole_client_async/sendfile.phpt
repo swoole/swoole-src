@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_async: async sendfile
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -17,13 +16,13 @@ $pm->parentFunc = function ($pid) use ($port)
     {
         $cli->send(pack('N', filesize(TEST_IMAGE)));
         $ret = $cli->sendfile(TEST_IMAGE);
-        assert($ret);
+        Assert::assert($ret);
     });
     $client->on("receive", function (Swoole\Client $cli, $data)
     {
         $cli->send(pack('N', 8) . 'shutdown');
         $cli->close();
-        assert($data === md5_file(TEST_IMAGE));
+        Assert::same($data, md5_file(TEST_IMAGE));
     });
     $client->on("error", function($cli){
         echo "Connect failed\n";

@@ -16,13 +16,13 @@ $pm->parentFunc = function ($pid)
     $cli = new \swoole_client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_ASYNC);
 
     $cli->on("connect", function (\swoole_client $cli) {
-        assert($cli->isConnected() === true);
+        Assert::true($cli->isConnected());
         $cli->send("test");
     });
 
     $cli->on("receive", function(\swoole_client $cli, $data){
         $i = $cli->getpeername();
-        assert($i !== false);
+        Assert::assert($i !== false);
         $cli->send('shutdown');
         $cli->close();
     });
@@ -32,7 +32,7 @@ $pm->parentFunc = function ($pid)
     });
 
     $r = $cli->connect(UDP_SERVER_HOST, UDP_SERVER_PORT, 1);
-    assert($r);
+    Assert::assert($r);
     Swoole\Event::wait();
 };
 

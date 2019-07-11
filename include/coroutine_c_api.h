@@ -26,8 +26,15 @@ extern "C"
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/statvfs.h>
+#include <stdint.h>
 #include <poll.h>
 
+/**
+ * base
+ */
+uint8_t swoole_coroutine_is_in();
+long swoole_coroutine_get_current_id();
 /**
  * file
  */
@@ -42,6 +49,8 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode);
 int swoole_coroutine_rmdir(const char *pathname);
 int swoole_coroutine_rename(const char *oldpath, const char *newpath);
 int swoole_coroutine_flock(int fd, int operation);
+int swoole_coroutine_flock_ex(char *filename, int fd, int operation);
+int swoole_coroutine_statvfs(const char *path, struct statvfs *buf);
 
 /**
  * socket

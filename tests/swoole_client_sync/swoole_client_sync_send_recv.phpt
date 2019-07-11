@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_sync: udp sync client send & recv
-
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -15,10 +14,10 @@ $client->connect(UDP_SERVER_HOST, UDP_SERVER_PORT);
 
 $data = "UdpSendto";
 $client->send($data);
-
+usleep(100 * 1000);
 $message = $client->recv();
 echo "FromServer:$message\n";
-echo "SUCCESS";
+echo "SUCCESS\n";
 
 ?>
 --EXPECTF--

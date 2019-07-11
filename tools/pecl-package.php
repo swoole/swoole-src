@@ -8,7 +8,6 @@
 
 require __DIR__ . '/functions.php';
 
-// TODO: update
 function check_source_ver(string $expect_ver, $source_file)
 {
     static $source_ver_regex = '/(SWOOLE_VERSION +)("?)(?<ver>[\w\-.]+)("?)/';
@@ -22,7 +21,34 @@ function check_source_ver(string $expect_ver, $source_file)
         );
         return;
     }
+
     $source_ver = $matches['ver'];
+
+    // auto fixed sub version values
+    if (strpos($source_content, 'SWOOLE_MAJOR_VERSION') !== false) {
+        $version_parts = array_values(array_filter(preg_split('/(?:\b)|(?:(?<=[0-9])(?=[a-zA-Z]))/',
+            $source_ver), function (string $char) {
+            return preg_match('/[0-9a-zA-Z]/', $char);
+        }));
+        list($major, $minor, $release, $extra) = $version_parts;
+        $source_content = preg_replace(
+            '/^(\#define[ ]+SWOOLE_VERSION_ID[ ]+)\d+$/m',
+            '${1}' . sprintf('%d%02d%02d', $major, $minor, $release),
+            $source_content
+        );
+        (function (&$source_content, $replacements) {
+            foreach ($replacements as $replacement) {
+                $regex = '/^(\#define[ ]+SWOOLE_' . $replacement[0] . '_VERSION[ ]+' . (is_numeric($replacement[1]) ? ')\d+()$' : '")[^"]*("$)') . '/m';
+                $source_content = preg_replace(
+                    $regex, '${1}' . $replacement[1] . '${2}',
+                    $source_content,
+                    1
+                );
+            }
+        })($source_content, [['MAJOR', $major], ['MINOR', $minor], ['RELEASE', $release], ['EXTRA', $extra]]);
+        file_put_contents($source_file, $source_content);
+    }
+
     if (!preg_match('/^\d+?\.\d+?\.\d+?$/', $source_ver)) {
         $is_release_ver = false;
         swoole_warn("SWOOLE_VERSION v{$source_ver} is not a release version number in {$source_file}.");
@@ -34,10 +60,17 @@ function check_source_ver(string $expect_ver, $source_file)
         case -1: // <
             {
                 if ($replaced) {
+                    _replaced_error:
                     swoole_error("Fix version number failed in {$source_file}");
                 }
                 swoole_warn("SWOOLE_VERSION v{$source_ver} will be replaced to v{$expect_ver} in {$source_file}.");
-                $source_content = preg_replace($source_ver_regex, '$1${2}' . $expect_ver . '$4', $source_content, 1);
+                $source_content = preg_replace(
+                    $source_ver_regex, '$1${2}' . $expect_ver . '$4',
+                    $source_content, 1, $replaced
+                );
+                if (!$replaced) {
+                    goto _replaced_error;
+                }
                 file_put_contents($source_file, $source_content);
                 $replaced = true;
                 goto _check;
@@ -55,8 +88,9 @@ function check_source_ver(string $expect_ver, $source_file)
 
 // all check
 swoole_execute_and_check('php ' . __DIR__ . '/arginfo-check.php');
+swoole_execute_and_check('php ' . __DIR__ . '/build-library.php');
 swoole_execute_and_check('php ' . __DIR__ . '/config-generator.php');
-swoole_execute_and_check('php ' . __DIR__ . '/fix-tests-title.php');
+swoole_execute_and_check('php ' . __DIR__ . '/phpt-fixer.php');
 
 // prepare
 swoole_ok('Start to package...');
@@ -67,7 +101,7 @@ $tests_dir = __DIR__ . '/../tests/';
 $root_dir = SWOOLE_SOURCE_ROOT;
 
 // check version definitions
-$package_ver_regex = '/<version>\s+<release>(?<release_v>\d+?\.\d+?\.\d+?)<\/release>\s+<api>(?<api_v>\d+?\.\d+?)<\/api>\s+<\/version>\s+<stability>\s+<release>(?<release_s>[a-z]+?)<\/release>\s+<api>(?<api_s>[a-z]+?)<\/api>\s+<\/stability>/';
+$package_ver_regex = '/<version>\s+<release>(?<release_v>\d+?\.\d+?\.\d+?(?:-?(?:alpine|beta|rc\d*?))?)<\/release>\s+<api>(?<api_v>\d+?\.\d+?)<\/api>\s+<\/version>\s+<stability>\s+<release>(?<release_s>[a-z]+?)<\/release>\s+<api>(?<api_s>[a-z]+?)<\/api>\s+<\/stability>/i';
 preg_match($package_ver_regex, file_get_contents(__DIR__ . '/../package.xml'), $matches);
 $package_release_ver = $matches['release_v'];
 $package_api_ver = $matches['api_v'];
@@ -145,8 +179,19 @@ $content = str_replace($dir_tag, $dir_tag . $space . implode("{$space}", $file_l
 if (!$success) {
     swoole_error('Replace new content failed!');
 }
+date_default_timezone_set('Asia/Shanghai');
+$date_tag = date('Y-m-d');
+$content = preg_replace('/(<date\>)\d+?-\d+?-\d+?(<\/date>)/', '${1}' . $date_tag . '${2}', $content, $success);
+if (!$success) {
+    swoole_error('Replace date tag failed!');
+}
+$time_tag = date('H', time() + 3600) . ':00:00';
+$content = preg_replace('/(<time\>)\d+?:\d+?:\d+?(<\/time>)/', '${1}' . $time_tag . '${2}', $content, $success);
+if (!$success) {
+    swoole_error('Replace time tag failed!');
+}
 if (!file_put_contents(__DIR__ . '/../package.xml', $content)) {
-    swoole_error('Output package successful!');
+    swoole_error('Output package.xml failed!');
 }
 $package = trim(`cd {$root_dir} && pecl package`);
 if (preg_match('/Warning/i', $package)) {
@@ -156,7 +201,7 @@ if (preg_match('/Warning/i', $package)) {
     swoole_log("{$warn}\n", SWOOLE_COLOR_MAGENTA);
 }
 // check package status
-if (!preg_match('/Package (?<filename>swoole-[\d.]+\.tgz) done/', $package, $matches)) {
+if (!preg_match('/Package (?<filename>swoole-.+?.tgz) done/', $package, $matches)) {
     swoole_error($package);
 } else {
     $file_name = $matches['filename'];

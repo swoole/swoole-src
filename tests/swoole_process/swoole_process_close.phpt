@@ -13,7 +13,7 @@ require __DIR__ . '/../include/bootstrap.php';
 //
 //$proc = new \swoole_process(swoole_function(\swoole_process $proc) {
 //    usleep(200000);
-//    // assert(false);
+//    // Assert::true(false, 'never here');
 //});
 //$proc->start();
 //$proc->close();

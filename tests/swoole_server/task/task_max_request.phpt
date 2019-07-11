@@ -1,6 +1,5 @@
 --TEST--
-swoole_server: task_max_request
-
+swoole_server/task: task_max_request
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -13,7 +12,7 @@ $counter1 = new swoole_atomic(); // onTask
 $counter2 = new swoole_atomic(); // onFinish
 $counter3 = new swoole_atomic(); // task num
 
-swoole_unittest_fork(function() {
+$process = new Swoole\Process(function() {
 
     $serv = new \swoole_server('127.0.0.1', get_one_free_port());
     $serv->set([
@@ -58,11 +57,14 @@ swoole_unittest_fork(function() {
     });
 
     $serv->start();
-});
+},false, false);
+$process->start();
 
-swoole_unittest_wait();
-assert($counter1->get() == 4000);
-assert($counter2->get() == 4000);
-assert($counter3->get() > 15);
+Swoole\Process::wait();
+Assert::same($counter1->get(), 4000);
+Assert::same($counter2->get(), 4000);
+Assert::assert($counter3->get() > 15);
+echo "DONE\n";
 ?>
 --EXPECT--
+DONE

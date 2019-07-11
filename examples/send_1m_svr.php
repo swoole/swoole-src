@@ -4,11 +4,11 @@ $serv->set(array('worker_num' => 1));
 $serv->on('workerStart', function($serv, $worker_id) {
         //if($worker_id == 0) $serv->addtimer(500);
 });
-$serv->on('connect', function ($serv, $fd, $from_id){
+$serv->on('connect', function ($serv, $fd, $reactor_id){
     $serv->array['fd'] = &strval($fd);
-    echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Connect.\n";
+    echo "[#".posix_getpid()."]\tClient@[$fd:$reactor_id]: Connect.\n";
 });
-$serv->on('receive', function ($serv, $fd, $from_id, $data) {
+$serv->on('receive', function ($serv, $fd, $reactor_id, $data) {
     //echo "[#".posix_getpid()."]\tClient[$fd]: $data\n";
     $array = array('A', 'B', 'C', 'D', 'E', 'F', 'G');
     $data = '';
@@ -24,7 +24,7 @@ $serv->on('receive', function ($serv, $fd, $from_id, $data) {
     $serv->send( $serv->array['fd'], $data);
     $serv->close($fd);
 });
-$serv->on('close', function ($serv, $fd, $from_id) {
-    echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Close.\n";
+$serv->on('close', function ($serv, $fd, $reactor_id) {
+    echo "[#".posix_getpid()."]\tClient@[$fd:$reactor_id]: Close.\n";
 });
 $serv->start();

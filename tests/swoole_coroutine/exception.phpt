@@ -7,7 +7,10 @@ swoole_coroutine: throw exception
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
-    echo curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
+    go(function () use ($pm) {
+        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        $pm->kill();
+    });
 };
 $pm->childFunc = function () use ($pm) {
     $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
@@ -25,7 +28,11 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Fatal error: Uncaught Exception: whoops in %s/tests/swoole_coroutine/exception.php:15
+Fatal error: Uncaught Exception: whoops in %s:%d
 Stack trace:
 #0 {main}
-  thrown in %s/tests/swoole_coroutine/exception.php on line 15
+  thrown in %s on line %d
+[%s]	ERROR	swoole_server_rshutdown (ERRNO %d): Fatal error: Uncaught Exception: whoops in %s:%d
+Stack trace:
+#0 {main}
+  thrown in %s on line %d

@@ -8,13 +8,15 @@ os:
   - linux
 
 php:
-  - 7.0
   - 7.1
   - 7.2
+  - 7.3
   - nightly
 
 matrix:
   fast_finish: true
+  allow_failures:
+    - php: nightly
 
 notifications:
   email: team@swoole.com
@@ -24,6 +26,7 @@ sudo: required
 env:
   global:
     - secure: "Mqg9ifSV0BLv2TIBw/x64aEuB8Y5aPXwXg7xAOq08oPlHBYSBgSYxroJL5PXs0fe7PszZF20bUBinwmEXYQzqgP/40Y1kmq/kfTsDXwTOc9qbAbA1pWvH+Sk1kDP5MLJRPWBCkqctyFd0I0u0SdzT1fgSqirqEz2bMnbAUVpSvo="
+    - CODECOV_TOKEN=:50513381-198e-43d3-a8b1-e36b95038927
 
 services:
   - docker
@@ -58,3 +61,6 @@ before_script:
 
 script:
   - ./travis/route.sh
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)

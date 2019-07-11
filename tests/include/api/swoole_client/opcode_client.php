@@ -19,14 +19,14 @@ assert($cli->set([
 
 $cli->on("connect", function(swoole_client $cli) {
     swoole_timer_clear($cli->timeo_id);
-    assert($cli->isConnected() === true);
+    Assert::true($cli->isConnected());
 
 });
 
 $cli->on("receive", function(swoole_client $cli, $data){
 
     $cli->close();
-    assert($cli->isConnected() === false);
+    Assert::false($cli->isConnected());
 });
 
 $cli->on("error", function(swoole_client $cli) {
@@ -44,5 +44,5 @@ $cli->connect(TCP_SERVER_HOST, TCP_SERVER_PORT);
 $cli->timeo_id = swoole_timer_after(1000, function() use($cli) {
     debug_log("connect timeout");
     $cli->close();
-    assert($cli->isConnected() === false);
+    Assert::false($cli->isConnected());
 });

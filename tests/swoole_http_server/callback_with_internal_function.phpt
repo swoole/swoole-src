@@ -8,8 +8,10 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    curlGet("http://127.0.0.1:{$pm->getFreePort()}");
-    $pm->kill();
+    go(function () use ($pm) {
+        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        $pm->kill();
+    });
 };
 
 $pm->childFunc = function () use ($pm) {
@@ -26,22 +28,20 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-object(Swoole\Http\Request)#9 (10) {
+object(Swoole\Http\Request)#%d (%d) {
   ["fd"]=>
   int(1)
-  ["streamId"]=>
-  int(0)
-  ["header"]=>
+  %A"header"]=>
   array(3) {
     ["host"]=>
-    string(15) "%s"
-    ["accept"]=>
-    string(3) "*/*"
+    string(%d) "%s"
+    ["connection"]=>
+    string(10) "keep-alive"
     ["accept-encoding"]=>
     string(4) "gzip"
   }
   ["server"]=>
-  array(11) {
+  array(10) {
     ["request_method"]=>
     string(3) "GET"
     ["request_uri"]=>
@@ -52,6 +52,8 @@ object(Swoole\Http\Request)#9 (10) {
     int(%d)
     ["request_time_float"]=>
     float(%f)
+    ["server_protocol"]=>
+    string(8) "HTTP/1.1"
     ["server_port"]=>
     int(%d)
     ["remote_port"]=>
@@ -60,10 +62,6 @@ object(Swoole\Http\Request)#9 (10) {
     string(9) "127.0.0.1"
     ["master_time"]=>
     int(%d)
-    ["server_protocol"]=>
-    string(8) "HTTP/1.1"
-    ["server_software"]=>
-    string(18) "swoole-http-server"
   }
   ["request"]=>
   NULL
@@ -78,9 +76,11 @@ object(Swoole\Http\Request)#9 (10) {
   ["tmpfiles"]=>
   NULL
 }
-object(Swoole\Http\Response)#10 (4) {
+object(Swoole\Http\Response)#%d (%d) {
   ["fd"]=>
   int(1)
+  ["socket"]=>
+  NULL
   ["header"]=>
   NULL
   ["cookie"]=>

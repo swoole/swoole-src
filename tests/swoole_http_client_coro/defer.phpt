@@ -1,7 +1,10 @@
 --TEST--
 swoole_http_client_coro: error handler
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_in_valgrind();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -14,14 +17,14 @@ $pm->parentFunc = function () use ($pm) {
 
         // normal
         for ($n = MAX_REQUESTS; $n--;) {
-            assert($cli->get('/'));
-            assert($cli->body === $pm->getRandomData());
+            Assert::assert($cli->get('/'));
+            Assert::same($cli->body, $pm->getRandomData());
         }
 
         // failed when recv response
         $retry_time = microtime(true);
         for ($n = MAX_REQUESTS; $n--;) {
-            assert(!$cli->get('/'));
+            Assert::assert(!$cli->get('/'));
         }
         $retry_time = microtime(true) - $retry_time;
 
@@ -31,13 +34,14 @@ $pm->parentFunc = function () use ($pm) {
         // failed when connect
         $failed_time = microtime(true);
         for ($n = MAX_REQUESTS; $n--;) {
-            assert(!$cli->get('/'));
-            assert($cli->errCode === SOCKET_ECONNREFUSED);
-            assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED, $cli->statusCode);
+            Assert::assert(!$cli->get('/'));
+            Assert::same($cli->errCode, SOCKET_ECONNREFUSED);
+            Assert::same($cli->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED, $cli->statusCode);
         }
         $failed_time = microtime(true) - $failed_time;
 
-        assert($retry_time > $failed_time * 2);
+        phpt_var_dump($retry_time, $failed_time);
+        Assert::assert($retry_time > $failed_time * 2);
     });
     swoole_event_wait();
     echo "OK\n";

@@ -5,7 +5,6 @@ swoole_websocket_server: websocket server full test
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/../include/lib/class.websocket_client.php';
 $count = MAX_CONCURRENCY_MID;
 $data_list = [];
 for ($i = MAX_REQUESTS; $i--;) {
@@ -23,27 +22,27 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count, $data_list) {
             $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             $cli->set(['timeout' => 5]);
             $ret = $cli->upgrade('/');
-            assert($ret);
+            Assert::assert($ret);
             while (($frame = $cli->recv())) {
                 /**@var $frame swoole_websocket_frame */
                 list($id, $opcode) = explode('|', $frame->data, 3);
-                assert($frame->finish);
-                assert($frame->opcode === (int)$opcode);
-                assert($frame->data === $data_list[$id]);
-                if (assert(isset($data_list[$id]))) {
+                Assert::assert($frame->finish);
+                Assert::same($frame->opcode, (int)$opcode);
+                Assert::same($frame->data, $data_list[$id]);
+                if (Assert::true(isset($data_list[$id]))) {
                     unset($data_list[$id]);
                 }
                 if (empty($data_list)) {
                     break;
                 }
             }
-            if (assert(empty($data_list))) {
+            if (Assert::assert(empty($data_list))) {
                 $count--;
             }
         });
     }
     swoole_event_wait();
-    assert($count === 0);
+    Assert::same($count, 0);
     echo "complete\n";
     $pm->kill();
 };
@@ -70,7 +69,7 @@ $pm->childFunc = function () use ($pm) {
             } else {
                 $ret = $serv->push($req->fd, $data, $opcode);
             }
-            if (!assert($ret)) {
+            if (!Assert::assert($ret)) {
                 var_dump($serv->getLastError());
             }
         }

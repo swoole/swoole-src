@@ -45,23 +45,23 @@ abstract class TestServer
         $this->serv = $serv;
     }
 
-    function onConnect($serv, $fd, $from_id)
+    function onConnect($serv, $fd, $reactor_id)
     {
 
     }
 
-    function _receive($serv, $fd, $from_id, $data)
+    function _receive($serv, $fd, $reactor_id, $data)
     {
         $this->count++;
         $this->recv_bytes += strlen($data);
-        $this->onReceive($serv, $fd, $from_id, $data);
+        $this->onReceive($serv, $fd, $reactor_id, $data);
         if ($this->count == self::PKG_NUM)
         {
             $serv->send($fd, "end\n");
         }
     }
 
-    function onClose($serv, $fd, $from_id)
+    function onClose($serv, $fd, $reactor_id)
     {
         echo "Total count={$this->count}, bytes={$this->recv_bytes}\n";
         if ($this->show_lost_package)

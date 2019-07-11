@@ -3,7 +3,7 @@ swoole_http2_server: nghttp2 big data with ssl
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-if (strpos(@`nghttp --version`, 'nghttp2') === false) {
+if (strpos(`nghttp --version 2>&1`, 'nghttp2') === false) {
     skip('no nghttp');
 }
 ?>
@@ -13,8 +13,8 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     $file = __DIR__ . '/../../benchmark/post.big.data';
-    if (assert(!empty($res = `nghttp -d {$file} https://127.0.0.1:{$pm->getFreePort()}/ > /dev/stdout 2>/dev/null`))) {
-        assert(md5($res) === md5_file($file));
+    if (Assert::assert(!empty($res = `nghttp -d {$file} https://127.0.0.1:{$pm->getFreePort()}/ > /dev/stdout 2>/dev/null`))) {
+        Assert::same(md5($res), md5_file($file));
     }
     $pm->kill();
 };

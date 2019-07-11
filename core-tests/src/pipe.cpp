@@ -16,15 +16,19 @@ TEST(pipe, unixsock)
     ASSERT_GT(ret, 0);
 
     //1
-    ret = p.read(&p, buf, 65535);
+    ret = p.read(&p, buf, sizeof(buf));
+    if (ret < 0)
+    {
+        swSysWarn("read() failed.");
+    }
     ASSERT_GT(ret, 0);
     ASSERT_EQ(strcmp("hello world1", buf), 0);
     //2
-    ret = p.read(&p, buf, 65535);
+    ret = p.read(&p, buf, sizeof(buf));
     ASSERT_GT(ret, 0);
     ASSERT_EQ(strcmp("hello world2", buf), 0);
     //3
-    ret = p.read(&p, buf, 65535);
+    ret = p.read(&p, buf, sizeof(buf));
     ASSERT_GT(ret, 0);
     ASSERT_EQ(strcmp("hello world3", buf), 0);
 }

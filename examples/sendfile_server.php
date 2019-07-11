@@ -13,7 +13,7 @@ $serv->on('connect', function (swoole_server $serv, $fd){
 	$serv->send($fd, filesize(__DIR__.'/test.jpg'));
     //echo "Client:Connect.\n";
 });
-$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
+$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
     echo "Client[$fd]: $data\n";
     $serv->sendfile($fd, __DIR__.'/test.jpg');
     //$serv->close($fd);

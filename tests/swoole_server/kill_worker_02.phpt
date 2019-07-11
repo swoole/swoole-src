@@ -1,7 +1,11 @@
 --TEST--
 swoole_server: kill worker [SWOOLE_PROCESS]
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_darwin();
+skip_if_in_valgrind();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -13,10 +17,10 @@ $pm->parentFunc = function ($pid) use ($pm) {
     for ($i = 0; $i < 5; $i++)
     {
         //杀死进程
-        shell_exec("ps aux | grep \"" . WORKER_PROC_NAME . "\" |grep -v grep| awk '{ print $2}' | xargs kill");
+        kill_process_by_name(WORKER_PROC_NAME);
         usleep(10000);
         //判断进程是否存在
-        assert(intval(shell_exec("ps aux | grep \"" . WORKER_PROC_NAME . "\" |grep -v grep| awk '{ print $2}'")) > 0);
+        Assert::assert(get_process_pid_by_name(WORKER_PROC_NAME) > 0);
     }
     $pm->kill();
 };

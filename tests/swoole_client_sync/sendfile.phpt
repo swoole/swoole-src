@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_sync: sync sendfile
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -12,15 +11,15 @@ $pm->parentFunc = function ($pid) use ($port)
 {
     $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $r = $client->connect(TCP_SERVER_HOST, $port, 0.5);
-    assert($r);
+    Assert::assert($r);
     $client->send(pack('N', filesize(TEST_IMAGE)));
     $ret = $client->sendfile(TEST_IMAGE);
-    assert($ret);
+    Assert::assert($ret);
 
     $data = $client->recv();
     $client->send(pack('N', 8) . 'shutdown');
     $client->close();
-    assert($data === md5_file(TEST_IMAGE));
+    Assert::same($data, md5_file(TEST_IMAGE));
 };
 
 $pm->childFunc = function () use ($pm, $port)

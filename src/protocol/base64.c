@@ -22,13 +22,15 @@
 
 /* BASE 64 encode table */
 static char base64en[] =
-{ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W',
-        'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
-        't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/', };
+{
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/',
+};
 
-#define BASE64_PAD    '='
+#define BASE64_PAD        '='
 #define BASE64DE_FIRST    '+'
-#define BASE64DE_LAST    'z'
+#define BASE64DE_LAST     'z'
 
 /* ASCII order for BASE 64 decode, -1 in unused character */
 static signed char base64de[] = {
@@ -54,9 +56,10 @@ static signed char base64de[] = {
         44, 45, 46, 47, 48, 49, 50, 51,
 };
 
-int swBase64_encode(unsigned char *in, int inlen, char *out)
+size_t swBase64_encode(const unsigned char *in, size_t inlen, char *out)
 {
-    int i, j;
+    size_t i, j;
+
     for (i = j = 0; i < inlen; i++)
     {
         int s = i % 3; /* from 6/gcd(6, 8) */
@@ -87,12 +90,15 @@ int swBase64_encode(unsigned char *in, int inlen, char *out)
         out[j++] = base64en[(in[i] & 0xF) << 2];
         out[j++] = BASE64_PAD;
     }
-    return BASE64_OK;
+    out[j] = '\0';
+
+    return j;
 }
 
-int swBase64_decode(char *in, int inlen, unsigned char *out)
+size_t swBase64_decode(const char *in, size_t inlen, char* out)
 {
-    int i, j;
+    size_t i, j;
+
     for (i = j = 0; i < inlen; i++)
     {
         int c;
@@ -100,12 +106,12 @@ int swBase64_decode(char *in, int inlen, unsigned char *out)
 
         if (in[i] == '=')
         {
-            return BASE64_OK;
+            break;
         }
 
         if (in[i] < BASE64DE_FIRST || in[i] > BASE64DE_LAST || (c = base64de[in[i] - BASE64DE_FIRST]) == -1)
         {
-            return BASE64_INVALID;
+            return 0;
         }
 
         switch (s)
@@ -129,5 +135,7 @@ int swBase64_decode(char *in, int inlen, unsigned char *out)
             out[j++] += c;
         }
     }
-    return BASE64_OK;
+    out[j] = '\0';
+
+    return j;
 }

@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: use ob_* in nest co
+swoole_coroutine/output: use ob_* in nest co
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -17,6 +17,7 @@ go(function () {
     }); // [#5] destroyed and output: 4
     echo "3\n";
 }); // [#3] destroyed and output: 2 3
+swoole_event_wait();
 ?>
 --EXPECT--
 1

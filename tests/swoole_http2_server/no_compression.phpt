@@ -23,10 +23,10 @@ $pm->parentFunc = function ($pid) use ($pm) {
             'Accept' => 'text/html,application/xhtml+xml,application/xml',
         ];
         for ($n = MAX_REQUESTS; $n--;) {
-            assert($cli->send($req));
+            Assert::assert($cli->send($req));
             $response = $cli->recv();
-            assert($response->statusCode === 200);
-            assert(md5_file(__DIR__ . '/../../README.md') == md5($response->data));
+            Assert::same($response->statusCode, 200);
+            Assert::same(md5_file(__DIR__ . '/../../README.md'), md5($response->data));
         }
         $pm->kill();
     });

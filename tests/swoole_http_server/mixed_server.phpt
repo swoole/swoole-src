@@ -1,7 +1,10 @@
 --TEST--
 swoole_http_server: http mixed server
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_no_http2();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -20,7 +23,7 @@ $pm->parentFunc = function ($pid) use ($pm, $tcp_options) {
     go(function () use ($pm, $tcp_options) {
         // http
         $http_client = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort(0));
-        assert($http_client->post('/', 'Swoole Http'));
+        Assert::assert($http_client->post('/', 'Swoole Http'));
         var_dump($http_client->body);
 
         // http2

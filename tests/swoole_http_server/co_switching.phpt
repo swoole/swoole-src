@@ -12,9 +12,9 @@ $pm->parentFunc = function () use ($pm) {
         go(function () use ($pm) {
             $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             for ($i = MAX_REQUESTS; $i--;) {
-                assert($cli->get('/'));
-                assert($cli->statusCode === 200);
-                assert($cli->body === 'Hello Swoole!');
+                Assert::assert($cli->get('/'));
+                Assert::same($cli->statusCode, 200);
+                Assert::same($cli->body, 'Hello Swoole!');
             }
         });
     }

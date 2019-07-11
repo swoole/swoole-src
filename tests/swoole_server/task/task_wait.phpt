@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: taskwait in coroutine
+swoole_server/task: taskwait in coroutine
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -19,8 +19,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
         go(function () use ($pm, $n) {
             $c = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             $c->set(['timeout' => 5,]);
-            assert($c->get('/task?n='.$n));
-            assert($c->body == "OK");
+            Assert::assert($c->get('/task?n='.$n));
+            Assert::same($c->body, "OK");
         });
     }
     swoole_event_wait();

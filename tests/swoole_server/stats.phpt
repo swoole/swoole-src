@@ -1,7 +1,10 @@
 --TEST--
 swoole_server:
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_in_valgrind();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -21,7 +24,7 @@ usleep(500 * 1000);
 
 makeTcpClient(TCP_SERVER_HOST, $port, function(\swoole_client $cli) {
     $r = $cli->send(opcode_encode("stats", []));
-    assert($r !== false);
+    Assert::assert($r !== false);
 }, function(\swoole_client $cli, $recv) {
     list($op, $data) = opcode_decode($recv);
     /**

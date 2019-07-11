@@ -2,63 +2,76 @@
 __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
+[ -z "${SWOOLE_BRANCH}" ] && export SWOOLE_BRANCH="master"
+
 #-------------PHPT-------------
 cd ${__DIR__} && cd ../tests/
 
 # initialization
-echo "\n⭐️ Initialization for tests...\n"
-php ./init
-echo "\n"
+echo "" && echo "⭐️ Initialization for tests..." && echo ""
+./init
+echo ""
 
 # debug
 for debug_file in ${__DIR__}/debug/*.php
 do
     if test -f "${debug_file}";then
         debug_file_basename="`basename ${debug_file}`"
-        echo "\n====== RUN ${debug_file_basename} ======\n"
+        echo "" && echo "====== RUN ${debug_file_basename} ======" && echo ""
         php "${debug_file}"
-        echo "\n========================================\n"
+        echo "" && echo "========================================" && echo ""
     fi
 done
 
-# run tests
-retry_failures()
-{
-    # replace \n to space
-    failed_list="`tr '\n' ' ' < failed.list`"
-
-    # and retry
+# run tests @params($1=list_file, $1=options)
+run_tests(){
     ./start.sh \
-    --set-timeout 30 \
-    --show-slow 1000 \
-    --show-diff \
-    -w failed.list \
-    "${failed_list}"
+    "`tr '\n' ' ' < ${1} | xargs`" \
+    -w ${1} \
+    ${2}
 }
 
-# it need too much time, so we can only run the part of these
-for dir in "*"
+has_failures(){
+    cat tests.list
+}
+
+should_exit_with_error(){
+    if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
+        set +e
+        find ./ -type f -name "*.mem"
+        set -e
+    else
+        has_failures
+    fi
+}
+
+touch tests.list
+trap "rm -f tests.list; echo ''; echo '⌛ Done on '`date "+%Y-%m-%d %H:%M:%S"`;" EXIT
+
+echo "" && echo "🌵️️ Current branch is ${SWOOLE_BRANCH}" && echo ""
+if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
+    dir="base"
+    options="-m"
+else
+    dir="swoole_*"
+    options=""
+fi
+echo "${dir}" > tests.list
+for i in 1 2 3 4 5
 do
-    ./start.sh \
-    --set-timeout 10 \
-    --show-slow 1000 \
-    --show-diff \
-    -w failed.list \
-    "./swoole_${dir}"
-
-    for i in 1 2 3 4 5
-    do
-        if [ "`cat failed.list | grep "phpt"`" ]; then
+    if [ "`has_failures`" ]; then
+        if [ ${i} -gt "1" ]; then
             sleep ${i}
-            echo "\n😮 Retry failed tests #${i}:\n"
-            cat failed.list
-            retry_failures
-        else
-            exit 0
+            echo "" && echo "😮 Retry failed tests#${i}:" && echo ""
         fi
-    done
-
-    if [ "`cat failed.list | grep "phpt"`" ]; then
-        exit 255
+        cat tests.list
+        timeout=`echo | expr ${i} \* 15 + 15`
+        options="${options} --set-timeout ${timeout}"
+        run_tests tests.list "${options}"
+    else
+        break
     fi
 done
+if [ "`should_exit_with_error`" ]; then
+    exit 255
+fi

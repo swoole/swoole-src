@@ -5,7 +5,7 @@ swoole_server: dispatch_mode = 1
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-const REQ_N = 10000;
+const REQ_N = MAX_REQUESTS * 32;
 const CLIENT_N = 16;
 const WORKER_N = 4;
 
@@ -63,10 +63,12 @@ $pm->parentFunc = function ($pid) use ($port)
     }
     swoole_event::wait();
     swoole_process::kill($pid);
+    phpt_var_dump($stats);
     foreach ($stats as $s)
     {
-        assert($s == REQ_N * CLIENT_N / WORKER_N);
+        Assert::same($s, REQ_N * CLIENT_N / WORKER_N);
     }
+    echo "DONE\n";
 };
 
 $pm->childFunc = function () use ($pm, $port)
@@ -94,3 +96,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+DONE

@@ -7,14 +7,14 @@ swoole_http_client_coro: https client with ssl_host_name
 require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
-    $c = new Co\Http\Client('pro-api.coinmarketcap.com', 443, true);
+    $c = new Co\Http\Client('httpbin.org', 443, true);
     $c->set([
         'timeout' => 5,
-        'ssl_host_name' => 'pro-api.coinmarketcap.com'
+        'ssl_host_name' => 'httpbin.org'
     ]);
     $c->get('/');
-    assert(strlen($c->body) > 0);
-    assert($c->statusCode == 200);
+    Assert::assert(strlen($c->body) > 0);
+    Assert::same($c->statusCode, 200);
 });
 swoole_event::wait();
 ?>

@@ -9,6 +9,7 @@ go(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [
         'host' => MYSQL_SERVER_HOST,
+        'port' => MYSQL_SERVER_PORT,
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB,
@@ -19,15 +20,15 @@ go(function () {
 
     // now we can make the responses independent
     $stmt = $db->prepare('SELECT `id` FROM `userinfo` LIMIT 2');
-    assert($stmt->execute() === true);
-    if (!assert(is_array($ret = $stmt->fetch()) && !empty($ret))) {
+    Assert::true($stmt->execute());
+    if (!Assert::assert(is_array($ret = $stmt->fetch()) && !empty($ret))) {
         echo "FETCH1 ERROR#{$stmt->errno}: {$stmt->error}\n";
     }
-    if (!assert(is_array($ret = $stmt->fetch()) && !empty($ret))) {
+    if (!Assert::assert(is_array($ret = $stmt->fetch()) && !empty($ret))) {
         echo "FETCH2 ERROR#{$stmt->errno}: {$stmt->error}\n";
     }
-    assert($stmt->fetch() === null);
-    assert($stmt->fetchAll() === null);
+    Assert::same($stmt->fetch(), null);
+    Assert::same($stmt->fetchAll(), []);
 });
 ?>
 --EXPECT--

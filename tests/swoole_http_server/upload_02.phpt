@@ -57,10 +57,10 @@ $pm->parentFunc = function ($pid) use ($pm) {
     fwrite($sock, $content);
     stream_set_chunk_size($sock, 2 * 1024 * 1024);
     $data = fread($sock, 2 * 1024 * 1024);
-    assert(!empty($data));
+    Assert::assert(!empty($data));
     $json = json_decode(explode("\r\n\r\n", $data, 2)[1], true);
-    assert(is_array($json));
-    assert(isset($json['file']));
+    Assert::assert(is_array($json));
+    Assert::true(isset($json['file']));
     echo "DONE\n";
     $pm->kill();
 };

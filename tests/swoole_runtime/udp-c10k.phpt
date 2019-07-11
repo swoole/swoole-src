@@ -20,7 +20,7 @@ go(function () use ($port) {
             $recv = $socket->recvfrom($peer);
             $client_uid = "{$peer['address']}:{$peer['port']}";
             $id = $client_map[$client_uid] = ($client_map[$client_uid] ?? -1) + 1;
-            assert($recv === "Client: Hello #{$id}!");
+            Assert::same($recv, "Client: Hello #{$id}!");
             $socket->sendto($peer['address'], $peer['port'], "Server: Hello #{$id}!");
         }
     }
@@ -37,8 +37,8 @@ for ($c = MAX_CONCURRENCY_MID; $c--;) {
                 fwrite($fp, "Client: Hello #{$n}!");
                 $recv = fread($fp, 1024);
                 list($_address, $_port) = explode(':', (stream_socket_get_name($fp, true)));
-                assert($_address === '127.0.0.1' && (int)$_port === $port);
-                assert($recv === "Server: Hello #{$n}!");
+                Assert::assert($_address === '127.0.0.1' && (int)$_port === $port);
+                Assert::same($recv, "Server: Hello #{$n}!");
             }
             fclose($fp);
         }

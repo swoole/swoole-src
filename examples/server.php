@@ -5,7 +5,7 @@ class G
     static $serv;
     static $config = array(
         //'reactor_num'              => 16,     // 线程数. 一般设置为CPU核数的1-4倍
-        'worker_num'               => 2,    // 工作进程数量. 设置为CPU的1-4倍最合理
+        'worker_num'               => 8,    // 工作进程数量. 设置为CPU的1-4倍最合理
         'max_request'              => 1000,     // 防止 PHP 内存溢出, 一个工作进程处理 X 次任务后自动重启 (注: 0,不自动重启)
         'max_conn'                 => 10000, // 最大连接数
         'task_worker_num'          => 1,     // 任务工作进程数量
@@ -91,12 +91,6 @@ $process2 = new swoole_process(function ($worker) use ($serv) {
 
 //$serv->addprocess($process2);
 
-$serv->addProcess(new swoole_process(function ($worker) use ($serv) {
-    swoole\async::exec('ls /', function ($retval) {
-        var_dump($retval);
-    });
-}, false));
-
 $serv->set(G::$config);
 $serv->set(['reactor_num' => 4]);
 
@@ -131,7 +125,7 @@ function forkChildInWorker() {
 // 		$serv->set(array(
 // 				'worker_num' => 1
 // 		));
-// 		$serv->on ( 'receive', function (swoole_server $serv, $fd, $from_id, $data) {
+// 		$serv->on ( 'receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
 // 			$serv->send ( $fd, "Swoole: " . $data );
 // 			$serv->close ( $fd );
 // 		});
@@ -188,9 +182,9 @@ function my_onShutdown($serv)
     echo "Server: onShutdown\n";
 }
 
-function my_onClose(swoole_server $serv, $fd, $from_id)
+function my_onClose(swoole_server $serv, $fd, $reactor_id)
 {
-    my_log("Client[$fd@$from_id]: fd=$fd is closed");
+    my_log("Client[$fd@$reactor_id]: fd=$fd is closed");
     $buffer = G::getBuffer($fd);
     if ($buffer)
     {
@@ -199,12 +193,12 @@ function my_onClose(swoole_server $serv, $fd, $from_id)
     //var_dump($serv->getClientInfo($fd));
 }
 
-function my_onConnect(swoole_server $serv, $fd, $from_id)
+function my_onConnect(swoole_server $serv, $fd, $reactor_id)
 {
     //throw new Exception("hello world");
 //    var_dump($serv->connection_info($fd));
-    //var_dump($serv, $fd, $from_id);
-//    echo "Worker#{$serv->worker_pid} Client[$fd@$from_id]: Connect.\n";
+    //var_dump($serv, $fd, $reactor_id);
+//    echo "Worker#{$serv->worker_pid} Client[$fd@$reactor_id]: Connect.\n";
     $serv->after(2000, function() use ($serv, $fd) {
         $serv->confirm($fd);
     });
@@ -217,14 +211,7 @@ function timer_show($id)
 }
 
 function my_onWorkerExit(swoole_server $serv, $worker_id) {
-    $redisState = $serv->redis->getState();
     global $argv;
-    if ($redisState == Swoole\Redis::STATE_READY or $redisState == Swoole\Redis::STATE_SUBSCRIBE)
-    {
-        swoole_set_process_name("php {$argv[0]}: worker shutting down");
-        echo "exit\n";
-        //$serv->redis->close();
-    }
 }
 
 function my_onWorkerStart(swoole_server $serv, $worker_id)
@@ -242,14 +229,6 @@ function my_onWorkerStart(swoole_server $serv, $worker_id)
 //        $serv->tick(2000, function() use ($serv) {
 //           echo "Worker-{$serv->worker_id} tick-2000\n";
 //        });
-
-        $redis = new Swoole\Redis();
-        $redis->connect("127.0.0.1", 6379, function ($redis, $r) {
-           $redis->get("key", function ($redis, $r) {
-               var_dump($r);
-           });
-        });
-        $serv->redis = $redis;
     }
     else
     {
@@ -281,9 +260,9 @@ function my_onPacket($serv, $data, $clientInfo)
     var_dump($clientInfo);
 }
 
-function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
+function my_onReceive(swoole_server $serv, $fd, $reactor_id, $data)
 {
-    my_log("Worker#{$serv->worker_pid} Client[$fd@$from_id]: received: $data");
+    my_log("Worker#{$serv->worker_pid} Client[$fd@$reactor_id]: received: $data");
     $cmd = trim($data);
     if($cmd == "reload")
     {
@@ -359,7 +338,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     }
     elseif($cmd == "info")
     {
-        $info = $serv->connection_info(strval($fd), $from_id);
+        $info = $serv->connection_info(strval($fd), $reactor_id);
         var_dump($info["remote_ip"]);
         $serv->send($fd, 'Info: '.var_export($info, true).PHP_EOL);
     }
@@ -458,23 +437,23 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
                 echo "deferd\n";
             });
         });
-        $serv->send($fd, 'Swoole: '.$data, $from_id);
+        $serv->send($fd, 'Swoole: '.$data, $reactor_id);
     }
     else
     {
-        $serv->send($fd, 'Swoole: '.$data, $from_id);
+        $serv->send($fd, 'Swoole: '.$data, $reactor_id);
         //$serv->close($fd);
     }
-    //echo "Client:Data. fd=$fd|from_id=$from_id|data=$data";
+    //echo "Client:Data. fd=$fd|reactor_id=$reactor_id|data=$data";
 //    $serv->after(
 //        800, function () {
 //            echo "hello";
 //        }
 //    );
-    //swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
+    //swoole_server_send($serv, $other_fd, "Server: $data", $other_reactor_id);
 }
 
-function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
+function my_onTask(swoole_server $serv, $task_id, $reactor_id, $data)
 {
     if ($data == 'taskwait')
     {

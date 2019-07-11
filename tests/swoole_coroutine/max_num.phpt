@@ -5,23 +5,19 @@ swoole_coroutine: cid map max num
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+const MAX_N = 1000;
 co::set([
-    'max_coroutine' => SWOOLE_DEFAULT_MAX_CORO_NUM
+    'max_coroutine' => MAX_N
 ]);
-for ($c = SWOOLE_DEFAULT_MAX_CORO_NUM + 1; $c--;) {
+for ($c = MAX_N + 1; $c--;) {
     $ret = go(function () {
         co::sleep(0.001);
     });
 }
-var_dump(co::stats());
+$info = co::stats();
+Assert::same($info['c_stack_size'], 2097152);
+Assert::same($info['coroutine_num'], MAX_N);
+Assert::same($info['coroutine_peak_num'], MAX_N);
 ?>
 --EXPECTF--
-Warning: go(): exceed max number of coroutine 3000. in %s/tests/swoole_coroutine/max_num.php on line 9
-array(3) {
-  ["stack_size"]=>
-  int(8192)
-  ["coroutine_num"]=>
-  int(3000)
-  ["coroutine_peak_num"]=>
-  int(3000)
-}
+Warning: go(): exceed max number of coroutine %d in %s/tests/swoole_coroutine/max_num.php on line %d

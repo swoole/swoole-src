@@ -9,8 +9,8 @@ Co::set(['socket_timeout' => -1]);
 go(function () {
     $redis = new Swoole\Coroutine\Redis();
     $redis->connect(MYSQL_SERVER_HOST, MYSQL_SERVER_PORT);
-    assert(!$redis->set('foo', 'bar'));
-    assert($redis->errType === SWOOLE_REDIS_ERR_PROTOCOL);
+    Assert::assert(!$redis->set('foo', 'bar'));
+    Assert::same($redis->errType, SWOOLE_REDIS_ERR_PROTOCOL);
 });
 swoole_event_wait();
 echo "DONE\n";

@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_sync: ssl recv timeout
-
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -11,12 +10,12 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     $cli = new swoole_client(SWOOLE_SOCK_TCP | SWOOLE_SSL, SWOOLE_SOCK_SYNC);
     $r = $cli->connect('127.0.0.1', $pm->getFreePort(), 5);
-    assert($r);
+    Assert::assert($r);
     $cli->send("hello world\n");
     $time = time();
     $data = $cli->recv(1024);
-    assert((time() - $time) < 2);
-    assert($data === "Swoole hello world\n");
+    Assert::assert((time() - $time) < 2);
+    Assert::same($data, "Swoole hello world\n");
     $pm->kill();
 };
 

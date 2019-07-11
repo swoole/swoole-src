@@ -1,7 +1,10 @@
 --TEST--
 swoole_server: reload in base mode
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_in_valgrind();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -30,14 +33,14 @@ $pm->parentFunc = function () use ($pm) {
     /**@var $counter Swoole\Atomic[] */
     $total = $counter['worker']->get() - $worker_num;
     $expect = $random * $worker_num;
-    assert($total === $expect, "[worker reload {$total} but expect {$expect}]");
+    Assert::same($total, $expect, "[worker reload {$total} but expect {$expect}]");
 
     // $total = $counter['task_worker']->get() - 1;
-    // assert($total === $random * 2, "[task worker reload {$total} but expect {$random}]");
+    // Assert::same($total, $random * 2, "[task worker reload {$total} but expect {$random}]");
 
     $log = file_get_contents(TEST_LOG_FILE);
-    $log = trim(preg_replace('/.+?\s+?NOTICE\s+?.+/', '', $log));
-    if (!assert(empty($log))){
+    $log = trim(preg_replace('/.+?\s+?INFO\s+?.+/', '', $log));
+    if (!Assert::assert(empty($log))){
         var_dump($log);
     }
     $pm->kill();
@@ -54,7 +57,7 @@ $pm->childFunc = function () use ($pm) {
         'worker_num' => $worker_num
         // 'task_worker_num' => 1
     ]);
-    $server->on('Start', function () use ($pm) {
+    $server->on('ManagerStart', function () use ($pm) {
         $pm->wakeup();
     });
     $server->on('WorkerStart', function (Swoole\Server $server, int $worker_id) use ($pm) {

@@ -12,8 +12,9 @@ $pm->parentFunc = function () use ($pm) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cli->set(['timeout' => -1]);
         for ($n = MAX_REQUESTS; $n--;) {
-            assert($cli->get('/'));
-            assert($cli->body === $pm->getRandomData());
+            Assert::assert($cli->get('/'));
+            Assert::same($cli->body, $pm->getRandomData(), var_dump_return($cli));
+            co::sleep(0.005);
         }
     });
     swoole_event_wait();
@@ -31,6 +32,7 @@ $pm->childFunc = function () use ($pm) {
     });
     $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($pm, $server) {
         $response->end($pm->getRandomData());
+        co::sleep(0.001);
         $server->close($request->fd);
     });
     $server->start();

@@ -31,7 +31,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         usleep(10000);
         $bytes += strlen($r);
     }
-    assert($bytes == $N);
+    Assert::same($bytes, $N);
     $pm->kill();
 };
 
@@ -50,7 +50,7 @@ $pm->childFunc = function () use ($pm)
     {
         $serv->sendfile($fd, TEST_IMAGE);
     });
-    $serv->on('receive', function ($serv, $fd, $from_id, $data)
+    $serv->on('receive', function ($serv, $fd, $reactor_id, $data)
     {
 
     });

@@ -15,7 +15,7 @@ class swoole_invalid_mysql_coro extends \Swoole\Coroutine\MySQL
         // miss parent::__construct
     }
 
-    public function connect(array $server_config)
+    public function connect(array $server_config = null)
     {
         // miss parent::connect
         return true;
@@ -37,6 +37,7 @@ go(function () {
     $db = new swoole_invalid_mysql_coro;
     $server = [
         'host' => MYSQL_SERVER_HOST,
+        'port' => MYSQL_SERVER_PORT,
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB,
@@ -44,15 +45,18 @@ go(function () {
     ];
 
     // invalid connect
-    assert($db->connect($server));
-    assert(!$db->connected);
-    assert(!$db->query('select 1'));
+    Assert::true($db->connect($server));
+    Assert::false($db->connected);
+    Assert::false($db->query('select 1'));
+    Assert::same($db->errno, SWOOLE_MYSQLND_CR_CONNECTION_ERROR);
 
     // right implementation
-    assert($db->connectRaw($server));
-    assert($db->query('select 1')[0][1] === 1);
+    Assert::true($db->connectRaw($server));
+    Assert::same($db->query('select 1')[0][1], 1);
 });
 
+Swoole\Event::wait();
+echo "DONE\n";
 ?>
---EXPECTF--
-Warning: Swoole\Coroutine\MySQL::query(): mysql connection#%d is closed. in %s on line %d
+--EXPECT--
+DONE

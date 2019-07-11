@@ -14,20 +14,20 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             $cli->set(['timeout' => 5]);
             $ret = $cli->upgrade('/');
-            assert($ret);
+            Assert::assert($ret);
             $len = mt_rand(1, 100);
             $data = openssl_random_pseudo_bytes($len);
             for ($n = MAX_REQUESTS; $n--;) {
                 $cli->push($data);
                 $ret = $cli->recv();
-                if (assert($ret->data == $len)) {
+                if (Assert::assert($ret->data == $len)) {
                     $count++;
                 }
             }
             if (co::stats()['coroutine_num'] === 1) {
-                assert($count === (MAX_CONCURRENCY * MAX_REQUESTS));
+                Assert::same($count, (MAX_CONCURRENCY * MAX_REQUESTS));
                 $cli->push('max');
-                assert((int)$cli->recv()->data > 1);
+                Assert::assert((int)$cli->recv()->data > 1);
             }
         });
     }

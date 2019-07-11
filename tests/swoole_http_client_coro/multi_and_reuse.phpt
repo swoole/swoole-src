@@ -29,20 +29,20 @@ go(function () {
     $qq->get('/');
     $baidu->recv(10);
     $qq->recv(10);
-    assert($baidu->statusCode === 200);
-    assert(stripos($baidu->body, 'baidu') !== false);
-    assert($qq->statusCode === 200);
-    assert(stripos($qq->body, 'tencent') !== false);
+    Assert::same($baidu->statusCode, 200);
+    Assert::assert(stripos($baidu->body, 'baidu') !== false);
+    Assert::same($qq->statusCode, 200);
+    Assert::assert(stripos($qq->body, 'tencent') !== false);
 
     //reuse
     $baidu->get('/duty/');
     $qq->get('/contract.shtml');
     $baidu->recv(10);
     $qq->recv(10);
-    assert($baidu->statusCode === 200);
-    assert(stripos($baidu->body, 'baidu') !== false);
-    assert($qq->statusCode === 200);
-    assert(stripos($qq->body, 'tencent') !== false);
+    Assert::same($baidu->statusCode, 200);
+    Assert::assert(stripos($baidu->body, 'baidu') !== false);
+    Assert::same($qq->statusCode, 200);
+    Assert::assert(stripos($qq->body, 'tencent') !== false);
 });
 ?>
 --EXPECT--

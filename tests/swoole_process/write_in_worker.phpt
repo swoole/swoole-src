@@ -5,19 +5,23 @@ swoole_process: write in worker
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+$counter = new Swoole\Atomic;
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     $pm->kill();
 };
-$pm->childFunc = function () use ($pm) {
+$pm->childFunc = function () use ($pm, $counter) {
     $serv = new \swoole_server('127.0.0.1', $pm->getFreePort());
-    $process = new \swoole_process(function (swoole_process $process) use ($serv) {
-        echo "process start\n";
-        for ($i = 0; $i < 1024; $i++) {
-            $data = $process->read();
-            assert(strlen($data) == 8192);
+    $process = new \swoole_process(function (swoole_process $process) use ($serv, $counter) {
+        if ($counter->get() != 1) {
+            $counter->set(1);
+            echo "process start\n";
+            for ($i = 0; $i < 1024; $i++) {
+                $data = $process->read();
+                Assert::same(strlen($data), 8192);
+            }
+            echo "process end\n";
         }
-        echo "process end\n";
     });
     $serv->set([
         "worker_num" => 1,
@@ -26,9 +30,9 @@ $pm->childFunc = function () use ($pm) {
     $serv->on("WorkerStart", function (\swoole_server $serv) use ($process, $pm) {
         usleep(1);
         for ($i = 0; $i < 1024; $i++) {
-            $process->write(str_repeat('A', 8192));
-            assert($process == true);
+            Assert::same($process->write(str_repeat('A', 8192)), 8192);
         }
+        switch_process();
         echo "worker end\n";
         $pm->wakeup();
     });

@@ -13,30 +13,17 @@ services:
       - mysql
       - redis
     dns:
-      - 223.6.6.6
-      - 119.29.29.29
-    command: tail -f /etc/group
-  swoole-alpine:
-    container_name: "swoole-alpine"
-    image: "twosee/php:${PHP_VERSION}-alpine"
-    volumes:
-      - "${TRAVIS_BUILD_DIR}:/swoole-src:rw"
-    working_dir: /swoole-src
-    ulimits:
-      core: -1
-    privileged: true
-    depends_on:
-      - mysql
-      - redis
-    dns:
-      - 223.6.6.6
-      - 119.29.29.29
+      - 8.8.8.8
+      - 1.1.1.1
+    environment:
+      SWOOLE_BRANCH: "${TRAVIS_BRANCH}"
     command: tail -f /etc/group
   mysql:
     container_name: "mysql"
     image: "twosee/swoole:mysql5"
     volumes:
       - ./data/mysql:/var/lib/mysql:rw
+      - ./data/run/mysqld:/var/run/mysqld:rw
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: test
@@ -47,5 +34,9 @@ services:
     image: "twosee/swoole:redis"
     volumes:
       - ./data/redis:/var/lib/redis:rw
+      - ./data/run/redis:/var/run/redis:rw
     sysctls:
         net.core.somaxconn: 65535
+  httpbin:
+    container_name: "httpbin"
+    image: "kennethreitz/httpbin"

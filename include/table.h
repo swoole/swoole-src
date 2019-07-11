@@ -81,7 +81,7 @@ typedef struct
    uint8_t type;
    uint32_t size;
    swString* name;
-   uint16_t index;
+   size_t index;
 } swTableColumn;
 
 enum swoole_table_type
@@ -180,7 +180,7 @@ static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col,
     default:
         if (vlen > (col->size - sizeof(swTable_string_length_t)))
         {
-            swWarn("[key=%s,field=%s]string value is too long.", row->key, col->name->str);
+            swWarn("[key=%s,field=%s]string value is too long", row->key, col->name->str);
             vlen = col->size - sizeof(swTable_string_length_t);
         }
         memcpy(row->data + col->index, &vlen, sizeof(swTable_string_length_t));

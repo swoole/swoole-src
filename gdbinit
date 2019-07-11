@@ -1,75 +1,99 @@
-define ____get_current
-    if swCoroG.call_stack_size > 0
-        set $current_co = (coroutine_t*)swCoroG.call_stack[swCoroG.call_stack_size - 1]
-        set $current_cid = $current_co->cid
-        set $current_task = (coro_task *)$current_co->task
+define timer_list
+    if SwooleG.timer.initialized == 1
+        printf "current timer number: %d, round: %d\n", SwooleG.timer.num,SwooleG.timer->round
+        set $running = 1
+        set $i = 1
+        while $running
+            if $i < SwooleG.timer->heap->num
+                set $tmp = SwooleG.timer->heap->nodes[$i]
+                set $node = (swTimer_node *)$tmp->data
+                if $node
+                   printf "\t timer[%d] exec_msec:%ld round:%ld\n", $node->id, $node->exec_msec, $node->round
+                end
+            else
+                set $running = 0
+            end
+            set $i = $i + 1
+        end
     else
-        set $current_co = null
-        set $current_cid = -1
-        set $current_task = null
+        printf "no timer\n"
+    end
+end
+
+define reactor_info
+    if SwooleG.main_reactor
+        printf "\t reactor id: %d\n",SwooleG.main_reactor->id
+        printf "\t running: %d\n", SwooleG.main_reactor->running
+        printf "\t event_num: %d\n", SwooleG.main_reactor->event_num
+        printf "\t max_event_num: %d\n", SwooleG.main_reactor->max_event_num
+        printf "\t check_timer: %d\n", SwooleG.main_reactor->check_timer
+        printf "\t timeout_msec: %d\n", SwooleG.main_reactor->timeout_msec
+    end
+end
+
+define sw_hash_map_list
+    set $hmap = $arg0
+    if $hmap
+        if $hmap->root->hh.tbl->num_items == 0
+            echo "no content\n"
+        else
+            set $running = 1
+            set $it = $hmap->iterator
+            if $it == 0
+               set $it = $hmap->root
+            end
+            while $running
+                
+                set $tmp = (swHashMap_node *)$it->hh.next
+                if $tmp
+                    printf "key_int[%d] key_str:%s data:%p\n", $tmp->key_int, $tmp->key_str, $tmp->data
+                    set $it = $tmp
+                else
+                    set $running = 0
+                end
+            end 
+        end
     end
 end
 
 define co_list
-    if COROG.coro_num == 0
-        printf "no coroutines running \n"
-    end
-    set $cid = 1
-    while $cid < COROG.coro_num + 1
-        if swCoroG.coroutines[$cid]
-            printf "coroutine %d ", $cid
-            set $co = swCoroG.coroutines[$cid]
+    call swoole_coro_iterator_reset()
+    set $running = 1
+    while $running
+        set $co = swoole_coro_iterator_each()
+        if $co
+            printf "coroutine %ld ", $co->cid
             if $co->state == 0
-                printf "%s\n", "SW_CORO_INIT"
+                printlnc $GREEN "SW_CORO_INIT"
             end
             if $co->state == 1
-                color $RED
-                printf "%s\n", "SW_CORO_WAITING"
-                color_reset
-            end      
+                printlnc $YELLOW "SW_CORO_WAITING"
+            end
             if $co->state == 2
-                color $GREEN
-                printf "%s\n", "SW_CORO_RUNNING"
-                color_reset
+                printlnc $GREEN "SW_CORO_RUNNING"
             end
             if $co->state == 3
-                printf "%s\n", "SW_CORO_END"
+                printlnc $CYAN "SW_CORO_END"
             end
+        else
+            set $running = 0
         end
-        set $cid = $cid + 1
     end
 end
 
 define co_bt
-    if COROG.coro_num == 0
-        printf "no coroutines running \n"
+    if swoole_coro_count() == 0
+        printf "no coroutine is running\n"
     end
     ____executor_globals
-    ____get_current
     if $argc > 0
         set $cid = (int)$arg0
-        if $current_co && $current_cid == $cid
-            color $GREEN
-            printf "coroutine cid:[%d]\n",$cid
-            color_reset
-            __co_bt $cid
-        else
-            printf "coroutine cid:[%d]\n",$cid
-            __co_bt $cid
-        end    
     else
-        set $cid = $current_cid
-        if $current_co && $cid > 0
-            color $GREEN
-            printf "coroutine cid:[%d]\n",$cid
-            color_reset
-            __co_bt $cid
-        else
-            printf "not in coroutine\n"
-        end
+        set $cid = 'swoole::Coroutine::get_current_cid'()
     end
+    printf "coroutine cid:[%d]\n",$cid
+    __co_bt $cid
 end
-
 document co_bt
     dump current coroutine or the cid backtrace.
     useage: co_bt [cid]
@@ -77,30 +101,24 @@ end
 
 define __co_bt
     set $cid = (int)$arg0
-    if swCoroG.coroutines[$cid]     
-        if $current_co && $cid == $current_co->cid
-            dump_bt $eg.current_execute_data 
-        else   
-            set $co = (coroutine_t *)swCoroG.coroutines[$cid]
-            set $task = (coro_task *)$co->task
-            if $task
-                set $backup = $eg.current_execute_data
-                dump_bt $task->execute_data
-                set $eg.current_execute_data = $backup
-            end
+    set $co = swoole_coro_get($cid)
+    if $co
+        set $task = (php_coro_task *)$co->task
+        if $task
+            dump_bt $task->execute_data
         end
     else
-        printf "coroutines %d is not running\n", $cid
+        printf "coroutines %d not found\n", $cid
     end
 end
 
 define co_status
-    printf "\t stack_size: %d\n",  swCoroG.stack_size
-    printf "\t call_stack_size: %d\n",  swCoroG.call_stack_size
-    printf "\t active: %d\n",  COROG.active
-    printf "\t coro_num: %d\n",  COROG.coro_num
-    printf "\t max_coro_num: %d\n",  COROG.max_coro_num
-    printf "\t peak_coro_num: %d\n",  COROG.peak_coro_num
+    printf "\t c_stack_size: %d\n",  'swoole::Coroutine::stack_size'
+    printf "\t call_stack_size: %d\n",  'swoole::Coroutine::call_stack_size'
+    printf "\t active: %d\n",  'swoole::PHPCoroutine::active'
+    printf "\t coro_num: %d\n",  swoole_coro_count()
+    printf "\t max_coro_num: %d\n",  'swoole::PHPCoroutine::max_num'
+    printf "\t peak_coro_num: %d\n",  'swoole::Coroutine::peak_num'
 end
 
 define ____executor_globals
@@ -170,7 +188,6 @@ define dump_bt
                 if $arg > 0
                     printf ", "
                 end
-
                 set $zvalue = (zval *) $ex + $callFrameSize + $arg
                 set $type = $zvalue->u1.v.type
                 if $type == 1
@@ -225,84 +242,29 @@ define dump_bt
     end
 end
 
-# __________________color functions_________________
-#
-set $USECOLOR = 1
-# color codes
-set $BLACK = 0
-set $RED = 1
-set $GREEN = 2
-set $YELLOW = 3
-set $BLUE = 4
+# ======== color ========
+set $BLACK   = 0
+set $RED     = 1
+set $GREEN   = 2
+set $YELLOW  = 3
+set $BLUE    = 4
 set $MAGENTA = 5
-set $CYAN = 6
-set $WHITE = 7
+set $CYAN    = 6
+set $WHITE   = 7
 
-set $COLOR_REGNAME = $GREEN
-set $COLOR_REGVAL = $BLACK
-set $COLOR_REGVAL_MODIFIED  = $RED
-set $COLOR_SEPARATOR = $BLUE
-set $COLOR_CPUFLAGS = $RED
-
-# this is ugly but there's no else if available :-(
 define color
- if $USECOLOR == 1
-    # BLACK
-    if $arg0 == 0
-        echo \033[30m
+    if $argc == 0
+        set $arg = 0
     else
-        # RED
-        if $arg0 == 1
-            echo \033[31m
-        else
-            # GREEN
-            if $arg0 == 2
-                echo \033[32m
-            else
-                # YELLOW
-                if $arg0 == 3
-                    echo \033[33m
-                else
-                    # BLUE
-                    if $arg0 == 4
-                        echo \033[34m
-                    else
-                        # MAGENTA
-                        if $arg0 == 5
-                            echo \033[35m
-                        else
-                            # CYAN
-                            if $arg0 == 6
-                                echo \033[36m
-                            else
-                                # WHITE
-                                if $arg0 == 7
-                                    echo \033[37m
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-     end
- end
+        set $arg = $arg0 + 30
+    end
+    printf "%c[%dm", 27, $arg
 end
 
-define color_reset
-    if $USECOLOR == 1
-       echo \033[0m
-    end
-end
+# ======== print ========
 
-define color_bold
-    if $USECOLOR == 1
-       echo \033[1m
-    end
-end
-
-define color_underline
-    if $USECOLOR == 1
-       echo \033[4m
-    end
+define printlnc
+    color $arg0
+    printf "%s\n", $arg1
+    color
 end

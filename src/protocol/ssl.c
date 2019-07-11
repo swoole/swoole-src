@@ -226,7 +226,7 @@ int swSSL_server_set_cipher(SSL_CTX* ssl_context, swSSL_config *cfg)
 #endif
     SSL_CTX_set_read_ahead(ssl_context, 1);
 
-    if (strlen(cfg->ciphers) > 0)
+    if (cfg->ciphers && strlen(cfg->ciphers) > 0)
     {
         if (SSL_CTX_set_cipher_list(ssl_context, cfg->ciphers) == 0)
         {
@@ -385,7 +385,7 @@ int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth)
 
     if (SSL_CTX_load_verify_locations(ctx, cert_file, NULL) == 0)
     {
-        swWarn("SSL_CTX_load_verify_locations(\"%s\") failed.", cert_file);
+        swWarn("SSL_CTX_load_verify_locations(\"%s\") failed", cert_file);
         return SW_ERR;
     }
 
@@ -393,7 +393,7 @@ int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth)
     list = SSL_load_client_CA_file(cert_file);
     if (list == NULL)
     {
-        swWarn("SSL_load_client_CA_file(\"%s\") failed.", cert_file);
+        swWarn("SSL_load_client_CA_file(\"%s\") failed", cert_file);
         return SW_ERR;
     }
 
@@ -416,7 +416,7 @@ int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx)
     {
         if (!SSL_CTX_set_default_verify_paths(ctx))
         {
-            swWarn("Unable to set default verify locations and no CA settings specified.");
+            swWarn("Unable to set default verify locations and no CA settings specified");
             return SW_ERR;
         }
     }
@@ -483,9 +483,9 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
     if (X509_check_host(cert, tls_host_name, strlen(tls_host_name), 0, NULL) != 1)
     {
         swWarn("X509_check_host(): no match");
-        goto failed;
+        goto _failed;
     }
-    goto found;
+    goto _found;
 #else
     int n, i;
     X509_NAME *sname;
@@ -514,19 +514,19 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
             }
 
             str = altname->d.dNSName;
-            swTrace("SSL subjectAltName: \"%*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
+            swTrace("SSL subjectAltName: \"%.*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
 
             if (swSSL_check_name(tls_host_name, str) == SW_OK)
             {
                 swTrace("SSL subjectAltName: match");
                 GENERAL_NAMES_free(altnames);
-                goto found;
+                goto _found;
             }
         }
 
-        swTrace("SSL subjectAltName: no match.");
+        swTrace("SSL subjectAltName: no match");
         GENERAL_NAMES_free(altnames);
-        goto failed;
+        goto _failed;
     }
 
     /*
@@ -538,7 +538,7 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
 
     if (sname == NULL)
     {
-        goto failed;
+        goto _failed;
     }
 
     i = -1;
@@ -554,21 +554,23 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
         entry = X509_NAME_get_entry(sname, i);
         str = X509_NAME_ENTRY_get_data(entry);
 
-        swTrace("SSL commonName: \"%*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
+        swTrace("SSL commonName: \"%.*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
 
         if (swSSL_check_name(tls_host_name, str) == SW_OK)
         {
             swTrace("SSL commonName: match");
-            goto found;
+            goto _found;
         }
     }
     swTrace("SSL commonName: no match");
 #endif
 
-    failed: X509_free(cert);
+    _failed:
+    X509_free(cert);
     return SW_ERR;
 
-    found: X509_free(cert);
+    _found:
+    X509_free(cert);
     return SW_OK;
 }
 
@@ -619,22 +621,22 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
     bio = BIO_new(BIO_s_mem());
     if (bio == NULL)
     {
-        swWarn("BIO_new() failed.");
+        swWarn("BIO_new() failed");
         X509_free(cert);
         return SW_ERR;
     }
 
     if (PEM_write_bio_X509(bio, cert) == 0)
     {
-        swWarn("PEM_write_bio_X509() failed.");
-        goto failed;
+        swWarn("PEM_write_bio_X509() failed");
+        goto _failed;
     }
 
     len = BIO_pending(bio);
     if (len < 0 && len > length)
     {
-        swWarn("certificate length[%ld] is too big.", len);
-        goto failed;
+        swWarn("certificate length[%ld] is too big", len);
+        goto _failed;
     }
 
     int n = BIO_read(bio, buffer, len);
@@ -644,7 +646,7 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
 
     return n;
 
-    failed:
+    _failed:
 
     BIO_free(bio);
     X509_free(cert);
@@ -696,7 +698,8 @@ int swSSL_accept(swConnection *conn)
     }
     else if (err == SSL_ERROR_SSL)
     {
-        swWarn("bad SSL client[%s:%d].", swConnection_get_ip(conn), swConnection_get_port(conn));
+        int reason = ERR_GET_REASON(ERR_peek_error());
+        swWarn("bad SSL client[%s:%d], reason=%d", swConnection_get_ip(conn), swConnection_get_port(conn), reason);
         return SW_ERROR;
     }
     //EOF was observed
@@ -704,7 +707,7 @@ int swSSL_accept(swConnection *conn)
     {
         return SW_ERROR;
     }
-    swWarn("SSL_do_handshake() failed. Error: %s[%ld|%d].", strerror(errno), err, errno);
+    swWarn("SSL_do_handshake() failed. Error: %s[%ld|%d]", strerror(errno), err, errno);
     return SW_ERROR;
 }
 
@@ -743,7 +746,7 @@ int swSSL_connect(swConnection *conn)
     }
     else if (err == SSL_ERROR_ZERO_RETURN)
     {
-        swDebug("SSL_connect(fd=%d) closed.", conn->fd);
+        swDebug("SSL_connect(fd=%d) closed", conn->fd);
         return SW_ERR;
     }
     else if (err == SSL_ERROR_SYSCALL)
@@ -754,7 +757,10 @@ int swSSL_connect(swConnection *conn)
             return SW_ERR;
         }
     }
-    swWarn("SSL_connect(fd=%d) failed. Error: %s[%ld|%d].", conn->fd, ERR_reason_error_string(err), err, errno);
+
+    long err_code = ERR_get_error();
+    char *msg = ERR_error_string(err_code, SwooleTG.buffer_stack->str);
+    swWarn("SSL_connect(fd=%d) failed. Error: %s[%ld|%d]", conn->fd, msg, err, ERR_GET_REASON(err_code));
 
     return SW_ERR;
 }
@@ -774,7 +780,7 @@ int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size)
         {
             if (swConnection_error(errno) == SW_ERROR)
             {
-                swSysError("write() failed.");
+                swSysWarn("write() failed");
             }
         }
         else
@@ -786,7 +792,7 @@ int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size)
     }
     else
     {
-        swSysError("pread() failed.");
+        swSysWarn("pread() failed");
         return SW_ERR;
     }
 }
@@ -826,7 +832,7 @@ void swSSL_close(swConnection *conn)
     if (!(n == 1 || sslerr == 0 || sslerr == SSL_ERROR_ZERO_RETURN))
     {
         err = (sslerr == SSL_ERROR_SYSCALL) ? errno : 0;
-        swWarn("SSL_shutdown() failed. Error: %d:%d.", sslerr, err);
+        swWarn("SSL_shutdown() failed. Error: %d:%d", sslerr, err);
     }
 
     SSL_free(conn->ssl);
@@ -904,7 +910,7 @@ static sw_inline void swSSL_connection_error(swConnection *conn)
         break;
 #endif
 
-    swoole_error_log(level, SW_ERROR_SSL_BAD_PROTOCOL, "SSL connection#%d[%s:%d] protocol error[%d].", conn->session_id,
+    swoole_error_log(level, SW_ERROR_SSL_BAD_PROTOCOL, "SSL connection#%d[%s:%d] protocol error[%d]", conn->session_id,
             swConnection_get_ip(conn), swConnection_get_port(conn), reason);
 }
 
@@ -943,7 +949,7 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
     return n;
 }
 
-ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n)
+ssize_t swSSL_send(swConnection *conn, const void *__buf, size_t __n)
 {
     swSSL_clear_error(conn);
 
@@ -985,7 +991,7 @@ int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags)
     SSL *ssl = SSL_new(ssl_context);
     if (ssl == NULL)
     {
-        swWarn("SSL_new() failed.");
+        swWarn("SSL_new() failed");
         return SW_ERR;
     }
     if (!SSL_set_fd(ssl, conn->fd))
@@ -1024,7 +1030,7 @@ static RSA* swSSL_rsa_key_callback(SSL *ssl, int is_export, int key_length)
     BIGNUM *bn = BN_new();
     if (bn == NULL)
     {
-        swWarn("allocation error generating RSA key.");
+        swWarn("allocation error generating RSA key");
         return NULL;
     }
 

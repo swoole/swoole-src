@@ -9,6 +9,7 @@ go(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [
         'host' => MYSQL_SERVER_HOST,
+        'port' => MYSQL_SERVER_PORT,
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB
@@ -41,16 +42,19 @@ SQL;
     if ($db->query($clear) && $db->query($procedure)) {
         for ($n = MAX_REQUESTS_LOW; $n--;) {
             $res = $db->query('CALL reply("hello mysql!")');
-            assert(current($res[0]) === $map[0]);
+            $_map = $map;
+            do {
+                Assert::same(current($res[0]), array_shift($_map));
+            } while ($res = $db->nextResult());
         }
         for ($n = MAX_REQUESTS_LOW; $n--;) {
             $res = $db->query('CALL reply("hello mysql!")');
             $_map = $map;
             do {
-                assert(current($res[0]) === array_shift($_map));
+                Assert::same(current($res[0]), array_shift($_map));
             } while ($res = $db->nextResult());
-            assert($db->affected_rows === 1, 'get the affected rows failed!');
-            assert(empty($_map), 'there are some results lost!');
+            Assert::same($db->affected_rows, 1, 'get the affected rows failed!');
+            Assert::assert(empty($_map), 'there are some results lost!');
         }
     }
 

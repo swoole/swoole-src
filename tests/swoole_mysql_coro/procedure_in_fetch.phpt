@@ -9,6 +9,7 @@ go(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [
         'host' => MYSQL_SERVER_HOST,
+        'port' => MYSQL_SERVER_PORT,
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB,
@@ -43,37 +44,39 @@ SQL;
         //SWOOLE
         $_map = $map;
         $stmt = $db->prepare('CALL reply(?)');
-        assert($stmt->execute(['hello mysql!']) === true);
+        Assert::true($stmt->execute(['hello mysql!']));
         do {
             $res = $stmt->fetchAll();
-            assert(current($res[0]) === array_shift($_map));
-        } while ($stmt->nextResult());
-        assert($stmt->affected_rows === 1, 'get the affected rows failed!');
-        assert(empty($_map), 'there are some results lost!');
+            Assert::same(current($res[0]), array_shift($_map));
+        } while ($ret = $stmt->nextResult());
+        Assert::same($stmt->affected_rows, 1);
+        Assert::assert(empty($_map), 'there are some results lost!');
 
         //PDO
-        !extension_loaded('PDO') && exit("DONE\n");
-        $_map = $map;
-        try {
-            $pdo = new PDO(
-                "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
-                MYSQL_SERVER_USER, MYSQL_SERVER_PWD
-            );
-            $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
-            $stmt = $pdo->prepare("CALL reply(?)");
-            assert($stmt->execute(['hello mysql!']) === true);
-            do {
-                $res = $stmt->fetchAll();
-                assert(current($res[0]) === array_shift($_map));
-            } while ($ret = $stmt->nextRowset());
-            assert($stmt->rowCount() === 1, 'get the affected rows failed!');
-            assert(empty($_map), 'there are some results lost!');
-        } catch (\PDOException $e) {
-            assert($e->getCode() === 2054); // not support auth plugin
+        if (extension_loaded('PDO')) {
+            $_map = $map;
+            try {
+                $pdo = new PDO(
+                    "mysql:host=" . MYSQL_SERVER_HOST . ";port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+                    MYSQL_SERVER_USER, MYSQL_SERVER_PWD
+                );
+                $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+                $stmt = $pdo->prepare("CALL reply(?)");
+                Assert::true($stmt->execute(['hello mysql!']));
+                do {
+                    $res = $stmt->fetchAll();
+                    Assert::same(current($res[0]), array_shift($_map));
+                } while ($ret = $stmt->nextRowset());
+                Assert::same($stmt->rowCount(), 1, 'get the affected rows failed!');
+                Assert::assert(empty($_map), 'there are some results lost!');
+            } catch (\PDOException $e) {
+                Assert::same($e->getCode(), 2054); // not support auth plugin
+            }
         }
-        echo "DONE\n";
     }
 });
+Swoole\Event::wait();
+echo "DONE\n";
 ?>
 --EXPECT--
 DONE

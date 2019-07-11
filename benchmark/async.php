@@ -6,6 +6,7 @@ $shortopts .= "n:";
 $shortopts .= "s:";
 $shortopts .= "f:";
 $shortopts .= "p::";
+$shortopts .= "l:";
 
 $opt = getopt($shortopts);
 //并发数量
@@ -19,7 +20,7 @@ if (!isset($opt['s'])) {
     exit("require -s [server_url]. ep: -s tcp://127.0.0.1:9999\n");
 }
 if (!isset($opt['f'])) {
-    exit("require -f [test_function]. ep: -f websocket|http|tcp|udp\n");
+    exit("require -f [test_function]. ep: -f websocket|http|tcp|udp|length\n");
 }
 
 class BenchMark
@@ -52,10 +53,21 @@ class BenchMark
         $this->host = $serv['host'];
         $this->port = $serv['port'];
         $this->testMethod = $opt['f'];
+
+        //data length
+        if (isset($opt['l']) and intval($opt['l']) > 0) {
+            $this->setSentData(str_repeat('A', intval($opt['l'])));
+        }
+
         if (!method_exists($this, $this->testMethod))
         {
             throw new RuntimeException("method [{$this->testMethod}] is not exists.");
         }
+    }
+
+    function setSentData($data)
+    {
+        self::$sentData = $data;
     }
 
     protected function finish()

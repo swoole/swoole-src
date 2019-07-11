@@ -28,7 +28,7 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
         });
     }
     swoole_event_wait();
-    assert($count === (MAX_CONCURRENCY_MID * MAX_REQUESTS));
+    Assert::same($count, (MAX_CONCURRENCY_MID * MAX_REQUESTS));
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {

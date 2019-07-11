@@ -1,7 +1,10 @@
 --TEST--
 swoole_http_client_coro: http header field normal chars
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_function_not_exist('curl_init');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -184,22 +187,22 @@ $pm->parentFunc = function () use ($pm, &$normal_chars) {
     foreach ($headers as $header) {
         list($name, $value) = explode(': ', $header);
         if (in_array(strtolower($name), $normal_chars)) {
-            assert($value == ($s = $pm->getRandomData()));
+            Assert::same($value, ($s = $pm->getRandomData()));
         }
     }
-    assert($body === $pm->getRandomData());
+    Assert::same($body, $pm->getRandomData());
 
     // use swoole http client
     go(function () use ($pm, &$normal_chars) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cli->set(['timeout' => 1]);
-        assert($cli->get('/'));
+        Assert::assert($cli->get('/'));
         foreach ($cli->headers as $name => $value) {
             if (in_array($name, $normal_chars)) {
-                assert($value == $pm->getRandomData());
+                Assert::same($value, $pm->getRandomData());
             }
         }
-        assert($cli->body === $pm->getRandomData());
+        Assert::same($cli->body, $pm->getRandomData());
     });
 
     swoole_event_wait();

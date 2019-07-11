@@ -16,7 +16,7 @@ $pm->parentFunc = function ($pid) use ($pm)
     $redis->connect('127.0.0.1', $pm->getFreePort());
     $redis->set('big_value', str_repeat('A', VALUE_LEN));
     $ret = $redis->get('big_value');
-    assert($ret and strlen($ret) == VALUE_LEN);
+    Assert::same(strlen($ret ?? '' ?: ''), VALUE_LEN);
     swoole_process::kill($pid);
 };
 

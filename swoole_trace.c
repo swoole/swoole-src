@@ -56,11 +56,11 @@ static void trace_request(swWorker *worker)
     int ret = trace_dump(worker, slowlog);
     if (ret < 0)
     {
-        swSysError("failed to trace worker %d, error lint =%d.", worker->pid, -ret);
+        swSysWarn("failed to trace worker %d, error lint =%d", worker->pid, -ret);
     }
     if (0 > ptrace(PTRACE_DETACH, traced_pid, (void *) 1, 0))
     {
-        swSysError("failed to ptrace(DETACH) worker %d", worker->pid);
+        swSysWarn("failed to ptrace(DETACH) worker %d", worker->pid);
     }
     fflush(slowlog);
 }
@@ -76,14 +76,14 @@ void php_swoole_trace_check(void *arg)
     for (; i < count; i++)
     {
         worker = swServer_get_worker(serv, i);
-        swTraceLog(SW_TRACE_SERVER, "trace request, worker#%d, pid=%d. request_time=%ld.", i, worker->pid, worker->request_time);
+        swTraceLog(SW_TRACE_SERVER, "trace request, worker#%d, pid=%d. request_time=%ld", i, worker->pid, worker->request_time);
         if (!(worker->request_time > 0 && worker->traced == 0 && serv->gs->now - worker->request_time >= timeout))
         {
             continue;
         }
         if (ptrace(PTRACE_ATTACH, worker->pid, 0, 0) < 0)
         {
-            swSysError("failed to ptrace(ATTACH, %d) worker#%d,", worker->pid, worker->id);
+            swSysWarn("failed to ptrace(ATTACH, %d) worker#%d,", worker->pid, worker->id);
             continue;
         }
         worker->tracer = trace_request;
@@ -138,7 +138,7 @@ size_t trace_print_time(struct timeval *tv, char *timebuf, size_t timebuf_len)
     size_t len;
 
     len = strftime(timebuf, timebuf_len, "[%d-%b-%Y %H:%M:%S", localtime_r((const time_t *) &tv->tv_sec, &t));
-    len += snprintf(timebuf + len, timebuf_len - len, "] ");
+    len += sw_snprintf(timebuf + len, timebuf_len - len, "] ");
     return len;
 }
 
@@ -199,11 +199,19 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
                     return -__LINE__;
                 }
 
+#if PHP_VERSION_ID < 70400
                 if (ZEND_CALL_KIND_EX((*call_info) >> ZEND_CALL_INFO_SHIFT) == ZEND_CALL_TOP_CODE)
+#else
+                if (ZEND_CALL_KIND_EX(*call_info) == ZEND_CALL_TOP_CODE)
+#endif
                 {
                     return 0;
                 }
+#if PHP_VERSION_ID < 70400
                 else if (ZEND_CALL_KIND_EX(*(call_info) >> ZEND_CALL_INFO_SHIFT) == ZEND_CALL_NESTED_CODE)
+#else
+                else if (ZEND_CALL_KIND_EX(*call_info) == ZEND_CALL_NESTED_CODE)
+#endif
                 {
                     memcpy(buf, "[INCLUDE_OR_EVAL]", sizeof("[INCLUDE_OR_EVAL]"));
                 }
@@ -309,7 +317,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
             break;
         }
     }
-#elif PHP_VERSION_ID > 70000
+#elif PHP_VERSION_ID >= 70000
     while (execute_data)
     {
         long function;

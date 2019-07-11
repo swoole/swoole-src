@@ -21,7 +21,7 @@ $pm->parentFunc = function () use ($pm, $randomData) {
             $cli->setDefer();
             $clients[$n] = $cli;
             $retval = $cli->get('/?n=' . $n);
-            assert($retval);
+            Assert::assert($retval);
             if (!$retval)
             {
                 var_dump($cli->errCode);
@@ -30,8 +30,8 @@ $pm->parentFunc = function () use ($pm, $randomData) {
         for ($n = MAX_CONCURRENCY; $n--;) {
             $cli = $clients[$n];
             $cli->recv();
-            assert($cli->statusCode == 200);
-            assert($cli->body == $randomData[$n]);
+            Assert::same($cli->statusCode, 200);
+            Assert::same($cli->body, $randomData[$n]);
         }
     });
     swoole_event_wait();

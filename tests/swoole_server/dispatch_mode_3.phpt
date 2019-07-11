@@ -1,11 +1,14 @@
 --TEST--
 swoole_server: dispatch_mode = 3
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_in_valgrind();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-const REQ_N = 10000;
+const REQ_N = MAX_REQUESTS * 32;
 const CLIENT_N = 16;
 const WORKER_N = 16;
 
@@ -63,8 +66,10 @@ $pm->parentFunc = function ($pid) use ($port)
     }
     swoole_event::wait();
     swoole_process::kill($pid);
-    assert($stats[10] < 1000);
-    assert($stats[5] < 1000);
+    phpt_var_dump($stats);
+    Assert::assert(($stats[5] + $stats[10]) < REQ_N);
+    Assert::same(array_sum($stats) / count($stats), REQ_N);
+    echo "DONE\n";
 };
 
 $pm->childFunc = function () use ($pm, $port)
@@ -96,3 +101,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+DONE

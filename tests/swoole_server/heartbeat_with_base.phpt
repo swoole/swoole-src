@@ -1,7 +1,10 @@
 --TEST--
 swoole_server: heart beat with SWOOLE_BASE
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_in_valgrind();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -16,9 +19,9 @@ $pm->parentFunc = function ($pid) use ($pm)
         die("\n");
     }
     $s1 = time();
-    assert($client->recv() === '');
+    Assert::same($client->recv(), '');
     $s2 = time();
-    assert($s2 - $s1 > 1);
+    Assert::assert($s2 - $s1 > 1);
     swoole_process::kill($pid);
 };
 

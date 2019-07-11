@@ -47,5 +47,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-[%s]	NOTICE	swSSL_verify (ERROR 1012): Could not verify peer: code:10 certificate has expired
-
+[%s]	NOTICE	swSSL_verify (ERRNO %d): could not verify peer from fd#%d with error#%d: certificate has expired

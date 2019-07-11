@@ -11,13 +11,14 @@ Swoole\Runtime::enableCoroutine();
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     new PDO(
-        "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+        "mysql:host=" . MYSQL_SERVER_HOST . ";port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
         MYSQL_SERVER_USER, MYSQL_SERVER_PWD
     );
 });
 go(function () {
     fopen(__DIR__ . '/file_not_exist', 'r');
 });
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 Warning: fopen(%s): failed to open stream: No such file or directory in %s on line %d

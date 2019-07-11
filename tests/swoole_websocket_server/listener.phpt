@@ -11,13 +11,13 @@ $pm->parentFunc = function (int $pid) use ($pm) {
         $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', 9506);
         $cli->set(['timeout' => 5]);
         $ret = $cli->upgrade('/');
-        assert($ret);
+        Assert::assert($ret);
         foreach (range(1, 100) as $i)
         {
             $ret = $cli->push("hello");
-            assert($ret);
+            Assert::assert($ret);
             $frame = $cli->recv();
-            assert($frame->data == "Swoole: hello");
+            Assert::same($frame->data, "Swoole: hello");
         }
         $pm->kill();
     });

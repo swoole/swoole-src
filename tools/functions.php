@@ -1,4 +1,3 @@
-#!/usr/bin/env php
 <?php
 define('EMOJI_OK', '✅');
 define('EMOJI_SUCCESS', '🚀');
@@ -18,10 +17,37 @@ function space(int $length): string
     return str_repeat(' ', $length);
 }
 
+function camelize(string $uncamelized_words, string $separator = '_'): string
+{
+    $uncamelized_words = $separator . str_replace($separator, " ", strtolower($uncamelized_words));
+    return ltrim(str_replace(" ", "", ucwords($uncamelized_words)), $separator);
+}
+
+function unCamelize(string $camelCaps, string $separator = '_'): string
+{
+    return strtolower(preg_replace('/([a-z])([A-Z])/', "$1" . $separator . "$2", $camelCaps));
+}
+
+function print_split_line(string $title = '', int $length = 32)
+{
+    if ($length % 2 !== 0) {
+        $length += 1;
+    }
+    echo "< {$title} > " . str_repeat('=', $length) . PHP_EOL;
+}
+
 function swoole_log(string $content, int $color = 0)
 {
-    echo ($color ? "\033[3{$color}m{$content}\033[0m" : $content) . "\n";
+    echo ($color ? "\033[3{$color}m{$content}\033[0m" : $content) . PHP_EOL;
+}
 
+function swoole_check(bool $is_ok, string $output)
+{
+    if ($is_ok) {
+        swoole_ok("{$output} OK!");
+    } else {
+        swoole_error("{$output} Failed!");
+    }
 }
 
 function swoole_warn(string ...$args)
@@ -58,24 +84,23 @@ function swoole_success(string $content)
 function swoole_execute_and_check(string $command)
 {
     $basename = pathinfo(explode(' ', $command)[1], PATHINFO_FILENAME);
-    echo "[{$basename}]\n";
-    echo "===========  Execute  ==============\n";
+    echo "[{$basename}]" . PHP_EOL;
+    echo "===========  Execute  ==============" . PHP_EOL;
     exec($command, $output, $return_var);
     if (substr($output[0] ?? '', 0, 2) === '#!') {
         array_shift($output);
     }
-    echo '> ' . implode("\n> ", $output) . "\n";
+    echo '> ' . implode("\n> ", $output) . "" . PHP_EOL;
     if ($return_var != 0) {
         swoole_error("Exec {$command} failed with code {$return_var}!");
     }
-    echo "=========== Finish Done ============\n\n";
+    echo "=========== Finish Done ============" . PHP_EOL . PHP_EOL;
 }
 
 function scan_dir(string $dir, callable $filter = null): array
 {
-    $files = array_filter(scandir($dir), function (string $f) {
-        return $f{0} !== '.';
-    });
+    $files = array_filter(scandir($dir), function (string $file) { return $file{0} !== '.'; });
+    array_walk($files, function (&$file) use ($dir) { $file = "{$dir}/{$file}"; });
     return array_values($filter ? array_filter($files, $filter) : $files);
 }
 
@@ -90,7 +115,7 @@ function file_size(string $filename, int $decimals = 2)
 function swoole_git_files(): array
 {
     $root = SWOOLE_SOURCE_ROOT;
-    return explode("\n", `cd {$root} && git ls-files`);
+    return explode(PHP_EOL, `cd {$root} && git ls-files`);
 }
 
 function swoole_source_list(array $ext_list = [], array $excepts = []): array

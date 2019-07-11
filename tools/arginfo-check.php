@@ -59,7 +59,7 @@ array_walk($file_list_raw, function (string &$filename) use ($root_dir, &$all_co
                     $real_max++;
                 }
             }
-            if ($declare_min != $real_min || (!$declare_max == -1 && $declare_max != $real_max)) {
+            if ($declare_min != $real_min || ($declare_max != -1 && $declare_max != $real_max)) {
                 $GLOBALS['error']++;
                 echo "\nin file {$filename}\n({$declare_min} != {$real_min}), ({$declare_max} != {$real_max})\n";
                 echo ltrim($params_info[0], "\n") . "\n";

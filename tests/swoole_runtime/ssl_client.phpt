@@ -23,7 +23,7 @@ go(function () {
             $content .= fread($fp, 1024);
         }
         fclose($fp);
-        assert(strpos($content,'map.baidu.com') !== false);
+        Assert::assert(strpos($content,'map.baidu.com') !== false);
     }
 });
 swoole_event_wait();

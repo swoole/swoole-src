@@ -32,7 +32,7 @@ $cli->on("connect", function(swoole_client $cli) {
      */
 
 
-    assert($cli->isConnected() === true);
+    Assert::true($cli->isConnected());
     $cli->send(RandStr::gen(1024, RandStr::ALL));
     // $cli->sendfile(__DIR__.'/test.txt');
 });
@@ -42,7 +42,7 @@ $cli->on("receive", function(swoole_client $cli, $data){
     debug_log("receive: len $recv_len");
     $cli->send(RandStr::gen(1024, RandStr::ALL));
     $cli->close();
-    assert($cli->isConnected() === false);
+    Assert::false($cli->isConnected());
 });
 
 $cli->on("error", function(swoole_client $cli) {
@@ -59,5 +59,5 @@ $cli->connect(TCP_SERVER_HOST, TCP_SERVER_PORT);
 $cli->timeo_id = swoole_timer_after(1000, function() use($cli) {
     debug_log("connect timeout");
     $cli->close();
-    assert($cli->isConnected() === false);
+    Assert::false($cli->isConnected());
 });

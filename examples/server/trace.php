@@ -29,7 +29,7 @@ $server->on('Receive', function($serv, $fd, $reactor_id, $data) {
     $serv->send($fd, "Swoole: $data");
 });
 
-$server->on('Task', function (swoole_server $serv, $task_id, $from_id, $data) {
+$server->on('Task', function (swoole_server $serv, $task_id, $reactor_id, $data) {
     echo "#{$serv->worker_id}\tonTask: [PID={$serv->worker_pid}]: task_id=$task_id, data_len=".strlen($data).".".PHP_EOL;
     test();
     $serv->send($data, "Swoole: task\n");

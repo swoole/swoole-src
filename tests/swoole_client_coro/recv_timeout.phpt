@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_coro: recv timeout
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -16,8 +15,8 @@ $pm->parentFunc = function ($pid) use ($pm)
         $data = str_repeat('A', 1025);
         $cli->send(pack('N', strlen($data)) . $data);
         $retData = @$cli->recv(0.5);
-        assert($retData == false);
-        assert($cli->errCode == SOCKET_ETIMEDOUT);
+        Assert::false($retData);
+        Assert::same($cli->errCode, SOCKET_ETIMEDOUT);
     });
     swoole_event_wait();
     $pm->kill();

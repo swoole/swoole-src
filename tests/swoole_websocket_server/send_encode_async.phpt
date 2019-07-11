@@ -5,7 +5,6 @@ swoole_websocket_server: websocket server full test
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/../include/lib/class.websocket_client.php';
 $data_list = [];
 for ($i = MAX_REQUESTS; $i--;) {
     $rand = openssl_random_pseudo_bytes(mt_rand(1, 128000));
@@ -15,36 +14,39 @@ for ($i = MAX_REQUESTS; $i--;) {
         $data_list[$i] = $i . '|' . WEBSOCKET_OPCODE_TEXT . '|' . base64_encode($rand);
     }
 }
+
 $pm = new ProcessManager;
+
 $pm->parentFunc = function (int $pid) use ($pm, $data_list) {
-    $clients = [];
     for ($c = MAX_CONCURRENCY_LOW; $c--;) {
-        $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
-        $cli->set(['timeout' => -1]);
-        global $data_list;
-        $cli->data_list = $data_list;
-        $cli->on('message', function ($_cli, $frame) {
-            list($id, $opcode) = explode('|', $frame->data, 3);
-            assert($frame->finish);
-            assert($frame->opcode === (int)$opcode);
-            assert($frame->data === $_cli->data_list[$id]);
-            unset($_cli->data_list[$id]);
-            if (empty($_cli->data_list)) {
-                $_cli->close();
+        go(function () use ($pm) {
+            $cli = new Co\http\client('127.0.0.1', $pm->getFreePort());
+            $cli->set(['timeout' => -1]);
+            $ret = $cli->upgrade('/');
+            if ($ret == false) {
+                die("error=" . $cli->errCode);
             }
-        });
+            global $data_list;
+            $cli_data_list = $data_list;
 
-        $ret = $cli->upgrade('/', function ($cli) {
-
+            while (true) {
+                $frame = $cli->recv();
+                list($id, $opcode) = explode('|', $frame->data, 3);
+                Assert::assert($frame->finish);
+                Assert::same($frame->opcode, (int)$opcode);
+                Assert::same($frame->data, $cli_data_list[$id]);
+                unset($cli_data_list[$id]);
+                if (empty($cli_data_list)) {
+                    break;
+                }
+            }
+            $cli->close();
         });
-        if ($ret == false) {
-            die("error=" . $cli->errCode);
-        }
-        $clients[] = $cli;
     }
     swoole_event_wait();
     $pm->kill();
 };
+
 $pm->childFunc = function () use ($pm) {
     $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $serv->set([
@@ -68,7 +70,7 @@ $pm->childFunc = function () use ($pm) {
             } else {
                 $ret = $serv->push($req->fd, $data, $opcode);
             }
-            if (!assert($ret)) {
+            if (!Assert::assert($ret)) {
                 var_dump($serv->getLastError());
             }
         }

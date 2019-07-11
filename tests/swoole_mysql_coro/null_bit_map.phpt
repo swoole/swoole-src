@@ -24,9 +24,9 @@ function gen_data_from_type(string $type)
     }
 }
 
-function mysql(): \Swoole\Coroutine\MySQL
+function mysql(): Co\MySQL
 {
-    $mysql = new \Swoole\Coroutine\MySQL;
+    $mysql = new Co\MySQL;
     $connected = $mysql->connect([
         'host' => MYSQL_SERVER_HOST,
         'port' => MYSQL_SERVER_PORT,
@@ -34,64 +34,70 @@ function mysql(): \Swoole\Coroutine\MySQL
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB
     ]);
-    assert($connected);
+    Assert::assert($connected);
     return $mysql;
 }
 
 for ($c = MAX_CONCURRENCY_LOW; $c--;) {
     go(function () use ($c) {
         // gen table structure
-        $table_name = substr(md5(mt_rand()), 0, 16);
+        $table_name = 't' . substr(md5(mt_rand()), 0, 15);
         $field_size = mt_rand(1, 100);
         list($fields, $fields_info) = (function () use ($field_size) {
             $fields_info = [];
             $fields = '';
             for ($i = $field_size; $i--;) {
                 $info = $fields_info[] = [
-                    'name' => 't' . substr(md5(mt_rand()), 0, 7),
+                    'name' => 'f' . substr(md5(mt_rand()), 0, 7),
                     'type' => gen_type()
                 ];
                 $fields .= "{$info['name']} {$info['type']} NULL,\n";
             }
             return [rtrim($fields, " \n,"), $fields_info];
         })();
-
-        // create table
-        $createTable = "CREATE TABLE {$table_name} (\nid bigint PRIMARY KEY AUTO_INCREMENT,\n{$fields}\n);";
         $mysql = mysql();
-        $is_created = $mysql->query($createTable);
-
+        // create table
+        $createTable = <<<SQL
+CREATE TABLE {$table_name} (
+id bigint PRIMARY KEY AUTO_INCREMENT,
+{$fields}
+);
+SQL;
         // gen data and insert
-        if ($is_created) {
-            try {
-                $data_list = [];
-                for ($n = MAX_REQUESTS; $n--;) {
-                    $insert = $mysql->prepare(
-                        "INSERT INTO {$table_name} VALUES (" . rtrim(str_repeat('?, ', $field_size + 1), ', ') . ")"
-                    );
-                    assert($insert);
-                    $data_list[] = $gen = (function ($id, $fields_info) {
-                        $r = ['id' => $id];
-                        foreach ($fields_info as $info) {
-                            if (mt_rand(0, 1)) {
-                                $r[$info['name']] = null;
-                            } else {
-                                $r[$info['name']] = gen_data_from_type($info['type']);
-                            }
+        if (!$mysql->query($createTable)) {
+            trigger_error("create table error by query statement [{$createTable}]", E_USER_WARNING);
+            return;
+        }
+        $_insert = "INSERT INTO {$table_name} VALUES (" . rtrim(str_repeat('?, ', $field_size + 1), ', ') . ")";
+        $data_list = [];
+        try {
+            for ($n = MAX_REQUESTS; $n--;) {
+                $insert = $mysql->prepare($_insert);
+                Assert::assert($insert instanceof Co\Mysql\Statement);
+                $data_list[] = $gen = (function ($id, $fields_info) {
+                    $r = ['id' => $id];
+                    foreach ($fields_info as $info) {
+                        if (mt_rand(0, 1)) {
+                            $r[$info['name']] = null;
+                        } else {
+                            $r[$info['name']] = gen_data_from_type($info['type']);
                         }
-                        return $r;
-                    })($n + 1, $fields_info);
-                    assert($insert->execute(array_values($gen)));
-                }
-                $result = $mysql->prepare("SELECT * FROM {$table_name}")->execute();
-                assert(array_reverse($data_list) === $result);
-            } catch (\Throwable $e) {
-                assert(0);
-            } finally {
-                assert($mysql->query("DROP TABLE {$table_name}"));
+                    }
+                    return $r;
+                })($n + 1, $fields_info);
+                Assert::assert($insert->execute(array_values($gen)));
             }
+            $result = $mysql->prepare("SELECT * FROM {$table_name}")->execute();
+            Assert::same(array_reverse($data_list), $result);
+        } catch (Throwable $e) {
+            Assert::assert(0);
+        } finally {
+            Assert::assert($mysql->query("DROP TABLE {$table_name}"));
         }
     });
 }
+Swoole\Event::wait();
+echo "DONE\n";
 ?>
 --EXPECT--
+DONE

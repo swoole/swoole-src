@@ -1,7 +1,10 @@
 --TEST--
 swoole_http_server: upload 01
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_function_not_exist('curl_init');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -31,8 +34,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
     curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);  //POST数据
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $res = curl_exec($ch);
-    assert(!empty($res));
-    assert($res === md5_file($file));
+    Assert::assert(!empty($res));
+    Assert::same($res, md5_file($file));
     curl_close($ch);
 
     swoole_process::kill($pid);

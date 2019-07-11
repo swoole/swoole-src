@@ -94,7 +94,7 @@ $environment = $_ENV ?? array();
 //       detect and handle this case, or die or warn
 if (empty($environment)) {
     // not documented, but returns array of all environment variables
-    $environment = getenv();
+    $environment = @getenv();
 }
 if (empty($environment['TEMP'])) {
     $environment['TEMP'] = sys_get_temp_dir();
@@ -115,6 +115,32 @@ if (empty($environment['TEMP'])) {
 if ((substr(PHP_OS, 0, 3) == "WIN") && empty($environment["SystemRoot"])) {
     $environment["SystemRoot"] = getenv("SystemRoot");
 }
+
+// swoole patch (persistent config)
+{
+    $environment['PHPT'] = $environment['PHPT'] ?? getenv('PHPT');
+    $environment['HAS_NETSTAT'] = getenv('HAS_NETSTAT') ?? (stripos(`netstat --help 2>&1`, 'usage') ? '1' : '0');
+    if ($environment['HAS_NETSTAT']) {
+        $environment['MYSQL_SERVER_PATH'] = getenv('MYSQL_SERVER_PATH') ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*mysqld?\.sock'`) ?: null);
+        $environment['REDIS_SERVER_PATH'] = getenv('REDIS_SERVER_PATH') ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*redis.*\.sock'`) ?: null);
+    }
+}
+
+// swoole patch (composer)
+(function () {
+    $composer_dir = __DIR__ . '/include/lib';
+    $composer_autoloader = $composer_dir . '/vendor/autoload.php';
+    $composer_time = filectime($composer_dir . '/composer.json');
+    $composer_time_recorder = sys_get_temp_dir() . '/.swoole-phpt-composer-time.record';
+    $composer_last_time = ((int)@file_get_contents($composer_time_recorder)) ?: 0;
+    if (!file_exists($composer_autoloader) || ($composer_last_time && $composer_time !== $composer_last_time)) {
+        system("cd {$composer_dir} && composer update 2>&1");
+    }
+    if (!file_exists($composer_autoloader)) {
+        throw new RuntimeException('Composer install failed');
+    }
+    file_put_contents($composer_time_recorder, $composer_time);
+})();
 
 // Don't ever guess at the PHP executable location.
 // Require the explicit specification.
@@ -363,6 +389,8 @@ define('SWOOLE_COLOR_BLUE', 4);
 define('SWOOLE_COLOR_MAGENTA', 5);
 define('SWOOLE_COLOR_CYAN', 6);
 define('SWOOLE_COLOR_WHITE', 7);
+// swoole patch: os check
+define('SWOOLE_IS_MUSL_LIBC', !empty(`ldd 2>&1 | grep -i musl`));
 
 function save_or_mail_results()
 {
@@ -531,6 +559,12 @@ foreach($cfgtypes as $type) {
         $cfg[$type][$file] = false;
     }
 }
+
+// swoole patch: show diff by default
+$cfg['show']['diff'] = true;
+$cfg['show']['mem'] = true;
+$cfg['show']['slow'] = true;
+$slow_min_ms = 1000;
 
 if (getenv('TEST_PHP_ARGS')) {
 
@@ -1176,12 +1210,23 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
             proc_terminate($proc, 9);
             return $data;
         } else if ($n > 0) {
-            if ($captureStdOut) {
-                $line = fread($pipes[1], 8192);
-            } elseif ($captureStdErr) {
-                $line = fread($pipes[2], 8192);
+            // swoole patch: fix blocking read
+            if (SWOOLE_IS_MUSL_LIBC) {
+                if ($captureStdOut) {
+                    $line = fread($pipes[1], 8192);
+                } elseif ($captureStdErr) {
+                    $line = fread($pipes[2], 8192);
+                } else {
+                    $line = '';
+                }
             } else {
                 $line = '';
+                if ($captureStdOut && in_array($pipes[1], $r)) {
+                    $line .= fread($pipes[1], 8192);
+                }
+                if ($captureStdErr && in_array($pipes[2], $r)) {
+                    $line .= fread($pipes[2], 8192);
+                }
             }
             if (strlen($line) == 0) {
                 /* EOF */
@@ -2206,7 +2251,7 @@ COMMAND $cmd
         // swoole patch: clear port
         if (preg_match('/bind\([^:]+?:(?<port>\d+?)\)/', $diff, $matches)) {
             $port = $matches['port'];
-            @`lsof -i:{$port} | grep LISTEN | awk '{print $2}' | xargs kill -9`;
+            @`lsof -i:{$port} | grep LISTEN | awk '{print $2}' | xargs kill -9 > /dev/null 2>&1`;
         }
 
         if (strpos($log_format, 'D') !== false && file_put_contents($diff_filename, $diff, FILE_BINARY) === false) {
@@ -2705,14 +2750,22 @@ function show_result($result, $tested, $tested_file, $extra = '', $temp_filename
     global $html_output, $html_file, $temp_target, $temp_urlbase, $line_length, $SHOW_ONLY_GROUPS;
 
     // swoole patch: color print
-    if ($result == 'PASS') {
-        $color = SWOOLE_COLOR_GREEN;
-    } elseif ($result == 'LEAK' || $result == 'BORK') {
-        $color = SWOOLE_COLOR_MAGENTA;
-    } elseif ($result == 'SKIP') {
-        $color = SWOOLE_COLOR_YELLOW;
-    } else {
-        $color = SWOOLE_COLOR_RED;
+    switch ($result) {
+        case 'PASS':
+            $color = SWOOLE_COLOR_GREEN;
+            break;
+        case 'LEAK':
+            $result = 'ERROR';
+            $color = SWOOLE_COLOR_MAGENTA;
+            break;
+        case 'BORK':
+            $color = SWOOLE_COLOR_BLUE;
+            break;
+        case 'SKIP':
+            $color = SWOOLE_COLOR_YELLOW;
+            break;
+        default:
+            $color = SWOOLE_COLOR_RED;
     }
     $result = "\033[3{$color}m[$result]\033[0m";
 
@@ -3033,22 +3086,25 @@ class RuntestsValgrind {
     }
 
     public function wrapCommand($cmd, $memcheck_filename, $check_all) {
-        $vcmd = 'valgrind -q --tool=memcheck --trace-children=yes';
-        if ($check_all) {
-            $vcmd .= ' --smc-check=all';
-        }
+        $vcmd = 'valgrind -q';
+        // $vcmd = 'valgrind -q --tool=memcheck --trace-children=yes';
+        // if ($check_all) {
+        //     $vcmd .= ' --smc-check=all';
+        // }
         // swoole patch
         $vcmd .= ' --undef-value-errors=no';
 
-        /* --vex-iropt-register-updates=allregs-at-mem-access is necessary for phpdbg watchpoint tests */
-        if ($this->version_3_8_0) {
-            /* valgrind 3.3.0+ doesn't have --log-file-exactly option */
-            return "$vcmd --vex-iropt-register-updates=allregs-at-mem-access --log-file=$memcheck_filename $cmd";
-        } elseif ($this->version_3_3_0) {
-            return "$vcmd --vex-iropt-precise-memory-exns=yes --log-file=$memcheck_filename $cmd";
-        } else {
-            return "$vcmd --vex-iropt-precise-memory-exns=yes --log-file-exactly=$memcheck_filename $cmd";
-        }
+        return "$vcmd --log-file=$memcheck_filename $cmd";
+
+        // /* --vex-iropt-register-updates=allregs-at-mem-access is necessary for phpdbg watchpoint tests */
+        // if ($this->version_3_8_0) {
+        //     /* valgrind 3.3.0+ doesn't have --log-file-exactly option */
+        //     return "$vcmd --vex-iropt-register-updates=allregs-at-mem-access --log-file=$memcheck_filename $cmd";
+        // } elseif ($this->version_3_3_0) {
+        //     return "$vcmd --vex-iropt-precise-memory-exns=yes --log-file=$memcheck_filename $cmd";
+        // } else {
+        //     return "$vcmd --vex-iropt-precise-memory-exns=yes --log-file-exactly=$memcheck_filename $cmd";
+        // }
     }
 }
 

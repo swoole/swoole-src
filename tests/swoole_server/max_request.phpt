@@ -1,6 +1,5 @@
 --TEST--
 swoole_server: max_request
-
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -23,13 +22,16 @@ $pm->parentFunc = function ($pid) use ($pm)
     for ($i = 0; $i < 4000; $i++)
     {
         $data = "PKG-$i" . str_repeat('A', rand(100, 20000)) . "\r\n\r\n";
-        $client->send($data);
+        if ($client->send($data) === false) {
+            echo "send error\n";
+            break;
+        }
         $ret = $client->recv();
-        assert($ret and strlen($ret) == strlen($data) + 8);
+        Assert::same(strlen($ret), strlen($data) + 8);
     }
     $client->close();
     global $counter;
-    assert($counter->get() > 10);
+    Assert::assert($counter->get() > 10);
     swoole_process::kill($pid);
 };
 

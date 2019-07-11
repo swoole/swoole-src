@@ -3,6 +3,7 @@ swoole_http_client_coro: illegal another coroutine
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+skip_unsupported();
 ?>
 --FILE--
 <?php
@@ -38,11 +39,10 @@ $pm->childFunc = function () use ($pm) {
     $server->set(['log_file' => '/dev/null']);
     $server->on('workerStart', function (swoole_http_server $server) use ($pm) {
         $pm->wakeup();
-        co::sleep(0.5);
-        $server->shutdown();
     });
     $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($pm, $server) {
         co::sleep(0.1);
+        $server->shutdown();
     });
     $server->start();
 };
@@ -50,8 +50,10 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-[%s]	ERROR	sw_coro_check_bind (ERROR 10002): http client has already been bound to another coroutine#%d, reading or writing of the same socket in multiple coroutines at the same time is not allowed.
+[%s]	ERROR	(PHP Fatal Error: %d):
+Swoole\Coroutine\Http\Client::get: Socket#%d has already been bound to another coroutine#%d, reading of the same socket in multiple coroutines at the same time is not allowed
 Stack trace:
 #0  Swoole\Coroutine\Http\Client->get() called at [%s:%d]
 #1  get() called at [%s:%d]
 #2  {closure}() called at [%s:%d]
+#3  {closure}() called at [%s:%d]

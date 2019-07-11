@@ -11,13 +11,13 @@ $table->create();
 $table->set('rpw', ['bar' => 'hello world']);
 $row = $table['rpw'];
 @$row['not_exist'] = '666';
-assert(!isset($row['not_exist']));
+Assert::true(!isset($row['not_exist']));
 echo $row['bar'] . "\n";
 $row['bar'] = 'hello swoole';
 echo $row['bar'] . "\n";
 $row['bar'] = null;
 echo $row['bar'] . "EOF\n";
-assert(isset($row['bar']));
+Assert::true(isset($row['bar']));
 ?>
 --EXPECT--
 hello world

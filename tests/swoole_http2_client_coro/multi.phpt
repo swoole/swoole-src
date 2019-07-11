@@ -12,7 +12,8 @@ go(function () {
         'timeout' => -1,
         'ssl_host_name' => $domain
     ]);
-    $cli->connect();
+    Assert::true($cli->connect());
+    Assert::true($cli->connected);
 
     $req = new Swoole\Http2\Request;
     $req->path = '/terms/privacy';
@@ -25,7 +26,7 @@ go(function () {
     /**@var $response swoole_http2_response */
     $i = 4;
     while ($i--) {
-        assert($cli->send($req));
+        Assert::assert($cli->send($req));
     }
     $stream_map = [];
     $responses_headers_count_map = [];
@@ -35,17 +36,16 @@ go(function () {
         if ($response) {
             echo "$response->statusCode\n";
             $responses_headers_count_map[] = count($response->headers);
-            assert(strpos($response->data, 'Cookie') !== false);
+            Assert::contains($response->data, 'Cookie');
             $stream_map[] = $response->streamId;
             if (++$i === 4) {
                 break;
             }
         }
     }
-    assert(empty(array_diff([1, 3, 5, 7], $stream_map)));
-    $responses_headers_count_map = array_unique($responses_headers_count_map);
-    assert(count($responses_headers_count_map) === 1);
-    assert($responses_headers_count_map > 10);
+    Assert::assert(empty(array_diff([1, 3, 5, 7], $stream_map)));
+    Assert::same(count(array_unique($responses_headers_count_map)), 1);
+    Assert::assert($responses_headers_count_map[0] > 10);
 });
 swoole_event::wait();
 ?>

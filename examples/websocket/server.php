@@ -49,11 +49,20 @@ function user_handshake(swoole_http_request $request, swoole_http_response $resp
     return true;
 }
 
-$server->on('handshake', 'user_handshake');
+//$server->on('handshake', 'user_handshake');
 $server->on('open', function (swoole_websocket_server $_server, swoole_http_request $request) {
     echo "server#{$_server->worker_pid}: handshake success with fd#{$request->fd}\n";
     var_dump($_server->exist($request->fd), $_server->getClientInfo($request->fd));
-//    var_dump($request);
+    $fd = $request->fd;
+    $_server->tick(2000, function($id) use ($fd, $_server) {
+        $_send = str_repeat('B', rand(100, 5000));
+        $ret = $_server->push($fd, $_send);
+        if (!$ret)
+        {
+            var_dump($id);
+            var_dump($_server->clearTimer($id));
+        }
+    });
 });
 
 $server->on('message', function (swoole_websocket_server $_server, $frame) {
@@ -76,16 +85,6 @@ $server->on('message', function (swoole_websocket_server $_server, $frame) {
             $_server->push($frame->fd, $_send);
            // echo "#$i\tserver sent " . strlen($_send) . " byte \n";
         }
-        $fd = $frame->fd;
-        $_server->tick(2000, function($id) use ($fd, $_server) {
-            $_send = str_repeat('B', rand(100, 5000));
-            $ret = $_server->push($fd, $_send);
-            if (!$ret)
-            {
-                var_dump($id);
-                var_dump($_server->clearTimer($id));
-            }
-        });
     }
 });
 

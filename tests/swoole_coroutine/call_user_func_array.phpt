@@ -7,17 +7,17 @@ swoole_coroutine: call_user_func_array
 require __DIR__ . '/../include/bootstrap.php';
 
 class A {
-	public function foo() {
-		call_user_func_array([$this, "bar"], []);
-		echo "foo\n";
+	public function foo($params) {
+        echo "$params\n";
+        call_user_func_array([$this, "bar"], ["bar"]);		
 	}
-	protected function bar() {
-		echo "bar\n";
+	protected function bar($params) {
+        echo "$params\n";
 	}
 }
 $a = new A;
-call_user_func_array([$a, "foo"], []);
+call_user_func_array([$a, "foo"], ["foo"]);
 ?>
 --EXPECT--
-bar
 foo
+bar

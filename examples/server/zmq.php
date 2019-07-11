@@ -33,11 +33,11 @@ $serv->on('workerStart', function($serv, $worker_id) {
     echo "worker start\n";
 });
 
-$serv->on('connect', function ($serv, $fd, $from_id){
-    echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Connect.\n";
+$serv->on('connect', function ($serv, $fd, $reactor_id){
+    echo "[#".posix_getpid()."]\tClient@[$fd:$reactor_id]: Connect.\n";
 });
 
-$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
+$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
 
     $cmd = trim($data);
     echo "[#".posix_getpid()."]\tClient[$fd]: $data\n";
@@ -51,8 +51,8 @@ $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
     //$serv->close($fd);
 });
 
-$serv->on('close', function ($serv, $fd, $from_id) {
-    echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Close.\n";
+$serv->on('close', function ($serv, $fd, $reactor_id) {
+    echo "[#".posix_getpid()."]\tClient@[$fd:$reactor_id]: Close.\n";
 });
 
 //$serv->start();

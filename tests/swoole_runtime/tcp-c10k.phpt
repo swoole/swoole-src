@@ -24,7 +24,7 @@ go(function () use ($port) {
         while ($conn = stream_socket_accept($socket, 1)) {
             for ($n = MAX_REQUESTS; $n--;) {
                 $data = fread($conn, tcp_length(fread($conn, tcp_type_length())));
-                assert($data === "Hello Swoole Server #{$n}!");
+                Assert::same($data, "Hello Swoole Server #{$n}!");
                 fwrite($conn, tcp_pack("Hello Swoole Client #{$n}!"));
             }
             if (++$i === MAX_CONCURRENCY_MID) {
@@ -44,7 +44,7 @@ for ($c = MAX_CONCURRENCY_MID; $c--;) {
             for ($n = MAX_REQUESTS; $n--;) {
                 fwrite($fp, tcp_pack("Hello Swoole Server #{$n}!"));
                 $data = fread($fp, tcp_length(fread($fp, tcp_type_length())));
-                assert($data === "Hello Swoole Client #{$n}!");
+                Assert::same($data, "Hello Swoole Client #{$n}!");
             }
             fclose($fp);
         }

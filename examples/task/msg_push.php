@@ -44,10 +44,10 @@ class SwooleTask
         //{
         //    int fd;
         //    uint16_t len;
-        //    int16_t from_id;
+        //    int16_t reactor_id;
         //    uint8_t type;
         //    uint8_t flags;
-        //    uint16_t from_fd;
+        //    uint16_t server_fd;
         //} swDataHead;
         return pack('lSsCCS', $this->taskId++, $len, $this->workerId, $type, 0, $fromFd) . $data;
     }

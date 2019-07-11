@@ -10,6 +10,7 @@ $serv->on('receive', function (swoole_server $serv, $fd, $threadId, $data)
 {
     var_dump($data);
     echo "#{$serv->worker_id}>> received length=" . strlen($data) . "\n";
+    $serv->send($fd, "Swoole $data\n");
 });
 
 $serv->start();

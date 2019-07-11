@@ -7,7 +7,7 @@ swoole_coroutine_util: fgets
 require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
-    $file = __DIR__ . '/../../swoole.c';
+    $file = __DIR__ . '/../../swoole.cc';
 
     $coroutine = '';
     $fp = fopen($file, "r");
@@ -28,8 +28,8 @@ go(function () {
         $runtime .= fgets($fp);
     }
 
-    assert($standard === $coroutine);
-    assert($standard === $runtime);
+    Assert::same($standard, $coroutine);
+    Assert::same($standard, $runtime);
 
     echo "DONE\n";
 });

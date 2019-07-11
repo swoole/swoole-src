@@ -34,8 +34,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $bytes += strlen($r);
         $data .= $r;
     }
-    assert($bytes == $N);
-    assert(md5_file(TEST_IMAGE) == md5($data));
+    Assert::same($bytes, $N);
+    Assert::same(md5_file(TEST_IMAGE), md5($data));
     $pm->kill();
 };
 
@@ -53,7 +53,7 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('connect', function (swoole_server $serv, $fd) {
         $serv->sendfile($fd, TEST_IMAGE);
     });
-    $serv->on('receive', function ($serv, $fd, $from_id, $data) {
+    $serv->on('receive', function ($serv, $fd, $reactor_id, $data) {
 
     });
     $serv->start();

@@ -21,9 +21,9 @@ go(function () {
         'Accept' => 'text/html,application/xhtml+xml,application/xml',
         'Accept-Encoding' => 'gzip'
     ]);
-    assert($cli->post($path, []));
-    assert($cli->statusCode === 204);
-    assert(empty($cli->body));
+    Assert::assert($cli->post($path, []));
+    Assert::same($cli->statusCode, 204);
+    Assert::assert(empty($cli->body));
 });
 
 ?>

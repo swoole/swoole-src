@@ -21,7 +21,7 @@ go(function () {
         'accept' => 'text/html,application/xhtml+xml,application/xml',
         'accept-encoding' => 'gzip'
     ];
-    assert($cli->send($req));
+    Assert::assert($cli->send($req));
     // not recv here (core dump before ver < 4.0.3)
     co::sleep(1);
 });

@@ -13,8 +13,8 @@ for ($i = MAX_PROCESS_NUM; $i--;) {
     });
 }
 swoole_event_wait();
-$use = microtime(true) - $s;
-assert($use <= 2);
+$s = microtime(true) - $s;
+time_approximate(1, $s);
 echo "DONE\n";
 ?>
 --EXPECT--

@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_sync: udp sync client sendto
-
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

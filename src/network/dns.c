@@ -98,7 +98,7 @@ static int swDNSResolver_get_server()
 
     if ((fp = fopen(SW_DNS_SERVER_CONF, "rt")) == NULL)
     {
-        swWarn("fopen("SW_DNS_SERVER_CONF") failed. Error: %s[%d]", strerror(errno), errno);
+        swSysWarn("fopen("SW_DNS_SERVER_CONF") failed");
         return SW_ERR;
     }
 
@@ -233,11 +233,11 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
 
     char key[1024];
     int request_id = ntohs(header->id);
-    int key_len = snprintf(key, sizeof(key), "%s-%d", _domain_name, request_id);
+    int key_len = sw_snprintf(key, sizeof(key), "%s-%d", _domain_name, request_id);
     swDNS_lookup_request *request = swHashMap_find(request_map, key, key_len);
     if (request == NULL)
     {
-        swWarn("bad response, request_id=%d.", request_id);
+        swWarn("bad response, request_id=%d", request_id);
         return SW_OK;
     }
 
@@ -263,6 +263,11 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     swHashMap_del(request_map, key, key_len);
     sw_free(request->domain);
     sw_free(request);
+
+    if (swHashMap_count(request_map) == 0)
+    {
+        SwooleG.main_reactor->del(SwooleG.main_reactor, resolver_socket->socket->fd);
+    }
 
     return SW_OK;
 }
@@ -306,31 +311,31 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
     int len = strlen(domain);
     if (len >= sizeof(key))
     {
-        swWarn("domain name is too long.");
+        swWarn("domain name is too long");
         return SW_ERR;
     }
 
-    int key_len = snprintf(key, sizeof(key), "%s-%d", domain, swoole_dns_request_id);
+    int key_len = sw_snprintf(key, sizeof(key), "%s-%d", domain, swoole_dns_request_id);
     if (!request_map)
     {
         request_map = swHashMap_new(128, NULL);
     }
     else if (swHashMap_find(request_map, key, key_len))
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_DNSLOOKUP_DUPLICATE_REQUEST, "duplicate request.");
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_DNSLOOKUP_DUPLICATE_REQUEST, "duplicate request");
         return SW_ERR;
     }
 
     swDNS_lookup_request *request = sw_malloc(sizeof(swDNS_lookup_request));
     if (request == NULL)
     {
-        swWarn("malloc(%d) failed.", (int ) sizeof(swDNS_lookup_request));
+        swWarn("malloc(%d) failed", (int ) sizeof(swDNS_lookup_request));
         return SW_ERR;
     }
     request->domain = sw_strndup(domain, len + 1);
     if (request->domain == NULL)
     {
-        swWarn("strdup(%d) failed.", len + 1);
+        swWarn("strdup(%d) failed", len + 1);
         sw_free(request);
         return SW_ERR;
     }
@@ -339,7 +344,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
 
     if (domain_encode(request->domain, len, _domain_name) < 0)
     {
-        swWarn("invalid domain[%s].", domain);
+        swWarn("invalid domain[%s]", domain);
         sw_free(request->domain);
         sw_free(request);
         return SW_ERR;
@@ -359,7 +364,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         {
             sw_free(request->domain);
             sw_free(request);
-            swWarn("malloc failed.");
+            swWarn("malloc failed");
             return SW_ERR;
         }
         if (swClient_create(resolver_socket, SW_SOCK_UDP, 0) < 0)
@@ -380,7 +385,8 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         }
         if (resolver_socket->connect(resolver_socket, dns_server_host, dns_server_port, 1, 0) < 0)
         {
-            do_close: resolver_socket->close(resolver_socket);
+            _do_close:
+            resolver_socket->close(resolver_socket);
             swClient_free(resolver_socket);
             sw_free(resolver_socket);
             sw_free(request->domain);
@@ -388,16 +394,24 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
             resolver_socket = NULL;
             return SW_ERR;
         }
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_DNS_RESOLVER, swDNSResolver_onReceive);
-        if (SwooleG.main_reactor->add(SwooleG.main_reactor, resolver_socket->socket->fd, SW_FD_DNS_RESOLVER))
+    }
+
+    if (!swReactor_isset_handler(SwooleG.main_reactor, SW_FD_DNS_RESOLVER))
+    {
+        swReactor_set_handler(SwooleG.main_reactor, SW_FD_DNS_RESOLVER, swDNSResolver_onReceive);
+    }
+
+    if (!swReactor_exists(SwooleG.main_reactor, resolver_socket->socket->fd))
+    {
+        if (SwooleG.main_reactor->add(SwooleG.main_reactor, resolver_socket->socket->fd, SW_FD_DNS_RESOLVER) < 0)
         {
-            goto do_close;
+            goto _do_close;
         }
     }
 
     if (resolver_socket->send(resolver_socket, (char *) packet, steps, 0) < 0)
     {
-        goto do_close;
+        goto _do_close;
     }
 
     swHashMap_add(request_map, key, key_len, request);

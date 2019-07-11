@@ -24,11 +24,17 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
     bzero(pool, sizeof(swThreadPool));
 
     pool->threads = (swThread *) sw_calloc(thread_num, sizeof(swThread));
-    pool->params = (swThreadParam *) sw_calloc(thread_num, sizeof(swThreadParam));
-
-    if (pool->threads == NULL || pool->params == NULL)
+    if (!pool->threads)
     {
-        swWarn("swThreadPool_create malloc fail");
+        swWarn("malloc[1] failed");
+        return SW_ERR;
+    }
+
+    pool->params = (swThreadParam *) sw_calloc(thread_num, sizeof(swThreadParam));
+    if (!pool->params)
+    {
+        sw_free(pool->threads);
+        swWarn("malloc[2] failed");
         return SW_ERR;
     }
 
@@ -38,6 +44,8 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
     pool->chan = swChannel_create(1024 * 256, 512, 0);
     if (pool->chan == NULL)
     {
+        sw_free(pool->threads);
+        sw_free(pool->params);
         swWarn("swThreadPool_create create channel failed");
         return SW_ERR;
     }
@@ -45,11 +53,15 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
     int size = MAX(SwooleG.max_sockets + 1, SW_THREADPOOL_QUEUE_LEN);
     if (swRingQueue_init(&pool->queue, size) < 0)
     {
+        sw_free(pool->threads);
+        sw_free(pool->params);
         return SW_ERR;
     }
 #endif
     if (swCond_create(&pool->cond) < 0)
     {
+        sw_free(pool->threads);
+        sw_free(pool->params);
         return SW_ERR;
     }
     pool->thread_num = thread_num;
@@ -70,7 +82,7 @@ int swThreadPool_dispatch(swThreadPool *pool, void *task, int task_len)
 
     if (ret < 0)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUEUE_FULL, "the queue of thread pool is full.");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUEUE_FULL, "the queue of thread pool is full");
         return SW_ERR;
     }
 
@@ -89,7 +101,7 @@ int swThreadPool_run(swThreadPool *pool)
         pool->params[i].object = pool;
         if (pthread_create(&(swThreadPool_thread(pool,i)->tid), NULL, swThreadPool_loop, &pool->params[i]) < 0)
         {
-            swWarn("pthread_create failed. Error: %s[%d]", strerror(errno), errno);
+            swSysWarn("pthread_create failed");
             return SW_ERR;
         }
     }

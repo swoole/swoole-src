@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: destruct1
+swoole_coroutine/destruct: destruct1
 --SKIPIF--
 <?php require  __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

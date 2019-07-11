@@ -21,9 +21,9 @@ function http_get(string $url)
         'Accept' => 'text/html,application/xhtml+xml,application/xml',
         'Accept-Encoding' => 'gzip'
     ]);
-    assert($cli->get('/'));
-    assert($cli->statusCode === 200);
-    assert(!empty($cli->body));
+    Assert::assert($cli->get('/'));
+    Assert::same($cli->statusCode, 200);
+    Assert::assert(!empty($cli->body));
 }
 
 go(function () {

@@ -33,7 +33,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $data = json_encode(['data' => RandStr::gen($int), 'index' => 2, 'len' => $int]);
     $client->send(pack('N', strlen($data) + 4) . $data);
     $pkg = $client->recv();
-    assert($pkg != false and strlen($pkg) > 100);
+    Assert::assert($pkg != false and strlen($pkg) > 100);
     swoole_process::kill($pid);
 };
 

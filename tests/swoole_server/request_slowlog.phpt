@@ -1,7 +1,11 @@
 --TEST--
 swoole_server: slowlog
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_darwin();
+skip_if_in_valgrind();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -16,7 +20,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         exit("connect failed\n");
     }
     echo $client->recv();
-    assert($client->send("Request\n"));
+    Assert::assert($client->send("Request\n"));
     echo $client->recv();
     $pm->kill();
 };
@@ -53,7 +57,7 @@ $pm->childFunc = function () use ($pm)
     $serv->on('connect', function (swoole_server $serv, $fd) {
         $serv->task([str_repeat("A", 1024 * 1024 * 2), 'task', $fd]);
     });
-    $serv->on('receive', function ($serv, $fd, $from_id, $data) {
+    $serv->on('receive', function ($serv, $fd, $reactor_id, $data) {
         sleep(2);
         $serv->send($fd, "Hello World\n");
     });

@@ -10,12 +10,13 @@ use Swoole\Coroutine as co;
 
 co::create(function () {
     $db = new co\MySQL();
-    $server = array(
+    $server = [
         'host' => MYSQL_SERVER_HOST,
+        'port' => MYSQL_SERVER_PORT,
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB,
-    );
+    ];
 
     $ret1 = $db->connect($server);
     if (!$ret1) {
@@ -37,11 +38,13 @@ co::create(function () {
         echo "EXECUTE ERROR#{$stmt->errno}: {$stmt->error}\n";
         return;
     }
-    assert(count($ret3) > 0);
+    Assert::assert(count($ret3) > 0);
 
+    $s = microtime(true);
     $ret = $db->query("select sleep(20)", 0.1);
-    assert($ret == false);
-    assert( $db->errno == SOCKET_ETIMEDOUT);
+    time_approximate(0.1, microtime(true) - $s);
+    Assert::false($ret);
+    Assert::same($db->errno, SWOOLE_MYSQLND_CR_SERVER_GONE_ERROR);
     $ret1 = $db->connect($server);
     if (!$ret1) {
         echo "CONNECT[2] ERROR\n";
@@ -62,7 +65,7 @@ co::create(function () {
         echo "EXECUTE ERROR#{$stmt->errno}: {$stmt->error}\n";
         return;
     }
-    assert(count($ret3) > 0);
+    Assert::assert(count($ret3) > 0);
 });
 
 ?>

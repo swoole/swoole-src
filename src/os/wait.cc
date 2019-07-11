@@ -41,20 +41,21 @@ static void signal_handler(int signo)
     {
         int __stat_loc;
 
-        while(true)
+        while (true)
         {
             pid_t __pid = waitpid(-1, &__stat_loc, WNOHANG);
             if (__pid <= 0)
             {
                 break;
             }
+
             wait_task *task = nullptr;
             if (waitpid_map.find(__pid) != waitpid_map.end())
             {
                 task = waitpid_map[__pid];
                 waitpid_map.erase(__pid);
             }
-            else if (wait_list.size() > 0)
+            else if (!wait_list.empty())
             {
                 task = wait_list.front();
                 wait_list.pop();
@@ -63,6 +64,7 @@ static void signal_handler(int signo)
             {
                 child_processes[__pid] = __stat_loc;
             }
+
             if (task)
             {
                 task->status = __stat_loc;
@@ -83,7 +85,7 @@ void swoole_coroutine_signal_init()
         signal_init = true;
         swSignal_add(SIGCHLD, signal_handler);
 #ifdef HAVE_SIGNALFD
-        if (SwooleG.use_signalfd && !swReactor_handle_isset(SwooleG.main_reactor, SW_FD_SIGNAL))
+        if (SwooleG.use_signalfd && !swReactor_isset_handler(SwooleG.main_reactor, SW_FD_SIGNAL))
         {
             swSignalfd_setup(SwooleG.main_reactor);
         }
@@ -93,19 +95,31 @@ void swoole_coroutine_signal_init()
 
 pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options)
 {
-    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current() || (__options & WNOHANG)))
+    auto i = child_processes.find(__pid);
+    if (i != child_processes.end())
+    {
+        *__stat_loc = i->second;
+        child_processes.erase(i);
+        return __pid;
+    }
+
+    if (sw_unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current() || (__options & WNOHANG)))
     {
         return waitpid(__pid, __stat_loc, __options);
     }
 
-    if (child_processes.find(__pid) != child_processes.end())
+    wait_task task;
+    task.pid = waitpid(__pid, __stat_loc, __options | WNOHANG);
+    if (task.pid > 0)
     {
-        *__stat_loc = child_processes[__pid];
-        return __pid;
+        return task.pid;
+    }
+    else
+    {
+        task.pid = 0;
     }
 
-    wait_task task;
-    task.co = coroutine_get_current();;
+    task.co = Coroutine::get_current();
     waitpid_map[__pid] = &task;
     task.co->yield();
     *__stat_loc = task.status;
@@ -115,24 +129,23 @@ pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options)
 
 pid_t swoole_coroutine_wait(int *__stat_loc)
 {
-    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
+    if (sw_unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current()))
     {
         return wait( __stat_loc);
     }
 
-    pid_t __pid;
-    if (child_processes.size() > 0)
+    if (!child_processes.empty())
     {
-        unordered_map<int, int>::iterator i = child_processes.begin();
-        __pid = i->first;
+        auto i = child_processes.begin();
+        pid_t __pid = i->first;
         *__stat_loc = i->second;
-        child_processes.erase(__pid);
+        child_processes.erase(i);
         return __pid;
     }
 
     wait_task task;
-    task.co = coroutine_get_current();;
-    waitpid_map[__pid] = &task;
+    task.co = Coroutine::get_current();
+    wait_list.push(&task);
     task.co->yield();
     *__stat_loc = task.status;
 

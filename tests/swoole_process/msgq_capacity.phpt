@@ -1,7 +1,10 @@
 --TEST--
 swoole_process: sysv msgqueue capacity
 --SKIPIF--
-<?php require __DIR__.'/../include/skipif.inc'; ?>
+<?php
+require __DIR__.'/../include/skipif.inc';
+skip_if_darwin();
+?>
 --FILE--
 <?php
 require __DIR__.'/../include/bootstrap.php';
@@ -24,7 +27,7 @@ while ($bytes < N) {
     $process->push($data);
 }
 
-assert($process->statQueue()['queue_bytes'] > N);
+Assert::assert($process->statQueue()['queue_bytes'] > N);
 
 $rd_bytes = 0;
 while ($rd_bytes < N) {
@@ -32,7 +35,7 @@ while ($rd_bytes < N) {
     $rd_bytes += strlen($recv);
 }
 
-assert($process->statQueue()['queue_bytes'] == 0);
+Assert::same($process->statQueue()['queue_bytes'], 0);
 
 $process->freeQueue();
 ?>

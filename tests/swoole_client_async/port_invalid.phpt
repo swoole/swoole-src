@@ -1,6 +1,5 @@
 --TEST--
 swoole_client_async: port invalid
-
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -24,8 +23,8 @@ $cli->on("close", function (swoole_client $cli) {
 
 });
 
-assert(@$cli->connect("www.baidu.com", null, 2.0) == false);
-assert(swoole_last_error() == SWOOLE_ERROR_INVALID_PARAMS);
+Assert::false(@$cli->connect("www.baidu.com", null, 2.0));
+Assert::same(swoole_last_error(), SWOOLE_ERROR_INVALID_PARAMS);
 
 swoole_event::wait();
 ?>

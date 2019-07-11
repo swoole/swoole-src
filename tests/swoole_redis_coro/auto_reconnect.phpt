@@ -8,13 +8,13 @@ require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $redis = new Swoole\Coroutine\Redis();
     $ret = $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-    assert($ret);
+    Assert::assert($ret);
     $ret = $redis->close();
-    assert($ret);
+    Assert::assert($ret);
     $ret = $redis->set('foo', 'bar');
-    assert($ret);
+    Assert::assert($ret);
     $ret = $redis->get('foo');
-    assert($ret === 'bar');
+    Assert::same($ret, 'bar');
 });
 swoole_event_wait();
 echo "DONE\n";
