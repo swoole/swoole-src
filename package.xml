@@ -90,7 +90,7 @@
         + Added the 4th parameter of the constructor of `Process\Pool`, when true, the underlying layer will automatically create the Coroutine in the `onWorkerStart` callback (8ceb32cd) (@matyhtf)
         + Support non-blocking `stream_socket_pair` in Runtime hook (#2546) (@matyhtf)
         + Added `static_handler_locations` setting of `Http\Server` to set static file path (@matyhtf)
-        + Added `Coroutine\Http\Client->setBasciAuth` method to automatically send `Authorization` header (#2542) (@hongbshi)
+        + Added `Coroutine\Http\Client->setBasicAuth` method to automatically send `Authorization` header (#2542) (@hongbshi)
         + Added `Coroutine\Http2\Client->ping` method (40041f6) (@shiguangqi)
         + Added `task_use_object` (#2659) (aa01317) (@twose)
 
