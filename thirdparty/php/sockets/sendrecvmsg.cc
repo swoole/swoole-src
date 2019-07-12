@@ -31,7 +31,7 @@
 #define LONG_CHECK_VALID_INT(l) \
 	do { \
 		if ((l) < INT_MIN && (l) > INT_MAX) { \
-			php_error_docref0(NULL, E_WARNING, "The value " ZEND_LONG_FMT " does not fit inside " \
+			php_error_docref(NULL, E_WARNING, "The value " ZEND_LONG_FMT " does not fit inside " \
 					"the boundaries of a native integer", (l)); \
 			return; \
 		} \
