@@ -23,7 +23,7 @@ go(function () {
         MYSQL_SERVER_USER, MYSQL_SERVER_PWD
     );
     $pdo_result = $pdo->query('SELECT * FROM `userinfo`')->fetchAll(PDO::FETCH_ASSOC);
-    Assert::eq($result, $pdo_result);
+    Assert::same($result, $pdo_result);
 
     $result = $mysql->prepare('SELECT * FROM `userinfo`')->execute();
     $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
@@ -31,7 +31,7 @@ go(function () {
     $pdo_stmt->execute();
     $pdo_result =$pdo_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    Assert::eq($result, $pdo_result);
+    Assert::same($result, $pdo_result);
 });
 Swoole\Event::wait();
 echo "DONE\n";

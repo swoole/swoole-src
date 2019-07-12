@@ -22,7 +22,7 @@ require __DIR__ . '/../include/bootstrap.php';
 //     $write = [];
 //     $ret = chan::select($read, $write, 0.1);
 //     Assert::true($ret);
-//     Assert::eq(count($read), 1);
+//     Assert::same(count($read), 1);
 // });
 ?>
 --EXPECT--

@@ -18,7 +18,7 @@ go(function () {
         $statement = $db->prepare('SELECT 1');
         Assert::isInstanceOf($statement, Co\Mysql\Statement::class);
         $ret = $statement->execute();
-        Assert::eq($ret[0][1], 1);
+        Assert::same($ret[0][1], 1);
         echo "DONE\n";
     }
 });

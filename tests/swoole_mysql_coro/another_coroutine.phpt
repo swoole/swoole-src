@@ -11,13 +11,13 @@ $process = new Swoole\Process(function () {
         register_shutdown_function(function () {
             $msg = (error_get_last() ?? [])['message'] ?? '';
             $num = preg_match_all('/coroutine#(\d+)/', $msg, $matches);
-            if (Assert::eq($num, 2)) {
+            if (Assert::same($num, 2)) {
                 $matches = $matches[1];
                 $bound_co = (int)$matches[0];
                 $error_co = (int)$matches[1];
                 $bound_co_trace = Co::getBackTrace($bound_co);
                 $error_co_trace = Co::getBackTrace($error_co);
-                Assert::eq($bound_co_trace[0]['object'], $error_co_trace[0]['object']);
+                Assert::same($bound_co_trace[0]['object'], $error_co_trace[0]['object']);
                 echo "DONE\n";
             }
         });

@@ -27,7 +27,7 @@ makeTcpClient(TCP_SERVER_HOST, $port, function(\swoole_client $cli) {
     Assert::assert($r !== false);
 }, function(\swoole_client $cli, $recv) {
     $len = unpack("N", substr($recv, 0, 4))[1];
-    Assert::eq($len - 4, strlen(substr($recv, 4)));
+    Assert::same($len - 4, strlen(substr($recv, 4)));
     swoole_event_exit();
     echo "SUCCESS";
 });

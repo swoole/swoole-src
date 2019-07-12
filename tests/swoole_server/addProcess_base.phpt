@@ -19,7 +19,7 @@ $pm->parentFunc = function ($pid) use ($port)
     });
 
     $cli->on("receive", function(\swoole_client $cli, $data){
-        Assert::eq($data, 'test');
+        Assert::same($data, 'test');
         $cli->send('shutdown');
         $cli->close();
     });

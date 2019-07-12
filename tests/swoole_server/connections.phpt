@@ -24,7 +24,7 @@ $pm->parentFunc = function ($pid) use ($port)
         });
         $cli->on("receive", function (swoole_client $cli, $data)
         {
-            Assert::eq($data, "OK");
+            Assert::same($data, "OK");
             global $count;
             $count ++;
             $cli->close();
@@ -40,7 +40,7 @@ $pm->parentFunc = function ($pid) use ($port)
         $cli->connect('127.0.0.1', $port, 0.1);
     }
     swoole_event::wait();
-    Assert::eq($count, N);
+    Assert::same($count, N);
     swoole_process::kill($pid);
 };
 

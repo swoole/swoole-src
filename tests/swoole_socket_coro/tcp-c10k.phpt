@@ -17,7 +17,7 @@ go(function () use ($port) {
     while ($conn = $socket->accept()) {
         for ($n = MAX_REQUESTS; $n--;) {
             $data = $conn->recv(tcp_length($conn->recv(tcp_type_length())));
-            Assert::eq($data, "Hello Swoole Server #{$n}!");
+            Assert::same($data, "Hello Swoole Server #{$n}!");
             $conn->send(tcp_pack("Hello Swoole Client #{$n}!"));
         }
         $conn->close();
@@ -35,7 +35,7 @@ for ($c = MAX_CONCURRENCY_MID; $c--;) {
         for ($n = MAX_REQUESTS; $n--;) {
             $client->send(tcp_pack("Hello Swoole Server #{$n}!"));
             $data = $client->recv(tcp_length($client->recv(tcp_type_length())));
-            Assert::eq($data, "Hello Swoole Client #{$n}!");
+            Assert::same($data, "Hello Swoole Client #{$n}!");
         }
         $client->close();
     });

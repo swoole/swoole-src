@@ -19,7 +19,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         die("\n");
     }
     $s1 = time();
-    Assert::eq($client->recv(), '');
+    Assert::same($client->recv(), '');
     $s2 = time();
     Assert::assert($s2 - $s1 > 1);
     swoole_process::kill($pid);

@@ -21,7 +21,7 @@ $server->on('managerStart', function (Swoole\Http\Server $server) {
 $server->on('task', function ($_, Swoole\Server\Task $task) use ($server) {
     var_dump(func_num_args());
     var_dump(func_get_args()[1]);
-    Assert::eq($task->flags & SWOOLE_TASK_NOREPLY, SWOOLE_TASK_NOREPLY);
+    Assert::same($task->flags & SWOOLE_TASK_NOREPLY, SWOOLE_TASK_NOREPLY);
     $server->shutdown();
 });
 $server->start();

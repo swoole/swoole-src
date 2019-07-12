@@ -14,7 +14,7 @@ $n = 10;
 while ($n--) {
     go(function () use ($n) {
         $data = readfile_with_lock(TEST_IMAGE);
-        Assert::eq(md5_file(TEST_IMAGE), md5($data));
+        Assert::same(md5_file(TEST_IMAGE), md5($data));
         echo "$n OK\n";
     });
 }

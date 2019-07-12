@@ -8,56 +8,56 @@ require __DIR__ . '/../../include/bootstrap.php';
 go(function () {
     defer(function () {
         echo "10\n";
-        Assert::eq(co::getuid(), 1);
+        Assert::same(co::getuid(), 1);
         co::sleep(.001);
-        Assert::eq(co::getuid(), 1);
+        Assert::same(co::getuid(), 1);
         echo "11\n";
         defer(function () {
             echo "14\n";
-            Assert::eq(co::getuid(), 1);
+            Assert::same(co::getuid(), 1);
             co::sleep(.001);
-            Assert::eq(co::getuid(), 1);
+            Assert::same(co::getuid(), 1);
             echo "15\n";
         });
         defer(function () {
             echo "12\n";
-            Assert::eq(co::getuid(), 1);
+            Assert::same(co::getuid(), 1);
             co::sleep(.001);
-            Assert::eq(co::getuid(), 1);
+            Assert::same(co::getuid(), 1);
             echo "13\n";
         });
     });
     defer(function () {
         echo "8\n";
-        Assert::eq(co::getuid(), 1);
+        Assert::same(co::getuid(), 1);
         co::sleep(.001);
-        Assert::eq(co::getuid(), 1);
+        Assert::same(co::getuid(), 1);
         echo "9\n";
     });
     echo "0\n";
-    Assert::eq(co::getuid(), 1);
+    Assert::same(co::getuid(), 1);
     co::sleep(.001);
-    Assert::eq(co::getuid(), 1);
+    Assert::same(co::getuid(), 1);
     echo "1\n";
     defer(function () {
         echo "4\n";
-        Assert::eq(co::getuid(), 1);
+        Assert::same(co::getuid(), 1);
         co::sleep(.001);
-        Assert::eq(co::getuid(), 1);
+        Assert::same(co::getuid(), 1);
         echo "5\n";
         defer(function () {
             echo "6\n";
-            Assert::eq(co::getuid(), 1);
+            Assert::same(co::getuid(), 1);
             co::sleep(.001);
-            Assert::eq(co::getuid(), 1);
+            Assert::same(co::getuid(), 1);
             echo "7\n";
         });
     });
     defer(function () {
         echo "2\n";
-        Assert::eq(co::getuid(), 1);
+        Assert::same(co::getuid(), 1);
         co::sleep(.001);
-        Assert::eq(co::getuid(), 1);
+        Assert::same(co::getuid(), 1);
         echo "3\n";
     });
 });

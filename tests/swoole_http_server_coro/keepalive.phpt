@@ -27,11 +27,11 @@ go(function () {
 go(function () {
     $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', TEST_PORT, false);
     $cli->set(['timeout' => 5]);
-    \Swoole\Assert::assert($cli->get('/hello?a=x3'));
+    Assert::assert($cli->get('/hello?a=x3'));
     $data1 = unserialize($cli->body);
-    \Swoole\Assert::assert($cli->get('/world/index?b=455'));
+    Assert::assert($cli->get('/world/index?b=455'));
     $data2 = unserialize($cli->body);
-    \Swoole\Assert::assert($data1['remote_port'] == $data2['remote_port']);
+    Assert::assert($data1['remote_port'] == $data2['remote_port']);
     file_get_contents('http://127.0.0.1:' . TEST_PORT . '/shutdown');
 });
 

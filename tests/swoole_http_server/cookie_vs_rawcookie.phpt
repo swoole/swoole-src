@@ -11,7 +11,7 @@ $pm->parentFunc = function () use ($pm) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cookie = '123_,; abc';
         Assert::assert($cli->get('/?cookie=' . urlencode($cookie)));
-        Assert::eq($cli->statusCode, 200);
+        Assert::same($cli->statusCode, 200);
         Assert::assert($cli->set_cookie_headers ===
             [
                 'cookie=' . urlencode($cookie),
@@ -24,7 +24,7 @@ $pm->parentFunc = function () use ($pm) {
             $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             $random = get_safe_random();
             Assert::assert($cli->get('/?cookie=' . $random));
-            Assert::eq($cli->statusCode, 200);
+            Assert::same($cli->statusCode, 200);
             Assert::assert($cli->set_cookie_headers ===
                 [
                     'cookie=' . urlencode($random),

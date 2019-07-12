@@ -46,12 +46,12 @@ SQL;
             $res = $db->query('CALL reply("hello mysql!")');
             do {
                 if (is_array($res)) {
-                    Assert::eq(current($res[0]), array_shift($_map));
+                    Assert::same(current($res[0]), array_shift($_map));
                 } else {
                     Assert::true($res);
                 }
             } while ($res = $db->nextResult());
-            Assert::eq($db->affected_rows, 1);
+            Assert::same($db->affected_rows, 1);
             Assert::assert(empty($_map), 'there are some results lost!');
         }
     }

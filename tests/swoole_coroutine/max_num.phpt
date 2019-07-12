@@ -15,9 +15,9 @@ for ($c = MAX_N + 1; $c--;) {
     });
 }
 $info = co::stats();
-Assert::eq($info['c_stack_size'], 2097152);
-Assert::eq($info['coroutine_num'], MAX_N);
-Assert::eq($info['coroutine_peak_num'], MAX_N);
+Assert::same($info['c_stack_size'], 2097152);
+Assert::same($info['coroutine_num'], MAX_N);
+Assert::same($info['coroutine_peak_num'], MAX_N);
 ?>
 --EXPECTF--
 Warning: go(): exceed max number of coroutine %d in %s/tests/swoole_coroutine/max_num.php on line %d

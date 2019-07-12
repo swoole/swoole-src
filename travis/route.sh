@@ -1,12 +1,12 @@
-#!/bin/sh -e
+#!/bin/sh
 __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
+export DOCKER_COMPOSE_VERSION="1.21.0"
 [ -z "${TRAVIS_BRANCH}" ] && export TRAVIS_BRANCH="master"
 [ -z "${TRAVIS_BUILD_DIR}" ] && export TRAVIS_BUILD_DIR=$(cd "$(dirname "$0")";cd ../;pwd)
-export DOCKER_COMPOSE_VERSION="1.21.0"
-export PHP_VERSION_ID=`php -r "echo PHP_VERSION_ID;"`
-if [ ${PHP_VERSION_ID} -lt 70300 ]; then
+[ -z "${PHP_VERSION_ID}" ] && export PHP_VERSION_ID=`php -r "echo PHP_VERSION_ID;"`
+if [ ${PHP_VERSION_ID} -lt 70400 ]; then
     export PHP_VERSION="`php -r "echo PHP_MAJOR_VERSION;"`.`php -r "echo PHP_MINOR_VERSION;"`"
 else
     export PHP_VERSION="rc"
@@ -30,9 +30,15 @@ check_docker_dependency(){
             echo "\n🤔 Can not found docker-compose, try to install it now...\n"
             curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose && \
             chmod +x docker-compose && \
-            sudo mv docker-compose /usr/local/bin && \
-            docker -v && \
-            docker-compose -v
+            sudo mv docker-compose /usr/local/bin
+
+            which "docker-compose" > /dev/null
+            if [ $? -ne 0 ]; then
+                echo "\n❌ Install docker-compose failed!"
+                exit 255
+            fi
+
+            docker -v &&  docker-compose -v
         fi
     fi
 }
@@ -46,6 +52,9 @@ prepare_data_files(){
     data/mysql data/run/mysqld \
     data/redis data/run/redis && \
     chmod -R 777 data
+    if [ $? -ne 0 ]; then
+        echo "\n❌ Prepare data files failed!"
+    fi
 }
 
 remove_data_files(){
@@ -54,10 +63,13 @@ remove_data_files(){
 }
 
 start_docker_containers(){
+    remove_docker_containers
     cd ${__DIR__} && \
-    remove_docker_containers && \
     docker-compose up -d && \
     docker ps -a
+    if [ $? -ne 0 ]; then
+        echo "\n❌ Create containers failed!"
+    fi
 }
 
 remove_docker_containers(){
@@ -69,6 +81,9 @@ remove_docker_containers(){
 run_tests_in_docker(){
     docker exec swoole touch /.travisenv && \
     docker exec swoole /swoole-src/travis/docker-route.sh
+    if [ $? -ne 0 ]; then
+        echo "\n❌ Run tests failed!"
+    fi
 }
 
 remove_tests_resources(){

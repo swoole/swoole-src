@@ -44,7 +44,7 @@ co::create(function () {
     $ret = $db->query("select sleep(20)", 0.1);
     time_approximate(0.1, microtime(true) - $s);
     Assert::false($ret);
-    Assert::eq($db->errno, SWOOLE_MYSQLND_CR_SERVER_GONE_ERROR);
+    Assert::same($db->errno, SWOOLE_MYSQLND_CR_SERVER_GONE_ERROR);
     $ret1 = $db->connect($server);
     if (!$ret1) {
         echo "CONNECT[2] ERROR\n";

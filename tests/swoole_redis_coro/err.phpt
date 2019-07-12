@@ -12,7 +12,7 @@ go(function () {
     Assert::assert($res && $redis->errCode === 0 && $redis->errMsg === '');
     $res = $redis->hIncrBy('foo', 'bar', 123);
     Assert::assert(!$res);
-    Assert::eq($redis->errType, SWOOLE_REDIS_ERR_OTHER);
+    Assert::same($redis->errType, SWOOLE_REDIS_ERR_OTHER);
     var_dump($redis->errMsg);
     $res = $redis->set('foo', 'baz');
     Assert::assert($res && $redis->errCode === 0 && $redis->errMsg === '');

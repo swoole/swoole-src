@@ -16,7 +16,7 @@ $server->on('WorkerStart', function (Swoole\Server $server, int $worker_id) use 
         $server->after(200, function () use ($server, $file) {
             Co::sleep(0.1);
             echo "[1] Co " . Co::getCid() . "\n";
-            \Swoole\Assert::eq(Co::readFile(__FILE__), $file);
+            Assert::same(Co::readFile(__FILE__), $file);
             $server->shutdown();
         });
     }
@@ -31,7 +31,7 @@ $server->on('workerStop', function (Swoole\Server $server, int $worker_id) use (
         $sch->add(function ($t, $n) use ($file) {
             Co::sleep($t);
             echo "[2] Co " . Co::getCid() . "\n";
-            \Swoole\Assert::eq(Co::readFile(__FILE__), $file);
+            Assert::same(Co::readFile(__FILE__), $file);
         }, 0.05, 'A');
         $sch->start();
     }

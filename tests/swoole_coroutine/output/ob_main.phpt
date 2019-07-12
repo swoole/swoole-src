@@ -11,8 +11,8 @@ go(function () {
     ob_start();
     echo 'bbb';
     co::fgets(fopen(__FILE__, 'r'));
-    Assert::eq(ob_get_clean(), 'bbb');
+    Assert::same(ob_get_clean(), 'bbb');
 });
-Assert::eq(ob_get_clean(), 'aaa');
+Assert::same(ob_get_clean(), 'aaa');
 ?>
 --EXPECT--

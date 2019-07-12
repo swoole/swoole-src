@@ -7,7 +7,7 @@ swoole_coroutine: cid increment
 require __DIR__ . '/../include/bootstrap.php';
 for ($n = 0; $n < MAX_LOOPS; $n++) {
     go(function () use ($n) {
-        Assert::eq(co::getCid(), $n + 1);
+        Assert::same(co::getCid(), $n + 1);
     });
 }
 echo "DONE\n";

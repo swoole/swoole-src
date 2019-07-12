@@ -12,7 +12,7 @@ Swoole\Coroutine::create(function ()
     $cli->set(['timeout' => 10]);
     $cli->setMethod('HEAD');
     $cli->get('/');
-    Assert::eq($cli->statusCode, 200);
+    Assert::same($cli->statusCode, 200);
     Assert::assert(count($cli->headers) > 0);
 });
 ?>

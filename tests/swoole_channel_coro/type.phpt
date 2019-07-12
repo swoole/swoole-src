@@ -32,7 +32,7 @@ go(function () use ($chan, $exit_status_list)
     foreach ($exit_status_list as $_val)
     {
         $val = $chan->pop();
-        Assert::eq($val, $_val);
+        Assert::same($val, $_val);
     }
 });
 

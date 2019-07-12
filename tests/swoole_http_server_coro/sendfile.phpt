@@ -11,7 +11,7 @@ $pm->parentFunc = function () use ($pm) {
         $send_file = openssl_random_pseudo_bytes(mt_rand(0, 65535 * 10));
         file_put_contents('/tmp/sendfile.txt', $send_file);
         $recv_file = file_get_contents("http://127.0.0.1:{$pm->getFreePort()}/test.jpg");
-        Assert::eq(md5($send_file), md5($recv_file));
+        Assert::same(md5($send_file), md5($recv_file));
     }
     file_get_contents("http://127.0.0.1:{$pm->getFreePort()}/shutdown");
     echo "DONE\n";

@@ -29,7 +29,7 @@ go(function () {
         $statement = $db->prepare("SELECT * FROM {$table_name}");
         $ret = $statement->execute();
         for ($n = 0; $n < MAX_REQUESTS; $n++) {
-            Assert::eq($ret[$n]['content'], $random[$n]);
+            Assert::same($ret[$n]['content'], $random[$n]);
         }
         Assert::assert($db->query("DROP TABLE {$table_name}"));
     }

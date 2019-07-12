@@ -23,7 +23,7 @@ $pm->parentFunc = function () use ($pm) {
     echo $client2->recv();
     $client2->close();
 
-    Assert::eq($client1->sock, $client2->sock);
+    Assert::same($client1->sock, $client2->sock);
 
     $pm->kill();
 };

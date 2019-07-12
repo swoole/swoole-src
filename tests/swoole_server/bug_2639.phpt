@@ -23,10 +23,10 @@ $pm->parentFunc = function ($pid) use ($pm) {
         }
         $client->send("hello world");
         $data = $client->recv();
-        \Swoole\Assert::assert($data);
+        Assert::assert($data);
         $json = json_decode($data, true);
         Assert::isArray($json);
-        \Swoole\Assert::eq($json['subject']['O'], 'swoole');
+        Assert::same($json['subject']['O'], 'swoole');
     });
     Swoole\Event::wait();
     $pm->kill();
@@ -55,8 +55,8 @@ $pm->childFunc = function () use ($pm) {
 
     $serv->on('task', function($serv, $taskId, $wid, $data) {
         $info = $serv->getClientInfo($data['fd']);
-        \Swoole\Assert::isArray($info);
-        \Swoole\Assert::assert(!array_key_exists('ssl_client_cert', $info));
+        Assert::isArray($info);
+        Assert::assert(!array_key_exists('ssl_client_cert', $info));
     });
 
     $serv->start();

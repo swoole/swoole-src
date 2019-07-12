@@ -33,7 +33,7 @@ $pm->childFunc = function () use ($pm, $port) {
         $pm->wakeup();
     });
     $serv->on('request', function (swoole_http_request $request, swoole_http_response $response) {
-        Assert::eq($request->header['hello'], 'swoole');
+        Assert::same($request->header['hello'], 'swoole');
         co::sleep(2);
         $response->end('ok!');
     });

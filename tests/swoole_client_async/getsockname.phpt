@@ -18,7 +18,7 @@ $cli->on("connect", function (swoole_client $cli) use ($timer) {
 
     $i = $cli->getsockname();
     Assert::assert($i !== false);
-    Assert::eq($i["host"], '127.0.0.1');
+    Assert::same($i["host"], '127.0.0.1');
 
     $cli->close();
     swoole_timer::clear($timer);

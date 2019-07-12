@@ -14,7 +14,7 @@ go(function () {
     ]);
     $c->get('/');
     Assert::assert(strlen($c->body) > 0);
-    Assert::eq($c->statusCode, 200);
+    Assert::same($c->statusCode, 200);
 });
 swoole_event::wait();
 ?>

@@ -391,7 +391,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
     swSendData _send;
 
     swServer *serv = (swServer *) reactor->ptr;
-    swPackage_response pkg_resp;
+    swPacket_response pkg_resp;
     swWorker *worker;
     swPipeBuffer *resp = serv->pipe_buffers[reactor->id];
 
@@ -985,7 +985,7 @@ int swReactorThread_start(swServer *serv)
         goto _failed;
     }
 
-    if (serv->onStart != NULL)
+    if (serv->onStart)
     {
         serv->onStart(serv);
     }

@@ -31,7 +31,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         usleep(10000);
         $bytes += strlen($r);
     }
-    Assert::eq($bytes, $N);
+    Assert::same($bytes, $N);
     $pm->kill();
 };
 

@@ -88,7 +88,7 @@ SQL;
                 Assert::assert($insert->execute(array_values($gen)));
             }
             $result = $mysql->prepare("SELECT * FROM {$table_name}")->execute();
-            Assert::eq(array_reverse($data_list), $result);
+            Assert::same(array_reverse($data_list), $result);
         } catch (Throwable $e) {
             Assert::assert(0);
         } finally {

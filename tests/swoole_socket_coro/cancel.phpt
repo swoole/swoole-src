@@ -13,8 +13,8 @@ go(function () use ($socket) {
     while (true) {
         $peer = null;
         $data = $socket->recvfrom($peer);
-        \Swoole\Assert::assert(empty($data));
-        \Swoole\Assert::assert($socket->errCode == SOCKET_ECANCELED);
+        Assert::assert(empty($data));
+        Assert::assert($socket->errCode == SOCKET_ECANCELED);
         break;
     }
     echo "DONE\n";

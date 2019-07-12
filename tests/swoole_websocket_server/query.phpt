@@ -15,11 +15,11 @@ $pm->parentFunc = function (int $pid) use ($pm) {
         $connected = $cli->upgrade('/?test=a&b=hello');
         Assert::assert($connected);
         $response = $cli->recv();
-        \Swoole\Assert::assert($response);
+        Assert::assert($response);
         $json = json_decode($response->data, true);
-        \Swoole\Assert::assert(is_array($json));
-        \Swoole\Assert::eq($json['test'], 'a');
-        \Swoole\Assert::eq($json['b'], 'hello');
+        Assert::assert(is_array($json));
+        Assert::same($json['test'], 'a');
+        Assert::same($json['b'], 'hello');
     });
     swoole_event::wait();
     $pm->kill();

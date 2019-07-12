@@ -14,7 +14,7 @@ $data = [
     'int' => PHP_INT_MAX
 ];
 $table->set('test', $data);
-Assert::eq($table->get('test'), $data);
+Assert::same($table->get('test'), $data);
 var_dump($table->get('test'));
 ?>
 --EXPECTF--
