@@ -808,8 +808,6 @@ int swServer_shutdown(swServer *serv)
             swTimer_del(&SwooleG.timer, serv->master_timer);
             serv->master_timer = NULL;
         }
-        //ignore signal
-        reactor->signal_listener_num = 0;
     }
     else
     {
