@@ -633,6 +633,16 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_zAdd, 0, 0, 3)
     ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_ZPOPMIN, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, count)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_ZPOPMAX, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, count)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_zCard, 0, 0, 1)
     ZEND_ARG_INFO(0, key)
 ZEND_END_ARG_INFO()
@@ -1707,6 +1717,8 @@ static PHP_METHOD(swoole_redis_coro, hExists);
 static PHP_METHOD(swoole_redis_coro, publish);
 static PHP_METHOD(swoole_redis_coro, zIncrBy);
 static PHP_METHOD(swoole_redis_coro, zAdd);
+static PHP_METHOD(swoole_redis_coro, ZPOPMIN);
+static PHP_METHOD(swoole_redis_coro, ZPOPMAX);
 static PHP_METHOD(swoole_redis_coro, zDeleteRangeByScore);
 static PHP_METHOD(swoole_redis_coro, zCount);
 static PHP_METHOD(swoole_redis_coro, zRange);
@@ -1861,6 +1873,8 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, publish, arginfo_swoole_redis_coro_publish, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, zIncrBy, arginfo_swoole_redis_coro_zIncrBy, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, zAdd, arginfo_swoole_redis_coro_zAdd, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, ZPOPMIN, arginfo_swoole_redis_coro_ZPOPMIN, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, ZPOPMAX, arginfo_swoole_redis_coro_ZPOPMAX, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, zDeleteRangeByScore, arginfo_swoole_redis_coro_zDeleteRangeByScore, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_redis_coro, zRemRangeByScore, zDeleteRangeByScore, arginfo_swoole_redis_coro_zRemRangeByScore, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, zCount, arginfo_swoole_redis_coro_zCount, ZEND_ACC_PUBLIC)
@@ -3896,6 +3910,60 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
     }
     efree(z_args);
 
+    redis_request(redis, argc, argv, argvlen, return_value);;
+    SW_REDIS_COMMAND_FREE_ARGV
+}
+
+static PHP_METHOD(swoole_redis_coro, ZPOPMIN)
+{
+    char *key;
+    size_t key_len;
+    zend_long count = 0;
+
+    if(zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &key, &key_len, &count) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    SW_REDIS_COMMAND_CHECK
+
+    int i = 0, argc, buf_len;
+    char buf[32];
+    argc = ZEND_NUM_ARGS() == 2 ? 3 : 2;
+    SW_REDIS_COMMAND_ALLOC_ARGV
+    SW_REDIS_COMMAND_ARGV_FILL("ZPOPMIN", 7);
+    SW_REDIS_COMMAND_ARGV_FILL(key, key_len);
+    if (argc == 3)
+    {
+        buf_len = sw_snprintf(buf, sizeof(buf), "%ld", count);
+        SW_REDIS_COMMAND_ARGV_FILL((char *)buf, buf_len);
+    }
+    redis_request(redis, argc, argv, argvlen, return_value);;
+    SW_REDIS_COMMAND_FREE_ARGV
+}
+
+static PHP_METHOD(swoole_redis_coro, ZPOPMAX)
+{
+    char *key;
+    size_t key_len;
+    zend_long count = 0;
+
+    if(zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &key, &key_len, &count) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    SW_REDIS_COMMAND_CHECK
+
+    int i = 0, argc, buf_len;
+    char buf[32];
+    argc = ZEND_NUM_ARGS() == 2 ? 3 : 2;
+    SW_REDIS_COMMAND_ALLOC_ARGV
+    SW_REDIS_COMMAND_ARGV_FILL("ZPOPMAX", 7);
+    SW_REDIS_COMMAND_ARGV_FILL(key, key_len);
+    if (argc == 3)
+    {
+        buf_len = sw_snprintf(buf, sizeof(buf), "%ld", count);
+        SW_REDIS_COMMAND_ARGV_FILL((char *)buf, buf_len);
+    }
     redis_request(redis, argc, argv, argvlen, return_value);;
     SW_REDIS_COMMAND_FREE_ARGV
 }
