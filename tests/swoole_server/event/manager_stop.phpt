@@ -7,20 +7,22 @@ swoole_server/event: onManagerStop
 require __DIR__ . '/../../include/bootstrap.php';
 
 use Swoole\Server;
+use SwooleTest\ProcessManager;
 
-$pm = new SwooleTest\ProcessManager;
+$pm = new ProcessManager;
+$pm->setWaitTimeout(5);
 
-const SIZE = 8192 * 5;
-const FILE = __DIR__ . '/tmp_resule.txt';
+const FILE = __DIR__ . '/tmp_result.txt';
 
-$pm->parentFunc = function ($pid) use ($pm) {
+$pm->parentFunc = function () use ($pm) {
+    $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
     $serv = new Server('127.0.0.1', $pm->getFreePort());
     $serv->set([
         "worker_num" => 1,
-        'log_file' => '/dev/null',
+        'log_file' => '/dev/null'
     ]);
     $serv->on("ManagerStart", function (Server $serv) {
         $serv->shutdown();
@@ -29,8 +31,7 @@ $pm->childFunc = function () use ($pm) {
         file_put_contents(FILE, 'manager stop' . PHP_EOL);
         $pm->wakeup();
     });
-    $serv->on("Receive", function (Server $serv, $fd, $reactorId, $data) {
-    });
+    $serv->on("Receive", function () { });
     $serv->start();
 };
 
@@ -39,6 +40,7 @@ $pm->run();
 
 echo file_get_contents(FILE);
 unlink(FILE);
+
 ?>
 --EXPECT--
 manager stop

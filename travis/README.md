@@ -13,5 +13,5 @@ TRAVIS_BRANCH=alpine ./route.sh
 > You can cancel the unit test by `CTRL+C`
 
 ```shell
-docker exec -it -e LINES=$(tput lines) -e COLUMNS=$(tput cols) swoole /bin/sh
+docker exec -it -e LINES=$(tput lines) -e COLUMNS=$(tput cols) swoole /bin/bash
 ```
