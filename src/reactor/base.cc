@@ -124,7 +124,7 @@ int swReactor_empty(swReactor *reactor)
         event_num--;
     }
     //signalfd
-    if (swReactor_isset_handler(reactor, SW_FD_SIGNAL) && reactor->signal_listener_num == 0)
+    if (swReactor_isset_handler(reactor, SW_FD_SIGNAL))
     {
         event_num--;
     }

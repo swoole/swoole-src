@@ -40,11 +40,11 @@ class WaitGroup
         }
     }
 
-    public function wait(): void
+    public function wait(int $timeout = 0): void
     {
         if ($this->count > 0) {
             $this->waiting = true;
-            $this->chan->pop();
+            $this->chan->pop($timeout);
             $this->waiting = false;
         }
     }
