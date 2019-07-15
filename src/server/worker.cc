@@ -599,7 +599,7 @@ void swWorker_stop(swWorker *worker)
 static int swWorker_reactor_is_empty(swReactor *reactor)
 {
     swServer *serv;
-    if(SwooleG.process_type == SW_PROCESS_TASKWORKER)
+    if (SwooleG.process_type == SW_PROCESS_TASKWORKER)
     {
         swProcessPool *pool = (swProcessPool *) reactor->ptr;
         serv = (swServer *) pool->ptr;

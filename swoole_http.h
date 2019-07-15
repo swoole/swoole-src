@@ -49,7 +49,6 @@ enum http_compress_method
 
 struct http_request
 {
-    enum swoole_http_method method;
     int version;
     char *path;
     uint32_t path_len;
@@ -131,7 +130,6 @@ struct http_context
 #endif
     http_request request;
     http_response response;
-
 
     swoole_http_parser parser;
     multipart_parser *mt_parser;
