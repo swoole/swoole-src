@@ -775,11 +775,11 @@ int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData 
 
         zend_update_property_long(swoole_http_request_ce, ctx->request.zobject, ZEND_STRL("streamId"), stream_id);
 
-        swString *buffer = ctx->request.post_buffer;
+        swString *buffer = ctx->request.h2_data_buffer;
         if (!buffer)
         {
             buffer = swString_new(SW_HTTP2_DATA_BUFFER_SIZE);
-            ctx->request.post_buffer = buffer;
+            ctx->request.h2_data_buffer = buffer;
         }
         swString_append_ptr(buffer, buf, length);
 
