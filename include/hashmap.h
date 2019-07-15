@@ -31,6 +31,7 @@ typedef struct
 } swHashMap;
 
 swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor);
+void swHashMap_clean(swHashMap* hmap);
 void swHashMap_free(swHashMap *hmap);
 
 int swHashMap_add(swHashMap *hmap, const char *key, uint16_t key_len, void *data);

@@ -320,6 +320,9 @@ void swHashMap_rewind(swHashMap* hmap)
     hmap->iterator = hmap->root;
 }
 
+/**
+ * Readonly, deleting elements is not safe
+ */
 void* swHashMap_each(swHashMap* hmap, char **key)
 {
     swHashMap_node *node = swHashMap_node_each(hmap);
@@ -334,6 +337,9 @@ void* swHashMap_each(swHashMap* hmap, char **key)
     }
 }
 
+/**
+ * Readonly, deleting elements is not safe
+ */
 void* swHashMap_each_int(swHashMap* hmap, uint64_t *key)
 {
     swHashMap_node *node = swHashMap_node_each(hmap);
@@ -355,6 +361,18 @@ uint32_t swHashMap_count(swHashMap* hmap)
         return 0;
     }
     return HASH_COUNT(hmap->root);
+}
+
+void swHashMap_clean(swHashMap* hmap)
+{
+    swHashMap_node *find, *tmp = NULL;
+    swHashMap_node *root = hmap->root;
+    HASH_ITER(hh, root, find, tmp)
+    {
+        if (find == root) continue;
+        swHashMap_node_delete(root, find);
+        swHashMap_node_free(hmap, find);
+    }
 }
 
 void swHashMap_free(swHashMap* hmap)
