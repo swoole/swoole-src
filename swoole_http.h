@@ -57,10 +57,11 @@ struct http_request
     uint32_t ext_len;
     uint8_t post_form_urlencoded;
 
+    zval zdata;
+    size_t body_length;
 #ifdef SW_USE_HTTP2
-    swString *post_buffer;
+    swString *h2_data_buffer;
 #endif
-    uint32_t post_length;
 
     // Notice: Do not change the order
     zval *zobject;
