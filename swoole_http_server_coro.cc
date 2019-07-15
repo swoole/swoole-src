@@ -431,28 +431,36 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
         {
             break;
         }
+        total_bytes += retval;
 
         if (!ctx)
         {
             ctx = hs->create_context(sock, zconn);
         }
 
-        if (total_bytes + retval > sock->protocol.package_max_length)
+        if (total_bytes > sock->protocol.package_max_length)
         {
             ctx->response.status = 413;
+            _error:
             zval_dtor(ctx->request.zobject);
             zval_dtor(ctx->response.zobject);
             break;
         }
 
-        parsed_n = swoole_http_requset_parse(ctx, buffer->str + total_bytes, retval);
-
-        total_bytes += retval;
+        parsed_n = swoole_http_requset_parse(ctx, buffer->str + total_bytes - retval, retval);
 
         swTraceLog(SW_TRACE_CO_HTTP_SERVER, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d", parsed_n, retval, total_bytes, ctx->completed);
 
         if (!ctx->completed)
         {
+            if (total_bytes == buffer->size)
+            {
+                if (swString_extend(buffer, buffer->size * 2) != SW_OK)
+                {
+                    ctx->response.status = 503;
+                    goto _error;
+                }
+            }
             continue;
         }
 
