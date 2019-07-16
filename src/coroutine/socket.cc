@@ -159,13 +159,18 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
         if (sw_unlikely(__n > 0 && *__buf != get_write_buffer()->str))
         {
             swString_clear(write_buffer);
-            swString_append_ptr(write_buffer, (const char *) *__buf, __n);
+            if (swString_append_ptr(write_buffer, (const char *) *__buf, __n) != SW_OK)
+            {
+                set_err(ENOMEM);
+                goto _failed;
+            }
             *__buf = write_buffer->str;
         }
         write_co = co;
         write_co->yield();
         write_co = nullptr;
     }
+    _failed:
 #ifdef SW_USE_OPENSSL
     // maybe read_co and write_co are all waiting for the same event when we use SSL
     if (sw_likely(want_event == SW_EVENT_NULL || !has_bound()))
