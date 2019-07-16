@@ -1,5 +1,5 @@
 --TEST--
-swoole_library/object_pool: base
+swoole_library/wait_group: base
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
