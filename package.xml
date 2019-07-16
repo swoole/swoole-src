@@ -37,10 +37,10 @@
         <active>yes</active>
     </developer>
     
-    <date>2019-06-14</date>
-    <time>09:50:10</time>
+    <date>2019-07-16</date>
+    <time>17:00:00</time>
     <version>
-        <release>4.3.5</release>
+        <release>4.3.6</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -51,7 +51,10 @@
     <notes>
         Fixed
         ---
-        * Fixed #2610
+        * Fixed #2661 (#2661) (@twose)
+        * Fixed hang on MacOS (dcb14488) (@matyhtf)
+        * Fixed SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER (#2667) (@twose)
+        * Fixed global value (edfdc544) (@twose)
     </notes>
     <contents>
         <dir name="/">
@@ -955,6 +958,7 @@
             <file role="test" name="tests/swoole_http_client_coro/another_coroutine.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/auto_reconnect.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/buffer.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/bug_2661.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/connect_timeout.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/construct_failed.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/defer.phpt" />
