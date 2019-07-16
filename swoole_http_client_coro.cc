@@ -618,6 +618,8 @@ bool http_client::keep_liveness()
     {
         if (socket)
         {
+            /* in progress */
+            socket->check_bound(SW_EVENT_RDWR);
             zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), socket->errCode);
             zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), socket->errMsg);
             zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);

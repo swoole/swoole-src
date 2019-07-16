@@ -779,6 +779,8 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
     ev.object = (void*) &task;
     ev.handler = swAio_handler_gethostbyname;
     ev.callback = aio_onDNSCompleted;
+    /* TODO: find a better way */
+    ev.ret = 1;
 
     swAio_event *event = swAio_dispatch2(&ev);
     swTimer_node *timer = nullptr;
@@ -787,6 +789,14 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
         timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, event, aio_onDNSTimeout);
     }
     task.co->yield();
+    if (ev.ret == 1)
+    {
+        /* TODO: find a better way */
+        /* canceled */
+        event->canceled = 1;
+        ev.ret = -1;
+        ev.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
+    }
     if (timer)
     {
         swTimer_del(&SwooleG.timer, timer);

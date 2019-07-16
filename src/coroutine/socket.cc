@@ -664,7 +664,10 @@ bool Socket::connect(string _host, int _port, int flags)
                     ssl_host_name = host;
                 }
 #endif
+                /* locked like wait_event */
+                read_co = write_co = Coroutine::get_current_safe();
                 host = Coroutine::gethostbyname(host, AF_INET, connect_timeout);
+                read_co = write_co = nullptr;
                 if (host.empty())
                 {
                     set_err(SwooleG.error);
@@ -692,7 +695,10 @@ bool Socket::connect(string _host, int _port, int flags)
                     ssl_host_name = host;
                 }
 #endif
+                /* locked like wait_event */
+                read_co = write_co = Coroutine::get_current_safe();
                 host = Coroutine::gethostbyname(host, AF_INET6, connect_timeout);
+                read_co = write_co = nullptr;
                 if (host.empty())
                 {
                     set_err(SwooleG.error);

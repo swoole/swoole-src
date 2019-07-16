@@ -132,11 +132,17 @@ public:
     {
         if (likely(event & SW_EVENT_READ))
         {
-            return read_co;
+            if (read_co)
+            {
+                return read_co;
+            }
         }
         if (event & SW_EVENT_WRITE)
         {
-            return write_co;
+            if (write_co)
+            {
+                return write_co;
+            }
         }
         return nullptr;
     }
@@ -280,7 +286,8 @@ private:
     bool add_event(const enum swEvent_type event);
     bool wait_event(const enum swEvent_type event, const void **__buf = nullptr, size_t __n = 0);
 
-    inline bool is_available(enum swEvent_type event)
+public:
+    inline void check_bound(const enum swEvent_type event)
     {
         if (event != SW_EVENT_NULL)
         {
@@ -295,6 +302,11 @@ private:
                 );
             }
         }
+    }
+
+    inline bool is_available(const enum swEvent_type event)
+    {
+        check_bound(event);
         if (unlikely(socket->closed))
         {
             set_err(ECONNRESET);
@@ -303,6 +315,7 @@ private:
         return true;
     }
 
+private:
     // TODO: move to client.cc
     bool socks5_handshake();
     bool http_proxy_handshake();
