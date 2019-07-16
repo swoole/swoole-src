@@ -897,9 +897,14 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     while (true)
     {
-        do {
+        do
+        {
             retval = swConnection_send(socket, (char *) __buf + total_bytes, __n - total_bytes, 0);
-        } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n));
+        }
+        while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n));
+        /**
+         * failed to send
+         */
         if (sw_unlikely(retval <= 0))
         {
             if (total_bytes == 0)
