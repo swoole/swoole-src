@@ -35,7 +35,7 @@ check_docker_dependency(){
             which "docker-compose" > /dev/null
             if [ $? -ne 0 ]; then
                 echo "\n❌ Install docker-compose failed!"
-                exit $?
+                exit 1
             fi
 
             docker -v &&  docker-compose -v
@@ -54,7 +54,7 @@ prepare_data_files(){
     chmod -R 777 data
     if [ $? -ne 0 ]; then
         echo "\n❌ Prepare data files failed!"
-        exit $?
+        exit 1
     fi
 }
 
@@ -70,7 +70,7 @@ start_docker_containers(){
     docker ps -a
     if [ $? -ne 0 ]; then
         echo "\n❌ Create containers failed!"
-        exit $?
+        exit 1
     fi
 }
 
@@ -85,7 +85,7 @@ run_tests_in_docker(){
     docker exec swoole /swoole-src/travis/docker-route.sh
     if [ $? -ne 0 ]; then
         echo "\n❌ Run tests failed!"
-        exit $?
+        exit 1
     fi
 }
 
