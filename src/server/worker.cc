@@ -598,7 +598,16 @@ void swWorker_stop(swWorker *worker)
 
 static int swWorker_reactor_is_empty(swReactor *reactor)
 {
-    swServer *serv = (swServer *) reactor->ptr;
+    swServer *serv;
+    if (SwooleG.process_type == SW_PROCESS_TASKWORKER)
+    {
+        swProcessPool *pool = (swProcessPool *) reactor->ptr;
+        serv = (swServer *) pool->ptr;
+    }
+    else
+    {
+        serv = (swServer *) reactor->ptr;
+    }
     uint8_t call_worker_exit_func = 0;
 
     while (1)

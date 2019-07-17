@@ -159,13 +159,18 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
         if (sw_unlikely(__n > 0 && *__buf != get_write_buffer()->str))
         {
             swString_clear(write_buffer);
-            swString_append_ptr(write_buffer, (const char *) *__buf, __n);
+            if (swString_append_ptr(write_buffer, (const char *) *__buf, __n) != SW_OK)
+            {
+                set_err(ENOMEM);
+                goto _failed;
+            }
             *__buf = write_buffer->str;
         }
         write_co = co;
         write_co->yield();
         write_co = nullptr;
     }
+    _failed:
 #ifdef SW_USE_OPENSSL
     // maybe read_co and write_co are all waiting for the same event when we use SSL
     if (sw_likely(want_event == SW_EVENT_NULL || !has_bound()))
@@ -897,9 +902,14 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     while (true)
     {
-        do {
+        do
+        {
             retval = swConnection_send(socket, (char *) __buf + total_bytes, __n - total_bytes, 0);
-        } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n));
+        }
+        while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n));
+        /**
+         * failed to send
+         */
         if (sw_unlikely(retval <= 0))
         {
             if (total_bytes == 0)

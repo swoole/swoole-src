@@ -330,7 +330,7 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
             {
                 header_flag |= HTTP_HEADER_DATE;
             }
-            else if (strncasecmp(key, "Content-Length", keylen) == 0)
+            else if (strncasecmp(key, "Content-Length", keylen) == 0 && ctx->parser.method != PHP_HTTP_HEAD)
             {
                 continue; // ignore
             }
@@ -394,8 +394,8 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
             swString_append_ptr(response, ZEND_STRL("Transfer-Encoding: chunked\r\n"));
         }
     }
-    else
     // Content-Length
+    else if (body_length > 0 || ctx->parser.method != PHP_HTTP_HEAD)
     {
 #ifdef SW_HAVE_ZLIB
         if (ctx->accept_compression)
