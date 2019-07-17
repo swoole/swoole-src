@@ -16,7 +16,7 @@ Co\run(function () {
         Assert::greaterThan($peer['port'], 0);
         global $randomData;
         for ($x = 0; $x < MAX_CONCURRENCY; $x++) {
-            for ($y = 0; $y < 256; $y++) {
+            for ($y = 0; $y < MAX_CONCURRENCY; $y++) {
                 $chunk = get_safe_random(1024);
                 $randomData .= $chunk;
                 Assert::same($socket->sendto($peer['address'], $peer['port'], $chunk), strlen($chunk));
