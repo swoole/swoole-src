@@ -763,6 +763,8 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     if (n_bytes < 0)
     {
         zend_string_free(retval);
+        zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), cli->errCode);
+        zend_update_property_string(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errMsg"), cli->errMsg);
         RETURN_FALSE;
     }
     else

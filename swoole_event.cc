@@ -168,6 +168,18 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
 {
+    if (!(event->socket->events & SW_EVENT_ERROR))
+    {
+        if (event->socket->events & SW_EVENT_READ)
+        {
+            return swReactor_get_handler(reactor, SW_EVENT_READ, event->socket->fdtype)(reactor, event);
+        }
+        else
+        {
+            return swReactor_get_handler(reactor, SW_EVENT_WRITE, event->socket->fdtype)(reactor, event);
+        }
+    }
+
     int error;
     socklen_t len = sizeof(error);
 

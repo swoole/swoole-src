@@ -32,11 +32,12 @@ $pm->childFunc = function () use ($pm) {
         'log_level' => SWOOLE_LOG_ERROR,
     ]);
     $serv->on("workerStart", function ($serv, $wid) use ($pm) {
-        if ($wid == 0) {
+        if ($wid == 1) {
             $pm->wakeup();
         }
     });
     $serv->on('receive', function (Server $serv, $fd, $tid, $data) {
+        usleep(10000);
         $serv->send($fd, json_encode($serv->stats()));
     });
     $serv->start();
