@@ -1,5 +1,5 @@
 --TEST--
-swoole_client_coro: timeout of udp client
+swoole_client_coro: timeout of udp client[2]
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -9,13 +9,10 @@ $port = get_one_free_port();
 
 Co\Run(function () use ($port) {
     $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_UDP);
+    Assert::assert($cli->sendto('192.0.0.1', $port, 'hello'));
     $cli->set([
         'timeout' => 0.2,
     ]);
-    if (!Assert::assert($cli->connect('192.0.0.1', $port))) {
-        return;
-    }
-    Assert::assert($cli->send("hello"));
     // default timeout
     $s = microtime(true);
     $ret = @$cli->recvfrom(1024, $peer);
