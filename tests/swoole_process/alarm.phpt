@@ -15,6 +15,7 @@ Process::signal(SIGALRM, function () {
     if ($i > 10) {
         Process::alarm(-1);
         Process::signal(SIGALRM, null);
+        Swoole\Event::del(STDIN);
         swoole_event_exit();
     }
 });

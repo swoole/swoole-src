@@ -13,8 +13,9 @@ Process::signal(SIGCHLD, function ()
 {
     Process::signal(SIGCHLD, null);
     Process::signal(SIGTERM, null);
+    Swoole\Event::del(STDIN);
+    Swoole\Timer::clearAll();
     echo "PARENT WAIT\n";
-    swoole_event_exit();
 });
 
 //测试被子进程覆盖信号
@@ -22,7 +23,7 @@ Process::signal(SIGTERM, function () {
     //释放信号，否则底层会报内存泄漏
     Process::signal(SIGTERM, null);
     echo "PARENT SIGTERM\n";
-    swoole_event_exit();
+    Swoole\Event::exit();
 });
 
 $pid = (new Process(function ()
@@ -31,9 +32,13 @@ $pid = (new Process(function ()
         echo "CHILD SIGTERM\n";
         Process::signal(SIGTERM, function ($sig) {
             echo "CHILD EXIT\n";
-            swoole_event_exit();
+            Swoole\Event::del(STDIN);
         });
     });
+
+    //never calback
+    Swoole\Event::add(STDIN, function () {});
+
 }))->start();
 
 Swoole\Timer::after(500, function() use ($pid) {
