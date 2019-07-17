@@ -262,7 +262,7 @@ typedef unsigned long ulong_t;
 
 static sw_inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, size_t s2)
 {
-    return s1 == s2 && memcmp(v1, v2, s2);
+    return s1 == s2 && memcmp(v1, v2, s2) == 0;
 }
 
 /*----------------------------------String-------------------------------------*/
