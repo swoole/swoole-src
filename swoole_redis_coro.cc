@@ -1379,11 +1379,11 @@ static inline void sw_redis_command_key(INTERNAL_FUNCTION_PARAMETERS, const char
     
     if (redis->compatibility_mode)
     {
-        if (ZVAL_IS_ARRAY(return_value) && memcmp("HGETALL", cmd, cmd_len) == 0)
+        if (ZVAL_IS_ARRAY(return_value) && cmd_len == sizeof("HGETALL") - 1 && memcmp(cmd, SW_STRL("HGETALL")) == 0)
         {
             swoole_redis_handle_assoc_array_result(return_value, false);
         }
-        else if (ZVAL_IS_NULL(return_value) && memcmp("GET", cmd, cmd_len) == 0)
+        else if (ZVAL_IS_NULL(return_value) && cmd_len == sizeof("GET") - 1 && memcmp(cmd, SW_STRL("GET")) == 0)
         {
             RETURN_FALSE;
         }
