@@ -20,10 +20,10 @@ echo "\n🗻 With PHP version ${PHP_VERSION} on ${TRAVIS_BRANCH} branch"
 check_docker_dependency(){
     if [ "`docker -v 2>&1 | grep "version"`"x = ""x ]; then
         echo "\n❌ Docker not found!"
-        exit 255
+        exit 1
     elif [ "`docker ps 2>&1 | grep Cannot`"x != ""x ]; then
         echo "\n❌ Docker is not running!"
-        exit 255
+        exit 1
     else
         which "docker-compose" > /dev/null
         if [ $? -ne 0 ]; then
@@ -35,7 +35,7 @@ check_docker_dependency(){
             which "docker-compose" > /dev/null
             if [ $? -ne 0 ]; then
                 echo "\n❌ Install docker-compose failed!"
-                exit 255
+                exit $?
             fi
 
             docker -v &&  docker-compose -v
@@ -54,6 +54,7 @@ prepare_data_files(){
     chmod -R 777 data
     if [ $? -ne 0 ]; then
         echo "\n❌ Prepare data files failed!"
+        exit $?
     fi
 }
 
@@ -69,6 +70,7 @@ start_docker_containers(){
     docker ps -a
     if [ $? -ne 0 ]; then
         echo "\n❌ Create containers failed!"
+        exit $?
     fi
 }
 
@@ -83,6 +85,7 @@ run_tests_in_docker(){
     docker exec swoole /swoole-src/travis/docker-route.sh
     if [ $? -ne 0 ]; then
         echo "\n❌ Run tests failed!"
+        exit $?
     fi
 }
 
