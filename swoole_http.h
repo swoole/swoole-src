@@ -49,7 +49,6 @@ enum http_compress_method
 
 struct http_request
 {
-    enum swoole_http_method method;
     int version;
     char *path;
     uint32_t path_len;
@@ -57,10 +56,11 @@ struct http_request
     uint32_t ext_len;
     uint8_t post_form_urlencoded;
 
+    zval zdata;
+    size_t body_length;
 #ifdef SW_USE_HTTP2
-    swString *post_buffer;
+    swString *h2_data_buffer;
 #endif
-    uint32_t post_length;
 
     // Notice: Do not change the order
     zval *zobject;
@@ -130,7 +130,6 @@ struct http_context
 #endif
     http_request request;
     http_response response;
-
 
     swoole_http_parser parser;
     multipart_parser *mt_parser;
