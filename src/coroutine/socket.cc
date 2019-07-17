@@ -1336,28 +1336,72 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length)
     return true;
 }
 
-ssize_t Socket::sendto(const char *address, int port, const char *data, int len)
+ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t __n)
 {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE)))
     {
         return -1;
     }
-    ssize_t retval;
+
+    ssize_t retval = 0;
+    union
+    {
+        struct sockaddr_in in;
+        struct sockaddr_in6 in6;
+        struct sockaddr_un un;
+    } addr = { { 0 } };
+    size_t addr_size = 0;
+
     switch (type)
     {
     case SW_SOCK_UDP:
-        retval = swSocket_udp_sendto(socket->fd, address, port, data, len);
+    {
+        if (inet_aton(address, &addr.in.sin_addr) == 0)
+        {
+            swWarn("ip[%s] is invalid", address);
+            retval = -1;
+            errno = EINVAL;
+            break;
+        }
+        addr.in.sin_family = AF_INET;
+        addr.in.sin_port = htons(port);
+        addr_size = sizeof(addr.in);
         break;
-    case SW_SOCK_UDP6:
-        retval = swSocket_udp_sendto6(socket->fd, address, port, data, len);
-        break;
-    case SW_SOCK_UNIX_DGRAM:
-        retval = swSocket_unix_sendto(socket->fd, address, data, len);
-        break;
-    default:
-        set_err(EPROTONOSUPPORT, "only supports DGRAM");
-        return -1;
     }
+    case SW_SOCK_UDP6:
+    {
+        if (inet_pton(AF_INET6, address, &addr.in6.sin6_addr) < 0)
+        {
+            swWarn("ip[%s] is invalid", address);
+            return SW_ERR;
+        }
+        addr.in6.sin6_port = (uint16_t) htons(port);
+        addr.in6.sin6_family = AF_INET6;
+        addr_size = sizeof(addr.in6);
+        break;
+    }
+    case SW_SOCK_UNIX_DGRAM:
+    {
+        addr.un.sun_family = AF_UNIX;
+        strncpy(addr.un.sun_path, address, sizeof(addr.un.sun_path) - 1);
+        addr_size = sizeof(addr.un);
+        break;
+    }
+    default:
+        retval = -1;
+        errno = EPROTONOSUPPORT;
+        break;
+    }
+
+    if (addr_size > 0)
+    {
+        timer_controller timer(&write_timer, write_timeout, this, timer_callback);
+        do {
+            retval = ::sendto(socket->fd, __buf, __n, 0, (struct sockaddr *) &addr, addr_size);
+            swTraceLog(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, __n, errno);
+        } while (retval < 0 && (errno == EINTR || (swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n))));
+    }
+
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -1382,6 +1426,7 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr* _addr, sockle
     timer_controller timer(&read_timer, read_timeout, this, timer_callback);
     do {
         retval = ::recvfrom(socket->fd, __buf, __n, 0, _addr, _socklen);
+        swTraceLog(SW_TRACE_SOCKET, "recvfrom %ld/%ld bytes, errno=%d", retval, __n, errno);
     } while (retval < 0 && ((errno == EINTR) || (swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ))));
     set_err(retval < 0 ? errno : 0);
     return retval;
