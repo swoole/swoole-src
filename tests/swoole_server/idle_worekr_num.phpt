@@ -37,6 +37,7 @@ $pm->childFunc = function () use ($pm) {
         }
     });
     $serv->on('receive', function (Server $serv, $fd, $tid, $data) {
+        usleep(1000);
         $serv->send($fd, json_encode($serv->stats()));
     });
     $serv->start();
