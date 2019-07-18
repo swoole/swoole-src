@@ -44,6 +44,10 @@
 
 #define valid_ptr(p) ((p) && 0 == ((p) & (sizeof(long) - 1)))
 
+#ifndef _CADDR_T
+typedef void* caddr_t;
+#endif
+
 static void trace_request(swWorker *worker);
 static int trace_dump(swWorker *worker, FILE *slowlog);
 static int trace_get_long(pid_t traced_pid, long addr, long *data);
@@ -58,7 +62,7 @@ static void trace_request(swWorker *worker)
     {
         swSysWarn("failed to trace worker %d, error lint =%d", worker->pid, -ret);
     }
-    if (0 > ptrace(PTRACE_DETACH, traced_pid, (void *) 1, 0))
+    if (0 > ptrace(PTRACE_DETACH, traced_pid, (caddr_t) 1, 0))
     {
         swSysWarn("failed to ptrace(DETACH) worker %d", worker->pid);
     }
@@ -94,7 +98,7 @@ void php_swoole_trace_check(void *arg)
 static int trace_get_long(pid_t traced_pid, long addr, long *data)
 {
     errno = 0;
-    *data = ptrace(PTRACE_PEEKDATA, traced_pid, (void *) addr, 0);
+    *data = ptrace(PTRACE_PEEKDATA, traced_pid, (caddr_t) addr, 0);
     if (*data < 0)
     {
         return -1;

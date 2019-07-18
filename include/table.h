@@ -19,6 +19,8 @@
 #ifndef SW_TABLE_H_
 #define SW_TABLE_H_
 
+SW_EXTERN_C_BEGIN
+
 #include "atomic.h"
 #include "hashmap.h"
 #include "hash.h"
@@ -188,5 +190,7 @@ static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col,
         break;
     }
 }
+
+SW_EXTERN_C_END
 
 #endif /* SW_TABLE_H_ */

@@ -16,7 +16,7 @@
 
 #include "php_swoole.h"
 
-#include "include/table.h"
+#include "table.h"
 
 static zend_class_entry *swoole_table_ce;
 static zend_object_handlers swoole_table_handlers;
