@@ -837,13 +837,15 @@ static const char* swoole_library_source_core_coroutine_wait_group =
     "        }\n"
     "    }\n"
     "\n"
-    "    public function wait(int $timeout = 0): void\n"
+    "    public function wait(float $timeout = -1): bool\n"
     "    {\n"
     "        if ($this->count > 0) {\n"
     "            $this->waiting = true;\n"
-    "            $this->chan->pop($timeout);\n"
+    "            $done = $this->chan->pop($timeout);\n"
     "            $this->waiting = false;\n"
+    "            return $done;\n"
     "        }\n"
+    "        return true;\n"
     "    }\n"
     "}\n";
 
