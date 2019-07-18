@@ -165,7 +165,7 @@ static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, z
     swHashMap_rewind(table->columns);
     while(1)
     {
-        col = swHashMap_each(table->columns, &k);
+        col = (swTableColumn *) swHashMap_each(table->columns, &k);
         if (col == NULL)
         {
             break;
@@ -211,7 +211,7 @@ static inline void php_swoole_table_get_field_value(swTable *table, swTableRow *
     double dval = 0;
     int64_t lval = 0;
 
-    swTableColumn *col = swHashMap_find(table->columns, field, field_len);
+    swTableColumn *col = (swTableColumn *) swHashMap_find(table->columns, field, field_len);
     if (!col)
     {
         ZVAL_FALSE(return_value);
@@ -328,7 +328,7 @@ PHP_METHOD(swoole_table, column)
     {
         size = 4;
     }
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (table->memory)
     {
         php_swoole_fatal_error(E_WARNING, "can't add column after the creation of swoole table");
@@ -340,7 +340,7 @@ PHP_METHOD(swoole_table, column)
 
 static PHP_METHOD(swoole_table, create)
 {
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (table->memory)
     {
         php_swoole_fatal_error(E_WARNING, "the swoole table has been created already");
@@ -358,7 +358,7 @@ static PHP_METHOD(swoole_table, create)
 
 static PHP_METHOD(swoole_table, destroy)
 {
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
         php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
@@ -380,7 +380,7 @@ static PHP_METHOD(swoole_table, set)
         RETURN_FALSE;
     }
 
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
         php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
@@ -452,7 +452,7 @@ static PHP_METHOD(swoole_table, incr)
     }
 
     swTableRow *_rowlock = NULL;
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
         php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
@@ -528,7 +528,7 @@ static PHP_METHOD(swoole_table, decr)
     }
 
     swTableRow *_rowlock = NULL;
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
         php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
@@ -603,7 +603,7 @@ static PHP_METHOD(swoole_table, get)
     }
 
     swTableRow *_rowlock = NULL;
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
         php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
@@ -639,7 +639,7 @@ static PHP_METHOD(swoole_table, offsetGet)
     }
 
     swTableRow *_rowlock = NULL;
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
         php_swoole_fatal_error(E_ERROR, "Must create table first");
@@ -676,7 +676,7 @@ static PHP_METHOD(swoole_table, exists)
         RETURN_FALSE;
     }
 
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
         php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
@@ -711,7 +711,7 @@ static PHP_METHOD(swoole_table, del)
         RETURN_FALSE;
     }
 
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
         php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
@@ -737,7 +737,7 @@ static PHP_METHOD(swoole_table, count)
         RETURN_FALSE;
     }
 
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
         php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
@@ -756,7 +756,7 @@ static PHP_METHOD(swoole_table, count)
 
 static PHP_METHOD(swoole_table, getMemorySize)
 {
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
         RETURN_LONG(swTable_get_memory_size(table));
@@ -769,7 +769,7 @@ static PHP_METHOD(swoole_table, getMemorySize)
 
 static PHP_METHOD(swoole_table, rewind)
 {
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
         php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
@@ -781,7 +781,7 @@ static PHP_METHOD(swoole_table, rewind)
 
 static PHP_METHOD(swoole_table, current)
 {
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
         php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
@@ -802,7 +802,7 @@ static PHP_METHOD(swoole_table, current)
 
 static PHP_METHOD(swoole_table, key)
 {
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
         php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
@@ -823,7 +823,7 @@ static PHP_METHOD(swoole_table, key)
 
 static PHP_METHOD(swoole_table, next)
 {
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
         php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
@@ -834,7 +834,7 @@ static PHP_METHOD(swoole_table, next)
 
 static PHP_METHOD(swoole_table, valid)
 {
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
         php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
@@ -888,7 +888,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
         RETURN_FALSE;
     }
 
-    swTable *table = swoole_get_object(ZEND_THIS);
+    swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (table == NULL || table->memory == NULL)
     {
         php_swoole_fatal_error(E_ERROR, "Must create table first");
