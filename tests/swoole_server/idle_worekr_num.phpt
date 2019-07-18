@@ -33,7 +33,7 @@ $pm->childFunc = function () use ($pm, $counter) {
         'worker_num' => 3,
         'log_level' => SWOOLE_LOG_ERROR,
     ]);
-    $serv->on("workerStart", function ($serv, $wid) use ($pm, $counter) {
+    $serv->on("workerStart", function (Server $serv, $wid) use ($pm, $counter) {
         if ($counter->add(1) == $serv->setting['worker_num']) {
             $serv->defer(function () use ($pm) {
                 $pm->wakeup();
