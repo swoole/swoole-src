@@ -44,10 +44,6 @@
 
 #define valid_ptr(p) ((p) && 0 == ((p) & (sizeof(long) - 1)))
 
-#ifndef _CADDR_T
-typedef void* caddr_t;
-#endif
-
 static void trace_request(swWorker *worker);
 static int trace_dump(swWorker *worker, FILE *slowlog);
 static int trace_get_long(pid_t traced_pid, long addr, long *data);
