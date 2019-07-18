@@ -40,7 +40,7 @@ class WaitGroup
         }
     }
 
-    public function wait(int $timeout = 0): void
+    public function wait(float $timeout = -1): void
     {
         if ($this->count > 0) {
             $this->waiting = true;
