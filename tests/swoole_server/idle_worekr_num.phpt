@@ -12,6 +12,8 @@ $pm = new SwooleTest\ProcessManager;
 use Swoole\Server;
 use Swoole\Client;
 
+$counter = new Swoole\Atomic(0);
+
 $pm->parentFunc = function ($pid) use ($pm) {
     $client = new Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
@@ -25,15 +27,17 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm) {
+$pm->childFunc = function () use ($pm, $counter) {
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP);
     $serv->set([
         'worker_num' => 3,
         'log_level' => SWOOLE_LOG_ERROR,
     ]);
-    $serv->on("workerStart", function ($serv, $wid) use ($pm) {
-        if ($wid == 1) {
-            $pm->wakeup();
+    $serv->on("workerStart", function ($serv, $wid) use ($pm, $counter) {
+        if ($counter->add(1) == $serv->setting['worker_num']) {
+            $serv->defer(function () use ($pm) {
+                $pm->wakeup();
+            });
         }
     });
     $serv->on('receive', function (Server $serv, $fd, $tid, $data) {
