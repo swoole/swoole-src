@@ -394,21 +394,25 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
             swString_append_ptr(response, ZEND_STRL("Transfer-Encoding: chunked\r\n"));
         }
     }
-    else if (body_length > 0 && ctx->parser.method == PHP_HTTP_HEAD)
-    {
-        php_swoole_error(E_WARNING, "HEAD method should not return body");
-    }
     // Content-Length
-    else if (body_length > 0 && ctx->parser.method != PHP_HTTP_HEAD)
+    else if (body_length >= 0)
     {
-#ifdef SW_HAVE_ZLIB
-        if (ctx->accept_compression)
+        if (body_length > 0 && ctx->parser.method == PHP_HTTP_HEAD)
         {
-            body_length = swoole_zlib_buffer->length;
+            php_swoole_error(E_WARNING, "HEAD method should not return body");
         }
+
+        if (ctx->parser.method != PHP_HTTP_HEAD)
+        {
+#ifdef SW_HAVE_ZLIB
+            if (ctx->accept_compression)
+            {
+                body_length = swoole_zlib_buffer->length;
+            }
 #endif
-        n = sw_snprintf(buf, l_buf, "Content-Length: %d\r\n", body_length);
-        swString_append_ptr(response, buf, n);
+            n = sw_snprintf(buf, l_buf, "Content-Length: %d\r\n", body_length);
+            swString_append_ptr(response, buf, n);
+        }
     }
 
     //http cookies

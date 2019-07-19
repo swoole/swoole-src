@@ -12,45 +12,60 @@ $data = json_encode([
     'payload' => 'Hello World'
 ]);
 
-$pm = new SwooleTest\ProcessManager;
+$pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm, $data) {
+    go(function () use ($pm, $data) {
+        $headers = httpGetHeaders("http://127.0.0.1:{$pm->getFreePort()}/head/return/none", ['method' => 'HEAD']);
+        Assert::eq($headers["content-length"], strlen($data));
 
-    //request 1, HEAD
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1:" . $pm->getFreePort() . '/');
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'HEAD');
-    curl_setopt($ch, CURLOPT_NOBODY, true);
+        $headers = httpGetHeaders("http://127.0.0.1:{$pm->getFreePort()}/head/return/data", ['method' => 'HEAD']);
+        Assert::eq($headers["content-length"], strlen($data));
 
-    $result = curl_exec($ch);
-    Assert::isEmpty($result);
-    $info = curl_getinfo($ch);
-    Assert::eq(strlen($data), $info['download_content_length']);
+        $headers = httpGetHeaders("http://127.0.0.1:{$pm->getFreePort()}/post/return/none", ['method' => 'POST']);
+        Assert::eq($headers["content-length"], "0");
 
-    $pm->kill();
+        $headers = httpGetHeaders("http://127.0.0.1:{$pm->getFreePort()}/post/return/data", ['method' => 'POST']);
+        Assert::eq($headers["content-length"], strlen($data));
+        
+        httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/shutdown") . PHP_EOL;
+    });
 };
 
 $pm->childFunc = function () use ($pm, $data) {
-    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP);
+    go(function () use ($pm, $data) {
+        $server = new Co\Http\Server("127.0.0.1", $pm->getFreePort(), false);
 
-    $http->on("WorkerStart", function ($serv, $wid) {
-        global $pm;
+        $server->handle('/head/return/none', function ($request, $response) use ($data) {
+            $response->header('Content-Type', 'application/json');
+            $response->header('Content-Length', strlen($data));
+            $response->end();
+        });
+
+        $server->handle('/head/return/data', function ($request, $response) use ($data) {
+            $response->header('Content-Type', 'application/json');
+            $response->header('Content-Length', strlen($data));
+            $response->end("swoole");
+        });
+
+        $server->handle('/post/return/none', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($data) {
+            $response->header('Content-Type', 'application/json');
+            $response->end();
+        });
+
+        $server->handle('/post/return/data', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($data) {
+            $response->header('Content-Type', 'application/json');
+            $response->end($data);
+        });
+
+        $server->handle('/shutdown', function ($request, $response) use ($server) {
+            $response->status(200);
+            $server->shutdown();
+        });
         $pm->wakeup();
+        $server->start();
     });
-
-    $http->on('request', function ($req, Swoole\Http\Response $resp) use ($data) {
-        $resp->header('Content-Type', 'application/json');
-        if ($req->server['request_method'] == 'HEAD') {
-            $resp->header('Content-Length', strlen($data));
-            $resp->end("swoole");
-            return;
-        }
-        $resp->end($data);
-    });
-
-    $http->start();
+    Swoole\Event::wait();
 };
-
 $pm->childFirst();
 $pm->run();
 ?>
