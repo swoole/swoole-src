@@ -117,7 +117,31 @@ enum swBool_type php_swoole_timer_clear_all()
     {
         return SW_FALSE;
     }
-    swHashMap_clean(SwooleG.timer.map);
+
+    uint32_t num = swHashMap_count(SwooleG.timer.map), index = 0;
+    swTimer_node **list = (swTimer_node **) emalloc(num * sizeof(swTimer_node*));
+    swHashMap_rewind(SwooleG.timer.map);
+    while (1)
+    {
+        uint64_t timer_id;
+        swTimer_node *tnode = (swTimer_node *) swHashMap_each_int(SwooleG.timer.map, &timer_id);
+        if (UNEXPECTED(!tnode))
+        {
+            break;
+        }
+        if (tnode->type == SW_TIMER_TYPE_PHP)
+        {
+            list[index++] = tnode;
+        }
+    }
+
+    while (index--)
+    {
+        swTimer_del(&SwooleG.timer, list[index]);
+    }
+
+    efree(list);
+
     return SW_TRUE;
 }
 
