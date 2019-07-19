@@ -19,13 +19,13 @@
 
 #include <signal.h>
 
-#define SW_IPC_USE_SHM              1
-
 typedef struct _swFactoryProcess
 {
     swPipe *pipes;
     swPipeBuffer *send_buffer;
 } swFactoryProcess;
+
+typedef int (*send_func_t)(swServer *, swPipeBuffer *, size_t, void *);
 
 static int swFactoryProcess_start(swFactory *factory);
 static int swFactoryProcess_notify(swFactory *factory, swDataHead *event);
@@ -34,6 +34,10 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 static int swFactoryProcess_shutdown(swFactory *factory);
 static int swFactoryProcess_end(swFactory *factory, int fd);
 static void swFactoryProcess_free(swFactory *factory);
+
+static int process_send_packet(swServer *serv, swPipeBuffer *buf, swSendData *resp, send_func_t _send, void* private_data);
+static int process_sendto_worker(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data);
+static int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data);
 
 int swFactoryProcess_create(swFactory *factory, int worker_num)
 {
@@ -226,6 +230,17 @@ static int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
     return swFactoryProcess_dispatch(factory, &task);
 }
 
+static int process_sendto_worker(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data)
+{
+    return swReactorThread_send2worker(serv, (swWorker *) private_data, buf, n);
+}
+
+static int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data)
+{
+    return swWorker_send2reactor(serv, (swEventData *) buf, sizeof(buf->info) + buf->info.len,
+            ((swConnection *) private_data)->session_id);
+}
+
 /**
  * [ReactorThread] dispatch request to worker
  */
@@ -293,23 +308,30 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
         break;
     }
 
-    uint32_t send_n = task->info.len;
-    uint32_t offset = 0;
-    char *data = task->data;
     /**
      * Multi-Threads
      */
     swPipeBuffer *buf = serv->pipe_buffers[SwooleTG.id];
-    uint32_t max_length = serv->ipc_max_size - sizeof(buf->info);
-
     buf->info = task->info;
+
+    return process_send_packet(serv, buf, task, process_sendto_worker, worker);
+}
+
+static int process_send_packet(swServer *serv, swPipeBuffer *buf, swSendData *resp, send_func_t _send, void* private_data)
+{
+    const char* data = resp->data;
+    uint32_t send_n = resp->info.len;
+    off_t offset = 0;
+
+    uint32_t max_length = serv->ipc_max_size - sizeof(buf->info);
 
     if (send_n <= max_length)
     {
         buf->info.flags = 0;
         buf->info.len = send_n;
-        memcpy(buf->data, data, buf->info.len);
-        int retval = swReactorThread_send2worker(serv, worker, buf, sizeof(buf->info) + buf->info.len);
+        memcpy(buf->data, data, send_n);
+
+        int retval = _send(serv, buf, send_n, private_data);
 #ifdef __linux__
         if (retval < 0 && errno == ENOBUFS)
         {
@@ -339,9 +361,9 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
 
         memcpy(buf->data, data + offset, buf->info.len);
 
-        swTrace("dispatch, type=%d|len=%d", buf->info.type, buf->info.len);
+        swTrace("finish, type=%d|len=%d", buf->info.type, buf->info.len);
 
-        if (swReactorThread_send2worker(serv, worker, buf, sizeof(buf->info) + buf->info.len) < 0)
+        if (_send(serv, buf, sizeof(buf->info) + buf->info.len, private_data) < 0)
         {
 #ifdef __linux__
             if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD)
@@ -439,72 +461,13 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     }
 
     swPipeBuffer *buf = object->send_buffer;
-    uint32_t max_length = serv->ipc_max_size - sizeof(buf->info);
 
     buf->info.fd = session_id;
     buf->info.type = resp->info.type;
     buf->info.reactor_id = conn->reactor_id;
     buf->info.server_fd = SwooleWG.id;
 
-    const char* data = resp->data;
-    uint32_t send_n = resp->info.len;
-    off_t offset = 0;
-
-    if (send_n <= max_length)
-    {
-        buf->info.flags = 0;
-        buf->info.len = send_n;
-        memcpy(buf->data, data, send_n);
-
-        int retval = swWorker_send2reactor(serv, (swEventData *) buf, sizeof(buf->info) + buf->info.len, session_id);
-#ifdef __linux__
-        if (retval < 0 && errno == ENOBUFS)
-        {
-            max_length = SW_BUFFER_SIZE_STD;
-            goto _ipc_use_chunk;
-        }
-#endif
-        return retval;
-    }
-
-#ifdef __linux__
-    _ipc_use_chunk:
-#endif
-    buf->info.flags = SW_EVENT_DATA_CHUNK;
-
-    while (send_n > 0)
-    {
-        if (send_n > max_length)
-        {
-            buf->info.len = max_length;
-        }
-        else
-        {
-            buf->info.flags |= SW_EVENT_DATA_END;
-            buf->info.len = send_n;
-        }
-
-        memcpy(buf->data, data + offset, buf->info.len);
-
-        swTrace("finish, type=%d|len=%d", buf->info.type, buf->info.len);
-
-        if (swWorker_send2reactor(serv, (swEventData *) buf, sizeof(buf->info) + buf->info.len, session_id) < 0)
-        {
-#ifdef __linux__
-            if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD)
-            {
-                max_length = SW_BUFFER_SIZE_STD;
-                continue;
-            }
-#endif
-            return SW_ERR;
-        }
-
-        send_n -= buf->info.len;
-        offset += buf->info.len;
-    }
-
-    return SW_OK;
+    return process_send_packet(serv, buf, resp, process_sendto_reactor, conn);
 }
 
 static int swFactoryProcess_end(swFactory *factory, int fd)
