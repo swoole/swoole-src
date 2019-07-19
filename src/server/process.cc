@@ -331,7 +331,7 @@ static int process_send_packet(swServer *serv, swPipeBuffer *buf, swSendData *re
         buf->info.len = send_n;
         memcpy(buf->data, data, send_n);
 
-        int retval = _send(serv, buf, send_n, private_data);
+        int retval = _send(serv, buf, sizeof(buf->info) + send_n, private_data);
 #ifdef __linux__
         if (retval < 0 && errno == ENOBUFS)
         {
@@ -466,6 +466,8 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     buf->info.type = resp->info.type;
     buf->info.reactor_id = conn->reactor_id;
     buf->info.server_fd = SwooleWG.id;
+
+    swTrace("worker_id=%d, type=%d",SwooleWG.id, buf->info.type);
 
     return process_send_packet(serv, buf, resp, process_sendto_reactor, conn);
 }

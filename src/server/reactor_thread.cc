@@ -1035,7 +1035,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);
 
-    thread->buffers = (swString **) sw_calloc(serv->worker_num, sizeof(swString *));
+    thread->buffers = (swString **) sw_calloc(serv->worker_num + serv->task_worker_num + serv->user_worker_num, sizeof(swString *));
     if (thread->buffers == nullptr)
     {
         swSysError("malloc for thread->buffers failed.");
