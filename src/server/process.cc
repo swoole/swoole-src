@@ -24,6 +24,7 @@
 typedef struct _swFactoryProcess
 {
     swPipe *pipes;
+    swPipeBuffer *send_buffer;
 } swFactoryProcess;
 
 static int swFactoryProcess_start(swFactory *factory);
@@ -194,6 +195,14 @@ static int swFactoryProcess_start(swFactory *factory)
         }
         bzero(serv->pipe_buffers[i], sizeof(swDataHead));
     }
+    object->send_buffer = (swPipeBuffer *) sw_malloc(serv->ipc_max_size);
+    if (object->send_buffer == NULL)
+    {
+        swSysError("malloc[send_buffer] failed");
+        return SW_ERR;
+    }
+    bzero(object->send_buffer, sizeof(swDataHead));
+
     /**
      * The manager process must be started first, otherwise it will have a thread fork
      */
@@ -230,14 +239,14 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
     {
         switch (target_worker_id)
         {
-            case SW_DISPATCH_RESULT_DISCARD_PACKET:
-                return SW_ERR;
-            case SW_DISPATCH_RESULT_CLOSE_CONNECTION:
-                // TODO: close connection
-                return SW_ERR;
-            default:
-                swWarn("invalid target worker id[%d]", target_worker_id);
-                return SW_ERR;
+        case SW_DISPATCH_RESULT_DISCARD_PACKET:
+            return SW_ERR;
+        case SW_DISPATCH_RESULT_CLOSE_CONNECTION:
+            // TODO: close connection
+            return SW_ERR;
+        default:
+            swWarn("invalid target worker id[%d]", target_worker_id);
+            return SW_ERR;
         }
     }
 
@@ -356,8 +365,8 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
  */
 static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 {
-    int ret, sendn;
     swServer *serv = (swServer *) factory->ptr;
+    swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
 
     /**
      * More than the output buffer
@@ -429,87 +438,73 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         return SW_OK;
     }
 
-    swPipeBuffer *buf = serv->pipe_buffers[0];
+    swPipeBuffer *buf = object->send_buffer;
+    uint32_t max_length = serv->ipc_max_size - sizeof(buf->info);
+
     buf->info.fd = session_id;
     buf->info.type = resp->info.type;
-    swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
-    uint32_t max_length = serv->ipc_max_size - sizeof(buf->info);
-    int _pipe_fd;
-    swConnection *_pipe_socket;
-
-    /**
-     * Big response, use shared memory
-     */
-    if (resp->info.len > max_length)
-    {
-#ifdef __linux__
-        _ipc_use_shm:
-#endif
-
-#if SW_IPC_USE_SHM
-        if (worker == NULL || worker->send_shm == NULL)
-        {
-            goto _pack_data;
-        }
-        //worker process
-        if (SwooleG.main_reactor)
-#endif
-        {
-            _pipe_fd = swWorker_get_send_pipe(serv, session_id, conn->reactor_id);
-            _pipe_socket = swReactor_get(SwooleG.main_reactor, _pipe_fd);
-
-#if SW_IPC_USE_SHM
-            //cannot use send_shm
-            if (!swBuffer_empty(_pipe_socket->out_buffer))
-#endif
-            {
-                _pack_data:
-                if (swTaskWorker_large_pack((swEventData *) buf, resp->data, resp->info.len) < 0)
-                {
-                    return SW_ERR;
-                }
-                buf->info.server_fd = SW_RESPONSE_TMPFILE;
-                goto _send_to_reactor_thread;
-            }
-        }
-
-        swPacket_response response;
-        response.length = resp->info.len;
-        response.worker_id = SwooleWG.id;
-        buf->info.server_fd = SW_RESPONSE_SHM;
-        buf->info.len = sizeof(response);
-        memcpy(buf->data, &response, sizeof(response));
-
-        swTrace("[Worker] big response, length=%d|worker_id=%d", response.length, response.worker_id);
-
-        worker->lock.lock(&worker->lock);
-        memcpy(worker->send_shm, resp->data, resp->info.len);
-    }
-    else
-    {
-        //copy data
-        memcpy(buf->data, resp->data, resp->info.len);
-        buf->info.len = resp->info.len;
-        buf->info.server_fd = SW_RESPONSE_SMALL;
-    }
-
-    _send_to_reactor_thread:
     buf->info.reactor_id = conn->reactor_id;
-    sendn = buf->info.len + sizeof(resp->info);
+    buf->info.server_fd = SwooleWG.id;
 
-    swTrace("[Worker] send: sendn=%d|type=%d|content=<<EOF\n%.*s\nEOF", sendn, resp->info.type, resp->info.len, resp->data);
-    ret = swWorker_send2reactor(serv, (swEventData *) buf, sendn, session_id);
-    if (ret < 0)
+    const char* data = resp->data;
+    uint32_t send_n = resp->info.len;
+    off_t offset = 0;
+
+    if (send_n <= max_length)
     {
+        buf->info.flags = 0;
+        buf->info.len = send_n;
+        memcpy(buf->data, data, send_n);
+
+        int retval = swWorker_send2reactor(serv, (swEventData *) buf, sizeof(buf->info) + buf->info.len, session_id);
 #ifdef __linux__
-        if (errno == ENOBUFS && resp->info.len <= max_length)
+        if (retval < 0 && errno == ENOBUFS)
         {
-            goto _ipc_use_shm;
+            max_length = SW_BUFFER_SIZE_STD;
+            goto _ipc_use_chunk;
         }
 #endif
-        swSysWarn("sendto to reactor failed");
+        return retval;
     }
-    return ret;
+
+#ifdef __linux__
+    _ipc_use_chunk:
+#endif
+    buf->info.flags = SW_EVENT_DATA_CHUNK;
+
+    while (send_n > 0)
+    {
+        if (send_n > max_length)
+        {
+            buf->info.len = max_length;
+        }
+        else
+        {
+            buf->info.flags |= SW_EVENT_DATA_END;
+            buf->info.len = send_n;
+        }
+
+        memcpy(buf->data, data + offset, buf->info.len);
+
+        swTrace("finish, type=%d|len=%d", buf->info.type, buf->info.len);
+
+        if (swWorker_send2reactor(serv, (swEventData *) buf, sizeof(buf->info) + buf->info.len, session_id) < 0)
+        {
+#ifdef __linux__
+            if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD)
+            {
+                max_length = SW_BUFFER_SIZE_STD;
+                continue;
+            }
+#endif
+            return SW_ERR;
+        }
+
+        send_n -= buf->info.len;
+        offset += buf->info.len;
+    }
+
+    return SW_OK;
 }
 
 static int swFactoryProcess_end(swFactory *factory, int fd)

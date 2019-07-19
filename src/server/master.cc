@@ -406,18 +406,7 @@ int swServer_create_task_worker(swServer *serv)
  */
 int swServer_worker_create(swServer *serv, swWorker *worker)
 {
-    /**
-     * Create shared memory storage
-     */
-    worker->send_shm = sw_shm_malloc(serv->buffer_output_size);
-    if (worker->send_shm == NULL)
-    {
-        swWarn("malloc for worker->store failed");
-        return SW_ERR;
-    }
-    swMutex_create(&worker->lock, 1);
-
-    return SW_OK;
+    return swMutex_create(&worker->lock, 1);
 }
 
 /**

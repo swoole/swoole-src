@@ -12,7 +12,7 @@ const REQ_N = 16;
 const CLIENT_N = 32;
 const SIZE = 2 * 1024 * 1024;
 
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
     for ($i = 0; $i < CLIENT_N; $i++) {
@@ -39,12 +39,12 @@ $pm->parentFunc = function ($pid) use ($pm) {
             }
         });
     }
-    swoole_event::wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
+    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $serv->set(array(
         "worker_num" => 4,
         'log_level' => SWOOLE_LOG_ERROR,
@@ -54,10 +54,10 @@ $pm->childFunc = function () use ($pm) {
         'package_length_offset' => 0,
         'package_body_offset' => 4,
     ));
-    $serv->on("WorkerStart", function (\swoole_server $serv) use ($pm) {
+    $serv->on("WorkerStart", function (Swoole\Server $serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data) {
+    $serv->on('receive', function (Swoole\Server $serv, $fd, $rid, $data) {
         $send_data = str_repeat('A', SIZE - 12) . substr($data, -8, 8);
         $serv->send($fd, pack('N', strlen($send_data)) . $send_data);
     });
