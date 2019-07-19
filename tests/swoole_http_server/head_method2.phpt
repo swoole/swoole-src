@@ -55,4 +55,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Warning: Swoole\Http\Response::end(): HEAD method should not return body in /root/codeDir/cppCode/swoole-src/tests/swoole_http_server/head_method2.php on line %d
+Warning: Swoole\Http\Response::end(): HEAD method should not return body in %s/tests/swoole_http_server/head_method2.php on line %d
