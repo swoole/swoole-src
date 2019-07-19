@@ -19,6 +19,8 @@
 #ifndef SW_TABLE_H_
 #define SW_TABLE_H_
 
+SW_EXTERN_C_BEGIN
+
 #include "atomic.h"
 #include "hashmap.h"
 #include "hash.h"
@@ -112,9 +114,9 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion);
 size_t swTable_get_memory_size(swTable *table);
 int swTable_create(swTable *table);
 void swTable_free(swTable *table);
-int swTableColumn_add(swTable *table, char *name, int len, int type, int size);
-swTableRow* swTableRow_set(swTable *table, char *key, int keylen, swTableRow **rowlock);
-swTableRow* swTableRow_get(swTable *table, char *key, int keylen, swTableRow **rowlock);
+int swTableColumn_add(swTable *table, const char *name, int len, int type, int size);
+swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableRow **rowlock);
+swTableRow* swTableRow_get(swTable *table, const char *key, int keylen, swTableRow **rowlock);
 
 void swTable_iterator_rewind(swTable *table);
 swTableRow* swTable_iterator_current(swTable *table);
@@ -123,7 +125,7 @@ int swTableRow_del(swTable *table, char *key, int keylen);
 
 static sw_inline swTableColumn* swTableColumn_get(swTable *table, char *column_key, int keylen)
 {
-    return swHashMap_find(table->columns, column_key, keylen);
+    return (swTableColumn*) swHashMap_find(table->columns, column_key, keylen);
 }
 
 static sw_inline void swTableRow_lock(swTableRow *row)
@@ -146,7 +148,7 @@ static sw_inline void swTableRow_unlock(swTableRow *row)
 
 typedef uint32_t swTable_string_length_t;
 
-static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col, void *value, int vlen)
+static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col, void *value, size_t vlen)
 {
     int8_t _i8;
     int16_t _i16;
@@ -188,5 +190,7 @@ static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col,
         break;
     }
 }
+
+SW_EXTERN_C_END
 
 #endif /* SW_TABLE_H_ */
