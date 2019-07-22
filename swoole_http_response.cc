@@ -397,11 +397,6 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
     // Content-Length
     else if (body_length >= 0)
     {
-        if (body_length > 0 && ctx->parser.method == PHP_HTTP_HEAD)
-        {
-            php_swoole_error(E_WARNING, "HEAD method should not return body");
-        }
-
         if (ctx->parser.method != PHP_HTTP_HEAD)
         {
 #ifdef SW_HAVE_ZLIB
@@ -412,6 +407,10 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
 #endif
             n = sw_snprintf(buf, l_buf, "Content-Length: %d\r\n", body_length);
             swString_append_ptr(response, buf, n);
+        }
+        else if (body_length > 0)
+        {
+            php_swoole_error(E_WARNING, "HEAD method should not return body");
         }
     }
 
