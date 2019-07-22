@@ -935,6 +935,7 @@ enum _swEventData_flag
     SW_EVENT_DATA_PTR = 1u << 1,
     SW_EVENT_DATA_CHUNK = 1u << 2,
     SW_EVENT_DATA_END = 1u << 3,
+    SW_EVENT_DATA_EXIT = 1u << 4,
 };
 
 typedef struct _swDataHead
@@ -1752,8 +1753,6 @@ struct _swWorker
     uint32_t id;
 
     swLock lock;
-
-    void *send_shm;
 
     swPipe *pipe_object;
 

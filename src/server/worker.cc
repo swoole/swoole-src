@@ -29,14 +29,6 @@ static int swWorker_onStreamPackage(swProtocol *proto, swConnection *conn, char 
 static int swWorker_onStreamClose(swReactor *reactor, swEvent *event);
 static int swWorker_reactor_is_empty(swReactor *reactor);
 
-void swWorker_free(swWorker *worker)
-{
-    if (worker->send_shm)
-    {
-        sw_shm_free(worker->send_shm);
-    }
-}
-
 void swWorker_signal_init(void)
 {
     /**
@@ -455,10 +447,6 @@ void swWorker_onStart(swServer *serv)
         if (SwooleWG.id == i)
         {
             continue;
-        }
-        else
-        {
-            swWorker_free(worker);
         }
         if (swIsWorker())
         {

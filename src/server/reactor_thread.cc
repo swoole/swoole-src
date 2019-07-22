@@ -387,75 +387,59 @@ static void swReactorThread_shutdown(swReactor *reactor)
  */
 static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
 {
-    int n;
     swSendData _send;
 
     swServer *serv = (swServer *) reactor->ptr;
-    swPacket_response pkg_resp;
-    swWorker *worker;
+    swReactorThread *thread = swServer_get_thread(serv, reactor->id);
+    swString *package = nullptr;
     swPipeBuffer *resp = serv->pipe_buffers[reactor->id];
 
 #ifdef SW_REACTOR_RECV_AGAIN
     while (1)
 #endif
     {
-        n = read(ev->fd, resp, serv->ipc_max_size);
+        ssize_t n = read(ev->fd, resp, serv->ipc_max_size);
         if (n > 0)
         {
-            memcpy(&_send.info, &resp->info, sizeof(_send.info));
-            //pipe data
-            if (_send.info.server_fd == SW_RESPONSE_SMALL)
+            //packet chunk
+            if (resp->info.flags & SW_EVENT_DATA_CHUNK)
             {
-                _send.data = resp->data;
-                _send.info.len = resp->info.len;
-                swServer_master_send(serv, &_send);
-            }
-            //use send shm
-            else if (_send.info.server_fd == SW_RESPONSE_SHM)
-            {
-                memcpy(&pkg_resp, resp->data, sizeof(pkg_resp));
-                worker = swServer_get_worker(serv, pkg_resp.worker_id);
-
-                _send.data = (char*) worker->send_shm;
-                _send.info.len = pkg_resp.length;
-
-#if 0
-                struct
+                int worker_id = resp->info.server_fd;
+                if (thread->buffers[worker_id] == nullptr)
                 {
-                    uint32_t worker;
-                    uint32_t index;
-                    uint32_t serid;
-                } pkg_header;
-
-                memcpy(&pkg_header, _send.data + 4, sizeof(pkg_header));
-                swWarn("fd=%d, worker=%d, index=%d, serid=%d", _send.info.fd, pkg_header.worker, pkg_header.index, pkg_header.serid);
-#endif
-                swServer_master_send(serv, &_send);
-                worker->lock.unlock(&worker->lock);
-            }
-            //use tmp file
-            else if (_send.info.server_fd == SW_RESPONSE_TMPFILE)
-            {
-                swString *data = swTaskWorker_large_unpack((swEventData *) resp);
-                if (data == NULL)
-                {
-                    return SW_ERR;
+                    thread->buffers[worker_id] = swString_new(SW_BUFFER_SIZE_BIG);
                 }
-                _send.data = data->str;
-                _send.info.len = data->length;
+                package = thread->buffers[worker_id];
+                if (!package)
+                {
+                    swSysWarn("get buffer(worker-%d) failed", worker_id);
+                    return SW_OK;
+                }
+                //merge data to package buffer
+                swString_append_ptr(package, resp->data, resp->info.len);
+                //wait more data
+                if (!(resp->info.flags & SW_EVENT_DATA_END))
+                {
+                    return SW_OK;
+                }
+                _send.info = resp->info;
+                _send.data = package->str;
+                _send.info.len = package->length;
                 swServer_master_send(serv, &_send);
+                swString_free(package);
+                thread->buffers[worker_id] = nullptr;
             }
-            //reactor thread exit
-            else if (_send.info.server_fd == SW_RESPONSE_EXIT)
+            else if (resp->info.flags & SW_EVENT_DATA_EXIT)
             {
                 swReactorThread_shutdown(reactor);
-                return SW_OK;
             }
-            //will never be here
             else
             {
-                abort();
+                _send.info = resp->info;
+                _send.data = resp->data;
+                swServer_master_send(serv, &_send);
             }
+
         }
         else if (errno == EAGAIN)
         {
@@ -1051,6 +1035,13 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);
 
+    thread->buffers = (swString **) sw_calloc(serv->worker_num + serv->task_worker_num + serv->user_worker_num, sizeof(swString *));
+    if (thread->buffers == nullptr)
+    {
+        swSysError("malloc for thread->buffers failed.");
+        return SW_ERR;
+    }
+
     int i = 0, pipe_fd;
     for (i = 0; i < serv->worker_num; i++)
     {
@@ -1262,7 +1253,7 @@ void swReactorThread_free(swServer *serv)
         {
             swDataHead ev;
             memset(&ev, 0, sizeof(ev));
-            ev.server_fd = SW_RESPONSE_EXIT;
+            ev.flags = SW_EVENT_DATA_EXIT;
             if (swSocket_write_blocking(thread->notify_pipe, (void *) &ev, sizeof(ev)) < 0)
             {
                 goto _cancel;
