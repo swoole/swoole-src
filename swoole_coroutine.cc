@@ -274,6 +274,15 @@ static int coro_exit_handler(zend_execute_data *execute_data)
         Z_TRY_ADDREF_P(exit_status);
         zend_update_property(swoole_exit_exception_ce, &ex, ZEND_STRL("status"), exit_status);
     }
+    else
+    {
+        if (SwooleG.main_reactor)
+        {
+            swReactor_destory(SwooleG.main_reactor);
+            efree(SwooleG.main_reactor);
+            SwooleG.main_reactor = NULL;
+        }
+    }
 
     return ZEND_USER_OPCODE_DISPATCH;
 }
@@ -376,10 +385,19 @@ inline void PHPCoroutine::activate()
 
 void PHPCoroutine::error(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args)
 {
-    if (active && sw_unlikely(type & E_FATAL_ERRORS))
+    if (sw_unlikely(type & E_FATAL_ERRORS))
     {
-        /* update the last coroutine's info */
-        save_task(get_task());
+        if (active)
+        {
+            /* update the last coroutine's info */
+            save_task(get_task());
+        }
+        if (SwooleG.main_reactor)
+        {
+            swReactor_destory(SwooleG.main_reactor);
+            efree(SwooleG.main_reactor);
+            SwooleG.main_reactor = NULL;
+        }
     }
     if (sw_likely(orig_error_function))
     {
@@ -751,7 +769,15 @@ void PHPCoroutine::main_func(void *arg)
 
 #ifdef SW_CORO_SUPPORT_BAILOUT
     } zend_catch {
-        Coroutine::bailout([](){ sw_zend_bailout(); });
+        Coroutine::bailout([](){
+            if (SwooleG.main_reactor)
+            {
+                swReactor_destory(SwooleG.main_reactor);
+                efree(SwooleG.main_reactor);
+                SwooleG.main_reactor = NULL;
+            }
+            sw_zend_bailout();
+        });
     } zend_end_try();
 #endif
 }
