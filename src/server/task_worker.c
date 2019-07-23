@@ -195,7 +195,7 @@ void swTaskWorker_onStop(swProcessPool *pool, int worker_id)
     if (SwooleG.main_reactor)
     {
         //destroy reactor
-        swReactor_destory(SwooleG.main_reactor);
+        swReactor_destroy(SwooleG.main_reactor);
         SwooleG.main_reactor = NULL;
         sw_free(SwooleG.main_reactor);
     }

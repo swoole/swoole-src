@@ -1894,7 +1894,7 @@ static sw_inline int swReactor_events(int fdtype)
 }
 
 int swReactor_create(swReactor *reactor, int max_event);
-void swReactor_destory(swReactor *reactor);
+void swReactor_destroy(swReactor *reactor);
 void swReactor_add_destroy_callback(swReactor *reactor, swCallback cb, void *data);
 
 static inline void swReactor_before_wait(swReactor *reactor)

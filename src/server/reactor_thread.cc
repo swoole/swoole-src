@@ -976,7 +976,7 @@ int swReactorThread_start(swServer *serv)
 
     int retval = main_reactor->wait(main_reactor, NULL);
 
-    swReactor_destory(main_reactor);
+    swReactor_destroy(main_reactor);
     SwooleG.main_reactor = NULL;
     sw_free(main_reactor);
 

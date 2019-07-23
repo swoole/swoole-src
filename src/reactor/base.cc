@@ -448,7 +448,7 @@ static void defer_task_add(swReactor *reactor, swCallback callback, void *data)
     cm->append(callback, data);
 }
 
-void swReactor_destory(swReactor *reactor)
+void swReactor_destroy(swReactor *reactor)
 {
     if (reactor->destroy_callbacks)
     {
