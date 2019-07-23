@@ -279,7 +279,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
         if (SwooleG.main_reactor)
         {
             swReactor_destroy(SwooleG.main_reactor);
-            efree(SwooleG.main_reactor);
+            sw_free(SwooleG.main_reactor);
             SwooleG.main_reactor = NULL;
         }
     }
@@ -395,7 +395,7 @@ void PHPCoroutine::error(int type, const char *error_filename, const uint32_t er
         if (SwooleG.main_reactor)
         {
             swReactor_destroy(SwooleG.main_reactor);
-            efree(SwooleG.main_reactor);
+            sw_free(SwooleG.main_reactor);
             SwooleG.main_reactor = NULL;
         }
     }
@@ -773,7 +773,7 @@ void PHPCoroutine::main_func(void *arg)
             if (SwooleG.main_reactor)
             {
                 swReactor_destroy(SwooleG.main_reactor);
-                efree(SwooleG.main_reactor);
+                sw_free(SwooleG.main_reactor);
                 SwooleG.main_reactor = NULL;
             }
             sw_zend_bailout();

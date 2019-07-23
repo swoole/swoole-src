@@ -256,7 +256,7 @@ int php_swoole_reactor_init()
     {
         swTraceLog(SW_TRACE_PHP, "init reactor");
 
-        swReactor *reactor = (swReactor *) emalloc(sizeof(swReactor));
+        swReactor *reactor = (swReactor *) sw_malloc(sizeof(swReactor));
         if (reactor == NULL)
         {
             php_swoole_fatal_error(E_ERROR, "malloc failed");
@@ -326,7 +326,7 @@ void php_swoole_event_wait()
 #endif
     }
     swReactor_destroy(SwooleG.main_reactor);
-    efree(SwooleG.main_reactor);
+    sw_free(SwooleG.main_reactor);
     SwooleG.main_reactor = NULL;
 }
 
