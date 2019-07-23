@@ -276,12 +276,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     }
     else
     {
-        if (SwooleG.main_reactor)
-        {
-            swReactor_destroy(SwooleG.main_reactor);
-            sw_free(SwooleG.main_reactor);
-            SwooleG.main_reactor = NULL;
-        }
+        php_swoole_event_wait();
     }
 
     return ZEND_USER_OPCODE_DISPATCH;
