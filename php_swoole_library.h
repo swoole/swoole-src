@@ -1891,7 +1891,7 @@ static const char* swoole_library_source_core_coroutine_server =
     "        if (!$sock->listen()) {\n"
     "            throw new Exception(\"listen() failed\", $sock->errCode);\n"
     "        }\n"
-    "        $this->port = $sock->getsockname()['port'];\n"
+    "        $this->port = $sock->getsockname()['port'] ?? 0;\n"
     "        $this->fd = $sock->fd;\n"
     "        $this->socket = $sock;\n"
     "        $this->setting['open_ssl'] = $ssl;\n"
