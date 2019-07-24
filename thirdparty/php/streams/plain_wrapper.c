@@ -59,8 +59,13 @@ extern int php_get_gid_by_name(const char *name, gid_t *gid);
 # define PLAIN_WRAP_BUF_SIZE(st) (st)
 #endif
 
+#if PHP_VERSION_ID < 70400
 static size_t php_stdiop_write(php_stream *stream, const char *buf, size_t count);
 static size_t php_stdiop_read(php_stream *stream, char *buf, size_t count);
+#else
+static ssize_t php_stdiop_write(php_stream *stream, const char *buf, size_t count);
+static ssize_t php_stdiop_read(php_stream *stream, char *buf, size_t count);
+#endif
 static int sw_php_stdiop_close(php_stream *stream, int close_handle);
 static int php_stdiop_stat(php_stream *stream, php_stream_statbuf *ssb);
 static int php_stdiop_flush(php_stream *stream);
@@ -216,7 +221,11 @@ static php_stream *_sw_php_stream_fopen_from_fd_int(int fd, const char *mode, co
     return php_stream_alloc_rel(&sw_php_stream_stdio_ops, self, persistent_id, mode);
 }
 
+#if PHP_VERSION_ID < 70400
 static size_t php_stdiop_write(php_stream *stream, const char *buf, size_t count)
+#else
+static ssize_t php_stdiop_write(php_stream *stream, const char *buf, size_t count)
+#endif
 {
     php_stdio_stream_data *data = (php_stdio_stream_data*) stream->abstract;
 
@@ -225,11 +234,15 @@ static size_t php_stdiop_write(php_stream *stream, const char *buf, size_t count
     if (data->fd >= 0)
     {
         int bytes_written = write(data->fd, buf, count);
+#if PHP_VERSION_ID < 70400
         if (bytes_written < 0)
         {
             return 0;
         }
         return (size_t) bytes_written;
+#else
+        return bytes_written;
+#endif
     }
     else
     {
@@ -237,7 +250,11 @@ static size_t php_stdiop_write(php_stream *stream, const char *buf, size_t count
     }
 }
 
+#if PHP_VERSION_ID < 70400
 static size_t php_stdiop_read(php_stream *stream, char *buf, size_t count)
+#else
+static ssize_t php_stdiop_read(php_stream *stream, char *buf, size_t count)
+#endif
 {
     php_stdio_stream_data *data = (php_stdio_stream_data*) stream->abstract;
     size_t ret;
@@ -737,7 +754,11 @@ static int php_stdiop_set_option(php_stream *stream, int option, int value, void
 /* }}} */
 
 /* {{{ plain files opendir/readdir implementation */
+#if PHP_VERSION_ID < 70400
 static size_t php_plain_files_dirstream_read(php_stream *stream, char *buf, size_t count)
+#else
+static ssize_t php_plain_files_dirstream_read(php_stream *stream, char *buf, size_t count)
+#endif
 {
     DIR *dir = (DIR*) stream->abstract;
     struct dirent *result;
