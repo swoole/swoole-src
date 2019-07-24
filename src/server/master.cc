@@ -1686,7 +1686,7 @@ int swServer_get_socket(swServer *serv, int port)
 
 static void swServer_signal_handler(int sig)
 {
-    swTraceLog(SW_TRACE_SERVER, "signal[%d] triggered", sig);
+    swTraceLog(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swSignal_str(sig), getpid());
 
     swServer *serv = SwooleG.serv;
     int status;
