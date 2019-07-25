@@ -18,7 +18,7 @@ const FILE = __DIR__ . '/tmp_result.txt';
 $atomic = new Atomic();
 
 $pm->parentFunc = function () use ($pm) {
-    $pm->kill();
+    echo "done\n";
 };
 
 $pm->childFunc = function () use ($pm, $atomic) {
@@ -53,4 +53,5 @@ unlink(FILE);
 
 ?>
 --EXPECT--
+done
 manager stop
