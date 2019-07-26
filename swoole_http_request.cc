@@ -920,5 +920,10 @@ static PHP_METHOD(swoole_http_request, __destruct)
         }
         SW_HASHTABLE_FOREACH_END();
     }
+    http_context *ctx = (http_context *) swoole_get_object(ZEND_THIS);
+    if (ctx)
+    {
+        ctx->request.zrequest = NULL;
+    }
     swoole_set_object(ZEND_THIS, NULL);
 }

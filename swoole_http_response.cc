@@ -1234,13 +1234,13 @@ static PHP_METHOD(swoole_http_response, __destruct)
                 if (!conn || conn->closed || conn->removed || ctx->detached)
                 {
                     swoole_http_context_free(ctx);
+                    ctx = nullptr;
                 }
                 else
                 {
                     swoole_http_response_end(ctx, nullptr, return_value);
                 }
             }
-            ctx = (http_context *) swoole_get_object(ZEND_THIS);
         }
         if (ctx)
         {
