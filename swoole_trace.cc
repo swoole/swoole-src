@@ -58,7 +58,7 @@ static void trace_request(swWorker *worker)
     {
         swSysWarn("failed to trace worker %d, error lint =%d", worker->pid, -ret);
     }
-    if (0 > ptrace(PTRACE_DETACH, traced_pid, (void *) 1, 0))
+    if (0 > ptrace(PTRACE_DETACH, traced_pid, (caddr_t) 1, 0))
     {
         swSysWarn("failed to ptrace(DETACH) worker %d", worker->pid);
     }
@@ -94,7 +94,7 @@ void php_swoole_trace_check(void *arg)
 static int trace_get_long(pid_t traced_pid, long addr, long *data)
 {
     errno = 0;
-    *data = ptrace(PTRACE_PEEKDATA, traced_pid, (void *) addr, 0);
+    *data = ptrace(PTRACE_PEEKDATA, traced_pid, (caddr_t) addr, 0);
     if (*data < 0)
     {
         return -1;
@@ -317,7 +317,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
             break;
         }
     }
-#elif PHP_VERSION_ID >= 70000
+#else
     while (execute_data)
     {
         long function;
@@ -455,84 +455,6 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
         }
 
         fprintf(slowlog, " %s:%u\n", *buf ? buf : "unknown", lineno);
-
-        if (0 == --callers_limit)
-        {
-            break;
-        }
-    }
-#else
-    while (execute_data)
-    {
-        long function;
-        uint lineno = 0;
-
-        fprintf(slowlog, "[0x%" PTR_FMT "lx] ", execute_data);
-
-        if (0 > trace_get_long(traced_pid, execute_data + offsetof(zend_execute_data, function_state.function), &l))
-        {
-            return -1;
-        }
-
-        function = l;
-
-        if (valid_ptr(function))
-        {
-            if (0 > trace_get_strz(traced_pid, buf, buf_size, function + offsetof(zend_function, common.function_name)))
-            {
-                return -1;
-            }
-
-            fprintf(slowlog, "%s()", buf);
-        }
-        else
-        {
-            fprintf(slowlog, "???");
-        }
-
-        if (0 > trace_get_long(traced_pid, execute_data + offsetof(zend_execute_data, op_array), &l))
-        {
-            return -1;
-        }
-
-        *buf = '\0';
-
-        if (valid_ptr(l))
-        {
-            long op_array = l;
-
-            if (0 > trace_get_strz(traced_pid, buf, buf_size, op_array + offsetof(zend_op_array, filename)))
-            {
-                return -1;
-            }
-        }
-
-        if (0 > trace_get_long(traced_pid, execute_data + offsetof(zend_execute_data, opline), &l))
-        {
-            return -1;
-        }
-
-        if (valid_ptr(l))
-        {
-            long opline = l;
-            uint *lu = (uint *) &l;
-
-            if (0 > trace_get_long(traced_pid, opline + offsetof(struct _zend_op, lineno), &l))
-            {
-                return -1;
-            }
-
-            lineno = *lu;
-        }
-
-        fprintf(slowlog, " %s:%u\n", *buf ? buf : "unknown", lineno);
-
-        if (0 > trace_get_long(traced_pid, execute_data + offsetof(zend_execute_data, prev_execute_data), &l))
-        {
-            return -1;
-        }
-
-        execute_data = l;
 
         if (0 == --callers_limit)
         {

@@ -493,7 +493,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/wrapper/timer.cc \
         swoole.cc \
         swoole_async_coro.cc \
-        swoole_atomic.c \
+        swoole_atomic.cc \
         swoole_buffer.c \
         swoole_channel_coro.cc \
         swoole_client.cc \
@@ -520,9 +520,9 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_server.cc \
         swoole_server_port.cc \
         swoole_socket_coro.cc \
-        swoole_table.c \
+        swoole_table.cc \
         swoole_timer.cc \
-        swoole_trace.c \
+        swoole_trace.cc \
         swoole_websocket_server.cc"
 
     swoole_source_file="$swoole_source_file \

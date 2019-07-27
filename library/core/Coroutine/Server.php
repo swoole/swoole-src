@@ -55,7 +55,7 @@ class Server
         if (!$sock->listen()) {
             throw new Exception("listen() failed", $sock->errCode);
         }
-        $this->port = $sock->getsockname()['port'];
+        $this->port = $sock->getsockname()['port'] ?? 0;
         $this->fd = $sock->fd;
         $this->socket = $sock;
         $this->setting['open_ssl'] = $ssl;

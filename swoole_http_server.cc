@@ -218,6 +218,9 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx)
 
 void swoole_http_context_free(http_context *ctx)
 {
+    if (ctx->request.zobject) {
+        swoole_set_object(ctx->request.zobject, NULL);
+    }
     swoole_set_object(ctx->response.zobject, NULL);
     http_request *req = &ctx->request;
     http_response *res = &ctx->response;

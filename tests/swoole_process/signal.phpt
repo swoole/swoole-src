@@ -6,41 +6,52 @@ swoole_process: signal
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
+use Swoole\Process;
+
 //父进程中先设置信号
-swoole_process::signal(SIGCHLD, function ()
+Process::signal(SIGCHLD, function ()
 {
-    swoole_process::signal(SIGCHLD, null);
-    swoole_process::signal(SIGTERM, null);
+    Process::signal(SIGCHLD, null);
+    Process::signal(SIGTERM, null);
+    Swoole\Event::del(STDIN);
+    Swoole\Timer::clearAll();
     echo "PARENT WAIT\n";
-    swoole_event_exit();
 });
 
 //测试被子进程覆盖信号
-swoole_process::signal(SIGTERM, function () {
+Process::signal(SIGTERM, function () {
     //释放信号，否则底层会报内存泄漏
-    swoole_process::signal(SIGTERM, null);
+    Process::signal(SIGTERM, null);
     echo "PARENT SIGTERM\n";
-    swoole_event_exit();
+    Swoole\Event::exit();
 });
 
-$pid = (new \swoole_process(function ()
+$pid = (new Process(function ()
 {
-    swoole_process::signal(SIGTERM, function ($sig) {
+    Process::signal(SIGTERM, function ($sig) {
         echo "CHILD SIGTERM\n";
-        swoole_process::signal(SIGTERM, function ($sig) {
+        Process::signal(SIGTERM, function ($sig) {
             echo "CHILD EXIT\n";
-            swoole_event_exit();
+            Swoole\Event::del(STDIN);
         });
     });
+
+    //never calback
+    Swoole\Event::add(STDIN, function () {});
+
 }))->start();
 
-swoole_timer_after(500, function() use ($pid) {
-    swoole_process::kill($pid, SIGTERM);
-    swoole_timer_after(500, function() use ($pid) {
-        swoole_process::kill($pid, SIGTERM);
+Swoole\Timer::after(500, function() use ($pid) {
+    Process::kill($pid, SIGTERM);
+    Swoole\Timer::after(500, function() use ($pid) {
+        Process::kill($pid, SIGTERM);
     });
 });
-swoole_event_wait();
+
+//never calback
+Swoole\Event::add(STDIN, function () {});
+
+Swoole\Event::wait();
 ?>
 --EXPECT--
 CHILD SIGTERM

@@ -406,18 +406,7 @@ int swServer_create_task_worker(swServer *serv)
  */
 int swServer_worker_create(swServer *serv, swWorker *worker)
 {
-    /**
-     * Create shared memory storage
-     */
-    worker->send_shm = sw_shm_malloc(serv->buffer_output_size);
-    if (worker->send_shm == NULL)
-    {
-        swWarn("malloc for worker->store failed");
-        return SW_ERR;
-    }
-    swMutex_create(&worker->lock, 1);
-
-    return SW_OK;
+    return swMutex_create(&worker->lock, 1);
 }
 
 /**
@@ -1697,7 +1686,7 @@ int swServer_get_socket(swServer *serv, int port)
 
 static void swServer_signal_handler(int sig)
 {
-    swTraceLog(SW_TRACE_SERVER, "signal[%d] triggered", sig);
+    swTraceLog(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swSignal_str(sig), getpid());
 
     swServer *serv = SwooleG.serv;
     int status;
