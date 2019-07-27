@@ -38,8 +38,13 @@ static PHP_FUNCTION(swoole_user_func_handler);
 }
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam);
+#if PHP_VERSION_ID < 70400
 static size_t socket_read(php_stream *stream, char *buf, size_t count);
 static size_t socket_write(php_stream *stream, const char *buf, size_t count);
+#else
+static ssize_t socket_read(php_stream *stream, char *buf, size_t count);
+static ssize_t socket_write(php_stream *stream, const char *buf, size_t count);
+#endif
 static int socket_flush(php_stream *stream);
 static int socket_close(php_stream *stream, int close_handle);
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb);
@@ -259,7 +264,11 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
     return host;
 }
 
+#if PHP_VERSION_ID < 70400
 static size_t socket_write(php_stream *stream, const char *buf, size_t count)
+#else
+static ssize_t socket_write(php_stream *stream, const char *buf, size_t count)
+#endif
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
     if (UNEXPECTED(!abstract))
@@ -277,15 +286,21 @@ static size_t socket_write(php_stream *stream, const char *buf, size_t count)
     {
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), didwrite, 0);
     }
+#if PHP_VERSION_ID < 70400
     if (didwrite < 0)
     {
         didwrite = 0;
     }
+#endif
 
     return didwrite;
 }
 
+#if PHP_VERSION_ID < 70400
 static size_t socket_read(php_stream *stream, char *buf, size_t count)
+#else
+static ssize_t socket_read(php_stream *stream, char *buf, size_t count)
+#endif
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
     if (UNEXPECTED(!abstract))
@@ -309,10 +324,12 @@ static size_t socket_read(php_stream *stream, char *buf, size_t count)
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), nr_bytes, 0);
     }
 
+#if PHP_VERSION_ID < 70400
     if (nr_bytes < 0)
     {
         nr_bytes = 0;
     }
+#endif
 
     return nr_bytes;
 }

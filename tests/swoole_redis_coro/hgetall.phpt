@@ -37,6 +37,7 @@ go(function() {
     echo "-----zRevRangeByScore---\n";
     var_dump($redis->zRevRangeByScore('zkey', 99, 0, ['withscores' => true]));
 });
+?>
 --EXPECT--
 -----get---
 bool(false)

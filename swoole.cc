@@ -749,6 +749,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
     swoole_redis_server_rshutdown();
     swoole_coroutine_rshutdown();
     swoole_runtime_rshutdown();
+    php_swoole_process_clean();
 
     SwooleG.running = 0;
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;

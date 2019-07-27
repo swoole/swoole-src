@@ -14,7 +14,7 @@ $pm->childFunc = function () {
         var_dump($serv->stats());
         $serv->shutdown();
     });
-    $serv->set(['worker_num' => 1, 'log_file' => '/dev/null']);
+    $serv->set(['worker_num' => 2, 'log_file' => '/dev/null']);
     $serv->on('receive', function () { });
     $serv->addProcess($process);
     $serv->start();
@@ -35,7 +35,7 @@ array(11) {
   ["worker_num"]=>
   int(2)
   ["idle_worker_num"]=>
-  int(1)
+  int(2)
   ["tasking_num"]=>
   int(0)
   ["request_count"]=>

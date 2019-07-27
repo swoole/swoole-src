@@ -723,11 +723,21 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
 
     php::process *proc = (php::process *) process->ptr2;
 
+    //eventloop create
+    if (proc->enable_coroutine && php_swoole_reactor_init() < 0)
+    {
+        return SW_ERR;
+    }
+    //main function
     if (UNEXPECTED(!zend::function::call(&proc->fci_cache, 1, zobject, NULL, proc->enable_coroutine)))
     {
         php_swoole_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
-
+    //eventloop start
+    if (proc->enable_coroutine)
+    {
+        php_swoole_event_wait();
+    }
     // equivalent to exit
     sw_zend_bailout();
 

@@ -76,14 +76,6 @@ enum swTask_ipc_mode
     SW_TASK_IPC_STREAM      = 4,
 };
 
-enum swResponse_type
-{
-    SW_RESPONSE_SMALL = 0,
-    SW_RESPONSE_SHM = 1,
-    SW_RESPONSE_TMPFILE,
-    SW_RESPONSE_EXIT,
-};
-
 enum swWorker_pipe_type
 {
     SW_PIPE_WORKER     = 0,
@@ -112,6 +104,7 @@ typedef struct _swReactorThread
     swReactor reactor;
     int notify_pipe;
     uint32_t pipe_num;
+    swString **buffers;
 } swReactorThread;
 
 typedef struct _swListenPort
@@ -979,12 +972,11 @@ int swPort_enable_ssl_encrypt(swListenPort *ls);
 #endif
 void swPort_clear_protocol(swListenPort *ls);
 //------------------------------------Worker Process-------------------------------------------
-void swWorker_free(swWorker *worker);
 void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
 int swWorker_loop(swServer *serv, int worker_pti);
 void swWorker_clean_pipe_buffer(swServer *serv);
-int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int fd);
+int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int session_id);
 int swWorker_send2worker(swWorker *dst_worker, const void *buf, int n, int flag);
 void swWorker_signal_handler(int signo);
 void swWorker_signal_init(void);

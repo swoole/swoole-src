@@ -108,8 +108,8 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SWOOLE_MINOR_VERSION      4
 #define SWOOLE_RELEASE_VERSION    2
 #define SWOOLE_EXTRA_VERSION      "alpha"
-#define SWOOLE_VERSION            "4.4.2-alpha"
-#define SWOOLE_VERSION_ID         40402
+#define SWOOLE_VERSION            "4.4.3-alpha"
+#define SWOOLE_VERSION_ID         40403
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -259,6 +259,11 @@ typedef unsigned long ulong_t;
 #define sw_realloc             realloc
 #endif
 #endif
+
+static sw_inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, size_t s2)
+{
+    return s1 == s2 && memcmp(v1, v2, s2) == 0;
+}
 
 /*----------------------------------String-------------------------------------*/
 
@@ -930,6 +935,7 @@ enum _swEventData_flag
     SW_EVENT_DATA_PTR = 1u << 1,
     SW_EVENT_DATA_CHUNK = 1u << 2,
     SW_EVENT_DATA_END = 1u << 3,
+    SW_EVENT_DATA_EXIT = 1u << 4,
 };
 
 typedef struct _swDataHead
@@ -1748,8 +1754,6 @@ struct _swWorker
 
     swLock lock;
 
-    void *send_shm;
-
     swPipe *pipe_object;
 
     int pipe_master;
@@ -1890,7 +1894,7 @@ static sw_inline int swReactor_events(int fdtype)
 }
 
 int swReactor_create(swReactor *reactor, int max_event);
-void swReactor_destory(swReactor *reactor);
+void swReactor_destroy(swReactor *reactor);
 void swReactor_add_destroy_callback(swReactor *reactor, swCallback cb, void *data);
 
 static inline void swReactor_before_wait(swReactor *reactor)
