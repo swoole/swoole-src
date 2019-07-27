@@ -1,7 +1,9 @@
 --TEST--
-swoole_redis_coro: ZPOPMIN ZPOPMAX BZPOPMIN BZPOPMAX
+swoole_redis_coro: zPopMin zPopMax bzPopMin bzPopMax
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc';
+skip_if_not_redis5();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
