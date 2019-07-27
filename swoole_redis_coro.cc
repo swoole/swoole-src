@@ -633,23 +633,23 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_zAdd, 0, 0, 3)
     ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_ZPOPMIN, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_zPopMin, 0, 0, 2)
     ZEND_ARG_INFO(0, key)
     ZEND_ARG_INFO(0, count)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_ZPOPMAX, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_zPopMax, 0, 0, 2)
     ZEND_ARG_INFO(0, key)
     ZEND_ARG_INFO(0, count)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_BZPOPMIN, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_bzPopMin, 0, 0, 2)
     ZEND_ARG_INFO(0, key)
     ZEND_ARG_INFO(0, timeout_or_key)
     ZEND_ARG_INFO(0, extra_args)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_BZPOPMAX, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_bzPopMax, 0, 0, 2)
     ZEND_ARG_INFO(0, key)
     ZEND_ARG_INFO(0, timeout_or_key)
     ZEND_ARG_INFO(0, extra_args)
@@ -1729,10 +1729,10 @@ static PHP_METHOD(swoole_redis_coro, hExists);
 static PHP_METHOD(swoole_redis_coro, publish);
 static PHP_METHOD(swoole_redis_coro, zIncrBy);
 static PHP_METHOD(swoole_redis_coro, zAdd);
-static PHP_METHOD(swoole_redis_coro, ZPOPMIN);
-static PHP_METHOD(swoole_redis_coro, ZPOPMAX);
-static PHP_METHOD(swoole_redis_coro, BZPOPMIN);
-static PHP_METHOD(swoole_redis_coro, BZPOPMAX);
+static PHP_METHOD(swoole_redis_coro, zPopMin);
+static PHP_METHOD(swoole_redis_coro, zPopMax);
+static PHP_METHOD(swoole_redis_coro, bzPopMin);
+static PHP_METHOD(swoole_redis_coro, bzPopMax);
 static PHP_METHOD(swoole_redis_coro, zDeleteRangeByScore);
 static PHP_METHOD(swoole_redis_coro, zCount);
 static PHP_METHOD(swoole_redis_coro, zRange);
@@ -1887,10 +1887,10 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, publish, arginfo_swoole_redis_coro_publish, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, zIncrBy, arginfo_swoole_redis_coro_zIncrBy, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, zAdd, arginfo_swoole_redis_coro_zAdd, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, ZPOPMIN, arginfo_swoole_redis_coro_ZPOPMIN, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, ZPOPMAX, arginfo_swoole_redis_coro_ZPOPMAX, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, BZPOPMIN, arginfo_swoole_redis_coro_BZPOPMIN, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, BZPOPMAX, arginfo_swoole_redis_coro_BZPOPMAX, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, zPopMin, arginfo_swoole_redis_coro_zPopMin, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, zPopMax, arginfo_swoole_redis_coro_zPopMax, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, bzPopMin, arginfo_swoole_redis_coro_bzPopMin, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, bzPopMax, arginfo_swoole_redis_coro_bzPopMax, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, zDeleteRangeByScore, arginfo_swoole_redis_coro_zDeleteRangeByScore, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_redis_coro, zRemRangeByScore, zDeleteRangeByScore, arginfo_swoole_redis_coro_zRemRangeByScore, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, zCount, arginfo_swoole_redis_coro_zCount, ZEND_ACC_PUBLIC)
@@ -3930,13 +3930,13 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
     SW_REDIS_COMMAND_FREE_ARGV
 }
 
-static PHP_METHOD(swoole_redis_coro, ZPOPMIN)
+static PHP_METHOD(swoole_redis_coro, zPopMin)
 {
     char *key;
     size_t key_len;
     zend_long count = 0;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &key, &key_len, &count) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &key, &key_len, &count) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -3957,13 +3957,13 @@ static PHP_METHOD(swoole_redis_coro, ZPOPMIN)
     SW_REDIS_COMMAND_FREE_ARGV
 }
 
-static PHP_METHOD(swoole_redis_coro, ZPOPMAX)
+static PHP_METHOD(swoole_redis_coro, zPopMax)
 {
     char *key;
     size_t key_len;
     zend_long count = 0;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &key, &key_len, &count) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &key, &key_len, &count) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -3984,12 +3984,12 @@ static PHP_METHOD(swoole_redis_coro, ZPOPMAX)
     SW_REDIS_COMMAND_FREE_ARGV
 }
 
-static PHP_METHOD(swoole_redis_coro, BZPOPMIN)
+static PHP_METHOD(swoole_redis_coro, bzPopMin)
 {
     int argc = ZEND_NUM_ARGS();
     SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
-    if(zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc < 1)
+    if (zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc < 1)
     {
         efree(z_args);
         return;
@@ -4036,12 +4036,12 @@ static PHP_METHOD(swoole_redis_coro, BZPOPMIN)
     SW_REDIS_COMMAND_FREE_ARGV
 }
 
-static PHP_METHOD(swoole_redis_coro, BZPOPMAX)
+static PHP_METHOD(swoole_redis_coro, bzPopMax)
 {
     int argc = ZEND_NUM_ARGS();
     SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
-    if(zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc < 1)
+    if (zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc < 1)
     {
         efree(z_args);
         return;
