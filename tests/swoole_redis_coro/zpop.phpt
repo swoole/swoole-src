@@ -26,33 +26,33 @@ go(function() {
     $redis->zAdd('zkeyB', 4, 'val4');
     $redis->zAdd('zkeyB', 5, 'val5');
 
-    echo "-----ZPOPMIN---\n";
-    var_dump($redis->ZPOPMIN('zkeyA'));
-    echo "-----ZPOPMAX---\n";
-    var_dump($redis->ZPOPMAX('zkeyB'));
-    echo "-----BZPOPMIN---\n";
-    var_dump($redis->BZPOPMIN(['zkeyB','zkeyA'], 2));
-    echo "-----BZPOPMAX---\n";
-    var_dump($redis->BZPOPMAX('zkeyB','zkeyA', 2));
-    echo "-----BZPOPMIN no data---\n";
-    var_dump($redis->BZPOPMAX('zkeyC','zkeyD', 2));
+    echo "-----zPopMin---\n";
+    var_dump($redis->zPopMin('zkeyA'));
+    echo "-----zPopMax---\n";
+    var_dump($redis->zPopMax('zkeyB'));
+    echo "-----bzPopMin---\n";
+    var_dump($redis->bzPopMin(['zkeyB','zkeyA'], 2));
+    echo "-----bzPopMax---\n";
+    var_dump($redis->bzPopMax('zkeyB','zkeyA', 2));
+    echo "-----bzPopMin no data---\n";
+    var_dump($redis->bzPopMin('zkeyC','zkeyD', 2));
 });
 --EXPECT--
------ZPOPMIN---
+-----zPopMin---
 array(2) {
   [0]=>
   string(4) "val1"
   [1]=>
   string(1) "1"
 }
------ZPOPMAX---
+-----zPopMax---
 array(2) {
   [0]=>
   string(4) "val5"
   [1]=>
   string(1) "5"
 }
------BZPOPMIN---
+-----bzPopMin---
 array(3) {
   [0]=>
   string(5) "zkeyB"
@@ -61,7 +61,7 @@ array(3) {
   [2]=>
   string(1) "1"
 }
------BZPOPMAX---
+-----bzPopMax---
 array(3) {
   [0]=>
   string(5) "zkeyB"
@@ -70,5 +70,5 @@ array(3) {
   [2]=>
   string(1) "4"
 }
------BZPOPMIN no data---
+-----bzPopMin no data---
 NULL
