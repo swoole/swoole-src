@@ -200,6 +200,27 @@ function skip_if_not_mysql8()
     }
 }
 
+function skip_if_not_redis5()
+{
+    require_once __DIR__ . '/config.php';
+    $skip = false;
+    go(function () use (&$skip) {
+        $redis = new Swoole\Coroutine\Redis();
+        $redis->setOptions(['compatibility_mode' => true]);
+        $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
+        $info = $redis->eval("return redis.call('info')");
+        if (preg_match('/redis_version:(\d+)/U', $info, $version)) {
+            if ($version[1] < 5) {
+                $skip = true;
+            }
+        }
+    });
+    Swoole\Event::wait();
+    if ($skip) {
+        skip('require redis5');
+    }
+}
+
 function skip_unsupported(string $message = '')
 {
     skip($message ?: 'the test cannot continue to work for some implementation reasons');
