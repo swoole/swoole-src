@@ -216,6 +216,7 @@ static PHP_METHOD(swoole_runtime, enableStrictMode)
     {
         zend_disable_class((char *) c, strlen((char *) c));
     }
+    enable_strict_mode = true;
 }
 
 static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *portno, int get_err, zend_string **err)
