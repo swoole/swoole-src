@@ -67,3 +67,4 @@ uchar swoole_timer_clear(long timer_id)
     return swTimer_del(&SwooleG.timer, swTimer_get(&SwooleG.timer, timer_id));
 }
 
+

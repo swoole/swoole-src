@@ -11,6 +11,9 @@ $pm = new SwooleTest\ProcessManager;
 
 use Swoole\Server;
 use Swoole\Client;
+use Swoole\Atomic;
+
+$atomic = new Atomic();
 
 $pm->parentFunc = function ($pid) use ($pm) {
     $client = new Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
@@ -25,7 +28,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm) {
+$pm->childFunc = function () use ($pm, $atomic) {
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP);
     $serv->set([
         'worker_num' => 1,
@@ -33,8 +36,8 @@ $pm->childFunc = function () use ($pm) {
         'log_level' => SWOOLE_LOG_ERROR,
         'task_use_object' => true,
     ]);
-    $serv->on("workerStart", function ($serv, $wid) use ($pm) {
-        if ($wid == 0) {
+    $serv->on("workerStart", function (Server $serv, $wid) use ($pm, $atomic) {
+        if ($atomic->add() == $serv->setting['task_worker_num']) {
             $pm->wakeup();
         }
     });

@@ -142,7 +142,7 @@ static const zend_function_entry swoole_atomic_long_methods[] =
     PHP_FE_END
 };
 
-void swoole_atomic_init(int module_number)
+void php_swoole_atomic_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_atomic, "Swoole\\Atomic", "swoole_atomic", NULL, swoole_atomic_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_atomic, zend_class_serialize_deny, zend_class_unserialize_deny);

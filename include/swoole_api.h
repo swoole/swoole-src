@@ -19,58 +19,24 @@
 #ifndef _SW_API_H_
 #define _SW_API_H_
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 #include "swoole.h"
 #include "coroutine_c_api.h"
 
-long swoole_timer_after(long ms, swTimerCallback callback, void *private_data);
-long swoole_timer_tick(long ms, swTimerCallback callback, void *private_data);
-long swoole_timer_add(long ms, uchar persistent, swTimerCallback callback, void *private_data);
-uchar swoole_timer_exists(long timer_id);
-uchar swoole_timer_clear(long timer_id);
+SW_EXTERN_C_BEGIN
 
-static inline int swoole_event_init()
-{
-    swoole_init();
-    SwooleG.main_reactor = (swReactor *) sw_malloc(sizeof(swReactor));
-    if (!SwooleG.main_reactor)
-    {
-        return SW_ERR;
-    }
-    return swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS);
-}
+SW_API long swoole_timer_after(long ms, swTimerCallback callback, void *private_data);
+SW_API long swoole_timer_tick(long ms, swTimerCallback callback, void *private_data);
+SW_API long swoole_timer_add(long ms, uchar persistent, swTimerCallback callback, void *private_data);
+SW_API uchar swoole_timer_exists(long timer_id);
+SW_API uchar swoole_timer_clear(long timer_id);
 
-static inline uchar swoole_event_add(int fd, int events, int fdtype)
-{
-    return SwooleG.main_reactor->add(SwooleG.main_reactor, fd, fdtype | events) == SW_OK;
-}
+SW_API int swoole_event_init();
+SW_API uchar swoole_event_add(int fd, int events, int fdtype);
+SW_API uchar swoole_event_set(int fd, int events, int fdtype);
+SW_API uchar swoole_event_del(int fd);
+SW_API void swoole_event_defer(swCallback cb, void *private_data);
+SW_API int swoole_event_wait();
 
-static inline uchar swoole_event_set(int fd, int events, int fdtype)
-{
-    return SwooleG.main_reactor->set(SwooleG.main_reactor, fd, fdtype | events) == SW_OK;
-}
-
-static inline uchar swoole_event_del(int fd)
-{
-    return SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
-}
-
-static inline int swoole_event_wait()
-{
-    return SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
-}
-
-static inline void swoole_event_defer(swCallback cb, void *private_data)
-{
-    SwooleG.main_reactor->defer(SwooleG.main_reactor, cb, private_data);
-}
-
-#ifdef __cplusplus
-}
-#endif
+SW_EXTERN_C_END
 
 #endif /* _SW_API_H_ */

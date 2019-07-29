@@ -187,7 +187,7 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_FE_END
 };
 
-void swoole_http_response_init(int module_number)
+void php_swoole_http_response_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_http_response, "Swoole\\Http\\Response", "swoole_http_response", NULL, swoole_http_response_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_http_response, zend_class_serialize_deny, zend_class_unserialize_deny);

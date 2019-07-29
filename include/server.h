@@ -962,6 +962,8 @@ static sw_inline swConnection *swServer_connection_verify(swServer *serv, int se
     return conn;
 }
 
+void swServer_connection_each(swServer *serv, void (*callback)(swConnection *conn));
+
 //------------------------------------Listen Port-------------------------------------------
 void swPort_init(swListenPort *port);
 void swPort_free(swListenPort *port);

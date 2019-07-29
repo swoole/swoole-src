@@ -1501,7 +1501,7 @@ static zend_object *swoole_http_client_coro_create_object(zend_class_entry *ce)
     return &hcc->std;
 }
 
-void swoole_http_client_coro_init(int module_number)
+void php_swoole_http_client_coro_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_http_client_coro, "Swoole\\Coroutine\\Http\\Client", NULL, "Co\\Http\\Client", swoole_http_client_coro_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_http_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);

@@ -153,7 +153,7 @@ static const zend_function_entry swoole_runtime_methods[] =
     PHP_FE_END
 };
 
-void swoole_runtime_init(int module_number)
+void php_swoole_runtime_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY_BASE(swoole_runtime, "Swoole\\Runtime", "swoole_runtime", NULL, swoole_runtime_methods, NULL);
     SW_SET_CLASS_CREATE(swoole_runtime, sw_zend_create_object_deny);
@@ -204,7 +204,7 @@ struct real_func
     zval name;
 };
 
-void swoole_runtime_rshutdown()
+void php_swoole_runtime_rshutdown()
 {
     if (!function_table)
     {

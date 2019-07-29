@@ -251,7 +251,7 @@ static inline void php_swoole_table_get_field_value(swTable *table, swTableRow *
     }
 }
 
-void swoole_table_init(int module_number)
+void php_swoole_table_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_table, "Swoole\\Table", "swoole_table", NULL, swoole_table_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_table, zend_class_serialize_deny, zend_class_unserialize_deny);

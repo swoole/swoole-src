@@ -213,7 +213,7 @@ static void swoole_http_server_coro_free_object(zend_object *object)
     zend_object_std_dtor(&hsc->std);
 }
 
-void swoole_http_server_coro_init(int module_number)
+void php_swoole_http_server_coro_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_http_server_coro, "Swoole\\Coroutine\\Http\\Server", NULL, "Co\\Http\\Server", swoole_http_server_coro_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_http_server_coro, zend_class_serialize_deny, zend_class_unserialize_deny);

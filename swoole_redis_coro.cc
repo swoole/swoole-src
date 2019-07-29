@@ -1959,7 +1959,7 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_FE_END
 };
 
-void swoole_redis_coro_init(int module_number)
+void php_swoole_redis_coro_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_redis_coro, "Swoole\\Coroutine\\Redis", NULL, "Co\\Redis", swoole_redis_coro_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_redis_coro, zend_class_serialize_deny, zend_class_unserialize_deny);

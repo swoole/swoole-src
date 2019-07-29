@@ -838,7 +838,7 @@ int PHPCoroutine::resume_m(php_coro_context *sw_current_context, zval *retval, z
     return SW_CORO_ERR_END;
 }
 
-void swoole_coroutine_init(int module_number)
+void php_swoole_coroutine_minit(int module_number)
 {
     PHPCoroutine::init();
 
@@ -870,7 +870,7 @@ void swoole_coroutine_init(int module_number)
     }
 }
 
-void swoole_coroutine_rshutdown()
+void php_swoole_coroutine_rshutdown()
 {
     PHPCoroutine::shutdown();
 }

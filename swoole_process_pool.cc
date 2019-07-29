@@ -81,7 +81,7 @@ static zend_class_entry *swoole_process_pool_ce;
 static zend_object_handlers swoole_process_pool_handlers;
 static swProcessPool *current_pool;
 
-void swoole_process_pool_init(int module_number)
+void php_swoole_process_pool_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_process_pool, "Swoole\\Process\\Pool", "swoole_process_pool", NULL, swoole_process_pool_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_process_pool, zend_class_serialize_deny, zend_class_unserialize_deny);

@@ -245,7 +245,7 @@ static const zend_function_entry swoole_http2_client_methods[] =
     PHP_FE_END
 };
 
-void swoole_http2_client_coro_init(int module_number)
+void php_swoole_http2_client_coro_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_http2_client_coro, "Swoole\\Coroutine\\Http2\\Client", NULL, "Co\\Http2\\Client", swoole_http2_client_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_http2_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
