@@ -104,7 +104,7 @@ static const zend_function_entry swoole_event_methods[] =
     PHP_FE_END
 };
 
-void swoole_event_init(int module_number)
+void php_swoole_event_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_event, "Swoole\\Event", "swoole_event", NULL, swoole_event_methods);
     SW_SET_CLASS_CREATE(swoole_event, sw_zend_create_object_deny);

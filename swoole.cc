@@ -556,7 +556,7 @@ PHP_MINIT_FUNCTION(swoole)
     SW_INIT_CLASS_ENTRY_EX2(swoole_error, "Swoole\\Error", "swoole_error", NULL, NULL, zend_ce_error, zend_get_std_object_handlers());
 
     /** <Sort by dependency> **/
-    swoole_event_init(module_number);
+    php_swoole_event_minit(module_number);
     // base
     swoole_atomic_init(module_number);
     swoole_buffer_init(module_number);

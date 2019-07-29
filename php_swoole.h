@@ -301,7 +301,7 @@ PHP_FUNCTION(swoole_last_error);
  * MINIT <Sort by dependency>
  * ==============================================================
  */
-void swoole_event_init(int module_number);
+void php_swoole_event_minit(int module_number);
 // base
 void swoole_atomic_init(int module_number);
 void swoole_buffer_init(int module_number);
