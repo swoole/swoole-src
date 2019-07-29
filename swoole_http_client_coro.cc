@@ -713,7 +713,8 @@ bool http_client::send()
     //clear errno
     SwooleG.error = 0;
     //alloc buffer
-    swStringManager sm(socket->get_write_buffer());
+    swString *buffer = socket->get_write_buffer();
+    swString_clear(buffer);
     // clear body
     swString_clear(body);
 
@@ -773,8 +774,8 @@ bool http_client::send()
         method = zbody ? "POST" : "GET";
     }
     this->method = swHttp_get_method(method, strlen(method) + 1);
-    swString_append_ptr(sm.buffer, method, strlen(method));
-    swString_append_ptr(sm.buffer, ZEND_STRL(" "));
+    swString_append_ptr(buffer, method, strlen(method));
+    swString_append_ptr(buffer, ZEND_STRL(" "));
 
     // ============ path & proxy ============
 #ifdef SW_USE_OPENSSL
@@ -799,16 +800,16 @@ bool http_client::send()
         size_t proxy_uri_len = path.length() + _host_len + strlen(pre) + 10;
         char *proxy_uri = (char*) emalloc(proxy_uri_len);
         proxy_uri_len = sw_snprintf(proxy_uri, proxy_uri_len, "%s%s:%u%s", pre, _host, port, path.c_str());
-        swString_append_ptr(sm.buffer, proxy_uri, proxy_uri_len);
+        swString_append_ptr(buffer, proxy_uri, proxy_uri_len);
         efree(proxy_uri);
     }
     else
     {
-        swString_append_ptr(sm.buffer, path.c_str(), path.length());
+        swString_append_ptr(buffer, path.c_str(), path.length());
     }
 
     // ============ protocol ============
-    swString_append_ptr(sm.buffer, ZEND_STRL(" HTTP/1.1\r\n"));
+    swString_append_ptr(buffer, ZEND_STRL(" HTTP/1.1\r\n"));
 
     // ============ headers ============
     char *key;
@@ -820,7 +821,7 @@ bool http_client::send()
     if ((ZVAL_IS_ARRAY(zheaders)) && ((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))) || (zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("host")))))
     {
         zend::string str_value(zvalue);
-        http_client_swString_append_headers(sm.buffer, ZEND_STRL("Host"), str_value.val(), str_value.len());
+        http_client_swString_append_headers(buffer, ZEND_STRL("Host"), str_value.val(), str_value.len());
     }
     else
     {
@@ -832,7 +833,7 @@ bool http_client::send()
             __host = cpp_string::format("%s:%u", host.c_str(), port);
             _host = &__host;
         }
-        http_client_swString_append_headers(sm.buffer, ZEND_STRL("Host"), _host->c_str(), _host->length());
+        http_client_swString_append_headers(buffer, ZEND_STRL("Host"), _host->c_str(), _host->length());
     }
 
     if (ZVAL_IS_ARRAY(zheaders))
@@ -862,37 +863,37 @@ bool http_client::send()
                 header_flag |= HTTP_HEADER_ACCEPT_ENCODING;
             }
             zend::string str_value(zvalue);
-            http_client_swString_append_headers(sm.buffer, key, keylen, str_value.val(), str_value.len());
+            http_client_swString_append_headers(buffer, key, keylen, str_value.val(), str_value.len());
         }
         SW_HASHTABLE_FOREACH_END();
     }
 
     if (!basic_auth.empty())
     {
-        http_client_swString_append_headers(sm.buffer, ZEND_STRL("Authorization"), basic_auth.c_str(), basic_auth.size());
+        http_client_swString_append_headers(buffer, ZEND_STRL("Authorization"), basic_auth.c_str(), basic_auth.size());
     }
     if (!(header_flag & HTTP_HEADER_CONNECTION))
     {
         if (keep_alive)
         {
-            http_client_swString_append_headers(sm.buffer, ZEND_STRL("Connection"), ZEND_STRL("keep-alive"));
+            http_client_swString_append_headers(buffer, ZEND_STRL("Connection"), ZEND_STRL("keep-alive"));
         }
         else
         {
-            http_client_swString_append_headers(sm.buffer, ZEND_STRL("Connection"), ZEND_STRL("closed"));
+            http_client_swString_append_headers(buffer, ZEND_STRL("Connection"), ZEND_STRL("closed"));
         }
     }
 #ifdef SW_HAVE_ZLIB
     if (!(header_flag & HTTP_HEADER_ACCEPT_ENCODING))
     {
-        http_client_swString_append_headers(sm.buffer, ZEND_STRL("Accept-Encoding"), ZEND_STRL("gzip"));
+        http_client_swString_append_headers(buffer, ZEND_STRL("Accept-Encoding"), ZEND_STRL("gzip"));
     }
 #endif
 
     // ============ cookies ============
     if (ZVAL_IS_ARRAY(zcookies))
     {
-        swString_append_ptr(sm.buffer, ZEND_STRL("Cookie: "));
+        swString_append_ptr(buffer, ZEND_STRL("Cookie: "));
         int n_cookie = php_swoole_array_length(zcookies);
         int i = 0;
         char *encoded_value;
@@ -909,23 +910,23 @@ bool http_client::send()
             {
                 continue;
             }
-            swString_append_ptr(sm.buffer, key, keylen);
-            swString_append_ptr(sm.buffer, "=", 1);
+            swString_append_ptr(buffer, key, keylen);
+            swString_append_ptr(buffer, "=", 1);
 
             int encoded_value_len;
             encoded_value = php_swoole_url_encode(str_value.val(), str_value.len(), &encoded_value_len);
             if (encoded_value)
             {
-                swString_append_ptr(sm.buffer, encoded_value, encoded_value_len);
+                swString_append_ptr(buffer, encoded_value, encoded_value_len);
                 efree(encoded_value);
             }
             if (i < n_cookie)
             {
-                swString_append_ptr(sm.buffer, "; ", 2);
+                swString_append_ptr(buffer, "; ", 2);
             }
         }
         SW_HASHTABLE_FOREACH_END();
-        swString_append_ptr(sm.buffer, ZEND_STRL("\r\n"));
+        swString_append_ptr(buffer, ZEND_STRL("\r\n"));
     }
 
     // ============ multipart/form-data ============
@@ -946,7 +947,7 @@ bool http_client::send()
             sizeof(header_buf), "Content-Type: multipart/form-data; boundary=%.*s\r\n",
             (int)(sizeof(boundary_str) - 1), boundary_str
         );
-        swString_append_ptr(sm.buffer, header_buf, n);
+        swString_append_ptr(buffer, header_buf, n);
 
         // ============ content-length ============
         size_t content_length = 0;
@@ -1005,7 +1006,7 @@ bool http_client::send()
             SW_HASHTABLE_FOREACH_END();
         }
 
-        http_client_append_content_length(sm.buffer, content_length + sizeof(boundary_str) - 1 + 6);
+        http_client_append_content_length(buffer, content_length + sizeof(boundary_str) - 1 + 6);
 
         // ============ form-data body ============
         if (zbody && ZVAL_IS_ARRAY(zbody))
@@ -1022,14 +1023,14 @@ bool http_client::send()
                     SW_HTTP_FORM_RAW_DATA_FMT, (int)(sizeof(boundary_str) - 1),
                     boundary_str, keylen, key
                 );
-                swString_append_ptr(sm.buffer, header_buf, n);
-                swString_append_ptr(sm.buffer, str_value.val(), str_value.len());
-                swString_append_ptr(sm.buffer, ZEND_STRL("\r\n"));
+                swString_append_ptr(buffer, header_buf, n);
+                swString_append_ptr(buffer, str_value.val(), str_value.len());
+                swString_append_ptr(buffer, ZEND_STRL("\r\n"));
             }
             SW_HASHTABLE_FOREACH_END();
         }
 
-        if (socket->send_all(sm.buffer->str, sm.buffer->length) != (ssize_t) sm.buffer->length)
+        if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length)
         {
             goto _send_fail;
         }
@@ -1091,12 +1092,12 @@ bool http_client::send()
                  */
                 if (zcontent)
                 {
-                    swString_clear(sm.buffer);
-                    swString_append_ptr(sm.buffer, header_buf, n);
-                    swString_append_ptr(sm.buffer, Z_STRVAL_P(zcontent), Z_STRLEN_P(zcontent));
-                    swString_append_ptr(sm.buffer, "\r\n", 2);
+                    swString_clear(buffer);
+                    swString_append_ptr(buffer, header_buf, n);
+                    swString_append_ptr(buffer, Z_STRVAL_P(zcontent), Z_STRLEN_P(zcontent));
+                    swString_append_ptr(buffer, "\r\n", 2);
 
-                    if (socket->send_all(sm.buffer->str, sm.buffer->length) != (ssize_t) sm.buffer->length)
+                    if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length)
                     {
                         goto _send_fail;
                     }
@@ -1137,7 +1138,7 @@ bool http_client::send()
         if (ZVAL_IS_ARRAY(zbody))
         {
             size_t len;
-            http_client_swString_append_headers(sm.buffer, ZEND_STRL("Content-Type"), ZEND_STRL("application/x-www-form-urlencoded"));
+            http_client_swString_append_headers(buffer, ZEND_STRL("Content-Type"), ZEND_STRL("application/x-www-form-urlencoded"));
             if (php_swoole_array_length(zbody) > 0)
             {
                 smart_str formstr_s = { 0 };
@@ -1147,21 +1148,21 @@ bool http_client::send()
                     php_swoole_error(E_WARNING, "http_build_query failed");
                     return false;
                 }
-                http_client_append_content_length(sm.buffer, len);
-                swString_append_ptr(sm.buffer, formstr, len);
+                http_client_append_content_length(buffer, len);
+                swString_append_ptr(buffer, formstr, len);
                 smart_str_free(&formstr_s);
             }
             else
             {
-                http_client_append_content_length(sm.buffer, 0);
+                http_client_append_content_length(buffer, 0);
             }
         }
         else
         {
             char *body;
             size_t body_length = php_swoole_get_send_data(zbody, &body);
-            http_client_append_content_length(sm.buffer, body_length);
-            swString_append_ptr(sm.buffer, body, body_length);
+            http_client_append_content_length(buffer, body_length);
+            swString_append_ptr(buffer, body, body_length);
         }
     }
     // ============ no body ============
@@ -1169,11 +1170,11 @@ bool http_client::send()
     {
         if (header_flag & HTTP_HEADER_CONTENT_LENGTH)
         {
-            http_client_append_content_length(sm.buffer, 0);
+            http_client_append_content_length(buffer, 0);
         }
         else
         {
-            swString_append_ptr(sm.buffer, ZEND_STRL("\r\n"));
+            swString_append_ptr(buffer, ZEND_STRL("\r\n"));
         }
     }
 
@@ -1181,10 +1182,10 @@ bool http_client::send()
         SW_TRACE_HTTP_CLIENT,
         "to [%s:%u%s] by fd#%d in cid#%ld with [%zu] bytes: <<EOF\n%.*s\nEOF",
         host.c_str(), port, path.c_str(), socket->get_fd(), Coroutine::get_current_cid(),
-        sm.buffer->length, (int) sm.buffer->length, sm.buffer->str
+        buffer->length, (int) buffer->length, buffer->str
     );
 
-    if (socket->send_all(sm.buffer->str, sm.buffer->length) != (ssize_t) sm.buffer->length)
+    if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length)
     {
        _send_fail:
        zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), socket->errCode);
@@ -1381,13 +1382,14 @@ bool http_client::push(zval *zdata, zend_long opcode, bool fin)
         return false;
     }
 
-    swStringManager sm(socket->get_write_buffer());
-    if (php_swoole_websocket_frame_pack(sm.buffer, zdata, opcode, fin, websocket_mask) < 0)
+    swString *buffer = socket->get_write_buffer();
+    swString_clear(buffer);
+    if (php_swoole_websocket_frame_pack(buffer, zdata, opcode, fin, websocket_mask) < 0)
     {
         return false;
     }
 
-    if (socket->send_all(sm.buffer->str, sm.buffer->length) != (ssize_t) sm.buffer->length)
+    if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length)
     {
         zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), socket->errCode);
         zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), socket->errMsg);

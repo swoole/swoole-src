@@ -32,30 +32,12 @@ inline std::string vformat(const char *format, va_list args)
 }
 }
 
-class swStringManager
-{
-public:
-    swString *buffer;
-    swStringManager(swString *s) : buffer(s) {
-        swString_clear(buffer);
-    }
-    swStringManager(size_t size)
-    {
-        buffer = swString_new(size);
-    }
-    ~swStringManager()
-    {
-        swString_free(buffer);
-    }
-};
-
 struct Callback
 {
     swCallback callback;
     void *private_data;
 
     Callback(swCallback cb, void *_private_data)
-
     {
         callback = cb;
         private_data = _private_data;
