@@ -19,6 +19,32 @@
 #include <unordered_map>
 #include <initializer_list>
 
+/* openssl */
+#ifndef OPENSSL_NO_TLS1_METHOD
+#define HAVE_TLS1 1
+#endif
+#ifndef OPENSSL_NO_TLS1_1_METHOD
+#define HAVE_TLS11 1
+#endif
+#ifndef OPENSSL_NO_TLS1_2_METHOD
+#define HAVE_TLS12 1
+#endif
+#if OPENSSL_VERSION_NUMBER >= 0x10101000 && !defined(OPENSSL_NO_TLS1_3)
+#define HAVE_TLS13 1
+#endif
+#ifndef OPENSSL_NO_ECDH
+#define HAVE_ECDH 1
+#endif
+#ifndef OPENSSL_NO_TLSEXT
+#define HAVE_TLS_SNI 1
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+#define HAVE_TLS_ALPN 1
+#endif
+#endif
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
+#define HAVE_SEC_LEVEL 1
+#endif
+
 using namespace swoole;
 using namespace std;
 using swoole::coroutine::System;
@@ -815,6 +841,11 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
             array_init(&tmp);
             switch (SSL_version(sock->socket->ssl))
             {
+#ifdef HAVE_TLS13
+            case TLS1_3_VERSION:
+                proto_str = "TLSv1.3";
+                break;
+#endif
 #ifdef HAVE_TLS12
             case TLS1_2_VERSION:
                 proto_str = "TLSv1.2";
