@@ -1761,6 +1761,24 @@ static void swServer_signal_handler(int sig)
     }
 }
 
+void swServer_connection_each(swServer *serv, void (*callback)(swConnection *conn))
+{
+    swConnection *conn;
+
+    int fd;
+    int serv_max_fd = swServer_get_maxfd(serv);
+    int serv_min_fd = swServer_get_minfd(serv);
+
+    for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
+    {
+        conn = swServer_connection_get(serv, fd);
+        if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_TCP)
+        {
+            callback(conn);
+        }
+    }
+}
+
 /**
  * new connection
  */
