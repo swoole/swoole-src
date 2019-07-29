@@ -1935,7 +1935,7 @@ static sw_inline void swoole_mysql_coro_sync_execute_result_properties(zval *zob
     }
 }
 
-void swoole_mysql_coro_init(int module_number)
+void php_swoole_mysql_coro_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_mysql_coro, "Swoole\\Coroutine\\MySQL", NULL, "Co\\MySQL", swoole_mysql_coro_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_mysql_coro, zend_class_serialize_deny, zend_class_unserialize_deny);

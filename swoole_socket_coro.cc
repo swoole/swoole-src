@@ -746,7 +746,7 @@ static void swoole_socket_coro_register_constants(int module_number)
 #endif
 }
 
-void swoole_socket_coro_init(int module_number)
+void php_swoole_socket_coro_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_socket_coro, "Swoole\\Coroutine\\Socket", NULL, "Co\\Socket", swoole_socket_coro_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_socket_coro, zend_class_serialize_deny, zend_class_unserialize_deny);

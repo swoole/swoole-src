@@ -225,7 +225,7 @@ size_t swoole_http_requset_parse(http_context *ctx, const char *data, size_t len
     return swoole_http_parser_execute(&ctx->parser, &http_parser_settings, data, length);
 }
 
-void swoole_http_request_init(int module_number)
+void php_swoole_http_request_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", NULL, swoole_http_request_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_http_request, zend_class_serialize_deny, zend_class_unserialize_deny);

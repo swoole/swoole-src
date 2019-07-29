@@ -76,7 +76,7 @@ static const zend_function_entry swoole_timer_methods[] =
     PHP_FE_END
 };
 
-void swoole_timer_init(int module_number)
+void php_swoole_timer_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_timer, "Swoole\\Timer", "swoole_timer", NULL, swoole_timer_methods);
     SW_SET_CLASS_CREATE(swoole_timer, sw_zend_create_object_deny);

@@ -64,7 +64,7 @@ const zend_function_entry swoole_redis_server_methods[] =
     PHP_FE_END
 };
 
-void swoole_redis_server_init(int module_number)
+void php_swoole_redis_server_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY_EX(swoole_redis_server, "Swoole\\Redis\\Server", "swoole_redis_server", NULL, swoole_redis_server_methods, swoole_server);
     SW_SET_CLASS_SERIALIZABLE(swoole_redis_server, zend_class_serialize_deny, zend_class_unserialize_deny);
@@ -81,7 +81,7 @@ void swoole_redis_server_init(int module_number)
     zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("MAP"), SW_REDIS_REPLY_MAP);
 }
 
-void swoole_redis_server_rshutdown()
+void php_swoole_redis_server_rshutdown()
 {
     for (auto i = redis_handlers.begin(); i != redis_handlers.end(); i++)
     {

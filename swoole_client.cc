@@ -258,7 +258,7 @@ static unordered_map<string, queue<swClient *> *> long_connections;
 zend_class_entry *swoole_client_ce;
 static zend_object_handlers swoole_client_handlers;
 
-void swoole_client_init(int module_number)
+void php_swoole_client_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_client, "Swoole\\Client", "swoole_client", NULL, swoole_client_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_client, zend_class_serialize_deny, zend_class_unserialize_deny);

@@ -55,7 +55,7 @@ static const zend_function_entry swoole_lock_methods[] =
     PHP_FE_END
 };
 
-void swoole_lock_init(int module_number)
+void php_swoole_lock_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_lock, "Swoole\\Lock", "swoole_lock", NULL, swoole_lock_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_lock, zend_class_serialize_deny, zend_class_unserialize_deny);

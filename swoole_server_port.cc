@@ -79,7 +79,7 @@ const zend_function_entry swoole_server_port_methods[] =
     PHP_FE_END
 };
 
-void swoole_server_port_init(int module_number)
+void php_swoole_server_port_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_server_port, "Swoole\\Server\\Port", "swoole_server_port", NULL, swoole_server_port_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_server_port, zend_class_serialize_deny, zend_class_unserialize_deny);

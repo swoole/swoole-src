@@ -124,7 +124,7 @@ static const zend_function_entry swoole_client_coro_methods[] =
 zend_class_entry *swoole_client_coro_ce;
 static zend_object_handlers swoole_client_coro_handlers;
 
-void swoole_client_coro_init(int module_number)
+void php_swoole_client_coro_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_client_coro, "Swoole\\Coroutine\\Client", NULL, "Co\\Client", swoole_client_coro_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);

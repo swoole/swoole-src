@@ -558,38 +558,38 @@ PHP_MINIT_FUNCTION(swoole)
     /** <Sort by dependency> **/
     php_swoole_event_minit(module_number);
     // base
-    swoole_atomic_init(module_number);
-    swoole_buffer_init(module_number);
-    swoole_lock_init(module_number);
-    swoole_process_init(module_number);
-    swoole_process_pool_init(module_number);
-    swoole_table_init(module_number);
-    swoole_timer_init(module_number);
+    php_swoole_atomic_minit(module_number);
+    php_swoole_buffer_minit(module_number);
+    php_swoole_lock_minit(module_number);
+    php_swoole_process_minit(module_number);
+    php_swoole_process_pool_minit(module_number);
+    php_swoole_table_minit(module_number);
+    php_swoole_timer_minit(module_number);
     // coroutine
-    swoole_async_coro_init(module_number);
-    swoole_coroutine_init(module_number);
-    swoole_coroutine_scheduler_init(module_number);
-    swoole_channel_coro_init(module_number);
-    swoole_runtime_init(module_number);
+    php_swoole_async_coro_minit(module_number);
+    php_swoole_coroutine_minit(module_number);
+    php_swoole_coroutine_scheduler_minit(module_number);
+    php_swoole_channel_coro_minit(module_number);
+    php_swoole_runtime_minit(module_number);
     // client
-    swoole_socket_coro_init(module_number);
-    swoole_client_init(module_number);
-    swoole_client_coro_init(module_number);
-    swoole_http_client_coro_init(module_number);
-    swoole_mysql_coro_init(module_number);
-    swoole_redis_coro_init(module_number);
+    php_swoole_socket_coro_minit(module_number);
+    php_swoole_client_minit(module_number);
+    php_swoole_client_coro_minit(module_number);
+    php_swoole_http_client_coro_minit(module_number);
+    php_swoole_mysql_coro_minit(module_number);
+    php_swoole_redis_coro_minit(module_number);
 #ifdef SW_USE_HTTP2
-    swoole_http2_client_coro_init(module_number);
+    php_swoole_http2_client_coro_minit(module_number);
 #endif
     // server
-    swoole_server_init(module_number);
-    swoole_server_port_init(module_number);
-    swoole_http_request_init(module_number);
-    swoole_http_response_init(module_number);
-    swoole_http_server_init(module_number);
-    swoole_http_server_coro_init(module_number);
-    swoole_websocket_server_init(module_number);
-    swoole_redis_server_init(module_number);
+    php_swoole_server_minit(module_number);
+    php_swoole_server_port_minit(module_number);
+    php_swoole_http_request_minit(module_number);
+    php_swoole_http_response_minit(module_number);
+    php_swoole_http_server_minit(module_number);
+    php_swoole_http_server_coro_minit(module_number);
+    php_swoole_websocket_server_minit(module_number);
+    php_swoole_redis_server_minit(module_number);
 
     SwooleG.fatal_error = fatal_error;
     SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
@@ -744,11 +744,11 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 
     rshutdown_callbacks.execute();
 
-    swoole_server_rshutdown();
-    swoole_async_coro_rshutdown();
-    swoole_redis_server_rshutdown();
-    swoole_coroutine_rshutdown();
-    swoole_runtime_rshutdown();
+    php_swoole_server_rshutdown();
+    php_swoole_async_coro_rshutdown();
+    php_swoole_redis_server_rshutdown();
+    php_swoole_coroutine_rshutdown();
+    php_swoole_runtime_rshutdown();
     php_swoole_process_clean();
 
     SwooleG.running = 0;

@@ -303,48 +303,48 @@ PHP_FUNCTION(swoole_last_error);
  */
 void php_swoole_event_minit(int module_number);
 // base
-void swoole_atomic_init(int module_number);
-void swoole_buffer_init(int module_number);
-void swoole_lock_init(int module_number);
-void swoole_process_init(int module_number);
-void swoole_process_pool_init(int module_number);
-void swoole_table_init(int module_number);
-void swoole_timer_init(int module_number);
+void php_swoole_atomic_minit(int module_number);
+void php_swoole_buffer_minit(int module_number);
+void php_swoole_lock_minit(int module_number);
+void php_swoole_process_minit(int module_number);
+void php_swoole_process_pool_minit(int module_number);
+void php_swoole_table_minit(int module_number);
+void php_swoole_timer_minit(int module_number);
 // coroutine
-void swoole_async_coro_init(int module_number);
-void swoole_coroutine_init(int module_number);
-void swoole_coroutine_scheduler_init(int module_number);
-void swoole_channel_coro_init(int module_number);
-void swoole_runtime_init(int module_number);
+void php_swoole_async_coro_minit(int module_number);
+void php_swoole_coroutine_minit(int module_number);
+void php_swoole_coroutine_scheduler_minit(int module_number);
+void php_swoole_channel_coro_minit(int module_number);
+void php_swoole_runtime_minit(int module_number);
 // client
-void swoole_socket_coro_init(int module_number);
-void swoole_client_init(int module_number);
-void swoole_client_coro_init(int module_number);
-void swoole_http_client_coro_init(int module_number);
-void swoole_mysql_coro_init(int module_number);
-void swoole_redis_coro_init(int module_number);
+void php_swoole_socket_coro_minit(int module_number);
+void php_swoole_client_minit(int module_number);
+void php_swoole_client_coro_minit(int module_number);
+void php_swoole_http_client_coro_minit(int module_number);
+void php_swoole_mysql_coro_minit(int module_number);
+void php_swoole_redis_coro_minit(int module_number);
 #ifdef SW_USE_HTTP2
-void swoole_http2_client_coro_init(int module_number);
+void php_swoole_http2_client_coro_minit(int module_number);
 #endif
 // server
-void swoole_server_init(int module_number);
-void swoole_server_port_init(int module_number);
-void swoole_http_request_init(int module_number);
-void swoole_http_response_init(int module_number);
-void swoole_http_server_init(int module_number);
-void swoole_http_server_coro_init(int module_number);
-void swoole_websocket_server_init(int module_number);
-void swoole_redis_server_init(int module_number);
+void php_swoole_server_minit(int module_number);
+void php_swoole_server_port_minit(int module_number);
+void php_swoole_http_request_minit(int module_number);
+void php_swoole_http_response_minit(int module_number);
+void php_swoole_http_server_minit(int module_number);
+void php_swoole_http_server_coro_minit(int module_number);
+void php_swoole_websocket_server_minit(int module_number);
+void php_swoole_redis_server_minit(int module_number);
 
 /**
  * RSHUTDOWN
  * ==============================================================
  */
-void swoole_async_coro_rshutdown();
-void swoole_redis_server_rshutdown();
-void swoole_coroutine_rshutdown();
-void swoole_runtime_rshutdown();
-void swoole_server_rshutdown();
+void php_swoole_async_coro_rshutdown();
+void php_swoole_redis_server_rshutdown();
+void php_swoole_coroutine_rshutdown();
+void php_swoole_runtime_rshutdown();
+void php_swoole_server_rshutdown();
 
 void php_swoole_process_clean();
 int php_swoole_process_start(swWorker *process, zval *zobject);

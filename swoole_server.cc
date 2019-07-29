@@ -466,7 +466,7 @@ static sw_inline zend_bool is_enable_coroutine(swServer *serv)
     }
 }
 
-void swoole_server_rshutdown()
+void php_swoole_server_rshutdown()
 {
     if (!SwooleG.serv)
     {
@@ -501,7 +501,7 @@ void swoole_server_rshutdown()
     }
 }
 
-void swoole_server_init(int module_number)
+void php_swoole_server_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_server, "Swoole\\Server", "swoole_server", NULL, swoole_server_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_server, zend_class_serialize_deny, zend_class_unserialize_deny);
