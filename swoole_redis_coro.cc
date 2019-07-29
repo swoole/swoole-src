@@ -633,6 +633,28 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_zAdd, 0, 0, 3)
     ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_zPopMin, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, count)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_zPopMax, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, count)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_bzPopMin, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, timeout_or_key)
+    ZEND_ARG_INFO(0, extra_args)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_bzPopMax, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, timeout_or_key)
+    ZEND_ARG_INFO(0, extra_args)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_zCard, 0, 0, 1)
     ZEND_ARG_INFO(0, key)
 ZEND_END_ARG_INFO()
@@ -1707,6 +1729,10 @@ static PHP_METHOD(swoole_redis_coro, hExists);
 static PHP_METHOD(swoole_redis_coro, publish);
 static PHP_METHOD(swoole_redis_coro, zIncrBy);
 static PHP_METHOD(swoole_redis_coro, zAdd);
+static PHP_METHOD(swoole_redis_coro, zPopMin);
+static PHP_METHOD(swoole_redis_coro, zPopMax);
+static PHP_METHOD(swoole_redis_coro, bzPopMin);
+static PHP_METHOD(swoole_redis_coro, bzPopMax);
 static PHP_METHOD(swoole_redis_coro, zDeleteRangeByScore);
 static PHP_METHOD(swoole_redis_coro, zCount);
 static PHP_METHOD(swoole_redis_coro, zRange);
@@ -1861,6 +1887,10 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, publish, arginfo_swoole_redis_coro_publish, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, zIncrBy, arginfo_swoole_redis_coro_zIncrBy, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, zAdd, arginfo_swoole_redis_coro_zAdd, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, zPopMin, arginfo_swoole_redis_coro_zPopMin, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, zPopMax, arginfo_swoole_redis_coro_zPopMax, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, bzPopMin, arginfo_swoole_redis_coro_bzPopMin, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, bzPopMax, arginfo_swoole_redis_coro_bzPopMax, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, zDeleteRangeByScore, arginfo_swoole_redis_coro_zDeleteRangeByScore, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_redis_coro, zRemRangeByScore, zDeleteRangeByScore, arginfo_swoole_redis_coro_zRemRangeByScore, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, zCount, arginfo_swoole_redis_coro_zCount, ZEND_ACC_PUBLIC)
@@ -3897,6 +3927,164 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
     efree(z_args);
 
     redis_request(redis, argc, argv, argvlen, return_value);;
+    SW_REDIS_COMMAND_FREE_ARGV
+}
+
+static PHP_METHOD(swoole_redis_coro, zPopMin)
+{
+    char *key;
+    size_t key_len;
+    zend_long count = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &key, &key_len, &count) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    SW_REDIS_COMMAND_CHECK
+
+    int i = 0, argc, buf_len;
+    char buf[32];
+    argc = ZEND_NUM_ARGS() == 2 ? 3 : 2;
+    SW_REDIS_COMMAND_ALLOC_ARGV
+    SW_REDIS_COMMAND_ARGV_FILL("ZPOPMIN", 7);
+    SW_REDIS_COMMAND_ARGV_FILL(key, key_len);
+    if (argc == 3)
+    {
+        buf_len = sw_snprintf(buf, sizeof(buf), "%ld", count);
+        SW_REDIS_COMMAND_ARGV_FILL((char *)buf, buf_len);
+    }
+    redis_request(redis, argc, argv, argvlen, return_value);;
+    SW_REDIS_COMMAND_FREE_ARGV
+}
+
+static PHP_METHOD(swoole_redis_coro, zPopMax)
+{
+    char *key;
+    size_t key_len;
+    zend_long count = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &key, &key_len, &count) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    SW_REDIS_COMMAND_CHECK
+
+    int i = 0, argc, buf_len;
+    char buf[32];
+    argc = ZEND_NUM_ARGS() == 2 ? 3 : 2;
+    SW_REDIS_COMMAND_ALLOC_ARGV
+    SW_REDIS_COMMAND_ARGV_FILL("ZPOPMAX", 7);
+    SW_REDIS_COMMAND_ARGV_FILL(key, key_len);
+    if (argc == 3)
+    {
+        buf_len = sw_snprintf(buf, sizeof(buf), "%ld", count);
+        SW_REDIS_COMMAND_ARGV_FILL((char *)buf, buf_len);
+    }
+    redis_request(redis, argc, argv, argvlen, return_value);;
+    SW_REDIS_COMMAND_FREE_ARGV
+}
+
+static PHP_METHOD(swoole_redis_coro, bzPopMin)
+{
+    int argc = ZEND_NUM_ARGS();
+    SW_REDIS_COMMAND_CHECK
+    SW_REDIS_COMMAND_ALLOC_ARGS_ARR
+    if (zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc < 1)
+    {
+        efree(z_args);
+        return;
+    }
+
+    zend_bool single_array = 0;
+    if (argc == 2 && SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) == IS_ARRAY)
+    {
+        argc = zend_hash_num_elements(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0])) + 2;
+        single_array = 1;
+    }
+    else
+    {
+        argc += 1;
+    }
+    int i = 0;
+    SW_REDIS_COMMAND_ALLOC_ARGV
+    SW_REDIS_COMMAND_ARGV_FILL("BZPOPMIN", 8)
+    if (single_array)
+    {
+        zval *value;
+        SW_HASHTABLE_FOREACH_START(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0]), value)
+            zend_string *convert_str = zval_get_string(value);
+            SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
+            zend_string_release(convert_str);
+        SW_HASHTABLE_FOREACH_END();
+        zend_string *convert_str = zval_get_string(&z_args[1]);
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
+        zend_string_release(convert_str);
+    }
+    else
+    {
+        int j;
+        for (j = 0; j < argc - 1; ++j)
+        {
+            zend_string *convert_str = zval_get_string(&z_args[j]);
+            SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
+            zend_string_release(convert_str);
+        }
+    }
+    efree(z_args);
+
+    redis_request(redis, argc, argv, argvlen, return_value);
+    SW_REDIS_COMMAND_FREE_ARGV
+}
+
+static PHP_METHOD(swoole_redis_coro, bzPopMax)
+{
+    int argc = ZEND_NUM_ARGS();
+    SW_REDIS_COMMAND_CHECK
+    SW_REDIS_COMMAND_ALLOC_ARGS_ARR
+    if (zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc < 1)
+    {
+        efree(z_args);
+        return;
+    }
+
+    zend_bool single_array = 0;
+    if (argc == 2 && SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) == IS_ARRAY)
+    {
+        argc = zend_hash_num_elements(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0])) + 2;
+        single_array = 1;
+    }
+    else
+    {
+        argc += 1;
+    }
+    int i = 0;
+    SW_REDIS_COMMAND_ALLOC_ARGV
+    SW_REDIS_COMMAND_ARGV_FILL("BZPOPMAX", 8)
+    if (single_array)
+    {
+        zval *value;
+        SW_HASHTABLE_FOREACH_START(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0]), value)
+            zend_string *convert_str = zval_get_string(value);
+            SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
+            zend_string_release(convert_str);
+        SW_HASHTABLE_FOREACH_END();
+        zend_string *convert_str = zval_get_string(&z_args[1]);
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
+        zend_string_release(convert_str);
+    }
+    else
+    {
+        int j;
+        for (j = 0; j < argc - 1; ++j)
+        {
+            zend_string *convert_str = zval_get_string(&z_args[j]);
+            SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(convert_str), ZSTR_LEN(convert_str))
+            zend_string_release(convert_str);
+        }
+    }
+    efree(z_args);
+
+    redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
 }
 
