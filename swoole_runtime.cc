@@ -208,6 +208,7 @@ void swoole_runtime_rshutdown()
 
 static PHP_METHOD(swoole_runtime, enableStrictMode)
 {
+    php_swoole_fatal_error(E_DEPRECATED, "Swoole\\Runtime::enableStrictMode is deprecated, it will be removed in v4.5.0");
     for (auto f : block_io_functions)
     {
         zend_disable_function((char *) f, strlen((char *) f));
