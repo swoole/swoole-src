@@ -509,7 +509,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_http_response.cc \
         swoole_http_server.cc \
         swoole_http_server_coro.cc \
-        swoole_lock.c \
+        swoole_lock.cc \
         swoole_mysql_coro.cc \
         swoole_mysql_proto.cc \
         swoole_process.cc \
