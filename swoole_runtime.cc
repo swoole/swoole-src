@@ -908,6 +908,7 @@ static php_stream *socket_create(
 )
 {
     php_stream *stream = NULL;
+    php_swoole_netstream_data_t *abstract = NULL;
     Socket *sock;
 
     Coroutine::get_current_safe();
@@ -942,7 +943,14 @@ static php_stream *socket_create(
     if (UNEXPECTED(sock->socket == nullptr))
     {
         _failed:
-        delete sock;
+        if (!stream)
+        {
+            delete sock;
+        }
+        else
+        {
+            php_stream_close(stream);
+        }
         return NULL;
     }
 
@@ -951,8 +959,7 @@ static php_stream *socket_create(
         sock->set_timeout((double) FG(default_socket_timeout));
     }
 
-    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t*) ecalloc(1, sizeof(*abstract));
-
+    abstract = (php_swoole_netstream_data_t*) ecalloc(1, sizeof(*abstract));
     abstract->socket = sock;
     abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
     abstract->stream.socket = sock->get_fd();
@@ -966,20 +973,27 @@ static php_stream *socket_create(
         goto _failed;
     }
 
-#ifdef SW_USE_OPENSSL
     if (context && ZVAL_IS_ARRAY(&context->options))
     {
-        zval *wrapperhash = zend_hash_str_find(Z_ARRVAL(context->options), ZEND_STRL("ssl"));
-        if (wrapperhash)
+        HashTable *vht = Z_ARRVAL_P(&context->options);
+        zval *ztmp;
+        if (php_swoole_array_get_value(vht, "swoole", ztmp))
         {
-            if (!php_swoole_socket_set_ssl(sock, wrapperhash))
+            if (!php_swoole_client_set(sock, ztmp))
             {
-                php_stream_close(stream);
                 goto _failed;
             }
         }
-    }
+#ifdef SW_USE_OPENSSL
+        if (sock->open_ssl && php_swoole_array_get_value(vht, "ssl", ztmp))
+        {
+            if (!php_swoole_socket_set_ssl(sock, ztmp))
+            {
+                goto _failed;
+            }
+        }
 #endif
+    }
 
     return stream;
 }
