@@ -9,7 +9,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 SET(CMAKE_BUILD_TYPE Debug)
 
-file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS src/*.c src/*.cc thirdparty/boost/asm/jump_x86_64_sysv_elf_gas.S thirdparty/boost/asm/make_x86_64_sysv_elf_gas.S)
+file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS src/*.c src/*.cc thirdparty/boost/asm/combined.S)
 file(GLOB_RECURSE HEAD_FILES FOLLOW_SYMLINKS include/*.h)
 file(GLOB_RECURSE HEAD_WAPPER_FILES FOLLOW_SYMLINKS include/wrapper/*.hpp)
 
