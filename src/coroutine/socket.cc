@@ -1755,6 +1755,8 @@ bool Socket::close()
             swSysWarn("close(%d) failed", socket->fd);
         }
         socket->fd = -1;
+        socket->active = 0;
+        socket->closed = 1;
         return true;
     }
 }
