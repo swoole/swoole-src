@@ -672,7 +672,7 @@ static int socket_setup_crypto(php_stream *stream, Socket *sock, php_stream_xpor
 
 static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xport_crypto_param *cparam STREAMS_DC)
 {
-    return sock->ssl_handshake() ? 0 : -1;
+    return sock->ssl_handshake() ? PHP_STREAM_OPTION_RETURN_OK : PHP_STREAM_OPTION_RETURN_ERR;
 }
 #endif
 
@@ -684,36 +684,6 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
     {
     case STREAM_XPORT_OP_LISTEN:
     {
-#ifdef SW_USE_OPENSSL
-        if (sock->open_ssl)
-        {
-            zval *val = NULL;
-            char *certfile = NULL;
-            char *private_key = NULL;
-
-            GET_VER_OPT_STRING("local_cert", certfile);
-            GET_VER_OPT_STRING("local_pk", private_key);
-
-            if (!certfile || !private_key)
-            {
-                php_swoole_fatal_error(E_ERROR, "ssl cert/key file not found");
-                return PHP_STREAM_OPTION_RETURN_ERR;
-            }
-            if (::access(certfile, R_OK) < 0)
-            {
-                php_swoole_fatal_error(E_ERROR, "ssl cert file[%s] not found", certfile);
-                return PHP_STREAM_OPTION_RETURN_ERR;
-            }
-            if (::access(private_key, R_OK) < 0)
-            {
-                php_swoole_fatal_error(E_ERROR, "ssl key file[%s] not found", private_key);
-                return PHP_STREAM_OPTION_RETURN_ERR;
-            }
-
-            sock->ssl_option.cert_file = sw_strdup(certfile);
-            sock->ssl_option.key_file = sw_strdup(private_key);
-        }
-#endif
         xparam->outputs.returncode = sock->listen(xparam->inputs.backlog) ? 0 : -1;
         break;
     }
@@ -981,8 +951,7 @@ static php_stream *socket_create(
         sock->set_timeout((double) FG(default_socket_timeout));
     }
 
-    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t*) emalloc(sizeof(*abstract));
-    memset(abstract, 0, sizeof(*abstract));
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t*) ecalloc(1, sizeof(*abstract));
 
     abstract->socket = sock;
     abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
@@ -996,6 +965,22 @@ static php_stream *socket_create(
     {
         goto _failed;
     }
+
+#ifdef SW_USE_OPENSSL
+    if (context && ZVAL_IS_ARRAY(&context->options))
+    {
+        zval *wrapperhash = zend_hash_str_find(Z_ARRVAL(context->options), ZEND_STRL("ssl"));
+        if (wrapperhash)
+        {
+            if (!php_swoole_socket_set_ssl(sock, wrapperhash))
+            {
+                php_stream_close(stream);
+                goto _failed;
+            }
+        }
+    }
+#endif
+
     return stream;
 }
 

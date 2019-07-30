@@ -452,7 +452,7 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset)
     {
         sock->ssl_option.disable_compress = !zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp))
+    if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp) || php_swoole_array_get_value(vht, "local_cert", ztmp))
     {
         zend::string str_v(ztmp);
         if (sock->ssl_option.cert_file)
@@ -470,7 +470,7 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset)
             ret = false;
         }
     }
-    if (php_swoole_array_get_value(vht, "ssl_key_file", ztmp))
+    if (php_swoole_array_get_value(vht, "ssl_key_file", ztmp) || php_swoole_array_get_value(vht, "local_pk", ztmp))
     {
         zend::string str_v(ztmp);
         if (sock->ssl_option.key_file)
