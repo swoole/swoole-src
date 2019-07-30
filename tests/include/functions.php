@@ -167,7 +167,7 @@ function httpRequest(string $uri, array $options = [])
     $redirect_times = $options['redirect'] ?? 3;
     while (true) {
         $cli->execute($path . $query);
-        if ($redirect_times-- && ($cli->headers['location'] ?? null) && $cli->headers['location']{0} === '/') {
+        if ($redirect_times-- && ($cli->headers['location'] ?? null) && $cli->headers['location'][0] === '/') {
             $path = $cli->headers['location'];
             $query = '';
             continue;
@@ -224,7 +224,7 @@ function tcp_type_length(string $type = 'n'): int
     } else {
         $len = 0;
         for ($n = 0; $n < strlen($type); $n++) {
-            $len += $map[$type{$n}] ?? 0;
+            $len += $map[$type[$n]] ?? 0;
         }
         return $len;
     }

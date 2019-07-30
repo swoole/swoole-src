@@ -5,7 +5,7 @@ function clean($dir)
     $files = scandir($dir);
     foreach ($files as $file) {
         $full_path = "{$dir}/{$file}";
-        if ($file{0} === '.') {
+        if ($file[0]=== '.') {
             continue;
         }
         if (is_dir($full_path)) {

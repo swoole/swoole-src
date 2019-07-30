@@ -699,12 +699,12 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
                 php_swoole_fatal_error(E_ERROR, "ssl cert/key file not found");
                 return PHP_STREAM_OPTION_RETURN_ERR;
             }
-            if (access(certfile, R_OK) < 0)
+            if (::access(certfile, R_OK) < 0)
             {
                 php_swoole_fatal_error(E_ERROR, "ssl cert file[%s] not found", certfile);
                 return PHP_STREAM_OPTION_RETURN_ERR;
             }
-            if (access(private_key, R_OK) < 0)
+            if (::access(private_key, R_OK) < 0)
             {
                 php_swoole_fatal_error(E_ERROR, "ssl key file[%s] not found", private_key);
                 return PHP_STREAM_OPTION_RETURN_ERR;

@@ -99,7 +99,7 @@ function swoole_execute_and_check(string $command)
 
 function scan_dir(string $dir, callable $filter = null): array
 {
-    $files = array_filter(scandir($dir), function (string $file) { return $file{0} !== '.'; });
+    $files = array_filter(scandir($dir), function (string $file) { return $file[0] !== '.'; });
     array_walk($files, function (&$file) use ($dir) { $file = "{$dir}/{$file}"; });
     return array_values($filter ? array_filter($files, $filter) : $files);
 }
@@ -109,7 +109,7 @@ function file_size(string $filename, int $decimals = 2)
     $bytes = filesize($filename);
     $sz = 'BKMGTP';
     $factor = (int)floor((strlen($bytes) - 1) / 3);
-    return sprintf("%.{$decimals}f", $bytes / pow(1024, $factor)) . $sz{$factor};
+    return sprintf("%.{$decimals}f", $bytes / pow(1024, $factor)) . $sz[$factor];
 }
 
 function swoole_git_files(): array
