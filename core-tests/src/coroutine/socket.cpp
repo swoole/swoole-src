@@ -48,6 +48,7 @@ TEST(coroutine_socket, recv_success)
         sock.send("echo", 5);
         char buf[128];
         int n = sock.recv(buf, sizeof(buf));
+        buf[n] = 0;
         ASSERT_EQ(strcmp(buf, "hello world\n"), 0);
     });
 }
