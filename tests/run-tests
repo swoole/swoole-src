@@ -3086,22 +3086,25 @@ class RuntestsValgrind {
     }
 
     public function wrapCommand($cmd, $memcheck_filename, $check_all) {
-        $vcmd = 'valgrind -q --tool=memcheck --trace-children=yes';
-        if ($check_all) {
-            $vcmd .= ' --smc-check=all';
-        }
+        $vcmd = 'valgrind -q';
+        // $vcmd = 'valgrind -q --tool=memcheck --trace-children=yes';
+        // if ($check_all) {
+        //     $vcmd .= ' --smc-check=all';
+        // }
         // swoole patch
         $vcmd .= ' --undef-value-errors=no';
 
-        /* --vex-iropt-register-updates=allregs-at-mem-access is necessary for phpdbg watchpoint tests */
-        if ($this->version_3_8_0) {
-            /* valgrind 3.3.0+ doesn't have --log-file-exactly option */
-            return "$vcmd --vex-iropt-register-updates=allregs-at-mem-access --log-file=$memcheck_filename $cmd";
-        } elseif ($this->version_3_3_0) {
-            return "$vcmd --vex-iropt-precise-memory-exns=yes --log-file=$memcheck_filename $cmd";
-        } else {
-            return "$vcmd --vex-iropt-precise-memory-exns=yes --log-file-exactly=$memcheck_filename $cmd";
-        }
+        return "$vcmd --log-file=$memcheck_filename $cmd";
+
+        // /* --vex-iropt-register-updates=allregs-at-mem-access is necessary for phpdbg watchpoint tests */
+        // if ($this->version_3_8_0) {
+        //     /* valgrind 3.3.0+ doesn't have --log-file-exactly option */
+        //     return "$vcmd --vex-iropt-register-updates=allregs-at-mem-access --log-file=$memcheck_filename $cmd";
+        // } elseif ($this->version_3_3_0) {
+        //     return "$vcmd --vex-iropt-precise-memory-exns=yes --log-file=$memcheck_filename $cmd";
+        // } else {
+        //     return "$vcmd --vex-iropt-precise-memory-exns=yes --log-file-exactly=$memcheck_filename $cmd";
+        // }
     }
 }
 

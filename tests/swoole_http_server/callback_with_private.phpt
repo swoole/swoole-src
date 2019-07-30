@@ -38,6 +38,6 @@ $pm->run(true);
 //Fatal Error
 $pm->expectExitCode(255);
 $output = $pm->getChildOutput();
-\Swoole\Assert::contains($output, 'Swoole\Server::on() must be callable');
+Assert::contains($output, 'Swoole\Server::on() must be callable');
 ?>
 --EXPECT--

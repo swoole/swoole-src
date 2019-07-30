@@ -16,7 +16,7 @@ $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) {
         $process1 = $pool->getProcess();
         $process2 = $pool->getProcess(1);
         $process2->write(str_repeat('A', N));
-        Assert::eq(@$pool->getProcess(2), false);
+        Assert::same(@$pool->getProcess(2), false);
 
         if ($process1->read() == 'shutdown') {
             $pool->shutdown();

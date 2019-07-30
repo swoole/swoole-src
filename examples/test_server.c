@@ -96,7 +96,7 @@ int my_onReceive(swServer *serv, swEventData *req)
 
     g_receive_count++;
 
-    swPackagePtr *req_pkg = (swPackagePtr *)req;
+    swPacket_ptr *req_pkg = (swPacket_ptr *)req;
     swConnection *conn = swWorker_get_connection(serv, req_pkg->info.fd);
 
     swoole_rtrim(req_pkg->data.str, req_pkg->data.length);

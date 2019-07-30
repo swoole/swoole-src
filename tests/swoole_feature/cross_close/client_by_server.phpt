@@ -12,19 +12,19 @@ $pm->parentFunc = function () use ($pm) {
         Assert::assert($cli->connect('127.0.0.1', $pm->getFreePort()));
         Assert::assert($cli->connected);
         echo "RECV\n";
-        Assert::eq($cli->recv(-1), '');
+        Assert::same($cli->recv(-1), '');
         echo "CLOSED\n";
         while (($ret = @$cli->send(get_safe_random()))) {
             continue;
         }
         if ($cli->errCode) {
-            Assert::eq($cli->errCode, SOCKET_EPIPE);
+            Assert::same($cli->errCode, SOCKET_EPIPE);
         }
         while (($ret = @$cli->recv(-1))) {
             continue;
         }
         if ($ret === false) {
-            Assert::eq($cli->errCode, SOCKET_ECONNRESET);
+            Assert::same($cli->errCode, SOCKET_ECONNRESET);
         }
     });
 };

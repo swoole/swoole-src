@@ -18,7 +18,7 @@
 
 #include "mqtt.h"
 
-void swMqtt_print_package(swMqtt_package *pkg)
+void swMqtt_print_package(swMqtt_packet *pkg)
 {
     printf("type=%d, length=%d\n", pkg->type, pkg->length);
 }
@@ -42,7 +42,7 @@ static sw_inline ssize_t swMqtt_get_length(char *data, uint32_t size, ssize_t *c
 }
 
 #if 0
-int swMqtt_unpack(swMqtt_package *pkg, char *data, uint32_t size)
+int swMqtt_unpack(swMqtt_packet *pkg, char *data, uint32_t size)
 {
     uint8_t byte = data[0];
     off_t offset;

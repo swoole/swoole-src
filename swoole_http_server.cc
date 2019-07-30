@@ -73,10 +73,10 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     http_context *ctx = swoole_http_context_new(fd);
     swoole_http_server_init_context(serv, ctx);
 
-    zval *zdata = sw_malloc_zval();
+    zval *zdata = &ctx->request.zdata;
     php_swoole_get_recv_data(serv, zdata, req, NULL, 0);
 
-    swTrace("http request from %d with %d bytes: <<EOF\n%.*s\nEOF", fd, (int)Z_STRLEN_P(zdata), (int)Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
+    swTrace("http request from %d with %d bytes: <<EOF\n%.*s\nEOF", fd, (int) Z_STRLEN_P(zdata), (int) Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
 
     zval args[2], *zrequest_object = &args[0], *zresponse_object = &args[1];
     args[0] = *ctx->request.zobject;
@@ -97,8 +97,6 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
     add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(conn));
     add_assoc_long(zserver, "master_time", conn->last_time);
-
-    swoole_set_property(zrequest_object, 0, zdata);
 
     // begin to check and call registerd callback
     zend_fcall_info_cache *fci_cache = NULL;
@@ -160,7 +158,7 @@ void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
     php_swoole_onClose(serv, ev);
 }
 
-void swoole_http_server_init(int module_number)
+void php_swoole_http_server_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY_EX(swoole_http_server, "Swoole\\Http\\Server", "swoole_http_server", NULL, NULL, swoole_server);
     SW_SET_CLASS_SERIALIZABLE(swoole_http_server, zend_class_serialize_deny, zend_class_unserialize_deny);
@@ -220,6 +218,9 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx)
 
 void swoole_http_context_free(http_context *ctx)
 {
+    if (ctx->request.zobject) {
+        swoole_set_object(ctx->request.zobject, NULL);
+    }
     swoole_set_object(ctx->response.zobject, NULL);
     http_request *req = &ctx->request;
     http_response *res = &ctx->response;
@@ -227,10 +228,14 @@ void swoole_http_context_free(http_context *ctx)
     {
         efree(req->path);
     }
-#ifdef SW_USE_HTTP2
-    if (req->post_buffer)
+    if (Z_TYPE(req->zdata) == IS_STRING)
     {
-        swString_free(req->post_buffer);
+        zend_string_release(Z_STR(req->zdata));
+    }
+#ifdef SW_USE_HTTP2
+    if (req->h2_data_buffer)
+    {
+        swString_free(req->h2_data_buffer);
     }
 #endif
     if (res->reason)

@@ -34,7 +34,7 @@ go(function () {
     for ($n = MAX_CONCURRENCY; $n--;) {
         foreach ($map as $host => $ip) {
             $_ip = co::gethostbyname($host);
-            Assert::eq($ip, $_ip);
+            Assert::same($ip, $_ip);
         }
     }
     $cache_time = microtime(true) - $cache_time;
@@ -69,7 +69,7 @@ go(function () {
     Assert::assert($no_cache_multi_time < $no_cache_time);
     echo co::gethostbyname('m.cust.edu.cn') . "\n";
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 210.47.1.47

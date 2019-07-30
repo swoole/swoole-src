@@ -34,14 +34,14 @@ go(function () {
         $stmt = $pdo->prepare('SELECT * FROM numbers');
         $stmt->execute();
         $r_strong3 = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        Assert::eq($r_string1, $r_string2);
-        Assert::eq($r_strong2, $r_strong3);
+        Assert::same($r_string1, $r_string2);
+        Assert::same($r_strong2, $r_strong3);
     } catch (\PDOException $e) {
-        Assert::eq($e->getCode(), 2054); // not support auth plugin
+        Assert::same($e->getCode(), 2054); // not support auth plugin
     }
 
     if (!is_musl_libc()) {
-        Assert::eq($r_strong1, $r_strong2);
+        Assert::same($r_strong1, $r_strong2);
     }
     var_dump($r_strong2);
 });

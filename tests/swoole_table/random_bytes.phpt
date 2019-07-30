@@ -22,7 +22,7 @@ while($n--) {
 }
 
 foreach($map as $k => $v) {
-    Assert::eq($table->get($k)['string'], $v);
+    Assert::same($table->get($k)['string'], $v);
 }
 ?>
 --EXPECT--

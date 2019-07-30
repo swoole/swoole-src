@@ -46,7 +46,7 @@ foreach ($files as $k => $v)
 {
     go(function () use ($v, $k) {
         $content = readfile_co($v['file']);
-        Assert::eq(md5($content), $v['hash']);
+        Assert::same(md5($content), $v['hash']);
     });
 }
 

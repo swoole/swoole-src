@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $proc = new \swoole_process(function(\swoole_process $process) {
     $r = $process->write("SUCCESS");
-    Assert::eq($r, 7);
+    Assert::same($r, 7);
 });
 $r = $proc->start();
 Assert::assert($r > 0);

@@ -26,7 +26,7 @@ for ($c = MAX_CONCURRENCY; $c--;) {
             $ret = $send->push($rand);
             Assert::assert($ret);
             $response = $recv->pop();
-            Assert::eq($response, new stdClass());
+            Assert::isInstanceOf($response, stdClass::class);
         }
     });
 }

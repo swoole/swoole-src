@@ -30,8 +30,8 @@ $pm->parentFunc = function () use ($pm, $randomData) {
         for ($n = MAX_CONCURRENCY; $n--;) {
             $cli = $clients[$n];
             $cli->recv();
-            Assert::eq($cli->statusCode, 200);
-            Assert::eq($cli->body, $randomData[$n]);
+            Assert::same($cli->statusCode, 200);
+            Assert::same($cli->body, $randomData[$n]);
         }
     });
     swoole_event_wait();

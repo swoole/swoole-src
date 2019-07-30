@@ -22,7 +22,7 @@ $cli->on("connect", function(swoole_client $cli) {
 
 $cli->on("receive", function(swoole_client $cli, $data){
     //echo "RECEIVE: $data\n";
-    Assert::eq($data, "OK");
+    Assert::same($data, "OK");
     $cli->close();
     Assert::false($cli->isConnected());
 });
@@ -32,11 +32,13 @@ $cli->on("error", function(swoole_client $cli) {
 });
 
 $cli->on("close", function(swoole_client $cli) use($closeServer) {
-    echo "SUCCESS";
+    echo "SUCCESS\n";
     $closeServer();
 });
 
 $cli->connect(TCP_SERVER_HOST, $port);
+
+Swoole\Event::wait();
 ?>
 --EXPECT--
 SUCCESS

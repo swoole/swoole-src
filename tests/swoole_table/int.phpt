@@ -35,24 +35,24 @@ if (!$ret)
     echo __LINE__." error";
 }
 
-Assert::eq($ret['i8'], -120);
-Assert::eq($ret['i16'], -30000);
-Assert::eq($ret['i32'], -1247483648);
-Assert::eq($ret['i64'], -9023372036854775808);
+Assert::same($ret['i8'], -120);
+Assert::same($ret['i16'], -30000);
+Assert::same($ret['i32'], -1247483648);
+Assert::same($ret['i64'], -9023372036854775808);
 
 $ret = $table->incr('test_key', 'i8', 8);
 if (!$ret)
 {
     echo __LINE__." error";
 }
-Assert::eq($table->get('test_key', 'i8'), -120 + 8);
+Assert::same($table->get('test_key', 'i8'), -120 + 8);
 
 $ret = $table->decr('test_key', 'i32', 8);
 if (!$ret)
 {
     echo __LINE__." error";
 }
-Assert::eq($table->get('test_key', 'i32'), -1247483648 - 8);
+Assert::same($table->get('test_key', 'i32'), -1247483648 - 8);
 
 $ret = $table->set('test_key', array(
     'i8' => 120,
@@ -71,24 +71,24 @@ if (!$ret)
     echo __LINE__." error";
 }
 
-Assert::eq($ret['i8'], 120);
-Assert::eq($ret['i16'], 30000);
-Assert::eq($ret['i32'], 1247483648);
-Assert::eq($ret['i64'], 9023372036854775808);
+Assert::same($ret['i8'], 120);
+Assert::same($ret['i16'], 30000);
+Assert::same($ret['i32'], 1247483648);
+Assert::same($ret['i64'], 9023372036854775808);
 
 $ret = $table->incr('test_key', 'i8', 4);
 if (!$ret)
 {
     echo __LINE__." error";
 }
-Assert::eq($table->get('test_key', 'i8'), 120 + 4);
+Assert::same($table->get('test_key', 'i8'), 120 + 4);
 
 $ret = $table->decr('test_key', 'i32', 8);
 if (!$ret)
 {
     echo __LINE__." error";
 }
-Assert::eq($table->get('test_key', 'i32'), 1247483648 - 8);
+Assert::same($table->get('test_key', 'i32'), 1247483648 - 8);
 
 echo "SUCCESS";
 ?>

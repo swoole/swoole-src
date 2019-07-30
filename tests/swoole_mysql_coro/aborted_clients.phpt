@@ -19,7 +19,7 @@ go(function () {
     Assert::true($db->close());
     Assert::true($db->connect($server));
     $after_num = (int)$db->query('show status like "Aborted_clients"')[0]["Value"];
-    Assert::eq($after_num - $before_num, 0);
+    Assert::same($after_num - $before_num, 0);
 });
 ?>
 --EXPECT--

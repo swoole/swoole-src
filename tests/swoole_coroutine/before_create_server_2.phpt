@@ -13,7 +13,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     go(function () use ($pm) {
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
         Assert::notEmpty(!empty($data));
-        Assert::eq($data, SECRET);
+        Assert::same($data, SECRET);
         $pm->kill();
     });
 };

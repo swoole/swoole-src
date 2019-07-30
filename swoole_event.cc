@@ -41,6 +41,7 @@ static PHP_FUNCTION(swoole_event_set);
 static PHP_FUNCTION(swoole_event_del);
 static PHP_FUNCTION(swoole_event_write);
 static PHP_FUNCTION(swoole_event_wait);
+static PHP_FUNCTION(swoole_event_rshutdown);
 static PHP_FUNCTION(swoole_event_exit);
 static PHP_FUNCTION(swoole_event_defer);
 static PHP_FUNCTION(swoole_event_cycle);
@@ -98,11 +99,12 @@ static const zend_function_entry swoole_event_methods[] =
     ZEND_FENTRY(cycle, ZEND_FN(swoole_event_cycle), arginfo_swoole_event_cycle, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(write, ZEND_FN(swoole_event_write), arginfo_swoole_event_write, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(wait, ZEND_FN(swoole_event_wait), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(rshutdown, ZEND_FN(swoole_event_rshutdown), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exit, ZEND_FN(swoole_event_exit), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
-void swoole_event_init(int module_number)
+void php_swoole_event_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_event, "Swoole\\Event", "swoole_event", NULL, swoole_event_methods);
     SW_SET_CLASS_CREATE(swoole_event, sw_zend_create_object_deny);
@@ -168,6 +170,18 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
 {
+    if (!(event->socket->events & SW_EVENT_ERROR))
+    {
+        if (event->socket->events & SW_EVENT_READ)
+        {
+            return swReactor_get_handler(reactor, SW_EVENT_READ, event->socket->fdtype)(reactor, event);
+        }
+        else
+        {
+            return swReactor_get_handler(reactor, SW_EVENT_WRITE, event->socket->fdtype)(reactor, event);
+        }
+    }
+
     int error;
     socklen_t len = sizeof(error);
 
@@ -217,12 +231,12 @@ static void php_swoole_event_onEndCallback(void *data)
     }
 }
 
-void php_swoole_reactor_init()
+int php_swoole_reactor_init()
 {
     if (!SWOOLE_G(cli))
     {
         php_swoole_fatal_error(E_ERROR, "async-io must be used in PHP CLI mode");
-        return;
+        return SW_ERR;
     }
 
     if (SwooleG.serv)
@@ -230,28 +244,28 @@ void php_swoole_reactor_init()
         if (swIsTaskWorker() && !SwooleG.serv->task_enable_coroutine)
         {
             php_swoole_fatal_error(E_ERROR, "Unable to use async-io in task processes, please set `task_enable_coroutine` to true");
-            return;
+            return SW_ERR;
         }
         if (swIsManager())
         {
             php_swoole_fatal_error(E_ERROR, "Unable to use async-io in manager process");
-            return;
+            return SW_ERR;
         }
     }
     if (!SwooleG.main_reactor)
     {
         swTraceLog(SW_TRACE_PHP, "init reactor");
 
-        swReactor *reactor = (swReactor *) emalloc(sizeof(swReactor));
+        swReactor *reactor = (swReactor *) sw_malloc(sizeof(swReactor));
         if (reactor == NULL)
         {
             php_swoole_fatal_error(E_ERROR, "malloc failed");
-            return;
+            return SW_ERR;
         }
         if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
         {
             php_swoole_fatal_error(E_ERROR, "failed to create reactor");
-            return;
+            return SW_ERR;
         }
 
         reactor->is_empty = swReactor_empty;
@@ -259,13 +273,9 @@ void php_swoole_reactor_init()
         reactor->wait_exit = 1;
 
         SwooleG.main_reactor = reactor;
-        php_swoole_register_shutdown_function_prepend("swoole_event_wait");
+        php_swoole_register_shutdown_function("Swoole\\Event::rshutdown");
     }
-
-    swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_READ, php_swoole_event_onRead);
-    swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_WRITE, php_swoole_event_onWrite);
-    swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_ERROR, php_swoole_event_onError);
-    swReactor_set_handler(SwooleG.main_reactor, SW_FD_WRITE, swReactor_onWrite);
+    return SW_OK;
 }
 
 void php_swoole_event_wait()
@@ -315,8 +325,8 @@ void php_swoole_event_wait()
         }
 #endif
     }
-    swReactor_destory(SwooleG.main_reactor);
-    efree(SwooleG.main_reactor);
+    swReactor_destroy(SwooleG.main_reactor);
+    sw_free(SwooleG.main_reactor);
     SwooleG.main_reactor = NULL;
 }
 
@@ -473,6 +483,22 @@ void swoole_php_socket_free(zval *zsocket)
 }
 #endif
 
+static void check_reactor()
+{
+    php_swoole_check_reactor();
+
+    if (!swReactor_isset_handler(SwooleG.main_reactor, SW_FD_USER))
+    {
+        swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_READ, php_swoole_event_onRead);
+        swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_WRITE, php_swoole_event_onWrite);
+        swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_ERROR, php_swoole_event_onError);
+    }
+    if (!swReactor_isset_handler(SwooleG.main_reactor, SW_FD_WRITE))
+    {
+        swReactor_set_handler(SwooleG.main_reactor, SW_FD_WRITE, swReactor_onWrite);
+    }
+}
+
 static PHP_FUNCTION(swoole_event_add)
 {
     zval *zfd;
@@ -524,9 +550,8 @@ static PHP_FUNCTION(swoole_event_add)
         peo->fci_cache_write = fci_cache_write;
     }
 
-    php_swoole_check_reactor();
-
-    swSetNonBlock(socket_fd); // must be nonblock
+    check_reactor();
+    swSocket_set_nonblock(socket_fd); // must be nonblock
 
     if (SwooleG.main_reactor->add(SwooleG.main_reactor, socket_fd, SW_FD_USER | event_flag) < 0)
     {
@@ -566,7 +591,7 @@ static PHP_FUNCTION(swoole_event_write)
         RETURN_FALSE;
     }
 
-    php_swoole_check_reactor();
+    check_reactor();
     if (SwooleG.main_reactor->write(SwooleG.main_reactor, socket_fd, data, len) < 0)
     {
         RETURN_FALSE;
@@ -591,7 +616,6 @@ static PHP_FUNCTION(swoole_event_set)
     zend_fcall_info fci_write = empty_fcall_info;
     zend_fcall_info_cache fci_cache_write = empty_fcall_info_cache;
     zend_long event_flag = 0;
-
 
     ZEND_PARSE_PARAMETERS_START(1, 4)
         Z_PARAM_ZVAL(zfd)
@@ -778,10 +802,15 @@ static PHP_FUNCTION(swoole_event_wait)
     {
         return;
     }
+    php_swoole_event_wait();
+}
+
+static PHP_FUNCTION(swoole_event_rshutdown)
+{
     /* prevent the program from jumping out of the rshutdown */
     zend_try
     {
-        php_swoole_event_wait();
+        PHP_FN(swoole_event_wait)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
     }
     zend_end_try();
 }

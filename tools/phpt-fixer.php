@@ -65,7 +65,7 @@ function fix_tests_in_this_dir(string $dir, string $root = '')
             $current_title = $matches[1] ?? '';
             if (!$current_title) {
                 swoole_warn("Can not find title in {$file}");
-                continue;
+                goto _finished;
             }
             $current_title_array = explode(':', $current_title);
             $current_title_dir_name = $current_title_array[0];
@@ -92,6 +92,7 @@ function fix_tests_in_this_dir(string $dir, string $root = '')
                 );
                 goto _check_title;
             }
+            _finished:
             if ($changed) {
                 file_put_contents($file, $content);
             }

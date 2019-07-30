@@ -34,7 +34,7 @@ go(function () {
     while ($i--) {
         /**@var $response swoole_http2_response */
         $response = $cli->recv();
-        Assert::eq($response->statusCode, 200);
+        Assert::same($response->statusCode, 200);
         Assert::assert(strpos($response->data, 'zhihu') !== false);
         $map[] = $response->streamId;
     }

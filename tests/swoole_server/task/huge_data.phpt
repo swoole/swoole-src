@@ -17,7 +17,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
         for ($c = MAX_REQUESTS_LOW; $c--;) {
             $data = $pm->getRandomData();
             $body = httpGetBody($uri, ['data' => $data]);
-            Assert::eq($body, $data);
+            Assert::same($body, $data);
         }
     });
     Swoole\Event::wait();

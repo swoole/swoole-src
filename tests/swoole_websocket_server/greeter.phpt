@@ -19,15 +19,15 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
             for ($n = MAX_REQUESTS; $n--;) {
                 $cli->push($data);
                 $ret = $cli->recv();
-                Assert::eq($ret->data, "Hello {$data}!");
+                Assert::same($ret->data, "Hello {$data}!");
                 $ret = $cli->recv();
-                Assert::eq($ret->data, "How are you, {$data}?");
+                Assert::same($ret->data, "How are you, {$data}?");
                 $count++;
             }
         });
     }
     swoole_event_wait();
-    Assert::eq($count, (MAX_CONCURRENCY * MAX_REQUESTS));
+    Assert::same($count, (MAX_CONCURRENCY * MAX_REQUESTS));
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {

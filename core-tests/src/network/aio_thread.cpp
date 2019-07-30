@@ -34,6 +34,4 @@ TEST(network_aio_thread, dispatch)
             ASSERT_TRUE(false);
         }
     }
-
-    swAio_free();
 }

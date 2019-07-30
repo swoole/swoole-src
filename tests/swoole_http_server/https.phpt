@@ -13,7 +13,7 @@ $html = base64_encode(random_bytes(rand(2048, 65536)));
 $pm->parentFunc = function ($pid) use ($pm, $html) {
     go(function () use ($pm, $html) {
         $data = httpGetBody("https://127.0.0.1:{$pm->getFreePort()}/");
-        Assert::eq($data, $html);
+        Assert::same($data, $html);
         $pm->kill();
     });
     Swoole\Event::wait();

@@ -30,8 +30,7 @@ else
         swoole_process_pool \
         swoole_table \
         \
-        swoole_coroutine \
-        swoole_coroutine_util \
+        swoole_coroutine* \
         swoole_channel_coro \
         swoole_client_coro \
         swoole_http_client_coro \
@@ -39,9 +38,9 @@ else
         swoole_server \
         swoole_http_server \
         swoole_websocket_server \
+        swoole_redis_server \
         swoole_mysql_coro \
         swoole_redis_coro \
-        swoole_redis_server \
         swoole_socket_coro \
         swoole_runtime"
         if [ ${#} -gt 1 ]; then

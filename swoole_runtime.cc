@@ -19,6 +19,32 @@
 #include <unordered_map>
 #include <initializer_list>
 
+/* openssl */
+#ifndef OPENSSL_NO_TLS1_METHOD
+#define HAVE_TLS1 1
+#endif
+#ifndef OPENSSL_NO_TLS1_1_METHOD
+#define HAVE_TLS11 1
+#endif
+#ifndef OPENSSL_NO_TLS1_2_METHOD
+#define HAVE_TLS12 1
+#endif
+#if OPENSSL_VERSION_NUMBER >= 0x10101000 && !defined(OPENSSL_NO_TLS1_3)
+#define HAVE_TLS13 1
+#endif
+#ifndef OPENSSL_NO_ECDH
+#define HAVE_ECDH 1
+#endif
+#ifndef OPENSSL_NO_TLSEXT
+#define HAVE_TLS_SNI 1
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+#define HAVE_TLS_ALPN 1
+#endif
+#endif
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
+#define HAVE_SEC_LEVEL 1
+#endif
+
 using namespace swoole;
 using namespace std;
 using swoole::coroutine::System;
@@ -38,8 +64,13 @@ static PHP_FUNCTION(swoole_user_func_handler);
 }
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam);
+#if PHP_VERSION_ID < 70400
 static size_t socket_read(php_stream *stream, char *buf, size_t count);
 static size_t socket_write(php_stream *stream, const char *buf, size_t count);
+#else
+static ssize_t socket_read(php_stream *stream, char *buf, size_t count);
+static ssize_t socket_write(php_stream *stream, const char *buf, size_t count);
+#endif
 static int socket_flush(php_stream *stream);
 static int socket_close(php_stream *stream, int close_handle);
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb);
@@ -122,7 +153,7 @@ static const zend_function_entry swoole_runtime_methods[] =
     PHP_FE_END
 };
 
-void swoole_runtime_init(int module_number)
+void php_swoole_runtime_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY_BASE(swoole_runtime, "Swoole\\Runtime", "swoole_runtime", NULL, swoole_runtime_methods, NULL);
     SW_SET_CLASS_CREATE(swoole_runtime, sw_zend_create_object_deny);
@@ -173,7 +204,7 @@ struct real_func
     zval name;
 };
 
-void swoole_runtime_rshutdown()
+void php_swoole_runtime_rshutdown()
 {
     if (!function_table)
     {
@@ -203,6 +234,7 @@ void swoole_runtime_rshutdown()
 
 static PHP_METHOD(swoole_runtime, enableStrictMode)
 {
+    php_swoole_fatal_error(E_DEPRECATED, "Swoole\\Runtime::enableStrictMode is deprecated, it will be removed in v4.5.0");
     for (auto f : block_io_functions)
     {
         zend_disable_function((char *) f, strlen((char *) f));
@@ -211,6 +243,7 @@ static PHP_METHOD(swoole_runtime, enableStrictMode)
     {
         zend_disable_class((char *) c, strlen((char *) c));
     }
+    enable_strict_mode = true;
 }
 
 static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *portno, int get_err, zend_string **err)
@@ -259,7 +292,11 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
     return host;
 }
 
+#if PHP_VERSION_ID < 70400
 static size_t socket_write(php_stream *stream, const char *buf, size_t count)
+#else
+static ssize_t socket_write(php_stream *stream, const char *buf, size_t count)
+#endif
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
     if (UNEXPECTED(!abstract))
@@ -277,15 +314,21 @@ static size_t socket_write(php_stream *stream, const char *buf, size_t count)
     {
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), didwrite, 0);
     }
+#if PHP_VERSION_ID < 70400
     if (didwrite < 0)
     {
         didwrite = 0;
     }
+#endif
 
     return didwrite;
 }
 
+#if PHP_VERSION_ID < 70400
 static size_t socket_read(php_stream *stream, char *buf, size_t count)
+#else
+static ssize_t socket_read(php_stream *stream, char *buf, size_t count)
+#endif
 {
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
     if (UNEXPECTED(!abstract))
@@ -309,10 +352,12 @@ static size_t socket_read(php_stream *stream, char *buf, size_t count)
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), nr_bytes, 0);
     }
 
+#if PHP_VERSION_ID < 70400
     if (nr_bytes < 0)
     {
         nr_bytes = 0;
     }
+#endif
 
     return nr_bytes;
 }
@@ -796,6 +841,11 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
             array_init(&tmp);
             switch (SSL_version(sock->socket->ssl))
             {
+#ifdef HAVE_TLS13
+            case TLS1_3_VERSION:
+                proto_str = "TLSv1.3";
+                break;
+#endif
 #ifdef HAVE_TLS12
             case TLS1_2_VERSION:
                 proto_str = "TLSv1.2";
@@ -951,7 +1001,7 @@ static void init_function()
 
 bool PHPCoroutine::enable_hook(int flags)
 {
-    if (unlikely(enable_strict_mode))
+    if (sw_unlikely(enable_strict_mode))
     {
         php_swoole_fatal_error(E_ERROR, "unable to enable the coroutine mode after you enable the strict mode");
         return false;
@@ -1156,6 +1206,8 @@ bool PHPCoroutine::enable_hook(int flags)
         if (!(hook_flags & SW_HOOK_BLOCKING_FUNCTION))
         {
             hook_func(ZEND_STRL("gethostbyname"), PHP_FN(swoole_coroutine_gethostbyname));
+            hook_func(ZEND_STRL("exec"));
+            hook_func(ZEND_STRL("shell_exec"));
         }
     }
     else
@@ -1163,6 +1215,8 @@ bool PHPCoroutine::enable_hook(int flags)
         if (hook_flags & SW_HOOK_BLOCKING_FUNCTION)
         {
             SW_UNHOOK_FUNC(gethostbyname);
+            unhook_func(ZEND_STRL("exec"));
+            unhook_func(ZEND_STRL("shell_exec"));
         }
     }
 
@@ -1223,7 +1277,7 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
 {
     zval *zflags = nullptr;
     /*TODO: enable SW_HOOK_CURL by default after curl handler completed */
-    zend_long flags = SW_HOOK_ALL ^ SW_HOOK_CURL;
+    zend_long flags = SW_HOOK_ALL;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
         Z_PARAM_OPTIONAL

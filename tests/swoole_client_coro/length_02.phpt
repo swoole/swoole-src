@@ -23,7 +23,7 @@ $pm->parentFunc = function ($pid) use ($pm, $port)
         $data = str_repeat('A', 1025);
         $cli->send(pack('N', strlen($data)).$data);
         $retData = $cli->recv();
-        Assert::eq($retData, '');
+        Assert::same($retData, '');
     });
     swoole_event_wait();
     $pm->kill();

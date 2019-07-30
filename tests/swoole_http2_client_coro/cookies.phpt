@@ -18,8 +18,8 @@ $pm->parentFunc = function () use ($pm) {
             }
             Assert::assert($cli->send($request));
             $response = $cli->recv(1);
-            Assert::eq('OK', $response->data);
-            Assert::eq($request->cookies, $response->cookies);
+            Assert::same('OK', $response->data);
+            Assert::same($request->cookies, $response->cookies);
         }
         echo "DONE\n";
         $pm->kill();

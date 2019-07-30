@@ -103,7 +103,7 @@ pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options)
         return __pid;
     }
 
-    if (unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current() || (__options & WNOHANG)))
+    if (sw_unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current() || (__options & WNOHANG)))
     {
         return waitpid(__pid, __stat_loc, __options);
     }
@@ -129,7 +129,7 @@ pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options)
 
 pid_t swoole_coroutine_wait(int *__stat_loc)
 {
-    if (unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current()))
+    if (sw_unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current()))
     {
         return wait( __stat_loc);
     }

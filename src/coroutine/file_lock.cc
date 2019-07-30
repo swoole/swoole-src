@@ -129,7 +129,7 @@ static inline int lock_nb(char *filename, int fd, int operation)
 int swoole_coroutine_flock_ex(char *filename, int fd, int operation)
 {
     Coroutine *co = Coroutine::get_current();
-    if (unlikely(SwooleG.main_reactor == nullptr || !co))
+    if (sw_unlikely(SwooleG.main_reactor == nullptr || !co))
     {
         return ::flock(fd, operation);
     }

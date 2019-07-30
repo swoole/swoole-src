@@ -5,7 +5,8 @@ swoole_feature/cross_close: http client
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
-$pm = new ProcessManager();
+$pm = new SwooleTest\ProcessManager();
+
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $http = new Co\Http\Client('127.0.0.1', $pm->getFreePort());
@@ -19,10 +20,11 @@ $pm->parentFunc = function () use ($pm) {
         });
         Assert::assert(!$http->get('/'));
         echo "CLOSED\n";
-        Assert::eq($http->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
-        Assert::eq($http->errCode, SOCKET_ECONNRESET);
+        Assert::same($http->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
+        Assert::same($http->errCode, SOCKET_ECONNRESET);
         Assert::assert(empty($http->body));
     });
+    Swoole\Event::wait();
 };
 $pm->childFunc = function () use ($pm) {
     $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
@@ -30,7 +32,7 @@ $pm->childFunc = function () use ($pm) {
     $server->on('workerStart', function () use ($pm) { $pm->wakeup(); });
     $server->on('request', function ($request, Swoole\Http\Response $response) use ($server) {
         switch_process();
-        co::sleep(5);
+        co::sleep(3);
         $server->close($response->fd);
     });
     $server->start();

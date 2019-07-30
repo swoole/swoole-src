@@ -31,7 +31,7 @@ $pm->parentFunc = function ($pid) use ($port)
     {
         $cli->send(pack('N', 8) . 'shutdown');
         $cli->close();
-        Assert::eq($data, md5_file(TEST_IMAGE));
+        Assert::same($data, md5_file(TEST_IMAGE));
     });
 
     $client->on("error", function($cli){

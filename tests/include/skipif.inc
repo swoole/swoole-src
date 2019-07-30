@@ -45,13 +45,6 @@ function skip_if_not_debug_version()
     skip('only in swoole debug version', !SWOOLE_DEBUG);
 }
 
-function skip_if($value, $msg)
-{
-    if ($value) {
-        skip($msg);
-    }
-}
-
 function skip_if_ini_bool_equal_to(string $name, bool $value)
 {
     if (((bool)ini_get($name)) === $value) {
@@ -84,6 +77,11 @@ function skip_if_extension_not_exist(string $extension_name)
 function skip_if_file_not_exist(string $filename)
 {
     skip("file {$filename} is not exist", !file_exists($filename));
+}
+
+function skip_if_command_not_found(string $command)
+{
+    skip("command {$command} not found", `{$command} --help | grep -i usage`);
 }
 
 function skip_if_no_ssl()
@@ -199,6 +197,27 @@ function skip_if_not_mysql8()
     Swoole\Event::wait();
     if ($skip) {
         skip('require mysql8');
+    }
+}
+
+function skip_if_not_redis5()
+{
+    require_once __DIR__ . '/config.php';
+    $skip = false;
+    go(function () use (&$skip) {
+        $redis = new Swoole\Coroutine\Redis();
+        $redis->setOptions(['compatibility_mode' => true]);
+        $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
+        $info = $redis->eval("return redis.call('info')");
+        if (preg_match('/redis_version:(\d+)/U', $info, $version)) {
+            if ($version[1] < 5) {
+                $skip = true;
+            }
+        }
+    });
+    Swoole\Event::wait();
+    if ($skip) {
+        skip('require redis5');
     }
 }
 

@@ -16,7 +16,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $s = microtime(true);
         $retData = @$cli->recv();
         Assert::false($retData);
-        Assert::eq($cli->errCode, SOCKET_ETIMEDOUT);
+        Assert::same($cli->errCode, SOCKET_ETIMEDOUT);
         approximate(0.5, microtime(true) - $s);
     });
     swoole_event_wait();

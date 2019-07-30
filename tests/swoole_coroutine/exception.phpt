@@ -32,7 +32,7 @@ Fatal error: Uncaught Exception: whoops in %s:%d
 Stack trace:
 #0 {main}
   thrown in %s on line %d
-[%s]	ERROR	swoole_server_rshutdown (ERRNO %d): Fatal error: Uncaught Exception: whoops in %s:%d
+[%s]	ERROR	php_swoole_server_rshutdown (ERRNO %d): Fatal error: Uncaught Exception: whoops in %s:%d
 Stack trace:
 #0 {main}
   thrown in %s on line %d

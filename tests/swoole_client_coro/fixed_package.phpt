@@ -27,7 +27,7 @@ $pm->parentFunc = function () use ($pm) {
                     echo "ERROR\n";
                     break;
                 }
-                Assert::eq($data, pack('n', $pm->getRandomData()));
+                Assert::same($data, pack('n', $pm->getRandomData()));
             }
         }
     });

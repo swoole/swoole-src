@@ -20,10 +20,10 @@ $pm->parentFunc = function ($pid) use ($pm) {
                 go(function () use ($streamId, $channel) {
                     /** @var $response Swoole\Http2\Response */
                     $response = $channel->pop();
-                    Assert::eq($response->streamId, $streamId);
+                    Assert::same($response->streamId, $streamId);
                     $headers = $response->headers;
                     unset($headers['date']);
-                    Assert::eq($headers, [
+                    Assert::same($headers, [
                         'content-type' => 'application/srpc',
                         'trailer' => 'srpc-status, srpc-message',
                         'server' => 'swoole-http-server',

@@ -20,9 +20,9 @@ echo swoole_strerror(SWOOLE_ERROR_FILE_NOT_EXIST) . "\n";
 if (!is_musl_libc()) {
     $unknown = swoole_strerror(SWOOLE_ERROR_MALLOC_FAIL - 1);
     $sw_unknown = swoole_strerror(SWOOLE_ERROR_MALLOC_FAIL - 1, SWOOLE_STRERROR_SWOOLE);
-    Assert::eq($unknown, $sw_unknown);
+    Assert::same($unknown, $sw_unknown);
 } else {
-    Assert::eq(swoole_strerror(SWOOLE_ERROR_MALLOC_FAIL - 1), 'No error information');
+    Assert::same(swoole_strerror(SWOOLE_ERROR_MALLOC_FAIL - 1), 'No error information');
 }
 ?>
 --EXPECT--

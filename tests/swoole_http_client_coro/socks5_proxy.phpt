@@ -26,7 +26,7 @@ go(function ()
     {
         die("ERROR\n");
     }
-    Assert::eq($cli->statusCode, 200);
+    Assert::same($cli->statusCode, 200);
     Assert::assert(stripos($cli->body, 'google.com') !== false);
     $cli->close();
 });

@@ -48,6 +48,9 @@ PHP_ARG_WITH(jemalloc_dir, dir of jemalloc,
 PHP_ARG_ENABLE(asan, enable asan,
 [  --enable-asan             Enable asan], no, no)
 
+PHP_ARG_ENABLE(gcov, enable gcov,
+[  --enable-gcov             Enable gcov], no, no)
+
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
     haveext=$[PHP_]translit($1,a-z_-,A-Z__)
@@ -181,12 +184,6 @@ AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
 
     AC_CHECK_FUNCS([hstrerror socketpair if_nametoindex if_indextoname])
     AC_CHECK_HEADERS([netdb.h netinet/tcp.h sys/un.h sys/sockio.h])
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <sys/types.h>
-#include <sys/socket.h>
-    ]], [[static struct msghdr tp; int n = (int) tp.msg_flags; return n]])],[],
-        [AC_DEFINE(MISSING_MSGHDR_MSGFLAGS, 1, [ ])]
-    )
     AC_DEFINE([HAVE_SOCKETS], 1, [ ])
 
     dnl Check for fied ss_family in sockaddr_storage (missing in AIX until 5.3)
@@ -311,6 +308,13 @@ if test "$PHP_SWOOLE" != "no"; then
     if test "$PHP_ASAN" != "no"; then
         PHP_DEBUG=1
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
+        CXXFLAGS="$CXXFLAGS -fsanitize=address -fno-omit-frame-pointer"
+    fi
+    
+    if test "$PHP_GCOV" != "no"; then
+        PHP_DEBUG=1
+        CFLAGS="$CFLAGS -fprofile-arcs -ftest-coverage"
+        CXXFLAGS="$CXXFLAGS -fprofile-arcs -ftest-coverage"
     fi
 
     if test "$PHP_TRACE_LOG" != "no"; then
@@ -484,12 +488,13 @@ if test "$PHP_SWOOLE" != "no"; then
         src/server/static_handler.cc \
         src/server/task_worker.c \
         src/server/worker.cc \
+        src/wrapper/event.cc \
         src/wrapper/client.cc \
         src/wrapper/server.cc \
         src/wrapper/timer.cc \
         swoole.cc \
         swoole_async_coro.cc \
-        swoole_atomic.c \
+        swoole_atomic.cc \
         swoole_buffer.c \
         swoole_channel_coro.cc \
         swoole_client.cc \
@@ -505,7 +510,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_http_response.cc \
         swoole_http_server.cc \
         swoole_http_server_coro.cc \
-        swoole_lock.c \
+        swoole_lock.cc \
         swoole_mysql_coro.cc \
         swoole_mysql_proto.cc \
         swoole_process.cc \
@@ -516,9 +521,9 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_server.cc \
         swoole_server_port.cc \
         swoole_socket_coro.cc \
-        swoole_table.c \
+        swoole_table.cc \
         swoole_timer.cc \
-        swoole_trace.c \
+        swoole_trace.cc \
         swoole_websocket_server.cc"
 
     swoole_source_file="$swoole_source_file \

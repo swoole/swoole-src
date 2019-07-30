@@ -321,14 +321,12 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
     {
         int fd;
     } *reactor_obj = reactor->object;
-    uint32_t new_event_num;
     // clear signal
     if (handler == NULL)
     {
         signal(signo, SIG_DFL);
         bzero(&signals[signo], sizeof(swSignal));
         EV_SET(&ev, signo, EVFILT_SIGNAL, EV_DELETE, 0, 0, NULL);
-        new_event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
     }
     // add/update signal
     else
@@ -336,31 +334,15 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
         signal(signo, SIG_IGN);
         signals[signo].handler = handler;
         signals[signo].signo = signo;
-        if (signals[signo].active)
-        {
-            // the event already exists, do not change event_num
-            new_event_num = reactor->event_num;
-        }
-        else
-        {
-            signals[signo].active = 1;
-            // otherwise increment event_num
-            new_event_num = reactor->event_num + 1;
-        }
+        signals[signo].active = 1;
         // save swSignal* as udata
         EV_SET(&ev, signo, EVFILT_SIGNAL, EV_ADD, 0, 0, &signals[signo]);
     }
     int n = kevent(reactor_obj->fd, &ev, 1, NULL, 0, NULL);
-    if (n < 0)
+    if (n < 0 && sw_unlikely(handler))
     {
-        if (unlikely(handler))
-        {
-            swWarn("kevent set signal[%d] error, errno=%d", signo, errno);
-        }
-        return;
+        swSysWarn("kevent set signal[%d] error", signo);
     }
-    // change event_num only when kevent() succeeded
-    reactor->event_num = new_event_num;
 }
 
 #endif

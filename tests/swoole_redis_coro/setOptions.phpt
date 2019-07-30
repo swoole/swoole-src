@@ -22,15 +22,15 @@ go(function () {
     $redis->setOptions(['timeout' => 1]);
     $ret = $redis->set('foo', 'bar');
     Assert::assert($ret);
-    Assert::eq($redis->errCode, 0);
-    Assert::eq($redis->errMsg, '');
+    Assert::same($redis->errCode, 0);
+    Assert::same($redis->errMsg, '');
     $redis->close();
     Assert::assert(!$redis->connected);
 
     // connect timeout
     $redis->setOptions(['connect_timeout' => 0.001]);
     $redis->connect('www.google.com', 80);
-    Assert::eq($redis->errCode, SOCKET_ETIMEDOUT);
+    Assert::same($redis->errCode, SOCKET_ETIMEDOUT);
 });
 swoole_event_wait();
 echo "DONE\n";

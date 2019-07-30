@@ -44,7 +44,7 @@ go(function () {
         }
     }
     Assert::assert(empty(array_diff([1, 3, 5, 7], $stream_map)));
-    Assert::eq(count(array_unique($responses_headers_count_map)), 1);
+    Assert::same(count(array_unique($responses_headers_count_map)), 1);
     Assert::assert($responses_headers_count_map[0] > 10);
 });
 swoole_event::wait();

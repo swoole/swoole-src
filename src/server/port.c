@@ -394,7 +394,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 #ifdef SW_USE_HTTP2
         else if (request->method == SW_HTTP_PRI)
         {
-            if (unlikely(!port->open_http2_protocol))
+            if (sw_unlikely(!port->open_http2_protocol))
             {
                 goto _bad_request;
             }
@@ -479,8 +479,8 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             }
             else if (request->content_length > (protocol->package_max_length - request->header_length))
             {
-                //TODO send http 413
                 swWarn("Content-Length is too big, MaxSize=[%d]", protocol->package_max_length - request->header_length);
+                swConnection_send(conn, SW_STRL(SW_HTTP_BAD_REQUEST_TOO_LARGE), 0);
                 goto _close_fd;
             }
         }

@@ -83,7 +83,7 @@ class TcpServer
     public function onReceive(swoole_server $swooleServer, $fd, $fromId, $data)
     {
         static $i;
-        if ($i > 20000)
+        if ($i > USE_VALGRIND ? 200 : 20000)
         {
             $swooleServer->close($fd);
             $swooleServer->shutdown();

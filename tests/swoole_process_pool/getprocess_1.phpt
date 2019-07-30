@@ -14,7 +14,7 @@ $pool = new Swoole\Process\Pool(1);
 $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId)
 {
     $process = $pool->getProcess();
-    Assert::eq($process->pid, posix_getpid());
+    Assert::same($process->pid, posix_getpid());
     $pool->shutdown();
     sleep(20);
     echo "ERROR\n";

@@ -107,8 +107,8 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
         //Nonblock
         if (blocking == 0)
         {
-            swSetNonBlock(object->socks[0]);
-            swSetNonBlock(object->socks[1]);
+            swSocket_set_nonblock(object->socks[0]);
+            swSocket_set_nonblock(object->socks[1]);
         }
 
         int sbsize = SwooleG.socket_buffer_size;

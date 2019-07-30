@@ -66,7 +66,7 @@ $pm->parentFunc = function ($pid) use ($port)
     phpt_var_dump($stats);
     foreach ($stats as $s)
     {
-        Assert::eq($s, REQ_N * CLIENT_N / WORKER_N);
+        Assert::same($s, REQ_N * CLIENT_N / WORKER_N);
     }
     echo "DONE\n";
 };

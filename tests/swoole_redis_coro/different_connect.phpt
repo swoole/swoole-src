@@ -9,7 +9,7 @@ Co::set(['socket_timeout' => -1]);
 function test(string $host, int $port = 0)
 {
     $redis = new Swoole\Coroutine\Redis();
-    Assert::eq($redis->sock, -1);
+    Assert::same($redis->sock, -1);
 
     $real_connect_time = microtime(true);
     $ret = $redis->connect($host, $port);
@@ -32,7 +32,7 @@ function test(string $host, int $port = 0)
     $real_connect_time = microtime(true) - $real_connect_time;
     Assert::assert($fake_connect_time < $real_connect_time);
     Assert::assert(!$redis->get('foo'));
-    Assert::eq($redis->errType, SWOOLE_REDIS_ERR_PROTOCOL);
+    Assert::same($redis->errType, SWOOLE_REDIS_ERR_PROTOCOL);
 }
 
 go('test', REDIS_SERVER_HOST, REDIS_SERVER_PORT);

@@ -17,7 +17,7 @@ $pm->parentFunc = function () use ($pm) {
         $client = new Co\Http\Client('127.0.0.1', $pm->getFreePort());
         $client->get('/../../examples/test.jpg');
         $data = $client->body;
-        Assert::eq($data, "hello world");
+        Assert::same($data, "hello world");
 
         $pm->kill();
     });

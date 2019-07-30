@@ -28,7 +28,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
                     for ($n = MAX_REQUESTS; $n--;) {
                         $frame = $cli->recv();
                         list($_n, $data) = json_decode($frame->data);
-                        Assert::eq($randoms[$_n], $data);
+                        Assert::same($randoms[$_n], $data);
                     }
                 });
             }

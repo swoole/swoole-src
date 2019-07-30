@@ -17,9 +17,7 @@
 #ifndef SW_CONNECTION_H_
 #define SW_CONNECTION_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+SW_EXTERN_C_BEGIN
 
 #include "buffer.h"
 
@@ -305,8 +303,6 @@ static sw_inline int swConnection_error(int err)
     }
 }
 
-#ifdef __cplusplus
-}
-#endif
+SW_EXTERN_C_END
 
 #endif /* SW_CONNECTION_H_ */

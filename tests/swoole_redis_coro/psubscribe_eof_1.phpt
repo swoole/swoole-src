@@ -28,7 +28,7 @@ go(function () use ($sock, $port) {
         Assert::false($redis->connected);
         Assert::assert(in_array($redis->errType, [SWOOLE_REDIS_ERR_IO, SWOOLE_REDIS_ERR_EOF], true));
         if ($redis->errType === SWOOLE_REDIS_ERR_IO) {
-            Assert::eq($redis->errCode, SOCKET_ECONNRESET);
+            Assert::same($redis->errCode, SOCKET_ECONNRESET);
         }
     }
     $redis->close();

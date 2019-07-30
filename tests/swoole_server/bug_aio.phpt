@@ -11,14 +11,14 @@ $pm->setWaitTimeout(0);
 $pm->parentFunc = function () { };
 $pm->childFunc = function () use ($pm) {
     go(function () {
-        Assert::eq(Co::readFile(__FILE__), __FILE_CONTENTS__); // will be discarded
+        Assert::same(Co::readFile(__FILE__), __FILE_CONTENTS__); // will be discarded
     });
     swoole_event::wait();
     $server = new Swoole\Server('127.0.0.1', $pm->getFreePort());
     $server->set(['worker_num' => 1]);
     $server->on('WorkerStart', function (Swoole\Server $server, int $worker_id) use ($pm) {
         echo 'read file' . PHP_EOL;
-        Assert::eq(Co::readFile(__FILE__), __FILE_CONTENTS__);
+        Assert::same(Co::readFile(__FILE__), __FILE_CONTENTS__);
         echo 'read file ok' . PHP_EOL;
         $pm->wakeup();
         $server->shutdown();

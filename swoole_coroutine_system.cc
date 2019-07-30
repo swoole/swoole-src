@@ -714,7 +714,7 @@ PHP_FUNCTION(swoole_coroutine_exec)
         RETURN_FALSE;
     }
 
-    swSetNonBlock(fd);
+    swSocket_set_nonblock(fd);
     Socket socket(fd, SW_SOCK_UNIX_STREAM);
     while (1)
     {

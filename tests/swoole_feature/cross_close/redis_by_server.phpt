@@ -14,8 +14,8 @@ $pm->parentFunc = function () use ($pm) {
         echo "GET\n";
         Assert::assert(!$redis->get($pm->getRandomData()));
         echo "CLOSED\n";
-        Assert::eq($redis->errType, SWOOLE_REDIS_ERR_EOF);
-        Assert::eq($redis->errCode, SOCKET_ECONNRESET);
+        Assert::same($redis->errType, SWOOLE_REDIS_ERR_EOF);
+        Assert::same($redis->errCode, SOCKET_ECONNRESET);
         $pm->kill();
         echo "DONE\n";
     });
@@ -30,7 +30,7 @@ $pm->childFunc = function () use ($pm) {
             $data = $conn->recv();
             $random = $pm->getRandomData();
             $random_len = strlen($random);
-            Assert::eq($data, "*2\r\n$3\r\nGET\r\n\${$random_len}\r\n{$random}\r\n");
+            Assert::same($data, "*2\r\n$3\r\nGET\r\n\${$random_len}\r\n{$random}\r\n");
             echo "CLOSE\n";
             $conn->close();
             switch_process();

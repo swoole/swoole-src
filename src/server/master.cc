@@ -406,18 +406,7 @@ int swServer_create_task_worker(swServer *serv)
  */
 int swServer_worker_create(swServer *serv, swWorker *worker)
 {
-    /**
-     * Create shared memory storage
-     */
-    worker->send_shm = sw_shm_malloc(serv->buffer_output_size);
-    if (worker->send_shm == NULL)
-    {
-        swWarn("malloc for worker->store failed");
-        return SW_ERR;
-    }
-    swMutex_create(&worker->lock, 1);
-
-    return SW_OK;
+    return swMutex_create(&worker->lock, 1);
 }
 
 /**
@@ -693,7 +682,6 @@ int swServer_start(swServer *serv)
         return SW_ERR;
     }
     swServer_destory(serv);
-    serv->gs->start = 0;
     //remove PID file
     if (serv->pid_file)
     {
@@ -743,9 +731,7 @@ void swServer_init(swServer *serv)
     serv->timezone = timezone;
 #else
     struct timezone tz;
-
     gettimeofday(nullptr, &tz);
-
     serv->timezone = tz.tz_minuteswest * 60;
 #endif
 
@@ -823,7 +809,6 @@ int swServer_shutdown(swServer *serv)
 static int swServer_destory(swServer *serv)
 {
     swTraceLog(SW_TRACE_SERVER, "release service");
-
     /**
      * shutdown workers
      */
@@ -886,7 +871,15 @@ static int swServer_destory(swServer *serv)
         serv->factory.free(&serv->factory);
     }
     swSignal_clear();
-    if (serv->gs->start > 0 && serv->onShutdown != NULL)
+    /**
+     * shutdown status
+     */
+    serv->gs->start = 0;
+    serv->gs->shutdown = 1;
+    /**
+     * callback
+     */
+    if (serv->onShutdown)
     {
         serv->onShutdown(serv);
     }
@@ -955,7 +948,7 @@ static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_
     bzero(&_send.info, sizeof(_send.info));
     swFactory *factory = &(serv->factory);
 
-    if (unlikely(swIsMaster()))
+    if (sw_unlikely(swIsMaster()))
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't send data to the connections in master process");
         return SW_ERR;
@@ -1213,13 +1206,13 @@ static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
  */
 static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length)
 {
-    if (unlikely(session_id <= 0 || session_id > SW_MAX_SESSION_ID))
+    if (sw_unlikely(session_id <= 0 || session_id > SW_MAX_SESSION_ID))
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%d]", session_id);
         return SW_ERR;
     }
 
-    if (unlikely(swIsMaster()))
+    if (sw_unlikely(swIsMaster()))
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't send data to the connections in master process");
         return SW_ERR;
@@ -1229,7 +1222,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
     swSendFile_request *req = (swSendFile_request*) _buffer;
 
     // file name size
-    if (unlikely(l_file > SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1))
+    if (sw_unlikely(l_file > SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1))
     {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "sendfile name[%.8s...] length %u is exceed the max name len %u",
@@ -1299,7 +1292,7 @@ SW_API void swServer_call_hook(swServer *serv, enum swServer_hook_type type, voi
  */
 static int swServer_tcp_close(swServer *serv, int session_id, int reset)
 {
-    if (unlikely(swIsMaster()))
+    if (sw_unlikely(swIsMaster()))
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't close the connections in master process");
         return SW_ERR;
@@ -1693,7 +1686,7 @@ int swServer_get_socket(swServer *serv, int port)
 
 static void swServer_signal_handler(int sig)
 {
-    swTraceLog(SW_TRACE_SERVER, "signal[%d] triggered", sig);
+    swTraceLog(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swSignal_str(sig), getpid());
 
     swServer *serv = SwooleG.serv;
     int status;
@@ -1743,7 +1736,7 @@ static void swServer_signal_handler(int sig)
         }
         else
         {
-            swKill(serv->gs->manager_pid, sig);
+            swoole_kill(serv->gs->manager_pid, sig);
         }
         break;
     default:
@@ -1755,16 +1748,34 @@ static void swServer_signal_handler(int sig)
             for (i = 0; i < SwooleG.serv->worker_num + serv->task_worker_num + SwooleG.serv->user_worker_num; i++)
             {
                 worker = swServer_get_worker(SwooleG.serv, i);
-                swKill(worker->pid, SIGRTMIN);
+                swoole_kill(worker->pid, SIGRTMIN);
             }
             if (SwooleG.serv->factory_mode == SW_MODE_PROCESS)
             {
-                swKill(serv->gs->manager_pid, SIGRTMIN);
+                swoole_kill(serv->gs->manager_pid, SIGRTMIN);
             }
             swLog_reopen(SwooleG.serv->daemonize ? SW_TRUE : SW_FALSE);
         }
 #endif
         break;
+    }
+}
+
+void swServer_connection_each(swServer *serv, void (*callback)(swConnection *conn))
+{
+    swConnection *conn;
+
+    int fd;
+    int serv_max_fd = swServer_get_maxfd(serv);
+    int serv_min_fd = swServer_get_minfd(serv);
+
+    for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
+    {
+        conn = swServer_connection_get(serv, fd);
+        if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_TCP)
+        {
+            callback(conn);
+        }
     }
 }
 
@@ -1840,7 +1851,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     {
         session_id++;
         //SwooleGS->session_round just has 24 bits size;
-        if (unlikely(session_id == 1 << 24))
+        if (sw_unlikely(session_id == 1 << 24))
         {
             session_id = 1;
         }

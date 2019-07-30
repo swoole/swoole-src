@@ -31,9 +31,9 @@ go(function () use ($n) {
     $w_array = [$fp1, $fp2];
     $e_array = null;
     $retval = stream_select($r_array, $w_array, $e_array, 10);
-    Assert::eq($retval, 2);
-    Assert::eq(count($r_array), 2);
-    Assert::eq(count($w_array), 2);
+    Assert::same($retval, 2);
+    Assert::same(count($r_array), 2);
+    Assert::same(count($w_array), 2);
     $n->set(0);
 });
 ?>

@@ -64,7 +64,7 @@ const zend_function_entry swoole_redis_server_methods[] =
     PHP_FE_END
 };
 
-void swoole_redis_server_init(int module_number)
+void php_swoole_redis_server_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY_EX(swoole_redis_server, "Swoole\\Redis\\Server", "swoole_redis_server", NULL, swoole_redis_server_methods, swoole_server);
     SW_SET_CLASS_SERIALIZABLE(swoole_redis_server, zend_class_serialize_deny, zend_class_unserialize_deny);
@@ -81,7 +81,7 @@ void swoole_redis_server_init(int module_number)
     zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("MAP"), SW_REDIS_REPLY_MAP);
 }
 
-void swoole_redis_server_rshutdown()
+void php_swoole_redis_server_rshutdown()
 {
     for (auto i = redis_handlers.begin(); i != redis_handlers.end(); i++)
     {
@@ -220,7 +220,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
 
 static PHP_METHOD(swoole_redis_server, start)
 {
-    zval *zserv = getThis();
+    zval *zserv = ZEND_THIS;
 
     swServer *serv = (swServer *) swoole_get_object(zserv);
     if (serv->gs->start > 0)
@@ -294,7 +294,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
     size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%s", command);
     php_strtolower(_command, _command_len);
 
-    zend_update_property(swoole_redis_server_ce, getThis(), _command, _command_len, zcallback);
+    zend_update_property(swoole_redis_server_ce, ZEND_THIS, _command, _command_len, zcallback);
 
     string key(_command, _command_len);
     auto i = redis_handlers.find(key);
@@ -324,7 +324,7 @@ static PHP_METHOD(swoole_redis_server, getHandler)
     php_strtolower(_command, _command_len);
 
     zval rv;
-    zval *handler = zend_read_property(swoole_redis_server_ce, getThis(), _command, _command_len, 1, &rv);
+    zval *handler = zend_read_property(swoole_redis_server_ce, ZEND_THIS, _command, _command_len, 1, &rv);
     RETURN_ZVAL(handler, 1, 0);
 }
 

@@ -16,12 +16,12 @@ for ($n = MAX_REQUESTS; $n--;) {
     go(function () use ($channel) {
         $ret = $channel->push('foo', 0.001);
         Assert::false($ret);
-        Assert::eq($channel->errCode, SWOOLE_CHANNEL_TIMEOUT);
+        Assert::same($channel->errCode, SWOOLE_CHANNEL_TIMEOUT);
     });
 }
 go(function () use ($channel) {
     $ret = $channel->pop();
-    Assert::eq($ret, 'foo');
+    Assert::same($ret, 'foo');
 });
 swoole_event_wait();
 echo "DONE\n";

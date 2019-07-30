@@ -26,8 +26,8 @@ go(function () {
     Assert::true($stmt1->execute());
     $stmt2 = $db->prepare('SELECT * FROM ckl LIMIT 2');
     Assert::true($stmt2->execute());
-    Assert::eq(count($stmt1->fetchAll()), 1);
-    Assert::eq(count($stmt2->fetchAll()), 2);
+    Assert::same(count($stmt1->fetchAll()), 1);
+    Assert::same(count($stmt2->fetchAll()), 2);
 });
 ?>
 --EXPECT--

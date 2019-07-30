@@ -27,7 +27,7 @@ $pm->parentFunc = function ($pid) use ($pm)
             break;
         }
         $ret = $client->recv();
-        Assert::eq($ret and strlen($ret), strlen($data) + 8);
+        Assert::same(strlen($ret), strlen($data) + 8);
     }
     $client->close();
     global $counter;

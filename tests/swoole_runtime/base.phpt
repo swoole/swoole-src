@@ -18,12 +18,12 @@ go(function () use ($server) {
     $read = $write = [$cli];
     $n = stream_select($read, $write, $except, 1);
     echo 'select' . PHP_EOL;
-    Assert::eq($n, 1);
+    Assert::same($n, 1);
     Assert::count($read, 1);
     Assert::count($write, 1);
     fread($cli, 8192);
     $n = stream_select($read, $write, $except, 1);
-    Assert::eq($n, 1);
+    Assert::same($n, 1);
     Assert::count($read, 0);
     Assert::count($write, 1);
 });
@@ -32,7 +32,7 @@ Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL ^ SWOOLE_HOOK_FILE ^ SWOOLE_HOOK
 go(function () {
     $read = [fopen(__FILE__, 'r')];
     $n = stream_select($read, $write, $except, 1);
-    Assert::eq($n, 1);
+    Assert::same($n, 1);
     Assert::count($read, 1);
     echo '4' . PHP_EOL;
 });
@@ -51,7 +51,7 @@ echo '6' . PHP_EOL;
 go(function () use ($server) {
     $read = [stream_socket_client("tcp://127.0.0.1:{$server->getPort()}", $errno, $errstr, 1)];
     $n = stream_select($read, $write, $except, 1);
-    Assert::eq($n, 1);
+    Assert::same($n, 1);
     Assert::count($read, 1);
     echo 'select' . PHP_EOL;
 });

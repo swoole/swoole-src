@@ -104,7 +104,7 @@ public:
     bool bind(std::string address, int port = 0);
     bool listen(int backlog = 0);
     bool sendfile(const char *filename, off_t offset, size_t length);
-    ssize_t sendto(const char *address, int port, const char *data, int len);
+    ssize_t sendto(const char *address, int port, const void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
 #ifdef SW_USE_OPENSSL
@@ -164,7 +164,7 @@ public:
 
     inline Coroutine* get_bound_co(const enum swEvent_type event)
     {
-        if (likely(event & SW_EVENT_READ))
+        if (event & SW_EVENT_READ)
         {
             if (read_co)
             {
@@ -190,7 +190,7 @@ public:
     inline void check_bound_co(const enum swEvent_type event)
     {
         long cid = get_bound_cid(event);
-        if (unlikely(cid))
+        if (sw_unlikely(cid))
         {
             swFatalError(
                 SW_ERROR_CO_HAS_BEEN_BOUND,
@@ -271,7 +271,7 @@ public:
 
     inline swString* get_read_buffer()
     {
-        if (unlikely(!read_buffer))
+        if (sw_unlikely(!read_buffer))
         {
             read_buffer = swString_new(SW_BUFFER_SIZE_BIG);
         }
@@ -280,7 +280,7 @@ public:
 
     inline swString* get_write_buffer()
     {
-        if (unlikely(!write_buffer))
+        if (sw_unlikely(!write_buffer))
         {
             write_buffer = swString_new(SW_BUFFER_SIZE_BIG);
         }
@@ -343,7 +343,7 @@ private:
         {
             check_bound_co(event);
         }
-        if (unlikely(socket->closed))
+        if (sw_unlikely(socket->closed))
         {
             set_err(ECONNRESET);
             return false;
@@ -457,14 +457,14 @@ public:
             SW_ASSERT_1BYTE(type);
             if (timeout > 0)
             {
-                if (unlikely(startup_time == 0))
+                if (sw_unlikely(startup_time == 0))
                 {
                     startup_time = swoole_microtime();
                 }
                 else
                 {
                     double used_time = swoole_microtime() - startup_time;
-                    if (unlikely(timeout - used_time < SW_TIMER_MIN_SEC))
+                    if (sw_unlikely(timeout - used_time < SW_TIMER_MIN_SEC))
                     {
                         socket->set_err(ETIMEDOUT);
                         return true;

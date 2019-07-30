@@ -209,7 +209,7 @@ void swoole_set_object_by_handle(uint32_t handle, void *ptr)
 {
     assert(handle < SWOOLE_OBJECT_MAX);
 
-    if (unlikely(handle >= swoole_objects.size))
+    if (sw_unlikely(handle >= swoole_objects.size))
     {
         uint32_t old_size = swoole_objects.size;
         uint32_t new_size = swoole_get_new_size(old_size, handle);
@@ -240,7 +240,7 @@ void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr)
 {
     assert(handle < SWOOLE_OBJECT_MAX);
 
-    if (unlikely(handle >= swoole_objects.property_size[property_id]))
+    if (sw_unlikely(handle >= swoole_objects.property_size[property_id]))
     {
         uint32_t old_size = swoole_objects.property_size[property_id];
         uint32_t new_size = 0;
@@ -287,28 +287,6 @@ void php_swoole_register_shutdown_function(const char *function)
     shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
     ZVAL_STRING(&shutdown_function_entry.arguments[0], function);
     register_user_shutdown_function((char *) function, ZSTR_LEN(Z_STR(shutdown_function_entry.arguments[0])), &shutdown_function_entry);
-}
-
-static void php_swoole_old_shutdown_function_move(zval *zv)
-{
-    php_shutdown_function_entry *old_shutdown_function_entry = (php_shutdown_function_entry *) Z_PTR_P(zv);
-    zend_hash_next_index_insert_mem(BG(user_shutdown_function_names), old_shutdown_function_entry, sizeof(php_shutdown_function_entry));
-    efree(old_shutdown_function_entry);
-}
-
-void php_swoole_register_shutdown_function_prepend(const char *function)
-{
-    HashTable *old_user_shutdown_function_names = BG(user_shutdown_function_names);
-    if (!old_user_shutdown_function_names)
-    {
-        php_swoole_register_shutdown_function(function);
-        return;
-    }
-    BG(user_shutdown_function_names) = NULL;
-    php_swoole_register_shutdown_function(function);
-    old_user_shutdown_function_names->pDestructor = php_swoole_old_shutdown_function_move;
-    zend_hash_destroy(old_user_shutdown_function_names);
-    FREE_HASHTABLE(old_user_shutdown_function_names);
 }
 
 void php_swoole_register_rshutdown_callback(swCallback cb, void *private_data)
@@ -578,39 +556,40 @@ PHP_MINIT_FUNCTION(swoole)
     SW_INIT_CLASS_ENTRY_EX2(swoole_error, "Swoole\\Error", "swoole_error", NULL, NULL, zend_ce_error, zend_get_std_object_handlers());
 
     /** <Sort by dependency> **/
-    swoole_event_init(module_number);
+    php_swoole_event_minit(module_number);
     // base
-    swoole_atomic_init(module_number);
-    swoole_buffer_init(module_number);
-    swoole_lock_init(module_number);
-    swoole_process_init(module_number);
-    swoole_process_pool_init(module_number);
-    swoole_table_init(module_number);
-    swoole_timer_init(module_number);
+    php_swoole_atomic_minit(module_number);
+    php_swoole_buffer_minit(module_number);
+    php_swoole_lock_minit(module_number);
+    php_swoole_process_minit(module_number);
+    php_swoole_process_pool_minit(module_number);
+    php_swoole_table_minit(module_number);
+    php_swoole_timer_minit(module_number);
     // coroutine
-    swoole_async_coro_init(module_number);
-    swoole_coroutine_init(module_number);
-    swoole_channel_coro_init(module_number);
-    swoole_runtime_init(module_number);
+    php_swoole_async_coro_minit(module_number);
+    php_swoole_coroutine_minit(module_number);
+    php_swoole_coroutine_scheduler_minit(module_number);
+    php_swoole_channel_coro_minit(module_number);
+    php_swoole_runtime_minit(module_number);
     // client
-    swoole_socket_coro_init(module_number);
-    swoole_client_init(module_number);
-    swoole_client_coro_init(module_number);
-    swoole_http_client_coro_init(module_number);
-    swoole_mysql_coro_init(module_number);
-    swoole_redis_coro_init(module_number);
+    php_swoole_socket_coro_minit(module_number);
+    php_swoole_client_minit(module_number);
+    php_swoole_client_coro_minit(module_number);
+    php_swoole_http_client_coro_minit(module_number);
+    php_swoole_mysql_coro_minit(module_number);
+    php_swoole_redis_coro_minit(module_number);
 #ifdef SW_USE_HTTP2
-    swoole_http2_client_coro_init(module_number);
+    php_swoole_http2_client_coro_minit(module_number);
 #endif
     // server
-    swoole_server_init(module_number);
-    swoole_server_port_init(module_number);
-    swoole_http_request_init(module_number);
-    swoole_http_response_init(module_number);
-    swoole_http_server_init(module_number);
-    swoole_http_server_coro_init(module_number);
-    swoole_websocket_server_init(module_number);
-    swoole_redis_server_init(module_number);
+    php_swoole_server_minit(module_number);
+    php_swoole_server_port_minit(module_number);
+    php_swoole_http_request_minit(module_number);
+    php_swoole_http_response_minit(module_number);
+    php_swoole_http_server_minit(module_number);
+    php_swoole_http_server_coro_minit(module_number);
+    php_swoole_websocket_server_minit(module_number);
+    php_swoole_redis_server_minit(module_number);
 
     SwooleG.fatal_error = fatal_error;
     SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
@@ -765,11 +744,12 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 
     rshutdown_callbacks.execute();
 
-    swoole_server_rshutdown();
-    swoole_async_coro_rshutdown();
-    swoole_redis_server_rshutdown();
-    swoole_coroutine_rshutdown();
-    swoole_runtime_rshutdown();
+    php_swoole_server_rshutdown();
+    php_swoole_async_coro_rshutdown();
+    php_swoole_redis_server_rshutdown();
+    php_swoole_coroutine_rshutdown();
+    php_swoole_runtime_rshutdown();
+    php_swoole_process_clean();
 
     SwooleG.running = 0;
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;

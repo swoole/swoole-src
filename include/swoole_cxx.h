@@ -38,7 +38,6 @@ struct Callback
     void *private_data;
 
     Callback(swCallback cb, void *_private_data)
-
     {
         callback = cb;
         private_data = _private_data;

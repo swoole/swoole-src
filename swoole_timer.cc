@@ -76,7 +76,7 @@ static const zend_function_entry swoole_timer_methods[] =
     PHP_FE_END
 };
 
-void swoole_timer_init(int module_number)
+void php_swoole_timer_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_timer, "Swoole\\Timer", "swoole_timer", NULL, swoole_timer_methods);
     SW_SET_CLASS_CREATE(swoole_timer, sw_zend_create_object_deny);
@@ -117,6 +117,9 @@ enum swBool_type php_swoole_timer_clear_all()
     {
         return SW_FALSE;
     }
+
+    uint32_t num = swHashMap_count(SwooleG.timer.map), index = 0;
+    swTimer_node **list = (swTimer_node **) emalloc(num * sizeof(swTimer_node*));
     swHashMap_rewind(SwooleG.timer.map);
     while (1)
     {
@@ -128,9 +131,17 @@ enum swBool_type php_swoole_timer_clear_all()
         }
         if (tnode->type == SW_TIMER_TYPE_PHP)
         {
-            swTimer_del(&SwooleG.timer, tnode);
+            list[index++] = tnode;
         }
     }
+
+    while (index--)
+    {
+        swTimer_del(&SwooleG.timer, list[index]);
+    }
+
+    efree(list);
+
     return SW_TRUE;
 }
 

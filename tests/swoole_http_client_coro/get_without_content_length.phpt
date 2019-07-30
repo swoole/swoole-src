@@ -21,7 +21,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         ]);
         $ret = $cli->get('/');
         Assert::true($ret);
-        Assert::eq($cli->statusCode, 200);
+        Assert::same($cli->statusCode, 200);
         Assert::assert(strlen($cli->body) > 1024 * 5);
         $pm->kill();
         echo "OK\n";

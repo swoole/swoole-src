@@ -17,9 +17,9 @@ go(function () {
         $r_array = [$fp1, $fp2];
         $w_array = $e_array = null;
         $n = stream_select($r_array, $w_array, $e_array, 10);
-        Assert::eq($n, 1);
-        Assert::eq(count($r_array), 1);
-        Assert::eq($r_array[0], $fp1);
+        Assert::same($n, 1);
+        Assert::same(count($r_array), 1);
+        Assert::same($r_array[0], $fp1);
         $html = '';
         while (!feof($fp1)) {
             $html .= fgets($fp1, 1024);

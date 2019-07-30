@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine_scheduler/disable2
+swoole_coroutine_scheduler/preemptive: swoole_coroutine_scheduler/disable2
 --SKIPIF--
 <?php 
 require __DIR__ . '/../../include/skipif.inc';

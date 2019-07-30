@@ -28,7 +28,7 @@ go(function () use ($port) {
     }
     $body = httpGetBody($uri . '/post', ['method' => 'POST', 'data' => $data]);
     $form = json_decode($body, true)['form'];
-    Assert::eq($form, $data);
+    Assert::same($form, $data);
 
     echo httpGetBody($uri . "/stop?hello=1") . PHP_EOL;
 });

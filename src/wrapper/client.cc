@@ -62,7 +62,7 @@ void check_reactor(void)
     {
         swTraceLog(SW_TRACE_PHP, "init reactor");
 
-        SwooleG.main_reactor = (swReactor *) malloc(sizeof(swReactor));
+        SwooleG.main_reactor = (swReactor *) sw_malloc(sizeof(swReactor));
         if (SwooleG.main_reactor == NULL)
         {
             swWarn("malloc failed");

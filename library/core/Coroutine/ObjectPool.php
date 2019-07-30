@@ -30,21 +30,20 @@ abstract class ObjectPool
 
     public function get()
     {
-        $cid = Coroutine::getCid();
-        if ($cid < 0) {
+        $context = Coroutine::getContext();
+        if (!$context) {
             throw new BadMethodCallException('ObjectPool misuse: get must be used in coroutine');
         }
         $type = $this->type;
-        $context = Coroutine::getContext();
         Coroutine::defer(function () {
             $this->free();
         });
-        if (isset($context[$cid][$type])) {
-            return $context[$cid][$type];
+        if (isset($context[$type])) {
+            return $context[$type];
         }
         if (!$this->object_pool->isEmpty()) {
             $object = $this->object_pool->pop();
-            $context[$cid]["new"] = false;
+            $context["new"] = false;
         } else {
             /* create concurrency control */
             $this->busy_pool->push(true);
@@ -52,27 +51,26 @@ abstract class ObjectPool
             if (empty($object)) {
                 throw new RuntimeException('ObjectPool misuse: create object failed');
             }
-            $context[$cid]["new"] = true;
+            $context["new"] = true;
         }
 
-        $context[$cid][$type] = $object;
+        $context[$type] = $object;
         return $object;
     }
 
     public function free()
     {
-        $cid = Coroutine::getCid();
-        if ($cid < 0) {
+        $context = Coroutine::getContext();
+        if (!$context) {
             throw new BadMethodCallException('ObjectPool misuse: free must be used in coroutine');
         }
         $type = $this->type;
-        $context = Coroutine::getContext();
-        $object = $context[$cid][$type];
+        $object = $context[$type];
         $this->object_pool->push($object);
-        if ($context[$cid]["new"]) {
+        if ($context["new"]) {
             $this->busy_pool->pop();
         }
     }
 
-    abstract function create();
+    public abstract function create();
 }
