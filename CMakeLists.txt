@@ -43,6 +43,7 @@ add_dependencies(test_server shared)
 target_link_libraries(test_server ${SWOOLE_CLFLAGS} swoole)
 
 #mt_co
+add_definitions(-DSW_CO_MT)
 set(TEST_SRC_LIST examples/cpp/mt_co.cc)
 add_executable(mt_co ${TEST_SRC_LIST})
 add_dependencies(mt_co shared)
