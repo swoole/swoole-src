@@ -122,6 +122,8 @@ public:
         {
             non_sql_error(MYSQLND_CR_SERVER_GONE_ERROR, MYSQLND_SERVER_GONE " due to %s", socket->errMsg);
         }
+        /* don't send QUIT after IO error */
+        state = SW_MYSQL_STATE_CLOSED;
         close();
     }
 
@@ -247,7 +249,7 @@ public:
 
     inline bool is_writable()
     {
-        return is_connect() && !socket->has_bound(SW_EVENT_WRITE);
+        return state != SW_MYSQL_STATE_CLOSED && is_connect() && !socket->has_bound(SW_EVENT_WRITE);
     }
 
     bool is_available_for_new_reuqest()
