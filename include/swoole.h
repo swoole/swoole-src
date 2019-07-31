@@ -1663,6 +1663,8 @@ struct _swReactor
     swReactor_handler write_handler[SW_MAX_FDTYPE];  // ext event 1 (maybe writable event)
     swReactor_handler error_handler[SW_MAX_FDTYPE];  // ext event 2 (error event, maybe socket closed)
 
+    struct _swTimer *timer;
+
     int (*add)(swReactor *, int fd, int fdtype);
     int (*set)(swReactor *, int fd, int fdtype);
     int (*del)(swReactor *, int fd);
@@ -2295,6 +2297,7 @@ typedef struct
     uint8_t update_time;
     swString *buffer_stack;
     swReactor *reactor;
+    swTimer timer;
 } swThreadGlobal_t;
 
 typedef struct
@@ -2311,8 +2314,6 @@ typedef struct _swFactory swFactory;
 
 typedef struct
 {
-    swTimer timer;
-
     uint8_t running :1;
     uint8_t enable_coroutine :1;
     uint8_t use_signalfd :1;
@@ -2361,6 +2362,7 @@ typedef struct
 
     swMemoryPool *memory_pool;
     swReactor *main_reactor;
+    swTimer timer;
 
     char *task_tmpdir;
     uint16_t task_tmpdir_len;

@@ -50,9 +50,11 @@ typedef void (*sw_coro_on_swap_t)(void*);
 typedef void (*sw_coro_bailout_t)();
 
 #ifdef SW_CO_MT
-#define sw_co_thread_local thread_local
+#define sw_co_thread_local   thread_local
+#define sw_timer()           &SwooleTG.timer
 #else
 #define sw_co_thread_local
+#define sw_timer()           &SwooleG.timer
 #endif
 
 namespace swoole

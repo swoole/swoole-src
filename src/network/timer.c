@@ -47,17 +47,15 @@ static int swReactorTimer_set(swTimer *timer, long exec_msec)
 
 static void swReactorTimer_close(swTimer *timer)
 {
-    if (SwooleG.main_reactor)
-    {
-        SwooleG.main_reactor->check_timer = SW_FALSE;
-        swReactorTimer_set(timer, -1);
-    }
+    timer->reactor->check_timer = SW_FALSE;
+    swReactorTimer_set(timer, -1);
 }
 
 static int swReactorTimer_init(swReactor *reactor, swTimer *timer, long exec_msec)
 {
     reactor->check_timer = SW_TRUE;
     reactor->timeout_msec = exec_msec;
+    reactor->timer = timer;
     timer->reactor = reactor;
     timer->set = swReactorTimer_set;
     timer->close = swReactorTimer_close;
@@ -94,7 +92,11 @@ static int swTimer_init(swTimer *timer, long msec)
     timer->round = 0;
 
     int ret;
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
+    {
+        ret = swReactorTimer_init(SwooleTG.reactor, timer, msec);
+    }
+    else if (SwooleG.main_reactor)
     {
         ret = swReactorTimer_init(SwooleG.main_reactor, timer, msec);
     }

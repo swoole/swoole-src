@@ -72,14 +72,14 @@ void* Channel::pop(double timeout)
             msg.chan = this;
             msg.type = CONSUMER;
             msg.co = current_co;
-            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, timer_callback);
+            msg.timer = swTimer_add(sw_timer(), msec, 0, &msg, timer_callback);
         }
 
         yield(CONSUMER);
 
         if (msg.timer)
         {
-            swTimer_del(&SwooleG.timer, msg.timer);
+            swTimer_del(sw_timer(), msg.timer);
         }
         if (msg.error || closed)
         {
@@ -120,14 +120,14 @@ bool Channel::push(void *data, double timeout)
             msg.chan = this;
             msg.type = PRODUCER;
             msg.co = current_co;
-            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, timer_callback);
+            msg.timer = swTimer_add(sw_timer(), msec, 0, &msg, timer_callback);
         }
 
         yield(PRODUCER);
 
         if (msg.timer)
         {
-            swTimer_del(&SwooleG.timer, msg.timer);
+            swTimer_del(sw_timer(), msg.timer);
         }
         if (msg.error || closed)
         {

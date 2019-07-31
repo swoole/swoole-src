@@ -99,7 +99,7 @@ static void sleep_timeout(swTimer *timer, swTimer_node *tnode)
 int System::sleep(double sec)
 {
     Coroutine* co = Coroutine::get_current_safe();
-    if (swTimer_add(&SwooleG.timer, (long) (sec * 1000), 0, co, sleep_timeout) == NULL)
+    if (swTimer_add(sw_timer(), (long) (sec * 1000), 0, co, sleep_timeout) == NULL)
     {
         return -1;
     }
@@ -237,7 +237,7 @@ string System::gethostbyname(const string &hostname, int domain, double timeout)
     swTimer_node *timer = nullptr;
     if (timeout > 0)
     {
-        timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, event, aio_onDNSTimeout);
+        timer = swTimer_add(sw_timer(), (long) (timeout * 1000), 0, event, aio_onDNSTimeout);
     }
     task.co->yield();
     if (ev.ret == 1)
@@ -250,7 +250,7 @@ string System::gethostbyname(const string &hostname, int domain, double timeout)
     }
     if (timer)
     {
-        swTimer_del(&SwooleG.timer, timer);
+        swTimer_del(sw_timer(), timer);
     }
 
     if (ev.ret == -1)
@@ -310,12 +310,12 @@ vector<string> System::getaddrinfo(const string &hostname, int family, int sockt
     swTimer_node *timer = nullptr;
     if (timeout > 0)
     {
-        timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, event, aio_onDNSTimeout);
+        timer = swTimer_add(sw_timer(), (long) (timeout * 1000), 0, event, aio_onDNSTimeout);
     }
     task.co->yield();
     if (timer)
     {
-        swTimer_del(&SwooleG.timer, timer);
+        swTimer_del(sw_timer(), timer);
     }
 
     vector<string> retval;
@@ -427,7 +427,7 @@ static inline void socket_poll_trigger_event(swReactor *reactor, int fd, enum sw
         task->success = true;
         if (task->timer)
         {
-            swTimer_del(&SwooleG.timer, task->timer);
+            swTimer_del(sw_timer(), task->timer);
             task->timer = nullptr;
         }
         reactor->defer(reactor, socket_poll_completed, task);
@@ -531,7 +531,7 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
 
     if (timeout > 0)
     {
-        task.timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, &task, socket_poll_timeout);
+        task.timer = swTimer_add(sw_timer(), (long) (timeout * 1000), 0, &task, socket_poll_timeout);
     }
 
     task.co->yield();
