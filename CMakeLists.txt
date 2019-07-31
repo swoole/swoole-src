@@ -42,6 +42,12 @@ add_executable(test_server ${TEST_SRC_LIST})
 add_dependencies(test_server shared)
 target_link_libraries(test_server ${SWOOLE_CLFLAGS} swoole)
 
+#mt_co
+set(TEST_SRC_LIST examples/cpp/mt_co.cc)
+add_executable(mt_co ${TEST_SRC_LIST})
+add_dependencies(mt_co shared)
+target_link_libraries(mt_co ${SWOOLE_CLFLAGS} swoole)
+
 #install
 INSTALL(CODE "MESSAGE(\"Are you run command using root user?\")")
 INSTALL(TARGETS shared LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)

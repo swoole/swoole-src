@@ -49,6 +49,12 @@ typedef enum
 typedef void (*sw_coro_on_swap_t)(void*);
 typedef void (*sw_coro_bailout_t)();
 
+#ifdef SW_CO_MT
+#define sw_co_thread_local thread_local
+#else
+#define sw_co_thread_local
+#endif
+
 namespace swoole
 {
 struct socket_poll_fd
@@ -109,7 +115,7 @@ public:
         task = _task;
     }
 
-    static std::unordered_map<long, Coroutine*> coroutines;
+    static sw_co_thread_local std::unordered_map<long, Coroutine*> coroutines;
 
     static void set_on_yield(sw_coro_on_swap_t func);
     static void set_on_resume(sw_coro_on_swap_t func);
@@ -186,8 +192,8 @@ public:
 
 protected:
     static size_t stack_size;
-    static Coroutine* current;
-    static long last_cid;
+    static sw_co_thread_local Coroutine* current;
+    static sw_co_thread_local long last_cid;
     static uint64_t peak_num;
     static sw_coro_on_swap_t on_yield;   /* before yield */
     static sw_coro_on_swap_t on_resume;  /* before resume */
