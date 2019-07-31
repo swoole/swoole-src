@@ -22,9 +22,9 @@ using namespace swoole;
 sw_co_thread_local Coroutine* Coroutine::current = nullptr;
 sw_co_thread_local long Coroutine::last_cid = 0;
 sw_co_thread_local std::unordered_map<long, Coroutine*> Coroutine::coroutines;
+sw_co_thread_local uint64_t Coroutine::peak_num = 0;
 
 size_t Coroutine::stack_size = SW_DEFAULT_C_STACK_SIZE;
-uint64_t Coroutine::peak_num = 0;
 sw_coro_on_swap_t Coroutine::on_yield = nullptr;
 sw_coro_on_swap_t Coroutine::on_resume = nullptr;
 sw_coro_on_swap_t Coroutine::on_close = nullptr;

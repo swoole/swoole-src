@@ -191,10 +191,10 @@ public:
     static void print_list();
 
 protected:
-    static size_t stack_size;
     static sw_co_thread_local Coroutine* current;
     static sw_co_thread_local long last_cid;
-    static uint64_t peak_num;
+    static sw_co_thread_local uint64_t peak_num;
+    static size_t stack_size;
     static sw_coro_on_swap_t on_yield;   /* before yield */
     static sw_coro_on_swap_t on_resume;  /* before resume */
     static sw_coro_on_swap_t on_close;   /* before close */
