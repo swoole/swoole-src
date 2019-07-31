@@ -616,6 +616,8 @@ if test "$PHP_SWOOLE" != "no"; then
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
         fi
+    else
+        SW_NO_USE_ASM_CONTEXT="yes"
     fi
 
     if test "$SW_NO_USE_ASM_CONTEXT" = "no"; then
