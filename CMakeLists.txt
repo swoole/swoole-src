@@ -37,7 +37,7 @@ target_link_libraries(shared ${SWOOLE_CLFLAGS})
 LINK_DIRECTORIES(${LIBRARY_OUTPUT_PATH})
 
 #test_server
-set(TEST_SRC_LIST examples/test_server.c)
+set(TEST_SRC_LIST examples/cpp/test_server.c)
 add_executable(test_server ${TEST_SRC_LIST})
 add_dependencies(test_server shared)
 target_link_libraries(test_server ${SWOOLE_CLFLAGS} swoole)

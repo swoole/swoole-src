@@ -1,13 +1,16 @@
 #include "swoole.h"
-#include "api.h"
+#include "swoole_api.h"
 #include "client.h"
 #include "server.h"
 #include "coroutine.h"
-#include "socket.h"
+#include "coroutine_socket.h"
+#include "coroutine_system.h"
 
 #include <iostream>
 
-using namespace swoole;
+using swoole::Coroutine;
+using swoole::coroutine::System;
+using swoole::coroutine::Socket;
 using namespace std;
 
 struct A
@@ -35,7 +38,7 @@ int main(int argc, char **argv)
          * 这里协程挂起后，协程2 会执行，在协程2中修改了 x, y 值
          * 协程2 退出或挂起后，重新回到协程1，这里的x和y的值已经不符合预期了
          */
-        Coroutine::sleep(1);
+        System::sleep(1);
         //这里会显示 100
         cout << "X=" << G_a.x << endl;
         //这里会读到空指针

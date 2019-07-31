@@ -56,11 +56,17 @@ int main(int argc, char **argv)
     ret = swServer_create(&serv);
     if (ret < 0)
     {
-        swTrace("create server fail[error=%d].\n", ret);
-        exit(0);
+        swWarn("create server fail[error=%d]", SwooleG.error);
+        exit(1);
     }
 
     swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
+    if (!port)
+    {
+        swWarn("listen failed, [error=%d]", SwooleG.error);
+        exit(2);
+    }
+
     port->open_eof_check = 0;
     //config
     port->backlog = 128;
@@ -73,8 +79,8 @@ int main(int argc, char **argv)
     ret = swServer_start(&serv);
     if (ret < 0)
     {
-        swTrace("start server fail[error=%d].\n", ret);
-        exit(0);
+        swWarn("start server fail[error=%d]", ret);
+        exit(3);
     }
     return 0;
 }
