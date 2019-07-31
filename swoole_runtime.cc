@@ -672,7 +672,7 @@ static int socket_setup_crypto(php_stream *stream, Socket *sock, php_stream_xpor
 
 static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xport_crypto_param *cparam STREAMS_DC)
 {
-    return sock->ssl_handshake() ? 0 : -1;
+    return sock->ssl_handshake() ? PHP_STREAM_OPTION_RETURN_OK : PHP_STREAM_OPTION_RETURN_ERR;
 }
 #endif
 
@@ -684,26 +684,6 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
     {
     case STREAM_XPORT_OP_LISTEN:
     {
-#ifdef SW_USE_OPENSSL
-        if (sock->open_ssl)
-        {
-            zval *val = NULL;
-            char *certfile = NULL;
-            char *private_key = NULL;
-
-            GET_VER_OPT_STRING("local_cert", certfile);
-            GET_VER_OPT_STRING("local_pk", private_key);
-
-            if (!certfile || !private_key)
-            {
-                php_swoole_fatal_error(E_ERROR, "ssl cert/key file not found");
-                return FAILURE;
-            }
-
-            sock->ssl_option.cert_file = sw_strdup(certfile);
-            sock->ssl_option.key_file = sw_strdup(private_key);
-        }
-#endif
         xparam->outputs.returncode = sock->listen(xparam->inputs.backlog) ? 0 : -1;
         break;
     }
@@ -928,6 +908,7 @@ static php_stream *socket_create(
 )
 {
     php_stream *stream = NULL;
+    php_swoole_netstream_data_t *abstract = NULL;
     Socket *sock;
 
     Coroutine::get_current_safe();
@@ -962,7 +943,14 @@ static php_stream *socket_create(
     if (UNEXPECTED(sock->socket == nullptr))
     {
         _failed:
-        delete sock;
+        if (!stream)
+        {
+            delete sock;
+        }
+        else
+        {
+            php_stream_close(stream);
+        }
         return NULL;
     }
 
@@ -971,9 +959,7 @@ static php_stream *socket_create(
         sock->set_timeout((double) FG(default_socket_timeout));
     }
 
-    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t*) emalloc(sizeof(*abstract));
-    memset(abstract, 0, sizeof(*abstract));
-
+    abstract = (php_swoole_netstream_data_t*) ecalloc(1, sizeof(*abstract));
     abstract->socket = sock;
     abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
     abstract->stream.socket = sock->get_fd();
@@ -986,6 +972,41 @@ static php_stream *socket_create(
     {
         goto _failed;
     }
+
+    if (context && ZVAL_IS_ARRAY(&context->options))
+    {
+        zval *ztmp;
+#ifdef SW_USE_OPENSSL
+        if (sock->open_ssl && php_swoole_array_get_value(Z_ARRVAL_P(&context->options), "ssl", ztmp) && ZVAL_IS_ARRAY(ztmp))
+        {
+            [](Socket *sock, HashTable *options)
+            {
+                zval zalias, *ztmp;
+                array_init(&zalias);
+#define SSL_OPTION_ALIAS(name, alias) do { \
+    if (php_swoole_array_get_value(options, name, ztmp)) \
+    { \
+        add_assoc_zval_ex(&zalias, ZEND_STRL(alias), ztmp); \
+    } \
+} while (0);
+                SSL_OPTION_ALIAS("peer_name", "ssl_hostname");
+                SSL_OPTION_ALIAS("verify_peer", "ssl_verify_peer");
+                SSL_OPTION_ALIAS("allow_self_signed", "ssl_allow_self_signed");
+                SSL_OPTION_ALIAS("cafile", "ssl_cafile");
+                SSL_OPTION_ALIAS("capath", "ssl_capath");
+                SSL_OPTION_ALIAS("local_cert", "ssl_cert_file");
+                SSL_OPTION_ALIAS("local_pk", "ssl_key_file");
+                SSL_OPTION_ALIAS("passphrase", "ssl_passphrase");
+                SSL_OPTION_ALIAS("verify_depth", "ssl_verify_depth");
+                SSL_OPTION_ALIAS("disable_compression", "ssl_disable_compression");
+#undef SSL_OPTION_ALIAS
+                php_swoole_socket_set_ssl(sock, &zalias);
+                zend_array_destroy(Z_ARRVAL(zalias));
+            } (sock, Z_ARRVAL_P(ztmp));
+        }
+#endif
+    }
+
     return stream;
 }
 

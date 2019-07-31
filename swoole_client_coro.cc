@@ -452,6 +452,10 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset)
     {
         sock->ssl_option.disable_compress = !zval_is_true(ztmp);
     }
+    else  if (php_swoole_array_get_value(vht, "ssl_disable_compression", ztmp))
+    {
+        sock->ssl_option.disable_compress = !zval_is_true(ztmp);
+    }
     if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp))
     {
         zend::string str_v(ztmp);

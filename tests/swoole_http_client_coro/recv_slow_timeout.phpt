@@ -50,7 +50,7 @@ $pm->childFunc = function () use ($pm) {
                     "\r\n";
                 for ($n = 0; $n < strlen($data); $n++) {
                     var_dump_return("send {$n}\n");
-                    $client->send($data{$n});
+                    $client->send($data[$n]);
                     usleep(mt_rand(10, 800) * 1000);
                 }
             });
