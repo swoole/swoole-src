@@ -975,22 +975,34 @@ static php_stream *socket_create(
 
     if (context && ZVAL_IS_ARRAY(&context->options))
     {
-        HashTable *vht = Z_ARRVAL_P(&context->options);
         zval *ztmp;
-        if (php_swoole_array_get_value(vht, "swoole", ztmp))
-        {
-            if (!php_swoole_client_set(sock, ztmp))
-            {
-                goto _failed;
-            }
-        }
 #ifdef SW_USE_OPENSSL
-        if (sock->open_ssl && php_swoole_array_get_value(vht, "ssl", ztmp))
+        if (sock->open_ssl && php_swoole_array_get_value(Z_ARRVAL_P(&context->options), "ssl", ztmp) && ZVAL_IS_ARRAY(ztmp))
         {
-            if (!php_swoole_socket_set_ssl(sock, ztmp))
+            [](Socket *sock, HashTable *options)
             {
-                goto _failed;
-            }
+                zval zalias, *ztmp;
+                array_init(&zalias);
+#define SSL_OPTION_ALIAS(name, alias) do { \
+    if (php_swoole_array_get_value(options, name, ztmp)) \
+    { \
+        add_assoc_zval_ex(&zalias, ZEND_STRL(alias), ztmp); \
+    } \
+} while (0);
+                SSL_OPTION_ALIAS("peer_name", "ssl_hostname");
+                SSL_OPTION_ALIAS("verify_peer", "ssl_verify_peer");
+                SSL_OPTION_ALIAS("allow_self_signed", "ssl_allow_self_signed");
+                SSL_OPTION_ALIAS("cafile", "ssl_cafile");
+                SSL_OPTION_ALIAS("capath", "ssl_capath");
+                SSL_OPTION_ALIAS("local_cert", "ssl_cert_file");
+                SSL_OPTION_ALIAS("local_pk", "ssl_key_file");
+                SSL_OPTION_ALIAS("passphrase", "ssl_passphrase");
+                SSL_OPTION_ALIAS("verify_depth", "ssl_verify_depth");
+                SSL_OPTION_ALIAS("disable_compression", "ssl_disable_compression");
+#undef SSL_OPTION_ALIAS
+                php_swoole_socket_set_ssl(sock, &zalias);
+                zend_array_destroy(Z_ARRVAL(zalias));
+            } (sock, Z_ARRVAL_P(ztmp));
         }
 #endif
     }
