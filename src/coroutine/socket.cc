@@ -794,6 +794,21 @@ ssize_t Socket::peek(void *__buf, size_t __n)
     return retval;
 }
 
+ssize_t Socket::recv(void *__buf, size_t __n)
+{
+    if (sw_unlikely(!is_available(SW_EVENT_READ)))
+    {
+        return -1;
+    }
+    ssize_t retval;
+    timer_controller timer(&read_timer, read_timeout, this, timer_callback);
+    do {
+        retval = swConnection_recv(socket, __buf, __n, 0);
+    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
+    set_err(retval < 0 ? errno : 0);
+    return retval;
+}
+
 ssize_t Socket::send(const void *__buf, size_t __n)
 {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE)))

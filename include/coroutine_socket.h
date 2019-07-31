@@ -91,21 +91,7 @@ public:
     bool is_connect();
     bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
-ssize_t recv(void* __buf, size_t __n)
-{
-    if (sw_unlikely(!is_available(SW_EVENT_READ)))
-    {
-        return -1;
-    }
-    ssize_t retval;
-    timer_controller timer(&read_timer, read_timeout, this, timer_callback);
-    do
-    {
-        retval = swConnection_recv(socket, __buf, __n, 0);
-    } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
-    set_err(retval < 0 ? errno : 0);
-    return retval;
-}
+    ssize_t recv(void *__buf, size_t __n);
     ssize_t send(const void *__buf, size_t __n);
     ssize_t read(void *__buf, size_t __n);
     ssize_t write(const void *__buf, size_t __n);

@@ -128,6 +128,10 @@ void swoole_clean(void)
     //free the global memory
     if (SwooleG.memory_pool != NULL)
     {
+        if (SwooleG.timer.initialized)
+        {
+            swTimer_free(&SwooleG.timer);
+        }
         if (SwooleG.task_tmpdir)
         {
             sw_free(SwooleG.task_tmpdir);
@@ -160,6 +164,13 @@ pid_t swoole_fork(int flags)
     pid_t pid = fork();
     if (pid == 0)
     {
+        /**
+         * [!!!] All timers and event loops must be cleaned up after fork
+         */
+        if (SwooleG.timer.initialized)
+        {
+            swTimer_free(&SwooleG.timer);
+        }
         if (!(flags & SW_FORK_EXEC))
         {
             /**
