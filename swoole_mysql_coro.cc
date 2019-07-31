@@ -120,10 +120,13 @@ public:
         }
         else
         {
-            non_sql_error(MYSQLND_CR_SERVER_GONE_ERROR, MYSQLND_SERVER_GONE " due to %s", socket->errMsg);
+            non_sql_error(
+                MYSQLND_CR_SERVER_GONE_ERROR, MYSQLND_SERVER_GONE "%s%s",
+                socket->errCode ? " due to " : "", socket->errCode ? socket->errMsg : ""
+            );
         }
         /* don't send QUIT after IO error */
-        state = SW_MYSQL_STATE_CLOSED;
+        quit = true;
         close();
     }
 
@@ -249,7 +252,7 @@ public:
 
     inline bool is_writable()
     {
-        return state != SW_MYSQL_STATE_CLOSED && is_connect() && !socket->has_bound(SW_EVENT_WRITE);
+        return is_connect() && !socket->has_bound(SW_EVENT_WRITE);
     }
 
     bool is_available_for_new_reuqest()
@@ -334,6 +337,8 @@ public:
 
     bool send_packet(mysql::client_packet *packet);
     bool send_command(enum sw_mysql_command command, const char* sql = nullptr, size_t length = 0);
+    // just for internal
+    void send_command_without_check(enum sw_mysql_command command, const char* sql = nullptr, size_t length = 0);
 
     void query(zval *return_value, const char *statement, size_t statement_length);
     void send_query_request(zval *return_value, const char *statement, size_t statement_length);
@@ -454,7 +459,7 @@ public:
                 {
                     char id[4];
                     sw_mysql_int4store(id, info.id);
-                    client->send_command(SW_MYSQL_COM_STMT_CLOSE, id, sizeof(id));
+                    client->send_command_without_check(SW_MYSQL_COM_STMT_CLOSE, id, sizeof(id));
                 }
                 client->statements.erase(info.id);
             }
@@ -790,6 +795,12 @@ bool mysql_client::send_command(enum sw_mysql_command command, const char* sql, 
         }
         return true;
     }
+}
+
+void mysql_client::send_command_without_check(enum sw_mysql_command command, const char* sql, size_t length)
+{
+    mysql::command_packet command_packet(command, sql, length);
+    (void) (socket && socket->send(command_packet.get_data(), command_packet.get_data_length()));
 }
 
 bool mysql_client::handshake()
@@ -1281,14 +1292,15 @@ mysql_statement* mysql_client::recv_prepare_response()
 
 void mysql_client::close()
 {
+    state = SW_MYSQL_STATE_CLOSED;
     Socket *socket = this->socket;
     if (socket)
     {
         del_timeout_controller();
-        if (sw_likely(!quit && is_writable()))
+        if (!quit && is_writable())
         {
+            send_command_without_check(SW_MYSQL_COM_QUIT);
             quit = true;
-            send_command(SW_MYSQL_COM_QUIT);
         }
         if (sw_likely(!socket->has_bound()))
         {
@@ -1306,7 +1318,6 @@ void mysql_client::close()
             delete socket;
         }
     }
-    state = SW_MYSQL_STATE_CLOSED;
 }
 
 bool mysql_statement::send_prepare_request()
