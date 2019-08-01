@@ -452,7 +452,7 @@ void swAio_handler_gethostbyname(swAio_event *event)
 
     if (ret < 0)
     {
-        event->error = h_errno;
+        event->error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
     }
     else
     {
