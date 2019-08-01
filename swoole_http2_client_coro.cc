@@ -327,6 +327,9 @@ bool http2_client::connect()
     }
 
     client = new Socket(SW_SOCK_TCP);
+#ifdef SW_USE_OPENSSL
+    client->open_ssl = ssl;
+#endif
 
     client->http2 = 1;
     client->open_length_check = 1;
@@ -336,9 +339,6 @@ bool http2_client::connect()
 
     apply_setting(sw_zend_read_property(swoole_http2_client_coro_ce, zobject, ZEND_STRL("setting"), 0));
 
-#ifdef SW_USE_OPENSSL
-    client->open_ssl = ssl;
-#endif
     if (!client->connect(host, port))
     {
         io_error();
@@ -1311,11 +1311,6 @@ static PHP_METHOD(swoole_http2_client_coro, send)
 static PHP_METHOD(swoole_http2_client_coro, recv)
 {
     http2_client *h2c = (http2_client *) swoole_get_object(ZEND_THIS);
-
-    if (!h2c->is_available())
-    {
-        RETURN_FALSE;
-    }
 
     double timeout = 0;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)

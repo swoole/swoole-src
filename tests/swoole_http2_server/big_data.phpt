@@ -10,7 +10,11 @@ $pm->parentFunc = function ($pid) use ($pm) {
     go(function () use ($pm) {
         $domain = '127.0.0.1';
         $cli = new Swoole\Coroutine\Http2\Client($domain, $pm->getFreePort(), true);
-        $cli->set(['timeout' => 10]);
+        $cli->set([
+            'timeout' => 10,
+            'ssl_cert_file' => SSL_FILE_DIR2 . '/client-cert.pem',
+            'ssl_key_file' => SSL_FILE_DIR2 . '/client-key.pem'
+        ]);
         Assert::assert($cli->connect());
 
         $req = new Swoole\Http2\Request;
@@ -40,7 +44,10 @@ $pm->childFunc = function () use ($pm) {
         'log_file' => '/dev/null',
         'open_http2_protocol' => true,
         'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
-        'ssl_key_file' => SSL_FILE_DIR . '/server.key'
+        'ssl_key_file' => SSL_FILE_DIR . '/server.key',
+        'ssl_verify_peer' => true,
+        'ssl_allow_self_signed' => true,
+        'ssl_client_cert_file' => SSL_FILE_DIR2 . '/ca-cert.pem'
     ]);
     $http->on("WorkerStart", function ($serv, $wid) use ($pm) {
         $pm->wakeup();

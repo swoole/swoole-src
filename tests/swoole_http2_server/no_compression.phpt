@@ -12,6 +12,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $cli = new Swoole\Coroutine\Http2\Client($domain, $pm->getFreePort(), true);
         $cli->set([
             'timeout' => -1,
+            'ssl_cert_file' => SSL_FILE_DIR2 . '/client-cert.pem',
+            'ssl_key_file' => SSL_FILE_DIR2 . '/client-key.pem'
         ]);
         $cli->connect();
 
@@ -40,6 +42,9 @@ $pm->childFunc = function () use ($pm) {
         'http_compression' => false,
         'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
         'ssl_key_file' => SSL_FILE_DIR . '/server.key',
+        'ssl_verify_peer' => true,
+        'ssl_allow_self_signed' => true,
+        'ssl_client_cert_file' => SSL_FILE_DIR2 . '/ca-cert.pem'
     ]);
     $http->on("WorkerStart", function ($serv, $wid) {
         global $pm;
