@@ -1,11 +1,13 @@
 <?php
 
-namespace Swoole;
+namespace SwooleBench;
 
-//关闭错误输出
-//error_reporting(0);
+use Swoole\Coroutine;
+use Swoole\ExitException;
+use Symfony\Component\Console\Application;
+use Symfony;
 
-class CoBenchMarkTest
+class Base
 {
     protected const TCP_SENT_LEN = 1024;
     protected const TIMEOUT = 3; // seconds
@@ -39,39 +41,37 @@ class CoBenchMarkTest
 
     protected $sentData;
     protected $sentLen = 0;
+    protected $data;
+    protected $randomData;
 
     protected $verbose; // default disable
 
-    public function __construct($opt)
+    /**
+     * Base constructor.
+     * @param $c
+     * @param $n
+     * @param $s
+     * @param $f
+     * @throws ExitException
+     */
+    function __construct($c, $n, $s, $f)
     {
-        $this->init();
-    }
-
-    protected function init()
-    {
-        $this->parseOpts();
-        if (!isset($this->scheme) or !method_exists($this, $this->scheme)) {
-            exit("Not support pressure measurement objects [{$this->scheme}]." . PHP_EOL);
+        list($this->host, $this->port) = explode(':', $s);
+        if (!filter_var($this->host, FILTER_VALIDATE_IP)) {
+            throw new ExitException("Invalid ip address: {$this->host}" . PHP_EOL);
         }
-        $this->testMethod = $this->scheme;
-
-        if (!isset($this->port)) {
-            switch ($this->scheme) {
-                case 'tcp':
-                    $this->port = 9501;
-                    break;
-                case 'http':
-                    $this->port = 80;
-                    break;
-                case 'https':
-                    $this->port = 443;
-                    break;
-                case 'ws':
-                    $this->port = 80;
-                default:
-                    break;
-            }
+        if ($this->port > 65535 or $this->port < 1024) {
+            throw new ExitException("Invalid port [1024~65535]" . PHP_EOL);
         }
+
+        $this->nConcurrency = $c;
+        $this->nRequest = $n;
+
+        if (!isset($f) or !method_exists($this, $f)) {
+            throw new ExitException("Not support pressure measurement objects [{$f}]." . PHP_EOL);
+        }
+        $this->testMethod = $f;
+        $this->nShow = $this->nRequest / 10;
     }
 
     protected function parseOpts()
@@ -83,40 +83,15 @@ class CoBenchMarkTest
             $this->showHelp();
         }
 
-        if (isset($opts['c']) and intval($opts['c']) > 0) {
-            $this->nConcurrency = intval($opts['c']);
-        }
-        if (isset($opts['n']) and intval($opts['n']) > 0) {
-            $this->nRequest = intval($opts['n']);
-        }
-        $this->nShow = $this->nRequest / 10;
-
         if (isset($opts['l']) and intval($opts['l']) > 0) {
             $this->sentLen = intval($opts['l']);
         }
 
-        if (!isset($opts['s'])) {
-            exit("Require -s [server_url]. E.g: -s tcp://127.0.0.1:9501" . PHP_EOL);
-        }
-        $serv = parse_url($opts['s']);
-        if (!$serv) {
-            exit("Invalid URL" . PHP_EOL);
-        }
-        $this->scheme = $serv['scheme'];
-        if (!filter_var($serv['host'], FILTER_VALIDATE_IP)) {
-            exit("Invalid ip address" . PHP_EOL);
-        }
-        $this->host = $serv['host'];
-        if (isset($serv['port']) and intval($serv['port']) > 0) {
-            $this->port = $serv['port'];
-        }
-        $this->path = $serv['path'] ?? SELF::PATH;
-        $this->query = $serv['query'] ?? SELF::QUERY;
-
-        $this->timeout = $opts['t'] ? intval($opts['t']) : SELF::TIMEOUT;
+        $this->path = $serv['path'] ?? self::PATH;
+        $this->query = $serv['query'] ?? self::QUERY;
+        $this->timeout = $opts['t'] ? intval($opts['t']) : self::TIMEOUT;
         $this->keepAlive = isset($opts['k']);
         $this->verbose = isset($opts['v']);
-
         if (isset($opts['d'])) {
             $this->setSentData($opts['d']);
         }
@@ -160,7 +135,7 @@ HELP
         $connectErrorCount = number_format($this->connectErrorCount);
         $nSendBytes = number_format($this->nSendBytes);
         $nRecvBytes = number_format($this->nRecvBytes);
-        $requestPerSec = $this->requestCount / $costTime;
+        $requestPerSec = round($this->requestCount / $costTime, 2);
         $connectTime = $this->format($this->connectTime);
 
         echo <<<EOF
@@ -183,6 +158,9 @@ EOF;
         return round($time, 4);
     }
 
+    /**
+     * @throws ExitException
+     */
     protected function ws()
     {
         $wsCli = new Coroutine\http\client($this->host, $this->port);
@@ -207,10 +185,10 @@ EOF;
         }
 
         if ($this->sentLen === 0) {
-            $this->sentLen = SELF::TCP_SENT_LEN;
+            $this->sentLen = self::TCP_SENT_LEN;
         }
         $this->setSentData(str_repeat('A', $this->sentLen));
-       
+
         while ($n--) {
             //requset
             if (!$wsCli->push($this->data)) {
@@ -233,6 +211,9 @@ EOF;
         }
     }
 
+    /**
+     * @throws ExitException
+     */
     protected function tcp()
     {
         $cli = new Coroutine\Client(SWOOLE_TCP);
@@ -242,7 +223,7 @@ EOF;
         });
 
         if ($this->sentLen === 0) {
-            $this->sentLen = SELF::TCP_SENT_LEN;
+            $this->sentLen = self::TCP_SENT_LEN;
         }
         $this->setSentData(str_repeat('A', $this->sentLen));
 
@@ -282,6 +263,9 @@ EOF;
         }
     }
 
+    /**
+     * @throws ExitException
+     */
     protected function http()
     {
         $httpCli = new Coroutine\Http\Client($this->host, $this->port);
@@ -324,6 +308,11 @@ EOF;
         }
     }
 
+    /**
+     * @param Coroutine\Http\Client $httpCli
+     * @return bool
+     * @throws ExitException
+     */
     protected function checkStatusCode(Coroutine\Http\Client $httpCli): bool
     {
         if ($httpCli->statusCode === -1) { // connection failed
@@ -338,7 +327,7 @@ EOF;
                 return false;
             }
         }
-        
+
         if ($httpCli->statusCode === -2) { // request timeout
             if ($this->verbose) {
                 echo swoole_strerror($httpCli->errCode) . PHP_EOL;
@@ -398,15 +387,65 @@ EOF;
         $cli->close();
     }
 
+    /**
+     * @param $max
+     * @return string
+     * @throws \Exception
+     */
+    protected function getRandomData($max)
+    {
+        if (!$this->randomData) {
+            $this->randomData = random_bytes($max);
+        }
+        return $this->randomData;
+    }
+
+    /**
+     * @throws \Exception
+     */
+    protected function random_data()
+    {
+        $cli = new Coroutine\Client(SWOOLE_TCP);
+        $cli->set(array(
+            'open_length_check' => true,
+            "package_length_type" => 'N',
+            'package_body_offset' => 4,
+        ));
+        $cli->connect($this->host, $this->port);
+
+        $max = 32 * 1024 * 1024;
+        $random_data = $this->getRandomData($max);
+        $cid = Coroutine::getCid();
+
+        $n = $this->nRequest / $this->nConcurrency;
+        while ($n--) {
+            //requset
+            $len = mt_rand(1024, 1024 * 1024);
+            $send_data = substr($random_data, rand(0, $max - $len), $len);
+            $data = pack('N', $len + 32) . md5(substr($send_data, -128, 128)) . $send_data;
+            $cli->send($data);
+            $this->nSendBytes += strlen($data);
+            $this->requestCount++;
+            //response
+            $rdata = $cli->recv();
+            $this->nRecvBytes += strlen($rdata);
+            $hash = substr($data, 4, 32);
+            if ($hash !== md5(substr($data, -128, 128))) {
+                echo "[Co-$cid]\tResponse Data Error\n";
+                break;
+            }
+        }
+        $cli->close();
+    }
+
     public function run()
     {
         $exitException = false;
-        $exitExceptiontMsg;
         $this->startTime = microtime(true);
 
         $sch = new Coroutine\Scheduler;
 
-        $sch->parallel($this->nConcurrency, function() use(&$exitException, &$exitExceptiontMsg) {
+        $sch->parallel($this->nConcurrency, function () use (&$exitException, &$exitExceptiontMsg) {
             try {
                 call_user_func([$this, $this->testMethod]);
             } catch (ExitException $e) {
@@ -424,15 +463,3 @@ EOF;
         $this->finish();
     }
 }
-
-$swooleVersion = SWOOLE_VERSION;
-
-echo <<<EOF
-============================================================
-Swoole Version          {$swooleVersion}
-============================================================
-\n
-EOF;
-
-$bench = new CoBenchMarkTest($opt);
-$bench->run();

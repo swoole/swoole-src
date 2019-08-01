@@ -59,6 +59,8 @@ modules/*
 /examples/ssl/corpssl.key
 /examples/ext
 /benchmark/.idea/
+/benchmark/vendor
+/benchmark/composer.lock
 /tools/.idea/
 /tmp-php.ini
 .settings/
