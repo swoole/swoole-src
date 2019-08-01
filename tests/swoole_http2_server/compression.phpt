@@ -18,13 +18,13 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $cli->connect();
 
         $req = new Swoole\Http2\Request;
-            $req->path = '/';
-            $req->headers = [
-                'Host' => $domain,
-                "User-Agent" => 'Chrome/49.0.2587.3',
-                'Accept' => 'text/html,application/xhtml+xml,application/xml',
-                'Accept-encoding' => 'gzip'
-            ];
+        $req->path = '/';
+        $req->headers = [
+            'Host' => $domain,
+            "User-Agent" => 'Chrome/49.0.2587.3',
+            'Accept' => 'text/html,application/xhtml+xml,application/xml',
+            'Accept-encoding' => 'gzip'
+        ];
         for ($n = MAX_REQUESTS; $n--;) {
             Assert::assert($cli->send($req));
             $response = $cli->recv();
@@ -38,16 +38,18 @@ $pm->parentFunc = function ($pid) use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
     $http->set([
-        'log_file' => '/dev/null',
-        'open_http2_protocol' => true,
-        'http_gzip_level' => 9,
-        'http_compression' => true,
-        'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
-        'ssl_key_file' => SSL_FILE_DIR . '/server.key',
-        'ssl_verify_peer' => true,
-        'ssl_allow_self_signed' => true,
-        'ssl_client_cert_file' => SSL_FILE_DIR2 . '/ca-cert.pem'
-    ]);
+            'log_file' => '/dev/null',
+            'open_http2_protocol' => true,
+            'http_gzip_level' => 9,
+            'http_compression' => true,
+            'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
+            'ssl_key_file' => SSL_FILE_DIR . '/server.key'
+        ] + (IS_IN_TRAVIS ? [] : [
+            'ssl_verify_peer' => true,
+            'ssl_allow_self_signed' => true,
+            'ssl_client_cert_file' => SSL_FILE_DIR2 . '/ca-cert.pem'
+        ])
+    );
     $http->on("WorkerStart", function ($serv, $wid) {
         global $pm;
         $pm->wakeup();
