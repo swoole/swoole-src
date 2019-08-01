@@ -358,8 +358,8 @@ private:
     class timer_controller
     {
     public:
-        timer_controller(swTimer_node **timer_pp, double timeout, void *data, swTimerCallback callback) :
-            timer_pp(timer_pp), timeout(timeout), data(data), callback(callback)
+        timer_controller(swTimer_node **timer_pp, double timeout, Socket *sock, swTimerCallback callback) :
+            timer_pp(timer_pp), timeout(timeout), socket_(sock), callback(callback)
         {
         }
         bool start()
@@ -369,7 +369,7 @@ private:
                 enabled = true;
                 if (timeout > 0)
                 {
-                    *timer_pp = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, data, callback);
+                    *timer_pp = swTimer_add(sw_timer(), (long) (timeout * 1000), 0, socket_, callback);
                     return *timer_pp != nullptr;
                 }
                 else // if (timeout < 0)
@@ -385,7 +385,7 @@ private:
             {
                 if (*timer_pp != (swTimer_node *) -1)
                 {
-                    swTimer_del(&SwooleG.timer, *timer_pp);
+                    swTimer_del(sw_timer(), *timer_pp);
                 }
                 *timer_pp = nullptr;
             }
@@ -394,7 +394,7 @@ private:
         bool enabled = false;
         swTimer_node** timer_pp;
         double timeout;
-        void *data;
+        Socket *socket_;
         swTimerCallback callback;
     };
 
@@ -403,7 +403,7 @@ public:
     {
     public:
         timeout_setter(Socket *socket, double timeout, const enum swTimeout_type type) :
-            socket(socket), timeout(timeout), type(type)
+            socket_(socket), timeout(timeout), type(type)
         {
             if (timeout == 0)
             {
@@ -433,13 +433,13 @@ public:
                 {
                     if (timeout != original_timeout[i])
                     {
-                        socket->set_timeout(original_timeout[i], swTimeout_type_list[i]);
+                        socket_->set_timeout(original_timeout[i], swTimeout_type_list[i]);
                     }
                 }
             }
         }
     protected:
-        Socket *socket;
+        Socket *socket_;
         double timeout;
         enum swTimeout_type type;
         double original_timeout[sizeof(swTimeout_type_list)] = {0};
@@ -466,10 +466,10 @@ public:
                     double used_time = swoole_microtime() - startup_time;
                     if (sw_unlikely(timeout - used_time < SW_TIMER_MIN_SEC))
                     {
-                        socket->set_err(ETIMEDOUT);
+                        socket_->set_err(ETIMEDOUT);
                         return true;
                     }
-                    socket->set_timeout(timeout - used_time, type);
+                    socket_->set_timeout(timeout - used_time, type);
                 }
             }
             return false;

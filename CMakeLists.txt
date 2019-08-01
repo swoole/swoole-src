@@ -19,6 +19,7 @@ SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 #message(STATUS "source=${SRC_LIST}")
 #message(STATUS "header=${HEAD_FILES}")
 
+add_definitions(-DSW_CO_MT)
 add_definitions(-DHAVE_CONFIG_H)
 
 INCLUDE_DIRECTORIES(BEFORE ./include ./include/wrapper ./)
@@ -41,6 +42,12 @@ set(TEST_SRC_LIST examples/cpp/test_server.c)
 add_executable(test_server ${TEST_SRC_LIST})
 add_dependencies(test_server shared)
 target_link_libraries(test_server ${SWOOLE_CLFLAGS} swoole)
+
+#mt_co
+set(TEST_SRC_LIST examples/cpp/mt_co.cc)
+add_executable(mt_co ${TEST_SRC_LIST})
+add_dependencies(mt_co shared)
+target_link_libraries(mt_co ${SWOOLE_CLFLAGS} swoole)
 
 #install
 INSTALL(CODE "MESSAGE(\"Are you run command using root user?\")")

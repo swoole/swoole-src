@@ -149,7 +149,7 @@ static void reactor_finish(swReactor *reactor)
     //check timer
     if (reactor->check_timer)
     {
-        swTimer_select(&SwooleG.timer);
+        swTimer_select(reactor->timer);
     }
     //defer tasks
     if (reactor->defer_tasks)

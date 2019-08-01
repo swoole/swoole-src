@@ -138,7 +138,7 @@ void swoole_clean(void)
         }
         if (SwooleG.main_reactor)
         {
-            SwooleG.main_reactor->free(SwooleG.main_reactor);
+            swReactor_destroy(SwooleG.main_reactor);
         }
         SwooleG.memory_pool->destroy(SwooleG.memory_pool);
         bzero(&SwooleG, sizeof(SwooleG));
@@ -171,7 +171,6 @@ pid_t swoole_fork(int flags)
         {
             swTimer_free(&SwooleG.timer);
         }
-
         if (!(flags & SW_FORK_EXEC))
         {
             /**
@@ -200,7 +199,7 @@ pid_t swoole_fork(int flags)
          */
         if (SwooleG.main_reactor)
         {
-            SwooleG.main_reactor->free(SwooleG.main_reactor);
+            swReactor_destroy(SwooleG.main_reactor);
             SwooleG.main_reactor = NULL;
             swTraceLog(SW_TRACE_REACTOR, "reactor has been destroyed");
         }

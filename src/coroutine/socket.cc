@@ -489,14 +489,7 @@ bool Socket::init_sock()
 
 void Socket::init_sock(int _fd)
 {
-    if (swIsMaster() && SwooleTG.type == SW_THREAD_REACTOR)
-    {
-        reactor = SwooleTG.reactor;
-    }
-    else
-    {
-        reactor = SwooleG.main_reactor;
-    }
+    reactor = SwooleTG.reactor ? SwooleTG.reactor : SwooleG.main_reactor;
     if (sw_unlikely(!reactor))
     {
         swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "operation not support (reactor is not ready)");
