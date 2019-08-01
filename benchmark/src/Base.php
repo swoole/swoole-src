@@ -389,13 +389,17 @@ EOF;
 
     /**
      * @param $max
+     * @param bool $raw
      * @return string
      * @throws \Exception
      */
-    protected function getRandomData($max)
+    protected function getRandomData($max, $raw = true)
     {
         if (!$this->randomData) {
             $this->randomData = random_bytes($max);
+            if (!$raw) {
+                $this->randomData = base64_encode($this->randomData);
+            }
         }
         return $this->randomData;
     }
@@ -431,6 +435,44 @@ EOF;
             $this->nRecvBytes += strlen($rdata);
             $hash = substr($data, 4, 32);
             if ($hash !== md5(substr($data, -128, 128))) {
+                echo "[Co-$cid]\tResponse Data Error\n";
+                break;
+            }
+        }
+        $cli->close();
+    }
+
+
+    /**
+     * @throws \Exception
+     */
+    protected function random_data_eof()
+    {
+        $cli = new Coroutine\Client(SWOOLE_TCP);
+        $cli->set(array(
+            'open_eof_check' => true,
+            'package_eof' => "\r\n",
+        ));
+        $cli->connect($this->host, $this->port);
+
+        $max = 32 * 1024 * 1024;
+        $random_data = $this->getRandomData($max, false);
+        $cid = Coroutine::getCid();
+
+        $n = $this->nRequest / $this->nConcurrency;
+        while ($n--) {
+            //requset
+            $len = mt_rand(1024, 1024 * 1024);
+            $send_data = substr($random_data, rand(0, $max - $len), $len);
+            $data = md5(substr($send_data, -128, 128)) . $send_data."\r\n";
+            $cli->send($data);
+            $this->nSendBytes += strlen($data);
+            $this->requestCount++;
+            //response
+            $rdata = $cli->recv();
+            $this->nRecvBytes += strlen($rdata);
+            $hash = substr($data, 0, 32);
+            if ($hash !== md5(substr($data, -130, 128))) {
                 echo "[Co-$cid]\tResponse Data Error\n";
                 break;
             }
