@@ -1325,11 +1325,14 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
 
     while (true)
     {
+        if (!h2c->is_available())
+        {
+            RETURN_FALSE;
+        }
         if (!h2c->recv_packet(timeout))
         {
             RETURN_FALSE;
         }
-
         enum swReturn_code ret = h2c->parse_frame(return_value);
         if (ret == SW_CONTINUE)
         {
