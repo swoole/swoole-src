@@ -274,16 +274,6 @@ static int swManager_loop(swServer *serv)
 
     memset(&ManagerProcess, 0, sizeof(ManagerProcess));
 
-    if (serv->hooks[SW_SERVER_HOOK_MANAGER_START])
-    {
-        swServer_call_hook(serv, SW_SERVER_HOOK_MANAGER_START, serv);
-    }
-
-    if (serv->onManagerStart)
-    {
-        serv->onManagerStart(serv);
-    }
-
     ManagerProcess.reload_workers = (swWorker *) sw_calloc(serv->worker_num + serv->task_worker_num, sizeof(swWorker));
     if (ManagerProcess.reload_workers == NULL)
     {
@@ -304,6 +294,16 @@ static int swManager_loop(swServer *serv)
 #ifdef __linux__
     prctl(PR_SET_PDEATHSIG, SIGTERM);
 #endif
+
+    if (serv->hooks[SW_SERVER_HOOK_MANAGER_START])
+    {
+        swServer_call_hook(serv, SW_SERVER_HOOK_MANAGER_START, serv);
+    }
+
+    if (serv->onManagerStart)
+    {
+        serv->onManagerStart(serv);
+    }
 
     if (serv->manager_alarm > 0)
     {
