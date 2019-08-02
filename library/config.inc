@@ -6,6 +6,9 @@ return [
     'std/array.php',
     'std/exec.php',
     # <ext> #
+    'core/Curl/Exception.php',
+    'core/Http/StatusCode.php',
+    'core/Curl/Handler.php',
     'ext/curl.php',
     # <core> #
     'core/Coroutine/WaitGroup.php',
