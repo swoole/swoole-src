@@ -510,7 +510,7 @@ static int swManager_loop(swServer *serv)
     }
 
     sw_free(ManagerProcess.reload_workers);
-    swSignal_none();
+
     //kill all child process
     for (i = 0; i < serv->worker_num; i++)
     {
