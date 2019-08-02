@@ -30,13 +30,6 @@
 
 #define SWOG ((zend_output_globals *) &OG(handlers))
 
-typedef enum
-{
-    SW_CORO_CONTEXT_RUNNING,
-    SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST,
-    SW_CORO_CONTEXT_TERM
-} php_context_state;
-
 enum sw_coro_hook_type
 {
     SW_HOOK_TCP               = 1u << 1,
@@ -85,7 +78,6 @@ struct php_coro_args
 // TODO: remove php coro context
 struct php_coro_context
 {
-    php_context_state state;
     zval coro_params;
     zval *current_coro_return_value_ptr;
     void *private_data;

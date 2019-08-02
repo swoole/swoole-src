@@ -227,8 +227,6 @@ static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETER
     sock->buf = zend_string_alloc(length + 1, 0);
     sock->nbytes = length <= 0 ? SW_BUFFER_SIZE_STD : length;
 
-    sock->context.state = SW_CORO_CONTEXT_RUNNING;
-
     PHPCoroutine::yield_m(return_value, &sock->context);
 }
 
@@ -262,7 +260,6 @@ static void co_socket_write(int fd, char* str, size_t l_str, INTERNAL_FUNCTION_P
     _socket->object = sock;
 
     php_coro_context *context = &sock->context;
-    context->state = SW_CORO_CONTEXT_RUNNING;
     context->private_data = str;
 
     sock->nbytes = l_str;
@@ -351,9 +348,6 @@ PHP_METHOD(swoole_coroutine_system, fread)
         efree(context);
         RETURN_FALSE;
     }
-
-    context->state = SW_CORO_CONTEXT_RUNNING;
-
     PHPCoroutine::yield_m(return_value, context);
 }
 
@@ -433,7 +427,6 @@ PHP_METHOD(swoole_coroutine_system, fgets)
     }
 
     context->coro_params = *handle;
-    context->state = SW_CORO_CONTEXT_RUNNING;
 
     PHPCoroutine::yield_m(return_value, context);
 }
@@ -508,9 +501,6 @@ PHP_METHOD(swoole_coroutine_system, fwrite)
         efree(context);
         RETURN_FALSE;
     }
-
-    context->state = SW_CORO_CONTEXT_RUNNING;
-
     PHPCoroutine::yield_m(return_value, context);
 }
 
