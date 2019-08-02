@@ -1678,6 +1678,22 @@ bool Socket::shutdown(int __how)
     return false;
 }
 
+#ifdef SW_USE_OPENSSL
+bool Socket::ssl_shutdown()
+{
+    if (socket->ssl)
+    {
+        swSSL_close(socket);
+    }
+    if (ssl_context)
+    {
+        swSSL_free_context(ssl_context);
+        ssl_context = nullptr;
+    }
+    return true;
+}
+#endif
+
 bool Socket::cancel(const enum swEvent_type event)
 {
     if (!has_bound(event))
@@ -1783,42 +1799,34 @@ Socket::~Socket()
     }
     /* {{{ release socket resources */
 #ifdef SW_USE_OPENSSL
-    if (socket->ssl)
+    ssl_shutdown();
+    if (ssl_option.cert_file)
     {
-        swSSL_close(socket);
+        sw_free(ssl_option.cert_file);
     }
-    if (ssl_context)
+    if (ssl_option.key_file)
     {
-        swSSL_free_context(ssl_context);
-        ssl_context = nullptr;
-        if (ssl_option.cert_file)
-        {
-            sw_free(ssl_option.cert_file);
-        }
-        if (ssl_option.key_file)
-        {
-            sw_free(ssl_option.key_file);
-        }
-        if (ssl_option.passphrase)
-        {
-            sw_free(ssl_option.passphrase);
-        }
+        sw_free(ssl_option.key_file);
+    }
+    if (ssl_option.passphrase)
+    {
+        sw_free(ssl_option.passphrase);
+    }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-        if (ssl_option.tls_host_name)
-        {
-            sw_free(ssl_option.tls_host_name);
-        }
-#endif
-        if (ssl_option.cafile)
-        {
-            sw_free(ssl_option.cafile);
-        }
-        if (ssl_option.capath)
-        {
-            sw_free(ssl_option.capath);
-        }
-        ssl_option = {0};
+    if (ssl_option.tls_host_name)
+    {
+        sw_free(ssl_option.tls_host_name);
     }
+#endif
+    if (ssl_option.cafile)
+    {
+        sw_free(ssl_option.cafile);
+    }
+    if (ssl_option.capath)
+    {
+        sw_free(ssl_option.capath);
+    }
+    ssl_option = {0};
 #endif
     if (socket->in_buffer)
     {
