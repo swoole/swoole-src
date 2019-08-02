@@ -96,6 +96,7 @@ static void aio_onFgetsCompleted(swAio_event *event)
     {
         zval_ptr_dtor(retval);
     }
+    sw_free(event->req);
     zval_ptr_dtor(&result);
     efree(context);
 }
@@ -383,7 +384,6 @@ PHP_METHOD(swoole_coroutine_system, fgets)
     php_stream_from_res(stream, Z_RES_P(handle));
 
     FILE *file;
-
     if (stream->stdiocast)
     {
         file = stream->stdiocast;
@@ -417,7 +417,8 @@ PHP_METHOD(swoole_coroutine_system, fgets)
     ev.callback = aio_onFgetsCompleted;
     ev.handler = swAio_handler_fgets;
     ev.fd = fd;
-    ev.req = (void *) file;
+    FILE *_f = (FILE *) sw_malloc(sizeof(FILE));
+    ev.req = (void *) _f;
 
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
