@@ -96,7 +96,6 @@ static void aio_onFgetsCompleted(swAio_event *event)
     {
         zval_ptr_dtor(retval);
     }
-    sw_free(event->req);
     zval_ptr_dtor(&result);
     efree(context);
 }
@@ -273,6 +272,8 @@ static void co_socket_write(int fd, char* str, size_t l_str, INTERNAL_FUNCTION_P
 
 PHP_METHOD(swoole_coroutine_system, fread)
 {
+    Coroutine::get_current_safe();
+
     zval *handle;
     zend_long length = 0;
 
@@ -358,6 +359,8 @@ PHP_METHOD(swoole_coroutine_system, fread)
 
 PHP_METHOD(swoole_coroutine_system, fgets)
 {
+    Coroutine::get_current_safe();
+
     zval *handle;
     php_stream *stream;
 
@@ -417,8 +420,7 @@ PHP_METHOD(swoole_coroutine_system, fgets)
     ev.callback = aio_onFgetsCompleted;
     ev.handler = swAio_handler_fgets;
     ev.fd = fd;
-    FILE *_f = (FILE *) sw_malloc(sizeof(FILE));
-    ev.req = (void *) _f;
+    ev.req = (void *) file;
 
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
@@ -438,6 +440,8 @@ PHP_METHOD(swoole_coroutine_system, fgets)
 
 PHP_METHOD(swoole_coroutine_system, fwrite)
 {
+    Coroutine::get_current_safe();
+
     zval *handle;
     char *str;
     size_t l_str;
@@ -572,6 +576,8 @@ PHP_METHOD(swoole_coroutine_system, writeFile)
 
 PHP_FUNCTION(swoole_coroutine_gethostbyname)
 {
+    Coroutine::get_current_safe();
+
     char *domain_name;
     size_t l_domain_name;
     zend_long family = AF_INET;

@@ -25,6 +25,7 @@
 #include <unordered_map>
 
 using swoole::PHPCoroutine;
+using swoole::Coroutine;
 using swoole::coroutine::Socket;
 
 typedef struct
@@ -279,6 +280,8 @@ PHP_FUNCTION(swoole_async_set)
 
 PHP_FUNCTION(swoole_async_dns_lookup_coro)
 {
+    Coroutine::get_current_safe();
+
     zval *domain;
     double timeout = Socket::default_connect_timeout;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|d", &domain, &timeout) == FAILURE)
