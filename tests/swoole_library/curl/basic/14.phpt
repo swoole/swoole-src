@@ -13,7 +13,7 @@ require __DIR__ . '/../../../include/bootstrap.php';
 $cm = new \SwooleTest\CurlManager();
 $cm->run(function ($host) {
     $ch = curl_init();
-    Assert::isInstanceOf($ch, swoole_curl_handler::class);
+    Assert::isInstanceOf($ch, Swoole\Curl\Handler::class);
 
 }, false);
 
