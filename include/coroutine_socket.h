@@ -287,6 +287,15 @@ public:
         return write_buffer;
     }
 
+#ifdef SW_USE_OPENSSL
+    inline bool is_ssl_enable()
+    {
+        return socket && socket->ssl != NULL;
+    }
+
+    bool ssl_shutdown();
+#endif
+
 private:
     swReactor *reactor = nullptr;
     Coroutine *read_co = nullptr;
