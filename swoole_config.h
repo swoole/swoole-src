@@ -192,6 +192,7 @@
  */
 #define SW_HTTP_SERVER_SOFTWARE          "swoole-http-server"
 #define SW_HTTP_PARAM_MAX_NUM            128
+#define SW_HTTP_FORM_KEYLEN              512
 #define SW_HTTP_COOKIE_KEYLEN            128
 #define SW_HTTP_COOKIE_VALLEN            4096
 #define SW_HTTP_RESPONSE_INIT_SIZE       65536

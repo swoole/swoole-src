@@ -479,7 +479,7 @@ static int multipart_body_on_header_field(multipart_parser* p, const char *at, s
 
 static int multipart_body_on_header_value(multipart_parser* p, const char *at, size_t length)
 {
-    char value_buf[SW_HTTP_COOKIE_KEYLEN];
+    char value_buf[SW_HTTP_FORM_KEYLEN];
     int value_len;
 
     http_context *ctx = (http_context *) p->data;
@@ -518,7 +518,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
             return SW_OK;
         }
 
-        if (Z_STRLEN_P(zform_name) >= SW_HTTP_COOKIE_KEYLEN)
+        if (Z_STRLEN_P(zform_name) >= SW_HTTP_FORM_KEYLEN)
         {
             swWarn("form_name[%s] is too large", Z_STRVAL_P(zform_name));
             return SW_OK;
@@ -538,7 +538,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
         //upload file
         else
         {
-            if (Z_STRLEN_P(zfilename) >= SW_HTTP_COOKIE_KEYLEN)
+            if (Z_STRLEN_P(zfilename) >= SW_HTTP_FORM_KEYLEN)
             {
                 swWarn("filename[%s] is too large", Z_STRVAL_P(zfilename));
                 return SW_OK;
