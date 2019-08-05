@@ -37,6 +37,7 @@ go(function() {
     echo "-----bzPopMin no data---\n";
     var_dump($redis->bzPopMin('zkeyC','zkeyD', 2));
 });
+?>
 --EXPECT--
 -----zPopMin---
 array(2) {

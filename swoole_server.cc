@@ -839,7 +839,6 @@ static void php_swoole_task_wait_co(swServer *serv, swEventData *req, double tim
     swTaskCo *task_co = (swTaskCo *) emalloc(sizeof(swTaskCo));
     bzero(task_co, sizeof(swTaskCo));
     task_co->count = 1;
-    task_co->context.state = SW_CORO_CONTEXT_RUNNING;
     Z_LVAL(task_co->context.coro_params) = req->info.fd;
 
     sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
@@ -3519,7 +3518,6 @@ static PHP_METHOD(swoole_server, taskCo)
     task_co->result = result;
     task_co->list = list;
     task_co->count = n_task;
-    task_co->context.state = SW_CORO_CONTEXT_RUNNING;
 
     swTimer_node *timer = swTimer_add(&SwooleG.timer, ms, 0, task_co, php_swoole_task_onTimeout);
     if (timer)

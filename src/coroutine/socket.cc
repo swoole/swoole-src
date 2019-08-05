@@ -681,7 +681,7 @@ bool Socket::connect(string _host, int _port, int flags)
                 read_co = write_co = nullptr;
                 if (connect_host.empty())
                 {
-                    set_err(SwooleG.error, hstrerror(SwooleG.error));
+                    set_err(SwooleG.error, swoole_strerror(SwooleG.error));
                     return false;
                 }
                 continue;

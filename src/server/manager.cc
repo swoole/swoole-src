@@ -340,9 +340,9 @@ static int swManager_loop(swServer *serv)
             ManagerProcess.read_message = 0;
         }
 
-        if (SwooleG.signal_alarm == 1)
+        if (SwooleWG.signal_alarm)
         {
-            SwooleG.signal_alarm = 0;
+            SwooleWG.signal_alarm = 0;
             swTimer_select(&SwooleG.timer);
         }
 
@@ -601,7 +601,7 @@ static void swManager_signal_handler(int sig)
         ManagerProcess.read_message = 1;
         break;
     case SIGALRM:
-        SwooleG.signal_alarm = 1;
+        SwooleWG.signal_alarm = 1;
         break;
     default:
 #ifdef SIGRTMIN

@@ -818,7 +818,6 @@ void PHPCoroutine::defer(php_swoole_fci *fci)
 
 void PHPCoroutine::yield_m(zval *return_value, php_coro_context *sw_current_context)
 {
-    Coroutine::get_current_safe();
     php_coro_task *task = get_task();
     sw_current_context->current_coro_return_value_ptr = return_value;
     sw_current_context->current_task = task;
