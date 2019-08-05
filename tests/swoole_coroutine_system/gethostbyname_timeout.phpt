@@ -15,7 +15,7 @@ co::create(function () {
     co::sleep(0.1);
     echo "NEXT\n";
     $result = Co::gethostbyname("www.github.com", AF_INET, 1);
-    Assert::assert($result != false);
+    Assert::notEmpty($result);
 });
 swoole_event_wait();
 ?>

@@ -99,5 +99,5 @@ static int swSystemTimer_set(swTimer *timer, long exec_msec)
 
 void swSystemTimer_signal_handler(int sig)
 {
-    SwooleG.signal_alarm = 1;
+    SwooleWG.signal_alarm = 1;
 }

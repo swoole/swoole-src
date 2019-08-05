@@ -32,7 +32,16 @@
 swGlobal_t SwooleG;
 swWorkerGlobal_t SwooleWG;
 __thread swThreadGlobal_t SwooleTG;
+
+#ifdef __MACH__
+static __thread char _sw_error_buf[SW_ERROR_MSG_SIZE];
+char* sw_error_()
+{
+    return _sw_error_buf;
+}
+#else
 __thread char sw_error[SW_ERROR_MSG_SIZE];
+#endif
 
 static void swoole_fatal_error(int code, const char *format, ...);
 
