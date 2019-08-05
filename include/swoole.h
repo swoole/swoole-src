@@ -1276,7 +1276,13 @@ typedef struct _swThreadParam
     int pti;
 } swThreadParam;
 
+
+#ifdef __MACH__
+char* sw_error_();
+#define sw_error     sw_error_()
+#else
 extern __thread char sw_error[SW_ERROR_MSG_SIZE];
+#endif
 
 enum swProcess_type
 {
