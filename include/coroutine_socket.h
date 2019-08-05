@@ -20,6 +20,7 @@
 #include "connection.h"
 #include "socks5.h"
 
+#include <vector>
 #include <string>
 
 #define SW_DEFAULT_SOCKET_CONNECT_TIMEOUT    1
@@ -487,5 +488,6 @@ public:
         double startup_time = 0;
     };
 };
+std::vector<std::string> dns_lookup(const char *domain, double timeout = 2.0);
 //-------------------------------------------------------------------------------
 }}

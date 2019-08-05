@@ -167,20 +167,6 @@ int swClient_ssl_handshake(swClient *cli);
 int swClient_ssl_verify(swClient *cli, int allow_self_signed);
 #endif
 void swClient_free(swClient *cli);
-
-typedef struct
-{
-    uint8_t num;
-    struct
-    {
-        uint8_t length;
-        char address[16];
-    } hosts[SW_DNS_HOST_BUFFER_SIZE];
-} swDNSResolver_result;
-
-int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_result *, void *), void *data);
-int swDNSResolver_free();
-
 //----------------------------------------Stream---------------------------------------
 typedef struct _swStream
 {

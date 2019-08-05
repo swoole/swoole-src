@@ -438,7 +438,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/async_thread.cc \
         src/network/client.c \
         src/network/connection.c \
-        src/network/dns.c \
+        src/network/dns.cc \
         src/network/process_pool.c \
         src/network/stream.c \
         src/network/thread_pool.c \

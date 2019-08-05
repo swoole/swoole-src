@@ -182,6 +182,14 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
     {
         System::set_dns_cache_capacity((size_t) zval_get_long(ztmp));
     }
+    if (php_swoole_array_get_value(vht, "dns_server", ztmp))
+    {
+        if (SwooleG.dns_server_v4)
+        {
+            sw_free(SwooleG.dns_server_v4);
+        }
+        SwooleG.dns_server_v4 = zend::string(ztmp).dup();
+    }
     if (php_swoole_array_get_value(vht, "display_errors", ztmp))
     {
         SWOOLE_G(display_errors) = zval_is_true(ztmp);
