@@ -60,6 +60,8 @@ struct php_coro_task
     zend_class_entry *exception_class;
     zend_object *exception;
     zend_output_globals *output_ptr;
+    /* for array_walk non-reentrancy */
+    php_swoole_fci *array_walk_fci;
     swoole::Coroutine *co;
     std::stack<php_swoole_fci *> *defer_tasks;
     long pcid;

@@ -1287,13 +1287,6 @@ bool PHPCoroutine::enable_hook(int flags)
 bool PHPCoroutine::inject_function()
 {
     init_function();
-    /**
-     * array_walk, array_walk_recursive can not work in coroutine
-     * replace them with the php swoole library
-     */
-    hook_func(ZEND_STRL("array_walk"));
-    hook_func(ZEND_STRL("array_walk_recursive"));
-
     return true;
 }
 

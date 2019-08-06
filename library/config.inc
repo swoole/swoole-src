@@ -3,7 +3,6 @@ return [
     # <basic> #
     'constants.php',
     # <std> #
-    'std/array.php',
     'std/exec.php',
     # <ext> #
     'core/Curl/Exception.php',
