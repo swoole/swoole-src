@@ -503,6 +503,15 @@ inline void PHPCoroutine::save_vm_stack(php_coro_task *task)
     task->error_handling = EG(error_handling);
     task->exception_class = EG(exception_class);
     task->exception = EG(exception);
+    if (UNEXPECTED(BG(array_walk_fci).size != 0))
+    {
+        if (!task->array_walk_fci)
+        {
+            task->array_walk_fci = (php_swoole_fci *) emalloc(sizeof(*task->array_walk_fci));
+        }
+        memcpy(task->array_walk_fci, &BG(array_walk_fci), sizeof(*task->array_walk_fci));
+        memset(&BG(array_walk_fci), 0, sizeof(*task->array_walk_fci));
+    }
 }
 
 inline void PHPCoroutine::restore_vm_stack(php_coro_task *task)
@@ -520,6 +529,11 @@ inline void PHPCoroutine::restore_vm_stack(php_coro_task *task)
     EG(error_handling) = task->error_handling;
     EG(exception_class) = task->exception_class;
     EG(exception) = task->exception;
+    if (UNEXPECTED(task->array_walk_fci && task->array_walk_fci->fci.size != 0))
+    {
+        memcpy(&BG(array_walk_fci), task->array_walk_fci, sizeof(*task->array_walk_fci));
+        task->array_walk_fci->fci.size = 0;
+    }
 }
 
 inline void PHPCoroutine::save_og(php_coro_task *task)
@@ -599,6 +613,10 @@ void PHPCoroutine::on_close(void *arg)
         }
         php_output_deactivate();
         php_output_activate();
+    }
+    if (task->array_walk_fci)
+    {
+        efree(task->array_walk_fci);
     }
     vm_stack_destroy();
     restore_task(origin_task);
@@ -689,6 +707,7 @@ void PHPCoroutine::main_func(void *arg)
     record_last_msec(task);
 
     task->output_ptr = NULL;
+    task->array_walk_fci = NULL;
     task->co = Coroutine::get_current();
     task->co->set_task((void *) task);
     task->defer_tasks = nullptr;

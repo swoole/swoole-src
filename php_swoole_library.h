@@ -6,34 +6,6 @@ static const char* swoole_library_source_constants =
     "\n"
     "define('SWOOLE_LIBRARY', true);\n";
 
-static const char* swoole_library_source_std_array =
-    "\n"
-    "function swoole_array_walk(array &$array, callable $callback, ...$userdata): bool\n"
-    "{\n"
-    "    if (($argc = func_num_args()) > 3) {\n"
-    "        throw new TypeError(\"array_walk() expects at most 3 parameters, {$argc} given\");\n"
-    "    }\n"
-    "    foreach ($array as $key => &$item) {\n"
-    "        $callback($item, $key, ...$userdata);\n"
-    "    }\n"
-    "    return true;\n"
-    "}\n"
-    "\n"
-    "function swoole_array_walk_recursive(array &$array, callable $callback, ...$userdata): bool\n"
-    "{\n"
-    "    if (($argc = func_num_args()) > 3) {\n"
-    "        throw new TypeError(\"array_walk_recursive() expects at most 3 parameters, {$argc} given\");\n"
-    "    }\n"
-    "    foreach ($array as $key => &$item) {\n"
-    "        if (is_array($item)) {\n"
-    "            swoole_array_walk_recursive($item, $callback, ...$userdata);\n"
-    "        } else {\n"
-    "            $callback($item, $key, ...$userdata);\n"
-    "        }\n"
-    "    }\n"
-    "    return true;\n"
-    "}\n";
-
 static const char* swoole_library_source_std_exec =
     "\n"
     "function swoole_exec(string $command, &$output = null, &$returnVar = null)\n"
@@ -2097,7 +2069,6 @@ static const char* swoole_library_source_alias_ns =
 static void php_swoole_load_library()
 {
     zend::eval(swoole_library_source_constants, "@swoole-src/library/constants.php");
-    zend::eval(swoole_library_source_std_array, "@swoole-src/library/std/array.php");
     zend::eval(swoole_library_source_std_exec, "@swoole-src/library/std/exec.php");
     zend::eval(swoole_library_source_core_curl_exception, "@swoole-src/library/core/Curl/Exception.php");
     zend::eval(swoole_library_source_core_http_status_code, "@swoole-src/library/core/Http/StatusCode.php");
