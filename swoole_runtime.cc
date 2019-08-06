@@ -983,8 +983,8 @@ static php_stream *socket_create(
 
     if (context && ZVAL_IS_ARRAY(&context->options))
     {
-        zval *ztmp;
 #ifdef SW_USE_OPENSSL
+        zval *ztmp;
         if (sock->open_ssl && php_swoole_array_get_value(Z_ARRVAL_P(&context->options), "ssl", ztmp) && ZVAL_IS_ARRAY(ztmp))
         {
             [](Socket *sock, HashTable *options)
