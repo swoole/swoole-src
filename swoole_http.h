@@ -75,8 +75,6 @@ struct http_request
     zval _zpost;
     zval *zcookie;
     zval _zcookie;
-    zval *zrequest;
-    zval _zrequest;
     zval *zfiles;
     zval _zfiles;
     zval *ztmpfiles;
