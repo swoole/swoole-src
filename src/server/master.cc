@@ -799,6 +799,10 @@ int swServer_shutdown(swServer *serv)
             serv->master_timer = NULL;
         }
     }
+    else
+    {
+        SwooleG.running = 0;
+    }
     swInfo("Server is shutdown now");
     return SW_OK;
 }
