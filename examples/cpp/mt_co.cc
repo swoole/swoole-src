@@ -14,7 +14,6 @@ struct co_param
     int port;
 };
 
-
 const int THREAD_N = 4;
 
 void co_thread(int i)
@@ -39,6 +38,10 @@ void co_thread(int i)
             Socket *conn = sock.accept();
             if (!conn)
             {
+                if (sock.errCode == ECANCELED)
+                {
+                    break;
+                }
                 System::sleep(1);
                 printf("accept error, errno=%d\n", sock.errCode);
                 continue;
