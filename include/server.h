@@ -459,6 +459,11 @@ struct _swServer
      */
     uint32_t single_thread :1;
     /**
+     * server status
+     */
+    uint32_t running :1;
+
+    /**
      *  heartbeat check time
      */
     uint16_t heartbeat_idle_time;

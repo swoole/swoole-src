@@ -653,7 +653,7 @@ int swServer_start(swServer *serv)
             i++;
         }
     }
-
+    serv->running = 1;
     //factory start
     if (factory->start(factory) < 0)
     {
@@ -779,6 +779,7 @@ int swServer_create(swServer *serv)
 
 int swServer_shutdown(swServer *serv)
 {
+    serv->running = 0;
     //stop all thread
     if (SwooleG.main_reactor)
     {
@@ -797,10 +798,6 @@ int swServer_shutdown(swServer *serv)
             swTimer_del(&SwooleG.timer, serv->master_timer);
             serv->master_timer = NULL;
         }
-    }
-    else
-    {
-        SwooleG.running = 0;
     }
     swInfo("Server is shutdown now");
     return SW_OK;
@@ -1700,7 +1697,7 @@ static void swServer_signal_handler(int sig)
         swSystemTimer_signal_handler(SIGALRM);
         break;
     case SIGCHLD:
-        if (!SwooleG.running)
+        if (!serv->running)
         {
             break;
         }
