@@ -26,6 +26,7 @@
 
 #include <unordered_map>
 #include <list>
+#include <vector>
 
 using namespace std;
 using namespace swoole;
@@ -64,6 +65,7 @@ static zend_fcall_info_cache *server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
 static unordered_map<int, zend_fcall_info_cache> task_callbacks;
 static unordered_map<int, swTaskCo*> task_coroutine_map;
 static unordered_map<int, list<php_coro_context *> *> send_coroutine_map;
+static vector<zval *> serv_user_process;
 
 struct server_event {
     enum php_swoole_server_callback_type type;
@@ -2042,6 +2044,10 @@ static PHP_METHOD(swoole_server, __destruct)
             server_callbacks[i] = NULL;
         }
     }
+    for (auto i = serv_user_process.begin(); i != serv_user_process.end(); i++)
+    {
+        sw_zval_free(*i);
+    }
     for (int i = 0; i < server_port_list.num; i++)
     {
         sw_zval_free(server_port_list.zobjects[i]);
@@ -2690,6 +2696,8 @@ static PHP_METHOD(swoole_server, addProcess)
     zval *tmp_process = (zval *) emalloc(sizeof(zval));
     memcpy(tmp_process, process, sizeof(zval));
     process = tmp_process;
+
+    serv_user_process.push_back(process);
 
     Z_TRY_ADDREF_P(process);
 
