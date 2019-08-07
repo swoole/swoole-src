@@ -479,7 +479,7 @@ void php_swoole_server_rshutdown()
 
     swWorker_clean_pipe_buffer(serv);
 
-    if (serv->gs->start > 0)
+    if (serv->gs->start > 0 && !swIsUserWorker())
     {
         if (PG(last_error_message))
         {
