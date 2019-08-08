@@ -56,13 +56,13 @@ static int swAio_callback(swReactor *reactor, swEvent *_event)
 class async_event_queue
 {
 public:
-    bool push(async_event *event)
+    inline bool push(async_event *event)
     {
         unique_lock<mutex> lock(_mutex);
         _queue.push(event);
         return true;
     }
-    async_event* pop()
+    inline async_event* pop()
     {
         unique_lock<mutex> lock(_mutex);
         if (_queue.empty())
@@ -73,10 +73,14 @@ public:
         _queue.pop();
         return retval;
     }
-    bool empty()
+    inline bool empty()
     {
         unique_lock<mutex> lock(_mutex);
         return _queue.empty();
+    }
+    inline size_t count()
+    {
+        return _queue.size();
     }
 private:
     queue<async_event*> _queue;
@@ -178,6 +182,16 @@ public:
         queue.push(_event_copy);
         _cv.notify_one();
         return _event_copy;
+    }
+
+    inline size_t thread_count()
+    {
+        return threads.size();
+    }
+
+    inline size_t queue_count()
+    {
+        return queue.count();
     }
 
 private:
@@ -322,11 +336,16 @@ static int swAio_init()
 
     swReactor_add_destroy_callback(SwooleG.main_reactor, swAio_free, nullptr);
 
-    pool = new async_thread_pool(SwooleAIO.min_thread_count, SwooleAIO.min_thread_count);
+    pool = new async_thread_pool(SwooleAIO.min_thread_count, SwooleAIO.max_thread_count);
     pool->start();
     SwooleAIO.init = 1;
 
     return SW_OK;
+}
+
+size_t swAio_thread_count()
+{
+    return pool->thread_count();
 }
 
 int swAio_dispatch(const swAio_event *request)
