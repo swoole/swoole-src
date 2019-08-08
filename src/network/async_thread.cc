@@ -345,7 +345,7 @@ static int swAio_init()
 
 size_t swAio_thread_count()
 {
-    return pool->thread_count();
+    return pool ? pool->thread_count() : 0;
 }
 
 int swAio_dispatch(const swAio_event *request)
