@@ -78,6 +78,7 @@ extern swAsyncIO SwooleAIO;
 int swAio_dispatch(const swAio_event *request);
 swAio_event* swAio_dispatch2(const swAio_event *request);
 int swAio_cancel(int task_id);
+size_t swAio_thread_count();
 
 void swAio_handler_read(swAio_event *event);
 void swAio_handler_write(swAio_event *event);
