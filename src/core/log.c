@@ -141,7 +141,7 @@ void swLog_put(int level, char *content, size_t length)
     }
     if (write(SwooleG.log_fd, log_str, n) < 0)
     {
-        _print: printf("write(log_fd, size=%d) failed. Error: %s[%d].\nMessage: %.*s\n", n, strerror(errno), errno, n, log_str);
+        _print: printf("write(log_fd=%d, size=%d) failed. Error: %s[%d].\nMessage: %.*s\n", SwooleG.log_fd, n, strerror(errno), errno, n, log_str);
     }
     if (is_file && flock(SwooleG.log_fd, LOCK_UN) == -1)
     {
