@@ -688,8 +688,6 @@ size_t swoole_http_parser_execute (swoole_http_parser *parser,
 
       case s_req_path:
       {
-        if (normal_url_char[(unsigned char)ch]) break;
-
         switch (ch) {
           case ' ':
             CALLBACK(url);
@@ -718,8 +716,6 @@ size_t swoole_http_parser_execute (swoole_http_parser *parser,
             CALLBACK(path);
             state = s_req_fragment_start;
             break;
-          default:
-            goto error;
         }
         break;
       }
