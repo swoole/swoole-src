@@ -112,10 +112,7 @@ public:
 
     ~async_thread_pool()
     {
-        if (current_pid == getpid())
-        {
-            shutdown();
-        }
+        shutdown();
         if (SwooleG.main_reactor)
         {
             SwooleG.main_reactor->del(SwooleG.main_reactor, _pipe_read);
@@ -197,6 +194,8 @@ public:
     {
         return queue.count();
     }
+
+    pid_t current_pid;
 
 private:
     void create_thread(int i)
@@ -291,7 +290,6 @@ private:
     int _pipe_read;
     int _pipe_write;
     int current_task_id;
-    pid_t current_pid;
 
     unordered_map<int, unique_ptr<thread>> threads;
     unordered_map<int, shared_ptr<atomic<bool>>> exit_flags;
@@ -380,7 +378,10 @@ static void swAio_free(void *private_data)
     {
         return;
     }
-    delete pool;
+    if (pool->current_pid == getpid())
+    {
+        delete pool;
+    }
     pool = nullptr;
     SwooleAIO.init = 0;
 }
