@@ -326,6 +326,7 @@ void php_swoole_event_wait()
 #endif
     }
     swReactor_destroy(SwooleG.main_reactor);
+    sw_free(SwooleG.main_reactor);
     SwooleG.main_reactor = NULL;
 }
 
