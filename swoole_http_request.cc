@@ -177,6 +177,10 @@ static sw_inline const char* http_get_method_name(int method)
         return "SUBSCRIBE";
     case PHP_HTTP_UNSUBSCRIBE:
         return "UNSUBSCRIBE";
+        /* proxy */
+    case PHP_HTTP_PURGE:
+        return "PURGE";
+        /* unknown */
     case PHP_HTTP_NOT_IMPLEMENTED:
         return "IMPLEMENTED";
     default:
