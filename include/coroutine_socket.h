@@ -58,6 +58,7 @@ public:
     int sock_domain = 0;
     int sock_type = 0;
     int sock_protocol = 0;
+    int sock_fd = -1;
     int backlog = 0;
     int errCode = 0;
     const char *errMsg = "";
@@ -146,6 +147,11 @@ public:
         {
             return SW_SOCK_TCP;
         }
+    }
+
+    static inline swReactor* get_reactor()
+    {
+        return SwooleTG.reactor ? SwooleTG.reactor : SwooleG.main_reactor;
     }
 
     inline int get_fd()
@@ -331,7 +337,7 @@ private:
     Socket(int _fd, Socket *socket);
     inline void init_sock_type(enum swSocket_type _type);
     inline bool init_sock();
-    inline void init_sock(int fd);
+    void init_reactor_socket(int fd);
     inline void init_options()
     {
         if (type == SW_SOCK_TCP || type == SW_SOCK_TCP6)
@@ -349,6 +355,10 @@ private:
 
     inline bool is_available(const enum swEvent_type event)
     {
+        if (sw_unlikely(swReactor_get(get_reactor(), sock_fd)->object == nullptr))
+        {
+            init_reactor_socket(sock_fd);
+        }
         if (event != SW_EVENT_NULL)
         {
             check_bound_co(event);

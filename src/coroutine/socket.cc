@@ -483,13 +483,13 @@ bool Socket::init_sock()
     {
         return false;
     }
-    init_sock(_fd);
+    init_reactor_socket(_fd);
     return true;
 }
 
-void Socket::init_sock(int _fd)
+void Socket::init_reactor_socket(int _fd)
 {
-    reactor = SwooleTG.reactor ? SwooleTG.reactor : SwooleG.main_reactor;
+    reactor = get_reactor();
     if (sw_unlikely(!reactor))
     {
         swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "operation not support (reactor is not ready)");
@@ -497,7 +497,7 @@ void Socket::init_sock(int _fd)
 
     socket = swReactor_get(reactor, _fd);
     bzero(socket, sizeof(swConnection));
-    socket->fd = _fd;
+    sock_fd = socket->fd = _fd;
     socket->object = this;
     socket->socket_type = type;
     socket->removed = 1;
@@ -536,7 +536,7 @@ Socket::Socket(enum swSocket_type _type)
 Socket::Socket(int _fd, enum swSocket_type _type)
 {
     init_sock_type(_type);
-    init_sock(_fd);
+    init_reactor_socket(_fd);
     socket->active = 1;
     init_options();
 }
@@ -545,7 +545,7 @@ Socket::Socket(int _fd, int _domain, int _type, int _protocol) :
         sock_domain(_domain), sock_type(_type), sock_protocol(_protocol)
 {
     type = get_type(_domain, _type, _protocol);
-    init_sock(_fd);
+    init_reactor_socket(_fd);
     socket->active = 1;
     init_options();
 }
@@ -560,7 +560,7 @@ Socket::Socket(int _fd, Socket *server_sock)
     reactor = server_sock->reactor;
     socket = swReactor_get(reactor, _fd);
     bzero(socket, sizeof(swConnection));
-    socket->fd = _fd;
+    sock_fd = socket->fd = _fd;
     socket->object = this;
     socket->socket_type = server_sock->type;
     socket->removed = 1;
@@ -763,6 +763,10 @@ bool Socket::connect(string _host, int _port, int flags)
 
 bool Socket::is_connect()
 {
+    if (sw_unlikely(reactor != get_reactor()))
+    {
+        init_reactor_socket(sock_fd);
+    }
     return socket->active && !socket->closed;
 }
 
@@ -802,7 +806,8 @@ ssize_t Socket::recv(void *__buf, size_t __n)
     }
     ssize_t retval;
     timer_controller timer(&read_timer, read_timeout, this, timer_callback);
-    do {
+    do
+    {
         retval = swConnection_recv(socket, __buf, __n, 0);
     } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
     set_err(retval < 0 ? errno : 0);
