@@ -97,6 +97,7 @@ public:
         min_threads = _min_threads;
         max_threads = _max_threads;
         current_task_id = 0;
+        current_pid = getpid();
 
         if (swPipeBase_create(&_aio_pipe, 0) < 0)
         {
@@ -111,7 +112,10 @@ public:
 
     ~async_thread_pool()
     {
-        shutdown();
+        if (current_pid == getpid())
+        {
+            shutdown();
+        }
         if (SwooleG.main_reactor)
         {
             SwooleG.main_reactor->del(SwooleG.main_reactor, _pipe_read);
@@ -287,6 +291,7 @@ private:
     int _pipe_read;
     int _pipe_write;
     int current_task_id;
+    pid_t current_pid;
 
     unordered_map<int, unique_ptr<thread>> threads;
     unordered_map<int, shared_ptr<atomic<bool>>> exit_flags;
