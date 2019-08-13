@@ -441,8 +441,8 @@ bool Socket::http_proxy_handshake()
 
 void Socket::init_sock_type(enum swSocket_type _sw_type)
 {
-    sw_type = _sw_type;
-    switch (sw_type)
+    type = _sw_type;
+    switch (type)
     {
     case SW_SOCK_TCP6:
         sock_domain = AF_INET6;
@@ -499,7 +499,7 @@ void Socket::init_reactor_socket(int _fd)
     bzero(socket, sizeof(swConnection));
     sock_fd = socket->fd = _fd;
     socket->object = this;
-    socket->socket_type = sw_type;
+    socket->socket_type = type;
     socket->removed = 1;
     socket->fdtype = SW_FD_CORO_SOCKET;
 
@@ -515,7 +515,7 @@ void Socket::init_reactor_socket(int _fd)
 Socket::Socket(int _domain, int _type, int _protocol) :
         sock_domain(_domain), sock_type(_type), sock_protocol(_protocol)
 {
-    sw_type = convert_to_sw_type(_domain, _type, _protocol);
+    type = convert_to_sw_type(_domain, _type, _protocol);
     if (sw_unlikely(!init_sock()))
     {
         return;
@@ -537,26 +537,23 @@ Socket::Socket(int _fd, enum swSocket_type _type)
 {
     init_sock_type(_type);
     init_reactor_socket(_fd);
-    activated = true;
     init_options();
 }
 
 Socket::Socket(int _fd, int _domain, int _type, int _protocol) :
         sock_domain(_domain), sock_type(_type), sock_protocol(_protocol)
 {
-    sw_type = convert_to_sw_type(_domain, _type, _protocol);
+    type = convert_to_sw_type(_domain, _type, _protocol);
     init_reactor_socket(_fd);
-    activated = true;
     init_options();
 }
 
 Socket::Socket(int _fd, Socket *server_sock)
 {
-    sw_type = server_sock->sw_type;
+    type = server_sock->type;
     sock_domain = server_sock->sock_domain;
     sock_type = server_sock->sock_type;
     sock_protocol = server_sock->sock_protocol;
-
     init_reactor_socket(_fd);
     init_options();
 }
@@ -601,7 +598,6 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
             }
         }
     }
-    connected = true;
     set_err(0);
     return true;
 }
@@ -1334,7 +1330,7 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
     } addr = { { 0 } };
     size_t addr_size = 0;
 
-    switch (sw_type)
+    switch (type)
     {
     case SW_SOCK_UDP:
     {
@@ -1621,11 +1617,10 @@ ssize_t Socket::recv_packet(double timeout)
     return retval;
 }
 
-// TODO: resume read_co/write_co
 bool Socket::shutdown(int __how)
 {
     set_err(0);
-    if (closed || !connected || (__how == SHUT_RD && shutdown_read) || (__how == SHUT_WR && shutdown_write))
+    if (is_connect() || (__how == SHUT_RD && shutdown_read) || (__how == SHUT_WR && shutdown_write))
     {
         errno = ENOTCONN;
     }
@@ -1660,7 +1655,6 @@ bool Socket::shutdown(int __how)
             if (shutdown_read && shutdown_write)
             {
                 activated = false;
-                connected = false;
             }
             return true;
         }
@@ -1752,7 +1746,6 @@ bool Socket::close()
             swSysWarn("close(%d) failed", sock_fd);
         }
         sock_fd = -1;
-        connected = false;
         closed = true;
         return true;
     }

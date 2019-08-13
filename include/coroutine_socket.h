@@ -83,7 +83,7 @@ public:
 
     inline bool is_connect()
     {
-        return connected;
+        return activated && !closed;
     }
 
     bool check_liveness();
@@ -149,22 +149,22 @@ public:
         return SwooleTG.reactor ? SwooleTG.reactor : SwooleG.main_reactor;
     }
 
-    inline enum swSocket_type get_sw_type()
+    inline enum swSocket_type get_type()
     {
-        return sw_type;
+        return type;
     }
 
-    inline int get_domain()
+    inline int get_sock_domain()
     {
         return sock_domain;
     }
 
-    inline int get_type()
+    inline int get_sock_type()
     {
         return sock_type;
     }
 
-    inline int get_protocol()
+    inline int get_sock_protocol()
     {
         return sock_protocol;
     }
@@ -319,7 +319,7 @@ public:
 #endif
 
 private:
-    enum swSocket_type sw_type;
+    enum swSocket_type type;
     int sock_domain = 0;
     int sock_type = 0;
     int sock_protocol = 0;
@@ -354,8 +354,7 @@ private:
     SSL_CTX *ssl_context = nullptr;
 #endif
 
-    bool connected = false;
-    bool activated = false;
+    bool activated = true;
     bool shutdown_read = false;
     bool shutdown_write = false;
     bool closed = false;
@@ -371,7 +370,7 @@ private:
     void init_reactor_socket(int fd);
     inline void init_options()
     {
-        if (sw_type == SW_SOCK_TCP || sw_type == SW_SOCK_TCP6)
+        if (type == SW_SOCK_TCP || type == SW_SOCK_TCP6)
         {
             set_option(IPPROTO_TCP, TCP_NODELAY, 1);
         }
