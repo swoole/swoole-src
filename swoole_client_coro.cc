@@ -177,7 +177,7 @@ static Socket* client_coro_new(zval *zobject, int port)
 
     php_swoole_check_reactor();
     Socket *cli = new Socket((enum swSocket_type) type);
-    if (UNEXPECTED(cli->socket == nullptr))
+    if (UNEXPECTED(cli->get_fd() < 0))
     {
         php_swoole_sys_error(E_WARNING, "new Socket() failed");
         zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), errno);
@@ -186,7 +186,7 @@ static Socket* client_coro_new(zval *zobject, int port)
         return NULL;
     }
 
-    zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("fd"), cli->socket->fd);
+    zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("fd"), cli->get_fd());
 
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL)
@@ -320,7 +320,7 @@ bool php_swoole_client_set(Socket *cli, zval *zset)
          */
         if (php_swoole_array_get_value(vht, "bind_address", ztmp))
         {
-            if (swSocket_bind(cli->socket->fd, cli->get_sw_type(), zend::string(ztmp).val(), &bind_port) != SW_OK)
+            if (swSocket_bind(cli->get_fd(), cli->get_sw_type(), zend::string(ztmp).val(), &bind_port) != SW_OK)
             {
                 ret = false;
             }
@@ -938,7 +938,7 @@ static PHP_METHOD(swoole_client_coro, getsockname)
     }
 
     cli->socket->info.len = sizeof(cli->socket->info.addr);
-    if (getsockname(cli->socket->fd, (struct sockaddr*) &cli->socket->info.addr, &cli->socket->info.len) < 0)
+    if (getsockname(cli->get_fd(), (struct sockaddr*) &cli->socket->info.addr, &cli->socket->info.len) < 0)
     {
         php_swoole_sys_error(E_WARNING, "getsockname() failed");
         RETURN_FALSE;
@@ -1042,7 +1042,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
     {
         RETURN_FALSE;
     }
-    if (cli->type != SW_SOCK_TCP && cli->type != SW_SOCK_TCP6)
+    if (cli->get_sw_type() != SW_SOCK_TCP && cli->get_sw_type() != SW_SOCK_TCP6)
     {
         php_swoole_fatal_error(E_WARNING, "cannot use enableSSL");
         RETURN_FALSE;

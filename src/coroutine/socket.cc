@@ -660,7 +660,7 @@ bool Socket::connect(string _host, int _port, int flags)
             socket->info.addr.inet_v4.sin_family = AF_INET;
             socket->info.addr.inet_v4.sin_port = htons(_port);
 
-            if (!inet_pton(AF_INET, connect_host.c_str(), & socket->info.addr.inet_v4.sin_addr))
+            if (!inet_pton(AF_INET, connect_host.c_str(), &socket->info.addr.inet_v4.sin_addr))
             {
 #ifdef SW_USE_OPENSSL
                 if (open_ssl)

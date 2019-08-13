@@ -429,7 +429,7 @@ static int socket_cast(php_stream *stream, int castas, void **ret)
     case PHP_STREAM_AS_STDIO:
         if (ret)
         {
-            *(FILE**) ret = fdopen(sock->socket->fd, stream->mode);
+            *(FILE**) ret = fdopen(sock->get_fd(), stream->mode);
             if (*ret)
             {
                 return SUCCESS;
@@ -441,7 +441,7 @@ static int socket_cast(php_stream *stream, int castas, void **ret)
     case PHP_STREAM_AS_FD:
     case PHP_STREAM_AS_SOCKETD:
         if (ret)
-            *(php_socket_t *) ret = sock->socket->fd;
+            *(php_socket_t *) ret = sock->get_fd();
         return SUCCESS;
     default:
         return FAILURE;
@@ -460,7 +460,7 @@ static int socket_stat(php_stream *stream, php_stream_statbuf *ssb)
     {
         return FAILURE;
     }
-    return zend_fstat(sock->socket->fd, &ssb->sb);
+    return zend_fstat(sock->get_fd(), &ssb->sb);
 }
 
 static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xport_param *xparam)
@@ -737,13 +737,13 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
         xparam->outputs.returncode = socket_accept(stream, sock, xparam STREAMS_CC);
         break;
     case STREAM_XPORT_OP_GET_NAME:
-        xparam->outputs.returncode = php_network_get_sock_name(sock->socket->fd,
+        xparam->outputs.returncode = php_network_get_sock_name(sock->get_fd(),
                 xparam->want_textaddr ? &xparam->outputs.textaddr : NULL,
                 xparam->want_addr ? &xparam->outputs.addr : NULL, xparam->want_addr ? &xparam->outputs.addrlen : NULL
                 );
         break;
     case STREAM_XPORT_OP_GET_PEER_NAME:
-        xparam->outputs.returncode = php_network_get_peer_name(sock->socket->fd,
+        xparam->outputs.returncode = php_network_get_peer_name(sock->get_fd(),
                 xparam->want_textaddr ? &xparam->outputs.textaddr : NULL,
                 xparam->want_addr ? &xparam->outputs.addr : NULL, xparam->want_addr ? &xparam->outputs.addrlen : NULL
                 );
