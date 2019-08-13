@@ -642,7 +642,7 @@ bool mysql_client::connect(std::string host, uint16_t port, bool ssl)
         {
             socket = new Socket(SW_SOCK_TCP);
         }
-        if (sw_unlikely(socket->socket == nullptr))
+        if (sw_unlikely(socket->get_fd() < 0))
         {
             php_swoole_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
             non_sql_error(MYSQLND_CR_CONNECTION_ERROR, strerror(errno));

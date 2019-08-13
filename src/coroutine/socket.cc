@@ -1096,7 +1096,7 @@ Socket* Socket::accept()
         return nullptr;
     }
     Socket *client_sock = new Socket(conn, this);
-    if (sw_unlikely(client_sock->socket == nullptr))
+    if (sw_unlikely(client_sock->get_fd() < 0))
     {
         swSysWarn("new Socket() failed");
         set_err(errno);

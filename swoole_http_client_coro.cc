@@ -606,7 +606,7 @@ bool http_client::connect()
     {
         php_swoole_check_reactor();
         socket = new Socket(socket_type);
-        if (UNEXPECTED(socket->socket == nullptr))
+        if (UNEXPECTED(socket->get_fd() < 0))
         {
             php_swoole_sys_error(E_WARNING, "new Socket() failed");
             zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), errno);

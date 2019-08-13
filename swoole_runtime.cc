@@ -470,7 +470,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     int ret = 0;
     char *ip_address = NULL;
 
-    if (UNEXPECTED(sock->socket == nullptr))
+    if (UNEXPECTED(sock->get_fd() < 0))
     {
         return FAILURE;
     }
@@ -947,7 +947,7 @@ static php_stream *socket_create(
         sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
     }
 
-    if (UNEXPECTED(sock->socket == nullptr))
+    if (UNEXPECTED(sock->get_fd() < 0))
     {
         _failed:
         if (!stream)

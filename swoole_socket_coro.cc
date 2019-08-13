@@ -810,7 +810,7 @@ SW_API zend_object* php_swoole_dup_socket(int fd, enum swSocket_type type)
         return nullptr;
     }
     sock->socket = new Socket(new_fd, type);
-    if (UNEXPECTED(sock->socket->socket == nullptr))
+    if (UNEXPECTED(sock->socket->get_fd() < 0))
     {
         php_swoole_sys_error(E_WARNING, "new Socket() failed");
         delete sock->socket;
@@ -1003,7 +1003,7 @@ static PHP_METHOD(swoole_socket_coro, __construct)
     {
         php_swoole_check_reactor();
         sock->socket = new Socket((int)domain, (int)type, (int)protocol);
-        if (UNEXPECTED(sock->socket->socket == nullptr))
+        if (UNEXPECTED(sock->socket->get_fd() < 0))
         {
             zend_throw_exception_ex(
                 swoole_socket_coro_exception_ce, errno,
