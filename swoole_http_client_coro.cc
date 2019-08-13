@@ -433,7 +433,7 @@ static int http_parser_on_message_complete(swoole_http_parser *parser)
 
 http_client::http_client(zval* zobject, std::string host, zend_long port, zend_bool ssl)
 {
-    this->socket_type = Socket::get_type(host);
+    this->socket_type = Socket::convert_to_sw_type(host);
     this->host = host;
     this->port = port;
 #ifdef SW_USE_OPENSSL

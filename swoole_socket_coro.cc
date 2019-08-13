@@ -1102,7 +1102,7 @@ static PHP_METHOD(swoole_socket_coro, connect)
 
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    if (sock->socket->sock_domain == AF_INET6 || sock->socket->sock_domain == AF_INET)
+    if (sock->socket->get_domain() == AF_INET6 || sock->socket->get_domain() == AF_INET)
     {
         if (ZEND_NUM_ARGS() == 1)
         {
@@ -1300,17 +1300,17 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
 
         zval_dtor(peername);
         array_init(peername);
-        if (sock->socket->sock_domain == AF_INET)
+        if (sock->socket->get_domain() == AF_INET)
         {
             add_assoc_long(peername, "port", swConnection_get_port(sock->socket->socket));
             add_assoc_string(peername, "address", (char *) swConnection_get_ip(sock->socket->socket));
         }
-        else if (sock->socket->sock_domain == AF_INET6)
+        else if (sock->socket->get_domain() == AF_INET6)
         {
             add_assoc_long(peername, "port", swConnection_get_port(sock->socket->socket));
             add_assoc_string(peername, "address", (char *) swConnection_get_ip(sock->socket->socket));
         }
-        else if (sock->socket->sock_domain == AF_UNIX)
+        else if (sock->socket->get_domain() == AF_UNIX)
         {
             add_assoc_string(peername, "address", (char *) swConnection_get_ip(sock->socket->socket));
         }
@@ -1397,7 +1397,7 @@ static PHP_METHOD(swoole_socket_coro, getsockname)
     }
 
     array_init(return_value);
-    switch (sock->socket->sock_domain)
+    switch (sock->socket->get_domain())
     {
     case AF_INET6:
         inet_ntop(AF_INET6, &info.addr.inet_v6.sin6_addr, addr_str, INET6_ADDRSTRLEN);
@@ -1413,7 +1413,7 @@ static PHP_METHOD(swoole_socket_coro, getsockname)
         add_assoc_string(return_value, "address", info.addr.un.sun_path);
         break;
     default:
-        php_swoole_error(E_WARNING, "unsupported address family %d for socket#%d", sock->socket->sock_domain, sock->socket->get_fd());
+        php_swoole_error(E_WARNING, "unsupported address family %d for socket#%d", sock->socket->get_domain(), sock->socket->get_fd());
         sock->socket->set_err(EOPNOTSUPP);
         swoole_socket_coro_sync_properties(ZEND_THIS, sock);
         zval_ptr_dtor(return_value);
@@ -1436,7 +1436,7 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
     }
 
     array_init(return_value);
-    switch (sock->socket->sock_domain)
+    switch (sock->socket->get_domain())
     {
     case AF_INET6:
         inet_ntop(AF_INET6, &info.addr.inet_v6.sin6_addr, addr_str, INET6_ADDRSTRLEN);
@@ -1452,7 +1452,7 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
         add_assoc_string(return_value, "address", info.addr.un.sun_path);
         break;
     default:
-        php_swoole_error(E_WARNING, "unsupported address family %d for socket#%d", sock->socket->sock_domain, sock->socket->get_fd());
+        php_swoole_error(E_WARNING, "unsupported address family %d for socket#%d", sock->socket->get_domain(), sock->socket->get_fd());
         sock->socket->set_err(EOPNOTSUPP);
         swoole_socket_coro_sync_properties(ZEND_THIS, sock);
         zval_ptr_dtor(return_value);

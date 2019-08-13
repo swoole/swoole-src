@@ -439,10 +439,10 @@ bool Socket::http_proxy_handshake()
     return false;
 }
 
-void Socket::init_sock_type(enum swSocket_type _type)
+void Socket::init_sock_type(enum swSocket_type _sw_type)
 {
-    type = _type;
-    switch (type)
+    sw_type = _sw_type;
+    switch (sw_type)
     {
     case SW_SOCK_TCP6:
         sock_domain = AF_INET6;
@@ -499,7 +499,7 @@ void Socket::init_reactor_socket(int _fd)
     bzero(socket, sizeof(swConnection));
     sock_fd = socket->fd = _fd;
     socket->object = this;
-    socket->socket_type = type;
+    socket->socket_type = sw_type;
     socket->removed = 1;
     socket->fdtype = SW_FD_CORO_SOCKET;
 
@@ -515,7 +515,7 @@ void Socket::init_reactor_socket(int _fd)
 Socket::Socket(int _domain, int _type, int _protocol) :
         sock_domain(_domain), sock_type(_type), sock_protocol(_protocol)
 {
-    type = get_type(_domain, _type, _protocol);
+    sw_type = convert_to_sw_type(_domain, _type, _protocol);
     if (sw_unlikely(!init_sock()))
     {
         return;
@@ -544,7 +544,7 @@ Socket::Socket(int _fd, enum swSocket_type _type)
 Socket::Socket(int _fd, int _domain, int _type, int _protocol) :
         sock_domain(_domain), sock_type(_type), sock_protocol(_protocol)
 {
-    type = get_type(_domain, _type, _protocol);
+    sw_type = convert_to_sw_type(_domain, _type, _protocol);
     init_reactor_socket(_fd);
     activated = true;
     init_options();
@@ -552,7 +552,7 @@ Socket::Socket(int _fd, int _domain, int _type, int _protocol) :
 
 Socket::Socket(int _fd, Socket *server_sock)
 {
-    type = server_sock->type;
+    sw_type = server_sock->sw_type;
     sock_domain = server_sock->sock_domain;
     sock_type = server_sock->sock_type;
     sock_protocol = server_sock->sock_protocol;
@@ -1334,7 +1334,7 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
     } addr = { { 0 } };
     size_t addr_size = 0;
 
-    switch (type)
+    switch (sw_type)
     {
     case SW_SOCK_UDP:
     {
