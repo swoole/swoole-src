@@ -66,6 +66,9 @@ public:
     bool open_length_check = false;
     bool open_eof_check = false;
     bool http2 = false;
+    bool activated = false;
+    bool connected = false;
+    bool closed = false;
 
     swProtocol protocol = {0};
     swString *read_buffer = nullptr;
@@ -90,7 +93,12 @@ public:
     bool shutdown(int how = SHUT_RDWR);
     bool close();
     bool cancel(const enum swEvent_type event);
-    bool is_connect();
+
+    inline bool is_connect()
+    {
+        return connected;
+    }
+
     bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
@@ -355,7 +363,17 @@ private:
 
     inline bool is_available(const enum swEvent_type event)
     {
-        if (sw_unlikely(swReactor_get(get_reactor(), sock_fd)->object == nullptr))
+        swReactor *_reactor = get_reactor();
+        if (!_reactor)
+        {
+            return false;
+        }
+        swConnection *_socket = swReactor_get(_reactor, sock_fd);
+        if (!_socket)
+        {
+            return false;
+        }
+        if (sw_unlikely(_socket->object == nullptr))
         {
             init_reactor_socket(sock_fd);
         }
