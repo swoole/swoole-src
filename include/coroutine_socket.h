@@ -164,7 +164,7 @@ public:
 
     inline int get_fd()
     {
-        return socket ? socket->fd : -1;
+        return sock_fd;
     }
 
     inline int get_bind_port()
