@@ -149,7 +149,7 @@ void php_swoole_client_coro_minit(int module_number)
 static sw_inline Socket* client_get_ptr(zval *zobject, bool silent = false)
 {
     Socket *cli = (Socket *) swoole_get_object(zobject);
-    if (cli && cli->socket && cli->socket->active == 1)
+    if (cli)
     {
         return cli;
     }

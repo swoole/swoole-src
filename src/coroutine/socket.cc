@@ -190,11 +190,11 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
 #endif
     swTraceLog(
         SW_TRACE_SOCKET, "socket#%d blongs to cid#%ld trigger %s event",
-        sock_fd, co->get_cid(), socket->closed ? "CLOSE" :
+        sock_fd, co->get_cid(), closed ? "CLOSE" :
         errCode ? errCode == ETIMEDOUT ? "TIMEOUT" : "ERROR" :
         added_event == SW_EVENT_READ ? "READ" : "WRITE"
     );
-    return !socket->closed && !errCode;
+    return !closed && !errCode;
 }
 
 bool Socket::socks5_handshake()
@@ -557,15 +557,7 @@ Socket::Socket(int _fd, Socket *server_sock)
     sock_type = server_sock->sock_type;
     sock_protocol = server_sock->sock_protocol;
 
-    reactor = server_sock->reactor;
-    socket = swReactor_get(reactor, _fd);
-    bzero(socket, sizeof(swConnection));
-    sock_fd = socket->fd = _fd;
-    socket->object = this;
-    socket->socket_type = server_sock->type;
-    socket->removed = 1;
-    activated = true;
-    socket->fdtype = SW_FD_CORO_SOCKET;
+    init_reactor_socket(_fd);
     init_options();
 }
 
@@ -592,7 +584,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
             timer_controller timer(&write_timer, connect_timeout, this, timer_callback);
             if (!timer.start() || !wait_event(SW_EVENT_WRITE))
             {
-                if (socket->closed)
+                if (closed)
                 {
                     set_err(ECONNABORTED);
                 }
@@ -1739,10 +1731,7 @@ bool Socket::close()
         {
             shutdown();
         }
-        if (!closed)
-        {
-            closed = 1;
-        }
+        closed = true;
         if (write_co)
         {
             set_err(ECONNRESET);
