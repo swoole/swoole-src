@@ -95,6 +95,8 @@ enum swoole_http_method
   , PHP_HTTP_NOTIFY
   , PHP_HTTP_SUBSCRIBE
   , PHP_HTTP_UNSUBSCRIBE
+  /* proxy */
+  , PHP_HTTP_PURGE
   /* unknown, not implemented */
   , PHP_HTTP_NOT_IMPLEMENTED
   };
