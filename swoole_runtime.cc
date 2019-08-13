@@ -475,12 +475,12 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
         return FAILURE;
     }
 
-    if (sock->get_sw_type() == SW_SOCK_TCP || sock->get_sw_type() == SW_SOCK_TCP6 || sock->get_sw_type() == SW_SOCK_UDP || sock->get_sw_type() == SW_SOCK_UDP6)
+    if (sock->get_type() == SW_SOCK_TCP || sock->get_type() == SW_SOCK_TCP6 || sock->get_type() == SW_SOCK_UDP || sock->get_type() == SW_SOCK_UDP6)
     {
         ip_address = parse_ip_address_ex(xparam->inputs.name, xparam->inputs.namelen, &portno, xparam->want_errortext,
                 &xparam->outputs.error_text);
         host = ip_address;
-        if (sock->get_type() == SOCK_STREAM)
+        if (sock->get_sock_type() == SOCK_STREAM)
         {
             int sockoptval = 1;
             setsockopt(sock->get_fd(), IPPROTO_TCP, TCP_NODELAY, (char*) &sockoptval, sizeof(sockoptval));
@@ -520,7 +520,7 @@ static inline int socket_bind(php_stream *stream, Socket *sock, php_stream_xport
     int portno = 0;
     char *ip_address = NULL;
 
-    if (sock->get_sw_type() == SW_SOCK_TCP || sock->get_sw_type() == SW_SOCK_TCP6 || sock->get_sw_type() == SW_SOCK_UDP || sock->get_sw_type() == SW_SOCK_UDP6)
+    if (sock->get_type() == SW_SOCK_TCP || sock->get_type() == SW_SOCK_TCP6 || sock->get_type() == SW_SOCK_UDP || sock->get_type() == SW_SOCK_UDP6)
     {
         ip_address = parse_ip_address_ex(xparam->inputs.name, xparam->inputs.namelen, &portno, xparam->want_errortext, &xparam->outputs.error_text);
         host = ip_address;
@@ -700,7 +700,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
         break;
     case STREAM_XPORT_OP_BIND:
     {
-        if (sock->get_domain() != AF_UNIX)
+        if (sock->get_sock_domain() != AF_UNIX)
         {
             zval *tmpzval = NULL;
             int sockoptval = 1;
