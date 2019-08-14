@@ -156,6 +156,10 @@ typedef unsigned long ulong_t;
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
+#if defined(MAP_HUGETLB) || defined(MAP_ALIGNED_SUPER)
+#define MAP_HUGE_PAGE 1
+#endif
+
 #ifndef SOCK_NONBLOCK
 #define SOCK_NONBLOCK O_NONBLOCK
 #endif
