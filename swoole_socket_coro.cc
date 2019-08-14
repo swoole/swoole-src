@@ -1295,25 +1295,13 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
     }
     else
     {
-        ZSTR_LEN(buf) = bytes;
-        ZSTR_VAL(buf)[bytes] = 0;
-
         zval_dtor(peername);
         array_init(peername);
-        if (sock->socket->get_sock_domain() == AF_INET)
-        {
-            add_assoc_long(peername, "port", swConnection_get_port(sock->socket->socket));
-            add_assoc_string(peername, "address", (char *) swConnection_get_ip(sock->socket->socket));
-        }
-        else if (sock->socket->get_sock_domain() == AF_INET6)
-        {
-            add_assoc_long(peername, "port", swConnection_get_port(sock->socket->socket));
-            add_assoc_string(peername, "address", (char *) swConnection_get_ip(sock->socket->socket));
-        }
-        else if (sock->socket->get_sock_domain() == AF_UNIX)
-        {
-            add_assoc_string(peername, "address", (char *) swConnection_get_ip(sock->socket->socket));
-        }
+        add_assoc_string(peername, "address", (char *) sock->socket->get_ip());
+        add_assoc_long(peername, "port", sock->socket->get_port());
+
+        ZSTR_LEN(buf) = bytes;
+        ZSTR_VAL(buf)[bytes] = 0;
         RETURN_STR(buf);
     }
 }
