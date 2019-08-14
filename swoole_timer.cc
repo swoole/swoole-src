@@ -27,6 +27,12 @@ static zend_object_handlers swoole_timer_handlers;
 
 static zend_class_entry *swoole_timer_iterator_ce;
 
+static struct {
+    bool enable_coroutine_isset;
+    bool enable_coroutine;
+} settings;
+
+static PHP_FUNCTION(swoole_timer_set);
 static PHP_FUNCTION(swoole_timer_after);
 static PHP_FUNCTION(swoole_timer_tick);
 static PHP_FUNCTION(swoole_timer_exists);
@@ -37,6 +43,10 @@ static PHP_FUNCTION(swoole_timer_clear);
 static PHP_FUNCTION(swoole_timer_clear_all);
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_set, 0, 0, 1)
+    ZEND_ARG_ARRAY_INFO(0, settings, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_after, 0, 0, 2)
@@ -65,6 +75,7 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry swoole_timer_methods[] =
 {
+    ZEND_FENTRY(set, ZEND_FN(swoole_timer_set), arginfo_swoole_timer_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(tick, ZEND_FN(swoole_timer_tick), arginfo_swoole_timer_tick, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(after, ZEND_FN(swoole_timer_after), arginfo_swoole_timer_after, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exists, ZEND_FN(swoole_timer_exists), arginfo_swoole_timer_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -83,6 +94,7 @@ void php_swoole_timer_minit(int module_number)
 
     SW_INIT_CLASS_ENTRY_BASE(swoole_timer_iterator, "Swoole\\Timer\\Iterator", "swoole_timer_iterator", NULL, NULL, spl_ce_ArrayIterator);
 
+    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "set", CG(function_table), "swoole_timer_set");
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "after", CG(function_table), "swoole_timer_after");
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "tick", CG(function_table), "swoole_timer_tick");
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "exists", CG(function_table), "swoole_timer_exists");
@@ -148,7 +160,9 @@ enum swBool_type php_swoole_timer_clear_all()
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     php_swoole_fci *fci = (php_swoole_fci *) tnode->data;
-    if (UNEXPECTED(!zend::function::call(&fci->fci_cache, fci->fci.param_count, fci->fci.params, NULL, SwooleG.enable_coroutine)))
+    bool enable_coroutine = settings.enable_coroutine_isset ? settings.enable_coroutine : SwooleG.enable_coroutine;
+
+    if (UNEXPECTED(!zend::function::call(&fci->fci_cache, fci->fci.param_count, fci->fci.params, NULL, enable_coroutine)))
     {
         php_swoole_error(E_WARNING, "%s->onTimeout handler error", ZSTR_VAL(swoole_timer_ce->name));
     }
@@ -217,6 +231,24 @@ static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent)
     }
     sw_zend_fci_cache_persist(&fci->fci_cache);
     RETURN_LONG(tnode->id);
+}
+
+static PHP_FUNCTION(swoole_timer_set)
+{
+    zval *zset = NULL;
+    HashTable *vht = NULL;
+    zval *ztmp;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY(zset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    vht = Z_ARRVAL_P(zset);
+    if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp))
+    {
+        settings.enable_coroutine_isset = true;
+        settings.enable_coroutine = zval_is_true(ztmp);
+    }
 }
 
 static PHP_FUNCTION(swoole_timer_after)
