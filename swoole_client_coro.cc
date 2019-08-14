@@ -771,13 +771,16 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     }
     else
     {
-        ZSTR_LEN(retval) = n_bytes;
-        ZSTR_VAL(retval)[ZSTR_LEN(retval)] = '\0';
-        ZVAL_STRING(address, swConnection_get_ip(cli->socket));
+        zval_ptr_dtor(address);
+        ZVAL_STRING(address, cli->get_ip());
         if (port)
         {
-            ZVAL_LONG(port, swConnection_get_port(cli->socket));
+            zval_ptr_dtor(port);
+            ZVAL_LONG(port, cli->get_port());
         }
+
+        ZSTR_LEN(retval) = n_bytes;
+        ZSTR_VAL(retval)[ZSTR_LEN(retval)] = '\0';
         RETURN_STR(retval);
     }
 }
@@ -937,7 +940,7 @@ static PHP_METHOD(swoole_client_coro, getsockname)
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "host", cli->get_ip());
+    add_assoc_string(return_value, "host", (char *) cli->get_ip());
     add_assoc_long(return_value, "port", cli->get_port());
 }
 
@@ -981,7 +984,7 @@ static PHP_METHOD(swoole_client_coro, getpeername)
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "host", cli->get_ip());
+    add_assoc_string(return_value, "host", (char *) cli->get_ip());
     add_assoc_long(return_value, "port", cli->get_port());
 }
 
