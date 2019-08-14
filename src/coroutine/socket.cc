@@ -1620,7 +1620,7 @@ ssize_t Socket::recv_packet(double timeout)
 bool Socket::shutdown(int __how)
 {
     set_err(0);
-    if (is_connect() || (__how == SHUT_RD && shutdown_read) || (__how == SHUT_WR && shutdown_write))
+    if (!is_connect() || (__how == SHUT_RD && shutdown_read) || (__how == SHUT_WR && shutdown_write))
     {
         errno = ENOTCONN;
     }
