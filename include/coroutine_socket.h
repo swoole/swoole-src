@@ -179,6 +179,11 @@ public:
         return bind_port;
     }
 
+    bool getsockname();
+    bool getpeername();
+    const char* get_ip();
+    int get_port();
+
     inline bool has_bound(const enum swEvent_type event = SW_EVENT_RDWR)
     {
         return get_bound_co(event) != nullptr;
@@ -334,6 +339,17 @@ private:
 
     std::string connect_host;
     int connect_port = 0;
+
+    struct
+    {
+        union
+        {
+            struct sockaddr_in inet_v4;
+            struct sockaddr_in6 inet_v6;
+            struct sockaddr_un un;
+        } addr;
+        socklen_t len;
+    } info;
 
     std::string bind_address;
     int bind_port = 0;

@@ -929,38 +929,16 @@ static PHP_METHOD(swoole_client_coro, getsockname)
         RETURN_FALSE;
     }
 
-    if (cli->get_type() == SW_SOCK_UNIX_STREAM || cli->get_type() == SW_SOCK_UNIX_DGRAM)
+    if (!cli->getsockname())
     {
-        php_swoole_fatal_error(E_WARNING, "getsockname() only support AF_INET family socket");
-        RETURN_FALSE;
-    }
-
-    cli->socket->info.len = sizeof(cli->socket->info.addr);
-    if (getsockname(cli->get_fd(), (struct sockaddr*) &cli->socket->info.addr, &cli->socket->info.len) < 0)
-    {
-        php_swoole_sys_error(E_WARNING, "getsockname() failed");
+        zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), cli->errCode);
+        zend_update_property_string(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errMsg"), cli->errMsg);
         RETURN_FALSE;
     }
 
     array_init(return_value);
-    if (cli->get_type() == SW_SOCK_UDP6 || cli->get_type() == SW_SOCK_TCP6)
-    {
-        add_assoc_long(return_value, "port", ntohs(cli->socket->info.addr.inet_v6.sin6_port));
-        char tmp[INET6_ADDRSTRLEN];
-        if (inet_ntop(AF_INET6, &cli->socket->info.addr.inet_v6.sin6_addr, tmp, sizeof(tmp)))
-        {
-            add_assoc_string(return_value, "host", tmp);
-        }
-        else
-        {
-            php_swoole_fatal_error(E_WARNING, "inet_ntop() failed");
-        }
-    }
-    else
-    {
-        add_assoc_long(return_value, "port", ntohs(cli->socket->info.addr.inet_v4.sin_port));
-        add_assoc_string(return_value, "host", inet_ntoa(cli->socket->info.addr.inet_v4.sin_addr));
-    }
+    add_assoc_string(return_value, "host", cli->get_ip());
+    add_assoc_long(return_value, "port", cli->get_port());
 }
 
 /**
@@ -995,36 +973,16 @@ static PHP_METHOD(swoole_client_coro, getpeername)
         RETURN_FALSE;
     }
 
-    if (cli->get_type() == SW_SOCK_UDP)
+    if (!cli->getsockname())
     {
-        array_init(return_value);
-        add_assoc_long(return_value, "port", ntohs(cli->socket->info.addr.inet_v4.sin_port));
-        add_assoc_string(return_value, "host", inet_ntoa(cli->socket->info.addr.inet_v4.sin_addr));
-    }
-    else if (cli->get_type() == SW_SOCK_UDP6)
-    {
-        array_init(return_value);
-        add_assoc_long(return_value, "port", ntohs(cli->socket->info.addr.inet_v6.sin6_port));
-        char tmp[INET6_ADDRSTRLEN];
-
-        if (inet_ntop(AF_INET6, &cli->socket->info.addr.inet_v6.sin6_addr, tmp, sizeof(tmp)))
-        {
-            add_assoc_string(return_value, "host", tmp);
-        }
-        else
-        {
-            php_swoole_fatal_error(E_WARNING, "inet_ntop() failed");
-        }
-    }
-    else if (cli->get_type() == SW_SOCK_UNIX_DGRAM)
-    {
-        add_assoc_string(return_value, "host", cli->socket->info.addr.un.sun_path);
-    }
-    else
-    {
-        php_swoole_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
+        zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), cli->errCode);
+        zend_update_property_string(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errMsg"), cli->errMsg);
         RETURN_FALSE;
     }
+
+    array_init(return_value);
+    add_assoc_string(return_value, "host", cli->get_ip());
+    add_assoc_long(return_value, "port", cli->get_port());
 }
 
 static PHP_METHOD(swoole_client_coro, close)
