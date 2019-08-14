@@ -244,6 +244,7 @@ static PHP_FUNCTION(swoole_timer_set)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     vht = Z_ARRVAL_P(zset);
+
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp))
     {
         settings.enable_coroutine_isset = true;

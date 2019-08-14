@@ -28,6 +28,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_construct, 0, 0, 1)
     ZEND_ARG_INFO(0, enable_coroutine)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_set, 0, 0, 1)
+    ZEND_ARG_ARRAY_INFO(0, settings, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_on, 0, 0, 2)
     ZEND_ARG_INFO(0, event_name)
     ZEND_ARG_CALLABLE_INFO(0, callback, 0)
@@ -49,6 +53,7 @@ ZEND_END_ARG_INFO()
 
 static PHP_METHOD(swoole_process_pool, __construct);
 static PHP_METHOD(swoole_process_pool, __destruct);
+static PHP_METHOD(swoole_process_pool, set);
 static PHP_METHOD(swoole_process_pool, on);
 static PHP_METHOD(swoole_process_pool, listen);
 static PHP_METHOD(swoole_process_pool, write);
@@ -60,6 +65,7 @@ static const zend_function_entry swoole_process_pool_methods[] =
 {
     PHP_ME(swoole_process_pool, __construct, arginfo_swoole_process_pool_construct, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, __destruct, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, set, arginfo_swoole_process_pool_set, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, on, arginfo_swoole_process_pool_on, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, getProcess, arginfo_swoole_process_pool_getProcess, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, listen, arginfo_swoole_process_pool_listen, ZEND_ACC_PUBLIC)
@@ -252,6 +258,26 @@ static PHP_METHOD(swoole_process_pool, __construct)
     pp->enable_coroutine = enable_coroutine;
     swoole_set_property(zobject, 0, pp);
     swoole_set_object(zobject, pool);
+}
+
+static PHP_METHOD(swoole_process_pool, set)
+{
+    zval *zset = NULL;
+    HashTable *vht = NULL;
+    zval *ztmp;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY(zset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    vht = Z_ARRVAL_P(zset);
+
+    process_pool_property *pp = (process_pool_property *) swoole_get_property(ZEND_THIS, 0);
+
+    if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp))
+    {
+        pp->enable_coroutine = zval_is_true(ztmp);
+    }
 }
 
 static PHP_METHOD(swoole_process_pool, on)
