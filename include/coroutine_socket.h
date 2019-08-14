@@ -111,7 +111,7 @@ public:
     bool ssl_check_context();
 #endif
 
-    static inline enum swSocket_type convert_to_sw_type(int domain, int type, int protocol = 0)
+    static inline enum swSocket_type convert_to_type(int domain, int type, int protocol = 0)
     {
         switch (domain)
         {
@@ -126,7 +126,7 @@ public:
         }
     }
 
-    static inline enum swSocket_type convert_to_sw_type(std::string &host)
+    static inline enum swSocket_type convert_to_type(std::string &host)
     {
         if (host.compare(0, 6, "unix:/", 0, 6) == 0)
         {

@@ -515,7 +515,7 @@ void Socket::init_reactor_socket(int _fd)
 Socket::Socket(int _domain, int _type, int _protocol) :
         sock_domain(_domain), sock_type(_type), sock_protocol(_protocol)
 {
-    type = convert_to_sw_type(_domain, _type, _protocol);
+    type = convert_to_type(_domain, _type, _protocol);
     if (sw_unlikely(!init_sock()))
     {
         return;
@@ -543,7 +543,7 @@ Socket::Socket(int _fd, enum swSocket_type _type)
 Socket::Socket(int _fd, int _domain, int _type, int _protocol) :
         sock_domain(_domain), sock_type(_type), sock_protocol(_protocol)
 {
-    type = convert_to_sw_type(_domain, _type, _protocol);
+    type = convert_to_type(_domain, _type, _protocol);
     init_reactor_socket(_fd);
     init_options();
 }
