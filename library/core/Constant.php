@@ -24,6 +24,7 @@ class Constant
     const EVENT_MANAGER_STOP = 'managerStop';
     const EVENT_ERROR = 'error';
 
+    /* {{{ OPTION */
     const OPTION_ENABLE_SIGNALFD = 'enable_signalfd';
     const OPTION_DNS_CACHE_REFRESH_TIME = 'dns_cache_refresh_time';
     const OPTION_SOCKET_BUFFER_SIZE = 'socket_buffer_size';
@@ -173,4 +174,5 @@ class Constant
     const OPTION_SSL_ECDH_CURVE = 'ssl_ecdh_curve';
     const OPTION_SSL_DHPARAM = 'ssl_dhparam';
     const OPTION_OPEN_SSL = 'open_ssl';
+    /* }}} OPTION */
 }
