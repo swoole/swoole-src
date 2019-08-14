@@ -7,7 +7,7 @@ swoole_http_client_coro: upgrade bug
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $host = 'www.imiphp.com';
-    $cli = new Swoole\Coroutine\Http\Client($host, 80);
+    $cli = new Swoole\Coroutine\Http\Client($host, 443, true);
     $cli->set(['timeout' => 10]);
     $cli->setHeaders([
         'host' => $host, // wrong case auto fix
