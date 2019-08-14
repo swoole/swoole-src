@@ -22,6 +22,7 @@ class Constant
     const EVENT_WORKER_STOP = 'workerStop';
     const EVENT_MANAGER_START = 'managerStart';
     const EVENT_MANAGER_STOP = 'managerStop';
+    const EVENT_ERROR = 'error';
 
     const OPTION_CHROOT = 'chroot';
     const OPTION_USER = 'user';
