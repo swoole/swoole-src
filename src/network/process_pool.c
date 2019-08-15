@@ -736,7 +736,6 @@ int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker)
 int swProcessPool_wait(swProcessPool *pool)
 {
     int pid, new_pid;
-//    int reload_worker_i = 0;
     pid_t reload_worker_pid = 0;
     int ret;
     int status;

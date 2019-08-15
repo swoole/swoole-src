@@ -77,6 +77,7 @@ static const zend_function_entry swoole_process_pool_methods[] =
 
 typedef struct
 {
+    zend_fcall_info_cache *onStart;
     zend_fcall_info_cache *onWorkerStart;
     zend_fcall_info_cache *onWorkerStop;
     zend_fcall_info_cache *onMessage;
@@ -358,6 +359,21 @@ static PHP_METHOD(swoole_process_pool, on)
         sw_zend_fci_cache_persist(pp->onWorkerStop);
         RETURN_TRUE;
     }
+    else if (strncasecmp("Start", name, l_name) == 0)
+    {
+        if (pp->onStart)
+        {
+            sw_zend_fci_cache_discard(pp->onStart);
+            efree(pp->onStart);
+        }
+        else
+        {
+            pp->onStart = (zend_fcall_info_cache*) emalloc(sizeof(zend_fcall_info_cache));
+        }
+        *pp->onStart = fci_cache;
+        sw_zend_fci_cache_persist(pp->onStart);
+        RETURN_TRUE;
+    }
     else
     {
         php_swoole_error(E_WARNING, "unknown event type[%s]", name);
@@ -437,6 +453,13 @@ static PHP_METHOD(swoole_process_pool, start)
         RETURN_FALSE;
     }
 
+    if (SwooleG.main_reactor)
+    {
+        swReactor_destroy(SwooleG.main_reactor);
+        sw_free(SwooleG.main_reactor);
+        SwooleG.main_reactor = nullptr;
+    }
+
     process_pool_property *pp = (process_pool_property *) swoole_get_property(ZEND_THIS, 0);
 
     SwooleG.use_signalfd = 0;
@@ -474,6 +497,16 @@ static PHP_METHOD(swoole_process_pool, start)
     }
 
     current_pool = pool;
+
+    if (pp->onStart)
+    {
+        zval args[1];
+        args[0] = *ZEND_THIS;
+        if (UNEXPECTED(!zend::function::call(pp->onStart, 1, args, NULL, 0)))
+        {
+            php_swoole_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        }
+    }
 
     swProcessPool_wait(pool);
     swProcessPool_shutdown(pool);
@@ -574,6 +607,11 @@ static PHP_METHOD(swoole_process_pool, __destruct)
     {
         sw_zend_fci_cache_discard(pp->onWorkerStop);
         efree(pp->onWorkerStop);
+    }
+    if (pp->onStart)
+    {
+        sw_zend_fci_cache_discard(pp->onStart);
+        efree(pp->onStart);
     }
     efree(pp);
     swoole_set_property(ZEND_THIS, 0, NULL);
