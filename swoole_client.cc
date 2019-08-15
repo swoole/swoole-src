@@ -2019,7 +2019,7 @@ PHP_FUNCTION(swoole_client_select)
         RETURN_FALSE;
     }
 
-    retval = poll(fds, maxevents, (int) timeout * 1000);
+    retval = poll(fds, maxevents, (int) (timeout * 1000));
     if (retval == -1)
     {
         efree(fds);
