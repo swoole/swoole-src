@@ -303,7 +303,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swServer_worker_init(serv, worker);
 
     //create reactor
-    swReactor *reactor;
     if (!SwooleG.main_reactor)
     {
         if (swoole_event_init() < 0)
@@ -311,10 +310,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
             return SW_ERR;
         }
     }
-    else
-    {
-        reactor = SwooleG.main_reactor;
-    }
+    swReactor *reactor = SwooleG.main_reactor;
 
     int n_buffer = serv->worker_num + serv->task_worker_num + serv->user_worker_num;
     if (swReactorProcess_alloc_output_buffer(n_buffer))
