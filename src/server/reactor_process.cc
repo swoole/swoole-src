@@ -302,12 +302,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     swServer_worker_init(serv, worker);
 
-    int n_buffer = serv->worker_num + serv->task_worker_num + serv->user_worker_num;
-    if (swReactorProcess_alloc_output_buffer(n_buffer))
-    {
-        return SW_ERR;
-    }
-
     //create reactor
     swReactor *reactor;
     if (!SwooleG.main_reactor)
@@ -322,6 +316,12 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         reactor = SwooleG.main_reactor;
     }
 
+    int n_buffer = serv->worker_num + serv->task_worker_num + serv->user_worker_num;
+    if (swReactorProcess_alloc_output_buffer(n_buffer))
+    {
+        return SW_ERR;
+    }
+
     swListenPort *ls;
     int fdtype;
 
@@ -333,7 +333,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         {
             if (swReactorProcess_reuse_port(ls) < 0)
             {
-                swReactor_free_output_buffer(n_buffer);
+                _fail: swReactor_free_output_buffer(n_buffer);
+                swoole_event_free();
                 return SW_ERR;
             }
         }
@@ -416,8 +417,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
      */
     if ((serv->master_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
     {
-        swReactor_free_output_buffer(n_buffer);
-        return SW_ERR;
+        goto _fail;
     }
 
     swWorker_onStart(serv);
@@ -430,7 +430,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         serv->heartbeat_timer = swTimer_add(&SwooleG.timer, (long) (serv->heartbeat_check_interval * 1000), 1, reactor, swReactorProcess_onTimeout);
         if (serv->heartbeat_timer == NULL)
         {
-            return SW_ERR;
+            goto _fail;
         }
     }
 
