@@ -275,6 +275,7 @@ static int swManager_loop(swServer *serv)
     swSignal_add(SIGUSR1, swManager_signal_handler);
     swSignal_add(SIGUSR2, swManager_signal_handler);
     swSignal_add(SIGIO, swManager_signal_handler);
+    swSignal_add(SIGALRM, swManager_signal_handler);
 #ifdef SIGRTMIN
     swSignal_add(SIGRTMIN, swManager_signal_handler);
 #endif
@@ -635,7 +636,7 @@ static void swManager_signal_handler(int sig)
             alarm(0);
             for (auto i = ManagerProcess.kill_workers.begin(); i != ManagerProcess.kill_workers.end(); i++)
             {
-                kill(SIGKILL, *i);
+                kill(*i, SIGKILL);
             }
         }
         break;
