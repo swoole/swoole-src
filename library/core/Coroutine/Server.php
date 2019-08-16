@@ -33,9 +33,10 @@ class Server
      * @param string $host
      * @param int $port
      * @param bool $ssl
+     * @param bool $reuse_port
      * @throws Exception
      */
-    public function __construct(string $host, int $port = 0, bool $ssl = false)
+    public function __construct(string $host, int $port = 0, bool $ssl = false, $reuse_port = false)
     {
         $_host = swoole_string($host);
         if ($_host->contains('::')) {
@@ -49,6 +50,9 @@ class Server
         $this->host = $host;
 
         $sock = new Socket($this->type, SOCK_STREAM, 0);
+        if ($reuse_port and defined('SO_REUSEPORT')) {
+            $sock->setOption(SOL_SOCKET, SO_REUSEPORT, true);
+        }
         if (!$sock->bind($this->host, $port)) {
             throw new Exception("bind({$this->host}:$port) failed", $sock->errCode);
         }
