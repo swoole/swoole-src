@@ -39,12 +39,16 @@ Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--
-array(1) {
+array(2) {
   ["address"]=>
   string(21) "/tmp/test-server.sock"
+  ["port"]=>
+  int(0)
 }
-array(1) {
+array(2) {
   ["address"]=>
   string(21) "/tmp/test-client.sock"
+  ["port"]=>
+  int(0)
 }
 DONE

@@ -108,10 +108,15 @@ void *swShareMemory_mmap_create(swShareMemory *object, size_t size, char *mapfil
     object->tmpfd = tmpfd;
 #endif
 
-#if defined(SW_USE_HUGEPAGE) && defined(MAP_HUGETLB)
+#if defined(SW_USE_HUGEPAGE) && defined(MAP_HUGE_PAGE)
     if (size > 2 * 1024 * 1024)
     {
+#if defined(MAP_HUGETLD)
         flag |= MAP_HUGETLB;
+#elif defined(MAP_ALIGNED_SUPER)
+        flag &= ~MAP_ANONYMOUS;
+        flag |= MAP_ALIGNED_SUPER;
+#endif
     }
 #endif
 

@@ -433,7 +433,7 @@ static int http_parser_on_message_complete(swoole_http_parser *parser)
 
 http_client::http_client(zval* zobject, std::string host, zend_long port, zend_bool ssl)
 {
-    this->socket_type = Socket::get_type(host);
+    this->socket_type = Socket::convert_to_type(host);
     this->host = host;
     this->port = port;
 #ifdef SW_USE_OPENSSL
@@ -606,7 +606,7 @@ bool http_client::connect()
     {
         php_swoole_check_reactor();
         socket = new Socket(socket_type);
-        if (UNEXPECTED(socket->socket == nullptr))
+        if (UNEXPECTED(socket->get_fd() < 0))
         {
             php_swoole_sys_error(E_WARNING, "new Socket() failed");
             zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), errno);

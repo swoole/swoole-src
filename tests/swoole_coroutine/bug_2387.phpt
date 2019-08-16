@@ -15,6 +15,7 @@ $pm->parentFunc = function () use ($pm) {
         Assert::assert(!empty($data) && count(json_decode($data, true)) > 0);
         $pm->kill();
     });
+    \Swoole\Event::wait();
 };
 $pm->childFunc = function () use ($pm) {
     $config = [

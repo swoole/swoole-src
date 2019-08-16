@@ -97,6 +97,7 @@ public:
         min_threads = _min_threads;
         max_threads = _max_threads;
         current_task_id = 0;
+        current_pid = getpid();
 
         if (swPipeBase_create(&_aio_pipe, 0) < 0)
         {
@@ -193,6 +194,8 @@ public:
     {
         return queue.count();
     }
+
+    pid_t current_pid;
 
 private:
     void create_thread(int i)
@@ -375,7 +378,10 @@ static void swAio_free(void *private_data)
     {
         return;
     }
-    delete pool;
+    if (pool->current_pid == getpid())
+    {
+        delete pool;
+    }
     pool = nullptr;
     SwooleAIO.init = 0;
 }

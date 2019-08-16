@@ -259,7 +259,7 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
 
     http_server_coro_t *hsc = swoole_http_server_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
     string host_str(host, l_host);
-    hsc->server = new http_server(Socket::get_type(host_str));
+    hsc->server = new http_server(Socket::convert_to_type(host_str));
     Socket *sock = hsc->server->socket;
     if (!sock->bind(host_str, port))
     {
@@ -478,8 +478,8 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
 
         zval *zserver = ctx->request.zserver;
         add_assoc_long(zserver, "server_port", hs->socket->get_bind_port());
-        add_assoc_long(zserver, "remote_port", (zend_long) swConnection_get_port(sock->socket));
-        add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(sock->socket));
+        add_assoc_long(zserver, "remote_port", (zend_long) hs->socket->get_port());
+        add_assoc_string(zserver, "remote_addr", (char *) hs->socket->get_ip());
 
         php_swoole_fci *fci = hs->get_handler(ctx);
         zval args[2];

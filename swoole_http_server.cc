@@ -89,50 +89,59 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     size_t parsed_n = swoole_http_requset_parse(ctx, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     if (parsed_n < Z_STRLEN_P(zdata))
     {
-        swNotice("request has %ld bytes unprocessed", Z_STRLEN_P(zdata) - parsed_n);
+#ifdef SW_HTTP_BAD_REQUEST_PACKET
+        ctx->send(ctx, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
+#endif
+        ctx->close(ctx);
+        swNotice("request is illegal and it has been discarded, %ld bytes unprocessed", Z_STRLEN_P(zdata) - parsed_n);
+        goto _dtor_and_return;
     }
 
-    zval *zserver = ctx->request.zserver;
-    add_assoc_long(zserver, "server_port", swConnection_get_port(&serv->connection_list[conn->server_fd]));
-    add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
-    add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(conn));
-    add_assoc_long(zserver, "master_time", conn->last_time);
+    do {
+        zval *zserver = ctx->request.zserver;
+        add_assoc_long(zserver, "server_port", swConnection_get_port(&serv->connection_list[conn->server_fd]));
+        add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
+        add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(conn));
+        add_assoc_long(zserver, "master_time", conn->last_time);
+    } while (0);
 
     // begin to check and call registerd callback
-    zend_fcall_info_cache *fci_cache = NULL;
+    do {
+        zend_fcall_info_cache *fci_cache = NULL;
 
-    if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
-    {
-        fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onHandShake);
-        if (fci_cache == NULL)
+        if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
-            swoole_websocket_onHandshake(serv, port, ctx);
-            goto _dtor_and_return;
+            fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onHandShake);
+            if (fci_cache == NULL)
+            {
+                swoole_websocket_onHandshake(serv, port, ctx);
+                goto _dtor_and_return;
+            }
+            else
+            {
+                conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
+                ctx->upgrade = 1;
+            }
         }
         else
         {
-            conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
-            ctx->upgrade = 1;
+            fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onRequest);
+            if (fci_cache == NULL)
+            {
+                swoole_websocket_onRequest(ctx);
+                goto _dtor_and_return;
+            }
         }
-    }
-    else
-    {
-        fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onRequest);
-        if (fci_cache == NULL)
-        {
-            swoole_websocket_onRequest(ctx);
-            goto _dtor_and_return;
-        }
-    }
 
-    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
-    {
-        php_swoole_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
-#ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
-        ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
-#endif
-        ctx->close(ctx);
-    }
+        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
+        {
+            php_swoole_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
+    #ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
+            ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
+    #endif
+            ctx->close(ctx);
+        }
+    } while (0);
 
     _dtor_and_return:
     zval_ptr_dtor(zrequest_object);

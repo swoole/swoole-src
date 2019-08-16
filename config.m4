@@ -435,7 +435,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/memory/ring_buffer.c \
         src/memory/shared_memory.c \
         src/memory/table.c \
-        src/network/async_thread.cc \
         src/network/client.c \
         src/network/connection.c \
         src/network/dns.cc \
@@ -444,6 +443,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/thread_pool.c \
         src/network/timer.c \
         src/os/base.c \
+        src/os/async_thread.cc \
         src/os/msg_queue.c \
         src/os/sendfile.c \
         src/os/signal.c \
