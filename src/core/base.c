@@ -195,6 +195,15 @@ pid_t swoole_fork(int flags)
              * reopen log file
              */
             swLog_reopen(0);
+            /**
+             * reset eventLoop
+             */
+            if (SwooleG.main_reactor)
+            {
+                swReactor_destroy(SwooleG.main_reactor);
+                SwooleG.main_reactor = NULL;
+                swTraceLog(SW_TRACE_REACTOR, "reactor has been destroyed");
+            }
         }
         else
         {
@@ -202,15 +211,6 @@ pid_t swoole_fork(int flags)
              * close log fd
              */
             swLog_free();
-        }
-        /**
-         * reset eventLoop
-         */
-        if (SwooleG.main_reactor)
-        {
-            swReactor_destroy(SwooleG.main_reactor);
-            SwooleG.main_reactor = NULL;
-            swTraceLog(SW_TRACE_REACTOR, "reactor has been destroyed");
         }
         /**
          * reset signal handler

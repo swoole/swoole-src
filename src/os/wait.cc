@@ -30,8 +30,8 @@ struct wait_task
 };
 
 static unordered_map<int, wait_task *> waitpid_map;
-static unordered_map<int, int> child_processes;
 static queue<wait_task *> wait_list;
+static unordered_map<int, int> child_processes;
 
 bool signal_init = false;
 
@@ -91,6 +91,11 @@ void swoole_coroutine_signal_init()
         }
 #endif
     }
+}
+
+size_t swoole_coroutine_wait_count()
+{
+    return wait_list.size() + waitpid_map.size();
 }
 
 pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options)

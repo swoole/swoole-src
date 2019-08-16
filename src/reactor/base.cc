@@ -19,6 +19,8 @@
 #include "connection.h"
 #include "async.h"
 
+#include "coroutine_c_api.h"
+
 using swoole::CallbackManager;
 
 #ifdef SW_USE_MALLOC_TRIM
@@ -111,7 +113,7 @@ int swReactor_set_handler(swReactor *reactor, int _fdtype, swReactor_handler han
 int swReactor_empty(swReactor *reactor)
 {
     //timer, defer tasks
-    if (SwooleG.timer.num > 0 || reactor->defer_tasks)
+    if (SwooleG.timer.num > 0 || reactor->defer_tasks || swoole_coroutine_wait_count() > 0)
     {
         return SW_FALSE;
     }
