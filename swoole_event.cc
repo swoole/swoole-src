@@ -218,7 +218,12 @@ static void php_swoole_event_onDefer(void *data)
 
 static int reactor_can_exit(swReactor *reactor)
 {
-    return Coroutine::count() == 0;
+    if (Coroutine::count() != 0)
+    {
+        php_swoole_fatal_error(E_WARNING, "There are also %zu coroutines that have not been released", Coroutine::count());
+    }
+
+    return 1;
 }
 
 static void php_swoole_event_onEndCallback(void *data)
