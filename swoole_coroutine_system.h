@@ -18,6 +18,7 @@
 
 #include "php_swoole_cxx.h"
 
+PHP_METHOD(swoole_coroutine_system, exec);
 PHP_METHOD(swoole_coroutine_system, sleep);
 PHP_METHOD(swoole_coroutine_system, fread);
 PHP_METHOD(swoole_coroutine_system, fgets);
