@@ -442,8 +442,8 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/stream.c \
         src/network/thread_pool.c \
         src/network/timer.c \
-        src/os/base.c \
         src/os/async_thread.cc \
+        src/os/base.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \
         src/os/signal.c \
