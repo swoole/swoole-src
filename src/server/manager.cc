@@ -65,7 +65,7 @@ static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode)
     for (auto i = _list->begin(); i!= _list->end(); i++)
     {
         pid_t pid = i->second;
-        uint16_t worker_id = i->first;
+        uint32_t worker_id = i->first;
         if (swoole_kill(pid, 0) == -1)
         {
             continue;
