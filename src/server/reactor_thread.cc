@@ -14,7 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
+#include "swoole_api.h"
 #include "server.h"
 #include "hash.h"
 #include "client.h"
@@ -812,22 +812,12 @@ int swReactorThread_create(swServer *serv)
  */
 int swReactorThread_start(swServer *serv)
 {
-    int ret;
-    swReactor *main_reactor = (swReactor *) sw_malloc(sizeof(swReactor));
-    if (!main_reactor)
+    if (swoole_event_init() < 0)
     {
-        swWarn("malloc(%ld) failed", sizeof(swReactor));
         return SW_ERR;
     }
 
-    ret = swReactor_create(main_reactor, SW_REACTOR_MAXEVENTS);
-    if (ret < 0)
-    {
-        sw_free(main_reactor);
-        swWarn("Reactor create failed");
-        return SW_ERR;
-    }
-
+    swReactor *main_reactor = SwooleG.main_reactor;
     main_reactor->thread = 1;
     main_reactor->socket_list = serv->connection_list;
     main_reactor->disable_accept = 0;
@@ -974,13 +964,7 @@ int swReactorThread_start(swServer *serv)
         serv->onStart(serv);
     }
 
-    int retval = main_reactor->wait(main_reactor, NULL);
-
-    swReactor_destroy(main_reactor);
-    SwooleG.main_reactor = NULL;
-    sw_free(main_reactor);
-
-    return retval;
+    return swoole_event_wait();
 }
 
 static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t reactor_id)

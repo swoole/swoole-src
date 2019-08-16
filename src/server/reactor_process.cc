@@ -14,6 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
+#include "swoole_api.h"
 #include "server.h"
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
@@ -311,19 +312,10 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swReactor *reactor;
     if (!SwooleG.main_reactor)
     {
-        reactor = (swReactor *) sw_malloc(sizeof(swReactor));
-        if (!reactor)
+        if (swoole_event_init() < 0)
         {
-            swWarn("malloc(%ld) failed", sizeof(swReactor));
             return SW_ERR;
         }
-        if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
-        {
-            swReactor_free_output_buffer(n_buffer);
-            sw_free(reactor);
-            return SW_ERR;
-        }
-        SwooleG.main_reactor = reactor;
     }
     else
     {
@@ -471,9 +463,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_CLOSE, hook_args);
     }
 
-    swReactor_destroy(reactor);
-    SwooleG.main_reactor = nullptr;
-    sw_free(reactor);
+    swoole_event_free();
 
     if (serv->onWorkerStop)
     {

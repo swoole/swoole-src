@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
+#include "swoole_api.h"
 #include "server.h"
 
 static swEventData *g_current_task = NULL;
@@ -150,14 +150,10 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
      */
     if (serv->task_enable_coroutine)
     {
-        SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
-        if (SwooleG.main_reactor == NULL)
-        {
-            swError("[TaskWorker] malloc for reactor failed");
-        }
-        if (swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
+        if (swoole_event_init() < 0)
         {
             swError("[TaskWorker] create reactor failed");
+            return;
         }
         SwooleG.enable_signalfd = 1;
     }
@@ -194,10 +190,7 @@ void swTaskWorker_onStop(swProcessPool *pool, int worker_id)
 {
     if (SwooleG.main_reactor)
     {
-        //destroy reactor
-        swReactor_destroy(SwooleG.main_reactor);
-        SwooleG.main_reactor = NULL;
-        sw_free(SwooleG.main_reactor);
+        swoole_event_free();
     }
     swServer *serv = pool->ptr;
     swWorker_onStop(serv);

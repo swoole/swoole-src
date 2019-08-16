@@ -391,9 +391,7 @@ void PHPCoroutine::error(int type, const char *error_filename, const uint32_t er
         }
         if (SwooleG.main_reactor)
         {
-            swReactor_destroy(SwooleG.main_reactor);
-            sw_free(SwooleG.main_reactor);
-            SwooleG.main_reactor = NULL;
+            swoole_event_free();
         }
     }
     if (sw_likely(orig_error_function))
@@ -788,9 +786,7 @@ void PHPCoroutine::main_func(void *arg)
         Coroutine::bailout([](){
             if (SwooleG.main_reactor)
             {
-                swReactor_destroy(SwooleG.main_reactor);
-                sw_free(SwooleG.main_reactor);
-                SwooleG.main_reactor = NULL;
+                swoole_event_free();
             }
             sw_zend_bailout();
         });

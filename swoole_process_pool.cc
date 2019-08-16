@@ -455,9 +455,7 @@ static PHP_METHOD(swoole_process_pool, start)
 
     if (SwooleG.main_reactor)
     {
-        swReactor_destroy(SwooleG.main_reactor);
-        sw_free(SwooleG.main_reactor);
-        SwooleG.main_reactor = nullptr;
+        swoole_event_free();
     }
 
     process_pool_property *pp = (process_pool_property *) swoole_get_property(ZEND_THIS, 0);

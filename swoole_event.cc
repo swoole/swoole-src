@@ -251,22 +251,9 @@ int php_swoole_reactor_init()
     {
         swTraceLog(SW_TRACE_PHP, "init reactor");
 
-        swReactor *reactor = (swReactor *) sw_malloc(sizeof(swReactor));
-        if (reactor == NULL)
-        {
-            php_swoole_fatal_error(E_ERROR, "malloc failed");
-            return SW_ERR;
-        }
-        if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
-        {
-            php_swoole_fatal_error(E_ERROR, "failed to create reactor");
-            return SW_ERR;
-        }
+        swoole_event_init();
+        SwooleG.main_reactor->wait_exit = 1;
 
-        reactor->is_empty = swReactor_empty;
-        reactor->wait_exit = 1;
-
-        SwooleG.main_reactor = reactor;
         php_swoole_register_shutdown_function("Swoole\\Event::rshutdown");
     }
     return SW_OK;
@@ -319,9 +306,7 @@ void php_swoole_event_wait()
         }
 #endif
     }
-    swReactor_destroy(SwooleG.main_reactor);
-    sw_free(SwooleG.main_reactor);
-    SwooleG.main_reactor = NULL;
+    swoole_event_free();
 }
 
 void php_swoole_event_exit()

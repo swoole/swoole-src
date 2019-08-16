@@ -36,6 +36,7 @@ SW_API uchar swoole_event_set(int fd, int events, int fdtype);
 SW_API uchar swoole_event_del(int fd);
 SW_API void swoole_event_defer(swCallback cb, void *private_data);
 SW_API int swoole_event_wait();
+SW_API int swoole_event_free();
 
 SW_EXTERN_C_END
 

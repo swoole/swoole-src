@@ -14,7 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
+#include "swoole_api.h"
 #include "atomic.h"
 #include "async.h"
 #include "coroutine_c_api.h"
@@ -147,7 +147,7 @@ void swoole_clean(void)
         }
         if (SwooleG.main_reactor)
         {
-            swReactor_destroy(SwooleG.main_reactor);
+            swoole_event_free();
         }
         SwooleG.memory_pool->destroy(SwooleG.memory_pool);
         bzero(&SwooleG, sizeof(SwooleG));
@@ -200,8 +200,7 @@ pid_t swoole_fork(int flags)
              */
             if (SwooleG.main_reactor)
             {
-                swReactor_destroy(SwooleG.main_reactor);
-                SwooleG.main_reactor = NULL;
+                swoole_event_free();
                 swTraceLog(SW_TRACE_REACTOR, "reactor has been destroyed");
             }
         }

@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
+#include "swoole_api.h"
 #include "server.h"
 #include "client.h"
 #include "async.h"
@@ -664,21 +664,12 @@ int swWorker_loop(swServer *serv, int worker_id)
     swWorker *worker = swServer_get_worker(serv, worker_id);
     swServer_worker_init(serv, worker);
 
-    swReactor *reactor = (swReactor *) sw_malloc(sizeof(swReactor));
-    if (reactor == NULL)
+    if (swoole_event_init() < 0)
     {
-        swError("[Worker] malloc for reactor failed");
         return SW_ERR;
     }
 
-    if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
-    {
-        swError("[Worker] create worker_reactor failed");
-        sw_free(reactor);
-        return SW_ERR;
-    }
-    SwooleG.main_reactor = reactor;
-
+    swReactor * reactor = SwooleG.main_reactor;
     /**
      * set pipe buffer size
      */
@@ -725,10 +716,8 @@ int swWorker_loop(swServer *serv, int worker_id)
     reactor->wait(reactor, NULL);
     //clear pipe buffer
     swWorker_clean_pipe_buffer(serv);
-    //destroy reactor
-    swReactor_destroy(reactor);
-    SwooleG.main_reactor = NULL;
-    sw_free(reactor);
+    //reactor free
+    swoole_event_free();
     //worker shutdown
     swWorker_onStop(serv);
     return SW_OK;
