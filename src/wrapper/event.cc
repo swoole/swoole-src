@@ -22,6 +22,7 @@ int swoole_event_init()
     SwooleG.main_reactor = (swReactor *) sw_malloc(sizeof(swReactor));
     if (!SwooleG.main_reactor)
     {
+        swSysWarn("malloc failed.");
         return SW_ERR;
     }
     return swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS);
@@ -44,7 +45,11 @@ uchar swoole_event_del(int fd)
 
 int swoole_event_wait()
 {
-    return SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
+    int retval = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
+    swReactor_destroy(SwooleG.main_reactor);
+    sw_free(SwooleG.main_reactor);
+    SwooleG.main_reactor = NULL;
+    return retval;
 }
 
 void swoole_event_defer(swCallback cb, void *private_data)
