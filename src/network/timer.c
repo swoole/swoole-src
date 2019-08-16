@@ -240,14 +240,20 @@ enum swBool_type swTimer_del(swTimer *timer, swTimer_node *tnode)
 
 int swTimer_select(swTimer *timer)
 {
-    swTimer_node *tnode = NULL;
-    swHeap_node *tmp;
+    if (sw_unlikely(!timer->initialized))
+    {
+        return SW_ERR;
+    }
+
     int64_t now_msec = swTimer_get_relative_msec();
 
     if (sw_unlikely(now_msec < 0))
     {
         return SW_ERR;
     }
+
+    swTimer_node *tnode = NULL;
+    swHeap_node *tmp;
 
     swTraceLog(SW_TRACE_TIMER, "timer msec=%" PRId64 ", round=%" PRId64, now_msec, timer->round);
     while ((tmp = swHeap_top(timer->heap)))
