@@ -265,6 +265,13 @@ int php_swoole_reactor_init()
 
         reactor->is_empty = swReactor_empty;
         reactor->wait_exit = 1;
+        swReactor_add_destroy_callback(reactor, [](void *data)
+        {
+            if (Coroutine::count() != 0)
+            {
+                php_swoole_fatal_error(E_WARNING, "There are also %zu coroutines that have not been released", Coroutine::count());
+            }
+        }, NULL);
 
         SwooleG.main_reactor = reactor;
         php_swoole_register_shutdown_function("Swoole\\Event::rshutdown");
@@ -318,10 +325,6 @@ void php_swoole_event_wait()
             EG(flags) |= EG_FLAGS_IN_SHUTDOWN;
         }
 #endif
-        if (Coroutine::count() != 0)
-        {
-            php_swoole_fatal_error(E_WARNING, "There are also %zu coroutines that have not been released", Coroutine::count());
-        }
     }
     swReactor_destroy(SwooleG.main_reactor);
     sw_free(SwooleG.main_reactor);
