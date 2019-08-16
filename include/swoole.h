@@ -1570,7 +1570,10 @@ static sw_inline int swSocket_set_blocking(int sock)
 static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options)
 {
     int ret;
-    do { ret = waitpid(__pid, __stat_loc, __options); } while (ret < 0 && errno == EINTR);
+    do
+    {
+        ret = waitpid(__pid, __stat_loc, __options);
+    } while (ret < 0 && errno == EINTR);
     return ret;
 }
 
