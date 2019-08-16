@@ -12,7 +12,7 @@ use Swoole\Constant;
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     Co\run(function () use ($pm) {
-        echo httpGetStatusCode("http://127.0.0.1:{$pm->getFreePort()}/test™", ['data' => $pm->getRandomData()]) . PHP_EOL;
+        echo httpGetStatusCode("http://127.0.0.1:{$pm->getFreePort()}/test™") . PHP_EOL;
     });
     $pm->kill();
 };
