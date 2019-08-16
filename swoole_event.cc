@@ -264,7 +264,6 @@ int php_swoole_reactor_init()
         }
 
         reactor->is_empty = swReactor_empty;
-        reactor->can_exit = NULL;
         reactor->wait_exit = 1;
 
         SwooleG.main_reactor = reactor;

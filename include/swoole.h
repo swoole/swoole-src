@@ -1692,7 +1692,6 @@ struct _swReactor
     void (*onBegin)(swReactor *);
 
     void (*enable_accept)(swReactor *);
-    int (*can_exit)(swReactor *);
     int (*is_empty)(swReactor *);
 
     int (*write)(swReactor *, int, const void *, int);

@@ -133,11 +133,6 @@ int swReactor_empty(swReactor *reactor)
     {
         empty = SW_TRUE;
     }
-    //coroutine
-    if (reactor->can_exit && !reactor->can_exit(reactor))
-    {
-        empty = SW_FALSE;
-    }
     return empty;
 }
 
