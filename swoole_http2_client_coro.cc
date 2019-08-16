@@ -552,7 +552,7 @@ enum swReturn_code http2_client::parse_frame(zval *return_value)
         zend_update_property_stringl(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errMsg"), buf, length - SW_HTTP2_GOAWAY_SIZE);
         zend_update_property_long(swoole_http2_client_coro_ce, zobject, ZEND_STRL("serverLastStreamId"), server_last_stream_id);
         close();
-        return SW_CONTINUE;
+        return SW_CLOSE;
     }
     case SW_HTTP2_TYPE_RST_STREAM:
     {
