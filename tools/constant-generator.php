@@ -26,7 +26,13 @@ $constant_php_content = file_get_contents($constant_php);
 $constant_php_content = preg_replace(
     '/(\/\* \{\{\{ OPTION \*\/\n)([\s\S]*)(\/\* \}\}\} OPTION \*\/)/',
     '${1}' . $result . space(4) . '${3}',
-    $constant_php_content
+    $constant_php_content,
+    1,
+    $replaced
 );
 
-file_put_contents($constant_php, $constant_php_content);
+if (!$replaced || !file_put_contents($constant_php, $constant_php_content)) {
+    swoole_error('Update Constant failed ');
+}
+
+swoole_success('Constant generator successfully done!');

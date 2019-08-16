@@ -1,6 +1,8 @@
 --TEST--
 swoole_client_sync: select
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
+--FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
