@@ -17,6 +17,7 @@
 #include "swoole.h"
 #include "server.h"
 
+#include <unordered_map>
 #include <vector>
 
 #include <sys/wait.h>
@@ -39,12 +40,7 @@ struct swManagerProcess
     std::vector<pid_t> kill_workers;
 };
 
-struct swReloadWorker
-{
-    uint32_t reload_worker_num;
-    swWorker *workers;
-};
-
+typedef std::unordered_map<uint32_t, pid_t> reload_list_t;
 
 static int swManager_loop(swServer *serv);
 static void swManager_signal_handler(int sig);
@@ -64,13 +60,12 @@ static void swManager_onTimer(swTimer *timer, swTimer_node *tnode)
 
 static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode)
 {
-    uint32_t i;
-    swReloadWorker *reload_info = (swReloadWorker *) tnode->data;
-    swWorker *workers = reload_info->workers;
+    reload_list_t *_list = (reload_list_t *) tnode->data;
 
-    for (i = 0; i < reload_info->reload_worker_num; i++)
+    for (auto i = _list->begin(); i!= _list->end(); i++)
     {
-        pid_t pid = workers[i].pid;
+        pid_t pid = i->second;
+        uint16_t worker_id = i->first;
         if (swoole_kill(pid, 0) == -1)
         {
             continue;
@@ -83,13 +78,13 @@ static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode)
         {
             swoole_error_log(
                 SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
-                "[Manager] Worker#%d[pid=%d] exit timeout, forced kill", workers[i].id, pid
+                "[Manager] Worker#%d[pid=%d] exit timeout, forced kill", worker_id, pid
             );
         }
     }
     errno = 0;
-    sw_free(workers);
-    sw_free(reload_info);
+
+    delete(_list);
 }
 
 static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int n)
@@ -101,26 +96,15 @@ static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int 
     /**
      * separate old workers, free memory in the timer
      */
-    swWorker *reload_workers = (swWorker *) sw_malloc(sizeof(swWorker) * n);
-    if (!reload_workers)
+    reload_list_t *_list = new reload_list_t;
+    for (int i = 0; i < n; i++)
     {
-        swWarn("malloc(%ld) failed", sizeof(swWorker) * n);
-        return;
+        _list->emplace(workers[i].id, workers[i].pid);
     }
-    swReloadWorker *reload_info = (swReloadWorker *) sw_malloc(sizeof(swReloadWorker));
-    if (!reload_info)
-    {
-        sw_free(reload_workers);
-        swWarn("malloc(%ld) failed", sizeof(swReloadWorker));
-        return;
-    }
-    memcpy(reload_workers, workers, sizeof(swWorker) * n);
-    reload_info->reload_worker_num = n;
-    reload_info->workers = reload_workers;
     /**
      * Multiply max_wait_time by 2 to prevent conflict with worker
      */
-    swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 2 * 1000), 0, reload_info, swManager_kill_timeout_process);
+    swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 2 * 1000), 0, _list, swManager_kill_timeout_process);
 }
 
 //create worker child proccess
@@ -650,11 +634,11 @@ static void swManager_signal_handler(int sig)
         SwooleWG.signal_alarm = 1;
         if (ManagerProcess.force_kill)
         {
+            alarm(0);
             for (auto i = ManagerProcess.kill_workers.begin(); i != ManagerProcess.kill_workers.end(); i++)
             {
                 kill(SIGKILL, *i);
             }
-            alarm(0);
         }
         break;
     default:
