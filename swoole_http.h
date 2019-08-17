@@ -23,6 +23,10 @@
 
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
+#define SW_ZLIB_ENCODING_RAW        -0xf
+#define SW_ZLIB_ENCODING_GZIP       0x1f
+#define SW_ZLIB_ENCODING_DEFLATE    0x0f
+#define SW_ZLIB_ENCODING_ANY        0x2f
 #endif
 
 #ifdef SW_USE_HTTP2
@@ -42,7 +46,8 @@ enum http_header_flag
 
 enum http_compress_method
 {
-    HTTP_COMPRESS_GZIP = 1,
+    HTTP_COMPRESS_NONE,
+    HTTP_COMPRESS_GZIP,
     HTTP_COMPRESS_DEFLATE,
     HTTP_COMPRESS_BR,
 };

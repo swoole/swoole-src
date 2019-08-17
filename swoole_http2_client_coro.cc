@@ -605,9 +605,9 @@ enum swReturn_code http2_client::parse_frame(zval *return_value)
 #ifdef SW_HAVE_ZLIB
             if (stream->gzip)
             {
-                if (php_swoole_zlib_uncompress(&stream->gzip_stream, stream->gzip_buffer, buf, length) == SW_ERR)
+                if (php_swoole_zlib_decompress(&stream->gzip_stream, stream->gzip_buffer, buf, length) == SW_ERR)
                 {
-                    swWarn("uncompress failed");
+                    swWarn("decompress failed");
                     return SW_ERROR;
                 }
                 swString_append_ptr(stream->buffer, stream->gzip_buffer->str, stream->gzip_buffer->length);
@@ -676,7 +676,7 @@ enum swReturn_code http2_client::parse_frame(zval *return_value)
 }
 
 #ifdef SW_HAVE_ZLIB
-int php_swoole_zlib_uncompress(z_stream *stream, swString *buffer, char *body, int length)
+int php_swoole_zlib_decompress(z_stream *stream, swString *buffer, char *body, int length)
 {
     int status = 0;
 

@@ -263,7 +263,7 @@ static PHP_METHOD(swoole_http_response, write)
     // then the content stream is first compressed, then chunked;
     // so the chunk encoding itself is not compressed,
     // **and the data in each chunk is not compressed individually.**
-    // The remote endpoint then decodes the stream by concatenating the chunks and uncompressing the result.
+    // The remote endpoint then decodes the stream by concatenating the chunks and decompressing the result.
     swString_clear(swoole_http_buffer);
     char *hex_string = swoole_dec2hex(http_body.length, 16);
     int hex_len = strlen(hex_string);
