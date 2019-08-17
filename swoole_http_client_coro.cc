@@ -65,14 +65,12 @@ public:
     std::string path;
     std::string basic_auth;
 
-    /* response parse */
+    /* for response parser */
     char *tmp_header_field_name = nullptr;
     int tmp_header_field_name_len = 0;
     swString *body = nullptr;
 #ifdef SW_HAVE_ZLIB
     enum http_compress_method compress_method = HTTP_COMPRESS_NONE;
-    bool gzip_stream_active = false;
-    z_stream gzip_stream;
 #endif
 
     /* options */
@@ -93,6 +91,9 @@ public:
 
 private:
 #ifdef SW_HAVE_ZLIB
+    bool gzip_stream_active = false;
+    z_stream gzip_stream;
+
     void init_gzip();
 #endif
     bool connect();
@@ -102,7 +103,6 @@ private:
 
 public:
 #ifdef SW_HAVE_ZLIB
-    bool init_compression(enum http_compress_method method);
     bool decompress_response(const char *in, size_t in_len);
 #endif
     void apply_setting(zval *zset, const bool check_all = true);
