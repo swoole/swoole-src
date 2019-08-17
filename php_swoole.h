@@ -840,10 +840,12 @@ static sw_inline int sw_zend_register_function_alias
         return FAILURE;
     }
     SW_ASSERT(origin_function->common.type == ZEND_INTERNAL_FUNCTION);
-    char _alias[alias_length + 1];
-    memcpy(_alias, alias, alias_length)[alias_length] = '\0';
+    char *_alias = (char *) emalloc(alias_length + 1);
+    ((char *) memcpy(_alias, alias, alias_length))[alias_length] = '\0';
     zend_function_entry zfe[] = {{_alias, origin_function->internal_function.handler, ((zend_internal_arg_info *) origin_function->common.arg_info) - 1, origin_function->common.num_args, 0 }, PHP_FE_END};
-    return zend_register_functions(origin_function->common.scope, zfe, alias_function_table, origin_function->common.type);
+    int ret = zend_register_functions(origin_function->common.scope, zfe, alias_function_table, origin_function->common.type);
+    efree(_alias);
+    return ret;
 }
 
 static sw_inline int sw_zend_register_class_alias(const char *name, size_t name_len, zend_class_entry *ce)
