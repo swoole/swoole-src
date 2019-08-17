@@ -841,7 +841,7 @@ static sw_inline int sw_zend_register_function_alias
     }
     SW_ASSERT(origin_function->common.type == ZEND_INTERNAL_FUNCTION);
     char _alias[alias_length + 1];
-    strncpy(_alias, alias, alias_length)[alias_length] = '\0';
+    memcpy(_alias, alias, alias_length)[alias_length] = '\0';
     zend_function_entry zfe[] = {{_alias, origin_function->internal_function.handler, ((zend_internal_arg_info *) origin_function->common.arg_info) - 1, origin_function->common.num_args, 0 }, PHP_FE_END};
     return zend_register_functions(origin_function->common.scope, zfe, alias_function_table, origin_function->common.type);
 }
