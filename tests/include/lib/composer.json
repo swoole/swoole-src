@@ -7,11 +7,5 @@
   "require": {
     "swoole/assert": "^2.0"
   },
-  "minimum-stability": "rc",
-  "repositories": {
-    "packagist": {
-      "type": "composer",
-      "url": "https://mirrors.aliyun.com/composer"
-    }
-  }
+  "minimum-stability": "rc"
 }
