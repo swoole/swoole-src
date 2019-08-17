@@ -42,8 +42,8 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-08-16</date>
-    <time>21:00:00</time>
+    <date>2019-08-17</date>
+    <time>16:00:00</time>
     <version>
         <release>4.4.4</release>
         <api>4.0</api>
@@ -74,7 +74,8 @@
         * Fixed aio thread num (#2745) (@matyhtf)
         * Fixed async_thread (#2747) (@matyhtf)
         * Fixed Swoole\Client::select timeout (#2758) (@LeiZhang-Hunter)
-        + Fixed #2749 (@twose)
+        * Fixed empty timer (#2749) (@twose)
+        * Fixed zlib decompression (#2762) (@twose)
     </notes>
     <contents>
         <dir name="/">
