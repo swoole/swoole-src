@@ -1377,12 +1377,14 @@ bool http_client::push(zval *zdata, zend_long opcode, bool fin)
 void http_client::reset()
 {
     wait = false;
+#ifdef SW_HAVE_ZLIB
     compress_method = HTTP_COMPRESS_NONE;
     if (gzip_stream_active)
     {
         inflateEnd(&gzip_stream);
         gzip_stream_active = false;
     }
+#endif
     if (has_upload_files)
     {
         zend_update_property_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("uploadFiles"));
