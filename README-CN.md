@@ -490,9 +490,10 @@ make && sudo make install
 
 ## 💎 框架 & 组件
 
+- [**Hyperf**](https://github.com/hyperf-cloud/hyperf) 是一个高性能、高灵活性的协程框架，存在丰富的可能性，如实现分布式中间件，微服务架构等
 - [**Swoft**](https://github.com/swoft-cloud) 是一个现代化的面向切面的高性能协程全栈组件化框架
-- [**ESD**](https://github.com/esd-projects/esd-server) 以Springboot为灵感的现代全栈框架,由SwooleDistributed和EasySwoole联合发起，强大易用且高性能。
-- [**Easyswoole**](https://www.easyswoole.com) 是一个极简的高性能的框架, 让代码开发就好像写`echo "hello world"`一样简单
+- [**ESD**](https://github.com/esd-projects/esd-server) 以Springboot为灵感的现代全栈框架，由SwooleDistributed和EasySwoole联合发起，强大易用且高性能
+- [**Easyswoole**](https://www.easyswoole.com) 是一个极简的高性能的框架，让代码开发就好像写`echo "hello world"`一样简单
 - [**Saber**](https://github.com/swlib/saber) 是一个人性化的高性能HTTP客户端组件，几乎拥有一切你可以想象的强大功能
 
 ## 🛠 开发 & 讨论
@@ -502,7 +503,7 @@ make && sudo make install
 - __IDE Helper & API__: <https://github.com/swoole/ide-helper>
 - __中文社区及QQ群__: <https://wiki.swoole.com/wiki/page/p-discussion.html>
 - __Twitter__: <https://twitter.com/php_swoole>
-- __Slack Group__: <https://swoole.slack.com
+- __Slack Group__: <https://swoole.slack.com>
 
 ## 🍭 性能测试
 
