@@ -455,4 +455,5 @@ void swReactor_destroy(swReactor *reactor)
         delete cm;
     }
     reactor->free(reactor);
+    swArray_free(reactor->socket_array);
 }
