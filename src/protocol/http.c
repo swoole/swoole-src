@@ -26,7 +26,7 @@ static const char *method_strings[] =
 {
     "DELETE", "GET", "HEAD", "POST", "PUT", "PATCH", "CONNECT", "OPTIONS", "TRACE", "COPY", "LOCK", "MKCOL", "MOVE",
     "PROPFIND", "PROPPATCH", "UNLOCK", "REPORT", "MKACTIVITY", "CHECKOUT", "MERGE", "M-SEARCH", "NOTIFY",
-    "SUBSCRIBE", "UNSUBSCRIBE", "PRI",
+    "SUBSCRIBE", "UNSUBSCRIBE", "PURGE", "PRI",
 };
 
 int swHttp_get_method(const char *method_str, int method_len)
@@ -357,6 +357,12 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
         request->method = SW_HTTP_REPORT;
         request->offset = 7;
         buf += 7;
+    }
+    else if (memcmp(buf, "PURGE", 5) == 0)
+    {
+        request->method = SW_HTTP_PURGE;
+        request->offset = 6;
+        buf += 6;
     }
 #ifdef SW_USE_HTTP2
     //HTTP2 Connection Preface

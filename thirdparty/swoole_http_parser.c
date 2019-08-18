@@ -102,6 +102,7 @@ static const char *method_strings[] =
   , "NOTIFY"
   , "SUBSCRIBE"
   , "UNSUBSCRIBE"
+  , "PURGE"
   , "NOTIMPLEMENTED"
   };
 
