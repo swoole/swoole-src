@@ -329,7 +329,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         {
             if (swReactorProcess_reuse_port(ls) < 0)
             {
-                _fail: swReactor_free_output_buffer(n_buffer);
+                swReactor_free_output_buffer(n_buffer);
                 swoole_event_free();
                 return SW_ERR;
             }
@@ -413,7 +413,9 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
      */
     if ((serv->master_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
     {
-        goto _fail;
+        _fail: swReactor_free_output_buffer(n_buffer);
+        swoole_event_free();
+        return SW_ERR;
     }
 
     swWorker_onStart(serv);
