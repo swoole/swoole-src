@@ -83,7 +83,7 @@ void swoole_init(void)
     SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
     if (SwooleG.memory_pool == NULL)
     {
-        printf("[Master] Fatal Error: global memory allocation failure");
+        printf("[Core] Fatal Error: global memory allocation failure");
         exit(1);
     }
 
@@ -100,6 +100,12 @@ void swoole_init(void)
     }
 
     SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
+    SwooleG.socket_array = swArray_new(1024, sizeof(swConnection));
+    if (SwooleG.socket_array)
+    {
+        swSysWarn("[Core] Fatal Error: socekt array memory allocation failure");
+        exit(1);
+    }
 
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == NULL)
@@ -134,24 +140,28 @@ void swoole_init(void)
 
 void swoole_clean(void)
 {
+    if (SwooleG.timer.initialized)
+    {
+        swTimer_free(&SwooleG.timer);
+    }
+    if (SwooleG.task_tmpdir)
+    {
+        sw_free(SwooleG.task_tmpdir);
+    }
+    if (SwooleG.main_reactor)
+    {
+        swoole_event_free();
+    }
+    if (SwooleG.socket_array)
+    {
+        swArray_free(SwooleG.socket_array);
+    }
     //free the global memory
     if (SwooleG.memory_pool != NULL)
     {
-        if (SwooleG.timer.initialized)
-        {
-            swTimer_free(&SwooleG.timer);
-        }
-        if (SwooleG.task_tmpdir)
-        {
-            sw_free(SwooleG.task_tmpdir);
-        }
-        if (SwooleG.main_reactor)
-        {
-            swoole_event_free();
-        }
         SwooleG.memory_pool->destroy(SwooleG.memory_pool);
-        bzero(&SwooleG, sizeof(SwooleG));
     }
+    bzero(&SwooleG, sizeof(SwooleG));
 }
 
 pid_t swoole_fork(int flags)

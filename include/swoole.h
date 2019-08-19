@@ -2362,17 +2362,18 @@ typedef struct
     void (*write_log)(int level, char *content, size_t len);
     void (*fatal_error)(int code, const char *str, ...);
 
+    //-----------------------[System]--------------------------
     uint16_t cpu_num;
-
     uint32_t pagesize;
-    uint32_t max_sockets;
-
     struct utsname uname;
 
+    //-----------------------[Socket]--------------------------
+    uint32_t max_sockets;
     /**
      * tcp socket default buffer size
      */
     uint32_t socket_buffer_size;
+    swArray *socket_array;
 
     swServer *serv;
 

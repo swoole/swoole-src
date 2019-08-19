@@ -64,12 +64,7 @@ int swReactor_create(swReactor *reactor, int max_event)
     reactor->defer = defer_task_add;
     reactor->defer_tasks = nullptr;
 
-    reactor->socket_array = swArray_new(1024, sizeof(swConnection));
-    if (!reactor->socket_array)
-    {
-        swWarn("create socket array failed");
-        return SW_ERR;
-    }
+    reactor->socket_array = SwooleG.socket_array;
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE])
     {
