@@ -2031,7 +2031,7 @@ static sw_inline swReactor_handler swReactor_get_handler(swReactor *reactor, enu
     case SW_EVENT_WRITE:
         return (reactor->write_handler[fdtype] != NULL) ? reactor->write_handler[fdtype] : reactor->default_write_handler;
     case SW_EVENT_ERROR:
-        return (reactor->write_handler[fdtype] != NULL) ? reactor->write_handler[fdtype] : reactor->default_error_handler;
+        return (reactor->error_handler[fdtype] != NULL) ? reactor->error_handler[fdtype] : reactor->default_error_handler;
     default:
         abort();
         break;
