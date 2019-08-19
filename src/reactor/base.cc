@@ -20,8 +20,10 @@
 #include "async.h"
 
 #include "coroutine_c_api.h"
+#include "coroutine_socket.h"
 
 using swoole::CallbackManager;
+using swoole::coroutine::Socket;
 
 #ifdef SW_USE_MALLOC_TRIM
 #ifdef __APPLE__
@@ -65,6 +67,8 @@ int swReactor_create(swReactor *reactor, int max_event)
     reactor->defer_tasks = nullptr;
 
     reactor->socket_array = SwooleG.socket_array;
+
+    Socket::init_reactor(reactor);
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE])
     {

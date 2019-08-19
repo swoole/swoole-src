@@ -506,12 +506,6 @@ void Socket::init_reactor_socket(int _fd)
     socket->fdtype = SW_FD_CORO_SOCKET;
 
     swSocket_set_nonblock(sock_fd);
-    if (!swReactor_isset_handler(reactor, SW_FD_CORO_SOCKET))
-    {
-        swReactor_set_handler(reactor, SW_FD_CORO_SOCKET | SW_EVENT_READ, readable_event_callback);
-        swReactor_set_handler(reactor, SW_FD_CORO_SOCKET | SW_EVENT_WRITE, writable_event_callback);
-        swReactor_set_handler(reactor, SW_FD_CORO_SOCKET | SW_EVENT_ERROR, error_event_callback);
-    }
 }
 
 Socket::Socket(int _domain, int _type, int _protocol) :
