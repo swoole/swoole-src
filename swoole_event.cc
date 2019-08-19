@@ -472,10 +472,6 @@ static void check_reactor()
         swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_WRITE, php_swoole_event_onWrite);
         swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_ERROR, php_swoole_event_onError);
     }
-    if (!swReactor_isset_handler(SwooleG.main_reactor, SW_FD_WRITE))
-    {
-        swReactor_set_handler(SwooleG.main_reactor, SW_FD_WRITE, swReactor_onWrite);
-    }
 }
 
 static PHP_FUNCTION(swoole_event_add)

@@ -360,9 +360,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //connect
     swReactor_set_handler(reactor, SW_FD_LISTEN, swServer_master_onAccept);
     //close
-    swReactor_set_handler(reactor, SW_FD_CLOSE, swReactorProcess_onClose);
+    reactor->default_error_handler = swReactorProcess_onClose;
     //pipe
-    swReactor_set_handler(reactor, SW_FD_WRITE, swReactor_onWrite);
     swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorProcess_onPipeRead);
 
     swServer_store_listen_socket(serv);
@@ -595,7 +594,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     int checktime;
 
     bzero(&notify_ev, sizeof(notify_ev));
-    notify_ev.type = SW_FD_CLOSE;
+    notify_ev.type = SW_FD_TCP;
 
     serv_max_fd = swServer_get_maxfd(serv);
     serv_min_fd = swServer_get_minfd(serv);

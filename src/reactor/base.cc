@@ -67,6 +67,7 @@ int swReactor_create(swReactor *reactor, int max_event)
     reactor->defer_tasks = nullptr;
 
     reactor->socket_array = SwooleG.socket_array;
+    reactor->default_write_handler = swReactor_onWrite;
 
     Socket::init_reactor(reactor);
 

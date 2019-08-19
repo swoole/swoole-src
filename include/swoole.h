@@ -327,12 +327,9 @@ enum swFd_type
 {
     SW_FD_TCP, //tcp socket
     SW_FD_LISTEN, //server socket
-    SW_FD_CLOSE, //socket closed
-    SW_FD_ERROR, //socket error
     SW_FD_UDP, //udp socket
     SW_FD_PIPE, //pipe
     SW_FD_STREAM, //stream socket
-    SW_FD_WRITE, //fd can write
     SW_FD_AIO, //aio
     /**
      * Coroutine Socket
@@ -351,7 +348,7 @@ enum swFd_type
     /**
      * SW_FD_USER or SW_FD_USER+n: for custom event
      */
-    SW_FD_USER,
+    SW_FD_USER = 16,
     SW_FD_STREAM_CLIENT,
     SW_FD_DGRAM_CLIENT,
 };
@@ -1676,6 +1673,9 @@ struct _swReactor
     swReactor_handler write_handler[SW_MAX_FDTYPE];  // ext event 1 (maybe writable event)
     swReactor_handler error_handler[SW_MAX_FDTYPE];  // ext event 2 (error event, maybe socket closed)
 
+    swReactor_handler default_write_handler;
+    swReactor_handler default_error_handler;
+
     struct _swTimer *timer;
 
     int (*add)(swReactor *, int fd, int fdtype);
@@ -1880,27 +1880,27 @@ static sw_inline int swReactor_event_error(int fdtype)
     return fdtype & SW_EVENT_ERROR;
 }
 
-static sw_inline enum swFd_type swReactor_fdtype(int fdtype)
+static sw_inline enum swFd_type swReactor_fdtype(int flags)
 {
-    return (enum swFd_type) (fdtype & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR) & (~SW_EVENT_ONCE));
+    return (enum swFd_type) (flags & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR) & (~SW_EVENT_ONCE));
 }
 
-static sw_inline int swReactor_events(int fdtype)
+static sw_inline int swReactor_events(int flags)
 {
     int events = 0;
-    if (swReactor_event_read(fdtype))
+    if (swReactor_event_read(flags))
     {
         events |= SW_EVENT_READ;
     }
-    if (swReactor_event_write(fdtype))
+    if (swReactor_event_write(flags))
     {
         events |= SW_EVENT_WRITE;
     }
-    if (swReactor_event_error(fdtype))
+    if (swReactor_event_error(flags))
     {
         events |= SW_EVENT_ERROR;
     }
-    if (fdtype & SW_EVENT_ONCE)
+    if (flags & SW_EVENT_ONCE)
     {
         events |= SW_EVENT_ONCE;
     }
@@ -2024,22 +2024,26 @@ static sw_inline int swReactor_remove_write_event(swReactor *reactor, int fd)
 
 static sw_inline swReactor_handler swReactor_get_handler(swReactor *reactor, enum swEvent_type event_type, enum swFd_type fdtype)
 {
-    if (event_type == SW_EVENT_WRITE)
+    switch(event_type)
     {
-        return (reactor->write_handler[fdtype] != NULL) ? reactor->write_handler[fdtype] : reactor->handler[SW_FD_WRITE];
+    case SW_EVENT_READ:
+        return reactor->handler[fdtype];
+    case SW_EVENT_WRITE:
+        return (reactor->write_handler[fdtype] != NULL) ? reactor->write_handler[fdtype] : reactor->default_write_handler;
+    case SW_EVENT_ERROR:
+        return (reactor->write_handler[fdtype] != NULL) ? reactor->write_handler[fdtype] : reactor->default_error_handler;
+    default:
+        abort();
+        break;
     }
-    else if (event_type == SW_EVENT_ERROR)
-    {
-        return (reactor->error_handler[fdtype] != NULL) ? reactor->error_handler[fdtype] : reactor->handler[SW_FD_CLOSE];
-    }
-    return reactor->handler[fdtype];
+    return NULL;
 }
 
 int swReactor_set_handler(swReactor *, int, swReactor_handler);
 
 static sw_inline int swReactor_trigger_close_event(swReactor *reactor, swEvent *event)
 {
-    return swReactor_get_handler(reactor, SW_EVENT_ERROR, SW_FD_CLOSE)(reactor, event);
+    return reactor->default_error_handler(reactor, event);
 }
 
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);

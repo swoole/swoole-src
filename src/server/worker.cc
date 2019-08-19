@@ -691,7 +691,6 @@ int swWorker_loop(swServer *serv, int worker_id)
     reactor->ptr = serv;
     reactor->add(reactor, pipe_worker, SW_FD_PIPE | SW_EVENT_READ);
     swReactor_set_handler(reactor, SW_FD_PIPE, swWorker_onPipeReceive);
-    swReactor_set_handler(reactor, SW_FD_WRITE, swReactor_onWrite);
 
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
     {
