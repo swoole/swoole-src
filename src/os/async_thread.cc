@@ -202,87 +202,96 @@ private:
     {
         exit_flags[i] = make_shared<atomic<bool>>(false);
         shared_ptr<atomic<bool>> flag(exit_flags[i]);
+        thread *_thread;
 
-        thread *_thread = new thread([this, flag]()
+        try
         {
-            SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
-            if (SwooleTG.buffer_stack == nullptr)
+            _thread = new thread([this, flag]()
             {
-                return;
-            }
-
-            swSignal_none();
-
-            atomic<bool> &_flag = *flag;
-            async_event *event;
-            _accept:
-            event = queue.pop();
-            if (event)
-            {
-                if (sw_unlikely(event->handler == nullptr))
-                {
-                    event->error = SW_ERROR_AIO_BAD_REQUEST;
-                    event->ret = -1;
-                    goto _error;
-                }
-                else if (sw_unlikely(event->canceled))
-                {
-                    event->error = SW_ERROR_AIO_BAD_REQUEST;
-                    event->ret = -1;
-                    goto _error;
-                }
-                else
-                {
-                    event->handler(event);
-                }
-
-                swTrace("aio_thread ok. ret=%d, error=%d", event->ret, event->error);
-
-                _error:
-                while (true)
-                {
-                    SwooleAIO.lock.lock(&SwooleAIO.lock);
-                    int ret = write(_pipe_write, &event, sizeof(event));
-                    SwooleAIO.lock.unlock(&SwooleAIO.lock);
-                    if (ret < 0)
-                    {
-                        if (errno == EAGAIN)
-                        {
-                            swSocket_wait(_pipe_write, 1000, SW_EVENT_WRITE);
-                            continue;
-                        }
-                        else if (errno == EINTR)
-                        {
-                            continue;
-                        }
-                        else
-                        {
-                            swSysWarn("sendto swoole_aio_pipe_write failed");
-                        }
-                    }
-                    break;
-                }
-                //exit
-                if (_flag)
+                SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
+                if (SwooleTG.buffer_stack == nullptr)
                 {
                     return;
                 }
-            }
-            else
-            {
-                unique_lock<mutex> lock(_mutex);
+
+                swSignal_none();
+
+                atomic<bool> &_flag = *flag;
+                async_event *event;
+                _accept:
+                event = queue.pop();
+                if (event)
+                {
+                    if (sw_unlikely(event->handler == nullptr))
+                    {
+                        event->error = SW_ERROR_AIO_BAD_REQUEST;
+                        event->ret = -1;
+                        goto _error;
+                    }
+                    else if (sw_unlikely(event->canceled))
+                    {
+                        event->error = SW_ERROR_AIO_BAD_REQUEST;
+                        event->ret = -1;
+                        goto _error;
+                    }
+                    else
+                    {
+                        event->handler(event);
+                    }
+
+                    swTrace("aio_thread ok. ret=%d, error=%d", event->ret, event->error);
+
+                    _error:
+                    while (true)
+                    {
+                        SwooleAIO.lock.lock(&SwooleAIO.lock);
+                        int ret = write(_pipe_write, &event, sizeof(event));
+                        SwooleAIO.lock.unlock(&SwooleAIO.lock);
+                        if (ret < 0)
+                        {
+                            if (errno == EAGAIN)
+                            {
+                                swSocket_wait(_pipe_write, 1000, SW_EVENT_WRITE);
+                                continue;
+                            }
+                            else if (errno == EINTR)
+                            {
+                                continue;
+                            }
+                            else
+                            {
+                                swSysWarn("sendto swoole_aio_pipe_write failed");
+                            }
+                        }
+                        break;
+                    }
+                    //exit
+                    if (_flag)
+                    {
+                        return;
+                    }
+                }
+                else
+                {
+                    unique_lock<mutex> lock(_mutex);
+                    if (running)
+                    {
+                        ++n_waiting;
+                        _cv.wait(lock);
+                        --n_waiting;
+                    }
+                }
                 if (running)
                 {
-                    ++n_waiting;
-                    _cv.wait(lock);
-                    --n_waiting;
+                    goto _accept;
                 }
-            }
-            if (running)
-            {
-                goto _accept;
-            }
-        });
+            });
+        }
+        catch (const std::system_error& e)
+        {
+            return;
+        }
+
         threads[i] = unique_ptr<thread>(_thread);
     }
 
