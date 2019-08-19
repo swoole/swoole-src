@@ -91,7 +91,7 @@ int swReactor_set_handler(swReactor *reactor, int _fdtype, swReactor_handler han
 
     if (swReactor_event_read(_fdtype))
     {
-        reactor->handler[fdtype] = handle;
+        reactor->read_handler[fdtype] = handle;
     }
     else if (swReactor_event_write(_fdtype))
     {

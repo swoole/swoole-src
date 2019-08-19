@@ -57,7 +57,6 @@ int swReactorSelect_create(swReactor *reactor)
 
     object->fds = NULL;
     object->maxfd = 0;
-    bzero(reactor->handler, sizeof(reactor->handler));
     reactor->object = object;
     //binding method
     reactor->add = swReactorSelect_add;
