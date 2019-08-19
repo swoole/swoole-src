@@ -980,7 +980,8 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
     reactor->close = swReactorThread_close;
     reactor->is_empty = swReactorThread_is_empty;
 
-    swReactor_set_handler(reactor, SW_FD_CLOSE, swReactorThread_onClose);
+    reactor->default_error_handler = swReactorThread_onClose;
+
     swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorThread_onPipeReceive);
     swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactorThread_onPipeWrite);
 

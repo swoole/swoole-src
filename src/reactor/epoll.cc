@@ -71,31 +71,29 @@ struct swReactorEpoll_s
 
 int swReactorEpoll_create(swReactor *reactor, int max_event_num)
 {
-    //create reactor object
-    swReactorEpoll *reactor_object = sw_malloc(sizeof(swReactorEpoll));
-    if (reactor_object == NULL)
+    swReactorEpoll *object = (swReactorEpoll *) sw_malloc(sizeof(swReactorEpoll));
+    if (object == NULL)
     {
         swWarn("malloc[0] failed");
         return SW_ERR;
     }
-    bzero(reactor_object, sizeof(swReactorEpoll));
-    reactor->object = reactor_object;
+    bzero(object, sizeof(swReactorEpoll));
+    reactor->object = object;
     reactor->max_event_num = max_event_num;
 
-    reactor_object->events = sw_calloc(max_event_num, sizeof(struct epoll_event));
-    if (reactor_object->events == NULL)
+    object->events = (struct epoll_event *) sw_calloc(max_event_num, sizeof(struct epoll_event));
+    if (object->events == NULL)
     {
         swWarn("malloc[1] failed");
-        sw_free(reactor_object);
+        sw_free(object);
         return SW_ERR;
     }
 
-    //epoll create
-    reactor_object->epfd = epoll_create(512);
-    if (reactor_object->epfd < 0)
+    object->epfd = epoll_create(512);
+    if (object->epfd < 0)
     {
         swSysWarn("epoll_create failed");
-        sw_free(reactor_object);
+        sw_free(object);
         return SW_ERR;
     }
     //binding method
@@ -110,7 +108,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
 
 static void swReactorEpoll_free(swReactor *reactor)
 {
-    swReactorEpoll *object = reactor->object;
+    swReactorEpoll *object = (swReactorEpoll *) reactor->object;
     close(object->epfd);
     sw_free(object->events);
     sw_free(object);
@@ -118,7 +116,7 @@ static void swReactorEpoll_free(swReactor *reactor)
 
 static int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 {
-    swReactorEpoll *object = reactor->object;
+    swReactorEpoll *object = (swReactorEpoll *) reactor->object;
     struct epoll_event e;
     swFd fd_;
     bzero(&e, sizeof(struct epoll_event));
@@ -145,7 +143,7 @@ static int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 
 static int swReactorEpoll_del(swReactor *reactor, int fd)
 {
-    swReactorEpoll *object = reactor->object;
+    swReactorEpoll *object = (swReactorEpoll *) reactor->object;
     if (epoll_ctl(object->epfd, EPOLL_CTL_DEL, fd, NULL) < 0)
     {
         swSysWarn("epoll remove fd[%d#%d] failed", fd, reactor->id);
@@ -193,7 +191,7 @@ static int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
 static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 {
     swEvent event;
-    swReactorEpoll *object = reactor->object;
+    swReactorEpoll *object = (swReactorEpoll *) reactor->object;
     swReactor_handler handler;
     int i, n, ret;
 
@@ -247,7 +245,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
         {
             event.fd = events[i].data.u64;
             event.reactor_id = reactor_id;
-            event.type = events[i].data.u64 >> 32;
+            event.type = (enum swFd_type) (events[i].data.u64 >> 32);
             event.socket = swReactor_get(reactor, event.fd);
 
             //read

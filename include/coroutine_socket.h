@@ -149,6 +149,13 @@ public:
         return SwooleTG.reactor ? SwooleTG.reactor : SwooleG.main_reactor;
     }
 
+    static inline void init_reactor(swReactor *reactor)
+    {
+        swReactor_set_handler(reactor, SW_FD_CORO_SOCKET | SW_EVENT_READ, readable_event_callback);
+        swReactor_set_handler(reactor, SW_FD_CORO_SOCKET | SW_EVENT_WRITE, writable_event_callback);
+        swReactor_set_handler(reactor, SW_FD_CORO_SOCKET | SW_EVENT_ERROR, error_event_callback);
+    }
+
     inline enum swSocket_type get_type()
     {
         return type;
@@ -330,7 +337,6 @@ private:
     int sock_protocol = 0;
     int sock_fd = -1;
 
-    swReactor *reactor = nullptr;
     Coroutine *read_co = nullptr;
     Coroutine *write_co = nullptr;
 #ifdef SW_USE_OPENSSL
@@ -401,20 +407,6 @@ private:
 
     inline bool is_available(const enum swEvent_type event)
     {
-        swReactor *_reactor = get_reactor();
-        if (!_reactor)
-        {
-            return false;
-        }
-        swConnection *_socket = swReactor_get(_reactor, sock_fd);
-        if (!_socket)
-        {
-            return false;
-        }
-        if (sw_unlikely(_socket->object == nullptr))
-        {
-            init_reactor_socket(sock_fd);
-        }
         if (event != SW_EVENT_NULL)
         {
             check_bound_co(event);

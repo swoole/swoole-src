@@ -329,7 +329,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         {
             if (swReactorProcess_reuse_port(ls) < 0)
             {
-                _fail: swReactor_free_output_buffer(n_buffer);
+                swReactor_free_output_buffer(n_buffer);
                 swoole_event_free();
                 return SW_ERR;
             }
@@ -360,9 +360,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //connect
     swReactor_set_handler(reactor, SW_FD_LISTEN, swServer_master_onAccept);
     //close
-    swReactor_set_handler(reactor, SW_FD_CLOSE, swReactorProcess_onClose);
+    reactor->default_error_handler = swReactorProcess_onClose;
     //pipe
-    swReactor_set_handler(reactor, SW_FD_WRITE, swReactor_onWrite);
     swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorProcess_onPipeRead);
 
     swServer_store_listen_socket(serv);
@@ -413,7 +412,9 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
      */
     if ((serv->master_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
     {
-        goto _fail;
+        _fail: swReactor_free_output_buffer(n_buffer);
+        swoole_event_free();
+        return SW_ERR;
     }
 
     swWorker_onStart(serv);
@@ -593,7 +594,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     int checktime;
 
     bzero(&notify_ev, sizeof(notify_ev));
-    notify_ev.type = SW_EVENT_CLOSE;
+    notify_ev.type = SW_FD_TCP;
 
     serv_max_fd = swServer_get_maxfd(serv);
     serv_min_fd = swServer_get_minfd(serv);

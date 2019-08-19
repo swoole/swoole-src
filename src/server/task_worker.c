@@ -242,7 +242,6 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
     SwooleG.main_reactor->ptr = pool;
     SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_worker, SW_FD_PIPE | SW_EVENT_READ);
     swReactor_set_handler(SwooleG.main_reactor, SW_FD_PIPE, swTaskWorker_onPipeReceive);
-    swReactor_set_handler(SwooleG.main_reactor, SW_FD_WRITE, swReactor_onWrite);
 
     /**
      * set pipe buffer size
