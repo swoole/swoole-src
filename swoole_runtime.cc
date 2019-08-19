@@ -899,6 +899,12 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     {
         return sock->check_liveness() ? PHP_STREAM_OPTION_RETURN_OK : PHP_STREAM_OPTION_RETURN_ERR;
     }
+    case PHP_STREAM_OPTION_READ_BUFFER:
+    case PHP_STREAM_OPTION_WRITE_BUFFER:
+    {
+        // TODO: read/write buffer
+        break;
+    }
     default:
 #ifdef SW_DEBUG
         php_swoole_fatal_error(E_WARNING, "socket_set_option: unsupported option %d with value %d", option, value);
