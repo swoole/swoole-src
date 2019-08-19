@@ -335,11 +335,11 @@ static int swAio_init()
 
     if (SwooleAIO.min_thread_count == 0)
     {
-        SwooleAIO.min_thread_count = SW_AIO_THREAD_MIN_NUM;
+        SwooleAIO.min_thread_count = SW_AIO_THREAD_DEFAULT_NUM;
     }
     if (SwooleAIO.max_thread_count == 0)
     {
-        SwooleAIO.max_thread_count = SW_AIO_THREAD_MAX_NUM;
+        SwooleAIO.max_thread_count = (swoole_cpu_num() * 2) * SW_AIO_THREAD_NUM_MULTIPLE;
     }
     if (SwooleAIO.min_thread_count > SwooleAIO.max_thread_count)
     {

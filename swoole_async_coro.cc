@@ -64,8 +64,6 @@ static std::unordered_map<std::string, dns_cache*> request_cache_map;
 void php_swoole_async_coro_minit(int module_number)
 {
     bzero(&SwooleAIO, sizeof(SwooleAIO));
-    SwooleAIO.min_thread_count = SW_AIO_THREAD_MIN_NUM;
-    SwooleAIO.max_thread_count = SW_AIO_THREAD_MAX_NUM;
 }
 
 void php_swoole_async_coro_rshutdown()

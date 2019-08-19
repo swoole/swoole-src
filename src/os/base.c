@@ -186,6 +186,16 @@ void swAio_free(void)
 }
 #endif
 
+int swoole_cpu_num()
+{
+    static long cpu_num = 0;
+    if (cpu_num == 0)
+    {
+        cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_CONF));
+    }
+    return cpu_num;
+}
+
 int swoole_daemon(int nochdir, int noclose)
 {
     pid_t pid;

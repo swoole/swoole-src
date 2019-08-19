@@ -1501,6 +1501,7 @@ double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream);
+int swoole_cpu_num();
 int swoole_daemon(int nochdir, int noclose);
 
 SW_API int swoole_add_function(const char *name, void* func);
