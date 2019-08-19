@@ -101,7 +101,7 @@ void swoole_init(void)
 
     SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     SwooleG.socket_array = swArray_new(1024, sizeof(swConnection));
-    if (SwooleG.socket_array)
+    if (!SwooleG.socket_array)
     {
         swSysWarn("[Core] Fatal Error: socekt array memory allocation failure");
         exit(1);
