@@ -373,7 +373,7 @@ static void swReactorThread_shutdown(swReactor *reactor)
             continue;
         }
         swConnection *conn = swServer_connection_get(serv, fd);
-        if (conn != NULL && conn->active && !conn->removed && conn->fdtype == SW_FD_TCP)
+        if (conn != NULL && conn->active && !conn->removed && conn->fdtype == SW_FD_SESSION)
         {
             swReactor_remove_read_event(reactor, fd);
         }
@@ -598,11 +598,11 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
         swString_extend_align(SwooleTG.buffer_stack, SwooleTG.buffer_stack->size * 2);
     }
     //UDP Packet
-    swReactor_set_handler(reactor, SW_FD_UDP, swReactorThread_onPacketReceived);
+    swReactor_set_handler(reactor, SW_FD_DGRAM_SERVER, swReactorThread_onPacketReceived);
     //Write
-    swReactor_set_handler(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
+    swReactor_set_handler(reactor, SW_FD_SESSION | SW_EVENT_WRITE, swReactorThread_onWrite);
     //Read
-    swReactor_set_handler(reactor, SW_FD_TCP | SW_EVENT_READ, swReactorThread_onRead);
+    swReactor_set_handler(reactor, SW_FD_SESSION | SW_EVENT_READ, swReactorThread_onRead);
 
     swListenPort *ls;
     //listen the all tcp port
@@ -764,7 +764,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     //remove EPOLLOUT event
     if (!conn->removed && swBuffer_empty(conn->out_buffer))
     {
-        reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_READ);
+        reactor->set(reactor, fd, SW_FD_SESSION | SW_EVENT_READ);
     }
     return SW_OK;
 }
@@ -873,7 +873,7 @@ int swReactorThread_start(swServer *serv)
         {
             continue;
         }
-        main_reactor->add(main_reactor, ls->sock, SW_FD_LISTEN);
+        main_reactor->add(main_reactor, ls->sock, SW_FD_STREAM_SERVER);
     }
 
     if (serv->single_thread)
@@ -944,7 +944,7 @@ int swReactorThread_start(swServer *serv)
     SwooleG.process_type = SW_PROCESS_MASTER;
 
     main_reactor->ptr = serv;
-    swReactor_set_handler(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
+    swReactor_set_handler(main_reactor, SW_FD_STREAM_SERVER, swServer_master_onAccept);
 
     if (serv->hooks[SW_SERVER_HOOK_MASTER_START])
     {
@@ -1009,7 +1009,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
                 serv->connection_list[ls->sock].socket_type = ls->type;
                 serv->connection_list[ls->sock].object = ls;
                 ls->thread_id = pthread_self();
-                if (reactor->add(reactor, ls->sock, SW_FD_UDP) < 0)
+                if (reactor->add(reactor, ls->sock, SW_FD_DGRAM_SERVER) < 0)
                 {
                     return SW_ERR;
                 }
@@ -1308,7 +1308,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
             swTrace("check fd=%d", fd);
             conn = swServer_connection_get(serv, fd);
 
-            if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_TCP)
+            if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_SESSION)
             {
                 if (conn->protect || conn->last_time > checktime)
                 {
@@ -1333,7 +1333,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                 }
                 else
                 {
-                    reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_WRITE);
+                    reactor->set(reactor, fd, SW_FD_SESSION | SW_EVENT_WRITE);
                 }
             }
         }

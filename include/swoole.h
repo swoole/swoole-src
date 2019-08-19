@@ -325,12 +325,12 @@ enum swReturn_code
 
 enum swFd_type
 {
-    SW_FD_TCP, //tcp socket
-    SW_FD_LISTEN, //server socket
-    SW_FD_UDP, //udp socket
-    SW_FD_PIPE, //pipe
-    SW_FD_STREAM, //stream socket
-    SW_FD_AIO, //aio
+    SW_FD_SESSION, //server stream session
+    SW_FD_STREAM_SERVER, //server stream port
+    SW_FD_DGRAM_SERVER, //server dgram port
+    SW_FD_PIPE,
+    SW_FD_STREAM,
+    SW_FD_AIO,
     /**
      * Coroutine Socket
      */
@@ -661,7 +661,7 @@ typedef struct _swConnection
     uint16_t socket_type;
 
     /**
-     * fd type, SW_FD_TCP or SW_FD_PIPE
+     * fd type, SW_FD_SESSION or SW_FD_PIPE
      */
     enum swFd_type fdtype;
 
@@ -1669,9 +1669,9 @@ struct _swReactor
      */
     swArray *socket_array;
 
-    swReactor_handler handler[SW_MAX_FDTYPE];        // default event
-    swReactor_handler write_handler[SW_MAX_FDTYPE];  // ext event 1 (maybe writable event)
-    swReactor_handler error_handler[SW_MAX_FDTYPE];  // ext event 2 (error event, maybe socket closed)
+    swReactor_handler read_handler[SW_MAX_FDTYPE];
+    swReactor_handler write_handler[SW_MAX_FDTYPE];
+    swReactor_handler error_handler[SW_MAX_FDTYPE];
 
     swReactor_handler default_write_handler;
     swReactor_handler default_error_handler;
@@ -1933,7 +1933,7 @@ static sw_inline swConnection* swReactor_get(swReactor *reactor, int fd)
 
 static sw_inline int swReactor_isset_handler(swReactor *reactor, int _fdtype)
 {
-    return reactor->handler[_fdtype] != NULL;
+    return reactor->read_handler[_fdtype] != NULL;
 }
 
 static sw_inline void swReactor_add(swReactor *reactor, int fd, int type)
@@ -2027,11 +2027,11 @@ static sw_inline swReactor_handler swReactor_get_handler(swReactor *reactor, enu
     switch(event_type)
     {
     case SW_EVENT_READ:
-        return reactor->handler[fdtype];
+        return reactor->read_handler[fdtype];
     case SW_EVENT_WRITE:
         return (reactor->write_handler[fdtype] != NULL) ? reactor->write_handler[fdtype] : reactor->default_write_handler;
     case SW_EVENT_ERROR:
-        return (reactor->write_handler[fdtype] != NULL) ? reactor->write_handler[fdtype] : reactor->default_error_handler;
+        return (reactor->error_handler[fdtype] != NULL) ? reactor->error_handler[fdtype] : reactor->default_error_handler;
     default:
         abort();
         break;

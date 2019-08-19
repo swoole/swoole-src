@@ -323,9 +323,9 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     LL_FOREACH(serv->listen_list, ls)
     {
-        fdtype = swSocket_is_dgram(ls->type) ? SW_FD_UDP : SW_FD_LISTEN;
+        fdtype = swSocket_is_dgram(ls->type) ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
 #ifdef HAVE_REUSEPORT
-        if (fdtype == SW_FD_LISTEN && SwooleG.reuse_port)
+        if (fdtype == SW_FD_STREAM_SERVER && SwooleG.reuse_port)
         {
             if (swReactorProcess_reuse_port(ls) < 0)
             {
@@ -358,7 +358,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     //set event handler
     //connect
-    swReactor_set_handler(reactor, SW_FD_LISTEN, swServer_master_onAccept);
+    swReactor_set_handler(reactor, SW_FD_STREAM_SERVER, swServer_master_onAccept);
     //close
     reactor->default_error_handler = swReactorProcess_onClose;
     //pipe
@@ -443,7 +443,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
         swConnection *conn = swServer_connection_get(serv, fd);
-        if (conn != NULL && conn->active && conn->fdtype == SW_FD_TCP)
+        if (conn != NULL && conn->active && conn->fdtype == SW_FD_SESSION)
         {
             serv->close(serv, conn->session_id, 1);
         }
@@ -594,7 +594,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     int checktime;
 
     bzero(&notify_ev, sizeof(notify_ev));
-    notify_ev.type = SW_FD_TCP;
+    notify_ev.type = SW_FD_SESSION;
 
     serv_max_fd = swServer_get_maxfd(serv);
     serv_min_fd = swServer_get_minfd(serv);
@@ -605,7 +605,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     {
         conn = swServer_connection_get(serv, fd);
 
-        if (conn != NULL && conn->active == 1 && conn->fdtype == SW_FD_TCP)
+        if (conn != NULL && conn->active == 1 && conn->fdtype == SW_FD_SESSION)
         {
             if (conn->protect || conn->last_time > checktime)
             {
