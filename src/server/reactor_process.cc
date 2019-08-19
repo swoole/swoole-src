@@ -595,7 +595,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     int checktime;
 
     bzero(&notify_ev, sizeof(notify_ev));
-    notify_ev.type = SW_EVENT_CLOSE;
+    notify_ev.type = SW_FD_CLOSE;
 
     serv_max_fd = swServer_get_maxfd(serv);
     serv_min_fd = swServer_get_minfd(serv);

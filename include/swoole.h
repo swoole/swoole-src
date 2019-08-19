@@ -666,7 +666,7 @@ typedef struct _swConnection
     /**
      * fd type, SW_FD_TCP or SW_FD_PIPE
      */
-    uint16_t fdtype;
+    enum swFd_type fdtype;
 
     int events;
 
@@ -959,7 +959,7 @@ typedef struct _swEvent
 {
     int fd;
     int16_t reactor_id;
-    uint8_t type;
+    enum swFd_type type;
     swConnection *socket;
 } swEvent;
 
@@ -1880,9 +1880,9 @@ static sw_inline int swReactor_event_error(int fdtype)
     return fdtype & SW_EVENT_ERROR;
 }
 
-static sw_inline int swReactor_fdtype(int fdtype)
+static sw_inline enum swFd_type swReactor_fdtype(int fdtype)
 {
-    return fdtype & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR) & (~SW_EVENT_ONCE);
+    return (enum swFd_type) (fdtype & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR) & (~SW_EVENT_ONCE));
 }
 
 static sw_inline int swReactor_events(int fdtype)
@@ -2022,7 +2022,7 @@ static sw_inline int swReactor_remove_write_event(swReactor *reactor, int fd)
     }
 }
 
-static sw_inline swReactor_handler swReactor_get_handler(swReactor *reactor, int event_type, int fdtype)
+static sw_inline swReactor_handler swReactor_get_handler(swReactor *reactor, enum swEvent_type event_type, enum swFd_type fdtype)
 {
     if (event_type == SW_EVENT_WRITE)
     {
@@ -2039,7 +2039,7 @@ int swReactor_set_handler(swReactor *, int, swReactor_handler);
 
 static sw_inline int swReactor_trigger_close_event(swReactor *reactor, swEvent *event)
 {
-    return swReactor_get_handler(reactor, 0, SW_FD_CLOSE)(reactor, event);
+    return swReactor_get_handler(reactor, SW_EVENT_ERROR, SW_FD_CLOSE)(reactor, event);
 }
 
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
