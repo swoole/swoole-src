@@ -63,7 +63,7 @@ void swServer_enable_accept(swReactor *reactor)
         {
             continue;
         }
-        reactor->add(reactor, ls->sock, SW_FD_LISTEN);
+        reactor->add(reactor, ls->sock, SW_FD_STREAM_SERVER);
     }
 }
 
@@ -160,7 +160,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
          * [!!!] new_connection function must before reactor->add
          */
         conn->connect_notify = 1;
-        if (sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | SW_EVENT_WRITE) < 0)
+        if (sub_reactor->add(sub_reactor, new_fd, SW_FD_SESSION | SW_EVENT_WRITE) < 0)
         {
             bzero(conn, sizeof(swConnection));
             close(new_fd);
@@ -1773,7 +1773,7 @@ void swServer_connection_each(swServer *serv, void (*callback)(swConnection *con
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
         conn = swServer_connection_get(serv, fd);
-        if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_TCP)
+        if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_SESSION)
         {
             callback(conn);
         }

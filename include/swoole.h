@@ -325,12 +325,12 @@ enum swReturn_code
 
 enum swFd_type
 {
-    SW_FD_TCP, //tcp socket
-    SW_FD_LISTEN, //server socket
-    SW_FD_UDP, //udp socket
-    SW_FD_PIPE, //pipe
-    SW_FD_STREAM, //stream socket
-    SW_FD_AIO, //aio
+    SW_FD_SESSION, //server stream session
+    SW_FD_STREAM_SERVER, //server stream port
+    SW_FD_DGRAM_SERVER, //server dgram port
+    SW_FD_PIPE,
+    SW_FD_STREAM,
+    SW_FD_AIO,
     /**
      * Coroutine Socket
      */
@@ -661,7 +661,7 @@ typedef struct _swConnection
     uint16_t socket_type;
 
     /**
-     * fd type, SW_FD_TCP or SW_FD_PIPE
+     * fd type, SW_FD_SESSION or SW_FD_PIPE
      */
     enum swFd_type fdtype;
 

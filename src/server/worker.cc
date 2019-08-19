@@ -540,7 +540,7 @@ void swWorker_stop(swWorker *worker)
         for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
         {
             swConnection *conn = swServer_connection_get(serv, fd);
-            if (conn != NULL && conn->active && !conn->removed && conn->fdtype == SW_FD_TCP)
+            if (conn != NULL && conn->active && !conn->removed && conn->fdtype == SW_FD_SESSION)
             {
                 swReactor_remove_read_event(reactor, fd);
             }
@@ -694,8 +694,8 @@ int swWorker_loop(swServer *serv, int worker_id)
 
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
     {
-        reactor->add(reactor, serv->stream_fd, SW_FD_LISTEN | SW_EVENT_READ);
-        swReactor_set_handler(reactor, SW_FD_LISTEN, swWorker_onStreamAccept);
+        reactor->add(reactor, serv->stream_fd, SW_FD_STREAM_SERVER | SW_EVENT_READ);
+        swReactor_set_handler(reactor, SW_FD_STREAM_SERVER, swWorker_onStreamAccept);
         swReactor_set_handler(reactor, SW_FD_STREAM, swWorker_onStreamRead);
         swStream_set_protocol(&serv->stream_protocol);
         serv->stream_protocol.private_data_2 = serv;
