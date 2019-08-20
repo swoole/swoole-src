@@ -535,7 +535,10 @@ static int swManager_loop(swServer *serv)
                 ManagerProcess.kill_workers.push_back(user_worker->pid);
             }
         }
-        alarm(serv->max_wait_time);
+        /**
+         * Multiply max_wait_time by 2 to prevent conflict with worker
+         */
+        alarm(serv->max_wait_time * 2);
     }
     //kill all child process
     for (i = 0; i < serv->worker_num; i++)
