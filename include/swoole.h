@@ -447,17 +447,26 @@ enum swWorker_status
 };
 //-------------------------------------------------------------------------------
 
+#define swInfo(str,...) \
+    if (SW_LOG_INFO >= SwooleG.log_level) {\
+        size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
+        SwooleG.write_log(SW_LOG_INFO, sw_error, _sw_error_len);\
+    }
+
 #define swNotice(str,...) \
     if (SW_LOG_NOTICE >= SwooleG.log_level) {\
         size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
         SwooleG.write_log(SW_LOG_NOTICE, sw_error, _sw_error_len);\
     }
 
-#define swInfo(str,...) \
-    if (SW_LOG_INFO >= SwooleG.log_level) {\
-        size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
-        SwooleG.write_log(SW_LOG_INFO, sw_error, _sw_error_len);\
-    }
+#define swSysNotice(str,...) \
+    do{\
+        SwooleG.error = errno;\
+        if (SW_LOG_ERROR >= SwooleG.log_level) {\
+            size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str ", Error: %s[%d]",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
+            SwooleG.write_log(SW_LOG_NOTICE, sw_error, _sw_error_len);\
+        }\
+    } while(0)
 
 #define swWarn(str,...) \
     if (SW_LOG_WARNING >= SwooleG.log_level) {\
