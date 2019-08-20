@@ -289,6 +289,7 @@ private:
         }
         catch (const std::system_error& e)
         {
+            swSysNotice("create aio thread#%d failed, please check your system configuration or adjust max_thread_count", i);
             return;
         }
 
