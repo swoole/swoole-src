@@ -366,7 +366,7 @@ static PHP_FUNCTION(swoole_timer_clear)
         ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
         swTimer_node *tnode = swoole_timer_get(id);
-        if (tnode->type != SW_TIMER_TYPE_PHP)
+        if (!tnode || tnode->type != SW_TIMER_TYPE_PHP)
         {
             RETURN_FALSE;
         }
