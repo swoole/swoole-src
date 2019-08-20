@@ -805,7 +805,7 @@ PHP_FUNCTION(swoole_last_error)
 
 PHP_FUNCTION(swoole_cpu_num)
 {
-    RETURN_LONG(swoole_cpu_num());
+    RETURN_LONG(SW_CPU_NUM);
 }
 
 PHP_FUNCTION(swoole_strerror)

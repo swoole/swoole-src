@@ -339,7 +339,7 @@ static int swAio_init()
     }
     if (SwooleAIO.max_thread_count == 0)
     {
-        SwooleAIO.max_thread_count = (swoole_cpu_num() * 2) * SW_AIO_THREAD_NUM_MULTIPLE;
+        SwooleAIO.max_thread_count = (SW_CPU_NUM * 2) * SW_AIO_THREAD_NUM_MULTIPLE;
     }
     if (SwooleAIO.min_thread_count > SwooleAIO.max_thread_count)
     {

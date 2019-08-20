@@ -2137,7 +2137,7 @@ static PHP_METHOD(swoole_server, set)
         serv->reactor_num = (uint16_t) zval_get_long(v);
         if (serv->reactor_num <= 0)
         {
-            serv->reactor_num = SwooleG.cpu_num;
+            serv->reactor_num = SW_CPU_NUM;
         }
     }
     if (php_swoole_array_get_value(vht, "single_thread", v))
@@ -2150,7 +2150,7 @@ static PHP_METHOD(swoole_server, set)
         serv->worker_num = (uint16_t) zval_get_long(v);
         if (serv->worker_num <= 0)
         {
-            serv->worker_num = SwooleG.cpu_num;
+            serv->worker_num = SW_CPU_NUM;
         }
     }
     //max wait time

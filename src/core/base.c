@@ -63,7 +63,7 @@ void swoole_init(void)
     SwooleG.write_log = swLog_put;
     SwooleG.fatal_error = swoole_fatal_error;
 
-    SwooleG.cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
+    SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
     SwooleG.pagesize = getpagesize();
     //get system uname
     uname(&SwooleG.uname);
