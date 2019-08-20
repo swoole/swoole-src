@@ -14,7 +14,6 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole_api.h"
 #include "server.h"
 #include "hash.h"
 #include "client.h"
@@ -954,7 +953,7 @@ int swReactorThread_start(swServer *serv)
     /**
      * 1 second timer, update serv->gs->now
      */
-    if ((serv->master_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
+    if ((serv->master_timer = swoole_timer_add(1000, SW_TRUE, swServer_master_onTimer, serv)) == NULL)
     {
         goto _failed;
     }

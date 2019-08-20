@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_api.h"
 #include "server.h"
 #include "client.h"
 #include "async.h"
@@ -548,12 +547,12 @@ void swWorker_stop(swWorker *worker)
         //clear timer
         if (serv->master_timer)
         {
-            swTimer_del(&SwooleG.timer, serv->master_timer);
+            swoole_timer_del(serv->master_timer);
             serv->master_timer = NULL;
         }
         if (serv->heartbeat_timer)
         {
-            swTimer_del(&SwooleG.timer, serv->heartbeat_timer);
+            swoole_timer_del(serv->heartbeat_timer);
             serv->heartbeat_timer = NULL;
         }
         goto _try_to_exit;

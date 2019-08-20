@@ -710,7 +710,7 @@ void php_swoole_client_free(zval *zobject, swClient *cli)
 {
     if (cli->timer)
     {
-        swTimer_del(&SwooleG.timer, cli->timer);
+        swoole_timer_del(cli->timer);
         cli->timer = NULL;
     }
     //socks5 proxy config

@@ -855,7 +855,7 @@ static void php_swoole_task_wait_co(swServer *serv, swEventData *req, double tim
     }
 
     long ms = (long) (timeout * 1000);
-    swTimer_node *timer = swTimer_add(&SwooleG.timer, ms, 0, task_co, php_swoole_task_onTimeout);
+    swTimer_node *timer = swoole_timer_add(ms, SW_FALSE, php_swoole_task_onTimeout, task_co);
     if (timer)
     {
         task_co->timer = timer;
@@ -1375,7 +1375,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
             zval *retval = NULL;
             if (task_co->timer)
             {
-                swTimer_del(&SwooleG.timer, task_co->timer);
+                swoole_timer_del(task_co->timer);
             }
             php_coro_context *context = &task_co->context;
             int ret = PHPCoroutine::resume_m(context, zdata, retval);
@@ -1414,7 +1414,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
             zval *retval = NULL;
             if (task_co->timer)
             {
-                swTimer_del(&SwooleG.timer, task_co->timer);
+                swoole_timer_del(task_co->timer);
                 task_co->timer = NULL;
             }
             php_coro_context *context = &task_co->context;
@@ -1759,7 +1759,7 @@ static enum swReturn_code php_swoole_server_send_resume(swServer *serv, php_coro
 
     if (context->timer)
     {
-        swTimer_del(&SwooleG.timer, (swTimer_node *) context->timer);
+        swoole_timer_del((swTimer_node *) context->timer);
         context->timer = NULL;
     }
 
@@ -1793,7 +1793,7 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
     if (serv->send_timeout > 0)
     {
         context->private_data = (void*) (long) fd;
-        context->timer = swTimer_add(&SwooleG.timer, (long) (serv->send_timeout * 1000), 0, context, php_swoole_onSendTimeout);
+        context->timer = swoole_timer_add((long) (serv->send_timeout * 1000), SW_FALSE, php_swoole_onSendTimeout, context);
     }
     else
     {
@@ -3527,7 +3527,7 @@ static PHP_METHOD(swoole_server, taskCo)
     task_co->list = list;
     task_co->count = n_task;
 
-    swTimer_node *timer = swTimer_add(&SwooleG.timer, ms, 0, task_co, php_swoole_task_onTimeout);
+    swTimer_node *timer = swoole_timer_add(ms, SW_FALSE, php_swoole_task_onTimeout, task_co);
     if (timer)
     {
         task_co->timer = timer;

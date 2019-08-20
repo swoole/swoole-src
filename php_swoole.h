@@ -362,10 +362,6 @@ void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_event_exit();
 
-// timer
-enum swBool_type php_swoole_timer_clear(swTimer_node *tnode);
-enum swBool_type php_swoole_timer_clear_all();
-
 void php_swoole_server_register_callbacks(swServer *serv);
 void php_swoole_trace_check(void *arg);
 void php_swoole_client_free(zval *zobject, swClient *cli);

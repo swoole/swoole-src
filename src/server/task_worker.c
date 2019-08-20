@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_api.h"
 #include "server.h"
 
 static swEventData *g_current_task = NULL;

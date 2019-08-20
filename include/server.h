@@ -17,7 +17,7 @@
 #ifndef SW_SERVER_H_
 #define SW_SERVER_H_
 
-#include "swoole.h"
+#include "swoole_api.h"
 #include "buffer.h"
 #include "connection.h"
 

@@ -39,6 +39,10 @@ SW_API bool php_swoole_client_set(swoole::coroutine::Socket *cli, zval *zset);
 
 php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC);
 
+// timer
+SW_API bool php_swoole_timer_clear(swTimer_node *tnode);
+SW_API bool php_swoole_timer_clear_all();
+
 namespace zend {
 //-----------------------------------namespace begin--------------------------------------------
 class string

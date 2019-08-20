@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "server.h"
 #include "client.h"
 
@@ -778,7 +777,7 @@ int swProcessPool_wait(swProcessPool *pool)
                     memcpy(pool->reload_workers, pool->workers, sizeof(swWorker) * pool->worker_num);
                     if (pool->max_wait_time)
                     {
-                        swTimer_add(&SwooleG.timer, (long) (pool->max_wait_time * 1000), 0, pool, swProcessPool_killTimeout);
+                        swoole_timer_add((long) (pool->max_wait_time * 1000), SW_FALSE, swProcessPool_killTimeout, pool);
                     }
                 }
                 goto _kill_worker;

@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "swoole.h"
+#include "swoole_api.h"
 #include "context.h"
 #include "async.h"
 

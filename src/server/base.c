@@ -14,7 +14,6 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
 #include "server.h"
 
 static int swFactory_start(swFactory *factory);

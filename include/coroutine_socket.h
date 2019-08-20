@@ -437,7 +437,7 @@ private:
                 enabled = true;
                 if (timeout > 0)
                 {
-                    *timer_pp = swTimer_add(sw_timer(), (long) (timeout * 1000), 0, socket_, callback);
+                    *timer_pp = swoole_timer_add((long) (timeout * 1000), SW_FALSE, callback, socket_);
                     return *timer_pp != nullptr;
                 }
                 else // if (timeout < 0)
@@ -453,7 +453,7 @@ private:
             {
                 if (*timer_pp != (swTimer_node *) -1)
                 {
-                    swTimer_del(sw_timer(), *timer_pp);
+                    swoole_timer_del(*timer_pp);
                 }
                 *timer_pp = nullptr;
             }

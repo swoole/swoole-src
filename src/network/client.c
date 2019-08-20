@@ -14,7 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
+#include "swoole_api.h"
 #include "server.h"
 #include "client.h"
 #include "socks5.h"
@@ -48,7 +48,7 @@ static sw_inline void execute_onConnect(swClient *cli)
 {
     if (cli->timer)
     {
-        swTimer_del(&SwooleG.timer, cli->timer);
+        swoole_timer_del(cli->timer);
         cli->timer = NULL;
     }
     cli->onConnect(cli);
@@ -522,7 +522,7 @@ static int swClient_close(swClient *cli)
         }
         if (cli->timer)
         {
-            swTimer_del(&SwooleG.timer, cli->timer);
+            swoole_timer_del(cli->timer);
             cli->timer = NULL;
         }
         //onClose callback
@@ -760,7 +760,7 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         }
         if (timeout > 0)
         {
-            cli->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, cli, swClient_onTimeout);
+            cli->timer = swoole_timer_add((long) (timeout * 1000), SW_FALSE, swClient_onTimeout, cli);
         }
         return SW_OK;
     }

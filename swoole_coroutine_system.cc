@@ -223,7 +223,7 @@ static int co_socket_onReadable(swReactor *reactor, swEvent *event)
 
     if (sock->timer)
     {
-        swTimer_del(&SwooleG.timer, sock->timer);
+        swoole_timer_del(sock->timer);
         sock->timer = NULL;
     }
 
@@ -266,7 +266,7 @@ static int co_socket_onWritable(swReactor *reactor, swEvent *event)
 
     if (sock->timer)
     {
-        swTimer_del(&SwooleG.timer, sock->timer);
+        swoole_timer_del(sock->timer);
         sock->timer = NULL;
     }
 

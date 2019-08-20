@@ -14,7 +14,6 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole_api.h"
 #include "server.h"
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
@@ -410,7 +409,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     /**
      * 1 second timer, update serv->gs->now
      */
-    if ((serv->master_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
+    if ((serv->master_timer = swoole_timer_add(1000, SW_TRUE, swServer_master_onTimer, serv)) == NULL)
     {
         _fail: swReactor_free_output_buffer(n_buffer);
         swoole_event_free();
@@ -424,7 +423,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
      */
     if (serv->heartbeat_check_interval > 0)
     {
-        serv->heartbeat_timer = swTimer_add(&SwooleG.timer, (long) (serv->heartbeat_check_interval * 1000), 1, reactor, swReactorProcess_onTimeout);
+        serv->heartbeat_timer = swoole_timer_add((long) (serv->heartbeat_check_interval * 1000), SW_TRUE, swReactorProcess_onTimeout, reactor);
         if (serv->heartbeat_timer == NULL)
         {
             goto _fail;

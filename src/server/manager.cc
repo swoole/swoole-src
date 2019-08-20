@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "server.h"
 
 #include <unordered_map>
@@ -104,7 +103,7 @@ static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int 
     /**
      * Multiply max_wait_time by 2 to prevent conflict with worker
      */
-    swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 2 * 1000), 0, _list, swManager_kill_timeout_process);
+    swoole_timer_after((long) (serv->max_wait_time * 2 * 1000), swManager_kill_timeout_process, _list);
 }
 
 //create worker child proccess
@@ -296,7 +295,7 @@ static int swManager_loop(swServer *serv)
 
     if (serv->manager_alarm > 0)
     {
-        swTimer_add(&SwooleG.timer, (long) (serv->manager_alarm * 1000), 1, serv, swManager_onTimer);
+        swoole_timer_add((long) (serv->manager_alarm * 1000), SW_TRUE, swManager_onTimer, serv);
     }
 
     while (SwooleG.running > 0)

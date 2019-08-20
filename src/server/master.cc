@@ -795,7 +795,7 @@ int swServer_shutdown(swServer *serv)
         }
         if (serv->master_timer)
         {
-            swTimer_del(&SwooleG.timer, serv->master_timer);
+            swoole_timer_del(serv->master_timer);
             serv->master_timer = NULL;
         }
     }
