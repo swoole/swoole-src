@@ -17,15 +17,22 @@
 #include "swoole_api.h"
 
 #ifdef SW_CO_MT
+#include <mutex>
+#include <thread>
 #define sw_reactor()           (SwooleTG.reactor)
+std::once_flag init_flag;
 #else
 #define sw_reactor()           (SwooleG.main_reactor)
 #endif
 
 int swoole_event_init()
 {
-    swoole_init();
-    sw_reactor() = (swReactor *) sw_malloc(sizeof(swReactor));
+#ifdef SW_CO_MT
+    call_once(init_flag, swoole_init);
+    SwooleTG.reactor = (swReactor *) sw_malloc(sizeof(swReactor));
+#else
+    SwooleG.main_reactor = (swReactor *) sw_malloc(sizeof(swReactor));
+#endif
     if (!sw_reactor())
     {
         swSysWarn("malloc failed.");
