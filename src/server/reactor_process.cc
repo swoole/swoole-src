@@ -53,6 +53,12 @@ int swReactorProcess_create(swServer *serv)
     return SW_OK;
 }
 
+void swReactorProcess_free(swServer *serv)
+{
+    serv->factory.free(&serv->factory);
+    sw_free(serv->connection_list);
+}
+
 int swReactorProcess_start(swServer *serv)
 {
     swListenPort *ls;
@@ -588,15 +594,13 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     }
 
     int fd;
-    int serv_max_fd;
-    int serv_min_fd;
     int checktime;
 
     bzero(&notify_ev, sizeof(notify_ev));
     notify_ev.type = SW_FD_SESSION;
 
-    serv_max_fd = swServer_get_maxfd(serv);
-    serv_min_fd = swServer_get_minfd(serv);
+    int serv_max_fd = swServer_get_maxfd(serv);
+    int serv_min_fd = swServer_get_minfd(serv);
 
     checktime = serv->gs->now - serv->heartbeat_idle_time;
 

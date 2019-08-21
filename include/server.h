@@ -743,7 +743,6 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
 
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
-#define SW_SERVER_TIMER_FD_INDEX        2 //for timerfd
 
 // connection_list[0] => the largest fd
 #define swServer_set_maxfd(serv,maxfd) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd=maxfd)
@@ -1012,6 +1011,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
 
 int swReactorProcess_create(swServer *serv);
 int swReactorProcess_start(swServer *serv);
+void swReactorProcess_free(swServer *serv);
 
 int swManager_start(swServer *serv);
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);

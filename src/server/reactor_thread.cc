@@ -789,15 +789,12 @@ int swReactorThread_create(swServer *serv)
         swError("calloc[1] failed");
         return SW_ERR;
     }
-
-    //create factry object
     if (serv->worker_num < 1)
     {
         swError("Fatal Error: serv->worker_num < 1");
         return SW_ERR;
     }
     ret = swFactoryProcess_create(&(serv->factory), serv->worker_num);
-
     if (ret < 0)
     {
         swError("create factory failed");
@@ -1229,7 +1226,17 @@ void swReactorThread_free(swServer *serv)
     {
         return;
     }
-
+    /**
+     * free worker pipe
+     */
+    serv->factory.free(&serv->factory);
+    if (!serv->single_thread)
+    {
+        return;
+    }
+    /**
+     * kill threads
+     */
     for (i = 0; i < serv->reactor_num; i++)
     {
         thread = &(serv->reactor_threads[i]);

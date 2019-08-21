@@ -840,8 +840,9 @@ static int swServer_destory(swServer *serv)
         {
             swProcessPool_shutdown(&serv->gs->task_workers);
         }
+        swReactorProcess_free(serv);
     }
-    else if (!serv->single_thread)
+    else
     {
         swTraceLog(SW_TRACE_SERVER, "terminate reactor threads");
         /**
@@ -863,13 +864,6 @@ static int swServer_destory(swServer *serv)
     if (SwooleG.null_fd > 0)
     {
         close(SwooleG.null_fd);
-    }
-    /**
-     * free worker pipe
-     */
-    if (serv->factory.free)
-    {
-        serv->factory.free(&serv->factory);
     }
     swSignal_clear();
     /**
