@@ -22,9 +22,9 @@ using namespace std;
 using namespace swoole;
 
 #ifdef SW_CO_MT
-#define sw_timer()           &SwooleTG.timer
+#define sw_timer()           (&SwooleTG.timer)
 #else
-#define sw_timer()           &SwooleG.timer
+#define sw_timer()           (&SwooleG.timer)
 #endif
 
 swTimer_node* swoole_timer_add(long ms, uchar persistent, swTimerCallback callback, void *private_data)

@@ -18,9 +18,7 @@ const int THREAD_N = 4;
 
 void co_thread(int i)
 {
-    swReactor reactor;
-    SwooleTG.reactor = &reactor;
-    swReactor_create(SwooleTG.reactor, 4096);
+    swoole_event_init();
 
     co_param param = {9901 + i};
 
@@ -73,7 +71,7 @@ void co_thread(int i)
         }
     }, &param);
 
-    SwooleTG.reactor->wait(SwooleTG.reactor, nullptr);
+    swoole_event_wait();
 }
 
 int main(int argc, char **argv)
