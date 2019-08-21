@@ -78,3 +78,11 @@ void swoole_event_defer(swCallback cb, void *private_data)
 {
     sw_reactor()->defer(sw_reactor(), cb, private_data);
 }
+
+/**
+ * @return SW_OK or SW_ERR
+ */
+int swoole_event_write(int fd, const void *data, size_t len)
+{
+    return sw_reactor()->write(sw_reactor(), fd, data, len);
+}

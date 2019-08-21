@@ -567,7 +567,7 @@ static PHP_FUNCTION(swoole_event_write)
     }
 
     check_reactor();
-    if (SwooleG.main_reactor->write(SwooleG.main_reactor, socket_fd, data, len) < 0)
+    if (swoole_event_write(socket_fd, data, len) < 0)
     {
         RETURN_FALSE;
     }
