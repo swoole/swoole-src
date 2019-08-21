@@ -28,8 +28,7 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker);
 
 static void swProcessPool_free(swProcessPool *pool);
 
-
-static void swProcessPool_killTimeout(swTimer *timer, swTimer_node *tnode)
+static void swProcessPool_kill_timeout_worker(swTimer *timer, swTimer_node *tnode)
 {
     int i;
     pid_t reload_worker_pid = 0;
@@ -777,7 +776,7 @@ int swProcessPool_wait(swProcessPool *pool)
                     memcpy(pool->reload_workers, pool->workers, sizeof(swWorker) * pool->worker_num);
                     if (pool->max_wait_time)
                     {
-                        swoole_timer_add((long) (pool->max_wait_time * 1000), SW_FALSE, swProcessPool_killTimeout, pool);
+                        swoole_timer_add((long) (pool->max_wait_time * 1000), SW_FALSE, swProcessPool_kill_timeout_worker, pool);
                     }
                 }
                 goto _kill_worker;
