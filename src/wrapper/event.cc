@@ -40,17 +40,17 @@ int swoole_event_init()
     return SW_OK;
 }
 
-uchar swoole_event_add(int fd, int events, int fdtype)
+int swoole_event_add(int fd, int events, int fdtype)
 {
-    return sw_reactor()->add(sw_reactor(), fd, fdtype | events) == SW_OK;
+    return sw_reactor()->add(sw_reactor(), fd, fdtype | events);
 }
 
-uchar swoole_event_set(int fd, int events, int fdtype)
+int swoole_event_set(int fd, int events, int fdtype)
 {
-    return sw_reactor()->set(sw_reactor(), fd, fdtype | events) == SW_OK;
+    return sw_reactor()->set(sw_reactor(), fd, fdtype | events);
 }
 
-uchar swoole_event_del(int fd)
+int swoole_event_del(int fd)
 {
     return sw_reactor()->del(sw_reactor(), fd);
 }

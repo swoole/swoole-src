@@ -20,7 +20,7 @@
 #include "connection.h"
 #include "http2.h"
 
-int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn)
+int swHttp2_send_setting_frame(swProtocol *protocol, swSocket *_socket)
 {
     char setting_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_SETTING_OPTION_SIZE * 3];
     char *p = setting_frame;
@@ -47,7 +47,7 @@ int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn)
     value = htonl(SW_HTTP2_MAX_MAX_FRAME_SIZE);
     memcpy(p + 2, &value, sizeof(value));
 
-    return swConnection_send(conn, setting_frame, sizeof(setting_frame), 0);
+    return swConnection_send(_socket, setting_frame, sizeof(setting_frame), 0);
 }
 
 /**
@@ -61,7 +61,7 @@ int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn)
  |                   Frame Payload (0...)                      ...
  +---------------------------------------------------------------+
  */
-ssize_t swHttp2_get_frame_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length)
+ssize_t swHttp2_get_frame_length(swProtocol *protocol, swSocket *conn, char *buf, uint32_t length)
 {
     if (length < SW_HTTP2_FRAME_HEADER_SIZE)
     {

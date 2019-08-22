@@ -214,13 +214,13 @@ int static_handler::send_response()
     response.data = header_buffer;
 
 #ifdef HAVE_TCP_NOPUSH
-    if (conn->tcp_nopush == 0)
+    if (conn->socket->tcp_nopush == 0)
     {
         if (swSocket_tcp_nopush(conn->fd, 1) == -1)
         {
             swSysWarn("swSocket_tcp_nopush() failed");
         }
-        conn->tcp_nopush = 1;
+        conn->socket->tcp_nopush = 1;
     }
 #endif
     swServer_master_send(serv, &response);

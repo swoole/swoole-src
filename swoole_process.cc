@@ -847,10 +847,10 @@ static PHP_METHOD(swoole_process, write)
     //async write
     if (SwooleG.main_reactor)
     {
-        swConnection *_socket = swReactor_get(SwooleG.main_reactor, process->pipe);
+        swSocket *_socket = swReactor_get(SwooleG.main_reactor, process->pipe);
         if (_socket && _socket->nonblock)
         {
-            ret = SwooleG.main_reactor->write(SwooleG.main_reactor, process->pipe, data, (size_t) data_len);
+            ret = swoole_event_write(process->pipe, data, (size_t) data_len);
         }
         else
         {
@@ -1231,7 +1231,7 @@ static PHP_METHOD(swoole_process, setBlocking)
     }
     if (SwooleG.main_reactor)
     {
-        swConnection *_socket = swReactor_get(SwooleG.main_reactor, process->pipe);
+        swSocket *_socket = swReactor_get(SwooleG.main_reactor, process->pipe);
         if (_socket)
         {
             _socket->nonblock = blocking ? 0 : 1;

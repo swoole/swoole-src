@@ -160,7 +160,7 @@ static void swSSL_lock_callback(int mode, int type, char *file, int line)
     }
 }
 
-static sw_inline void swSSL_clear_error(swConnection *conn)
+static sw_inline void swSSL_clear_error(swSocket *conn)
 {
     ERR_clear_error();
     conn->ssl_want_read = 0;
@@ -470,7 +470,7 @@ static int swSSL_check_name(char *name, ASN1_STRING *pattern)
 }
 #endif
 
-int swSSL_check_host(swConnection *conn, char *tls_host_name)
+int swSSL_check_host(swSocket *conn, char *tls_host_name)
 {
     X509 *cert = SSL_get_peer_certificate(conn->ssl);
     if (cert == NULL)
@@ -574,7 +574,7 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
     return SW_OK;
 }
 
-int swSSL_verify(swConnection *conn, int allow_self_signed)
+int swSSL_verify(swSocket *conn, int allow_self_signed)
 {
     int err = SSL_get_verify_result(conn->ssl);
     switch (err)
@@ -654,7 +654,7 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
     return SW_ERR;
 }
 
-int swSSL_accept(swConnection *conn)
+int swSSL_accept(swSocket *conn)
 {
     swSSL_clear_error(conn);
 
@@ -699,7 +699,8 @@ int swSSL_accept(swConnection *conn)
     else if (err == SSL_ERROR_SSL)
     {
         int reason = ERR_GET_REASON(ERR_peek_error());
-        swWarn("bad SSL client[%s:%d], reason=%d", swConnection_get_ip(conn), swConnection_get_port(conn), reason);
+        swWarn("bad SSL client[%s:%d], reason=%d", swConnection_get_ip(conn->socket_type, &conn->info),
+                swConnection_get_port(conn->socket_type, &conn->info), reason);
         return SW_ERROR;
     }
     //EOF was observed
@@ -711,7 +712,7 @@ int swSSL_accept(swConnection *conn)
     return SW_ERROR;
 }
 
-int swSSL_connect(swConnection *conn)
+int swSSL_connect(swSocket *conn)
 {
     swSSL_clear_error(conn);
 
@@ -765,7 +766,7 @@ int swSSL_connect(swConnection *conn)
     return SW_ERR;
 }
 
-int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size)
+int swSSL_sendfile(swSocket *conn, int fd, off_t *offset, size_t size)
 {
     char buf[SW_BUFFER_SIZE_BIG];
     int readn = size > sizeof(buf) ? sizeof(buf) : size;
@@ -797,7 +798,7 @@ int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size)
     }
 }
 
-void swSSL_close(swConnection *conn)
+void swSSL_close(swSocket *conn)
 {
     int n, sslerr, err;
 
@@ -839,7 +840,7 @@ void swSSL_close(swConnection *conn)
     conn->ssl = NULL;
 }
 
-static sw_inline void swSSL_connection_error(swConnection *conn)
+static sw_inline void swSSL_connection_error(swSocket *conn)
 {
     int level = SW_LOG_NOTICE;
     int reason = ERR_GET_REASON(ERR_peek_error());
@@ -910,11 +911,12 @@ static sw_inline void swSSL_connection_error(swConnection *conn)
         break;
 #endif
 
-    swoole_error_log(level, SW_ERROR_SSL_BAD_PROTOCOL, "SSL connection#%d[%s:%d] protocol error[%d]", conn->session_id,
-            swConnection_get_ip(conn), swConnection_get_port(conn), reason);
+    swoole_error_log(level, SW_ERROR_SSL_BAD_PROTOCOL, "SSL connection#%d[%s:%d] protocol error[%d]", conn->fd,
+            swConnection_get_ip(conn->socket_type, &conn->info), swConnection_get_port(conn->socket_type, &conn->info),
+            reason);
 }
 
-ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
+ssize_t swSSL_recv(swSocket *conn, void *__buf, size_t __n)
 {
     swSSL_clear_error(conn);
 
@@ -949,7 +951,7 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
     return n;
 }
 
-ssize_t swSSL_send(swConnection *conn, const void *__buf, size_t __n)
+ssize_t swSSL_send(swSocket *conn, const void *__buf, size_t __n)
 {
     swSSL_clear_error(conn);
 
@@ -984,7 +986,7 @@ ssize_t swSSL_send(swConnection *conn, const void *__buf, size_t __n)
     return n;
 }
 
-int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags)
+int swSSL_create(swSocket *conn, SSL_CTX* ssl_context, int flags)
 {
     swSSL_clear_error(conn);
 

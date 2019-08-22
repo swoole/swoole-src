@@ -1231,7 +1231,7 @@ static PHP_METHOD(swoole_http_response, __destruct)
             {
                 swServer *serv = (swServer *) ctx->private_data;
                 swConnection *conn = swWorker_get_connection(serv, ctx->fd);
-                if (!conn || conn->closed || conn->removed || ctx->detached)
+                if (!conn || conn->closed || conn->peer_closed || ctx->detached)
                 {
                     swoole_http_context_free(ctx);
                     ctx = nullptr;

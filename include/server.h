@@ -134,7 +134,7 @@ typedef struct _swListenPort
     uint32_t buffer_high_watermark;
     uint32_t buffer_low_watermark;
 
-    uint8_t type;
+    enum swSocket_type type;
     uint8_t ssl;
     int port;
     int sock;
@@ -619,7 +619,7 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp);
 void swServer_init(swServer *serv);
 void swServer_signal_init(swServer *serv);
 int swServer_start(swServer *serv);
-swListenPort* swServer_add_port(swServer *serv, int type, const char *host, int port);
+swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const char *host, int port);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
 int swServer_add_systemd_socket(swServer *serv);
@@ -706,8 +706,8 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
 int swTaskWorker_onFinish(swReactor *reactor, swEvent *event);
 void swTaskWorker_onStart(swProcessPool *pool, int worker_id);
 void swTaskWorker_onStop(swProcessPool *pool, int worker_id);
-int swTaskWorker_large_pack(swEventData *task, void *data, int data_len);
-int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swEventData *current_task);
+int swTaskWorker_large_pack(swEventData *task, const void *data, size_t data_len);
+int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int flags, swEventData *current_task);
 
 #define swTask_type(task)                  ((task)->info.server_fd)
 
@@ -957,7 +957,7 @@ static sw_inline swConnection *swServer_connection_verify(swServer *serv, int se
     {
         return NULL;
     }
-    if (conn->ssl && conn->ssl_state != SW_SSL_STATE_READY)
+    if (conn->ssl && !conn->ssl_ready)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SSL_NOT_READY, "SSL not ready");
         return NULL;
@@ -1006,7 +1006,7 @@ int swReactorThread_start(swServer *serv);
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_free(swServer *serv);
 int swReactorThread_close(swReactor *reactor, int fd);
-int swReactorThread_dispatch(swProtocol *proto, swConnection *conn, char *data, uint32_t length);
+int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, char *data, uint32_t length);
 int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, int len);
 
 int swReactorProcess_create(swServer *serv);

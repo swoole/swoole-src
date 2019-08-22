@@ -66,11 +66,11 @@ static sw_inline enum swBool_type swReactorKqueue_fetch_event(swReactor *reactor
     return SW_TRUE;
 }
 
-static sw_inline void swReactorKqueue_del_once_socket(swReactor *reactor, swConnection *socket)
+static sw_inline void swReactorKqueue_del_once_socket(swReactor *reactor, swSocket *socket)
 {
     if ((socket->events & SW_EVENT_ONCE) && !socket->removed)
     {
-        reactor->del(reactor, socket->fd);
+        swReactorKqueue_del(reactor, socket->fd, socket->fdtype);
     }
 }
 
@@ -241,7 +241,7 @@ static int swReactorKqueue_del(swReactor *reactor, int fd)
     struct kevent e;
     int ret;
 
-    swConnection *socket = swReactor_get(reactor, fd);
+    swSocket *socket = swReactor_get(reactor, fd);
 
     if (socket->events & SW_EVENT_READ)
     {

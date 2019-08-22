@@ -509,6 +509,7 @@ bool http_client::decompress_response(const char *in, size_t in_len)
     default:
         abort();
     }
+    return false;
 }
 #endif
 

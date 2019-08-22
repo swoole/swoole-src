@@ -571,15 +571,16 @@ int swHttpRequest_get_header_length(swHttpRequest *request)
 }
 
 #ifdef SW_USE_HTTP2
-ssize_t swHttpMix_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
+ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *socket, char *data, uint32_t length)
 {
+    swConnection *conn = (swConnection *) socket->object;
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
     {
-        return swWebSocket_get_package_length(protocol, conn, data, length);
+        return swWebSocket_get_package_length(protocol, socket, data, length);
     }
     else if (conn->http2_stream)
     {
-        return swHttp2_get_frame_length(protocol, conn, data, length);
+        return swHttp2_get_frame_length(protocol, socket, data, length);
     }
     else
     {
@@ -588,8 +589,9 @@ ssize_t swHttpMix_get_package_length(swProtocol *protocol, swConnection *conn, c
     }
 }
 
-uint8_t swHttpMix_get_package_length_size(swConnection *conn)
+uint8_t swHttpMix_get_package_length_size(swSocket *socket)
 {
+    swConnection *conn = (swConnection *) socket->object;
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
     {
         return SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
@@ -605,15 +607,16 @@ uint8_t swHttpMix_get_package_length_size(swConnection *conn)
     }
 }
 
-int swHttpMix_dispatch_frame(swProtocol *proto, swConnection *conn, char *data, uint32_t length)
+int swHttpMix_dispatch_frame(swProtocol *proto, swSocket *socket, char *data, uint32_t length)
 {
+    swConnection *conn = (swConnection *) socket->object;
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
     {
-        return swWebSocket_dispatch_frame(proto, conn, data, length);
+        return swWebSocket_dispatch_frame(proto, socket, data, length);
     }
     else if (conn->http2_stream)
     {
-        return swReactorThread_dispatch(proto, conn, data, length);
+        return swReactorThread_dispatch(proto, socket, data, length);
     }
     else
     {

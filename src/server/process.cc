@@ -418,7 +418,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists", session_id);
         return SW_ERR;
     }
-    else if ((conn->closed || conn->removed) && resp->info.type != SW_EVENT_CLOSE)
+    else if ((conn->closed || conn->peer_closed) && resp->info.type != SW_EVENT_CLOSE)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED,
                 "send %d byte failed, because connection[fd=%d] is closed", resp->info.len, session_id);

@@ -353,8 +353,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     }
 #endif
 
-    reactor->thread = 1;
-    reactor->socket_list = serv->connection_list;
     reactor->max_socket = serv->max_connection;
 
     reactor->disable_accept = 0;
@@ -383,7 +381,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     if (serv->task_worker_num > 0)
     {
         swPipe *p;
-        swConnection *psock;
+        swSocket *psock;
         int pfd;
 
         if (serv->task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
@@ -615,7 +613,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
                 continue;
             }
 #ifdef SW_USE_OPENSSL
-            if (conn->ssl && conn->ssl_state != SW_SSL_STATE_READY)
+            if (conn->socket->ssl && conn->socket->ssl_state != SW_SSL_STATE_READY)
             {
                 swReactorThread_close(reactor, fd);
                 continue;

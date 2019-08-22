@@ -108,7 +108,7 @@ enum
 class Server
 {
 public:
-    Server(string _host, int _port, int _mode = SW_MODE_PROCESS, int _type = SW_SOCK_TCP);
+    Server(string _host, int _port, int _mode = SW_MODE_PROCESS, enum swSocket_type _type = SW_SOCK_TCP);
 
     virtual ~Server()
     {
@@ -117,7 +117,7 @@ public:
 
     bool start(void);
     void setEvents(int _events);
-    bool listen(string host, int port, int type);
+    bool listen(string host, int port,  enum swSocket_type type);
     bool send(int fd, const char *data, int length);
     bool send(int fd, const DataBuffer &data);
     bool sendfile(int fd, string &file, off_t offset = 0, size_t length = 0);

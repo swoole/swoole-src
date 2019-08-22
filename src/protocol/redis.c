@@ -63,7 +63,7 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
     buf_ptr = buffer->str + buffer->length;
     buf_size = buffer->size - buffer->length;
 
-    int n = swConnection_recv(conn, buf_ptr, buf_size, 0);
+    int n = swConnection_recv(conn->socket, buf_ptr, buf_size, 0);
     if (n < 0)
     {
         switch (swConnection_error(errno))
@@ -72,7 +72,6 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
             swSysWarn("recv from socket#%d failed", conn->fd);
             return SW_OK;
         case SW_CLOSE:
-            conn->close_errno = errno;
             return SW_ERR;
         default:
             return SW_OK;
@@ -162,11 +161,11 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
 
                     if (request->n_lines_received == request->n_lines_total)
                     {
-                        if (protocol->onPackage(protocol, conn, buffer->str, buffer->length) < 0)
+                        if (protocol->onPackage(protocol, conn->socket, buffer->str, buffer->length) < 0)
                         {
                             return SW_ERR;
                         }
-                        if (conn->removed)
+                        if (conn->peer_closed)
                         {
                             return SW_OK;
                         }

@@ -68,7 +68,7 @@ int swAio_init(void)
     _pipe_write = _aio_pipe.getFd(&_aio_pipe, 1);
 
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_AIO, swAio_onCompleted);
-    SwooleG.main_reactor->add(SwooleG.main_reactor, _pipe_read, SW_FD_AIO);
+    swoole_event_add(_pipe_read, SW_FD_AIO);
 
     if (swThreadPool_run(&pool) < 0)
     {

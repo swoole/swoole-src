@@ -14,7 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
+#include "swoole_api.h"
 #include "async.h"
 
 #include <thread>
@@ -31,7 +31,8 @@ typedef swAio_event async_event;
 swAsyncIO SwooleAIO;
 
 static void swAio_free(void *private_data);
-static int swAio_callback(swReactor *reactor, swEvent *_event)
+
+int swAio_callback(swReactor *reactor, swEvent *_event)
 {
     int i;
     async_event *events[SW_AIO_EVENT_NUM];
@@ -105,9 +106,7 @@ public:
         }
         _pipe_read = _aio_pipe.getFd(&_aio_pipe, 0);
         _pipe_write = _aio_pipe.getFd(&_aio_pipe, 1);
-
-        swReactor_set_handler(SwooleG.main_reactor, SW_FD_AIO, swAio_callback);
-        SwooleG.main_reactor->add(SwooleG.main_reactor, _pipe_read, SW_FD_AIO);
+        swoole_event_add(_pipe_read, SW_EVENT_READ, SW_FD_AIO);
     }
 
     ~async_thread_pool()
@@ -115,7 +114,7 @@ public:
         shutdown();
         if (SwooleG.main_reactor)
         {
-            SwooleG.main_reactor->del(SwooleG.main_reactor, _pipe_read);
+            swoole_event_del(_pipe_read);
         }
         _aio_pipe.close(&_aio_pipe);
     }

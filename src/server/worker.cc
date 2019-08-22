@@ -24,7 +24,7 @@
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamRead(swReactor *reactor, swEvent *event);
-static int swWorker_onStreamPackage(swProtocol *proto, swConnection *conn, char *data, uint32_t length);
+static int swWorker_onStreamPackage(swProtocol *proto, swSocket *conn, char *data, uint32_t length);
 static int swWorker_onStreamClose(swReactor *reactor, swEvent *event);
 static int swWorker_reactor_is_empty(swReactor *reactor);
 
@@ -142,13 +142,11 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
         }
     }
 
-    swConnection *conn = swReactor_get(reactor, fd);
+    swSocket *conn = swReactor_get(reactor, fd);
     bzero(conn, sizeof(swConnection));
     conn->fd = fd;
-    conn->active = 1;
     conn->socket_type = SW_SOCK_UNIX_STREAM;
     conn->nonblock = 1;
-    memcpy(&conn->info.addr, &client_addr, sizeof(client_addr));
 
     if (reactor->add(reactor, fd, SW_FD_STREAM | SW_EVENT_READ) < 0)
     {
@@ -160,7 +158,7 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
 
 static int swWorker_onStreamRead(swReactor *reactor, swEvent *event)
 {
-    swConnection *conn = event->socket;
+    swSocket *conn = event->socket;
     swServer *serv = (swServer *) reactor->ptr;
     swProtocol *protocol = &serv->stream_protocol;
     swString *buffer;
@@ -194,12 +192,12 @@ static int swWorker_onStreamRead(swReactor *reactor, swEvent *event)
 
 static int swWorker_onStreamClose(swReactor *reactor, swEvent *event)
 {
-    swConnection *conn = event->socket;
+    swSocket *conn = event->socket;
     swServer *serv = (swServer *) reactor->ptr;
 
     swString_clear(conn->recv_buffer);
     swLinkedList_append(serv->buffer_pool, conn->recv_buffer);
-    conn->recv_buffer = NULL;
+    conn->recv_buffer = nullptr;
 
     reactor->del(reactor, conn->fd);
     reactor->close(reactor, conn->fd);
@@ -207,7 +205,7 @@ static int swWorker_onStreamClose(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-static int swWorker_onStreamPackage(swProtocol *proto, swConnection *conn, char *data, uint32_t length)
+static int swWorker_onStreamPackage(swProtocol *proto, swSocket *conn, char *data, uint32_t length)
 {
     swServer *serv = (swServer *) proto->private_data_2;
 
@@ -539,7 +537,7 @@ void swWorker_stop(swWorker *worker)
         for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
         {
             swConnection *conn = swServer_connection_get(serv, fd);
-            if (conn != NULL && conn->active && !conn->removed && conn->fdtype == SW_FD_SESSION)
+            if (conn != NULL && conn->active && !conn->peer_closed && conn->fdtype == SW_FD_SESSION)
             {
                 swReactor_remove_read_event(reactor, fd);
             }
@@ -675,7 +673,7 @@ int swWorker_loop(swServer *serv, int worker_id)
     for (int i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
         swWorker *_worker = swServer_get_worker(serv, i);
-        swConnection *pipe_socket;
+        swSocket *pipe_socket;
         pipe_socket = swReactor_get(reactor, _worker->pipe_master);
         pipe_socket->buffer_size = INT_MAX;
         pipe_socket->fdtype = SW_FD_PIPE;

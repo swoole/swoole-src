@@ -53,7 +53,7 @@ ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags
     {
         _no_coro: return ::send(sockfd, buf, len, flags);
     }
-    swConnection *conn = swReactor_get(SwooleG.main_reactor, sockfd);
+    swSocket *conn = swReactor_get(SwooleG.main_reactor, sockfd);
     if (conn == nullptr)
     {
         goto _no_coro;
@@ -68,7 +68,7 @@ ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags
     {
         _no_coro: return ::sendmsg(sockfd, msg, flags);
     }
-    swConnection *conn = swReactor_get(SwooleG.main_reactor, sockfd);
+    swSocket *conn = swReactor_get(SwooleG.main_reactor, sockfd);
     if (conn == nullptr)
     {
         goto _no_coro;
@@ -83,7 +83,7 @@ ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags)
     {
         _no_coro: return ::recvmsg(sockfd, msg, flags);
     }
-    swConnection *conn = swReactor_get(SwooleG.main_reactor, sockfd);
+    swSocket *conn = swReactor_get(SwooleG.main_reactor, sockfd);
     if (conn == nullptr)
     {
         goto _no_coro;
@@ -98,7 +98,7 @@ ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags)
     {
         _no_coro: return ::recv(sockfd, buf, len, flags);
     }
-    swConnection *conn = swReactor_get(SwooleG.main_reactor, sockfd);
+    swSocket *conn = swReactor_get(SwooleG.main_reactor, sockfd);
     if (conn == nullptr)
     {
         goto _no_coro;
@@ -120,7 +120,7 @@ int swoole_coroutine_close(int fd)
     {
         _no_coro: return close(fd);
     }
-    swConnection *conn = swReactor_get(SwooleG.main_reactor, fd);
+    swSocket *conn = swReactor_get(SwooleG.main_reactor, fd);
     if (conn == nullptr)
     {
         goto _no_coro;
@@ -143,7 +143,7 @@ int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t 
     {
         _no_coro: return connect(sockfd, addr, addrlen);
     }
-    swConnection *conn = swReactor_get(SwooleG.main_reactor, sockfd);
+    swSocket *conn = swReactor_get(SwooleG.main_reactor, sockfd);
     if (conn == nullptr)
     {
         goto _no_coro;
@@ -158,7 +158,7 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout)
     {
         _poll: return poll(fds, nfds, timeout);
     }
-    swConnection *conn = swReactor_get(SwooleG.main_reactor, fds[0].fd);
+    swSocket *conn = swReactor_get(SwooleG.main_reactor, fds[0].fd);
     if (conn == nullptr)
     {
         goto _poll;
@@ -289,7 +289,7 @@ ssize_t swoole_coroutine_read(int fd, void *buf, size_t count)
         return read(fd, buf, count);
     }
 
-    swConnection *conn = swReactor_get(SwooleG.main_reactor, fd);
+    swSocket *conn = swReactor_get(SwooleG.main_reactor, fd);
     if (conn && conn->fdtype == SW_FD_CORO_SOCKET)
     {
         Socket *socket = (Socket *) conn->object;
@@ -322,7 +322,7 @@ ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count)
         return write(fd, buf, count);
     }
 
-    swConnection *conn = swReactor_get(SwooleG.main_reactor, fd);
+    swSocket *conn = swReactor_get(SwooleG.main_reactor, fd);
     if (conn && conn->fdtype == SW_FD_CORO_SOCKET)
     {
         Socket *socket = (Socket *) conn->object;

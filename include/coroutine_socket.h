@@ -53,7 +53,7 @@ public:
     static double default_read_timeout;
     static double default_write_timeout;
 
-    swConnection *socket = nullptr;
+    swSocket *socket = nullptr;
     int errCode = 0;
     const char *errMsg = "";
 
@@ -346,16 +346,7 @@ private:
     std::string connect_host;
     int connect_port = 0;
 
-    struct
-    {
-        union
-        {
-            struct sockaddr_in inet_v4;
-            struct sockaddr_in6 inet_v6;
-            struct sockaddr_un un;
-        } addr;
-        socklen_t len;
-    } info;
+    swSocketAddress info;
 
     std::string bind_address;
     int bind_port = 0;

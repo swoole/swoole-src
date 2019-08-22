@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
+#include "swoole_api.h"
 
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
@@ -257,7 +257,10 @@ int swSignalfd_setup(swReactor *reactor)
             return SW_ERR;
         }
         swReactor_set_handler(reactor, SW_FD_SIGNAL, swSignalfd_onSignal);
-        reactor->add(reactor, signal_fd, SW_FD_SIGNAL);
+        if (swoole_event_add(signal_fd, SW_EVENT_READ, SW_FD_SIGNAL) < 0)
+        {
+            return SW_ERR;
+        }
         return SW_OK;
     }
     else

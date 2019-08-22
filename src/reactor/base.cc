@@ -15,15 +15,17 @@
 */
 
 #include "swoole.h"
+#include "server.h"
 #include "swoole_cxx.h"
-#include "connection.h"
 #include "async.h"
 
 #include "coroutine_c_api.h"
 #include "coroutine_socket.h"
+#include "coroutine_system.h"
 
 using swoole::CallbackManager;
 using swoole::coroutine::Socket;
+using swoole::coroutine::System;
 
 #ifdef SW_USE_MALLOC_TRIM
 #ifdef __APPLE__
@@ -70,6 +72,7 @@ int swReactor_create(swReactor *reactor, int max_event)
     reactor->default_write_handler = swReactor_onWrite;
 
     Socket::init_reactor(reactor);
+    System::init_reactor(reactor);
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE])
     {
@@ -205,7 +208,7 @@ static void reactor_begin(swReactor *reactor)
 
 int swReactor_close(swReactor *reactor, int fd)
 {
-    swConnection *socket = swReactor_get(reactor, fd);
+    swSocket *socket = swReactor_get(reactor, fd);
     if (socket->out_buffer)
     {
         swBuffer_free(socket->out_buffer);
@@ -214,11 +217,8 @@ int swReactor_close(swReactor *reactor, int fd)
     {
         swBuffer_free(socket->in_buffer);
     }
-    if (socket->websocket_buffer)
-    {
-        swString_free(socket->websocket_buffer);
-    }
-    bzero(socket, sizeof(swConnection));
+
+    bzero(socket, sizeof(swSocket));
     socket->removed = 1;
     swTraceLog(SW_TRACE_CLOSE, "fd=%d", fd);
     return close(fd);
@@ -227,7 +227,7 @@ int swReactor_close(swReactor *reactor, int fd)
 int swReactor_write(swReactor *reactor, int fd, const void *buf, int n)
 {
     int ret;
-    swConnection *socket = swReactor_get(reactor, fd);
+    swSocket *socket = swReactor_get(reactor, fd);
     swBuffer *buffer = socket->out_buffer;
     const char *ptr = (const char *) buf;
 
@@ -350,7 +350,7 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
     int ret;
     int fd = ev->fd;
 
-    swConnection *socket = swReactor_get(reactor, fd);
+    swSocket *socket = swReactor_get(reactor, fd);
     swBuffer_chunk *chunk = NULL;
     swBuffer *buffer = socket->out_buffer;
 
@@ -397,7 +397,7 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
 
 int swReactor_wait_write_buffer(swReactor *reactor, int fd)
 {
-    swConnection *conn = swReactor_get(reactor, fd);
+    swSocket *conn = swReactor_get(reactor, fd);
     swEvent event;
 
     if (!swBuffer_empty(conn->out_buffer))

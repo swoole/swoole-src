@@ -98,16 +98,15 @@ int Socket::error_event_callback(swReactor *reactor, swEvent *event)
 bool Socket::add_event(const enum swEvent_type event)
 {
     bool ret = true;
-    swReactor *reactor = get_reactor();
     if (sw_likely(!(socket->events & event)))
     {
         if (socket->removed)
         {
-            ret = reactor->add(reactor, sock_fd, SW_FD_CORO_SOCKET | event) == SW_OK;
+            ret = swoole_event_add(sock_fd, event, SW_FD_CORO_SOCKET) == SW_OK;
         }
         else
         {
-            ret = reactor->set(reactor, sock_fd, SW_FD_CORO_SOCKET | socket->events | event) == SW_OK;
+            ret = swoole_event_set(sock_fd, socket->events | event, SW_FD_CORO_SOCKET) == SW_OK;
         }
     }
     set_err(ret ? 0 : errno);
@@ -498,7 +497,7 @@ void Socket::init_reactor_socket(int _fd)
     }
 
     socket = swReactor_get(reactor, _fd);
-    bzero(socket, sizeof(swConnection));
+    bzero(socket, sizeof(swSocket));
     sock_fd = socket->fd = _fd;
     socket->object = this;
     socket->socket_type = type;
@@ -1864,14 +1863,14 @@ Socket::~Socket()
     }
     ssl_option = {0};
 #endif
-//    if (socket->in_buffer)
-//    {
-//        swBuffer_free(socket->in_buffer);
-//    }
-//    if (socket->out_buffer)
-//    {
-//        swBuffer_free(socket->out_buffer);
-//    }
+    if (socket->in_buffer)
+    {
+        swBuffer_free(socket->in_buffer);
+    }
+    if (socket->out_buffer)
+    {
+        swBuffer_free(socket->out_buffer);
+    }
     if (sock_domain == AF_UNIX && !bind_address.empty())
     {
         ::unlink(bind_address_info.addr.un.sun_path);
@@ -1885,6 +1884,6 @@ Socket::~Socket()
     {
         swSysWarn("close(%d) failed", sock_fd);
     }
-    bzero(socket, sizeof(swConnection));
+    bzero(socket, sizeof(swSocket));
     socket->removed = 1;
 }
