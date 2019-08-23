@@ -1221,27 +1221,33 @@ int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, char *data, u
     }
 }
 
-void swReactorThread_free(swServer *serv)
+void swReactorThread_join(swServer *serv)
 {
-    int i;
-    swReactorThread *thread;
-
-    if (!serv->gs->start)
-    {
-        return;
-    }
-    /**
-     * free worker pipe
-     */
-    serv->factory.free(&serv->factory);
     if (!serv->single_thread)
     {
         return;
     }
+    swReactorThread *thread;
+    /**
+     * Shutdown heartbeat thread
+     */
+    if (serv->heartbeat_pidt)
+    {
+        swTraceLog(SW_TRACE_SERVER, "terminate heartbeat thread");
+        if (pthread_cancel(serv->heartbeat_pidt) < 0)
+        {
+            swSysWarn("pthread_cancel(%ld) failed", (ulong_t )serv->heartbeat_pidt);
+        }
+        //wait thread
+        if (pthread_join(serv->heartbeat_pidt, NULL) < 0)
+        {
+            swSysWarn("pthread_join(%ld) failed", (ulong_t )serv->heartbeat_pidt);
+        }
+    }
     /**
      * kill threads
      */
-    for (i = 0; i < serv->reactor_num; i++)
+    for (int i = 0; i < serv->reactor_num; i++)
     {
         thread = &(serv->reactor_threads[i]);
         if (thread->notify_pipe)
@@ -1256,8 +1262,7 @@ void swReactorThread_free(swServer *serv)
         }
         else
         {
-            _cancel:
-            if (pthread_cancel(thread->thread_id) < 0)
+            _cancel: if (pthread_cancel(thread->thread_id) < 0)
             {
                 swSysWarn("pthread_cancel(%ld) failed", (long ) thread->thread_id);
             }
@@ -1268,6 +1273,12 @@ void swReactorThread_free(swServer *serv)
             swSysWarn("pthread_join(%ld) failed", (long ) thread->thread_id);
         }
     }
+}
+
+void swReactorThread_free(swServer *serv)
+{
+    serv->factory.free(&serv->factory);
+    sw_shm_free(serv->connection_list);
 }
 
 static void swHeartbeatThread_start(swServer *serv)

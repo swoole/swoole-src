@@ -827,22 +827,6 @@ static int swServer_destory(swServer *serv)
     {
         serv->factory.shutdown(&(serv->factory));
     }
-    /**
-     * Shutdown heartbeat thread
-     */
-    if (serv->heartbeat_pidt)
-    {
-        swTraceLog(SW_TRACE_SERVER, "terminate heartbeat thread");
-        if (pthread_cancel(serv->heartbeat_pidt) < 0)
-        {
-            swSysWarn("pthread_cancel(%ld) failed", (ulong_t )serv->heartbeat_pidt);
-        }
-        //wait thread
-        if (pthread_join(serv->heartbeat_pidt, NULL) < 0)
-        {
-            swSysWarn("pthread_join(%ld) failed", (ulong_t )serv->heartbeat_pidt);
-        }
-    }
     if (serv->factory_mode == SW_MODE_BASE)
     {
         swTraceLog(SW_TRACE_SERVER, "terminate task workers");
@@ -850,7 +834,6 @@ static int swServer_destory(swServer *serv)
         {
             swProcessPool_shutdown(&serv->gs->task_workers);
         }
-        swReactorProcess_free(serv);
     }
     else
     {
@@ -858,7 +841,7 @@ static int swServer_destory(swServer *serv)
         /**
          * Wait until all the end of the thread
          */
-        swReactorThread_free(serv);
+        swReactorThread_join(serv);
     }
 
     swListenPort *port;
@@ -887,6 +870,14 @@ static int swServer_destory(swServer *serv)
     if (serv->onShutdown)
     {
         serv->onShutdown(serv);
+    }
+    if (serv->factory_mode == SW_MODE_BASE)
+    {
+        swReactorProcess_free(serv);
+    }
+    else
+    {
+        swReactorThread_free(serv);
     }
     serv->lock.free(&serv->lock);
     SwooleG.serv = nullptr;

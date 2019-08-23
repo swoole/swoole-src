@@ -70,7 +70,7 @@ static sw_inline void swReactorKqueue_del_once_socket(swReactor *reactor, swSock
 {
     if ((socket->events & SW_EVENT_ONCE) && !socket->removed)
     {
-        swReactorKqueue_del(reactor, socket->fd, socket->fdtype);
+        swReactorKqueue_del(reactor, socket->fd);
     }
 }
 
