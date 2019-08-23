@@ -38,6 +38,8 @@ enum swHttp_method
     SW_HTTP_REPORT, SW_HTTP_MKACTIVITY, SW_HTTP_CHECKOUT, SW_HTTP_MERGE,
     /* upnp */
     SW_HTTP_MSEARCH, SW_HTTP_NOTIFY, SW_HTTP_SUBSCRIBE, SW_HTTP_UNSUBSCRIBE,
+    /* proxy */
+    SW_HTTP_PURGE,
     /* Http2 */
     SW_HTTP_PRI,
 };
