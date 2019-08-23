@@ -375,7 +375,7 @@ static void swReactorThread_shutdown(swReactor *reactor)
             continue;
         }
         swConnection *conn = swServer_connection_get(serv, fd);
-        if (conn != NULL && conn->active && !conn->peer_closed && conn->fdtype == SW_FD_SESSION)
+        if (conn && conn->socket && conn->active && !conn->peer_closed && conn->socket->fdtype == SW_FD_SESSION)
         {
             swReactor_remove_read_event(reactor, fd);
         }
@@ -1318,7 +1318,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
             swTrace("check fd=%d", fd);
             conn = swServer_connection_get(serv, fd);
 
-            if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_SESSION)
+            if (conn && conn->socket && conn->active == 1 && conn->closed == 0 && conn->socket->fdtype == SW_FD_SESSION)
             {
                 if (conn->protect || conn->last_time > checktime)
                 {

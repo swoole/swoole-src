@@ -137,12 +137,10 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         //add to connection_list
         swConnection *conn = swServer_connection_new(serv, listen_host, new_fd, event->fd, reactor_id);
         memcpy(&conn->info.addr, &event->socket->info, sizeof(event->socket->info));
-       
         conn->socket_type = listen_host->type;
 
-        swSocket *_socket = swReactor_get(reactor, conn->fd);
-
 #ifdef SW_USE_OPENSSL
+        swSocket *_socket = swReactor_get(reactor, conn->fd);
         if (listen_host->ssl)
         {
             if (swSSL_create(_socket, listen_host->ssl_context, 0) < 0)
@@ -1040,7 +1038,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     }
     else if (_send->info.type == SW_EVENT_CONFIRM)
     {
-        reactor->add(reactor, conn->fd, conn->fdtype | SW_EVENT_READ);
+        reactor->add(reactor, conn->fd, conn->socket->fdtype | SW_EVENT_READ);
         conn->socket->listen_wait = 0;
         return SW_OK;
     }
@@ -1051,7 +1049,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     {
         if (_socket->events & SW_EVENT_WRITE)
         {
-            return reactor->set(reactor, conn->fd, conn->fdtype | SW_EVENT_WRITE);
+            return reactor->set(reactor, conn->fd, conn->socket->fdtype | SW_EVENT_WRITE);
         }
         else
         {
@@ -1065,11 +1063,11 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     {
         if (_socket->events & SW_EVENT_WRITE)
         {
-            return reactor->set(reactor, conn->fd, conn->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+            return reactor->set(reactor, conn->fd, _socket->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
         }
         else
         {
-            return reactor->add(reactor, conn->fd, conn->fdtype | SW_EVENT_READ);
+            return reactor->add(reactor, conn->fd, _socket->fdtype | SW_EVENT_READ);
         }
     }
 
@@ -1084,11 +1082,10 @@ int swServer_master_send(swServer *serv, swSendData *_send)
             reactor->close(reactor, fd);
             return SW_OK;
         }
-#ifdef SW_REACTOR_SYNC_SEND
         //Direct send
         if (_send->info.type != SW_EVENT_SENDFILE)
         {
-            if (!conn->direct_send)
+            if (!_socket->direct_send)
             {
                 goto _buffer_send;
             }
@@ -1116,13 +1113,10 @@ int swServer_master_send(swServer *serv, swSendData *_send)
                 goto _buffer_send;
             }
         }
-#endif
         //buffer send
         else
         {
-#ifdef SW_REACTOR_SYNC_SEND
             _buffer_send:
-#endif
             if (!_socket->out_buffer)
             {
                 _socket->out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
@@ -1784,7 +1778,7 @@ void swServer_connection_each(swServer *serv, void (*callback)(swConnection *con
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
         conn = swServer_connection_get(serv, fd);
-        if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_SESSION)
+        if (conn && conn->socket && conn->active == 1 && conn->closed == 0 && conn->socket->fdtype == SW_FD_SESSION)
         {
             callback(conn);
         }
@@ -1853,12 +1847,10 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     connection->active = 1;
     connection->socket = _socket;
 
-#ifdef SW_REACTOR_SYNC_SEND
     if (!ls->ssl)
     {
-        connection->direct_send = 1;
+        _socket->direct_send = 1;
     }
-#endif
 
     swSession *session;
     sw_spinlock(&serv->gs->spinlock);

@@ -519,7 +519,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 
                 int send_times = 0;
                 _direct_send:
-                n = swConnection_send(conn, _send.data, _send.info.len, 0);
+                n = swConnection_send(_socket, _send.data, _send.info.len, 0);
                 if (n < _send.info.len)
                 {
                     _send.data += n;

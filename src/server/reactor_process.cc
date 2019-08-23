@@ -446,7 +446,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
         swConnection *conn = swServer_connection_get(serv, fd);
-        if (conn != NULL && conn->active && conn->fdtype == SW_FD_SESSION)
+        if (conn != NULL && conn->active && conn->socket->fdtype == SW_FD_SESSION)
         {
             serv->close(serv, conn->session_id, 1);
         }
@@ -606,7 +606,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     {
         conn = swServer_connection_get(serv, fd);
 
-        if (conn != NULL && conn->active == 1 && conn->fdtype == SW_FD_SESSION)
+        if (conn && conn->socket && conn->active == 1 && conn->socket->fdtype == SW_FD_SESSION)
         {
             if (conn->protect || conn->last_time > checktime)
             {

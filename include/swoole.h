@@ -659,19 +659,20 @@ typedef struct _swSocket
     enum swSocket_type socket_type;
     int events;
 
-    uint8_t removed;
-    uint8_t nonblock;
-    uint8_t ssl_send;
-    uint8_t ssl_want_read;
-    uint8_t ssl_want_write;
-    uint8_t dontwait;
-    uint8_t close_wait;
-    uint8_t send_wait;
-    uint8_t listen_wait;
-    uint8_t tcp_nopush;
-    uint8_t tcp_nodelay;
-    uint8_t skip_recv;
-    uint8_t recv_wait;
+    uint8_t removed :1;
+    uint8_t nonblock :1;
+    uint8_t direct_send :1;
+    uint8_t ssl_send :1;
+    uint8_t ssl_want_read :1;
+    uint8_t ssl_want_write :1;
+    uint8_t dontwait :1;
+    uint8_t close_wait :1;
+    uint8_t send_wait :1;
+    uint8_t listen_wait :1;
+    uint8_t tcp_nopush :1;
+    uint8_t tcp_nodelay :1;
+    uint8_t skip_recv :1;
+    uint8_t recv_wait :1;
 
     /**
      * memory buffer size;
@@ -691,6 +692,11 @@ typedef struct _swSocket
     struct _swBuffer *in_buffer;
     swString *recv_buffer;
 
+#ifdef SW_DEBUG
+    size_t total_recv_bytes;
+    size_t total_send_bytes;
+#endif
+
 } swSocket;
 
 typedef struct _swConnection
@@ -699,21 +705,14 @@ typedef struct _swConnection
      * file descript
      */
     int fd;
-
     /**
      * session id
      */
     uint32_t session_id;
-
     /**
      * socket type, SW_SOCK_TCP or SW_SOCK_UDP
      */
     enum swSocket_type socket_type;
-    /**
-     * fd type, SW_FD_SESSION or SW_FD_PIPE
-     */
-    enum swFd_type fdtype;
-
     //--------------------------------------------------------------
     /**
      * is active
@@ -721,7 +720,6 @@ typedef struct _swConnection
      */
     uint8_t active;
     uint8_t connect_notify;
-    uint8_t direct_send;
 #ifdef SW_USE_OPENSSL
     uint8_t ssl;
     uint8_t ssl_ready;
@@ -729,10 +727,7 @@ typedef struct _swConnection
     //--------------------------------------------------------------
     uint8_t overflow;
     uint8_t high_watermark;
-    uint8_t dontwait;
     //--------------------------------------------------------------
-    uint8_t ssl_want_read;
-    uint8_t ssl_want_write;
     uint8_t http_upgrade;
 #ifdef SW_USE_HTTP2
     uint8_t http2_stream;
@@ -759,34 +754,26 @@ typedef struct _swConnection
      * ReactorThread id
      */
     uint16_t reactor_id;
-
     /**
      * close error code
      */
     uint16_t close_errno;
-
     /**
      * from which socket fd
      */
     sw_atomic_t server_fd;
-
     /**
      * socket address
      */
     swSocketAddress info;
-
     /**
      * link any thing, for kernel, do not use with application.
      */
     void *object;
-
-    swSocket *socket;
-
     /**
-     * for receive data buffer
+     * socket info
      */
-    swString *recv_buffer;
-
+    swSocket *socket;
     /**
      * connect time(seconds)
      */
@@ -803,17 +790,14 @@ typedef struct _swConnection
      */
     double last_time_usec;
 #endif
-
     /**
      * bind uid
      */
     uint32_t uid;
-
     /**
      * upgarde websocket
      */
     uint8_t websocket_status;
-
     /**
      * unfinished data frame
      */
@@ -824,11 +808,6 @@ typedef struct _swConnection
     uint16_t ssl_client_cert_pid;
 #endif
     sw_atomic_t lock;
-
-#ifdef SW_DEBUG
-    size_t total_recv_bytes;
-    size_t total_send_bytes;
-#endif
 
 } swConnection;
 

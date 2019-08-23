@@ -121,7 +121,6 @@
  * reduce the pressure of interprocess communication
  */
 #define SW_REACTOR_RECV_AGAIN            1
-#define SW_REACTOR_SYNC_SEND             1    // direct send
 
 /**
  * RINGBUFFER
