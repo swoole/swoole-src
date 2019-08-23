@@ -373,11 +373,10 @@ static std::unordered_map<int, coro_poll_task *> coro_poll_task_map;
 
 static inline void socket_poll_clean(coro_poll_task *task)
 {
-    swReactor *reactor = SwooleG.main_reactor;
     for (auto i = task->fds->begin(); i != task->fds->end(); i++)
     {
         coro_poll_task_map.erase(i->first);
-        if (reactor->del(reactor, i->first) < 0)
+        if (swoole_event_del(i->first) < 0)
         {
             //TODO print error log
             continue;
@@ -452,16 +451,16 @@ static int socket_poll_error_callback(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
+void System::init_reactor(swReactor *reactor)
+{
+    swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_READ, socket_poll_read_callback);
+    swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
+    swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
+    swReactor_set_handler(reactor, SW_FD_AIO | SW_EVENT_READ, swAio_callback);
+}
+
 bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout)
 {
-    swReactor *reactor = SwooleG.main_reactor;
-    if (sw_unlikely(!swReactor_isset_handler(reactor, SW_FD_CORO_POLL)))
-    {
-        swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_READ, socket_poll_read_callback);
-        swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
-        swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
-    }
-
     if (timeout == 0)
     {
         struct pollfd *event_list = (struct pollfd *) sw_calloc(fds.size(), sizeof(struct pollfd));
@@ -513,7 +512,7 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
 
     for (auto i = fds.begin(); i != fds.end(); i++)
     {
-        if (reactor->add(reactor, i->first, i->second.events | SW_FD_CORO_POLL) < 0)
+        if (swoole_event_add(i->first, i->second.events, SW_FD_CORO_POLL) < 0)
         {
             continue;
         }

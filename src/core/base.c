@@ -47,7 +47,7 @@ static void swoole_fatal_error(int code, const char *format, ...);
 
 void swoole_init(void)
 {
-    if (SwooleG.running)
+    if (SwooleG.init)
     {
         return;
     }
@@ -57,6 +57,7 @@ void swoole_init(void)
     bzero(sw_error, SW_ERROR_MSG_SIZE);
 
     SwooleG.running = 1;
+    SwooleG.init = 1;
     SwooleG.enable_coroutine = 1;
 
     SwooleG.log_fd = STDOUT_FILENO;
@@ -100,7 +101,7 @@ void swoole_init(void)
     }
 
     SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
-    SwooleG.socket_array = swArray_new(1024, sizeof(swConnection));
+    SwooleG.socket_array = swArray_new(1024, sizeof(swSocket));
     if (!SwooleG.socket_array)
     {
         swSysWarn("[Core] Fatal Error: socekt array memory allocation failure");

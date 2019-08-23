@@ -166,14 +166,14 @@ static int swFactory_end(swFactory *factory, int fd)
         conn->closed = 1;
         conn->close_errno = 0;
 
-        if (swBuffer_empty(conn->out_buffer) || conn->removed)
+        if (swBuffer_empty(conn->socket->out_buffer) || conn->peer_closed)
         {
             swReactor *reactor = SwooleG.main_reactor;
             return swReactorThread_close(reactor, conn->fd);
         }
         else
         {
-            swBuffer_chunk *chunk = swBuffer_new_chunk(conn->out_buffer, SW_CHUNK_CLOSE, 0);
+            swBuffer_chunk *chunk = swBuffer_new_chunk(conn->socket->out_buffer, SW_CHUNK_CLOSE, 0);
             chunk->store.data.val1 = _send.info.type;
             conn->close_queued = 1;
             return SW_OK;

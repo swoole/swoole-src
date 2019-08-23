@@ -471,12 +471,12 @@ if test "$PHP_SWOOLE" != "no"; then
         src/server/base.c \
         src/server/manager.cc \
         src/server/master.cc \
-        src/server/port.c \
+        src/server/port.cc \
         src/server/process.cc \
         src/server/reactor_process.cc \
         src/server/reactor_thread.cc \
         src/server/static_handler.cc \
-        src/server/task_worker.c \
+        src/server/task_worker.cc \
         src/server/worker.cc \
         src/wrapper/client.cc \
         src/wrapper/event.cc \

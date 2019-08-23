@@ -53,6 +53,12 @@ int swReactorProcess_create(swServer *serv)
     return SW_OK;
 }
 
+void swReactorProcess_free(swServer *serv)
+{
+    serv->factory.free(&serv->factory);
+    sw_free(serv->connection_list);
+}
+
 int swReactorProcess_start(swServer *serv)
 {
     swListenPort *ls;
@@ -347,8 +353,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     }
 #endif
 
-    reactor->thread = 1;
-    reactor->socket_list = serv->connection_list;
     reactor->max_socket = serv->max_connection;
 
     reactor->disable_accept = 0;
@@ -377,7 +381,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     if (serv->task_worker_num > 0)
     {
         swPipe *p;
-        swConnection *psock;
+        swSocket *psock;
         int pfd;
 
         if (serv->task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
@@ -442,7 +446,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
         swConnection *conn = swServer_connection_get(serv, fd);
-        if (conn != NULL && conn->active && conn->fdtype == SW_FD_SESSION)
+        if (conn != NULL && conn->active && conn->socket->fdtype == SW_FD_SESSION)
         {
             serv->close(serv, conn->session_id, 1);
         }
@@ -588,15 +592,13 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     }
 
     int fd;
-    int serv_max_fd;
-    int serv_min_fd;
     int checktime;
 
     bzero(&notify_ev, sizeof(notify_ev));
     notify_ev.type = SW_FD_SESSION;
 
-    serv_max_fd = swServer_get_maxfd(serv);
-    serv_min_fd = swServer_get_minfd(serv);
+    int serv_max_fd = swServer_get_maxfd(serv);
+    int serv_min_fd = swServer_get_minfd(serv);
 
     checktime = serv->gs->now - serv->heartbeat_idle_time;
 
@@ -604,14 +606,14 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     {
         conn = swServer_connection_get(serv, fd);
 
-        if (conn != NULL && conn->active == 1 && conn->fdtype == SW_FD_SESSION)
+        if (conn && conn->socket && conn->active == 1 && conn->socket->fdtype == SW_FD_SESSION)
         {
             if (conn->protect || conn->last_time > checktime)
             {
                 continue;
             }
 #ifdef SW_USE_OPENSSL
-            if (conn->ssl && conn->ssl_state != SW_SSL_STATE_READY)
+            if (conn->socket->ssl && conn->socket->ssl_state != SW_SSL_STATE_READY)
             {
                 swReactorThread_close(reactor, fd);
                 continue;

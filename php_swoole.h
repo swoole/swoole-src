@@ -440,7 +440,7 @@ int php_swoole_onPacket(swServer *, swEventData *);
 void php_swoole_onClose(swServer *, swDataHead *);
 void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
-ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+ssize_t php_swoole_length_func(swProtocol *protocol, swSocket *_socket, char *data, uint32_t length);
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
 zend_bool php_swoole_signal_isset_handler(int signo);
 

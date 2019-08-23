@@ -20,7 +20,7 @@
 namespace swoole
 {
 swString *_callback_buffer;
-Server::Server(string _host, int _port, int _mode, int _type)
+Server::Server(string _host, int _port, int _mode,  enum swSocket_type _type)
 {
     host = _host;
     port = _port;
@@ -52,7 +52,7 @@ void Server::setEvents(int _events)
     events = _events;
 }
 
-bool Server::listen(string host, int port, int type)
+bool Server::listen(string host, int port, enum swSocket_type type)
 {
     auto ls = swServer_add_port(&serv, type, (char *) host.c_str(), port);
     if (ls == NULL)

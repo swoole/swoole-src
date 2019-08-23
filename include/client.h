@@ -69,6 +69,7 @@ typedef struct _swClient
     int _redirect_to_socket;
     int _redirect_to_session;
 
+    uint32_t active :1;
     uint32_t async :1;
     uint32_t keep :1;
     uint32_t destroyed :1;
@@ -80,6 +81,8 @@ typedef struct _swClient
     uint32_t shutdown_read :1;
     uint32_t shutdown_write :1;
     uint32_t remove_delay :1;
+    uint32_t closed :1;
+    uint32_t high_watermark :1;
 
     /**
      * one package: length check
@@ -118,7 +121,7 @@ typedef struct _swClient
      */
     swSocketAddress remote_addr;
 
-    swConnection *socket;
+    swSocket *socket;
 
     /**
      * reactor

@@ -37,6 +37,7 @@ public:
     static void set_dns_cache_capacity(size_t capacity);
     static void clear_dns_cache();
     static bool socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout);
+    static void init_reactor(swReactor *reactor);
 };
 //-------------------------------------------------------------------------------
 }}

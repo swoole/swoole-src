@@ -281,7 +281,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
                 }
                 if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE))
                 {
-                    reactor->del(reactor, event.fd);
+                    swReactorPoll_del(reactor, event.fd);
                 }
             }
         }

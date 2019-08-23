@@ -819,14 +819,15 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     case PHP_STREAM_OPTION_META_DATA_API:
     {
 #ifdef SW_USE_OPENSSL
-        if (sock->socket->ssl)
+        SSL *ssl = sock->socket ? sock->socket->ssl : nullptr;
+        if (ssl)
         {
             zval tmp;
             const char *proto_str;
             const SSL_CIPHER *cipher;
 
             array_init(&tmp);
-            switch (SSL_version(sock->socket->ssl))
+            switch (SSL_version(ssl))
             {
 #ifdef HAVE_TLS13
             case TLS1_3_VERSION:
@@ -856,7 +857,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
                 break;
             }
 
-            cipher = SSL_get_current_cipher(sock->socket->ssl);
+            cipher = SSL_get_current_cipher(ssl);
             add_assoc_string(&tmp, "protocol", (char* )proto_str);
             add_assoc_string(&tmp, "cipher_name", (char * ) SSL_CIPHER_get_name(cipher));
             add_assoc_long(&tmp, "cipher_bits", SSL_CIPHER_get_bits(cipher, NULL));
