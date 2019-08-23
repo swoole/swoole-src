@@ -915,7 +915,7 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
 static PHP_METHOD(swoole_client, __construct)
 {
     zend_long type = 0;
-    zend_long async = 0;
+    zend_bool async = 0;
     char *id = NULL;
     size_t len = 0;
 
