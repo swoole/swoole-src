@@ -8,25 +8,25 @@ use Swoole\Exception;
 
 class Server
 {
-    public $host;
-    public $port;
-    public $type;
-    public $fd;
-    public $errCode;
+    /** @var string */
+    public $host = '';
+    /** @var int */
+    public $port = 0;
+    /** @var int */
+    public $type = AF_INET;
+    /** @var int */
+    public $fd = -1;
+    /** @var int */
+    public $errCode = 0;
+    /** @var array */
+    public $setting = [];
 
-    protected $running;
-
-    protected $fn = null;
-
-    /**
-     * @var Socket
-     */
+    /** @var bool */
+    protected $running = false;
+    /** @var callable|null */
+    protected $fn;
+    /** @var Socket */
     protected $socket;
-
-    /**
-     * @var array
-     */
-    public $setting;
 
     /**
      * Server constructor.
@@ -36,52 +36,54 @@ class Server
      * @param bool $reuse_port
      * @throws Exception
      */
-    public function __construct(string $host, int $port = 0, bool $ssl = false, $reuse_port = false)
+    public function __construct(string $host, int $port = 0, bool $ssl = false, bool $reuse_port = false)
     {
         $_host = swoole_string($host);
         if ($_host->contains('::')) {
             $this->type = AF_INET6;
-        } else if ($_host->startsWith('unix:/')) {
-            $host = $_host->substr(5)->__toString();
-            $this->type = AF_UNIX;
         } else {
-            $this->type = AF_INET;
+            if ($_host->startsWith('unix:/')) {
+                $host = $_host->substr(5)->__toString();
+                $this->type = AF_UNIX;
+            } else {
+                $this->type = AF_INET;
+            }
         }
         $this->host = $host;
 
-        $sock = new Socket($this->type, SOCK_STREAM, 0);
+        $socket = new Socket($this->type, SOCK_STREAM, 0);
         if ($reuse_port and defined('SO_REUSEPORT')) {
-            $sock->setOption(SOL_SOCKET, SO_REUSEPORT, true);
+            $socket->setOption(SOL_SOCKET, SO_REUSEPORT, true);
         }
-        if (!$sock->bind($this->host, $port)) {
-            throw new Exception("bind({$this->host}:$port) failed", $sock->errCode);
+        if (!$socket->bind($this->host, $port)) {
+            throw new Exception("bind({$this->host}:{$port}) failed", $socket->errCode);
         }
-        if (!$sock->listen()) {
-            throw new Exception("listen() failed", $sock->errCode);
+        if (!$socket->listen()) {
+            throw new Exception("listen() failed", $socket->errCode);
         }
-        $this->port = $sock->getsockname()['port'] ?? 0;
-        $this->fd = $sock->fd;
-        $this->socket = $sock;
+        $this->port = $socket->getsockname()['port'] ?? 0;
+        $this->fd = $socket->fd;
+        $this->socket = $socket;
         $this->setting['open_ssl'] = $ssl;
     }
 
-    public function set(array $setting)
+    public function set(array $setting): void
     {
         $this->setting = array_merge($this->setting, $setting);
     }
 
-    public function handle(callable $fn)
+    public function handle(callable $fn): void
     {
         $this->fn = $fn;
     }
 
-    public function shutdown()
+    public function shutdown(): bool
     {
         $this->running = false;
         return $this->socket->cancel();
     }
 
-    public function start()
+    public function start(): bool
     {
         $this->running = true;
         if ($this->fn == null) {
@@ -95,9 +97,7 @@ class Server
         }
 
         while ($this->running) {
-            /**
-             * @var $conn Socket
-             */
+            /** @var $conn Socket */
             $conn = $socket->accept();
             if ($conn) {
                 $conn->setProtocol($this->setting);
@@ -119,5 +119,7 @@ class Server
                 }
             }
         }
+
+        return true;
     }
 }
