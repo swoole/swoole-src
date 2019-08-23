@@ -50,26 +50,26 @@ $pm->parentFunc = function () use ($pm) {
     Assert::same($result['file']['size'], $fileSize);
 
     // Nested form field
-    Assert::assert(isset($result['form']['file']['name']));
-    Assert::assert(isset($result['form']['file']['type']));
-    Assert::assert(isset($result['form']['file']['error']));
-    Assert::assert(isset($result['form']['file']['size']));
-    Assert::assert(isset($result['form']['file']['tmp_name']));
-    Assert::same($result['form']['file']['name'], $fileName);
-    Assert::same($result['form']['file']['type'], $fileType);
-    Assert::same($result['form']['file']['error'], UPLOAD_ERR_OK);
-    Assert::same($result['form']['file']['size'], $fileSize);
+    Assert::assert(isset($result['form']['name']['file']));
+    Assert::assert(isset($result['form']['type']['file']));
+    Assert::assert(isset($result['form']['error']['file']));
+    Assert::assert(isset($result['form']['size']['file']));
+    Assert::assert(isset($result['form']['tmp_name']['file']));
+    Assert::same($result['form']['name']['file'], $fileName);
+    Assert::same($result['form']['type']['file'], $fileType);
+    Assert::same($result['form']['error']['file'], UPLOAD_ERR_OK);
+    Assert::same($result['form']['size']['file'], $fileSize);
 
     // Deeply nested form field
-    Assert::assert(isset($result['form']['group']['file']['name']));
-    Assert::assert(isset($result['form']['group']['file']['type']));
-    Assert::assert(isset($result['form']['group']['file']['error']));
-    Assert::assert(isset($result['form']['group']['file']['size']));
-    Assert::assert(isset($result['form']['group']['file']['tmp_name']));
-    Assert::same($result['form']['group']['file']['name'], $fileName);
-    Assert::same($result['form']['group']['file']['type'], $fileType);
-    Assert::same($result['form']['group']['file']['error'], UPLOAD_ERR_OK);
-    Assert::same($result['form']['group']['file']['size'], $fileSize);
+    Assert::assert(isset($result['form']['name']['group']['file']));
+    Assert::assert(isset($result['form']['type']['group']['file']));
+    Assert::assert(isset($result['form']['error']['group']['file']));
+    Assert::assert(isset($result['form']['size']['group']['file']));
+    Assert::assert(isset($result['form']['tmp_name']['group']['file']));
+    Assert::same($result['form']['name']['group']['file'], $fileName);
+    Assert::same($result['form']['type']['group']['file'], $fileType);
+    Assert::same($result['form']['error']['group']['file'], UPLOAD_ERR_OK);
+    Assert::same($result['form']['size']['group']['file'], $fileSize);
 
     echo "DONE\n";
     $pm->kill();
