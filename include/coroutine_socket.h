@@ -346,8 +346,6 @@ private:
     std::string connect_host;
     int connect_port = 0;
 
-    swSocketAddress info;
-
     std::string bind_address;
     int bind_port = 0;
     int backlog = 0;

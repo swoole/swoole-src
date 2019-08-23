@@ -555,8 +555,8 @@ Socket::Socket(int _fd, Socket *server_sock)
 
 bool Socket::getsockname()
 {
-    info.len = sizeof(info.addr);
-    if (::getsockname(sock_fd, (struct sockaddr *) &info.addr, &info.len) != 0)
+    socket->info.len = sizeof(socket->info.addr);
+    if (::getsockname(sock_fd, (struct sockaddr *) &socket->info.addr, &socket->info.len) != 0)
     {
         set_err(errno);
         return false;
@@ -566,8 +566,8 @@ bool Socket::getsockname()
 
 bool Socket::getpeername()
 {
-    info.len = sizeof(info.addr);
-    if (::getpeername(sock_fd, (struct sockaddr *) &info.addr, &info.len) != 0)
+    socket->info.len = sizeof(socket->info.addr);
+    if (::getpeername(sock_fd, (struct sockaddr *) &socket->info.addr, &socket->info.len) != 0)
     {
         set_err(errno);
         return false;
@@ -579,19 +579,19 @@ const char* Socket::get_ip()
 {
     if (type == SW_SOCK_TCP || type == SW_SOCK_UDP)
     {
-        return inet_ntoa(info.addr.inet_v4.sin_addr);
+        return inet_ntoa(socket->info.addr.inet_v4.sin_addr);
     }
     else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6)
     {
         static char tmp_address[INET6_ADDRSTRLEN + 1];
-        if (inet_ntop(AF_INET6, &info.addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address)))
+        if (inet_ntop(AF_INET6, &socket->info.addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address)))
         {
             return tmp_address;
         }
     }
     else if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM)
     {
-        return info.addr.un.sun_path;
+        return socket->info.addr.un.sun_path;
     }
     return "unknown";
 }
@@ -600,11 +600,11 @@ int Socket::get_port()
 {
     if (type == SW_SOCK_TCP || type == SW_SOCK_UDP)
     {
-        return ntohs(info.addr.inet_v4.sin_port);
+        return ntohs(socket->info.addr.inet_v4.sin_port);
     }
     else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6)
     {
-        return ntohs(info.addr.inet_v6.sin6_port);
+        return ntohs(socket->info.addr.inet_v6.sin6_port);
     }
     else
     {
@@ -707,10 +707,10 @@ bool Socket::connect(string _host, int _port, int flags)
     {
         if (sock_domain == AF_INET)
         {
-            info.addr.inet_v4.sin_family = AF_INET;
-            info.addr.inet_v4.sin_port = htons(_port);
+            socket->info.addr.inet_v4.sin_family = AF_INET;
+            socket->info.addr.inet_v4.sin_port = htons(_port);
 
-            if (!inet_pton(AF_INET, connect_host.c_str(), &info.addr.inet_v4.sin_addr))
+            if (!inet_pton(AF_INET, connect_host.c_str(), &socket->info.addr.inet_v4.sin_addr))
             {
 #ifdef SW_USE_OPENSSL
                 if (open_ssl)
@@ -731,17 +731,17 @@ bool Socket::connect(string _host, int _port, int flags)
             }
             else
             {
-                info.len = sizeof(info.addr.inet_v4);
-                _target_addr = (struct sockaddr *) &info.addr.inet_v4;
+                socket->info.len = sizeof(socket->info.addr.inet_v4);
+                _target_addr = (struct sockaddr *) &socket->info.addr.inet_v4;
                 break;
             }
         }
         else if (sock_domain == AF_INET6)
         {
-            info.addr.inet_v6.sin6_family = AF_INET6;
-            info.addr.inet_v6.sin6_port = htons(_port);
+            socket->info.addr.inet_v6.sin6_family = AF_INET6;
+            socket->info.addr.inet_v6.sin6_port = htons(_port);
 
-            if (!inet_pton(AF_INET6, connect_host.c_str(), &info.addr.inet_v6.sin6_addr))
+            if (!inet_pton(AF_INET6, connect_host.c_str(), &socket->info.addr.inet_v6.sin6_addr))
             {
 #ifdef SW_USE_OPENSSL
                 if (open_ssl)
@@ -759,21 +759,21 @@ bool Socket::connect(string _host, int _port, int flags)
             }
             else
             {
-                info.len = sizeof(info.addr.inet_v6);
-                _target_addr = (struct sockaddr *) &info.addr.inet_v6;
+                socket->info.len = sizeof(socket->info.addr.inet_v6);
+                _target_addr = (struct sockaddr *) &socket->info.addr.inet_v6;
                 break;
             }
         }
         else if (sock_domain == AF_UNIX)
         {
-            if (connect_host.size() >= sizeof(info.addr.un.sun_path))
+            if (connect_host.size() >= sizeof(socket->info.addr.un.sun_path))
             {
                 return false;
             }
-            info.addr.un.sun_family = AF_UNIX;
-            memcpy(&info.addr.un.sun_path, connect_host.c_str(), connect_host.size());
-            info.len = (socklen_t) (offsetof(struct sockaddr_un, sun_path) + connect_host.size());
-            _target_addr = (struct sockaddr *) &info.addr.un;
+            socket->info.addr.un.sun_family = AF_UNIX;
+            memcpy(&socket->info.addr.un.sun_path, connect_host.c_str(), connect_host.size());
+            socket->info.len = (socklen_t) (offsetof(struct sockaddr_un, sun_path) + connect_host.size());
+            _target_addr = (struct sockaddr *) &socket->info.addr.un;
             break;
         }
         else
@@ -781,7 +781,7 @@ bool Socket::connect(string _host, int _port, int flags)
             return false;
         }
     }
-    if (connect(_target_addr, info.len) == false)
+    if (connect(_target_addr, socket->info.len) == false)
     {
         return false;
     }
@@ -1153,7 +1153,7 @@ Socket* Socket::accept()
         delete client_sock;
         return nullptr;
     }
-    memcpy(&client_sock->info.addr, &client_addr.addr, client_addr.len);
+    memcpy(&client_sock->socket->info.addr, &client_addr.addr, client_addr.len);
 #ifdef SW_USE_OPENSSL
     if (open_ssl)
     {
@@ -1444,8 +1444,8 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n)
     {
         return -1;
     }
-    info.len = sizeof(info.addr);
-    return recvfrom(__buf, __n, (struct sockaddr*) &info.addr, &info.len);
+    socket->info.len = sizeof(socket->info.addr);
+    return recvfrom(__buf, __n, (struct sockaddr*) &socket->info.addr, &socket->info.len);
 }
 
 ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr* _addr, socklen_t *_socklen)
@@ -1878,7 +1878,7 @@ Socket::~Socket()
     }
     if (sock_type == SW_SOCK_UNIX_DGRAM)
     {
-        ::unlink(info.addr.un.sun_path);
+        ::unlink(socket->info.addr.un.sun_path);
     }
     if (sw_unlikely(sock_fd > 0 && ::close(sock_fd) != 0))
     {
