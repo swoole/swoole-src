@@ -393,7 +393,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         ctx->websocket = 1;
         if (ctx->co_socket)
         {
-            return 0;
+            goto _add_header;
         }
         swServer *serv = (swServer *) ctx->private_data;
         swConnection *conn = swWorker_get_connection(serv, ctx->fd);
@@ -458,8 +458,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     }
 #endif
 
-    add_assoc_stringl_ex(zheader, header_name, header_len, (char *) at, length);
-
+    _add_header: add_assoc_stringl_ex(zheader, header_name, header_len, (char *) at, length);
     efree(header_name);
 
     return 0;

@@ -33,20 +33,6 @@ using std::vector;
 
 typedef struct
 {
-    zval _callback;
-    zval _filename;
-    zval *callback;
-    zval *filename;
-    uint32_t *refcount;
-    off_t offset;
-    uint16_t type;
-    uint8_t once;
-    char *content;
-    uint32_t length;
-} file_request;
-
-typedef struct
-{
     char address[16];
     time_t update_time;
 } dns_cache;
