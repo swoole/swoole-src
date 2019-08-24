@@ -44,12 +44,12 @@ struct _http_proxy
     uint8_t state;
     uint8_t dont_handshake;
     int proxy_port;
-    char *proxy_host;
-    char *user;
-    char *password;
+    const char *proxy_host;
+    const char *user;
+    const char *password;
     int l_user;
     int l_password;
-    char *target_host;
+    const char *target_host;
     int l_target_host;
     int target_port;
     char buf[512];

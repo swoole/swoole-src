@@ -288,7 +288,7 @@ bool Socket::socks5_handshake()
         p[1] = ctx->l_target_host;
         p += 2;
         memcpy(p, ctx->target_host, ctx->l_target_host);
-        sw_free(ctx->target_host);
+        sw_free((void *) ctx->target_host);
         ctx->target_host = nullptr;
         p += ctx->l_target_host;
         *(uint16_t *) p = htons(ctx->target_port);
