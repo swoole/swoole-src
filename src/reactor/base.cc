@@ -117,7 +117,7 @@ int swReactor_set_handler(swReactor *reactor, int _fdtype, swReactor_handler han
 int swReactor_empty(swReactor *reactor)
 {
     //timer, defer tasks
-    if ((SwooleTG.timer && SwooleTG.timer->num > 0) || reactor->defer_tasks || swoole_coroutine_wait_count() > 0)
+    if ((reactor->timer && reactor->timer->num > 0) || reactor->defer_tasks || swoole_coroutine_wait_count() > 0)
     {
         return SW_FALSE;
     }

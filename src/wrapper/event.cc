@@ -16,8 +16,6 @@
 
 #include "swoole_api.h"
 
-#define sw_reactor()           (SwooleTG.reactor)
-
 #include <mutex>
 #include <thread>
 
@@ -25,18 +23,21 @@ std::once_flag init_flag;
 
 int swoole_event_init()
 {
-    call_once(init_flag, swoole_init);
-    SwooleTG.reactor = (swReactor *) sw_malloc(sizeof(swReactor));
+    if (!SwooleG.init)
+    {
+        call_once(init_flag, swoole_init);
+    }
 
-    if (!sw_reactor())
+    SwooleTG.reactor = (swReactor *) sw_malloc(sizeof(swReactor));
+    if (!SwooleTG.reactor)
     {
         swSysWarn("malloc failed.");
         return SW_ERR;
     }
-    if (swReactor_create(sw_reactor(), SW_REACTOR_MAXEVENTS) < 0)
+    if (swReactor_create(SwooleTG.reactor, SW_REACTOR_MAXEVENTS) < 0)
     {
-        sw_free(sw_reactor());
-        sw_reactor() = NULL;
+        sw_free(SwooleTG.reactor);
+        SwooleTG.reactor = nullptr;
         return SW_ERR;
     }
     return SW_OK;
@@ -44,41 +45,41 @@ int swoole_event_init()
 
 int swoole_event_add(int fd, int events, int fdtype)
 {
-    return sw_reactor()->add(sw_reactor(), fd, fdtype | events);
+    return SwooleTG.reactor->add(SwooleTG.reactor, fd, fdtype | events);
 }
 
 int swoole_event_set(int fd, int events, int fdtype)
 {
-    return sw_reactor()->set(sw_reactor(), fd, fdtype | events);
+    return SwooleTG.reactor->set(SwooleTG.reactor, fd, fdtype | events);
 }
 
 int swoole_event_del(int fd)
 {
-    return sw_reactor()->del(sw_reactor(), fd);
+    return SwooleTG.reactor->del(SwooleTG.reactor, fd);
 }
 
 int swoole_event_wait()
 {
-    int retval = sw_reactor()->wait(sw_reactor(), NULL);
+    int retval = SwooleTG.reactor->wait(SwooleTG.reactor, NULL);
     swoole_event_free();
     return retval;
 }
 
 int swoole_event_free()
 {
-    if (!sw_reactor())
+    if (!SwooleTG.reactor)
     {
         return SW_ERR;
     }
-    swReactor_destroy(sw_reactor());
-    sw_free(sw_reactor());
-    sw_reactor() = NULL;
+    swReactor_destroy(SwooleTG.reactor);
+    sw_free(SwooleTG.reactor);
+    SwooleTG.reactor = nullptr;
     return SW_OK;
 }
 
 void swoole_event_defer(swCallback cb, void *private_data)
 {
-    sw_reactor()->defer(sw_reactor(), cb, private_data);
+    SwooleTG.reactor->defer(SwooleTG.reactor, cb, private_data);
 }
 
 /**
@@ -86,5 +87,5 @@ void swoole_event_defer(swCallback cb, void *private_data)
  */
 int swoole_event_write(int fd, const void *data, size_t len)
 {
-    return sw_reactor()->write(sw_reactor(), fd, data, len);
+    return SwooleTG.reactor->write(SwooleTG.reactor, fd, data, len);
 }
