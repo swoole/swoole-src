@@ -141,6 +141,7 @@ struct http_context
     char *current_header_name;
     size_t current_header_name_len;
     char *current_input_name;
+    size_t current_input_name_len;
     char *current_form_data_name;
     size_t current_form_data_name_len;
     zval *current_multipart_header;
