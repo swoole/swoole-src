@@ -189,8 +189,7 @@ pid_t swoole_fork(int flags)
          */
         if (SwooleTG.timer)
         {
-            swTimer_free(SwooleTG.timer);
-            sw_free(SwooleTG.timer);
+            swoole_timer_free();
         }
         if (!(flags & SW_FORK_EXEC))
         {

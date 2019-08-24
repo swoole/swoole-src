@@ -502,8 +502,7 @@ static int swManager_loop(swServer *serv)
 
     if (SwooleTG.timer)
     {
-        swTimer_free(SwooleTG.timer);
-        sw_free(SwooleTG.timer);
+        swoole_timer_free();
     }
     //wait child process
     if (serv->max_wait_time)
