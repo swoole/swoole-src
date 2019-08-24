@@ -271,98 +271,98 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
     if (memcmp(buf, "GET", 3) == 0)
     {
         request->method = SW_HTTP_GET;
-        request->offset = 4;
-        buf += 4;
+        request->offset = 3;
+        buf += 3;
     }
     else if (memcmp(buf, "POST", 4) == 0)
     {
         request->method = SW_HTTP_POST;
-        request->offset = 5;
-        buf += 5;
+        request->offset = 4;
+        buf += 4;
     }
     else if (memcmp(buf, "PUT", 3) == 0)
     {
         request->method = SW_HTTP_PUT;
-        request->offset = 4;
-        buf += 4;
+        request->offset = 3;
+        buf += 3;
     }
     else if (memcmp(buf, "PATCH", 5) == 0)
     {
         request->method = SW_HTTP_PATCH;
-        request->offset = 6;
-        buf += 6;
+        request->offset = 5;
+        buf += 5;
     }
     else if (memcmp(buf, "DELETE", 6) == 0)
     {
         request->method = SW_HTTP_DELETE;
-        request->offset = 7;
-        buf += 7;
+        request->offset = 6;
+        buf += 6;
     }
     else if (memcmp(buf, "HEAD", 4) == 0)
     {
         request->method = SW_HTTP_HEAD;
-        request->offset = 5;
-        buf += 5;
+        request->offset = 4;
+        buf += 4;
     }
     else if (memcmp(buf, "OPTIONS", 7) == 0)
     {
         request->method = SW_HTTP_OPTIONS;
-        request->offset = 8;
-        buf += 8;
+        request->offset = 7;
+        buf += 7;
     }
     else if (memcmp(buf, "COPY", 4) == 0)
     {
         request->method = SW_HTTP_COPY;
-        request->offset = 5;
-        buf += 5;
+        request->offset = 4;
+        buf += 4;
     }
     else if (memcmp(buf, "LOCK", 4) == 0)
     {
         request->method = SW_HTTP_LOCK;
-        request->offset = 5;
-        buf += 5;
+        request->offset = 4;
+        buf += 4;
     }
     else if (memcmp(buf, "MKCOL", 5) == 0)
     {
         request->method = SW_HTTP_MKCOL;
-        request->offset = 4;
-        buf += 4;
+        request->offset = 5;
+        buf += 5;
     }
     else if (memcmp(buf, "MOVE", 4) == 0)
     {
         request->method = SW_HTTP_MOVE;
-        request->offset = 5;
-        buf += 5;
+        request->offset = 4;
+        buf += 4;
     }
     else if (memcmp(buf, "PROPFIND", 8) == 0)
     {
         request->method = SW_HTTP_PROPFIND;
-        request->offset = 9;
-        buf += 9;
+        request->offset = 8;
+        buf += 8;
     }
     else if (memcmp(buf, "PROPPATCH", 9) == 0)
     {
         request->method = SW_HTTP_PROPPATCH;
-        request->offset = 10;
-        buf += 10;
+        request->offset = 9;
+        buf += 9;
     }
     else if (memcmp(buf, "UNLOCK", 6) == 0)
     {
         request->method = SW_HTTP_UNLOCK;
-        request->offset = 7;
-        buf += 7;
+        request->offset = 6;
+        buf += 6;
     }
     else if (memcmp(buf, "REPORT", 6) == 0)
     {
         request->method = SW_HTTP_REPORT;
-        request->offset = 7;
-        buf += 7;
+        request->offset = 6;
+        buf += 6;
     }
     else if (memcmp(buf, "PURGE", 5) == 0)
     {
         request->method = SW_HTTP_PURGE;
-        request->offset = 6;
-        buf += 6;
+        request->offset = 5;
+        buf += 5;
     }
 #ifdef SW_USE_HTTP2
     //HTTP2 Connection Preface
