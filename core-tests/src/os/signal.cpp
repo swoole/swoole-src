@@ -17,7 +17,7 @@ TEST(os_signal, swSignalfd_set)
 
     swSignalfd_init();
     swSignal_add(SIGUSR1,sig_usr1);
-    swSignalfd_setup(SwooleG.main_reactor);
+    swSignalfd_setup(SwooleTG.reactor);
 
     sigemptyset(&curset);
     sigprocmask(SIG_BLOCK, NULL, &curset);

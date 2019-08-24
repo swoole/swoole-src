@@ -819,14 +819,14 @@ int swReactorThread_start(swServer *serv)
         return SW_ERR;
     }
 
-    swReactor *main_reactor = SwooleG.main_reactor;
-    main_reactor->disable_accept = 0;
-    main_reactor->enable_accept = swServer_enable_accept;
+    swReactor *reactor = SwooleTG.reactor;
+    reactor->disable_accept = 0;
+    reactor->enable_accept = swServer_enable_accept;
 
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd)
     {
-        swSignalfd_setup(main_reactor);
+        swSignalfd_setup(reactor);
     }
 #endif
 
@@ -841,9 +841,9 @@ int swReactorThread_start(swServer *serv)
         if (swPort_listen(ls) < 0)
         {
             _failed:
-            main_reactor->free(main_reactor);
-            SwooleG.main_reactor = nullptr;
-            sw_free(main_reactor);
+            reactor->free(reactor);
+            SwooleTG.reactor = nullptr;
+            sw_free(reactor);
             return SW_ERR;
         }
     }
@@ -873,12 +873,12 @@ int swReactorThread_start(swServer *serv)
         {
             continue;
         }
-        main_reactor->add(main_reactor, ls->sock, SW_FD_STREAM_SERVER);
+        reactor->add(reactor, ls->sock, SW_FD_STREAM_SERVER);
     }
 
     if (serv->single_thread)
     {
-        swReactorThread_init(serv, main_reactor, 0);
+        swReactorThread_init(serv, reactor, 0);
         goto _init_master_thread;
     }
     /**
@@ -889,7 +889,7 @@ int swReactorThread_start(swServer *serv)
         /**
          * set a special id
          */
-        main_reactor->id = serv->reactor_num;
+        reactor->id = serv->reactor_num;
         SwooleTG.id = serv->reactor_num;
     }
 
@@ -939,12 +939,12 @@ int swReactorThread_start(swServer *serv)
     SwooleTG.type = SW_THREAD_MASTER;
     SwooleTG.update_time = 1;
 
-    SwooleG.main_reactor = main_reactor;
+    SwooleTG.reactor = reactor;
     SwooleG.pid = getpid();
     SwooleG.process_type = SW_PROCESS_MASTER;
 
-    main_reactor->ptr = serv;
-    swReactor_set_handler(main_reactor, SW_FD_STREAM_SERVER, swServer_master_onAccept);
+    reactor->ptr = serv;
+    swReactor_set_handler(reactor, SW_FD_STREAM_SERVER, swServer_master_onAccept);
 
     if (serv->hooks[SW_SERVER_HOOK_MASTER_START])
     {
@@ -1341,7 +1341,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
 
                 if (serv->single_thread)
                 {
-                    reactor = SwooleG.main_reactor;
+                    reactor = SwooleTG.reactor;
                 }
                 else
                 {

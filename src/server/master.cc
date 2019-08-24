@@ -791,9 +791,9 @@ int swServer_shutdown(swServer *serv)
 {
     serv->running = 0;
     //stop all thread
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
-        swReactor *reactor = SwooleG.main_reactor;
+        swReactor *reactor = SwooleTG.reactor;
         reactor->wait_exit = 1;
         swListenPort *port;
         LL_FOREACH(serv->listen_list, port)
@@ -996,7 +996,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
 
     if (serv->single_thread)
     {
-        reactor = SwooleG.main_reactor;
+        reactor = SwooleTG.reactor;
     }
     else
     {
@@ -1795,7 +1795,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     connection = &(serv->connection_list[fd]);
     bzero(connection, sizeof(swConnection));
 
-    swSocket *_socket = swReactor_get(SwooleG.main_reactor, fd);
+    swSocket *_socket = swReactor_get(SwooleTG.reactor, fd);
     _socket->object = connection;
     _socket->buffer_size = ls->socket_buffer_size;
     _socket->fd = fd;

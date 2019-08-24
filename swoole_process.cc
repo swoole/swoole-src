@@ -543,8 +543,8 @@ static PHP_METHOD(swoole_process, signal)
         {
             swSignal_add(signo, NULL);
             signal_fci_caches[signo] = NULL;
-            SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_zend_fci_cache_free, fci_cache);
-            SwooleG.main_reactor->signal_listener_num--;
+            SwooleTG.reactor->defer(SwooleTG.reactor, sw_zend_fci_cache_free, fci_cache);
+            SwooleTG.reactor->signal_listener_num--;
             RETURN_TRUE;
         }
         else
@@ -574,16 +574,16 @@ static PHP_METHOD(swoole_process, signal)
     }
 
     // for swSignalfd_setup
-    SwooleG.main_reactor->check_signalfd = 1;
+    SwooleTG.reactor->check_signalfd = 1;
 
     if (signal_fci_caches[signo])
     {
         // free the old fci_cache
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_zend_fci_cache_free, signal_fci_caches[signo]);
+        SwooleTG.reactor->defer(SwooleTG.reactor, sw_zend_fci_cache_free, signal_fci_caches[signo]);
     }
     else
     {
-        SwooleG.main_reactor->signal_listener_num++;
+        SwooleTG.reactor->signal_listener_num++;
     }
     signal_fci_caches[signo] = fci_cache;
 
@@ -845,9 +845,9 @@ static PHP_METHOD(swoole_process, write)
     int ret;
 
     //async write
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
-        swSocket *_socket = swReactor_get(SwooleG.main_reactor, process->pipe);
+        swSocket *_socket = swReactor_get(SwooleTG.reactor, process->pipe);
         if (_socket && _socket->nonblock)
         {
             ret = swoole_event_write(process->pipe, data, (size_t) data_len);
@@ -1229,9 +1229,9 @@ static PHP_METHOD(swoole_process, setBlocking)
     {
         swSocket_set_nonblock(process->pipe);
     }
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
-        swSocket *_socket = swReactor_get(SwooleG.main_reactor, process->pipe);
+        swSocket *_socket = swReactor_get(SwooleTG.reactor, process->pipe);
         if (_socket)
         {
             _socket->nonblock = blocking ? 0 : 1;

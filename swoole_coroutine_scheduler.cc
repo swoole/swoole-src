@@ -253,7 +253,7 @@ static PHP_METHOD(swoole_coroutine_scheduler, start)
 {
     scheduler_t *s = scheduler_get_object(Z_OBJ_P(ZEND_THIS));
 
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
         php_swoole_fatal_error(E_WARNING, "eventLoop has already been created. unable to start %s", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;

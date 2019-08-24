@@ -21,13 +21,13 @@ define timer_list
 end
 
 define reactor_info
-    if SwooleG.main_reactor
-        printf "\t reactor id: %d\n",SwooleG.main_reactor->id
-        printf "\t running: %d\n", SwooleG.main_reactor->running
-        printf "\t event_num: %d\n", SwooleG.main_reactor->event_num
-        printf "\t max_event_num: %d\n", SwooleG.main_reactor->max_event_num
-        printf "\t check_timer: %d\n", SwooleG.main_reactor->check_timer
-        printf "\t timeout_msec: %d\n", SwooleG.main_reactor->timeout_msec
+    if SwooleTG.reactor
+        printf "\t reactor id: %d\n",SwooleTG.reactor->id
+        printf "\t running: %d\n", SwooleTG.reactor->running
+        printf "\t event_num: %d\n", SwooleTG.reactor->event_num
+        printf "\t max_event_num: %d\n", SwooleTG.reactor->max_event_num
+        printf "\t check_timer: %d\n", SwooleTG.reactor->check_timer
+        printf "\t timeout_msec: %d\n", SwooleTG.reactor->timeout_msec
     end
 end
 

@@ -96,9 +96,9 @@ static int swTimer_init(swTimer *timer, long msec)
     {
         ret = swReactorTimer_init(SwooleTG.reactor, timer, msec);
     }
-    else if (SwooleG.main_reactor)
+    else if (SwooleTG.reactor)
     {
-        ret = swReactorTimer_init(SwooleG.main_reactor, timer, msec);
+        ret = swReactorTimer_init(SwooleTG.reactor, timer, msec);
     }
     else
     {

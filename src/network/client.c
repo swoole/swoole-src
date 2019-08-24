@@ -20,19 +20,19 @@
 #include "socks5.h"
 #include "async.h"
 
-static int swClient_inet_addr(swClient *cli, char *host, int port);
-static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double _timeout, int udp_connect);
-static int swClient_tcp_connect_async(swClient *cli, char *host, int port, double timeout, int nonblock);
+static int swClient_inet_addr(swClient *cli, const char *host, int port);
+static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, double _timeout, int udp_connect);
+static int swClient_tcp_connect_async(swClient *cli, const char *host, int port, double timeout, int nonblock);
 
-static int swClient_tcp_send_sync(swClient *cli, char *data, int length, int flags);
-static int swClient_tcp_send_async(swClient *cli, char *data, int length, int flags);
+static int swClient_tcp_send_sync(swClient *cli, const char *data, int length, int flags);
+static int swClient_tcp_send_async(swClient *cli, const char *data, int length, int flags);
 static int swClient_tcp_pipe(swClient *cli, int write_fd, int flags);
-static int swClient_udp_send(swClient *cli, char *data, int length, int flags);
+static int swClient_udp_send(swClient *cli, const char *data, int length, int flags);
 
-static int swClient_tcp_sendfile_sync(swClient *cli, char *filename, off_t offset, size_t length);
-static int swClient_tcp_sendfile_async(swClient *cli, char *filename, off_t offset, size_t length);
+static int swClient_tcp_sendfile_sync(swClient *cli, const char *filename, off_t offset, size_t length);
+static int swClient_tcp_sendfile_async(swClient *cli, const char *filename, off_t offset, size_t length);
 static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int flags);
-static int swClient_udp_connect(swClient *cli, char *host, int port, double _timeout, int udp_connect);
+static int swClient_udp_connect(swClient *cli, const char *host, int port, double _timeout, int udp_connect);
 static int swClient_udp_recv(swClient *cli, char *data, int len, int waitall);
 static int swClient_close(swClient *cli);
 
@@ -342,7 +342,7 @@ int swClient_ssl_verify(swClient *cli, int allow_self_signed)
 
 #endif
 
-static int swClient_inet_addr(swClient *cli, char *host, int port)
+static int swClient_inet_addr(swClient *cli, const char *host, int port)
 {
     //enable socks5 proxy
     if (cli->socks5_proxy)
@@ -533,7 +533,7 @@ static int swClient_close(swClient *cli)
     return close(fd);
 }
 
-static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double timeout, int nonblock)
+static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, double timeout, int nonblock)
 {
     int ret, n;
 
@@ -657,7 +657,7 @@ static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double
     return ret;
 }
 
-static int swClient_tcp_connect_async(swClient *cli, char *host, int port, double timeout, int nonblock)
+static int swClient_tcp_connect_async(swClient *cli, const char *host, int port, double timeout, int nonblock)
 {
     int ret;
 
@@ -806,7 +806,7 @@ static int swClient_tcp_pipe(swClient *cli, int write_fd, int flags)
     return SW_OK;
 }
 
-static int swClient_tcp_send_async(swClient *cli, char *data, int length, int flags)
+static int swClient_tcp_send_async(swClient *cli, const char *data, int length, int flags)
 {
     int n = length;
     if (swoole_event_write(cli->socket->fd, data, length) < 0)
@@ -830,7 +830,7 @@ static int swClient_tcp_send_async(swClient *cli, char *data, int length, int fl
     return n;
 }
 
-static int swClient_tcp_send_sync(swClient *cli, char *data, int length, int flags)
+static int swClient_tcp_send_sync(swClient *cli, const char *data, int length, int flags)
 {
     int written = 0;
     int n;
@@ -864,7 +864,7 @@ static int swClient_tcp_send_sync(swClient *cli, char *data, int length, int fla
     return written;
 }
 
-static int swClient_tcp_sendfile_sync(swClient *cli, char *filename, off_t offset, size_t length)
+static int swClient_tcp_sendfile_sync(swClient *cli, const char *filename, off_t offset, size_t length)
 {
     if (swSocket_sendfile_sync(cli->socket->fd, filename, offset, length, cli->timeout) < 0)
     {
@@ -874,7 +874,7 @@ static int swClient_tcp_sendfile_sync(swClient *cli, char *filename, off_t offse
     return SW_OK;
 }
 
-static int swClient_tcp_sendfile_async(swClient *cli, char *filename, off_t offset, size_t length)
+static int swClient_tcp_sendfile_async(swClient *cli, const char *filename, off_t offset, size_t length)
 {
     if (swConnection_sendfile(cli->socket, filename, offset, length) < 0)
     {
@@ -945,7 +945,7 @@ static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int f
     return ret;
 }
 
-static int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, int udp_connect)
+static int swClient_udp_connect(swClient *cli, const char *host, int port, double timeout, int udp_connect)
 {
     if (swClient_inet_addr(cli, host, port) < 0)
     {
@@ -1011,7 +1011,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
     }
 }
 
-static int swClient_udp_send(swClient *cli, char *data, int len, int flags)
+static int swClient_udp_send(swClient *cli, const char *data, int len, int flags)
 {
     int n;
     n = sendto(cli->socket->fd, data, len, 0, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
@@ -1412,7 +1412,7 @@ static void swClient_onTimeout(swTimer *timer, swTimer_node *tnode)
 
 static void swClient_onResolveCompleted(swAio_event *event)
 {
-    swSocket *socket = swReactor_get(SwooleG.main_reactor, event->fd);
+    swSocket *socket = swReactor_get(SwooleTG.reactor, event->fd);
     if (socket->removed)
     {
         sw_free(event->buf);

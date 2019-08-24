@@ -292,10 +292,10 @@ static int co_socket_onWritable(swReactor *reactor, swEvent *event)
 static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETERS)
 {
     php_swoole_check_reactor();
-    if (!swReactor_isset_handler(SwooleG.main_reactor, PHP_SWOOLE_FD_SOCKET))
+    if (!swReactor_isset_handler(SwooleTG.reactor, PHP_SWOOLE_FD_SOCKET))
     {
-        swReactor_set_handler(SwooleG.main_reactor, PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_READ, co_socket_onReadable);
-        swReactor_set_handler(SwooleG.main_reactor, PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_WRITE, co_socket_onWritable);
+        swReactor_set_handler(SwooleTG.reactor, PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_READ, co_socket_onReadable);
+        swReactor_set_handler(SwooleTG.reactor, PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_WRITE, co_socket_onWritable);
     }
 
     if (swoole_event_add(fd, SW_EVENT_READ, PHP_SWOOLE_FD_CO_UTIL) < 0)
@@ -304,7 +304,7 @@ static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETER
         RETURN_FALSE;
     }
 
-    swSocket *_socket = swReactor_get(SwooleG.main_reactor, fd);
+    swSocket *_socket = swReactor_get(SwooleTG.reactor, fd);
     util_socket *sock = (util_socket *) emalloc(sizeof(util_socket));
     bzero(sock, sizeof(util_socket));
     _socket->object = sock;
@@ -340,7 +340,7 @@ static void co_socket_write(int fd, char* str, size_t l_str, INTERNAL_FUNCTION_P
         RETURN_FALSE;
     }
 
-    swSocket *_socket = swReactor_get(SwooleG.main_reactor, fd);
+    swSocket *_socket = swReactor_get(SwooleTG.reactor, fd);
     util_socket *sock = (util_socket *) emalloc(sizeof(util_socket));
     bzero(sock, sizeof(util_socket));
     _socket->object = sock;

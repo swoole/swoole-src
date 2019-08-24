@@ -149,7 +149,7 @@ void swoole_clean(void)
     {
         sw_free(SwooleG.task_tmpdir);
     }
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
         swoole_event_free();
     }
@@ -209,7 +209,7 @@ pid_t swoole_fork(int flags)
             /**
              * reset eventLoop
              */
-            if (SwooleG.main_reactor)
+            if (SwooleTG.reactor)
             {
                 swoole_event_free();
                 swTraceLog(SW_TRACE_REACTOR, "reactor has been destroyed");

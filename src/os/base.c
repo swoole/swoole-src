@@ -39,7 +39,7 @@ int swAio_init(void)
         swWarn("AIO has already been initialized");
         return SW_ERR;
     }
-    if (!SwooleG.main_reactor)
+    if (!SwooleTG.reactor)
     {
         swWarn("No eventloop, cannot initialized");
         return SW_ERR;
@@ -67,7 +67,7 @@ int swAio_init(void)
     _pipe_read = _aio_pipe.getFd(&_aio_pipe, 0);
     _pipe_write = _aio_pipe.getFd(&_aio_pipe, 1);
 
-    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_AIO, swAio_onCompleted);
+    SwooleTG.reactor->setHandle(SwooleTG.reactor, SW_FD_AIO, swAio_onCompleted);
     swoole_event_add(_pipe_read, SW_FD_AIO);
 
     if (swThreadPool_run(&pool) < 0)
@@ -177,9 +177,9 @@ void swAio_free(void)
         return;
     }
     swThreadPool_free(&pool);
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
-        SwooleG.main_reactor->del(SwooleG.main_reactor, _pipe_read);
+        SwooleTG.reactor->del(SwooleTG.reactor, _pipe_read);
     }
     _aio_pipe.close(&_aio_pipe);
     SwooleAIO.init = 0;

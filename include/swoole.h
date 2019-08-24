@@ -2372,7 +2372,6 @@ typedef struct
     swServer *serv;
 
     swMemoryPool *memory_pool;
-    swReactor *main_reactor;
     swTimer timer;
 
     char *task_tmpdir;

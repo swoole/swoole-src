@@ -112,7 +112,7 @@ public:
     ~async_thread_pool()
     {
         shutdown();
-        if (SwooleG.main_reactor)
+        if (SwooleTG.reactor)
         {
             swoole_event_del(_pipe_read);
         }
@@ -321,7 +321,7 @@ static int swAio_init()
         swWarn("AIO has already been initialized");
         return SW_ERR;
     }
-    if (!SwooleG.main_reactor)
+    if (!SwooleTG.reactor)
     {
         swWarn("no event loop, cannot initialized");
         return SW_ERR;
@@ -346,7 +346,7 @@ static int swAio_init()
         SwooleAIO.max_thread_count = SwooleAIO.min_thread_count;
     }
 
-    swReactor_add_destroy_callback(SwooleG.main_reactor, swAio_free, nullptr);
+    swReactor_add_destroy_callback(SwooleTG.reactor, swAio_free, nullptr);
 
     pool = new async_thread_pool(SwooleAIO.min_thread_count, SwooleAIO.max_thread_count);
     pool->start();

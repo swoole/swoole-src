@@ -258,7 +258,7 @@ static int swManager_loop(swServer *serv)
     int status;
 
     SwooleG.use_signalfd = 0;
-    SwooleG.main_reactor = NULL;
+    SwooleTG.reactor = NULL;
     SwooleG.enable_coroutine = 0;
 
     ManagerProcess.reload_workers = (swWorker *) sw_calloc(serv->worker_num + serv->task_worker_num, sizeof(swWorker));

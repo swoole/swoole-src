@@ -308,14 +308,14 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swServer_worker_init(serv, worker);
 
     //create reactor
-    if (!SwooleG.main_reactor)
+    if (!SwooleTG.reactor)
     {
         if (swoole_event_init() < 0)
         {
             return SW_ERR;
         }
     }
-    swReactor *reactor = SwooleG.main_reactor;
+    swReactor *reactor = SwooleTG.reactor;
 
     int n_buffer = serv->worker_num + serv->task_worker_num + serv->user_worker_num;
     if (swReactorProcess_alloc_output_buffer(n_buffer))
@@ -352,7 +352,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd)
     {
-        swSignalfd_setup(SwooleG.main_reactor);
+        swSignalfd_setup(SwooleTG.reactor);
     }
 #endif
 
@@ -511,13 +511,13 @@ static int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
 
 static int swReactorProcess_send2worker(int pipe_fd, const void *data, int length)
 {
-    if (!SwooleG.main_reactor)
+    if (!SwooleTG.reactor)
     {
         return swSocket_write_blocking(pipe_fd, data, length);
     }
     else
     {
-        return SwooleG.main_reactor->write(SwooleG.main_reactor, pipe_fd, data, length);
+        return SwooleTG.reactor->write(SwooleTG.reactor, pipe_fd, data, length);
     }
 }
 
