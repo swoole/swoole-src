@@ -111,7 +111,6 @@ void swoole_timer_free()
 {
     if (!SwooleTG.timer)
     {
-        swWarn("no timer");
         return;
     }
     swTimer_free(SwooleTG.timer);

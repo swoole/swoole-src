@@ -93,7 +93,6 @@ int swTimer_init(swTimer *timer, long msec)
     timer->_current_id = -1;
     timer->_next_msec = msec;
     timer->_next_id = 1;
-    timer->round = 0;
 
     int ret;
     if (SwooleTG.reactor)
