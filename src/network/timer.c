@@ -70,6 +70,7 @@ static int swReactorTimer_init(swReactor *reactor, swTimer *timer, long exec_mse
 
 int swTimer_init(swTimer *timer, long msec)
 {
+    bzero(timer, sizeof(swTimer));
     if (swTimer_now(&timer->basetime) < 0)
     {
         return SW_ERR;

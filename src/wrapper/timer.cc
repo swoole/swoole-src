@@ -21,13 +21,11 @@
 using namespace std;
 using namespace swoole;
 
-#define sw_timer()           (SwooleTG.timer)
-
 swTimer_node* swoole_timer_add(long ms, uchar persistent, swTimerCallback callback, void *private_data)
 {
     if (sw_unlikely(SwooleTG.timer == nullptr))
     {
-        SwooleTG.timer = (swTimer *)sw_malloc(sizeof(swTimer));
+        SwooleTG.timer = (swTimer *) sw_malloc(sizeof(swTimer));
         if (sw_unlikely(SwooleTG.timer == nullptr))
         {
             return nullptr;
@@ -39,12 +37,12 @@ swTimer_node* swoole_timer_add(long ms, uchar persistent, swTimerCallback callba
             return nullptr;
         }
     }
-    return swTimer_add(sw_timer(), ms, persistent, private_data, callback);
+    return swTimer_add(SwooleTG.timer, ms, persistent, private_data, callback);
 }
 
 uchar swoole_timer_del(swTimer_node* tnode)
 {
-    return swTimer_del(sw_timer(), tnode);
+    return swTimer_del(SwooleTG.timer, tnode);
 }
 
 long swoole_timer_after(long ms, swTimerCallback callback, void *private_data)
@@ -90,13 +88,13 @@ uchar swoole_timer_exists(long timer_id)
         swWarn("no timer");
         return false;
     }
-    swTimer_node *tnode = swTimer_get(sw_timer(), timer_id);
+    swTimer_node *tnode = swTimer_get(SwooleTG.timer, timer_id);
     return (tnode && !tnode->removed);
 }
 
 uchar swoole_timer_clear(long timer_id)
 {
-    return swTimer_del(sw_timer(), swTimer_get(sw_timer(), timer_id));
+    return swTimer_del(SwooleTG.timer, swTimer_get(SwooleTG.timer, timer_id));
 }
 
 swTimer_node* swoole_timer_get(long timer_id)
@@ -106,7 +104,7 @@ swTimer_node* swoole_timer_get(long timer_id)
         swWarn("no timer");
         return nullptr;
     }
-    return swTimer_get(sw_timer(), timer_id);
+    return swTimer_get(SwooleTG.timer, timer_id);
 }
 
 void swoole_timer_free()
