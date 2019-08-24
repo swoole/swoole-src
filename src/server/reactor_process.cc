@@ -340,7 +340,10 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
             }
         }
 #endif
-        reactor->add(reactor, ls->sock, fdtype);
+        if (reactor->add(reactor, ls->sock, fdtype) < 0)
+        {
+            return SW_ERR;
+        }
     }
 
     reactor->id = worker->id;
@@ -373,8 +376,14 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     {
         swSocket_set_nonblock(worker->pipe_worker);
         swSocket_set_nonblock(worker->pipe_master);
-        reactor->add(reactor, worker->pipe_worker, SW_FD_PIPE);
-        reactor->add(reactor, worker->pipe_master, SW_FD_PIPE);
+        if (reactor->add(reactor, worker->pipe_worker, SW_FD_PIPE) < 0)
+        {
+            return SW_ERR;
+        }
+        if (reactor->add(reactor, worker->pipe_master, SW_FD_PIPE) < 0)
+        {
+            return SW_ERR;
+        }
     }
 
     //task workers

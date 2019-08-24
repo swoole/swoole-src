@@ -123,11 +123,6 @@ typedef struct _swClient
 
     swSocket *socket;
 
-    /**
-     * reactor
-     */
-    swReactor *reactor;
-
     void *object;
 
     swString *buffer;
@@ -160,6 +155,7 @@ typedef struct _swClient
 
 } swClient;
 
+void swClient_init_reactor(swReactor *reactor);
 int swClient_create(swClient *cli, int type, int async);
 int swClient_sleep(swClient *cli);
 int swClient_wakeup(swClient *cli);

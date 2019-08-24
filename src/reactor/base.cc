@@ -14,8 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "server.h"
+#include "client.h"
 #include "swoole_cxx.h"
 #include "async.h"
 
@@ -73,6 +73,7 @@ int swReactor_create(swReactor *reactor, int max_event)
 
     Socket::init_reactor(reactor);
     System::init_reactor(reactor);
+    swClient_init_reactor(reactor);
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE])
     {
