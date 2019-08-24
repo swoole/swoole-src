@@ -762,13 +762,13 @@ void php_swoole_client_free(zval *zobject, swClient *cli)
             }
         }
 
-        sw_free(cli->server_str);
+        sw_free((void *) cli->server_str);
         swClient_free(cli);
         pefree(cli, 1);
     }
     else
     {
-        sw_free(cli->server_str);
+        sw_free((void *) cli->server_str);
         swClient_free(cli);
         efree(cli);
     }

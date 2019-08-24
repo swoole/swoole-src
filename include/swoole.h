@@ -2227,7 +2227,6 @@ struct _swTimer_node
 struct _swTimer
 {
     /*--------------signal timer--------------*/
-    uint8_t initialized;
     swReactor *reactor;
     swHeap *heap;
     swHashMap *map;
@@ -2245,6 +2244,7 @@ struct _swTimer
     void (*close)(swTimer *timer);
 };
 
+int swTimer_init(swTimer *timer, long msec);
 swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
 enum swBool_type swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);
@@ -2307,7 +2307,7 @@ typedef struct
     uint8_t update_time;
     swString *buffer_stack;
     swReactor *reactor;
-    swTimer timer;
+    swTimer *timer;
 } swThreadGlobal_t;
 
 typedef struct
@@ -2372,7 +2372,6 @@ typedef struct
     swServer *serv;
 
     swMemoryPool *memory_pool;
-    swTimer timer;
 
     char *task_tmpdir;
     uint16_t task_tmpdir_len;
@@ -2432,12 +2431,16 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock)
 static sw_inline int64_t swTimer_get_relative_msec()
 {
     struct timeval now;
+    if (!SwooleTG.timer)
+    {
+        return SW_ERR;
+    }
     if (swTimer_now(&now) < 0)
     {
         return SW_ERR;
     }
-    int64_t msec1 = (now.tv_sec - SwooleG.timer.basetime.tv_sec) * 1000;
-    int64_t msec2 = (now.tv_usec - SwooleG.timer.basetime.tv_usec) / 1000;
+    int64_t msec1 = (now.tv_sec - SwooleTG.timer->basetime.tv_sec) * 1000;
+    int64_t msec2 = (now.tv_usec - SwooleTG.timer->basetime.tv_usec) / 1000;
     return msec1 + msec2;
 }
 

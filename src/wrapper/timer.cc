@@ -21,14 +21,24 @@
 using namespace std;
 using namespace swoole;
 
-#ifdef SW_CO_MT
-#define sw_timer()           (&SwooleTG.timer)
-#else
-#define sw_timer()           (&SwooleG.timer)
-#endif
+#define sw_timer()           (SwooleTG.timer)
 
 swTimer_node* swoole_timer_add(long ms, uchar persistent, swTimerCallback callback, void *private_data)
 {
+    if (sw_unlikely(SwooleTG.timer == nullptr))
+    {
+        SwooleTG.timer = (swTimer *)sw_malloc(sizeof(swTimer));
+        if (sw_unlikely(SwooleTG.timer == nullptr))
+        {
+            return nullptr;
+        }
+        if (sw_unlikely(swTimer_init(SwooleTG.timer, ms) != SW_OK))
+        {
+            sw_free(SwooleTG.timer);
+            SwooleTG.timer = nullptr;
+            return nullptr;
+        }
+    }
     return swTimer_add(sw_timer(), ms, persistent, private_data, callback);
 }
 
@@ -75,7 +85,7 @@ long swoole_timer_tick(long ms, swTimerCallback callback, void *private_data)
 
 uchar swoole_timer_exists(long timer_id)
 {
-    if (!SwooleG.timer.initialized)
+    if (!SwooleTG.timer)
     {
         swWarn("no timer");
         return false;
@@ -91,10 +101,22 @@ uchar swoole_timer_clear(long timer_id)
 
 swTimer_node* swoole_timer_get(long timer_id)
 {
-    if (!SwooleG.timer.initialized)
+    if (!SwooleTG.timer)
     {
         swWarn("no timer");
         return nullptr;
     }
     return swTimer_get(sw_timer(), timer_id);
+}
+
+void swoole_timer_free()
+{
+    if (!SwooleTG.timer)
+    {
+        swWarn("no timer");
+        return;
+    }
+    swTimer_free(SwooleTG.timer);
+    sw_free(SwooleTG.timer);
+    SwooleTG.timer = nullptr;
 }

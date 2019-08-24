@@ -328,10 +328,10 @@ static int swManager_loop(swServer *serv)
             ManagerProcess.read_message = false;
         }
 
-        if (SwooleWG.signal_alarm)
+        if (SwooleWG.signal_alarm && SwooleTG.timer)
         {
             SwooleWG.signal_alarm = 0;
-            swTimer_select(&SwooleG.timer);
+            swTimer_select(SwooleTG.timer);
         }
 
         if (pid < 0)
@@ -500,9 +500,10 @@ static int swManager_loop(swServer *serv)
 
     sw_free(ManagerProcess.reload_workers);
 
-    if (SwooleG.timer.initialized)
+    if (SwooleTG.timer)
     {
-        swTimer_free(&SwooleG.timer);
+        swTimer_free(SwooleTG.timer);
+        sw_free(SwooleTG.timer);
     }
     //wait child process
     if (serv->max_wait_time)

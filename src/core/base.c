@@ -141,13 +141,13 @@ void swoole_init(void)
 
 void swoole_clean(void)
 {
-    if (SwooleG.timer.initialized)
-    {
-        swTimer_free(&SwooleG.timer);
-    }
     if (SwooleG.task_tmpdir)
     {
         sw_free(SwooleG.task_tmpdir);
+    }
+    if (SwooleTG.timer)
+    {
+        swoole_timer_free();
     }
     if (SwooleTG.reactor)
     {
@@ -187,9 +187,10 @@ pid_t swoole_fork(int flags)
         /**
          * [!!!] All timers and event loops must be cleaned up after fork
          */
-        if (SwooleG.timer.initialized)
+        if (SwooleTG.timer)
         {
-            swTimer_free(&SwooleG.timer);
+            swTimer_free(SwooleTG.timer);
+            sw_free(SwooleTG.timer);
         }
         if (!(flags & SW_FORK_EXEC))
         {
