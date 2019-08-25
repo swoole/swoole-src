@@ -114,6 +114,22 @@ int swReactor_set_handler(swReactor *reactor, int _fdtype, swReactor_handler han
     return SW_OK;
 }
 
+swSocket* swReactor_get(swReactor *reactor, int fd)
+{
+    swArray *array = reactor->socket_array;
+    if (fd >= (array->page_num * array->page_size))
+    {
+        SwooleG.lock.lock(&SwooleG.lock);
+        swSocket *_socket = (swSocket *) swArray_alloc(array, fd);
+        SwooleG.lock.unlock(&SwooleG.lock);
+        return _socket;
+    }
+    else
+    {
+        return (swSocket *) swArray_alloc(array, fd);
+    }
+}
+
 int swReactor_empty(swReactor *reactor)
 {
     //timer, defer tasks
