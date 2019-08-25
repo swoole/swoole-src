@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: upload files array
+swoole_http_server: upload files array parsed format
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -35,7 +35,10 @@ $pm->parentFunc = function () use ($pm) {
 
 $pm->childFunc = function () use ($pm) {
     $http = new swoole_http_server('127.0.0.1', $pm->getFreePort());
-    $http->set(['log_file' => '/dev/null']);
+    $http->set([
+        'log_file' => '/dev/null',
+        'http_parse_files' => true,
+    ]);
     $http->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });

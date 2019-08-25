@@ -216,6 +216,7 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx)
 {
     ctx->parse_cookie = serv->http_parse_cookie;
     ctx->parse_body = serv->http_parse_post;
+    ctx->parse_files = serv->http_parse_files;
 #ifdef SW_HAVE_ZLIB
     ctx->enable_compression = serv->http_compression;
 #endif

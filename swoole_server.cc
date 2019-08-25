@@ -2426,6 +2426,11 @@ static PHP_METHOD(swoole_server, set)
     {
         serv->http_parse_post = zval_is_true(v);
     }
+    //parse multipart/form-data file uploads
+    if (php_swoole_array_get_value(vht, "http_parse_files", v))
+    {
+        serv->http_parse_files = zval_is_true(v);
+    }
 #ifdef SW_HAVE_ZLIB
     //http content compression
     if (php_swoole_array_get_value(vht, "http_compression", v))

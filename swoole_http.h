@@ -121,6 +121,7 @@ struct http_context
     uint32_t detached :1;
     uint32_t parse_cookie :1;
     uint32_t parse_body :1;
+    uint32_t parse_files :1;
     uint32_t co_socket :1;
 
 #ifdef SW_HAVE_ZLIB

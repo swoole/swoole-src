@@ -709,11 +709,7 @@ static int multipart_body_on_data_end(multipart_parser* p)
     zval *zfiles = swoole_http_init_and_read_property(swoole_http_request_ce, ctx->request.zobject, &ctx->request.zfiles, ZEND_STRL("files")); 
 
     int input_path_pos = swoole_strnpos(ctx->current_input_name, ctx->current_input_name_len, (char *) ZEND_STRL("["));
-    if (input_path_pos < 0)
-    {
-        php_register_variable_ex(ctx->current_input_name, z_multipart_header, zfiles);
-    }
-    else
+    if (ctx->parse_files && input_path_pos > 0)
     {
         char meta_name[SW_HTTP_FORM_KEYLEN + sizeof("[tmp_name]") - 1];
         char *input_path = ctx->current_input_name + input_path_pos;
@@ -742,6 +738,10 @@ static int multipart_body_on_data_end(multipart_parser* p)
         
         sw_snprintf(meta_path, meta_path_len, "[size]%s", input_path);
         php_register_variable_ex(meta_name, zsize, zfiles);
+    }
+    else
+    {
+        php_register_variable_ex(ctx->current_input_name, z_multipart_header, zfiles);
     }
 
     efree(ctx->current_input_name);
