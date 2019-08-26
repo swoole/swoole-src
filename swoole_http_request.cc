@@ -560,15 +560,23 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
             tmp = http_trim_double_quote(value_buf, &value_len);
 
             add_assoc_stringl(z_multipart_header, "name", tmp, value_len);
+            if (value_len == 0)
+            {
+                add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_FILE);
+            }
 
             ctx->current_multipart_header = z_multipart_header;
         }
         zval_ptr_dtor(&tmp_array);
     }
-
-    if (strncasecmp(headername, "content-type", header_len) == 0 && ctx->current_multipart_header)
+    else if (strncasecmp(headername, "content-type", header_len) == 0 && ctx->current_multipart_header)
     {
-        add_assoc_stringl(ctx->current_multipart_header, "type", (char * ) at, length);
+        zval *z_multipart_header = ctx->current_multipart_header;
+        zval *zerr = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("error"));
+        if (zerr && Z_TYPE_P(zerr) == IS_LONG && Z_LVAL_P(zerr) == HTTP_UPLOAD_ERR_OK)
+        {
+            add_assoc_stringl(z_multipart_header, "type", (char * ) at, length);
+        }
     }
 
     efree(headername);
@@ -696,10 +704,6 @@ static int multipart_body_on_data_end(multipart_parser* p)
     {
         long size = swoole_file_get_size((FILE *) p->fp);
         add_assoc_long(z_multipart_header, "size", size);
-        if (size == 0)
-        {
-            add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_FILE);
-        }
 
         fclose((FILE *) p->fp);
         p->fp = NULL;
