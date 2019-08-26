@@ -2740,6 +2740,12 @@ static PHP_METHOD(swoole_server, start)
         RETURN_FALSE;
     }
 
+    swTimer *timer = sw_timer();
+    if (sw_unlikely(timer->initialized))
+    {
+        php_swoole_error(E_WARNING, "timers defined outside of the worker callback functions are ignored");
+    }
+
     php_swoole_server_register_callbacks(serv);
 
     serv->onReceive = php_swoole_onReceive;
