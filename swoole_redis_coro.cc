@@ -916,6 +916,7 @@ typedef struct
     long database;
     zval *zobject;
     zval _zobject;
+    zend_object std;
 } swRedisClient;
 
 typedef struct
@@ -929,9 +930,14 @@ enum {SW_REDIS_MODE_MULTI, SW_REDIS_MODE_PIPELINE};
 
 static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_value, redisReply* reply);
 
+static sw_inline swRedisClient* swoole_redis_coro_fetch_object(zend_object *obj)
+{
+    return (swRedisClient *) ((char *) obj - swoole_redis_coro_handlers.offset);
+}
+
 static sw_inline swRedisClient* swoole_get_redis_client(zval *zobject)
 {
-    swRedisClient *redis = (swRedisClient *) swoole_get_object(zobject);
+    swRedisClient *redis = (swRedisClient *) swoole_redis_coro_fetch_object(Z_OBJ_P(zobject));
     if (UNEXPECTED(!redis))
     {
         php_swoole_fatal_error(E_ERROR, "you must call Redis constructor first");
@@ -947,6 +953,49 @@ static sw_inline Socket* swoole_redis_coro_get_socket(redisContext *context)
         return conn ? (Socket *) conn->object : nullptr;
     }
     return nullptr;
+}
+
+static sw_inline bool swoole_redis_coro_close(swRedisClient *redis)
+{
+    if (redis->context)
+    {
+        Socket *socket = swoole_redis_coro_get_socket(redis->context);
+        swTraceLog(SW_TRACE_REDIS_CLIENT, "redis connection closed, fd=%d", redis->context->fd);
+        zend_update_property_bool(swoole_redis_coro_ce, redis->zobject, ZEND_STRL("connected"), 0);
+        if (!(socket && socket->has_bound()))
+        {
+            redisFreeKeepFd(redis->context);
+            redis->context = NULL;
+            redis->session = { false, 0, false };
+        }
+        if (socket && socket->close())
+        {
+            delete socket;
+        }
+        return true;
+    }
+    return false;
+}
+
+static void swoole_redis_coro_free_object(zend_object *object)
+{
+    swRedisClient *redis = swoole_redis_coro_fetch_object(object);
+
+    if (redis && redis->context)
+    {
+        swoole_redis_coro_close(redis);
+    }
+
+    zend_object_std_dtor(&redis->std);
+}
+
+static zend_object *swoole_redis_coro_create_object(zend_class_entry *ce)
+{
+    swRedisClient *redis = (swRedisClient *) ecalloc(1, sizeof(swRedisClient) + zend_object_properties_size(ce));
+    zend_object_std_init(&redis->std, ce);
+    object_properties_init(&redis->std, ce);
+    redis->std.handlers = &swoole_redis_coro_handlers;
+    return &redis->std;
 }
 
 static sw_inline int sw_redis_convert_err(int err)
@@ -972,28 +1021,6 @@ static sw_inline int sw_redis_convert_err(int err)
     default:
         return errno;
     }
-}
-
-static sw_inline bool swoole_redis_coro_close(swRedisClient *redis)
-{
-    if (redis->context)
-    {
-        Socket *socket = swoole_redis_coro_get_socket(redis->context);
-        swTraceLog(SW_TRACE_REDIS_CLIENT, "redis connection closed, fd=%d", redis->context->fd);
-        zend_update_property_bool(swoole_redis_coro_ce, redis->zobject, ZEND_STRL("connected"), 0);
-        if (!(socket && socket->has_bound()))
-        {
-            redisFreeKeepFd(redis->context);
-            redis->context = NULL;
-            redis->session = { false, 0, false };
-        }
-        if (socket && socket->close())
-        {
-            delete socket;
-        }
-        return true;
-    }
-    return false;
 }
 
 static sw_inline void swoole_redis_handle_assoc_array_result(zval* return_value, bool str2double) {
@@ -1966,6 +1993,7 @@ void php_swoole_redis_coro_minit(int module_number)
     SW_SET_CLASS_CLONEABLE(swoole_redis_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_redis_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_redis_coro);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_redis_coro, swoole_redis_coro_create_object, swoole_redis_coro_free_object, swRedisClient, std);
 
     zend_declare_property_string(swoole_redis_coro_ce, ZEND_STRL("host"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_redis_coro_ce, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
@@ -2048,7 +2076,7 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
 
 static PHP_METHOD(swoole_redis_coro, __construct)
 {
-    swRedisClient *redis = (swRedisClient *) swoole_get_object(ZEND_THIS);
+    swRedisClient *redis = swoole_get_redis_client(ZEND_THIS);
     zval *zsettings = sw_zend_read_and_convert_property_array(swoole_redis_coro_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
     zval *zset = NULL;
 
@@ -2057,19 +2085,14 @@ static PHP_METHOD(swoole_redis_coro, __construct)
         Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (redis)
+    if (redis->zobject)
     {
         php_swoole_fatal_error(E_ERROR, "constructor can only be called once");
         RETURN_FALSE;
     }
 
-    redis = (swRedisClient *) emalloc(sizeof(swRedisClient));
-    bzero(redis, sizeof(swRedisClient));
-
-    redis->zobject = ZEND_THIS;
-    sw_copy_to_stack(redis->zobject, redis->_zobject);
-
-    swoole_set_object(ZEND_THIS, redis);
+    redis->zobject = &redis->_zobject;
+    redis->_zobject = *ZEND_THIS;
 
     redis->connect_timeout = Socket::default_connect_timeout;
     redis->timeout = Socket::default_read_timeout;
@@ -2272,18 +2295,6 @@ static PHP_METHOD(swoole_redis_coro, close)
 static PHP_METHOD(swoole_redis_coro, __destruct)
 {
     SW_PREVENT_USER_DESTRUCT();
-
-    swRedisClient *redis = (swRedisClient *) swoole_get_object(ZEND_THIS);
-    if (!redis)
-    {
-        return;
-    }
-    if (redis->context)
-    {
-        swoole_redis_coro_close(redis);
-    }
-    swoole_set_object(ZEND_THIS, NULL);
-    efree(redis);
 }
 
 static PHP_METHOD(swoole_redis_coro, set)
