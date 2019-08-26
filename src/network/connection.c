@@ -209,7 +209,7 @@ void swConnection_sendfile_destructor(swBuffer_chunk *chunk)
     sw_free(task);
 }
 
-int swConnection_sendfile(swSocket *conn, char *filename, off_t offset, size_t length)
+int swConnection_sendfile(swSocket *conn, const char *filename, off_t offset, size_t length)
 {
     if (conn->out_buffer == NULL)
     {

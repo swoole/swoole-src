@@ -14,8 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "server.h"
+#include "client.h"
 #include "swoole_cxx.h"
 #include "async.h"
 
@@ -73,6 +73,7 @@ int swReactor_create(swReactor *reactor, int max_event)
 
     Socket::init_reactor(reactor);
     System::init_reactor(reactor);
+    swClient_init_reactor(reactor);
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE])
     {
@@ -113,10 +114,26 @@ int swReactor_set_handler(swReactor *reactor, int _fdtype, swReactor_handler han
     return SW_OK;
 }
 
+swSocket* swReactor_get(swReactor *reactor, int fd)
+{
+    swArray *array = reactor->socket_array;
+    if (fd >= (array->page_num * array->page_size))
+    {
+        SwooleG.lock.lock(&SwooleG.lock);
+        swSocket *_socket = (swSocket *) swArray_alloc(array, fd);
+        SwooleG.lock.unlock(&SwooleG.lock);
+        return _socket;
+    }
+    else
+    {
+        return (swSocket *) swArray_alloc(array, fd);
+    }
+}
+
 int swReactor_empty(swReactor *reactor)
 {
     //timer, defer tasks
-    if (SwooleG.timer.num > 0 || reactor->defer_tasks || swoole_coroutine_wait_count() > 0)
+    if ((reactor->timer && reactor->timer->num > 0) || reactor->defer_tasks || swoole_coroutine_wait_count() > 0)
     {
         return SW_FALSE;
     }

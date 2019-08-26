@@ -182,7 +182,7 @@ static sw_inline const char* http_get_method_name(int method)
         return "PURGE";
         /* unknown */
     case PHP_HTTP_NOT_IMPLEMENTED:
-        return "IMPLEMENTED";
+        return "UNKNOWN";
     default:
         return NULL;
     }

@@ -42,7 +42,7 @@ enum swSocks5_method
 
 typedef struct _swSocks5
 {
-    char *host;
+    const char *host;
     int port;
 
     uint8_t state;
@@ -50,12 +50,12 @@ typedef struct _swSocks5
     uint8_t method;
     uint8_t dns_tunnel;
 
-    char *username;
-    char *password;
+    const char *username;
+    const char *password;
     uint16_t l_username;
     uint16_t l_password;
 
-    char *target_host;
+    const char *target_host;
     int target_port;
     uint16_t l_target_host;
 

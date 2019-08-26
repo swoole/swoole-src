@@ -941,9 +941,9 @@ static sw_inline swRedisClient* swoole_get_redis_client(zval *zobject)
 
 static sw_inline Socket* swoole_redis_coro_get_socket(redisContext *context)
 {
-    if (context->fd > 0 && SwooleG.main_reactor)
+    if (context->fd > 0 && SwooleTG.reactor)
     {
-        swSocket *conn = swReactor_get(SwooleG.main_reactor, context->fd);
+        swSocket *conn = swReactor_get(SwooleTG.reactor, context->fd);
         return conn ? (Socket *) conn->object : nullptr;
     }
     return nullptr;

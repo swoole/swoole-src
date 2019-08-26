@@ -146,7 +146,7 @@ public:
 
     static inline swReactor* get_reactor()
     {
-        return SwooleTG.reactor ? SwooleTG.reactor : SwooleG.main_reactor;
+        return SwooleTG.reactor ? SwooleTG.reactor : SwooleTG.reactor;
     }
 
     static inline void init_reactor(swReactor *reactor)

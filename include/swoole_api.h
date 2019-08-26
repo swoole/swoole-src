@@ -31,6 +31,7 @@ SW_API uchar swoole_timer_del(swTimer_node* tnode);
 SW_API uchar swoole_timer_exists(long timer_id);
 SW_API swTimer_node* swoole_timer_get(long timer_id);
 SW_API uchar swoole_timer_clear(long timer_id);
+SW_API void swoole_timer_free();
 
 SW_API int swoole_event_init();
 SW_API int swoole_event_add(int fd, int events, int fdtype);

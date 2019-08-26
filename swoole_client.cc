@@ -716,28 +716,28 @@ void php_swoole_client_free(zval *zobject, swClient *cli)
     //socks5 proxy config
     if (cli->socks5_proxy)
     {
-        efree(cli->socks5_proxy->host);
+        efree((void* )cli->socks5_proxy->host);
         if (cli->socks5_proxy->username)
         {
-            efree(cli->socks5_proxy->username);
+            efree((void* )cli->socks5_proxy->username);
         }
         if (cli->socks5_proxy->password)
         {
-            efree(cli->socks5_proxy->password);
+            efree((void* )cli->socks5_proxy->password);
         }
         efree(cli->socks5_proxy);
     }
     //http proxy config
     if (cli->http_proxy)
     {
-        efree(cli->http_proxy->proxy_host);
+        efree((void* )cli->http_proxy->proxy_host);
         if (cli->http_proxy->user)
         {
-            efree(cli->http_proxy->user);
+            efree((void* )cli->http_proxy->user);
         }
         if (cli->http_proxy->password)
         {
-            efree(cli->http_proxy->password);
+            efree((void* )cli->http_proxy->password);
         }
         efree(cli->http_proxy);
     }
@@ -762,13 +762,13 @@ void php_swoole_client_free(zval *zobject, swClient *cli)
             }
         }
 
-        sw_free(cli->server_str);
+        sw_free((void *) cli->server_str);
         swClient_free(cli);
         pefree(cli, 1);
     }
     else
     {
-        sw_free(cli->server_str);
+        sw_free((void *) cli->server_str);
         swClient_free(cli);
         efree(cli);
     }

@@ -37,14 +37,14 @@ static void coro_test_fn(void *arg)
 
 static inline void coro_test_wait(int *complete_num, int total_num)
 {
-    SwooleG.main_reactor->once = true;
+    SwooleTG.reactor->once = true;
 
     while (*complete_num != total_num)
     {
-        SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
+        SwooleTG.reactor->wait(SwooleTG.reactor, nullptr);
     }
 
-    SwooleG.main_reactor->once = false;
+    SwooleTG.reactor->once = false;
 }
 
 static inline void coro_test_create(coroutine_func_t fn, void *arg, int *complete_num)

@@ -222,17 +222,17 @@ void php_swoole_client_coro_socket_free_socks5_proxy(Socket *cli)
     {
         if (cli->socks5_proxy->host)
         {
-            efree(cli->socks5_proxy->host);
+            efree((void* )cli->socks5_proxy->host);
             cli->socks5_proxy->host = nullptr;
         }
         if (cli->socks5_proxy->username)
         {
-            efree(cli->socks5_proxy->username);
+            efree((void* )cli->socks5_proxy->username);
             cli->socks5_proxy->username = nullptr;
         }
         if (cli->socks5_proxy->password)
         {
-            efree(cli->socks5_proxy->password);
+            efree((void* )cli->socks5_proxy->password);
             cli->socks5_proxy->password = nullptr;
         }
         efree(cli->socks5_proxy);
@@ -246,17 +246,17 @@ void php_swoole_client_coro_socket_free_http_proxy(Socket *cli)
     {
         if (cli->http_proxy->proxy_host)
         {
-            efree(cli->http_proxy->proxy_host);
+            efree((void* ) cli->http_proxy->proxy_host);
             cli->http_proxy->proxy_host = nullptr;
         }
         if (cli->http_proxy->user)
         {
-            efree(cli->http_proxy->user);
+            efree((void* ) cli->http_proxy->user);
             cli->http_proxy->user = nullptr;
         }
         if (cli->http_proxy->password)
         {
-            efree(cli->http_proxy->password);
+            efree((void* ) cli->http_proxy->password);
             cli->http_proxy->password = nullptr;
         }
         efree(cli->http_proxy);

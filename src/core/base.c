@@ -88,6 +88,12 @@ void swoole_init(void)
         exit(1);
     }
 
+    if (swMutex_create(&SwooleG.lock, 0) < 0)
+    {
+        printf("[Core] mutex init failure");
+        exit(1);
+    }
+
     SwooleG.max_sockets = 1024;
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
@@ -141,15 +147,15 @@ void swoole_init(void)
 
 void swoole_clean(void)
 {
-    if (SwooleG.timer.initialized)
-    {
-        swTimer_free(&SwooleG.timer);
-    }
     if (SwooleG.task_tmpdir)
     {
         sw_free(SwooleG.task_tmpdir);
     }
-    if (SwooleG.main_reactor)
+    if (SwooleTG.timer)
+    {
+        swoole_timer_free();
+    }
+    if (SwooleTG.reactor)
     {
         swoole_event_free();
     }
@@ -187,9 +193,9 @@ pid_t swoole_fork(int flags)
         /**
          * [!!!] All timers and event loops must be cleaned up after fork
          */
-        if (SwooleG.timer.initialized)
+        if (SwooleTG.timer)
         {
-            swTimer_free(&SwooleG.timer);
+            swoole_timer_free();
         }
         if (!(flags & SW_FORK_EXEC))
         {
@@ -209,7 +215,7 @@ pid_t swoole_fork(int flags)
             /**
              * reset eventLoop
              */
-            if (SwooleG.main_reactor)
+            if (SwooleTG.reactor)
             {
                 swoole_event_free();
                 swTraceLog(SW_TRACE_REACTOR, "reactor has been destroyed");

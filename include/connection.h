@@ -55,7 +55,7 @@ typedef struct _swSSL_option
 
 int swConnection_buffer_send(swSocket *conn);
 
-int swConnection_sendfile(swSocket *conn, char *filename, off_t offset, size_t length);
+int swConnection_sendfile(swSocket *conn, const char *filename, off_t offset, size_t length);
 int swConnection_onSendfile(swSocket *conn, swBuffer_chunk *chunk);
 void swConnection_sendfile_destructor(swBuffer_chunk *chunk);
 const char* swConnection_get_ip(enum swSocket_type socket_type, swSocketAddress *info);

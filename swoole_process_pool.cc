@@ -453,7 +453,7 @@ static PHP_METHOD(swoole_process_pool, start)
         RETURN_FALSE;
     }
 
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
         swoole_event_free();
     }

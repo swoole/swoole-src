@@ -1163,7 +1163,7 @@ static sw_inline int php_swoole_check_reactor()
     {
         return -1;
     }
-    if (sw_unlikely(!SwooleG.main_reactor))
+    if (sw_unlikely(!SwooleTG.reactor))
     {
         return php_swoole_reactor_init() == SW_OK ? 1 : -1;
     }
