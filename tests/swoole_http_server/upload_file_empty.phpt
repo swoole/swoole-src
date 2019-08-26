@@ -1,11 +1,7 @@
 --TEST--
 swoole_http_server: upload files empty
 --SKIPIF--
-<?php
-require __DIR__ . '/../include/skipif.inc';
-skip_if_function_not_exist('curl_init');
-skip_if_function_not_exist('curl_file_create');
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -13,21 +9,37 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 
 $pm->parentFunc = function () use ($pm) {
-    $formData = [
-        'file1' => curl_file_create('/dev/null', 'text/plain', 'empty.txt'),
-        'file2' => curl_file_create('/dev/null', 'application/octet-stream', ''),
-    ];
-    
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1:{$pm->getFreePort()}");
-    curl_setopt($ch, CURLOPT_HEADER, 0);
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Expect:']);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $formData);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    $result = curl_exec($ch);
-    curl_close($ch);
+    $boundary = "------------------------d3f990cdce762596";
+    $body = implode("\r\n", [
+        "--$boundary",
+        'Content-Disposition: form-data; name="file1"; filename="empty.txt"',
+        'Content-Type: text/plain',
+        '',
+        '',
+        "--$boundary",
+        'Content-Disposition: form-data; name="file2"; filename=""',
+        'Content-Type: application/octet-stream',
+        '',
+        '',
+        "--$boundary--",
+        '',
+    ]);
+    $request = implode("\r\n", [
+        'POST / HTTP/1.1',
+        "Content-Type: multipart/form-data; boundary=$boundary",
+        'Content-Length: ' . strlen($body),
+        '',
+        '',
+        $body,
+    ]);
 
+    $sock = stream_socket_client("tcp://127.0.0.1:{$pm->getFreePort()}");
+    fwrite($sock, $request);
+    stream_set_chunk_size($sock, 2 * 1024 * 1024);
+    $response = fread($sock, 2 * 1024 * 1024);
+    fclose($sock);
+
+    $result = ltrim(strstr($response, "\r\n\r\n"));
     echo "$result\n";
     $pm->kill();
 };
