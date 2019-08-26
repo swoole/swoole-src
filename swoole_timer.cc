@@ -125,18 +125,18 @@ bool php_swoole_timer_clear(swTimer_node *tnode)
 
 bool php_swoole_timer_clear_all()
 {
-    if (UNEXPECTED(!SwooleG.timer.map))
+    if (UNEXPECTED(!SwooleTG.timer))
     {
         return SW_FALSE;
     }
 
-    uint32_t num = swHashMap_count(SwooleG.timer.map), index = 0;
+    uint32_t num = swHashMap_count(SwooleTG.timer->map), index = 0;
     swTimer_node **list = (swTimer_node **) emalloc(num * sizeof(swTimer_node*));
-    swHashMap_rewind(SwooleG.timer.map);
+    swHashMap_rewind(SwooleTG.timer->map);
     while (1)
     {
         uint64_t timer_id;
-        swTimer_node *tnode = (swTimer_node *) swHashMap_each_int(SwooleG.timer.map, &timer_id);
+        swTimer_node *tnode = (swTimer_node *) swHashMap_each_int(SwooleTG.timer->map, &timer_id);
         if (UNEXPECTED(!tnode))
         {
             break;
@@ -264,7 +264,7 @@ static PHP_FUNCTION(swoole_timer_tick)
 
 static PHP_FUNCTION(swoole_timer_exists)
 {
-    if (UNEXPECTED(!SwooleG.timer.initialized))
+    if (UNEXPECTED(!SwooleTG.timer))
     {
         RETURN_FALSE;
     }
@@ -277,14 +277,14 @@ static PHP_FUNCTION(swoole_timer_exists)
             Z_PARAM_LONG(id)
         ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-        tnode = swTimer_get(&SwooleG.timer, id);
+        tnode = swoole_timer_get(id);
         RETURN_BOOL(tnode && !tnode->removed);
     }
 }
 
 static PHP_FUNCTION(swoole_timer_info)
 {
-    if (UNEXPECTED(!SwooleG.timer.initialized))
+    if (UNEXPECTED(!SwooleTG.timer))
     {
         RETURN_FALSE;
     }
@@ -297,7 +297,7 @@ static PHP_FUNCTION(swoole_timer_info)
             Z_PARAM_LONG(id)
         ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-        tnode = swTimer_get(&SwooleG.timer, id);
+        tnode = swoole_timer_get(id);
         if (UNEXPECTED(!tnode))
         {
             RETURN_NULL();
@@ -313,22 +313,31 @@ static PHP_FUNCTION(swoole_timer_info)
 static PHP_FUNCTION(swoole_timer_stats)
 {
     array_init(return_value);
-    add_assoc_bool(return_value, "initialized", SwooleG.timer.initialized);
-    add_assoc_long(return_value, "num", SwooleG.timer.num);
-    add_assoc_long(return_value, "round", SwooleG.timer.round);
+    if (SwooleTG.timer)
+    {
+        add_assoc_bool(return_value, "initialized", 1);
+        add_assoc_long(return_value, "num", SwooleTG.timer->num);
+        add_assoc_long(return_value, "round", SwooleTG.timer->round);
+    }
+    else
+    {
+        add_assoc_bool(return_value, "initialized", 0);
+        add_assoc_long(return_value, "num", 0);
+        add_assoc_long(return_value, "round", 0);
+    }
 }
 
 static PHP_FUNCTION(swoole_timer_list)
 {
     zval zlist;
     array_init(&zlist);
-    if (EXPECTED(SwooleG.timer.initialized))
+    if (EXPECTED(SwooleTG.timer))
     {
-        swHashMap_rewind(SwooleG.timer.map);
+        swHashMap_rewind(SwooleTG.timer->map);
         while (1)
         {
             uint64_t timer_id;
-            swTimer_node *tnode = (swTimer_node *) swHashMap_each_int(SwooleG.timer.map, &timer_id);
+            swTimer_node *tnode = (swTimer_node *) swHashMap_each_int(SwooleTG.timer->map, &timer_id);
             if (UNEXPECTED(!tnode))
             {
                 break;
@@ -353,7 +362,7 @@ static PHP_FUNCTION(swoole_timer_list)
 
 static PHP_FUNCTION(swoole_timer_clear)
 {
-    if (UNEXPECTED(!SwooleG.timer.initialized))
+    if (UNEXPECTED(!SwooleTG.timer))
     {
         RETURN_FALSE;
     }

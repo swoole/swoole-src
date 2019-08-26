@@ -245,12 +245,12 @@ int php_swoole_reactor_init()
             return SW_ERR;
         }
     }
-    if (!SwooleG.main_reactor)
+    if (!SwooleTG.reactor)
     {
         swTraceLog(SW_TRACE_PHP, "init reactor");
 
         swoole_event_init();
-        SwooleG.main_reactor->wait_exit = 1;
+        SwooleTG.reactor->wait_exit = 1;
 
         php_swoole_register_shutdown_function("Swoole\\Event::rshutdown");
     }
@@ -273,18 +273,18 @@ void php_swoole_event_wait()
         }
     }
 
-    if (!SwooleG.main_reactor)
+    if (!SwooleTG.reactor)
     {
         return;
     }
 
 #ifdef HAVE_SIGNALFD
-    if (SwooleG.main_reactor->check_signalfd)
+    if (SwooleTG.reactor->check_signalfd)
     {
-        swSignalfd_setup(SwooleG.main_reactor);
+        swSignalfd_setup(SwooleTG.reactor);
     }
 #endif
-    if (!swReactor_empty(SwooleG.main_reactor))
+    if (!swReactor_empty(SwooleTG.reactor))
     {
         // Don't disable object slot reuse while running shutdown functions:
         // https://github.com/php/php-src/commit/bd6eabd6591ae5a7c9ad75dfbe7cc575fa907eac
@@ -292,7 +292,7 @@ void php_swoole_event_wait()
         zend_bool in_shutdown = EG(flags) & EG_FLAGS_IN_SHUTDOWN;
         EG(flags) &= ~EG_FLAGS_IN_SHUTDOWN;
 #endif
-        int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
+        int ret = SwooleTG.reactor->wait(SwooleTG.reactor, NULL);
         if (ret < 0)
         {
             php_swoole_sys_error(E_ERROR, "reactor wait failed");
@@ -309,9 +309,9 @@ void php_swoole_event_wait()
 
 void php_swoole_event_exit()
 {
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
-        SwooleG.main_reactor->running = 0;
+        SwooleTG.reactor->running = 0;
     }
 }
 
@@ -464,11 +464,11 @@ static void check_reactor()
 {
     php_swoole_check_reactor();
 
-    if (!swReactor_isset_handler(SwooleG.main_reactor, SW_FD_USER))
+    if (!swReactor_isset_handler(SwooleTG.reactor, SW_FD_USER))
     {
-        swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_READ, php_swoole_event_onRead);
-        swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_WRITE, php_swoole_event_onWrite);
-        swReactor_set_handler(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_ERROR, php_swoole_event_onError);
+        swReactor_set_handler(SwooleTG.reactor, SW_FD_USER | SW_EVENT_READ, php_swoole_event_onRead);
+        swReactor_set_handler(SwooleTG.reactor, SW_FD_USER | SW_EVENT_WRITE, php_swoole_event_onWrite);
+        swReactor_set_handler(SwooleTG.reactor, SW_FD_USER | SW_EVENT_ERROR, php_swoole_event_onError);
     }
 }
 
@@ -532,7 +532,7 @@ static PHP_FUNCTION(swoole_event_add)
         RETURN_FALSE;
     }
 
-    swSocket *socket = swReactor_get(SwooleG.main_reactor, socket_fd);
+    swSocket *socket = swReactor_get(SwooleTG.reactor, socket_fd);
     socket->object = peo;
     socket->nonblock = 1;
     socket->fdtype = SW_FD_USER;
@@ -577,7 +577,7 @@ static PHP_FUNCTION(swoole_event_write)
 
 static PHP_FUNCTION(swoole_event_set)
 {
-    if (!SwooleG.main_reactor)
+    if (!SwooleTG.reactor)
     {
         php_swoole_fatal_error(E_WARNING, "reactor is not ready, cannot call swoole_event_set");
         RETURN_FALSE;
@@ -605,7 +605,7 @@ static PHP_FUNCTION(swoole_event_set)
         RETURN_FALSE;
     }
 
-    swSocket *socket = swReactor_get(SwooleG.main_reactor, socket_fd);
+    swSocket *socket = swReactor_get(SwooleTG.reactor, socket_fd);
     if (socket->fdtype != SW_FD_USER || socket->removed)
     {
         php_swoole_fatal_error(E_WARNING, "socket[%d] is not found in the reactor", socket_fd);
@@ -653,7 +653,7 @@ static PHP_FUNCTION(swoole_event_del)
 {
     zval *zfd;
 
-    if (!SwooleG.main_reactor)
+    if (!SwooleTG.reactor)
     {
         php_swoole_fatal_error(E_WARNING, "reactor is not ready, cannot call swoole_event_del");
         RETURN_FALSE;
@@ -671,7 +671,7 @@ static PHP_FUNCTION(swoole_event_del)
         RETURN_FALSE;
     }
 
-    swSocket *socket = swReactor_get(SwooleG.main_reactor, socket_fd);
+    swSocket *socket = swReactor_get(SwooleTG.reactor, socket_fd);
     if (socket->object)
     {
         swoole_event_defer(php_event_object_free, socket->object);
@@ -692,14 +692,14 @@ static PHP_FUNCTION(swoole_event_defer)
     php_swoole_check_reactor();
 
     sw_zend_fci_cache_persist(fci_cache);
-    SwooleG.main_reactor->defer(SwooleG.main_reactor, php_swoole_event_onDefer, fci_cache);
+    SwooleTG.reactor->defer(SwooleTG.reactor, php_swoole_event_onDefer, fci_cache);
 
     RETURN_TRUE;
 }
 
 static PHP_FUNCTION(swoole_event_cycle)
 {
-    if (!SwooleG.main_reactor)
+    if (!SwooleTG.reactor)
     {
         php_swoole_fatal_error(E_WARNING, "reactor is not ready, cannot call %s", ZSTR_VAL(swoole_event_ce->name));
         RETURN_FALSE;
@@ -717,15 +717,15 @@ static PHP_FUNCTION(swoole_event_cycle)
 
     if (_fci.size == 0)
     {
-        if (SwooleG.main_reactor->idle_task.callback == NULL)
+        if (SwooleTG.reactor->idle_task.callback == NULL)
         {
             RETURN_FALSE;
         }
         else
         {
-            SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_zend_fci_cache_free, SwooleG.main_reactor->idle_task.data);
-            SwooleG.main_reactor->idle_task.callback = NULL;
-            SwooleG.main_reactor->idle_task.data = NULL;
+            SwooleTG.reactor->defer(SwooleTG.reactor, sw_zend_fci_cache_free, SwooleTG.reactor->idle_task.data);
+            SwooleTG.reactor->idle_task.callback = NULL;
+            SwooleTG.reactor->idle_task.data = NULL;
             RETURN_TRUE;
         }
     }
@@ -737,25 +737,25 @@ static PHP_FUNCTION(swoole_event_cycle)
 
     if (!before)
     {
-        if (SwooleG.main_reactor->idle_task.data != NULL)
+        if (SwooleTG.reactor->idle_task.data != NULL)
         {
-            SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_zend_fci_cache_free, SwooleG.main_reactor->idle_task.data);
+            SwooleTG.reactor->defer(SwooleTG.reactor, sw_zend_fci_cache_free, SwooleTG.reactor->idle_task.data);
         }
 
-        SwooleG.main_reactor->idle_task.callback = php_swoole_event_onEndCallback;
-        SwooleG.main_reactor->idle_task.data = fci_cache;
+        SwooleTG.reactor->idle_task.callback = php_swoole_event_onEndCallback;
+        SwooleTG.reactor->idle_task.data = fci_cache;
     }
     else
     {
-        if (SwooleG.main_reactor->future_task.data != NULL)
+        if (SwooleTG.reactor->future_task.data != NULL)
         {
-            SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_zend_fci_cache_free, SwooleG.main_reactor->future_task.data);
+            SwooleTG.reactor->defer(SwooleTG.reactor, sw_zend_fci_cache_free, SwooleTG.reactor->future_task.data);
         }
 
-        SwooleG.main_reactor->future_task.callback = php_swoole_event_onEndCallback;
-        SwooleG.main_reactor->future_task.data = fci_cache;
+        SwooleTG.reactor->future_task.callback = php_swoole_event_onEndCallback;
+        SwooleTG.reactor->future_task.data = fci_cache;
         //Registration onBegin callback function
-        swReactor_activate_future_task(SwooleG.main_reactor);
+        swReactor_activate_future_task(SwooleTG.reactor);
     }
 
     RETURN_TRUE;
@@ -768,7 +768,7 @@ static PHP_FUNCTION(swoole_event_exit)
 
 static PHP_FUNCTION(swoole_event_wait)
 {
-    if (!SwooleG.main_reactor)
+    if (!SwooleTG.reactor)
     {
         return;
     }
@@ -787,32 +787,32 @@ static PHP_FUNCTION(swoole_event_rshutdown)
 
 static PHP_FUNCTION(swoole_event_dispatch)
 {
-    if (!SwooleG.main_reactor)
+    if (!SwooleTG.reactor)
     {
         RETURN_FALSE;
     }
-    SwooleG.main_reactor->once = 1;
+    SwooleTG.reactor->once = 1;
 
 #ifdef HAVE_SIGNALFD
-    if (SwooleG.main_reactor->check_signalfd)
+    if (SwooleTG.reactor->check_signalfd)
     {
-        swSignalfd_setup(SwooleG.main_reactor);
+        swSignalfd_setup(SwooleTG.reactor);
     }
 #endif
 
-    int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
+    int ret = SwooleTG.reactor->wait(SwooleTG.reactor, NULL);
     if (ret < 0)
     {
         php_swoole_sys_error(E_ERROR, "reactor wait failed");
     }
 
-    SwooleG.main_reactor->once = 0;
+    SwooleTG.reactor->once = 0;
     RETURN_TRUE;
 }
 
 static PHP_FUNCTION(swoole_event_isset)
 {
-    if (!SwooleG.main_reactor)
+    if (!SwooleTG.reactor)
     {
         RETURN_FALSE;
     }
@@ -832,7 +832,7 @@ static PHP_FUNCTION(swoole_event_isset)
         RETURN_FALSE;
     }
 
-    swSocket *_socket = swReactor_get(SwooleG.main_reactor, socket_fd);
+    swSocket *_socket = swReactor_get(SwooleTG.reactor, socket_fd);
     if (_socket == NULL || _socket->removed)
     {
         RETURN_FALSE;

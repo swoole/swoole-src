@@ -1004,6 +1004,7 @@ static sw_inline int swWorker_get_send_pipe(swServer *serv, int session_id, int 
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv);
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
+void swReactorThread_join(swServer *serv);
 void swReactorThread_free(swServer *serv);
 int swReactorThread_close(swReactor *reactor, int fd);
 int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, char *data, uint32_t length);

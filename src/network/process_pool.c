@@ -536,11 +536,11 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
          */
         if (n < 0)
         {
-            if (errno == EINTR && SwooleWG.signal_alarm)
+            if (errno == EINTR && SwooleWG.signal_alarm && SwooleTG.timer)
             {
                 _alarm_handler:
                 SwooleWG.signal_alarm = 0;
-                swTimer_select(&SwooleG.timer);
+                swTimer_select(SwooleTG.timer);
             }
             continue;
         }
@@ -686,11 +686,11 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
          */
         if (n < 0)
         {
-            if (errno == EINTR && SwooleWG.signal_alarm)
+            if (errno == EINTR && SwooleWG.signal_alarm && SwooleTG.timer)
             {
                 _alarm_handler:
                 SwooleWG.signal_alarm = 0;
-                swTimer_select(&SwooleG.timer);
+                swTimer_select(SwooleTG.timer);
             }
             continue;
         }
@@ -748,10 +748,10 @@ int swProcessPool_wait(swProcessPool *pool)
     while (SwooleG.running)
     {
         pid = wait(&status);
-        if (SwooleWG.signal_alarm)
+        if (SwooleWG.signal_alarm && SwooleTG.timer)
         {
             SwooleWG.signal_alarm = 0;
-            swTimer_select(&SwooleG.timer);
+            swTimer_select(SwooleTG.timer);
         }
         if (pid < 0)
         {

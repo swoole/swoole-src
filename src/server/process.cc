@@ -444,15 +444,15 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     {
         int _len = resp->info.len;
         int _header = htonl(_len + sizeof(resp->info));
-        if (SwooleG.main_reactor->write(SwooleG.main_reactor, serv->last_stream_fd, (char*) &_header, sizeof(_header)) < 0)
+        if (SwooleTG.reactor->write(SwooleTG.reactor, serv->last_stream_fd, (char*) &_header, sizeof(_header)) < 0)
         {
             return SW_ERR;
         }
-        if (SwooleG.main_reactor->write(SwooleG.main_reactor, serv->last_stream_fd, &resp->info, sizeof(resp->info)) < 0)
+        if (SwooleTG.reactor->write(SwooleTG.reactor, serv->last_stream_fd, &resp->info, sizeof(resp->info)) < 0)
         {
             return SW_ERR;
         }
-        if (SwooleG.main_reactor->write(SwooleG.main_reactor, serv->last_stream_fd, resp->data, _len) < 0)
+        if (SwooleTG.reactor->write(SwooleTG.reactor, serv->last_stream_fd, resp->data, _len) < 0)
         {
             return SW_ERR;
         }

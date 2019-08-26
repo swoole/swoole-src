@@ -791,9 +791,9 @@ int swServer_shutdown(swServer *serv)
 {
     serv->running = 0;
     //stop all thread
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
-        swReactor *reactor = SwooleG.main_reactor;
+        swReactor *reactor = SwooleTG.reactor;
         reactor->wait_exit = 1;
         swListenPort *port;
         LL_FOREACH(serv->listen_list, port)
@@ -827,22 +827,6 @@ static int swServer_destory(swServer *serv)
     {
         serv->factory.shutdown(&(serv->factory));
     }
-    /**
-     * Shutdown heartbeat thread
-     */
-    if (serv->heartbeat_pidt)
-    {
-        swTraceLog(SW_TRACE_SERVER, "terminate heartbeat thread");
-        if (pthread_cancel(serv->heartbeat_pidt) < 0)
-        {
-            swSysWarn("pthread_cancel(%ld) failed", (ulong_t )serv->heartbeat_pidt);
-        }
-        //wait thread
-        if (pthread_join(serv->heartbeat_pidt, NULL) < 0)
-        {
-            swSysWarn("pthread_join(%ld) failed", (ulong_t )serv->heartbeat_pidt);
-        }
-    }
     if (serv->factory_mode == SW_MODE_BASE)
     {
         swTraceLog(SW_TRACE_SERVER, "terminate task workers");
@@ -850,7 +834,6 @@ static int swServer_destory(swServer *serv)
         {
             swProcessPool_shutdown(&serv->gs->task_workers);
         }
-        swReactorProcess_free(serv);
     }
     else
     {
@@ -858,7 +841,7 @@ static int swServer_destory(swServer *serv)
         /**
          * Wait until all the end of the thread
          */
-        swReactorThread_free(serv);
+        swReactorThread_join(serv);
     }
 
     swListenPort *port;
@@ -887,6 +870,14 @@ static int swServer_destory(swServer *serv)
     if (serv->onShutdown)
     {
         serv->onShutdown(serv);
+    }
+    if (serv->factory_mode == SW_MODE_BASE)
+    {
+        swReactorProcess_free(serv);
+    }
+    else
+    {
+        swReactorThread_free(serv);
     }
     serv->lock.free(&serv->lock);
     SwooleG.serv = nullptr;
@@ -1005,7 +996,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
 
     if (serv->single_thread)
     {
-        reactor = SwooleG.main_reactor;
+        reactor = SwooleTG.reactor;
     }
     else
     {
@@ -1804,7 +1795,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     connection = &(serv->connection_list[fd]);
     bzero(connection, sizeof(swConnection));
 
-    swSocket *_socket = swReactor_get(SwooleG.main_reactor, fd);
+    swSocket *_socket = swReactor_get(SwooleTG.reactor, fd);
     _socket->object = connection;
     _socket->buffer_size = ls->socket_buffer_size;
     _socket->fd = fd;

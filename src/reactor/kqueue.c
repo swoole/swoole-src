@@ -70,7 +70,7 @@ static sw_inline void swReactorKqueue_del_once_socket(swReactor *reactor, swSock
 {
     if ((socket->events & SW_EVENT_ONCE) && !socket->removed)
     {
-        swReactorKqueue_del(reactor, socket->fd, socket->fdtype);
+        swReactorKqueue_del(reactor, socket->fd);
     }
 }
 
@@ -80,7 +80,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
     swReactorKqueue *object = sw_malloc(sizeof(swReactorKqueue));
     if (object == NULL)
     {
-        swWarn("[swReactorKqueueCreate] malloc[0] fail\n");
+        swWarn("[swReactorKqueueCreate] malloc[0] fail");
         return SW_ERR;
     }
     bzero(object, sizeof(swReactorKqueue));
@@ -91,7 +91,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
 
     if (object->events == NULL)
     {
-        swWarn("[swReactorKqueueCreate] malloc[1] fail\n");
+        swWarn("[swReactorKqueueCreate] malloc[1] fail");
         return SW_ERR;
     }
     //kqueue create
@@ -99,7 +99,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
     object->epfd = kqueue();
     if (object->epfd < 0)
     {
-        swWarn("[swReactorKqueueCreate] kqueue_create[0] fail\n");
+        swWarn("[swReactorKqueueCreate] kqueue_create[0] fail");
         return SW_ERR;
     }
 

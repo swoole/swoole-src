@@ -1926,7 +1926,7 @@ static PHP_METHOD(swoole_server, __construct)
         RETURN_FALSE;
     }
 
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
         zend_throw_exception_ex(swoole_exception_ce, -2, "eventLoop has already been created. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
@@ -4058,9 +4058,9 @@ static PHP_METHOD(swoole_server, stop)
 
     if (worker_id == SwooleWG.id && wait_reactor == 0)
     {
-        if (SwooleG.main_reactor != NULL)
+        if (SwooleTG.reactor != NULL)
         {
-            SwooleG.main_reactor->running = 0;
+            SwooleTG.reactor->running = 0;
         }
         SwooleG.running = 0;
     }
