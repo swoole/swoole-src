@@ -1913,11 +1913,7 @@ static inline void swReactor_before_wait(swReactor *reactor)
 #define SW_REACTOR_CONTINUE   if (reactor->once) {break;} else {continue;}
 
 int swReactor_empty(swReactor *reactor);
-
-static sw_inline swSocket* swReactor_get(swReactor *reactor, int fd)
-{
-    return (swSocket *) swArray_alloc(reactor->socket_array, fd);
-}
+swSocket* swReactor_get(swReactor *reactor, int fd);
 
 static sw_inline int swReactor_isset_handler(swReactor *reactor, int fdtype)
 {
@@ -2372,6 +2368,7 @@ typedef struct
     swServer *serv;
 
     swMemoryPool *memory_pool;
+    swLock lock;
 
     char *task_tmpdir;
     uint16_t task_tmpdir_len;

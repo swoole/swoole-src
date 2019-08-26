@@ -88,6 +88,12 @@ void swoole_init(void)
         exit(1);
     }
 
+    if (swMutex_create(&SwooleG.lock, 0) < 0)
+    {
+        printf("[Core] mutex init failure");
+        exit(1);
+    }
+
     SwooleG.max_sockets = 1024;
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)

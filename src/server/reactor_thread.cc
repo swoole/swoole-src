@@ -1161,6 +1161,8 @@ static int swReactorThread_loop(swThreadParam *param)
     //shutdown
     reactor->free(reactor);
 
+    SwooleTG.reactor = nullptr;
+
     swString_free(SwooleTG.buffer_stack);
     pthread_exit(0);
     return SW_OK;

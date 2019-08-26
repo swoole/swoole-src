@@ -400,6 +400,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         if (!conn)
         {
             swWarn("connection[%d] is closed", ctx->fd);
+            efree(header_name);
             return SW_ERR;
         }
         swListenPort *port = (swListenPort *) serv->connection_list[conn->server_fd].object;
