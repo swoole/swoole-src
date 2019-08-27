@@ -54,6 +54,13 @@ int swAio_callback(swReactor *reactor, swEvent *_event)
     return SW_OK;
 }
 
+struct thread_context
+{
+    thread *_thread;
+    atomic<bool> *_exit_flag;
+    thread_context(thread *_thread, atomic<bool> *_exit_flag) : _thread(_thread), _exit_flag(_exit_flag) { }
+};
+
 class async_event_queue
 {
 public:
@@ -121,21 +128,19 @@ public:
 
     void schedule()
     {
-        size_t i = threads.size();
         //++
-        if (n_waiting == 0 && i < max_threads)
+        if (n_waiting == 0 && threads.size() < max_threads)
         {
-            create_thread(i);
+            create_thread();
         }
         //--
         else if (n_waiting > min_threads)
         {
-            i -= 1;
-            exit_flags[i] = true;
-            threads[i]->detach();
-            delete threads[i];
-            threads.erase(i);
-            exit_flags.erase(i);
+            thread_context *tc = &threads.front();
+            *tc->_exit_flag = false;
+            tc->_thread->detach();
+            delete tc->_thread;
+            threads.pop();
         }
     }
 
@@ -144,7 +149,7 @@ public:
         running = true;
         for (size_t i = 0; i < min_threads; i++)
         {
-            create_thread(i);
+            create_thread();
         }
         return true;
     }
@@ -161,16 +166,16 @@ public:
         _cv.notify_all();
         _mutex.unlock();
 
-        for (auto &i : threads)
+        while (!threads.empty())
         {
-            if (i.second->joinable())
+            thread_context *tc = &threads.front();
+            if (tc->_thread->joinable())
             {
-                i.second->join();
+                tc->_thread->join();
             }
+            threads.pop();
         }
 
-        threads.clear();
-        exit_flags.clear();
         return true;
     }
 
@@ -197,15 +202,12 @@ public:
     pid_t current_pid;
 
 private:
-    void create_thread(int i)
+    void create_thread()
     {
-        exit_flags[i] = false;
-        atomic<bool> &exit_flag = exit_flags[i];
-        thread *_thread;
-
+        atomic<bool> *exit_flag = new atomic<bool>(false);
         try
         {
-            _thread = new thread([this, &exit_flag]()
+            thread *_thread = new thread([this, &exit_flag]()
             {
                 SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
                 if (SwooleTG.buffer_stack == nullptr)
@@ -215,98 +217,98 @@ private:
 
                 swSignal_none();
 
-                async_event *event;
-                _accept:
-                event = queue.pop();
-                if (event)
+                while (running)
                 {
-                    if (sw_unlikely(event->handler == nullptr))
+                    async_event *event;
+                    event = queue.pop();
+                    if (event)
                     {
-                        event->error = SW_ERROR_AIO_BAD_REQUEST;
-                        event->ret = -1;
-                        goto _error;
-                    }
-                    else if (sw_unlikely(event->canceled))
-                    {
-                        event->error = SW_ERROR_AIO_BAD_REQUEST;
-                        event->ret = -1;
-                        goto _error;
+                        if (sw_unlikely(event->handler == nullptr))
+                        {
+                            event->error = SW_ERROR_AIO_BAD_REQUEST;
+                            event->ret = -1;
+                            goto _error;
+                        }
+                        else if (sw_unlikely(event->canceled))
+                        {
+                            event->error = SW_ERROR_AIO_BAD_REQUEST;
+                            event->ret = -1;
+                            goto _error;
+                        }
+                        else
+                        {
+                            event->handler(event);
+                        }
+
+                        swTrace("aio_thread ok. ret=%d, error=%d", event->ret, event->error);
+
+                        _error:
+                        while (true)
+                        {
+                            SwooleAIO.lock.lock(&SwooleAIO.lock);
+                            int ret = write(_pipe_write, &event, sizeof(event));
+                            SwooleAIO.lock.unlock(&SwooleAIO.lock);
+                            if (ret < 0)
+                            {
+                                if (errno == EAGAIN)
+                                {
+                                    swSocket_wait(_pipe_write, 1000, SW_EVENT_WRITE);
+                                    continue;
+                                }
+                                else if (errno == EINTR)
+                                {
+                                    continue;
+                                }
+                                else
+                                {
+                                    swSysWarn("sendto swoole_aio_pipe_write failed");
+                                }
+                            }
+                            break;
+                        }
+
+                        // exit
+                        if (*exit_flag)
+                        {
+                            break;
+                        }
                     }
                     else
                     {
-                        event->handler(event);
-                    }
-
-                    swTrace("aio_thread ok. ret=%d, error=%d", event->ret, event->error);
-
-                    _error:
-                    while (true)
-                    {
-                        SwooleAIO.lock.lock(&SwooleAIO.lock);
-                        int ret = write(_pipe_write, &event, sizeof(event));
-                        SwooleAIO.lock.unlock(&SwooleAIO.lock);
-                        if (ret < 0)
+                        unique_lock<mutex> lock(_mutex);
+                        if (running)
                         {
-                            if (errno == EAGAIN)
-                            {
-                                swSocket_wait(_pipe_write, 1000, SW_EVENT_WRITE);
-                                continue;
-                            }
-                            else if (errno == EINTR)
-                            {
-                                continue;
-                            }
-                            else
-                            {
-                                swSysWarn("sendto swoole_aio_pipe_write failed");
-                            }
+                            ++n_waiting;
+                            _cv.wait(lock);
+                            --n_waiting;
                         }
-                        break;
-                    }
-                    //exit
-                    if (exit_flag)
-                    {
-                        return;
                     }
                 }
-                else
-                {
-                    unique_lock<mutex> lock(_mutex);
-                    if (running)
-                    {
-                        ++n_waiting;
-                        _cv.wait(lock);
-                        --n_waiting;
-                    }
-                }
-                if (running)
-                {
-                    goto _accept;
-                }
+
+                delete exit_flag;
             });
+            threads.push(thread_context(_thread, exit_flag));
         }
         catch (const std::system_error& e)
         {
-            swSysNotice("create aio thread#%d failed, please check your system configuration or adjust max_thread_count", i);
+            swSysNotice("create aio thread failed, please check your system configuration or adjust max_thread_count");
+            delete exit_flag;
             return;
         }
-
-        threads[i] = _thread;
     }
+
+    size_t min_threads;
+    size_t max_threads;
 
     swPipe _aio_pipe;
     int _pipe_read;
     int _pipe_write;
     int current_task_id;
 
-    unordered_map<size_t, thread *> threads;
-    unordered_map<size_t, atomic<bool>> exit_flags;
-
+    queue<thread_context> threads;
     async_event_queue queue;
     bool running;
     atomic<int> n_waiting;
-    size_t min_threads;
-    size_t max_threads;
     mutex _mutex;
     condition_variable _cv;
 };
