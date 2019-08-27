@@ -34,7 +34,6 @@ static void swAio_free(void *private_data);
 
 int swAio_callback(swReactor *reactor, swEvent *_event)
 {
-    int i;
     async_event *events[SW_AIO_EVENT_NUM];
     ssize_t n = read(_event->fd, events, sizeof(async_event*) * SW_AIO_EVENT_NUM);
     if (n < 0)
@@ -42,7 +41,7 @@ int swAio_callback(swReactor *reactor, swEvent *_event)
         swSysWarn("read() failed");
         return SW_ERR;
     }
-    for (i = 0; i < n / (int) sizeof(async_event*); i++)
+    for (size_t i = 0; i < n / sizeof(async_event *); i++)
     {
         if (!events[i]->canceled)
         {
@@ -308,7 +307,7 @@ private:
     queue<thread_context> threads;
     async_event_queue _queue;
     bool running;
-    atomic<int> n_waiting;
+    atomic<size_t> n_waiting;
     mutex _mutex;
     condition_variable _cv;
 };
