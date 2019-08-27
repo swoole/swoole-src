@@ -67,8 +67,8 @@ typedef void (*swAio_handler)(swAio_event *event);
 typedef struct
 {
     uint8_t init;
-    uint16_t min_thread_count;
-    uint16_t max_thread_count;
+    uint32_t min_thread_num;
+    uint32_t max_thread_num;
     uint32_t task_num;
     swLock lock;
 } swAsyncIO;

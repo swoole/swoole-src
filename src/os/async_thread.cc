@@ -91,7 +91,7 @@ private:
 class async_thread_pool
 {
 public:
-    async_thread_pool(int _min_threads, int _max_threads)
+    async_thread_pool(size_t _min_threads, size_t _max_threads)
     {
         n_waiting = 0;
         running = false;
@@ -305,8 +305,8 @@ private:
     async_event_queue queue;
     bool running;
     atomic<int> n_waiting;
-    int min_threads;
-    int max_threads;
+    size_t min_threads;
+    size_t max_threads;
     mutex _mutex;
     condition_variable _cv;
 };
@@ -332,22 +332,22 @@ static int swAio_init()
         return SW_ERR;
     }
 
-    if (SwooleAIO.min_thread_count == 0)
+    if (SwooleAIO.min_thread_num == 0)
     {
-        SwooleAIO.min_thread_count = SW_AIO_THREAD_DEFAULT_NUM;
+        SwooleAIO.min_thread_num = SW_AIO_THREAD_DEFAULT_NUM;
     }
-    if (SwooleAIO.max_thread_count == 0)
+    if (SwooleAIO.max_thread_num == 0)
     {
-        SwooleAIO.max_thread_count = (SW_CPU_NUM * 2) * SW_AIO_THREAD_NUM_MULTIPLE;
+        SwooleAIO.max_thread_num = (SW_CPU_NUM * 2) * SW_AIO_THREAD_NUM_MULTIPLE;
     }
-    if (SwooleAIO.min_thread_count > SwooleAIO.max_thread_count)
+    if (SwooleAIO.min_thread_num > SwooleAIO.max_thread_num)
     {
-        SwooleAIO.max_thread_count = SwooleAIO.min_thread_count;
+        SwooleAIO.max_thread_num = SwooleAIO.min_thread_num;
     }
 
     swReactor_add_destroy_callback(SwooleTG.reactor, swAio_free, nullptr);
 
-    pool = new async_thread_pool(SwooleAIO.min_thread_count, SwooleAIO.max_thread_count);
+    pool = new async_thread_pool(SwooleAIO.min_thread_num, SwooleAIO.max_thread_num);
     pool->start();
     SwooleAIO.init = 1;
 
