@@ -395,8 +395,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
         if (serv->task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
         {
-            int i;
-            for (i = 0; i < serv->gs->task_workers.worker_num; i++)
+            for (int i = 0; i < serv->gs->task_workers.worker_num; i++)
             {
                 p = serv->gs->task_workers.workers[i].pipe_object;
                 pfd = p->getFd(p, 1);
@@ -424,7 +423,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
      */
     if ((serv->master_timer = swoole_timer_add(1000, SW_TRUE, swServer_master_onTimer, serv)) == NULL)
     {
-        _fail: swReactor_free_output_buffer(n_buffer);
+        _fail:
+        swReactor_free_output_buffer(n_buffer);
         swoole_event_free();
         return SW_ERR;
     }
