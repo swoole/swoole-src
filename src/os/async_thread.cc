@@ -131,7 +131,7 @@ public:
         else if (n_waiting > min_threads)
         {
             i -= 1;
-            *exit_flags[i] = true;
+            exit_flags[i] = true;
             threads[i]->detach();
             threads.erase(i);
             exit_flags.erase(i);
@@ -198,13 +198,13 @@ public:
 private:
     void create_thread(int i)
     {
-        exit_flags[i] = make_shared<atomic<bool>>(false);
-        shared_ptr<atomic<bool>> flag(exit_flags[i]);
+        exit_flags[i] = false;
+        atomic<bool> &exit_flag = exit_flags[i];
         thread *_thread;
 
         try
         {
-            _thread = new thread([this, flag]()
+            _thread = new thread([this, &exit_flag]()
             {
                 SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
                 if (SwooleTG.buffer_stack == nullptr)
@@ -214,7 +214,6 @@ private:
 
                 swSignal_none();
 
-                atomic<bool> &_flag = *flag;
                 async_event *event;
                 _accept:
                 event = queue.pop();
@@ -264,7 +263,7 @@ private:
                         break;
                     }
                     //exit
-                    if (_flag)
+                    if (exit_flag)
                     {
                         return;
                     }
@@ -300,7 +299,7 @@ private:
     int current_task_id;
 
     unordered_map<int, unique_ptr<thread>> threads;
-    unordered_map<int, shared_ptr<atomic<bool>>> exit_flags;
+    unordered_map<int, atomic<bool>> exit_flags;
 
     async_event_queue queue;
     bool running;
