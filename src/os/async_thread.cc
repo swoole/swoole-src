@@ -133,7 +133,7 @@ public:
             create_thread();
         }
         //--
-        else if (n_waiting - n_closing > min_threads)
+        else if (n_waiting > n_closing + min_threads)
         {
             thread_context *tc = &threads.front();
             *tc->_exit_flag = true;
