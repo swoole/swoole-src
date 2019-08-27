@@ -546,6 +546,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
                 return SW_OK;
             }
             ctx->current_input_name = estrndup(tmp, value_len);
+            ctx->current_input_name_len = value_len;
 
             zval *z_multipart_header = sw_malloc_zval();
             array_init(z_multipart_header);
@@ -561,15 +562,23 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
             tmp = http_trim_double_quote(value_buf, &value_len);
 
             add_assoc_stringl(z_multipart_header, "name", tmp, value_len);
+            if (value_len == 0)
+            {
+                add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_FILE);
+            }
 
             ctx->current_multipart_header = z_multipart_header;
         }
         zval_ptr_dtor(&tmp_array);
     }
-
-    if (strncasecmp(headername, "content-type", header_len) == 0 && ctx->current_multipart_header)
+    else if (strncasecmp(headername, "content-type", header_len) == 0 && ctx->current_multipart_header)
     {
-        add_assoc_stringl(ctx->current_multipart_header, "type", (char * ) at, length);
+        zval *z_multipart_header = ctx->current_multipart_header;
+        zval *zerr = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("error"));
+        if (zerr && Z_TYPE_P(zerr) == IS_LONG && Z_LVAL_P(zerr) == HTTP_UPLOAD_ERR_OK)
+        {
+            add_assoc_stringl(z_multipart_header, "type", (char * ) at, length);
+        }
     }
 
     efree(headername);
@@ -697,23 +706,52 @@ static int multipart_body_on_data_end(multipart_parser* p)
     {
         long size = swoole_file_get_size((FILE *) p->fp);
         add_assoc_long(z_multipart_header, "size", size);
-        if (size == 0)
-        {
-            add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_FILE);
-        }
 
         fclose((FILE *) p->fp);
         p->fp = NULL;
     }
 
-    php_register_variable_ex(
-        ctx->current_input_name,
-        z_multipart_header,
-        swoole_http_init_and_read_property(swoole_http_request_ce, ctx->request.zobject, &ctx->request.zfiles, ZEND_STRL("files"))
-    );
+    zval *zfiles = swoole_http_init_and_read_property(swoole_http_request_ce, ctx->request.zobject, &ctx->request.zfiles, ZEND_STRL("files")); 
+
+    int input_path_pos = swoole_strnpos(ctx->current_input_name, ctx->current_input_name_len, (char *) ZEND_STRL("["));
+    if (ctx->parse_files && input_path_pos > 0)
+    {
+        char meta_name[SW_HTTP_FORM_KEYLEN + sizeof("[tmp_name]") - 1];
+        char *input_path = ctx->current_input_name + input_path_pos;
+        char *meta_path = meta_name + input_path_pos;
+        size_t meta_path_len = sizeof(meta_name) - input_path_pos;
+        
+        strncpy(meta_name, ctx->current_input_name, input_path_pos);
+        
+        zval *zname = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("name"));
+        zval *ztype = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("type"));
+        zval *zfile = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("tmp_name"));
+        zval *zerr  = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("error"));
+        zval *zsize = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("size"));
+        
+        sw_snprintf(meta_path, meta_path_len, "[name]%s", input_path);
+        php_register_variable_ex(meta_name, zname, zfiles);
+            
+        sw_snprintf(meta_path, meta_path_len, "[type]%s", input_path);
+        php_register_variable_ex(meta_name, ztype, zfiles);
+            
+        sw_snprintf(meta_path, meta_path_len, "[tmp_name]%s", input_path);            
+        php_register_variable_ex(meta_name, zfile, zfiles);
+        
+        sw_snprintf(meta_path, meta_path_len, "[error]%s", input_path);
+        php_register_variable_ex(meta_name, zerr, zfiles);
+        
+        sw_snprintf(meta_path, meta_path_len, "[size]%s", input_path);
+        php_register_variable_ex(meta_name, zsize, zfiles);
+    }
+    else
+    {
+        php_register_variable_ex(ctx->current_input_name, z_multipart_header, zfiles);
+    }
 
     efree(ctx->current_input_name);
     ctx->current_input_name = NULL;
+    ctx->current_input_name_len = 0;
     efree(ctx->current_multipart_header);
     ctx->current_multipart_header = NULL;
 
