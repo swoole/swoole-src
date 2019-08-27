@@ -101,8 +101,8 @@ public:
     {
         n_waiting = 0;
         running = false;
-        min_threads = _min_threads;
-        max_threads = _max_threads;
+        min_threads = SW_MAX(SW_AIO_THREAD_DEFAULT_NUM, _min_threads);
+        max_threads = SW_MAX(min_threads, _max_threads);
         current_task_id = 0;
         current_pid = getpid();
 
@@ -203,10 +203,10 @@ public:
 private:
     void create_thread()
     {
-        atomic<bool> *exit_flag = new atomic<bool>(false);
+        atomic<bool> *_exit_flag = new atomic<bool>(false);
         try
         {
-            thread *_thread = new thread([this, &exit_flag]()
+            thread *_thread = new thread([this, _exit_flag]()
             {
                 SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
                 if (SwooleTG.buffer_stack == nullptr)
@@ -218,8 +218,7 @@ private:
 
                 while (running)
                 {
-                    async_event *event;
-                    event = _queue.pop();
+                    async_event *event = _queue.pop();
                     if (event)
                     {
                         if (sw_unlikely(event->handler == nullptr))
@@ -267,7 +266,7 @@ private:
                         }
 
                         // exit
-                        if (*exit_flag)
+                        if (*_exit_flag)
                         {
                             break;
                         }
@@ -284,14 +283,14 @@ private:
                     }
                 }
 
-                delete exit_flag;
+                delete _exit_flag;
             });
-            threads.push(thread_context(_thread, exit_flag));
+            threads.push(thread_context(_thread, _exit_flag));
         }
         catch (const std::system_error& e)
         {
             swSysNotice("create aio thread failed, please check your system configuration or adjust max_thread_count");
-            delete exit_flag;
+            delete _exit_flag;
             return;
         }
     }
