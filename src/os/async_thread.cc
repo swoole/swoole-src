@@ -184,7 +184,7 @@ public:
         auto _event_copy = new async_event(*request);
         schedule();
         _event_copy->task_id = current_task_id++;
-        queue.push(_event_copy);
+        _queue.push(_event_copy);
         _cv.notify_one();
         return _event_copy;
     }
@@ -196,7 +196,7 @@ public:
 
     inline size_t queue_count()
     {
-        return queue.count();
+        return _queue.count();
     }
 
     pid_t current_pid;
@@ -220,7 +220,7 @@ private:
                 while (running)
                 {
                     async_event *event;
-                    event = queue.pop();
+                    event = _queue.pop();
                     if (event)
                     {
                         if (sw_unlikely(event->handler == nullptr))
@@ -306,7 +306,7 @@ private:
     int current_task_id;
 
     queue<thread_context> threads;
-    async_event_queue queue;
+    async_event_queue _queue;
     bool running;
     atomic<int> n_waiting;
     mutex _mutex;
