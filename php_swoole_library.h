@@ -936,6 +936,7 @@ static const char* swoole_library_source_core_constant =
     "    const OPTION_CPU_AFFINITY_IGNORE = 'cpu_affinity_ignore';\n"
     "    const OPTION_HTTP_PARSE_COOKIE = 'http_parse_cookie';\n"
     "    const OPTION_HTTP_PARSE_POST = 'http_parse_post';\n"
+    "    const OPTION_HTTP_PARSE_FILES = 'http_parse_files';\n"
     "    const OPTION_HTTP_COMPRESSION = 'http_compression';\n"
     "    const OPTION_HTTP_GZIP_LEVEL = 'http_gzip_level';\n"
     "    const OPTION_HTTP_COMPRESSION_LEVEL = 'http_compression_level';\n"

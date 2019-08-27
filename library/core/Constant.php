@@ -142,6 +142,7 @@ class Constant
     const OPTION_CPU_AFFINITY_IGNORE = 'cpu_affinity_ignore';
     const OPTION_HTTP_PARSE_COOKIE = 'http_parse_cookie';
     const OPTION_HTTP_PARSE_POST = 'http_parse_post';
+    const OPTION_HTTP_PARSE_FILES = 'http_parse_files';
     const OPTION_HTTP_COMPRESSION = 'http_compression';
     const OPTION_HTTP_GZIP_LEVEL = 'http_gzip_level';
     const OPTION_HTTP_COMPRESSION_LEVEL = 'http_compression_level';
