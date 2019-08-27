@@ -367,6 +367,7 @@ struct _swServer
      * worker process max request
      */
     uint32_t max_request;
+    uint32_t max_request_grace;
 
     int udp_socket_ipv4;
     int udp_socket_ipv6;
@@ -501,6 +502,7 @@ struct _swServer
     uint16_t task_worker_num;
     uint8_t task_ipc_mode;
     uint16_t task_max_request;
+    uint16_t task_max_request_grace;
     swPipe *task_notify;
     swEventData *task_result;
 

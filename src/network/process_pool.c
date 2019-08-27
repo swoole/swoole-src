@@ -61,7 +61,7 @@ static void swProcessPool_kill_timeout_worker(swTimer *timer, swTimer_node *tnod
 /**
  * Process manager
  */
-int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int ipc_mode)
+int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, int max_request_grace, key_t msgqueue_key, int ipc_mode)
 {
     bzero(pool, sizeof(swProcessPool));
 
@@ -69,6 +69,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
 
     pool->worker_num = worker_num;
     pool->max_request = max_request;
+    pool->max_request_grace = max_request_grace;
 
     /**
      * Shared memory is used here
@@ -442,13 +443,9 @@ int swProcessPool_get_max_request(swProcessPool *pool)
     else
     {
         task_n = pool->max_request;
-        if (pool->max_request > 10)
+        if (pool->max_request_grace > 0)
         {
-            int n = swoole_system_random(1, pool->max_request / 2);
-            if (n > 0)
-            {
-                task_n += n;
-            }
+            task_n += swoole_system_random(1, pool->max_request_grace);
         }
     }
     return task_n;

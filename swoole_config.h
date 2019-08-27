@@ -101,6 +101,7 @@
 
 #define SW_WORKER_USE_SIGNALFD           1
 #define SW_WORKER_MAX_WAIT_TIME          30
+#define SW_WORKER_MIN_REQUEST            10
 
 #define SW_REACTOR_MAXEVENTS             4096
 #define SW_SESSION_LIST_SIZE             (1*1024*1024)
