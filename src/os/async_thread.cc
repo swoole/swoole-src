@@ -121,17 +121,16 @@ public:
 
     void schedule()
     {
+        int i = (int) threads.size();
         //++
-        if (n_waiting == 0 && (int) threads.size() < max_threads)
+        if (n_waiting == 0 && i < max_threads)
         {
-            int i = threads.size();
-            exit_flags[i] = make_shared<atomic<bool>>(false);
             create_thread(i);
         }
         //--
         else if (n_waiting > min_threads)
         {
-            int i = threads.size() - 1;
+            i -= 1;
             *exit_flags[i] = true;
             threads[i]->detach();
             threads.erase(i);
