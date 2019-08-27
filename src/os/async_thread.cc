@@ -133,10 +133,11 @@ public:
             create_thread();
         }
         //--
-        else if (n_waiting > min_threads && threads.size() > min_threads)
+        else if (n_waiting - n_closing > min_threads)
         {
             thread_context *tc = &threads.front();
-            *tc->_exit_flag = false;
+            *tc->_exit_flag = true;
+            n_closing++;
             tc->_thread->detach();
             delete tc->_thread;
             threads.pop();
@@ -268,6 +269,7 @@ private:
                         // exit
                         if (*_exit_flag)
                         {
+                            n_closing--;
                             break;
                         }
                     }
@@ -307,6 +309,7 @@ private:
     async_event_queue _queue;
     bool running;
     atomic<size_t> n_waiting;
+    atomic<size_t> n_closing;
     mutex _mutex;
     condition_variable _cv;
 };
