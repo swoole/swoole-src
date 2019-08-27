@@ -121,7 +121,7 @@ public:
 
     void schedule()
     {
-        int i = (int) threads.size();
+        size_t i = threads.size();
         //++
         if (n_waiting == 0 && i < max_threads)
         {
@@ -133,6 +133,7 @@ public:
             i -= 1;
             exit_flags[i] = true;
             threads[i]->detach();
+            delete threads[i];
             threads.erase(i);
             exit_flags.erase(i);
         }
@@ -141,7 +142,7 @@ public:
     bool start()
     {
         running = true;
-        for (int i = 0; i < min_threads; i++)
+        for (size_t i = 0; i < min_threads; i++)
         {
             create_thread(i);
         }
@@ -160,11 +161,11 @@ public:
         _cv.notify_all();
         _mutex.unlock();
 
-        for (int i = 0; i < static_cast<int>(threads.size()); ++i)
+        for (auto &i : threads)
         {
-            if (threads[i]->joinable())
+            if (i.second->joinable())
             {
-                threads[i]->join();
+                i.second->join();
             }
         }
 
@@ -290,7 +291,7 @@ private:
             return;
         }
 
-        threads[i] = unique_ptr<thread>(_thread);
+        threads[i] = _thread;
     }
 
     swPipe _aio_pipe;
@@ -298,8 +299,8 @@ private:
     int _pipe_write;
     int current_task_id;
 
-    unordered_map<int, unique_ptr<thread>> threads;
-    unordered_map<int, atomic<bool>> exit_flags;
+    unordered_map<size_t, thread *> threads;
+    unordered_map<size_t, atomic<bool>> exit_flags;
 
     async_event_queue queue;
     bool running;
