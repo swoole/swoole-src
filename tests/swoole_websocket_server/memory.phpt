@@ -10,27 +10,28 @@ skip_if_no_top();
 require __DIR__ . '/../include/bootstrap.php';
 
 define('FRAME_DATA_SIZE', 100 * 1024);
-define('REQUESTS_TIMES', 24);
+define('REQUESTS_TIMES', 64);
 
 $pm = new ProcessManager();
 $pm->parentFunc = function () use ($pm) {
     phpt_echo("start to benchmark " . REQUESTS_TIMES . " times...\n");
-    $concurrency = PRESSURE_LEVEL === PRESSURE_NORMAL ? MAX_CONCURRENCY * 16 : MAX_CONCURRENCY;
-    co::set(['max_coroutine' => $concurrency]);
-    for ($c = $concurrency; $c--;) {
-        go(function () use ($pm, $c) {
-            $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-            $cli->set(['timeout' => -1]);
-            $ret = 0;
-            while (!$cli->upgrade('/')) {
-                ++$ret > 3 && exit("ERROR\n");
-            }
-            while ($cli->recv(-1)) {
-                continue;
-            }
-        });
-    }
-    swoole_event_wait();
+    $concurrency = PRESSURE_LEVEL === PRESSURE_NORMAL ? MAX_CONCURRENCY * 4 : MAX_CONCURRENCY;
+    Co::set(['max_coroutine' => $concurrency + 1]);
+    Co\run(function () use ($pm, $concurrency) {
+        for ($c = $concurrency; $c--;) {
+            go(function () use ($pm, $c) {
+                $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
+                $cli->set(['timeout' => -1]);
+                $ret = 0;
+                while (!$cli->upgrade('/')) {
+                    ++$ret > 3 && exit("ERROR\n");
+                }
+                while ($cli->recv(-1)) {
+                    continue;
+                }
+            });
+        }
+    });
     echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
@@ -67,10 +68,9 @@ $pm->childFunc = function () use ($pm) {
                 $server->shutdown();
                 return;
             }
-            $connections = iterator_to_array($server->connections);
             $fd = 0;
             $success = 0;
-            foreach ($connections as $fd) {
+            foreach ($server->connections as $fd) {
                 if (@$server->push($fd, str_repeat('S', FRAME_DATA_SIZE))) {
                     $success++;
                 }

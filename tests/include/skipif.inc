@@ -117,7 +117,7 @@ function skip_if_no_top()
 {
     skip_if_darwin();
     skip('top provided by busybox (not support)', !empty(`top --help 2>&1 | grep -i busybox`));
-    skip('no top', empty(`top help 2>&1 | grep usage`));
+    skip('no top', empty(`top help 2>&1 | grep -i usage`));
 }
 
 function skip_if_darwin()
