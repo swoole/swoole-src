@@ -428,7 +428,7 @@ PHP_METHOD(swoole_coroutine_system, fread)
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
     php_swoole_check_reactor();
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         efree(context);
@@ -505,7 +505,7 @@ PHP_METHOD(swoole_coroutine_system, fgets)
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
     php_swoole_check_reactor();
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         efree(context);
@@ -581,7 +581,7 @@ PHP_METHOD(swoole_coroutine_system, fwrite)
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
     php_swoole_check_reactor();
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         efree(context);

@@ -273,7 +273,7 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return -1;
@@ -306,7 +306,7 @@ ssize_t swoole_coroutine_read(int fd, void *buf, size_t count)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return -1;
@@ -339,7 +339,7 @@ ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return -1;
@@ -365,7 +365,7 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return -1;
@@ -390,7 +390,7 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return -1;
@@ -414,7 +414,7 @@ int swoole_coroutine_unlink(const char *pathname)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return -1;
@@ -439,7 +439,7 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return -1;
@@ -464,7 +464,7 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return -1;
@@ -488,7 +488,7 @@ int swoole_coroutine_rmdir(const char *pathname)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return -1;
@@ -513,7 +513,7 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return -1;
@@ -538,7 +538,7 @@ int swoole_coroutine_access(const char *pathname, int mode)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return -1;
@@ -563,7 +563,7 @@ int swoole_coroutine_flock(int fd, int operation)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return -1;
@@ -602,7 +602,7 @@ DIR *swoole_coroutine_opendir(const char *name)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return nullptr;
@@ -626,7 +626,7 @@ struct dirent *swoole_coroutine_readdir(DIR *dirp)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return nullptr;

@@ -124,7 +124,7 @@ swString* System::read_file(const char *file, int lock)
     ev.callback = aio_onReadFileCompleted;
     ev.req = (void*) file;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return NULL;
@@ -168,7 +168,7 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, int lock,
     ev.req = (void*) file;
     ev.flags = flags;
 
-    int ret = swAio_dispatch(&ev);
+    ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
         return -1;
