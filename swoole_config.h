@@ -100,7 +100,7 @@
 #define SW_WORKER_WAIT_TIMEOUT           1000
 
 #define SW_WORKER_USE_SIGNALFD           1
-#define SW_WORKER_MAX_WAIT_TIME          30
+#define SW_WORKER_MAX_WAIT_TIME          3
 
 #define SW_REACTOR_MAXEVENTS             4096
 #define SW_SESSION_LIST_SIZE             (1*1024*1024)
