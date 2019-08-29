@@ -158,7 +158,7 @@ public:
             double _max_wait_time = _queue.get_max_wait_time();
             if (_max_wait_time > max_wait_time)
             {
-                size_t n = threads.size() * 2;
+                size_t n = threads.size();
                 if (threads.size() + n > max_thread_num)
                 {
                     n = max_thread_num - threads.size();
@@ -444,9 +444,12 @@ int swAio_callback(swReactor *reactor, swEvent *event)
             pool->release_thread(event->tid);
             delete event;
         }
-        else if (!event->canceled)
+        else
         {
-            event->callback(events[i]);
+            if (!event->canceled)
+            {
+                event->callback(events[i]);
+            }
             SwooleAIO.task_num--;
             delete event;
         }
