@@ -468,6 +468,39 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
 static int http_request_on_headers_complete(swoole_http_parser *parser)
 {
     http_context *ctx = (http_context *) parser->data;
+    ctx->request.version = parser->http_major * 100 + parser->http_minor;
+    const char *vpath = ctx->request.path, *end = vpath + ctx->request.path_len, *p = end;
+    ctx->request.ext = end;
+    ctx->request.ext_len = 0;
+    while (p > vpath)
+    {
+        --p;
+        if (*p == '.')
+        {
+            ++p;
+            ctx->request.ext = p;
+            ctx->request.ext_len = end - p;
+            break;
+        }
+    }
+
+    zval *zserver = ctx->request.zserver;
+
+    add_assoc_string(zserver, "request_method", (char *) http_get_method_name(parser->method));
+    add_assoc_stringl_ex(zserver, ZEND_STRL("request_uri"), ctx->request.path, ctx->request.path_len);
+
+    // path_info should be decoded
+    zend_string * zstr_path = zend_string_init(ctx->request.path, ctx->request.path_len, 0);
+    ZSTR_LEN(zstr_path) = php_url_decode(ZSTR_VAL(zstr_path), ZSTR_LEN(zstr_path));
+    add_assoc_str_ex(zserver, ZEND_STRL("path_info"), zstr_path);
+
+    add_assoc_long_ex(zserver, ZEND_STRL("request_time"), time(NULL));
+    add_assoc_double_ex(zserver, ZEND_STRL("request_time_float"), swoole_microtime());
+
+    add_assoc_string(zserver, "server_protocol", (char *) (ctx->request.version == 101 ? "HTTP/1.1" : "HTTP/1.0"));
+
+    ctx->keepalive = swoole_http_should_keep_alive(parser);
+
     ctx->current_header_name = NULL;
 
     return 0;
@@ -796,44 +829,11 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
 static int http_request_message_complete(swoole_http_parser *parser)
 {
     http_context *ctx = (http_context *) parser->data;
-    ctx->request.version = parser->http_major * 100 + parser->http_minor;
-
-    const char *vpath = ctx->request.path, *end = vpath + ctx->request.path_len, *p = end;
-    ctx->request.ext = end;
-    ctx->request.ext_len = 0;
-    while (p > vpath)
-    {
-        --p;
-        if (*p == '.')
-        {
-            ++p;
-            ctx->request.ext = p;
-            ctx->request.ext_len = end - p;
-            break;
-        }
-    }
-
     if (ctx->mt_parser)
     {
         multipart_parser_free(ctx->mt_parser);
         ctx->mt_parser = NULL;
     }
-
-    zval *zserver = ctx->request.zserver;
-    add_assoc_string(zserver, "request_method", (char *) http_get_method_name(parser->method));
-    add_assoc_stringl_ex(zserver, ZEND_STRL("request_uri"), ctx->request.path, ctx->request.path_len);
-
-    // path_info should be decoded
-    zend_string * zstr_path = zend_string_init(ctx->request.path, ctx->request.path_len, 0);
-    ZSTR_LEN(zstr_path) = php_url_decode(ZSTR_VAL(zstr_path), ZSTR_LEN(zstr_path));
-    add_assoc_str_ex(zserver, ZEND_STRL("path_info"), zstr_path);
-
-    add_assoc_long_ex(zserver, ZEND_STRL("request_time"), time(NULL));
-    add_assoc_double_ex(zserver, ZEND_STRL("request_time_float"), swoole_microtime());
-
-    add_assoc_string(zserver, "server_protocol", (char *) (ctx->request.version == 101 ? "HTTP/1.1" : "HTTP/1.0"));
-
-    ctx->keepalive = swoole_http_should_keep_alive(parser);
     ctx->completed = 1;
 
     return 0;
