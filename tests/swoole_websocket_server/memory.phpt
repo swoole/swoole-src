@@ -18,13 +18,13 @@ $pm->parentFunc = function () use ($pm) {
     $concurrency = PRESSURE_LEVEL === PRESSURE_NORMAL ? MAX_CONCURRENCY * 4 : MAX_CONCURRENCY;
     Co::set(['max_coroutine' => $concurrency + 1]);
     Co\run(function () use ($pm, $concurrency) {
+        phpt_echo("Concurrency: {$concurrency}\n");
         for ($c = $concurrency; $c--;) {
             go(function () use ($pm, $c) {
                 $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
                 $cli->set(['timeout' => -1]);
-                $ret = 0;
-                while (!$cli->upgrade('/')) {
-                    ++$ret > 3 && exit("ERROR\n");
+                while (!@$cli->upgrade('/')) {
+                    Co::sleep(0.1);
                 }
                 while ($cli->recv(-1)) {
                     continue;
@@ -35,15 +35,25 @@ $pm->parentFunc = function () use ($pm) {
     echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
-    $server = new Swoole\Websocket\Server('127.0.0.1', $pm->getFreePort());
+    $server = new Swoole\Websocket\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $server->set(['worker_num' => 1, 'log_file' => '/dev/null']);
     $server->on('workerStart', function (Swoole\Websocket\Server $server, int $worker_id) use ($pm) {
         global $mem_records;
-        co::sleep(SERVER_PREHEATING_TIME);
+        phpt_echo("init\n");
+        co::sleep(1);
         $pm->wakeup();
+        phpt_echo("start\n");
         while (true) {
             $master_top = top($server->master_pid);
             $worker_top = top($server->worker_pid);
+            if (empty($master_top) || empty($worker_top)) {
+                phpt_echo("shutdown\n");
+                foreach ($server->connections as $fd) {
+                    @$server->close($fd);
+                }
+                $server->shutdown();
+                return;
+            }
             $mem_records[] = [
                 'master_virtual' => $master_top['VIRT'],
                 'master_real' => $master_top['RES'],
@@ -77,7 +87,7 @@ $pm->childFunc = function () use ($pm) {
             }
             phpt_echo("#{$records_count}: push " . (FRAME_DATA_SIZE / 1024) . "k data to {$fd} client success {$success}!\n");
             co::sleep(REQUESTS_WAIT_TIME);
-            usleep(1);
+            switch_process();
         }
     });
     $server->on('message', function (Swoole\Websocket\Server $server, Swoole\WebSocket\Frame $frame) { });
