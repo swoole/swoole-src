@@ -164,7 +164,7 @@ public:
                 {
                     n = worker_num - threads.size();
                 }
-                swTraceLog(SW_TRACE_AIO, "Create %zu thread, we will have %zu threads", n, threads.size() + n);
+                swTraceLog(SW_TRACE_AIO, "Create %zu thread due to wait %fs, we will have %zu threads", n, _max_wait_time, threads.size() + n);
                 while (n--)
                 {
                     create_thread();
@@ -180,7 +180,7 @@ public:
         return _event_copy;
     }
 
-    inline size_t thread_count()
+    inline size_t worker_count()
     {
         return threads.size();
     }
@@ -315,7 +315,7 @@ private:
         }
         catch (const std::system_error& e)
         {
-            swSysNotice("create aio thread failed, please check your system configuration or adjust max_thread_count");
+            swSysNotice("create aio thread failed, please check your system configuration or adjust aio_worker_num");
             return;
         }
     }
@@ -389,7 +389,7 @@ static int swAio_init()
 
 size_t swAio_thread_count()
 {
-    return pool ? pool->thread_count() : 0;
+    return pool ? pool->worker_count() : 0;
 }
 
 ssize_t swAio_dispatch(const swAio_event *request)
