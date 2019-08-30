@@ -16,6 +16,7 @@ Co\run(function () {
 });
 
 $sch = new Swoole\Coroutine\Scheduler();
+$sch->set(['dns_cache_capacity' => 0]);
 $sch->add(function () {
     static $worker_num = 0;
     $n = 100;
@@ -24,6 +25,7 @@ $sch->add(function () {
         Co::sleep(0.001);
     }
     Assert::greaterThan($worker_num, swoole_cpu_num());
+    phpt_var_dump($worker_num);
 });
 $sch->parallel(swoole_cpu_num() * [4, 16, 32, 64][PRESSURE_LEVEL], function () {
     Co::sleep(mt_rand(1, 5) / 1000);

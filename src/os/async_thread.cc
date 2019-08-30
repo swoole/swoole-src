@@ -153,13 +153,13 @@ public:
         return true;
     }
 
-    async_event* dispatch(const async_event *request)
+    void schedule()
     {
         if (n_waiting == 0 && threads.size() < worker_num && max_wait_time > 0) {
             double _max_wait_time = _queue.get_max_wait_time();
             if (_max_wait_time > max_wait_time)
             {
-                size_t n = threads.size();
+                size_t n = 1; /* maybe we can find a better strategy */
                 if (threads.size() + n > worker_num)
                 {
                     n = worker_num - threads.size();
@@ -171,6 +171,11 @@ public:
                 }
             }
         }
+    }
+
+    async_event* dispatch(const async_event *request)
+    {
+        schedule();
 
         auto _event_copy = new async_event(*request);
         _event_copy->task_id = current_task_id++;
@@ -294,17 +299,25 @@ private:
                         }
                         else
                         {
-                            if (_cv.wait_for(lock, chrono::microseconds((size_t) (max_idle_time * 1000 * 1000))) == cv_status::timeout)
+                            while (true)
                             {
-                                /* notifies the main thread to release this thread */
-                                async_thread_event *_event = new async_thread_event;
-                                _event->type = SW_AIO_RELEASE_THREAD;
-                                _event->tid = this_thread::get_id();
-                                event = (async_event *) _event;
-                                --n_waiting;
-                                ++n_closing;
-                                exit_flag = true;
-                                goto _send_event;
+                                if (_cv.wait_for(lock, chrono::microseconds((size_t) (max_idle_time * 1000 * 1000))) == cv_status::timeout)
+                                {
+                                    if (n_closing != 0)
+                                    {
+                                        // wait for the next round
+                                        continue;
+                                    }
+                                    /* notifies the main thread to release this thread */
+                                    async_thread_event *_event = new async_thread_event;
+                                    _event->type = SW_AIO_RELEASE_THREAD;
+                                    _event->tid = this_thread::get_id();
+                                    event = (async_event *) _event;
+                                    --n_waiting;
+                                    ++n_closing;
+                                    exit_flag = true;
+                                    goto _send_event;
+                                }
                             }
                         }
                         --n_waiting;
@@ -415,11 +428,13 @@ swAio_event* swAio_dispatch2(const swAio_event *request)
 
 int swAio_callback(swReactor *reactor, swEvent *event)
 {
+    pool->schedule();
+
     async_event *events[SW_AIO_EVENT_NUM];
-    ssize_t n = read(event->fd, events, sizeof(async_event*) * SW_AIO_EVENT_NUM);
+    ssize_t n = read(event->fd, events, sizeof(async_event *) * SW_AIO_EVENT_NUM);
     if (n < 0)
     {
-        swSysWarn("read() failed");
+        swSysWarn("read() aio events failed");
         return SW_ERR;
     }
     for (size_t i = 0; i < n / sizeof(async_event *); i++)
@@ -441,5 +456,6 @@ int swAio_callback(swReactor *reactor, swEvent *event)
             delete event;
         }
     }
+
     return SW_OK;
 }
