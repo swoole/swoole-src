@@ -35,7 +35,7 @@ enum swAioOpcode
     SW_AIO_FGETS,
     SW_AIO_READ_FILE,
     SW_AIO_WRITE_FILE,
-    SW_AIO_THREAD,
+    SW_AIO_RELEASE_THREAD,
 };
 
 enum swAioFlag
@@ -73,6 +73,8 @@ typedef struct
     uint8_t init;
     uint32_t min_thread_num;
     uint32_t max_thread_num;
+    double max_wait_time;
+    double max_idle_time;
     uint32_t task_num;
     swLock lock;
 } swAsyncIO;

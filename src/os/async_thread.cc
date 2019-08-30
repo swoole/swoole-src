@@ -85,13 +85,14 @@ private:
 class async_thread_pool
 {
 public:
-    async_thread_pool(size_t _min_threads, size_t _max_threads)
+    async_thread_pool(size_t _core_worker_num, size_t _worker_num, double _max_wait_time, double _max_idle_time)
     {
         running = false;
-        min_thread_num = SW_MAX(SW_AIO_THREAD_DEFAULT_NUM, _min_threads);
-        max_thread_num = SW_MAX(min_thread_num, _max_threads);
-        max_idle_time = SW_AIO_THREAD_MAX_IDLE_TIME;
-        max_wait_time = SW_AIO_TASK_MAX_WAIT_TIME;
+
+        core_worker_num = _core_worker_num == 0 ? SW_CPU_NUM : SW_MAX(1, _core_worker_num);
+        worker_num = _worker_num == 0 ? SW_CPU_NUM * SW_AIO_THREAD_NUM_MULTIPLE : SW_MAX(core_worker_num, _worker_num);
+        max_wait_time = _max_wait_time == 0 ? SW_AIO_TASK_MAX_WAIT_TIME : _max_wait_time;
+        max_idle_time = _max_idle_time == 0 ? SW_AIO_THREAD_MAX_IDLE_TIME : _max_idle_time;
 
         current_pid = getpid();
 
@@ -120,7 +121,7 @@ public:
         current_task_id = 0;
         n_waiting = 0;
         n_closing = 0;
-        for (size_t i = 0; i < min_thread_num; i++)
+        for (size_t i = 0; i < core_worker_num; i++)
         {
             create_thread(true);
         }
@@ -154,14 +155,14 @@ public:
 
     async_event* dispatch(const async_event *request)
     {
-        if (n_waiting == 0 && threads.size() < max_thread_num) {
+        if (n_waiting == 0 && threads.size() < worker_num && max_wait_time > 0) {
             double _max_wait_time = _queue.get_max_wait_time();
             if (_max_wait_time > max_wait_time)
             {
                 size_t n = threads.size();
-                if (threads.size() + n > max_thread_num)
+                if (threads.size() + n > worker_num)
                 {
-                    n = max_thread_num - threads.size();
+                    n = worker_num - threads.size();
                 }
                 swTraceLog(SW_TRACE_AIO, "Create %zu thread, we will have %zu threads", n, threads.size() + n);
                 while (n--)
@@ -287,18 +288,17 @@ private:
                     {
                         unique_lock<mutex> lock(event_mutex);
                         ++n_waiting;
-                        if (is_core_worker)
+                        if (is_core_worker || max_idle_time <= 0)
                         {
                             _cv.wait(lock);
                         }
                         else
                         {
-                            if (_cv.wait_for(lock, chrono::seconds(max_idle_time)) == cv_status::timeout)
+                            if (_cv.wait_for(lock, chrono::microseconds((size_t) (max_idle_time * 1000 * 1000))) == cv_status::timeout)
                             {
-                                printf("timeout\n");
                                 /* notifies the main thread to release this thread */
                                 async_thread_event *_event = new async_thread_event;
-                                _event->type = SW_AIO_THREAD;
+                                _event->type = SW_AIO_RELEASE_THREAD;
                                 _event->tid = this_thread::get_id();
                                 event = (async_event *) _event;
                                 --n_waiting;
@@ -320,10 +320,10 @@ private:
         }
     }
 
-    size_t min_thread_num;
-    size_t max_thread_num;
+    size_t core_worker_num;
+    size_t worker_num;
     double max_wait_time;
-    size_t max_idle_time;
+    double max_idle_time;
 
     swPipe _aio_pipe;
     int _pipe_read;
@@ -378,22 +378,9 @@ static int swAio_init()
         return SW_ERR;
     }
 
-    if (SwooleAIO.min_thread_num == 0)
-    {
-        SwooleAIO.min_thread_num = SW_AIO_THREAD_DEFAULT_NUM;
-    }
-    if (SwooleAIO.max_thread_num == 0)
-    {
-        SwooleAIO.max_thread_num = SW_CPU_NUM * SW_AIO_THREAD_NUM_MULTIPLE;
-    }
-    if (SwooleAIO.min_thread_num > SwooleAIO.max_thread_num)
-    {
-        SwooleAIO.max_thread_num = SwooleAIO.min_thread_num;
-    }
-
     swReactor_add_destroy_callback(SwooleTG.reactor, swAio_free, nullptr);
 
-    pool = new async_thread_pool(SwooleAIO.min_thread_num, SwooleAIO.max_thread_num);
+    pool = new async_thread_pool(SwooleAIO.min_thread_num, SwooleAIO.max_thread_num, SwooleAIO.max_wait_time, SwooleAIO.max_idle_time);
     pool->start();
     SwooleAIO.init = 1;
 
@@ -438,7 +425,7 @@ int swAio_callback(swReactor *reactor, swEvent *event)
     for (size_t i = 0; i < n / sizeof(async_event *); i++)
     {
         async_event *event = events[i];
-        if (event->type == SW_AIO_THREAD)
+        if (event->type == SW_AIO_RELEASE_THREAD)
         {
             async_thread_event *event = (async_thread_event *) events[i];
             pool->release_thread(event->tid);

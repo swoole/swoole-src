@@ -98,13 +98,7 @@ PHP_FUNCTION(swoole_async_set)
         zend_long level = zval_get_long(ztmp);
         SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
     }
-    if (php_swoole_array_get_value(vht, "thread_num", ztmp))
-    {
-        zend_long v = zval_get_long(ztmp);
-        v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
-        SwooleAIO.max_thread_num = SwooleAIO.min_thread_num = v;
-    }
-    if (php_swoole_array_get_value(vht, "min_thread_num", ztmp))
+    if (php_swoole_array_get_value(vht, "thread_num", ztmp) || php_swoole_array_get_value(vht, "min_thread_num", ztmp))
     {
         zend_long v = zval_get_long(ztmp);
         v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
