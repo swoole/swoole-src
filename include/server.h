@@ -759,7 +759,7 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
 
 static sw_inline swConnection* swServer_connection_get(swServer *serv, int fd)
 {
-    if (fd <= 2 || (uint32_t) fd > serv->max_connection)
+    if ((uint32_t) fd > serv->max_connection)
     {
         return NULL;
     }
