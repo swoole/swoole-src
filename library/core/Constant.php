@@ -90,6 +90,10 @@ class Constant
     const OPTION_TRACE_FLAGS = 'trace_flags';
     const OPTION_DNS_CACHE_EXPIRE = 'dns_cache_expire';
     const OPTION_DNS_CACHE_CAPACITY = 'dns_cache_capacity';
+    const OPTION_AIO_CORE_WORKER_NUM = 'aio_core_worker_num';
+    const OPTION_AIO_WORKER_NUM = 'aio_worker_num';
+    const OPTION_AIO_MAX_WAIT_TIME = 'aio_max_wait_time';
+    const OPTION_AIO_MAX_IDLE_TIME = 'aio_max_idle_time';
     const OPTION_RECONNECT = 'reconnect';
     const OPTION_DEFER = 'defer';
     const OPTION_KEEP_ALIVE = 'keep_alive';
