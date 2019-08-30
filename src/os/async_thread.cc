@@ -318,6 +318,7 @@ private:
                                     exit_flag = true;
                                     goto _send_event;
                                 }
+                                break;
                             }
                         }
                         --n_waiting;
