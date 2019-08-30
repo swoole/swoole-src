@@ -303,7 +303,7 @@ private:
                             {
                                 if (_cv.wait_for(lock, chrono::microseconds((size_t) (max_idle_time * 1000 * 1000))) == cv_status::timeout)
                                 {
-                                    if (n_closing != 0)
+                                    if (running && n_closing != 0)
                                     {
                                         // wait for the next round
                                         continue;
