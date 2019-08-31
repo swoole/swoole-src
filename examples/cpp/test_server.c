@@ -107,7 +107,8 @@ int my_onReceive(swServer *serv, swEventData *req)
 
     swoole_rtrim(req_pkg->data.str, req_pkg->data.length);
     swNotice("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d", g_receive_count,
-        swConnection_get_ip(conn), swConnection_get_port(conn), 
+        swConnection_get_ip(conn->socket_type, &conn->info),
+        swConnection_get_port(conn->socket_type, &conn->info),
         req_pkg->data.str, req_pkg->data.length);
 
     int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s\n", 
