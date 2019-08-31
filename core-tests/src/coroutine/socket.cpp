@@ -5,6 +5,9 @@ using swoole::coroutine::Socket;
 
 TEST(coroutine_socket, connect_refused)
 {
+    swoole_event_init();
+    SwooleTG.reactor->wait_exit = 1;
+
     coro_test([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
@@ -55,7 +58,7 @@ TEST(coroutine_socket, recv_success)
 
 TEST(coroutine_socket, recv_fail)
 {
-    coro_test([](void *arg)
+    coro_test([](void *arg) 
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.connect("127.0.0.1", 9501, -1);
@@ -70,25 +73,34 @@ TEST(coroutine_socket, recv_fail)
 
 TEST(coroutine_socket, bind_success)
 {
-    Socket sock(SW_SOCK_TCP);
-    bool retval = sock.bind("127.0.0.1", 9909);
-    ASSERT_EQ(retval, true);
+    coro_test([](void *arg)
+    {
+        Socket sock(SW_SOCK_TCP);
+        bool retval = sock.bind("127.0.0.1", 9909);
+        ASSERT_EQ(retval, true);
+    });
 }
 
 TEST(coroutine_socket, bind_fail)
 {
-    Socket sock(SW_SOCK_TCP);
-    bool retval = sock.bind("192.111.11.1", 9909);
-    ASSERT_EQ(retval, false);
-    ASSERT_EQ(sock.errCode, EADDRNOTAVAIL);
+    coro_test([](void *arg)
+    {
+        Socket sock(SW_SOCK_TCP);
+        bool retval = sock.bind("192.111.11.1", 9909);
+        ASSERT_EQ(retval, false);
+        ASSERT_EQ(sock.errCode, EADDRNOTAVAIL);
+    });
 }
 
 TEST(coroutine_socket, listen)
 {
-    Socket sock(SW_SOCK_TCP);
-    bool retval = sock.bind("127.0.0.1", 9909);
-    ASSERT_EQ(retval, true);
-    ASSERT_EQ(sock.listen(128), true);
+    coro_test([](void *arg)
+    {
+        Socket sock(SW_SOCK_TCP);
+        bool retval = sock.bind("127.0.0.1", 9909);
+        ASSERT_EQ(retval, true);
+        ASSERT_EQ(sock.listen(128), true);
+    });
 }
 
 TEST(coroutine_socket, accept)

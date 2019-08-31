@@ -2,6 +2,7 @@
 
 #include "coroutine_system.h"
 
+using swoole::Coroutine;
 using swoole::coroutine::System;
 
 TEST(coroutine_gethostbyname, resolve_with_cache)
@@ -48,7 +49,7 @@ TEST(coroutine_gethostbyname, resolve_without_cache)
 
 TEST(coroutine_gethostbyname, resolve_cache_inet4_and_inet6)
 {
-    coro_test([](void *arg)
+    coro_test([](void *arg) 
     {
         System::set_dns_cache_capacity(10);
 

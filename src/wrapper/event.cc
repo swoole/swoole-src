@@ -60,7 +60,12 @@ int swoole_event_del(int fd)
 
 int swoole_event_wait()
 {
-    int retval = SwooleTG.reactor->wait(SwooleTG.reactor, NULL);
+    swReactor *reactor = SwooleTG.reactor;
+    int retval = 0;
+    if (!reactor->is_empty(reactor))
+    {
+        retval = SwooleTG.reactor->wait(SwooleTG.reactor, nullptr);
+    }
     swoole_event_free();
     return retval;
 }
