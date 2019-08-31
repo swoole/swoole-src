@@ -2241,6 +2241,7 @@ struct _swTimer
 };
 
 int swTimer_init(swTimer *timer, long msec);
+void swTimer_reinit(swTimer *timer, swReactor *reactor);
 swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
 enum swBool_type swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);

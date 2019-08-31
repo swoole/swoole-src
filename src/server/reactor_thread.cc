@@ -938,8 +938,13 @@ int swReactorThread_start(swServer *serv)
 
     SwooleTG.type = SW_THREAD_MASTER;
     SwooleTG.update_time = 1;
-
     SwooleTG.reactor = reactor;
+
+    if (SwooleTG.timer && SwooleTG.timer->reactor == nullptr)
+    {
+        swTimer_reinit(SwooleTG.timer, reactor);
+    }
+
     SwooleG.pid = getpid();
     SwooleG.process_type = SW_PROCESS_MASTER;
 
