@@ -118,7 +118,6 @@ swString* System::read_file(const char *file, int lock)
     task.event = &ev;
 
     ev.lock = lock ? 1 : 0;
-    ev.type = SW_AIO_READ_FILE;
     ev.object = (void*) &task;
     ev.handler = swAio_handler_read_file;
     ev.callback = aio_onReadFileCompleted;
@@ -159,7 +158,6 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, int lock,
     task.event = &ev;
 
     ev.lock = lock ? 1 : 0;
-    ev.type = SW_AIO_WRITE_FILE;
     ev.buf = buf;
     ev.nbytes = length;
     ev.object = (void*) &task;
@@ -226,7 +224,6 @@ string System::gethostbyname(const string &hostname, int domain, double timeout)
     memcpy(ev.buf, hostname.c_str(), hostname.size());
     ((char *) ev.buf)[hostname.size()] = 0;
     ev.flags = domain;
-    ev.type = SW_AIO_GETHOSTBYNAME;
     ev.object = (void*) &task;
     ev.handler = swAio_handler_gethostbyname;
     ev.callback = aio_onDNSCompleted;
@@ -291,7 +288,6 @@ vector<string> System::getaddrinfo(const string &hostname, int family, int sockt
     task.co = Coroutine::get_current_safe();
     task.event = &ev;
 
-    ev.type = SW_AIO_GETADDRINFO;
     ev.object = &task;
     ev.handler = swAio_handler_getaddrinfo;
     ev.callback = aio_onDNSCompleted;

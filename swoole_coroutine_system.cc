@@ -418,7 +418,6 @@ PHP_METHOD(swoole_coroutine_system, fread)
 
     ((char *) ev.buf)[length] = 0;
     ev.flags = 0;
-    ev.type = SW_AIO_READ;
     ev.object = context;
     ev.handler = swAio_handler_read;
     ev.callback = aio_onReadCompleted;
@@ -495,7 +494,6 @@ PHP_METHOD(swoole_coroutine_system, fgets)
     php_coro_context *context = (php_coro_context *) emalloc(sizeof(php_coro_context));
 
     ev.flags = 0;
-    ev.type = SW_AIO_FGETS;
     ev.object = context;
     ev.callback = aio_onFgetsCompleted;
     ev.handler = swAio_handler_fgets;
@@ -571,7 +569,6 @@ PHP_METHOD(swoole_coroutine_system, fwrite)
     php_coro_context *context = (php_coro_context *) emalloc(sizeof(php_coro_context));
 
     ev.flags = 0;
-    ev.type = SW_AIO_WRITE;
     ev.object = context;
     ev.handler = swAio_handler_write;
     ev.callback = aio_onWriteCompleted;

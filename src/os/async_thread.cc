@@ -303,9 +303,8 @@ private:
                                         continue;
                                     }
                                     /* notifies the main thread to release this thread */
-                                    async_event *event = new async_event;
-                                    thread::id *tid = new thread::id(this_thread::get_id());
-                                    event->object = tid;
+                                    event = new async_event;
+                                    event->object = new thread::id(this_thread::get_id());
                                     event->callback = aio_thread_release;
 
                                     --n_waiting;
