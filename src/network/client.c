@@ -714,7 +714,6 @@ static int swClient_tcp_connect_async(swClient *cli, const char *host, int port,
         memcpy(ev.buf, cli->server_host, len);
         ((char *) ev.buf)[len] = 0;
         ev.flags = cli->_sock_domain;
-        ev.type = SW_AIO_GETHOSTBYNAME;
         ev.object = cli;
         ev.fd = cli->socket->fd;
         ev.handler = swAio_handler_gethostbyname;

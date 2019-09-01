@@ -29,13 +29,7 @@ using namespace std;
 
 typedef swAio_event async_event;
 
-struct async_thread_event
-{
-    /* head */
-    enum swAioOpcode type;
-    /* info */
-    thread::id tid;
-};
+static void aio_thread_release(async_event *event);
 
 class async_event_queue
 {
@@ -309,10 +303,11 @@ private:
                                         continue;
                                     }
                                     /* notifies the main thread to release this thread */
-                                    async_thread_event *_event = new async_thread_event;
-                                    _event->type = SW_AIO_RELEASE_THREAD;
-                                    _event->tid = this_thread::get_id();
-                                    event = (async_event *) _event;
+                                    event = new async_event;
+                                    thread::id *tid = new thread::id(this_thread::get_id());
+                                    event->object = tid;
+                                    event->callback = aio_thread_release;
+
                                     --n_waiting;
                                     ++n_closing;
                                     exit_flag = true;
@@ -358,6 +353,13 @@ private:
 static async_thread_pool *pool = nullptr;
 
 swAsyncIO SwooleAIO;
+
+static void aio_thread_release(swAio_event *event)
+{
+    thread::id *tid = static_cast<thread::id *>(event->object);
+    pool->release_thread(*tid);
+    delete tid;
+}
 
 static void swAio_free(void *private_data)
 {
@@ -441,21 +443,12 @@ int swAio_callback(swReactor *reactor, swEvent *event)
     for (size_t i = 0; i < n / sizeof(async_event *); i++)
     {
         async_event *event = events[i];
-        if (event->type == SW_AIO_RELEASE_THREAD)
+        if (!event->canceled)
         {
-            async_thread_event *event = (async_thread_event *) events[i];
-            pool->release_thread(event->tid);
-            delete event;
+            event->callback(events[i]);
         }
-        else
-        {
-            if (!event->canceled)
-            {
-                event->callback(events[i]);
-            }
-            SwooleAIO.task_num--;
-            delete event;
-        }
+        SwooleAIO.task_num--;
+        delete event;
     }
 
     return SW_OK;
