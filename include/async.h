@@ -25,19 +25,6 @@ SW_EXTERN_C_BEGIN
 #define O_DIRECT         040000
 #endif
 
-enum swAioOpcode
-{
-    SW_AIO_RAW,
-    SW_AIO_READ = 1,
-    SW_AIO_WRITE,
-    SW_AIO_GETHOSTBYNAME,
-    SW_AIO_GETADDRINFO,
-    SW_AIO_FGETS,
-    SW_AIO_READ_FILE,
-    SW_AIO_WRITE_FILE,
-    SW_AIO_RELEASE_THREAD,
-};
-
 enum swAioFlag
 {
     SW_AIO_WRITE_FSYNC = 1u << 1,
@@ -46,9 +33,6 @@ enum swAioFlag
 
 typedef struct _swAio_event
 {
-    /* head */
-    enum swAioOpcode type;
-    /* body */
     int fd;
     size_t task_id;
     double timestamp;
