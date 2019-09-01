@@ -92,7 +92,7 @@ int swReactorProcess_start(swServer *serv)
         }
     }
 
-    if (swProcessPool_create(&serv->gs->event_workers, serv->worker_num, serv->max_request, 0, SW_IPC_UNIXSOCK) < 0)
+    if (swProcessPool_create(&serv->gs->event_workers, serv->worker_num, serv->max_request, serv->max_request_grace, 0, SW_IPC_UNIXSOCK) < 0)
     {
         return SW_ERR;
     }
