@@ -845,6 +845,7 @@ int swProcessPool_wait(swProcessPool *pool)
         }
     }
     sw_free(pool->reload_workers);
+    pool->reload_workers = NULL;
     return SW_OK;
 }
 
@@ -884,6 +885,11 @@ static void swProcessPool_free(swProcessPool *pool)
             swString_free(pool->stream->response_buffer);
         }
         sw_free(pool->stream);
+    }
+
+    if (pool->packet_buffer)
+    {
+        sw_free(pool->packet_buffer);
     }
 
     if (pool->map)
