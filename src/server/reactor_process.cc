@@ -92,10 +92,12 @@ int swReactorProcess_start(swServer *serv)
         }
     }
 
-    if (swProcessPool_create(&serv->gs->event_workers, serv->worker_num, serv->max_request, serv->max_request_grace, 0, SW_IPC_UNIXSOCK) < 0)
+    swProcessPool *pool = &serv->gs->event_workers;
+    if (swProcessPool_create(pool, serv->worker_num, 0, SW_IPC_UNIXSOCK) < 0)
     {
         return SW_ERR;
     }
+    swProcessPool_set_max_request(pool, serv->task_max_request, serv->task_max_request_grace);
 
     /**
      * store to swProcessPool object

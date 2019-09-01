@@ -385,12 +385,13 @@ int swServer_create_task_worker(swServer *serv)
     }
 
     swProcessPool *pool = &serv->gs->task_workers;
-    if (swProcessPool_create(pool, serv->task_worker_num, serv->task_max_request, serv->task_max_request_grace, key, ipc_mode) < 0)
+    if (swProcessPool_create(pool, serv->task_worker_num, key, ipc_mode) < 0)
     {
         swWarn("[Master] create task_workers failed");
         return SW_ERR;
     }
 
+    swProcessPool_set_max_request(pool, serv->task_max_request, serv->task_max_request_grace);
     swProcessPool_set_start_id(pool, serv->worker_num);
     swProcessPool_set_type(pool, SW_PROCESS_TASKWORKER);
 
