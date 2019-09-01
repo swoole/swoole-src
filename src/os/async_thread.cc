@@ -358,6 +358,8 @@ static void aio_thread_release(swAio_event *event)
     thread::id *tid = static_cast<thread::id *>(event->object);
     pool->release_thread(*tid);
     delete tid;
+    // balance
+    SwooleAIO.task_num++;
 }
 
 static void swAio_free(void *private_data)
