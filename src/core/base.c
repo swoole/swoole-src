@@ -180,7 +180,7 @@ pid_t swoole_fork(int flags)
             swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "must be forked outside the coroutine");
             return -1;
         }
-        if (SwooleAIO.init)
+        if (SwooleG.aio_init)
         {
             swError("can not create server after using async file operation");
             return -1;

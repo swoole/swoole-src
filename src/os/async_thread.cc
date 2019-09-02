@@ -31,7 +31,9 @@ typedef swAio_event async_event;
 
 static void aio_thread_release(async_event *event);
 
-class async_event_queue
+namespace swoole { namespace async {
+//-------------------------------------------------------------------------------
+class EventQueue
 {
 public:
     inline void push(async_event *event)
@@ -77,10 +79,10 @@ private:
     mutex _mutex;
 };
 
-class async_thread_pool
+class ThreadPool
 {
 public:
-    async_thread_pool(size_t _core_worker_num, size_t _worker_num, double _max_wait_time, double _max_idle_time)
+    ThreadPool(size_t _core_worker_num, size_t _worker_num, double _max_wait_time, double _max_idle_time)
     {
         running = false;
 
@@ -100,7 +102,7 @@ public:
         swoole_event_add(_pipe_read, SW_EVENT_READ, SW_FD_AIO);
     }
 
-    ~async_thread_pool()
+    ~ThreadPool()
     {
         shutdown();
         if (SwooleTG.reactor)
@@ -345,12 +347,14 @@ private:
     size_t current_task_id = 0;
 
     unordered_map<thread::id, thread *> threads;
-    async_event_queue _queue;
+    EventQueue _queue;
     mutex event_mutex;
     condition_variable _cv;
 };
+//-------------------------------------------------------------------------------
+}};
 
-static async_thread_pool *pool = nullptr;
+static swoole::async::ThreadPool *pool = nullptr;
 
 swAsyncIO SwooleAIO;
 
@@ -365,7 +369,7 @@ static void aio_thread_release(swAio_event *event)
 
 static void swAio_free(void *private_data)
 {
-    if (!SwooleAIO.init)
+    if (!SwooleG.aio_init)
     {
         return;
     }
@@ -374,14 +378,14 @@ static void swAio_free(void *private_data)
         delete pool;
     }
     pool = nullptr;
-    SwooleAIO.init = 0;
+    SwooleG.aio_init = 0;
 }
 
 static int swAio_init()
 {
-    if (SwooleAIO.init)
+    if (SwooleG.aio_init)
     {
-        swWarn("AIO has already been initialized");
+        swWarn("aio_thread_pool has already been initialized");
         return SW_ERR;
     }
     if (!SwooleTG.reactor)
@@ -398,9 +402,11 @@ static int swAio_init()
 
     swReactor_add_destroy_callback(SwooleTG.reactor, swAio_free, nullptr);
 
-    pool = new async_thread_pool(SwooleAIO.min_thread_num, SwooleAIO.max_thread_num, SwooleAIO.max_wait_time, SwooleAIO.max_idle_time);
+    pool = new swoole::async::ThreadPool(SwooleG.aio_core_worker_num, SwooleG.aio_worker_num, SwooleG.aio_max_wait_time,
+            SwooleG.aio_max_idle_time);
     pool->start();
-    SwooleAIO.init = 1;
+
+    SwooleG.aio_init = 1;
 
     return SW_OK;
 }
@@ -412,7 +418,7 @@ size_t swAio_thread_count()
 
 ssize_t swAio_dispatch(const swAio_event *request)
 {
-    if (sw_unlikely(!SwooleAIO.init))
+    if (sw_unlikely(!SwooleG.aio_init))
     {
         swAio_init();
     }
@@ -423,7 +429,7 @@ ssize_t swAio_dispatch(const swAio_event *request)
 
 swAio_event* swAio_dispatch2(const swAio_event *request)
 {
-    if (sw_unlikely(!SwooleAIO.init))
+    if (sw_unlikely(!SwooleG.aio_init))
     {
         swAio_init();
     }

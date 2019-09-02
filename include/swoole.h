@@ -2380,6 +2380,15 @@ typedef struct
     char *dns_server_v6;
     double dns_cache_refresh_time;
 
+    /**
+     * aio-threads
+     */
+    uint8_t aio_init;
+    uint32_t aio_core_worker_num;
+    uint32_t aio_worker_num;
+    double aio_max_wait_time;
+    double aio_max_idle_time;
+
     swHashMap *functions;
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];
 

@@ -278,7 +278,7 @@ static PHP_METHOD(swoole_process, __construct)
         RETURN_FALSE;
     }
 
-    if (SwooleAIO.init)
+    if (SwooleG.aio_init)
     {
         php_swoole_fatal_error(E_ERROR, "unable to create %s with async-io threads", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
