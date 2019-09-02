@@ -81,6 +81,7 @@ public:
     }
     inline size_t count()
     {
+        unique_lock<mutex> lock(_mutex);
         return _queue.size();
     }
 private:
