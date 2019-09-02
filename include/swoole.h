@@ -2396,6 +2396,7 @@ typedef struct
     uint32_t aio_worker_num;
     double aio_max_wait_time;
     double aio_max_idle_time;
+    int aio_default_pipe_fd;
 
     swHashMap *functions;
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];

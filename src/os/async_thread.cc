@@ -327,6 +327,7 @@ void swoole::async::ThreadPool::create_thread(const bool is_core_worker)
                                 event = new AsyncEvent;
                                 event->object = new thread::id(this_thread::get_id());
                                 event->callback = aio_thread_release;
+                                event->pipe_fd = SwooleG.aio_default_pipe_fd;
 
                                 --n_waiting;
                                 ++n_closing;
@@ -407,6 +408,7 @@ static int swAio_init()
                 SwooleG.aio_max_wait_time, SwooleG.aio_max_idle_time);
         pool->start();
         SwooleTG.aio_schedule = 1;
+        SwooleG.aio_default_pipe_fd = SwooleTG.aio_pipe_write;
     }
     SwooleTG.aio_init = 1;
     init_lock.unlock();
