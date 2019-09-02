@@ -16,13 +16,19 @@
 
 #include "swoole_api.h"
 
+#include <mutex>
 #include <thread>
+
+using namespace std;
+
+static mutex init_lock;
 
 int swoole_event_init()
 {
     if (!SwooleG.init)
     {
-        abort();
+        unique_lock<mutex> lock(init_lock);
+        swoole_init();
         return SW_ERR;
     }
 

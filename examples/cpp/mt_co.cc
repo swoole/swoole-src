@@ -79,7 +79,6 @@ void co_thread(int i)
 
 int main(int argc, char **argv)
 {
-    swoole_init();
     SwooleG.aio_worker_num = SwooleG.aio_core_worker_num = 2;
 
     std::thread threads[THREAD_N];

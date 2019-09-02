@@ -29,8 +29,8 @@ using namespace std;
 
 typedef swAio_event AsyncEvent;
 
-static std::mutex init_lock;
-static std::atomic<int> refcount;
+static mutex init_lock;
+static atomic<int> refcount(0);
 
 static void aio_thread_release(AsyncEvent *event);
 
@@ -400,7 +400,7 @@ static int swAio_init()
     swoole_event_add(SwooleTG.aio_pipe_read, SW_EVENT_READ, SW_FD_AIO);
     swReactor_add_destroy_callback(SwooleTG.reactor, swAio_free, nullptr);
 
-    unique_lock<mutex> lock(init_lock);
+    init_lock.lock();
     if ((refcount++) == 0)
     {
         pool = new swoole::async::ThreadPool(SwooleG.aio_core_worker_num, SwooleG.aio_worker_num,
@@ -409,6 +409,7 @@ static int swAio_init()
         SwooleTG.aio_schedule = 1;
     }
     SwooleTG.aio_init = 1;
+    init_lock.unlock();
 
     return SW_OK;
 }
