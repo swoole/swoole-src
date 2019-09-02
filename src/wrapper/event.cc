@@ -16,22 +16,21 @@
 
 #include "swoole_api.h"
 
-#include <mutex>
 #include <thread>
-
-static std::once_flag init_flag;
 
 int swoole_event_init()
 {
     if (!SwooleG.init)
     {
-        call_once(init_flag, swoole_init);
+        swError("uninitialized");
+        abort();
+        return SW_ERR;
     }
 
     SwooleTG.reactor = (swReactor *) sw_malloc(sizeof(swReactor));
     if (!SwooleTG.reactor)
     {
-        swSysWarn("malloc failed.");
+        swSysWarn("malloc failed");
         return SW_ERR;
     }
     if (swReactor_create(SwooleTG.reactor, SW_REACTOR_MAXEVENTS) < 0)

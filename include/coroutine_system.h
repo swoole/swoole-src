@@ -26,8 +26,8 @@ class System
 {
 public:
     static int sleep(double sec);
-    static swString* read_file(const char *file, int lock);
-    static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
+    static swString* read_file(const char *file, bool lock = false);
+    static ssize_t write_file(const char *file, char *buf, size_t length, bool lock = 0, int flags = 0);
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
     static std::vector<std::string> getaddrinfo(
         const std::string &hostname, int family = AF_INET, int socktype = SOCK_STREAM, int protocol = IPPROTO_TCP,

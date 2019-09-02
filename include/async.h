@@ -34,6 +34,7 @@ enum swAioFlag
 typedef struct _swAio_event
 {
     int fd;
+    int pipe_fd;
     size_t task_id;
     double timestamp;
     uint8_t lock;

@@ -142,11 +142,16 @@ public:
 
     void schedule()
     {
-        if (n_waiting == 0 && threads.size() < worker_num && max_wait_time > 0) {
+        unique_lock<mutex> lock(schedule_mutex);
+        if (n_waiting == 0 && threads.size() < worker_num && max_wait_time > 0)
+        {
             double _max_wait_time = _queue.get_max_wait_time();
             if (_max_wait_time > max_wait_time)
             {
-                size_t n = 1; /* maybe we can find a better strategy */
+                size_t n = 1;
+                /**
+                 * maybe we can find a better strategy
+                 */
                 if (threads.size() + n > worker_num)
                 {
                     n = worker_num - threads.size();
@@ -167,6 +172,7 @@ public:
         auto _event_copy = new AsyncEvent(*request);
         _event_copy->task_id = current_task_id++;
         _event_copy->timestamp = swoole_microtime();
+        _event_copy->pipe_fd = SwooleTG.aio_pipe_write;
         _queue.push(_event_copy);
         _cv.notify_one();
         return _event_copy;
@@ -246,14 +252,8 @@ private:
 
                         _send_event:
                         while (true)
-                            {
-#ifdef SW_AIO_WRITE_LOCK
-                            SwooleTG.aio_lock.lock(&SwooleTG.aio_lock);
-#endif
-                            int ret = write(SwooleTG.aio_pipe_write, &event, sizeof(event));
-#ifdef SW_AIO_WRITE_LOCK
-                            SwooleTG.aio_lock.unlock(&SwooleTG.aio_lock);
-#endif
+                        {
+                            int ret = write(event->pipe_fd, &event, sizeof(event));
                             if (ret < 0)
                             {
                                 if (errno == EAGAIN)
@@ -338,6 +338,7 @@ private:
 
     unordered_map<thread::id, thread *> threads;
     EventQueue _queue;
+    mutex schedule_mutex;
     mutex event_mutex;
     condition_variable _cv;
 };
@@ -366,14 +367,10 @@ static void swAio_free(void *private_data)
     SwooleTG.aio_pipe.close(&SwooleTG.aio_pipe);
     if (pool->current_pid == getpid())
     {
-        if (refcount == 0)
+        if ((--refcount) == 0)
         {
             delete pool;
             pool = nullptr;
-        }
-        else
-        {
-            refcount--;
         }
     }
 }
@@ -390,13 +387,6 @@ static int swAio_init()
         swWarn("no event loop, cannot initialized");
         return SW_ERR;
     }
-#ifdef SW_AIO_WRITE_LOCK
-    if (swMutex_create(&SwooleTG.aio_lock, 0) < 0)
-    {
-        swWarn("create mutex lock error");
-        return SW_ERR;
-    }
-#endif
 
     if (swPipeBase_create(&SwooleTG.aio_pipe, 0) < 0)
     {
