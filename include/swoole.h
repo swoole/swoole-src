@@ -2307,6 +2307,14 @@ typedef struct
     swString *buffer_stack;
     swReactor *reactor;
     swTimer *timer;
+    uint8_t aio_init;
+    uint32_t aio_task_num;
+    swPipe aio_pipe;
+    int aio_pipe_read;
+    int aio_pipe_write;
+#ifdef SW_AIO_WRITE_LOCK
+    swLock aio_lock;
+#endif
 } swThreadGlobal_t;
 
 typedef struct
@@ -2383,7 +2391,6 @@ typedef struct
     /**
      * aio-threads
      */
-    uint8_t aio_init;
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
     double aio_max_wait_time;

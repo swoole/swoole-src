@@ -95,6 +95,7 @@
 #define SW_AIO_MAX_CHUNK_SIZE            (1*1024*1024)
 #define SW_AIO_MAX_EVENTS                128
 #define SW_AIO_HANDLER_MAX_SIZE          8
+#define SW_AIO_WRITE_LOCK
 #define SW_THREADPOOL_QUEUE_LEN          10000
 #define SW_IP_MAX_LENGTH                 46
 

@@ -27,29 +27,32 @@
 
 using namespace std;
 
-typedef swAio_event async_event;
+typedef swAio_event AsyncEvent;
 
-static void aio_thread_release(async_event *event);
+static std::once_flag init_flag;
+static std::atomic<int> refcount;
+
+static void aio_thread_release(AsyncEvent *event);
 
 namespace swoole { namespace async {
 //-------------------------------------------------------------------------------
 class EventQueue
 {
 public:
-    inline void push(async_event *event)
+    inline void push(AsyncEvent *event)
     {
         unique_lock<mutex> lock(_mutex);
         _queue.push(event);
     }
 
-    inline async_event* pop()
+    inline AsyncEvent* pop()
     {
         unique_lock<mutex> lock(_mutex);
         if (_queue.empty())
         {
             return nullptr;
         }
-        async_event* retval = _queue.front();
+        AsyncEvent* retval = _queue.front();
         _queue.pop();
         return retval;
     }
@@ -63,7 +66,7 @@ public:
         }
         else
         {
-            async_event* event = _queue.front();
+            AsyncEvent* event = _queue.front();
             return swoole_microtime() - event->timestamp;
         }
     }
@@ -75,7 +78,7 @@ public:
     }
 
 private:
-    queue<async_event *> _queue;
+    queue<AsyncEvent *> _queue;
     mutex _mutex;
 };
 
@@ -92,24 +95,11 @@ public:
         max_idle_time = _max_idle_time == 0 ? SW_AIO_THREAD_MAX_IDLE_TIME : _max_idle_time;
 
         current_pid = getpid();
-
-        if (swPipeBase_create(&_aio_pipe, 0) < 0)
-        {
-            swoole_throw_error(SW_ERROR_SYSTEM_CALL_FAIL);
-        }
-        _pipe_read = _aio_pipe.getFd(&_aio_pipe, 0);
-        _pipe_write = _aio_pipe.getFd(&_aio_pipe, 1);
-        swoole_event_add(_pipe_read, SW_EVENT_READ, SW_FD_AIO);
     }
 
     ~ThreadPool()
     {
         shutdown();
-        if (SwooleTG.reactor)
-        {
-            swoole_event_del(_pipe_read);
-        }
-        _aio_pipe.close(&_aio_pipe);
     }
 
     bool start()
@@ -170,11 +160,11 @@ public:
         }
     }
 
-    async_event* dispatch(const async_event *request)
+    AsyncEvent* dispatch(const AsyncEvent *request)
     {
         schedule();
 
-        auto _event_copy = new async_event(*request);
+        auto _event_copy = new AsyncEvent(*request);
         _event_copy->task_id = current_task_id++;
         _event_copy->timestamp = swoole_microtime();
         _queue.push(_event_copy);
@@ -234,7 +224,7 @@ private:
 
                 while (running)
                 {
-                    async_event *event = _queue.pop();
+                    AsyncEvent *event = _queue.pop();
                     if (event)
                     {
                         if (sw_unlikely(event->handler == nullptr))
@@ -256,15 +246,19 @@ private:
 
                         _send_event:
                         while (true)
-                        {
-                            SwooleAIO.lock.lock(&SwooleAIO.lock);
-                            int ret = write(_pipe_write, &event, sizeof(event));
-                            SwooleAIO.lock.unlock(&SwooleAIO.lock);
+                            {
+#ifdef SW_AIO_WRITE_LOCK
+                            SwooleTG.aio_lock.lock(&SwooleTG.aio_lock);
+#endif
+                            int ret = write(SwooleTG.aio_pipe_write, &event, sizeof(event));
+#ifdef SW_AIO_WRITE_LOCK
+                            SwooleTG.aio_lock.unlock(&SwooleTG.aio_lock);
+#endif
                             if (ret < 0)
                             {
                                 if (errno == EAGAIN)
                                 {
-                                    swSocket_wait(_pipe_write, 1000, SW_EVENT_WRITE);
+                                    swSocket_wait(SwooleTG.aio_pipe_write, 1000, SW_EVENT_WRITE);
                                     continue;
                                 }
                                 else if (errno == EINTR)
@@ -306,7 +300,7 @@ private:
                                         continue;
                                     }
                                     /* notifies the main thread to release this thread */
-                                    event = new async_event;
+                                    event = new AsyncEvent;
                                     event->object = new thread::id(this_thread::get_id());
                                     event->callback = aio_thread_release;
 
@@ -336,10 +330,6 @@ private:
     double max_wait_time;
     double max_idle_time;
 
-    swPipe _aio_pipe;
-    int _pipe_read;
-    int _pipe_write;
-
     bool running;
 
     atomic<size_t> n_waiting;
@@ -356,34 +346,41 @@ private:
 
 static swoole::async::ThreadPool *pool = nullptr;
 
-swAsyncIO SwooleAIO;
-
 static void aio_thread_release(swAio_event *event)
 {
     thread::id *tid = static_cast<thread::id *>(event->object);
     pool->release_thread(*tid);
     delete tid;
     // balance
-    SwooleAIO.task_num++;
+    SwooleTG.aio_task_num++;
 }
 
 static void swAio_free(void *private_data)
 {
-    if (!SwooleG.aio_init)
+    if (!SwooleTG.aio_init)
     {
         return;
     }
+    SwooleTG.aio_init = 0;
+    swoole_event_del(SwooleTG.aio_pipe_read);
+    SwooleTG.aio_pipe.close(&SwooleTG.aio_pipe);
     if (pool->current_pid == getpid())
     {
-        delete pool;
+        if (refcount == 0)
+        {
+            delete pool;
+            pool = nullptr;
+        }
+        else
+        {
+            refcount--;
+        }
     }
-    pool = nullptr;
-    SwooleG.aio_init = 0;
 }
 
 static int swAio_init()
 {
-    if (SwooleG.aio_init)
+    if (SwooleTG.aio_init)
     {
         swWarn("aio_thread_pool has already been initialized");
         return SW_ERR;
@@ -393,20 +390,32 @@ static int swAio_init()
         swWarn("no event loop, cannot initialized");
         return SW_ERR;
     }
-
-    if (swMutex_create(&SwooleAIO.lock, 0) < 0)
+#ifdef SW_AIO_WRITE_LOCK
+    if (swMutex_create(&SwooleTG.aio_lock, 0) < 0)
     {
         swWarn("create mutex lock error");
         return SW_ERR;
     }
+#endif
 
+    if (swPipeBase_create(&SwooleTG.aio_pipe, 0) < 0)
+    {
+        swoole_throw_error(SW_ERROR_SYSTEM_CALL_FAIL);
+    }
+
+    SwooleTG.aio_pipe_read = SwooleTG.aio_pipe.getFd(&SwooleTG.aio_pipe, 0);
+    SwooleTG.aio_pipe_write = SwooleTG.aio_pipe.getFd(&SwooleTG.aio_pipe, 1);
+    swoole_event_add(SwooleTG.aio_pipe_read, SW_EVENT_READ, SW_FD_AIO);
     swReactor_add_destroy_callback(SwooleTG.reactor, swAio_free, nullptr);
 
-    pool = new swoole::async::ThreadPool(SwooleG.aio_core_worker_num, SwooleG.aio_worker_num, SwooleG.aio_max_wait_time,
-            SwooleG.aio_max_idle_time);
-    pool->start();
+    call_once(init_flag, []() {
+        pool = new swoole::async::ThreadPool(SwooleG.aio_core_worker_num, SwooleG.aio_worker_num, SwooleG.aio_max_wait_time,
+                SwooleG.aio_max_idle_time);
+        pool->start();
+    });
 
-    SwooleG.aio_init = 1;
+    refcount++;
+    SwooleTG.aio_init = 1;
 
     return SW_OK;
 }
@@ -418,44 +427,47 @@ size_t swAio_thread_count()
 
 ssize_t swAio_dispatch(const swAio_event *request)
 {
-    if (sw_unlikely(!SwooleG.aio_init))
+    AsyncEvent *event = swAio_dispatch2(request);
+    if (event == nullptr)
     {
-        swAio_init();
+        return -1;
     }
-    SwooleAIO.task_num++;
-    async_event *event = pool->dispatch(request);
     return event->task_id;
 }
 
 swAio_event* swAio_dispatch2(const swAio_event *request)
 {
-    if (sw_unlikely(!SwooleG.aio_init))
+    if (sw_unlikely(!SwooleTG.aio_init))
     {
         swAio_init();
     }
-    SwooleAIO.task_num++;
-    return pool->dispatch(request);
+    AsyncEvent *event = pool->dispatch(request);
+    if (sw_likely(event))
+    {
+        SwooleTG.aio_task_num++;
+    }
+    return event;
 }
 
 int swAio_callback(swReactor *reactor, swEvent *event)
 {
     pool->schedule();
 
-    async_event *events[SW_AIO_EVENT_NUM];
-    ssize_t n = read(event->fd, events, sizeof(async_event *) * SW_AIO_EVENT_NUM);
+    AsyncEvent *events[SW_AIO_EVENT_NUM];
+    ssize_t n = read(event->fd, events, sizeof(AsyncEvent *) * SW_AIO_EVENT_NUM);
     if (n < 0)
     {
         swSysWarn("read() aio events failed");
         return SW_ERR;
     }
-    for (size_t i = 0; i < n / sizeof(async_event *); i++)
+    for (size_t i = 0; i < n / sizeof(AsyncEvent *); i++)
     {
-        async_event *event = events[i];
+        AsyncEvent *event = events[i];
         if (!event->canceled)
         {
             event->callback(events[i]);
         }
-        SwooleAIO.task_num--;
+        SwooleTG.aio_task_num--;
         delete event;
     }
 

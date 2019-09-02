@@ -19,7 +19,7 @@
 #include <mutex>
 #include <thread>
 
-std::once_flag init_flag;
+static std::once_flag init_flag;
 
 int swoole_event_init()
 {

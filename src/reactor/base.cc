@@ -141,7 +141,7 @@ int swReactor_empty(swReactor *reactor)
     int event_num = reactor->event_num;
     int empty = SW_FALSE;
     //aio thread pool
-    if (SwooleG.aio_init && SwooleAIO.task_num == 0)
+    if (SwooleTG.aio_init && SwooleTG.aio_task_num == 0)
     {
         event_num--;
     }
