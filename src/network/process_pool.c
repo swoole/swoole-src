@@ -61,14 +61,13 @@ static void swProcessPool_kill_timeout_worker(swTimer *timer, swTimer_node *tnod
 /**
  * Process manager
  */
-int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int ipc_mode)
+int swProcessPool_create(swProcessPool *pool, int worker_num, key_t msgqueue_key, int ipc_mode)
 {
     bzero(pool, sizeof(swProcessPool));
 
     int i;
 
     pool->worker_num = worker_num;
-    pool->max_request = max_request;
 
     /**
      * Shared memory is used here
@@ -442,16 +441,18 @@ int swProcessPool_get_max_request(swProcessPool *pool)
     else
     {
         task_n = pool->max_request;
-        if (pool->max_request > 10)
+        if (pool->max_request_grace > 0)
         {
-            int n = swoole_system_random(1, pool->max_request / 2);
-            if (n > 0)
-            {
-                task_n += n;
-            }
+            task_n += swoole_system_random(1, pool->max_request_grace);
         }
     }
     return task_n;
+}
+
+void swProcessPool_set_max_request(swProcessPool *pool, int max_request, int max_request_grace)
+{
+    pool->max_request = max_request;
+    pool->max_request_grace = max_request_grace;
 }
 
 static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
@@ -844,6 +845,7 @@ int swProcessPool_wait(swProcessPool *pool)
         }
     }
     sw_free(pool->reload_workers);
+    pool->reload_workers = NULL;
     return SW_OK;
 }
 
@@ -883,6 +885,11 @@ static void swProcessPool_free(swProcessPool *pool)
             swString_free(pool->stream->response_buffer);
         }
         sw_free(pool->stream);
+    }
+
+    if (pool->packet_buffer)
+    {
+        sw_free(pool->packet_buffer);
     }
 
     if (pool->map)
