@@ -2332,6 +2332,15 @@ static PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "task_max_request", v))
     {
         serv->task_max_request = (uint16_t) zval_get_long(v);
+        //task_max_request_grace
+        if (php_swoole_array_get_value(vht, "task_max_request_grace", v))
+        {
+            serv->task_max_request_grace = (uint16_t) zval_get_long(v);
+        }
+        else if (serv->task_max_request > SW_WORKER_MIN_REQUEST)
+        {
+            serv->task_max_request_grace = serv->task_max_request / 2;
+        }
     }
     //max_connection
     if (php_swoole_array_get_value(vht, "max_connection", v) || php_swoole_array_get_value(vht, "max_conn", v))
@@ -2362,6 +2371,15 @@ static PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "max_request", v))
     {
         serv->max_request = (uint32_t) zval_get_long(v);
+        //max_request_grace
+        if (php_swoole_array_get_value(vht, "max_request_grace", v))
+        {
+            serv->max_request_grace = (uint32_t) zval_get_long(v);
+        }
+        else if (serv->max_request > SW_WORKER_MIN_REQUEST)
+        {
+            serv->max_request_grace = serv->max_request / 2;
+        }
     }
     //reload async
     if (php_swoole_array_get_value(vht, "reload_async", v))
@@ -2425,6 +2443,11 @@ static PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "http_parse_post", v))
     {
         serv->http_parse_post = zval_is_true(v);
+    }
+    //parse multipart/form-data file uploads
+    if (php_swoole_array_get_value(vht, "http_parse_files", v))
+    {
+        serv->http_parse_files = zval_is_true(v);
     }
 #ifdef SW_HAVE_ZLIB
     //http content compression

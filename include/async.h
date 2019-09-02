@@ -25,18 +25,6 @@ SW_EXTERN_C_BEGIN
 #define O_DIRECT         040000
 #endif
 
-enum swAioOpcode
-{
-    SW_AIO_RAW,
-    SW_AIO_READ = 1,
-    SW_AIO_WRITE,
-    SW_AIO_GETHOSTBYNAME,
-    SW_AIO_GETADDRINFO,
-    SW_AIO_FGETS,
-    SW_AIO_READ_FILE,
-    SW_AIO_WRITE_FILE,
-};
-
 enum swAioFlag
 {
     SW_AIO_WRITE_FSYNC = 1u << 1,
@@ -46,8 +34,8 @@ enum swAioFlag
 typedef struct _swAio_event
 {
     int fd;
-    int task_id;
-    uint8_t type;
+    size_t task_id;
+    double timestamp;
     uint8_t lock;
     uint8_t canceled;
     uint16_t flags;
@@ -67,15 +55,17 @@ typedef void (*swAio_handler)(swAio_event *event);
 typedef struct
 {
     uint8_t init;
-    uint16_t min_thread_count;
-    uint16_t max_thread_count;
+    uint32_t min_thread_num;
+    uint32_t max_thread_num;
+    double max_wait_time;
+    double max_idle_time;
     uint32_t task_num;
     swLock lock;
 } swAsyncIO;
 
 extern swAsyncIO SwooleAIO;
 
-int swAio_dispatch(const swAio_event *request);
+ssize_t swAio_dispatch(const swAio_event *request);
 swAio_event* swAio_dispatch2(const swAio_event *request);
 int swAio_cancel(int task_id);
 int swAio_callback(swReactor *reactor, swEvent *_event);

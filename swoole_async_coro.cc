@@ -100,11 +100,15 @@ PHP_FUNCTION(swoole_async_set)
     }
     if (php_swoole_array_get_value(vht, "thread_num", ztmp) || php_swoole_array_get_value(vht, "min_thread_num", ztmp))
     {
-        SwooleAIO.max_thread_count = SwooleAIO.min_thread_count = zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
+        SwooleAIO.min_thread_num = v;
     }
     if (php_swoole_array_get_value(vht, "max_thread_num", ztmp))
     {
-        SwooleAIO.max_thread_count = zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
+        SwooleAIO.max_thread_num = v;
     }
     if (php_swoole_array_get_value(vht, "display_errors", ztmp))
     {

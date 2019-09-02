@@ -731,14 +731,16 @@ int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData 
             zend_update_property_long(swoole_http_request_ce, ctx->request.zobject, ZEND_STRL("streamId"), stream_id);
 
             zval *zserver = ctx->request.zserver;
-
             swConnection *serv_sock = swServer_connection_get(serv, conn->server_fd);
 
             add_assoc_long(zserver, "request_time", serv->gs->now);
             add_assoc_double(zserver, "request_time_float", swoole_microtime());
-            add_assoc_long(zserver, "server_port", swConnection_get_port(serv_sock->socket_type, &serv_sock->info));
-            add_assoc_long(zserver, "remote_port", swConnection_get_port(serv_sock->socket_type, &serv_sock->info));
-            add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(serv_sock->socket_type, &serv_sock->info));
+            if (serv_sock)
+            {
+                add_assoc_long(zserver, "server_port", swConnection_get_port(serv_sock->socket_type, &serv_sock->info));
+            }
+            add_assoc_long(zserver, "remote_port", swConnection_get_port(conn->socket_type, &conn->info));
+            add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(conn->socket_type, &conn->info));
             add_assoc_long(zserver, "master_time", conn->last_time);
             add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
         }

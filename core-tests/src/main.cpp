@@ -15,8 +15,6 @@ int main(int argc, char **argv)
 
     pid_t server_pid = create_server();
 
-    swoole_event_init();
-
     ::testing::InitGoogleTest(&argc, argv);
     int retval = RUN_ALL_TESTS();
 

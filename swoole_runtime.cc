@@ -102,7 +102,6 @@ static php_stream_ops socket_ops
 struct php_swoole_netstream_data_t
 {
     php_netstream_data_t stream;
-    double read_timeout;
     Socket *socket;
 };
 
@@ -341,7 +340,6 @@ static ssize_t socket_read(php_stream *stream, char *buf, size_t count)
     {
         return 0;
     }
-    sock->set_timeout(abstract->read_timeout, SW_TIMEOUT_READ);
     nr_bytes = sock->recv(buf, count);
     /**
      * sock->errCode != ETIMEDOUT : Compatible with sync blocking IO
@@ -806,7 +804,6 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         return PHP_STREAM_OPTION_RETURN_ERR;
     }
     Socket *sock = (Socket*) abstract->socket;
-    struct timeval default_timeout = { 0, 0 };
     switch (option)
     {
     case PHP_STREAM_OPTION_BLOCKING:
@@ -872,8 +869,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     }
     case PHP_STREAM_OPTION_READ_TIMEOUT:
     {
-        default_timeout = *(struct timeval*) ptrparam;
-        abstract->read_timeout = (double) default_timeout.tv_sec + ((double) default_timeout.tv_usec / 1000 / 1000);
+        abstract->socket->set_timeout((struct timeval*) ptrparam, SW_TIMEOUT_READ);
         break;
     }
 #ifdef SW_USE_OPENSSL
@@ -968,16 +964,25 @@ static php_stream *socket_create(
         return NULL;
     }
 
-    if (FG(default_socket_timeout) > 0)
-    {
-        sock->set_timeout((double) FG(default_socket_timeout));
-    }
-
     abstract = (php_swoole_netstream_data_t*) ecalloc(1, sizeof(*abstract));
     abstract->socket = sock;
-    abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
     abstract->stream.socket = sock->get_fd();
-    abstract->read_timeout = (double) FG(default_socket_timeout);
+
+    if (timeout)
+    {
+        sock->set_timeout(timeout);
+        abstract->stream.timeout = *timeout;
+    }
+    else if (FG(default_socket_timeout) > 0)
+    {
+        sock->set_timeout((double) FG(default_socket_timeout));
+        abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
+    }
+    else
+    {
+        sock->set_timeout(-1);
+        abstract->stream.timeout.tv_sec = -1;
+    }
 
     persistent_id = nullptr;//prevent stream api in user level using pconnect to persist the socket
     stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
@@ -1764,13 +1769,11 @@ php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, i
         sock->set_timeout((double) FG(default_socket_timeout));
     }
 
-    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t*) emalloc(sizeof(*abstract));
-    memset(abstract, 0, sizeof(*abstract));
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t*) ecalloc(1, sizeof(*abstract));
 
     abstract->socket = sock;
     abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
     abstract->stream.socket = sock->get_fd();
-    abstract->read_timeout = (double) FG(default_socket_timeout);
 
     php_stream *stream = php_stream_alloc_rel(&socket_ops, abstract, nullptr, "r+");
 

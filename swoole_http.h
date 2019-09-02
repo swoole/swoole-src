@@ -121,6 +121,7 @@ struct http_context
     uint32_t detached :1;
     uint32_t parse_cookie :1;
     uint32_t parse_body :1;
+    uint32_t parse_files :1;
     uint32_t co_socket :1;
 
 #ifdef SW_HAVE_ZLIB
@@ -141,6 +142,7 @@ struct http_context
     char *current_header_name;
     size_t current_header_name_len;
     char *current_input_name;
+    size_t current_input_name_len;
     char *current_form_data_name;
     size_t current_form_data_name_len;
     zval *current_multipart_header;

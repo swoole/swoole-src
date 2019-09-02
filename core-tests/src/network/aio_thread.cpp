@@ -5,17 +5,30 @@
 
 using namespace std;
 
-TEST(network_aio_thread, dispatch)
+static int callback_count;
+
+static void aio_callback(swAio_event *event)
 {
-    atomic<int> i(0);
+    callback_count++;
+}
+
+TEST(aio_thread, dispatch)
+{
+    atomic<int> handle_count(0);
     swAio_event event;
-    event.object = &i;
+    event.object = &handle_count;
     event.canceled = 0;
+    event.callback = aio_callback;
+
+    callback_count = 0;
 
     event.handler = [](swAio_event *event)
     {
         (*(atomic<int> *) event->object)++;
     };
+
+    swoole_event_init();
+    SwooleTG.reactor->wait_exit = 1;
 
     for (int i = 0; i < 1000; ++i)
     {
@@ -24,14 +37,8 @@ TEST(network_aio_thread, dispatch)
         ASSERT_NE(ret->task_id, event.task_id);
     }
 
-    time_t start = time(nullptr);
-    while (i != 1000)
-    {
-        usleep(100);
-        
-        if ((time(nullptr) - start) > 3)
-        {
-            ASSERT_TRUE(false);
-        }
-    }
+    swoole_event_wait();
+
+    ASSERT_EQ(handle_count, 1000);
+    ASSERT_EQ(callback_count, 1000);
 }

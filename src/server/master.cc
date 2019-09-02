@@ -385,12 +385,13 @@ int swServer_create_task_worker(swServer *serv)
     }
 
     swProcessPool *pool = &serv->gs->task_workers;
-    if (swProcessPool_create(pool, serv->task_worker_num, serv->task_max_request, key, ipc_mode) < 0)
+    if (swProcessPool_create(pool, serv->task_worker_num, key, ipc_mode) < 0)
     {
         swWarn("[Master] create task_workers failed");
         return SW_ERR;
     }
 
+    swProcessPool_set_max_request(pool, serv->task_max_request, serv->task_max_request_grace);
     swProcessPool_set_start_id(pool, serv->worker_num);
     swProcessPool_set_type(pool, SW_PROCESS_TASKWORKER);
 
@@ -460,13 +461,9 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     else
     {
         SwooleWG.max_request = serv->max_request;
-        if (SwooleWG.max_request > 10)
+        if (serv->max_request_grace > 0)
         {
-            int n = swoole_system_random(1, SwooleWG.max_request / 2);
-            if (n > 0)
-            {
-                SwooleWG.max_request += n;
-            }
+            SwooleWG.max_request += swoole_system_random(1, serv->max_request_grace);
         }
     }
 

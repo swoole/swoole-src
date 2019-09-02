@@ -31,10 +31,20 @@ function clear_php()
 
 function top(int $pid)
 {
-    if (IS_MAC_OS || stripos(`top help 2>&1`, 'usage') === false) {
+    static $available;
+    $available = $available ?? !(IS_MAC_OS || empty(`top help 2>&1 | grep -i usage`));
+    if (!$available) {
         return false;
     }
-    $top = `top -b -n 1 -p {$pid}`;
+    do {
+        $top = @`top -b -n 1 -p {$pid}`;
+        if (empty($top)) {
+            trigger_error("top {$pid} failed: " . swoole_strerror(swoole_errno()), E_USER_WARNING);
+            return false;
+        } else {
+            break;
+        }
+    } while (true);
     $top = explode("\n", $top);
     $top = array_combine(preg_split('/\s+/', trim($top[6])), preg_split('/\s+/', trim($top[7])));
     return $top;

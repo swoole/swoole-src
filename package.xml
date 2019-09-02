@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-08-17</date>
-    <time>16:00:00</time>
+    <date>2019-08-30</date>
+    <time>21:00:00</time>
     <version>
-        <release>4.4.4</release>
+        <release>4.4.5</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -56,26 +56,22 @@
     <notes>
         Enhancement
         ---
-        + Perfect array_walk for coroutine  (#2740) (@twose)
-        + Add `Swoole\Constant` to replace string (@matyhtf) (@twose)
-        + Add alias `Co::dnsLookup` of `swoole_async_dns_lookup_coro` (42293ef) (@matyhtf)
-        + Expend default HTTP_FORM_KEYLEN to 512 (#2734) (@sshymko)
-        + Better dns resolver (c6deff1) (@matyhtf)
-        + Support HTTP PURGE (#2462) (@sshymko)
-        + Response 400 for bad request (#2751) (@twose)
-        + Decoupling sockets and reactor (internal) (@twose)
-        + Add Timer::set / Process->set / Process\Pool->set (@twose)
-        + Optional hugepage feature support for FreeBSD (#2757) (@devnexen)
+        + Better Reactor (@matyhtf)
+        + Better AIO (@twose)
+        + Better Redis (3608f4c2) (@twose)
+        + Handle Empty upload files (#2779) (@sshymko)
+        + Add File uploads array parser (#2773) (@sshymko)
+        + Support PURGE (#2754) (#2764) (@sshymko)
+        + Allow HTTP methods like GETX POSTX PUTX etc (#2772) (@doubaokun)
+        + Reduce the default max_wait_time to 3 (ed5c838) (@twose)
 
         Fixed
         ---
-        * Fixed macOS not support extern thread_local () (@matyhtf)
-        * Fixed SSL dispatch (#2736) (@matyhtf)
-        * Fixed aio thread num (#2745) (@matyhtf)
-        * Fixed async_thread (#2747) (@matyhtf)
-        * Fixed Swoole\Client::select timeout (#2758) (@LeiZhang-Hunter)
-        * Fixed empty timer (#2749) (@twose)
-        * Fixed zlib decompression (#2762) (@twose)
+        * Fix AIO memory error (@twose)
+        * Fix compilation without zlib (f5a03366) (@twose)
+        * Fix timeout param of stream (c8275989) (@twose)
+        * Fix missing http headers (#2789) (@doubaokun)
+        * Fix client type (#2771) (@doubaokun)
     </notes>
     <contents>
         <dir name="/">
@@ -312,7 +308,7 @@
             <file role="doc" name="examples/length/func.php" />
             <file role="doc" name="examples/length/server.php" />
             <file role="doc" name="examples/lock/lock.php" />
-            <file role="doc" name="examples/memory/pool.php" />
+            <file role="doc" name="examples/logo.svg" />
             <file role="doc" name="examples/multi_port_server.php" />
             <file role="doc" name="examples/multicast/client.php" />
             <file role="doc" name="examples/multicast/server.php" />
@@ -603,19 +599,19 @@
             <file role="src" name="src/protocol/ssl.c" />
             <file role="src" name="src/protocol/websocket.c" />
             <file role="src" name="src/reactor/base.cc" />
-            <file role="src" name="src/reactor/epoll.c" />
+            <file role="src" name="src/reactor/epoll.cc" />
             <file role="src" name="src/reactor/kqueue.c" />
             <file role="src" name="src/reactor/poll.c" />
             <file role="src" name="src/reactor/select.c" />
             <file role="src" name="src/server/base.c" />
             <file role="src" name="src/server/manager.cc" />
             <file role="src" name="src/server/master.cc" />
-            <file role="src" name="src/server/port.c" />
+            <file role="src" name="src/server/port.cc" />
             <file role="src" name="src/server/process.cc" />
             <file role="src" name="src/server/reactor_process.cc" />
             <file role="src" name="src/server/reactor_thread.cc" />
             <file role="src" name="src/server/static_handler.cc" />
-            <file role="src" name="src/server/task_worker.c" />
+            <file role="src" name="src/server/task_worker.cc" />
             <file role="src" name="src/server/worker.cc" />
             <file role="src" name="src/wrapper/client.cc" />
             <file role="src" name="src/wrapper/event.cc" />
@@ -1112,6 +1108,7 @@
             <file role="test" name="tests/swoole_http_server/bug_2444.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_2608.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_2751.phpt" />
+            <file role="test" name="tests/swoole_http_server/bug_2786.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_get_request_data_after_end.phpt" />
             <file role="test" name="tests/swoole_http_server/callback_new_obj_method.phpt" />
             <file role="test" name="tests/swoole_http_server/callback_new_static_method.phpt" />
@@ -1139,6 +1136,7 @@
             <file role="test" name="tests/swoole_http_server/mixed_server.phpt" />
             <file role="test" name="tests/swoole_http_server/no_compression.phpt" />
             <file role="test" name="tests/swoole_http_server/pipeline.phpt" />
+            <file role="test" name="tests/swoole_http_server/purge_method.phpt" />
             <file role="test" name="tests/swoole_http_server/rawContent.phpt" />
             <file role="test" name="tests/swoole_http_server/rawCookie.phpt" />
             <file role="test" name="tests/swoole_http_server/redirect.phpt" />
@@ -1159,6 +1157,9 @@
             <file role="test" name="tests/swoole_http_server/uploadFile.phpt" />
             <file role="test" name="tests/swoole_http_server/upload_02.phpt" />
             <file role="test" name="tests/swoole_http_server/upload_03.phpt" />
+            <file role="test" name="tests/swoole_http_server/upload_file_array_default.phpt" />
+            <file role="test" name="tests/swoole_http_server/upload_file_array_parsed.phpt" />
+            <file role="test" name="tests/swoole_http_server/upload_file_empty.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/bug_2682.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/error_404.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/handle.phpt" />
@@ -1542,6 +1543,7 @@
             <file role="test" name="tests/swoole_socket_coro/recvAll_timeout.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recv_timeout.phpt" />
             <file role="test" name="tests/swoole_socket_coro/reuse.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/reuse_2.phpt" />
             <file role="test" name="tests/swoole_socket_coro/sendfile.phpt" />
             <file role="test" name="tests/swoole_socket_coro/sendto.phpt" />
             <file role="test" name="tests/swoole_socket_coro/sendto_big.phpt" />

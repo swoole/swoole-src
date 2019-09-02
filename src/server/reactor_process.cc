@@ -92,10 +92,12 @@ int swReactorProcess_start(swServer *serv)
         }
     }
 
-    if (swProcessPool_create(&serv->gs->event_workers, serv->worker_num, serv->max_request, 0, SW_IPC_UNIXSOCK) < 0)
+    swProcessPool *pool = &serv->gs->event_workers;
+    if (swProcessPool_create(pool, serv->worker_num, 0, SW_IPC_UNIXSOCK) < 0)
     {
         return SW_ERR;
     }
+    swProcessPool_set_max_request(pool, serv->task_max_request, serv->task_max_request_grace);
 
     /**
      * store to swProcessPool object
@@ -316,6 +318,11 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         }
     }
     swReactor *reactor = SwooleTG.reactor;
+
+    if (SwooleTG.timer && SwooleTG.timer->reactor == nullptr)
+    {
+        swTimer_reinit(SwooleTG.timer, reactor);
+    }
 
     int n_buffer = serv->worker_num + serv->task_worker_num + serv->user_worker_num;
     if (swReactorProcess_alloc_output_buffer(n_buffer))

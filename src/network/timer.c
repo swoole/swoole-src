@@ -110,6 +110,11 @@ int swTimer_init(swTimer *timer, long msec)
     return ret;
 }
 
+void swTimer_reinit(swTimer *timer, swReactor *reactor)
+{
+    swReactorTimer_init(reactor, timer, timer->_next_msec);
+}
+
 static void swTimer_node_dtor(void *data)
 {
     swTimer_node *tnode = (swTimer_node *) data;

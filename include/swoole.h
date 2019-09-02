@@ -107,8 +107,8 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SWOOLE_MAJOR_VERSION      4
 #define SWOOLE_MINOR_VERSION      4
 #define SWOOLE_RELEASE_VERSION    5
-#define SWOOLE_EXTRA_VERSION      "alpha"
-#define SWOOLE_VERSION            "4.4.5-alpha"
+#define SWOOLE_EXTRA_VERSION      ""
+#define SWOOLE_VERSION            "4.4.5"
 #define SWOOLE_VERSION_ID         40405
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
@@ -1824,6 +1824,7 @@ struct _swProcessPool
 
     int worker_num;
     int max_request;
+    int max_request_grace;
 
     int (*onTask)(struct _swProcessPool *pool, swEventData *task);
 
@@ -2037,10 +2038,11 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num);
 int swReactorSelect_create(swReactor *reactor);
 
 /*----------------------------Process Pool-------------------------------*/
-int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int ipc_mode);
+int swProcessPool_create(swProcessPool *pool, int worker_num, key_t msgqueue_key, int ipc_mode);
 int swProcessPool_create_unix_socket(swProcessPool *pool, char *socket_file, int blacklog);
 int swProcessPool_create_tcp_socket(swProcessPool *pool, char *host, int port, int blacklog);
 int swProcessPool_set_protocol(swProcessPool *pool, int task_protocol, uint32_t max_packet_size);
+void swProcessPool_set_max_request(swProcessPool *pool, int max_request, int max_request_grace);
 int swProcessPool_wait(swProcessPool *pool);
 int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
@@ -2241,6 +2243,7 @@ struct _swTimer
 };
 
 int swTimer_init(swTimer *timer, long msec);
+void swTimer_reinit(swTimer *timer, swReactor *reactor);
 swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
 enum swBool_type swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);

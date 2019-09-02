@@ -86,8 +86,9 @@
 
 #define SW_TASKWAIT_TIMEOUT        0.5
 
-#define SW_AIO_THREAD_DEFAULT_NUM        4
-#define SW_AIO_THREAD_NUM_MULTIPLE       64
+#define SW_AIO_THREAD_NUM_MULTIPLE       8
+#define SW_AIO_THREAD_MAX_IDLE_TIME      1.0
+#define SW_AIO_TASK_MAX_WAIT_TIME        0.001
 #define SW_AIO_MAX_FILESIZE              (4*1024*1024)
 #define SW_AIO_EVENT_NUM                 128
 #define SW_AIO_DEFAULT_CHUNK_SIZE        65536
@@ -100,7 +101,8 @@
 #define SW_WORKER_WAIT_TIMEOUT           1000
 
 #define SW_WORKER_USE_SIGNALFD           1
-#define SW_WORKER_MAX_WAIT_TIME          30
+#define SW_WORKER_MAX_WAIT_TIME          3
+#define SW_WORKER_MIN_REQUEST            10
 
 #define SW_REACTOR_MAXEVENTS             4096
 #define SW_SESSION_LIST_SIZE             (1*1024*1024)

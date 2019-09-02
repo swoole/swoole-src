@@ -75,6 +75,12 @@ static void signal_handler(int signo)
     }
 }
 
+static void signal_free(void *nullopt)
+{
+    signal_init = false;
+    swSignal_clear();
+}
+
 extern "C"
 {
 
@@ -85,10 +91,12 @@ void swoole_coroutine_signal_init()
         signal_init = true;
         swSignal_add(SIGCHLD, signal_handler);
 #ifdef HAVE_SIGNALFD
-        if (SwooleG.use_signalfd && !swReactor_isset_handler(SwooleTG.reactor, SW_FD_SIGNAL))
+        swReactor *reactor = SwooleTG.reactor;
+        if (SwooleG.use_signalfd && !swReactor_isset_handler(reactor, SW_FD_SIGNAL))
         {
-            swSignalfd_setup(SwooleTG.reactor);
+            swSignalfd_setup(reactor);
         }
+        swReactor_add_destroy_callback(reactor, (swCallback) signal_free, nullptr);
 #endif
     }
 }

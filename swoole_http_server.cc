@@ -76,7 +76,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     zval *zdata = &ctx->request.zdata;
     php_swoole_get_recv_data(serv, zdata, req, NULL, 0);
 
-    swTrace("http request from %d with %d bytes: <<EOF\n%.*s\nEOF", fd, (int) Z_STRLEN_P(zdata), (int) Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
+    swTraceLog(SW_TRACE_SERVER, "http request from %d with %d bytes: <<EOF\n%.*s\nEOF", fd, (int) Z_STRLEN_P(zdata), (int) Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
 
     zval args[2], *zrequest_object = &args[0], *zresponse_object = &args[1];
     args[0] = *ctx->request.zobject;
@@ -100,8 +100,11 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     do {
         zval *zserver = ctx->request.zserver;
         swConnection *serv_sock = swServer_connection_get(serv, conn->server_fd);
-        add_assoc_long(zserver, "server_port", swConnection_get_port(serv_sock->socket_type, &serv_sock->info));
-        add_assoc_long(zserver, "remote_port", swConnection_get_port(serv_sock->socket_type, &serv_sock->info));
+        if (serv_sock)
+        {
+            add_assoc_long(zserver, "server_port", swConnection_get_port(serv_sock->socket_type, &serv_sock->info));
+        }
+        add_assoc_long(zserver, "remote_port", swConnection_get_port(conn->socket_type, &conn->info));
         add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(conn->socket_type, &conn->info));
         add_assoc_long(zserver, "master_time", conn->last_time);
     } while (0);
@@ -216,6 +219,7 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx)
 {
     ctx->parse_cookie = serv->http_parse_cookie;
     ctx->parse_body = serv->http_parse_post;
+    ctx->parse_files = serv->http_parse_files;
 #ifdef SW_HAVE_ZLIB
     ctx->enable_compression = serv->http_compression;
 #endif
