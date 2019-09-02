@@ -2308,6 +2308,7 @@ typedef struct
     swReactor *reactor;
     swTimer *timer;
     uint8_t aio_init;
+    uint8_t aio_schedule;
     uint32_t aio_task_num;
     swPipe aio_pipe;
     int aio_pipe_read;

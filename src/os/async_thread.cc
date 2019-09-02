@@ -29,7 +29,7 @@ using namespace std;
 
 typedef swAio_event AsyncEvent;
 
-static std::once_flag init_flag;
+static std::mutex init_lock;
 static std::atomic<int> refcount;
 
 static void aio_thread_release(AsyncEvent *event);
@@ -142,7 +142,6 @@ public:
 
     void schedule()
     {
-        unique_lock<mutex> lock(schedule_mutex);
         if (n_waiting == 0 && threads.size() < worker_num && max_wait_time > 0)
         {
             double _max_wait_time = _queue.get_max_wait_time();
@@ -167,8 +166,10 @@ public:
 
     AsyncEvent* dispatch(const AsyncEvent *request)
     {
-        schedule();
-
+        if (SwooleTG.aio_schedule) 
+        {
+            schedule();
+        }
         auto _event_copy = new AsyncEvent(*request);
         _event_copy->task_id = current_task_id++;
         _event_copy->timestamp = swoole_microtime();
@@ -202,7 +203,8 @@ public:
         {
             thread *_thread = i->second;
             swTraceLog(SW_TRACE_AIO, "release idle thread#%zu, we have %zu now", tid, threads.size() - 1);
-            if (_thread->joinable()) {
+            if (_thread->joinable())
+            {
                 _thread->join();
             }
             threads.erase(i);
@@ -226,7 +228,6 @@ private:
 
     unordered_map<thread::id, thread *> threads;
     EventQueue _queue;
-    mutex schedule_mutex;
     mutex event_mutex;
     condition_variable _cv;
 };
@@ -399,13 +400,14 @@ static int swAio_init()
     swoole_event_add(SwooleTG.aio_pipe_read, SW_EVENT_READ, SW_FD_AIO);
     swReactor_add_destroy_callback(SwooleTG.reactor, swAio_free, nullptr);
 
-    call_once(init_flag, []() {
-        pool = new swoole::async::ThreadPool(SwooleG.aio_core_worker_num, SwooleG.aio_worker_num, SwooleG.aio_max_wait_time,
-                SwooleG.aio_max_idle_time);
+    unique_lock<mutex> lock(init_lock);
+    if ((refcount++) == 0)
+    {
+        pool = new swoole::async::ThreadPool(SwooleG.aio_core_worker_num, SwooleG.aio_worker_num,
+                SwooleG.aio_max_wait_time, SwooleG.aio_max_idle_time);
         pool->start();
-    });
-
-    refcount++;
+        SwooleTG.aio_schedule = 1;
+    }
     SwooleTG.aio_init = 1;
 
     return SW_OK;
@@ -442,7 +444,10 @@ swAio_event* swAio_dispatch2(const swAio_event *request)
 
 int swAio_callback(swReactor *reactor, swEvent *event)
 {
-    pool->schedule();
+    if (SwooleTG.aio_schedule) 
+    {
+        pool->schedule();
+    }
 
     AsyncEvent *events[SW_AIO_EVENT_NUM];
     ssize_t n = read(event->fd, events, sizeof(AsyncEvent *) * SW_AIO_EVENT_NUM);
