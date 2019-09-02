@@ -22,7 +22,6 @@ int swoole_event_init()
 {
     if (!SwooleG.init)
     {
-        swError("uninitialized");
         abort();
         return SW_ERR;
     }
