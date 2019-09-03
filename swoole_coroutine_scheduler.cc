@@ -199,21 +199,21 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
     {
         zend_long v = zval_get_long(ztmp);
         v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
-        SwooleAIO.min_thread_num = v;
+        SwooleG.aio_core_worker_num = v;
     }
     if (php_swoole_array_get_value(vht, "aio_worker_num", ztmp))
     {
         zend_long v = zval_get_long(ztmp);
         v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
-        SwooleAIO.max_thread_num = v;
+        SwooleG.aio_worker_num= v;
     }
     if (php_swoole_array_get_value(vht, "aio_max_wait_time", ztmp))
     {
-        SwooleAIO.max_wait_time = zval_get_double(ztmp);
+        SwooleG.aio_max_wait_time = zval_get_double(ztmp);
     }
     if (php_swoole_array_get_value(vht, "aio_max_idle_time", ztmp))
     {
-        SwooleAIO.max_idle_time = zval_get_double(ztmp);
+        SwooleG.aio_max_idle_time = zval_get_double(ztmp);
     }
 }
 

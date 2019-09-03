@@ -49,7 +49,7 @@ static std::unordered_map<std::string, dns_cache*> request_cache_map;
 
 void php_swoole_async_coro_minit(int module_number)
 {
-    bzero(&SwooleAIO, sizeof(SwooleAIO));
+
 }
 
 void php_swoole_async_coro_rshutdown()
@@ -102,13 +102,13 @@ PHP_FUNCTION(swoole_async_set)
     {
         zend_long v = zval_get_long(ztmp);
         v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
-        SwooleAIO.min_thread_num = v;
+        SwooleG.aio_core_worker_num = v;
     }
     if (php_swoole_array_get_value(vht, "max_thread_num", ztmp))
     {
         zend_long v = zval_get_long(ztmp);
         v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
-        SwooleAIO.max_thread_num = v;
+        SwooleG.aio_worker_num= v;
     }
     if (php_swoole_array_get_value(vht, "display_errors", ztmp))
     {

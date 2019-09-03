@@ -107,7 +107,7 @@ int System::sleep(double sec)
     return 0;
 }
 
-swString* System::read_file(const char *file, int lock)
+swString* System::read_file(const char *file, bool lock)
 {
     aio_task task;
 
@@ -147,7 +147,7 @@ swString* System::read_file(const char *file, int lock)
     }
 }
 
-ssize_t System::write_file(const char *file, char *buf, size_t length, int lock, int flags)
+ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock, int flags)
 {
     aio_task task;
 

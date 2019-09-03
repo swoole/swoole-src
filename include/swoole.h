@@ -2307,6 +2307,15 @@ typedef struct
     swString *buffer_stack;
     swReactor *reactor;
     swTimer *timer;
+    uint8_t aio_init;
+    uint8_t aio_schedule;
+    uint32_t aio_task_num;
+    swPipe aio_pipe;
+    int aio_pipe_read;
+    int aio_pipe_write;
+#ifdef SW_AIO_WRITE_LOCK
+    swLock aio_lock;
+#endif
 } swThreadGlobal_t;
 
 typedef struct
@@ -2379,6 +2388,15 @@ typedef struct
     char *dns_server_v4;
     char *dns_server_v6;
     double dns_cache_refresh_time;
+
+    /**
+     * aio-threads
+     */
+    uint32_t aio_core_worker_num;
+    uint32_t aio_worker_num;
+    double aio_max_wait_time;
+    double aio_max_idle_time;
+    int aio_default_pipe_fd;
 
     swHashMap *functions;
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];

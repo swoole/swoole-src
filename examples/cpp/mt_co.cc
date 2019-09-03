@@ -24,6 +24,9 @@ void co_thread(int i)
 
     Coroutine::create([](void *param)
     {
+        //read file test
+        System::read_file("/tmp/test.txt");
+
         co_param *_param = ( co_param *)param;
         int port = _param->port;
 
@@ -76,6 +79,8 @@ void co_thread(int i)
 
 int main(int argc, char **argv)
 {
+    SwooleG.aio_worker_num = SwooleG.aio_core_worker_num = 2;
+
     std::thread threads[THREAD_N];
     for (int i = 0; i < THREAD_N; ++i)
     {
