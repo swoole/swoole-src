@@ -97,7 +97,7 @@ int swReactorProcess_start(swServer *serv)
     {
         return SW_ERR;
     }
-    swProcessPool_set_max_request(pool, serv->task_max_request, serv->task_max_request_grace);
+    swProcessPool_set_max_request(pool, serv->max_request, serv->max_request_grace);
 
     /**
      * store to swProcessPool object
