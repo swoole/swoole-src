@@ -13,12 +13,12 @@ $pm->parentFunc = function () use ($pm)
     $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $client->set([
         'open_eof_check' => true,
-        'package_eof' => "\r\n\r\n",
+        'package_eof' => "\n",
     ]);
     Assert::assert($client->connect('127.0.0.1', $pm->getFreePort(), -1));
     for ($i = 0; $i < 48; $i++) {
-        $client->send("request $i\r\n\r\n");
-        echo $client->recv() . "\n";
+        $client->send("request $i\n");
+        echo $client->recv();
     }
     $client->close();
     $pm->kill();
@@ -33,16 +33,16 @@ $pm->childFunc = function () use ($pm)
         'max_request'       => 12,
         'max_request_grace' => 0,
         'open_eof_check'    => true,
-        'package_eof'       => "\r\n\r\n",
+        'package_eof'       => "\n",
         'log_file'          => '/dev/null',
     ]);
-    $serv->on('workerStart', function ()  use ($pm) {
+    $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
     $count = 0;
     $serv->on('receive', function (swoole_server $serv, $fd, $reactorId, $data) use (&$count) {
         $count++;
-        $serv->send($fd, "Worker $serv->worker_id served $count request(s) since start");
+        $serv->send($fd, "Worker $serv->worker_id served $count request(s) since start\n");
     });
     $serv->start();
 };
