@@ -166,7 +166,6 @@
 
 #define SW_TABLE_CONFLICT_PROPORTION     0.2 // 20%
 #define SW_TABLE_KEY_SIZE                64
-#define SW_TABLE_USE_SPINLOCK            1
 
 #define SW_SSL_BUFFER_SIZE               16384
 #define SW_SSL_CIPHER_LIST               "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH"
