@@ -42,6 +42,14 @@ SW_API int swoole_event_write(int fd, const void *data, size_t len);
 SW_API int swoole_event_wait();
 SW_API int swoole_event_free();
 
+#ifdef __MACH__
+swReactor* sw_reactor();
+swTimer* sw_timer();
+#else
+#define sw_reactor()       (SwooleTG.reactor)
+#define sw_timer()         (SwooleTG.timer)
+#endif
+
 SW_EXTERN_C_END
 
 #endif /* _SW_API_H_ */
