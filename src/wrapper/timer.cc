@@ -21,6 +21,13 @@
 using namespace std;
 using namespace swoole;
 
+#ifdef __MACH__
+swTimer* sw_timer()
+{
+    return SwooleTG.timer;
+}
+#endif
+
 swTimer_node* swoole_timer_add(long ms, uchar persistent, swTimerCallback callback, void *private_data)
 {
     if (sw_unlikely(SwooleTG.timer == nullptr))

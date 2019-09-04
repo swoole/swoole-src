@@ -1042,6 +1042,11 @@ static sw_inline int sw_zend_call_function_ex(zval *function_name, zend_fcall_in
     fci.object = NULL;
     if (!fci_cache || !fci_cache->function_handler)
     {
+        if (!function_name)
+        {
+            php_swoole_fatal_error(E_WARNING, "Bad function");
+            return FAILURE;
+        }
         ZVAL_COPY_VALUE(&fci.function_name, function_name);
     }
     else
@@ -1163,7 +1168,7 @@ static sw_inline int php_swoole_check_reactor()
     {
         return -1;
     }
-    if (sw_unlikely(!SwooleTG.reactor))
+    if (sw_unlikely(!sw_reactor()))
     {
         return php_swoole_reactor_init() == SW_OK ? 1 : -1;
     }
