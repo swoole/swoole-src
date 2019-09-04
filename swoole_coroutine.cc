@@ -988,7 +988,7 @@ PHP_METHOD(swoole_coroutine, getPcid)
     ret = PHPCoroutine::get_pcid(cid);
     if (ret == 0)
     {
-        RETURN_BOOL(false);
+        RETURN_FALSE;
     }
 
     RETURN_LONG(ret);
