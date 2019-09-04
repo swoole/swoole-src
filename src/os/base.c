@@ -435,7 +435,7 @@ void swAio_handler_gethostbyname(swAio_event *event)
     int ret;
 
 #ifndef HAVE_GETHOSTBYNAME2_R
-    SwooleAIO.lock.lock(&SwooleAIO.lock);
+    SwooleG.lock.lock(&SwooleG.lock);
 #endif
     if (event->flags == AF_INET6)
     {
@@ -447,7 +447,7 @@ void swAio_handler_gethostbyname(swAio_event *event)
     }
     bzero(event->buf, event->nbytes);
 #ifndef HAVE_GETHOSTBYNAME2_R
-    SwooleAIO.lock.unlock(&SwooleAIO.lock);
+    SwooleG.lock.unlock(&SwooleG.lock);
 #endif
 
     if (ret < 0)
