@@ -103,7 +103,6 @@ int swReactorProcess_start(swServer *serv)
      * store to swProcessPool object
      */
     serv->gs->event_workers.ptr = serv;
-    serv->gs->event_workers.worker_num = serv->worker_num;
     serv->gs->event_workers.max_wait_time = serv->max_wait_time;
     serv->gs->event_workers.use_msgqueue = 0;
     serv->gs->event_workers.main_loop = swReactorProcess_loop;
