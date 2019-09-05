@@ -50,6 +50,9 @@ class Handler
         'ssl_verifyresult' => 0,
         'scheme' => '',
     ];
+
+    private $withHeaderOut = false;
+    private $withFileTime = false;
     private $urlInfo;
     private $postData;
     private $outputStream;
@@ -58,6 +61,7 @@ class Handler
     private $followLocation = false;
     private $maxRedirs;
     private $withHeader = false;
+    private $nobody = false;
 
     /** @var callable */
     private $headerFunction;
@@ -270,6 +274,18 @@ class Handler
             $transfer = $client->body;
         }
 
+        if ($this->withHeaderOut) {
+            $headerOutContent = $client->getHeaderOut();
+            $this->info['request_header'] = $headerOutContent ? $headerOutContent . "\r\n\r\n" : '';
+        }
+        if ($this->withFileTime) {
+            if (!empty($client->headers['last-modified'])) {
+                $this->info['filetime'] = strtotime($client->headers['last-modified']);
+            } else {
+                $this->info['filetime'] = -1;
+            }
+        }
+
         if ($this->returnTransfer) {
             return $transfer;
         } else {
@@ -336,6 +352,25 @@ class Handler
             case CURLOPT_PROXY:
                 $this->proxy = $value;
                 break;
+            case CURLOPT_NOBODY:
+                $this->nobody = boolval($value);
+                $this->method = 'HEAD';
+                break;
+            /**
+             * Ignore options
+             */
+            case CURLOPT_SSLVERSION:
+            case CURLOPT_NOSIGNAL:
+            case CURLOPT_FRESH_CONNECT:
+                break;
+            /**
+             * SSL
+             */
+            case CURLOPT_SSL_VERIFYHOST:
+                break;
+            case CURLOPT_SSL_VERIFYPEER:
+                $this->clientOptions['ssl_verify_peer'] = $value;
+                break;
             /**
              * Http Post
              */
@@ -374,6 +409,14 @@ class Handler
                 $this->headers['Referer'] = $value;
                 break;
 
+            case CURLINFO_HEADER_OUT:
+                $this->withHeaderOut = boolval($value);
+                break;
+
+            case CURLOPT_FILETIME:
+                $this->withFileTime = boolval($value);
+                break;
+
             case CURLOPT_USERAGENT:
                 $this->headers['User-Agent'] = $value;
                 break;
@@ -395,11 +438,6 @@ class Handler
              */
             case CURLOPT_COOKIE:
                 $this->headers['Cookie'] = $value;
-                break;
-            case CURLOPT_SSL_VERIFYHOST:
-                break;
-            case CURLOPT_SSL_VERIFYPEER:
-                $this->clientOptions['ssl_verify_peer'] = $value;
                 break;
             case CURLOPT_CONNECTTIMEOUT:
                 $this->clientOptions['connect_timeout'] = $value;
