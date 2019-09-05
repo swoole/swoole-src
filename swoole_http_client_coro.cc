@@ -129,7 +129,6 @@ public:
         }
 
         RETURN_STRINGL(buffer->str, offset);
-        printf("offset=%ld\n", offset);
     }
 
     ~http_client();
