@@ -469,10 +469,12 @@ enum swWorker_status
     } while(0)
 
 #define swWarn(str,...) \
-    if (SW_LOG_WARNING >= SwooleG.log_level) {\
-        size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: " str,__func__,##__VA_ARGS__);\
-        SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_error_len);\
-    }
+    do{\
+        if (SW_LOG_WARNING >= SwooleG.log_level) {\
+            size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: " str,__func__,##__VA_ARGS__);\
+            SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_error_len);\
+        }\
+    } while(0)
 
 #define swSysWarn(str,...) \
     do{\
