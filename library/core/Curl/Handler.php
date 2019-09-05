@@ -50,6 +50,8 @@ class Handler
         'ssl_verifyresult' => 0,
         'scheme' => '',
     ];
+
+    private $withHeaderOut = false;
     private $urlInfo;
     private $postData;
     private $outputStream;
@@ -270,6 +272,11 @@ class Handler
             $transfer = $client->body;
         }
 
+        if ($this->withHeaderOut) {
+            $headerOutContent = $client->getHeaderOut();
+            $this->info['request_header'] = $headerOutContent ? $headerOutContent . "\r\n\r\n" : '';
+        }
+
         if ($this->returnTransfer) {
             return $transfer;
         } else {
@@ -337,6 +344,17 @@ class Handler
                 $this->proxy = $value;
                 break;
             /**
+             * SSL
+             */
+            case CURLOPT_SSLVERSION:
+                //ignore
+                break;
+            case CURLOPT_SSL_VERIFYHOST:
+                break;
+            case CURLOPT_SSL_VERIFYPEER:
+                $this->clientOptions['ssl_verify_peer'] = $value;
+                break;
+            /**
              * Http Post
              */
             case CURLOPT_POST:
@@ -374,6 +392,10 @@ class Handler
                 $this->headers['Referer'] = $value;
                 break;
 
+            case CURLINFO_HEADER_OUT:
+                $this->withHeaderOut = true;
+                break;
+
             case CURLOPT_USERAGENT:
                 $this->headers['User-Agent'] = $value;
                 break;
@@ -395,11 +417,6 @@ class Handler
              */
             case CURLOPT_COOKIE:
                 $this->headers['Cookie'] = $value;
-                break;
-            case CURLOPT_SSL_VERIFYHOST:
-                break;
-            case CURLOPT_SSL_VERIFYPEER:
-                $this->clientOptions['ssl_verify_peer'] = $value;
                 break;
             case CURLOPT_CONNECTTIMEOUT:
                 $this->clientOptions['connect_timeout'] = $value;

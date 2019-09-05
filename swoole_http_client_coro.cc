@@ -115,6 +115,23 @@ public:
     bool push(zval *zdata, zend_long opcode = WEBSOCKET_OPCODE_TEXT, bool fin = true);
     bool close(const bool should_be_reset = true);
 
+    void get_header_out(zval *return_value)
+    {
+        swString *buffer = socket->get_write_buffer();
+        if (buffer == nullptr)
+        {
+            RETURN_FALSE;
+        }
+        off_t offset = swoole_strnpos(buffer->str, buffer->length, ZEND_STRL("\r\n\r\n"));
+        if (offset <= 0)
+        {
+            RETURN_FALSE;
+        }
+
+        RETURN_STRINGL(buffer->str, offset);
+        printf("offset=%ld\n", offset);
+    }
+
     ~http_client();
 
 private:
@@ -245,6 +262,7 @@ static PHP_METHOD(swoole_http_client_coro, getBody);
 static PHP_METHOD(swoole_http_client_coro, getHeaders);
 static PHP_METHOD(swoole_http_client_coro, getCookies);
 static PHP_METHOD(swoole_http_client_coro, getStatusCode);
+static PHP_METHOD(swoole_http_client_coro, getHeaderOut);
 static PHP_METHOD(swoole_http_client_coro, upgrade);
 static PHP_METHOD(swoole_http_client_coro, push);
 static PHP_METHOD(swoole_http_client_coro, recv);
@@ -272,6 +290,7 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
     PHP_ME(swoole_http_client_coro, getHeaders, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, getCookies, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, getStatusCode, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getHeaderOut, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, upgrade, arginfo_swoole_http_client_coro_upgrade, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, push, arginfo_swoole_http_client_coro_push, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, recv, arginfo_swoole_http_client_coro_recv, ZEND_ACC_PUBLIC)
@@ -1941,4 +1960,10 @@ static PHP_METHOD(swoole_http_client_coro, getCookies)
 static PHP_METHOD(swoole_http_client_coro, getStatusCode)
 {
     SW_RETURN_PROPERTY("statusCode");
+}
+
+static PHP_METHOD(swoole_http_client_coro, getHeaderOut)
+{
+    http_client *phc = swoole_get_phc(ZEND_THIS);
+    phc->get_header_out(return_value);
 }
