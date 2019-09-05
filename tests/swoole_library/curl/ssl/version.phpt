@@ -19,7 +19,7 @@ $cm->run(function ($host) {
     curl_setopt($ch, CURLOPT_URL, "https://www.jd.com/");
     $result = curl_exec($ch);
     Assert::assert($result);
-    Assert::contains($result, '京东');
+    Assert::contains($result, 'jd.com');
     curl_close($ch);
 
 }, false);
