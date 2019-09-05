@@ -704,7 +704,7 @@ bool http_client::send()
         zend::string str_download_file(z_download_file);
         char *download_file_name = str_download_file.val();
         zval *z_download_offset = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("downloadOffset"), 0);
-        off_t download_offset = (off_t) zval_get_long(z_download_offset);
+        off_t download_offset = zval_get_long(z_download_offset);
 
         int fd = ::open(download_file_name, O_CREAT | O_WRONLY, 0664);
         if (fd < 0)

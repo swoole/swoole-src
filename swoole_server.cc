@@ -2060,7 +2060,7 @@ static PHP_METHOD(swoole_server, __destruct)
 static PHP_METHOD(swoole_server, set)
 {
     zval *zserv = ZEND_THIS;
-    zval *zset = NULL, *v;
+    zval *zset = NULL, *ztmp;
     HashTable *vht;
 
     swServer *serv = (swServer *) swoole_get_object(zserv);
@@ -2077,123 +2077,127 @@ static PHP_METHOD(swoole_server, set)
     vht = Z_ARRVAL_P(zset);
 
     //chroot
-    if (php_swoole_array_get_value(vht, "chroot", v))
+    if (php_swoole_array_get_value(vht, "chroot", ztmp))
     {
         if (SwooleG.chroot)
         {
             sw_free(SwooleG.chroot);
         }
-        SwooleG.chroot = zend::string(v).dup();
+        SwooleG.chroot = zend::string(ztmp).dup();
     }
     //user
-    if (php_swoole_array_get_value(vht, "user", v))
+    if (php_swoole_array_get_value(vht, "user", ztmp))
     {
         if (SwooleG.user)
         {
             sw_free(SwooleG.user);
         }
-        SwooleG.user = zend::string(v).dup();
+        SwooleG.user = zend::string(ztmp).dup();
     }
     //group
-    if (php_swoole_array_get_value(vht, "group", v))
+    if (php_swoole_array_get_value(vht, "group", ztmp))
     {
         if (SwooleG.group)
         {
             sw_free(SwooleG.group);
         }
-        SwooleG.group = zend::string(v).dup();
+        SwooleG.group = zend::string(ztmp).dup();
     }
     //daemonize
-    if (php_swoole_array_get_value(vht, "daemonize", v))
+    if (php_swoole_array_get_value(vht, "daemonize", ztmp))
     {
-        serv->daemonize = zval_is_true(v);
+        serv->daemonize = zval_is_true(ztmp);
     }
 #ifdef SW_DEBUG
     //debug
-    if (php_swoole_array_get_value(vht, "debug_mode", v))
+    if (php_swoole_array_get_value(vht, "debug_mode", ztmp))
     {
-        if (zval_is_true(v))
+        if (zval_is_true(ztmp))
         {
             SwooleG.log_level = 0;
         }
     }
 #endif
-    if (php_swoole_array_get_value(vht, "trace_flags", v))
+    if (php_swoole_array_get_value(vht, "trace_flags", ztmp))
     {
-        SwooleG.trace_flags = (uint32_t) SW_MAX(0, zval_get_long(v));
+        SwooleG.trace_flags = (uint32_t) SW_MAX(0, zval_get_long(ztmp));
     }
     //pid file
-    if (php_swoole_array_get_value(vht, "pid_file", v))
+    if (php_swoole_array_get_value(vht, "pid_file", ztmp))
     {
         if (serv->pid_file)
         {
             sw_free(serv->pid_file);
         }
-        serv->pid_file = zend::string(v).dup();
+        serv->pid_file = zend::string(ztmp).dup();
     }
     //reactor thread num
-    if (php_swoole_array_get_value(vht, "reactor_num", v))
+    if (php_swoole_array_get_value(vht, "reactor_num", ztmp))
     {
-        serv->reactor_num = (uint16_t) zval_get_long(v);
-        if (serv->reactor_num <= 0)
+        zend_long v = zval_get_long(ztmp);
+        serv->reactor_num = SW_MAX(0, SW_MIN(v, UINT16_MAX));
+        if (serv->reactor_num == 0)
         {
             serv->reactor_num = SW_CPU_NUM;
         }
     }
-    if (php_swoole_array_get_value(vht, "single_thread", v))
+    if (php_swoole_array_get_value(vht, "single_thread", ztmp))
     {
-        serv->single_thread = zval_is_true(v);
+        serv->single_thread = zval_is_true(ztmp);
     }
     //worker_num
-    if (php_swoole_array_get_value(vht, "worker_num", v))
+    if (php_swoole_array_get_value(vht, "worker_num", ztmp))
     {
-        serv->worker_num = (uint16_t) zval_get_long(v);
-        if (serv->worker_num <= 0)
+        zend_long v = zval_get_long(ztmp);
+        serv->worker_num = SW_MAX(0, SW_MIN(v, UINT32_MAX));
+        if (serv->worker_num == 0)
         {
             serv->worker_num = SW_CPU_NUM;
         }
     }
     //max wait time
-    if (php_swoole_array_get_value(vht, "max_wait_time", v))
+    if (php_swoole_array_get_value(vht, "max_wait_time", ztmp))
     {
-        serv->max_wait_time = (uint32_t) zval_get_long(v);
+        zend_long v = zval_get_long(ztmp);
+        serv->max_wait_time = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
-    if (php_swoole_array_get_value(vht, "enable_coroutine", v))
+    if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp))
     {
-        serv->enable_coroutine = SwooleG.enable_coroutine = zval_is_true(v);
+        serv->enable_coroutine = SwooleG.enable_coroutine = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "max_coro_num", v) || php_swoole_array_get_value(vht, "max_coroutine", v))
+    if (php_swoole_array_get_value(vht, "max_coro_num", ztmp) || php_swoole_array_get_value(vht, "max_coroutine", ztmp))
     {
         zend_long max_num;
-        max_num = zval_get_long(v);
+        max_num = zval_get_long(ztmp);
         PHPCoroutine::set_max_num(max_num <= 0 ? SW_DEFAULT_MAX_CORO_NUM : max_num);
     }
-    if (php_swoole_array_get_value(vht, "hook_flags", v))
+    if (php_swoole_array_get_value(vht, "hook_flags", ztmp))
     {
-        PHPCoroutine::config.hook_flags = zval_get_long(v);
+        PHPCoroutine::config.hook_flags = zval_get_long(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "send_yield", v))
+    if (php_swoole_array_get_value(vht, "send_yield", ztmp))
     {
-        serv->send_yield = zval_is_true(v);
+        serv->send_yield = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "send_timeout", v))
+    if (php_swoole_array_get_value(vht, "send_timeout", ztmp))
     {
-        serv->send_timeout = zval_get_double(v);
+        serv->send_timeout = zval_get_double(ztmp);
     }
     //dispatch_mode
-    if (php_swoole_array_get_value(vht, "dispatch_mode", v))
+    if (php_swoole_array_get_value(vht, "dispatch_mode", ztmp))
     {
-        serv->dispatch_mode = (uint8_t) zval_get_long(v);
+        zend_long v = zval_get_long(ztmp);
+        serv->dispatch_mode = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
     //dispatch function
-    if (php_swoole_array_get_value(vht, "dispatch_func", v))
+    if (php_swoole_array_get_value(vht, "dispatch_func", ztmp))
     {
         swServer_dispatch_function c_dispatch_func = NULL;
         while(1)
         {
-            if (Z_TYPE_P(v) == IS_STRING)
+            if (Z_TYPE_P(ztmp) == IS_STRING)
             {
-                c_dispatch_func = (swServer_dispatch_function) swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                c_dispatch_func = (swServer_dispatch_function) swoole_get_function(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp));
                 if (c_dispatch_func)
                 {
                     break;
@@ -2207,7 +2211,7 @@ static PHP_METHOD(swoole_server, set)
 #endif
             char *func_name = NULL;
             zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
-            if (!sw_zend_is_callable_ex(v, NULL, 0, &func_name, NULL, fci_cache, NULL))
+            if (!sw_zend_is_callable_ex(ztmp, NULL, 0, &func_name, NULL, fci_cache, NULL))
             {
                 php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
                 return;
@@ -2226,65 +2230,67 @@ static PHP_METHOD(swoole_server, set)
         serv->dispatch_func = c_dispatch_func;
     }
     //log_file
-    if (php_swoole_array_get_value(vht, "log_file", v))
+    if (php_swoole_array_get_value(vht, "log_file", ztmp))
     {
         if (SwooleG.log_file)
         {
             sw_free(SwooleG.log_file);
         }
-        SwooleG.log_file = zend::string(v).dup();
+        SwooleG.log_file = zend::string(ztmp).dup();
     }
     //log_level
-    if (php_swoole_array_get_value(vht, "log_level", v))
+    if (php_swoole_array_get_value(vht, "log_level", ztmp))
     {
         zend_long level;
-        level = zval_get_long(v);
+        level = zval_get_long(ztmp);
         SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
     }
     /**
      * for dispatch_mode = 1/3
      */
-    if (php_swoole_array_get_value(vht, "discard_timeout_request", v))
+    if (php_swoole_array_get_value(vht, "discard_timeout_request", ztmp))
     {
-        serv->discard_timeout_request = zval_is_true(v);
+        serv->discard_timeout_request = zval_is_true(ztmp);
     }
     //onConnect/onClose event
-    if (php_swoole_array_get_value(vht, "enable_unsafe_event", v))
+    if (php_swoole_array_get_value(vht, "enable_unsafe_event", ztmp))
     {
-        serv->enable_unsafe_event = zval_is_true(v);
+        serv->enable_unsafe_event = zval_is_true(ztmp);
     }
     //delay receive
-    if (php_swoole_array_get_value(vht, "enable_delay_receive", v))
+    if (php_swoole_array_get_value(vht, "enable_delay_receive", ztmp))
     {
-        serv->enable_delay_receive = zval_is_true(v);
+        serv->enable_delay_receive = zval_is_true(ztmp);
     }
     //task use object
-    if (php_swoole_array_get_value(vht, "task_use_object", v))
+    if (php_swoole_array_get_value(vht, "task_use_object", ztmp))
     {
-        serv->task_use_object = zval_is_true(v);
+        serv->task_use_object = zval_is_true(ztmp);
     }
     //task coroutine
-    if (php_swoole_array_get_value(vht, "task_enable_coroutine", v))
+    if (php_swoole_array_get_value(vht, "task_enable_coroutine", ztmp))
     {
-        serv->task_enable_coroutine = zval_is_true(v);
+        serv->task_enable_coroutine = zval_is_true(ztmp);
     }
     //task_worker_num
-    if (php_swoole_array_get_value(vht, "task_worker_num", v))
+    if (php_swoole_array_get_value(vht, "task_worker_num", ztmp))
     {
-        serv->task_worker_num = (uint16_t) zval_get_long(v);
+        zend_long v = zval_get_long(ztmp);
+        serv->task_worker_num = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     //slowlog
-    if (php_swoole_array_get_value(vht, "trace_event_worker", v))
+    if (php_swoole_array_get_value(vht, "trace_event_worker", ztmp))
     {
-        serv->trace_event_worker = zval_is_true(v);
+        serv->trace_event_worker = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "request_slowlog_timeout", v))
+    if (php_swoole_array_get_value(vht, "request_slowlog_timeout", ztmp))
     {
-        serv->request_slowlog_timeout = (uint8_t) zval_get_long(v);
+        zend_long v = zval_get_long(ztmp);
+        serv->request_slowlog_timeout = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
-    if (php_swoole_array_get_value(vht, "request_slowlog_file", v))
+    if (php_swoole_array_get_value(vht, "request_slowlog_file", ztmp))
     {
-        zend::string str_v(v);
+        zend::string str_v(ztmp);
         if (serv->request_slowlog_file)
         {
             fclose(serv->request_slowlog_file);
@@ -2301,16 +2307,17 @@ static PHP_METHOD(swoole_server, set)
         }
     }
     //task ipc mode, 1,2,3
-    if (php_swoole_array_get_value(vht, "task_ipc_mode", v))
+    if (php_swoole_array_get_value(vht, "task_ipc_mode", ztmp))
     {
-        serv->task_ipc_mode = (uint8_t) zval_get_long(v);
+        zend_long v = zval_get_long(ztmp);
+        serv->task_ipc_mode = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
     /**
      * Temporary file directory for task_worker
      */
-    if (php_swoole_array_get_value(vht, "task_tmpdir", v))
+    if (php_swoole_array_get_value(vht, "task_tmpdir", ztmp))
     {
-        zend::string str_v(v);
+        zend::string str_v(ztmp);
         if (php_swoole_create_dir(str_v.val(), str_v.len()) < 0)
         {
             php_swoole_fatal_error(E_ERROR, "Unable to create task_tmpdir[%s]", str_v.val());
@@ -2329,13 +2336,15 @@ static PHP_METHOD(swoole_server, set)
         SwooleG.task_tmpdir_len = sw_snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/swoole.task.XXXXXX", str_v.val()) + 1;
     }
     //task_max_request
-    if (php_swoole_array_get_value(vht, "task_max_request", v))
+    if (php_swoole_array_get_value(vht, "task_max_request", ztmp))
     {
-        serv->task_max_request = (uint16_t) zval_get_long(v);
+        zend_long v = zval_get_long(ztmp);
+        serv->task_max_request = SW_MAX(0, SW_MIN(v, UINT32_MAX));
         //task_max_request_grace
-        if (php_swoole_array_get_value(vht, "task_max_request_grace", v))
+        if (php_swoole_array_get_value(vht, "task_max_request_grace", ztmp))
         {
-            serv->task_max_request_grace = (uint16_t) zval_get_long(v);
+            zend_long v = zval_get_long(ztmp);
+            serv->task_max_request_grace = SW_MAX(0, SW_MIN(v, UINT32_MAX));
         }
         else if (serv->task_max_request > SW_WORKER_MIN_REQUEST)
         {
@@ -2343,19 +2352,22 @@ static PHP_METHOD(swoole_server, set)
         }
     }
     //max_connection
-    if (php_swoole_array_get_value(vht, "max_connection", v) || php_swoole_array_get_value(vht, "max_conn", v))
+    if (php_swoole_array_get_value(vht, "max_connection", ztmp) || php_swoole_array_get_value(vht, "max_conn", ztmp))
     {
-        serv->max_connection = (uint32_t) zval_get_long(v);
+        zend_long v = zval_get_long(ztmp);
+        serv->max_connection = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     //heartbeat_check_interval
-    if (php_swoole_array_get_value(vht, "heartbeat_check_interval", v))
+    if (php_swoole_array_get_value(vht, "heartbeat_check_interval", ztmp))
     {
-        serv->heartbeat_check_interval = (uint16_t) zval_get_long(v);
+        zend_long v = zval_get_long(ztmp);
+        serv->heartbeat_check_interval = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     //heartbeat idle time
-    if (php_swoole_array_get_value(vht, "heartbeat_idle_time", v))
+    if (php_swoole_array_get_value(vht, "heartbeat_idle_time", ztmp))
     {
-        serv->heartbeat_idle_time = (uint16_t) zval_get_long(v);
+        zend_long v = zval_get_long(ztmp);
+        serv->heartbeat_idle_time = SW_MAX(0, SW_MIN(v, UINT16_MAX));
 
         if (serv->heartbeat_check_interval > serv->heartbeat_idle_time)
         {
@@ -2368,13 +2380,15 @@ static PHP_METHOD(swoole_server, set)
         serv->heartbeat_idle_time = serv->heartbeat_check_interval * 2;
     }
     //max_request
-    if (php_swoole_array_get_value(vht, "max_request", v))
+    if (php_swoole_array_get_value(vht, "max_request", ztmp))
     {
-        serv->max_request = (uint32_t) zval_get_long(v);
+        zend_long v = zval_get_long(ztmp);
+        serv->max_request = SW_MAX(0, SW_MIN(v, UINT32_MAX));
         //max_request_grace
-        if (php_swoole_array_get_value(vht, "max_request_grace", v))
+        if (php_swoole_array_get_value(vht, "max_request_grace", ztmp))
         {
-            serv->max_request_grace = (uint32_t) zval_get_long(v);
+            zend_long v = zval_get_long(ztmp);
+            serv->max_request_grace = SW_MAX(0, SW_MIN(v, UINT32_MAX));
         }
         else if (serv->max_request > SW_WORKER_MIN_REQUEST)
         {
@@ -2382,19 +2396,19 @@ static PHP_METHOD(swoole_server, set)
         }
     }
     //reload async
-    if (php_swoole_array_get_value(vht, "reload_async", v))
+    if (php_swoole_array_get_value(vht, "reload_async", ztmp))
     {
-        serv->reload_async = zval_is_true(v);
+        serv->reload_async = zval_is_true(ztmp);
     }
     //cpu affinity
-    if (php_swoole_array_get_value(vht, "open_cpu_affinity", v))
+    if (php_swoole_array_get_value(vht, "open_cpu_affinity", ztmp))
     {
-        serv->open_cpu_affinity = zval_is_true(v);
+        serv->open_cpu_affinity = zval_is_true(ztmp);
     }
     //cpu affinity set
-    if (php_swoole_array_get_value(vht, "cpu_affinity_ignore", v))
+    if (php_swoole_array_get_value(vht, "cpu_affinity_ignore", ztmp))
     {
-        int ignore_num = zend_hash_num_elements(Z_ARRVAL_P(v));
+        int ignore_num = zend_hash_num_elements(Z_ARRVAL_P(ztmp));
         if (ignore_num >= SW_CPU_NUM)
         {
             php_swoole_fatal_error(E_ERROR, "cpu_affinity_ignore num must be less than cpu num (%d)", SW_CPU_NUM);
@@ -2413,9 +2427,8 @@ static PHP_METHOD(swoole_server, set)
         for (i = 0; i < SW_CPU_NUM; i++)
         {
             flag = 1;
-            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(v), zval_core)
-                int core = (int) zval_get_long(zval_core);
-                if (i == core)
+            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmp), zval_core)
+                if (i == zval_get_long(zval_core))
                 {
                     flag = 0;
                     break;
@@ -2435,30 +2448,30 @@ static PHP_METHOD(swoole_server, set)
         serv->cpu_affinity_available = available_cpu;
     }
     //parse cookie header
-    if (php_swoole_array_get_value(vht, "http_parse_cookie", v))
+    if (php_swoole_array_get_value(vht, "http_parse_cookie", ztmp))
     {
-        serv->http_parse_cookie = zval_is_true(v);
+        serv->http_parse_cookie = zval_is_true(ztmp);
     }
     //parse x-www-form-urlencoded form data
-    if (php_swoole_array_get_value(vht, "http_parse_post", v))
+    if (php_swoole_array_get_value(vht, "http_parse_post", ztmp))
     {
-        serv->http_parse_post = zval_is_true(v);
+        serv->http_parse_post = zval_is_true(ztmp);
     }
     //parse multipart/form-data file uploads
-    if (php_swoole_array_get_value(vht, "http_parse_files", v))
+    if (php_swoole_array_get_value(vht, "http_parse_files", ztmp))
     {
-        serv->http_parse_files = zval_is_true(v);
+        serv->http_parse_files = zval_is_true(ztmp);
     }
 #ifdef SW_HAVE_ZLIB
     //http content compression
-    if (php_swoole_array_get_value(vht, "http_compression", v))
+    if (php_swoole_array_get_value(vht, "http_compression", ztmp))
     {
-        serv->http_compression = zval_is_true(v);
+        serv->http_compression = zval_is_true(ztmp);
         serv->http_compression_level = Z_BEST_SPEED;
     }
-    if (php_swoole_array_get_value(vht, "http_gzip_level", v) || php_swoole_array_get_value(vht, "http_compression_level", v))
+    if (php_swoole_array_get_value(vht, "http_gzip_level", ztmp) || php_swoole_array_get_value(vht, "http_compression_level", ztmp))
     {
-        zend_long level = zval_get_long(v);
+        zend_long level = zval_get_long(ztmp);
         if (level > UINT8_MAX)
         {
             level = UINT8_MAX;
@@ -2471,9 +2484,9 @@ static PHP_METHOD(swoole_server, set)
     }
 #endif
     //temporary directory for HTTP uploaded file.
-    if (php_swoole_array_get_value(vht, "upload_tmp_dir", v))
+    if (php_swoole_array_get_value(vht, "upload_tmp_dir", ztmp))
     {
-        zend::string str_v(v);
+        zend::string str_v(ztmp);
         if (php_swoole_create_dir(str_v.val(), str_v.len()) < 0)
         {
             php_swoole_fatal_error(E_ERROR, "Unable to create upload_tmp_dir[%s]", str_v.val());
@@ -2488,13 +2501,13 @@ static PHP_METHOD(swoole_server, set)
     /**
      * http static file handler
      */
-    if (php_swoole_array_get_value(vht, "enable_static_handler", v))
+    if (php_swoole_array_get_value(vht, "enable_static_handler", ztmp))
     {
-        serv->enable_static_handler = zval_is_true(v);
+        serv->enable_static_handler = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "document_root", v))
+    if (php_swoole_array_get_value(vht, "document_root", ztmp))
     {
-        zend::string str_v(v);
+        zend::string str_v(ztmp);
         if (str_v.len() >= PATH_MAX)
         {
             php_swoole_fatal_error(E_ERROR, "The length of document_root must be less than %d", PATH_MAX);
@@ -2522,12 +2535,12 @@ static PHP_METHOD(swoole_server, set)
     /**
      * [static_handler] locations
      */
-    if (php_swoole_array_get_value(vht, "static_handler_locations", v))
+    if (php_swoole_array_get_value(vht, "static_handler_locations", ztmp))
     {
-        if (ZVAL_IS_ARRAY(v))
+        if (ZVAL_IS_ARRAY(ztmp))
         {
             zval *_location;
-            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(v), _location)
+            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmp), _location)
                 zend::string __location(_location);
                 if (__location.len() > 0 && __location.val()[0] == '/')
                 {
@@ -2544,21 +2557,24 @@ static PHP_METHOD(swoole_server, set)
     /**
      * buffer input size
      */
-    if (php_swoole_array_get_value(vht, "buffer_input_size", v))
+    if (php_swoole_array_get_value(vht, "buffer_input_size", ztmp))
     {
-        serv->buffer_input_size = (uint32_t) zval_get_long(v);
+        zend_long v = zval_get_long(ztmp);
+        serv->buffer_input_size = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     /**
      * buffer output size
      */
-    if (php_swoole_array_get_value(vht, "buffer_output_size", v))
+    if (php_swoole_array_get_value(vht, "buffer_output_size", ztmp))
     {
-        serv->buffer_output_size = (uint32_t) zval_get_long(v);
+        zend_long v = zval_get_long(ztmp);
+        serv->buffer_output_size = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     //message queue key
-    if (php_swoole_array_get_value(vht, "message_queue_key", v))
+    if (php_swoole_array_get_value(vht, "message_queue_key", ztmp))
     {
-        serv->message_queue_key = (uint64_t) zval_get_long(v);
+        zend_long v = zval_get_long(ztmp);
+        serv->message_queue_key = SW_MAX(0, SW_MIN(v, UINT64_MAX));
     }
 
     if (serv->task_enable_coroutine
@@ -3087,8 +3103,8 @@ static PHP_METHOD(swoole_server, stats)
         tasking_num = serv->stats->tasking_num = 0;
     }
 
-    uint16_t worker_num = serv->worker_num;
-    uint16_t idle_worker_num = 0;
+    uint32_t worker_num = serv->worker_num;
+    uint32_t idle_worker_num = 0;
     add_assoc_long_ex(return_value, ZEND_STRL("worker_num"), worker_num);
     for (i = 0; i < worker_num; i++)
     {
