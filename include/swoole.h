@@ -1824,9 +1824,9 @@ struct _swProcessPool
     key_t msgqueue_key;
 
 
-    int worker_num;
-    int max_request;
-    int max_request_grace;
+    uint32_t worker_num;
+    uint32_t max_request;
+    uint32_t max_request_grace;
 
     int (*onTask)(struct _swProcessPool *pool, swEventData *task);
 
@@ -2040,11 +2040,11 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num);
 int swReactorSelect_create(swReactor *reactor);
 
 /*----------------------------Process Pool-------------------------------*/
-int swProcessPool_create(swProcessPool *pool, int worker_num, key_t msgqueue_key, int ipc_mode);
+int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueue_key, int ipc_mode);
 int swProcessPool_create_unix_socket(swProcessPool *pool, char *socket_file, int blacklog);
 int swProcessPool_create_tcp_socket(swProcessPool *pool, char *host, int port, int blacklog);
 int swProcessPool_set_protocol(swProcessPool *pool, int task_protocol, uint32_t max_packet_size);
-void swProcessPool_set_max_request(swProcessPool *pool, int max_request, int max_request_grace);
+void swProcessPool_set_max_request(swProcessPool *pool, uint32_t max_request, uint32_t max_request_grace);
 int swProcessPool_wait(swProcessPool *pool);
 int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
@@ -2292,7 +2292,7 @@ typedef struct
 
     uint32_t shutdown :1;
 
-    int max_request;
+    uint32_t max_request;
 
     swString **buffer_input;
     swString **buffer_output;

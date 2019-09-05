@@ -276,7 +276,7 @@ int swFactory_create(swFactory *factory);
 int swFactory_finish(swFactory *factory, swSendData *_send);
 int swFactory_check_callback(swFactory *factory);
 
-int swFactoryProcess_create(swFactory *factory, int worker_num);
+int swFactoryProcess_create(swFactory *factory, uint32_t worker_num);
 
 //------------------------------------Server-------------------------------------------
 enum swServer_hook_type
