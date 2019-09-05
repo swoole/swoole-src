@@ -13,15 +13,13 @@ $pm->parentFunc = function () use ($pm)
     $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $client->set([
         'open_eof_check' => true,
-        'package_eof' => "\r\n\r\n",
+        'package_eof' => "\n",
     ]);
     Assert::assert($client->connect('127.0.0.1', $pm->getFreePort(), -1));
-    $count = 0;
     for ($i = 0; $i < 16; $i++) {
-        $client->send("request $i\r\n\r\n");
-        $count = max($count, (int)$client->recv());
+        $client->send("request $i\n");
+        echo $client->recv();
     }
-    echo "Worker served $count request(s) since start\n";
     $client->close();
     $pm->kill();
 };
@@ -33,18 +31,18 @@ $pm->childFunc = function () use ($pm)
         'worker_num'        => 2,
         'dispatch_mode'     => 1,
         'max_request'       => 4,
-        'max_request_grace' => PHP_INT_MAX,
+        'max_request_grace' => 1000000000,
         'open_eof_check'    => true,
-        'package_eof'       => "\r\n\r\n",
+        'package_eof'       => "\n",
         'log_file'          => '/dev/null',
     ]);
-    $serv->on('workerStart', function ()  use ($pm) {
+    $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $counter = 0;
-    $serv->on('receive', function (swoole_server $serv, $fd, $reactorId, $data) use (&$counter) {
-        $counter++;
-        $serv->send($fd, $counter);
+    $count = 0;
+    $serv->on('receive', function (swoole_server $serv, $fd, $reactorId, $data) use (&$count) {
+        $count++;
+        $serv->send($fd, "Worker $serv->worker_id served $count request(s) since start\n");
     });
     $serv->start();
 };
@@ -53,4 +51,19 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-Worker served 8 request(s) since start
+Worker 0 served 1 request(s) since start
+Worker 1 served 1 request(s) since start
+Worker 0 served 2 request(s) since start
+Worker 1 served 2 request(s) since start
+Worker 0 served 3 request(s) since start
+Worker 1 served 3 request(s) since start
+Worker 0 served 4 request(s) since start
+Worker 1 served 4 request(s) since start
+Worker 0 served 5 request(s) since start
+Worker 1 served 5 request(s) since start
+Worker 0 served 6 request(s) since start
+Worker 1 served 6 request(s) since start
+Worker 0 served 7 request(s) since start
+Worker 1 served 7 request(s) since start
+Worker 0 served 8 request(s) since start
+Worker 1 served 8 request(s) since start
