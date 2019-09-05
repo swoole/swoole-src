@@ -30,7 +30,7 @@ static void swProcessPool_free(swProcessPool *pool);
 
 static void swProcessPool_kill_timeout_worker(swTimer *timer, swTimer_node *tnode)
 {
-    int i;
+    uint32_t i;
     pid_t reload_worker_pid = 0;
     swProcessPool *pool = (swProcessPool *)tnode->data;
     pool->reloading = 0;
@@ -206,7 +206,7 @@ int swProcessPool_start(swProcessPool *pool)
         return SW_ERR;
     }
 
-    int i;
+    uint32_t i;
     pool->started = 1;
 
     for (i = 0; i < pool->worker_num; i++)
@@ -234,7 +234,7 @@ static sw_inline int swProcessPool_schedule(swProcessPool *pool)
         return 0;
     }
 
-    int i, target_worker_id = 0;
+    uint32_t i, target_worker_id = 0;
 
     for (i = 0; i < pool->worker_num + 1; i++)
     {
@@ -354,7 +354,8 @@ int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int 
 
 void swProcessPool_shutdown(swProcessPool *pool)
 {
-    int i, status;
+    uint32_t i;
+    int status;
     swWorker *worker;
     SwooleG.running = 0;
 
@@ -851,7 +852,7 @@ int swProcessPool_wait(swProcessPool *pool)
 
 static void swProcessPool_free(swProcessPool *pool)
 {
-    int i;
+    uint32_t i;
     swPipe *_pipe;
 
     if (pool->pipes)

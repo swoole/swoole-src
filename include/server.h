@@ -870,8 +870,8 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
     //Preemptive distribution
     else
     {
-        int i;
-        int found = 0;
+        uint32_t i;
+        uint8_t found = 0;
         for (i = 0; i < serv->worker_num + 1; i++)
         {
             key = sw_atomic_fetch_add(&serv->worker_round_id, 1) % serv->worker_num;
