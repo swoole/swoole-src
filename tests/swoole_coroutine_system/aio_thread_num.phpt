@@ -22,14 +22,14 @@ $sch->add(function () {
     $n = 100;
     while ($n--) {
         $worker_num = max($worker_num, Co::stats()['aio_worker_num']);
-        Co::sleep(0.001);
+        Swoole\Coroutine\System::sleep(0.001);
     }
     Assert::greaterThan($worker_num, swoole_cpu_num());
     phpt_var_dump($worker_num);
 });
 $sch->parallel(swoole_cpu_num() * [4, 16, 32, 64][PRESSURE_LEVEL], function () {
     Co::sleep(mt_rand(1, 5) / 1000);
-    $result = Co::gethostbyname('www.baidu.com');
+    $result = Swoole\Coroutine\System::gethostbyname('www.baidu.com');
     Assert::notEmpty($result);
 });
 $sch->start();
