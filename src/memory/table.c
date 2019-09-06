@@ -42,7 +42,7 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
     }
     else
     {
-        uint32_t i = 10;
+        uint32_t i = 6;
         while ((1U << i) < rows_size)
         {
             i++;
