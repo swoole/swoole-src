@@ -82,7 +82,7 @@ static void swFactoryProcess_free(swFactory *factory)
     swServer *serv = (swServer *) factory->ptr;
     swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
 
-    int i;
+    uint32_t i;
 
     for (i = 0; i < serv->reactor_num; i++)
     {
@@ -105,7 +105,7 @@ static void swFactoryProcess_free(swFactory *factory)
 
 static int swFactoryProcess_start(swFactory *factory)
 {
-    int i;
+    uint32_t i;
     swServer *serv = (swServer *) factory->ptr;
 
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)

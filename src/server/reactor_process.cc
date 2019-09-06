@@ -108,7 +108,7 @@ int swReactorProcess_start(swServer *serv)
     serv->gs->event_workers.main_loop = swReactorProcess_loop;
     serv->gs->event_workers.onWorkerNotFound = swManager_wait_other_worker;
 
-    int i;
+    uint32_t i;
     for (i = 0; i < serv->worker_num; i++)
     {
         serv->gs->event_workers.workers[i].pool = &serv->gs->event_workers;
@@ -401,7 +401,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
         if (serv->task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
         {
-            for (int i = 0; i < serv->gs->task_workers.worker_num; i++)
+            for (uint32_t i = 0; i < serv->gs->task_workers.worker_num; i++)
             {
                 p = serv->gs->task_workers.workers[i].pipe_object;
                 pfd = p->getFd(p, 1);

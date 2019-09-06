@@ -200,7 +200,7 @@ int Server::check_task_param(int dst_worker_id)
         swWarn("Task method cannot use, Please set task_worker_num");
         return SW_ERR;
     }
-    if (dst_worker_id >= serv.task_worker_num)
+    if (dst_worker_id > 0 && (uint32_t) dst_worker_id >= serv.task_worker_num)
     {
         swWarn("worker_id must be less than serv->task_worker_num");
         return SW_ERR;
@@ -336,7 +336,7 @@ bool Server::sendMessage(int worker_id, DataBuffer &data)
         return false;
     }
 
-    if (worker_id >= serv.worker_num + serv.task_worker_num)
+    if (worker_id > 0 && (uint32_t) worker_id >= serv.worker_num + serv.task_worker_num)
     {
         swWarn("worker_id[%d] is invalid", worker_id);
         return false;

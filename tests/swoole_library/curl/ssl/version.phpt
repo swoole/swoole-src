@@ -16,10 +16,10 @@ $cm->run(function ($host) {
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_URL, "https://www.jd.com/");
+    curl_setopt($ch, CURLOPT_URL, "https://www.qq.com/");
     $result = curl_exec($ch);
     Assert::assert($result);
-    Assert::contains($result, '京东');
+    Assert::contains($result, 'tencent');
     curl_close($ch);
 
 }, false);

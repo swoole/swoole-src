@@ -2058,7 +2058,7 @@ int swProcessPool_get_max_request(swProcessPool *pool);
 
 static sw_inline void swProcessPool_set_start_id(swProcessPool *pool, int start_id)
 {
-    int i;
+    uint32_t i;
     pool->start_id = start_id;
     for (i = 0; i < pool->worker_num; i++)
     {
@@ -2068,7 +2068,7 @@ static sw_inline void swProcessPool_set_start_id(swProcessPool *pool, int start_
 
 static sw_inline void swProcessPool_set_type(swProcessPool *pool, int type)
 {
-    int i;
+    uint32_t i;
     pool->type = type;
     for (i = 0; i < pool->worker_num; i++)
     {

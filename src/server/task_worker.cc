@@ -245,7 +245,7 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
     /**
      * set pipe buffer size
      */
-    int i;
+    uint32_t i;
     swSocket *pipe_socket;
     for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {

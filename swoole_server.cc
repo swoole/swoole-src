@@ -1525,7 +1525,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("master_pid"), serv->gs->master_pid);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("manager_pid"), serv->gs->manager_pid);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_id"), worker_id);
-    zend_update_property_bool(swoole_server_ce, zserv, ZEND_STRL("taskworker"), worker_id >= serv->worker_num);
+    zend_update_property_bool(swoole_server_ce, zserv, ZEND_STRL("taskworker"), swIsTaskWorker());
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_pid"), getpid());
 
     if (!is_enable_coroutine(serv))
@@ -1811,7 +1811,7 @@ static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, s
     zval args[4];
     zval *zserv = &args[0], *zfd = &args[1], *ztype = &args[2], *zdata = NULL;
     zval retval;
-    int worker_id = -1;
+    zend_long worker_id = -1;
 
     *zserv = *((zval *) serv->ptr2);
     ZVAL_LONG(zfd, (zend_long) (conn ? conn->session_id : data->info.fd));
@@ -1828,10 +1828,10 @@ static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, s
     }
     else if (!ZVAL_IS_NULL(&retval))
     {
-        worker_id = (int) zval_get_long(&retval);
-        if (worker_id >= serv->worker_num)
+        worker_id = zval_get_long(&retval);
+        if (worker_id >= (zend_long) serv->worker_num)
         {
-            php_swoole_fatal_error(E_WARNING, "invalid target worker-id[%d]", worker_id);
+            php_swoole_fatal_error(E_WARNING, "invalid target worker-id[" ZEND_LONG_FMT "]", worker_id);
             worker_id = -1;
         }
         zval_ptr_dtor(&retval);
@@ -2574,7 +2574,7 @@ static PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "message_queue_key", ztmp))
     {
         zend_long v = zval_get_long(ztmp);
-        serv->message_queue_key = SW_MAX(0, SW_MIN(v, UINT64_MAX));
+        serv->message_queue_key = SW_MAX(0, SW_MIN(v, INT64_MAX));
     }
 
     if (serv->task_enable_coroutine
@@ -3081,7 +3081,7 @@ static PHP_METHOD(swoole_server, resume)
 
 static PHP_METHOD(swoole_server, stats)
 {
-    int i;
+    uint32_t i;
     swServer *serv = (swServer *) swoole_get_object(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
