@@ -302,6 +302,7 @@ public:
 
 enum process_pipe_type
 {
+    PIPE_TYPE_NONE = 0,
     PIPE_TYPE_STREAM = 1,
     PIPE_TYPE_DGRAM = 2,
 };
@@ -318,7 +319,7 @@ public:
     {
         func = nullptr;
         zsocket = nullptr;
-        pipe_type = 0;
+        pipe_type = PIPE_TYPE_NONE;
         enable_coroutine = false;
     }
 

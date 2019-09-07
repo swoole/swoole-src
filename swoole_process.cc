@@ -323,7 +323,7 @@ static PHP_METHOD(swoole_process, __construct)
     zend::process *proc = new zend::process;
     sw_zend_fci_cache_persist(&func->fci_cache);
     proc->func = func;
-    proc->pipe_type = pipe_type;
+    proc->pipe_type = (enum zend::process_pipe_type) pipe_type;
     proc->enable_coroutine = enable_coroutine;
     process->ptr2 = proc;
 
