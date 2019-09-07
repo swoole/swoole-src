@@ -632,7 +632,7 @@ static int swWorker_reactor_is_empty(swReactor *reactor)
 
 void swWorker_clean_pipe_buffer(swServer *serv)
 {
-    int i;
+    uint32_t i;
     for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
         swWorker *worker = swServer_get_worker(serv, i);
@@ -670,7 +670,7 @@ int swWorker_loop(swServer *serv, int worker_id)
     /**
      * set pipe buffer size
      */
-    for (int i = 0; i < serv->worker_num + serv->task_worker_num; i++)
+    for (uint32_t i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
         swWorker *_worker = swServer_get_worker(serv, i);
         swSocket *pipe_socket;

@@ -1030,7 +1030,8 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
         return SW_ERR;
     }
 
-    int i = 0, pipe_fd;
+    int pipe_fd;
+    uint32_t i = 0;
     for (i = 0; i < serv->worker_num; i++)
     {
         if (i % serv->reactor_num != reactor_id)

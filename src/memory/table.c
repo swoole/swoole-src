@@ -42,7 +42,7 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
     }
     else
     {
-        uint32_t i = 10;
+        uint32_t i = 6;
         while ((1U << i) < rows_size)
         {
             i++;
@@ -195,22 +195,11 @@ int swTable_create(swTable *table)
     memory = (char *) memory + table->size * sizeof(swTableRow *);
     memory_size -= table->size * sizeof(swTableRow *);
 
-#if SW_TABLE_USE_SPINLOCK == 0
-    pthread_mutexattr_t attr;
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
-    pthread_mutexattr_setprotocol(&attr, PTHREAD_PRIO_INHERIT);
-    pthread_mutexattr_setrobust_np(&attr, PTHREAD_MUTEX_ROBUST_NP);
-#endif
-
     int i;
     for (i = 0; i < table->size; i++)
     {
         table->rows[i] = (swTableRow *) ((char *) memory + (row_memory_size * i));
         memset(table->rows[i], 0, sizeof(swTableRow));
-#if SW_TABLE_USE_SPINLOCK == 0
-        pthread_mutex_init(&table->rows[i]->lock, &attr);
-#endif
     }
 
     memory = (char *) memory + row_memory_size * table->size;

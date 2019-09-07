@@ -927,12 +927,14 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset)
     // package length offset
     if (php_swoole_array_get_value(vht, "package_length_offset", ztmp))
     {
-        sock->protocol.package_length_offset = (int) zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        sock->protocol.package_length_offset = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     // package body start
     if (php_swoole_array_get_value(vht, "package_body_offset", ztmp))
     {
-        sock->protocol.package_body_offset = (int) zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        sock->protocol.package_body_offset = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     // length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp))
@@ -976,7 +978,8 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset)
      */
     if (php_swoole_array_get_value(vht, "package_max_length", ztmp))
     {
-        sock->protocol.package_max_length = (int) zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        sock->protocol.package_max_length = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     else
     {

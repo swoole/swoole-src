@@ -605,7 +605,7 @@ int swServer_start(swServer *serv)
     serv->gs->event_workers.worker_num = serv->worker_num;
     serv->gs->event_workers.use_msgqueue = 0;
 
-    int i;
+    uint32_t i;
     for (i = 0; i < serv->worker_num; i++)
     {
         serv->gs->event_workers.workers[i].pool = &serv->gs->event_workers;
@@ -1737,7 +1737,7 @@ static void swServer_signal_handler(int sig)
 #ifdef SIGRTMIN
         if (sig == SIGRTMIN)
         {
-            int i;
+            uint32_t i;
             swWorker *worker;
             for (i = 0; i < SwooleG.serv->worker_num + serv->task_worker_num + SwooleG.serv->user_worker_num; i++)
             {

@@ -23,6 +23,13 @@ using namespace std;
 
 static mutex init_lock;
 
+#ifdef __MACH__
+swReactor* sw_reactor()
+{
+    return SwooleTG.reactor;
+}
+#endif
+
 int swoole_event_init()
 {
     if (!SwooleG.init)

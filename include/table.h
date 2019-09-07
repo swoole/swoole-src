@@ -27,11 +27,8 @@ SW_EXTERN_C_BEGIN
 
 typedef struct _swTableRow
 {
-#if SW_TABLE_USE_SPINLOCK
     sw_atomic_t lock;
-#else
-    pthread_mutex_t lock;
-#endif
+    pid_t lock_pid;
     /**
      * 1:used, 0:empty
      */
@@ -130,20 +127,41 @@ static sw_inline swTableColumn* swTableColumn_get(swTable *table, char *column_k
 
 static sw_inline void swTableRow_lock(swTableRow *row)
 {
-#if SW_TABLE_USE_SPINLOCK
-    sw_spinlock(&row->lock);
-#else
-    pthread_mutex_lock(&row->lock);
-#endif
+    sw_atomic_t *lock = &row->lock;
+    uint32_t i, n;
+    while(1)
+    {
+        if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1))
+        {
+            _success: row->lock_pid = SwooleG.pid;
+            return;
+        }
+        if (SW_CPU_NUM > 1)
+        {
+            for (n = 1; n < SW_SPINLOCK_LOOP_N; n <<= 1)
+            {
+                for (i = 0; i < n; i++)
+                {
+                    sw_atomic_cpu_pause();
+                }
+                if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1))
+                {
+                    goto _success;
+                }
+            }
+        }
+        if (kill(row->lock_pid, 0) < 0 && errno == ESRCH)
+        {
+            *lock = 1;
+            goto _success;
+        }
+        swYield();
+    }
 }
 
 static sw_inline void swTableRow_unlock(swTableRow *row)
 {
-#if SW_TABLE_USE_SPINLOCK
     sw_spinlock_release(&row->lock);
-#else
-    pthread_mutex_unlock(&row->lock);
-#endif
 }
 
 typedef uint32_t swTable_string_length_t;

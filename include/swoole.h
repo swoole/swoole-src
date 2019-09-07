@@ -106,10 +106,10 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 
 #define SWOOLE_MAJOR_VERSION      4
 #define SWOOLE_MINOR_VERSION      4
-#define SWOOLE_RELEASE_VERSION    5
-#define SWOOLE_EXTRA_VERSION      ""
-#define SWOOLE_VERSION            "4.4.5"
-#define SWOOLE_VERSION_ID         40405
+#define SWOOLE_RELEASE_VERSION    6
+#define SWOOLE_EXTRA_VERSION      "alpha"
+#define SWOOLE_VERSION            "4.4.6-alpha"
+#define SWOOLE_VERSION_ID         40406
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -469,10 +469,12 @@ enum swWorker_status
     } while(0)
 
 #define swWarn(str,...) \
-    if (SW_LOG_WARNING >= SwooleG.log_level) {\
-        size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: " str,__func__,##__VA_ARGS__);\
-        SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_error_len);\
-    }
+    do{\
+        if (SW_LOG_WARNING >= SwooleG.log_level) {\
+            size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: " str,__func__,##__VA_ARGS__);\
+            SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_error_len);\
+        }\
+    } while(0)
 
 #define swSysWarn(str,...) \
     do{\
@@ -1822,9 +1824,9 @@ struct _swProcessPool
     key_t msgqueue_key;
 
 
-    int worker_num;
-    int max_request;
-    int max_request_grace;
+    uint32_t worker_num;
+    uint32_t max_request;
+    uint32_t max_request_grace;
 
     int (*onTask)(struct _swProcessPool *pool, swEventData *task);
 
@@ -2038,11 +2040,11 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num);
 int swReactorSelect_create(swReactor *reactor);
 
 /*----------------------------Process Pool-------------------------------*/
-int swProcessPool_create(swProcessPool *pool, int worker_num, key_t msgqueue_key, int ipc_mode);
+int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueue_key, int ipc_mode);
 int swProcessPool_create_unix_socket(swProcessPool *pool, char *socket_file, int blacklog);
 int swProcessPool_create_tcp_socket(swProcessPool *pool, char *host, int port, int blacklog);
 int swProcessPool_set_protocol(swProcessPool *pool, int task_protocol, uint32_t max_packet_size);
-void swProcessPool_set_max_request(swProcessPool *pool, int max_request, int max_request_grace);
+void swProcessPool_set_max_request(swProcessPool *pool, uint32_t max_request, uint32_t max_request_grace);
 int swProcessPool_wait(swProcessPool *pool);
 int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
@@ -2056,7 +2058,7 @@ int swProcessPool_get_max_request(swProcessPool *pool);
 
 static sw_inline void swProcessPool_set_start_id(swProcessPool *pool, int start_id)
 {
-    int i;
+    uint32_t i;
     pool->start_id = start_id;
     for (i = 0; i < pool->worker_num; i++)
     {
@@ -2066,7 +2068,7 @@ static sw_inline void swProcessPool_set_start_id(swProcessPool *pool, int start_
 
 static sw_inline void swProcessPool_set_type(swProcessPool *pool, int type)
 {
-    int i;
+    uint32_t i;
     pool->type = type;
     for (i = 0; i < pool->worker_num; i++)
     {
@@ -2290,7 +2292,7 @@ typedef struct
 
     uint32_t shutdown :1;
 
-    int max_request;
+    uint32_t max_request;
 
     swString **buffer_input;
     swString **buffer_output;

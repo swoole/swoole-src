@@ -30,7 +30,7 @@ static void swProcessPool_free(swProcessPool *pool);
 
 static void swProcessPool_kill_timeout_worker(swTimer *timer, swTimer_node *tnode)
 {
-    int i;
+    uint32_t i;
     pid_t reload_worker_pid = 0;
     swProcessPool *pool = (swProcessPool *)tnode->data;
     pool->reloading = 0;
@@ -61,7 +61,7 @@ static void swProcessPool_kill_timeout_worker(swTimer *timer, swTimer_node *tnod
 /**
  * Process manager
  */
-int swProcessPool_create(swProcessPool *pool, int worker_num, key_t msgqueue_key, int ipc_mode)
+int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueue_key, int ipc_mode)
 {
     bzero(pool, sizeof(swProcessPool));
 
@@ -206,7 +206,7 @@ int swProcessPool_start(swProcessPool *pool)
         return SW_ERR;
     }
 
-    int i;
+    uint32_t i;
     pool->started = 1;
 
     for (i = 0; i < pool->worker_num; i++)
@@ -234,7 +234,7 @@ static sw_inline int swProcessPool_schedule(swProcessPool *pool)
         return 0;
     }
 
-    int i, target_worker_id = 0;
+    uint32_t i, target_worker_id = 0;
 
     for (i = 0; i < pool->worker_num + 1; i++)
     {
@@ -354,7 +354,8 @@ int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int 
 
 void swProcessPool_shutdown(swProcessPool *pool)
 {
-    int i, status;
+    uint32_t i;
+    int status;
     swWorker *worker;
     SwooleG.running = 0;
 
@@ -449,7 +450,7 @@ int swProcessPool_get_max_request(swProcessPool *pool)
     return task_n;
 }
 
-void swProcessPool_set_max_request(swProcessPool *pool, int max_request, int max_request_grace)
+void swProcessPool_set_max_request(swProcessPool *pool, uint32_t max_request, uint32_t max_request_grace)
 {
     pool->max_request = max_request;
     pool->max_request_grace = max_request_grace;
@@ -851,7 +852,7 @@ int swProcessPool_wait(swProcessPool *pool)
 
 static void swProcessPool_free(swProcessPool *pool)
 {
-    int i;
+    uint32_t i;
     swPipe *_pipe;
 
     if (pool->pipes)

@@ -109,7 +109,7 @@ static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int 
 //create worker child proccess
 int swManager_start(swServer *serv)
 {
-    int i;
+    uint32_t i;
     pid_t pid;
 
     if (serv->task_worker_num > 0)
@@ -251,8 +251,8 @@ static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid
 
 static int swManager_loop(swServer *serv)
 {
-    int pid, new_pid;
-    int i;
+    uint32_t i;
+    pid_t pid, new_pid;
     pid_t reload_worker_pid = 0;
 
     int status;

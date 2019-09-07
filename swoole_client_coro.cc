@@ -314,7 +314,8 @@ bool php_swoole_client_set(Socket *cli, zval *zset)
      */
     if (php_swoole_array_get_value(vht, "bind_port", ztmp))
     {
-        int bind_port = (int) zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        int bind_port = SW_MAX(0, SW_MIN(v, UINT16_MAX));
         /**
          * bind address
          */
@@ -446,7 +447,8 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset)
 
     if (php_swoole_array_get_value(vht, "ssl_method", ztmp))
     {
-        sock->ssl_option.method = (int) zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        sock->ssl_option.method = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
     if (php_swoole_array_get_value(vht, "ssl_compress", ztmp))
     {
@@ -545,7 +547,8 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset)
     }
     if (php_swoole_array_get_value(vht, "ssl_verify_depth", ztmp))
     {
-        sock->ssl_option.verify_depth = (int) zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        sock->ssl_option.verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
 
     return ret;

@@ -276,7 +276,7 @@ int swFactory_create(swFactory *factory);
 int swFactory_finish(swFactory *factory, swSendData *_send);
 int swFactory_check_callback(swFactory *factory);
 
-int swFactoryProcess_create(swFactory *factory, int worker_num);
+int swFactoryProcess_create(swFactory *factory, uint32_t worker_num);
 
 //------------------------------------Server-------------------------------------------
 enum swServer_hook_type
@@ -335,7 +335,7 @@ struct _swServer
     /**
      * worker process num
      */
-    uint16_t worker_num;
+    uint32_t worker_num;
     /**
      * The number of pipe per reactor maintenance
      */
@@ -503,17 +503,17 @@ struct _swServer
     /**
      *  task process
      */
-    uint16_t task_worker_num;
+    uint32_t task_worker_num;
     uint8_t task_ipc_mode;
-    uint16_t task_max_request;
-    uint16_t task_max_request_grace;
+    uint32_t task_max_request;
+    uint32_t task_max_request_grace;
     swPipe *task_notify;
     swEventData *task_result;
 
     /**
      * user process
      */
-    uint16_t user_worker_num;
+    uint32_t user_worker_num;
     swUserWorker_node *user_worker_list;
     swHashMap *user_worker_map;
     swWorker *user_workers;
@@ -790,14 +790,14 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     }
 
     //Task Worker
-    uint16_t task_worker_max = serv->task_worker_num + serv->worker_num;
+    uint32_t task_worker_max = serv->task_worker_num + serv->worker_num;
     if (worker_id < task_worker_max)
     {
         return &(serv->gs->task_workers.workers[worker_id - serv->worker_num]);
     }
 
     //User Worker
-    uint16_t user_worker_max = task_worker_max + serv->user_worker_num;
+    uint32_t user_worker_max = task_worker_max + serv->user_worker_num;
     if (worker_id < user_worker_max)
     {
         return &(serv->user_workers[worker_id - task_worker_max]);
@@ -870,8 +870,8 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
     //Preemptive distribution
     else
     {
-        int i;
-        int found = 0;
+        uint32_t i;
+        uint8_t found = 0;
         for (i = 0; i < serv->worker_num + 1; i++)
         {
             key = sw_atomic_fetch_add(&serv->worker_round_id, 1) % serv->worker_num;

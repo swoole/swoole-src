@@ -374,7 +374,8 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset)
 
     if (php_swoole_array_get_value(vht, "ssl_method", ztmp))
     {
-        cli->ssl_option.method = (int) zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        cli->ssl_option.method = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
     if (php_swoole_array_get_value(vht, "ssl_compress", ztmp))
     {
@@ -432,7 +433,8 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset)
     }
     if (php_swoole_array_get_value(vht, "ssl_verify_depth", ztmp))
     {
-        cli->ssl_option.verify_depth = (int) zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        cli->ssl_option.verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
     if (cli->ssl_option.cert_file && !cli->ssl_option.key_file)
     {
@@ -510,12 +512,14 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
     //package length offset
     if (php_swoole_array_get_value(vht, "package_length_offset", ztmp))
     {
-        cli->protocol.package_length_offset = (int) zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        cli->protocol.package_length_offset = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     //package body start
     if (php_swoole_array_get_value(vht, "package_body_offset", ztmp))
     {
-        cli->protocol.package_body_offset = (int) zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        cli->protocol.package_body_offset = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     //length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp))
@@ -561,7 +565,8 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
      */
     if (php_swoole_array_get_value(vht, "package_max_length", ztmp))
     {
-        cli->protocol.package_max_length = (int) zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        cli->protocol.package_max_length = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     else
     {
@@ -572,7 +577,8 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
      */
     if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp))
     {
-        value = (int) zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        value = SW_MAX(1, SW_MIN(v, INT_MAX));
         if (value <= 0)
         {
             value = INT_MAX;
@@ -582,12 +588,14 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
     }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", ztmp))
     {
-        value = (int) zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        value = SW_MAX(0, SW_MIN(v, UINT32_MAX));
         cli->buffer_high_watermark = value;
     }
     if (php_swoole_array_get_value(vht, "buffer_low_watermark", ztmp))
     {
-        value = (int) zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        value = SW_MAX(0, SW_MIN(v, UINT32_MAX));
         cli->buffer_low_watermark = value;
     }
     /**
@@ -595,7 +603,8 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
      */
     if (php_swoole_array_get_value(vht, "bind_port", ztmp))
     {
-        int bind_port = (int) zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        int bind_port = SW_MAX(0, SW_MIN(v, UINT16_MAX));
         /**
          * bind address
          */

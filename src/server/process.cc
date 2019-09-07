@@ -38,7 +38,7 @@ static int process_send_packet(swServer *serv, swPipeBuffer *buf, swSendData *re
 static int process_sendto_worker(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data);
 static int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data);
 
-int swFactoryProcess_create(swFactory *factory, int worker_num)
+int swFactoryProcess_create(swFactory *factory, uint32_t worker_num)
 {
     swFactoryProcess *object = (swFactoryProcess *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swFactoryProcess));
     if (object == NULL)
@@ -82,7 +82,7 @@ static void swFactoryProcess_free(swFactory *factory)
     swServer *serv = (swServer *) factory->ptr;
     swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
 
-    int i;
+    uint32_t i;
 
     for (i = 0; i < serv->reactor_num; i++)
     {
@@ -105,7 +105,7 @@ static void swFactoryProcess_free(swFactory *factory)
 
 static int swFactoryProcess_start(swFactory *factory)
 {
-    int i;
+    uint32_t i;
     swServer *serv = (swServer *) factory->ptr;
 
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
