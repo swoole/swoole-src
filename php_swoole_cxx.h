@@ -300,6 +300,43 @@ public:
     }
 };
 
+enum process_pipe_type
+{
+    PIPE_TYPE_STREAM = 1,
+    PIPE_TYPE_DGRAM = 2,
+};
+
+class process
+{
+public:
+    php_swoole_fci *func;
+    zend_object *zsocket;
+    enum process_pipe_type pipe_type;
+    bool enable_coroutine;
+
+    process()
+    {
+        func = nullptr;
+        zsocket = nullptr;
+        pipe_type = 0;
+        enable_coroutine = false;
+    }
+
+    ~process()
+    {
+        if (func)
+        {
+            sw_zend_fci_cache_discard(&func->fci_cache);
+            efree(func);
+        }
+        if (zsocket)
+        {
+            OBJ_RELEASE(zsocket);
+        }
+    }
+
+};
+
 namespace function
 {
     /* must use this API to call event callbacks to ensure that exceptions are handled correctly */
