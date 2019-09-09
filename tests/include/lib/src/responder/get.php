@@ -11,6 +11,11 @@
     case 'referer':
       echo $_SERVER['HTTP_REFERER'];
       break;
+    case 'auto_referer':
+      header('HTTP/1.1 302 Found');
+      header('location:get.php?test=referer');
+      exit;
+      break;
     case 'useragent':
       echo $_SERVER['HTTP_USER_AGENT'];
       break;
