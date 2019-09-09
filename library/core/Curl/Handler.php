@@ -77,6 +77,8 @@ class Handler
     public $method = 'GET';
     public $headers = [];
 
+    public $transfer;
+
     public $errCode = 0;
     public $errMsg = '';
 
@@ -291,7 +293,7 @@ class Handler
         }
 
         if ($this->returnTransfer) {
-            return $transfer;
+            return $this->transfer = $transfer;
         } else {
             if ($this->outputStream) {
                 return fwrite($this->outputStream, $transfer) === strlen($transfer);
@@ -346,6 +348,7 @@ class Handler
                 break;
             case CURLOPT_RETURNTRANSFER:
                 $this->returnTransfer = $value;
+                $this->transfer = '';
                 break;
             case CURLOPT_ENCODING:
                 if (empty($value)) {
