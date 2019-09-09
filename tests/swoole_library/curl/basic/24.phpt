@@ -24,21 +24,21 @@ $cm->run(function ($host) {
     $url = "{$host}/get.php?test=auto_referer";
     $ch = curl_init();
 
-    ob_start(); // start output buffering
+    ob_start();
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_AUTOREFERER, true);
-    curl_setopt($ch, CURLOPT_URL, $url); //set the url we want to use
+    curl_setopt($ch, CURLOPT_URL, $url);
 
     $curl_content = curl_exec($ch);
+
     curl_close($ch);
 
-    var_dump($curl_content);
+    Assert::assert("http://{$host}/get.php?test=auto_referer" === $curl_content);
 });
 
 ?>
 ===DONE===
 --EXPECTF--
 *** Testing curl setting auto referer ***
-string(19) "http://www.refer.er"
 ===DONE===
