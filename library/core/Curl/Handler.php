@@ -288,11 +288,11 @@ class Handler
             }
         }
 
-        $this->transfer = $transfer;
-
         if ($this->returnTransfer) {
-            return $transfer;
+            return $this->transfer = $transfer;
         } else {
+            $this->transfer = null;
+
             if ($this->outputStream) {
                 return fwrite($this->outputStream, $transfer) === strlen($transfer);
             } else {
