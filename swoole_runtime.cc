@@ -1267,6 +1267,7 @@ bool PHPCoroutine::enable_hook(int flags)
             hook_func(ZEND_STRL("curl_init"));
             hook_func(ZEND_STRL("curl_setopt"));
             hook_func(ZEND_STRL("curl_exec"));
+            hook_func(ZEND_STRL("curl_multi_getcontent"));
             hook_func(ZEND_STRL("curl_setopt_array"));
             hook_func(ZEND_STRL("curl_error"));
             hook_func(ZEND_STRL("curl_getinfo"));

@@ -778,7 +778,7 @@ static const char* swoole_library_source_ext_curl =
     "    return $obj->execute();\n"
     "}\n"
     "\n"
-    "function swoole_curl_multi_getcontent(Swoole\\Curl\\Handler $obj)\n"
+    "function swoole_curl_multi_getcontent(Swoole\\Curl\\Handler $obj): string\n"
     "{\n"
     "    return $obj->transfer;\n"
     "}\n"
