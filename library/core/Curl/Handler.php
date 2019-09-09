@@ -59,6 +59,7 @@ class Handler
     private $proxy;
     private $clientOptions = [];
     private $followLocation = false;
+    private $autoReferer = false;
     private $maxRedirs;
     private $withHeader = false;
     private $nobody = false;
@@ -216,6 +217,9 @@ class Handler
                     if ($this->urlInfo['host'] !== $redirectParsedUrl['host'] or ($this->urlInfo['port'] ?? null) !== ($redirectParsedUrl['port'] ?? null) or $this->urlInfo['scheme'] !== $redirectParsedUrl['scheme']) {
                         // If host, port, and scheme are the same, reuse $client. Otherwise, release the old $client
                         $client = null;
+                    }
+                    if ($this->autoReferer) {
+                        $this->headers['Referer'] = $this->info['url'];
                     }
                     $this->urlInfo = $redirectParsedUrl;
                     $this->info['url'] = $redirectUrl;
@@ -474,6 +478,9 @@ class Handler
                 break;
             case CURLOPT_FOLLOWLOCATION:
                 $this->followLocation = $value;
+                break;
+            case CURLOPT_AUTOREFERER:
+                $this->autoReferer = $value;
                 break;
             case CURLOPT_MAXREDIRS:
                 $this->maxRedirs = $value;
