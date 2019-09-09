@@ -76,7 +76,7 @@ class Handler
     public $method = 'GET';
     public $headers = [];
 
-    public $transfer = null;
+    public $transfer;
 
     public $errCode = 0;
     public $errMsg = '';
