@@ -38,7 +38,7 @@ function swoole_curl_exec(Swoole\Curl\Handler $obj)
     return $obj->execute();
 }
 
-function swoole_curl_multi_getcontent(Swoole\Curl\Handler $obj): string
+function swoole_curl_multi_getcontent(Swoole\Curl\Handler $obj): ?string
 {
     return $obj->transfer;
 }

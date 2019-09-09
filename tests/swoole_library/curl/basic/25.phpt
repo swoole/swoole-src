@@ -23,6 +23,7 @@ $cm->run(function ($host) {
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_exec($ch);
     curl_close($ch);
+    echo PHP_EOL;
     Assert::assert(null === curl_multi_getcontent($ch));
 
     $ch = curl_init();
@@ -44,4 +45,6 @@ $cm->run(function ($host) {
 ===DONE===
 --EXPECTF--
 *** Testing curl method curl_multi_getcontent ***
+Hello World!
+Hello World!
 ===DONE===
