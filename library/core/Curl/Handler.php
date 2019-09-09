@@ -366,6 +366,8 @@ class Handler
             case CURLOPT_SSLVERSION:
             case CURLOPT_NOSIGNAL:
             case CURLOPT_FRESH_CONNECT:
+            // From PHP 5.1.3, this option has no effect: the raw output will always be returned when CURLOPT_RETURNTRANSFER is used.
+            case CURLOPT_BINARYTRANSFER:
                 break;
             /**
              * SSL
