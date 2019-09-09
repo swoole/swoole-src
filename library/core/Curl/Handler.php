@@ -362,6 +362,7 @@ class Handler
             case CURLOPT_SSLVERSION:
             case CURLOPT_NOSIGNAL:
             case CURLOPT_FRESH_CONNECT:
+            case CURLOPT_VERBOSE:
                 break;
             /**
              * SSL
