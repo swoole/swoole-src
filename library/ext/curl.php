@@ -38,6 +38,11 @@ function swoole_curl_exec(Swoole\Curl\Handler $obj)
     return $obj->execute();
 }
 
+function swoole_curl_multi_getcontent(Swoole\Curl\Handler $obj): string
+{
+    return $obj->transfer;
+}
+
 function swoole_curl_close(Swoole\Curl\Handler $obj): void
 {
     $obj->close();

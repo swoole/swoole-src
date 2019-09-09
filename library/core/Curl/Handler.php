@@ -76,6 +76,8 @@ class Handler
     public $method = 'GET';
     public $headers = [];
 
+    public $transfer = '';
+
     public $errCode = 0;
     public $errMsg = '';
 
@@ -285,6 +287,8 @@ class Handler
                 $this->info['filetime'] = -1;
             }
         }
+
+        $this->transfer = $transfer;
 
         if ($this->returnTransfer) {
             return $transfer;
