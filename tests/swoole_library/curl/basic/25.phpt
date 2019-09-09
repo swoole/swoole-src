@@ -27,6 +27,11 @@ $cm->run(function ($host) {
     Assert::assert(null === curl_multi_getcontent($ch));
 
     $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_close($ch);
+    Assert::assert(null === curl_multi_getcontent($ch));
+
+    $ch = curl_init();
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_URL, $url);
     $curl_content = curl_exec($ch);
@@ -36,10 +41,8 @@ $cm->run(function ($host) {
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_HEADER, 1);
-    $curl_content = curl_exec($ch);
     curl_close($ch);
-    Assert::assert($curl_content === curl_multi_getcontent($ch));
+    Assert::assert('' === curl_multi_getcontent($ch));
 });
 ?>
 ===DONE===
