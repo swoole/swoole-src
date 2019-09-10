@@ -212,6 +212,13 @@ public:
         }
     }
 
+#ifdef SW_DEBUG
+    void notify_one()
+    {
+        _cv.notify_one();
+    }
+#endif
+
 private:
     void create_thread(const bool is_core_worker = false);
 
@@ -472,3 +479,13 @@ int swAio_callback(swReactor *reactor, swEvent *event)
 
     return SW_OK;
 }
+
+#ifdef SW_DEBUG
+void swAio_notify_one()
+{
+    if (pool)
+    {
+        pool->notify_one();
+    }
+}
+#endif
