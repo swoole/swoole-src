@@ -327,9 +327,9 @@ swTableRow* swTableRow_get(swTable *table, const char *key, int keylen, swTableR
 
 swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableRow **rowlock)
 {
-    if (keylen > SW_TABLE_KEY_SIZE)
+    if (keylen >= SW_TABLE_KEY_SIZE)
     {
-        keylen = SW_TABLE_KEY_SIZE;
+        keylen = SW_TABLE_KEY_SIZE - 1;
     }
 
     swTableRow *row = swTable_hash(table, key, keylen);
@@ -392,6 +392,7 @@ swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableR
     }
 
     memcpy(row->key, key, keylen);
+    row->key[keylen] = '\0';
     row->active = 1;
     return row;
 }
