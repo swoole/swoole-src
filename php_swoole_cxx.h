@@ -368,5 +368,6 @@ namespace function
 
 bool include(std::string file);
 bool eval(std::string code, std::string filename = "");
+zend_op_array* swoole_compile_string(zval *source_string, char *filename);
 //-----------------------------------namespace end--------------------------------------------
 }
