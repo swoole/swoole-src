@@ -43,6 +43,9 @@ php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, i
 SW_API bool php_swoole_timer_clear(swTimer_node *tnode);
 SW_API bool php_swoole_timer_clear_all();
 
+//for compatibly with dis_eval
+static zend_op_array *(*old_compile_string)(zval *source_string, char *filename);
+
 namespace zend {
 //-----------------------------------namespace begin--------------------------------------------
 class string
