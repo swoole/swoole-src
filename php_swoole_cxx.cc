@@ -57,7 +57,7 @@ bool zend::eval(std::string code, std::string filename)
 {
     old_compile_string = zend_compile_string;
     //overwrite
-    zend_compile_string = swoole_compile_string;
+    zend_compile_string = zend::swoole_compile_string;
     int ret = (zend_eval_stringl((char*) code.c_str(), code.length(), nullptr, (char *) filename.c_str()) == SUCCESS);
     //recover
     zend_compile_string = old_compile_string;
