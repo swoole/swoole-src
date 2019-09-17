@@ -59,6 +59,10 @@ int swAio_cancel(int task_id);
 int swAio_callback(swReactor *reactor, swEvent *_event);
 size_t swAio_thread_count();
 
+#ifdef SW_DEBUG
+void swAio_notify_one();
+#endif
+
 void swAio_handler_read(swAio_event *event);
 void swAio_handler_write(swAio_event *event);
 void swAio_handler_gethostbyname(swAio_event *event);

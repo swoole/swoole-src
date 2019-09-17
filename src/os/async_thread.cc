@@ -178,6 +178,7 @@ public:
         _queue.push(_event_copy);
         _cv.notify_one();
         event_mutex.unlock();
+        swDebug("push and notify one: %f", swoole_microtime());
         return _event_copy;
     }
 
@@ -213,6 +214,13 @@ public:
             delete _thread;
         }
     }
+
+#ifdef SW_DEBUG
+    void notify_one()
+    {
+        _cv.notify_one();
+    }
+#endif
 
 private:
     void create_thread(const bool is_core_worker = false);
@@ -257,6 +265,9 @@ void swoole::async::ThreadPool::create_thread(const bool is_core_worker)
             while (running)
             {
                 AsyncEvent *event = _queue.pop();
+
+                swDebug("%s: %f", event ? "pop 1 event" : "no event", swoole_microtime());
+
                 if (event)
                 {
                     if (sw_unlikely(event->handler == nullptr))
@@ -410,8 +421,10 @@ static int swAio_init()
     init_lock.lock();
     if ((refcount++) == 0)
     {
-        pool = new swoole::async::ThreadPool(SwooleG.aio_core_worker_num, SwooleG.aio_worker_num,
-                SwooleG.aio_max_wait_time, SwooleG.aio_max_idle_time);
+        pool = new swoole::async::ThreadPool(
+            SwooleG.aio_core_worker_num, SwooleG.aio_worker_num,
+            SwooleG.aio_max_wait_time, SwooleG.aio_max_idle_time
+        );
         pool->start();
         SwooleTG.aio_schedule = 1;
         SwooleG.aio_default_pipe_fd = SwooleTG.aio_pipe_write;
@@ -478,3 +491,13 @@ int swAio_callback(swReactor *reactor, swEvent *event)
 
     return SW_OK;
 }
+
+#ifdef SW_DEBUG
+void swAio_notify_one()
+{
+    if (pool)
+    {
+        pool->notify_one();
+    }
+}
+#endif
