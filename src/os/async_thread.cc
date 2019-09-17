@@ -41,13 +41,11 @@ class EventQueue
 public:
     inline void push(AsyncEvent *event)
     {
-        unique_lock<mutex> lock(_mutex);
         _queue.push(event);
     }
 
     inline AsyncEvent* pop()
     {
-        unique_lock<mutex> lock(_mutex);
         if (_queue.empty())
         {
             return nullptr;
@@ -59,7 +57,6 @@ public:
 
     inline double get_max_wait_time()
     {
-        unique_lock<mutex> lock(_mutex);
         if (_queue.empty())
         {
             return 0;
@@ -73,13 +70,11 @@ public:
 
     inline size_t count()
     {
-        unique_lock<mutex> lock(_mutex);
         return _queue.size();
     }
 
 private:
     queue<AsyncEvent *> _queue;
-    mutex _mutex;
 };
 
 class ThreadPool
@@ -121,9 +116,9 @@ public:
         {
             return false;
         }
-        running = false;
 
         event_mutex.lock();
+        running = false;
         _cv.notify_all();
         event_mutex.unlock();
 
@@ -144,7 +139,10 @@ public:
     {
         if (n_waiting == 0 && threads.size() < worker_num && max_wait_time > 0)
         {
+            event_mutex.lock();
             double _max_wait_time = _queue.get_max_wait_time();
+            event_mutex.unlock();
+
             if (_max_wait_time > max_wait_time)
             {
                 size_t n = 1;
@@ -189,6 +187,7 @@ public:
 
     inline size_t queue_count()
     {
+        unique_lock<mutex> lock(event_mutex);
         return _queue.count();
     }
 
@@ -264,7 +263,9 @@ void swoole::async::ThreadPool::create_thread(const bool is_core_worker)
 
             while (running)
             {
+                event_mutex.lock();
                 AsyncEvent *event = _queue.pop();
+                event_mutex.unlock();
 
                 swDebug("%s: %f", event ? "pop 1 event" : "no event", swoole_microtime());
 
@@ -317,12 +318,16 @@ void swoole::async::ThreadPool::create_thread(const bool is_core_worker)
                         break;
                     }
                 }
-                else if (running)
+                else
                 {
                     unique_lock<mutex> lock(event_mutex);
                     if (_queue.count() > 0)
                     {
                         continue;
+                    }
+                    if (!running)
+                    {
+                        break;
                     }
                     ++n_waiting;
                     if (is_core_worker || max_idle_time <= 0)
