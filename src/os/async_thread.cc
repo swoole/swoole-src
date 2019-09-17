@@ -174,8 +174,10 @@ public:
         _event_copy->task_id = current_task_id++;
         _event_copy->timestamp = swoole_microtime();
         _event_copy->pipe_fd = SwooleTG.aio_pipe_write;
+        event_mutex.lock();
         _queue.push(_event_copy);
         _cv.notify_one();
+        event_mutex.unlock();
         return _event_copy;
     }
 
@@ -307,6 +309,10 @@ void swoole::async::ThreadPool::create_thread(const bool is_core_worker)
                 else if (running)
                 {
                     unique_lock<mutex> lock(event_mutex);
+                    if (_queue.count() > 0)
+                    {
+                        continue;
+                    }
                     ++n_waiting;
                     if (is_core_worker || max_idle_time <= 0)
                     {
