@@ -175,7 +175,9 @@ public:
         _event_copy->timestamp = swoole_microtime();
         _event_copy->pipe_fd = SwooleTG.aio_pipe_write;
         _queue.push(_event_copy);
+        event_mutex.lock();
         _cv.notify_one();
+        event_mutex.unlock();
         swDebug("push and notify one: %f", swoole_microtime());
         return _event_copy;
     }
