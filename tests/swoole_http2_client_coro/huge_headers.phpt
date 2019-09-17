@@ -1,7 +1,10 @@
 --TEST--
 swoole_http2_client_coro: huge headers
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip('internal changes');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

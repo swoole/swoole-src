@@ -61,7 +61,7 @@ class http2_session
     nghttp2_hd_inflater *inflater;
     nghttp2_hd_deflater *deflater;
 
-    // flow control
+    uint32_t header_table_size;
     uint32_t send_window;
     uint32_t recv_window;
     uint32_t max_concurrent_streams;
@@ -70,6 +70,7 @@ class http2_session
     http2_session(int _fd)
     {
         fd = _fd;
+        header_table_size = SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE;
         send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
         recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
         max_concurrent_streams = SW_HTTP2_MAX_MAX_CONCURRENT_STREAMS;
@@ -157,11 +158,13 @@ static ssize_t http2_build_trailer(http_context *ctx, uchar *buffer)
         }
 
         buflen = nghttp2_hd_deflate_bound(deflater, trailer.get(), trailer.len());
+        /*
         if (buflen > SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE)
         {
             php_swoole_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u", SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE);
             return -1;
         }
+        */
         rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, trailer.get(), trailer.len());
         if (rv < 0)
         {
@@ -308,7 +311,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     nghttp2_hd_deflater *deflater = client->deflater;
     if (!deflater)
     {
-        ret = nghttp2_hd_deflate_new(&deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
+        ret = nghttp2_hd_deflate_new(&deflater, client->header_table_size);
         if (ret != 0)
         {
             swWarn("nghttp2_hd_deflate_init() failed with error: %s", nghttp2_strerror(ret));
@@ -318,11 +321,13 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     }
 
     size_t buflen = nghttp2_hd_deflate_bound(deflater, headers.get(), headers.len());
+    /*
     if (buflen > SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE)
     {
         php_swoole_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u", SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE);
         return -1;
     }
+    */
     ssize_t rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, headers.get(), headers.len());
     if (rv < 0)
     {
@@ -682,7 +687,20 @@ int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData 
             switch (id)
             {
             case SW_HTTP2_SETTING_HEADER_TABLE_SIZE:
-                swTraceLog(SW_TRACE_HTTP2, "setting: header_compression_table_max=%u", value);
+                if (value != client->header_table_size)
+                {
+                    client->header_table_size = value;
+                    if (client->deflater)
+                    {
+                        int ret = nghttp2_hd_deflate_change_table_size(client->deflater, value);
+                        if (ret != 0)
+                        {
+                            swWarn("nghttp2_hd_deflate_change_table_size() failed, errno=%s, errmsg=%s", ret, nghttp2_strerror(ret));
+                            return SW_ERROR;
+                        }
+                    }
+                }
+                swTraceLog(SW_TRACE_HTTP2, "setting: header_table_size=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS:
                 client->max_concurrent_streams = value;

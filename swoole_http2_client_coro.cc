@@ -91,6 +91,7 @@ public:
         ssl = _ssl;
         _zobject = *__zobject;
         zobject = &_zobject;
+        swHttp2_init_settings(&local_settings);
     }
 
     inline http2_client_stream* get_stream(uint32_t stream_id)
@@ -349,8 +350,8 @@ bool http2_client::connect()
     stream_id = 1;
     streams = swHashMap_new(8, http2_client_stream_free);
     // [init]: we must set default value, server is not always send all the settings
-    swHttp2_init_settings(&local_settings);
     swHttp2_init_settings(&remote_settings);
+
     int ret = nghttp2_hd_inflate_new(&inflater);
     if (ret != 0)
     {
@@ -482,12 +483,14 @@ enum swReturn_code http2_client::parse_frame(zval *return_value)
                 if (value != remote_settings.max_header_list_size)
                 {
                     remote_settings.max_header_list_size = value;
+                    /*
                     int ret = nghttp2_hd_inflate_change_table_size(inflater, value);
                     if (ret != 0)
                     {
                         nghttp2_error(ret, "nghttp2_hd_inflate_change_table_size() failed");
                         return SW_ERROR;
                     }
+                    */
                 }
                 swTraceLog(SW_TRACE_HTTP2, "setting: max_header_list_size=%u", value);
                 break;
@@ -1031,11 +1034,13 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
     }
 
     size_t buflen = nghttp2_hd_deflate_bound(h2c->deflater, headers.get(), headers.len());
+    /*
     if (buflen > h2c->remote_settings.max_header_list_size)
     {
         php_swoole_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u", h2c->remote_settings.max_header_list_size);
         return -1;
     }
+    */
     ssize_t rv = nghttp2_hd_deflate_hd(h2c->deflater, (uchar *) buffer, buflen, headers.get(), headers.len());
     if (rv < 0)
     {
