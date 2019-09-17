@@ -132,6 +132,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_cookie, 0, 0, 1)
     ZEND_ARG_INFO(0, domain)
     ZEND_ARG_INFO(0, secure)
     ZEND_ARG_INFO(0, httponly)
+    ZEND_ARG_INFO(0, samesite)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_write, 0, 0, 1)
@@ -852,12 +853,12 @@ static PHP_METHOD(swoole_http_response, sendfile)
 
 static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool url_encode)
 {
-    char *name, *value = NULL, *path = NULL, *domain = NULL;
+    char *name, *value = NULL, *path = NULL, *domain = NULL, *samesite = NULL;
     zend_long expires = 0;
-    size_t name_len, value_len = 0, path_len = 0, domain_len = 0;
+    size_t name_len, value_len = 0, path_len = 0, domain_len = 0, samesite_len = 0;
     zend_bool secure = 0, httponly = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 7)
+    ZEND_PARSE_PARAMETERS_START(1, 8)
         Z_PARAM_STRING(name, name_len)
         Z_PARAM_OPTIONAL
         Z_PARAM_STRING(value, value_len)
@@ -866,6 +867,7 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool
         Z_PARAM_STRING(domain, domain_len)
         Z_PARAM_BOOL(secure)
         Z_PARAM_BOOL(httponly)
+        Z_PARAM_STRING(samesite, samesite_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = swoole_http_context_get(ZEND_THIS, 0);
@@ -940,6 +942,11 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool
     if (httponly)
     {
         strlcat(cookie, "; httponly", cookie_size);
+    }
+    if (samesite_len > 0)
+    {
+        strlcat(cookie, "; samesite=", cookie_size);
+        strlcat(cookie, samesite, cookie_size);
     }
     add_next_index_stringl(
         swoole_http_init_and_read_property(swoole_http_response_ce, ctx->response.zobject, &ctx->response.zcookie, ZEND_STRL("cookie")),

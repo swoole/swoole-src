@@ -569,6 +569,11 @@ static PHP_METHOD(swoole_process_pool, getProcess)
             zend_update_property_long(swoole_process_ce, zprocess, ZEND_STRL("pipe"), worker->pipe);
         }
         swoole_set_object(zprocess, worker);
+        process_pool_property *pp = (process_pool_property *) swoole_get_property(ZEND_THIS, 0);
+        zend::process *proc = new zend::process;
+        proc->pipe_type = zend::PIPE_TYPE_STREAM;
+        proc->enable_coroutine = pp->enable_coroutine;
+        worker->ptr2 = proc;
         (void) add_index_zval(zworkers, worker_id, zprocess);
     }
 

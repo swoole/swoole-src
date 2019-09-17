@@ -59,6 +59,7 @@ class Handler
     private $proxy;
     private $clientOptions = [];
     private $followLocation = false;
+    private $autoReferer = false;
     private $maxRedirs;
     private $withHeader = false;
     private $nobody = false;
@@ -75,6 +76,8 @@ class Handler
     public $returnTransfer = false;
     public $method = 'GET';
     public $headers = [];
+
+    public $transfer;
 
     public $errCode = 0;
     public $errMsg = '';
@@ -217,6 +220,9 @@ class Handler
                         // If host, port, and scheme are the same, reuse $client. Otherwise, release the old $client
                         $client = null;
                     }
+                    if ($this->autoReferer) {
+                        $this->headers['Referer'] = $this->info['url'];
+                    }
                     $this->urlInfo = $redirectParsedUrl;
                     $this->info['url'] = $redirectUrl;
                     $this->info['redirect_count']++;
@@ -287,7 +293,7 @@ class Handler
         }
 
         if ($this->returnTransfer) {
-            return $transfer;
+            return $this->transfer = $transfer;
         } else {
             if ($this->outputStream) {
                 return fwrite($this->outputStream, $transfer) === strlen($transfer);
@@ -342,6 +348,7 @@ class Handler
                 break;
             case CURLOPT_RETURNTRANSFER:
                 $this->returnTransfer = $value;
+                $this->transfer = '';
                 break;
             case CURLOPT_ENCODING:
                 if (empty($value)) {
@@ -362,6 +369,15 @@ class Handler
             case CURLOPT_SSLVERSION:
             case CURLOPT_NOSIGNAL:
             case CURLOPT_FRESH_CONNECT:
+            /**
+             * From PHP 5.1.3, this option has no effect: the raw output will always be returned when CURLOPT_RETURNTRANSFER is used.
+             */
+            case CURLOPT_BINARYTRANSFER:
+            /**
+             * TODO
+             */
+            case CURLOPT_VERBOSE:
+            case CURLOPT_DNS_CACHE_TIMEOUT:
                 break;
             /**
              * SSL
@@ -474,6 +490,9 @@ class Handler
                 break;
             case CURLOPT_FOLLOWLOCATION:
                 $this->followLocation = $value;
+                break;
+            case CURLOPT_AUTOREFERER:
+                $this->autoReferer = $value;
                 break;
             case CURLOPT_MAXREDIRS:
                 $this->maxRedirs = $value;
