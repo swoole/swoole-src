@@ -43,16 +43,15 @@ bool zend::include(std::string file)
     return Z_TYPE(retval) == IS_TRUE;
 }
 
-
 //for compatibly with dis_eval
-zend_op_array* (*old_compile_string)(zval *source_string, char *filename);
-zend_op_array* zend::swoole_compile_string(zval *source_string, char *filename)
+zend_op_array* (*old_compile_string)(zval *source_string, ZEND_STR_CONST char *filename);
+
+zend_op_array* zend::swoole_compile_string(zval *source_string, ZEND_STR_CONST char *filename)
 {
     zend_op_array *opa = old_compile_string(source_string, filename);
     opa->type = ZEND_USER_FUNCTION;
     return opa;
 }
-
 
 bool zend::eval(std::string code, std::string filename)
 {

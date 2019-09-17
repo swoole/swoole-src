@@ -368,6 +368,13 @@ namespace function
 
 bool include(std::string file);
 bool eval(std::string code, std::string filename = "");
-zend_op_array* swoole_compile_string(zval *source_string, char *filename);
+
+#if PHP_VERSION_ID < 80000
+#define ZEND_STR_CONST
+#else
+#define ZEND_STR_CONST const
+#endif
+
+zend_op_array* swoole_compile_string(zval *source_string, ZEND_STR_CONST char *filename);
 //-----------------------------------namespace end--------------------------------------------
 }
