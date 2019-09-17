@@ -116,9 +116,9 @@ public:
         {
             return false;
         }
-        running = false;
 
         event_mutex.lock();
+        running = false;
         _cv.notify_all();
         event_mutex.unlock();
 
@@ -318,12 +318,16 @@ void swoole::async::ThreadPool::create_thread(const bool is_core_worker)
                         break;
                     }
                 }
-                else if (running)
+                else
                 {
                     unique_lock<mutex> lock(event_mutex);
                     if (_queue.count() > 0)
                     {
                         continue;
+                    }
+                    if (!running)
+                    {
+                        break;
                     }
                     ++n_waiting;
                     if (is_core_worker || max_idle_time <= 0)
