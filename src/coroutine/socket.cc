@@ -1891,6 +1891,13 @@ Socket::~Socket()
     {
         swSysWarn("close(%d) failed", sock_fd);
     }
-    swoole_event_defer(socket_close_fd, socket);
-    socket->removed = 1;
+    if (SwooleTG.reactor)
+    {
+        socket->removed = 1;
+        swoole_event_defer(socket_close_fd, socket);
+    }
+    else
+    {
+        socket_close_fd(socket);
+    }
 }
