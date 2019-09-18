@@ -1887,10 +1887,6 @@ Socket::~Socket()
     {
         ::unlink(socket->info.addr.un.sun_path);
     }
-    if (sw_unlikely(sock_fd > 0 && ::close(sock_fd) != 0))
-    {
-        swSysWarn("close(%d) failed", sock_fd);
-    }
     if (SwooleTG.reactor)
     {
         socket->removed = 1;
