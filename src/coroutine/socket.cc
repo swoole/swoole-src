@@ -1795,14 +1795,21 @@ bool Socket::close()
     }
     else
     {
-        if (sw_unlikely(::close(sock_fd) != 0))
-        {
-            swSysWarn("close(%d) failed", sock_fd);
-        }
         sock_fd = -1;
         closed = true;
         return true;
     }
+}
+
+static void socket_close_fd(void *ptr)
+{
+    swSocket *sock = (swSocket *) ptr;
+    if (::close(sock->fd) != 0)
+    {
+        swSysWarn("close(%d) failed", sock->fd);
+    }
+    bzero(sock, sizeof(swSocket));
+    sock->removed = 1;
 }
 
 /**
@@ -1884,6 +1891,6 @@ Socket::~Socket()
     {
         swSysWarn("close(%d) failed", sock_fd);
     }
-    bzero(socket, sizeof(swSocket));
+    swoole_event_defer(socket_close_fd, socket);
     socket->removed = 1;
 }
