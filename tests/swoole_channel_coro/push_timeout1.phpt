@@ -9,8 +9,6 @@ $channel = new Swoole\Coroutine\Channel(1);
 go(function () use ($channel) {
     $ret = $channel->push('foo', 0.001);
     Assert::true($ret);
-    $ret = $channel->push('foo', 0.001);
-    Assert::true($ret);
 });
 for ($n = MAX_REQUESTS; $n--;) {
     go(function () use ($channel) {

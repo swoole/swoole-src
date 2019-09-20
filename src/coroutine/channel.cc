@@ -63,27 +63,38 @@ void* Channel::pop(double timeout)
     }
     if (is_empty() || !consumer_queue.empty())
     {
-        timer_msg_t msg;
-        msg.error = false;
-        msg.timer = NULL;
-        if (timeout > 0)
+        /**
+         * notify producer
+         */
+        if (!producer_queue.empty())
         {
-            long msec = (long) (timeout * 1000);
-            msg.chan = this;
-            msg.type = CONSUMER;
-            msg.co = current_co;
-            msg.timer = swoole_timer_add(msec, SW_FALSE, timer_callback, &msg);
+            Coroutine *co = pop_coroutine(PRODUCER);
+            co->resume();
         }
-
-        yield(CONSUMER);
-
-        if (msg.timer)
+        else
         {
-            swoole_timer_del(msg.timer);
-        }
-        if (msg.error || closed)
-        {
-            return nullptr;
+            timer_msg_t msg;
+            msg.error = false;
+            msg.timer = NULL;
+            if (timeout > 0)
+            {
+                long msec = (long) (timeout * 1000);
+                msg.chan = this;
+                msg.type = CONSUMER;
+                msg.co = current_co;
+                msg.timer = swoole_timer_add(msec, SW_FALSE, timer_callback, &msg);
+            }
+
+            yield(CONSUMER);
+
+            if (msg.timer)
+            {
+                swoole_timer_del(msg.timer);
+            }
+            if (msg.error || closed)
+            {
+                return nullptr;
+            }
         }
     }
     /**
@@ -91,14 +102,6 @@ void* Channel::pop(double timeout)
      */
     void *data = data_queue.front();
     data_queue.pop();
-    /**
-     * notify producer
-     */
-    if (!producer_queue.empty())
-    {
-        Coroutine *co = pop_coroutine(PRODUCER);
-        co->resume();
-    }
     return data;
 }
 
