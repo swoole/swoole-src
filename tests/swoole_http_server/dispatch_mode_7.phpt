@@ -11,7 +11,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
-        Assert::assert($data === "hello");
+        Assert::eq($data, "hello");
         $pm->kill();
     });
     Swoole\Event::wait();
