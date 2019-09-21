@@ -176,7 +176,7 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
     if (sw_likely(want_event == SW_EVENT_NULL || !has_bound()))
 #endif
     {
-        swReactor *reactor = get_reactor();
+        swReactor *reactor = SwooleTG.reactor;
         if (sw_likely(added_event == SW_EVENT_READ))
         {
             swReactor_remove_read_event(reactor, sock_fd);
@@ -490,7 +490,7 @@ bool Socket::init_sock()
 
 void Socket::init_reactor_socket(int _fd)
 {
-    swReactor *reactor = get_reactor();
+    swReactor *reactor = SwooleTG.reactor;
     if (sw_unlikely(!reactor))
     {
         swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "operation not support (reactor is not ready)");
