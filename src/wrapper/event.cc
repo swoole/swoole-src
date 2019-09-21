@@ -36,7 +36,6 @@ int swoole_event_init()
     {
         unique_lock<mutex> lock(init_lock);
         swoole_init();
-        return SW_ERR;
     }
 
     SwooleTG.reactor = (swReactor *) sw_malloc(sizeof(swReactor));
