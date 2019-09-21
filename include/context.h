@@ -92,7 +92,7 @@ public:
     ~Context();
     bool swap_in();
     bool swap_out();
-#if !defined(SW_NO_USE_ASM_CONTEXT) && defined(SW_LOG_TRACE_OPEN)
+#if defined(SW_USE_ASM_CONTEXT) && defined(SW_LOG_TRACE_OPEN)
     ssize_t get_stack_usage();
 #endif
     inline bool is_end()

@@ -90,7 +90,7 @@ void Coroutine::close()
     {
         on_close(task);
     }
-#ifndef SW_NO_USE_ASM_CONTEXT
+#ifdef SW_USE_ASM_CONTEXT
     swTraceLog(SW_TRACE_CONTEXT, "coroutine#%ld stack memory use less than %ld bytes", get_cid(), ctx.get_stack_usage());
 #endif
     current = origin;
