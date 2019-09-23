@@ -102,12 +102,16 @@ const char* swoole_strerror(int code)
         return "SSL bad protocol";
     case SW_ERROR_PACKAGE_LENGTH_TOO_LARGE:
         return "Package length too large";
+    case SW_ERROR_PACKAGE_LENGTH_NOT_FOUND:
+        return "Package length not found";
     case SW_ERROR_DATA_LENGTH_TOO_LARGE:
         return "Data length too large";
     case SW_ERROR_TASK_PACKAGE_TOO_BIG:
         return "Task package too big";
     case SW_ERROR_TASK_DISPATCH_FAIL:
         return "Task dispatch fail";
+    case SW_ERROR_TASK_TIMEOUT:
+        return "Task timeout";
     case SW_ERROR_HTTP2_STREAM_ID_TOO_BIG:
         return "Http2 stream id too big";
     case SW_ERROR_HTTP2_STREAM_NO_HEADER:
@@ -170,6 +174,8 @@ const char* swoole_strerror(int code)
         return "Coroutine out of coroutine";
     case SW_ERROR_CO_HAS_BEEN_BOUND:
         return "Coroutine has been bound";
+    case SW_ERROR_CO_HAS_BEEN_DISCARDED:
+        return "Coroutine has been discarded";
     case SW_ERROR_CO_MUTEX_DOUBLE_UNLOCK:
         return "Coroutine mutex double unlock";
     case SW_ERROR_CO_BLOCK_OBJECT_LOCKED:
