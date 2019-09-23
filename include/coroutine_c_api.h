@@ -35,6 +35,8 @@ extern "C"
  */
 uint8_t swoole_coroutine_is_in();
 long swoole_coroutine_get_current_id();
+void swoole_coroutine_sleep(int sec);
+void swoole_coroutine_usleep(int usec);
 /**
  * file
  */
