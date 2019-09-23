@@ -2,7 +2,7 @@
 <?php
 require __DIR__ . '/functions.php';
 
-$swoole_c = __DIR__ . '/../swoole.c';
+$swoole_c = __DIR__ . '/../swoole.cc';
 $swoole_c_content = file_get_contents($swoole_c);
 $error_h = __DIR__ . '/../include/error.h';
 $error_h_content = file_get_contents($error_h);
