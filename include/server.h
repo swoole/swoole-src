@@ -808,7 +808,7 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
 
 static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData *data)
 {
-    uint32_t key;
+    uint32_t key = 0;
 
     if (serv->dispatch_func)
     {
