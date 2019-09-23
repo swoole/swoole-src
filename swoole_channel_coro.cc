@@ -98,6 +98,7 @@ static void swoole_channel_coro_free_object(zend_object *object)
     Channel *chan = chan_t->chan;
     if (chan)
     {
+        chan->close();
         zval *data;
         while ((data = (zval *) chan->pop_data()))
         {
@@ -213,11 +214,11 @@ static PHP_METHOD(swoole_channel_coro, pop)
         Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zval *data = (zval *) chan->pop(timeout);
-    if (data)
+    zval *zdata = (zval *) chan->pop(timeout);
+    if (zdata)
     {
-        RETVAL_ZVAL(data, 0, 0);
-        efree(data);
+        RETVAL_ZVAL(zdata, 0, 0);
+        efree(zdata);
     }
     else
     {
