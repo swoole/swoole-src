@@ -28,6 +28,7 @@
 
 using swoole::Coroutine;
 using swoole::coroutine::Socket;
+using swoole::coroutine::System;
 
 extern "C"
 {
@@ -635,4 +636,14 @@ struct dirent *swoole_coroutine_readdir(DIR *dirp)
     return (struct dirent *) ev.buf;
 }
 #endif
+}
+
+void swoole_coroutine_sleep(int sec)
+{
+    System::sleep((double) sec);
+}
+
+void swoole_coroutine_usleep(int usec)
+{
+    System::sleep((double) usec / 1024 / 1024);
 }

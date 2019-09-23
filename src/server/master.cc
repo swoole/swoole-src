@@ -733,7 +733,8 @@ void swServer_init(swServer *serv)
     serv->timezone = timezone;
 #else
     struct timezone tz;
-    gettimeofday(nullptr, &tz);
+    struct timeval tv;
+    gettimeofday(&tv, &tz);
     serv->timezone = tz.tz_minuteswest * 60;
 #endif
 
