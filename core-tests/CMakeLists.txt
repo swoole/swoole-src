@@ -4,7 +4,7 @@ project(core_tests)
 set(CMAKE_CXX_STANDARD 11)
 file(GLOB_RECURSE SOURCE_FILES FOLLOW_SYMLINKS src/*.cpp)
 
-add_definitions(-DSW_CO_MT)
+#add_definitions(-DSW_CO_MT)
 add_definitions(-DHAVE_CONFIG_H)
 
 link_directories($ENV{SWOOLE_DIR}/lib)
