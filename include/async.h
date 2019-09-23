@@ -34,18 +34,27 @@ enum swAioFlag
 typedef struct _swAio_event
 {
     int fd;
-    int pipe_fd;
     size_t task_id;
-    double timestamp;
     uint8_t lock;
     uint8_t canceled;
+    /**
+     * input & output
+     */
     uint16_t flags;
     off_t offset;
     size_t nbytes;
     void *buf;
     void *req;
+    /**
+     * output
+     */
     int ret;
     int error;
+    /**
+     * reserved by system
+     */
+    int pipe_fd;
+    double timestamp;
     void *object;
     void (*handler)(struct _swAio_event *event);
     void (*callback)(struct _swAio_event *event);

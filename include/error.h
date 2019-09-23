@@ -85,6 +85,7 @@ enum swErrorCode
      */
     SW_ERROR_AIO_BAD_REQUEST = 4001,
     SW_ERROR_AIO_CANCELED,
+    SW_ERROR_AIO_TIMEOUT,
 
     /**
      * Client & Socket

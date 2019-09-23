@@ -19,10 +19,6 @@
 
 #if USE_ASM_CONTEXT
 
-#ifdef USE_VALGRIND
-#include <valgrind/valgrind.h>
-#endif
-
 using namespace swoole;
 
 #define MAGIC_STRING  "swoole_coroutine#5652a7fb2b38be"

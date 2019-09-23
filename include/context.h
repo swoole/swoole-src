@@ -13,6 +13,7 @@
 
 #if defined(HAVE_VALGRIND) && !defined(HAVE_KQUEUE)
     #define USE_VALGRIND 1
+    #include <valgrind/valgrind.h>
 #endif
 
 #include "swoole.h"

@@ -22,7 +22,7 @@ SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 add_definitions(-DHAVE_CONFIG_H)
 # test
 #add_definitions(-DSW_CO_MT)
-add_definitions(-DSW_USE_THREAD_CONTEXT)
+#add_definitions(-DSW_USE_THREAD_CONTEXT)
 
 INCLUDE_DIRECTORIES(BEFORE ./include ./include/wrapper ./)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)

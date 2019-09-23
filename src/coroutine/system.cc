@@ -22,10 +22,10 @@ using namespace std;
 using namespace swoole;
 using swoole::coroutine::System;
 
-struct aio_task
+struct AsyncTask
 {
     Coroutine *co;
-    swAio_event *event;
+    swAio_event *original_event;
 };
 
 static size_t dns_cache_capacity = 1000;
@@ -54,18 +54,18 @@ void System::clear_dns_cache()
 
 static void aio_onReadFileCompleted(swAio_event *event)
 {
-    aio_task *task = (aio_task *) event->object;
-    task->event->buf = event->buf;
-    task->event->nbytes = event->ret;
-    task->event->error = event->error;
+    AsyncTask *task = (AsyncTask *) event->object;
+    task->original_event->buf = event->buf;
+    task->original_event->nbytes = event->ret;
+    task->original_event->error = event->error;
     ((Coroutine *) task->co)->resume();
 }
 
 static void aio_onWriteFileCompleted(swAio_event *event)
 {
-    aio_task *task = (aio_task *) event->object;
-    task->event->ret = event->ret;
-    task->event->error = event->error;
+    AsyncTask *task = (AsyncTask *) event->object;
+    task->original_event->ret = event->ret;
+    task->original_event->error = event->error;
     ((Coroutine *) task->co)->resume();
 }
 
@@ -75,9 +75,9 @@ static void aio_onDNSCompleted(swAio_event *event)
     {
         return;
     }
-    aio_task *task = (aio_task *) event->object;
-    task->event->ret = event->ret;
-    task->event->error = event->error;
+    AsyncTask *task = (AsyncTask *) event->object;
+    task->original_event->ret = event->ret;
+    task->original_event->error = event->error;
     ((Coroutine *) task->co)->resume();
 }
 
@@ -85,9 +85,9 @@ static void aio_onDNSTimeout(swTimer *timer, swTimer_node *tnode)
 {
     swAio_event *event = (swAio_event *) tnode->data;
     event->canceled = 1;
-    aio_task *task = (aio_task *) event->object;
-    task->event->ret = -1;
-    task->event->error = SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT;
+    AsyncTask *task = (AsyncTask *) event->object;
+    task->original_event->ret = -1;
+    task->original_event->error = SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT;
     ((Coroutine *) task->co)->resume();
 }
 
@@ -109,13 +109,13 @@ int System::sleep(double sec)
 
 swString* System::read_file(const char *file, bool lock)
 {
-    aio_task task;
+    AsyncTask task;
 
     swAio_event ev;
     bzero(&ev, sizeof(swAio_event));
 
     task.co = Coroutine::get_current_safe();
-    task.event = &ev;
+    task.original_event = &ev;
 
     ev.lock = lock ? 1 : 0;
     ev.object = (void*) &task;
@@ -149,13 +149,13 @@ swString* System::read_file(const char *file, bool lock)
 
 ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock, int flags)
 {
-    aio_task task;
+    AsyncTask task;
 
     swAio_event ev;
     bzero(&ev, sizeof(swAio_event));
 
     task.co = Coroutine::get_current_safe();
-    task.event = &ev;
+    task.original_event = &ev;
 
     ev.lock = lock ? 1 : 0;
     ev.buf = buf;
@@ -200,7 +200,7 @@ string System::gethostbyname(const string &hostname, int domain, double timeout)
     }
 
     swAio_event ev;
-    aio_task task;
+    AsyncTask task;
 
     bzero(&ev, sizeof(swAio_event));
     if (hostname.size() < SW_IP_MAX_LENGTH)
@@ -213,7 +213,7 @@ string System::gethostbyname(const string &hostname, int domain, double timeout)
     }
 
     task.co = Coroutine::get_current_safe();
-    task.event = &ev;
+    task.original_event = &ev;
 
     ev.buf = sw_malloc(ev.nbytes);
     if (!ev.buf)
@@ -283,10 +283,10 @@ vector<string> System::getaddrinfo(const string &hostname, int family, int sockt
     swRequest_getaddrinfo req;
     bzero(&req, sizeof(swRequest_getaddrinfo));
 
-    aio_task task;
+    AsyncTask task;
 
     task.co = Coroutine::get_current_safe();
-    task.event = &ev;
+    task.original_event = &ev;
 
     ev.object = &task;
     ev.handler = swAio_handler_getaddrinfo;
@@ -532,4 +532,61 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
     task.co->yield();
 
     return task.success;
+}
+
+static void async_task_completed(swAio_event *event)
+{
+    if (event->canceled)
+    {
+        return;
+    }
+    AsyncTask *task = (AsyncTask *) event->object;
+    task->original_event->error = event->error;
+    task->original_event->ret = event->ret;
+    task->co->resume();
+}
+
+static void async_task_timeout(swTimer *timer, swTimer_node *tnode)
+{
+    swAio_event *event = (swAio_event *) tnode->data;
+    event->canceled = 1;
+    AsyncTask *task = (AsyncTask *) event->object;
+    task->original_event->error = SW_ERROR_AIO_TIMEOUT;
+    task->co->resume();
+}
+
+bool coroutine::async(swAio_handler handler, swAio_event &event, double timeout)
+{
+    AsyncTask task;
+    swTimer_node *timer = nullptr;
+
+    task.co = Coroutine::get_current_safe();
+    task.original_event = &event;
+
+    event.object = (void*) &task;
+    event.handler = handler;
+    event.callback = async_task_completed;
+
+    swAio_event *_ev = swAio_dispatch2(&event);
+    if (_ev == nullptr)
+    {
+        return false;
+    }
+    if (timeout > 0)
+    {
+        timer = swoole_timer_add((long) (timeout * 1000), SW_FALSE, async_task_timeout, _ev);
+    }
+    task.co->yield();
+    if (event.error == SW_ERROR_AIO_TIMEOUT)
+    {
+        return false;
+    }
+    else
+    {
+        if (timer)
+        {
+            swoole_timer_del(timer);
+        }
+        return true;
+    }
 }

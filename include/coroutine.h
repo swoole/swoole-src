@@ -244,6 +244,12 @@ protected:
 
     void close();
 };
+//-------------------------------------------------------------------------------
+namespace coroutine
+{
+bool async(swAio_handler handler, swAio_event &event, double timeout = -1);
+}
+//-------------------------------------------------------------------------------
 }
 
 /**
