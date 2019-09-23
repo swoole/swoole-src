@@ -136,11 +136,13 @@ class Constant
     const OPTION_TASK_IPC_MODE = 'task_ipc_mode';
     const OPTION_TASK_TMPDIR = 'task_tmpdir';
     const OPTION_TASK_MAX_REQUEST = 'task_max_request';
+    const OPTION_TASK_MAX_REQUEST_GRACE = 'task_max_request_grace';
     const OPTION_MAX_CONNECTION = 'max_connection';
     const OPTION_MAX_CONN = 'max_conn';
     const OPTION_HEARTBEAT_CHECK_INTERVAL = 'heartbeat_check_interval';
     const OPTION_HEARTBEAT_IDLE_TIME = 'heartbeat_idle_time';
     const OPTION_MAX_REQUEST = 'max_request';
+    const OPTION_MAX_REQUEST_GRACE = 'max_request_grace';
     const OPTION_RELOAD_ASYNC = 'reload_async';
     const OPTION_OPEN_CPU_AFFINITY = 'open_cpu_affinity';
     const OPTION_CPU_AFFINITY_IGNORE = 'cpu_affinity_ignore';

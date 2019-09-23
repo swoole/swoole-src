@@ -299,7 +299,7 @@ static void coro_interrupt_function(zend_execute_data *execute_data)
     php_coro_task *task = PHPCoroutine::get_task();
     if (task && task->co && PHPCoroutine::is_schedulable(task))
     {
-        SwooleTG.reactor->defer(SwooleTG.reactor, coro_interrupt_resume, (void *) task->co);
+        swoole_event_defer(coro_interrupt_resume, (void *) task->co);
         task->co->yield();
     }
     if (orig_interrupt_function)

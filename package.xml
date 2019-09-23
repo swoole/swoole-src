@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-08-30</date>
+    <date>2019-09-18</date>
     <time>21:00:00</time>
     <version>
-        <release>4.4.5</release>
+        <release>4.4.6</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -56,22 +56,24 @@
     <notes>
         Enhancement
         ---
-        + Better Reactor (@matyhtf)
-        + Better AIO (@twose)
-        + Better Redis (3608f4c2) (@twose)
-        + Handle Empty upload files (#2779) (@sshymko)
-        + Add File uploads array parser (#2773) (@sshymko)
-        + Support PURGE (#2754) (#2764) (@sshymko)
-        + Allow HTTP methods like GETX POSTX PUTX etc (#2772) (@doubaokun)
-        + Reduce the default max_wait_time to 3 (ed5c838) (@twose)
+        + Support max_request_grace (#2784) (#2808) (#2809) (@sshymko)
+        + Add SameSite Cookie (@2815) (@Yurunsoft)
+        + Support curl_multi_getcontent, CURLOPT_AUTOREFERER for curl hook, add ignore options (#2817) (@2818) (@2819) (@limingxinleo)
+        + Support CURLOPT_SSLVERSION and CURLINFO_HEADER_OUT (f2b4c93) (@matyhtf)
+        + AIO thread safe (@matyhtf)
+        + Optimize numeric type conversion (aa20913) (@twose)
+        + Compatibly with diseval extension for library (8b7eb16) (@GXhua)
 
         Fixed
         ---
-        * Fix AIO memory error (@twose)
-        * Fix compilation without zlib (f5a03366) (@twose)
-        * Fix timeout param of stream (c8275989) (@twose)
-        * Fix missing http headers (#2789) (@doubaokun)
-        * Fix client type (#2771) (@doubaokun)
+        * Fixed missing http headers (#2786) (@doubaokun)
+        * Defensive programming for signal callback (@twose)
+        * Fixed getProcess memory error (#2801) (@matyhtf)
+        * Fixed compilation on MacOS (@matyhtf)
+        * Fixed Coroutine\System methods (97c1444) (@twose)
+        * Fixed AIO thread task stuck (@matyhtf)
+        * Fixed HTTP2 HEADER_TABLE_SIZE (@twose)
+        * Fixed spurious waking of socket (d0b659a) (@matyhtf)
     </notes>
     <contents>
         <dir name="/">
@@ -432,6 +434,7 @@
             <file role="doc" name="examples/ssl/websocket_server.php" />
             <file role="doc" name="examples/swoole_http_client.php" />
             <file role="doc" name="examples/table/array.php" />
+            <file role="doc" name="examples/table/deadlock.php" />
             <file role="doc" name="examples/table/iterator.php" />
             <file role="doc" name="examples/table/server.php" />
             <file role="doc" name="examples/table/set.php" />
@@ -505,6 +508,7 @@
             <file role="src" name="include/socks5.h" />
             <file role="src" name="include/swoole.h" />
             <file role="src" name="include/swoole_api.h" />
+            <file role="src" name="include/swoole_config.h" />
             <file role="src" name="include/swoole_cxx.h" />
             <file role="src" name="include/table.h" />
             <file role="src" name="include/uthash.h" />
@@ -512,6 +516,7 @@
             <file role="src" name="include/wrapper/base.hpp" />
             <file role="src" name="include/wrapper/client.hpp" />
             <file role="src" name="include/wrapper/server.hpp" />
+            <file role="doc" name="library/README.md" />
             <file role="src" name="library/alias.php" />
             <file role="src" name="library/alias_ns.php" />
             <file role="src" name="library/config.inc" />
@@ -624,7 +629,6 @@
             <file role="src" name="swoole_channel_coro.cc" />
             <file role="src" name="swoole_client.cc" />
             <file role="src" name="swoole_client_coro.cc" />
-            <file role="src" name="swoole_config.h" />
             <file role="src" name="swoole_coroutine.cc" />
             <file role="src" name="swoole_coroutine.h" />
             <file role="src" name="swoole_coroutine_scheduler.cc" />
@@ -1120,6 +1124,7 @@
             <file role="test" name="tests/swoole_http_server/co_switching.phpt" />
             <file role="test" name="tests/swoole_http_server/compression.phpt" />
             <file role="test" name="tests/swoole_http_server/cookie_delete.phpt" />
+            <file role="test" name="tests/swoole_http_server/cookie_samesite.phpt" />
             <file role="test" name="tests/swoole_http_server/cookie_vs_rawcookie.phpt" />
             <file role="test" name="tests/swoole_http_server/cookies.phpt" />
             <file role="test" name="tests/swoole_http_server/data_parse.phpt" />
@@ -1187,6 +1192,8 @@
             <file role="test" name="tests/swoole_library/curl/basic/21.phpt" />
             <file role="test" name="tests/swoole_library/curl/basic/22.phpt" />
             <file role="test" name="tests/swoole_library/curl/basic/23.phpt" />
+            <file role="test" name="tests/swoole_library/curl/basic/24.phpt" />
+            <file role="test" name="tests/swoole_library/curl/basic/25.phpt" />
             <file role="test" name="tests/swoole_library/curl/basic/3.phpt" />
             <file role="test" name="tests/swoole_library/curl/basic/4.phpt" />
             <file role="test" name="tests/swoole_library/curl/basic/5.phpt" />
@@ -1197,6 +1204,11 @@
             <file role="test" name="tests/swoole_library/curl/setopt/3.phpt" />
             <file role="test" name="tests/swoole_library/curl/setopt/4.phpt" />
             <file role="test" name="tests/swoole_library/curl/setopt/5_skip.phpt" />
+            <file role="test" name="tests/swoole_library/curl/setopt/filetime_1.phpt" />
+            <file role="test" name="tests/swoole_library/curl/setopt/filetime_2.phpt" />
+            <file role="test" name="tests/swoole_library/curl/setopt/header_out.phpt" />
+            <file role="test" name="tests/swoole_library/curl/setopt/nobody.phpt" />
+            <file role="test" name="tests/swoole_library/curl/ssl/version.phpt" />
             <file role="test" name="tests/swoole_library/curl/template" />
             <file role="test" name="tests/swoole_library/curl/upload/1.phpt" />
             <file role="test" name="tests/swoole_library/curl/upload/curl_testdata1.txt" />
@@ -1287,6 +1299,7 @@
             <file role="test" name="tests/swoole_process_pool/bug_2652.phpt" />
             <file role="test" name="tests/swoole_process_pool/enable_coroutine.phpt" />
             <file role="test" name="tests/swoole_process_pool/enable_coroutine2.phpt" />
+            <file role="test" name="tests/swoole_process_pool/export_socket.phpt" />
             <file role="test" name="tests/swoole_process_pool/getprocess_1.phpt" />
             <file role="test" name="tests/swoole_process_pool/getprocess_2.phpt" />
             <file role="test" name="tests/swoole_process_pool/master_pid.phpt" />
@@ -1457,6 +1470,9 @@
             <file role="test" name="tests/swoole_server/length_protocol.phpt" />
             <file role="test" name="tests/swoole_server/listen_fail.phpt" />
             <file role="test" name="tests/swoole_server/max_request.phpt" />
+            <file role="test" name="tests/swoole_server/max_request_grace_disabled.phpt" />
+            <file role="test" name="tests/swoole_server/max_request_grace_enabled.phpt" />
+            <file role="test" name="tests/swoole_server/max_request_threshold.phpt" />
             <file role="test" name="tests/swoole_server/pid_file.phpt" />
             <file role="test" name="tests/swoole_server/protect.phpt" />
             <file role="test" name="tests/swoole_server/protect_false.phpt" />
@@ -1581,6 +1597,8 @@
             <file role="test" name="tests/swoole_timer/master_base.phpt" />
             <file role="test" name="tests/swoole_timer/next_round.phpt" />
             <file role="test" name="tests/swoole_timer/not_exist.phpt" />
+            <file role="test" name="tests/swoole_timer/reinit_1.phpt" />
+            <file role="test" name="tests/swoole_timer/reinit_2.phpt" />
             <file role="test" name="tests/swoole_timer/stats.phpt" />
             <file role="test" name="tests/swoole_timer/swoole_timer_after.phpt" />
             <file role="test" name="tests/swoole_timer/task_worker.phpt" />

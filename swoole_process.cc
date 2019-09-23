@@ -524,7 +524,7 @@ static PHP_METHOD(swoole_process, signal)
         {
             swSignal_add(signo, NULL);
             signal_fci_caches[signo] = NULL;
-            SwooleTG.reactor->defer(SwooleTG.reactor, sw_zend_fci_cache_free, fci_cache);
+            swoole_event_defer(sw_zend_fci_cache_free, fci_cache);
             SwooleTG.reactor->signal_listener_num--;
             RETURN_TRUE;
         }
@@ -560,7 +560,7 @@ static PHP_METHOD(swoole_process, signal)
     if (signal_fci_caches[signo])
     {
         // free the old fci_cache
-        SwooleTG.reactor->defer(SwooleTG.reactor, sw_zend_fci_cache_free, signal_fci_caches[signo]);
+        swoole_event_defer(sw_zend_fci_cache_free, signal_fci_caches[signo]);
     }
     else
     {

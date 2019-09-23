@@ -1,31 +1,30 @@
 #pragma once
 
-#ifdef SW_NO_USE_ASM_CONTEXT
-#ifdef HAVE_BOOST_CONTEXT
-#define USE_BOOST_CONTEXT 1
-#include <boost/context/all.hpp>
+#ifdef SW_USE_THREAD_CONTEXT
+    #include <thread>
+    #include <mutex>
+#elif !defined(SW_USE_ASM_CONTEXT)
+    #define USE_UCONTEXT 1
+    #include <ucontext.h>
 #else
-#define USE_UCONTEXT 1
-#include <ucontext.h>
-#endif
-#else
-#include "asm_context.h"
+    #define USE_ASM_CONTEXT 1
+    #include "asm_context.h"
 #endif
 
 #if defined(HAVE_VALGRIND) && !defined(HAVE_KQUEUE)
-#define USE_VALGRIND 1
+    #define USE_VALGRIND 1
 #endif
 
 #include "swoole.h"
 #include "error.h"
 
 #if __linux__
-#include <sys/mman.h>
+    #include <sys/mman.h>
 #endif
 
 #ifdef USE_UCONTEXT
     typedef ucontext_t coroutine_context_t;
-#else
+#elif defined(USE_ASM_CONTEXT)
     typedef fcontext_t coroutine_context_t;
 #endif
 
@@ -93,7 +92,7 @@ public:
     ~Context();
     bool swap_in();
     bool swap_out();
-#if !defined(SW_NO_USE_ASM_CONTEXT) && defined(SW_LOG_TRACE_OPEN)
+#if defined(SW_USE_ASM_CONTEXT) && defined(SW_LOG_TRACE_OPEN)
     ssize_t get_stack_usage();
 #endif
     inline bool is_end()
@@ -103,11 +102,17 @@ public:
     static void context_func(void* arg);
 
 protected:
+    coroutine_func_t fn_;
+#ifdef SW_USE_THREAD_CONTEXT
+    std::thread thread_;
+    std::mutex lock_;
+    std::mutex *swap_lock_;
+#else
     coroutine_context_t ctx_;
     coroutine_context_t swap_ctx_;
-    coroutine_func_t fn_;
     char* stack_;
     uint32_t stack_size_;
+#endif
 #ifdef SW_CONTEXT_PROTECT_STACK_PAGE
     uint32_t protect_page_;
 #endif

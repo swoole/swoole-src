@@ -1,7 +1,7 @@
 PROJECT(libswoole)
 
 ENABLE_LANGUAGE(ASM)
-SET(SWOOLE_VERSION 4.4.5)
+SET(SWOOLE_VERSION 4.4.6)
 SET(SWOOLE_CLFLAGS pthread rt dl ssl crypt crypto)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -19,8 +19,10 @@ SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 #message(STATUS "source=${SRC_LIST}")
 #message(STATUS "header=${HEAD_FILES}")
 
-add_definitions(-DSW_CO_MT)
 add_definitions(-DHAVE_CONFIG_H)
+# test
+#add_definitions(-DSW_CO_MT)
+add_definitions(-DSW_USE_THREAD_CONTEXT)
 
 INCLUDE_DIRECTORIES(BEFORE ./include ./include/wrapper ./)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
@@ -48,6 +50,12 @@ set(TEST_SRC_LIST examples/cpp/mt_co.cc)
 add_executable(mt_co ${TEST_SRC_LIST})
 add_dependencies(mt_co shared)
 target_link_libraries(mt_co ${SWOOLE_CLFLAGS} swoole)
+
+#co
+set(TEST_SRC_LIST examples/cpp/co.cc)
+add_executable(co ${TEST_SRC_LIST})
+add_dependencies(co shared)
+target_link_libraries(co ${SWOOLE_CLFLAGS} swoole)
 
 #install
 INSTALL(CODE "MESSAGE(\"Are you run command using root user?\")")
