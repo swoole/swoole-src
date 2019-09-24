@@ -334,7 +334,7 @@ static int process_send_packet(swServer *serv, swPipeBuffer *buf, swSendData *re
 #ifdef __linux__
         if (retval < 0 && errno == ENOBUFS)
         {
-            max_length = SW_BUFFER_SIZE_STD;
+            max_length = SW_IPC_BUFFER_SIZE;
             goto _ipc_use_chunk;
         }
 #endif
@@ -367,7 +367,7 @@ static int process_send_packet(swServer *serv, swPipeBuffer *buf, swSendData *re
 #ifdef __linux__
             if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD)
             {
-                max_length = SW_BUFFER_SIZE_STD;
+                max_length = SW_IPC_BUFFER_SIZE;
                 continue;
             }
 #endif
