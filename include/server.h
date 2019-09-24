@@ -104,7 +104,7 @@ typedef struct _swReactorThread
     swReactor reactor;
     int notify_pipe;
     uint32_t pipe_num;
-    swString **buffers;
+    void *send_buffers;
 } swReactorThread;
 
 typedef struct _swListenPort

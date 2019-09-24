@@ -19,6 +19,10 @@
 #include "client.h"
 #include "websocket.h"
 
+#include <unordered_map>
+
+using std::unordered_map;
+
 static int swReactorThread_loop(swThreadParam *param);
 static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t reactor_id);
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
@@ -407,15 +411,25 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
             if (resp->info.flags & SW_EVENT_DATA_CHUNK)
             {
                 int worker_id = resp->info.server_fd;
-                if (thread->buffers[worker_id] == nullptr)
+                unordered_map<int, swString *> *_map = static_cast<unordered_map<int, swString *>*>(thread->send_buffers);
+                int key = (ev->fd << 16) + worker_id;
+                auto it = _map->find(key);
+                if (it == _map->end())
                 {
-                    thread->buffers[worker_id] = swString_new(SW_BUFFER_SIZE_BIG);
+                    package = swString_new(SW_BUFFER_SIZE_BIG);
+                    if (package == nullptr)
+                    {
+                        swSysWarn("get buffer(worker-%d) failed", worker_id);
+                        return SW_OK;
+                    }
+                    else
+                    {
+                        _map->emplace(std::make_pair(key, package));
+                    }
                 }
-                package = thread->buffers[worker_id];
-                if (!package)
+                else
                 {
-                    swSysWarn("get buffer(worker-%d) failed", worker_id);
-                    return SW_OK;
+                    package = it->second;
                 }
                 //merge data to package buffer
                 swString_append_ptr(package, resp->data, resp->info.len);
@@ -429,7 +443,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
                 _send.info.len = package->length;
                 swServer_master_send(serv, &_send);
                 swString_free(package);
-                thread->buffers[worker_id] = nullptr;
+                _map->erase(key);
             }
             else if (resp->info.flags & SW_EVENT_DATA_EXIT)
             {
@@ -1023,12 +1037,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);
 
-    thread->buffers = (swString **) sw_calloc(serv->worker_num + serv->task_worker_num + serv->user_worker_num, sizeof(swString *));
-    if (thread->buffers == nullptr)
-    {
-        swSysError("malloc for thread->buffers failed.");
-        return SW_ERR;
-    }
+    thread->send_buffers = new std::unordered_map<int, swString *>;
 
     int pipe_fd;
     uint32_t i = 0;
@@ -1168,6 +1177,13 @@ static int swReactorThread_loop(swThreadParam *param)
     reactor->free(reactor);
 
     SwooleTG.reactor = nullptr;
+
+    unordered_map<int, swString *> *_map = static_cast<unordered_map<int, swString *>*>(thread->send_buffers);
+    for (auto it = _map->begin(); it != _map->end(); it++)
+    {
+        swString_free(it->second);
+    }
+    delete _map;
 
     swString_free(SwooleTG.buffer_stack);
     pthread_exit(0);
