@@ -832,6 +832,23 @@ ssize_t Socket::peek(void *__buf, size_t __n)
     return retval;
 }
 
+bool Socket::poll(enum swEvent_type type)
+{
+    if (sw_unlikely(!is_available(type)))
+    {
+        return -1;
+    }
+    timer_controller timer(&read_timer, read_timeout, this, timer_callback);
+    if (timer.start() && wait_event(type))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
 ssize_t Socket::recv(void *__buf, size_t __n)
 {
     if (sw_unlikely(!is_available(SW_EVENT_READ)))

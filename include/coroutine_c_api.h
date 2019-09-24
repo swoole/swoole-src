@@ -65,6 +65,8 @@ ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags);
 int swoole_coroutine_close(int fd);
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout);
+int swoole_coroutine_socket_set_timeout(int fd, int which, double timeout);
+int swoole_coroutine_socket_wait_event(int fd, int event, double timeout);
 
 /**
  * wait
