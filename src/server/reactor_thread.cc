@@ -1231,7 +1231,7 @@ int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, char *data, u
 
 void swReactorThread_join(swServer *serv)
 {
-    if (!serv->single_thread)
+    if (serv->single_thread)
     {
         return;
     }
