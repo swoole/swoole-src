@@ -960,6 +960,8 @@ typedef struct _swDataHead
 #endif
 } swDataHead;
 
+void swDataHead_dump(const swDataHead *data);
+
 typedef struct _swEvent
 {
     int fd;

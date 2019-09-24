@@ -1452,3 +1452,16 @@ static void swoole_fatal_error(int code, const char *format, ...)
     SwooleG.write_log(SW_LOG_ERROR, sw_error, retval);
     exit(1);
 }
+
+void swDataHead_dump(const swDataHead *data)
+{
+    printf("swDataHead[%p]\n"
+            "{\n"
+            "    int fd = %d;\n"
+            "    uint32_t len = %d;\n"
+            "    int16_t reactor_id = %d;\n"
+            "    uint8_t type = %d;\n"
+            "    uint8_t flags = %d;\n"
+            "    uint16_t server_fd = %d;\n"
+            "}\n", data, data->fd, data->len, data->reactor_id, data->type, data->flags, data->server_fd);
+}
