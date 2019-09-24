@@ -26,7 +26,7 @@ using std::unordered_map;
 static int swReactorThread_loop(swThreadParam *param);
 static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t reactor_id);
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
-static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
+static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onRead(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event);
@@ -391,7 +391,7 @@ static void swReactorThread_shutdown(swReactor *reactor)
 /**
  * receive data from worker process pipe
  */
-static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
+static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
 {
     swSendData _send;
 
@@ -999,7 +999,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
 
     reactor->default_error_handler = swReactorThread_onClose;
 
-    swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorThread_onPipeReceive);
+    swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorThread_onPipeRead);
     swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactorThread_onPipeWrite);
 
     //listen UDP
