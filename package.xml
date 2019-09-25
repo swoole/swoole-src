@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-09-18</date>
-    <time>21:00:00</time>
+    <date>2019-09-25</date>
+    <time>16:00:00</time>
     <version>
-        <release>4.4.6</release>
+        <release>4.4.7</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -56,24 +56,15 @@
     <notes>
         Enhancement
         ---
-        + Support max_request_grace (#2784) (#2808) (#2809) (@sshymko)
-        + Add SameSite Cookie (@2815) (@Yurunsoft)
-        + Support curl_multi_getcontent, CURLOPT_AUTOREFERER for curl hook, add ignore options (#2817) (@2818) (@2819) (@limingxinleo)
-        + Support CURLOPT_SSLVERSION and CURLINFO_HEADER_OUT (f2b4c93) (@matyhtf)
-        + AIO thread safe (@matyhtf)
-        + Optimize numeric type conversion (aa20913) (@twose)
-        + Compatibly with diseval extension for library (8b7eb16) (@GXhua)
+        + Support thread context (9214411c) (@matyhtf)
+        + Generate a warning if the channel has producers or consumers when the program exits (b9f37d9c) (@twose)
 
         Fixed
         ---
-        * Fixed missing http headers (#2786) (@doubaokun)
-        * Defensive programming for signal callback (@twose)
-        * Fixed getProcess memory error (#2801) (@matyhtf)
-        * Fixed compilation on MacOS (@matyhtf)
-        * Fixed Coroutine\System methods (97c1444) (@twose)
-        * Fixed AIO thread task stuck (@matyhtf)
-        * Fixed HTTP2 HEADER_TABLE_SIZE (@twose)
-        * Fixed spurious waking of socket (d0b659a) (@matyhtf)
+        * Fixed reactor send bug (a1dc95f5) (@matyhtf)
+        * Fixed event init bug (907c84b3) (@matyhtf)
+        * Fixed crash on Cygwin (cfb74793) (@matyhtf)
+        * Fixed wrong length of string (c4f97993) (@twose)
     </notes>
     <contents>
         <dir name="/">
@@ -130,6 +121,7 @@
             <file role="src" name="core-tests/samples/s1.cc" />
             <file role="src" name="core-tests/server/tcp.php" />
             <file role="src" name="core-tests/src/client.cpp" />
+            <file role="src" name="core-tests/src/coroutine/async.cpp" />
             <file role="src" name="core-tests/src/coroutine/base.cpp" />
             <file role="src" name="core-tests/src/coroutine/channel.cpp" />
             <file role="src" name="core-tests/src/coroutine/gethostbyname.cpp" />
@@ -270,6 +262,7 @@
             <file role="doc" name="examples/coroutine/waitgroup.php" />
             <file role="doc" name="examples/coroutine/websocket/client.php" />
             <file role="doc" name="examples/coroutine/websocket/server.php" />
+            <file role="doc" name="examples/cpp/co.cc" />
             <file role="doc" name="examples/cpp/mt_co.cc" />
             <file role="doc" name="examples/cpp/test_server.c" />
             <file role="doc" name="examples/db_pool.php" />
@@ -560,6 +553,7 @@
             <file role="src" name="src/coroutine/hook.cc" />
             <file role="src" name="src/coroutine/socket.cc" />
             <file role="src" name="src/coroutine/system.cc" />
+            <file role="src" name="src/coroutine/thread_context.cc" />
             <file role="src" name="src/coroutine/ucontext.cc" />
             <file role="src" name="src/lock/atomic.c" />
             <file role="src" name="src/lock/cond.c" />

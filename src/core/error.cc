@@ -122,6 +122,8 @@ const char* swoole_strerror(int code)
         return "Aio bad request";
     case SW_ERROR_AIO_CANCELED:
         return "Aio canceled";
+    case SW_ERROR_AIO_TIMEOUT:
+        return "Aio timeout";
     case SW_ERROR_CLIENT_NO_CONNECTION:
         return "Client no connection";
     case SW_ERROR_SOCKET_CLOSED:
