@@ -1554,7 +1554,7 @@ ssize_t Socket::recv_packet(double timeout)
         }
         else if (buf_len > protocol.package_max_length)
         {
-            set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, cpp_string::format("packet[length=%zd] is too big", buf_len).c_str());
+            set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "remote packet is too big");
             return 0;
         }
 
