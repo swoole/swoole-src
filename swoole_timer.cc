@@ -353,7 +353,7 @@ static PHP_FUNCTION(swoole_timer_list)
         return_value,
         swoole_timer_iterator_ce,
         &swoole_timer_iterator_ce->constructor,
-        (const char *) "__construct",
+        "__construct",
         NULL,
         &zlist
     );
