@@ -815,21 +815,21 @@ bool http2_client::send_setting()
 
     char *p = frame + SW_HTTP2_FRAME_HEADER_SIZE;
     /**
+     * HEADER_TABLE_SIZE
+     */
+    id = htons(SW_HTTP2_SETTING_HEADER_TABLE_SIZE);
+    memcpy(p, &id, sizeof(id));
+    p += 2;
+    value = htonl(settings->header_table_size);
+    memcpy(p, &value, sizeof(value));
+    p += 4;
+    /**
      * MAX_CONCURRENT_STREAMS
      */
     id = htons(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
     memcpy(p, &id, sizeof(id));
     p += 2;
     value = htonl(settings->max_concurrent_streams);
-    memcpy(p, &value, sizeof(value));
-    p += 4;
-    /**
-     * MAX_FRAME_SIZE
-     */
-    id = htons(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE);
-    memcpy(p, &id, sizeof(id));
-    p += 2;
-    value = htonl(settings->max_frame_size);
     memcpy(p, &value, sizeof(value));
     p += 4;
     /**
