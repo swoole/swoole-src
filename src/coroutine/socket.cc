@@ -1497,7 +1497,7 @@ ssize_t Socket::recv_packet(double timeout)
 
     if (sw_unlikely(!timer.start()))
     {
-        return -1;
+        return 0;
     }
     get_read_buffer();
 
@@ -1539,7 +1539,8 @@ ssize_t Socket::recv_packet(double timeout)
         //error package
         if (buf_len < 0)
         {
-            return -1;
+            set_err(SW_ERROR_PACKAGE_LENGTH_NOT_FOUND, "package length is wrong (negative)");
+            return 0;
         }
         else if (buf_len == 0)
         {
@@ -1555,7 +1556,7 @@ ssize_t Socket::recv_packet(double timeout)
         else if (buf_len > protocol.package_max_length)
         {
             set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "remote packet is too big");
-            return -1;
+            return 0;
         }
 
         if ((size_t) buf_len == read_buffer->length)
