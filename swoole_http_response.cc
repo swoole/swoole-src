@@ -985,11 +985,7 @@ static PHP_METHOD(swoole_http_response, status)
     }
 
     ctx->response.status = http_status;
-    if (reason_len > 0)
-    {
-        ctx->response.reason = (char *) emalloc(reason_len + 1);
-        strncpy(ctx->response.reason, reason, reason_len)[reason_len] = '\0';
-    }
+    ctx->response.reason = reason_len > 0 ? estrndup(reason, reason_len) : NULL;
     RETURN_TRUE;
 }
 
