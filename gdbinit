@@ -85,7 +85,7 @@ define co_bt
     if swoole_coro_count() == 0
         printf "no coroutine is running\n"
     end
-    ____executor_globals
+    ____sw_executor_globals
     if $argc > 0
         set $cid = (int)$arg0
     else
@@ -105,7 +105,7 @@ define __co_bt
     if $co
         set $task = (php_coro_task *)$co->task
         if $task
-            dump_bt $task->execute_data
+            sw_dump_bt $task->execute_data
         end
     else
         printf "coroutines %d not found\n", $cid
@@ -121,7 +121,7 @@ define co_status
     printf "\t peak_coro_num: %d\n",  'swoole::Coroutine::peak_num'
 end
 
-define ____executor_globals
+define ____sw_executor_globals
     if basic_functions_module.zts
         if !$tsrm_ls
             set $tsrm_ls = ts_resource_ex(0, 0)
@@ -132,7 +132,7 @@ define ____executor_globals
     end
 end
 
-define ____print_str
+define ____sw_print_str
     set $tmp = 0
     set $str = $arg0
     if $argc > 2
@@ -156,7 +156,7 @@ define ____print_str
     printf "\""
 end
 
-define dump_bt
+define sw_dump_bt
     set $ex = $arg0
     while $ex
         printf "[%p] ", $ex
@@ -206,7 +206,7 @@ define dump_bt
                     printf "%f", $zvalue->value.dval
                 end
                 if $type == 6
-                    ____print_str $zvalue->value.str->val $zvalue->value.str->len
+                    ____sw_print_str $zvalue->value.str->val $zvalue->value.str->len
                 end
                 if $type == 7
                     printf "array(%d)[%p]", $zvalue->value.arr->nNumOfElements, $zvalue
