@@ -455,7 +455,6 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                 _send.data = resp->data;
                 swServer_master_send(serv, &_send);
             }
-
         }
         else if (errno == EAGAIN)
         {

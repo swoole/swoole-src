@@ -96,6 +96,7 @@ static PHP_METHOD(swoole_http_response, create);
 static PHP_METHOD(swoole_http_response, upgrade);
 static PHP_METHOD(swoole_http_response, push);
 static PHP_METHOD(swoole_http_response, recv);
+static PHP_METHOD(swoole_http_response, close);
 #ifdef SW_USE_HTTP2
 static PHP_METHOD(swoole_http_response, trailer);
 static PHP_METHOD(swoole_http_response, ping);
@@ -184,6 +185,7 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, upgrade, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, push, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, recv, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, close, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -1097,6 +1099,17 @@ static PHP_METHOD(swoole_http_response, push)
         RETURN_FALSE;
     }
     RETURN_BOOL(ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length));
+}
+
+static PHP_METHOD(swoole_http_response, close)
+{
+    http_context *ctx = swoole_http_context_get(ZEND_THIS, 0);
+    if (UNEXPECTED(!ctx) || !ctx->co_socket || !ctx->upgrade)
+    {
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
+        RETURN_FALSE;
+    }
+    RETURN_BOOL(ctx->close(ctx));
 }
 
 static PHP_METHOD(swoole_http_response, recv)
