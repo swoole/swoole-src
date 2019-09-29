@@ -595,6 +595,18 @@ bool http_client::connect()
 {
     if (!socket)
     {
+        if (!body)
+        {
+            body = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
+            if (!body)
+            {
+                zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), ENOMEM);
+                zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), swoole_strerror(ENOMEM));
+                zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
+                return false;
+            }
+        }
+
         php_swoole_check_reactor();
         socket = new Socket(socket_type);
         if (UNEXPECTED(socket->get_fd() < 0))
@@ -602,6 +614,7 @@ bool http_client::connect()
             php_swoole_sys_error(E_WARNING, "new Socket() failed");
             zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), errno);
             zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), swoole_strerror(errno));
+            zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
             delete socket;
             socket = nullptr;
             return false;
@@ -624,15 +637,6 @@ bool http_client::connect()
         }
         reconnected_count = 0;
         zend_update_property_bool(swoole_http_client_coro_ce, zobject, ZEND_STRL("connected"), 1);
-        if (!body)
-        {
-            body = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
-            if (!body)
-            {
-                php_swoole_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
-                return false;
-            }
-        }
     }
     return true;
 }
@@ -700,6 +704,9 @@ bool http_client::send()
         zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), "");
         zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("statusCode"), 0);
     }
+
+    /* another coroutine is connecting */
+    socket->check_bound_co(SW_EVENT_WRITE);
 
     //clear errno
     SwooleG.error = 0;

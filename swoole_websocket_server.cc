@@ -381,7 +381,7 @@ void php_swoole_websocket_server_minit(int module_number)
     SW_SET_CLASS_CLONEABLE(swoole_websocket_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_websocket_server, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_websocket_server);
-    zend_declare_property_null(swoole_http_server_ce, ZEND_STRL("onHandshake"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_websocket_server_ce, ZEND_STRL("onHandshake"), ZEND_ACC_PRIVATE);
 
     SW_INIT_CLASS_ENTRY(swoole_websocket_frame, "Swoole\\WebSocket\\Frame", "swoole_websocket_frame", NULL, swoole_websocket_frame_methods);
     zend_declare_property_long(swoole_websocket_frame_ce,   ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
