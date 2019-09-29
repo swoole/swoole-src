@@ -168,7 +168,7 @@ enum php_swoole_server_callback_type
     SW_SERVER_CB_onWorkerError,    //manager
     SW_SERVER_CB_onManagerStart,   //manager
     SW_SERVER_CB_onManagerStop,    //manager
-    SW_SERVER_CB_onPipeMessage,    //worker(evnet & task)
+    SW_SERVER_CB_onPipeMessage,    //worker(event & task)
 };
 //--------------------------------------------------------
 enum php_swoole_server_port_callback_type
