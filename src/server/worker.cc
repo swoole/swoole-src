@@ -128,7 +128,6 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
 {
     swSocketAddress client_addr;
     int fd =  swSocket_accept(event->fd, &client_addr);
-
     if (fd < 0)
     {
         switch (errno)
@@ -143,17 +142,12 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
     }
 
     swSocket *conn = swReactor_get(reactor, fd);
-    bzero(conn, sizeof(swConnection));
+    bzero(conn, sizeof(swSocket));
     conn->fd = fd;
     conn->socket_type = SW_SOCK_UNIX_STREAM;
     conn->nonblock = 1;
 
-    if (reactor->add(reactor, fd, SW_FD_STREAM | SW_EVENT_READ) < 0)
-    {
-        return SW_ERR;
-    }
-
-    return SW_OK;
+    return reactor->add(reactor, fd, SW_FD_STREAM | SW_EVENT_READ);
 }
 
 static int swWorker_onStreamRead(swReactor *reactor, swEvent *event)
@@ -199,8 +193,8 @@ static int swWorker_onStreamClose(swReactor *reactor, swEvent *event)
     swLinkedList_append(serv->buffer_pool, conn->recv_buffer);
     conn->recv_buffer = nullptr;
 
-    reactor->del(reactor, conn->fd);
-    reactor->close(reactor, conn->fd);
+    reactor->del(reactor, event->fd);
+    reactor->close(reactor, event->fd);
 
     return SW_OK;
 }
