@@ -1114,7 +1114,7 @@ static int swClient_onPackage(swProtocol *proto, swSocket *conn, char *data, uin
 
 static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
 {
-    int n;
+    ssize_t n;
     swClient *cli = event->socket->object;
     char *buf = cli->buffer->str + cli->buffer->length;
     long buf_size = cli->buffer->size - cli->buffer->length;
@@ -1124,7 +1124,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl)
         {
-            int n = swConnection_recv(event->socket, buf, buf_size, 0);
+            n = swConnection_recv(event->socket, buf, buf_size, 0);
             if (n <= 0)
             {
                 goto __close;
