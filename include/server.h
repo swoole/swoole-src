@@ -448,10 +448,6 @@ struct _swServer
      */
     uint32_t task_enable_coroutine :1;
     /**
-     * slowlog
-     */
-    uint32_t trace_event_worker :1;
-    /**
      * yield coroutine when the output buffer is full
      */
     uint32_t send_yield :1;
@@ -570,11 +566,6 @@ struct _swServer
      * message queue key
      */
     uint64_t message_queue_key;
-    /**
-     * slow request log
-     */
-    uint8_t request_slowlog_timeout;
-    FILE *request_slowlog_file;
 
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];
 

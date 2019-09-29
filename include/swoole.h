@@ -1744,16 +1744,12 @@ struct _swWorker
     uint8_t ipc_mode;
     uint8_t child_process;
 
-    uint8_t traced;
-    void (*tracer)(struct _swWorker *);
-
     /**
      * tasking num
      */
     sw_atomic_t tasking_num;
 
     time_t start_time;
-    time_t request_time;
 
     long dispatch_count;
     long request_count;

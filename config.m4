@@ -514,7 +514,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_socket_coro.cc \
         swoole_table.cc \
         swoole_timer.cc \
-        swoole_trace.cc \
         swoole_websocket_server.cc"
 
     swoole_source_file="$swoole_source_file \
