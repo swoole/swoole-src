@@ -310,29 +310,6 @@ function makeCoTcpClient($host, $port, callable $onConnect = null, callable $onR
     });
 }
 
-function makeTcpClient_without_protocol($host, $port, callable $onConnect = null, callable $onReceive = null)
-{
-    $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
-    $cli->on("connect", function (\swoole_client $cli) use ($onConnect) {
-        Assert::true($cli->isConnected());
-        if ($onConnect) {
-            $onConnect($cli);
-        }
-    });
-    $cli->on("receive", function (\swoole_client $cli, $recv) use ($onReceive) {
-        if ($onReceive) {
-            $onReceive($cli, $recv);
-        }
-    });
-    $cli->on("error", function (\swoole_client $cli) {
-        echo "error\n";
-    });
-    $cli->on("close", function (\swoole_client $cli) {
-        echo "close\n";
-    });
-    $cli->connect($host, $port);
-}
-
 function opcode_encode($op, $data)
 {
     $r = json_encode([$op, $data]);

@@ -17,7 +17,11 @@ $counter = new swoole_atomic();
 $pm->parentFunc = function ($pid) use ($pm) {
     go(function () use ($pm) {
         $client = new Client(SWOOLE_SOCK_TCP);
-        $client->set(["open_eof_check" => true, "package_eof" => "\r\n\r\n"]);
+        $client->set([
+            "open_eof_check" => true,
+            "open_eof_split" => true,
+            "package_eof" => "\r\n\r\n",
+        ]);
         $r = $client->connect('127.0.0.1', $pm->getFreePort(), -1);
         if ($r === false) {
             echo "ERROR";
@@ -34,6 +38,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
         }
         $client->close();
     });
+
+    Event::wait();
 
     global $counter;
     Assert::assert($counter->get() > 10);
