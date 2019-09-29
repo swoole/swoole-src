@@ -5,7 +5,7 @@ swoole_server/task: task in task worker
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->setWaitTimeout(60);
 $pm->parentFunc = function ($pid) use ($pm) {
     echo "SUCCESS\n";
@@ -22,7 +22,7 @@ $pm->childFunc = function () use ($pm)
         'log_file' => '/dev/null',
     ));
 
-    $serv->on("WorkerStart", function (\swoole_server $serv, $wid) use ($pm) {
+    $serv->on("WorkerStart", function (Server $serv, $wid) use ($pm) {
         if ($serv->taskworker) {
             Assert::false(@$serv->task(['type' => 'array', 'value' => 'task worker']));
             $pm->wakeup();

@@ -7,7 +7,7 @@ swoole_server/task: task queue
 require __DIR__ . '/../../include/bootstrap.php';
 const N = 2048;
 
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
 {
     $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
@@ -27,7 +27,7 @@ $pm->childFunc = function () use ($pm)
         'task_worker_num' => 1,
         'log_file' => '/dev/null',
     ));
-    $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
+    $serv->on("WorkerStart", function (Server $serv)  use ($pm)
     {
         $pm->wakeup();
     });

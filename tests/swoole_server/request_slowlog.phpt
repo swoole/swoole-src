@@ -10,7 +10,7 @@ skip_if_in_valgrind();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm)
 {

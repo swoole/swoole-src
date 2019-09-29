@@ -7,7 +7,7 @@ swoole_server: taskWaitMulti
 require __DIR__ . '/../include/bootstrap.php';
 $port = get_one_free_port();
 
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($port)
 {
     $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
@@ -30,7 +30,7 @@ $pm->childFunc = function () use ($pm, $port)
         'task_worker_num' => 1,
         'log_file' => '/dev/null',
     ));
-    $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
+    $serv->on("WorkerStart", function (Server $serv)  use ($pm)
     {
         $pm->wakeup();
     });

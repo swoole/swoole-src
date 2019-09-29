@@ -22,10 +22,10 @@ start_server($simple_tcp_server, TCP_SERVER_HOST, $port);
 suicide(2000);
 usleep(500 * 1000);
 
-makeTcpClient(TCP_SERVER_HOST, $port, function(\swoole_client $cli) {
+makeCoTcpClient(TCP_SERVER_HOST, $port, function(Client $cli) {
     $r = $cli->send(opcode_encode("protect", [2]));
     Assert::assert($r !== false);
-}, function(\swoole_client $cli, $recv) {
+}, function(Client $cli, $recv) {
     list($op, $data) = opcode_decode($recv);
     Assert::true($data);
     swoole_event_exit();

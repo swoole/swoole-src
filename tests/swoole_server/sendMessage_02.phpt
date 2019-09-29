@@ -5,7 +5,7 @@ swoole_server: send message [02]
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm)
 {

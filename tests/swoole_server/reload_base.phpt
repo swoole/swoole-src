@@ -14,7 +14,7 @@ $counter = [
     'worker' => new Swoole\Atomic(),
     'task_worker' => new Swoole\Atomic()
 ];
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     global $counter, $worker_num;
     while (!file_exists(TEST_PID_FILE)) {

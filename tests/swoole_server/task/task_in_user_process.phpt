@@ -5,7 +5,7 @@ swoole_server/task: task in user process
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->setWaitTimeout(60);
 $pm->parentFunc = function ($pid) use ($pm) {
     echo "SUCCESS\n";

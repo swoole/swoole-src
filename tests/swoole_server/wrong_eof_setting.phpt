@@ -6,22 +6,25 @@ swoole_server: wrong eof setting
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$pm = new ProcessManager;
+use Swoole\Coroutine\Client;
+use Swoole\Timer;
+use Swoole\Event;
+
+$pm = new SwooleTest\ProcessManager;
 $port = get_one_free_port();
 $pm->parentFunc = function () use ($pm) {
     switch_process();
-    $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
-    $client->set([
-        'open_eof_check' => true,
-        'open_eof_split' => true,
-        "package_eof" => ''
-    ]);
-    $client->on('connect', function (swoole_client $cli) {
-        $cli->send("Swoole\r\n\r\n");
+    go(function () use ($pm) {
+        $client = new Client(SWOOLE_SOCK_TCP);
+        $client->set([
+            'open_eof_check' => true,
+            'open_eof_split' => true,
+            "package_eof" => "",
+        ]);
+        $client->connect('127.0.0.1', $pm->getFreePort());
+        $client->send("Swoole\r\n\r\n");
     });
-    $client->on('error', function () { });
-    $client->on('close', function () { });
-    $client->connect('127.0.0.1', $pm->getFreePort());
+    Event::wait();
     $pm->kill();
 };
 
@@ -29,12 +32,13 @@ $pm->childFunc = function () use ($pm) {
     $pm->wakeup();
     $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set([
-        'package_eof' => '',
+        "package_eof" => "",
         'open_eof_check' => true,
         'open_eof_split' => true,
         "worker_num" => 1
     ]);
-    $serv->on('workerStart', function (swoole_server $serv) use ($pm) { });
+    $serv->on('workerStart', function (swoole_server $serv) use ($pm) {
+    });
     $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data) {
         $serv->send($fd, "hello {$data}\r\n\r\n");
     });

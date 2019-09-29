@@ -10,7 +10,7 @@ require __DIR__ . '/../include/bootstrap.php';
 const N = 65507;
 $port = get_one_free_port();
 
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($port)
 {

@@ -6,13 +6,13 @@ swoole_server: user process
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 
 const SIZE = 8192* 5;
 
 $pm->parentFunc = function ($pid) use ($pm)
 {
-    $client = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    $client = new Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $client->set(["open_eof_check" => true, "package_eof" => "\r\n\r\n"]);
     $r = $client->connect('127.0.0.1', $pm->getFreePort(), -1);
     if ($r === false)
@@ -31,7 +31,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new \swoole_server('127.0.0.1', $pm->getFreePort());
+    $serv = new Server('127.0.0.1', $pm->getFreePort());
     $serv->set(["worker_num" => 1, 'log_file' => '/dev/null']);
 
     $proc = new swoole\process(function ($process) use ($serv){
@@ -47,11 +47,11 @@ $pm->childFunc = function () use ($pm)
     }, false, true);
 
     $serv->addProcess($proc);
-    $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
+    $serv->on("WorkerStart", function (Server $serv)  use ($pm)
     {
         $pm->wakeup();
     });
-    $serv->on("Receive", function (\swoole_server $serv, $fd, $reactorId, $data) use ($proc)
+    $serv->on("Receive", function (Server $serv, $fd, $reactorId, $data) use ($proc)
     {
         $proc->write(json_encode(['fd' => $fd]));
         for($i=0; $i < 10; $i++) {

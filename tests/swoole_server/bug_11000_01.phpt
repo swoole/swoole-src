@@ -5,10 +5,13 @@ swoole_server: bug_11000_01
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$pm = new ProcessManager();
+use Swoole\Server;
+
+$pm = new SwooleTest\ProcessManager;
+
 $pm->childFunc = function () {
     $port = get_one_free_port();
-    $serv = new \swoole_server(TCP_SERVER_HOST, $port);
+    $serv = new Server(TCP_SERVER_HOST, $port);
     $process = new \Swoole\Process(function ($process) use ($serv) {
         usleep(10000);
         var_dump($serv->stats());

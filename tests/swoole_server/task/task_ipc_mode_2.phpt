@@ -5,7 +5,7 @@ swoole_server/task: task_ipc_mode = 2
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     go(function () use ($pm) {
         echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");

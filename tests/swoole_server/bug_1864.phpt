@@ -9,7 +9,9 @@ require __DIR__ . '/../include/bootstrap.php';
 const N = 64;
 const M = 512;
 
-$pm = new ProcessManager;
+use Swoole\Server;
+
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
 {
     function run()
@@ -60,9 +62,9 @@ $pm->childFunc = function () use ($pm)
 
     $status = new swoole_atomic(0);
 
-    $tcp = new \Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
+    $tcp = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
     $tcp->set($ss);
-    $tcp->on('receive', function (\swoole_server $server, $fd, $reactorID, $data) use ($status) {
+    $tcp->on('receive', function (Server $server, $fd, $reactorID, $data) use ($status) {
         $size = unpack('N', substr($data, 4, 4))[1];
         if ($size !== strlen($data) - 8)
         {
@@ -70,11 +72,11 @@ $pm->childFunc = function () use ($pm)
             $status->set(1);
         }
     });
-    $tcp->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
+    $tcp->on("WorkerStart", function (Server $serv)  use ($pm)
     {
         $pm->wakeup();
     });
-    $tcp->on("shutdown", function (\swoole_server $serv) use ($status) {
+    $tcp->on("shutdown", function (Server $serv) use ($status) {
         if ($status->get() == 1) {
             exit(10);
         }
