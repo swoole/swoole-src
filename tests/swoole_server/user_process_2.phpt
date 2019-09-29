@@ -5,7 +5,7 @@ swoole_server: user process [with coroutine]
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-
+use Swoole\Server;
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     $pm->kill();

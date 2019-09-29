@@ -19,7 +19,7 @@ $port = get_one_free_port();
 
 start_server($simple_tcp_server, TCP_SERVER_HOST, $port);
 
-suicide(2000);
+$timer = suicide(2000);
 usleep(500 * 1000);
 
 makeCoTcpClient(TCP_SERVER_HOST, $port, function (Client $cli) {
@@ -28,7 +28,9 @@ makeCoTcpClient(TCP_SERVER_HOST, $port, function (Client $cli) {
 }, function (Client $cli, $recv) {
     $len = unpack("N", substr($recv, 0, 4))[1];
     Assert::same($len - 4, strlen(substr($recv, 4)));
-    swoole_event_exit();
+    global $timer;
+    $cli->close();
+    Timer::clear($timer);
     echo "SUCCESS";
 });
 

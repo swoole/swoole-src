@@ -6,7 +6,10 @@ swoole_server: taskwait [coroutine]
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $port = get_one_free_port();
-
+use Swoole\Coroutine\Client;
+use Swoole\Timer;
+use Swoole\Event;
+use Swoole\Server;
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($port)
 {
@@ -31,7 +34,7 @@ $pm->childFunc = function () use ($pm, $port)
 {
     ini_set('swoole.display_errors', 'Off');
     ini_set('display_errors', 'Off');
-    $serv = new swoole_server('127.0.0.1', $port);
+    $serv = new Server('127.0.0.1', $port);
     $serv->set(array(
         "worker_num" => 1,
         'task_worker_num' => 1,
@@ -42,7 +45,7 @@ $pm->childFunc = function () use ($pm, $port)
     {
         $pm->wakeup();
     });
-    $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data)
+    $serv->on('receive', function (Server $serv, $fd, $rid, $data)
     {
         if ($data == 'array-01')
         {
@@ -108,7 +111,7 @@ $pm->childFunc = function () use ($pm, $port)
         }
     });
 
-    $serv->on('task', function (swoole_server $serv, $task_id, $worker_id, $data)
+    $serv->on('task', function (Server $serv, $task_id, $worker_id, $data)
     {
         if (is_array($data))
         {
@@ -139,7 +142,7 @@ $pm->childFunc = function () use ($pm, $port)
         }
     });
 
-    $serv->on('finish', function (swoole_server $serv, $fd, $rid, $data)
+    $serv->on('finish', function (Server $serv, $fd, $rid, $data)
     {
 
     });

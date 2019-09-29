@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: wrong eof setting
+Server: wrong eof setting
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -9,6 +9,7 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Coroutine\Client;
 use Swoole\Timer;
 use Swoole\Event;
+use Swoole\Server;
 
 $pm = new SwooleTest\ProcessManager;
 $port = get_one_free_port();
@@ -30,16 +31,16 @@ $pm->parentFunc = function () use ($pm) {
 
 $pm->childFunc = function () use ($pm) {
     $pm->wakeup();
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set([
         "package_eof" => "",
         'open_eof_check' => true,
         'open_eof_split' => true,
         "worker_num" => 1
     ]);
-    $serv->on('workerStart', function (swoole_server $serv) use ($pm) {
+    $serv->on('workerStart', function (Server $serv) use ($pm) {
     });
-    $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data) {
+    $serv->on('receive', function (Server $serv, $fd, $rid, $data) {
         $serv->send($fd, "hello {$data}\r\n\r\n");
     });
     $serv->start();

@@ -6,16 +6,14 @@ swoole_server: getSocket
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$port = get_one_free_port();
 use Swoole\Coroutine\Client;
 use Swoole\Timer;
 use Swoole\Event;
 use Swoole\Server;
 
 $pm = new SwooleTest\ProcessManager;
-$pm->parentFunc = function ($pid) use ($port)
-{
-    Co\Run(function (){
+$pm->parentFunc = function ($pid) use ($pm) {
+    Co\Run(function () use ($pm) {
         $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $r = $cli->connect(TCP_SERVER_HOST, $pm->getFreePort(), 1);
         Assert::assert($r);
@@ -28,26 +26,21 @@ $pm->parentFunc = function ($pid) use ($port)
     });
 };
 
-$pm->childFunc = function () use ($pm, $port)
-{
-    $serv = new Server(TCP_SERVER_HOST, $port);
+$pm->childFunc = function () use ($pm) {
+    $serv = new Server(TCP_SERVER_HOST, $pm->getFreePort());
     $socket = $serv->getSocket();
     $serv->set([
         "worker_num" => 1,
         'log_file' => '/dev/null',
     ]);
-    $serv->on("WorkerStart", function (Server $serv)  use ($pm)
-    {
+    $serv->on("WorkerStart", function (Server $serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on("Receive", function (Server $serv, $fd, $rid, $data) use ($socket)
-    {
-        if (trim($data) == 'shutdown')
-        {
+    $serv->on("Receive", function (Server $serv, $fd, $rid, $data) use ($socket) {
+        if (trim($data) == 'shutdown') {
             $serv->shutdown();
             return;
-        }
-        else {
+        } else {
             $serv->send($fd, get_resource_type($socket));
         }
     });

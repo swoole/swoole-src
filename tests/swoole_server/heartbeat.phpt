@@ -9,6 +9,10 @@ skip_if_in_valgrind();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
+use Swoole\Coroutine\Client;
+use Swoole\Timer;
+use Swoole\Event;
+
 $simple_tcp_server = __DIR__ . "/../include/api/swoole_server/opcode_server.php";
 $port = get_one_free_port();
 
@@ -24,10 +28,10 @@ makeCoTcpClient(TCP_SERVER_HOST, $port, function (Client $cli) {
     list($op, $data) = opcode_decode($recv);
 
     $cli->close();
-    swoole_timer::clear($timer);
+    Timer::clear($timer);
     echo "SUCCESS\n";
 });
-swoole_event::wait();
+Event::wait();
 ?>
 --EXPECT--
 SUCCESS

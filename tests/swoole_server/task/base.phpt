@@ -28,9 +28,7 @@ Co\Run(function () use($port, $closeServer) {
     $cli->close();
     Assert::false($cli->isConnected());
     echo "SUCCESS\n";
-    $closeServer();
 });
-
 ?>
 --EXPECT--
 SUCCESS

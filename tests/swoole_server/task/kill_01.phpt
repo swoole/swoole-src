@@ -1,5 +1,5 @@
 --TEST--
-swoole_server/task: kill task worker [SWOOLE_BASE]
+Server/task: kill task worker [SWOOLE_BASE]
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
@@ -9,7 +9,7 @@ skip_if_in_valgrind();
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
-
+use Swoole\Server;
 const PROC_NAME = 'swoole_unittest_server_task_worker';
 $pm = new SwooleTest\ProcessManager;
 
@@ -44,11 +44,11 @@ $pm->childFunc = function () use ($pm)
     {
         $serv->task(['fd' => $fd, 'data' => $data]);
     });
-    $serv->on('task', function (swoole_server $serv, $task_id, $worker_id, $data)
+    $serv->on('task', function (Server $serv, $task_id, $worker_id, $data)
     {
         $serv->send($data['fd'], $data['data']);
     });
-    $serv->on('finish', function (swoole_server $serv, $fd, $rid, $data)
+    $serv->on('finish', function (Server $serv, $fd, $rid, $data)
     {
     });
     $serv->start();

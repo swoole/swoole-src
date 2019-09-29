@@ -9,17 +9,16 @@ skip_if_in_valgrind();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-/**
-
- * Time: 下午4:34
- */
+use Swoole\Coroutine\Client;
+use Swoole\Timer;
+use Swoole\Event;
 
 $simple_tcp_server = __DIR__ . "/../include/api/swoole_server/opcode_server.php";
 $port = get_one_free_port();
 
 start_server($simple_tcp_server, TCP_SERVER_HOST, $port);
 
-suicide(2000);
+$timer = suicide(2000);
 usleep(500 * 1000);
 
 makeCoTcpClient(TCP_SERVER_HOST, $port, function(Client $cli) {
@@ -28,10 +27,12 @@ makeCoTcpClient(TCP_SERVER_HOST, $port, function(Client $cli) {
 }, function(Client $cli, $recv) {
     list($op, $data) = opcode_decode($recv);
     Assert::true($data);
-    swoole_event_exit();
-    echo "SUCCESS";
+    $cli->close();
+    global $timer;
+    Timer::clear($timer);
+    echo "SUCCESS\n";
 });
-
+Event::wait();
 ?>
 --EXPECT--
 SUCCESS

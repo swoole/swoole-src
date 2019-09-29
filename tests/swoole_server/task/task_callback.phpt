@@ -1,9 +1,10 @@
 --TEST--
-swoole_server/task: task callback
+Server/task: task callback
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
+use Swoole\Server;
 require __DIR__ . '/../../include/bootstrap.php';
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
@@ -32,7 +33,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 $pm->childFunc = function () use ($pm)
 {
     ini_set('swoole.display_errors', 'Off');
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort());
+    $serv = new Server('127.0.0.1', $pm->getFreePort());
     $serv->set(array(
         "worker_num" => 1,
         'task_worker_num' => 2,
@@ -42,7 +43,7 @@ $pm->childFunc = function () use ($pm)
     {
         $pm->wakeup();
     });
-    $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data)
+    $serv->on('receive', function (Server $serv, $fd, $rid, $data)
     {
         $serv->task(['type' => 'array', 'value' => $data], -1, function ($serv, $taskId, $data) use ($fd)  {
             $serv->send($fd, json_encode($data)."\r\n\r\n");
@@ -52,12 +53,12 @@ $pm->childFunc = function () use ($pm)
         });
     });
 
-    $serv->on('task', function (swoole_server $serv, $task_id, $worker_id, $data)
+    $serv->on('task', function (Server $serv, $task_id, $worker_id, $data)
     {
         return array("code" => 0, 'message' => 'hello world', 'sid' => uniqid());
     });
 
-    $serv->on('finish', function (swoole_server $serv, $fd, $rid, $data)
+    $serv->on('finish', function (Server $serv, $fd, $rid, $data)
     {
 
     });

@@ -5,6 +5,8 @@ swoole_server: unix socket dgram server
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+use Swoole\Server;
+use Swoole\Client;
 
 parent_child(function ($pid)
 {

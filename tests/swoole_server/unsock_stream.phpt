@@ -5,7 +5,8 @@ swoole_server: unix socket stream server
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-
+use Swoole\Server;
+use Swoole\Client;
 $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {

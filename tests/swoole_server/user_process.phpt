@@ -5,7 +5,8 @@ swoole_server: user process
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-
+use Swoole\Server;
+use Swoole\Client;
 $pm = new SwooleTest\ProcessManager;
 
 const SIZE = 8192* 5;
