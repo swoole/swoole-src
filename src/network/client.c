@@ -15,7 +15,6 @@
  */
 
 #include "swoole_api.h"
-#include "server.h"
 #include "client.h"
 #include "socks5.h"
 #include "async.h"
@@ -26,7 +25,6 @@ static int swClient_tcp_connect_async(swClient *cli, const char *host, int port,
 
 static int swClient_tcp_send_sync(swClient *cli, const char *data, int length, int flags);
 static int swClient_tcp_send_async(swClient *cli, const char *data, int length, int flags);
-static int swClient_tcp_pipe(swClient *cli, int write_fd, int flags);
 static int swClient_udp_send(swClient *cli, const char *data, int length, int flags);
 
 static int swClient_tcp_sendfile_sync(swClient *cli, const char *filename, off_t offset, size_t length);
@@ -149,7 +147,6 @@ int swClient_create(swClient *cli, int type, int async)
             cli->connect = swClient_tcp_connect_async;
             cli->send = swClient_tcp_send_async;
             cli->sendfile = swClient_tcp_sendfile_async;
-            cli->pipe = swClient_tcp_pipe;
             cli->socket->dontwait = 1;
         }
         else
@@ -770,41 +767,6 @@ static int swClient_tcp_connect_async(swClient *cli, const char *host, int port,
     return ret;
 }
 
-static int swClient_tcp_pipe(swClient *cli, int write_fd, int flags)
-{
-    if (!cli->async || cli->_sock_type != SOCK_STREAM)
-    {
-        swWarn("only async tcp-client can use pipe method");
-        return SW_ERR;
-    }
-
-    int socktype;
-    socklen_t length = sizeof(socktype);
-
-    if (flags & SW_CLIENT_PIPE_TCP_SESSION)
-    {
-        cli->_redirect_to_session = write_fd;
-    }
-    else if (getsockopt(write_fd, SOL_SOCKET, SO_TYPE, &socktype, &length) < 0)
-    {
-        if (errno != ENOTSOCK)
-        {
-            return SW_ERR;
-        }
-        cli->_redirect_to_file = write_fd;
-    }
-    else if (fcntl(write_fd, F_GETFD) != -1 || errno != EBADF)
-    {
-        cli->_redirect_to_socket = write_fd;
-    }
-    else
-    {
-        return SW_ERR;
-    }
-    cli->redirect = 1;
-    return SW_OK;
-}
-
 static int swClient_tcp_send_async(swClient *cli, const char *data, int length, int flags)
 {
     int n = length;
@@ -1239,50 +1201,6 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
     }
 #endif
 
-    /**
-     * redirect stream data to other socket
-     */
-    if (cli->redirect)
-    {
-        int ret = 0;
-        n = swConnection_recv(event->socket, buf, buf_size, 0);
-        if (n < 0)
-        {
-            goto __error;
-        }
-        else if (n == 0)
-        {
-            goto __close;
-        }
-        if (cli->_redirect_to_socket)
-        {
-            ret = swoole_event_write(cli->_redirect_to_socket, buf, n);
-        }
-        else if (cli->_redirect_to_session)
-        {
-            if (SwooleG.serv->send(SwooleG.serv, cli->_redirect_to_session, buf, n) < 0)
-            {
-                if (SwooleG.error >= SW_ERROR_SESSION_CLOSED_BY_SERVER || SwooleG.error >= SW_ERROR_SESSION_INVALID_ID)
-                {
-                    goto __close;
-                }
-            }
-            else
-            {
-                return SW_OK;
-            }
-        }
-        else
-        {
-            ret = swSocket_write_blocking(cli->_redirect_to_file, buf, n);
-        }
-        if (ret < 0)
-        {
-            goto __error;
-        }
-        return SW_OK;
-    }
-
     if (cli->open_eof_check || cli->open_length_check)
     {
         swSocket *conn = cli->socket;
@@ -1318,7 +1236,6 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
     n = swConnection_recv(event->socket, buf, buf_size, 0);
     if (n < 0)
     {
-        __error:
         switch (swConnection_error(errno))
         {
         case SW_ERROR:

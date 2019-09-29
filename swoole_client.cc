@@ -53,7 +53,6 @@ static PHP_METHOD(swoole_client, set);
 static PHP_METHOD(swoole_client, connect);
 static PHP_METHOD(swoole_client, recv);
 static PHP_METHOD(swoole_client, send);
-static PHP_METHOD(swoole_client, pipe);
 static PHP_METHOD(swoole_client, sendfile);
 static PHP_METHOD(swoole_client, sendto);
 #ifdef SW_USE_OPENSSL
@@ -157,7 +156,6 @@ static const zend_function_entry swoole_client_methods[] =
     PHP_ME(swoole_client, connect, arginfo_swoole_client_connect, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, recv, arginfo_swoole_client_recv, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, send, arginfo_swoole_client_send, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, pipe, arginfo_swoole_client_pipe, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, sendfile, arginfo_swoole_client_sendfile, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, sendto, arginfo_swoole_client_sendto, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, shutdown, arginfo_swoole_client_shutdown, ZEND_ACC_PUBLIC)
@@ -1529,44 +1527,6 @@ static PHP_METHOD(swoole_client, verifyPeerCert)
     SW_CHECK_RETURN(swClient_ssl_verify(cli, allow_self_signed));
 }
 #endif
-
-static PHP_METHOD(swoole_client, pipe)
-{
-    swClient *cli = client_get_ptr(ZEND_THIS);
-    if (!cli)
-    {
-        RETURN_FALSE;
-    }
-    zval *write_socket;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &write_socket) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-
-    int fd;
-    int flags = 0;
-
-    //server session id
-    if (Z_TYPE_P(write_socket) == IS_LONG)
-    {
-        fd = Z_LVAL_P(write_socket);
-        swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
-        if (conn == NULL)
-        {
-            RETURN_FALSE;
-        }
-        flags = SW_CLIENT_PIPE_TCP_SESSION;
-    }
-    else
-    {
-        fd = swoole_convert_to_fd(write_socket);
-        if (fd < 0)
-        {
-            RETURN_FALSE;
-        }
-    }
-    SW_CHECK_RETURN(cli->pipe(cli, fd, flags));
-}
 
 static PHP_METHOD(swoole_client, shutdown)
 {

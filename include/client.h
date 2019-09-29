@@ -65,15 +65,10 @@ typedef struct _swClient
     int _protocol;
     int reactor_fdtype;
 
-    int _redirect_to_file;
-    int _redirect_to_socket;
-    int _redirect_to_session;
-
     uint32_t active :1;
     uint32_t async :1;
     uint32_t keep :1;
     uint32_t destroyed :1;
-    uint32_t redirect :1;
     uint32_t http2 :1;
     uint32_t sleep :1;
     uint32_t wait_dns :1;
@@ -150,7 +145,6 @@ typedef struct _swClient
     int (*send)(struct _swClient *cli, const char *data, int length, int flags);
     int (*sendfile)(struct _swClient *cli, const char *filename, off_t offset, size_t length);
     int (*recv)(struct _swClient *cli, char *data, int len, int flags);
-    int (*pipe)(struct _swClient *cli, int write_fd, int is_session_id);
     int (*close)(struct _swClient *cli);
 
 } swClient;
