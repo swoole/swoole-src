@@ -128,7 +128,6 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
 {
     swSocketAddress client_addr;
     int fd =  swSocket_accept(event->fd, &client_addr);
-
     if (fd < 0)
     {
         switch (errno)
@@ -143,17 +142,12 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
     }
 
     swSocket *conn = swReactor_get(reactor, fd);
-    bzero(conn, sizeof(swConnection));
+    bzero(conn, sizeof(swSocket));
     conn->fd = fd;
     conn->socket_type = SW_SOCK_UNIX_STREAM;
     conn->nonblock = 1;
 
-    if (reactor->add(reactor, fd, SW_FD_STREAM | SW_EVENT_READ) < 0)
-    {
-        return SW_ERR;
-    }
-
-    return SW_OK;
+    return reactor->add(reactor, fd, SW_FD_STREAM | SW_EVENT_READ);
 }
 
 static int swWorker_onStreamRead(swReactor *reactor, swEvent *event)
@@ -199,8 +193,8 @@ static int swWorker_onStreamClose(swReactor *reactor, swEvent *event)
     swLinkedList_append(serv->buffer_pool, conn->recv_buffer);
     conn->recv_buffer = nullptr;
 
-    reactor->del(reactor, conn->fd);
-    reactor->close(reactor, conn->fd);
+    reactor->del(reactor, event->fd);
+    reactor->close(reactor, event->fd);
 
     return SW_OK;
 }
@@ -240,16 +234,13 @@ typedef int (*task_callback)(swServer *, swEventData *);
 
 static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEventData *task, task_callback callback)
 {
-    worker->request_time = serv->gs->now;
 #ifdef SW_BUFFER_RECV_TIME
     serv->last_receive_usec = task->info.time;
 #endif
     callback(serv, task);
-    worker->request_time = 0;
 #ifdef SW_BUFFER_RECV_TIME
     serv->last_receive_usec = 0;
 #endif
-    worker->traced = 0;
     worker->request_count++;
     sw_atomic_fetch_add(&serv->stats->request_count, 1);
 }

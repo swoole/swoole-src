@@ -6,7 +6,7 @@ swoole_server/task: taskwait in coroutine
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 Swoole\Runtime::enableCoroutine();
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 
 $randoms = [];
 for ($n = MAX_REQUESTS; $n--;)

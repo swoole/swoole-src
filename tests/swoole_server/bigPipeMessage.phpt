@@ -5,45 +5,35 @@ swoole_server: send big pipe message
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$port = get_one_free_port();
 
+use Swoole\Server;
+$port = get_one_free_port();
 const N = 800000;
 
-$pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($port)
+$pm = new SwooleTest\ProcessManager;
+
+$pm->parentFunc = function ($pid) use ($port, $pm)
 {
-    $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
-
-    $cli->on("connect", function (\swoole_client $cli) {
+    Co\Run(function () use ($port) {
+        $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
+        $r = $cli->connect(TCP_SERVER_HOST, $port, 1);
+        Assert::assert($r);
         $cli->send("test");
-    });
-
-    $cli->on("receive", function(\swoole_client $cli, $data){
+        $data = $cli->recv();
         echo $data;
         $cli->close();
     });
-
-    $cli->on("close", function(\swoole_client $cli) {
-
-    });
-
-    $cli->on("error", function(\swoole_client $cli) {
-
-    });
-
-    $cli->connect(TCP_SERVER_HOST, $port, 1);
-    Swoole\Event::wait();
-    Swoole\Process::kill($pid);
+    $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm, $port)
 {
-    $serv = new \swoole_server(TCP_SERVER_HOST, $port);
+    $serv = new Server(TCP_SERVER_HOST, $port);
     $serv->set([
         "worker_num" => 2,
         'log_file' => '/dev/null',
     ]);
-    $serv->on("WorkerStart", function (\swoole_server $serv) use ($pm)
+    $serv->on("WorkerStart", function (Server $serv) use ($pm)
     {
         $pm->wakeup();
     });

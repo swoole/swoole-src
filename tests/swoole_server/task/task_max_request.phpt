@@ -8,13 +8,16 @@ require __DIR__ . '/../../include/bootstrap.php';
 
 const N = 4000;
 
-$counter1 = new swoole_atomic(); // onTask
-$counter2 = new swoole_atomic(); // onFinish
-$counter3 = new swoole_atomic(); // task num
+use Swoole\Server;
+use Swoole\Atomic;
+
+$counter1 = new Atomic(); // onTask
+$counter2 = new Atomic(); // onFinish
+$counter3 = new Atomic(); // task num
 
 $process = new Swoole\Process(function() {
 
-    $serv = new \swoole_server('127.0.0.1', get_one_free_port());
+    $serv = new Server('127.0.0.1', get_one_free_port());
     $serv->set([
         "worker_num" => 1,
         'task_max_request' => 200,
@@ -22,7 +25,7 @@ $process = new Swoole\Process(function() {
         'log_file' => TEST_LOG_FILE,
     ]);
 
-    $serv->on("WorkerStart", function (\swoole_server $serv, $worker_id)
+    $serv->on("WorkerStart", function (Server $serv, $worker_id)
     {
         if (!$serv->taskworker) {
             for($i = 0; $i< N; $i++) {
@@ -35,7 +38,7 @@ $process = new Swoole\Process(function() {
         }
     });
 
-    $serv->on("Receive", function (\swoole_server $serv, $fd, $reactorId, $data)
+    $serv->on("Receive", function (Server $serv, $fd, $reactorId, $data)
     {
         $serv->send($fd, "Server: $data");
     });
@@ -47,7 +50,7 @@ $process = new Swoole\Process(function() {
         return json_encode($data);
     });
 
-    $serv->on('Finish', function (swoole_server $swooleServer, $workerId, $task_data)
+    $serv->on('Finish', function (Server $swooleServer, $workerId, $task_data)
     {
         global $counter2;
         $counter2->add(1);

@@ -9,7 +9,7 @@ $port = get_one_free_port();
 
 const N = 1024 * 1024 * 1;
 
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($port)
 {

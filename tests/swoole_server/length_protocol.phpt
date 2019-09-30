@@ -31,7 +31,7 @@ class PkgServer extends TestServer
     }
 }
 
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
 {
     $client = new swoole_client(SWOOLE_SOCK_TCP);

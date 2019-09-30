@@ -1,10 +1,13 @@
 --TEST--
-swoole_mysql_coro: mysql db destruct
+swoole_mysql_coro: multi field
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+
+define('FIELD_NUM', 8192);
+
 Co\Run(function () {
     $db = new Co\MySQL();
     $server = [
@@ -15,10 +18,10 @@ Co\Run(function () {
     ];
     $ret = $db->connect($server);
     if (Assert::true($ret)) {
-        $statement = $db->prepare('SELECT 1');
-        Assert::isInstanceOf($statement, Co\Mysql\Statement::class);
-        $ret = $statement->execute();
-        Assert::same($ret[0][1], 1);
+        $n = range(0, FIELD_NUM - 1);
+        $fields = implode(", ", $n);
+        $result = $db->query("select $fields");
+        Assert::assert(count($result[0]) == FIELD_NUM);
         echo "DONE\n";
     }
 });

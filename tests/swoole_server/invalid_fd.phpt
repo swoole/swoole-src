@@ -6,7 +6,8 @@ swoole_server: invalid fd
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 const EOF = "\r\n\r\n";
-$pm = new ProcessManager;
+
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $client = new Co\Client(SWOOLE_SOCK_TCP);

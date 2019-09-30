@@ -996,18 +996,6 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     {
         add_assoc_long(zsetting, "max_connection", serv->max_connection);
     }
-#ifdef HAVE_PTRACE
-    //trace request
-    if (serv->request_slowlog_file && (serv->trace_event_worker || serv->task_worker_num > 0))
-    {
-        serv->manager_alarm = serv->request_slowlog_timeout;
-        if (swServer_add_hook(serv, SW_SERVER_HOOK_MANAGER_TIMER, php_swoole_trace_check, 1) < 0)
-        {
-            php_swoole_fatal_error(E_ERROR, "Unable to add server hook");
-            return;
-        }
-    }
-#endif
 
     int i;
     zval *zport_object;
@@ -2277,34 +2265,6 @@ static PHP_METHOD(swoole_server, set)
     {
         zend_long v = zval_get_long(ztmp);
         serv->task_worker_num = SW_MAX(0, SW_MIN(v, UINT32_MAX));
-    }
-    //slowlog
-    if (php_swoole_array_get_value(vht, "trace_event_worker", ztmp))
-    {
-        serv->trace_event_worker = zval_is_true(ztmp);
-    }
-    if (php_swoole_array_get_value(vht, "request_slowlog_timeout", ztmp))
-    {
-        zend_long v = zval_get_long(ztmp);
-        serv->request_slowlog_timeout = SW_MAX(0, SW_MIN(v, UINT8_MAX));
-    }
-    if (php_swoole_array_get_value(vht, "request_slowlog_file", ztmp))
-    {
-        zend::string str_v(ztmp);
-        if (serv->request_slowlog_file)
-        {
-            fclose(serv->request_slowlog_file);
-        }
-        serv->request_slowlog_file = fopen(str_v.val(), "a+");
-        if (serv->request_slowlog_file == NULL)
-        {
-            php_swoole_fatal_error(E_ERROR, "Unable to open request_slowlog_file[%s]", str_v.val());
-            return;
-        }
-        if (serv->request_slowlog_timeout == 0)
-        {
-            serv->request_slowlog_timeout = 1;
-        }
     }
     //task ipc mode, 1,2,3
     if (php_swoole_array_get_value(vht, "task_ipc_mode", ztmp))

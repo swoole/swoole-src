@@ -168,7 +168,6 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     swWorker *worker = swProcessPool_get_worker(pool, worker_id);
     worker->start_time = serv->gs->now;
     worker->request_count = 0;
-    worker->traced = 0;
     SwooleWG.worker = worker;
     SwooleWG.worker->status = SW_WORKER_IDLE;
     /**
@@ -207,11 +206,8 @@ static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     if (read(event->fd, &task, sizeof(task)) > 0)
     {
         worker->status = SW_WORKER_BUSY;
-        worker->request_time = time(NULL);
         int retval = swTaskWorker_onTask(pool, &task);
         worker->status = SW_WORKER_IDLE;
-        worker->request_time = 0;
-        worker->traced = 0;
         worker->request_count++;
         //maximum number of requests, process will exit.
         if (!SwooleWG.run_always && worker->request_count >= SwooleWG.max_request)

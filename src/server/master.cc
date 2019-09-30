@@ -468,7 +468,6 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     }
 
     worker->start_time = serv->gs->now;
-    worker->request_time = 0;
     worker->request_count = 0;
 
     return SW_OK;

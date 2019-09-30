@@ -12,6 +12,8 @@ if (swoole_cpu_num() === 1) {
 error_reporting(0);
 require __DIR__ . '/../include/bootstrap.php';
 
+use Swoole\Server;
+
 $pm = new SwooleTest\ProcessManager;
 $atomic = new Swoole\Atomic();
 const WORKER_NUM = 4;
@@ -35,12 +37,12 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm, $atomic) {
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort());
+    $serv = new Server('127.0.0.1', $pm->getFreePort());
     $serv->set([
         "worker_num" => WORKER_NUM,
         "max_wait_time" => 1,
     ]);
-    $serv->on("WorkerStart", function (\swoole_server $server, $worker_id) use ($pm, $atomic) {
+    $serv->on("WorkerStart", function (Server $server, $worker_id) use ($pm, $atomic) {
         echo "$worker_id [" . $server->worker_pid . "] start\n";
         $atomic->add(1);
         if ($atomic->get() == 4) {

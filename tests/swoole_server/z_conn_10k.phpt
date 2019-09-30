@@ -13,7 +13,7 @@ if ((int)`ulimit -n 2>&1` < MAX_CONCURRENCY_MID * MAX_REQUESTS) {
 require __DIR__ . '/../include/bootstrap.php';
 $count = 0;
 $client_map = [];
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     for ($c = MAX_CONCURRENCY_MID; $c--;) {
         go(function () use ($pm, $c) {

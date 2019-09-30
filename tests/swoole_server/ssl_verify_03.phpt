@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: ssl server verify client failed
+Server: ssl server verify client failed
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -8,12 +8,13 @@ skip_if_openssl_version_lower_than('1.1.0');
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
+
+use Swoole\Server;
 
 $pm->parentFunc = function ($pid) use ($pm) {
     $client = new swoole_client(SWOOLE_SOCK_TCP | SWOOLE_SSL, SWOOLE_SOCK_SYNC);
-    if (!$client->connect('127.0.0.1', $pm->getFreePort()))
-    {
+    if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
         exit("connect failed\n");
     }
     $client->send("hello world");
@@ -22,7 +23,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
+    $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
     $serv->set([
         'ssl_cert_file' => dirname(__DIR__) . '/include/api/swoole_http_server/localhost-ssl/server.crt',
         'ssl_key_file' => dirname(__DIR__) . '/include/api/swoole_http_server/localhost-ssl/server.key',
@@ -30,10 +31,10 @@ $pm->childFunc = function () use ($pm) {
         'ssl_allow_self_signed' => true,
         'ssl_client_cert_file' => dirname(__DIR__) . '/include/api/swoole_http_server/localhost-ssl/ca.crt',
     ]);
-    $serv->on("workerStart", function ($serv) use ($pm) {
+    $serv->on("workerStart", function (Server $serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('receive', function ($serv, $fd, $tid, $data) {
+    $serv->on('receive', function (Server $serv, $fd, $tid, $data) {
         $serv->send($fd, "Swoole $data");
     });
     $serv->start();

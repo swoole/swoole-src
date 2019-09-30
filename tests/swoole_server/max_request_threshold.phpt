@@ -6,7 +6,7 @@ swoole_server: max_request threshold
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function () use ($pm)
 {

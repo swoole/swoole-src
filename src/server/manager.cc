@@ -300,7 +300,6 @@ static int swManager_loop(swServer *serv)
 
     while (SwooleG.running > 0)
     {
-        _wait:
         pid = wait(&status);
 
         if (ManagerProcess.read_message)
@@ -421,14 +420,7 @@ static int swManager_loop(swServer *serv)
                     continue;
                 }
 
-                if (WIFSTOPPED(status) && serv->workers[i].tracer)
-                {
-                    serv->workers[i].tracer(&serv->workers[i]);
-                    serv->workers[i].tracer = NULL;
-                    goto _wait;
-                }
-
-                //Check the process return code and signal
+                //check the process return code and signal
                 swManager_check_exit_status(serv, i, pid, status);
 
                 while (1)
@@ -454,12 +446,6 @@ static int swManager_loop(swServer *serv)
                 exit_worker = (swWorker *) swHashMap_find_int(serv->gs->task_workers.map, pid);
                 if (exit_worker != NULL)
                 {
-                    if (WIFSTOPPED(status) && exit_worker->tracer)
-                    {
-                        exit_worker->tracer(exit_worker);
-                        exit_worker->tracer = NULL;
-                        goto _wait;
-                    }
                     swManager_check_exit_status(serv, exit_worker->id, pid, status);
                     swManager_spawn_task_worker(serv, exit_worker);
                 }

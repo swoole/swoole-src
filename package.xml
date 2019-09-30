@@ -652,7 +652,6 @@
             <file role="src" name="swoole_socket_coro.cc" />
             <file role="src" name="swoole_table.cc" />
             <file role="src" name="swoole_timer.cc" />
-            <file role="src" name="swoole_trace.cc" />
             <file role="src" name="swoole_websocket_server.cc" />
             <file role="test" name="tests/CONTRIBUTION" />
             <file role="test" name="tests/README.md" />

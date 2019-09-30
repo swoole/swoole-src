@@ -551,11 +551,8 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
          * do task
          */
         worker->status = SW_WORKER_BUSY;
-        worker->request_time = time(NULL);
         ret = pool->onTask(pool, &out.buf);
         worker->status = SW_WORKER_IDLE;
-        worker->request_time = 0;
-        worker->traced = 0;
 
         if (pool->use_socket && pool->stream->last_connection > 0)
         {

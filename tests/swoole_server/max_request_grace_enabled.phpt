@@ -6,7 +6,7 @@ swoole_server: max_request_grace enabled
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function () use ($pm)
 {
