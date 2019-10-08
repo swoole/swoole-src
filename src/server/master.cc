@@ -527,13 +527,13 @@ int swServer_start(swServer *serv)
     {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_START, serv);
     }
-    //cann't start 2 servers at the same time, please use process->exec.
+    //cannot start 2 servers at the same time, please use process->exec.
     if (!sw_atomic_cmp_set(&serv->gs->start, 0, 1))
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_ONLY_START_ONE, "must only start one server");
         return SW_ERR;
     }
-    //init loggger
+    //init logger
     if (SwooleG.log_file)
     {
         swLog_init(SwooleG.log_file);
