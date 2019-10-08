@@ -15,20 +15,11 @@ $pm = new SwooleTest\ProcessManager;
 $result = new Swoole\Atomic(0);
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    $task = new class(MSGQ_KEY)
-    {
+    $task = new class(MSGQ_KEY, 0) {
         protected $queueId;
         protected $workerId;
-        protected $taskId = 0;
 
-        /**
-         *  constructor.
-         * @param $key
-         * @param int $workerId
-         * @throws \Swoole\Exception
-         */
-        function __construct($key, $workerId = 0)
-        {
+        function __construct($key, $workerId) {
             $this->queueId = msg_get_queue($key);
             if ($this->queueId === false) {
                 throw new \Swoole\Exception("msg_get_queue() failed.");
@@ -36,14 +27,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
             $this->workerId = $workerId;
         }
 
-        protected function pack($data)
-        {
-            return Swoole\Server\Task::pack($this->taskId++, $data);
-        }
-
-        function dispatch($data)
-        {
-            if (!msg_send($this->queueId, $this->workerId + 1, $this->pack($data), false)) {
+        function dispatch($data) {
+            if (!msg_send($this->queueId, $this->workerId + 1, Swoole\Server\Task::pack($data), false)) {
                 return false;
             } else {
                 return true;

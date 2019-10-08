@@ -201,8 +201,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_finish, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_task_pack, 0, 0, 2)
-    ZEND_ARG_INFO(0, task_id)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_task_pack, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
@@ -3694,13 +3693,10 @@ static PHP_METHOD(swoole_server_task, finish)
 
 static PHP_METHOD(swoole_server_task, pack)
 {
-    swEventData buf;
-    bzero(&buf.info, sizeof(buf.info));
-    long task_id;
+    swEventData buf = {0};
     zval *data;
 
-    ZEND_PARSE_PARAMETERS_START(2, 2)
-        Z_PARAM_LONG(task_id)
+    ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_ZVAL(data)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 

@@ -5,9 +5,8 @@ class SwooleTask
 {
     protected $queueId;
     protected $workerId;
-    protected $taskId = 0;
 
-    function __construct($key, $workerId = 0)
+    function __construct($key, $workerId)
     {
         $this->queueId = msg_get_queue($key);
         if ($this->queueId === false)
@@ -17,14 +16,9 @@ class SwooleTask
         $this->workerId = $workerId;
     }
 
-    protected function pack($data)
-    {
-        return Swoole\Server\Task::pack($this->taskId++, $data);
-    }
-
     function dispatch($data)
     {
-        if (!msg_send($this->queueId, $this->workerId + 1, $this->pack($data), false))
+        if (!msg_send($this->queueId, $this->workerId + 1, Swoole\Server\Task::pack($data), false))
         {
             return false;
         }
@@ -35,7 +29,7 @@ class SwooleTask
     }
 }
 
-$task = new SwooleTask(0x70001001);
+$task = new SwooleTask(0x70001001, 0);
 //普通字符串
 $task->dispatch("Hello from PHP!");
 //数组
