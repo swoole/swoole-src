@@ -1,6 +1,4 @@
 <?php
-
-
 echo "Sending text to msg queue.\n";
 
 class SwooleTask
@@ -21,35 +19,7 @@ class SwooleTask
 
     protected function pack($data)
     {
-        $fromFd = 0;
-        $type = 7;
-        if (!is_string($data))
-        {
-            $data = serialize($data);
-            $fromFd |= 2;
-        }
-        if (strlen($data) >= 8180)
-        {
-            $tmpFile = tempnam('/tmp/', 'swoole.task');
-            file_put_contents($tmpFile, $data);
-            $data = pack('l', strlen($data)) . $tmpFile . "\0";
-            $fromFd |= 1;
-            $len = 128 + 24;
-        }
-        else
-        {
-            $len = strlen($data);
-        }
-        //typedef struct _swDataHead
-        //{
-        //    int fd;
-        //    uint16_t len;
-        //    int16_t reactor_id;
-        //    uint8_t type;
-        //    uint8_t flags;
-        //    uint16_t server_fd;
-        //} swDataHead;
-        return pack('lSsCCS', $this->taskId++, $len, $this->workerId, $type, 0, $fromFd) . $data;
+        return Swoole\Server\Task::pack($this->taskId++, $data);
     }
 
     function dispatch($data)
