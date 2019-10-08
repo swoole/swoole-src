@@ -1302,15 +1302,15 @@ void mysql_client::close()
             send_command_without_check(SW_MYSQL_COM_QUIT);
             quit = true;
         }
+        // make statements non-available
+        while (!statements.empty())
+        {
+            auto i = statements.begin();
+            i->second->close(false);
+            statements.erase(i);
+        }
         if (sw_likely(!socket->has_bound()))
         {
-            // make statements non-available
-            while (!statements.empty())
-            {
-                auto i = statements.begin();
-                i->second->close(false);
-                statements.erase(i);
-            }
             this->socket = nullptr;
         }
         if (sw_likely(socket->close()))
