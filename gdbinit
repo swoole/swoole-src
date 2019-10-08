@@ -122,14 +122,7 @@ define co_status
 end
 
 define ____sw_executor_globals
-    if basic_functions_module.zts
-        if !$tsrm_ls
-            set $tsrm_ls = ts_resource_ex(0, 0)
-        end
-        set $eg = ((zend_executor_globals*) (*((void ***) $tsrm_ls))[executor_globals_id-1])
-    else
-        set $eg = executor_globals
-    end
+    set $eg = php_swoole_get_executor_globals()
 end
 
 define ____sw_print_str

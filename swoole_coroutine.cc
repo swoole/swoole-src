@@ -1116,3 +1116,11 @@ PHP_METHOD(swoole_coroutine, disableScheduler)
 {
     RETURN_BOOL(PHPCoroutine::disable_scheduler());
 }
+
+/**
+ * for gdb
+ */
+zend_executor_globals* php_swoole_get_executor_globals()
+{
+    return (zend_executor_globals *) &EG(uninitialized_zval);
+}
