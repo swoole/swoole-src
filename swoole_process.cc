@@ -1017,41 +1017,43 @@ static PHP_METHOD(swoole_process, daemon)
 {
     zend_bool nochdir = 1;
     zend_bool noclose = 1;
-    zval *pipes;
+    zval *pipes = NULL;
 
     ZEND_PARSE_PARAMETERS_START(0, 3)
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(nochdir)
         Z_PARAM_BOOL(noclose)
-        Z_PARAM_ARRAY_EX(pipes, 1, 1)
+        Z_PARAM_ARRAY(pipes)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zval *elem;
     int fd = 0;
 
-    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(pipes), elem)
+    if (pipes)
     {
-        int _fd = fd++;
-        if (_fd == 3)
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(pipes), elem)
         {
-            break;
+            int _fd = fd++;
+            if (_fd == 3)
+            {
+                break;
+            }
+            if (Z_TYPE_P(elem) != IS_RESOURCE)
+            {
+                continue;
+            }
+            int new_fd = swoole_convert_to_fd(elem);
+            if (new_fd < 0)
+            {
+                continue;
+            }
+            if (dup2(new_fd, _fd) < 0)
+            {
+                swSysWarn("dup2(%d, %d) failed", new_fd, _fd);
+            }
         }
-        if (Z_TYPE_P(elem) != IS_RESOURCE)
-        {
-            continue;
-        }
-        int new_fd = swoole_convert_to_fd(elem);
-        if (new_fd < 0)
-        {
-            continue;
-        }
-        if (dup2(new_fd, _fd) < 0)
-        {
-            swSysWarn("dup2(%d, %d) failed", new_fd, _fd);
-        }
+        ZEND_HASH_FOREACH_END();
     }
-    ZEND_HASH_FOREACH_END();
-
     RETURN_BOOL(daemon(nochdir, noclose) == 0);
 }
 
