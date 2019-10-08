@@ -86,6 +86,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_daemon, 0, 0, 0)
     ZEND_ARG_INFO(0, nochdir)
     ZEND_ARG_INFO(0, noclose)
+    ZEND_ARG_INFO(0, pipes)
 ZEND_END_ARG_INFO()
 
 #ifdef HAVE_CPU_AFFINITY
@@ -1016,11 +1017,41 @@ static PHP_METHOD(swoole_process, daemon)
 {
     zend_bool nochdir = 1;
     zend_bool noclose = 1;
+    zval *pipes;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|bb", &nochdir, &noclose) == FAILURE)
+    ZEND_PARSE_PARAMETERS_START(0, 3)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(nochdir)
+        Z_PARAM_BOOL(noclose)
+        Z_PARAM_ARRAY_EX(pipes, 1, 1)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    zval *elem;
+    int fd = 0;
+
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(pipes), elem)
     {
-        RETURN_FALSE;
+        int _fd = fd++;
+        if (_fd == 3)
+        {
+            break;
+        }
+        if (Z_TYPE_P(elem) != IS_RESOURCE)
+        {
+            continue;
+        }
+        int new_fd = swoole_convert_to_fd(elem);
+        if (new_fd < 0)
+        {
+            continue;
+        }
+        if (dup2(new_fd, _fd) < 0)
+        {
+            swSysWarn("dup2(%d, %d) failed", new_fd, _fd);
+        }
     }
+    ZEND_HASH_FOREACH_END();
+
     RETURN_BOOL(daemon(nochdir, noclose) == 0);
 }
 
