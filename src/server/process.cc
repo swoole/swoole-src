@@ -164,7 +164,7 @@ static int swFactoryProcess_start(swFactory *factory)
         swServer_store_pipe_fd(serv, serv->workers[i].pipe_object);
     }
 
-#ifdef HAVE_KQUEUE
+#ifndef __linux__
     serv->ipc_max_size = SW_IPC_MAX_SIZE;
 #else
     int bufsize;
