@@ -964,6 +964,34 @@ static sw_inline swConnection *swServer_connection_verify(swServer *serv, int se
     return conn;
 }
 
+static sw_inline int swServer_connection_incoming(swServer *serv, swReactor *reactor, swConnection *conn)
+{
+#ifdef SW_USE_OPENSSL
+    if (conn->socket->ssl)
+    {
+        goto _listen_read_event;
+    }
+#endif
+    //notify worker process
+    if (serv->onConnect)
+    {
+        serv->notify(serv, conn, SW_EVENT_CONNECT);
+    }
+    //delay receive, wait resume command.
+    if (serv->enable_delay_receive)
+    {
+        conn->socket->listen_wait = 1;
+        return SW_OK;
+    }
+    else
+    {
+#ifdef SW_USE_OPENSSL
+        _listen_read_event:
+#endif
+        return reactor->add(reactor, conn->fd, SW_FD_SESSION | SW_EVENT_READ);
+    }
+}
+
 void swServer_connection_each(swServer *serv, void (*callback)(swConnection *conn));
 
 /**

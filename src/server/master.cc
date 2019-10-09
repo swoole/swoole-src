@@ -147,7 +147,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 #endif
         if (serv->single_thread)
         {
-            if (reactor->add(reactor, new_fd, SW_FD_SESSION | SW_EVENT_WRITE) < 0)
+            if (swServer_connection_incoming(serv, reactor, conn) < 0)
             {
                 reactor->close(reactor, new_fd);
                 return SW_OK;

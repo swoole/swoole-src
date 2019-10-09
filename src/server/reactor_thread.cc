@@ -454,29 +454,10 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                 {
                     int fd = resp->info.fd;
                     swConnection *conn = swServer_connection_get(serv, fd);
-#ifdef SW_USE_OPENSSL
-                    if (conn->socket->ssl)
+                    if (swServer_connection_incoming(serv, reactor, conn) < 0)
                     {
-                        goto _listen_read_event;
-                    }
-#endif
-                    //notify worker process
-                    if (serv->onConnect)
-                    {
-                        serv->notify(serv, conn, SW_EVENT_CONNECT);
-                    }
-                    //delay receive, wait resume command.
-                    if (serv->enable_delay_receive)
-                    {
-                        conn->socket->listen_wait = 1;
+                        reactor->close(reactor, fd);
                         return SW_OK;
-                    }
-                    else
-                    {
-#ifdef SW_USE_OPENSSL
-                        _listen_read_event:
-#endif
-                        return reactor->add(reactor, fd, SW_FD_SESSION | SW_EVENT_TCP | SW_EVENT_READ);
                     }
                 }
                 /**

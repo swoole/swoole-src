@@ -127,6 +127,7 @@ int swReactorSelect_del(swReactor *reactor, int fd)
     LL_DELETE(object->fds, s_ev);
     SW_FD_CLR(fd, &object->rfds);
     SW_FD_CLR(fd, &object->wfds);
+    SW_FD_CLR(fd, &object->efds);
     sw_free(s_ev);
     swReactor_del(reactor, fd);
     return SW_OK;
