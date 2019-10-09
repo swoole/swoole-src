@@ -456,8 +456,7 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                     swConnection *conn = swServer_connection_get(serv, fd);
                     if (swServer_connection_incoming(serv, reactor, conn) < 0)
                     {
-                        reactor->close(reactor, fd);
-                        return SW_OK;
+                        return reactor->close(reactor, fd);
                     }
                 }
                 /**
@@ -1261,8 +1260,7 @@ void swReactorThread_join(swServer *serv)
         thread = &(serv->reactor_threads[i]);
         if (thread->notify_pipe)
         {
-            swDataHead ev;
-            memset(&ev, 0, sizeof(ev));
+            swDataHead ev = {0};
             ev.type = SW_EVENT_SHUTDOWN;
             if (swSocket_write_blocking(thread->notify_pipe, (void *) &ev, sizeof(ev)) < 0)
             {

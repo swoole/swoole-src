@@ -33,7 +33,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
-static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd, int reactor_id);
+static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd);
 
 static void swServer_disable_accept(swReactor *reactor)
 {
@@ -87,7 +87,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
     swServer *serv = (swServer *) reactor->ptr;
     swListenPort *listen_host = (swListenPort *) serv->connection_list[event->fd].object;
 
-    int new_fd = 0, reactor_id = 0, i;
+    int new_fd = 0, i;
 
     for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
     {
@@ -122,7 +122,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         }
 
         //add to connection_list
-        swConnection *conn = swServer_connection_new(serv, listen_host, new_fd, event->fd, reactor_id);
+        swConnection *conn = swServer_connection_new(serv, listen_host, new_fd, event->fd);
         memcpy(&conn->info.addr, &event->socket->info, sizeof(event->socket->info));
         conn->socket_type = listen_host->type;
 
@@ -155,11 +155,10 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         }
         else
         {
-            reactor_id = new_fd % serv->reactor_num;
             swDataHead ev = {0};
             ev.type = SW_EVENT_INCOMING;
             ev.fd = new_fd;
-            int _pipe_fd = swServer_get_send_pipe(serv, conn->session_id, reactor_id);
+            int _pipe_fd = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
             if (reactor->write(reactor, _pipe_fd, &ev, sizeof(ev)) < 0)
             {
                 reactor->close(reactor, new_fd);
@@ -978,15 +977,10 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     }
 
     int fd = conn->fd;
-    swReactor *reactor;
+    swReactor *reactor = SwooleTG.reactor;
 
-    if (serv->single_thread)
+    if (!serv->single_thread)
     {
-        reactor = SwooleTG.reactor;
-    }
-    else
-    {
-        reactor = &(serv->reactor_threads[conn->reactor_id].reactor);
         assert(fd % serv->reactor_num == reactor->id);
         assert(fd % serv->reactor_num == SwooleTG.id);
     }
@@ -1765,7 +1759,7 @@ void swServer_connection_each(swServer *serv, void (*callback)(swConnection *con
 /**
  * new connection
  */
-static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd, int reactor_id)
+static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd)
 {
     swConnection* connection = NULL;
 
@@ -1817,7 +1811,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     }
 
     connection->fd = fd;
-    connection->reactor_id = serv->factory_mode == SW_MODE_BASE ? SwooleWG.id : reactor_id;
+    connection->reactor_id = serv->factory_mode == SW_MODE_BASE ? SwooleWG.id : fd % serv->reactor_num;
     connection->server_fd = (sw_atomic_t) server_fd;
     connection->connect_time = serv->gs->now;
     connection->last_time = serv->gs->now;
