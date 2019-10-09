@@ -165,7 +165,6 @@ static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
     }
 
     swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]EP=%d|FD=%d, events=%d", SwooleTG.id, object->epfd, fd, fdtype);
-    reactor->event_num++;
     return SW_OK;
 }
 
@@ -266,7 +265,6 @@ static int swReactorKqueue_del(swReactor *reactor, int fd)
     }
 
     swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]EP=%d|FD=%d", SwooleTG.id, object->epfd, fd);
-    reactor->event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
     swReactor_del(reactor, fd);
     return SW_OK;
 }

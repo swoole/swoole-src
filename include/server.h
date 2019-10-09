@@ -36,8 +36,6 @@ enum swServer_event_type
     //tcp event
     SW_EVENT_CLOSE,
     SW_EVENT_CONNECT,
-    //timer
-    SW_EVENT_TIMER,
     //task
     SW_EVENT_TASK,
     SW_EVENT_FINISH,
@@ -58,6 +56,9 @@ enum swServer_event_type
     //buffer event
     SW_EVENT_BUFFER_FULL,
     SW_EVENT_BUFFER_EMPTY,
+    //process message
+    SW_EVENT_INCOMING,
+    SW_EVENT_SHUTDOWN,
 };
 
 enum swIPC_type
@@ -963,7 +964,50 @@ static sw_inline swConnection *swServer_connection_verify(swServer *serv, int se
     return conn;
 }
 
+static sw_inline int swServer_connection_incoming(swServer *serv, swReactor *reactor, swConnection *conn)
+{
+#ifdef SW_USE_OPENSSL
+    if (conn->socket->ssl)
+    {
+        return reactor->add(reactor, conn->fd, SW_FD_SESSION | SW_EVENT_READ);
+    }
+#endif
+    //delay receive, wait resume command.
+    if (serv->enable_delay_receive)
+    {
+        conn->socket->listen_wait = 1;
+        return SW_OK;
+    }
+    if (reactor->add(reactor, conn->fd, SW_FD_SESSION | SW_EVENT_READ) < 0)
+    {
+        return SW_ERR;
+    }
+    //notify worker process
+    if (serv->onConnect)
+    {
+        return serv->notify(serv, conn, SW_EVENT_CONNECT);
+    }
+    else
+    {
+        return SW_OK;
+    }
+}
+
 void swServer_connection_each(swServer *serv, void (*callback)(swConnection *conn));
+
+/**
+ * reactor_id: The fd in which the reactor.
+ */
+static sw_inline int swServer_get_send_pipe(swServer *serv, int session_id, int reactor_id)
+{
+    int pipe_index = session_id % serv->reactor_pipe_num;
+    /**
+     * pipe_worker_id: The pipe in which worker.
+     */
+    int pipe_worker_id = reactor_id + (pipe_index * serv->reactor_num);
+    swWorker *worker = swServer_get_worker(serv, pipe_worker_id);
+    return worker->pipe_worker;
+}
 
 //------------------------------------Listen Port-------------------------------------------
 void swPort_init(swListenPort *port);
@@ -983,20 +1027,6 @@ int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, in
 int swWorker_send2worker(swWorker *dst_worker, const void *buf, int n, int flag);
 void swWorker_signal_handler(int signo);
 void swWorker_signal_init(void);
-
-/**
- * reactor_id: The fd in which the reactor.
- */
-static sw_inline int swWorker_get_send_pipe(swServer *serv, int session_id, int reactor_id)
-{
-    int pipe_index = session_id % serv->reactor_pipe_num;
-    /**
-     * pipe_worker_id: The pipe in which worker.
-     */
-    int pipe_worker_id = reactor_id + (pipe_index * serv->reactor_num);
-    swWorker *worker = swServer_get_worker(serv, pipe_worker_id);
-    return worker->pipe_worker;
-}
 
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv);

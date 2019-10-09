@@ -721,7 +721,6 @@ typedef struct _swConnection
      * system fd must be 0. en: signalfd, listen socket
      */
     uint8_t active;
-    uint8_t connect_notify;
 #ifdef SW_USE_OPENSSL
     uint8_t ssl;
     uint8_t ssl_ready;
@@ -944,7 +943,6 @@ enum _swEventData_flag
     SW_EVENT_DATA_PTR = 1u << 1,
     SW_EVENT_DATA_CHUNK = 1u << 2,
     SW_EVENT_DATA_END = 1u << 3,
-    SW_EVENT_DATA_EXIT = 1u << 4,
 };
 
 typedef struct _swDataHead
@@ -1928,6 +1926,7 @@ static sw_inline void swReactor_add(swReactor *reactor, int fd, int fdtype)
     _socket->fdtype = swReactor_fdtype(fdtype);
     _socket->events = swReactor_events(fdtype);
     _socket->removed = 0;
+    reactor->event_num++;
 }
 
 static sw_inline void swReactor_set(swReactor *reactor, int fd, int type)
@@ -1941,6 +1940,7 @@ static sw_inline void swReactor_del(swReactor *reactor, int fd)
     swSocket *_socket = swReactor_get(reactor, fd);
     _socket->events = 0;
     _socket->removed = 1;
+    reactor->event_num--;
 }
 
 static sw_inline int swReactor_exists(swReactor *reactor, int fd)

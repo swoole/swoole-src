@@ -100,7 +100,6 @@ int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
     ev->fd = fd;
     ev->fdtype = fdtype;
     LL_APPEND(object->fds, ev);
-    reactor->event_num++;
     if (fd > object->maxfd)
     {
         object->maxfd = fd;
@@ -129,7 +128,6 @@ int swReactorSelect_del(swReactor *reactor, int fd)
     SW_FD_CLR(fd, &object->rfds);
     SW_FD_CLR(fd, &object->wfds);
     SW_FD_CLR(fd, &object->efds);
-    reactor->event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
     sw_free(s_ev);
     swReactor_del(reactor, fd);
     return SW_OK;

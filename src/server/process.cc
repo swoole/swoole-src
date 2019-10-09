@@ -474,10 +474,9 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 static int swFactoryProcess_end(swFactory *factory, int fd)
 {
     swServer *serv = (swServer *) factory->ptr;
-    swSendData _send;
-    swDataHead info;
+    swSendData _send = {0};
+    swDataHead info = {0};
 
-    bzero(&_send, sizeof(_send));
     _send.info.fd = fd;
     _send.info.len = 0;
     _send.info.type = SW_EVENT_CLOSE;

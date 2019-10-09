@@ -136,7 +136,6 @@ static int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
     }
 
     swTraceLog(SW_TRACE_EVENT, "add event[reactor_id=%d, fd=%d, events=%d]", reactor->id, fd, swReactor_events(fdtype));
-    reactor->event_num++;
 
     return SW_OK;
 }
@@ -151,7 +150,6 @@ static int swReactorEpoll_del(swReactor *reactor, int fd)
     }
 
     swTraceLog(SW_TRACE_REACTOR, "remove event[reactor_id=%d|fd=%d]", reactor->id, fd);
-    reactor->event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
     swReactor_del(reactor, fd);
 
     return SW_OK;
@@ -285,7 +283,6 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             }
             if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE))
             {
-                reactor->event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
                 swReactor_del(reactor, event.fd);
             }
         }
