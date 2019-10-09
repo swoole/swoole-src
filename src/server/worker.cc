@@ -716,7 +716,7 @@ int swWorker_loop(swServer *serv, int worker_id)
 int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int session_id)
 {
     int ret;
-    int _pipe_fd = swWorker_get_send_pipe(serv, session_id, ev_data->info.reactor_id);
+    int _pipe_fd = swServer_get_send_pipe(serv, session_id, ev_data->info.reactor_id);
 
     if (SwooleTG.reactor)
     {

@@ -445,15 +445,53 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                 swString_free(package);
                 _map->erase(key);
             }
-            else if (resp->info.flags & SW_EVENT_DATA_EXIT)
-            {
-                swReactorThread_shutdown(reactor);
-            }
             else
             {
-                _send.info = resp->info;
-                _send.data = resp->data;
-                swServer_master_send(serv, &_send);
+                /**
+                 * connection incoming
+                 */
+                if (resp->info.type == SW_EVENT_INCOMING)
+                {
+                    int fd = resp->info.fd;
+                    swConnection *conn = swServer_connection_get(serv, fd);
+#ifdef SW_USE_OPENSSL
+                    if (conn->socket->ssl)
+                    {
+                        goto _listen_read_event;
+                    }
+#endif
+                    //notify worker process
+                    if (serv->onConnect)
+                    {
+                        serv->notify(serv, conn, SW_EVENT_CONNECT);
+                    }
+                    //delay receive, wait resume command.
+                    if (serv->enable_delay_receive)
+                    {
+                        conn->socket->listen_wait = 1;
+                        return SW_OK;
+                    }
+                    else
+                    {
+#ifdef SW_USE_OPENSSL
+                        _listen_read_event:
+#endif
+                        return reactor->add(reactor, fd, SW_FD_SESSION | SW_EVENT_TCP | SW_EVENT_READ);
+                    }
+                }
+                /**
+                 * server shutdown
+                 */
+                else if (resp->info.type == SW_EVENT_SHUTDOWN)
+                {
+                    swReactorThread_shutdown(reactor);
+                }
+                else
+                {
+                    _send.info = resp->info;
+                    _send.data = resp->data;
+                    swServer_master_send(serv, &_send);
+                }
             }
         }
         else if (errno == EAGAIN)
@@ -682,39 +720,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     swTraceLog(SW_TRACE_REACTOR, "fd=%d, conn->connect_notify=%d, conn->close_notify=%d, serv->disable_notify=%d, conn->close_force=%d",
             fd, conn->connect_notify, conn->close_notify, serv->disable_notify, conn->close_force);
 
-    if (conn->connect_notify)
-    {
-        conn->connect_notify = 0;
-#ifdef SW_USE_OPENSSL
-        if (conn->socket->ssl)
-        {
-            goto _listen_read_event;
-        }
-#endif
-        //notify worker process
-        if (serv->onConnect)
-        {
-            serv->notify(serv, conn, SW_EVENT_CONNECT);
-            if (!swBuffer_empty(conn->socket->out_buffer))
-            {
-                goto _pop_chunk;
-            }
-        }
-        //delay receive, wait resume command.
-        if (serv->enable_delay_receive)
-        {
-            conn->socket->listen_wait = 1;
-            return reactor->del(reactor, fd);
-        }
-        else
-        {
-#ifdef SW_USE_OPENSSL
-            _listen_read_event:
-#endif
-            return reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_READ);
-        }
-    }
-    else if (conn->close_notify)
+    if (conn->close_notify)
     {
 #ifdef SW_USE_OPENSSL
         if (conn->socket->ssl && conn->socket->ssl_state != SW_SSL_STATE_READY)
@@ -731,7 +737,6 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         return swReactorThread_close(reactor, fd);
     }
 
-    _pop_chunk:
     while (!swBuffer_empty(conn->socket->out_buffer))
     {
         chunk = swBuffer_get_chunk(conn->socket->out_buffer);
@@ -1277,7 +1282,7 @@ void swReactorThread_join(swServer *serv)
         {
             swDataHead ev;
             memset(&ev, 0, sizeof(ev));
-            ev.flags = SW_EVENT_DATA_EXIT;
+            ev.type = SW_EVENT_SHUTDOWN;
             if (swSocket_write_blocking(thread->notify_pipe, (void *) &ev, sizeof(ev)) < 0)
             {
                 goto _cancel;

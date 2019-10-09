@@ -85,12 +85,10 @@ void swServer_close_port(swServer *serv, enum swBool_type only_stream_port)
 int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
     swServer *serv = (swServer *) reactor->ptr;
-    swReactor *sub_reactor;
     swListenPort *listen_host = (swListenPort *) serv->connection_list[event->fd].object;
 
     int new_fd = 0, reactor_id = 0, i;
 
-    //SW_ACCEPT_AGAIN
     for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
     {
         new_fd = swSocket_accept(event->fd, &event->socket->info);
@@ -123,17 +121,6 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             return SW_OK;
         }
 
-        if (serv->single_thread)
-        {
-            reactor_id = 0;
-            sub_reactor = reactor;
-        }
-        else
-        {
-            reactor_id = new_fd % serv->reactor_num;
-            sub_reactor = &serv->reactor_threads[reactor_id].reactor;
-        }
-
         //add to connection_list
         swConnection *conn = swServer_connection_new(serv, listen_host, new_fd, event->fd, reactor_id);
         memcpy(&conn->info.addr, &event->socket->info, sizeof(event->socket->info));
@@ -145,10 +132,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         {
             if (swSSL_create(_socket, listen_host->ssl_context, 0) < 0)
             {
-                bzero(conn, sizeof(swConnection));
-                bzero(_socket, sizeof(swSocket));
-                _socket->removed = 1;
-                close(new_fd);
+                reactor->close(reactor, new_fd);
                 return SW_OK;
             }
             else
@@ -161,22 +145,27 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             _socket->ssl = NULL;
         }
 #endif
-        /*
-         * [!!!] new_connection function must before reactor->add
-         */
-        conn->connect_notify = 1;
-        if (sub_reactor->add(sub_reactor, new_fd, SW_FD_SESSION | SW_EVENT_WRITE) < 0)
+        if (serv->single_thread)
         {
-            bzero(conn, sizeof(swConnection));
-            close(new_fd);
-            return SW_OK;
+            if (reactor->add(reactor, new_fd, SW_FD_SESSION | SW_EVENT_WRITE) < 0)
+            {
+                reactor->close(reactor, new_fd);
+                return SW_OK;
+            }
         }
-
-#ifdef SW_ACCEPT_AGAIN
-        continue;
-#else
-        break;
-#endif
+        else
+        {
+            reactor_id = new_fd % serv->reactor_num;
+            swDataHead ev = {0};
+            ev.type = SW_EVENT_INCOMING;
+            ev.fd = new_fd;
+            int _pipe_fd = swServer_get_send_pipe(serv, conn->session_id, reactor_id);
+            if (reactor->write(reactor, _pipe_fd, &ev, sizeof(ev)) < 0)
+            {
+                reactor->close(reactor, new_fd);
+                return SW_OK;
+            }
+        }
     }
     return SW_OK;
 }
