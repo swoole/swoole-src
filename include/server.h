@@ -972,23 +972,27 @@ static sw_inline int swServer_connection_incoming(swServer *serv, swReactor *rea
         goto _listen_read_event;
     }
 #endif
-    //notify worker process
-    if (serv->onConnect)
-    {
-        serv->notify(serv, conn, SW_EVENT_CONNECT);
-    }
     //delay receive, wait resume command.
     if (serv->enable_delay_receive)
     {
         conn->socket->listen_wait = 1;
         return SW_OK;
     }
+#ifdef SW_USE_OPENSSL
+    _listen_read_event:
+#endif
+    if (reactor->add(reactor, conn->fd, SW_FD_SESSION | SW_EVENT_READ) < 0)
+    {
+        return SW_ERR;
+    }
+    //notify worker process
+    if (serv->onConnect)
+    {
+        return serv->notify(serv, conn, SW_EVENT_CONNECT);
+    }
     else
     {
-#ifdef SW_USE_OPENSSL
-        _listen_read_event:
-#endif
-        return reactor->add(reactor, conn->fd, SW_FD_SESSION | SW_EVENT_READ);
+        return SW_OK;
     }
 }
 
