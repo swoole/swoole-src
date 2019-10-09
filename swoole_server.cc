@@ -201,6 +201,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_finish, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_task_pack, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_reload, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -314,6 +318,7 @@ static PHP_METHOD(swoole_connection_iterator, __destruct);
  * Server\Task
  */
 static PHP_METHOD(swoole_server_task, finish);
+static PHP_METHOD(swoole_server_task, pack);
 
 static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, __construct, arginfo_swoole_server__construct, ZEND_ACC_PUBLIC)
@@ -384,6 +389,7 @@ static const zend_function_entry swoole_connection_iterator_methods[] =
 static const zend_function_entry swoole_server_task_methods[] =
 {
     PHP_ME(swoole_server_task, finish, arginfo_swoole_server_finish, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_task, pack, arginfo_swoole_server_task_pack, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -405,7 +411,6 @@ static void php_swoole_onWorkerStop(swServer *, int worker_id);
 static void php_swoole_onWorkerExit(swServer *serv, int worker_id);
 static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker);
 static int php_swoole_onTask(swServer *, swEventData *task);
-static int php_swoole_onTaskCo(swServer *, swEventData *task);
 static int php_swoole_onFinish(swServer *, swEventData *task);
 static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker_pid, int exit_code, int signo);
 static void php_swoole_onManagerStart(swServer *serv);
@@ -3684,6 +3689,24 @@ static PHP_METHOD(swoole_server_task, finish)
 
     swDataHead *info = (swDataHead *) swoole_get_property(ZEND_THIS, 0);
     SW_CHECK_RETURN(php_swoole_task_finish(serv, data, (swEventData* )info));
+}
+
+static PHP_METHOD(swoole_server_task, pack)
+{
+    swEventData buf = {0};
+    zval *data;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(data)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (php_swoole_task_pack(&buf, data) < 0)
+    {
+        RETURN_FALSE;
+    }
+    swTask_type(&buf) |= (SW_TASK_NONBLOCK | SW_TASK_NOREPLY);
+
+    RETURN_STRINGL((char* )&buf, sizeof(buf.info) + buf.info.len);
 }
 
 static PHP_METHOD(swoole_server, bind)
