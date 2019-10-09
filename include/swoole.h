@@ -1926,6 +1926,7 @@ static sw_inline void swReactor_add(swReactor *reactor, int fd, int fdtype)
     _socket->fdtype = swReactor_fdtype(fdtype);
     _socket->events = swReactor_events(fdtype);
     _socket->removed = 0;
+    reactor->event_num++;
 }
 
 static sw_inline void swReactor_set(swReactor *reactor, int fd, int type)
@@ -1939,6 +1940,7 @@ static sw_inline void swReactor_del(swReactor *reactor, int fd)
     swSocket *_socket = swReactor_get(reactor, fd);
     _socket->events = 0;
     _socket->removed = 1;
+    reactor->event_num--;
 }
 
 static sw_inline int swReactor_exists(swReactor *reactor, int fd)
