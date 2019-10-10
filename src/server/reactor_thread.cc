@@ -64,7 +64,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                         swFactory *factory = &serv->factory;
                         swSendData task;
                         task.info.fd = _socket->fd;
-                        task.info.type = SW_EVENT_CONNECT;
+                        task.info.type = SW_SERVER_EVENT_CONNECT;
                         task.info.reactor_id = reactor->id;
                         task.info.len = ret;
                         task.data = SwooleTG.buffer_stack->str;
@@ -84,7 +84,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
             }
             if (serv->onConnect)
             {
-                serv->notify(serv, (swConnection *) _socket->object, SW_EVENT_CONNECT);
+                serv->notify(serv, (swConnection *) _socket->object, SW_SERVER_EVENT_CONNECT);
             }
             _delay_receive:
             if (serv->enable_delay_receive)
@@ -139,34 +139,22 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
     swDgramPacket *pkt = (swDgramPacket *) SwooleTG.buffer_stack->str;
     swFactory *factory = &serv->factory;
 
-    pkt->info.len = sizeof(pkt->info.addr);
+    pkt->socket_addr.len = sizeof(pkt->socket_addr.addr);
 
     bzero(&task.info, sizeof(task.info));
     task.info.server_fd = fd;
     task.info.reactor_id = SwooleTG.id;
+    task.info.type = SW_SERVER_EVENT_SNED_DGRAM;
 #ifdef SW_BUFFER_RECV_TIME
     task.info.time = swoole_microtime();
 #endif
 
     int socket_type = server_sock->socket_type;
-    switch(socket_type)
-    {
-    case SW_SOCK_UDP6:
-        task.info.type = SW_EVENT_UDP6;
-        break;
-    case SW_SOCK_UNIX_DGRAM:
-        task.info.type = SW_EVENT_UNIX_DGRAM;
-        break;
-    case SW_SOCK_UDP:
-    default:
-        task.info.type = SW_EVENT_UDP;
-        break;
-    }
 
     _do_recvfrom:
     ret = recvfrom(
         fd, pkt->data, SwooleTG.buffer_stack->size - sizeof(*pkt), 0,
-        (struct sockaddr *) &pkt->info.addr, &pkt->info.len
+        (struct sockaddr *) &pkt->socket_addr.addr, &pkt->socket_addr.len
     );
 
     if (ret <= 0)
@@ -182,21 +170,20 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
         }
     }
 
-    //IPv4
     if (socket_type == SW_SOCK_UDP)
     {
-        memcpy(&task.info.fd, &pkt->info.addr.inet_v4.sin_addr, sizeof(task.info.fd));
+        memcpy(&task.info.fd, &pkt->socket_addr.addr.inet_v4.sin_addr, sizeof(task.info.fd));
     }
-    //IPv6
     else if (socket_type == SW_SOCK_UDP6)
     {
-        memcpy(&task.info.fd, &pkt->info.addr.inet_v6.sin6_addr, sizeof(task.info.fd));
+        memcpy(&task.info.fd, &pkt->socket_addr.addr.inet_v6.sin6_addr, sizeof(task.info.fd));
     }
     else
     {
-        task.info.fd = swoole_crc32(pkt->info.addr.un.sun_path, pkt->info.len);
+        task.info.fd = swoole_crc32(pkt->socket_addr.addr.un.sun_path, pkt->socket_addr.len);
     }
 
+    pkt->socket_type = socket_type;
     pkt->length = ret;
     task.info.len = sizeof(*pkt) + ret;
     task.data = (char*) pkt;
@@ -315,7 +302,7 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 
     notify_ev.reactor_id = reactor->id;
     notify_ev.fd = fd;
-    notify_ev.type = SW_EVENT_CLOSE;
+    notify_ev.type = SW_SERVER_EVENT_CLOSE;
 
     swTraceLog(SW_TRACE_CLOSE, "client[fd=%d] close the connection", fd);
 
@@ -445,15 +432,33 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                 swString_free(package);
                 _map->erase(key);
             }
-            else if (resp->info.flags & SW_EVENT_DATA_EXIT)
-            {
-                swReactorThread_shutdown(reactor);
-            }
             else
             {
-                _send.info = resp->info;
-                _send.data = resp->data;
-                swServer_master_send(serv, &_send);
+                /**
+                 * connection incoming
+                 */
+                if (resp->info.type == SW_SERVER_EVENT_INCOMING)
+                {
+                    int fd = resp->info.fd;
+                    swConnection *conn = swServer_connection_get(serv, fd);
+                    if (swServer_connection_incoming(serv, reactor, conn) < 0)
+                    {
+                        return reactor->close(reactor, fd);
+                    }
+                }
+                /**
+                 * server shutdown
+                 */
+                else if (resp->info.type == SW_SERVER_EVENT_SHUTDOWN)
+                {
+                    swReactorThread_shutdown(reactor);
+                }
+                else
+                {
+                    _send.info = resp->info;
+                    _send.data = resp->data;
+                    swServer_master_send(serv, &_send);
+                }
             }
         }
         else if (errno == EAGAIN)
@@ -679,42 +684,10 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         return SW_ERR;
     }
 
-    swTraceLog(SW_TRACE_REACTOR, "fd=%d, conn->connect_notify=%d, conn->close_notify=%d, serv->disable_notify=%d, conn->close_force=%d",
-            fd, conn->connect_notify, conn->close_notify, serv->disable_notify, conn->close_force);
+    swTraceLog(SW_TRACE_REACTOR, "fd=%d, conn->close_notify=%d, serv->disable_notify=%d, conn->close_force=%d",
+            fd, conn->close_notify, serv->disable_notify, conn->close_force);
 
-    if (conn->connect_notify)
-    {
-        conn->connect_notify = 0;
-#ifdef SW_USE_OPENSSL
-        if (conn->socket->ssl)
-        {
-            goto _listen_read_event;
-        }
-#endif
-        //notify worker process
-        if (serv->onConnect)
-        {
-            serv->notify(serv, conn, SW_EVENT_CONNECT);
-            if (!swBuffer_empty(conn->socket->out_buffer))
-            {
-                goto _pop_chunk;
-            }
-        }
-        //delay receive, wait resume command.
-        if (serv->enable_delay_receive)
-        {
-            conn->socket->listen_wait = 1;
-            return reactor->del(reactor, fd);
-        }
-        else
-        {
-#ifdef SW_USE_OPENSSL
-            _listen_read_event:
-#endif
-            return reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_READ);
-        }
-    }
-    else if (conn->close_notify)
+    if (conn->close_notify)
     {
 #ifdef SW_USE_OPENSSL
         if (conn->socket->ssl && conn->socket->ssl_state != SW_SSL_STATE_READY)
@@ -722,7 +695,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
             return swReactorThread_close(reactor, fd);
         }
 #endif
-        serv->notify(serv, conn, SW_EVENT_CLOSE);
+        serv->notify(serv, conn, SW_SERVER_EVENT_CLOSE);
         conn->close_notify = 0;
         return SW_OK;
     }
@@ -731,7 +704,6 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         return swReactorThread_close(reactor, fd);
     }
 
-    _pop_chunk:
     while (!swBuffer_empty(conn->socket->out_buffer))
     {
         chunk = swBuffer_get_chunk(conn->socket->out_buffer);
@@ -775,7 +747,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         if (conn->socket->out_buffer->length <= port->buffer_low_watermark)
         {
             conn->high_watermark = 0;
-            serv->notify(serv, conn, SW_EVENT_BUFFER_EMPTY);
+            serv->notify(serv, conn, SW_SERVER_EVENT_BUFFER_EMPTY);
         }
     }
 
@@ -1202,7 +1174,7 @@ int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, char *data, u
     bzero(&task.info, sizeof(task.info));
     task.info.server_fd = conn->server_fd;
     task.info.reactor_id = conn->reactor_id;
-    task.info.type = SW_EVENT_TCP;
+    task.info.type = SW_SERVER_EVENT_SEND_DATA;
 #ifdef SW_BUFFER_RECV_TIME
     task.info.info.time = conn->last_time_usec;
 #endif
@@ -1275,9 +1247,8 @@ void swReactorThread_join(swServer *serv)
         thread = &(serv->reactor_threads[i]);
         if (thread->notify_pipe)
         {
-            swDataHead ev;
-            memset(&ev, 0, sizeof(ev));
-            ev.flags = SW_EVENT_DATA_EXIT;
+            swDataHead ev = {0};
+            ev.type = SW_SERVER_EVENT_SHUTDOWN;
             if (swSocket_write_blocking(thread->notify_pipe, (void *) &ev, sizeof(ev)) < 0)
             {
                 goto _cancel;
@@ -1373,7 +1344,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                 //notify to reactor thread
                 if (conn->peer_closed)
                 {
-                    serv->notify(serv, conn, SW_EVENT_CLOSE);
+                    serv->notify(serv, conn, SW_SERVER_EVENT_CLOSE);
                 }
                 else
                 {

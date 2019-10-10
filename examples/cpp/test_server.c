@@ -141,22 +141,19 @@ int my_onPacket(swServer *serv, swEventData *req)
 
     int serv_sock = req->info.server_fd;
 
-    //udp ipv4
-    if (req->info.type == SW_EVENT_UDP)
+    if (packet->socket_type == SW_SOCK_UDP)
     {
-        inet_ntop(AF_INET, &packet->info.addr.inet_v4.sin_addr, address, sizeof(address));
-        port = ntohs(packet->info.addr.inet_v4.sin_port);
+        inet_ntop(AF_INET, &packet->socket_addr.addr.inet_v4.sin_addr, address, sizeof(address));
+        port = ntohs(packet->socket_addr.addr.inet_v4.sin_port);
     }
-    //udp ipv6
-    else if (req->info.type == SW_EVENT_UDP6)
+    else if (packet->socket_type == SW_SOCK_UDP6)
     {
-        inet_ntop(AF_INET6, &packet->info.addr.inet_v6.sin6_addr, address, sizeof(address));
-        port = ntohs(packet->info.addr.inet_v6.sin6_port);
+        inet_ntop(AF_INET6, &packet->socket_addr.addr.inet_v6.sin6_addr, address, sizeof(address));
+        port = ntohs(packet->socket_addr.addr.inet_v6.sin6_port);
     }
-    //unix dgram
-    else if (req->info.type == SW_EVENT_UNIX_DGRAM)
+    else if (packet->socket_type == SW_SOCK_UNIX_DGRAM)
     {
-        strcpy(address, packet->info.addr.un.sun_path);
+        strcpy(address, packet->socket_addr.addr.un.sun_path);
     }
     else
     {
@@ -171,18 +168,15 @@ int my_onPacket(swServer *serv, swEventData *req)
     char resp_data[SW_IPC_BUFFER_SIZE];
     int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s", length, data);
 
-    //udp ipv4
-    if (req->info.type == SW_EVENT_UDP)
+    if (packet->socket_type == SW_SOCK_UDP)
     {
         ret = swSocket_udp_sendto(serv_sock, address, port, resp_data, n);
     }
-    //udp ipv6
-    else if (req->info.type == SW_EVENT_UDP6)
+    else if (packet->socket_type == SW_SOCK_UDP6)
     {
         ret = swSocket_udp_sendto6(serv_sock, address, port, resp_data, n);
     }
-    //unix dgram
-    else if (req->info.type == SW_EVENT_UNIX_DGRAM)
+    else if (packet->socket_type == SW_SOCK_UNIX_DGRAM)
     {
         ret = swSocket_unix_sendto(serv_sock, address, resp_data, n);
     }

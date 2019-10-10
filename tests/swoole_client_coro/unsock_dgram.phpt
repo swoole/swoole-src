@@ -1,26 +1,33 @@
 --TEST--
-swoole_server: unix socket dgram server
+swoole_client_coro: unix socket dgram
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+
 use Swoole\Server;
-use Swoole\Client;
+use Swoole\Coroutine\Client;
 
 $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    $client = new Client(SWOOLE_SOCK_UNIX_DGRAM, SWOOLE_SOCK_SYNC);
-    $r = $client->connect(UNIXSOCK_PATH, 0, -1);
-    if ($r === false)
-    {
-        echo "ERROR";
-        exit;
-    }
-    $client->send("SUCCESS");
-    echo $client->recv();
-    $client->close();
+    Co\Run(function () {
+        $client = new Client(SWOOLE_SOCK_UNIX_DGRAM);
+        $client->set([
+            'bind_address' => __DIR__ . '/client.sock',
+            'bind_port' => 0,
+        ]);
+        $r = $client->connect(UNIXSOCK_PATH, 0, -1);
+        if ($r === false) {
+            echo "ERROR";
+            exit;
+        }
+        $client->send("SUCCESS");
+        echo $client->recv();
+        $client->close();
+        unlink(__DIR__ . '/client.sock');
+    });
     @unlink(UNIXSOCK_PATH);
     $pm->kill();
 };
@@ -39,6 +46,7 @@ $pm->childFunc = function () use ($pm) {
 
 $pm->childFirst();
 $pm->run();
+
 ?>
 --EXPECT--
 SUCCESS

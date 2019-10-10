@@ -120,7 +120,7 @@ bool Server::close(int fd, bool reset)
     {
         swWorker *worker = swServer_get_worker(&serv, conn->fd % serv.worker_num);
         swDataHead ev;
-        ev.type = SW_EVENT_CLOSE;
+        ev.type = SW_SERVER_EVENT_CLOSE;
         ev.fd = fd;
         ev.reactor_id = conn->reactor_id;
         ret = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
@@ -136,7 +136,7 @@ static int task_id = 0;
 
 static int task_pack(swEventData *task, const DataBuffer &data)
 {
-    task->info.type = SW_EVENT_TASK;
+    task->info.type = SW_SERVER_EVENT_TASK;
     //field fd save task_id
     task->info.fd = task_id++;
     //field reactor_id save the worker_id
@@ -353,7 +353,7 @@ bool Server::sendMessage(int worker_id, DataBuffer &data)
         return false;
     }
 
-    buf.info.type = SW_EVENT_PIPE_MESSAGE;
+    buf.info.type = SW_SERVER_EVENT_PIPE_MESSAGE;
     buf.info.reactor_id = SwooleWG.id;
 
     swWorker *to_worker = swServer_get_worker(&serv, (uint16_t) worker_id);
@@ -472,22 +472,19 @@ int Server::_onPacket(swServer *serv, swEventData *req)
     data = packet->data;
     length = packet->length;
 
-    //udp ipv4
-    if (req->info.type == SW_EVENT_UDP)
+    if (packet->socket_type == SW_SOCK_UDP)
     {
-        inet_ntop(AF_INET6, &packet->info.addr.inet_v4.sin_addr, clientInfo.address, sizeof(clientInfo.address));
-        clientInfo.port = ntohs(packet->info.addr.inet_v4.sin_port);
+        inet_ntop(AF_INET6, &packet->socket_addr.addr.inet_v4.sin_addr, clientInfo.address, sizeof(clientInfo.address));
+        clientInfo.port = ntohs(packet->socket_addr.addr.inet_v4.sin_port);
     }
-    //udp ipv6
-    else if (req->info.type == SW_EVENT_UDP6)
+    else if (packet->socket_type == SW_SOCK_UDP6)
     {
-        inet_ntop(AF_INET6, &packet->info.addr.inet_v6.sin6_addr, clientInfo.address, sizeof(clientInfo.address));
-        clientInfo.port = ntohs(packet->info.addr.inet_v6.sin6_port);
+        inet_ntop(AF_INET6, &packet->socket_addr.addr.inet_v6.sin6_addr, clientInfo.address, sizeof(clientInfo.address));
+        clientInfo.port = ntohs(packet->socket_addr.addr.inet_v6.sin6_port);
     }
-    //unix dgram
-    else if (req->info.type == SW_EVENT_UNIX_DGRAM)
+    else if (packet->socket_type == SW_SOCK_UNIX_DGRAM)
     {
-        strcpy(clientInfo.address, packet->info.addr.un.sun_path);
+        strcpy(clientInfo.address, packet->socket_addr.addr.un.sun_path);
     }
     else
     {

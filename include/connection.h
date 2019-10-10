@@ -49,6 +49,7 @@ typedef struct _swSSL_option
     uint8_t disable_compress :1;
     uint8_t verify_peer :1;
     uint8_t allow_self_signed :1;
+    uint32_t protocols;
 } swSSL_option;
 
 #endif
@@ -291,6 +292,7 @@ static sw_inline int swConnection_error(int err)
     case EHOSTDOWN:
     case EHOSTUNREACH:
     case SW_ERROR_SSL_BAD_CLIENT:
+    case SW_ERROR_SSL_RESET:
         return SW_CLOSE;
     case EAGAIN:
 #ifdef HAVE_KQUEUE

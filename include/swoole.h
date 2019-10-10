@@ -395,8 +395,8 @@ enum swFork_type
 //-------------------------------------------------------------------------------
 enum swServer_mode
 {
-    SW_MODE_BASE          =  1,
-    SW_MODE_PROCESS       =  2,
+    SW_MODE_BASE         =  1,
+    SW_MODE_PROCESS      =  2,
 };
 //-------------------------------------------------------------------------------
 enum swSocket_type
@@ -405,10 +405,10 @@ enum swSocket_type
     SW_SOCK_UDP          =  2,
     SW_SOCK_TCP6         =  3,
     SW_SOCK_UDP6         =  4,
-    SW_SOCK_UNIX_DGRAM   =  5,  //unix sock dgram
-    SW_SOCK_UNIX_STREAM  =  6,  //unix sock stream
+    SW_SOCK_UNIX_STREAM  =  5,  //unix sock stream
+    SW_SOCK_UNIX_DGRAM   =  6,  //unix sock dgram
 };
-#define SW_SOCK_SSL            (1u << 9)
+#define SW_SOCK_SSL         (1u << 9)
 //-------------------------------------------------------------------------------
 enum swLog_level
 {
@@ -664,9 +664,13 @@ typedef struct _swSocket
     uint8_t removed :1;
     uint8_t nonblock :1;
     uint8_t direct_send :1;
+#ifdef SW_USE_OPENSSL
     uint8_t ssl_send :1;
     uint8_t ssl_want_read :1;
     uint8_t ssl_want_write :1;
+    uint8_t ssl_renegotiation :1;
+    uint8_t ssl_handshake_buffer_set :1;
+#endif
     uint8_t dontwait :1;
     uint8_t close_wait :1;
     uint8_t send_wait :1;
@@ -721,7 +725,6 @@ typedef struct _swConnection
      * system fd must be 0. en: signalfd, listen socket
      */
     uint8_t active;
-    uint8_t connect_notify;
 #ifdef SW_USE_OPENSSL
     uint8_t ssl;
     uint8_t ssl_ready;
@@ -944,7 +947,6 @@ enum _swEventData_flag
     SW_EVENT_DATA_PTR = 1u << 1,
     SW_EVENT_DATA_CHUNK = 1u << 2,
     SW_EVENT_DATA_END = 1u << 3,
-    SW_EVENT_DATA_EXIT = 1u << 4,
 };
 
 typedef struct _swDataHead
@@ -984,7 +986,8 @@ typedef struct
 
 typedef struct _swDgramPacket
 {
-    swSocketAddress info;
+    int socket_type;
+    swSocketAddress socket_addr;
     uint32_t length;
     char data[0];
 } swDgramPacket;
@@ -1928,6 +1931,7 @@ static sw_inline void swReactor_add(swReactor *reactor, int fd, int fdtype)
     _socket->fdtype = swReactor_fdtype(fdtype);
     _socket->events = swReactor_events(fdtype);
     _socket->removed = 0;
+    reactor->event_num++;
 }
 
 static sw_inline void swReactor_set(swReactor *reactor, int fd, int type)
@@ -1941,6 +1945,7 @@ static sw_inline void swReactor_del(swReactor *reactor, int fd)
     swSocket *_socket = swReactor_get(reactor, fd);
     _socket->events = 0;
     _socket->removed = 1;
+    reactor->event_num--;
 }
 
 static sw_inline int swReactor_exists(swReactor *reactor, int fd)

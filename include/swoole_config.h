@@ -142,13 +142,6 @@
 #define SW_BACKLOG                       512
 
 /**
- * Whether to cycle accept
- * you can process the full listen queue in one time
- * for a large number of concurrent connections
- */
-#define SW_ACCEPT_AGAIN                  1
-
-/**
  * max accept times for single time
  */
 #define SW_ACCEPT_MAX_COUNT              64
