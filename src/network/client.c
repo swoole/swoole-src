@@ -330,10 +330,12 @@ int swClient_ssl_verify(swClient *cli, int allow_self_signed)
     {
         return SW_ERR;
     }
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (cli->ssl_option.tls_host_name && swSSL_check_host(cli->socket, cli->ssl_option.tls_host_name) < 0)
     {
         return SW_ERR;
     }
+#endif
     return SW_OK;
 }
 

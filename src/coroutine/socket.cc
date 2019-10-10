@@ -1305,10 +1305,12 @@ int Socket::ssl_verify(bool allow_self_signed)
     {
         return SW_ERR;
     }
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (ssl_option.tls_host_name && swSSL_check_host(socket, ssl_option.tls_host_name) < 0)
     {
         return SW_ERR;
     }
+#endif
     return SW_OK;
 }
 #endif
