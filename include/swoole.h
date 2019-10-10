@@ -664,9 +664,13 @@ typedef struct _swSocket
     uint8_t removed :1;
     uint8_t nonblock :1;
     uint8_t direct_send :1;
+#ifdef SW_USE_OPENSSL
     uint8_t ssl_send :1;
     uint8_t ssl_want_read :1;
     uint8_t ssl_want_write :1;
+    uint8_t ssl_renegotiation :1;
+    uint8_t ssl_handshake_buffer_set :1;
+#endif
     uint8_t dontwait :1;
     uint8_t close_wait :1;
     uint8_t send_wait :1;

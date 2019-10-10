@@ -272,11 +272,12 @@ int swReactor_write(swReactor *reactor, int fd, const void *buf, int n)
 
     if (swBuffer_empty(buffer))
     {
+#ifdef SW_USE_OPENSSL
         if (socket->ssl_send)
         {
             goto _do_buffer;
         }
-
+#endif
         _do_send:
         ret = swConnection_send(socket, ptr, n, 0);
 

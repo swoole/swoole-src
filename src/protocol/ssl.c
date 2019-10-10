@@ -24,6 +24,7 @@
 #include <openssl/x509v3.h>
 
 static int openssl_init = 0;
+static int ssl_connection_index = 0;
 static pthread_mutex_t *lock_array;
 
 static const SSL_METHOD *swSSL_get_method(int method);
@@ -123,6 +124,14 @@ void swSSL_init(void)
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
 #endif
+
+    ssl_connection_index = SSL_get_ex_new_index(0, NULL, NULL, NULL, NULL);
+    if (ssl_connection_index < 0)
+    {
+        swError("SSL_get_ex_new_index() failed");
+        return;
+    }
+
     openssl_init = 1;
 }
 
@@ -224,7 +233,6 @@ int swSSL_server_set_cipher(SSL_CTX* ssl_context, swSSL_config *cfg)
 #ifndef TLS1_2_VERSION
     return SW_OK;
 #endif
-    SSL_CTX_set_read_ahead(ssl_context, 1);
 
     if (cfg->ciphers && strlen(cfg->ciphers) > 0)
     {
@@ -275,6 +283,57 @@ static int swSSL_passwd_callback(char *buf, int num, int verify, void *data)
     return 0;
 }
 
+static void swSSL_info_callback(const SSL *ssl, int where, int ret)
+{
+    BIO *rbio, *wbio;
+    swSocket *sock;
+
+    if (where & SSL_CB_HANDSHAKE_START)
+    {
+        sock = SSL_get_ex_data(ssl, ssl_connection_index);
+
+        if (sock->ssl_state == SW_SSL_STATE_READY)
+        {
+            sock->ssl_renegotiation = 1;
+            swDebug("SSL renegotiation");
+        }
+    }
+
+    if ((where & SSL_CB_ACCEPT_LOOP) == SSL_CB_ACCEPT_LOOP)
+    {
+        sock = SSL_get_ex_data(ssl, ssl_connection_index);
+
+        if (!sock->ssl_handshake_buffer_set)
+        {
+            /*
+             * By default OpenSSL uses 4k buffer during a handshake,
+             * which is too low for long certificate chains and might
+             * result in extra round-trips.
+             *
+             * To adjust a buffer size we detect that buffering was added
+             * to write side of the connection by comparing rbio and wbio.
+             * If they are different, we assume that it's due to buffering
+             * added to wbio, and set buffer size.
+             */
+
+            rbio = SSL_get_rbio(ssl);
+            wbio = SSL_get_wbio(ssl);
+
+            if (rbio != wbio)
+            {
+                (void) BIO_set_write_buffer_size(wbio, SW_SSL_BUFFER_SIZE);
+                sock->ssl_handshake_buffer_set = 1;
+            }
+        }
+    }
+}
+
+#define SW_SSL_SSLv2    0x0002
+#define SW_SSL_SSLv3    0x0004
+#define SW_SSL_TLSv1    0x0008
+#define SW_SSL_TLSv1_1  0x0010
+#define SW_SSL_TLSv1_2  0x0020
+
 SSL_CTX* swSSL_get_context(swSSL_option *option)
 {
     if (!openssl_init)
@@ -289,14 +348,93 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
         return NULL;
     }
 
+#ifdef SSL_OP_MICROSOFT_SESS_ID_BUG
+    SSL_CTX_set_options(ssl_context, SSL_OP_MICROSOFT_SESS_ID_BUG);
+#endif
+
+#ifdef SSL_OP_NETSCAPE_CHALLENGE_BUG
+    SSL_CTX_set_options(ssl_context, SSL_OP_NETSCAPE_CHALLENGE_BUG);
+#endif
+
+    /* server side options */
+#ifdef SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG
     SSL_CTX_set_options(ssl_context, SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG);
+#endif
+
+#ifdef SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER
     SSL_CTX_set_options(ssl_context, SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER);
+#endif
+
+#ifdef SSL_OP_MSIE_SSLV2_RSA_PADDING
+    /* this option allow a potential SSL 2.0 rollback (CAN-2005-2969) */
     SSL_CTX_set_options(ssl_context, SSL_OP_MSIE_SSLV2_RSA_PADDING);
+#endif
+
+#ifdef SSL_OP_SSLEAY_080_CLIENT_DH_BUG
     SSL_CTX_set_options(ssl_context, SSL_OP_SSLEAY_080_CLIENT_DH_BUG);
+#endif
+
+#ifdef SSL_OP_TLS_D5_BUG
     SSL_CTX_set_options(ssl_context, SSL_OP_TLS_D5_BUG);
+#endif
+
+#ifdef SSL_OP_TLS_BLOCK_PADDING_BUG
     SSL_CTX_set_options(ssl_context, SSL_OP_TLS_BLOCK_PADDING_BUG);
+#endif
+
+#ifdef SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
     SSL_CTX_set_options(ssl_context, SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS);
+#endif
+
     SSL_CTX_set_options(ssl_context, SSL_OP_SINGLE_DH_USE);
+
+#ifdef SSL_CTRL_CLEAR_OPTIONS
+    /* only in 0.9.8m+ */
+    SSL_CTX_clear_options(ssl_context, SSL_OP_NO_SSLv2|SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1);
+#endif
+
+    if (!(option->protocols & SW_SSL_SSLv2))
+    {
+        SSL_CTX_set_options(ssl_context, SSL_OP_NO_SSLv2);
+    }
+    if (!(option->protocols & SW_SSL_SSLv3))
+    {
+        SSL_CTX_set_options(ssl_context, SSL_OP_NO_SSLv3);
+    }
+    if (!(option->protocols & SW_SSL_TLSv1))
+    {
+        SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1);
+    }
+#ifdef SSL_OP_NO_TLSv1_1
+    SSL_CTX_clear_options(ssl_context, SSL_OP_NO_TLSv1_1);
+    if (!(option->protocols & SW_SSL_TLSv1_1))
+    {
+        SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1_1);
+    }
+#endif
+#ifdef SSL_OP_NO_TLSv1_2
+    SSL_CTX_clear_options(ssl_context, SSL_OP_NO_TLSv1_2);
+    if (!(option->protocols & SW_SSL_TLSv1_2))
+    {
+        SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1_2);
+    }
+#endif
+
+#ifdef SSL_OP_NO_COMPRESSION
+    SSL_CTX_set_options(ssl_context, SSL_OP_NO_COMPRESSION);
+#endif
+
+#ifdef SSL_MODE_RELEASE_BUFFERS
+    SSL_CTX_set_mode(ssl_context, SSL_MODE_RELEASE_BUFFERS);
+#endif
+
+#ifdef SSL_MODE_NO_AUTO_CHAIN
+    SSL_CTX_set_mode(ssl_context, SSL_MODE_NO_AUTO_CHAIN);
+#endif
+
+    SSL_CTX_set_read_ahead(ssl_context, 1);
+
+    SSL_CTX_set_info_callback(ssl_context, swSSL_info_callback);
 
     if (option->passphrase)
     {
@@ -1011,6 +1149,11 @@ int swSSL_create(swSocket *conn, SSL_CTX* ssl_context, int flags)
     else
     {
         SSL_set_accept_state(ssl);
+    }
+    if (SSL_set_ex_data(ssl, ssl_connection_index, conn) == 0)
+    {
+        swWarn("SSL_set_ex_data() failed");
+        return SW_ERR;
     }
     conn->ssl = ssl;
     conn->ssl_state = 0;

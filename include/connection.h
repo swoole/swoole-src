@@ -49,6 +49,7 @@ typedef struct _swSSL_option
     uint8_t disable_compress :1;
     uint8_t verify_peer :1;
     uint8_t allow_self_signed :1;
+    uint32_t protocols;
 } swSSL_option;
 
 #endif
