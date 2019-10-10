@@ -395,8 +395,8 @@ enum swFork_type
 //-------------------------------------------------------------------------------
 enum swServer_mode
 {
-    SW_MODE_BASE          =  1,
-    SW_MODE_PROCESS       =  2,
+    SW_MODE_BASE         =  1,
+    SW_MODE_PROCESS      =  2,
 };
 //-------------------------------------------------------------------------------
 enum swSocket_type
@@ -405,10 +405,10 @@ enum swSocket_type
     SW_SOCK_UDP          =  2,
     SW_SOCK_TCP6         =  3,
     SW_SOCK_UDP6         =  4,
-    SW_SOCK_UNIX_DGRAM   =  5,  //unix sock dgram
-    SW_SOCK_UNIX_STREAM  =  6,  //unix sock stream
+    SW_SOCK_UNIX_STREAM  =  5,  //unix sock stream
+    SW_SOCK_UNIX_DGRAM   =  6,  //unix sock dgram
 };
-#define SW_SOCK_SSL            (1u << 9)
+#define SW_SOCK_SSL         (1u << 9)
 //-------------------------------------------------------------------------------
 enum swLog_level
 {
@@ -982,7 +982,8 @@ typedef struct
 
 typedef struct _swDgramPacket
 {
-    swSocketAddress info;
+    int socket_type;
+    swSocketAddress socket_addr;
     uint32_t length;
     char data[0];
 } swDgramPacket;

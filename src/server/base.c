@@ -123,7 +123,7 @@ static int swFactory_end(swFactory *factory, int fd)
     bzero(&_send, sizeof(_send));
     _send.info.fd = fd;
     _send.info.len = 0;
-    _send.info.type = SW_EVENT_CLOSE;
+    _send.info.type = SW_SERVER_EVENT_CLOSE;
 
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (conn == NULL || conn->active == 0)

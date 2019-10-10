@@ -28,37 +28,31 @@ SW_EXTERN_C_BEGIN
 
 enum swServer_event_type
 {
-    //networking socket
-    SW_EVENT_TCP,
-    SW_EVENT_UDP,
-    SW_EVENT_TCP6,
-    SW_EVENT_UDP6,
-    //tcp event
-    SW_EVENT_CLOSE,
-    SW_EVENT_CONNECT,
+    //data payload
+    SW_SERVER_EVENT_SEND_DATA,
+    SW_SERVER_EVENT_SEND_FILE,
+    SW_SERVER_EVENT_SNED_DGRAM,
+    //connection event
+    SW_SERVER_EVENT_CLOSE,
+    SW_SERVER_EVENT_CONNECT,
     //task
-    SW_EVENT_TASK,
-    SW_EVENT_FINISH,
-    //sendfile
-    SW_EVENT_SENDFILE,
-    //dgram
-    SW_EVENT_UNIX_DGRAM,
-    SW_EVENT_UNIX_STREAM,
+    SW_SERVER_EVENT_TASK,
+    SW_SERVER_EVENT_FINISH,
     //pipe
-    SW_EVENT_PIPE_MESSAGE,
+    SW_SERVER_EVENT_PIPE_MESSAGE,
     //proxy
-    SW_EVENT_PROXY_START,
-    SW_EVENT_PROXY_END,
+    SW_SERVER_EVENT_PROXY_START,
+    SW_SERVER_EVENT_PROXY_END,
     //event operate
-    SW_EVENT_CONFIRM,
-    SW_EVENT_PAUSE_RECV,
-    SW_EVENT_RESUME_RECV,
+    SW_SERVER_EVENT_CONFIRM,
+    SW_SERVER_EVENT_PAUSE_RECV,
+    SW_SERVER_EVENT_RESUME_RECV,
     //buffer event
-    SW_EVENT_BUFFER_FULL,
-    SW_EVENT_BUFFER_EMPTY,
+    SW_SERVER_EVENT_BUFFER_FULL,
+    SW_SERVER_EVENT_BUFFER_EMPTY,
     //process message
-    SW_EVENT_INCOMING,
-    SW_EVENT_SHUTDOWN,
+    SW_SERVER_EVENT_INCOMING,
+    SW_SERVER_EVENT_SHUTDOWN,
 };
 
 enum swIPC_type
@@ -657,9 +651,7 @@ static sw_inline int swEventData_is_dgram(uint8_t type)
 {
     switch (type)
     {
-    case SW_EVENT_UDP:
-    case SW_EVENT_UDP6:
-    case SW_EVENT_UNIX_DGRAM:
+    case SW_SERVER_EVENT_SNED_DGRAM:
         return SW_TRUE;
     default:
         return SW_FALSE;
@@ -670,15 +662,13 @@ static sw_inline int swEventData_is_stream(uint8_t type)
 {
     switch (type)
     {
-    case SW_EVENT_TCP:
-    case SW_EVENT_TCP6:
-    case SW_EVENT_UNIX_STREAM:
-    case SW_EVENT_CONNECT:
-    case SW_EVENT_CLOSE:
-    case SW_EVENT_PAUSE_RECV:
-    case SW_EVENT_RESUME_RECV:
-    case SW_EVENT_BUFFER_FULL:
-    case SW_EVENT_BUFFER_EMPTY:
+    case SW_SERVER_EVENT_SEND_DATA:
+    case SW_SERVER_EVENT_CONNECT:
+    case SW_SERVER_EVENT_CLOSE:
+    case SW_SERVER_EVENT_PAUSE_RECV:
+    case SW_SERVER_EVENT_RESUME_RECV:
+    case SW_SERVER_EVENT_BUFFER_FULL:
+    case SW_SERVER_EVENT_BUFFER_EMPTY:
         return SW_TRUE;
     default:
         return SW_FALSE;
@@ -985,7 +975,7 @@ static sw_inline int swServer_connection_incoming(swServer *serv, swReactor *rea
     //notify worker process
     if (serv->onConnect)
     {
-        return serv->notify(serv, conn, SW_EVENT_CONNECT);
+        return serv->notify(serv, conn, SW_SERVER_EVENT_CONNECT);
     }
     else
     {

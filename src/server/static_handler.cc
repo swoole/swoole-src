@@ -62,7 +62,7 @@ int static_handler::send_error_page(int status_code)
 {
     swSendData response;
     response.info.fd = conn->session_id;
-    response.info.type = SW_EVENT_TCP;
+    response.info.type = SW_SERVER_EVENT_SEND_DATA;
     response.info.len = sw_snprintf(
         header_buffer, sizeof(header_buffer),
         "HTTP/1.1 %s\r\n"
@@ -105,7 +105,7 @@ int static_handler::send_response()
 
     swSendData response;
     response.info.fd = conn->session_id;
-    response.info.type = SW_EVENT_TCP;
+    response.info.type = SW_SERVER_EVENT_SEND_DATA;
 
     char *p = request->buffer->str + request->url_offset + request->url_length + 10;
     char *pe = request->buffer->str + request->header_length;
@@ -228,7 +228,7 @@ int static_handler::send_response()
     task.offset = 0;
     task.length = file_stat.st_size;
 
-    response.info.type = SW_EVENT_SENDFILE;
+    response.info.type = SW_SERVER_EVENT_SEND_FILE;
     response.info.len = sizeof(swSendFile_request) + task.length + 1;
     response.data = (char*) &task;
 
@@ -237,7 +237,7 @@ int static_handler::send_response()
     _finish:
     if (!request->keep_alive)
     {
-        response.info.type = SW_EVENT_CLOSE;
+        response.info.type = SW_SERVER_EVENT_CLOSE;
         response.data = NULL;
         swServer_master_send(serv, &response);
     }

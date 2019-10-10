@@ -73,7 +73,7 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
     swServer *serv = (swServer *) pool->ptr;
     g_current_task = task;
 
-    if (task->info.type == SW_EVENT_PIPE_MESSAGE)
+    if (task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE)
     {
         serv->onPipeMessage(serv, task);
     }
@@ -272,7 +272,7 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
     {
         current_task = g_current_task;
     }
-    if (current_task->info.type == SW_EVENT_PIPE_MESSAGE)
+    if (current_task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE)
     {
         swWarn("task/finish is not supported in onPipeMessage callback");
         return SW_ERR;
@@ -296,7 +296,7 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
     //for swoole_server_task
     if (swTask_type(current_task) & SW_TASK_NONBLOCK)
     {
-        buf.info.type = SW_EVENT_FINISH;
+        buf.info.type = SW_SERVER_EVENT_FINISH;
         buf.info.fd = current_task->info.fd;
         //callback function
         if (swTask_type(current_task) & SW_TASK_CALLBACK)
@@ -358,7 +358,7 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
             int fd = open(_tmpfile, O_APPEND | O_WRONLY);
             if (fd >= 0)
             {
-                buf.info.type = SW_EVENT_FINISH;
+                buf.info.type = SW_SERVER_EVENT_FINISH;
                 buf.info.fd = current_task->info.fd;
                 swTask_type(&buf) = flags;
                 //result pack
@@ -386,7 +386,7 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
         }
         else
         {
-            result->info.type = SW_EVENT_FINISH;
+            result->info.type = SW_SERVER_EVENT_FINISH;
             result->info.fd = current_task->info.fd;
             swTask_type(result) = flags;
 

@@ -272,9 +272,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
 
     switch (task->info.type)
     {
-    case SW_EVENT_TCP6:
-    case SW_EVENT_TCP:
-    case SW_EVENT_UNIX_STREAM:
+    case SW_SERVER_EVENT_SEND_DATA:
         //discard data
         if (swWorker_discard_data(serv, task) == SW_TRUE)
         {
@@ -283,13 +281,11 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         swWorker_do_task(serv, worker, task, serv->onReceive);
         break;
 
-    case SW_EVENT_UDP:
-    case SW_EVENT_UDP6:
-    case SW_EVENT_UNIX_DGRAM:
+    case SW_SERVER_EVENT_SNED_DGRAM:
         swWorker_do_task(serv, worker, task, serv->onPacket);
         break;
 
-    case SW_EVENT_CLOSE:
+    case SW_SERVER_EVENT_CLOSE:
 #ifdef SW_USE_OPENSSL
         conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
         if (conn && conn->ssl_client_cert && conn->ssl_client_cert_pid == SwooleG.pid)
@@ -301,7 +297,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         factory->end(factory, task->info.fd);
         break;
 
-    case SW_EVENT_CONNECT:
+    case SW_SERVER_EVENT_CONNECT:
 #ifdef SW_USE_OPENSSL
         //SSL client certificate
         if (task->info.len > 0)
@@ -319,25 +315,25 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         }
         break;
 
-    case SW_EVENT_BUFFER_FULL:
+    case SW_SERVER_EVENT_BUFFER_FULL:
         if (serv->onBufferFull)
         {
             serv->onBufferFull(serv, &task->info);
         }
         break;
 
-    case SW_EVENT_BUFFER_EMPTY:
+    case SW_SERVER_EVENT_BUFFER_EMPTY:
         if (serv->onBufferEmpty)
         {
             serv->onBufferEmpty(serv, &task->info);
         }
         break;
 
-    case SW_EVENT_FINISH:
+    case SW_SERVER_EVENT_FINISH:
         serv->onFinish(serv, task);
         break;
 
-    case SW_EVENT_PIPE_MESSAGE:
+    case SW_SERVER_EVENT_PIPE_MESSAGE:
         serv->onPipeMessage(serv, task);
         break;
 

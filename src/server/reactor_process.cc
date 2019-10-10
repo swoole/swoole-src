@@ -222,25 +222,25 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
 
     switch (task.info.type)
     {
-    case SW_EVENT_PIPE_MESSAGE:
+    case SW_SERVER_EVENT_PIPE_MESSAGE:
         serv->onPipeMessage(serv, &task);
         break;
-    case SW_EVENT_FINISH:
+    case SW_SERVER_EVENT_FINISH:
         serv->onFinish(serv, &task);
         break;
-    case SW_EVENT_SENDFILE:
+    case SW_SERVER_EVENT_SEND_FILE:
         memcpy(&_send.info, &task.info, sizeof(_send.info));
         _send.data = task.data;
         factory->finish(factory, &_send);
         break;
-    case SW_EVENT_PROXY_START:
-    case SW_EVENT_PROXY_END:
+    case SW_SERVER_EVENT_PROXY_START:
+    case SW_SERVER_EVENT_PROXY_END:
         buffer_output = SwooleWG.buffer_output[task.info.reactor_id];
         swString_append_ptr(buffer_output, task.data, task.info.len);
-        if (task.info.type == SW_EVENT_PROXY_END)
+        if (task.info.type == SW_SERVER_EVENT_PROXY_END)
         {
             memcpy(&_send.info, &task.info, sizeof(_send.info));
-            _send.info.type = SW_EVENT_TCP;
+            _send.info.type = SW_SERVER_EVENT_SEND_DATA;
             _send.data = buffer_output->str;
             _send.info.len = buffer_output->length;
             factory->finish(factory, &_send);
@@ -506,7 +506,7 @@ static int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
         }
         else 
         {
-            return serv->notify(serv, conn, SW_EVENT_CLOSE);
+            return serv->notify(serv, conn, SW_SERVER_EVENT_CLOSE);
         }
     }
     else
@@ -547,11 +547,11 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
         swEventData proxy_msg;
         bzero(&proxy_msg.info, sizeof(proxy_msg.info));
 
-        if (_send->info.type == SW_EVENT_TCP)
+        if (_send->info.type == SW_SERVER_EVENT_SEND_DATA)
         {
             proxy_msg.info.fd = session_id;
             proxy_msg.info.reactor_id = SwooleWG.id;
-            proxy_msg.info.type = SW_EVENT_PROXY_START;
+            proxy_msg.info.type = SW_SERVER_EVENT_PROXY_START;
 
             size_t send_n = _send->info.len;
             size_t offset = 0;
@@ -564,7 +564,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
                 }
                 else
                 {
-                    proxy_msg.info.type = SW_EVENT_PROXY_END;
+                    proxy_msg.info.type = SW_SERVER_EVENT_PROXY_END;
                     proxy_msg.info.len = send_n;
                 }
                 memcpy(proxy_msg.data, _send->data + offset, proxy_msg.info.len);
@@ -575,7 +575,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
 
             swTrace("proxy message, fd=%d, len=%ld",worker->pipe_master, sizeof(proxy_msg.info) + proxy_msg.info.len);
         }
-        else if (_send->info.type == SW_EVENT_SENDFILE)
+        else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE)
         {
             memcpy(&proxy_msg.info, &_send->info, sizeof(proxy_msg.info));
             memcpy(proxy_msg.data, _send->data, _send->info.len);

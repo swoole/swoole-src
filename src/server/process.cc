@@ -276,7 +276,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
         if (conn->closed)
         {
             //Connection has been clsoed by server
-            if (!(task->info.type == SW_EVENT_CLOSE && conn->close_force))
+            if (!(task->info.type == SW_SERVER_EVENT_CLOSE && conn->close_force))
             {
                 return SW_OK;
             }
@@ -295,16 +295,9 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
         return swReactorThread_send2worker(serv, worker, &task->info, sizeof(task->info));
     }
 
-    switch (task->info.type)
+    if (task->info.type == SW_SERVER_EVENT_SEND_DATA)
     {
-    case SW_EVENT_TCP6:
-    case SW_EVENT_TCP:
-    case SW_EVENT_UNIX_STREAM:
-    case SW_EVENT_UDP:
-    case SW_EVENT_UDP6:
-    case SW_EVENT_UNIX_DGRAM:
         worker->dispatch_count++;
-        break;
     }
 
     /**
@@ -405,7 +398,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 
     int session_id = resp->info.fd;
     swConnection *conn;
-    if (resp->info.type != SW_EVENT_CLOSE)
+    if (resp->info.type != SW_SERVER_EVENT_CLOSE)
     {
         conn = swServer_connection_verify(serv, session_id);
     }
@@ -418,7 +411,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists", session_id);
         return SW_ERR;
     }
-    else if ((conn->closed || conn->peer_closed) && resp->info.type != SW_EVENT_CLOSE)
+    else if ((conn->closed || conn->peer_closed) && resp->info.type != SW_SERVER_EVENT_CLOSE)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED,
                 "send %d byte failed, because connection[fd=%d] is closed", resp->info.len, session_id);
@@ -479,7 +472,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
 
     _send.info.fd = fd;
     _send.info.len = 0;
-    _send.info.type = SW_EVENT_CLOSE;
+    _send.info.type = SW_SERVER_EVENT_CLOSE;
 
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (conn == NULL || conn->active == 0)

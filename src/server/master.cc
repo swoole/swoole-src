@@ -156,7 +156,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         else
         {
             swDataHead ev = {0};
-            ev.type = SW_EVENT_INCOMING;
+            ev.type = SW_SERVER_EVENT_INCOMING;
             ev.fd = new_fd;
             int _pipe_fd = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
             if (reactor->write(reactor, _pipe_fd, &ev, sizeof(ev)) < 0)
@@ -880,7 +880,7 @@ static int swServer_tcp_feedback(swServer *serv, int session_id, int event)
         return SW_ERR;
     }
 
-    if (event == SW_EVENT_CONFIRM && !conn->socket->listen_wait)
+    if (event == SW_SERVER_EVENT_CONFIRM && !conn->socket->listen_wait)
     {
         return SW_ERR;
     }
@@ -939,7 +939,7 @@ static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_
     }
 
     _send.info.fd = session_id;
-    _send.info.type = SW_EVENT_TCP;
+    _send.info.type = SW_SERVER_EVENT_SEND_DATA;
     _send.data = (char*) data;
     _send.info.len = length;
     return factory->finish(factory, &_send) < 0 ? SW_ERR : SW_OK;
@@ -955,7 +955,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     uint32_t _send_length = _send->info.len;
 
     swConnection *conn;
-    if (_send->info.type != SW_EVENT_CLOSE)
+    if (_send->info.type != SW_SERVER_EVENT_CLOSE)
     {
         conn = swServer_connection_verify(serv, session_id);
     }
@@ -965,7 +965,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     }
     if (!conn)
     {
-        if (_send->info.type == SW_EVENT_TCP)
+        if (_send->info.type == SW_SERVER_EVENT_SEND_DATA)
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send %d byte failed, session#%d does not exist", _send_length, session_id);
         }
@@ -1003,11 +1003,11 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     /**
      * Reset send buffer, Immediately close the connection.
      */
-    if (_send->info.type == SW_EVENT_CLOSE && (conn->close_reset || conn->peer_closed))
+    if (_send->info.type == SW_SERVER_EVENT_CLOSE && (conn->close_reset || conn->peer_closed))
     {
         goto _close_fd;
     }
-    else if (_send->info.type == SW_EVENT_CONFIRM)
+    else if (_send->info.type == SW_SERVER_EVENT_CONFIRM)
     {
         reactor->add(reactor, conn->fd, conn->socket->fdtype | SW_EVENT_READ);
         conn->socket->listen_wait = 0;
@@ -1016,7 +1016,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     /**
      * pause recv data
      */
-    else if (_send->info.type == SW_EVENT_PAUSE_RECV)
+    else if (_send->info.type == SW_SERVER_EVENT_PAUSE_RECV)
     {
         if (_socket->events & SW_EVENT_WRITE)
         {
@@ -1030,7 +1030,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     /**
      * resume recv data
      */
-    else if (_send->info.type == SW_EVENT_RESUME_RECV)
+    else if (_send->info.type == SW_SERVER_EVENT_RESUME_RECV)
     {
         if (_socket->events & SW_EVENT_WRITE)
         {
@@ -1047,14 +1047,14 @@ int swServer_master_send(swServer *serv, swSendData *_send)
         /**
          * close connection.
          */
-        if (_send->info.type == SW_EVENT_CLOSE)
+        if (_send->info.type == SW_SERVER_EVENT_CLOSE)
         {
             _close_fd:
             reactor->close(reactor, fd);
             return SW_OK;
         }
         //Direct send
-        if (_send->info.type != SW_EVENT_SENDFILE)
+        if (_send->info.type != SW_SERVER_EVENT_SEND_FILE)
         {
             if (!_socket->direct_send)
             {
@@ -1101,14 +1101,14 @@ int swServer_master_send(swServer *serv, swSendData *_send)
 
     swBuffer_chunk *chunk;
     //close connection
-    if (_send->info.type == SW_EVENT_CLOSE)
+    if (_send->info.type == SW_SERVER_EVENT_CLOSE)
     {
         chunk = swBuffer_new_chunk(_socket->out_buffer, SW_CHUNK_CLOSE, 0);
         chunk->store.data.val1 = _send->info.type;
         conn->close_queued = 1;
     }
     //sendfile to client
-    else if (_send->info.type == SW_EVENT_SENDFILE)
+    else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE)
     {
         swSendFile_request *req = (swSendFile_request *) _send_data;
         swConnection_sendfile(conn->socket, req->filename, req->offset, req->length);
@@ -1149,7 +1149,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
         swListenPort *port = swServer_get_port(serv, fd);
         if (serv->onBufferFull && conn->high_watermark == 0 && _socket->out_buffer->length >= port->buffer_high_watermark)
         {
-            serv->notify(serv, conn, SW_EVENT_BUFFER_FULL);
+            serv->notify(serv, conn, SW_SERVER_EVENT_BUFFER_FULL);
             conn->high_watermark = 1;
         }
     }
@@ -1229,7 +1229,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
     // construct send data
     swSendData send_data = {{0}};
     send_data.info.fd = session_id;
-    send_data.info.type = SW_EVENT_SENDFILE;
+    send_data.info.type = SW_SERVER_EVENT_SEND_FILE;
     send_data.info.len = sizeof(swSendFile_request) + l_file + 1;
     send_data.data = _buffer;
 
@@ -1293,7 +1293,7 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset)
     {
         swWorker *worker = swServer_get_worker(serv, conn->fd % serv->worker_num);
         swDataHead ev = {0};
-        ev.type = SW_EVENT_CLOSE;
+        ev.type = SW_SERVER_EVENT_CLOSE;
         ev.fd = session_id;
         ev.reactor_id = conn->reactor_id;
         ret = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
