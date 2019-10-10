@@ -704,7 +704,7 @@ int swSSL_accept(swSocket *conn)
         return SW_ERROR;
     }
     //EOF was observed
-    else if (err == SSL_ERROR_SYSCALL && n == 0)
+    else if (err == SSL_ERROR_SYSCALL)
     {
         return SW_ERROR;
     }
@@ -937,6 +937,7 @@ ssize_t swSSL_recv(swSocket *conn, void *__buf, size_t __n)
             return SW_ERR;
 
         case SSL_ERROR_SYSCALL:
+            errno = SW_ERROR_SSL_RESET;
             return SW_ERR;
 
         case SSL_ERROR_SSL:
@@ -972,6 +973,7 @@ ssize_t swSSL_send(swSocket *conn, const void *__buf, size_t __n)
             return SW_ERR;
 
         case SSL_ERROR_SYSCALL:
+            errno = SW_ERROR_SSL_RESET;
             return SW_ERR;
 
         case SSL_ERROR_SSL:
