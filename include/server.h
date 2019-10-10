@@ -49,8 +49,8 @@ enum swServer_event_type
     //proxy
     SW_EVENT_PROXY_START,
     SW_EVENT_PROXY_END,
-    SW_EVENT_CONFIRM,
     //event operate
+    SW_EVENT_CONFIRM,
     SW_EVENT_PAUSE_RECV,
     SW_EVENT_RESUME_RECV,
     //buffer event

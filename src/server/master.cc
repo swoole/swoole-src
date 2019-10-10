@@ -1155,7 +1155,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     }
 
     //listen EPOLLOUT event
-    if (reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ) < 0
+    if (reactor->set(reactor, fd, SW_FD_SESSION | SW_EVENT_WRITE | SW_EVENT_READ) < 0
             && (errno == EBADF || errno == ENOENT))
     {
         goto _close_fd;
