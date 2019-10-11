@@ -212,6 +212,12 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset)
         zend_long v = zval_get_long(ztmp);
         cli->ssl_option.method = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
+    if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp))
+    {
+        zend_long v = zval_get_long(ztmp);
+        cli->ssl_option.disable_protocols = (SW_SSL_SSLv2 | SW_SSL_SSLv3 | SW_SSL_TLSv1 | SW_SSL_TLSv1_1
+                | SW_SSL_TLSv1_2) ^ v;
+    }
     if (php_swoole_array_get_value(vht, "ssl_compress", ztmp))
     {
         cli->ssl_option.disable_compress = !zval_is_true(ztmp);
