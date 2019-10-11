@@ -467,7 +467,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 static int swFactoryProcess_end(swFactory *factory, int fd)
 {
     swServer *serv = (swServer *) factory->ptr;
-    swSendData _send = {0};
+    swSendData _send = {{0}};
     swDataHead info = {0};
 
     _send.info.fd = fd;

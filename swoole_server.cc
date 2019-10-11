@@ -3538,7 +3538,7 @@ static PHP_METHOD(swoole_server, taskCo)
 
 static PHP_METHOD(swoole_server, task)
 {
-    swEventData buf = {0};
+    swEventData buf = {{0}};
     zval *data;
     zend_long dst_worker_id = -1;
     zend_fcall_info fci = empty_fcall_info;
@@ -3689,7 +3689,7 @@ static PHP_METHOD(swoole_server_task, finish)
 
 static PHP_METHOD(swoole_server_task, pack)
 {
-    swEventData buf = {0};
+    swEventData buf = {{0}};
     zval *data;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
