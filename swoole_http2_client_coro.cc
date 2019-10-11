@@ -1106,7 +1106,8 @@ uint32_t http2_client::send_request(zval *req)
     zval *zheaders = sw_zend_read_and_convert_property_array(swoole_http2_request_ce, req, ZEND_STRL("headers"), 0);
     zval *zdata = sw_zend_read_property(swoole_http2_request_ce, req, ZEND_STRL("data"), 0);
     zval *zpipeline = sw_zend_read_property(swoole_http2_request_ce, req, ZEND_STRL("pipeline"), 0);
-    bool is_data_empty = !zend_is_true(zdata);
+    zend_uchar zdata_type = Z_TYPE_P(zdata);
+    bool is_data_empty = (zdata_type == IS_STRING && Z_STRVAL_P(zdata) == 0) || (zdata_type == IS_ARRAY && php_swoole_array_length(zdata) == 0);
 
     if (ZVAL_IS_ARRAY(zdata))
     {
