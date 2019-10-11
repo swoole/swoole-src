@@ -49,7 +49,7 @@ typedef struct _swSSL_option
     uint8_t disable_compress :1;
     uint8_t verify_peer :1;
     uint8_t allow_self_signed :1;
-    uint32_t protocols;
+    uint32_t disable_protocols;
 } swSSL_option;
 
 #endif
@@ -88,14 +88,23 @@ static sw_inline void swConnection_free_buffer(swSocket *conn)
 }
 
 #ifdef SW_USE_OPENSSL
-enum swSSLState
+enum swSSL_state
 {
     SW_SSL_STATE_HANDSHAKE    = 0,
     SW_SSL_STATE_READY        = 1,
     SW_SSL_STATE_WAIT_STREAM  = 2,
 };
 
-enum swSSLMethod
+enum swSSL_version
+{
+    SW_SSL_SSLv2 = 0x0002,
+    SW_SSL_SSLv3 = 0x0004,
+    SW_SSL_TLSv1 = 0x0008,
+    SW_SSL_TLSv1_1 = 0x0010,
+    SW_SSL_TLSv1_2 = 0x0020,
+};
+
+enum swSSL_method
 {
     SW_SSLv23_METHOD = 0,
     SW_SSLv3_METHOD,

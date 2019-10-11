@@ -157,7 +157,7 @@ void swSSL_destroy()
     CRYPTO_set_locking_callback(NULL);
 }
 
-static void swSSL_lock_callback(int mode, int type, char *file, int line)
+static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, char *file, int line)
 {
     if (mode & CRYPTO_LOCK)
     {
@@ -328,12 +328,6 @@ static void swSSL_info_callback(const SSL *ssl, int where, int ret)
     }
 }
 
-#define SW_SSL_SSLv2    0x0002
-#define SW_SSL_SSLv3    0x0004
-#define SW_SSL_TLSv1    0x0008
-#define SW_SSL_TLSv1_1  0x0010
-#define SW_SSL_TLSv1_2  0x0020
-
 SSL_CTX* swSSL_get_context(swSSL_option *option)
 {
     if (!openssl_init)
@@ -386,42 +380,38 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
     SSL_CTX_set_options(ssl_context, SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS);
 #endif
 
-    SSL_CTX_set_options(ssl_context, SSL_OP_SINGLE_DH_USE);
-
-#ifdef SSL_CTRL_CLEAR_OPTIONS
-    /* only in 0.9.8m+ */
-    SSL_CTX_clear_options(ssl_context, SSL_OP_NO_SSLv2|SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1);
-#endif
-
-    if (!(option->protocols & SW_SSL_SSLv2))
+    if (option->disable_protocols & SW_SSL_SSLv2)
     {
         SSL_CTX_set_options(ssl_context, SSL_OP_NO_SSLv2);
     }
-    if (!(option->protocols & SW_SSL_SSLv3))
+    if (option->disable_protocols & SW_SSL_SSLv3)
     {
         SSL_CTX_set_options(ssl_context, SSL_OP_NO_SSLv3);
     }
-    if (!(option->protocols & SW_SSL_TLSv1))
+    if (option->disable_protocols & SW_SSL_TLSv1)
     {
         SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1);
     }
 #ifdef SSL_OP_NO_TLSv1_1
     SSL_CTX_clear_options(ssl_context, SSL_OP_NO_TLSv1_1);
-    if (!(option->protocols & SW_SSL_TLSv1_1))
+    if (option->disable_protocols & SW_SSL_TLSv1_1)
     {
         SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1_1);
     }
 #endif
 #ifdef SSL_OP_NO_TLSv1_2
     SSL_CTX_clear_options(ssl_context, SSL_OP_NO_TLSv1_2);
-    if (!(option->protocols & SW_SSL_TLSv1_2))
+    if (option->disable_protocols & SW_SSL_TLSv1_2)
     {
         SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1_2);
     }
 #endif
 
 #ifdef SSL_OP_NO_COMPRESSION
-    SSL_CTX_set_options(ssl_context, SSL_OP_NO_COMPRESSION);
+    if (option->disable_compress)
+    {
+        SSL_CTX_set_options(ssl_context, SSL_OP_NO_COMPRESSION);
+    }
 #endif
 
 #ifdef SSL_MODE_RELEASE_BUFFERS
@@ -433,7 +423,6 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
 #endif
 
     SSL_CTX_set_read_ahead(ssl_context, 1);
-
     SSL_CTX_set_info_callback(ssl_context, swSSL_info_callback);
 
     if (option->passphrase)
