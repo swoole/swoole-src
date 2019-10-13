@@ -162,10 +162,7 @@ static void* swFixedPool_alloc(swMemoryPool *pool, uint32_t size)
 
         return slice->data;
     }
-    else
-    {
-        return NULL;
-    }
+    return NULL;
 }
 
 static void swFixedPool_free(swMemoryPool *pool, void *ptr)

@@ -128,11 +128,8 @@ int swRbtree_delete(swRbtree *tree, uint32_t key)
     {
         return -1;
     }
-    else
-    {
-        swRbtree_delete_node(tree, node);
-        return 0;
-    }
+    swRbtree_delete_node(tree, node);
+    return 0;
 }
 
 static void swRbtree_delete_node(swRbtree *tree, swRbtree_node *node)
@@ -407,10 +404,7 @@ void *swRbtree_find(swRbtree *tree, uint32_t key)
     {
         return node->value;
     }
-    else
-    {
-        return NULL;
-    }
+    return NULL;
 }
 
 swRbtree* swRbtree_new()
@@ -424,6 +418,7 @@ swRbtree* swRbtree_new()
     if (sentinel == NULL)
     {
         sw_free(rbtree);
+        rbtree = NULL;
         return NULL;
     }
 

@@ -59,11 +59,8 @@ bool Server::listen(string host, int port, enum swSocket_type type)
     {
         return false;
     }
-    else
-    {
-        ports.push_back(ls);
-        return true;
-    }
+    ports.push_back(ls);
+    return true;
 }
 
 bool Server::send(int fd, const DataBuffer &data)

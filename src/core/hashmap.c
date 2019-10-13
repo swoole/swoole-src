@@ -86,6 +86,7 @@ swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
     {
         swWarn("malloc[2] failed");
         sw_free(hmap);
+        hmap = NULL;
         return NULL;
     }
 
@@ -100,6 +101,7 @@ swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
     {
         swWarn("malloc for table failed");
         sw_free(hmap);
+        hmap = NULL;
         return NULL;
     }
 
@@ -113,6 +115,7 @@ swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
     {
         swWarn("malloc for buckets failed");
         sw_free(hmap);
+        hmap = NULL;
         return NULL;
     }
     memset(root->hh.tbl->buckets, 0, SW_HASHMAP_INIT_BUCKET_N * sizeof(struct UT_hash_bucket));
@@ -331,10 +334,7 @@ void* swHashMap_each(swHashMap* hmap, char **key)
         *key = node->key_str;
         return node->data;
     }
-    else
-    {
-        return NULL;
-    }
+    return NULL;
 }
 
 /**
@@ -348,10 +348,7 @@ void* swHashMap_each_int(swHashMap* hmap, uint64_t *key)
         *key = node->key_int;
         return node->data;
     }
-    else
-    {
-        return NULL;
-    }
+    return NULL;
 }
 
 uint32_t swHashMap_count(swHashMap* hmap)
@@ -500,23 +497,20 @@ uint32_t swoole_crc32(const char *data, uint32_t size)
     {
         return crc32(data, size);
     }
-    else
-    {
-        int i = 0;
-        char crc_contents[CRC_STRING_MAXLEN];
-        int head = CRC_STRING_MAXLEN >> 2;
-        int tail = CRC_STRING_MAXLEN >> 4;
-        int body = CRC_STRING_MAXLEN - head - tail;
-        const char *p = data + head;
-        char *q = crc_contents + head;
-        int step = (size - tail - head) / body;
+    int i = 0;
+    char crc_contents[CRC_STRING_MAXLEN];
+    int head = CRC_STRING_MAXLEN >> 2;
+    int tail = CRC_STRING_MAXLEN >> 4;
+    int body = CRC_STRING_MAXLEN - head - tail;
+    const char *p = data + head;
+    char *q = crc_contents + head;
+    int step = (size - tail - head) / body;
 
-        memcpy(crc_contents, data, head);
-        for (; i < body; i++, q++, p += step)
-        {
-            *q = *p;
-        }
-        memcpy(q, p, tail);
-        return crc32(crc_contents, CRC_STRING_MAXLEN);
+    memcpy(crc_contents, data, head);
+    for (; i < body; i++, q++, p += step)
+    {
+        *q = *p;
     }
+    memcpy(q, p, tail);
+    return crc32(crc_contents, CRC_STRING_MAXLEN);
 }

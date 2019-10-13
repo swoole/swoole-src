@@ -1389,10 +1389,7 @@ SW_API int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCal
     {
         return swLinkedList_append(serv->hooks[type], (void*) func);
     }
-    else
-    {
-        return swLinkedList_prepend(serv->hooks[type], (void*) func);
-    }
+    return swLinkedList_prepend(serv->hooks[type], (void*) func);
 }
 
 /**

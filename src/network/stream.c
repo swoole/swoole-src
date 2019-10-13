@@ -102,10 +102,7 @@ swStream* swStream_new(char *dst_host, int dst_port, int type)
         swSysWarn("failed to connect to [%s:%d]", dst_host, dst_port);
         return NULL;
     }
-    else
-    {
-        return stream;
-    }
+    return stream;
 }
 
 /**
@@ -167,8 +164,5 @@ int swStream_recv_blocking(int fd, void *__buf, size_t __len)
     {
         return SW_CLOSE;
     }
-    else
-    {
-        return SW_READY;
-    }
+    return SW_READY;
 }

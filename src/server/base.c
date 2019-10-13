@@ -187,10 +187,7 @@ int swFactory_finish(swFactory *factory, swSendData *resp)
     {
         return SW_ERR;
     }
-    else
-    {
-        return SW_OK;
-    }
+    return SW_OK;
 }
 
 static void swFactory_free(swFactory *factory)

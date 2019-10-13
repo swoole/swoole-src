@@ -78,12 +78,9 @@ void* sw_shm_realloc(void *ptr, size_t new_size)
     {
         return NULL;
     }
-    else
-    {
-        memcpy(new_ptr, ptr, object->size);
-        sw_shm_free(ptr);
-        return new_ptr;
-    }
+    memcpy(new_ptr, ptr, object->size);
+    sw_shm_free(ptr);
+    return new_ptr;
 }
 
 void *swShareMemory_mmap_create(swShareMemory *object, size_t size, char *mapfile)

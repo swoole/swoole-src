@@ -64,10 +64,7 @@ long swoole_timer_after(long ms, swTimerCallback callback, void *private_data)
     {
         return SW_ERR;
     }
-    else
-    {
-        return tnode->id;
-    }
+    return tnode->id;
 }
 
 long swoole_timer_tick(long ms, swTimerCallback callback, void *private_data)
@@ -82,10 +79,7 @@ long swoole_timer_tick(long ms, swTimerCallback callback, void *private_data)
     {
         return SW_ERR;
     }
-    else
-    {
-        return tnode->id;
-    }
+    return tnode->id;
 }
 
 uchar swoole_timer_exists(long timer_id)

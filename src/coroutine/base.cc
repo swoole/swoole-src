@@ -195,12 +195,9 @@ Coroutine* swoole_coro_iterator_each()
     {
         return nullptr;
     }
-    else
-    {
-        Coroutine *co = _gdb_iterator->second;
-        _gdb_iterator++;
-        return co;
-    }
+    Coroutine *co = _gdb_iterator->second;
+    _gdb_iterator++;
+    return co;
 }
 
 Coroutine* swoole_coro_get(long cid)
@@ -210,10 +207,7 @@ Coroutine* swoole_coro_get(long cid)
     {
         return nullptr;
     }
-    else
-    {
-        return i->second;
-    }
+    return i->second;
 }
 
 size_t swoole_coro_count()

@@ -124,10 +124,7 @@ swSocket* swReactor_get(swReactor *reactor, int fd)
         SwooleG.lock.unlock(&SwooleG.lock);
         return _socket;
     }
-    else
-    {
-        return (swSocket *) swArray_alloc(array, fd);
-    }
+    return (swSocket *) swArray_alloc(array, fd);
 }
 
 int swReactor_empty(swReactor *reactor)

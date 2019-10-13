@@ -34,6 +34,7 @@ swString *swString_new(size_t size)
     {
         swSysWarn("malloc[2](%ld) failed", size);
         sw_free(str);
+        str = NULL;
         return NULL;
     }
 

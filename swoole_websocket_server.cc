@@ -495,10 +495,7 @@ static sw_inline int swoole_websocket_server_close(swServer *serv, int fd, swStr
         // Server close connection immediately
         return serv->close(serv, fd, SW_FALSE);
     }
-    else
-    {
-        return SW_ERR;
-    }
+    return SW_ERR;
 }
 
 static PHP_METHOD(swoole_websocket_server, disconnect)

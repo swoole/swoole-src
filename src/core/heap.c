@@ -35,6 +35,7 @@ swHeap *swHeap_new(size_t n, uint8_t type)
     if (!(heap->nodes = sw_malloc((n + 1) * sizeof(void *))))
     {
         sw_free(heap);
+        heap = NULL;
         return NULL;
     }
     heap->num = 1;
@@ -55,10 +56,7 @@ static sw_inline int swHeap_compare(uint8_t type, uint64_t a, uint64_t b)
     {
         return a > b;
     }
-    else
-    {
-        return a < b;
-    }
+    return a < b;
 }
 
 uint32_t swHeap_size(swHeap *q)

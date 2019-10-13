@@ -430,11 +430,8 @@ bool swoole_mime_type_delete(const char *suffix, const char *mime_type)
     {
         return false;
     }
-    else
-    {
-        mime_map.erase(string(suffix));
-        return true;
-    }
+    mime_map.erase(string(suffix));
+    return true;
 }
 
 bool swoole_mime_type_exists(const char *filename)
