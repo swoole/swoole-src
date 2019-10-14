@@ -2178,9 +2178,9 @@ static PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "send_yield", ztmp))
     {
         serv->send_yield = zval_is_true(ztmp);
-        if (!(serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD) && serv->send_yield)
+        if (serv->send_yield && !(serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD))
         {
-            swWarn("'send_yield' option can only be set when using dispatch_mode=2/4");
+            php_swoole_error(E_WARNING, "'send_yield' option can only be set when using dispatch_mode=2/4");
             serv->send_yield = 0;
         }
     }
