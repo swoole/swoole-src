@@ -214,9 +214,8 @@ static int swServer_start_check(swServer *serv)
                 serv->disable_notify = 1;
             }
         }
-        if (!(serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD) && serv->send_yield)
+``        if (!(serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD))
         {
-            swWarn("'send_yield' option can only be set when using dispatch_mode=2/4");
             serv->send_yield = 0;
         }
     }

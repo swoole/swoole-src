@@ -2165,10 +2165,6 @@ static PHP_METHOD(swoole_server, set)
     {
         PHPCoroutine::config.hook_flags = zval_get_long(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "send_yield", ztmp))
-    {
-        serv->send_yield = zval_is_true(ztmp);
-    }
     if (php_swoole_array_get_value(vht, "send_timeout", ztmp))
     {
         serv->send_timeout = zval_get_double(ztmp);
@@ -2178,6 +2174,15 @@ static PHP_METHOD(swoole_server, set)
     {
         zend_long v = zval_get_long(ztmp);
         serv->dispatch_mode = SW_MAX(0, SW_MIN(v, UINT8_MAX));
+    }
+    if (php_swoole_array_get_value(vht, "send_yield", ztmp))
+    {
+        serv->send_yield = zval_is_true(ztmp);
+        if (!(serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD) && serv->send_yield)
+        {
+            swWarn("'send_yield' option can only be set when using dispatch_mode=2/4");
+            serv->send_yield = 0;
+        }
     }
     //dispatch function
     if (php_swoole_array_get_value(vht, "dispatch_func", ztmp))

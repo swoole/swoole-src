@@ -380,7 +380,7 @@ static bool inline process_is_supported_send_yield(swServer *serv, swConnection 
     {
         return true;
     }
-    else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
+    else if (serv->dispatch_mode == SW_DISPATCH_IPMOD)
     {
         uint32_t key;
         //IPv4
