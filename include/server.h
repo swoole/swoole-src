@@ -1017,6 +1017,16 @@ static sw_inline int swServer_get_send_pipe(swServer *serv, int session_id, int 
     return worker->pipe_worker;
 }
 
+static sw_inline uint8_t swServer_support_unsafe_events(swServer *serv)
+{
+    return !serv->enable_unsafe_event && serv->dispatch_mode != SW_DISPATCH_ROUND && serv->dispatch_mode != SW_DISPATCH_QUEUE && serv->dispatch_mode != SW_DISPATCH_STREAM;
+}
+
+static sw_inline uint8_t swServer_support_send_yield(swServer *serv)
+{
+    return serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD;
+}
+
 //------------------------------------Listen Port-------------------------------------------
 void swPort_init(swListenPort *port);
 void swPort_free(swListenPort *port);

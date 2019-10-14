@@ -969,7 +969,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
 
     if (serv->send_yield)
     {
-        if (serv->onClose == NULL)
+        if (serv->onClose == NULL && swServer_support_unsafe_events(serv))
         {
             serv->onClose = php_swoole_onClose;
         }
@@ -1129,7 +1129,7 @@ void php_swoole_server_register_callbacks(swServer *serv)
     {
         serv->onPipeMessage = php_swoole_onPipeMessage;
     }
-    if (serv->send_yield)
+    if (serv->send_yield && swServer_support_unsafe_events(serv))
     {
         serv->onBufferEmpty = php_swoole_onBufferEmpty;
     }
