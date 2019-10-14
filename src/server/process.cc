@@ -376,9 +376,9 @@ static int process_send_packet(swServer *serv, swPipeBuffer *buf, swSendData *re
 
 static bool inline process_is_supported_send_yield(swServer *serv, swConnection *conn)
 {
-    if (serv->dispatch_mode == SW_DISPATCH_FDMOD && conn->fd % serv->worker_num == SwooleWG.id)
+    if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
     {
-        return true;
+        return conn->fd % serv->worker_num == SwooleWG.id;
     }
     else if (serv->dispatch_mode == SW_DISPATCH_IPMOD)
     {
@@ -399,12 +399,12 @@ static bool inline process_is_supported_send_yield(swServer *serv, swConnection 
             key = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3];
 #endif
         }
-        if (key % serv->worker_num == SwooleWG.id)
-        {
-            return true;
-        }
+        return key % serv->worker_num == SwooleWG.id;
     }
-    return false;
+    else
+    {
+        return false;
+    }
 }
 
 /**
