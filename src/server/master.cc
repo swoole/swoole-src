@@ -214,7 +214,7 @@ static int swServer_start_check(swServer *serv)
                 serv->disable_notify = 1;
             }
         }
-``        if (!(serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD))
+        if (!(serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD))
         {
             serv->send_yield = 0;
         }
