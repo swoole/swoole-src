@@ -421,29 +421,10 @@ enum swLog_level
     SW_LOG_NONE,
 };
 //-------------------------------------------------------------------------------
-enum swFactory_dispatch_mode
-{
-    SW_DISPATCH_ROUND    = 1,
-    SW_DISPATCH_FDMOD    = 2,
-    SW_DISPATCH_QUEUE    = 3,
-    SW_DISPATCH_IPMOD    = 4,
-    SW_DISPATCH_UIDMOD   = 5,
-    SW_DISPATCH_USERFUNC = 6,
-    SW_DISPATCH_STREAM   = 7,
-};
-
-enum swFactory_dispatch_result
-{
-    SW_DISPATCH_RESULT_DISCARD_PACKET    = -1,
-    SW_DISPATCH_RESULT_CLOSE_CONNECTION  = -2,
-    SW_DISPATCH_RESULT_USERFUNC_FALLBACK = -3,
-};
-
 enum swWorker_status
 {
     SW_WORKER_BUSY = 1,
     SW_WORKER_IDLE = 2,
-    SW_WORKER_DEL  = 3,
 };
 //-------------------------------------------------------------------------------
 

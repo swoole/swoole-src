@@ -467,7 +467,7 @@ static sw_inline int swoole_websocket_server_push(swServer *serv, int fd, swStri
     }
 
     int ret = serv->send(serv, fd, buffer->str, buffer->length);
-    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
+    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_SEND_YIELD)
     {
         zval _return_value;
         zval *return_value = &_return_value;

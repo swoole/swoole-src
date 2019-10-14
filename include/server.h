@@ -93,6 +93,24 @@ enum swTask_type
     SW_TASK_NOREPLY    = 128, //don't reply
 };
 
+enum swFactory_dispatch_mode
+{
+    SW_DISPATCH_ROUND    = 1,
+    SW_DISPATCH_FDMOD    = 2,
+    SW_DISPATCH_QUEUE    = 3,
+    SW_DISPATCH_IPMOD    = 4,
+    SW_DISPATCH_UIDMOD   = 5,
+    SW_DISPATCH_USERFUNC = 6,
+    SW_DISPATCH_STREAM   = 7,
+};
+
+enum swFactory_dispatch_result
+{
+    SW_DISPATCH_RESULT_DISCARD_PACKET    = -1,
+    SW_DISPATCH_RESULT_CLOSE_CONNECTION  = -2,
+    SW_DISPATCH_RESULT_USERFUNC_FALLBACK = -3,
+};
+
 typedef struct _swReactorThread
 {
     pthread_t thread_id;
@@ -998,6 +1016,18 @@ static sw_inline int swServer_get_send_pipe(swServer *serv, int session_id, int 
     swWorker *worker = swServer_get_worker(serv, pipe_worker_id);
     return worker->pipe_worker;
 }
+
+static sw_inline uint8_t swServer_support_unsafe_events(swServer *serv)
+{
+    return !serv->enable_unsafe_event && serv->dispatch_mode != SW_DISPATCH_ROUND && serv->dispatch_mode != SW_DISPATCH_QUEUE && serv->dispatch_mode != SW_DISPATCH_STREAM;
+}
+
+static sw_inline uint8_t swServer_dispatch_mode_is_mod(swServer *serv)
+{
+    return serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD;
+}
+
+#define swServer_support_send_yield swServer_dispatch_mode_is_mod
 
 //------------------------------------Listen Port-------------------------------------------
 void swPort_init(swListenPort *port);

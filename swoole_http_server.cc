@@ -300,7 +300,7 @@ static bool http_context_send_data(http_context* ctx, const char *data, size_t l
     swServer *serv = (swServer *) ctx->private_data;
     zval *return_value = (zval *) ctx->private_data_2;
     ssize_t ret = serv->send(serv, ctx->fd, (void*) data, length);
-    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv && serv->send_yield)
+    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_SEND_YIELD)
     {
         zval _yield_data;
         ZVAL_STRINGL(&_yield_data, swoole_http_buffer->str, swoole_http_buffer->length);

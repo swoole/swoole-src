@@ -186,14 +186,33 @@ static int swServer_start_check(swServer *serv)
     //disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
-        if (serv->dispatch_mode == SW_DISPATCH_ROUND || serv->dispatch_mode == SW_DISPATCH_QUEUE)
+        if (!swServer_support_unsafe_events(serv))
         {
-            if (!serv->enable_unsafe_event)
+            if (serv->onConnect)
             {
-                serv->onConnect = NULL;
-                serv->onClose = NULL;
-                serv->disable_notify = 1;
+                swWarn("cannot set 'onConnect' event when using dispatch_mode=1/3/7");
+                serv->onConnect = nullptr;
             }
+            if (serv->onClose)
+            {
+                swWarn("cannot set 'onClose' event when using dispatch_mode=1/3/7");
+                serv->onClose = nullptr;
+            }
+            if (serv->onBufferFull)
+            {
+                swWarn("cannot set 'onBufferFull' event when using dispatch_mode=1/3/7");
+                serv->onBufferFull = nullptr;
+            }
+            if (serv->onBufferEmpty)
+            {
+                swWarn("cannot set 'onBufferEmpty' event when using dispatch_mode=1/3/7");
+                serv->onBufferEmpty = nullptr;
+            }
+            serv->disable_notify = 1;
+        }
+        if (!swServer_support_send_yield(serv))
+        {
+            serv->send_yield = 0;
         }
     }
     //AsyncTask

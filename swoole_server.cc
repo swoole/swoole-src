@@ -969,7 +969,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
 
     if (serv->send_yield)
     {
-        if (serv->onClose == NULL)
+        if (serv->onClose == NULL && swServer_support_unsafe_events(serv))
         {
             serv->onClose = php_swoole_onClose;
         }
@@ -1038,6 +1038,11 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
             return;
         }
 #endif
+        if (port->open_http2_protocol && !swServer_dispatch_mode_is_mod(serv))
+        {
+            php_swoole_fatal_error(E_ERROR, "server dispatch mode should be FDMOD(%d) or IPMOD(%d) if open_http2_protocol is true", SW_DISPATCH_FDMOD, SW_DISPATCH_IPMOD);
+            return;
+        }
 
         if (!port->open_http_protocol)
         {
@@ -1073,7 +1078,10 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     if (find_http_port)
     {
         serv->onReceive = php_swoole_http_onReceive;
-        serv->onClose = php_swoole_http_onClose;
+        if (swServer_support_unsafe_events(serv))
+        {
+            serv->onClose = php_swoole_http_onClose;
+        }
         if (!instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce))
         {
             php_swoole_error(E_WARNING, "use %s class and open http related protocols may lead to some errors (inconsistent class type)", SW_Z_OBJCE_NAME_VAL_P(zobject));
@@ -1129,7 +1137,7 @@ void php_swoole_server_register_callbacks(swServer *serv)
     {
         serv->onPipeMessage = php_swoole_onPipeMessage;
     }
-    if (serv->send_yield)
+    if (serv->send_yield && swServer_support_unsafe_events(serv))
     {
         serv->onBufferEmpty = php_swoole_onBufferEmpty;
     }
@@ -2165,10 +2173,6 @@ static PHP_METHOD(swoole_server, set)
     {
         PHPCoroutine::config.hook_flags = zval_get_long(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "send_yield", ztmp))
-    {
-        serv->send_yield = zval_is_true(ztmp);
-    }
     if (php_swoole_array_get_value(vht, "send_timeout", ztmp))
     {
         serv->send_timeout = zval_get_double(ztmp);
@@ -2178,6 +2182,15 @@ static PHP_METHOD(swoole_server, set)
     {
         zend_long v = zval_get_long(ztmp);
         serv->dispatch_mode = SW_MAX(0, SW_MIN(v, UINT8_MAX));
+    }
+    if (php_swoole_array_get_value(vht, "send_yield", ztmp))
+    {
+        serv->send_yield = zval_is_true(ztmp);
+        if (serv->send_yield && !(serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD))
+        {
+            php_swoole_error(E_WARNING, "'send_yield' option can only be set when using dispatch_mode=2/4");
+            serv->send_yield = 0;
+        }
     }
     //dispatch function
     if (php_swoole_array_get_value(vht, "dispatch_func", ztmp))
@@ -2845,7 +2858,7 @@ static PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
     ret = serv->send(serv, fd, data, length);
-    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
+    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_SEND_YIELD)
     {
         zval_add_ref(zdata);
         php_swoole_server_send_yield(serv, fd, zdata, return_value);
