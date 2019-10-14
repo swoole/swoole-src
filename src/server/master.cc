@@ -187,37 +187,37 @@ static int swServer_start_check(swServer *serv)
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
         if (serv->dispatch_mode == SW_DISPATCH_ROUND || serv->dispatch_mode == SW_DISPATCH_QUEUE
-                || serv->dispatch_mode == SW_DISPATCH_USERFUNC || serv->dispatch_mode == SW_DISPATCH_STREAM)
+                || serv->dispatch_mode == SW_DISPATCH_STREAM)
         {
             if (!serv->enable_unsafe_event)
             {
                 if (serv->onConnect)
                 {
-                    swWarn("cannot set 'onConnect' event when using dispatch_mode=1/3/6/7");
+                    swWarn("cannot set 'onConnect' event when using dispatch_mode=1/3/7");
+                    serv->onConnect = nullptr;
                 }
-                serv->onConnect = nullptr;
                 if (serv->onClose)
                 {
-                    swWarn("cannot set 'onClose' event when using dispatch_mode=1/3/6/7");
+                    swWarn("cannot set 'onClose' event when using dispatch_mode=1/3/7");
+                    serv->onClose = nullptr;
                 }
-                serv->onClose = nullptr;
                 if (serv->onBufferFull)
                 {
-                    swWarn("cannot set 'onBufferFull' event when using dispatch_mode=1/3/6/7");
+                    swWarn("cannot set 'onBufferFull' event when using dispatch_mode=1/3/7");
+                    serv->onBufferFull = nullptr;
                 }
-                serv->onBufferFull = nullptr;
                 if (serv->onBufferEmpty)
                 {
-                    swWarn("cannot set 'onBufferEmpty' event when using dispatch_mode=1/3/6/7");
+                    swWarn("cannot set 'onBufferEmpty' event when using dispatch_mode=1/3/7");
+                    serv->onBufferEmpty = nullptr;
                 }
-                serv->onBufferEmpty = nullptr;
-                if (serv->send_yield)
-                {
-                    swWarn("cannot set 'send_yield=true' when using dispatch_mode=1/3/6/7");
-                }
-                serv->send_yield = 0;
                 serv->disable_notify = 1;
             }
+        }
+        if (!(serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD) && serv->send_yield)
+        {
+            swWarn("'send_yield' option can only be set when using dispatch_mode=2/4");
+            serv->send_yield = 0;
         }
     }
     //AsyncTask

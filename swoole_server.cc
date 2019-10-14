@@ -2845,7 +2845,7 @@ static PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
     ret = serv->send(serv, fd, data, length);
-    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
+    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_SEND_YIELD)
     {
         zval_add_ref(zdata);
         php_swoole_server_send_yield(serv, fd, zdata, return_value);
