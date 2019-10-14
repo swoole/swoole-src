@@ -186,12 +186,36 @@ static int swServer_start_check(swServer *serv)
     //disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
-        if (serv->dispatch_mode == SW_DISPATCH_ROUND || serv->dispatch_mode == SW_DISPATCH_QUEUE)
+        if (serv->dispatch_mode == SW_DISPATCH_ROUND || serv->dispatch_mode == SW_DISPATCH_QUEUE
+                || serv->dispatch_mode == SW_DISPATCH_USERFUNC || serv->dispatch_mode == SW_DISPATCH_STREAM)
         {
             if (!serv->enable_unsafe_event)
             {
-                serv->onConnect = NULL;
-                serv->onClose = NULL;
+                if (serv->onConnect)
+                {
+                    swWarn("cannot set 'onConnect' event when using dispatch_mode=1/3/6/7");
+                }
+                serv->onConnect = nullptr;
+                if (serv->onClose)
+                {
+                    swWarn("cannot set 'onClose' event when using dispatch_mode=1/3/6/7");
+                }
+                serv->onClose = nullptr;
+                if (serv->onBufferFull)
+                {
+                    swWarn("cannot set 'onBufferFull' event when using dispatch_mode=1/3/6/7");
+                }
+                serv->onBufferFull = nullptr;
+                if (serv->onBufferEmpty)
+                {
+                    swWarn("cannot set 'onBufferEmpty' event when using dispatch_mode=1/3/6/7");
+                }
+                serv->onBufferEmpty = nullptr;
+                if (serv->send_yield)
+                {
+                    swWarn("cannot set 'send_yield=true' when using dispatch_mode=1/3/6/7");
+                }
+                serv->send_yield = 0;
                 serv->disable_notify = 1;
             }
         }
