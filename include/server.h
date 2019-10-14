@@ -1022,10 +1022,12 @@ static sw_inline uint8_t swServer_support_unsafe_events(swServer *serv)
     return !serv->enable_unsafe_event && serv->dispatch_mode != SW_DISPATCH_ROUND && serv->dispatch_mode != SW_DISPATCH_QUEUE && serv->dispatch_mode != SW_DISPATCH_STREAM;
 }
 
-static sw_inline uint8_t swServer_support_send_yield(swServer *serv)
+static sw_inline uint8_t swServer_dispatch_mode_is_mod(swServer *serv)
 {
     return serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD;
 }
+
+#define swServer_support_send_yield swServer_dispatch_mode_is_mod
 
 //------------------------------------Listen Port-------------------------------------------
 void swPort_init(swListenPort *port);

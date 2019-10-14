@@ -1038,6 +1038,11 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
             return;
         }
 #endif
+        if (port->open_http2_protocol && !swServer_dispatch_mode_is_mod(serv))
+        {
+            php_swoole_fatal_error(E_ERROR, "server dispatch mode should be FDMOD(%d) or IPMOD(%d) if open_http2_protocol is true", SW_DISPATCH_FDMOD, SW_DISPATCH_IPMOD);
+            return;
+        }
 
         if (!port->open_http_protocol)
         {
@@ -1073,7 +1078,10 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     if (find_http_port)
     {
         serv->onReceive = php_swoole_http_onReceive;
-        serv->onClose = php_swoole_http_onClose;
+        if (swServer_support_unsafe_events(serv))
+        {
+            serv->onClose = php_swoole_http_onClose;
+        }
         if (!instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce))
         {
             php_swoole_error(E_WARNING, "use %s class and open http related protocols may lead to some errors (inconsistent class type)", SW_Z_OBJCE_NAME_VAL_P(zobject));
