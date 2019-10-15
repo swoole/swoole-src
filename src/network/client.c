@@ -999,7 +999,7 @@ static int swClient_udp_recv(swClient *cli, char *data, int length, int flags)
 {
 #ifdef HAVE_KQUEUE
     int timeout_ms = (int) (cli->timeout * 1000);
-    if (swSocket_wait(cli->socket->fd, timeout_ms, SW_EVENT_READ) <= 0)
+    if (swSocket_wait(cli->socket->fd, timeout_ms, SW_EVENT_READ) < 0)
     {
         return -1;
     }
