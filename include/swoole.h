@@ -115,7 +115,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
     "The Swoole developers probably don't know about it,\n"\
     "and unless you report it, chances are it won't be fixed.\n"\
     "You can read How to report a bug doc before submitting any bug reports:\n"\
-    ">> https://github.com/swoole/swoole-src/issues/2000\n"\
+    ">> https://github.com/swoole/swoole-src/blob/master/.github/ISSUE.md \n"\
     "Please do not send bug reports in the mailing list or personal letters.\n"\
     "The issue page is also suitable to submit feature requests.\n"
 

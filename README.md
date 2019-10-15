@@ -1,7 +1,7 @@
 English | [中文](./README-CN.md)
 
-Swoole
-======
+# Swoole
+
 [![Latest Version](https://img.shields.io/github/release/swoole/swoole-src.svg?style=flat-square)](https://github.com/swoole/swoole-src/releases)
 [![Build Status](https://api.travis-ci.org/swoole/swoole-src.svg)](https://travis-ci.org/swoole/swoole-src)
 [![License](https://img.shields.io/badge/license-apache2-blue.svg)](LICENSE)
