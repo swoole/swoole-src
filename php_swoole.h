@@ -719,8 +719,19 @@ static sw_inline zend_string* sw_zend_string_recycle(zend_string *s, size_t allo
 //----------------------------------Array API------------------------------------
 
 #define php_swoole_array_length(zarray)        zend_hash_num_elements(Z_ARRVAL_P(zarray))
-#define php_swoole_array_length_safe(zarray)   (ZVAL_IS_ARRAY(zarray) ? php_swoole_array_length(zarray) : 0)
 #define php_swoole_array_get_value(ht, str, v) ((v = zend_hash_str_find(ht, str, sizeof(str)-1)) && !ZVAL_IS_NULL(v))
+
+static sw_inline int php_swoole_array_length_safe(zval *zarray)
+{
+    if (zarray && ZVAL_IS_ARRAY(zarray))
+    {
+        return php_swoole_array_length(zarray);
+    }
+    else
+    {
+        return 0;
+    }
+}
 
 #define SW_HASHTABLE_FOREACH_START(ht, _val) ZEND_HASH_FOREACH_VAL(ht, _val);  {
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, _val) zend_string *_foreach_key;\
