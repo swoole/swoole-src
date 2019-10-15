@@ -89,6 +89,11 @@ int swSocket_wait(int fd, int timeout_ms, int events)
     event.fd = fd;
     event.events = 0;
 
+    if (timeout_ms < 0)
+    {
+        timeout_ms = -1;
+    }
+
     if (events & SW_EVENT_READ)
     {
         event.events |= POLLIN;
