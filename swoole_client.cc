@@ -1557,7 +1557,8 @@ PHP_FUNCTION(swoole_client_select)
         RETURN_FALSE;
     }
 
-    int maxevents = SW_MAX(SW_MAX(php_swoole_array_length(r_array), php_swoole_array_length(w_array)), php_swoole_array_length(e_array));
+    int maxevents = SW_MAX(SW_MAX(php_swoole_array_length_safe(r_array), php_swoole_array_length_safe(w_array)),
+            php_swoole_array_length_safe(e_array));
     struct pollfd *fds = (struct pollfd *) ecalloc(maxevents, sizeof(struct pollfd));
 
     if (r_array != NULL && php_swoole_array_length(r_array) > 0)
