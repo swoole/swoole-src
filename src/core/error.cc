@@ -88,6 +88,8 @@ const char* swoole_strerror(int code)
         return "Session discard timeout data";
     case SW_ERROR_OUTPUT_BUFFER_OVERFLOW:
         return "Output buffer overflow";
+    case SW_ERROR_OUTPUT_SEND_YIELD:
+        return "Output send yield";
     case SW_ERROR_SSL_NOT_READY:
         return "SSL not ready";
     case SW_ERROR_SSL_CANNOT_USE_SENFILE:
@@ -100,6 +102,8 @@ const char* swoole_strerror(int code)
         return "SSL bad client";
     case SW_ERROR_SSL_BAD_PROTOCOL:
         return "SSL bad protocol";
+    case SW_ERROR_SSL_RESET:
+        return "SSL reset";
     case SW_ERROR_PACKAGE_LENGTH_TOO_LARGE:
         return "Package length too large";
     case SW_ERROR_PACKAGE_LENGTH_NOT_FOUND:

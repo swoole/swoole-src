@@ -1,5 +1,5 @@
 --TEST--
-Server: wrong eof setting
+swoole_server: wrong eof setting
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

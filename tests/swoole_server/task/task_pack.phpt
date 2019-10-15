@@ -1,5 +1,5 @@
 --TEST--
-Server/task: task pack
+swoole_server/task: task pack
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';
 skip_if_function_not_exist('msg_get_queue');

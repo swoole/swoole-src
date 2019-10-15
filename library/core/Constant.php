@@ -40,6 +40,7 @@ class Constant
     const OPTION_ENABLE_COROUTINE = 'enable_coroutine';
     const OPTION_ENABLE_REUSE_PORT = 'enable_reuse_port';
     const OPTION_SSL_METHOD = 'ssl_method';
+    const OPTION_SSL_PROTOCOLS = 'ssl_protocols';
     const OPTION_SSL_COMPRESS = 'ssl_compress';
     const OPTION_SSL_CERT_FILE = 'ssl_cert_file';
     const OPTION_SSL_KEY_FILE = 'ssl_key_file';
@@ -119,9 +120,9 @@ class Constant
     const OPTION_WORKER_NUM = 'worker_num';
     const OPTION_MAX_WAIT_TIME = 'max_wait_time';
     const OPTION_MAX_CORO_NUM = 'max_coro_num';
-    const OPTION_SEND_YIELD = 'send_yield';
     const OPTION_SEND_TIMEOUT = 'send_timeout';
     const OPTION_DISPATCH_MODE = 'dispatch_mode';
+    const OPTION_SEND_YIELD = 'send_yield';
     const OPTION_DISPATCH_FUNC = 'dispatch_func';
     const OPTION_LOG_FILE = 'log_file';
     const OPTION_DISCARD_TIMEOUT_REQUEST = 'discard_timeout_request';
@@ -130,9 +131,6 @@ class Constant
     const OPTION_TASK_USE_OBJECT = 'task_use_object';
     const OPTION_TASK_ENABLE_COROUTINE = 'task_enable_coroutine';
     const OPTION_TASK_WORKER_NUM = 'task_worker_num';
-    const OPTION_TRACE_EVENT_WORKER = 'trace_event_worker';
-    const OPTION_REQUEST_SLOWLOG_TIMEOUT = 'request_slowlog_timeout';
-    const OPTION_REQUEST_SLOWLOG_FILE = 'request_slowlog_file';
     const OPTION_TASK_IPC_MODE = 'task_ipc_mode';
     const OPTION_TASK_TMPDIR = 'task_tmpdir';
     const OPTION_TASK_MAX_REQUEST = 'task_max_request';

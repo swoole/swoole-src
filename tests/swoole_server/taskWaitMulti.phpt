@@ -1,5 +1,5 @@
 --TEST--
-Server: taskWaitMulti
+swoole_server: taskWaitMulti
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

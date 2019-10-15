@@ -1,5 +1,5 @@
 --TEST--
-Server: ssl server verify client failed
+swoole_server: ssl server verify client failed
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
