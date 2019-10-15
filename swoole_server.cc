@@ -591,7 +591,6 @@ zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int serve
 
     if (sw_unlikely(!port))
     {
-        swWarn("invalid server_fd[%d]", server_fd);
         return NULL;
     }
     if ((property = (swoole_server_port_property *) port->ptr) && (fci_cache = property->caches[event_type]))
@@ -1203,21 +1202,26 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 int php_swoole_onReceive(swServer *serv, swEventData *req)
 {
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.server_fd, SW_SERVER_CB_onReceive);
-    zval *zserv = (zval *) serv->ptr2;
-    zval args[4];
 
-    args[0] = *zserv;
-    ZVAL_LONG(&args[1], (zend_long) req->info.fd);
-    ZVAL_LONG(&args[2], (zend_long) req->info.reactor_id);
-    php_swoole_get_recv_data(serv, &args[3], req, NULL, 0);
-
-    if (UNEXPECTED(!zend::function::call(fci_cache, 4, args, NULL, SwooleG.enable_coroutine)))
+    if (fci_cache)
     {
-        php_swoole_error(E_WARNING, "%s->onReceive handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
-        serv->close(serv, req->info.fd, 0);
+        zval *zserv = (zval *) serv->ptr2;
+        zval args[4];
+
+        args[0] = *zserv;
+        ZVAL_LONG(&args[1], (zend_long) req->info.fd);
+        ZVAL_LONG(&args[2], (zend_long) req->info.reactor_id);
+        php_swoole_get_recv_data(serv, &args[3], req, NULL, 0);
+
+        if (UNEXPECTED(!zend::function::call(fci_cache, 4, args, NULL, SwooleG.enable_coroutine)))
+        {
+            php_swoole_error(E_WARNING, "%s->onReceive handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            serv->close(serv, req->info.fd, 0);
+        }
+
+        zval_ptr_dtor(&args[3]);
     }
 
-    zval_ptr_dtor(&args[3]);
     return SW_OK;
 }
 
