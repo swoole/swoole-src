@@ -1961,10 +1961,6 @@ static PHP_METHOD(swoole_server, __construct)
         RETURN_FALSE;
     }
 
-#ifdef __CYGWIN__
-    serv_mode = SW_MODE_BASE;
-#endif
-
     if (serv_mode == SW_MODE_BASE)
     {
         serv->reactor_num = 1;
