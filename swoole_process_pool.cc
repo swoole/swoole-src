@@ -109,21 +109,22 @@ static void pool_onWorkerStart(swProcessPool *pool, int worker_id)
     SwooleWG.id = worker_id;
     current_pool = pool;
 
+    //main function
+    if (!pp->onWorkerStart)
+    {
+        return;
+    }
     //eventloop create
     if (pp->enable_coroutine && php_swoole_reactor_init() < 0)
     {
         return;
     }
-    //main function
-    if (pp->onWorkerStart != NULL)
+    zval args[2];
+    args[0] = *zobject;
+    ZVAL_LONG(&args[1], worker_id);
+    if (UNEXPECTED(!zend::function::call(pp->onWorkerStart, 2, args, NULL, pp->enable_coroutine)))
     {
-        zval args[2];
-        args[0] = *zobject;
-        ZVAL_LONG(&args[1], worker_id);
-        if (UNEXPECTED(!zend::function::call(pp->onWorkerStart, 2, args, NULL, pp->enable_coroutine)))
-        {
-            php_swoole_error(E_WARNING, "%s->onWorkerStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
-        }
+        php_swoole_error(E_WARNING, "%s->onWorkerStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
     //eventloop start
     if (pp->enable_coroutine)
