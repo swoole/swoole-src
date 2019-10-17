@@ -20,6 +20,7 @@ class Constant
     const EVENT_WORKER_EXIT = 'workerExit';
     const EVENT_WORKER_ERROR = 'workerError';
     const EVENT_WORKER_STOP = 'workerStop';
+    const EVENT_PIPE_MESSAGE = 'pipeMessage';
     const EVENT_MANAGER_START = 'managerStart';
     const EVENT_MANAGER_STOP = 'managerStop';
     const EVENT_ERROR = 'error';

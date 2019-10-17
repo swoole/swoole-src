@@ -876,6 +876,7 @@ static const char* swoole_library_source_core_constant =
     "    const EVENT_WORKER_EXIT = 'workerExit';\n"
     "    const EVENT_WORKER_ERROR = 'workerError';\n"
     "    const EVENT_WORKER_STOP = 'workerStop';\n"
+    "    const EVENT_PIPE_MESSAGE = 'pipeMessage';\n"
     "    const EVENT_MANAGER_START = 'managerStart';\n"
     "    const EVENT_MANAGER_STOP = 'managerStop';\n"
     "    const EVENT_ERROR = 'error';\n"
