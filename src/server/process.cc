@@ -376,34 +376,13 @@ static int process_send_packet(swServer *serv, swPipeBuffer *buf, swSendData *re
 
 static bool inline process_is_supported_send_yield(swServer *serv, swConnection *conn)
 {
-    if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
+    if (!swServer_dispatch_mode_is_mod(serv))
     {
-        return conn->fd % serv->worker_num == SwooleWG.id;
-    }
-    else if (serv->dispatch_mode == SW_DISPATCH_IPMOD)
-    {
-        uint32_t key;
-        //IPv4
-        if (conn->socket_type == SW_SOCK_TCP)
-        {
-            key = conn->info.addr.inet_v4.sin_addr.s_addr;
-        }
-        //IPv6
-        else
-        {
-#ifdef HAVE_KQUEUE
-            key = *(((uint32_t *) &conn->info.addr.inet_v6.sin6_addr) + 3);
-#elif defined(_WIN32)
-            key = conn->info.addr.inet_v6.sin6_addr.u.Word[3];
-#else
-            key = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3];
-#endif
-        }
-        return key % serv->worker_num == SwooleWG.id;
+        return false;
     }
     else
     {
-        return false;
+        return swServer_worker_schedule(serv, conn->fd, nullptr) == SwooleWG.id;
     }
 }
 

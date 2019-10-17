@@ -1307,21 +1307,38 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset)
     conn->close_actively = 1;
     swTraceLog(SW_TRACE_CLOSE, "session_id=%d, fd=%d", session_id, conn->session_id);
 
-    int ret;
-    if (!swIsWorker())
+    int retval;
+    swWorker *worker;
+    swDataHead ev = { 0 };
+
+    if (swServer_dispatch_mode_is_mod(serv))
     {
-        swWorker *worker = swServer_get_worker(serv, conn->fd % serv->worker_num);
-        swDataHead ev = {0};
+        int worker_id = swServer_worker_schedule(serv, conn->fd, nullptr);
+        if (worker_id != (int) SwooleWG.id)
+        {
+            worker = swServer_get_worker(serv, worker_id);
+            goto _notify;
+        }
+        else
+        {
+            goto _close;
+        }
+    }
+    else if (!swIsWorker())
+    {
+        worker = swServer_get_worker(serv, conn->fd % serv->worker_num);
+        _notify:
         ev.type = SW_SERVER_EVENT_CLOSE;
         ev.fd = session_id;
         ev.reactor_id = conn->reactor_id;
-        ret = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
+        retval = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
     }
     else
     {
-        ret = serv->factory.end(&serv->factory, session_id);
+        _close:
+        retval = serv->factory.end(&serv->factory, session_id);
     }
-    return ret;
+    return retval;
 }
 
 void swServer_signal_init(swServer *serv)
