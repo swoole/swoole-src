@@ -382,7 +382,7 @@ static bool inline process_is_supported_send_yield(swServer *serv, swConnection 
     }
     else
     {
-        return swServer_worker_schedule(serv, conn->fd, nullptr) == SwooleWG.id;
+        return swServer_worker_schedule(serv, conn->fd, nullptr) == (int) SwooleWG.id;
     }
 }
 

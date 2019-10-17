@@ -230,6 +230,21 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx)
     ctx->close = http_context_disconnect;
 }
 
+void swoole_http_context_copy(http_context *src, http_context *dst)
+{
+    dst->parse_cookie = src->parse_cookie;
+    dst->parse_body = src->parse_body;
+    dst->parse_files = src->parse_files;
+#ifdef SW_HAVE_ZLIB
+    dst->enable_compression = src->enable_compression;
+#endif
+    dst->private_data = src->private_data;
+    dst->upload_tmp_dir = src->upload_tmp_dir;
+    dst->send = src->send;
+    dst->sendfile = src->sendfile;
+    dst->close = src->close;
+}
+
 void swoole_http_context_free(http_context *ctx)
 {
     if (ctx->request.zobject)
@@ -295,7 +310,7 @@ http_context* swoole_http_context_get(zval *zobject, const bool check_end)
     return ctx;
 }
 
-static bool http_context_send_data(http_context* ctx, const char *data, size_t length)
+bool http_context_send_data(http_context* ctx, const char *data, size_t length)
 {
     swServer *serv = (swServer *) ctx->private_data;
     zval *return_value = (zval *) ctx->private_data_2;
