@@ -234,6 +234,10 @@ static PHP_METHOD(swoole_http_response, write)
     ctx->private_data_2 = return_value;
     Socket *sock = (Socket *) ctx->private_data;
     swString *http_buffer = sock->get_write_buffer();
+    if (!http_buffer)
+    {
+        RETURN_FALSE;
+    }
 
     if (!ctx->send_header)
     {
@@ -629,6 +633,11 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
     {
         Socket *sock = (Socket *) ctx->private_data;
         swString *http_buffer = sock->get_write_buffer();
+        if (!http_buffer)
+        {
+            RETURN_FALSE;
+        }
+        
         swString_clear(http_buffer);
 #ifdef SW_HAVE_ZLIB
         if (ctx->accept_compression)
@@ -836,6 +845,10 @@ static PHP_METHOD(swoole_http_response, sendfile)
 
     Socket *sock = (Socket *) ctx->private_data;
     swString *http_buffer = sock->get_write_buffer();
+    if (!http_buffer)
+    {
+        RETURN_FALSE;
+    }
     swString_clear(http_buffer);
     http_build_header(ctx, http_buffer, length);
 
@@ -1103,6 +1116,10 @@ static PHP_METHOD(swoole_http_response, push)
 
     Socket *sock = (Socket *) ctx->private_data;
     swString *http_buffer = sock->get_write_buffer();
+    if (!http_buffer)
+    {
+        RETURN_FALSE;
+    }
     swString_clear(http_buffer);
     if (php_swoole_websocket_frame_pack(http_buffer, zdata, opcode, finished, 0) < 0)
     {
