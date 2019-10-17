@@ -1314,7 +1314,7 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset)
     if (swServer_dispatch_mode_is_mod(serv))
     {
         int worker_id = swServer_worker_schedule(serv, conn->fd, nullptr);
-        if (worker_id != SwooleWG.id)
+        if (worker_id != (int) SwooleWG.id)
         {
             worker = swServer_get_worker(serv, worker_id);
             goto _notify;

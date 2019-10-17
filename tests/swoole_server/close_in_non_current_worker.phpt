@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: close in non-current process
+swoole_server: close in non-current worker
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
