@@ -682,7 +682,7 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
 
     swClient *cli;
     string conn_key;
-    zval *zconnection_id = sw_zend_read_property_not_null(Z_OBJCE_P(zobject), zobject, ZEND_STRL("id"), 0);
+    zval *zconnection_id = sw_zend_read_property_not_null(Z_OBJCE_P(zobject), zobject, ZEND_STRL("id"), 1);
 
     if (zconnection_id && Z_TYPE_P(zconnection_id) == IS_STRING && Z_STRLEN_P(zconnection_id) > 0)
     {
