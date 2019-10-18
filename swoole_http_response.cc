@@ -80,6 +80,19 @@ static inline void http_header_key_format(char *key, int length)
     }
 }
 
+static inline swString* http_get_write_buffer(http_context *ctx)
+{
+    if (ctx->co_socket)
+    {
+        swString *buffer = ((Socket *) ctx->private_data)->get_write_buffer();
+        if (buffer != NULL)
+        {
+            return buffer;
+        }
+    }
+    return swoole_http_buffer;
+}
+
 static PHP_METHOD(swoole_http_response, write);
 static PHP_METHOD(swoole_http_response, end);
 static PHP_METHOD(swoole_http_response, sendfile);
@@ -234,12 +247,8 @@ static PHP_METHOD(swoole_http_response, write)
 #endif
 
     ctx->private_data_2 = return_value;
-    Socket *sock = (Socket *) ctx->private_data;
-    swString *http_buffer = sock->get_write_buffer();
-    if (!http_buffer)
-    {
-        RETURN_FALSE;
-    }
+
+    swString *http_buffer = http_get_write_buffer(ctx);
 
     if (!ctx->send_header)
     {
@@ -633,12 +642,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
     //no http chunk
     else
     {
-        Socket *sock = (Socket *) ctx->private_data;
-        swString *http_buffer = sock->get_write_buffer();
-        if (!http_buffer)
-        {
-            RETURN_FALSE;
-        }
+        swString *http_buffer = http_get_write_buffer(ctx);
         
         swString_clear(http_buffer);
 #ifdef SW_HAVE_ZLIB
@@ -845,12 +849,8 @@ static PHP_METHOD(swoole_http_response, sendfile)
         length = file_stat.st_size - offset;
     }
 
-    Socket *sock = (Socket *) ctx->private_data;
-    swString *http_buffer = sock->get_write_buffer();
-    if (!http_buffer)
-    {
-        RETURN_FALSE;
-    }
+    swString *http_buffer = http_get_write_buffer(ctx);
+
     swString_clear(http_buffer);
     http_build_header(ctx, http_buffer, length);
 
@@ -1112,12 +1112,8 @@ static PHP_METHOD(swoole_http_response, push)
         RETURN_FALSE;
     }
 
-    Socket *sock = (Socket *) ctx->private_data;
-    swString *http_buffer = sock->get_write_buffer();
-    if (!http_buffer)
-    {
-        RETURN_FALSE;
-    }
+    swString *http_buffer = http_get_write_buffer(ctx);
+
     swString_clear(http_buffer);
     if (php_swoole_websocket_frame_pack(http_buffer, zdata, opcode, finished, 0) < 0)
     {
