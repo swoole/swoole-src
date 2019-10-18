@@ -598,8 +598,8 @@ static void http2_server_onRequest(http2_session *session, http2_stream *stream)
     add_assoc_long(zserver, "request_time", time(NULL));
     add_assoc_double(zserver, "request_time_float", swoole_microtime());
     add_assoc_long(zserver, "server_port", hs->socket->get_bind_port());
-    add_assoc_long(zserver, "remote_port", swConnection_get_port(sock->socket->socket_type, &sock->socket->info));
-    add_assoc_string(zserver, "remote_addr", (char * ) swConnection_get_ip(sock->socket->socket_type, &sock->socket->info));
+    add_assoc_long(zserver, "remote_port", sock->get_port());
+    add_assoc_string(zserver, "remote_addr", (char * ) sock->get_ip());
     add_assoc_string(zserver, "server_protocol", (char * ) "HTTP/2");
 
     php_swoole_fci *fci = hs->get_handler(ctx);
