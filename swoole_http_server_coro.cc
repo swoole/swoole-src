@@ -523,7 +523,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
                 && memcmp(buffer->str, SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1) == 0)
         {
             buffer->length = retval - (sizeof(SW_HTTP2_PRI_STRING) - 1);
-            buffer->offset = parsed_n;
+            buffer->offset = buffer->length == 0 ? 0 : parsed_n;
             hs->recv_http2_frame(ctx);
             break;
         }
