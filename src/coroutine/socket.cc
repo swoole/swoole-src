@@ -1159,7 +1159,7 @@ bool Socket::listen(int backlog)
     return true;
 }
 
-Socket* Socket::accept()
+Socket* Socket::accept(double timeout)
 {
     if (sw_unlikely(!is_available(SW_EVENT_READ)))
     {
@@ -1169,7 +1169,7 @@ Socket* Socket::accept()
     int conn = swSocket_accept(sock_fd, &client_addr);
     if (conn < 0 && errno == EAGAIN)
     {
-        timer_controller timer(&read_timer, read_timeout, this, timer_callback);
+        timer_controller timer(&read_timer, timeout == 0 ? read_timeout : timeout, this, timer_callback);
         if (!timer.start() || !wait_event(SW_EVENT_READ))
         {
             return nullptr;

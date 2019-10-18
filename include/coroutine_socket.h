@@ -98,7 +98,7 @@ public:
     ssize_t send_all(const void *__buf, size_t __n);
     ssize_t recv_packet(double timeout = 0);
     bool poll(enum swEvent_type type);
-    Socket* accept();
+    Socket* accept(double timeout);
     bool bind(std::string address, int port = 0);
     bool listen(int backlog = 0);
     bool sendfile(const char *filename, off_t offset, size_t length);
