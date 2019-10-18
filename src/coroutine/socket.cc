@@ -561,7 +561,7 @@ Socket::Socket(int _fd, swSocketAddress *addr, Socket *server_sock)
     protocol = server_sock->protocol;
     memcpy(&socket->info.addr, &addr, addr->len);
 #ifdef SW_USE_OPENSSL
-    if (open_ssl)
+    if (server_sock->open_ssl)
     {
         if (swSSL_create(socket, server_sock->ssl_context, 0) < 0 || !ssl_accept())
         {
