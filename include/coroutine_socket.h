@@ -371,7 +371,7 @@ private:
     static int writable_event_callback(swReactor *reactor, swEvent *event);
     static int error_event_callback(swReactor *reactor, swEvent *event);
 
-    Socket(int _fd, Socket *socket);
+    Socket(int _fd, swSocketAddress *addr, Socket *socket);
     inline void init_sock_type(enum swSocket_type _type);
     inline bool init_sock();
     void init_reactor_socket(int fd);
