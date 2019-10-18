@@ -555,7 +555,7 @@ Socket::Socket(int _fd, swSocketAddress *addr, Socket *server_sock)
     connect_timeout = server_sock->connect_timeout;
     read_timeout = server_sock->read_timeout;
     write_timeout = server_sock->write_timeout;
-    open_eof_check = server_sock->open_length_check;
+    open_length_check = server_sock->open_length_check;
     open_eof_check = server_sock->open_eof_check;
     http2 = server_sock->http2;
     protocol = server_sock->protocol;
