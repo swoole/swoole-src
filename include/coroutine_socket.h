@@ -98,7 +98,7 @@ public:
     ssize_t send_all(const void *__buf, size_t __n);
     ssize_t recv_packet(double timeout = 0);
     bool poll(enum swEvent_type type);
-    Socket* accept();
+    Socket* accept(double timeout = 0);
     bool bind(std::string address, int port = 0);
     bool listen(int backlog = 0);
     bool sendfile(const char *filename, off_t offset, size_t length);
@@ -371,7 +371,7 @@ private:
     static int writable_event_callback(swReactor *reactor, swEvent *event);
     static int error_event_callback(swReactor *reactor, swEvent *event);
 
-    Socket(int _fd, Socket *socket);
+    Socket(int _fd, swSocketAddress *addr, Socket *socket);
     inline void init_sock_type(enum swSocket_type _type);
     inline bool init_sock();
     void init_reactor_socket(int fd);

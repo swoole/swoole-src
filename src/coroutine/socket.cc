@@ -543,7 +543,7 @@ Socket::Socket(int _fd, int _domain, int _type, int _protocol) :
     init_options();
 }
 
-Socket::Socket(int _fd, Socket *server_sock)
+Socket::Socket(int _fd, swSocketAddress *addr, Socket *server_sock)
 {
     type = server_sock->type;
     sock_domain = server_sock->sock_domain;
@@ -551,6 +551,25 @@ Socket::Socket(int _fd, Socket *server_sock)
     sock_protocol = server_sock->sock_protocol;
     init_reactor_socket(_fd);
     init_options();
+    /* inherits server socket options */
+    connect_timeout = server_sock->connect_timeout;
+    read_timeout = server_sock->read_timeout;
+    write_timeout = server_sock->write_timeout;
+    open_length_check = server_sock->open_length_check;
+    open_eof_check = server_sock->open_eof_check;
+    http2 = server_sock->http2;
+    protocol = server_sock->protocol;
+    memcpy(&socket->info.addr, &addr, addr->len);
+#ifdef SW_USE_OPENSSL
+    if (server_sock->open_ssl)
+    {
+        if (swSSL_create(socket, server_sock->ssl_context, 0) < 0 || !ssl_accept())
+        {
+            close();
+            return;
+        }
+    }
+#endif
 }
 
 bool Socket::getsockname()
@@ -1140,7 +1159,7 @@ bool Socket::listen(int backlog)
     return true;
 }
 
-Socket* Socket::accept()
+Socket* Socket::accept(double timeout)
 {
     if (sw_unlikely(!is_available(SW_EVENT_READ)))
     {
@@ -1150,7 +1169,7 @@ Socket* Socket::accept()
     int conn = swSocket_accept(sock_fd, &client_addr);
     if (conn < 0 && errno == EAGAIN)
     {
-        timer_controller timer(&read_timer, read_timeout, this, timer_callback);
+        timer_controller timer(&read_timer, timeout == 0 ? read_timeout : timeout, this, timer_callback);
         if (!timer.start() || !wait_event(SW_EVENT_READ))
         {
             return nullptr;
@@ -1162,7 +1181,7 @@ Socket* Socket::accept()
         set_err(errno);
         return nullptr;
     }
-    Socket *client_sock = new Socket(conn, this);
+    Socket *client_sock = new Socket(conn, &client_addr, this);
     if (sw_unlikely(client_sock->get_fd() < 0))
     {
         swSysWarn("new Socket() failed");
@@ -1170,18 +1189,6 @@ Socket* Socket::accept()
         delete client_sock;
         return nullptr;
     }
-    memcpy(&client_sock->socket->info.addr, &client_addr.addr, client_addr.len);
-#ifdef SW_USE_OPENSSL
-    if (open_ssl)
-    {
-        if (swSSL_create(client_sock->socket, ssl_context, 0) < 0 || !client_sock->ssl_accept())
-        {
-            client_sock->close();
-            delete client_sock;
-            return nullptr;
-        }
-    }
-#endif
     return client_sock;
 }
 

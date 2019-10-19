@@ -1072,8 +1072,7 @@ static PHP_METHOD(swoole_socket_coro, accept)
 
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    Socket::timeout_setter ts(sock->socket, timeout, SW_TIMEOUT_READ);
-    Socket *conn = sock->socket->accept();
+    Socket *conn = sock->socket->accept(timeout);
     if (conn)
     {
         zend_object *client = swoole_socket_coro_create_object(swoole_socket_coro_ce);
