@@ -16,6 +16,7 @@
 
 #include "php_swoole_cxx.h"
 #include "swoole_http.h"
+#include "mime_types.h"
 
 extern "C"
 {
@@ -852,6 +853,13 @@ static PHP_METHOD(swoole_http_response, sendfile)
     swString *http_buffer = http_get_write_buffer(ctx);
 
     swString_clear(http_buffer);
+
+    zval *zheader = sw_zend_read_and_convert_property_array(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
+    if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("Content-Type")))
+    {
+        add_assoc_string(zheader, "Content-Type", swoole_mime_type_get(file));
+    }
+
     http_build_header(ctx, http_buffer, length);
 
     if (!ctx->send(ctx, http_buffer->str, http_buffer->length))
