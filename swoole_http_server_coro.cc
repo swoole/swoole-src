@@ -17,6 +17,10 @@
 #include "php_swoole_cxx.h"
 #include "swoole_http.h"
 
+#ifdef SW_USE_HTTP2
+#include "http2.h"
+#endif
+
 #include <string>
 #include <map>
 #include <algorithm>
@@ -52,6 +56,8 @@ static zend_object_handlers swoole_http_server_coro_handlers;
 static bool http_context_send_data(http_context* ctx, const char *data, size_t length);
 static bool http_context_send_file(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(http_context* ctx);
+
+static void http2_server_onRequest(http2_session *session, http2_stream *stream);
 
 class http_server
 {
@@ -129,6 +135,38 @@ public:
 
         return ctx;
     }
+
+#ifdef SW_USE_HTTP2
+    void recv_http2_frame(http_context *ctx)
+    {
+        Socket *sock = (Socket *) ctx->private_data;
+        swHttp2_send_setting_frame(&sock->protocol, sock->socket);
+
+        sock->open_length_check = true;
+        sock->protocol.get_package_length = swHttp2_get_frame_length;
+        sock->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
+
+        http2_session session(ctx->fd);
+        session.default_ctx = ctx;
+        session.handle = http2_server_onRequest;
+        session.private_data = this;
+
+        while (true)
+        {
+            auto buffer = sock->get_read_buffer();
+            ssize_t retval = sock->recv_packet();
+            if (sw_unlikely(retval <= 0))
+            {
+                break;
+            }
+            swoole_http2_server_parse(&session, buffer->str);
+        }
+
+        ctx->detached = 1;
+        zval_dtor(ctx->request.zobject);
+        zval_dtor(ctx->response.zobject);
+    }
+#endif
 };
 
 typedef struct
@@ -480,6 +518,17 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
             continue;
         }
 
+#ifdef SW_USE_HTTP2
+        if (ctx->parser.method == PHP_HTTP_NOT_IMPLEMENTED
+                && memcmp(buffer->str, SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1) == 0)
+        {
+            buffer->length = retval - (sizeof(SW_HTTP2_PRI_STRING) - 1);
+            buffer->offset = buffer->length == 0 ? 0 : parsed_n;
+            hs->recv_http2_frame(ctx);
+            break;
+        }
+#endif
+
         if (retval > (ssize_t) parsed_n)
         {
             buffer->offset = retval - parsed_n;
@@ -537,4 +586,30 @@ static PHP_METHOD(swoole_http_server_coro, shutdown)
     http_server *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     hs->running = false;
     hs->socket->cancel(SW_EVENT_READ);
+}
+
+static void http2_server_onRequest(http2_session *session, http2_stream *stream)
+{
+    http_context *ctx = stream->ctx;
+    http_server *hs = (http_server*) session->private_data;
+    Socket *sock = (Socket *) ctx->private_data;
+    zval *zserver = ctx->request.zserver;
+
+    add_assoc_long(zserver, "request_time", time(NULL));
+    add_assoc_double(zserver, "request_time_float", swoole_microtime());
+    add_assoc_long(zserver, "server_port", hs->socket->get_bind_port());
+    add_assoc_long(zserver, "remote_port", sock->get_port());
+    add_assoc_string(zserver, "remote_addr", (char * ) sock->get_ip());
+    add_assoc_string(zserver, "server_protocol", (char * ) "HTTP/2");
+
+    php_swoole_fci *fci = hs->get_handler(ctx);
+
+    zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
+    if (UNEXPECTED(!zend::function::call(&fci->fci_cache, 2, args, NULL, 0)))
+    {
+        stream->reset(SW_HTTP2_ERROR_INTERNAL_ERROR);
+        php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));
+    }
+    zval_ptr_dtor(&args[0]);
+    zval_ptr_dtor(&args[1]);
 }

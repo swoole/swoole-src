@@ -1556,12 +1556,6 @@ ssize_t Socket::recv_packet(double timeout)
             header_len = protocol.real_header_length;
             goto _recv_header;
         }
-        //empty package
-        else if (buf_len == header_len)
-        {
-            read_buffer->length = 0;
-            return header_len;
-        }
         else if (buf_len > protocol.package_max_length)
         {
             set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "remote packet is too big");

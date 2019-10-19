@@ -21,6 +21,8 @@
 #include "thirdparty/swoole_http_parser.h"
 #include "thirdparty/multipart_parser.h"
 
+#include <unordered_map>
+
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
 #define SW_ZLIB_ENCODING_RAW        -0xf
@@ -116,6 +118,7 @@ struct http_context
 #endif
     uint32_t chunk :1;
     uint32_t keepalive :1;
+    uint32_t http2 :1;
     uint32_t websocket :1;
     uint32_t upgrade :1;
     uint32_t detached :1;
@@ -156,6 +159,45 @@ struct http_context
     bool (*close)(http_context* ctx);
 };
 
+class http2_stream
+{
+public:
+    http_context* ctx;
+    // uint8_t priority; // useless now
+    uint32_t id;
+    // flow control
+    uint32_t send_window;
+    uint32_t recv_window;
+
+    http2_stream(int _fd, uint32_t _id);
+    ~http2_stream();
+    void reset(uint32_t error_code);
+};
+
+class http2_session
+{
+public:
+    int fd;
+    std::unordered_map<int, http2_stream*> streams;
+
+    nghttp2_hd_inflater *inflater = nullptr;
+    nghttp2_hd_deflater *deflater = nullptr;
+
+    uint32_t header_table_size;
+    uint32_t send_window;
+    uint32_t recv_window;
+    uint32_t max_concurrent_streams;
+    uint32_t max_frame_size;
+
+    http_context *default_ctx = nullptr;
+    void *private_data = nullptr;
+
+    void (*handle)(http2_session *, http2_stream *) = nullptr;
+
+    http2_session(int _fd);
+    ~http2_session();
+};
+
 extern zend_class_entry *swoole_http_server_ce;
 extern zend_class_entry *swoole_http_request_ce;
 extern zend_class_entry *swoole_http_response_ce;
@@ -173,6 +215,8 @@ extern swString *swoole_zlib_buffer;
 http_context* swoole_http_context_new(int fd);
 http_context* swoole_http_context_get(zval *zobject, const bool check_end);
 void swoole_http_context_free(http_context *ctx);
+void swoole_http_context_copy(http_context *src, http_context *dst);
+
 static sw_inline zval* swoole_http_init_and_read_property(zend_class_entry *ce, zval *zobject, zval** zproperty_store_pp, const char *name, size_t name_len)
 {
     if (UNEXPECTED(!*zproperty_store_pp))
@@ -187,7 +231,6 @@ static sw_inline zval* swoole_http_init_and_read_property(zend_class_entry *ce, 
 }
 int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len);
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
-
 void swoole_http_server_init_context(swServer *serv, http_context *ctx);
 
 size_t swoole_http_requset_parse(http_context *ctx, const char *data, size_t length);
@@ -261,6 +304,7 @@ bool swoole_websocket_handshake(http_context *ctx);
 
 #ifdef SW_USE_HTTP2
 int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData *req);
+int swoole_http2_server_parse(http2_session *client, char *buf);
 int swoole_http2_server_do_response(http_context *ctx, swString *body);
 void swoole_http2_server_session_free(swConnection *conn);
 void swoole_http2_response_end(http_context *ctx, zval *zdata, zval *return_value);
