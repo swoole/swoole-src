@@ -732,7 +732,7 @@ PHP_RINIT_FUNCTION(swoole)
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
     SwooleG.running = 1;
     php_swoole_register_shutdown_function("swoole_internal_call_user_shutdown_begin");
-    if (SWOOLE_G(enable_library))
+    if (SWOOLE_G(enable_library) && SWOOLE_G(cli))
     {
         php_swoole_load_library();
     }
