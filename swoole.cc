@@ -732,7 +732,14 @@ PHP_RINIT_FUNCTION(swoole)
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
     SwooleG.running = 1;
     php_swoole_register_shutdown_function("swoole_internal_call_user_shutdown_begin");
-    if (SWOOLE_G(enable_library) && SWOOLE_G(cli))
+    if (
+        SWOOLE_G(enable_library) && SWOOLE_G(cli)
+        /* && !(CG(compiler_options) & ZEND_COMPILE_PRELOAD) */
+#if PHP_VERSION_ID >= 70400
+        /* Hack way to avoid execution of the code during RINIT of preloader */
+        && sapi_module.deactivate != NULL && sapi_module.register_server_variables != NULL
+#endif
+    )
     {
         php_swoole_load_library();
     }
