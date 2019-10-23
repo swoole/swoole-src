@@ -719,6 +719,7 @@ typedef struct _swConnection
     uint8_t http2_stream;
 #endif
     uint8_t websocket_compression;
+    uint8_t websocket_first_frame;
     //--------------------------------------------------------------
     /**
      * server is actively close the connection

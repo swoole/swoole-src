@@ -142,6 +142,10 @@ static inline uchar swWebSocket_set_flags(uchar fin, uchar mask, uchar rsv1, uch
     {
         flags |= SW_WEBSOCKET_FLAG_FIN;
     }
+    if (mask)
+    {
+        flags |= SW_WEBSOCKET_FLAG_MASK;
+    }
     if (rsv1)
     {
         flags |= SW_WEBSOCKET_FLAG_RSV1;
@@ -153,10 +157,6 @@ static inline uchar swWebSocket_set_flags(uchar fin, uchar mask, uchar rsv1, uch
     if (rsv3)
     {
         flags |= SW_WEBSOCKET_FLAG_RSV3;
-    }
-    if (mask)
-    {
-        flags |= SW_WEBSOCKET_FLAG_MASK;
     }
     return flags;
 }
