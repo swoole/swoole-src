@@ -80,8 +80,10 @@ $server->on('message', function (Server $_server, $frame) {
         //echo "receive from {$frame->fd}:{$frame->data}, opcode:{$frame->opcode}, finish:{$frame->finish}\n";
         // for ($i = 0; $i < 100; $i++)
         {
+//            $_send = ''
+            $_send = str_repeat('B', 100);
 //            $_send = str_repeat('B', rand(100, 800));
-//            $_server->push($frame->fd, $_send);
+            $_server->push($frame->fd, $_send);
             // echo "#$i\tserver sent " . strlen($_send) . " byte \n";
         }
     }
@@ -109,8 +111,8 @@ $server->on('packet', function ($_server, $data, $client) {
 
 $server->on('request', function (Request $request, Response $response) {
     $response->end(<<<HTML
-    <h1>Swoole WebSocket Server</h1>
-    <script>
+<h1>Swoole WebSocket Server</h1>
+<script>
 var wsServer = 'ws://127.0.0.1:9501';
 var websocket = new WebSocket(wsServer);
 websocket.onopen = function (evt) {
