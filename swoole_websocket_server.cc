@@ -104,7 +104,10 @@ const zend_function_entry swoole_websocket_frame_methods[] =
     PHP_FE_END
 };
 
+#ifdef SW_HAVE_ZLIB
 static bool websocket_message_compress(const char *data, size_t length, int level);
+static bool websocket_message_uncompress(const char *in, size_t in_len);
+#endif
 
 static void php_swoole_websocket_construct_frame(zval *zframe, zend_long opcode, char *payload, size_t payload_length, zend_bool finish)
 {
