@@ -1381,7 +1381,8 @@ bool http_client::push(zval *zdata, zend_long opcode, bool fin)
 
     swString *buffer = socket->get_write_buffer();
     swString_clear(buffer);
-    if (php_swoole_websocket_frame_pack(buffer, zdata, opcode, fin, websocket_mask) < 0)
+    uint8_t flags = swWebSocket_set_flags(fin, websocket_mask, 0, 0, 0);
+    if (php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags) < 0)
     {
         return false;
     }
