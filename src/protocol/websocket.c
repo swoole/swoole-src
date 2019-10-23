@@ -109,15 +109,17 @@ static sw_inline void swWebSocket_mask(char *data, size_t len, const char *mask_
     }
 }
 
-void swWebSocket_encode(swString *buffer, const char *data, size_t length, char opcode, uint8_t finish, uint8_t mask)
+void swWebSocket_encode(swString *buffer, const char *data, size_t length, char opcode, uint8_t flags)
 {
     int pos = 0;
     char frame_header[16];
-
+    char fin = !!(flags & SW_WEBSOCKET_FLAG_FIN);
+    char mask = !!(flags & SW_WEBSOCKET_FLAG_MASK);
+    char rsv1 = !!(flags & SW_WEBSOCKET_FLAG_RSV1);
     /**
      * frame header
      */
-    frame_header[pos++] = FRAME_SET_FIN(finish) | FRAME_SET_OPCODE(opcode);
+    frame_header[pos++] = FRAME_SET_FIN(fin) | FRAME_SET_OPCODE(opcode) | FRAME_SET_RSV1(rsv1);
     if (length < 126)
     {
         frame_header[pos++] = FRAME_SET_MASK(mask) | FRAME_SET_LENGTH(length, 0);
@@ -175,6 +177,8 @@ void swWebSocket_decode(swWebSocket_frame *frame, swString *data)
     uint8_t header_length = SW_WEBSOCKET_HEADER_LEN;
     char *buf = data->str + SW_WEBSOCKET_HEADER_LEN;
 
+    printf("rsv=%d\n", frame->header.RSV1);
+
     //uint16_t, 2byte
     if (frame->header.LENGTH == 0x7e)
     {
@@ -203,7 +207,7 @@ void swWebSocket_decode(swWebSocket_frame *frame, swString *data)
     frame->payload_length = payload_length;
 }
 
-int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_t length, uint8_t mask)
+int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_t length, uint8_t flags)
 {
     if (sw_unlikely(length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN))
     {
@@ -212,14 +216,14 @@ int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_
     }
 
     char payload[SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN + SW_WEBSOCKET_CLOSE_REASON_MAX_LEN];
-    payload[0] = (char)((code >> 8 & 0xFF));
-    payload[1] = (char)((code & 0xFF));
+    payload[0] = (char) ((code >> 8 & 0xFF));
+    payload[1] = (char) ((code & 0xFF));
     if (length > 0)
     {
         memcpy(payload + SW_WEBSOCKET_CLOSE_CODE_LEN, reason, length);
     }
-
-    swWebSocket_encode(buffer, payload, SW_WEBSOCKET_CLOSE_CODE_LEN + length, WEBSOCKET_OPCODE_CLOSE, 1, mask);
+    flags |= SW_WEBSOCKET_FLAG_FIN;
+    swWebSocket_encode(buffer, payload, SW_WEBSOCKET_CLOSE_CODE_LEN + length, WEBSOCKET_OPCODE_CLOSE, flags);
     return SW_OK;
 }
 
@@ -290,8 +294,9 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data,
 
     case WEBSOCKET_OPCODE_TEXT:
     case WEBSOCKET_OPCODE_BINARY:
+    {
         offset = length - ws.payload_length - SW_WEBSOCKET_HEADER_LEN;
-        data[offset] = 1;
+        data[offset] = swWebSocket_get_flags(&ws);
         data[offset + 1] = ws.header.OPCODE;
         if (!ws.header.FIN)
         {
@@ -309,7 +314,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data,
             swReactorThread_dispatch(proto, _socket, data + offset, length - offset);
         }
         break;
-
+    }
     case WEBSOCKET_OPCODE_PING:
         if (length >= (sizeof(buf) - SW_WEBSOCKET_HEADER_LEN))
         {
@@ -320,12 +325,12 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data,
         }
         else if (length == SW_WEBSOCKET_HEADER_LEN)
         {
-            swWebSocket_encode(&send_frame, NULL, 0, WEBSOCKET_OPCODE_PONG, 1, 0);
+            swWebSocket_encode(&send_frame, NULL, 0, WEBSOCKET_OPCODE_PONG, SW_WEBSOCKET_FLAG_FIN);
         }
         else
         {
             offset = ws.header.MASK ? SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN : SW_WEBSOCKET_HEADER_LEN;
-            swWebSocket_encode(&send_frame, data += offset, length - offset, WEBSOCKET_OPCODE_PONG, 1, 0);
+            swWebSocket_encode(&send_frame, data += offset, length - offset, WEBSOCKET_OPCODE_PONG, SW_WEBSOCKET_FLAG_FIN);
         }
         swConnection_send(_socket, send_frame.str, send_frame.length, 0);
         break;
