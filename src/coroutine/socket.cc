@@ -371,6 +371,8 @@ bool Socket::http_proxy_handshake()
         );
     }
 
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", n, http_proxy->buf);
+
     if (send(http_proxy->buf, n) != n)
     {
         return false;
@@ -381,6 +383,9 @@ bool Socket::http_proxy_handshake()
     {
         return false;
     }
+
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", n, http_proxy->buf);
+
     char *buf = http_proxy->buf;
     int len = n;
     int state = 0;
@@ -389,7 +394,7 @@ bool Socket::http_proxy_handshake()
     {
         if (state == 0)
         {
-            if (strncasecmp(p, "HTTP/1.1", 8) == 0 || strncasecmp(p, "HTTP/1.0", 8) == 0)
+            if (strncasecmp(p, SW_STRL("HTTP/1.1")) == 0 || strncasecmp(p, SW_STRL("HTTP/1.0")) == 0)
             {
                 state = 1;
                 p += 8;
@@ -407,7 +412,7 @@ bool Socket::http_proxy_handshake()
             }
             else
             {
-                if (strncasecmp(p, "200", 3) == 0)
+                if (strncasecmp(p, SW_STRL("200")) == 0)
                 {
                     state = 2;
                     p += 3;
@@ -426,7 +431,7 @@ bool Socket::http_proxy_handshake()
             }
             else
             {
-                if (strncasecmp(p, "Connection established", sizeof("Connection established") - 1) == 0)
+                if (strncasecmp(p, SW_STRL("Connection established")) == 0)
                 {
                     return true;
                 }
@@ -1239,7 +1244,7 @@ bool Socket::ssl_handshake()
 #if defined(SW_USE_HTTP2) && defined(SW_USE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10002000L
     if (http2)
     {
-        if (SSL_CTX_set_alpn_protos(ssl_context, (const unsigned char *) "\x02h2", 3) < 0)
+        if (SSL_CTX_set_alpn_protos(ssl_context, (const unsigned char *) SW_STRL(SW_SSL_HTTP2_NPN_ADVERTISE)) < 0)
         {
             return false;
         }
