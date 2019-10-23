@@ -299,13 +299,13 @@ bool swoole_websocket_handshake(http_context *ctx)
     pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-extensions"));
     if (pData && Z_TYPE_P(pData) == IS_STRING)
     {
-        auto s = zval_get_string(pData);
-        string value(s->val, s->len);
+        zend::string s = zval_get_string(pData);
+        string value = s.to_std_string();
         string v = value.substr(0, value.find_first_of(';'));
         if (v.compare(string("permessage-deflate")) == 0)
         {
             websocket_compression = true;
-            swoole_http_response_set_header(ctx, ZEND_STRL("Sec-Websocket-Extensions"), ZEND_STRL("permessage-deflate; server_no_context_takeover"), false);
+            swoole_http_response_set_header(ctx, ZEND_STRL("Sec-Websocket-Extensions"), ZEND_STRL("permessage-deflate; client_no_context_takeover; server_no_context_takeover"), false);
         }
     }
 
@@ -344,7 +344,7 @@ bool swoole_websocket_handshake(http_context *ctx)
     return Z_TYPE(retval) == IS_TRUE;
 }
 
-static bool message_uncompress(const char *in, size_t in_len, swString *body)
+static bool message_uncompress(const char *in, size_t in_len)
 {
     bool gzip_stream_active = false;
     z_stream gzip_stream;
@@ -352,7 +352,7 @@ static bool message_uncompress(const char *in, size_t in_len, swString *body)
     int status;
     int encoding = SW_ZLIB_ENCODING_DEFLATE;
     bool first_decompress = !gzip_stream_active;
-    size_t reserved_length = body->length;
+    size_t reserved_length = swoole_zlib_buffer->length;
 
     if (!gzip_stream_active)
     {
@@ -375,24 +375,25 @@ static bool message_uncompress(const char *in, size_t in_len, swString *body)
 
     while (1)
     {
-        gzip_stream.avail_out = body->size - body->length;
-        gzip_stream.next_out = (Bytef *) (body->str + body->length);
+        gzip_stream.avail_out = swoole_zlib_buffer->size - swoole_zlib_buffer->length;
+        gzip_stream.next_out = (Bytef *) (swoole_zlib_buffer->str + swoole_zlib_buffer->length);
         status = inflate(&gzip_stream, Z_SYNC_FLUSH);
         if (status >= 0)
         {
-            body->length = gzip_stream.total_out;
+            swoole_zlib_buffer->length = gzip_stream.total_out;
         }
         if (status == Z_STREAM_END || (status == Z_OK && gzip_stream.avail_in == 0))
         {
+            inflateEnd(&gzip_stream);
             return true;
         }
         if (status != Z_OK)
         {
             break;
         }
-        if (body->length + (SW_BUFFER_SIZE_STD / 2) >= body->size)
+        if (swoole_zlib_buffer->length + (SW_BUFFER_SIZE_STD / 2) >= swoole_zlib_buffer->size)
         {
-            if (swString_extend(body, body->size * 2) < 0)
+            if (swString_extend(swoole_zlib_buffer, swoole_zlib_buffer->size * 2) < 0)
             {
                 status = Z_MEM_ERROR;
                 break;
@@ -405,12 +406,12 @@ static bool message_uncompress(const char *in, size_t in_len, swString *body)
         first_decompress = false;
         inflateEnd(&gzip_stream);
         encoding = SW_ZLIB_ENCODING_RAW;
-        body->length = reserved_length;
+        swoole_zlib_buffer->length = reserved_length;
         goto _retry;
     }
 
     swWarn("http_client::decompress_response failed by %s", zError(status));
-    body->length = reserved_length;
+    swoole_zlib_buffer->length = reserved_length;
     return false;
 }
 
@@ -494,15 +495,15 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
      */
     if (flags & SW_WEBSOCKET_FLAG_RSV1)
     {
-        swString *gzip_buffer = swString_new(8192);
-        if (!message_uncompress(Z_STRVAL(zdata), Z_STRLEN(zdata), gzip_buffer))
+        swString_clear(swoole_zlib_buffer);
+        if (!message_uncompress(Z_STRVAL(zdata), Z_STRLEN(zdata)))
         {
+            zval_ptr_dtor(&zdata);
             swWarn("decompress failed");
-            return SW_ERROR;
+            return SW_OK;
         }
-        zval_dtor(&zdata);
-        ZVAL_STRINGL(&zdata, gzip_buffer->str, gzip_buffer->length);
-        swString_free(gzip_buffer);
+        zend_string_free(Z_STR(zdata));
+        ZVAL_STRINGL(&zdata, swoole_zlib_buffer->str, swoole_zlib_buffer->length);
     }
 
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.server_fd, SW_SERVER_CB_onMessage);

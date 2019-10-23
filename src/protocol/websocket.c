@@ -177,8 +177,6 @@ void swWebSocket_decode(swWebSocket_frame *frame, swString *data)
     uint8_t header_length = SW_WEBSOCKET_HEADER_LEN;
     char *buf = data->str + SW_WEBSOCKET_HEADER_LEN;
 
-    printf("rsv=%d\n", frame->header.RSV1);
-
     //uint16_t, 2byte
     if (frame->header.LENGTH == 0x7e)
     {
