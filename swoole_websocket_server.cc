@@ -199,7 +199,8 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
         data = str_zdata.val();
         length = str_zdata.len();
 
-        if ((flags & SW_WEBSOCKET_FLAG_RSV1) && message_compress(data, length, 1))
+        swString_clear(swoole_zlib_buffer);
+        if ((flags & SW_WEBSOCKET_FLAG_RSV1) && message_compress(data, length, Z_DEFAULT_COMPRESSION))
         {
             data = swoole_zlib_buffer->str;
             length = swoole_zlib_buffer->length;
@@ -305,7 +306,8 @@ bool swoole_websocket_handshake(http_context *ctx)
         if (v.compare(string("permessage-deflate")) == 0)
         {
             websocket_compression = true;
-            swoole_http_response_set_header(ctx, ZEND_STRL("Sec-Websocket-Extensions"), ZEND_STRL("permessage-deflate; client_no_context_takeover; server_no_context_takeover"), false);
+            swoole_http_response_set_header(ctx, ZEND_STRL("Sec-Websocket-Extensions"),
+                    ZEND_STRL("permessage-deflate; client_no_context_takeover; server_no_context_takeover"), false);
         }
     }
 
@@ -445,28 +447,29 @@ static bool message_compress(const char *data, size_t length, int level)
     zstream.zfree = php_zlib_free;
 
     int retval = deflateInit2(&zstream, level, Z_DEFLATED, encoding, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
-
-    if (Z_OK == retval)
+    if (retval != Z_OK)
     {
-        zstream.next_in = (Bytef *) data;
-        zstream.next_out = (Bytef *) swoole_zlib_buffer->str;
-        zstream.avail_in = length;
-        zstream.avail_out = swoole_zlib_buffer->size;
+        swWarn("deflateInit2() failed, Error: [%d]", retval);
+        return false;
+    }
 
-        status = deflate(&zstream, Z_FINISH);
-        deflateEnd(&zstream);
+    zstream.next_in = (Bytef *) data;
+    zstream.next_out = (Bytef *) swoole_zlib_buffer->str;
+    zstream.avail_in = length;
+    zstream.avail_out = swoole_zlib_buffer->size;
 
-        if (Z_STREAM_END == status)
-        {
-            swoole_zlib_buffer->length = zstream.total_out;
-            return true;
-        }
+    status = deflate(&zstream, Z_FINISH);
+    deflateEnd(&zstream);
+
+    if (Z_STREAM_END == status)
+    {
+        swoole_zlib_buffer->length = zstream.total_out;
+        return true;
     }
     else
     {
-        swWarn("deflateInit2() failed, Error: [%d]", retval);
+        return false;
     }
-    return false;
 }
 
 int swoole_websocket_onMessage(swServer *serv, swEventData *req)
