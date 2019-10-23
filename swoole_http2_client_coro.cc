@@ -763,7 +763,7 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
 #ifndef SW_USE_OPENSSL
         zend_throw_exception_ex(
             swoole_http2_client_coro_exception_ce,
-            EPROTONOSUPPORT, "you must configure with `enable-openssl` to support ssl connection"
+            EPROTONOSUPPORT, "you must configure with `--enable-openssl` to support ssl connection when compiling Swoole"
         );
         delete h2c;
         RETURN_FALSE;
