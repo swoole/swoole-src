@@ -99,7 +99,7 @@ static void sleep_timeout(swTimer *timer, swTimer_node *tnode)
 int System::sleep(double sec)
 {
     Coroutine* co = Coroutine::get_current_safe();
-    if (swoole_timer_add((long) (sec * 1000), SW_FALSE, sleep_timeout, co) == NULL)
+    if (swoole_timer_add((long) (sec * 1000), SW_FALSE, sleep_timeout, co) == nullptr)
     {
         return -1;
     }
@@ -109,7 +109,7 @@ int System::sleep(double sec)
 
 swString* System::read_file(const char *file, bool lock)
 {
-    AsyncTask task;
+    AsyncTask task{};
 
     swAio_event ev;
     bzero(&ev, sizeof(swAio_event));
@@ -126,15 +126,15 @@ swString* System::read_file(const char *file, bool lock)
     ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return NULL;
+        return nullptr;
     }
     task.co->yield();
     if (ev.error == 0)
     {
-        swString *str = (swString *) sw_malloc(sizeof(swString));
+        auto *str = (swString *) sw_malloc(sizeof(swString));
         if (!str)
         {
-            return NULL;
+            return nullptr;
         }
         str->str = (char*) ev.buf;
         str->length = ev.nbytes;
@@ -143,13 +143,13 @@ swString* System::read_file(const char *file, bool lock)
     else
     {
         SwooleG.error = ev.error;
-        return NULL;
+        return nullptr;
     }
 }
 
 ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock, int flags)
 {
-    AsyncTask task;
+    AsyncTask task{};
 
     swAio_event ev;
     bzero(&ev, sizeof(swAio_event));
@@ -200,7 +200,7 @@ string System::gethostbyname(const string &hostname, int domain, double timeout)
     }
 
     swAio_event ev;
-    AsyncTask task;
+    AsyncTask task{};
 
     bzero(&ev, sizeof(swAio_event));
     if (hostname.size() < SW_IP_MAX_LENGTH)
@@ -259,7 +259,7 @@ string System::gethostbyname(const string &hostname, int domain, double timeout)
     {
         if (dns_cache)
         {
-            string *addr = new string((char *) ev.buf);
+            auto *addr = new string((char *) ev.buf);
             dns_cache->set(cache_key, shared_ptr<string>(addr), dns_cache_expire);
             sw_free(ev.buf);
             return *addr;
@@ -283,7 +283,7 @@ vector<string> System::getaddrinfo(const string &hostname, int family, int sockt
     swRequest_getaddrinfo req;
     bzero(&req, sizeof(swRequest_getaddrinfo));
 
-    AsyncTask task;
+    AsyncTask task{};
 
     task.co = Coroutine::get_current_safe();
     task.original_event = &ev;
@@ -358,7 +358,7 @@ vector<string> System::getaddrinfo(const string &hostname, int family, int sockt
 
 struct coro_poll_task
 {
-    std::unordered_map<int, socket_poll_fd> *fds;
+    std::unordered_map<int, socket_poll_fd> *fds{};
     Coroutine *co = nullptr;
     swTimer_node *timer = nullptr;
     bool success = false;
@@ -369,10 +369,10 @@ static std::unordered_map<int, coro_poll_task *> coro_poll_task_map;
 
 static inline void socket_poll_clean(coro_poll_task *task)
 {
-    for (auto i = task->fds->begin(); i != task->fds->end(); i++)
+    for (auto & fd : *task->fds)
     {
-        coro_poll_task_map.erase(i->first);
-        if (swoole_event_del(i->first) < 0)
+        coro_poll_task_map.erase(fd.first);
+        if (swoole_event_del(fd.first) < 0)
         {
             //TODO print error log
             continue;
@@ -382,7 +382,7 @@ static inline void socket_poll_clean(coro_poll_task *task)
 
 static void socket_poll_timeout(swTimer *timer, swTimer_node *tnode)
 {
-    coro_poll_task *task = (coro_poll_task *) tnode->data;
+    auto *task = (coro_poll_task *) tnode->data;
     task->timer = nullptr;
     task->success = false;
     task->wait = false;
@@ -392,7 +392,7 @@ static void socket_poll_timeout(swTimer *timer, swTimer_node *tnode)
 
 static void socket_poll_completed(void *data)
 {
-    coro_poll_task *task = (coro_poll_task *) data;
+    auto *task = (coro_poll_task *) data;
     socket_poll_clean(task);
     task->co->resume();
 }
@@ -506,15 +506,15 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
     task.fds = &fds;
     task.co = Coroutine::get_current_safe();
 
-    for (auto i = fds.begin(); i != fds.end(); i++)
+    for (auto & fd : fds)
     {
-        if (swoole_event_add(i->first, i->second.events, SW_FD_CORO_POLL) < 0)
+        if (swoole_event_add(fd.first, fd.second.events, SW_FD_CORO_POLL) < 0)
         {
             continue;
         }
         else
         {
-            coro_poll_task_map[i->first] = &task;
+            coro_poll_task_map[fd.first] = &task;
             tasked_num++;
         }
     }
@@ -540,7 +540,7 @@ static void async_task_completed(swAio_event *event)
     {
         return;
     }
-    AsyncTask *task = (AsyncTask *) event->object;
+    auto *task = (AsyncTask *) event->object;
     task->original_event->error = event->error;
     task->original_event->ret = event->ret;
     task->co->resume();
@@ -548,16 +548,16 @@ static void async_task_completed(swAio_event *event)
 
 static void async_task_timeout(swTimer *timer, swTimer_node *tnode)
 {
-    swAio_event *event = (swAio_event *) tnode->data;
+    auto *event = (swAio_event *) tnode->data;
     event->canceled = 1;
-    AsyncTask *task = (AsyncTask *) event->object;
+    auto *task = (AsyncTask *) event->object;
     task->original_event->error = SW_ERROR_AIO_TIMEOUT;
     task->co->resume();
 }
 
 bool coroutine::async(swAio_handler handler, swAio_event &event, double timeout)
 {
-    AsyncTask task;
+    AsyncTask task{};
     swTimer_node *timer = nullptr;
 
     task.co = Coroutine::get_current_safe();
