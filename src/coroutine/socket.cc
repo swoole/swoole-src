@@ -863,14 +863,7 @@ bool Socket::poll(enum swEvent_type type)
         return -1;
     }
     timer_controller timer(&read_timer, read_timeout, this, timer_callback);
-    if (timer.start() && wait_event(type))
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+	return timer.start() && wait_event(type);
 }
 
 ssize_t Socket::recv(void *__buf, size_t __n)
@@ -1615,7 +1608,7 @@ ssize_t Socket::recv_packet(double timeout)
             goto _find_eof;
         }
 
-        while (1)
+        while (true)
         {
             buf = read_buffer->str + read_buffer->length;
             buf_len = read_buffer->size - read_buffer->length;
@@ -1829,7 +1822,7 @@ bool Socket::close()
 
 static void socket_close_fd(void *ptr)
 {
-    swSocket *sock = (swSocket *) ptr;
+    auto *sock = (swSocket *) ptr;
     if (::close(sock->fd) != 0)
     {
         swSysWarn("close(%d) failed", sock->fd);
