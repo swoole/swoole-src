@@ -24,7 +24,7 @@ using namespace swoole;
 
 void Channel::timer_callback(swTimer *timer, swTimer_node *tnode)
 {
-    timer_msg_t *msg = (timer_msg_t *) tnode->data;
+    auto *msg = (timer_msg_t *) tnode->data;
     msg->error = true;
     msg->timer = nullptr;
     if (msg->type == CONSUMER)
@@ -63,9 +63,9 @@ void* Channel::pop(double timeout)
     }
     if (is_empty() || !consumer_queue.empty())
     {
-        timer_msg_t msg;
+        timer_msg_t msg{};
         msg.error = false;
-        msg.timer = NULL;
+        msg.timer = nullptr;
         if (timeout > 0)
         {
             long msec = (long) (timeout * 1000);
@@ -111,9 +111,9 @@ bool Channel::push(void *data, double timeout)
     }
     if (is_full() || !producer_queue.empty())
     {
-        timer_msg_t msg;
+        timer_msg_t msg{};
         msg.error = false;
-        msg.timer = NULL;
+        msg.timer = nullptr;
         if (timeout > 0)
         {
             long msec = (long) (timeout * 1000);
