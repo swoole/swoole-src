@@ -24,6 +24,10 @@
 #include "mime_types.h"
 #include "base64.h"
 
+#ifdef SW_HAVE_BROTLI
+#include <brotli/decode.h>
+#endif
+
 using namespace swoole;
 using swoole::coroutine::Socket;
 
@@ -489,6 +493,7 @@ bool http_client::decompress_response(const char *in, size_t in_len)
             }
             if (status == Z_STREAM_END || (status == Z_OK && gzip_stream.avail_in == 0))
             {
+                inflateEnd(&gzip_stream);
                 return true;
             }
             if (status != Z_OK)
@@ -505,10 +510,11 @@ bool http_client::decompress_response(const char *in, size_t in_len)
             }
         }
 
+        inflateEnd(&gzip_stream);
+
         if (status == Z_DATA_ERROR && first_decompress)
         {
             first_decompress = false;
-            inflateEnd(&gzip_stream);
             encoding = SW_ZLIB_ENCODING_RAW;
             body->length = reserved_length;
             goto _retry;
@@ -518,9 +524,35 @@ bool http_client::decompress_response(const char *in, size_t in_len)
         body->length = reserved_length;
         return false;
     }
-    default:
-        abort();
+    case HTTP_COMPRESS_BR:
+#ifdef SW_HAVE_BROTLI
+    {
+        if (body->size < in_len)
+        {
+            if (swString_extend(body, in_len) < 0)
+            {
+                return false;
+            }
+        }
+        if (BROTLI_DECODER_RESULT_SUCCESS
+                != BrotliDecoderDecompress(in_len, (uint8_t*) in, &body->length, (uint8_t*) body->str))
+        {
+            swWarn("BrotliDecoderDecompress() failed");
+            return false;
+        }
+        else
+        {
+            return true;
+        }
     }
+#else
+        return false;
+#endif
+    default:
+        break;
+    }
+
+    swWarn("http_client::decompress_response unknown compress method [%d]", compress_method);
     return false;
 }
 #endif
