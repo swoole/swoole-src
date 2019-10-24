@@ -56,7 +56,7 @@ ssize_t swWebSocket_get_package_length(swProtocol *protocol, swSocket *conn, cha
     buf += SW_WEBSOCKET_HEADER_LEN;
 
     //uint16_t, 2byte
-    if (payload_length == 0x7e)
+    if (payload_length == SW_WEBSOCKET_EXT16_LENGTH)
     {
         header_length += sizeof(uint16_t);
         if (length < header_length)
@@ -68,7 +68,7 @@ ssize_t swWebSocket_get_package_length(swProtocol *protocol, swSocket *conn, cha
         buf += sizeof(uint16_t);
     }
     //uint64_t, 8byte
-    else if (payload_length > 0x7e)
+    else if (payload_length == SW_WEBSOCKET_EXT64_LENGTH)
     {
         header_length += sizeof(uint64_t);
         if (length < header_length)
@@ -113,42 +113,36 @@ void swWebSocket_encode(swString *buffer, const char *data, size_t length, char 
 {
     int pos = 0;
     char frame_header[16];
-    char fin = !!(flags & SW_WEBSOCKET_FLAG_FIN);
-    char mask = !!(flags & SW_WEBSOCKET_FLAG_MASK);
-    char rsv1 = !!(flags & SW_WEBSOCKET_FLAG_RSV1);
-    /**
-     * frame header
-     */
-    frame_header[pos++] = FRAME_SET_FIN(fin) | FRAME_SET_OPCODE(opcode) | FRAME_SET_RSV1(rsv1);
+    swWebSocket_frame_header *header = (swWebSocket_frame_header *) frame_header;
+    header->FIN = flags & SW_WEBSOCKET_FLAG_FIN;
+    header->OPCODE = opcode;
+    header->RSV1 = flags & SW_WEBSOCKET_FLAG_RSV1;
+    header->MASK = flags & SW_WEBSOCKET_FLAG_MASK;
+    pos = 2;
+
     if (length < 126)
     {
-        frame_header[pos++] = FRAME_SET_MASK(mask) | FRAME_SET_LENGTH(length, 0);
+        header->LENGTH = length;
+    }
+    else if (length < 65536)
+    {
+        header->LENGTH = SW_WEBSOCKET_EXT16_LENGTH;
+        uint16_t *length_ptr = (uint16_t *) (frame_header + pos);
+        *length_ptr = htons(length);
+        pos += sizeof(*length_ptr);
     }
     else
     {
-        if (length < 65536)
-        {
-            frame_header[pos++] = FRAME_SET_MASK(mask) | 126;
-        }
-        else
-        {
-            frame_header[pos++] = FRAME_SET_MASK(mask) | 127;
-            frame_header[pos++] = FRAME_SET_LENGTH(length, 7);
-            frame_header[pos++] = FRAME_SET_LENGTH(length, 6);
-            frame_header[pos++] = FRAME_SET_LENGTH(length, 5);
-            frame_header[pos++] = FRAME_SET_LENGTH(length, 4);
-            frame_header[pos++] = FRAME_SET_LENGTH(length, 3);
-            frame_header[pos++] = FRAME_SET_LENGTH(length, 2);
-        }
-        frame_header[pos++] = FRAME_SET_LENGTH(length, 1);
-        frame_header[pos++] = FRAME_SET_LENGTH(length, 0);
+        header->LENGTH = SW_WEBSOCKET_EXT64_LENGTH;
+        uint64_t *length_ptr = (uint64_t *) (frame_header + pos);
+        *length_ptr = swoole_hton64(length);
+        pos += sizeof(*length_ptr);
     }
     swString_append_ptr(buffer, frame_header, pos);
-
     /**
      * frame body
      */
-    if (mask)
+    if (header->MASK)
     {
         swString_append_ptr(buffer, SW_WEBSOCKET_MASK_DATA, SW_WEBSOCKET_MASK_LEN);
         if (length > 0)

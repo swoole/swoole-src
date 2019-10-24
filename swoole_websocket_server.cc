@@ -304,7 +304,7 @@ bool swoole_websocket_handshake(http_context *ctx)
         {
             websocket_compression = true;
             swoole_http_response_set_header(ctx, ZEND_STRL("Sec-Websocket-Extensions"),
-                    ZEND_STRL("permessage-deflate; client_no_context_takeover;server_no_context_takeover"), false);
+                    ZEND_STRL("permessage-deflate; client_no_context_takeover; server_no_context_takeover"), false);
         }
     }
 #endif

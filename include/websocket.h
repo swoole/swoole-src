@@ -21,26 +21,16 @@
 
 SW_EXTERN_C_BEGIN
 
-#define SW_WEBSOCKET_GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-#define SW_WEBSOCKET_HEADER_LEN  2
-#define SW_WEBSOCKET_MASK_LEN    4
-#define SW_WEBSOCKET_MASK_DATA   "258E"
-#define SW_WEBSOCKET_EXT16_LENGTH 0x7E
-#define SW_WEBSOCKET_EXT16_MAX_LEN 0xFFFF
-#define SW_WEBSOCKET_EXT64_LENGTH 0x7F
-#define SW_WEBSOCKET_MASKED(frm) (frm->header.MASK)
+#define SW_WEBSOCKET_GUID                   "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+#define SW_WEBSOCKET_HEADER_LEN             2
+#define SW_WEBSOCKET_MASK_LEN               4
+#define SW_WEBSOCKET_MASK_DATA              "258E"
+#define SW_WEBSOCKET_EXT16_MAX_LEN          0xFFFF
+#define SW_WEBSOCKET_EXT16_LENGTH           0x7E
+#define SW_WEBSOCKET_EXT64_LENGTH           0x7F
 #define SW_WEBSOCKET_CLOSE_CODE_LEN         2
 #define SW_WEBSOCKET_CLOSE_REASON_MAX_LEN   125
-#define SW_WEBSOCKET_OPCODE_MAX  WEBSOCKET_OPCODE_PONG
-
-#define FRAME_SET_FIN(BYTE) (((BYTE) & 0x01) << 7)
-#define FRAME_SET_RSV1(BYTE) (((BYTE) & 0x01) << 6)
-#define FRAME_SET_RSV2(BYTE) (((BYTE) & 0x01) << 5)
-#define FRAME_SET_RSV3(BYTE) (((BYTE) & 0x01) << 4)
-#define FRAME_SET_MASK(BYTE) (((BYTE) & 0x01) << 7)
-
-#define FRAME_SET_OPCODE(BYTE) ((BYTE) & 0x0F)
-#define FRAME_SET_LENGTH(X64, IDX) (unsigned char)(((X64) >> ((IDX)*8)) & 0xFF)
+#define SW_WEBSOCKET_OPCODE_MAX             WEBSOCKET_OPCODE_PONG
 
 enum swWebsocket_status
 {
@@ -65,16 +55,19 @@ typedef struct
     /**
      * fin:1 rsv1:1 rsv2:1 rsv3:1 opcode:4
      */
-    struct
-    {
-        uchar OPCODE :4;
-        uchar RSV3 :1;
-        uchar RSV2 :1;
-        uchar RSV1 :1;
-        uchar FIN :1;
-        uchar LENGTH :7;
-        uchar MASK :1;
-    } header;
+    uchar OPCODE :4;
+    uchar RSV3 :1;
+    uchar RSV2 :1;
+    uchar RSV1 :1;
+    uchar FIN :1;
+    uchar LENGTH :7;
+    uchar MASK :1;
+
+} swWebSocket_frame_header;
+
+typedef struct
+{
+    swWebSocket_frame_header header;
     char mask_key[SW_WEBSOCKET_MASK_LEN];
     uint16_t header_length;
     size_t payload_length;

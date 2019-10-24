@@ -1526,9 +1526,10 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
     uint32_t high, low;
 
     low = net & 0xFFFFFFFF;
-    high = (net >> 32) & 0xFFFFFFFF;
+    high = net >> 32;
     low = ntohl(low);
     high = ntohl(high);
+
     ret = low;
     ret <<= 32;
     ret |= high;
