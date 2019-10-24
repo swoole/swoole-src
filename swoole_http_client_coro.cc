@@ -493,7 +493,6 @@ bool http_client::decompress_response(const char *in, size_t in_len)
             }
             if (status == Z_STREAM_END || (status == Z_OK && gzip_stream.avail_in == 0))
             {
-                inflateEnd(&gzip_stream);
                 return true;
             }
             if (status != Z_OK)
@@ -510,11 +509,10 @@ bool http_client::decompress_response(const char *in, size_t in_len)
             }
         }
 
-        inflateEnd(&gzip_stream);
-
         if (status == Z_DATA_ERROR && first_decompress)
         {
             first_decompress = false;
+            inflateEnd(&gzip_stream);
             encoding = SW_ZLIB_ENCODING_RAW;
             body->length = reserved_length;
             goto _retry;
@@ -546,7 +544,7 @@ bool http_client::decompress_response(const char *in, size_t in_len)
         }
     }
 #else
-        return false;
+        break;
 #endif
     default:
         break;
