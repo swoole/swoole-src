@@ -727,7 +727,7 @@ static PHP_METHOD(swoole_websocket_server, push)
     }
 
 #ifdef SW_HAVE_ZLIB
-    if (ZVAL_IS_NULL(&_zlib_data))
+    if (!ZVAL_IS_NULL(&_zlib_data))
     {
         zval_dtor(&_zlib_data);
     }
