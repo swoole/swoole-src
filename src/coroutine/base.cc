@@ -100,10 +100,10 @@ void Coroutine::close()
 
 void Coroutine::print_list()
 {
-    for (auto i = coroutines.begin(); i != coroutines.end(); i++)
+    for (auto & coroutine : coroutines)
     {
         const char *state;
-        switch(i->second->state){
+        switch(coroutine.second->state){
         case SW_CORO_INIT:
             state = "[INIT]";
             break;
@@ -120,7 +120,7 @@ void Coroutine::print_list()
             abort();
             return;
         }
-        printf("Coroutine\t%ld\t%s\n", i->first, state);
+        printf("Coroutine\t%ld\t%s\n", coroutine.first, state);
     }
 }
 
@@ -171,7 +171,7 @@ void Coroutine::bailout(sw_coro_bailout_t func)
 
 uint8_t swoole_coroutine_is_in()
 {
-    return !!Coroutine::get_current();
+    return Coroutine::get_current() != nullptr;
 }
 
 long swoole_coroutine_get_current_id()
