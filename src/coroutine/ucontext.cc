@@ -76,7 +76,7 @@ Context::~Context()
         VALGRIND_STACK_DEREGISTER(valgrind_stack_id);
 #endif
         sw_free(stack_);
-        stack_ = NULL;
+        stack_ = nullptr;
     }
 }
 
@@ -92,7 +92,7 @@ bool Context::swap_out()
 
 void Context::context_func(void *arg)
 {
-    Context *_this = (Context *) arg;
+    auto *_this = (Context *) arg;
     _this->fn_(_this->private_data_);
     _this->end_ = true;
     _this->swap_out();
