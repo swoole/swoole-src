@@ -456,7 +456,7 @@ static bool websocket_message_compress(const char *data, size_t length, int leve
 int swoole_websocket_onMessage(swServer *serv, swEventData *req)
 {
     int fd = req->info.fd;
-    zend_bool flags = 0;
+    uchar flags = 0;
     zend_long opcode = 0;
 
     zval zdata;
@@ -683,6 +683,7 @@ static PHP_METHOD(swoole_websocket_server, push)
     zval *zdata = NULL;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
     zend_bool fin = 1;
+    uint8_t flags;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "lz|lb", &fd, &zdata, &opcode, &fin) == FAILURE)
     {
@@ -690,16 +691,15 @@ static PHP_METHOD(swoole_websocket_server, push)
     }
 
     swServer *serv = (swServer *) swoole_get_object(ZEND_THIS);
+
+#ifdef SW_HAVE_ZLIB
     swConnection *conn = swServer_connection_verify(serv, fd);
     if (!conn)
     {
         RETURN_FALSE;
     }
-
-#ifdef SW_HAVE_ZLIB
     zval _zlib_data;
     ZVAL_NULL(&_zlib_data);
-    uint8_t flags;
     if (conn->websocket_compression)
     {
         flags = swWebSocket_set_flags(1, 0, conn->websocket_first_frame, 0, 0);

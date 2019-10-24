@@ -325,10 +325,9 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
         zval *zset_cookie_headers = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("set_cookie_headers"), 0);
         ret = http_parse_set_cookies(at, length, zcookies, zset_cookie_headers);
     }
-#if defined(SW_HAVE_BROTLI) || defined(SW_HAVE_ZLIB)
+#ifdef SW_HAVE_ZLIB
     else if (strcmp(header_name, "content-encoding") == 0)
     {
-#ifdef SW_HAVE_ZLIB
         if (strncasecmp(at, "gzip", length) == 0)
         {
             http->compress_method = HTTP_COMPRESS_GZIP;
@@ -337,18 +336,13 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
         {
             http->compress_method = HTTP_COMPRESS_DEFLATE;
         }
-#if 0 // TODO: br support
-#if defined(SW_HAVE_BROTLI) && defined(SW_HAVE_ZLIB)
-        else
-#endif
 #ifdef SW_HAVE_BROTLI
-        if (strncasecmp(at, "br", length) == 0)
+        else if (strncasecmp(at, "br", length) == 0)
         {
+            http->compress_method = HTTP_COMPRESS_BR;
         }
 #endif
-#endif
     }
-#endif
 #endif
     else if (strcasecmp(header_name, "transfer-encoding") == 0 && strncasecmp(at, "chunked", length) == 0)
     {
