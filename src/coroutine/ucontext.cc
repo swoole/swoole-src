@@ -92,7 +92,7 @@ bool Context::swap_out()
 
 void Context::context_func(void *arg)
 {
-    auto *_this = (Context *) arg;
+    Context *_this = (Context *) arg;
     _this->fn_(_this->private_data_);
     _this->end_ = true;
     _this->swap_out();
