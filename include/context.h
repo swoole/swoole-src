@@ -109,8 +109,8 @@ protected:
     std::mutex lock_;
     std::mutex *swap_lock_;
 #else
-    coroutine_context_t ctx_;
-    coroutine_context_t swap_ctx_;
+    coroutine_context_t ctx_{};
+    coroutine_context_t swap_ctx_{};
     char* stack_;
     uint32_t stack_size_;
 #endif
