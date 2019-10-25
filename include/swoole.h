@@ -718,6 +718,8 @@ typedef struct _swConnection
 #ifdef SW_USE_HTTP2
     uint8_t http2_stream;
 #endif
+    uint8_t websocket_compression;
+    uint8_t websocket_first_frame;
     //--------------------------------------------------------------
     /**
      * server is actively close the connection
@@ -1524,9 +1526,10 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
     uint32_t high, low;
 
     low = net & 0xFFFFFFFF;
-    high = (net >> 32) & 0xFFFFFFFF;
+    high = net >> 32;
     low = ntohl(low);
     high = ntohl(high);
+
     ret = low;
     ret <<= 32;
     ret |= high;

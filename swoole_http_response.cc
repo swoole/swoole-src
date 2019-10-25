@@ -1113,17 +1113,17 @@ static PHP_METHOD(swoole_http_response, push)
 
     zval *zdata = NULL;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
-    zend_bool finished = 1;
+    zend_bool fin = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lb", &zdata, &opcode, &finished) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lb", &zdata, &opcode, &fin) == FAILURE)
     {
         RETURN_FALSE;
     }
 
     swString *http_buffer = http_get_write_buffer(ctx);
-
     swString_clear(http_buffer);
-    if (php_swoole_websocket_frame_pack(http_buffer, zdata, opcode, finished, 0) < 0)
+    uchar flags = swWebSocket_set_flags(fin, 0, 0, 0, 0);
+    if (php_swoole_websocket_frame_pack(http_buffer, zdata, opcode, flags) < 0)
     {
         RETURN_FALSE;
     }
