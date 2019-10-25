@@ -43,8 +43,12 @@ int swoole_coroutine_socket(int domain, int type, int protocol)
     if (sw_unlikely(fd < 0))
     {
         delete socket;
+        return -1;
     }
-    return socket->get_fd();
+    else
+    {
+        return socket->get_fd();
+    }
 }
 
 ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags)
