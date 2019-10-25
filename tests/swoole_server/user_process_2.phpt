@@ -5,14 +5,14 @@ swoole_server: user process [with coroutine]
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-
-$pm = new ProcessManager;
+use Swoole\Server;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new \swoole_server(TCP_SERVER_HOST, $pm->getFreePort());
+    $serv = new Server(TCP_SERVER_HOST, $pm->getFreePort());
     $process = new \Swoole\Process(function ($process) use ($serv, $pm) {
         for ($i = 0; $i < 5; $i++) {
             co::sleep(0.02);
@@ -27,7 +27,7 @@ $pm->childFunc = function () use ($pm) {
         'log_file' => '/dev/null',
     ]);
 
-    $serv->on("Receive", function (\swoole_server $serv, $fd, $rid, $data) use ($process) {
+    $serv->on("Receive", function (Server $serv, $fd, $rid, $data) use ($process) {
 
     });
     $serv->addProcess($process);

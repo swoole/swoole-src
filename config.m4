@@ -39,9 +39,6 @@ PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 PHP_ARG_WITH(openssl_dir, dir of openssl,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
-PHP_ARG_WITH(phpx_dir, dir of php-x,
-[  --with-phpx-dir[=DIR]       Include PHP-X support], no, no)
-
 PHP_ARG_WITH(jemalloc_dir, dir of jemalloc,
 [  --with-jemalloc-dir[=DIR]   Include jemalloc support], no, no)
 
@@ -384,13 +381,6 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
 
-    if test "$PHP_PHPX_DIR" != "no"; then
-        PHP_ADD_INCLUDE("${PHP_PHPX_DIR}/include")
-        PHP_ADD_LIBRARY_WITH_PATH(phpx, "${PHP_PHPX_DIR}/${PHP_LIBDIR}")
-        AC_DEFINE(SW_USE_PHPX, 1, [enable PHP-X support])
-        PHP_ADD_LIBRARY(phpx, 1, SWOOLE_SHARED_LIBADD)
-    fi
-
     if test "$PHP_JEMALLOC_DIR" != "no"; then
         AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
         PHP_ADD_INCLUDE("${PHP_JEMALLOC_DIR}/include")
@@ -430,6 +420,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/hook.cc \
         src/coroutine/socket.cc \
         src/coroutine/system.cc \
+        src/coroutine/thread_context.cc \
         src/coroutine/ucontext.cc \
         src/lock/atomic.c \
         src/lock/cond.c \
@@ -445,14 +436,14 @@ if test "$PHP_SWOOLE" != "no"; then
         src/memory/ring_buffer.c \
         src/memory/shared_memory.c \
         src/memory/table.c \
-        src/network/async_thread.cc \
         src/network/client.c \
         src/network/connection.c \
-        src/network/dns.c \
+        src/network/dns.cc \
         src/network/process_pool.c \
         src/network/stream.c \
         src/network/thread_pool.c \
         src/network/timer.c \
+        src/os/async_thread.cc \
         src/os/base.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \
@@ -474,22 +465,21 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/ssl.c \
         src/protocol/websocket.c \
         src/reactor/base.cc \
-        src/reactor/epoll.c \
+        src/reactor/epoll.cc \
         src/reactor/kqueue.c \
         src/reactor/poll.c \
         src/reactor/select.c \
         src/server/base.c \
         src/server/manager.cc \
         src/server/master.cc \
-        src/server/port.c \
+        src/server/port.cc \
         src/server/process.cc \
         src/server/reactor_process.cc \
         src/server/reactor_thread.cc \
         src/server/static_handler.cc \
-        src/server/task_worker.c \
+        src/server/task_worker.cc \
         src/server/worker.cc \
         src/wrapper/event.cc \
-        src/wrapper/client.cc \
         src/wrapper/server.cc \
         src/wrapper/timer.cc \
         swoole.cc \
@@ -523,7 +513,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_socket_coro.cc \
         swoole_table.cc \
         swoole_timer.cc \
-        swoole_trace.cc \
         swoole_websocket_server.cc"
 
     swoole_source_file="$swoole_source_file \
@@ -553,8 +542,8 @@ if test "$PHP_SWOOLE" != "no"; then
         thirdparty/nghttp2/nghttp2_hd_huffman.c \
         thirdparty/nghttp2/nghttp2_hd_huffman_data.c"
 
-    SW_NO_USE_ASM_CONTEXT="no"
     SW_ASM_DIR="thirdparty/boost/asm/"
+    SW_USE_ASM_CONTEXT="yes"
 
     AS_CASE([$host_cpu],
       [x86_64*], [SW_CPU="x86_64"],
@@ -564,8 +553,7 @@ if test "$PHP_SWOOLE" != "no"; then
       [aarch64*], [SW_CPU="arm64"],
       [arm64*], [SW_CPU="arm64"],
       [
-        SW_NO_USE_ASM_CONTEXT="yes"
-        AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
+        SW_USE_ASM_CONTEXT="no"
       ]
     )
 
@@ -581,43 +569,53 @@ if test "$PHP_SWOOLE" != "no"; then
         if test "$SW_OS" = "LINUX"; then
             SW_CONTEXT_ASM_FILE="x86_64_sysv_elf_gas.S"
         else
-            SW_NO_USE_ASM_CONTEXT="yes"
-            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
+            SW_USE_ASM_CONTEXT="no"
         fi
     elif test "$SW_CPU" = "x86"; then
         if test "$SW_OS" = "LINUX"; then
             SW_CONTEXT_ASM_FILE="i386_sysv_elf_gas.S"
         else
-            SW_NO_USE_ASM_CONTEXT="yes"
-            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
+            SW_USE_ASM_CONTEXT="no"
         fi
     elif test "$SW_CPU" = "arm"; then
         if test "$SW_OS" = "LINUX"; then
             SW_CONTEXT_ASM_FILE="arm_aapcs_elf_gas.S"
         else
-            SW_NO_USE_ASM_CONTEXT="yes"
-            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
+            SW_USE_ASM_CONTEXT="no"
         fi
     elif test "$SW_CPU" = "arm64"; then
         if test "$SW_OS" = "LINUX"; then
             SW_CONTEXT_ASM_FILE="arm64_aapcs_elf_gas.S"
         else
-            SW_NO_USE_ASM_CONTEXT="yes"
-            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
+            SW_USE_ASM_CONTEXT="no"
+        fi
+     elif test "$SW_CPU" = "ppc32"; then
+        if test "$SW_OS" = "LINUX"; then
+            SW_CONTEXT_ASM_FILE="ppc32_sysv_elf_gas.S"
+        else
+            SW_USE_ASM_CONTEXT="no"
+        fi
+    elif test "$SW_CPU" = "ppc64"; then
+        if test "$SW_OS" = "LINUX"; then
+            SW_CONTEXT_ASM_FILE="ppc64_sysv_elf_gas.S"
+        else
+            SW_USE_ASM_CONTEXT="no"
         fi
     elif test "$SW_CPU" = "mips32"; then
         if test "$SW_OS" = "LINUX"; then
            SW_CONTEXT_ASM_FILE="mips32_o32_elf_gas.S"
         else
-            SW_NO_USE_ASM_CONTEXT="yes"
-            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
+            SW_USE_ASM_CONTEXT="no"
         fi
+    else
+        SW_USE_ASM_CONTEXT="no"
     fi
 
-    if test "$SW_NO_USE_ASM_CONTEXT" = "no"; then
+    if test "$SW_USE_ASM_CONTEXT" = "yes"; then
         swoole_source_file="$swoole_source_file \
             ${SW_ASM_DIR}make_${SW_CONTEXT_ASM_FILE} \
             ${SW_ASM_DIR}jump_${SW_CONTEXT_ASM_FILE} "
+        AC_DEFINE(SW_USE_ASM_CONTEXT, 1, [use boost asm context])
     fi
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared,,, cxx)

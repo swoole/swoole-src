@@ -21,11 +21,11 @@ $pm->childFunc = function () use ($pm) {
         'worker_num' => 1,
     ]);
     $server->on('start', function (Swoole\Server $server) use ($pm) {
-        $pm->wakeup();
-        \Swoole\Process::signal(2, function () use ($server) {
+        \Swoole\Process::signal(SIGINT, function () use ($server) {
             file_put_contents(TEST_LOG_FILE, 'SIGINT, SHUTDOWN' . PHP_EOL);
             $server->shutdown();
         });
+        $pm->wakeup();
     });
     $server->on('Receive', function (Swoole\Server $server, $fd, $reactorId, $data) {
     });

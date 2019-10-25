@@ -16,7 +16,6 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
 #include "server.h"
 
 #include <sys/stat.h>
@@ -25,7 +24,7 @@
 #define MSG_NOSIGNAL        0
 #endif
 
-int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk)
+int swConnection_onSendfile(swSocket *conn, swBuffer_chunk *chunk)
 {
     int ret;
     swTask_sendfile *task = chunk->store.ptr;
@@ -123,7 +122,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk)
 /**
  * send buffer to client
  */
-int swConnection_buffer_send(swConnection *conn)
+int swConnection_buffer_send(swSocket *conn)
 {
     int ret, sendn;
 
@@ -146,7 +145,6 @@ int swConnection_buffer_send(swConnection *conn)
             swSysWarn("send to fd[%d] failed", conn->fd);
             break;
         case SW_CLOSE:
-            conn->close_errno = errno;
             conn->close_wait = 1;
             return SW_ERR;
         case SW_WAIT:
@@ -171,35 +169,35 @@ int swConnection_buffer_send(swConnection *conn)
 
 static char tmp_address[INET6_ADDRSTRLEN];
 
-const char* swConnection_get_ip(swConnection *conn)
+const char* swConnection_get_ip(enum swSocket_type socket_type, swSocketAddress *info)
 {
-    if (conn->socket_type == SW_SOCK_TCP || conn->socket_type == SW_SOCK_UDP)
+    if (socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_UDP)
     {
-        return inet_ntoa(conn->info.addr.inet_v4.sin_addr);
+        return inet_ntoa(info->addr.inet_v4.sin_addr);
     }
-    else if (conn->socket_type == SW_SOCK_TCP6 || conn->socket_type == SW_SOCK_UDP6)
+    else if (socket_type == SW_SOCK_TCP6 || socket_type == SW_SOCK_UDP6)
     {
-        if (inet_ntop(AF_INET6, &conn->info.addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address)))
+        if (inet_ntop(AF_INET6, &info->addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address)))
         {
             return tmp_address;
         }
     }
-    else if (conn->socket_type == SW_SOCK_UNIX_STREAM || conn->socket_type == SW_SOCK_UNIX_DGRAM)
+    else if (socket_type == SW_SOCK_UNIX_STREAM || socket_type == SW_SOCK_UNIX_DGRAM)
     {
-        return conn->info.addr.un.sun_path;
+        return info->addr.un.sun_path;
     }
     return "unknown";
 }
 
-int swConnection_get_port(swConnection *conn)
+int swConnection_get_port(enum swSocket_type socket_type, swSocketAddress *info)
 {
-    if (conn->socket_type == SW_SOCK_TCP)
+    if (socket_type == SW_SOCK_TCP)
     {
-        return ntohs(conn->info.addr.inet_v4.sin_port);
+        return ntohs(info->addr.inet_v4.sin_port);
     }
     else
     {
-        return ntohs(conn->info.addr.inet_v6.sin6_port);
+        return ntohs(info->addr.inet_v6.sin6_port);
     }
 }
 
@@ -211,7 +209,7 @@ void swConnection_sendfile_destructor(swBuffer_chunk *chunk)
     sw_free(task);
 }
 
-int swConnection_sendfile(swConnection *conn, char *filename, off_t offset, size_t length)
+int swConnection_sendfile(swSocket *conn, const char *filename, off_t offset, size_t length)
 {
     if (conn->out_buffer == NULL)
     {

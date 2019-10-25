@@ -4,11 +4,14 @@
 
 #define READ_THREAD_N       4
 #define WRITE_N             10000
+#define PACKET_LEN          90000
+//#define PRINT_SERNUM_N      10
 
 static swMemoryPool *pool = NULL;
 
 typedef struct
 {
+    uint32_t id;
     uint32_t size;
     uint32_t serial_num;
     void* ptr;
@@ -59,7 +62,8 @@ static void thread_write(void)
     int i;
     for (i = 0; i < WRITE_N; i++)
     {
-        size = 10000 + rand() % 90000;
+        size = 10000 + rand() % PACKET_LEN;
+        //printf("[ < %d] alloc size=%d\n", i, size);
 
         yield_count = 0;
         do
@@ -77,8 +81,15 @@ static void thread_write(void)
             }
         } while (yield_count < 100);
 
+        if (!ptr)
+        {
+            printf("alloc failed. index=%d, break\n", i);
+            break;
+        }
+
         ASSERT_NE(ptr, nullptr);
 
+        send_pkg.id = i;
         send_pkg.ptr = ptr;
         send_pkg.size = size;
         send_pkg.serial_num = rand();
@@ -89,12 +100,9 @@ static void thread_write(void)
         memcpy((char*) ptr + size - 4, &(send_pkg.serial_num), sizeof(send_pkg.serial_num));
 
         ASSERT_FALSE(threads[i % READ_THREAD_N].pipe.write(&threads[i % READ_THREAD_N].pipe, &send_pkg, sizeof(send_pkg)) < 0);
-
-        if (i % 100 == 0)
-        {
-            usleep(10);
-        }
     }
+
+//    printf("yield_total_count=%d\n", yield_total_count);
 }
 
 static void thread_read(int i)
@@ -117,6 +125,13 @@ static void thread_read(int i)
 
         memcpy(&tmp, (char*) recv_pkg.ptr + recv_pkg.size - 4, sizeof(tmp));
         ASSERT_EQ(tmp, recv_pkg.serial_num);
+
+#ifdef PRINT_SERNUM_N
+        if (j % PRINT_SERNUM_N == 0)
+        {
+            printf("[ > %d] recv. recv_count=%d, serial_num=%d\n", recv_pkg.id, recv_count, tmp);
+        }
+#endif
 
         pool->free(pool, recv_pkg.ptr);
         recv_count++;

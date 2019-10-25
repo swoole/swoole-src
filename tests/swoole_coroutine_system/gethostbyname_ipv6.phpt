@@ -6,10 +6,8 @@ swoole_coroutine_system: gethostbyname for IPv6
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\Coroutine as co;
-
-co::create(function () {
-    $ip = co::gethostbyname('ipv6.baidu.com', AF_INET6);
+Swoole\Coroutine::create(function () {
+    $ip = Swoole\Coroutine\System::gethostbyname('ipv6.baidu.com', AF_INET6);
     Assert::assert(!empty($ip));
 });
 

@@ -26,7 +26,7 @@ static const char *method_strings[] =
 {
     "DELETE", "GET", "HEAD", "POST", "PUT", "PATCH", "CONNECT", "OPTIONS", "TRACE", "COPY", "LOCK", "MKCOL", "MOVE",
     "PROPFIND", "PROPPATCH", "UNLOCK", "REPORT", "MKACTIVITY", "CHECKOUT", "MERGE", "M-SEARCH", "NOTIFY",
-    "SUBSCRIBE", "UNSUBSCRIBE", "PRI",
+    "SUBSCRIBE", "UNSUBSCRIBE", "PURGE", "PRI",
 };
 
 int swHttp_get_method(const char *method_str, int method_len)
@@ -271,92 +271,98 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
     if (memcmp(buf, "GET", 3) == 0)
     {
         request->method = SW_HTTP_GET;
-        request->offset = 4;
-        buf += 4;
+        request->offset = 3;
+        buf += 3;
     }
     else if (memcmp(buf, "POST", 4) == 0)
     {
         request->method = SW_HTTP_POST;
-        request->offset = 5;
-        buf += 5;
+        request->offset = 4;
+        buf += 4;
     }
     else if (memcmp(buf, "PUT", 3) == 0)
     {
         request->method = SW_HTTP_PUT;
-        request->offset = 4;
-        buf += 4;
+        request->offset = 3;
+        buf += 3;
     }
     else if (memcmp(buf, "PATCH", 5) == 0)
     {
         request->method = SW_HTTP_PATCH;
-        request->offset = 6;
-        buf += 6;
+        request->offset = 5;
+        buf += 5;
     }
     else if (memcmp(buf, "DELETE", 6) == 0)
     {
         request->method = SW_HTTP_DELETE;
-        request->offset = 7;
-        buf += 7;
+        request->offset = 6;
+        buf += 6;
     }
     else if (memcmp(buf, "HEAD", 4) == 0)
     {
         request->method = SW_HTTP_HEAD;
-        request->offset = 5;
-        buf += 5;
+        request->offset = 4;
+        buf += 4;
     }
     else if (memcmp(buf, "OPTIONS", 7) == 0)
     {
         request->method = SW_HTTP_OPTIONS;
-        request->offset = 8;
-        buf += 8;
+        request->offset = 7;
+        buf += 7;
     }
     else if (memcmp(buf, "COPY", 4) == 0)
     {
         request->method = SW_HTTP_COPY;
-        request->offset = 5;
-        buf += 5;
+        request->offset = 4;
+        buf += 4;
     }
     else if (memcmp(buf, "LOCK", 4) == 0)
     {
         request->method = SW_HTTP_LOCK;
-        request->offset = 5;
-        buf += 5;
+        request->offset = 4;
+        buf += 4;
     }
     else if (memcmp(buf, "MKCOL", 5) == 0)
     {
         request->method = SW_HTTP_MKCOL;
-        request->offset = 4;
-        buf += 4;
+        request->offset = 5;
+        buf += 5;
     }
     else if (memcmp(buf, "MOVE", 4) == 0)
     {
         request->method = SW_HTTP_MOVE;
-        request->offset = 5;
-        buf += 5;
+        request->offset = 4;
+        buf += 4;
     }
     else if (memcmp(buf, "PROPFIND", 8) == 0)
     {
         request->method = SW_HTTP_PROPFIND;
-        request->offset = 9;
-        buf += 9;
+        request->offset = 8;
+        buf += 8;
     }
     else if (memcmp(buf, "PROPPATCH", 9) == 0)
     {
         request->method = SW_HTTP_PROPPATCH;
-        request->offset = 10;
-        buf += 10;
+        request->offset = 9;
+        buf += 9;
     }
     else if (memcmp(buf, "UNLOCK", 6) == 0)
     {
         request->method = SW_HTTP_UNLOCK;
-        request->offset = 7;
-        buf += 7;
+        request->offset = 6;
+        buf += 6;
     }
     else if (memcmp(buf, "REPORT", 6) == 0)
     {
         request->method = SW_HTTP_REPORT;
-        request->offset = 7;
-        buf += 7;
+        request->offset = 6;
+        buf += 6;
+    }
+    else if (memcmp(buf, "PURGE", 5) == 0)
+    {
+        request->method = SW_HTTP_PURGE;
+        request->offset = 5;
+        buf += 5;
     }
 #ifdef SW_USE_HTTP2
     //HTTP2 Connection Preface
@@ -571,15 +577,16 @@ int swHttpRequest_get_header_length(swHttpRequest *request)
 }
 
 #ifdef SW_USE_HTTP2
-ssize_t swHttpMix_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
+ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *socket, char *data, uint32_t length)
 {
+    swConnection *conn = (swConnection *) socket->object;
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
     {
-        return swWebSocket_get_package_length(protocol, conn, data, length);
+        return swWebSocket_get_package_length(protocol, socket, data, length);
     }
     else if (conn->http2_stream)
     {
-        return swHttp2_get_frame_length(protocol, conn, data, length);
+        return swHttp2_get_frame_length(protocol, socket, data, length);
     }
     else
     {
@@ -588,8 +595,9 @@ ssize_t swHttpMix_get_package_length(swProtocol *protocol, swConnection *conn, c
     }
 }
 
-uint8_t swHttpMix_get_package_length_size(swConnection *conn)
+uint8_t swHttpMix_get_package_length_size(swSocket *socket)
 {
+    swConnection *conn = (swConnection *) socket->object;
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
     {
         return SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
@@ -605,15 +613,16 @@ uint8_t swHttpMix_get_package_length_size(swConnection *conn)
     }
 }
 
-int swHttpMix_dispatch_frame(swProtocol *proto, swConnection *conn, char *data, uint32_t length)
+int swHttpMix_dispatch_frame(swProtocol *proto, swSocket *socket, char *data, uint32_t length)
 {
+    swConnection *conn = (swConnection *) socket->object;
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
     {
-        return swWebSocket_dispatch_frame(proto, conn, data, length);
+        return swWebSocket_dispatch_frame(proto, socket, data, length);
     }
     else if (conn->http2_stream)
     {
-        return swReactorThread_dispatch(proto, conn, data, length);
+        return swReactorThread_dispatch(proto, socket, data, length);
     }
     else
     {

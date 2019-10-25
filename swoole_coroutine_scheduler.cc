@@ -182,9 +182,38 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
     {
         System::set_dns_cache_capacity((size_t) zval_get_long(ztmp));
     }
+    if (php_swoole_array_get_value(vht, "dns_server", ztmp))
+    {
+        if (SwooleG.dns_server_v4)
+        {
+            sw_free(SwooleG.dns_server_v4);
+        }
+        SwooleG.dns_server_v4 = zend::string(ztmp).dup();
+    }
     if (php_swoole_array_get_value(vht, "display_errors", ztmp))
     {
         SWOOLE_G(display_errors) = zval_is_true(ztmp);
+    }
+    /* AIO */
+    if (php_swoole_array_get_value(vht, "aio_core_worker_num", ztmp))
+    {
+        zend_long v = zval_get_long(ztmp);
+        v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
+        SwooleG.aio_core_worker_num = v;
+    }
+    if (php_swoole_array_get_value(vht, "aio_worker_num", ztmp))
+    {
+        zend_long v = zval_get_long(ztmp);
+        v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
+        SwooleG.aio_worker_num= v;
+    }
+    if (php_swoole_array_get_value(vht, "aio_max_wait_time", ztmp))
+    {
+        SwooleG.aio_max_wait_time = zval_get_double(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "aio_max_idle_time", ztmp))
+    {
+        SwooleG.aio_max_idle_time = zval_get_double(ztmp);
     }
 }
 
@@ -245,7 +274,7 @@ static PHP_METHOD(swoole_coroutine_scheduler, start)
 {
     scheduler_t *s = scheduler_get_object(Z_OBJ_P(ZEND_THIS));
 
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
         php_swoole_fatal_error(E_WARNING, "eventLoop has already been created. unable to start %s", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;

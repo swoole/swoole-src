@@ -1,6 +1,10 @@
 <?php
+Co::set([
+    'trace_flags' => SWOOLE_TRACE_HTTP2,
+    'log_level' => 0,
+]);
 go(function () {
-	$server = new Co\Http\Server("127.0.0.1", 9501, $ssl);
+	$server = new Co\Http\Server("127.0.0.1", 9501, false);
 	/**
 	 * 静态文件处理器
 	 */
@@ -33,6 +37,7 @@ go(function () {
 	 * Http应用
 	 */
 	$server->handle('/', function ($request, $response) {
+	    var_dump($request);
 		var_dump($request->get);
 		$response->end("<h1>hello world</h1>");
 	});

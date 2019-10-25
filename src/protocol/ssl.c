@@ -24,6 +24,7 @@
 #include <openssl/x509v3.h>
 
 static int openssl_init = 0;
+static int ssl_connection_index = 0;
 static pthread_mutex_t *lock_array;
 
 static const SSL_METHOD *swSSL_get_method(int method);
@@ -123,6 +124,14 @@ void swSSL_init(void)
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
 #endif
+
+    ssl_connection_index = SSL_get_ex_new_index(0, NULL, NULL, NULL, NULL);
+    if (ssl_connection_index < 0)
+    {
+        swError("SSL_get_ex_new_index() failed");
+        return;
+    }
+
     openssl_init = 1;
 }
 
@@ -148,7 +157,7 @@ void swSSL_destroy()
     CRYPTO_set_locking_callback(NULL);
 }
 
-static void swSSL_lock_callback(int mode, int type, char *file, int line)
+static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, char *file, int line)
 {
     if (mode & CRYPTO_LOCK)
     {
@@ -160,7 +169,7 @@ static void swSSL_lock_callback(int mode, int type, char *file, int line)
     }
 }
 
-static sw_inline void swSSL_clear_error(swConnection *conn)
+static sw_inline void swSSL_clear_error(swSocket *conn)
 {
     ERR_clear_error();
     conn->ssl_want_read = 0;
@@ -224,7 +233,6 @@ int swSSL_server_set_cipher(SSL_CTX* ssl_context, swSSL_config *cfg)
 #ifndef TLS1_2_VERSION
     return SW_OK;
 #endif
-    SSL_CTX_set_read_ahead(ssl_context, 1);
 
     if (cfg->ciphers && strlen(cfg->ciphers) > 0)
     {
@@ -275,6 +283,51 @@ static int swSSL_passwd_callback(char *buf, int num, int verify, void *data)
     return 0;
 }
 
+static void swSSL_info_callback(const SSL *ssl, int where, int ret)
+{
+    BIO *rbio, *wbio;
+    swSocket *sock;
+
+    if (where & SSL_CB_HANDSHAKE_START)
+    {
+        sock = SSL_get_ex_data(ssl, ssl_connection_index);
+
+        if (sock->ssl_state == SW_SSL_STATE_READY)
+        {
+            sock->ssl_renegotiation = 1;
+            swDebug("SSL renegotiation");
+        }
+    }
+
+    if ((where & SSL_CB_ACCEPT_LOOP) == SSL_CB_ACCEPT_LOOP)
+    {
+        sock = SSL_get_ex_data(ssl, ssl_connection_index);
+
+        if (!sock->ssl_handshake_buffer_set)
+        {
+            /*
+             * By default OpenSSL uses 4k buffer during a handshake,
+             * which is too low for long certificate chains and might
+             * result in extra round-trips.
+             *
+             * To adjust a buffer size we detect that buffering was added
+             * to write side of the connection by comparing rbio and wbio.
+             * If they are different, we assume that it's due to buffering
+             * added to wbio, and set buffer size.
+             */
+
+            rbio = SSL_get_rbio(ssl);
+            wbio = SSL_get_wbio(ssl);
+
+            if (rbio != wbio)
+            {
+                (void) BIO_set_write_buffer_size(wbio, SW_SSL_BUFFER_SIZE);
+                sock->ssl_handshake_buffer_set = 1;
+            }
+        }
+    }
+}
+
 SSL_CTX* swSSL_get_context(swSSL_option *option)
 {
     if (!openssl_init)
@@ -289,14 +342,88 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
         return NULL;
     }
 
+#ifdef SSL_OP_MICROSOFT_SESS_ID_BUG
+    SSL_CTX_set_options(ssl_context, SSL_OP_MICROSOFT_SESS_ID_BUG);
+#endif
+
+#ifdef SSL_OP_NETSCAPE_CHALLENGE_BUG
+    SSL_CTX_set_options(ssl_context, SSL_OP_NETSCAPE_CHALLENGE_BUG);
+#endif
+
+    /* server side options */
+#ifdef SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG
     SSL_CTX_set_options(ssl_context, SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG);
+#endif
+
+#ifdef SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER
     SSL_CTX_set_options(ssl_context, SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER);
+#endif
+
+#ifdef SSL_OP_MSIE_SSLV2_RSA_PADDING
+    /* this option allow a potential SSL 2.0 rollback (CAN-2005-2969) */
     SSL_CTX_set_options(ssl_context, SSL_OP_MSIE_SSLV2_RSA_PADDING);
+#endif
+
+#ifdef SSL_OP_SSLEAY_080_CLIENT_DH_BUG
     SSL_CTX_set_options(ssl_context, SSL_OP_SSLEAY_080_CLIENT_DH_BUG);
+#endif
+
+#ifdef SSL_OP_TLS_D5_BUG
     SSL_CTX_set_options(ssl_context, SSL_OP_TLS_D5_BUG);
+#endif
+
+#ifdef SSL_OP_TLS_BLOCK_PADDING_BUG
     SSL_CTX_set_options(ssl_context, SSL_OP_TLS_BLOCK_PADDING_BUG);
+#endif
+
+#ifdef SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
     SSL_CTX_set_options(ssl_context, SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS);
-    SSL_CTX_set_options(ssl_context, SSL_OP_SINGLE_DH_USE);
+#endif
+
+    if (option->disable_protocols & SW_SSL_SSLv2)
+    {
+        SSL_CTX_set_options(ssl_context, SSL_OP_NO_SSLv2);
+    }
+    if (option->disable_protocols & SW_SSL_SSLv3)
+    {
+        SSL_CTX_set_options(ssl_context, SSL_OP_NO_SSLv3);
+    }
+    if (option->disable_protocols & SW_SSL_TLSv1)
+    {
+        SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1);
+    }
+#ifdef SSL_OP_NO_TLSv1_1
+    SSL_CTX_clear_options(ssl_context, SSL_OP_NO_TLSv1_1);
+    if (option->disable_protocols & SW_SSL_TLSv1_1)
+    {
+        SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1_1);
+    }
+#endif
+#ifdef SSL_OP_NO_TLSv1_2
+    SSL_CTX_clear_options(ssl_context, SSL_OP_NO_TLSv1_2);
+    if (option->disable_protocols & SW_SSL_TLSv1_2)
+    {
+        SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1_2);
+    }
+#endif
+
+#ifdef SSL_OP_NO_COMPRESSION
+    if (option->disable_compress)
+    {
+        SSL_CTX_set_options(ssl_context, SSL_OP_NO_COMPRESSION);
+    }
+#endif
+
+#ifdef SSL_MODE_RELEASE_BUFFERS
+    SSL_CTX_set_mode(ssl_context, SSL_MODE_RELEASE_BUFFERS);
+#endif
+
+#ifdef SSL_MODE_NO_AUTO_CHAIN
+    SSL_CTX_set_mode(ssl_context, SSL_MODE_NO_AUTO_CHAIN);
+#endif
+
+    SSL_CTX_set_read_ahead(ssl_context, 1);
+    SSL_CTX_set_info_callback(ssl_context, swSSL_info_callback);
 
     if (option->passphrase)
     {
@@ -470,7 +597,7 @@ static int swSSL_check_name(char *name, ASN1_STRING *pattern)
 }
 #endif
 
-int swSSL_check_host(swConnection *conn, char *tls_host_name)
+int swSSL_check_host(swSocket *conn, char *tls_host_name)
 {
     X509 *cert = SSL_get_peer_certificate(conn->ssl);
     if (cert == NULL)
@@ -574,7 +701,7 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
     return SW_OK;
 }
 
-int swSSL_verify(swConnection *conn, int allow_self_signed)
+int swSSL_verify(swSocket *conn, int allow_self_signed)
 {
     int err = SSL_get_verify_result(conn->ssl);
     switch (err)
@@ -654,7 +781,7 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
     return SW_ERR;
 }
 
-int swSSL_accept(swConnection *conn)
+int swSSL_accept(swSocket *conn)
 {
     swSSL_clear_error(conn);
 
@@ -699,11 +826,12 @@ int swSSL_accept(swConnection *conn)
     else if (err == SSL_ERROR_SSL)
     {
         int reason = ERR_GET_REASON(ERR_peek_error());
-        swWarn("bad SSL client[%s:%d], reason=%d", swConnection_get_ip(conn), swConnection_get_port(conn), reason);
+        swWarn("bad SSL client[%s:%d], reason=%d", swConnection_get_ip(conn->socket_type, &conn->info),
+                swConnection_get_port(conn->socket_type, &conn->info), reason);
         return SW_ERROR;
     }
     //EOF was observed
-    else if (err == SSL_ERROR_SYSCALL && n == 0)
+    else if (err == SSL_ERROR_SYSCALL)
     {
         return SW_ERROR;
     }
@@ -711,7 +839,7 @@ int swSSL_accept(swConnection *conn)
     return SW_ERROR;
 }
 
-int swSSL_connect(swConnection *conn)
+int swSSL_connect(swSocket *conn)
 {
     swSSL_clear_error(conn);
 
@@ -765,7 +893,7 @@ int swSSL_connect(swConnection *conn)
     return SW_ERR;
 }
 
-int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size)
+int swSSL_sendfile(swSocket *conn, int fd, off_t *offset, size_t size)
 {
     char buf[SW_BUFFER_SIZE_BIG];
     int readn = size > sizeof(buf) ? sizeof(buf) : size;
@@ -797,7 +925,7 @@ int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size)
     }
 }
 
-void swSSL_close(swConnection *conn)
+void swSSL_close(swSocket *conn)
 {
     int n, sslerr, err;
 
@@ -839,7 +967,7 @@ void swSSL_close(swConnection *conn)
     conn->ssl = NULL;
 }
 
-static sw_inline void swSSL_connection_error(swConnection *conn)
+static sw_inline void swSSL_connection_error(swSocket *conn)
 {
     int level = SW_LOG_NOTICE;
     int reason = ERR_GET_REASON(ERR_peek_error());
@@ -910,11 +1038,12 @@ static sw_inline void swSSL_connection_error(swConnection *conn)
         break;
 #endif
 
-    swoole_error_log(level, SW_ERROR_SSL_BAD_PROTOCOL, "SSL connection#%d[%s:%d] protocol error[%d]", conn->session_id,
-            swConnection_get_ip(conn), swConnection_get_port(conn), reason);
+    swoole_error_log(level, SW_ERROR_SSL_BAD_PROTOCOL, "SSL connection#%d[%s:%d] protocol error[%d]", conn->fd,
+            swConnection_get_ip(conn->socket_type, &conn->info), swConnection_get_port(conn->socket_type, &conn->info),
+            reason);
 }
 
-ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
+ssize_t swSSL_recv(swSocket *conn, void *__buf, size_t __n)
 {
     swSSL_clear_error(conn);
 
@@ -935,6 +1064,7 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
             return SW_ERR;
 
         case SSL_ERROR_SYSCALL:
+            errno = SW_ERROR_SSL_RESET;
             return SW_ERR;
 
         case SSL_ERROR_SSL:
@@ -949,7 +1079,7 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
     return n;
 }
 
-ssize_t swSSL_send(swConnection *conn, const void *__buf, size_t __n)
+ssize_t swSSL_send(swSocket *conn, const void *__buf, size_t __n)
 {
     swSSL_clear_error(conn);
 
@@ -970,6 +1100,7 @@ ssize_t swSSL_send(swConnection *conn, const void *__buf, size_t __n)
             return SW_ERR;
 
         case SSL_ERROR_SYSCALL:
+            errno = SW_ERROR_SSL_RESET;
             return SW_ERR;
 
         case SSL_ERROR_SSL:
@@ -984,7 +1115,7 @@ ssize_t swSSL_send(swConnection *conn, const void *__buf, size_t __n)
     return n;
 }
 
-int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags)
+int swSSL_create(swSocket *conn, SSL_CTX* ssl_context, int flags)
 {
     swSSL_clear_error(conn);
 
@@ -1007,6 +1138,11 @@ int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags)
     else
     {
         SSL_set_accept_state(ssl);
+    }
+    if (SSL_set_ex_data(ssl, ssl_connection_index, conn) == 0)
+    {
+        swWarn("SSL_set_ex_data() failed");
+        return SW_ERR;
     }
     conn->ssl = ssl;
     conn->ssl_state = 0;

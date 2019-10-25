@@ -91,6 +91,7 @@ public:
         ssl = _ssl;
         _zobject = *__zobject;
         zobject = &_zobject;
+        swHttp2_init_settings(&local_settings);
     }
 
     inline http2_client_stream* get_stream(uint32_t stream_id)
@@ -327,6 +328,9 @@ bool http2_client::connect()
     }
 
     client = new Socket(SW_SOCK_TCP);
+#ifdef SW_USE_OPENSSL
+    client->open_ssl = ssl;
+#endif
 
     client->http2 = 1;
     client->open_length_check = 1;
@@ -336,9 +340,6 @@ bool http2_client::connect()
 
     apply_setting(sw_zend_read_property(swoole_http2_client_coro_ce, zobject, ZEND_STRL("setting"), 0));
 
-#ifdef SW_USE_OPENSSL
-    client->open_ssl = ssl;
-#endif
     if (!client->connect(host, port))
     {
         io_error();
@@ -349,8 +350,8 @@ bool http2_client::connect()
     stream_id = 1;
     streams = swHashMap_new(8, http2_client_stream_free);
     // [init]: we must set default value, server is not always send all the settings
-    swHttp2_init_settings(&local_settings);
     swHttp2_init_settings(&remote_settings);
+
     int ret = nghttp2_hd_inflate_new(&inflater);
     if (ret != 0)
     {
@@ -482,12 +483,14 @@ enum swReturn_code http2_client::parse_frame(zval *return_value)
                 if (value != remote_settings.max_header_list_size)
                 {
                     remote_settings.max_header_list_size = value;
+                    /*
                     int ret = nghttp2_hd_inflate_change_table_size(inflater, value);
                     if (ret != 0)
                     {
                         nghttp2_error(ret, "nghttp2_hd_inflate_change_table_size() failed");
                         return SW_ERROR;
                     }
+                    */
                 }
                 swTraceLog(SW_TRACE_HTTP2, "setting: max_header_list_size=%u", value);
                 break;
@@ -552,7 +555,7 @@ enum swReturn_code http2_client::parse_frame(zval *return_value)
         zend_update_property_stringl(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errMsg"), buf, length - SW_HTTP2_GOAWAY_SIZE);
         zend_update_property_long(swoole_http2_client_coro_ce, zobject, ZEND_STRL("serverLastStreamId"), server_last_stream_id);
         close();
-        return SW_CONTINUE;
+        return SW_CLOSE;
     }
     case SW_HTTP2_TYPE_RST_STREAM:
     {
@@ -605,9 +608,9 @@ enum swReturn_code http2_client::parse_frame(zval *return_value)
 #ifdef SW_HAVE_ZLIB
             if (stream->gzip)
             {
-                if (php_swoole_zlib_uncompress(&stream->gzip_stream, stream->gzip_buffer, buf, length) == SW_ERR)
+                if (php_swoole_zlib_decompress(&stream->gzip_stream, stream->gzip_buffer, buf, length) == SW_ERR)
                 {
-                    swWarn("uncompress failed");
+                    swWarn("decompress failed");
                     return SW_ERROR;
                 }
                 swString_append_ptr(stream->buffer, stream->gzip_buffer->str, stream->gzip_buffer->length);
@@ -676,7 +679,7 @@ enum swReturn_code http2_client::parse_frame(zval *return_value)
 }
 
 #ifdef SW_HAVE_ZLIB
-int php_swoole_zlib_uncompress(z_stream *stream, swString *buffer, char *body, int length)
+int php_swoole_zlib_decompress(z_stream *stream, swString *buffer, char *body, int length)
 {
     int status = 0;
 
@@ -812,21 +815,21 @@ bool http2_client::send_setting()
 
     char *p = frame + SW_HTTP2_FRAME_HEADER_SIZE;
     /**
+     * HEADER_TABLE_SIZE
+     */
+    id = htons(SW_HTTP2_SETTING_HEADER_TABLE_SIZE);
+    memcpy(p, &id, sizeof(id));
+    p += 2;
+    value = htonl(settings->header_table_size);
+    memcpy(p, &value, sizeof(value));
+    p += 4;
+    /**
      * MAX_CONCURRENT_STREAMS
      */
     id = htons(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
     memcpy(p, &id, sizeof(id));
     p += 2;
     value = htonl(settings->max_concurrent_streams);
-    memcpy(p, &value, sizeof(value));
-    p += 4;
-    /**
-     * MAX_FRAME_SIZE
-     */
-    id = htons(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE);
-    memcpy(p, &id, sizeof(id));
-    p += 2;
-    value = htonl(settings->max_frame_size);
     memcpy(p, &value, sizeof(value));
     p += 4;
     /**
@@ -1031,11 +1034,13 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
     }
 
     size_t buflen = nghttp2_hd_deflate_bound(h2c->deflater, headers.get(), headers.len());
+    /*
     if (buflen > h2c->remote_settings.max_header_list_size)
     {
         php_swoole_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u", h2c->remote_settings.max_header_list_size);
         return -1;
     }
+    */
     ssize_t rv = nghttp2_hd_deflate_hd(h2c->deflater, (uchar *) buffer, buflen, headers.get(), headers.len());
     if (rv < 0)
     {
@@ -1101,7 +1106,7 @@ uint32_t http2_client::send_request(zval *req)
     zval *zheaders = sw_zend_read_and_convert_property_array(swoole_http2_request_ce, req, ZEND_STRL("headers"), 0);
     zval *zdata = sw_zend_read_property(swoole_http2_request_ce, req, ZEND_STRL("data"), 0);
     zval *zpipeline = sw_zend_read_property(swoole_http2_request_ce, req, ZEND_STRL("pipeline"), 0);
-    bool is_data_empty = !zend_is_true(zdata);
+    bool is_data_empty = Z_TYPE_P(zdata) == IS_STRING ? Z_STRLEN_P(zdata) == 0 : !zval_is_true(zdata);
 
     if (ZVAL_IS_ARRAY(zdata))
     {
@@ -1312,11 +1317,6 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
 {
     http2_client *h2c = (http2_client *) swoole_get_object(ZEND_THIS);
 
-    if (!h2c->is_available())
-    {
-        RETURN_FALSE;
-    }
-
     double timeout = 0;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
     {
@@ -1325,11 +1325,14 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
 
     while (true)
     {
+        if (!h2c->is_available())
+        {
+            RETURN_FALSE;
+        }
         if (!h2c->recv_packet(timeout))
         {
             RETURN_FALSE;
         }
-
         enum swReturn_code ret = h2c->parse_frame(return_value);
         if (ret == SW_CONTINUE)
         {

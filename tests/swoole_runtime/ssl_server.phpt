@@ -11,7 +11,9 @@ require __DIR__ . '/../include/bootstrap.php';
 
 swoole\runtime::enableCoroutine();
 
-go(function () {
+$ready = new Chan;
+
+go(function () use ($ready) {
     $context = stream_context_create();
     stream_context_set_option($context, 'ssl', 'allow_self_signed', true);
     stream_context_set_option($context, 'ssl', 'verify_peer', false);
@@ -21,6 +23,7 @@ go(function () {
     if (!$socket) {
         echo "$errstr ($errno)<br />\n";
     } else {
+        $ready->push(true);
         $conn = stream_socket_accept($socket);
         fwrite($conn, 'The local time is ' . date('n/j/Y g:i a'));
         fclose($conn);
@@ -29,7 +32,8 @@ go(function () {
     }
 });
 
-go(function () {
+go(function () use ($ready) {
+    $ready->pop();
     $fp = stream_socket_client("ssl://127.0.0.1:8000", $errno, $errstr, 30);
     if (!$fp) {
         echo "$errstr ($errno)<br />\n";

@@ -33,7 +33,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
-static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd, int reactor_id);
+static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd);
 
 static void swServer_disable_accept(swReactor *reactor)
 {
@@ -63,7 +63,7 @@ void swServer_enable_accept(swReactor *reactor)
         {
             continue;
         }
-        reactor->add(reactor, ls->sock, SW_FD_LISTEN);
+        reactor->add(reactor, ls->sock, SW_FD_STREAM_SERVER);
     }
 }
 
@@ -85,16 +85,13 @@ void swServer_close_port(swServer *serv, enum swBool_type only_stream_port)
 int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
     swServer *serv = (swServer *) reactor->ptr;
-    swReactor *sub_reactor;
-    swSocketAddress client_addr;
     swListenPort *listen_host = (swListenPort *) serv->connection_list[event->fd].object;
 
-    int new_fd = 0, reactor_id = 0, i;
+    int new_fd = 0, i;
 
-    //SW_ACCEPT_AGAIN
     for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
     {
-        new_fd = swSocket_accept(event->fd, &client_addr);
+        new_fd = swSocket_accept(event->fd, &event->socket->info);
         if (new_fd < 0)
         {
             switch (errno)
@@ -124,54 +121,50 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             return SW_OK;
         }
 
-        if (serv->single_thread)
-        {
-            reactor_id = 0;
-            sub_reactor = reactor;
-        }
-        else
-        {
-            reactor_id = new_fd % serv->reactor_num;
-            sub_reactor = &serv->reactor_threads[reactor_id].reactor;
-        }
-
         //add to connection_list
-        swConnection *conn = swServer_connection_new(serv, listen_host, new_fd, event->fd, reactor_id);
-        memcpy(&conn->info.addr, &client_addr, sizeof(client_addr));
-       
+        swConnection *conn = swServer_connection_new(serv, listen_host, new_fd, event->fd);
+        memcpy(&conn->info.addr, &event->socket->info, sizeof(event->socket->info));
         conn->socket_type = listen_host->type;
 
 #ifdef SW_USE_OPENSSL
+        swSocket *_socket = swReactor_get(reactor, conn->fd);
         if (listen_host->ssl)
         {
-            if (swSSL_create(conn, listen_host->ssl_context, 0) < 0)
+            if (swSSL_create(_socket, listen_host->ssl_context, 0) < 0)
             {
-                bzero(conn, sizeof(swConnection));
-                close(new_fd);
+                reactor->close(reactor, new_fd);
+                return SW_OK;
+            }
+            else
+            {
+                conn->ssl = 1;
+            }
+        }
+        else
+        {
+            _socket->ssl = NULL;
+        }
+#endif
+        if (serv->single_thread)
+        {
+            if (swServer_connection_incoming(serv, reactor, conn) < 0)
+            {
+                reactor->close(reactor, new_fd);
                 return SW_OK;
             }
         }
         else
         {
-            conn->ssl = NULL;
+            swDataHead ev = {0};
+            ev.type = SW_SERVER_EVENT_INCOMING;
+            ev.fd = new_fd;
+            int _pipe_fd = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
+            if (reactor->write(reactor, _pipe_fd, &ev, sizeof(ev)) < 0)
+            {
+                reactor->close(reactor, new_fd);
+                return SW_OK;
+            }
         }
-#endif
-        /*
-         * [!!!] new_connection function must before reactor->add
-         */
-        conn->connect_notify = 1;
-        if (sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | SW_EVENT_WRITE) < 0)
-        {
-            bzero(conn, sizeof(swConnection));
-            close(new_fd);
-            return SW_OK;
-        }
-
-#ifdef SW_ACCEPT_AGAIN
-        continue;
-#else
-        break;
-#endif
     }
     return SW_OK;
 }
@@ -193,14 +186,33 @@ static int swServer_start_check(swServer *serv)
     //disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
-        if (serv->dispatch_mode == SW_DISPATCH_ROUND || serv->dispatch_mode == SW_DISPATCH_QUEUE)
+        if (!swServer_support_unsafe_events(serv))
         {
-            if (!serv->enable_unsafe_event)
+            if (serv->onConnect)
             {
-                serv->onConnect = NULL;
-                serv->onClose = NULL;
-                serv->disable_notify = 1;
+                swWarn("cannot set 'onConnect' event when using dispatch_mode=1/3/7");
+                serv->onConnect = nullptr;
             }
+            if (serv->onClose)
+            {
+                swWarn("cannot set 'onClose' event when using dispatch_mode=1/3/7");
+                serv->onClose = nullptr;
+            }
+            if (serv->onBufferFull)
+            {
+                swWarn("cannot set 'onBufferFull' event when using dispatch_mode=1/3/7");
+                serv->onBufferFull = nullptr;
+            }
+            if (serv->onBufferEmpty)
+            {
+                swWarn("cannot set 'onBufferEmpty' event when using dispatch_mode=1/3/7");
+                serv->onBufferEmpty = nullptr;
+            }
+            serv->disable_notify = 1;
+        }
+        if (!swServer_support_send_yield(serv))
+        {
+            serv->send_yield = 0;
         }
     }
     //AsyncTask
@@ -380,12 +392,13 @@ int swServer_create_task_worker(swServer *serv)
     }
 
     swProcessPool *pool = &serv->gs->task_workers;
-    if (swProcessPool_create(pool, serv->task_worker_num, serv->task_max_request, key, ipc_mode) < 0)
+    if (swProcessPool_create(pool, serv->task_worker_num, key, ipc_mode) < 0)
     {
         swWarn("[Master] create task_workers failed");
         return SW_ERR;
     }
 
+    swProcessPool_set_max_request(pool, serv->task_max_request, serv->task_max_request_grace);
     swProcessPool_set_start_id(pool, serv->worker_num);
     swProcessPool_set_type(pool, SW_PROCESS_TASKWORKER);
 
@@ -455,18 +468,13 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     else
     {
         SwooleWG.max_request = serv->max_request;
-        if (SwooleWG.max_request > 10)
+        if (serv->max_request_grace > 0)
         {
-            int n = swoole_system_random(1, SwooleWG.max_request / 2);
-            if (n > 0)
-            {
-                SwooleWG.max_request += n;
-            }
+            SwooleWG.max_request += swoole_system_random(1, serv->max_request_grace);
         }
     }
 
     worker->start_time = serv->gs->now;
-    worker->request_time = 0;
     worker->request_count = 0;
 
     return SW_OK;
@@ -526,13 +534,13 @@ int swServer_start(swServer *serv)
     {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_START, serv);
     }
-    //cann't start 2 servers at the same time, please use process->exec.
+    //cannot start 2 servers at the same time, please use process->exec.
     if (!sw_atomic_cmp_set(&serv->gs->start, 0, 1))
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_ONLY_START_ONE, "must only start one server");
         return SW_ERR;
     }
-    //init loggger
+    //init logger
     if (SwooleG.log_file)
     {
         swLog_init(SwooleG.log_file);
@@ -603,7 +611,7 @@ int swServer_start(swServer *serv)
     serv->gs->event_workers.worker_num = serv->worker_num;
     serv->gs->event_workers.use_msgqueue = 0;
 
-    int i;
+    uint32_t i;
     for (i = 0; i < serv->worker_num; i++)
     {
         serv->gs->event_workers.workers[i].pool = &serv->gs->event_workers;
@@ -653,7 +661,7 @@ int swServer_start(swServer *serv)
             i++;
         }
     }
-
+    serv->running = 1;
     //factory start
     if (factory->start(factory) < 0)
     {
@@ -731,7 +739,8 @@ void swServer_init(swServer *serv)
     serv->timezone = timezone;
 #else
     struct timezone tz;
-    gettimeofday(nullptr, &tz);
+    struct timeval tv;
+    gettimeofday(&tv, &tz);
     serv->timezone = tz.tz_minuteswest * 60;
 #endif
 
@@ -767,6 +776,11 @@ int swServer_create(swServer *serv)
         return SW_ERR;
     }
 
+    if (SwooleG.socket_array->item_num < serv->max_connection)
+    {
+        swArray_alloc(SwooleG.socket_array, serv->max_connection);
+    }
+
     if (serv->factory_mode == SW_MODE_BASE)
     {
         return swReactorProcess_create(serv);
@@ -779,10 +793,11 @@ int swServer_create(swServer *serv)
 
 int swServer_shutdown(swServer *serv)
 {
+    serv->running = 0;
     //stop all thread
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
-        swReactor *reactor = SwooleG.main_reactor;
+        swReactor *reactor = SwooleTG.reactor;
         reactor->wait_exit = 1;
         swListenPort *port;
         LL_FOREACH(serv->listen_list, port)
@@ -794,7 +809,7 @@ int swServer_shutdown(swServer *serv)
         }
         if (serv->master_timer)
         {
-            swTimer_del(&SwooleG.timer, serv->master_timer);
+            swoole_timer_del(serv->master_timer);
             serv->master_timer = NULL;
         }
     }
@@ -816,22 +831,6 @@ static int swServer_destory(swServer *serv)
     {
         serv->factory.shutdown(&(serv->factory));
     }
-    /**
-     * Shutdown heartbeat thread
-     */
-    if (serv->heartbeat_pidt)
-    {
-        swTraceLog(SW_TRACE_SERVER, "terminate heartbeat thread");
-        if (pthread_cancel(serv->heartbeat_pidt) < 0)
-        {
-            swSysWarn("pthread_cancel(%ld) failed", (ulong_t )serv->heartbeat_pidt);
-        }
-        //wait thread
-        if (pthread_join(serv->heartbeat_pidt, NULL) < 0)
-        {
-            swSysWarn("pthread_join(%ld) failed", (ulong_t )serv->heartbeat_pidt);
-        }
-    }
     if (serv->factory_mode == SW_MODE_BASE)
     {
         swTraceLog(SW_TRACE_SERVER, "terminate task workers");
@@ -840,13 +839,13 @@ static int swServer_destory(swServer *serv)
             swProcessPool_shutdown(&serv->gs->task_workers);
         }
     }
-    else if (!serv->single_thread)
+    else
     {
         swTraceLog(SW_TRACE_SERVER, "terminate reactor threads");
         /**
          * Wait until all the end of the thread
          */
-        swReactorThread_free(serv);
+        swReactorThread_join(serv);
     }
 
     swListenPort *port;
@@ -863,13 +862,6 @@ static int swServer_destory(swServer *serv)
     {
         close(SwooleG.null_fd);
     }
-    /**
-     * free worker pipe
-     */
-    if (serv->factory.free)
-    {
-        serv->factory.free(&serv->factory);
-    }
     swSignal_clear();
     /**
      * shutdown status
@@ -882,6 +874,14 @@ static int swServer_destory(swServer *serv)
     if (serv->onShutdown)
     {
         serv->onShutdown(serv);
+    }
+    if (serv->factory_mode == SW_MODE_BASE)
+    {
+        swReactorProcess_free(serv);
+    }
+    else
+    {
+        swReactorThread_free(serv);
     }
     serv->lock.free(&serv->lock);
     SwooleG.serv = nullptr;
@@ -899,7 +899,7 @@ static int swServer_tcp_feedback(swServer *serv, int session_id, int event)
         return SW_ERR;
     }
 
-    if (event == SW_EVENT_CONFIRM && !conn->listen_wait)
+    if (event == SW_SERVER_EVENT_CONFIRM && !conn->socket->listen_wait)
     {
         return SW_ERR;
     }
@@ -923,9 +923,12 @@ static int swServer_tcp_feedback(swServer *serv, int session_id, int event)
 void swServer_store_pipe_fd(swServer *serv, swPipe *p)
 {
     int master_fd = p->getFd(p, SW_PIPE_MASTER);
+    int worker_fd = p->getFd(p, SW_PIPE_WORKER);
 
-    serv->connection_list[p->getFd(p, SW_PIPE_WORKER)].object = p;
+    serv->connection_list[worker_fd].object = p;
+    serv->connection_list[worker_fd].socket = (swSocket *) swArray_alloc(SwooleG.socket_array, worker_fd);
     serv->connection_list[master_fd].object = p;
+    serv->connection_list[master_fd].socket = (swSocket *) swArray_alloc(SwooleG.socket_array, master_fd);
 
     if (master_fd > swServer_get_minfd(serv))
     {
@@ -955,7 +958,7 @@ static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_
     }
 
     _send.info.fd = session_id;
-    _send.info.type = SW_EVENT_TCP;
+    _send.info.type = SW_SERVER_EVENT_SEND_DATA;
     _send.data = (char*) data;
     _send.info.len = length;
     return factory->finish(factory, &_send) < 0 ? SW_ERR : SW_OK;
@@ -971,7 +974,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     uint32_t _send_length = _send->info.len;
 
     swConnection *conn;
-    if (_send->info.type != SW_EVENT_CLOSE)
+    if (_send->info.type != SW_SERVER_EVENT_CLOSE)
     {
         conn = swServer_connection_verify(serv, session_id);
     }
@@ -981,7 +984,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     }
     if (!conn)
     {
-        if (_send->info.type == SW_EVENT_TCP)
+        if (_send->info.type == SW_SERVER_EVENT_SEND_DATA)
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send %d byte failed, session#%d does not exist", _send_length, session_id);
         }
@@ -993,15 +996,10 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     }
 
     int fd = conn->fd;
-    swReactor *reactor;
+    swReactor *reactor = SwooleTG.reactor;
 
-    if (serv->single_thread)
+    if (!serv->single_thread)
     {
-        reactor = SwooleG.main_reactor;
-    }
-    else
-    {
-        reactor = &(serv->reactor_threads[conn->reactor_id].reactor);
         assert(fd % serv->reactor_num == reactor->id);
         assert(fd % serv->reactor_num == SwooleTG.id);
     }
@@ -1019,27 +1017,29 @@ int swServer_master_send(swServer *serv, swSendData *_send)
         return SW_ERR;
     }
 
+    swSocket *_socket = conn->socket;
+
     /**
      * Reset send buffer, Immediately close the connection.
      */
-    if (_send->info.type == SW_EVENT_CLOSE && (conn->close_reset || conn->removed))
+    if (_send->info.type == SW_SERVER_EVENT_CLOSE && (conn->close_reset || conn->peer_closed))
     {
         goto _close_fd;
     }
-    else if (_send->info.type == SW_EVENT_CONFIRM)
+    else if (_send->info.type == SW_SERVER_EVENT_CONFIRM)
     {
-        reactor->add(reactor, conn->fd, conn->fdtype | SW_EVENT_READ);
-        conn->listen_wait = 0;
+        reactor->add(reactor, conn->fd, conn->socket->fdtype | SW_EVENT_READ);
+        conn->socket->listen_wait = 0;
         return SW_OK;
     }
     /**
      * pause recv data
      */
-    else if (_send->info.type == SW_EVENT_PAUSE_RECV)
+    else if (_send->info.type == SW_SERVER_EVENT_PAUSE_RECV)
     {
-        if (conn->events & SW_EVENT_WRITE)
+        if (_socket->events & SW_EVENT_WRITE)
         {
-            return reactor->set(reactor, conn->fd, conn->fdtype | SW_EVENT_WRITE);
+            return reactor->set(reactor, conn->fd, conn->socket->fdtype | SW_EVENT_WRITE);
         }
         else
         {
@@ -1049,34 +1049,33 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     /**
      * resume recv data
      */
-    else if (_send->info.type == SW_EVENT_RESUME_RECV)
+    else if (_send->info.type == SW_SERVER_EVENT_RESUME_RECV)
     {
-        if (conn->events & SW_EVENT_WRITE)
+        if (_socket->events & SW_EVENT_WRITE)
         {
-            return reactor->set(reactor, conn->fd, conn->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+            return reactor->set(reactor, conn->fd, _socket->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
         }
         else
         {
-            return reactor->add(reactor, conn->fd, conn->fdtype | SW_EVENT_READ);
+            return reactor->add(reactor, conn->fd, _socket->fdtype | SW_EVENT_READ);
         }
     }
 
-    if (swBuffer_empty(conn->out_buffer))
+    if (swBuffer_empty(_socket->out_buffer))
     {
         /**
          * close connection.
          */
-        if (_send->info.type == SW_EVENT_CLOSE)
+        if (_send->info.type == SW_SERVER_EVENT_CLOSE)
         {
             _close_fd:
             reactor->close(reactor, fd);
             return SW_OK;
         }
-#ifdef SW_REACTOR_SYNC_SEND
         //Direct send
-        if (_send->info.type != SW_EVENT_SENDFILE)
+        if (_send->info.type != SW_SERVER_EVENT_SEND_FILE)
         {
-            if (!conn->direct_send)
+            if (!_socket->direct_send)
             {
                 goto _buffer_send;
             }
@@ -1084,7 +1083,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
             ssize_t n;
 
             _direct_send:
-            n = swConnection_send(conn, _send_data, _send_length, 0);
+            n = swConnection_send(_socket, _send_data, _send_length, 0);
             if (n == _send_length)
             {
                 return SW_OK;
@@ -1104,17 +1103,14 @@ int swServer_master_send(swServer *serv, swSendData *_send)
                 goto _buffer_send;
             }
         }
-#endif
         //buffer send
         else
         {
-#ifdef SW_REACTOR_SYNC_SEND
             _buffer_send:
-#endif
-            if (!conn->out_buffer)
+            if (!_socket->out_buffer)
             {
-                conn->out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
-                if (conn->out_buffer == NULL)
+                _socket->out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
+                if (_socket->out_buffer == NULL)
                 {
                     return SW_ERR;
                 }
@@ -1124,29 +1120,29 @@ int swServer_master_send(swServer *serv, swSendData *_send)
 
     swBuffer_chunk *chunk;
     //close connection
-    if (_send->info.type == SW_EVENT_CLOSE)
+    if (_send->info.type == SW_SERVER_EVENT_CLOSE)
     {
-        chunk = swBuffer_new_chunk(conn->out_buffer, SW_CHUNK_CLOSE, 0);
+        chunk = swBuffer_new_chunk(_socket->out_buffer, SW_CHUNK_CLOSE, 0);
         chunk->store.data.val1 = _send->info.type;
         conn->close_queued = 1;
     }
     //sendfile to client
-    else if (_send->info.type == SW_EVENT_SENDFILE)
+    else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE)
     {
         swSendFile_request *req = (swSendFile_request *) _send_data;
-        swConnection_sendfile(conn, req->filename, req->offset, req->length);
+        swConnection_sendfile(conn->socket, req->filename, req->offset, req->length);
     }
     //send data
     else
     {
         //connection is closed
-        if (conn->removed)
+        if (conn->peer_closed)
         {
             swWarn("connection#%d is closed by client", fd);
             return SW_ERR;
         }
         //connection output buffer overflow
-        if (conn->out_buffer->length >= conn->buffer_size)
+        if (_socket->out_buffer->length >= _socket->buffer_size)
         {
             if (serv->send_yield)
             {
@@ -1163,22 +1159,22 @@ int swServer_master_send(swServer *serv, swSendData *_send)
             }
         }
 
-        if (swBuffer_append(conn->out_buffer, _send_data, _send_length) < 0)
+        if (swBuffer_append(_socket->out_buffer, _send_data, _send_length) < 0)
         {
             swWarn("append to pipe_buffer failed");
             return SW_ERR;
         }
 
         swListenPort *port = swServer_get_port(serv, fd);
-        if (serv->onBufferFull && conn->high_watermark == 0 && conn->out_buffer->length >= port->buffer_high_watermark)
+        if (serv->onBufferFull && conn->high_watermark == 0 && _socket->out_buffer->length >= port->buffer_high_watermark)
         {
-            serv->notify(serv, conn, SW_EVENT_BUFFER_FULL);
+            serv->notify(serv, conn, SW_SERVER_EVENT_BUFFER_FULL);
             conn->high_watermark = 1;
         }
     }
 
     //listen EPOLLOUT event
-    if (reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ) < 0
+    if (reactor->set(reactor, fd, SW_FD_SESSION | SW_EVENT_WRITE | SW_EVENT_READ) < 0
             && (errno == EBADF || errno == ENOENT))
     {
         goto _close_fd;
@@ -1252,7 +1248,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
     // construct send data
     swSendData send_data = {{0}};
     send_data.info.fd = session_id;
-    send_data.info.type = SW_EVENT_SENDFILE;
+    send_data.info.type = SW_SERVER_EVENT_SEND_FILE;
     send_data.info.len = sizeof(swSendFile_request) + l_file + 1;
     send_data.data = _buffer;
 
@@ -1311,21 +1307,38 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset)
     conn->close_actively = 1;
     swTraceLog(SW_TRACE_CLOSE, "session_id=%d, fd=%d", session_id, conn->session_id);
 
-    int ret;
-    if (!swIsWorker())
+    int retval;
+    swWorker *worker;
+    swDataHead ev = { 0 };
+
+    if (swServer_dispatch_mode_is_mod(serv))
     {
-        swWorker *worker = swServer_get_worker(serv, conn->fd % serv->worker_num);
-        swDataHead ev = {0};
-        ev.type = SW_EVENT_CLOSE;
+        int worker_id = swServer_worker_schedule(serv, conn->fd, nullptr);
+        if (worker_id != (int) SwooleWG.id)
+        {
+            worker = swServer_get_worker(serv, worker_id);
+            goto _notify;
+        }
+        else
+        {
+            goto _close;
+        }
+    }
+    else if (!swIsWorker())
+    {
+        worker = swServer_get_worker(serv, conn->fd % serv->worker_num);
+        _notify:
+        ev.type = SW_SERVER_EVENT_CLOSE;
         ev.fd = session_id;
         ev.reactor_id = conn->reactor_id;
-        ret = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
+        retval = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
     }
     else
     {
-        ret = serv->factory.end(&serv->factory, session_id);
+        _close:
+        retval = serv->factory.end(&serv->factory, session_id);
     }
-    return ret;
+    return retval;
 }
 
 void swServer_signal_init(swServer *serv)
@@ -1577,7 +1590,7 @@ int swServer_add_systemd_socket(swServer *serv)
     return count;
 }
 
-swListenPort* swServer_add_port(swServer *serv, int type, const char *host, int port)
+swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const char *host, int port)
 {
     if (serv->listen_port_num >= SW_MAX_LISTEN_PORT)
     {
@@ -1610,7 +1623,7 @@ swListenPort* swServer_add_port(swServer *serv, int type, const char *host, int 
 
     if (type & SW_SOCK_SSL)
     {
-        type = type & (~SW_SOCK_SSL);
+        type = (enum swSocket_type) (type & (~SW_SOCK_SSL));
         if (swSocket_is_stream(type))
         {
             ls->type = type;
@@ -1700,7 +1713,7 @@ static void swServer_signal_handler(int sig)
         swSystemTimer_signal_handler(SIGALRM);
         break;
     case SIGCHLD:
-        if (!SwooleG.running)
+        if (!serv->running)
         {
             break;
         }
@@ -1743,7 +1756,7 @@ static void swServer_signal_handler(int sig)
 #ifdef SIGRTMIN
         if (sig == SIGRTMIN)
         {
-            int i;
+            uint32_t i;
             swWorker *worker;
             for (i = 0; i < SwooleG.serv->worker_num + serv->task_worker_num + SwooleG.serv->user_worker_num; i++)
             {
@@ -1772,7 +1785,7 @@ void swServer_connection_each(swServer *serv, void (*callback)(swConnection *con
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
         conn = swServer_connection_get(serv, fd);
-        if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_TCP)
+        if (conn && conn->socket && conn->active == 1 && conn->closed == 0 && conn->socket->fdtype == SW_FD_SESSION)
         {
             callback(conn);
         }
@@ -1782,7 +1795,7 @@ void swServer_connection_each(swServer *serv, void (*callback)(swConnection *con
 /**
  * new connection
  */
-static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd, int reactor_id)
+static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd)
 {
     swConnection* connection = NULL;
 
@@ -1798,6 +1811,12 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     connection = &(serv->connection_list[fd]);
     bzero(connection, sizeof(swConnection));
 
+    swSocket *_socket = swReactor_get(SwooleTG.reactor, fd);
+    _socket->object = connection;
+    _socket->buffer_size = ls->socket_buffer_size;
+    _socket->fd = fd;
+    _socket->fdtype = SW_FD_SESSION;
+
     //TCP Nodelay
     if (ls->open_tcp_nodelay && ls->type != SW_SOCK_UNIX_STREAM)
     {
@@ -1806,7 +1825,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
         {
             swSysWarn("setsockopt(TCP_NODELAY) failed");
         }
-        connection->tcp_nodelay = 1;
+        _socket->tcp_nodelay = 1;
     }
 
     //socket recv buffer size
@@ -1828,19 +1847,17 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     }
 
     connection->fd = fd;
-    connection->reactor_id = serv->factory_mode == SW_MODE_BASE ? SwooleWG.id : reactor_id;
+    connection->reactor_id = serv->factory_mode == SW_MODE_BASE ? SwooleWG.id : fd % serv->reactor_num;
     connection->server_fd = (sw_atomic_t) server_fd;
     connection->connect_time = serv->gs->now;
     connection->last_time = serv->gs->now;
     connection->active = 1;
-    connection->buffer_size = ls->socket_buffer_size;
+    connection->socket = _socket;
 
-#ifdef SW_REACTOR_SYNC_SEND
     if (!ls->ssl)
     {
-        connection->direct_send = 1;
+        _socket->direct_send = 1;
     }
-#endif
 
     swSession *session;
     sw_spinlock(&serv->gs->spinlock);

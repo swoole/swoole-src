@@ -1,4 +1,5 @@
 #include "tests.h"
+#include "swoole_api.h"
 
 static pid_t create_server()
 {
@@ -14,11 +15,9 @@ int main(int argc, char **argv)
 
     pid_t server_pid = create_server();
 
-    SwooleG.main_reactor = (swReactor *) sw_malloc(sizeof(swReactor));
-    swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS);
-
     ::testing::InitGoogleTest(&argc, argv);
     int retval = RUN_ALL_TESTS();
+
     kill(server_pid, SIGTERM);
     int status = 0;
     wait(&status);

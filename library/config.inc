@@ -3,11 +3,14 @@ return [
     # <basic> #
     'constants.php',
     # <std> #
-    'std/array.php',
     'std/exec.php',
     # <ext> #
+    'core/Curl/Exception.php',
+    'core/Http/StatusCode.php',
+    'core/Curl/Handler.php',
     'ext/curl.php',
     # <core> #
+    'core/Constant.php',
     'core/Coroutine/WaitGroup.php',
     'core/Coroutine/ObjectPool.php',
     'core/StringObject.php',

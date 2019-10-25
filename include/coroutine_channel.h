@@ -41,7 +41,14 @@ public:
 
     ~Channel()
     {
-        SW_ASSERT(producer_queue.empty() && consumer_queue.empty());
+        if (!producer_queue.empty())
+        {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_CO_HAS_BEEN_DISCARDED, "channel is destroyed, %zu producers will be discarded", producer_queue.size());
+        }
+        if (!consumer_queue.empty())
+        {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_CO_HAS_BEEN_DISCARDED, "channel is destroyed, %zu consumers will be discarded", consumer_queue.size());
+        }
     }
 
     inline bool is_closed()

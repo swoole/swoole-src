@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
+#include "swoole_api.h"
 
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
@@ -117,7 +117,7 @@ void swSignal_add(int signo, swSignalHandler handler)
         // SIGCHLD can not be monitored by kqueue, if blocked by SIG_IGN
         // see https://www.freebsd.org/cgi/man.cgi?kqueue
         // if there's no main reactor, signals cannot be monitored either
-        if (signo != SIGCHLD && SwooleG.main_reactor)
+        if (signo != SIGCHLD && SwooleTG.reactor)
         {
             swKqueueSignal_set(signo, handler);
         }
@@ -134,9 +134,9 @@ void swSignal_add(int signo, swSignalHandler handler)
 
 static void swSignal_async_handler(int signo)
 {
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
-        SwooleG.main_reactor->singal_no = signo;
+        SwooleTG.reactor->singal_no = signo;
     }
     else
     {
@@ -197,7 +197,7 @@ void swSignal_clear(void)
             if (signals[i].active)
             {
 #ifdef HAVE_KQUEUE
-                if (signals[i].signo != SIGCHLD && SwooleG.main_reactor)
+                if (signals[i].signo != SIGCHLD && SwooleTG.reactor)
                 {
                     swKqueueSignal_set(signals[i].signo, NULL);
                 }
@@ -257,7 +257,10 @@ int swSignalfd_setup(swReactor *reactor)
             return SW_ERR;
         }
         swReactor_set_handler(reactor, SW_FD_SIGNAL, swSignalfd_onSignal);
-        reactor->add(reactor, signal_fd, SW_FD_SIGNAL);
+        if (swoole_event_add(signal_fd, SW_EVENT_READ, SW_FD_SIGNAL) < 0)
+        {
+            return SW_ERR;
+        }
         return SW_OK;
     }
     else
@@ -316,7 +319,7 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
 static void swKqueueSignal_set(int signo, swSignalHandler handler)
 {
     struct kevent ev;
-    swReactor *reactor = SwooleG.main_reactor;
+    swReactor *reactor = SwooleTG.reactor;
     struct
     {
         int fd;

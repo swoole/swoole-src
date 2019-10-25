@@ -20,24 +20,6 @@
 
 using namespace swoole;
 
-namespace php
-{
-struct process
-{
-    zend_fcall_info fci;
-    zend_fcall_info_cache fci_cache;
-    zend_object *zsocket;
-    int pipe_type;
-    bool enable_coroutine;
-};
-
-enum process_pipe_type
-{
-    PIPE_TYPE_STREAM = 1,
-    PIPE_TYPE_DGRAM = 2,
-};
-}
-
 static PHP_METHOD(swoole_process, __construct);
 static PHP_METHOD(swoole_process, __destruct);
 static PHP_METHOD(swoole_process, useQueue);
@@ -53,6 +35,7 @@ static PHP_METHOD(swoole_process, daemon);
 #ifdef HAVE_CPU_AFFINITY
 static PHP_METHOD(swoole_process, setaffinity);
 #endif
+static PHP_METHOD(swoole_process, set);
 static PHP_METHOD(swoole_process, setTimeout);
 static PHP_METHOD(swoole_process, setBlocking);
 static PHP_METHOD(swoole_process, start);
@@ -103,6 +86,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_daemon, 0, 0, 0)
     ZEND_ARG_INFO(0, nochdir)
     ZEND_ARG_INFO(0, noclose)
+    ZEND_ARG_INFO(0, pipes)
 ZEND_END_ARG_INFO()
 
 #ifdef HAVE_CPU_AFFINITY
@@ -110,6 +94,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_setaffinity, 0, 0, 1)
     ZEND_ARG_ARRAY_INFO(0, cpu_settings, 0)
 ZEND_END_ARG_INFO()
 #endif
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_set, 0, 0, 1)
+    ZEND_ARG_ARRAY_INFO(0, settings, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_setTimeout, 0, 0, 1)
     ZEND_ARG_INFO(0, seconds)
@@ -168,6 +156,7 @@ static const zend_function_entry swoole_process_methods[] =
 #ifdef HAVE_CPU_AFFINITY
     PHP_ME(swoole_process, setaffinity, arginfo_swoole_process_setaffinity, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 #endif
+    PHP_ME(swoole_process, set, arginfo_swoole_process_set, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, setTimeout, arginfo_swoole_process_setTimeout, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, setBlocking, arginfo_swoole_process_setBlocking, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, useQueue, arginfo_swoole_process_useQueue, ZEND_ACC_PUBLIC)
@@ -272,21 +261,22 @@ static PHP_METHOD(swoole_process, __construct)
         RETURN_FALSE;
     }
 
-    if (SwooleAIO.init)
+    if (SwooleTG.aio_init)
     {
         php_swoole_fatal_error(E_ERROR, "unable to create %s with async-io threads", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
 
-    php::process *proc = (php::process *) ecalloc(1, sizeof(php::process));
+
+    php_swoole_fci *func = (php_swoole_fci*) emalloc(sizeof(php_swoole_fci));
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
-        Z_PARAM_FUNC(proc->fci, proc->fci_cache);
+        Z_PARAM_FUNC(func->fci, func->fci_cache);
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(redirect_stdin_and_stdout)
         Z_PARAM_LONG(pipe_type)
         Z_PARAM_BOOL(enable_coroutine)
-    ZEND_PARSE_PARAMETERS_END_EX(efree(proc);RETURN_FALSE);
+    ZEND_PARSE_PARAMETERS_END_EX(efree(func); RETURN_FALSE);
 
     swWorker *process = (swWorker *) ecalloc(1, sizeof(swWorker));
 
@@ -315,9 +305,11 @@ static PHP_METHOD(swoole_process, __construct)
     if (pipe_type > 0)
     {
         swPipe *_pipe = (swPipe *) emalloc(sizeof(swPipe));
-        int socket_type = pipe_type == php::PIPE_TYPE_STREAM ? SOCK_STREAM : SOCK_DGRAM;
+        int socket_type = pipe_type == zend::PIPE_TYPE_STREAM ? SOCK_STREAM : SOCK_DGRAM;
         if (swPipeUnsock_create(_pipe, 1, socket_type) < 0)
         {
+            efree(func);
+            efree(process);
             RETURN_FALSE;
         }
 
@@ -329,12 +321,13 @@ static PHP_METHOD(swoole_process, __construct)
         zend_update_property_long(swoole_process_ce, ZEND_THIS, ZEND_STRL("pipe"), process->pipe_master);
     }
 
-    proc->pipe_type = pipe_type;
+    zend::process *proc = new zend::process;
+    sw_zend_fci_cache_persist(&func->fci_cache);
+    proc->func = func;
+    proc->pipe_type = (enum zend::process_pipe_type) pipe_type;
     proc->enable_coroutine = enable_coroutine;
-
     process->ptr2 = proc;
 
-    sw_zend_fci_cache_persist(&proc->fci_cache);
     swoole_set_object(ZEND_THIS, process);
 }
 
@@ -354,15 +347,10 @@ static PHP_METHOD(swoole_process, __destruct)
     {
         efree(process->queue);
     }
-    php::process *proc = (php::process *) process->ptr2;
+    zend::process *proc = (zend::process *) process->ptr2;
     if (proc)
     {
-        sw_zend_fci_cache_discard(&proc->fci_cache);
-        if (proc->zsocket)
-        {
-            OBJ_RELEASE(proc->zsocket);
-        }
-        efree(proc);
+        delete proc;
     }
     efree(process);
 }
@@ -537,8 +525,8 @@ static PHP_METHOD(swoole_process, signal)
         {
             swSignal_add(signo, NULL);
             signal_fci_caches[signo] = NULL;
-            SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_zend_fci_cache_free, fci_cache);
-            SwooleG.main_reactor->signal_listener_num--;
+            swoole_event_defer(sw_zend_fci_cache_free, fci_cache);
+            SwooleTG.reactor->signal_listener_num--;
             RETURN_TRUE;
         }
         else
@@ -568,16 +556,16 @@ static PHP_METHOD(swoole_process, signal)
     }
 
     // for swSignalfd_setup
-    SwooleG.main_reactor->check_signalfd = 1;
+    SwooleTG.reactor->check_signalfd = 1;
 
     if (signal_fci_caches[signo])
     {
         // free the old fci_cache
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, sw_zend_fci_cache_free, signal_fci_caches[signo]);
+        swoole_event_defer(sw_zend_fci_cache_free, signal_fci_caches[signo]);
     }
     else
     {
-        SwooleG.main_reactor->signal_listener_num++;
+        SwooleTG.reactor->signal_listener_num++;
     }
     signal_fci_caches[signo] = fci_cache;
 
@@ -605,7 +593,7 @@ static PHP_METHOD(swoole_process, alarm)
         RETURN_FALSE;
     }
 
-    if (SwooleG.timer.initialized != 0)
+    if (SwooleTG.timer)
     {
         php_swoole_fatal_error(E_WARNING, "cannot use both 'timer' and 'alarm' at the same time");
         RETURN_FALSE;
@@ -646,13 +634,17 @@ static PHP_METHOD(swoole_process, alarm)
 static void php_swoole_onSignal(int signo)
 {
     zend_fcall_info_cache *fci_cache = signal_fci_caches[signo];
-    zval zsigno;
 
-    ZVAL_LONG(&zsigno, signo);
-
-    if (UNEXPECTED(sw_zend_call_function_ex2(NULL, fci_cache, 1, &zsigno, NULL) != SUCCESS))
+    if (fci_cache)
     {
-        php_swoole_fatal_error(E_WARNING, "%s: signal [%d] handler error", ZSTR_VAL(swoole_process_ce->name), signo);
+        zval zsigno;
+
+        ZVAL_LONG(&zsigno, signo);
+
+        if (UNEXPECTED(sw_zend_call_function_ex2(NULL, fci_cache, 1, &zsigno, NULL) != SUCCESS))
+        {
+            php_swoole_fatal_error(E_WARNING, "%s: signal [%d] handler error", ZSTR_VAL(swoole_process_ce->name), signo);
+        }
     }
 }
 
@@ -721,7 +713,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
     zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pid"), process->pid);
     zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pipe"), process->pipe_worker);
 
-    php::process *proc = (php::process *) process->ptr2;
+    zend::process *proc = (zend::process *) process->ptr2;
 
     //eventloop create
     if (proc->enable_coroutine && php_swoole_reactor_init() < 0)
@@ -729,7 +721,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
         return SW_ERR;
     }
     //main function
-    if (UNEXPECTED(!zend::function::call(&proc->fci_cache, 1, zobject, NULL, proc->enable_coroutine)))
+    if (UNEXPECTED(!zend::function::call(&proc->func->fci_cache, 1, zobject, NULL, proc->enable_coroutine)))
     {
         php_swoole_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
@@ -839,12 +831,12 @@ static PHP_METHOD(swoole_process, write)
     int ret;
 
     //async write
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
-        swConnection *_socket = swReactor_get(SwooleG.main_reactor, process->pipe);
+        swSocket *_socket = swReactor_get(SwooleTG.reactor, process->pipe);
         if (_socket && _socket->nonblock)
         {
-            ret = SwooleG.main_reactor->write(SwooleG.main_reactor, process->pipe, data, (size_t) data_len);
+            ret = swoole_event_write(process->pipe, data, (size_t) data_len);
         }
         else
         {
@@ -876,10 +868,10 @@ static PHP_METHOD(swoole_process, exportSocket)
         php_swoole_fatal_error(E_WARNING, "no pipe, cannot export stream");
         RETURN_FALSE;
     }
-    php::process *proc = (php::process *) process->ptr2;
+    zend::process *proc = (zend::process *) process->ptr2;
     if (!proc->zsocket)
     {
-        proc->zsocket = php_swoole_dup_socket(process->pipe, proc->pipe_type == php::PIPE_TYPE_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM);
+        proc->zsocket = php_swoole_dup_socket(process->pipe, proc->pipe_type == zend::PIPE_TYPE_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM);
         if (!proc->zsocket)
         {
             RETURN_FALSE;
@@ -1025,11 +1017,41 @@ static PHP_METHOD(swoole_process, daemon)
 {
     zend_bool nochdir = 1;
     zend_bool noclose = 1;
+    zval *zpipes = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|bb", &nochdir, &noclose) == FAILURE)
+    ZEND_PARSE_PARAMETERS_START(0, 3)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(nochdir)
+        Z_PARAM_BOOL(noclose)
+        Z_PARAM_ARRAY(zpipes)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    zval *elem;
+    int fd = 0;
+
+    if (zpipes)
     {
-        RETURN_FALSE;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zpipes), elem)
+        {
+            if (!ZVAL_IS_NULL(elem))
+            {
+                int new_fd = swoole_convert_to_fd(elem);
+                if (new_fd >= 0)
+                {
+                    if (dup2(new_fd, fd) < 0)
+                    {
+                        swSysWarn("dup2(%d, %d) failed", new_fd, fd);
+                    }
+                }
+            }
+            if (fd++ == 2)
+            {
+                break;
+            }
+        }
+        ZEND_HASH_FOREACH_END();
     }
+
     RETURN_BOOL(daemon(nochdir, noclose) == 0);
 }
 
@@ -1163,6 +1185,27 @@ static PHP_METHOD(swoole_process, close)
     RETURN_TRUE;
 }
 
+static PHP_METHOD(swoole_process, set)
+{
+    zval *zset = NULL;
+    HashTable *vht = NULL;
+    zval *ztmp;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY(zset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    vht = Z_ARRVAL_P(zset);
+
+    swWorker *process = (swWorker *) swoole_get_object(ZEND_THIS);
+    zend::process *proc = (zend::process *) process->ptr2;
+
+    if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp))
+    {
+        proc->enable_coroutine = zval_is_true(ztmp);
+    }
+}
+
 static PHP_METHOD(swoole_process, setTimeout)
 {
     double seconds;
@@ -1202,9 +1245,9 @@ static PHP_METHOD(swoole_process, setBlocking)
     {
         swSocket_set_nonblock(process->pipe);
     }
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
-        swConnection *_socket = swReactor_get(SwooleG.main_reactor, process->pipe);
+        swSocket *_socket = swReactor_get(SwooleTG.reactor, process->pipe);
         if (_socket)
         {
             _socket->nonblock = blocking ? 0 : 1;

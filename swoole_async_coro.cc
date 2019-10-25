@@ -22,35 +22,14 @@
 #include "ext/standard/basic_functions.h"
 
 #include <string>
+#include <vector>
 #include <unordered_map>
 
 using swoole::PHPCoroutine;
+using swoole::Coroutine;
 using swoole::coroutine::Socket;
-
-typedef struct
-{
-    zval _callback;
-    zval _filename;
-    zval *callback;
-    zval *filename;
-    uint32_t *refcount;
-    off_t offset;
-    uint16_t type;
-    uint8_t once;
-    char *content;
-    uint32_t length;
-} file_request;
-
-typedef struct
-{
-    zval _callback;
-    zval _domain;
-    zval *callback;
-    zval *domain;
-    php_coro_context *context;
-    uint8_t useless;
-    swTimer_node *timer;
-} dns_request;
+using std::string;
+using std::vector;
 
 typedef struct
 {
@@ -66,16 +45,11 @@ typedef struct
     swString *buffer;
 } process_stream;
 
-static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void *data);
-static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode);
-
 static std::unordered_map<std::string, dns_cache*> request_cache_map;
 
 void php_swoole_async_coro_minit(int module_number)
 {
-    bzero(&SwooleAIO, sizeof(SwooleAIO));
-    SwooleAIO.min_thread_count = SW_AIO_THREAD_MIN_NUM;
-    SwooleAIO.max_thread_count = SW_AIO_THREAD_MAX_NUM;
+
 }
 
 void php_swoole_async_coro_rshutdown()
@@ -86,114 +60,9 @@ void php_swoole_async_coro_rshutdown()
     }
 }
 
-static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void *data)
-{
-    dns_request *req = (dns_request *) data;
-    zval *retval = NULL;
-
-    zval zaddress;
-    char *address;
-    if (result->num > 0)
-    {
-        if (SwooleG.dns_lookup_random)
-        {
-            address = result->hosts[rand() % result->num].address;
-        }
-        else
-        {
-            address = result->hosts[0].address;
-        }
-
-        ZVAL_STRING(&zaddress, address);
-    }
-    else
-    {
-        ZVAL_EMPTY_STRING(&zaddress);
-    }
-
-    std::string key(Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain));
-    dns_cache *cache;
-    auto cache_iterator = request_cache_map.find(key);
-    if (cache_iterator == request_cache_map.end())
-    {
-        cache = (dns_cache *) emalloc(sizeof(dns_cache));
-        bzero(cache, sizeof(dns_cache));
-        request_cache_map[key] = cache;
-    }
-    else
-    {
-        cache = cache_iterator->second;
-    }
-
-    memcpy(cache->address, Z_STRVAL(zaddress), Z_STRLEN(zaddress));
-    cache->address[Z_STRLEN(zaddress)] = '\0';
-
-    cache->update_time = swTimer_get_absolute_msec() + (int64_t) (SwooleG.dns_cache_refresh_time * 1000);
-
-    //timeout
-    if (req->timer)
-    {
-        swTimer_del(&SwooleG.timer, req->timer);
-        req->timer = NULL;
-    }
-    if (req->useless)
-    {
-        efree(req);
-        return;
-    }
-
-    int ret = PHPCoroutine::resume_m(req->context, &zaddress, retval);
-    if (ret > 0)
-    {
-        goto _free_zdata;
-    }
-
-    if (retval)
-    {
-        zval_ptr_dtor(retval);
-    }
-    _free_zdata:
-    zval_ptr_dtor(&zaddress);
-    efree(req->context);
-    efree(req);
-}
-
-static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
-{
-    zval *retval = NULL;
-    zval zaddress;
-    php_coro_context *cxt = (php_coro_context *) tnode->data;
-    dns_request *req = (dns_request *) cxt->coro_params.value.ptr;
-
-    dns_cache *cache = request_cache_map[std::string(Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain))];
-    if (cache != NULL && cache->update_time > swTimer_get_absolute_msec())
-    {
-        ZVAL_STRING(&zaddress, cache->address);
-    }
-    else
-    {
-        ZVAL_EMPTY_STRING(&zaddress);
-    }
-
-    int ret = PHPCoroutine::resume_m(req->context, &zaddress, retval);
-    if (ret > 0)
-    {
-        goto _free_zdata;
-    }
-
-    if (retval)
-    {
-        zval_ptr_dtor(retval);
-    }
-    _free_zdata:
-    zval_ptr_dtor(&zaddress);
-    efree(req->context);
-    req->useless = 1;
-}
-
 PHP_FUNCTION(swoole_async_set)
 {
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
         php_swoole_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings");
         RETURN_FALSE;
@@ -231,11 +100,15 @@ PHP_FUNCTION(swoole_async_set)
     }
     if (php_swoole_array_get_value(vht, "thread_num", ztmp) || php_swoole_array_get_value(vht, "min_thread_num", ztmp))
     {
-        SwooleAIO.max_thread_count = SwooleAIO.min_thread_count = zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
+        SwooleG.aio_core_worker_num = v;
     }
     if (php_swoole_array_get_value(vht, "max_thread_num", ztmp))
     {
-        SwooleAIO.max_thread_count = zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
+        SwooleG.aio_worker_num= v;
     }
     if (php_swoole_array_get_value(vht, "display_errors", ztmp))
     {
@@ -279,6 +152,8 @@ PHP_FUNCTION(swoole_async_set)
 
 PHP_FUNCTION(swoole_async_dns_lookup_coro)
 {
+    Coroutine::get_current_safe();
+
     zval *domain;
     double timeout = Socket::default_connect_timeout;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|d", &domain, &timeout) == FAILURE)
@@ -311,27 +186,36 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
         }
     }
 
-    dns_request *req = (dns_request *) emalloc(sizeof(dns_request));
-    req->domain = domain;
-    sw_copy_to_stack(req->domain, req->_domain);
-    req->useless = 0;
-
-    php_coro_context *context = (php_coro_context *) emalloc(sizeof(php_coro_context));
-    context->state = SW_CORO_CONTEXT_RUNNING;
-    context->coro_params.value.ptr = (void *) req;
-    req->context = context;
-
     php_swoole_check_reactor();
-    int ret = swDNSResolver_request(Z_STRVAL_P(domain), coro_onDNSCompleted, (void *) req);
-    if (ret == SW_ERR)
+
+    vector<string> result = swoole::coroutine::dns_lookup(Z_STRVAL_P(domain), timeout);
+    if (result.empty())
     {
-        SW_CHECK_RETURN(ret);
+        SwooleG.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
+        RETURN_FALSE;
     }
-    //add timeout
-    req->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, context, dns_timeout_coro);
-    if (req->timer)
+
+    if (SwooleG.dns_lookup_random)
     {
-        context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
+        RETVAL_STRING(result[rand() % result.size()].c_str());
     }
-    PHPCoroutine::yield_m(return_value, context);
+    else
+    {
+        RETVAL_STRING(result[0].c_str());
+    }
+
+    auto cache_iterator = request_cache_map.find(key);
+    if (cache_iterator == request_cache_map.end())
+    {
+        cache = (dns_cache *) emalloc(sizeof(dns_cache));
+        bzero(cache, sizeof(dns_cache));
+        request_cache_map[key] = cache;
+    }
+    else
+    {
+        cache = cache_iterator->second;
+    }
+    memcpy(cache->address, Z_STRVAL_P(return_value), Z_STRLEN_P(return_value));
+    cache->address[Z_STRLEN_P(return_value)] = '\0';
+    cache->update_time = swTimer_get_absolute_msec() + (int64_t) (SwooleG.dns_cache_refresh_time * 1000);
 }

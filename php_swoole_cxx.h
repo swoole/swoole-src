@@ -19,6 +19,7 @@
 #include "php_swoole.h"
 #include "swoole_cxx.h"
 #include "swoole_coroutine.h"
+#include "swoole_api.h"
 
 #include <string>
 
@@ -37,6 +38,10 @@ SW_API bool php_swoole_socket_set_protocol(swoole::coroutine::Socket *sock, zval
 SW_API bool php_swoole_client_set(swoole::coroutine::Socket *cli, zval *zset);
 
 php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC);
+
+// timer
+SW_API bool php_swoole_timer_clear(swTimer_node *tnode);
+SW_API bool php_swoole_timer_clear_all();
 
 namespace zend {
 //-----------------------------------namespace begin--------------------------------------------
@@ -295,6 +300,44 @@ public:
     }
 };
 
+enum process_pipe_type
+{
+    PIPE_TYPE_NONE = 0,
+    PIPE_TYPE_STREAM = 1,
+    PIPE_TYPE_DGRAM = 2,
+};
+
+class process
+{
+public:
+    php_swoole_fci *func;
+    zend_object *zsocket;
+    enum process_pipe_type pipe_type;
+    bool enable_coroutine;
+
+    process()
+    {
+        func = nullptr;
+        zsocket = nullptr;
+        pipe_type = PIPE_TYPE_NONE;
+        enable_coroutine = false;
+    }
+
+    ~process()
+    {
+        if (func)
+        {
+            sw_zend_fci_cache_discard(&func->fci_cache);
+            efree(func);
+        }
+        if (zsocket)
+        {
+            OBJ_RELEASE(zsocket);
+        }
+    }
+
+};
+
 namespace function
 {
     /* must use this API to call event callbacks to ensure that exceptions are handled correctly */
@@ -325,5 +368,13 @@ namespace function
 
 bool include(std::string file);
 bool eval(std::string code, std::string filename = "");
+
+#if PHP_VERSION_ID < 80000
+#define ZEND_STR_CONST
+#else
+#define ZEND_STR_CONST const
+#endif
+
+zend_op_array* swoole_compile_string(zval *source_string, ZEND_STR_CONST char *filename);
 //-----------------------------------namespace end--------------------------------------------
 }

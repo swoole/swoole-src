@@ -19,7 +19,7 @@
 #ifndef _SW_ASM_CONTEXT_H_
 #define _SW_ASM_CONTEXT_H_
 
-#ifndef SW_NO_USE_ASM_CONTEXT
+#ifdef SW_USE_ASM_CONTEXT
 
 SW_EXTERN_C_BEGIN
 

@@ -20,5 +20,7 @@ co::create(function () {
     }
 });
 
+swoole_event_wait();
+
 ?>
 --EXPECT--

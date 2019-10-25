@@ -171,10 +171,12 @@ static PHP_METHOD(swoole_channel_coro, push)
 
     zval *zdata;
     double timeout = -1;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|d", &zdata, &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 2)
+        Z_PARAM_ZVAL(zdata)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Z_TRY_ADDREF_P(zdata);
     zdata = sw_zval_dup(zdata);
@@ -205,15 +207,17 @@ static PHP_METHOD(swoole_channel_coro, pop)
     }
 
     double timeout = -1;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
+
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    zval *zdata = (zval *) chan->pop(timeout);
+    if (zdata)
     {
-        RETURN_FALSE;
-    }
-    zval *data = (zval *) chan->pop(timeout);
-    if (data)
-    {
-        RETVAL_ZVAL(data, 0, 0);
-        efree(data);
+        RETVAL_ZVAL(zdata, 0, 0);
+        efree(zdata);
     }
     else
     {

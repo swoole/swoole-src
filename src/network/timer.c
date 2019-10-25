@@ -14,9 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
-
-static int swTimer_init(swTimer *timer, long msec);
+#include "swoole_api.h"
 
 int swTimer_now(struct timeval *time)
 {
@@ -47,28 +45,32 @@ static int swReactorTimer_set(swTimer *timer, long exec_msec)
 
 static void swReactorTimer_close(swTimer *timer)
 {
-    if (SwooleG.main_reactor)
-    {
-        SwooleG.main_reactor->check_timer = SW_FALSE;
-        swReactorTimer_set(timer, -1);
-    }
+    timer->reactor->check_timer = SW_FALSE;
+    swReactorTimer_set(timer, -1);
+}
+
+static void swReactorTimer_free(swTimer *timer)
+{
+    swoole_timer_free();
 }
 
 static int swReactorTimer_init(swReactor *reactor, swTimer *timer, long exec_msec)
 {
     reactor->check_timer = SW_TRUE;
     reactor->timeout_msec = exec_msec;
+    reactor->timer = timer;
     timer->reactor = reactor;
     timer->set = swReactorTimer_set;
     timer->close = swReactorTimer_close;
 
-    swReactor_add_destroy_callback(reactor, (swCallback) swTimer_free, timer);
+    swReactor_add_destroy_callback(reactor, (swCallback) swReactorTimer_free, timer);
 
     return SW_OK;
 }
 
-static int swTimer_init(swTimer *timer, long msec)
+int swTimer_init(swTimer *timer, long msec)
 {
+    bzero(timer, sizeof(swTimer));
     if (swTimer_now(&timer->basetime) < 0)
     {
         return SW_ERR;
@@ -91,26 +93,26 @@ static int swTimer_init(swTimer *timer, long msec)
     timer->_current_id = -1;
     timer->_next_msec = msec;
     timer->_next_id = 1;
-    timer->round = 0;
 
     int ret;
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
-        ret = swReactorTimer_init(SwooleG.main_reactor, timer, msec);
+        ret = swReactorTimer_init(SwooleTG.reactor, timer, msec);
     }
     else
     {
         ret = swSystemTimer_init(timer, msec);
     }
-    if (sw_likely(ret == SW_OK))
-    {
-        timer->initialized = 1;
-    }
-    else
+    if (sw_likely(ret != SW_OK))
     {
         swTimer_free(timer);
     }
     return ret;
+}
+
+void swTimer_reinit(swTimer *timer, swReactor *reactor)
+{
+    swReactorTimer_init(reactor, timer, timer->_next_msec);
 }
 
 static void swTimer_node_dtor(void *data)
@@ -139,14 +141,6 @@ void swTimer_free(swTimer *timer)
 
 swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback)
 {
-    if (sw_unlikely(!timer->initialized))
-    {
-        if (sw_unlikely(swTimer_init(timer, _msec) != SW_OK))
-        {
-            return NULL;
-        }
-    }
-
     if (sw_unlikely(_msec <= 0))
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "msec value[%ld] is invalid", _msec);
@@ -238,14 +232,14 @@ enum swBool_type swTimer_del(swTimer *timer, swTimer_node *tnode)
 
 int swTimer_select(swTimer *timer)
 {
-    swTimer_node *tnode = NULL;
-    swHeap_node *tmp;
     int64_t now_msec = swTimer_get_relative_msec();
-
     if (sw_unlikely(now_msec < 0))
     {
         return SW_ERR;
     }
+
+    swTimer_node *tnode = NULL;
+    swHeap_node *tmp;
 
     swTraceLog(SW_TRACE_TIMER, "timer msec=%" PRId64 ", round=%" PRId64, now_msec, timer->round);
     while ((tmp = swHeap_top(timer->heap)))

@@ -7,9 +7,11 @@ swoole_server: force reload
 error_reporting(0);
 require __DIR__ . '/../include/bootstrap.php';
 
+use Swoole\Server;
+
 $atomic = new swoole_atomic(1);
 
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm,$argv) {
     sleep(2);
     $script_name = $argv[0];
@@ -21,14 +23,14 @@ $pm->parentFunc = function ($pid) use ($pm,$argv) {
 $pm->childFunc = function () use ($pm,$atomic) {
     $flag = 0;
     $flag1 = 0;
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort());
+    $serv = new Server('127.0.0.1', $pm->getFreePort());
     $serv->set([
         'log_file' => TEST_LOG_FILE,
         "worker_num" => 2,
         "task_worker_num" => 1,
         "max_wait_time" => 1
     ]);
-    $serv->on("WorkerStart", function (\swoole_server $server, $worker_id) use ($pm, $atomic) {
+    $serv->on("WorkerStart", function (Server $server, $worker_id) use ($pm, $atomic) {
         $pm->wakeup();
         $server->after(50,function() use ($server, $worker_id, $atomic){
             if ($atomic->get() == 1) {

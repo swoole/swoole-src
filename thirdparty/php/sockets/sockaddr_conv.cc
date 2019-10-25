@@ -104,7 +104,7 @@ int php_set_inet_addr(struct sockaddr_in *sin, char *string, Socket *php_sock) /
  * depending on the socket) */
 int php_set_inet46_addr(php_sockaddr_storage *ss, socklen_t *ss_len, char *string, Socket *php_sock) /* {{{ */
 {
-	if (php_sock->sock_type == AF_INET) {
+	if (php_sock->get_sock_type() == AF_INET) {
 		struct sockaddr_in t = {0};
 		if (php_set_inet_addr(&t, string, php_sock)) {
 			memcpy(ss, &t, sizeof t);
@@ -113,7 +113,7 @@ int php_set_inet46_addr(php_sockaddr_storage *ss, socklen_t *ss_len, char *strin
 			return 1;
 		}
 	}
-	else if (php_sock->sock_type == AF_INET6) {
+	else if (php_sock->get_sock_type() == AF_INET6) {
 		struct sockaddr_in6 t = {0};
 		if (php_set_inet6_addr(&t, string, php_sock)) {
 			memcpy(ss, &t, sizeof t);

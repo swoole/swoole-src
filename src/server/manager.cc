@@ -14,31 +14,32 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "server.h"
+
+#include <unordered_map>
+#include <vector>
 
 #include <sys/wait.h>
 #ifdef __linux__
 #include <sys/prctl.h>
 #endif
 
-typedef struct
+struct swManagerProcess
 {
-    uint8_t  reloading;
-    uint8_t  reload_all_worker;
-    uint8_t  reload_task_worker;
-    uint8_t  read_message;
-    uint32_t reload_init;
+    bool reloading;
+    bool reload_all_worker;
+    bool reload_task_worker;
+    bool reload_init;
+    bool read_message;
+    bool force_kill;
     uint32_t reload_worker_i;
     uint32_t reload_worker_num;
     swWorker *reload_workers;
-} swManagerProcess;
 
-typedef struct
-{
-    uint32_t reload_worker_num;
-    swWorker *workers;
-} swReloadWorker;
+    std::vector<pid_t> kill_workers;
+};
+
+typedef std::unordered_map<uint32_t, pid_t> reload_list_t;
 
 static int swManager_loop(swServer *serv);
 static void swManager_signal_handler(int sig);
@@ -58,13 +59,12 @@ static void swManager_onTimer(swTimer *timer, swTimer_node *tnode)
 
 static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode)
 {
-    uint32_t i;
-    swReloadWorker *reload_info = (swReloadWorker *) tnode->data;
-    swWorker *workers = reload_info->workers;
+    reload_list_t *_list = (reload_list_t *) tnode->data;
 
-    for (i = 0; i < reload_info->reload_worker_num; i++)
+    for (auto i = _list->begin(); i!= _list->end(); i++)
     {
-        pid_t pid = workers[i].pid;
+        pid_t pid = i->second;
+        uint32_t worker_id = i->first;
         if (swoole_kill(pid, 0) == -1)
         {
             continue;
@@ -77,13 +77,13 @@ static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode)
         {
             swoole_error_log(
                 SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
-                "[Manager] Worker#%d[pid=%d] exit timeout, forced kill", workers[i].id, pid
+                "[Manager] Worker#%d[pid=%d] exit timeout, forced kill", worker_id, pid
             );
         }
     }
     errno = 0;
-    sw_free(workers);
-    sw_free(reload_info);
+
+    delete(_list);
 }
 
 static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int n)
@@ -95,32 +95,21 @@ static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int 
     /**
      * separate old workers, free memory in the timer
      */
-    swWorker *reload_workers = (swWorker *) sw_malloc(sizeof(swWorker) * n);
-    if (!reload_workers)
+    reload_list_t *_list = new reload_list_t;
+    for (int i = 0; i < n; i++)
     {
-        swWarn("malloc(%ld) failed", sizeof(swWorker) * n);
-        return;
+        _list->emplace(workers[i].id, workers[i].pid);
     }
-    swReloadWorker *reload_info = (swReloadWorker *) sw_malloc(sizeof(swReloadWorker));
-    if (!reload_info)
-    {
-        sw_free(reload_workers);
-        swWarn("malloc(%ld) failed", sizeof(swReloadWorker));
-        return;
-    }
-    memcpy(reload_workers, workers, sizeof(swWorker) * n);
-    reload_info->reload_worker_num = n;
-    reload_info->workers = reload_workers;
     /**
      * Multiply max_wait_time by 2 to prevent conflict with worker
      */
-    swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 2 * 1000), 0, reload_info, swManager_kill_timeout_process);
+    swoole_timer_after((long) (serv->max_wait_time * 2 * 1000), swManager_kill_timeout_process, _list);
 }
 
 //create worker child proccess
 int swManager_start(swServer *serv)
 {
-    int i;
+    uint32_t i;
     pid_t pid;
 
     if (serv->task_worker_num > 0)
@@ -262,27 +251,15 @@ static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid
 
 static int swManager_loop(swServer *serv)
 {
-    int pid, new_pid;
-    int i;
+    uint32_t i;
+    pid_t pid, new_pid;
     pid_t reload_worker_pid = 0;
 
     int status;
 
     SwooleG.use_signalfd = 0;
-    SwooleG.main_reactor = NULL;
+    SwooleTG.reactor = NULL;
     SwooleG.enable_coroutine = 0;
-
-    memset(&ManagerProcess, 0, sizeof(ManagerProcess));
-
-    if (serv->hooks[SW_SERVER_HOOK_MANAGER_START])
-    {
-        swServer_call_hook(serv, SW_SERVER_HOOK_MANAGER_START, serv);
-    }
-
-    if (serv->onManagerStart)
-    {
-        serv->onManagerStart(serv);
-    }
 
     ManagerProcess.reload_workers = (swWorker *) sw_calloc(serv->worker_num + serv->task_worker_num, sizeof(swWorker));
     if (ManagerProcess.reload_workers == NULL)
@@ -297,6 +274,7 @@ static int swManager_loop(swServer *serv)
     swSignal_add(SIGUSR1, swManager_signal_handler);
     swSignal_add(SIGUSR2, swManager_signal_handler);
     swSignal_add(SIGIO, swManager_signal_handler);
+    swSignal_add(SIGALRM, swManager_signal_handler);
 #ifdef SIGRTMIN
     swSignal_add(SIGRTMIN, swManager_signal_handler);
 #endif
@@ -305,14 +283,23 @@ static int swManager_loop(swServer *serv)
     prctl(PR_SET_PDEATHSIG, SIGTERM);
 #endif
 
+    if (serv->hooks[SW_SERVER_HOOK_MANAGER_START])
+    {
+        swServer_call_hook(serv, SW_SERVER_HOOK_MANAGER_START, serv);
+    }
+
+    if (serv->onManagerStart)
+    {
+        serv->onManagerStart(serv);
+    }
+
     if (serv->manager_alarm > 0)
     {
-        swTimer_add(&SwooleG.timer, (long) (serv->manager_alarm * 1000), 1, serv, swManager_onTimer);
+        swoole_timer_add((long) (serv->manager_alarm * 1000), SW_TRUE, swManager_onTimer, serv);
     }
 
     while (SwooleG.running > 0)
     {
-        _wait:
         pid = wait(&status);
 
         if (ManagerProcess.read_message)
@@ -337,18 +324,18 @@ static int swManager_loop(swServer *serv)
                     }
                 }
             }
-            ManagerProcess.read_message = 0;
+            ManagerProcess.read_message = false;
         }
 
-        if (SwooleG.signal_alarm == 1)
+        if (SwooleWG.signal_alarm && SwooleTG.timer)
         {
-            SwooleG.signal_alarm = 0;
-            swTimer_select(&SwooleG.timer);
+            SwooleWG.signal_alarm = 0;
+            swTimer_select(SwooleTG.timer);
         }
 
         if (pid < 0)
         {
-            if (ManagerProcess.reloading == 0)
+            if (!ManagerProcess.reloading)
             {
                 _error:
                 if (errno > 0 && errno != EINTR)
@@ -358,12 +345,12 @@ static int swManager_loop(swServer *serv)
                 continue;
             }
             //reload task & event workers
-            else if (ManagerProcess.reload_all_worker == 1)
+            else if (ManagerProcess.reload_all_worker)
             {
                 swInfo("Server is reloading all workers now");
-                if (ManagerProcess.reload_init == 0)
+                if (!ManagerProcess.reload_init)
                 {
-                    ManagerProcess.reload_init = 1;
+                    ManagerProcess.reload_init = true;
                     memcpy(ManagerProcess.reload_workers, serv->workers, sizeof(swWorker) * serv->worker_num);
 
                     swManager_add_timeout_killer(serv, serv->workers, serv->worker_num);
@@ -378,7 +365,7 @@ static int swManager_loop(swServer *serv)
                         swManager_add_timeout_killer(serv, serv->gs->task_workers.workers, serv->task_worker_num);
                     }
 
-                    ManagerProcess.reload_all_worker = 0;
+                    ManagerProcess.reload_all_worker = false;
                     if (serv->reload_async)
                     {
                         for (i = 0; i < serv->worker_num; i++)
@@ -398,7 +385,7 @@ static int swManager_loop(swServer *serv)
                 goto _kill_worker;
             }
             //only reload task workers
-            else if (ManagerProcess.reload_task_worker == 1)
+            else if (ManagerProcess.reload_task_worker)
             {
                 if (serv->task_worker_num == 0)
                 {
@@ -406,14 +393,14 @@ static int swManager_loop(swServer *serv)
                     continue;
                 }
                 swInfo("Server is reloading task workers now");
-                if (ManagerProcess.reload_init == 0)
+                if (!ManagerProcess.reload_init)
                 {
                     memcpy(ManagerProcess.reload_workers, serv->gs->task_workers.workers, sizeof(swWorker) * serv->task_worker_num);
                     swManager_add_timeout_killer(serv, serv->gs->task_workers.workers, serv->task_worker_num);
                     ManagerProcess.reload_worker_num = serv->task_worker_num;
                     ManagerProcess.reload_worker_i = 0;
-                    ManagerProcess.reload_init = 1;
-                    ManagerProcess.reload_task_worker = 0;
+                    ManagerProcess.reload_init = true;
+                    ManagerProcess.reload_task_worker = false;
                 }
                 goto _kill_worker;
             }
@@ -433,14 +420,7 @@ static int swManager_loop(swServer *serv)
                     continue;
                 }
 
-                if (WIFSTOPPED(status) && serv->workers[i].tracer)
-                {
-                    serv->workers[i].tracer(&serv->workers[i]);
-                    serv->workers[i].tracer = NULL;
-                    goto _wait;
-                }
-
-                //Check the process return code and signal
+                //check the process return code and signal
                 swManager_check_exit_status(serv, i, pid, status);
 
                 while (1)
@@ -466,12 +446,6 @@ static int swManager_loop(swServer *serv)
                 exit_worker = (swWorker *) swHashMap_find_int(serv->gs->task_workers.map, pid);
                 if (exit_worker != NULL)
                 {
-                    if (WIFSTOPPED(status) && exit_worker->tracer)
-                    {
-                        exit_worker->tracer(exit_worker);
-                        exit_worker->tracer = NULL;
-                        goto _wait;
-                    }
                     swManager_check_exit_status(serv, exit_worker->id, pid, status);
                     swManager_spawn_task_worker(serv, exit_worker);
                 }
@@ -481,19 +455,20 @@ static int swManager_loop(swServer *serv)
             {
                 swManager_wait_other_worker(&serv->gs->event_workers, pid, status);
             }
-            if (pid == reload_worker_pid && ManagerProcess.reloading == 1)
+            if (pid == reload_worker_pid && ManagerProcess.reloading)
             {
                 ManagerProcess.reload_worker_i++;
             }
         }
         //reload worker
         _kill_worker:
-        if (ManagerProcess.reloading == 1)
+        if (ManagerProcess.reloading)
         {
             //reload finish
             if (ManagerProcess.reload_worker_i >= ManagerProcess.reload_worker_num)
             {
-                reload_worker_pid = ManagerProcess.reload_worker_i = ManagerProcess.reload_init = ManagerProcess.reloading = 0;
+                reload_worker_pid = ManagerProcess.reload_worker_i = 0;
+                ManagerProcess.reload_init = ManagerProcess.reloading = false;
                 continue;
             }
             reload_worker_pid = ManagerProcess.reload_workers[ManagerProcess.reload_worker_i].pid;
@@ -510,19 +485,52 @@ static int swManager_loop(swServer *serv)
     }
 
     sw_free(ManagerProcess.reload_workers);
-    swSignal_none();
+
+    if (SwooleTG.timer)
+    {
+        swoole_timer_free();
+    }
+    //wait child process
+    if (serv->max_wait_time)
+    {
+        ManagerProcess.force_kill = true;
+        for (i = 0; i < serv->worker_num; i++)
+        {
+            ManagerProcess.kill_workers.push_back(serv->workers[i].pid);
+        }
+        if (serv->task_worker_num > 0)
+        {
+            for (i = 0; i < serv->gs->task_workers.worker_num; i++)
+            {
+                ManagerProcess.kill_workers.push_back(serv->gs->task_workers.workers[i].pid);
+            }
+        }
+        if (serv->user_worker_map)
+        {
+            swHashMap_rewind(serv->user_worker_map);
+            uint64_t key;
+            while (1)
+            {
+                swWorker* user_worker = (swWorker *) swHashMap_each_int(serv->user_worker_map, &key);
+                //hashmap empty
+                if (user_worker == NULL)
+                {
+                    break;
+                }
+                ManagerProcess.kill_workers.push_back(user_worker->pid);
+            }
+        }
+        /**
+         * Multiply max_wait_time by 2 to prevent conflict with worker
+         */
+        alarm(serv->max_wait_time * 2);
+    }
     //kill all child process
     for (i = 0; i < serv->worker_num; i++)
     {
         swTrace("[Manager]kill worker processor");
         swoole_kill(serv->workers[i].pid, SIGTERM);
     }
-    //kill and wait task process
-    if (serv->task_worker_num > 0)
-    {
-        swProcessPool_shutdown(&serv->gs->task_workers);
-    }
-    //wait child process
     for (i = 0; i < serv->worker_num; i++)
     {
         if (swoole_waitpid(serv->workers[i].pid, &status, 0) < 0)
@@ -530,12 +538,21 @@ static int swManager_loop(swServer *serv)
             swSysWarn("waitpid(%d) failed", serv->workers[i].pid);
         }
     }
+    //kill and wait task process
+    if (serv->task_worker_num > 0)
+    {
+        swProcessPool_shutdown(&serv->gs->task_workers);
+    }
     //kill all user process
     if (serv->user_worker_map)
     {
         swManager_kill_user_worker(serv);
     }
-
+    //force kill
+    if (serv->max_wait_time)
+    {
+        alarm(0);
+    }
     if (serv->onManagerStop)
     {
         serv->onManagerStop(serv);
@@ -581,27 +598,35 @@ static void swManager_signal_handler(int sig)
          * reload all workers
          */
     case SIGUSR1:
-        if (ManagerProcess.reloading == 0)
+        if (!ManagerProcess.reloading)
         {
-            ManagerProcess.reloading = 1;
-            ManagerProcess.reload_all_worker = 1;
+            ManagerProcess.reloading = true;
+            ManagerProcess.reload_all_worker = true;
         }
         break;
         /**
          * only reload task workers
          */
     case SIGUSR2:
-        if (ManagerProcess.reloading == 0)
+        if (!ManagerProcess.reloading)
         {
-            ManagerProcess.reloading = 1;
-            ManagerProcess.reload_task_worker = 1;
+            ManagerProcess.reloading = true;
+            ManagerProcess.reload_task_worker = true;
         }
         break;
     case SIGIO:
-        ManagerProcess.read_message = 1;
+        ManagerProcess.read_message = true;
         break;
     case SIGALRM:
-        SwooleG.signal_alarm = 1;
+        SwooleWG.signal_alarm = 1;
+        if (ManagerProcess.force_kill)
+        {
+            alarm(0);
+            for (auto i = ManagerProcess.kill_workers.begin(); i != ManagerProcess.kill_workers.end(); i++)
+            {
+                kill(*i, SIGKILL);
+            }
+        }
         break;
     default:
 #ifdef SIGRTMIN

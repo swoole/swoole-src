@@ -38,6 +38,8 @@ enum swHttp_method
     SW_HTTP_REPORT, SW_HTTP_MKACTIVITY, SW_HTTP_CHECKOUT, SW_HTTP_MERGE,
     /* upnp */
     SW_HTTP_MSEARCH, SW_HTTP_NOTIFY, SW_HTTP_SUBSCRIBE, SW_HTTP_UNSUBSCRIBE,
+    /* proxy */
+    SW_HTTP_PURGE,
     /* Http2 */
     SW_HTTP_PRI,
 };
@@ -130,9 +132,9 @@ int swHttpRequest_has_expect_header(swHttpRequest *request);
 #endif
 
 #ifdef SW_USE_HTTP2
-ssize_t swHttpMix_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
-uint8_t swHttpMix_get_package_length_size(swConnection *conn);
-int swHttpMix_dispatch_frame(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *conn, char *data, uint32_t length);
+uint8_t swHttpMix_get_package_length_size(swSocket *conn);
+int swHttpMix_dispatch_frame(swProtocol *protocol, swSocket *conn, char *data, uint32_t length);
 #endif
 
 SW_EXTERN_C_END

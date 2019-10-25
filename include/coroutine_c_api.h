@@ -35,6 +35,8 @@ extern "C"
  */
 uint8_t swoole_coroutine_is_in();
 long swoole_coroutine_get_current_id();
+void swoole_coroutine_sleep(int sec);
+void swoole_coroutine_usleep(int usec);
 /**
  * file
  */
@@ -63,11 +65,14 @@ ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags);
 int swoole_coroutine_close(int fd);
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout);
+int swoole_coroutine_socket_set_timeout(int fd, int which, double timeout);
+int swoole_coroutine_socket_wait_event(int fd, int event, double timeout);
 
 /**
  * wait
  */
 void swoole_coroutine_signal_init();
+size_t swoole_coroutine_wait_count();
 pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options);
 pid_t swoole_coroutine_wait(int *__stat_loc);
 

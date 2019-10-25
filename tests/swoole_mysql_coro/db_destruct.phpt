@@ -5,7 +5,7 @@ swoole_mysql_coro: mysql db destruct
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-go(function () {
+Co\Run(function () {
     $db = new Co\MySQL();
     $server = [
         'host' => MYSQL_SERVER_HOST,

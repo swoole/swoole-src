@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "server.h"
 #include "client.h"
 
@@ -29,10 +28,9 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker);
 
 static void swProcessPool_free(swProcessPool *pool);
 
-
-static void swProcessPool_killTimeout(swTimer *timer, swTimer_node *tnode)
+static void swProcessPool_kill_timeout_worker(swTimer *timer, swTimer_node *tnode)
 {
-    int i;
+    uint32_t i;
     pid_t reload_worker_pid = 0;
     swProcessPool *pool = (swProcessPool *)tnode->data;
     pool->reloading = 0;
@@ -63,14 +61,13 @@ static void swProcessPool_killTimeout(swTimer *timer, swTimer_node *tnode)
 /**
  * Process manager
  */
-int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int ipc_mode)
+int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueue_key, int ipc_mode)
 {
     bzero(pool, sizeof(swProcessPool));
 
     int i;
 
     pool->worker_num = worker_num;
-    pool->max_request = max_request;
 
     /**
      * Shared memory is used here
@@ -209,7 +206,7 @@ int swProcessPool_start(swProcessPool *pool)
         return SW_ERR;
     }
 
-    int i;
+    uint32_t i;
     pool->started = 1;
 
     for (i = 0; i < pool->worker_num; i++)
@@ -237,7 +234,7 @@ static sw_inline int swProcessPool_schedule(swProcessPool *pool)
         return 0;
     }
 
-    int i, target_worker_id = 0;
+    uint32_t i, target_worker_id = 0;
 
     for (i = 0; i < pool->worker_num + 1; i++)
     {
@@ -357,7 +354,8 @@ int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int 
 
 void swProcessPool_shutdown(swProcessPool *pool)
 {
-    int i, status;
+    uint32_t i;
+    int status;
     swWorker *worker;
     SwooleG.running = 0;
 
@@ -444,16 +442,18 @@ int swProcessPool_get_max_request(swProcessPool *pool)
     else
     {
         task_n = pool->max_request;
-        if (pool->max_request > 10)
+        if (pool->max_request_grace > 0)
         {
-            int n = swoole_system_random(1, pool->max_request / 2);
-            if (n > 0)
-            {
-                task_n += n;
-            }
+            task_n += swoole_system_random(1, pool->max_request_grace);
         }
     }
     return task_n;
+}
+
+void swProcessPool_set_max_request(swProcessPool *pool, uint32_t max_request, uint32_t max_request_grace)
+{
+    pool->max_request = max_request;
+    pool->max_request_grace = max_request_grace;
 }
 
 static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
@@ -538,11 +538,11 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
          */
         if (n < 0)
         {
-            if (errno == EINTR && SwooleG.signal_alarm)
+            if (errno == EINTR && SwooleWG.signal_alarm && SwooleTG.timer)
             {
                 _alarm_handler:
-                SwooleG.signal_alarm = 0;
-                swTimer_select(&SwooleG.timer);
+                SwooleWG.signal_alarm = 0;
+                swTimer_select(SwooleTG.timer);
             }
             continue;
         }
@@ -551,11 +551,8 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
          * do task
          */
         worker->status = SW_WORKER_BUSY;
-        worker->request_time = time(NULL);
         ret = pool->onTask(pool, &out.buf);
         worker->status = SW_WORKER_IDLE;
-        worker->request_time = 0;
-        worker->traced = 0;
 
         if (pool->use_socket && pool->stream->last_connection > 0)
         {
@@ -568,7 +565,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         /**
          * timer
          */
-        if (SwooleG.signal_alarm)
+        if (SwooleWG.signal_alarm)
         {
             goto _alarm_handler;
         }
@@ -688,11 +685,11 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
          */
         if (n < 0)
         {
-            if (errno == EINTR && SwooleG.signal_alarm)
+            if (errno == EINTR && SwooleWG.signal_alarm && SwooleTG.timer)
             {
                 _alarm_handler:
-                SwooleG.signal_alarm = 0;
-                swTimer_select(&SwooleG.timer);
+                SwooleWG.signal_alarm = 0;
+                swTimer_select(SwooleTG.timer);
             }
             continue;
         }
@@ -716,7 +713,7 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
         /**
          * timer
          */
-        if (SwooleG.signal_alarm)
+        if (SwooleWG.signal_alarm)
         {
             goto _alarm_handler;
         }
@@ -736,7 +733,6 @@ int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker)
 int swProcessPool_wait(swProcessPool *pool)
 {
     int pid, new_pid;
-//    int reload_worker_i = 0;
     pid_t reload_worker_pid = 0;
     int ret;
     int status;
@@ -751,10 +747,10 @@ int swProcessPool_wait(swProcessPool *pool)
     while (SwooleG.running)
     {
         pid = wait(&status);
-        if (SwooleG.signal_alarm == 1)
+        if (SwooleWG.signal_alarm && SwooleTG.timer)
         {
-            SwooleG.signal_alarm = 0;
-            swTimer_select(&SwooleG.timer);
+            SwooleWG.signal_alarm = 0;
+            swTimer_select(SwooleTG.timer);
         }
         if (pid < 0)
         {
@@ -779,7 +775,7 @@ int swProcessPool_wait(swProcessPool *pool)
                     memcpy(pool->reload_workers, pool->workers, sizeof(swWorker) * pool->worker_num);
                     if (pool->max_wait_time)
                     {
-                        swTimer_add(&SwooleG.timer, (long) (pool->max_wait_time * 1000), 0, pool, swProcessPool_killTimeout);
+                        swoole_timer_add((long) (pool->max_wait_time * 1000), SW_FALSE, swProcessPool_kill_timeout_worker, pool);
                     }
                 }
                 goto _kill_worker;
@@ -847,12 +843,13 @@ int swProcessPool_wait(swProcessPool *pool)
         }
     }
     sw_free(pool->reload_workers);
+    pool->reload_workers = NULL;
     return SW_OK;
 }
 
 static void swProcessPool_free(swProcessPool *pool)
 {
-    int i;
+    uint32_t i;
     swPipe *_pipe;
 
     if (pool->pipes)
@@ -886,6 +883,11 @@ static void swProcessPool_free(swProcessPool *pool)
             swString_free(pool->stream->response_buffer);
         }
         sw_free(pool->stream);
+    }
+
+    if (pool->packet_buffer)
+    {
+        sw_free(pool->packet_buffer);
     }
 
     if (pool->map)

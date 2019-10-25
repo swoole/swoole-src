@@ -5,12 +5,6 @@ define('LIB_DIR', SRC_DIR . '/library');
 define('LIB_H', SRC_DIR . '/php_swoole_library.h');
 define('PHP_TAG', '<?php');
 
-if (!defined('SWOOLE_LIBRARY')) {
-    require LIB_DIR . '/functions.php';
-    require LIB_DIR . '/core/ArrayObject.php';
-    require LIB_DIR . '/core/StringObject.php';
-}
-
 require __DIR__ . '/functions.php';
 
 $list = require LIB_DIR . '/config.inc';

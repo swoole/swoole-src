@@ -97,8 +97,10 @@ int my_onReceive(swServer *serv, swEventData *req)
 
     swConnection *conn = swWorker_get_connection(serv, req->info.fd);
     swoole_rtrim(req->data, req->info.len);
-    printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count, swConnection_get_ip(conn),
-            swConnection_get_port(conn), req->data, req->info.len);
+    printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count, 
+            swConnection_get_ip(conn->socket_type, &conn->info),
+            swConnection_get_port(conn->socket_type, &conn->info),
+            req->data, req->info.len);
 
     int n = snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s\n", req->info.len, req->data);
     ret = serv->send(serv, req->info.fd, resp_data, n);
@@ -125,26 +127,23 @@ int my_onPacket(swServer *serv, swEventData *req)
     int port = 0;
     int ret;
 
-    //udp ipv4
-    if (req->info.type == SW_EVENT_UDP)
+    if (packet->socket_type == SW_SOCK_UDP)
     {
-        inet_ntop(AF_INET6, &packet->info.addr.inet_v4.sin_addr, address, sizeof(address));
+        inet_ntop(AF_INET6, &packet->socket_addr.addr.inet_v4.sin_addr, address, sizeof(address));
         data = packet->data;
         length = packet->length;
-        port = ntohs(packet->info.addr.inet_v4.sin_port);
+        port = ntohs(packet->socket_addr.addr.inet_v4.sin_port);
     }
-    //udp ipv6
-    else if (req->info.type == SW_EVENT_UDP6)
+    else if (packet->socket_type == SW_SOCK_UDP6)
     {
-        inet_ntop(AF_INET6, &packet->info.addr.inet_v6.sin6_addr, address, sizeof(address));
+        inet_ntop(AF_INET6, &packet->socket_addr.addr.inet_v6.sin6_addr, address, sizeof(address));
         data = packet->data;
         length = packet->length;
-        port = ntohs(packet->info.addr.inet_v6.sin6_port);
+        port = ntohs(packet->socket_addr.addr.inet_v6.sin6_port);
     }
-    //unix dgram
-    else if (req->info.type == SW_EVENT_UNIX_DGRAM)
+    else if (packet->socket_type == SW_SOCK_UNIX_DGRAM)
     {
-        strcpy(address, packet->info.addr.un.sun_path);
+        strcpy(address, packet->socket_addr.addr.un.sun_path);
         data = packet->data;
         length = packet->length;
     }
@@ -154,18 +153,15 @@ int my_onPacket(swServer *serv, swEventData *req)
     char resp_data[SW_IPC_BUFFER_SIZE];
     int n = snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s", length, data);
 
-    //udp ipv4
-    if (req->info.type == SW_EVENT_UDP)
+    if (packet->socket_type == SW_SOCK_UDP)
     {
         ret = swSocket_udp_sendto(serv_sock, address, port, resp_data, n);
     }
-    //udp ipv6
-    else if (req->info.type == SW_EVENT_UDP6)
+    else if (packet->socket_type == SW_SOCK_UDP6)
     {
         ret = swSocket_udp_sendto6(serv_sock, address, port, resp_data, n);
     }
-    //unix dgram
-    else if (req->info.type == SW_EVENT_UNIX_DGRAM)
+    else if (packet->socket_type == SW_SOCK_UNIX_DGRAM)
     {
         ret = swSocket_unix_sendto(serv_sock, address, resp_data, n);
     }

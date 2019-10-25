@@ -7,8 +7,10 @@ swoole_server: force reload in base mode
 error_reporting(0);
 require __DIR__ . '/../include/bootstrap.php';
 
+use Swoole\Server;
+
 $atomic = new swoole_atomic(1);
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     sleep(2);
     $pm->kill();
@@ -17,12 +19,12 @@ $pm->parentFunc = function ($pid) use ($pm) {
 $pm->childFunc = function () use ($pm,$atomic) {
     $flag = 0;
     $flag1 = 0;
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set([
         "worker_num" => 2,
         "max_wait_time" => 1
     ]);
-    $serv->on("WorkerStart", function (\swoole_server $server, $worker_id) use ($pm, $atomic) {
+    $serv->on("WorkerStart", function (Server $server, $worker_id) use ($pm, $atomic) {
         $pm->wakeup();        
         echo "$worker_id [".$server->worker_pid."] start \n";
         if ($worker_id == 0 and $atomic->get() == 1) {
@@ -50,8 +52,8 @@ $pm->run();
 %s
 1 [%s] start to reload
 [%s]	INFO	reload workers
-[%s]	WARNING	swProcessPool_killTimeout: swKill(%d, SIGKILL) [%d]
-[%s]	WARNING	swProcessPool_killTimeout: swKill(%d, SIGKILL) [%d]
+[%s]	WARNING	swProcessPool_kill_timeout_worker: swKill(%d, SIGKILL) [%d]
+[%s]	WARNING	swProcessPool_kill_timeout_worker: swKill(%d, SIGKILL) [%d]
 [%s]	WARNING	swProcessPool_wait: worker#%d abnormal exit, status=0, signal=9
 [%s]	WARNING	swProcessPool_wait: worker#%d abnormal exit, status=0, signal=9
 %s

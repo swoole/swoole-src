@@ -26,8 +26,8 @@ class System
 {
 public:
     static int sleep(double sec);
-    static swString* read_file(const char *file, int lock);
-    static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
+    static swString* read_file(const char *file, bool lock = false);
+    static ssize_t write_file(const char *file, char *buf, size_t length, bool lock = 0, int flags = 0);
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
     static std::vector<std::string> getaddrinfo(
         const std::string &hostname, int family = AF_INET, int socktype = SOCK_STREAM, int protocol = IPPROTO_TCP,
@@ -37,6 +37,7 @@ public:
     static void set_dns_cache_capacity(size_t capacity);
     static void clear_dns_cache();
     static bool socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout);
+    static void init_reactor(swReactor *reactor);
 };
 //-------------------------------------------------------------------------------
 }}

@@ -15,14 +15,9 @@
 */
 
 #include "swoole.h"
-
-#ifndef SW_NO_USE_ASM_CONTEXT
-
 #include "context.h"
 
-#ifdef USE_VALGRIND
-#include <valgrind/valgrind.h>
-#endif
+#if USE_ASM_CONTEXT
 
 using namespace swoole;
 

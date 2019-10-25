@@ -9,7 +9,7 @@ require __DIR__ . '/../include/bootstrap.php';
 const N = 64;
 const M = 512;
 
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
 {
     $pm->kill();

@@ -2,7 +2,7 @@
 <?php
 require __DIR__ . '/functions.php';
 
-$swoole_c = __DIR__ . '/../swoole.c';
+$swoole_c = __DIR__ . '/../swoole.cc';
 $swoole_c_content = file_get_contents($swoole_c);
 $error_h = __DIR__ . '/../include/error.h';
 $error_h_content = file_get_contents($error_h);
@@ -43,7 +43,7 @@ foreach ($matches[0] as $match) {
         'dnslookup ' => 'DNS Lookup '
     ];
     $sw_error_str = str_replace(array_keys($replaces), array_values($replaces), $sw_error_str);
-    $sw_error_str{0} = strtoupper($sw_error_str{0});
+    $sw_error_str[0]= strtoupper($sw_error_str[0]);
     $swstrerror_output .= space(4) . "case {$match}:\n" . space(8) . "return \"{$sw_error_str}\";\n";
 }
 $swstrerror_output .= <<<CPP

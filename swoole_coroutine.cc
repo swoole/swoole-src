@@ -93,6 +93,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_gethostbyname, 0, 0, 1)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_dnsLookup, 0, 0, 1)
+    ZEND_ARG_INFO(0, domain_name)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_defer, 0, 0, 1)
     ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
@@ -195,8 +200,9 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     /**
      * Coroutine System API
      */
-    ZEND_FENTRY(exec, ZEND_FN(swoole_coroutine_exec), arginfo_swoole_coroutine_exec, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(gethostbyname, ZEND_FN(swoole_coroutine_gethostbyname), arginfo_swoole_coroutine_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(dnsLookup, ZEND_FN(swoole_async_dns_lookup_coro), arginfo_swoole_coroutine_dnsLookup, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, exec, arginfo_swoole_coroutine_exec, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, sleep, arginfo_swoole_coroutine_sleep, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, fread, arginfo_swoole_coroutine_fread, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, fgets, arginfo_swoole_coroutine_fgets, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -293,7 +299,7 @@ static void coro_interrupt_function(zend_execute_data *execute_data)
     php_coro_task *task = PHPCoroutine::get_task();
     if (task && task->co && PHPCoroutine::is_schedulable(task))
     {
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, coro_interrupt_resume, (void *) task->co);
+        swoole_event_defer(coro_interrupt_resume, (void *) task->co);
         task->co->yield();
     }
     if (orig_interrupt_function)
@@ -370,7 +376,7 @@ inline void PHPCoroutine::activate()
     /**
      * deactivate when reactor free.
      */
-    swReactor_add_destroy_callback(SwooleG.main_reactor, deactivate, nullptr);
+    swReactor_add_destroy_callback(SwooleTG.reactor, deactivate, nullptr);
     active = true;
 }
 
@@ -383,11 +389,9 @@ void PHPCoroutine::error(int type, const char *error_filename, const uint32_t er
             /* update the last coroutine's info */
             save_task(get_task());
         }
-        if (SwooleG.main_reactor)
+        if (SwooleTG.reactor)
         {
-            swReactor_destroy(SwooleG.main_reactor);
-            sw_free(SwooleG.main_reactor);
-            SwooleG.main_reactor = NULL;
+            swoole_event_free();
         }
     }
     if (sw_likely(orig_error_function))
@@ -497,6 +501,15 @@ inline void PHPCoroutine::save_vm_stack(php_coro_task *task)
     task->error_handling = EG(error_handling);
     task->exception_class = EG(exception_class);
     task->exception = EG(exception);
+    if (UNEXPECTED(BG(array_walk_fci).size != 0))
+    {
+        if (!task->array_walk_fci)
+        {
+            task->array_walk_fci = (php_swoole_fci *) emalloc(sizeof(*task->array_walk_fci));
+        }
+        memcpy(task->array_walk_fci, &BG(array_walk_fci), sizeof(*task->array_walk_fci));
+        memset(&BG(array_walk_fci), 0, sizeof(*task->array_walk_fci));
+    }
 }
 
 inline void PHPCoroutine::restore_vm_stack(php_coro_task *task)
@@ -514,6 +527,11 @@ inline void PHPCoroutine::restore_vm_stack(php_coro_task *task)
     EG(error_handling) = task->error_handling;
     EG(exception_class) = task->exception_class;
     EG(exception) = task->exception;
+    if (UNEXPECTED(task->array_walk_fci && task->array_walk_fci->fci.size != 0))
+    {
+        memcpy(&BG(array_walk_fci), task->array_walk_fci, sizeof(*task->array_walk_fci));
+        task->array_walk_fci->fci.size = 0;
+    }
 }
 
 inline void PHPCoroutine::save_og(php_coro_task *task)
@@ -593,6 +611,10 @@ void PHPCoroutine::on_close(void *arg)
         }
         php_output_deactivate();
         php_output_activate();
+    }
+    if (task->array_walk_fci)
+    {
+        efree(task->array_walk_fci);
     }
     vm_stack_destroy();
     restore_task(origin_task);
@@ -683,6 +705,7 @@ void PHPCoroutine::main_func(void *arg)
     record_last_msec(task);
 
     task->output_ptr = NULL;
+    task->array_walk_fci = NULL;
     task->co = Coroutine::get_current();
     task->co->set_task((void *) task);
     task->defer_tasks = nullptr;
@@ -761,11 +784,9 @@ void PHPCoroutine::main_func(void *arg)
 #ifdef SW_CORO_SUPPORT_BAILOUT
     } zend_catch {
         Coroutine::bailout([](){
-            if (SwooleG.main_reactor)
+            if (SwooleTG.reactor)
             {
-                swReactor_destroy(SwooleG.main_reactor);
-                sw_free(SwooleG.main_reactor);
-                SwooleG.main_reactor = NULL;
+                swoole_event_free();
             }
             sw_zend_bailout();
         });
@@ -818,7 +839,6 @@ void PHPCoroutine::defer(php_swoole_fci *fci)
 
 void PHPCoroutine::yield_m(zval *return_value, php_coro_context *sw_current_context)
 {
-    Coroutine::get_current_safe();
     php_coro_task *task = get_task();
     sw_current_context->current_coro_return_value_ptr = return_value;
     sw_current_context->current_task = task;
@@ -937,12 +957,13 @@ PHP_FUNCTION(swoole_coroutine_defer)
 PHP_METHOD(swoole_coroutine, stats)
 {
     array_init(return_value);
-    if (SwooleG.main_reactor)
+    if (SwooleTG.reactor)
     {
-        add_assoc_long_ex(return_value, ZEND_STRL("event_num"), SwooleG.main_reactor->event_num);
-        add_assoc_long_ex(return_value, ZEND_STRL("signal_listener_num"), SwooleG.main_reactor->signal_listener_num);
+        add_assoc_long_ex(return_value, ZEND_STRL("event_num"), SwooleTG.reactor->event_num);
+        add_assoc_long_ex(return_value, ZEND_STRL("signal_listener_num"), SwooleTG.reactor->signal_listener_num);
     }
-    add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), SwooleAIO.task_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), SwooleTG.aio_task_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), swAio_thread_count());
     add_assoc_long_ex(return_value, ZEND_STRL("c_stack_size"), Coroutine::get_stack_size());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_peak_num"), Coroutine::get_peak_num());
@@ -967,7 +988,7 @@ PHP_METHOD(swoole_coroutine, getPcid)
     ret = PHPCoroutine::get_pcid(cid);
     if (ret == 0)
     {
-        RETURN_BOOL(false);
+        RETURN_FALSE;
     }
 
     RETURN_LONG(ret);
@@ -1094,4 +1115,12 @@ PHP_METHOD(swoole_coroutine, enableScheduler)
 PHP_METHOD(swoole_coroutine, disableScheduler)
 {
     RETURN_BOOL(PHPCoroutine::disable_scheduler());
+}
+
+/**
+ * for gdb
+ */
+zend_executor_globals* php_swoole_get_executor_globals()
+{
+    return (zend_executor_globals *) &EG(uninitialized_zval);
 }

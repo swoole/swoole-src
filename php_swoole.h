@@ -168,7 +168,7 @@ enum php_swoole_server_callback_type
     SW_SERVER_CB_onWorkerError,    //manager
     SW_SERVER_CB_onManagerStart,   //manager
     SW_SERVER_CB_onManagerStop,    //manager
-    SW_SERVER_CB_onPipeMessage,    //worker(evnet & task)
+    SW_SERVER_CB_onPipeMessage,    //worker(event & task)
 };
 //--------------------------------------------------------
 enum php_swoole_server_port_callback_type
@@ -313,6 +313,7 @@ void php_swoole_timer_minit(int module_number);
 // coroutine
 void php_swoole_async_coro_minit(int module_number);
 void php_swoole_coroutine_minit(int module_number);
+void php_swoole_coroutine_system_minit(int module_number);
 void php_swoole_coroutine_scheduler_minit(int module_number);
 void php_swoole_channel_coro_minit(int module_number);
 void php_swoole_runtime_minit(int module_number);
@@ -361,12 +362,7 @@ void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_event_exit();
 
-// timer
-enum swBool_type php_swoole_timer_clear(swTimer_node *tnode);
-enum swBool_type php_swoole_timer_clear_all();
-
 void php_swoole_server_register_callbacks(swServer *serv);
-void php_swoole_trace_check(void *arg);
 void php_swoole_client_free(zval *zobject, swClient *cli);
 swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int port);
 void php_swoole_client_check_setting(swClient *cli, zval *zset);
@@ -374,13 +370,13 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset);
 void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset);
 #endif
 void php_swoole_websocket_frame_unpack(swString *data, zval *zframe);
-int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opcode, zend_bool fin, zend_bool mask);
+int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opcode, uint8_t flags);
 
 int php_swoole_task_pack(swEventData *task, zval *data);
 zval* php_swoole_task_unpack(swEventData *task_result);
 
 #ifdef SW_HAVE_ZLIB
-int php_swoole_zlib_uncompress(z_stream *stream, swString *buffer, char *body, int length);
+int php_swoole_zlib_decompress(z_stream *stream, swString *buffer, char *body, int length);
 #endif
 
 static sw_inline void* swoole_get_object_by_handle(uint32_t handle)
@@ -443,7 +439,7 @@ int php_swoole_onPacket(swServer *, swEventData *);
 void php_swoole_onClose(swServer *, swDataHead *);
 void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
-ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+ssize_t php_swoole_length_func(swProtocol *protocol, swSocket *_socket, char *data, uint32_t length);
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
 zend_bool php_swoole_signal_isset_handler(int signo);
 
@@ -723,8 +719,19 @@ static sw_inline zend_string* sw_zend_string_recycle(zend_string *s, size_t allo
 //----------------------------------Array API------------------------------------
 
 #define php_swoole_array_length(zarray)        zend_hash_num_elements(Z_ARRVAL_P(zarray))
-#define php_swoole_array_length_safe(zarray)   (ZVAL_IS_ARRAY(zarray) ? php_swoole_array_length(zarray) : 0)
 #define php_swoole_array_get_value(ht, str, v) ((v = zend_hash_str_find(ht, str, sizeof(str)-1)) && !ZVAL_IS_NULL(v))
+
+static sw_inline int php_swoole_array_length_safe(zval *zarray)
+{
+    if (zarray && ZVAL_IS_ARRAY(zarray))
+    {
+        return php_swoole_array_length(zarray);
+    }
+    else
+    {
+        return 0;
+    }
+}
 
 #define SW_HASHTABLE_FOREACH_START(ht, _val) ZEND_HASH_FOREACH_VAL(ht, _val);  {
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, _val) zend_string *_foreach_key;\
@@ -839,10 +846,12 @@ static sw_inline int sw_zend_register_function_alias
         return FAILURE;
     }
     SW_ASSERT(origin_function->common.type == ZEND_INTERNAL_FUNCTION);
-    char _alias[alias_length + 1];
-    strncpy(_alias, alias, alias_length)[alias_length] = '\0';
+    char *_alias = (char *) emalloc(alias_length + 1);
+    ((char *) memcpy(_alias, alias, alias_length))[alias_length] = '\0';
     zend_function_entry zfe[] = {{_alias, origin_function->internal_function.handler, ((zend_internal_arg_info *) origin_function->common.arg_info) - 1, origin_function->common.num_args, 0 }, PHP_FE_END};
-    return zend_register_functions(origin_function->common.scope, zfe, alias_function_table, origin_function->common.type);
+    int ret = zend_register_functions(origin_function->common.scope, zfe, alias_function_table, origin_function->common.type);
+    efree(_alias);
+    return ret;
 }
 
 static sw_inline int sw_zend_register_class_alias(const char *name, size_t name_len, zend_class_entry *ce)
@@ -1043,6 +1052,11 @@ static sw_inline int sw_zend_call_function_ex(zval *function_name, zend_fcall_in
     fci.object = NULL;
     if (!fci_cache || !fci_cache->function_handler)
     {
+        if (!function_name)
+        {
+            php_swoole_fatal_error(E_WARNING, "Bad function");
+            return FAILURE;
+        }
         ZVAL_COPY_VALUE(&fci.function_name, function_name);
     }
     else
@@ -1164,7 +1178,7 @@ static sw_inline int php_swoole_check_reactor()
     {
         return -1;
     }
-    if (sw_unlikely(!SwooleG.main_reactor))
+    if (sw_unlikely(!sw_reactor()))
     {
         return php_swoole_reactor_init() == SW_OK ? 1 : -1;
     }

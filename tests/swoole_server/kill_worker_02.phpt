@@ -11,8 +11,8 @@ skip_if_in_valgrind();
 require __DIR__ . '/../include/bootstrap.php';
 
 const WORKER_PROC_NAME = 'swoole_unittest_server_event_worker';
-$pm = new ProcessManager;
-
+$pm = new SwooleTest\ProcessManager;
+use Swoole\Server;
 $pm->parentFunc = function ($pid) use ($pm) {
     for ($i = 0; $i < 5; $i++)
     {
@@ -27,16 +27,16 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new \swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
+    $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $serv->set(["worker_num" => 2, 'log_file' => '/dev/null',]);
-    $serv->on("WorkerStart", function (\swoole_server $serv, $worker_id) use ($pm) {
+    $serv->on("WorkerStart", function (Server $serv, $worker_id) use ($pm) {
         if ($worker_id == 0)
         {
             swoole_set_process_name(WORKER_PROC_NAME);
             $pm->wakeup();
         }
     });
-    $serv->on("Receive", function (\swoole_server $serv, $fd, $reactorId, $data)
+    $serv->on("Receive", function (Server $serv, $fd, $reactorId, $data)
     {
     });
     $serv->start();

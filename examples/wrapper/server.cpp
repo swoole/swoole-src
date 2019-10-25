@@ -1,6 +1,5 @@
 #include "wrapper/server.hpp"
-#include "wrapper/timer.hpp"
-#include "api.h"
+#include "swoole_api.h"
 #include <iostream>
 
 using namespace std;
@@ -116,8 +115,9 @@ int main(int argc, char **argv)
 {
     if (argc < 2)
     {
+        swoole_event_init();
         swoole_timer_tick(1000, timer1, nullptr);
-        event_wait();
+        swoole_event_wait();
     }
     else
     {

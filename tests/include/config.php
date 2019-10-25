@@ -14,9 +14,11 @@ define('HAS_HTTP2', class_exists("swoole_http2_request", false));
 define('SOURCE_ROOT_PATH', __DIR__ . '/../../');
 define('TRAVIS_DIR_PATH', __DIR__ . '/../../travis/');
 define('TEST_IMAGE', __DIR__ . '/../../examples/test.jpg');
+define('TEST_IMAGE2', __DIR__ . '/../../examples/logo.svg');
 define('TEST_LOG_FILE', '/tmp/swoole.log');
 define('TEST_PID_FILE', '/tmp/swoole.pid');
 define('SSL_FILE_DIR', __DIR__ . '/api/swoole_http_server/localhost-ssl');
+define('SSL_FILE_DIR2', __DIR__ . '/../include/api/ssl-ca');
 
 /** ============ Servers ============ */
 define('SERVER_MODE_RANDOM', array_random([SWOOLE_BASE, SWOOLE_PROCESS]));
@@ -86,7 +88,7 @@ define('SOCKS5_PROXY_PORT', IS_MAC_OS ? 1086 : 1080);
 define('PRESSURE_LOW', 1);
 define('PRESSURE_MID', 2);
 define('PRESSURE_NORMAL', 3);
-define('PRESSURE_LEVEL', USE_VALGRIND ? PRESSURE_LOW : (IS_IN_TRAVIS || swoole_cpu_num() === 1) ? PRESSURE_MID : PRESSURE_NORMAL);
+define('PRESSURE_LEVEL', USE_VALGRIND ? PRESSURE_LOW : ((IS_IN_TRAVIS || swoole_cpu_num() === 1) ? PRESSURE_MID : PRESSURE_NORMAL));
 
 /** ============== Time ============== */
 define('SERVER_PREHEATING_TIME', 0.1);

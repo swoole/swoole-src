@@ -9,7 +9,7 @@ skip_if_openssl_version_lower_than('1.1.0');
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
     go(function () use ($pm) {

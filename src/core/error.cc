@@ -88,6 +88,8 @@ const char* swoole_strerror(int code)
         return "Session discard timeout data";
     case SW_ERROR_OUTPUT_BUFFER_OVERFLOW:
         return "Output buffer overflow";
+    case SW_ERROR_OUTPUT_SEND_YIELD:
+        return "Output send yield";
     case SW_ERROR_SSL_NOT_READY:
         return "SSL not ready";
     case SW_ERROR_SSL_CANNOT_USE_SENFILE:
@@ -100,14 +102,20 @@ const char* swoole_strerror(int code)
         return "SSL bad client";
     case SW_ERROR_SSL_BAD_PROTOCOL:
         return "SSL bad protocol";
+    case SW_ERROR_SSL_RESET:
+        return "SSL reset";
     case SW_ERROR_PACKAGE_LENGTH_TOO_LARGE:
         return "Package length too large";
+    case SW_ERROR_PACKAGE_LENGTH_NOT_FOUND:
+        return "Package length not found";
     case SW_ERROR_DATA_LENGTH_TOO_LARGE:
         return "Data length too large";
     case SW_ERROR_TASK_PACKAGE_TOO_BIG:
         return "Task package too big";
     case SW_ERROR_TASK_DISPATCH_FAIL:
         return "Task dispatch fail";
+    case SW_ERROR_TASK_TIMEOUT:
+        return "Task timeout";
     case SW_ERROR_HTTP2_STREAM_ID_TOO_BIG:
         return "Http2 stream id too big";
     case SW_ERROR_HTTP2_STREAM_NO_HEADER:
@@ -118,6 +126,8 @@ const char* swoole_strerror(int code)
         return "Aio bad request";
     case SW_ERROR_AIO_CANCELED:
         return "Aio canceled";
+    case SW_ERROR_AIO_TIMEOUT:
+        return "Aio timeout";
     case SW_ERROR_CLIENT_NO_CONNECTION:
         return "Client no connection";
     case SW_ERROR_SOCKET_CLOSED:
@@ -170,6 +180,8 @@ const char* swoole_strerror(int code)
         return "Coroutine out of coroutine";
     case SW_ERROR_CO_HAS_BEEN_BOUND:
         return "Coroutine has been bound";
+    case SW_ERROR_CO_HAS_BEEN_DISCARDED:
+        return "Coroutine has been discarded";
     case SW_ERROR_CO_MUTEX_DOUBLE_UNLOCK:
         return "Coroutine mutex double unlock";
     case SW_ERROR_CO_BLOCK_OBJECT_LOCKED:

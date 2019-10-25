@@ -12,6 +12,7 @@ $pm = new SwooleTest\ProcessManager;
 use Swoole\Server;
 use Swoole\Client;
 use Swoole\Atomic;
+use Swoole\Timer;
 
 $atomic = new Atomic();
 
@@ -37,8 +38,10 @@ $pm->childFunc = function () use ($pm, $atomic) {
         'task_use_object' => true,
     ]);
     $serv->on("workerStart", function (Server $serv, $wid) use ($pm, $atomic) {
-        if ($atomic->add() == $serv->setting['task_worker_num']) {
-            $pm->wakeup();
+        if ($atomic->add() == $serv->setting['worker_num'] + $serv->setting['task_worker_num']) {
+            Timer::after(1, function () use ($pm) {
+                $pm->wakeup();
+            });
         }
     });
     $serv->on('receive', function (Server $serv, $fd, $tid, $data) {

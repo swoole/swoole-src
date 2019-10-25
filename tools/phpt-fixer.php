@@ -40,6 +40,10 @@ function fix_tests_in_this_dir(string $dir, string $root = '')
                 swoole_ok("Removed white lines in {$file}");
                 $changed = true;
             }
+            // no file
+            if (strpos($content, '--FILE--') === false) {
+                swoole_warn("Can not find --FILE-- in {$file}");
+            }
             // no bootstrap
             if (strpos($content, 'include/bootstrap.php') === false) {
                 swoole_warn("Can not find bootstrap in {$file}");

@@ -35,18 +35,6 @@ static void coro_test_fn(void *arg)
     delete (coro_test*) arg;
 }
 
-static inline void coro_test_wait(int *complete_num, int total_num)
-{
-    SwooleG.main_reactor->once = true;
-
-    while (*complete_num != total_num)
-    {
-        SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
-    }
-
-    SwooleG.main_reactor->once = false;
-}
-
 static inline void coro_test_create(coroutine_func_t fn, void *arg, int *complete_num)
 {
     auto test = new coro_test(fn, arg, complete_num);
@@ -57,30 +45,32 @@ static inline void coro_test_create(coroutine_func_t fn, void *arg, int *complet
 static inline void coro_test(std::initializer_list<std::pair<coroutine_func_t, void*>> args)
 {
     int complete_num = 0;
-
+    swoole_event_init();
+    SwooleTG.reactor->wait_exit = 1;
     for (const auto &arg : args)
     {
         coro_test_create(arg.first, arg.second, &complete_num);
     }
-
-    coro_test_wait(&complete_num, args.size());
+    swoole_event_wait();
 }
 
 static inline void coro_test(std::initializer_list<coroutine_func_t> args)
 {
     int complete_num = 0;
-
+    swoole_event_init();
+    SwooleTG.reactor->wait_exit = 1;
     for (const auto &arg : args)
     {
         coro_test_create(arg, nullptr, &complete_num);
     }
-
-    coro_test_wait(&complete_num, args.size());
+    swoole_event_wait();
 }
 
 static inline void coro_test(coroutine_func_t fn, void *arg = nullptr)
 {
     int complete_num = 0;
+    swoole_event_init();
+    SwooleTG.reactor->wait_exit = 1;
     coro_test_create(fn, arg, &complete_num);
-    coro_test_wait(&complete_num, 1);
+    swoole_event_wait();
 }

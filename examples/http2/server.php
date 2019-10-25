@@ -1,4 +1,8 @@
 <?php
+Co::set([
+    'trace_flags' => SWOOLE_TRACE_HTTP2,
+    'log_level' => 0,
+]);
 $key_dir = dirname(__DIR__) . '/ssl';
 $http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE);
 //$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);

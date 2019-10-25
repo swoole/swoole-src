@@ -837,7 +837,7 @@ static php_stream *php_plain_files_dir_opener(php_stream_wrapper *wrapper, const
 
 static php_stream *stream_fopen_rel(const char *filename, const char *mode, zend_string **opened_path, int options STREAMS_DC)
 {
-    char realpath[MAXPATHLEN];
+    char _realpath[MAXPATHLEN];
     int open_flags;
     int fd;
     php_stream *ret;
@@ -855,11 +855,11 @@ static php_stream *stream_fopen_rel(const char *filename, const char *mode, zend
 
     if (options & STREAM_ASSUME_REALPATH)
     {
-        strlcpy(realpath, filename, sizeof(realpath));
+        strlcpy(_realpath, filename, sizeof(_realpath));
     }
     else
     {
-        if (expand_filepath(filename, realpath) == NULL)
+        if (expand_filepath(filename, _realpath) == NULL)
         {
             return NULL;
         }
@@ -867,14 +867,14 @@ static php_stream *stream_fopen_rel(const char *filename, const char *mode, zend
 
     if (persistent)
     {
-        spprintf(&persistent_id, 0, "streams_stdio_%d_%s", open_flags, realpath);
+        spprintf(&persistent_id, 0, "streams_stdio_%d_%s", open_flags, _realpath);
         switch (php_stream_from_persistent_id(persistent_id, &ret))
         {
         case PHP_STREAM_PERSISTENT_SUCCESS:
             if (opened_path)
             {
                 //TODO: avoid reallocation???
-                *opened_path = zend_string_init(realpath, strlen(realpath), 0);
+                *opened_path = zend_string_init(_realpath, strlen(_realpath), 0);
             }
             /* fall through */
 
@@ -884,9 +884,9 @@ static php_stream *stream_fopen_rel(const char *filename, const char *mode, zend
         }
     }
 #ifdef PHP_WIN32
-	fd = php_win32_ioutil_open(realpath, open_flags, 0666);
+	fd = php_win32_ioutil_open(_realpath, open_flags, 0666);
 #else
-	fd = open(realpath, open_flags, 0666);
+	fd = open(_realpath, open_flags, 0666);
 #endif
     if (fd != -1)
     {
@@ -895,7 +895,7 @@ static php_stream *stream_fopen_rel(const char *filename, const char *mode, zend
         {
             if (opened_path)
             {
-                *opened_path = zend_string_init(realpath, strlen(realpath), 0);
+                *opened_path = zend_string_init(_realpath, strlen(_realpath), 0);
             }
             if (persistent_id)
             {

@@ -1,0 +1,10 @@
+{
+  "autoload": {
+    "psr-4": {
+      "SwooleBench\\": "src/"
+    }
+  },
+  "require": {
+    "symfony/console": "^4.3"
+  }
+}

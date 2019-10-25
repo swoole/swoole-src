@@ -14,7 +14,6 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
 #include "server.h"
 
 static int swFactory_start(swFactory *factory);
@@ -124,7 +123,7 @@ static int swFactory_end(swFactory *factory, int fd)
     bzero(&_send, sizeof(_send));
     _send.info.fd = fd;
     _send.info.len = 0;
-    _send.info.type = SW_EVENT_CLOSE;
+    _send.info.type = SW_SERVER_EVENT_CLOSE;
 
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (conn == NULL || conn->active == 0)
@@ -167,14 +166,14 @@ static int swFactory_end(swFactory *factory, int fd)
         conn->closed = 1;
         conn->close_errno = 0;
 
-        if (swBuffer_empty(conn->out_buffer) || conn->removed)
+        if (swBuffer_empty(conn->socket->out_buffer) || conn->peer_closed)
         {
-            swReactor *reactor = SwooleG.main_reactor;
+            swReactor *reactor = SwooleTG.reactor;
             return swReactorThread_close(reactor, conn->fd);
         }
         else
         {
-            swBuffer_chunk *chunk = swBuffer_new_chunk(conn->out_buffer, SW_CHUNK_CLOSE, 0);
+            swBuffer_chunk *chunk = swBuffer_new_chunk(conn->socket->out_buffer, SW_CHUNK_CLOSE, 0);
             chunk->store.data.val1 = _send.info.type;
             conn->close_queued = 1;
             return SW_OK;

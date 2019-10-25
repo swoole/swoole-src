@@ -62,6 +62,7 @@ static unordered_map<string, string> mime_map({
     { "jar", "application/java-archive" },
     { "war", "application/java-archive" },
     { "ear", "application/java-archive" },
+    { "apk", "application/vnd.android.package-archive" },
     { "ser", "application/java-serialized-object" },
     { "class", "application/java-vm" },
     { "js", "application/javascript" },

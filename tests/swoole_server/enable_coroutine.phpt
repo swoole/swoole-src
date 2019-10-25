@@ -6,7 +6,7 @@ swoole_server: reload with enable_coroutine
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$pm = new ProcessManager;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         for ($i = 2; $i--;) {

@@ -16,6 +16,7 @@
 
 #include "php_swoole_cxx.h"
 #include "swoole_http.h"
+#include "mime_types.h"
 
 extern "C"
 {
@@ -80,6 +81,19 @@ static inline void http_header_key_format(char *key, int length)
     }
 }
 
+static inline swString* http_get_write_buffer(http_context *ctx)
+{
+    if (ctx->co_socket)
+    {
+        swString *buffer = ((Socket *) ctx->private_data)->get_write_buffer();
+        if (buffer != NULL)
+        {
+            return buffer;
+        }
+    }
+    return swoole_http_buffer;
+}
+
 static PHP_METHOD(swoole_http_response, write);
 static PHP_METHOD(swoole_http_response, end);
 static PHP_METHOD(swoole_http_response, sendfile);
@@ -96,6 +110,7 @@ static PHP_METHOD(swoole_http_response, create);
 static PHP_METHOD(swoole_http_response, upgrade);
 static PHP_METHOD(swoole_http_response, push);
 static PHP_METHOD(swoole_http_response, recv);
+static PHP_METHOD(swoole_http_response, close);
 #ifdef SW_USE_HTTP2
 static PHP_METHOD(swoole_http_response, trailer);
 static PHP_METHOD(swoole_http_response, ping);
@@ -132,6 +147,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_cookie, 0, 0, 1)
     ZEND_ARG_INFO(0, domain)
     ZEND_ARG_INFO(0, secure)
     ZEND_ARG_INFO(0, httponly)
+    ZEND_ARG_INFO(0, samesite)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_write, 0, 0, 1)
@@ -183,6 +199,7 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, upgrade, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, push, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, recv, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, close, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -232,12 +249,14 @@ static PHP_METHOD(swoole_http_response, write)
 
     ctx->private_data_2 = return_value;
 
+    swString *http_buffer = http_get_write_buffer(ctx);
+
     if (!ctx->send_header)
     {
         ctx->chunk = 1;
-        swString_clear(swoole_http_buffer);
-        http_build_header(ctx, swoole_http_buffer, -1);
-        if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
+        swString_clear(http_buffer);
+        http_build_header(ctx, http_buffer, -1);
+        if (!ctx->send(ctx, http_buffer->str, http_buffer->length))
         {
             ctx->chunk = 0;
             ctx->send_header = 0;
@@ -263,18 +282,18 @@ static PHP_METHOD(swoole_http_response, write)
     // then the content stream is first compressed, then chunked;
     // so the chunk encoding itself is not compressed,
     // **and the data in each chunk is not compressed individually.**
-    // The remote endpoint then decodes the stream by concatenating the chunks and uncompressing the result.
-    swString_clear(swoole_http_buffer);
+    // The remote endpoint then decodes the stream by concatenating the chunks and decompressing the result.
+    swString_clear(http_buffer);
     char *hex_string = swoole_dec2hex(http_body.length, 16);
     int hex_len = strlen(hex_string);
     //"%.*s\r\n%.*s\r\n", hex_len, hex_string, body.length, body.str
-    swString_append_ptr(swoole_http_buffer, hex_string, hex_len);
-    swString_append_ptr(swoole_http_buffer, ZEND_STRL("\r\n"));
-    swString_append_ptr(swoole_http_buffer, http_body.str, http_body.length);
-    swString_append_ptr(swoole_http_buffer, ZEND_STRL("\r\n"));
+    swString_append_ptr(http_buffer, hex_string, hex_len);
+    swString_append_ptr(http_buffer, ZEND_STRL("\r\n"));
+    swString_append_ptr(http_buffer, http_body.str, http_body.length);
+    swString_append_ptr(http_buffer, ZEND_STRL("\r\n"));
     sw_free(hex_string);
 
-    RETURN_BOOL(ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length));
+    RETURN_BOOL(ctx->send(ctx, http_buffer->str, http_buffer->length));
 }
 
 static void http_build_header(http_context *ctx, swString *response, int body_length)
@@ -624,7 +643,9 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
     //no http chunk
     else
     {
-        swString_clear(swoole_http_buffer);
+        swString *http_buffer = http_get_write_buffer(ctx);
+        
+        swString_clear(http_buffer);
 #ifdef SW_HAVE_ZLIB
         if (ctx->accept_compression)
         {
@@ -634,7 +655,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
             }
         }
 #endif
-        http_build_header(ctx, swoole_http_buffer, http_body.length);
+        http_build_header(ctx, http_buffer, http_body.length);
 
         char *send_body_str;
         size_t send_body_len;
@@ -660,7 +681,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
             if (send_body_len < SwooleG.pagesize)
 #endif
             {
-                if (swString_append_ptr(swoole_http_buffer, send_body_str, send_body_len) < 0)
+                if (swString_append_ptr(http_buffer, send_body_str, send_body_len) < 0)
                 {
                     ctx->send_header = 0;
                     RETURN_FALSE;
@@ -669,7 +690,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
 #ifdef SW_HTTP_SEND_TWICE
             else
             {
-                if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
+                if (!ctx->send(ctx, http_buffer->str, http_buffer->length))
                 {
                     ctx->send_header = 0;
                     RETURN_FALSE;
@@ -684,7 +705,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
 #endif
         }
 
-        if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
+        if (!ctx->send(ctx, http_buffer->str, http_buffer->length))
         {
             ctx->send_header = 0;
             RETURN_FALSE;
@@ -829,10 +850,19 @@ static PHP_METHOD(swoole_http_response, sendfile)
         length = file_stat.st_size - offset;
     }
 
-    swString_clear(swoole_http_buffer);
-    http_build_header(ctx, swoole_http_buffer, length);
+    swString *http_buffer = http_get_write_buffer(ctx);
 
-    if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
+    swString_clear(http_buffer);
+
+    zval *zheader = sw_zend_read_and_convert_property_array(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
+    if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("Content-Type")))
+    {
+        add_assoc_string(zheader, "Content-Type", (char *) swoole_mime_type_get(file));
+    }
+
+    http_build_header(ctx, http_buffer, length);
+
+    if (!ctx->send(ctx, http_buffer->str, http_buffer->length))
     {
         ctx->send_header = 0;
         RETURN_FALSE;
@@ -852,12 +882,12 @@ static PHP_METHOD(swoole_http_response, sendfile)
 
 static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool url_encode)
 {
-    char *name, *value = NULL, *path = NULL, *domain = NULL;
+    char *name, *value = NULL, *path = NULL, *domain = NULL, *samesite = NULL;
     zend_long expires = 0;
-    size_t name_len, value_len = 0, path_len = 0, domain_len = 0;
+    size_t name_len, value_len = 0, path_len = 0, domain_len = 0, samesite_len = 0;
     zend_bool secure = 0, httponly = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 7)
+    ZEND_PARSE_PARAMETERS_START(1, 8)
         Z_PARAM_STRING(name, name_len)
         Z_PARAM_OPTIONAL
         Z_PARAM_STRING(value, value_len)
@@ -866,6 +896,7 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool
         Z_PARAM_STRING(domain, domain_len)
         Z_PARAM_BOOL(secure)
         Z_PARAM_BOOL(httponly)
+        Z_PARAM_STRING(samesite, samesite_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = swoole_http_context_get(ZEND_THIS, 0);
@@ -941,6 +972,11 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool
     {
         strlcat(cookie, "; httponly", cookie_size);
     }
+    if (samesite_len > 0)
+    {
+        strlcat(cookie, "; samesite=", cookie_size);
+        strlcat(cookie, samesite, cookie_size);
+    }
     add_next_index_stringl(
         swoole_http_init_and_read_property(swoole_http_response_ce, ctx->response.zobject, &ctx->response.zcookie, ZEND_STRL("cookie")),
         cookie, strlen(cookie)
@@ -978,11 +1014,7 @@ static PHP_METHOD(swoole_http_response, status)
     }
 
     ctx->response.status = http_status;
-    if (reason_len > 0)
-    {
-        ctx->response.reason = (char *) emalloc(SW_MEM_ALIGNED_SIZE(reason_len + 1));
-        strncpy(ctx->response.reason, reason, reason_len);
-    }
+    ctx->response.reason = reason_len > 0 ? estrndup(reason, reason_len) : NULL;
     RETURN_TRUE;
 }
 
@@ -1081,19 +1113,32 @@ static PHP_METHOD(swoole_http_response, push)
 
     zval *zdata = NULL;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
-    zend_bool finished = 1;
+    zend_bool fin = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lb", &zdata, &opcode, &finished) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lb", &zdata, &opcode, &fin) == FAILURE)
     {
         RETURN_FALSE;
     }
 
-    swString_clear(swoole_http_buffer);
-    if (php_swoole_websocket_frame_pack(swoole_http_buffer, zdata, opcode, finished, 0) < 0)
+    swString *http_buffer = http_get_write_buffer(ctx);
+    swString_clear(http_buffer);
+    uchar flags = swWebSocket_set_flags(fin, 0, 0, 0, 0);
+    if (php_swoole_websocket_frame_pack(http_buffer, zdata, opcode, flags) < 0)
     {
         RETURN_FALSE;
     }
-    RETURN_BOOL(ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length));
+    RETURN_BOOL(ctx->send(ctx, http_buffer->str, http_buffer->length));
+}
+
+static PHP_METHOD(swoole_http_response, close)
+{
+    http_context *ctx = swoole_http_context_get(ZEND_THIS, 0);
+    if (UNEXPECTED(!ctx) || !ctx->co_socket || !ctx->upgrade)
+    {
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
+        RETURN_FALSE;
+    }
+    RETURN_BOOL(ctx->close(ctx));
 }
 
 static PHP_METHOD(swoole_http_response, recv)
@@ -1231,7 +1276,7 @@ static PHP_METHOD(swoole_http_response, __destruct)
             {
                 swServer *serv = (swServer *) ctx->private_data;
                 swConnection *conn = swWorker_get_connection(serv, ctx->fd);
-                if (!conn || conn->closed || conn->removed || ctx->detached)
+                if (!conn || conn->closed || conn->peer_closed || ctx->detached)
                 {
                     swoole_http_context_free(ctx);
                     ctx = nullptr;

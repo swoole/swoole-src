@@ -31,10 +31,20 @@ function clear_php()
 
 function top(int $pid)
 {
-    if (IS_MAC_OS || stripos(`top help 2>&1`, 'usage') === false) {
+    static $available;
+    $available = $available ?? !(IS_MAC_OS || empty(`top help 2>&1 | grep -i usage`));
+    if (!$available) {
         return false;
     }
-    $top = `top -b -n 1 -p {$pid}`;
+    do {
+        $top = @`top -b -n 1 -p {$pid}`;
+        if (empty($top)) {
+            trigger_error("top {$pid} failed: " . swoole_strerror(swoole_errno()), E_USER_WARNING);
+            return false;
+        } else {
+            break;
+        }
+    } while (true);
     $top = explode("\n", $top);
     $top = array_combine(preg_split('/\s+/', trim($top[6])), preg_split('/\s+/', trim($top[7])));
     return $top;
@@ -167,7 +177,7 @@ function httpRequest(string $uri, array $options = [])
     $redirect_times = $options['redirect'] ?? 3;
     while (true) {
         $cli->execute($path . $query);
-        if ($redirect_times-- && ($cli->headers['location'] ?? null) && $cli->headers['location']{0} === '/') {
+        if ($redirect_times-- && ($cli->headers['location'] ?? null) && $cli->headers['location'][0] === '/') {
             $path = $cli->headers['location'];
             $query = '';
             continue;
@@ -224,7 +234,7 @@ function tcp_type_length(string $type = 'n'): int
     } else {
         $len = 0;
         for ($n = 0; $n < strlen($type); $n++) {
-            $len += $map[$type{$n}] ?? 0;
+            $len += $map[$type[$n]] ?? 0;
         }
         return $len;
     }
@@ -277,56 +287,27 @@ function get_big_random(int $length = 1024 * 1024)
     return str_repeat(get_safe_random(1024), $length / 1024);
 }
 
-function makeTcpClient($host, $port, callable $onConnect = null, callable $onReceive = null)
+function makeCoTcpClient($host, $port, callable $onConnect = null, callable $onReceive = null)
 {
-    $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
-    assert($cli->set([
-        'open_length_check' => 1,
-        'package_length_type' => 'N',
-        'package_length_offset' => 0,
-        'package_body_offset' => 0,
-    ]));
-    $cli->on("connect", function (\swoole_client $cli) use ($onConnect) {
-        Assert::true($cli->isConnected());
-        if ($onConnect) {
-            $onConnect($cli);
-        }
-    });
-    $cli->on("receive", function (\swoole_client $cli, $recv) use ($onReceive) {
-        if ($onReceive) {
-            $onReceive($cli, $recv);
-        }
-    });
-    $cli->on("error", function (\swoole_client $cli) {
-        swoole_event_exit();
-    });
-    $cli->on("close", function (\swoole_client $cli) {
-        swoole_event_exit();
-    });
-    $cli->connect($host, $port);
-}
+    go(function () use ($host, $port, $onConnect, $onReceive) {
+        $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
+        assert($cli->set([
+            'open_length_check' => 1,
+            'package_length_type' => 'N',
+            'package_length_offset' => 0,
+            'package_body_offset' => 0,
+        ]));
+        $r = $cli->connect($host, $port, 1);
+        Assert::assert($r);
 
-function makeTcpClient_without_protocol($host, $port, callable $onConnect = null, callable $onReceive = null)
-{
-    $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
-    $cli->on("connect", function (\swoole_client $cli) use ($onConnect) {
-        Assert::true($cli->isConnected());
         if ($onConnect) {
             $onConnect($cli);
         }
-    });
-    $cli->on("receive", function (\swoole_client $cli, $recv) use ($onReceive) {
+        $recv = $cli->recv();
         if ($onReceive) {
             $onReceive($cli, $recv);
         }
     });
-    $cli->on("error", function (\swoole_client $cli) {
-        echo "error\n";
-    });
-    $cli->on("close", function (\swoole_client $cli) {
-        echo "close\n";
-    });
-    $cli->connect($host, $port);
 }
 
 function opcode_encode($op, $data)

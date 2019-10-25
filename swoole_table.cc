@@ -383,8 +383,13 @@ static PHP_METHOD(swoole_table, set)
     swTable *table = (swTable *) swoole_get_object(ZEND_THIS);
     if (!table->memory)
     {
-        php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
+        php_swoole_fatal_error(E_ERROR, "the table object does not exist");
         RETURN_FALSE;
+    }
+
+    if (keylen >= SW_TABLE_KEY_SIZE)
+    {
+        php_swoole_fatal_error(E_WARNING, "key[%s] is too long", key);
     }
 
     swTableRow *_rowlock = NULL;

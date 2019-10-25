@@ -63,8 +63,6 @@ object(Swoole\Http\Request)#%d (%d) {
     ["master_time"]=>
     int(%d)
   }
-  ["request"]=>
-  NULL
   ["cookie"]=>
   NULL
   ["get"]=>

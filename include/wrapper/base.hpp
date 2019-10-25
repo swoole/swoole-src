@@ -20,7 +20,5 @@
 
 namespace swoole
 {
-void event_init(void);
-void event_wait(void);
-void check_reactor(void);
+
 }

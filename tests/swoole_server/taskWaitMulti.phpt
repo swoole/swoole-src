@@ -6,8 +6,8 @@ swoole_server: taskWaitMulti
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $port = get_one_free_port();
-
-$pm = new ProcessManager;
+use Swoole\Server;
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($port)
 {
     $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
@@ -24,17 +24,17 @@ $pm->parentFunc = function ($pid) use ($port)
 $pm->childFunc = function () use ($pm, $port)
 {
     ini_set('swoole.display_errors', 'Off');
-    $serv = new swoole_server('127.0.0.1', $port);
+    $serv = new Server('127.0.0.1', $port);
     $serv->set(array(
         "worker_num" => 1,
         'task_worker_num' => 1,
         'log_file' => '/dev/null',
     ));
-    $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
+    $serv->on("WorkerStart", function (Server $serv)  use ($pm)
     {
         $pm->wakeup();
     });
-    $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data)
+    $serv->on('receive', function (Server $serv, $fd, $rid, $data)
     {
         if ($data == 'task-01')
         {
@@ -63,7 +63,7 @@ $pm->childFunc = function () use ($pm, $port)
         }
     });
 
-    $serv->on('task', function (swoole_server $serv, $task_id, $worker_id, $data)
+    $serv->on('task', function (Server $serv, $task_id, $worker_id, $data)
     {
         if ($data == 0)
         {
@@ -72,7 +72,7 @@ $pm->childFunc = function () use ($pm, $port)
         return $data;
     });
 
-    $serv->on('finish', function (swoole_server $serv, $fd, $rid, $data)
+    $serv->on('finish', function (Server $serv, $fd, $rid, $data)
     {
 
     });
