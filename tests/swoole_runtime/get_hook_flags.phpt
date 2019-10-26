@@ -9,11 +9,10 @@ require __DIR__ . '/../include/skipif.inc';
 require __DIR__ . '/../include/bootstrap.php';
 
 Swoole\Runtime::enableCoroutine();
-var_dump(Swoole\Runtime::getHookFlags());
+Assert::same(Swoole\Runtime::getHookFlags(), SWOOLE_HOOK_ALL);
 
 Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL | SWOOLE_HOOK_CURL);
-var_dump(Swoole\Runtime::getHookFlags());
+Assert::same(Swoole\Runtime::getHookFlags(), SWOOLE_HOOK_ALL | SWOOLE_HOOK_CURL);
 ?>
 --EXPECT--
-int(1879048191)
-int(2147483647)
+
