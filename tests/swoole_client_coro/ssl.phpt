@@ -5,6 +5,9 @@ swoole_client_coro: ssl client
 if (!defined("SWOOLE_SSL")) {
     echo "skip";
 }
+if (getenv("SKIP_ONLINE_TESTS")) {
+    die("skip online test");
+}
 ?>
 --FILE--
 <?php

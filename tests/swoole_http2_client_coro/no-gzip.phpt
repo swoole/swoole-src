@@ -4,6 +4,9 @@ swoole_http2_client_coro: http2 without gzip and recv big data (window-update)
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_in_travis('travis network');
+if (getenv("SKIP_ONLINE_TESTS")) {
+    die("skip online test");
+}
 ?>
 --FILE--
 <?php

@@ -4,6 +4,9 @@ swoole_runtime: ssl client
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_no_ssl();
+if (getenv("SKIP_ONLINE_TESTS")) {
+    die("skip online test");
+}
 ?>
 --FILE--
 <?php

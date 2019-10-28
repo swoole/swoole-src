@@ -4,6 +4,9 @@ swoole_http_client_coro: use timeout and timeout before connect
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_in_travis('foreign network dns error');
+if (getenv("SKIP_ONLINE_TESTS")) {
+    die("skip online test");
+}
 ?>
 --FILE--
 <?php

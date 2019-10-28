@@ -3,6 +3,9 @@ swoole_runtime: tcp
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+if (getenv("SKIP_ONLINE_TESTS")) {
+    die("skip online test");
+}
 ?>
 --FILE--
 <?php

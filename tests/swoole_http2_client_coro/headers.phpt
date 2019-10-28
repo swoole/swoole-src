@@ -1,7 +1,11 @@
 --TEST--
 swoole_http2_client_coro: http2 headers auto to lower
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc';
+if (getenv("SKIP_ONLINE_TESTS")) {
+    die("skip online test");
+}
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

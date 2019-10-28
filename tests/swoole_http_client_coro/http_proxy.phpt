@@ -4,6 +4,9 @@ swoole_http_client_coro: http client with http_proxy
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_no_http_proxy();
+if (getenv("SKIP_ONLINE_TESTS")) {
+    die("skip online test");
+}
 ?>
 --FILE--
 <?php
