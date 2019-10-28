@@ -4,9 +4,7 @@ swoole_http_client_coro: http 204 no content
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_in_travis('travis network');
-if (getenv("SKIP_ONLINE_TESTS")) {
-    die("skip online test");
-}
+skip_if_offline();
 ?>
 --FILE--
 <?php

@@ -3,9 +3,7 @@ swoole_http2_client_coro: http2 without gzip and recv big data (window-update)
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-if (getenv("SKIP_ONLINE_TESTS")) {
-    die("skip online test");
-}
+skip_if_offline();
 ?>
 --FILE--
 <?php

@@ -7,9 +7,7 @@ skip('too slow');
 if (getenv("SKIP_SLOW_TESTS")) {
     die("skip slow test");
 }
-if (getenv("SKIP_ONLINE_TESTS")) {
-    die("skip online test");
-}
+skip_if_offline();
 ?>
 --FILE--
 <?php

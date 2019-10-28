@@ -2,12 +2,8 @@
 swoole_client_coro: ssl client
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
-if (!defined("SWOOLE_SSL")) {
-    echo "skip";
-}
-if (getenv("SKIP_ONLINE_TESTS")) {
-    die("skip online test");
-}
+skip_if_no_ssl();
+skip_if_offline();
 ?>
 --FILE--
 <?php

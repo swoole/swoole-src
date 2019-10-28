@@ -2,9 +2,7 @@
 swoole_coroutine: call_user_func_array 2
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
-if (getenv("SKIP_ONLINE_TESTS")) {
-    die("skip online test");
-}
+skip_if_offline();
 ?>
 --FILE--
 <?php

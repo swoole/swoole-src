@@ -150,6 +150,13 @@ function skip_if_in_docker(string $reason = 'not support in docker')
     skip($reason, file_exists('/.dockerenv'));
 }
 
+function skip_if_offline()
+{
+    if (getenv("SKIP_ONLINE_TESTS")) {
+        skip('it\'s the online test but you are offline');
+    }
+}
+
 function skip_if_no_proxy(string $host, string $port)
 {
     skip('no available proxy', IS_IN_TRAVIS || check_tcp_port($host, $port) <= 0);

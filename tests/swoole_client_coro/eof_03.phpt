@@ -4,9 +4,7 @@ swoole_client_coro: eof with smtp qq
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_in_travis();
-if (getenv("SKIP_ONLINE_TESTS")) {
-    die("skip online test");
-}
+skip_if_offline();
 ?>
 --FILE--
 <?php
