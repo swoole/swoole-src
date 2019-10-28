@@ -54,6 +54,7 @@ extern "C"
 {
 static PHP_METHOD(swoole_runtime, enableStrictMode);
 static PHP_METHOD(swoole_runtime, enableCoroutine);
+static PHP_METHOD(swoole_runtime, getHookFlags);
 static PHP_FUNCTION(swoole_sleep);
 static PHP_FUNCTION(swoole_usleep);
 static PHP_FUNCTION(swoole_time_nanosleep);
@@ -149,6 +150,7 @@ static const zend_function_entry swoole_runtime_methods[] =
 {
     PHP_ME(swoole_runtime, enableStrictMode, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_runtime, enableCoroutine, arginfo_swoole_runtime_enableCoroutine, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_runtime, getHookFlags, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -1340,6 +1342,11 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
     }
 
     RETURN_BOOL(PHPCoroutine::enable_hook(flags));
+}
+
+static PHP_METHOD(swoole_runtime, getHookFlags)
+{
+    RETURN_LONG(hook_flags);
 }
 
 static PHP_FUNCTION(swoole_sleep)
