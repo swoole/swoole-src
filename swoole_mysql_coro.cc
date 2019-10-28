@@ -2038,7 +2038,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
             {
                 zend_throw_exception_ex(
                     swoole_mysql_coro_exception_ce,
-                    EPROTONOSUPPORT, "you must configure with `enable-openssl` to support ssl connection"
+                    EPROTONOSUPPORT, "you must configure with `--enable-openssl` to support ssl connection when compiling Swoole"
                 );
                 RETURN_FALSE;
             }
