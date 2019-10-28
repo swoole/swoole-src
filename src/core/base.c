@@ -94,7 +94,7 @@ void swoole_init(void)
         exit(1);
     }
 
-    SwooleG.max_sockets = 1024;
+    SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {
@@ -102,18 +102,18 @@ void swoole_init(void)
     }
     else
     {
-        SwooleG.max_sockets = MAX((uint32_t) rlmt.rlim_cur, 1024);
+        SwooleG.max_sockets = MAX((uint32_t) rlmt.rlim_cur, SW_MAX_SOCKETS_DEFAULT);
         SwooleG.max_sockets = MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
 
     SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
-    SwooleG.socket_array = swArray_new(1024, sizeof(swSocket));
+    SwooleG.socket_array = swArray_new(SW_SOCKET_ARRAY_INIT_SIZE, sizeof(swSocket));
     if (!SwooleG.socket_array)
     {
         swSysWarn("[Core] Fatal Error: socket array memory allocation failure");
         exit(1);
     }
-    SwooleG.socket_send_timeout = 1.0;
+    SwooleG.socket_send_timeout = SW_SOCKET_SEND_TIMEOUT;
 
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == NULL)
