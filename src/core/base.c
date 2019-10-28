@@ -113,6 +113,7 @@ void swoole_init(void)
         swSysWarn("[Core] Fatal Error: socket array memory allocation failure");
         exit(1);
     }
+    SwooleG.socket_send_timeout = 1.0;
 
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == NULL)

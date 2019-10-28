@@ -296,22 +296,16 @@ ssize_t swSocket_sendto_blocking(int fd, const void *__buf, size_t __n, int flag
         {
             break;
         }
-        else
+        if (errno == EINTR)
         {
-            if (errno == EINTR)
-            {
-                continue;
-            }
-            else if (swConnection_error(errno) == SW_WAIT)
-            {
-                swSocket_wait(fd, 1000, SW_EVENT_WRITE);
-                continue;
-            }
-            else
-            {
-                break;
-            }
+            continue;
         }
+        if (swConnection_error(errno) == SW_WAIT
+                && swSocket_wait(fd, (int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK)
+        {
+            continue;
+        }
+        break;
     }
 
     return n;
