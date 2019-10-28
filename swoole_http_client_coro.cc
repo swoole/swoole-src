@@ -24,6 +24,10 @@
 #include "mime_types.h"
 #include "base64.h"
 
+#ifdef SW_HAVE_BROTLI
+#include <brotli/decode.h>
+#endif
+
 using namespace swoole;
 using swoole::coroutine::Socket;
 
@@ -325,10 +329,9 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
         zval *zset_cookie_headers = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("set_cookie_headers"), 0);
         ret = http_parse_set_cookies(at, length, zcookies, zset_cookie_headers);
     }
-#if defined(SW_HAVE_BROTLI) || defined(SW_HAVE_ZLIB)
+#ifdef SW_HAVE_ZLIB
     else if (strcmp(header_name, "content-encoding") == 0)
     {
-#ifdef SW_HAVE_ZLIB
         if (strncasecmp(at, "gzip", length) == 0)
         {
             http->compress_method = HTTP_COMPRESS_GZIP;
@@ -337,18 +340,13 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
         {
             http->compress_method = HTTP_COMPRESS_DEFLATE;
         }
-#if 0 // TODO: br support
-#if defined(SW_HAVE_BROTLI) && defined(SW_HAVE_ZLIB)
-        else
-#endif
 #ifdef SW_HAVE_BROTLI
-        if (strncasecmp(at, "br", length) == 0)
+        else if (strncasecmp(at, "br", length) == 0)
         {
+            http->compress_method = HTTP_COMPRESS_BR;
         }
 #endif
-#endif
     }
-#endif
 #endif
     else if (strcasecmp(header_name, "transfer-encoding") == 0 && strncasecmp(at, "chunked", length) == 0)
     {
@@ -524,9 +522,35 @@ bool http_client::decompress_response(const char *in, size_t in_len)
         body->length = reserved_length;
         return false;
     }
-    default:
-        abort();
+    case HTTP_COMPRESS_BR:
+#ifdef SW_HAVE_BROTLI
+    {
+        if (body->size < in_len)
+        {
+            if (swString_extend(body, in_len) < 0)
+            {
+                return false;
+            }
+        }
+        if (BROTLI_DECODER_RESULT_SUCCESS
+                != BrotliDecoderDecompress(in_len, (uint8_t*) in, &body->length, (uint8_t*) body->str))
+        {
+            swWarn("BrotliDecoderDecompress() failed");
+            return false;
+        }
+        else
+        {
+            return true;
+        }
     }
+#else
+        break;
+#endif
+    default:
+        break;
+    }
+
+    swWarn("http_client::decompress_response unknown compress method [%d]", compress_method);
     return false;
 }
 #endif
@@ -1381,7 +1405,8 @@ bool http_client::push(zval *zdata, zend_long opcode, bool fin)
 
     swString *buffer = socket->get_write_buffer();
     swString_clear(buffer);
-    if (php_swoole_websocket_frame_pack(buffer, zdata, opcode, fin, websocket_mask) < 0)
+    uint8_t flags = swWebSocket_set_flags(fin, websocket_mask, 0, 0, 0);
+    if (php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags) < 0)
     {
         return false;
     }

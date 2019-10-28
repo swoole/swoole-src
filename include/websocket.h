@@ -21,24 +21,18 @@
 
 SW_EXTERN_C_BEGIN
 
-#define SW_WEBSOCKET_GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-#define SW_WEBSOCKET_HEADER_LEN  2
-#define SW_WEBSOCKET_MASK_LEN    4
-#define SW_WEBSOCKET_MASK_DATA   "258E"
-#define SW_WEBSOCKET_EXT16_LENGTH 0x7E
-#define SW_WEBSOCKET_EXT16_MAX_LEN 0xFFFF
-#define SW_WEBSOCKET_EXT64_LENGTH 0x7F
-#define SW_WEBSOCKET_MASKED(frm) (frm->header.MASK)
+#define SW_WEBSOCKET_GUID                   "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+#define SW_WEBSOCKET_HEADER_LEN             2
+#define SW_WEBSOCKET_MASK_LEN               4
+#define SW_WEBSOCKET_MASK_DATA              "258E"
+#define SW_WEBSOCKET_EXT16_MAX_LEN          0xFFFF
+#define SW_WEBSOCKET_EXT16_LENGTH           0x7E
+#define SW_WEBSOCKET_EXT64_LENGTH           0x7F
 #define SW_WEBSOCKET_CLOSE_CODE_LEN         2
 #define SW_WEBSOCKET_CLOSE_REASON_MAX_LEN   125
-#define SW_WEBSOCKET_OPCODE_MAX  WEBSOCKET_OPCODE_PONG
+#define SW_WEBSOCKET_OPCODE_MAX             WEBSOCKET_OPCODE_PONG
 
-#define FRAME_SET_FIN(BYTE) (((BYTE) & 0x01) << 7)
-#define FRAME_SET_OPCODE(BYTE) ((BYTE) & 0x0F)
-#define FRAME_SET_MASK(BYTE) (((BYTE) & 0x01) << 7)
-#define FRAME_SET_LENGTH(X64, IDX) (unsigned char)(((X64) >> ((IDX)*8)) & 0xFF)
-
-enum swWebsocketStatus
+enum swWebsocket_status
 {
     WEBSOCKET_STATUS_NONE = 0,
     WEBSOCKET_STATUS_CONNECTION = 1,
@@ -47,21 +41,33 @@ enum swWebsocketStatus
     WEBSOCKET_STATUS_CLOSING    = 4,
 };
 
+enum swWebSocket_frame_flag
+{
+    SW_WEBSOCKET_FLAG_FIN = 1,
+    SW_WEBSOCKET_FLAG_RSV1 = 2,
+    SW_WEBSOCKET_FLAG_RSV2 = 4,
+    SW_WEBSOCKET_FLAG_RSV3 = 8,
+    SW_WEBSOCKET_FLAG_MASK = 16,
+};
+
 typedef struct
 {
     /**
      * fin:1 rsv1:1 rsv2:1 rsv3:1 opcode:4
      */
-    struct
-    {
-        uchar OPCODE :4;
-        uchar RSV3 :1;
-        uchar RSV2 :1;
-        uchar RSV1 :1;
-        uchar FIN :1;
-        uchar LENGTH :7;
-        uchar MASK :1;
-    } header;
+    uchar OPCODE :4;
+    uchar RSV3 :1;
+    uchar RSV2 :1;
+    uchar RSV1 :1;
+    uchar FIN :1;
+    uchar LENGTH :7;
+    uchar MASK :1;
+
+} swWebSocket_frame_header;
+
+typedef struct
+{
+    swWebSocket_frame_header header;
     char mask_key[SW_WEBSOCKET_MASK_LEN];
     uint16_t header_length;
     size_t payload_length;
@@ -96,9 +102,61 @@ enum swWebsocket_close_reason
     WEBSOCKET_CLOSE_TLS = 1015,
 };
 
-void swWebSocket_encode(swString *buffer, const char *data, size_t length, char opcode, uint8_t finish, uint8_t mask);
+static inline uchar swWebSocket_get_flags(swWebSocket_frame *frame)
+{
+    uchar flags = 0;
+    if (frame->header.FIN)
+    {
+        flags |= SW_WEBSOCKET_FLAG_FIN;
+    }
+    if (frame->header.RSV1)
+    {
+        flags |= SW_WEBSOCKET_FLAG_RSV1;
+    }
+    if (frame->header.RSV2)
+    {
+        flags |= SW_WEBSOCKET_FLAG_RSV2;
+    }
+    if (frame->header.RSV3)
+    {
+        flags |= SW_WEBSOCKET_FLAG_RSV3;
+    }
+    if (frame->header.MASK)
+    {
+        flags |= SW_WEBSOCKET_FLAG_MASK;
+    }
+    return flags;
+}
+
+static inline uchar swWebSocket_set_flags(uchar fin, uchar mask, uchar rsv1, uchar rsv2, uchar rsv3)
+{
+    uchar flags = 0;
+    if (fin)
+    {
+        flags |= SW_WEBSOCKET_FLAG_FIN;
+    }
+    if (mask)
+    {
+        flags |= SW_WEBSOCKET_FLAG_MASK;
+    }
+    if (rsv1)
+    {
+        flags |= SW_WEBSOCKET_FLAG_RSV1;
+    }
+    if (rsv2)
+    {
+        flags |= SW_WEBSOCKET_FLAG_RSV2;
+    }
+    if (rsv3)
+    {
+        flags |= SW_WEBSOCKET_FLAG_RSV3;
+    }
+    return flags;
+}
+
+void swWebSocket_encode(swString *buffer, const char *data, size_t length, char opcode, uint8_t flags);
 void swWebSocket_decode(swWebSocket_frame *frame, swString *data);
-int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_t length, uint8_t mask);
+int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_t length, uint8_t flags);
 void swWebSocket_print_frame(swWebSocket_frame *frame);
 
 ssize_t swWebSocket_get_package_length(swProtocol *protocol, swSocket *conn, char *data, uint32_t length);

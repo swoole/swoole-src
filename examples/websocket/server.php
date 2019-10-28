@@ -1,12 +1,16 @@
 <?php
+use Swoole\Http\Response;
+use Swoole\Http\Request;
+use Swoole\WebSocket\Server;
+
 //$server = new swoole_websocket_server("0.0.0.0", 9501);
-$server = new swoole_websocket_server("0.0.0.0", 9501, SWOOLE_BASE);
+$server = new Server("0.0.0.0", 9501, SWOOLE_BASE);
 //$server->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 //$server->set(['worker_num' => 4,
 //    'task_worker_num' => 4,
 //]);
 
-function user_handshake(swoole_http_request $request, swoole_http_response $response)
+function user_handshake(Request $request, Response $response)
 {
     //自定定握手规则，没有设置则用系统内置的（只支持version:13的）
     if (!isset($request->header['sec-websocket-key']))
@@ -50,40 +54,37 @@ function user_handshake(swoole_http_request $request, swoole_http_response $resp
 }
 
 //$server->on('handshake', 'user_handshake');
-$server->on('open', function (swoole_websocket_server $_server, swoole_http_request $request) {
+$server->on('open', function (Server $_server, Request $request) {
     echo "server#{$_server->worker_pid}: handshake success with fd#{$request->fd}\n";
     var_dump($_server->exist($request->fd), $_server->getClientInfo($request->fd));
     $fd = $request->fd;
-    $_server->tick(2000, function($id) use ($fd, $_server) {
-        $_send = str_repeat('B', rand(100, 5000));
-        $ret = $_server->push($fd, $_send);
-        if (!$ret)
-        {
-            var_dump($id);
-            var_dump($_server->clearTimer($id));
-        }
-    });
+//    $_server->tick(2000, function($id) use ($fd, $_server) {
+//        $_send = str_repeat('B', rand(100, 5000));
+//        $ret = $_server->push($fd, $_send);
+//        if (!$ret)
+//        {
+//            var_dump($id);
+//            var_dump($_server->clearTimer($id));
+//        }
+//    });
 });
 
-$server->on('message', function (swoole_websocket_server $_server, $frame) {
-    var_dump($frame->data);
-    echo "received ".strlen($frame->data)." bytes\n";
-    if ($frame->data == "close")
-    {
+$server->on('message', function (Server $_server, $frame) {
+    //var_dump($frame->data);
+    echo "received " . strlen($frame->data) . " bytes\n";
+    if ($frame->data == "close") {
         $_server->close($frame->fd);
-    }
-    elseif($frame->data == "task")
-    {
+    } elseif ($frame->data == "task") {
         $_server->task(['go' => 'die']);
-    }
-    else
-    {
+    } else {
         //echo "receive from {$frame->fd}:{$frame->data}, opcode:{$frame->opcode}, finish:{$frame->finish}\n";
-       // for ($i = 0; $i < 100; $i++)
+        // for ($i = 0; $i < 100; $i++)
         {
-            $_send = str_repeat('B', rand(100, 800));
+//            $_send = ''
+            $_send = str_repeat('B', 100);
+//            $_send = str_repeat('B', rand(100, 800));
             $_server->push($frame->fd, $_send);
-           // echo "#$i\tserver sent " . strlen($_send) . " byte \n";
+            // echo "#$i\tserver sent " . strlen($_send) . " byte \n";
         }
     }
 });
@@ -108,10 +109,10 @@ $server->on('packet', function ($_server, $data, $client) {
     var_dump($client);
 });
 
-$server->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+$server->on('request', function (Request $request, Response $response) {
     $response->end(<<<HTML
-    <h1>Swoole WebSocket Server</h1>
-    <script>
+<h1>Swoole WebSocket Server</h1>
+<script>
 var wsServer = 'ws://127.0.0.1:9501';
 var websocket = new WebSocket(wsServer);
 websocket.onopen = function (evt) {

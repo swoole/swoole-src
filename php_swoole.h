@@ -370,7 +370,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset);
 void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset);
 #endif
 void php_swoole_websocket_frame_unpack(swString *data, zval *zframe);
-int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opcode, zend_bool fin, zend_bool mask);
+int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opcode, uint8_t flags);
 
 int php_swoole_task_pack(swEventData *task, zval *data);
 zval* php_swoole_task_unpack(swEventData *task_result);
