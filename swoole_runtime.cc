@@ -941,7 +941,7 @@ static php_stream *socket_create(
         sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
         sock->open_ssl = true;
 #else
-        php_swoole_error(E_WARNING, "you must configure with `enable-openssl` to support ssl connection");
+        php_swoole_error(E_WARNING, "you must configure with `--enable-openssl` to support ssl connection when compiling Swoole");
         return NULL;
 #endif
     }
