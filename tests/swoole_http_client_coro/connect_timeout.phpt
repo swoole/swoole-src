@@ -3,6 +3,7 @@ swoole_http_client_coro: connect timeout
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+skip_if_offline();
 ?>
 --FILE--
 <?php

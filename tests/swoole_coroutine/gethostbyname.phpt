@@ -2,7 +2,9 @@
 swoole_coroutine: gethostbyname and dns cache
 --SKIPIF--
 <?php
-require __DIR__ . '/../include/skipif.inc'; ?>
+require __DIR__ . '/../include/skipif.inc';
+skip_if_offline();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

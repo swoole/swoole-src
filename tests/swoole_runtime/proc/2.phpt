@@ -3,8 +3,8 @@ swoole_runtime/proc: proc_open
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 <?php
-if (!is_executable('/bin/sleep')) echo 'skip no sleep';
-if (getenv('SKIP_SLOW_TESTS')) echo 'skip slow test';
+if (!is_executable('/bin/sleep')) exit('skip no sleep');
+if (getenv('SKIP_SLOW_TESTS')) exit('skip slow test');
 ?>
 --FILE--
 <?php

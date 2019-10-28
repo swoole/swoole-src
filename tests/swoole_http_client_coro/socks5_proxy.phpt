@@ -4,6 +4,7 @@ swoole_http_client_coro: socks5 proxy
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_no_socks5_proxy();
+skip_if_offline();
 ?>
 --FILE--
 <?php

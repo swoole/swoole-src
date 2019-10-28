@@ -4,6 +4,7 @@ swoole_http_client_coro: #2611 bound error with dns resolve and cross close
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_in_travis('travis network');
+skip_if_offline();
 ?>
 --FILE--
 <?php

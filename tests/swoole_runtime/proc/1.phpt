@@ -3,8 +3,8 @@ swoole_runtime/proc: proc_open
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 <?php # vim:syn=php
-if (!is_executable("/bin/cat")) echo "skip";
-if (!function_exists("proc_open")) echo "skip proc_open() is not available";
+if (!is_executable("/bin/cat")) exit('skip');
+if (!function_exists("proc_open")) exit('skip proc_open() is not available');
 ?>
 --FILE--
 <?php
