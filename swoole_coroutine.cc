@@ -289,7 +289,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
 static int coro_begin_silence_handler(zend_execute_data *execute_data)
 {
     php_coro_task *task = PHPCoroutine::get_task();
-    task->in_silence = 1;
+    task->in_silence = true;
     task->ori_error_reporting = EG(error_reporting);
     return ZEND_USER_OPCODE_DISPATCH;
 }
@@ -297,7 +297,7 @@ static int coro_begin_silence_handler(zend_execute_data *execute_data)
 static int coro_end_silence_handler(zend_execute_data *execute_data)
 {
     php_coro_task *task = PHPCoroutine::get_task();
-    task->in_silence = 0;
+    task->in_silence = false;
     return ZEND_USER_OPCODE_DISPATCH;
 }
 
@@ -727,9 +727,6 @@ void PHPCoroutine::main_func(void *arg)
     EG(exception_class) = NULL;
     EG(exception) = NULL;
 
-    save_vm_stack(task);
-    record_last_msec(task);
-
     task->output_ptr = NULL;
     task->array_walk_fci = NULL;
     task->in_silence = false;
@@ -740,6 +737,9 @@ void PHPCoroutine::main_func(void *arg)
     task->pcid = task->co->get_origin_cid();
     task->context = nullptr;
     task->enable_scheduler = 1;
+
+    save_vm_stack(task);
+    record_last_msec(task);
 
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
