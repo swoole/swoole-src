@@ -152,6 +152,8 @@ bool PHPCoroutine::interrupt_thread_running = false;
 
 static zend_bool* zend_vm_interrupt = nullptr;
 static user_opcode_handler_t ori_exit_handler = nullptr;
+static user_opcode_handler_t ori_begin_silence_handler = nullptr;
+static user_opcode_handler_t ori_end_silence_handler = nullptr;
 static unordered_map<long, Coroutine *> user_yield_coros;
 
 static void (*orig_interrupt_function)(zend_execute_data *execute_data) = nullptr;
@@ -281,6 +283,21 @@ static int coro_exit_handler(zend_execute_data *execute_data)
         zend_update_property(swoole_exit_exception_ce, &ex, ZEND_STRL("status"), exit_status);
     }
 
+    return ZEND_USER_OPCODE_DISPATCH;
+}
+
+static int coro_begin_silence_handler(zend_execute_data *execute_data)
+{
+    php_coro_task *task = PHPCoroutine::get_task();
+    task->in_silence = 1;
+    task->ori_error_reporting = EG(error_reporting);
+    return ZEND_USER_OPCODE_DISPATCH;
+}
+
+static int coro_end_silence_handler(zend_execute_data *execute_data)
+{
+    php_coro_task *task = PHPCoroutine::get_task();
+    task->in_silence = 0;
     return ZEND_USER_OPCODE_DISPATCH;
 }
 
@@ -510,6 +527,11 @@ inline void PHPCoroutine::save_vm_stack(php_coro_task *task)
         memcpy(task->array_walk_fci, &BG(array_walk_fci), sizeof(*task->array_walk_fci));
         memset(&BG(array_walk_fci), 0, sizeof(*task->array_walk_fci));
     }
+    if (UNEXPECTED(task->in_silence))
+    {
+        task->tmp_error_reporting = EG(error_reporting);
+        EG(error_reporting) = task->ori_error_reporting;
+    }
 }
 
 inline void PHPCoroutine::restore_vm_stack(php_coro_task *task)
@@ -531,6 +553,10 @@ inline void PHPCoroutine::restore_vm_stack(php_coro_task *task)
     {
         memcpy(&BG(array_walk_fci), task->array_walk_fci, sizeof(*task->array_walk_fci));
         task->array_walk_fci->fci.size = 0;
+    }
+    if (UNEXPECTED(task->in_silence))
+    {
+        EG(error_reporting) = task->tmp_error_reporting;
     }
 }
 
@@ -706,6 +732,8 @@ void PHPCoroutine::main_func(void *arg)
 
     task->output_ptr = NULL;
     task->array_walk_fci = NULL;
+    task->in_silence = false;
+
     task->co = Coroutine::get_current();
     task->co->set_task((void *) task);
     task->defer_tasks = nullptr;
@@ -887,6 +915,12 @@ void php_swoole_coroutine_minit(int module_number)
     {
         ori_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
         zend_set_user_opcode_handler(ZEND_EXIT, coro_exit_handler);
+
+        ori_begin_silence_handler = zend_get_user_opcode_handler(ZEND_BEGIN_SILENCE);
+        zend_set_user_opcode_handler(ZEND_BEGIN_SILENCE, coro_begin_silence_handler);
+
+        ori_end_silence_handler = zend_get_user_opcode_handler(ZEND_END_SILENCE);
+        zend_set_user_opcode_handler(ZEND_END_SILENCE, coro_end_silence_handler);
     }
 }
 
