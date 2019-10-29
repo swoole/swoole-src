@@ -524,6 +524,7 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset)
             sw_free(sock->ssl_option.tls_host_name);
         }
         sock->ssl_option.tls_host_name = zend::string(ztmp).dup();
+        /* if user set empty ssl_host_name, disable it, otherwise the underlying may set it automatically */
         sock->ssl_option.disable_tls_host_name = !sock->ssl_option.tls_host_name;
     }
 #endif
