@@ -737,6 +737,21 @@ bool Socket::connect(string _host, int _port, int flags)
         return false;
     }
 
+#ifdef SW_USE_OPENSSL
+    if (open_ssl && (socks5_proxy || http_proxy))
+    {
+        /* If the proxy is enabled, the host will be replaced with the proxy ip,
+         * so we have to handle the host first,
+         * if the host is not a ip, assign it to ssl_host_name
+         */
+        union { struct in_addr sin; struct in6_addr sin6; } addr;
+        if ((sock_domain == AF_INET && !inet_pton(AF_INET, _host.c_str(), &addr.sin)) ||
+                (sock_domain == AF_INET6 && !inet_pton(AF_INET6, _host.c_str(), &addr.sin6)))
+        {
+            ssl_host_name = _host;
+        }
+    }
+#endif
     if (socks5_proxy)
     {
         //enable socks5 proxy
