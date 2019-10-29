@@ -18,6 +18,56 @@ double Socket::default_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double Socket::default_read_timeout    = SW_DEFAULT_SOCKET_READ_TIMEOUT;
 double Socket::default_write_timeout   = SW_DEFAULT_SOCKET_WRITE_TIMEOUT;
 
+#ifdef SW_USE_OPENSSL
+#ifndef OPENSSL_NO_NEXTPROTONEG
+
+const string HTTP2_H2_ALPN("\x2h2");
+const string HTTP2_H2_16_ALPN("\x5h2-16");
+const string HTTP2_H2_14_ALPN("\x5h2-14");
+
+static bool ssl_select_proto(const uchar **out, uchar *outlen, const uchar *in, uint inlen, const string &key)
+{
+    for (auto p = in, end = in + inlen; p + key.size() <= end; p += *p + 1)
+    {
+        if (std::equal(std::begin(key), std::end(key), p))
+        {
+            *out = p + 1;
+            *outlen = *p;
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool ssl_select_h2(const uchar **out, uchar *outlen, const uchar *in, uint inlen)
+{
+    return ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_ALPN) || ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_16_ALPN)
+            || ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_14_ALPN);
+}
+
+static int ssl_select_next_proto_cb(SSL *ssl, uchar **out, uchar *outlen, const uchar *in, uint inlen, void *arg)
+{
+#ifdef SW_LOG_TRACE_OPEN
+    string info("[NPN] server offers:\n");
+    for (unsigned int i = 0; i < inlen; i += in[i] + 1)
+    {
+        info += "        * " + string(reinterpret_cast<const char *>(&in[i + 1]), in[i]);
+    }
+    swTraceLog(SW_TRACE_HTTP2, "[NPN] server offers: %s", info.c_str());
+#endif
+    if (!ssl_select_h2(const_cast<const unsigned char **>(out), outlen, in, inlen))
+    {
+        swWarn("HTTP/2 protocol was not selected, expects [h2]");
+        return SSL_TLSEXT_ERR_NOACK;
+    }
+    else
+    {
+        return SSL_TLSEXT_ERR_OK;
+    }
+}
+#endif
+#endif
+
 void Socket::timer_callback(swTimer *timer, swTimer_node *tnode)
 {
     Socket *socket = (Socket *) tnode->data;
@@ -1244,6 +1294,9 @@ bool Socket::ssl_handshake()
 #if defined(SW_USE_HTTP2) && defined(SW_USE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10002000L
     if (http2)
     {
+#ifndef OPENSSL_NO_NEXTPROTONEG
+        SSL_CTX_set_next_proto_select_cb(ssl_context, ssl_select_next_proto_cb, nullptr);
+#endif
         if (SSL_CTX_set_alpn_protos(ssl_context, (const unsigned char *) SW_STRL(SW_SSL_HTTP2_NPN_ADVERTISE)) < 0)
         {
             return false;
