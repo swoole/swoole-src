@@ -982,7 +982,10 @@ static PHP_METHOD(swoole_client, sendto)
         swoole_set_object(ZEND_THIS, cli);
     }
 
-    int ret;
+    double ori_timeout = SwooleG.socket_send_timeout;
+    SwooleG.socket_send_timeout = cli->timeout;
+
+    int ret = -1;
     if (cli->type == SW_SOCK_UDP)
     {
         ret = swSocket_udp_sendto(cli->socket->fd, ip, port, data, len);
@@ -998,8 +1001,8 @@ static PHP_METHOD(swoole_client, sendto)
     else
     {
         php_swoole_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
-        RETURN_FALSE;
     }
+    SwooleG.socket_send_timeout = ori_timeout;
     SW_CHECK_RETURN(ret);
 }
 
