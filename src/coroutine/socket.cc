@@ -344,6 +344,12 @@ bool Socket::socks5_handshake()
 
 bool Socket::http_proxy_handshake()
 {
+#define HTTP_PROXY_FMT \
+    "CONNECT %.*s:%d HTTP/1.1\r\n" \
+    "Host: %.*s:%d\r\n" \
+    "User-Agent: Swoole/" SWOOLE_VERSION "\r\n" \
+    "Proxy-Connection: Keep-Alive\r\n" \
+
     //CONNECT
     int n;
     if (http_proxy->password)
@@ -358,15 +364,18 @@ bool Socket::http_proxy_handshake()
         swBase64_encode((unsigned char *) auth_buf, n, encode_buf);
         n = sw_snprintf(
             http_proxy->buf, sizeof(http_proxy->buf),
-            "CONNECT %.*s:%d HTTP/1.1\r\nProxy-Authorization:Basic %s\r\n\r\n",
-            http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port, encode_buf
+            HTTP_PROXY_FMT "Proxy-Authorization:Basic %s\r\n\r\n",
+            http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port,
+            http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port,
+            encode_buf
         );
     }
     else
     {
         n = sw_snprintf(
             http_proxy->buf, sizeof(http_proxy->buf),
-            "CONNECT %.*s:%d HTTP/1.1\r\n\r\n",
+            HTTP_PROXY_FMT "\r\n",
+            http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port,
             http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port
         );
     }
