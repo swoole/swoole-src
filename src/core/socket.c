@@ -191,9 +191,9 @@ int swSocket_write_blocking(int __fd, const void *__data, int __len)
             {
                 continue;
             }
-            else if (swConnection_error(errno) == SW_WAIT)
+            else if (swConnection_error(errno) == SW_WAIT
+                    && swSocket_wait(__fd, (int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK)
             {
-                swSocket_wait(__fd, SW_WORKER_WAIT_TIMEOUT, SW_EVENT_WRITE);
                 continue;
             }
             else
