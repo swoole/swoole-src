@@ -2365,6 +2365,7 @@ typedef struct
      */
     uint32_t socket_buffer_size;
     swArray *socket_array;
+    double socket_send_timeout;
 
     swServer *serv;
 

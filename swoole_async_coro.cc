@@ -93,6 +93,14 @@ PHP_FUNCTION(swoole_async_set)
             SwooleG.socket_buffer_size = INT_MAX;
         }
     }
+    if (php_swoole_array_get_value(vht, "socket_send_timeout", ztmp))
+    {
+        SwooleG.socket_send_timeout = zval_get_double(ztmp);
+        if (SwooleG.socket_send_timeout <= 0 || SwooleG.socket_send_timeout > INT_MAX)
+        {
+            SwooleG.socket_send_timeout = INT_MAX;
+        }
+    }
     if (php_swoole_array_get_value(vht, "log_level", ztmp))
     {
         zend_long level = zval_get_long(ztmp);
