@@ -1010,7 +1010,7 @@ static php_stream *socket_create(
         add_assoc_zval_ex(&zalias, ZEND_STRL(alias), ztmp); \
     } \
 } while (0);
-                SSL_OPTION_ALIAS("peer_name", "ssl_hostname");
+                SSL_OPTION_ALIAS("peer_name", "ssl_host_name");
                 SSL_OPTION_ALIAS("verify_peer", "ssl_verify_peer");
                 SSL_OPTION_ALIAS("allow_self_signed", "ssl_allow_self_signed");
                 SSL_OPTION_ALIAS("cafile", "ssl_cafile");
