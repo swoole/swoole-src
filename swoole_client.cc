@@ -1572,7 +1572,7 @@ PHP_FUNCTION(swoole_client_select)
     {
         index = client_poll_add(w_array, index, fds, maxevents, POLLOUT);
     }
-    if (e_array != NULL && php_swoole_array_length(w_array) > 0)
+    if (e_array != NULL && php_swoole_array_length(e_array) > 0)
     {
         index = client_poll_add(e_array, index, fds, maxevents, POLLHUP);
     }
