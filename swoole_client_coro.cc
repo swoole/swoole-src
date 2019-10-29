@@ -407,7 +407,7 @@ bool php_swoole_client_set(Socket *cli, zval *zset)
         if (php_swoole_array_get_value(vht, "http_proxy_port", ztmp))
         {
             php_swoole_client_coro_socket_free_http_proxy(cli);
-            cli->http_proxy = (struct _http_proxy*) ecalloc(1, sizeof(struct _http_proxy));
+            cli->http_proxy = (struct _http_proxy*) ecalloc(1, sizeof(*cli->http_proxy) - sizeof(cli->http_proxy->buf));
             cli->http_proxy->proxy_host = estrdup(host.val());
             cli->http_proxy->proxy_port = zval_get_long(ztmp);
             if (php_swoole_array_get_value(vht, "http_proxy_username", ztmp) || php_swoole_array_get_value(vht, "http_proxy_user", ztmp))

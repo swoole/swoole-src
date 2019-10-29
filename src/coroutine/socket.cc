@@ -350,6 +350,13 @@ bool Socket::http_proxy_handshake()
     "User-Agent: Swoole/" SWOOLE_VERSION "\r\n" \
     "Proxy-Connection: Keep-Alive\r\n" \
 
+    swString *buffer = get_read_buffer();
+
+    if (!buffer)
+    {
+        return false;
+    }
+
     //CONNECT
     int n;
     if (http_proxy->password)
@@ -363,7 +370,7 @@ bool Socket::http_proxy_handshake()
         );
         swBase64_encode((unsigned char *) auth_buf, n, encode_buf);
         n = sw_snprintf(
-            http_proxy->buf, sizeof(http_proxy->buf),
+            buffer->str, buffer->size,
             HTTP_PROXY_FMT "Proxy-Authorization:Basic %s\r\n\r\n",
             http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port,
             http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port,
@@ -373,29 +380,39 @@ bool Socket::http_proxy_handshake()
     else
     {
         n = sw_snprintf(
-            http_proxy->buf, sizeof(http_proxy->buf),
+            buffer->str, buffer->size,
             HTTP_PROXY_FMT "\r\n",
             http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port,
             http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port
         );
     }
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", n, http_proxy->buf);
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", n, buffer->str);
 
-    if (send(http_proxy->buf, n) != n)
+    if (send(buffer->str, n) != n)
     {
         return false;
     }
 
-    n = recv(http_proxy->buf, sizeof(http_proxy->buf));
+    /* use eof protocol (provisional) */
+    bool ori_open_eof_check = open_eof_check;
+    uint8_t ori_package_eof_len = protocol.package_eof_len;
+    char ori_package_eof[SW_DATA_EOF_MAXLEN + 1];
+    memcpy(ori_package_eof, SW_STRS(protocol.package_eof));
+    open_eof_check = true;
+    protocol.package_eof_len = sizeof("\r\n\r\n") - 1;
+    memcpy(protocol.package_eof, SW_STRS("\r\n\r\n"));
+
+    n = recv_packet();
     if (n <= 0)
     {
         return false;
     }
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", n, http_proxy->buf);
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", n, buffer->str);
 
-    char *buf = http_proxy->buf;
+    bool ret = false;
+    char *buf = buffer->str;
     int len = n;
     int state = 0;
     char *p = buf;
@@ -442,16 +459,19 @@ bool Socket::http_proxy_handshake()
             {
                 if (strncasecmp(p, SW_STRL("Connection established")) == 0)
                 {
-                    return true;
+                    ret = true;
                 }
-                else
-                {
-                    break;
-                }
+                break;
             }
         }
     }
-    return false;
+
+    /* revert protocol settings */
+    open_eof_check = ori_open_eof_check;
+    protocol.package_eof_len = ori_package_eof_len;
+    memcpy(protocol.package_eof, SW_STRS(ori_package_eof));
+
+    return ret;
 }
 
 void Socket::init_sock_type(enum swSocket_type _sw_type)
