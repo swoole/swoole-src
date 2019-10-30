@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-10-15</date>
-    <time>20:00:00</time>
+    <date>2019-10-30</date>
+    <time>14:00:00</time>
     <version>
-        <release>4.4.8</release>
+        <release>4.4.9</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -54,36 +54,30 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        Deprecated
+        New API
         ---
-        - Move async Swoole\Client to [ext-async](https://github.com/swoole/ext-async)
+        + Runtime::getHookFlags (#2915) (@limingxinleo)
 
         Enhancement
         ---
-        + Support Http\Response close (#2861) (@matyhtf)
-        + Support Process::daemon() redirection of IO (#2871) (@matyhtf)
-        * Add Swoole\Server\Task::pack (#2872) (#2874) (@matyhtf)
-        + Support ssl_protocols option (74499276) (@matyhtf)
-        + Add document of bug reports (ba1c078f) (@twose)
+        + Reduce memory copy (#2893) (7fc93504) (@hantaohuang) (@twose)
+        + Accepted connection will inherit the options of server (#2898) (@twose)
+        + Coroutine\Http\Server support HTTP2 protocol now (5479dbc4) (@matyhtf)
+        + Automatically add Content-Type header when use sendfile (4e62bc52) (@matyhtf)
+        + Compatibility with Zend preloader (Special thanks the PHP team) (#2899) (@twose)
+        + Implement RFC-7692 (#2906) (@matyhtf)
+        + Support PHP error control operators (#2916) (@twose)
+        + Support socket_send_timeout option for sync client (#2919) (@matyhtf)
+        * Support NPN (#2900) (@matyhtf)
+        * Improve HTTP proxy handshake request (#2922) (@twose)
 
         Fixed
         ---
-        * Fixed random bytes added to response status code (#2856) (@twose)
-        * Fixed naming conflicts with php gdbinit (2a2447ec) (@shiguangqi)
-        * Fixed build without PCRE JIT on OSX (2a4c447e) (@twose)
-        * Fixed Websocket\Server class entry of property declaration (1f197daf) (@twose)
-        * Fixed coroutine bound error checker of Co\Http\Client (2619cdd8) (@twose)
-        * Fixed gdb debugger in docker (ec815288) (@twose)
-        * Fixed MySQL close error (#2869) (@twose)
-        * Fixed Cygwin with process (#2868) (#2876) (@matyhtf)
-        * Fixed tls_host_name not found (d1968c26) (@twose)
-        * Fixed SSL renegotiation (#2847) (d8b87ebb) (@matyhtf)
-        * Fixed HTTP2 client empty data (37b12d72) (775aefed) (@twose)
-        * Fixed send yield hang (#2885) (@matyhtf) (@twose)
-        * Fixed null fci_cache (#2881) (@twose)
-        * Fixed server mode on CYGWIN (#2868) (@matyhtf)
-        * Fixed select null (5e23dd96) (@twose)
-        * Fixed #2643 #2868 (#2888) (@matyhtf)
+        * Fixed #2890 (start a Process\Pool without onWorkerStart event) (#2892) (@twose)
+        * Fixed the bug that close the connection in non-current worker (#2891) (@matyhtf)
+        * Fixed memory error of create socket failure (2948f10a) (@matyhtf)
+        * Fixed missing ssl_host_name of HTTPS proxy (#2904) (@twose)
+        * Fixed CID-1466865 (#2923) (@tutanhamon)
     </notes>
     <contents>
         <dir name="/">
@@ -862,6 +856,7 @@
             <file role="test" name="tests/swoole_client_sync/sendfile.phpt" />
             <file role="test" name="tests/swoole_client_sync/ssl_recv_timeout.phpt" />
             <file role="test" name="tests/swoole_client_sync/sync_send_recv.phpt" />
+            <file role="test" name="tests/swoole_client_sync/udg_send_timeout.phpt" />
             <file role="test" name="tests/swoole_client_sync/udp_client_sendto.phpt" />
             <file role="test" name="tests/swoole_coroutine/after_start_server_1.phpt" />
             <file role="test" name="tests/swoole_coroutine/array_walk.phpt" />
@@ -1166,6 +1161,7 @@
             <file role="test" name="tests/swoole_http_server_coro/bug_2682.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/error_404.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/handle.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/http2.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/https.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/ipv6.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/keepalive.phpt" />
@@ -1374,6 +1370,7 @@
             <file role="test" name="tests/swoole_runtime/file_lock/file_lock_1.phpt" />
             <file role="test" name="tests/swoole_runtime/file_lock/lock_nb.phpt" />
             <file role="test" name="tests/swoole_runtime/file_lock/lock_sh_1.phpt" />
+            <file role="test" name="tests/swoole_runtime/get_hook_flags.phpt" />
             <file role="test" name="tests/swoole_runtime/gethostbyname.phpt" />
             <file role="test" name="tests/swoole_runtime/library.phpt" />
             <file role="test" name="tests/swoole_runtime/pdo.phpt" />
@@ -1429,6 +1426,8 @@
             <file role="test" name="tests/swoole_server/bug_2639.phpt" />
             <file role="test" name="tests/swoole_server/bug_2736.phpt" />
             <file role="test" name="tests/swoole_server/bug_aio.phpt" />
+            <file role="test" name="tests/swoole_server/close_in_non_current_worker.phpt" />
+            <file role="test" name="tests/swoole_server/close_in_task_worker.phpt" />
             <file role="test" name="tests/swoole_server/connections.phpt" />
             <file role="test" name="tests/swoole_server/dispatch_fallback.phpt" />
             <file role="test" name="tests/swoole_server/dispatch_func.phpt" />
@@ -1490,6 +1489,7 @@
             <file role="test" name="tests/swoole_server/sendfile.phpt" />
             <file role="test" name="tests/swoole_server/sendfile_02.phpt" />
             <file role="test" name="tests/swoole_server/sendfile_ssl.phpt" />
+            <file role="test" name="tests/swoole_server/sendto_timeout.phpt" />
             <file role="test" name="tests/swoole_server/shutdown.phpt" />
             <file role="test" name="tests/swoole_server/shutdown_in_base.phpt" />
             <file role="test" name="tests/swoole_server/shutdown_in_base_single.phpt" />
@@ -1564,6 +1564,7 @@
             <file role="test" name="tests/swoole_socket_coro/sendto.phpt" />
             <file role="test" name="tests/swoole_socket_coro/sendto_big.phpt" />
             <file role="test" name="tests/swoole_socket_coro/sendto_large_packet.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/server_accept.phpt" />
             <file role="test" name="tests/swoole_socket_coro/setopt/bindtodevice.phpt" />
             <file role="test" name="tests/swoole_socket_coro/setopt/ipv6_pktinfo.phpt" />
             <file role="test" name="tests/swoole_socket_coro/setopt/multicast.phpt" />
@@ -1615,6 +1616,7 @@
             <file role="test" name="tests/swoole_websocket_server/greeter.phpt" />
             <file role="test" name="tests/swoole_websocket_server/listener.phpt" />
             <file role="test" name="tests/swoole_websocket_server/memory.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/message_size.phpt" />
             <file role="test" name="tests/swoole_websocket_server/pack.phpt" />
             <file role="test" name="tests/swoole_websocket_server/pingloop.phpt" />
             <file role="test" name="tests/swoole_websocket_server/pingpong.phpt" />

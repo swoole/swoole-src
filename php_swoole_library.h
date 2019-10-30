@@ -885,6 +885,7 @@ static const char* swoole_library_source_core_constant =
     "    const OPTION_ENABLE_SIGNALFD = 'enable_signalfd';\n"
     "    const OPTION_DNS_CACHE_REFRESH_TIME = 'dns_cache_refresh_time';\n"
     "    const OPTION_SOCKET_BUFFER_SIZE = 'socket_buffer_size';\n"
+    "    const OPTION_SOCKET_SEND_TIMEOUT = 'socket_send_timeout';\n"
     "    const OPTION_LOG_LEVEL = 'log_level';\n"
     "    const OPTION_THREAD_NUM = 'thread_num';\n"
     "    const OPTION_MIN_THREAD_NUM = 'min_thread_num';\n"

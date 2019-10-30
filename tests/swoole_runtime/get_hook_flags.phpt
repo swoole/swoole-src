@@ -15,4 +15,3 @@ Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL | SWOOLE_HOOK_CURL);
 Assert::same(Swoole\Runtime::getHookFlags(), SWOOLE_HOOK_ALL | SWOOLE_HOOK_CURL);
 ?>
 --EXPECT--
-
