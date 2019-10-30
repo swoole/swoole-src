@@ -22,8 +22,10 @@ $pm->parentFunc = function () use ($pm) {
                     empty($download) ? $response->body : file_get_contents(TEST_LOG_FILE),
                     $pm->getRandomData()
                 );
-                phpt_var_dump($response->headers['content-encoding'] ?? 'no-compression');
-                var_dump($response->headers['content-encoding'] ?? $compression);
+                if (empty($download)) {
+                    phpt_var_dump($response->headers['content-encoding'] ?? 'no-compression');
+                    var_dump($response->headers['content-encoding'] ?? $compression);
+                }
             }
         }
     });
