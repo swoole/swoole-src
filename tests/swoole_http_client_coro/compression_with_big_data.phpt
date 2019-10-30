@@ -9,17 +9,22 @@ require __DIR__ . '/../include/skipif.inc';
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->initRandomData(3, [1, 4, 8, 32][PRESSURE_LEVEL] * 1024 * 1024);
+$pm->initRandomData(6, [1, 4, 8, 32][PRESSURE_LEVEL] * 1024 * 1024);
 $pm->parentFunc = function () use ($pm) {
     Co\Run(function () use ($pm) {
-        foreach (['deflate', 'gzip', 'br'] as $compression) {
-            $response = httpRequest(
-                "http://127.0.0.1:{$pm->getFreePort()}",
-                ['headers' => ['Accept-Encoding' => $compression]]
-            );
-            Assert::same($response->body, $pm->getRandomData());
-            phpt_var_dump($response->headers['content-encoding'] ?? 'no-compression');
-            var_dump($response->headers['content-encoding'] ?? $compression);
+        foreach ([[], ['download' => ['/', TEST_LOG_FILE]]] as $download) {
+            foreach (['deflate', 'gzip', 'br'] as $compression) {
+                $response = httpRequest(
+                    "http://127.0.0.1:{$pm->getFreePort()}",
+                    ['headers' => ['Accept-Encoding' => $compression]] + $download
+                );
+                Assert::same(
+                    empty($download) ? $response->body : file_get_contents(TEST_LOG_FILE),
+                    $pm->getRandomData()
+                );
+                phpt_var_dump($response->headers['content-encoding'] ?? 'no-compression');
+                var_dump($response->headers['content-encoding'] ?? $compression);
+            }
         }
     });
     $pm->kill();

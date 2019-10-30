@@ -174,6 +174,10 @@ function httpRequest(string $uri, array $options = [])
     if (isset($options['data'])) {
         $cli->setData($options['data']);
     }
+    if (is_array($options['download'] ?? null)) {
+        $cli->download(...array_values($options['download']));
+        return $cli;
+    }
     $redirect_times = $options['redirect'] ?? 3;
     while (true) {
         $cli->execute($path . $query);

@@ -472,6 +472,7 @@ bool http_client::decompress_response(const char *in, size_t in_len)
         int status;
         int encoding = compress_method == HTTP_COMPRESS_GZIP ? SW_ZLIB_ENCODING_GZIP : SW_ZLIB_ENCODING_DEFLATE;
         bool first_decompress = !gzip_stream_active;
+        size_t total_out;
 
         if (!gzip_stream_active)
         {
@@ -495,13 +496,14 @@ bool http_client::decompress_response(const char *in, size_t in_len)
 
         while (1)
         {
+            total_out = gzip_stream.total_out;
             gzip_stream.avail_out = body->size - body->length;
             gzip_stream.next_out = (Bytef *) (body->str + body->length);
             SW_ASSERT(body->length <= body->size);
             status = inflate(&gzip_stream, Z_SYNC_FLUSH);
             if (status >= 0)
             {
-                body->length = gzip_stream.total_out;
+                body->length += (gzip_stream.total_out - total_out);
                 if (body->length + (SW_BUFFER_SIZE_STD / 2) >= body->size)
                 {
                     if (swString_extend(body, body->size * 2) < 0)
@@ -550,16 +552,18 @@ bool http_client::decompress_response(const char *in, size_t in_len)
         const char *next_in = in;
         size_t available_in = in_len;
         while (1) {
-            size_t available_out = body->size - body->length;
+            size_t available_out = body->size - body->length, reserved_available_out = available_out;
             char * next_out = body->str + body->length;
             size_t total_out;
-            BrotliDecoderResult result = BrotliDecoderDecompressStream(
+            BrotliDecoderResult result;
+            SW_ASSERT(body->length <= body->size);
+            result = BrotliDecoderDecompressStream(
                 brotli_decoder_state,
                 &available_in, (const uint8_t **) &next_in,
                 &available_out, (uint8_t **) &next_out,
                 &total_out
             );
-            body->length = total_out;
+            body->length += reserved_available_out - available_out;
             if (result == BROTLI_DECODER_RESULT_SUCCESS || result == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT)
             {
                 return true;
