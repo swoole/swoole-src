@@ -243,7 +243,7 @@ static PHP_METHOD(swoole_http_response, write)
     }
 #endif
 
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     ctx->accept_compression = 0;
 #endif
 
@@ -416,7 +416,7 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
     // Content-Length
     else if (body_length > 0 || ctx->parser.method != PHP_HTTP_HEAD)
     {
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
         if (ctx->accept_compression)
         {
             body_length = swoole_zlib_buffer->length;
@@ -443,7 +443,7 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
         }
         SW_HASHTABLE_FOREACH_END();
     }
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     //http compress
     if (ctx->accept_compression)
     {
@@ -457,12 +457,17 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
     ctx->send_header = 1;
 }
 
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
 int swoole_http_response_compress(swString *body, int method, int level)
 {
+#ifdef SW_HAVE_ZLIB
     int encoding;
+#endif
+
+    if (0) { }
+#ifdef SW_HAVE_ZLIB
     //gzip: 0x1f
-    if (method == HTTP_COMPRESS_GZIP)
+    else if (method == HTTP_COMPRESS_GZIP)
     {
         encoding = 0x1f;
     }
@@ -471,6 +476,7 @@ int swoole_http_response_compress(swString *body, int method, int level)
     {
         encoding = -0xf;
     }
+#endif
 #ifdef SW_HAVE_BROTLI
     else if (method == HTTP_COMPRESS_BR)
     {
@@ -517,8 +523,7 @@ int swoole_http_response_compress(swString *body, int method, int level)
         swWarn("Unknown compression method");
         return SW_ERR;
     }
-
-    // ==== ZLIB ====
+#ifdef SW_HAVE_ZLIB
     if (level == Z_NO_COMPRESSION)
     {
         level = Z_DEFAULT_COMPRESSION;
@@ -567,6 +572,7 @@ int swoole_http_response_compress(swString *body, int method, int level)
         swWarn("deflateInit2() failed, Error: [%d]", retval);
     }
     return SW_ERR;
+#endif
 }
 #endif
 
@@ -646,7 +652,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
         swString *http_buffer = http_get_write_buffer(ctx);
         
         swString_clear(http_buffer);
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
         if (ctx->accept_compression)
         {
             if (http_body.length == 0 || swoole_http_response_compress(&http_body, ctx->compression_method, ctx->compression_level) != SW_OK)
@@ -662,7 +668,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
 
         if (http_body.length > 0)
         {
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
             if (ctx->accept_compression)
             {
                 send_body_str = swoole_zlib_buffer->str;
@@ -814,7 +820,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
         RETURN_FALSE;
     }
 
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     ctx->accept_compression = 0;
 #endif
 

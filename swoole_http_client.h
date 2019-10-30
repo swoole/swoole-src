@@ -92,7 +92,7 @@ static sw_inline void http_client_append_content_length(swString* buf, int lengt
     swString_append_ptr(buf, content_length_str, n);
 }
 
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
 extern swString *swoole_zlib_buffer;
 #endif
 

@@ -13,6 +13,7 @@ dnl  | to obtain it through the world-wide-web, please send a note to       |
 dnl  | license@swoole.com so we can mail you a copy immediately.            |
 dnl  +----------------------------------------------------------------------+
 dnl  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+dnl  | Author: Twosee  <twose@qq.com>                                       |
 dnl  +----------------------------------------------------------------------+
 
 PHP_ARG_ENABLE(debug-log, enable debug log,
@@ -278,14 +279,19 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
 
-    AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
-        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
-        PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
-    ])
-
     AC_CHECK_LIB(z, gzgets, [
+        AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
+    ])
+
+    AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
+        AC_CHECK_LIB(brotlidec, BrotliDecoderCreateInstance, [
+            AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
+            AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
+            PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
+            PHP_ADD_LIBRARY(brotlidec, 1, SWOOLE_SHARED_LIBADD)
+        ])
     ])
 
     PHP_ADD_LIBRARY(pthread)

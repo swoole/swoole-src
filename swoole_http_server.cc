@@ -28,7 +28,8 @@ using namespace swoole;
 using swoole::coroutine::Socket;
 
 swString *swoole_http_buffer;
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
+/* not only be used by zlib but also be used by br */
 swString *swoole_zlib_buffer;
 #endif
 swString *swoole_http_form_data_buffer;
@@ -220,7 +221,7 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx)
     ctx->parse_cookie = serv->http_parse_cookie;
     ctx->parse_body = serv->http_parse_post;
     ctx->parse_files = serv->http_parse_files;
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     ctx->enable_compression = serv->http_compression;
 #endif
     ctx->private_data = serv;
@@ -235,7 +236,7 @@ void swoole_http_context_copy(http_context *src, http_context *dst)
     dst->parse_cookie = src->parse_cookie;
     dst->parse_body = src->parse_body;
     dst->parse_files = src->parse_files;
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     dst->enable_compression = src->enable_compression;
 #endif
     dst->private_data = src->private_data;

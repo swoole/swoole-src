@@ -112,7 +112,7 @@ struct http_context
     uint32_t completed :1;
     uint32_t end :1;
     uint32_t send_header :1;
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     uint32_t enable_compression :1;
     uint32_t accept_compression :1;
 #endif
@@ -128,7 +128,7 @@ struct http_context
     uint32_t parse_files :1;
     uint32_t co_socket :1;
 
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     int8_t compression_level;
     int8_t compression_method;
 #endif
@@ -205,7 +205,7 @@ extern zend_class_entry *swoole_http_response_ce;
 
 extern swString *swoole_http_buffer;
 extern swString *swoole_http_form_data_buffer;
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
 extern swString *swoole_zlib_buffer;
 #endif
 
@@ -239,11 +239,13 @@ size_t swoole_http_requset_parse(http_context *ctx, const char *data, size_t len
 bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t klen, const char *v, size_t vlen, bool ucwords);
 void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value);
 
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
 int swoole_http_response_compress(swString *body, int method, int level);
 void swoole_http_get_compression_method(http_context *ctx, const char *accept_encoding, size_t length);
 const char* swoole_http_get_content_encoding(http_context *ctx);
+#endif
 
+#ifdef SW_HAVE_ZLIB
 static sw_inline voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
 {
     return (voidpf) safe_emalloc(items, size, 0);
