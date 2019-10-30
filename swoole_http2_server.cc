@@ -277,7 +277,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     }
 
     // content encoding
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     if (ctx->accept_compression)
     {
         const char *content_encoding = swoole_http_get_content_encoding(ctx);
@@ -286,7 +286,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
 #endif
 
     // content length
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     if (ctx->accept_compression)
     {
         body_length = swoole_zlib_buffer->length;
@@ -342,7 +342,7 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
     char header_buffer[SW_BUFFER_SIZE_STD];
     int ret;
 
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     if (ctx->accept_compression)
     {
         if (body->length == 0 || swoole_http_response_compress(body, ctx->compression_method, ctx->compression_level) != SW_OK)
@@ -414,7 +414,7 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
     size_t l;
     size_t send_n;
 
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     if (ctx->accept_compression)
     {
         p = swoole_zlib_buffer->str;
@@ -605,7 +605,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                     );
                     continue;
                 }
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
                 else if (ctx->enable_compression && strncasecmp((char *) nv.name, "accept-encoding", nv.namelen) == 0)
                 {
                     swoole_http_get_compression_method(ctx, (char *) nv.value, nv.valuelen);

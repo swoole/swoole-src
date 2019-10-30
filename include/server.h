@@ -430,7 +430,7 @@ struct _swServer
      * parse multipart/form-data files to match $_FILES
      */
     uint32_t http_parse_files :1;
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     /**
      * http content compression
      */

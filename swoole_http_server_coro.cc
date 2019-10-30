@@ -116,9 +116,9 @@ public:
         http_context *ctx = swoole_http_context_new(conn->get_fd());
         ctx->parse_body = 1;
         ctx->parse_cookie = 1;
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
         ctx->enable_compression = 1;
-        ctx->compression_level = Z_BEST_SPEED;
+        ctx->compression_level = SW_Z_BEST_SPEED;
 #endif
         ctx->private_data = conn;
         ctx->co_socket = 1;

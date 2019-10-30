@@ -282,6 +282,8 @@ static sw_inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, siz
 #define sw_strndup             strndup
 #endif
 
+#define SW_Z_BEST_SPEED 1
+
 /** always return less than size, zero termination  */
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...);
 size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);

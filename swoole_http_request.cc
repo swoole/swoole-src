@@ -452,7 +452,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
             }
         }
     }
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     else if (ctx->enable_compression && strncmp(header_name, "accept-encoding", header_len) == 0)
     {
         swoole_http_get_compression_method(ctx, at, length);
@@ -838,7 +838,7 @@ static int http_request_message_complete(swoole_http_parser *parser)
     return 0;
 }
 
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
 void swoole_http_get_compression_method(http_context *ctx, const char *accept_encoding, size_t length)
 {
 #ifdef SW_HAVE_BROTLI

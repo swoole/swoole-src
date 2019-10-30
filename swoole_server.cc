@@ -2441,12 +2441,12 @@ static PHP_METHOD(swoole_server, set)
     {
         serv->http_parse_files = zval_is_true(ztmp);
     }
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     //http content compression
     if (php_swoole_array_get_value(vht, "http_compression", ztmp))
     {
         serv->http_compression = zval_is_true(ztmp);
-        serv->http_compression_level = Z_BEST_SPEED;
+        serv->http_compression_level = SW_Z_BEST_SPEED;
     }
     if (php_swoole_array_get_value(vht, "http_gzip_level", ztmp) || php_swoole_array_get_value(vht, "http_compression_level", ztmp))
     {
