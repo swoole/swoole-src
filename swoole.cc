@@ -19,6 +19,7 @@
 #if (HAVE_PCRE || HAVE_BUNDLED_PCRE) && !defined(COMPILE_DL_PCRE)
 #include "ext/pcre/php_pcre.h"
 #endif
+#include "zend_exceptions.h"
 
 #include "mime_types.h"
 
@@ -28,7 +29,13 @@
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
 
-#include "zend_exceptions.h"
+#ifdef SW_HAVE_ZLIB
+#include <zlib.h>
+#endif
+#ifdef SW_HAVE_BROTLI
+#include <brotli/encode.h>
+#include <brotli/decode.h>
+#endif
 
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
@@ -681,20 +688,21 @@ PHP_MINFO_FUNCTION(swoole)
 #endif
 #endif
 #ifdef SW_USE_HTTP2
-#ifdef NGHTTP2_VERSION
-    php_info_print_table_row(2, "http2", NGHTTP2_VERSION);
-#else
     php_info_print_table_row(2, "http2", "enabled");
-#endif
 #endif
 #ifdef HAVE_PCRE
     php_info_print_table_row(2, "pcre", "enabled");
 #endif
 #ifdef SW_HAVE_ZLIB
+#ifdef ZLIB_VERSION
+    php_info_print_table_row(2, "zlib", ZLIB_VERSION);
+#else
     php_info_print_table_row(2, "zlib", "enabled");
 #endif
+#endif
 #ifdef SW_HAVE_BROTLI
-    php_info_print_table_row(2, "brotli", "enabled");
+    snprintf(buf, sizeof(buf), "%u/%u", BrotliEncoderVersion(), BrotliDecoderVersion());
+    php_info_print_table_row(2, "brotli", buf);
 #endif
 #ifdef HAVE_MUTEX_TIMEDLOCK
     php_info_print_table_row(2, "mutex_timedlock", "enabled");
