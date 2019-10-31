@@ -419,37 +419,34 @@ static bool websocket_message_compress(const char *data, size_t length, int leve
         }
     }
 
-    z_stream zstream;
-    memset(&zstream, 0, sizeof(zstream));
-
+    z_stream zstream = { 0 };
     int status;
+
     zstream.zalloc = php_zlib_alloc;
     zstream.zfree = php_zlib_free;
 
-    int retval = deflateInit2(&zstream, level, Z_DEFLATED, SW_ZLIB_ENCODING_RAW, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
-    if (retval != Z_OK)
+    status = deflateInit2(&zstream, level, Z_DEFLATED, SW_ZLIB_ENCODING_RAW, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
+    if (status != Z_OK)
     {
-        swWarn("deflateInit2() failed, Error: [%d]", retval);
+        swWarn("deflateInit2() failed, Error: [%d]", status);
         return false;
     }
 
     zstream.next_in = (Bytef *) data;
-    zstream.next_out = (Bytef *) swoole_zlib_buffer->str;
     zstream.avail_in = length;
+    zstream.next_out = (Bytef *) swoole_zlib_buffer->str;
     zstream.avail_out = swoole_zlib_buffer->size;
 
     status = deflate(&zstream, Z_FINISH);
     deflateEnd(&zstream);
-
-    if (Z_STREAM_END == status)
+    if (status != Z_STREAM_END)
     {
-        swoole_zlib_buffer->length = zstream.total_out;
-        return true;
-    }
-    else
-    {
+        swWarn("deflate() failed, Error: [%d]", status);
         return false;
     }
+
+    swoole_zlib_buffer->length = zstream.total_out;
+    return true;
 }
 #endif
 

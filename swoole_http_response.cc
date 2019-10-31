@@ -499,7 +499,7 @@ int swoole_http_response_compress(swString *body, int method, int level)
         }
 
         size_t input_size = body->length;
-        const uint8_t *input_buffer = (uint8_t *) body->str;
+        const uint8_t *input_buffer = (const uint8_t *) body->str;
         size_t encoded_size = swoole_zlib_buffer->size;
         uint8_t *encoded_buffer = (uint8_t *) swoole_zlib_buffer->str;
 
@@ -542,36 +542,34 @@ int swoole_http_response_compress(swString *body, int method, int level)
         }
     }
 
-    z_stream zstream;
-    memset(&zstream, 0, sizeof(zstream));
-
+    z_stream zstream = { 0 };
     int status;
+
     zstream.zalloc = php_zlib_alloc;
     zstream.zfree = php_zlib_free;
 
-    int retval = deflateInit2(&zstream, level, Z_DEFLATED, encoding, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
-
-    if (Z_OK == retval)
+    status = deflateInit2(&zstream, level, Z_DEFLATED, encoding, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
+    if (status != Z_OK)
     {
-        zstream.next_in = (Bytef *) body->str;
-        zstream.next_out = (Bytef *) swoole_zlib_buffer->str;
-        zstream.avail_in = body->length;
-        zstream.avail_out = swoole_zlib_buffer->size;
-
-        status = deflate(&zstream, Z_FINISH);
-        deflateEnd(&zstream);
-
-        if (Z_STREAM_END == status)
-        {
-            swoole_zlib_buffer->length = zstream.total_out;
-            return SW_OK;
-        }
+        swWarn("deflateInit2() failed, Error: [%d]", status);
+        return SW_ERR;
     }
-    else
+
+    zstream.next_in = (Bytef *) body->str;
+    zstream.avail_in = body->length;
+    zstream.next_out = (Bytef *) swoole_zlib_buffer->str;
+    zstream.avail_out = swoole_zlib_buffer->size;
+
+    status = deflate(&zstream, Z_FINISH);
+    deflateEnd(&zstream);
+    if (status != Z_STREAM_END)
     {
-        swWarn("deflateInit2() failed, Error: [%d]", retval);
+        swWarn("deflate() failed, Error: [%d]", status);
+        return SW_ERR;
     }
-    return SW_ERR;
+
+    swoole_zlib_buffer->length = zstream.total_out;
+    return SW_OK;
 #endif
 }
 #endif
@@ -650,7 +648,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
     else
     {
         swString *http_buffer = http_get_write_buffer(ctx);
-        
+
         swString_clear(http_buffer);
 #ifdef SW_HAVE_COMPRESSION
         if (ctx->accept_compression)
