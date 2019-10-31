@@ -5,8 +5,8 @@ swoole_coroutine_wait_group: base
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$wg = new Swoole\Coroutine\WaitGroup;
-go(function () use ($wg) {
+go(function () {
+    $wg = new Swoole\Coroutine\WaitGroup;
     go(function () use ($wg) {
         $wg->add();
         Assert::same(

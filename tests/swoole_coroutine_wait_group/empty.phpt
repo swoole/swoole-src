@@ -5,14 +5,16 @@ swoole_coroutine_wait_group: empty
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$wg = new Swoole\Coroutine\WaitGroup;
-$wg->add(1);
-$wg->add(-1);
-$wg->wait();
-$wg->add(1);
-$wg->done();
-$wg->wait();
-echo "DONE\n";
+Swoole\Coroutine\Run(function () {
+    $wg = new Swoole\Coroutine\WaitGroup();
+    $wg->add(1);
+    $wg->add(-1);
+    $wg->wait();
+    $wg->add(1);
+    $wg->done();
+    $wg->wait();
+    echo "DONE\n";
+});
 ?>
 --EXPECT--
 DONE

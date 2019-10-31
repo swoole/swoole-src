@@ -116,6 +116,7 @@ public:
     }
 
     static sw_co_thread_local std::unordered_map<long, Coroutine*> coroutines;
+    static sw_co_thread_local std::unordered_map<long, Coroutine *> user_yield_coros;
 
     static void set_on_yield(sw_coro_on_swap_t func);
     static void set_on_resume(sw_coro_on_swap_t func);
@@ -181,6 +182,11 @@ public:
     static inline size_t count()
     {
         return coroutines.size();
+    }
+
+    static inline bool is_user_yield_coros_empty()
+    {
+        return user_yield_coros.size() == 0;
     }
 
     static inline uint64_t get_peak_num()

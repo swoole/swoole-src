@@ -7,20 +7,16 @@ use InvalidArgumentException;
 
 class WaitGroup
 {
-    protected $chan;
+    protected $cid;
     protected $count = 0;
-    protected $waiting = false;
 
     public function __construct()
     {
-        $this->chan = new Channel(1);
+        $this->cid = \Swoole\Coroutine::getCid();
     }
 
     public function add(int $delta = 1): void
     {
-        if ($this->waiting) {
-            throw new BadMethodCallException('WaitGroup misuse: add called concurrently with wait');
-        }
         $count = $this->count + $delta;
         if ($count < 0) {
             throw new InvalidArgumentException('negative WaitGroup counter');
@@ -35,19 +31,16 @@ class WaitGroup
             throw new BadMethodCallException('negative WaitGroup counter');
         }
         $this->count = $count;
-        if ($count === 0 && $this->waiting) {
-            $this->chan->push(true);
+        if ($this->cid == \Swoole\Coroutine::getCid()) {
+            return;
         }
+        \Swoole\Coroutine::resume($this->cid);
     }
 
-    public function wait(float $timeout = -1): bool
+    public function wait(float $timeout = -1): void
     {
-        if ($this->count > 0) {
-            $this->waiting = true;
-            $done = $this->chan->pop($timeout);
-            $this->waiting = false;
-            return $done;
+        while ($this->count > 0) {
+            \Swoole\Coroutine::yield();
         }
-        return true;
     }
 }

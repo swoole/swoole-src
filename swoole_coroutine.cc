@@ -154,7 +154,6 @@ static zend_bool* zend_vm_interrupt = nullptr;
 static user_opcode_handler_t ori_exit_handler = nullptr;
 static user_opcode_handler_t ori_begin_silence_handler = nullptr;
 static user_opcode_handler_t ori_end_silence_handler = nullptr;
-static unordered_map<long, Coroutine *> user_yield_coros;
 
 static void (*orig_interrupt_function)(zend_execute_data *execute_data) = nullptr;
 static void (*orig_error_function)(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args) = nullptr;
@@ -1070,15 +1069,15 @@ PHP_METHOD(swoole_coroutine, resume)
         RETURN_FALSE;
     }
 
-    auto coroutine_iterator = user_yield_coros.find(cid);
-    if (coroutine_iterator == user_yield_coros.end())
+    auto coroutine_iterator = Coroutine::user_yield_coros.find(cid);
+    if (coroutine_iterator == Coroutine::user_yield_coros.end())
     {
         php_swoole_fatal_error(E_WARNING, "you can not resume the coroutine which is in IO operation or non-existent");
         RETURN_FALSE;
     }
 
     Coroutine* co = coroutine_iterator->second;
-    user_yield_coros.erase(cid);
+    Coroutine::user_yield_coros.erase(cid);
     co->resume();
     RETURN_TRUE;
 }
@@ -1086,7 +1085,7 @@ PHP_METHOD(swoole_coroutine, resume)
 PHP_METHOD(swoole_coroutine, yield)
 {
     Coroutine* co = Coroutine::get_current_safe();
-    user_yield_coros[co->get_cid()] = co;
+    Coroutine::user_yield_coros[co->get_cid()] = co;
     co->yield();
     RETURN_TRUE;
 }

@@ -26,6 +26,7 @@
 using swoole::CallbackManager;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using swoole::Coroutine;
 
 #ifdef SW_USE_MALLOC_TRIM
 #ifdef __APPLE__
@@ -185,7 +186,7 @@ static void reactor_finish(swReactor *reactor)
         reactor->singal_no = 0;
     }
     //the event loop is empty
-    if (reactor->wait_exit && reactor->is_empty(reactor))
+    if (reactor->wait_exit && reactor->is_empty(reactor) && Coroutine::is_user_yield_coros_empty())
     {
         reactor->running = 0;
     }
