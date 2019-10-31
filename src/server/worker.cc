@@ -542,7 +542,7 @@ void swWorker_stop(swWorker *worker)
         }
         goto _try_to_exit;
     }
-    
+
     swWorkerStopMessage msg;
     msg.pid = SwooleG.pid;
     msg.worker_id = SwooleWG.id;

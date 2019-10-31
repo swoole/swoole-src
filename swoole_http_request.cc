@@ -752,27 +752,27 @@ static int multipart_body_on_data_end(multipart_parser* p)
         char *input_path = ctx->current_input_name + input_path_pos;
         char *meta_path = meta_name + input_path_pos;
         size_t meta_path_len = sizeof(meta_name) - input_path_pos;
-        
+
         strncpy(meta_name, ctx->current_input_name, input_path_pos);
-        
+
         zval *zname = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("name"));
         zval *ztype = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("type"));
         zval *zfile = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("tmp_name"));
         zval *zerr  = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("error"));
         zval *zsize = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("size"));
-        
+
         sw_snprintf(meta_path, meta_path_len, "[name]%s", input_path);
         php_register_variable_ex(meta_name, zname, zfiles);
-            
+
         sw_snprintf(meta_path, meta_path_len, "[type]%s", input_path);
         php_register_variable_ex(meta_name, ztype, zfiles);
-            
+
         sw_snprintf(meta_path, meta_path_len, "[tmp_name]%s", input_path);            
         php_register_variable_ex(meta_name, zfile, zfiles);
-        
+
         sw_snprintf(meta_path, meta_path_len, "[error]%s", input_path);
         php_register_variable_ex(meta_name, zerr, zfiles);
-        
+
         sw_snprintf(meta_path, meta_path_len, "[size]%s", input_path);
         php_register_variable_ex(meta_name, zsize, zfiles);
     }

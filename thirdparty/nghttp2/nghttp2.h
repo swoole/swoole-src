@@ -1834,7 +1834,7 @@ typedef void (*nghttp2_debug_vprintf_callback)(const char *format,
  */
 NGHTTP2_EXTERN void nghttp2_set_debug_vprintf_callback(
     nghttp2_debug_vprintf_callback debug_vprintf_callback);
-    
+
 #ifdef __cplusplus
 }
 #endif

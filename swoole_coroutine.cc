@@ -362,7 +362,7 @@ inline void PHPCoroutine::activate()
     /* replace interrupt function */
     orig_interrupt_function = zend_interrupt_function;
     zend_interrupt_function = coro_interrupt_function;
-    
+
     /* replace the error function to save execute_data */
     orig_error_function = zend_error_cb;
     zend_error_cb = error;
