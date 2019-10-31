@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-10-30</date>
-    <time>14:00:00</time>
+    <date>2019-10-31</date>
+    <time>18:00:00</time>
     <version>
-        <release>4.4.9</release>
+        <release>4.4.10</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -54,30 +54,14 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        New API
-        ---
-        + Runtime::getHookFlags (#2915) (@limingxinleo)
-
         Enhancement
         ---
-        + Reduce memory copy (#2893) (7fc93504) (@hantaohuang) (@twose)
-        + Accepted connection will inherit the options of server (#2898) (@twose)
-        + Coroutine\Http\Server support HTTP2 protocol now (5479dbc4) (@matyhtf)
-        + Automatically add Content-Type header when use sendfile (4e62bc52) (@matyhtf)
-        + Compatibility with Zend preloader (Special thanks the PHP team) (#2899) (@twose)
-        + Implement RFC-7692 (#2906) (@matyhtf)
-        + Support PHP error control operators (#2916) (@twose)
-        + Support socket_send_timeout option for sync client (#2919) (@matyhtf)
-        * Support NPN (#2900) (@matyhtf)
-        * Improve HTTP proxy handshake request (#2922) (@twose)
+        + Refactor compression handler (Gzip and Brotli) (#2928) (@twose)
 
         Fixed
         ---
-        * Fixed #2890 (start a Process\Pool without onWorkerStart event) (#2892) (@twose)
-        * Fixed the bug that close the connection in non-current worker (#2891) (@matyhtf)
-        * Fixed memory error of create socket failure (2948f10a) (@matyhtf)
-        * Fixed missing ssl_host_name of HTTPS proxy (#2904) (@twose)
-        * Fixed CID-1466865 (#2923) (@tutanhamon)
+        * Fixed compilation failure caused BrotliDecoder (#2925) (@twose)
+        * Fixed memory error caused by compressing big data (#2928) (@twose)
     </notes>
     <contents>
         <dir name="/">
@@ -1056,6 +1040,7 @@
             <file role="test" name="tests/swoole_http_client_coro/auto_reconnect.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/buffer.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/bug_2661.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/compression_with_big_data.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/connect_timeout.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/construct_failed.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/cookies_set_bug.phpt" />
