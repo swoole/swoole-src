@@ -326,7 +326,6 @@ bool swoole_websocket_handshake(http_context *ctx)
                     port->websocket_subprotocol_length, false);
         }
         ctx->websocket_compression = conn->websocket_compression = websocket_compression;
-        conn->websocket_first_frame = 1;
     }
     else
     {
@@ -410,15 +409,6 @@ static bool websocket_message_compress(const char *data, size_t length, int leve
         level = Z_BEST_COMPRESSION;
     }
 
-    size_t memory_size = ((size_t) ((double) length * (double) 1.015)) + 32;
-    if (memory_size > swoole_zlib_buffer->size)
-    {
-        if (swString_extend(swoole_zlib_buffer, memory_size) < 0)
-        {
-            return false;
-        }
-    }
-
     z_stream zstream = { 0 };
     int status;
 
@@ -435,17 +425,58 @@ static bool websocket_message_compress(const char *data, size_t length, int leve
     zstream.next_in = (Bytef *) data;
     zstream.avail_in = length;
     zstream.next_out = (Bytef *) swoole_zlib_buffer->str;
-    zstream.avail_out = swoole_zlib_buffer->size;
 
-    status = deflate(&zstream, Z_FINISH);
+    size_t max_length = deflateBound(&zstream, length);
+    if (max_length > swoole_zlib_buffer->size)
+    {
+        if (swString_extend(swoole_zlib_buffer, max_length) < 0)
+        {
+            return false;
+        }
+    }
+
+    size_t bytes_written = 0;
+    uchar in_sync_flush;
+    int result;
+
+    do
+    {
+        size_t write_remaining;
+
+        if (zstream.avail_out == 0)
+        {
+            size_t write_position;
+
+            zstream.avail_out = max_length;
+            write_position = swoole_zlib_buffer->length;
+            swoole_zlib_buffer->length = max_length;
+            zstream.next_out = (Bytef *) swoole_zlib_buffer->str + write_position;
+
+            /* Use a fixed value for buffer increments */
+            max_length = 4096;
+        }
+
+        write_remaining = swoole_zlib_buffer->length - bytes_written;
+        in_sync_flush = zstream.avail_in == 0;
+        result = deflate(&zstream, in_sync_flush ? Z_SYNC_FLUSH : Z_NO_FLUSH);
+        bytes_written += write_remaining - zstream.avail_out;
+    } while (result == Z_OK);
+
+    if (result != Z_BUF_ERROR || bytes_written < 4)
+    {
+        swWarn("Failed to compress outgoing frame");
+        return false;
+    }
+
     deflateEnd(&zstream);
-    if (status != Z_STREAM_END)
+    if (status != Z_OK)
     {
         swWarn("deflate() failed, Error: [%d]", status);
         return false;
     }
 
-    swoole_zlib_buffer->length = zstream.total_out;
+    swoole_zlib_buffer->length = bytes_written - 4;
+
     return true;
 }
 #endif
@@ -699,8 +730,7 @@ static PHP_METHOD(swoole_websocket_server, push)
     ZVAL_NULL(&_zlib_data);
     if (conn->websocket_compression)
     {
-        flags = swWebSocket_set_flags(1, 0, conn->websocket_first_frame, 0, 0);
-        conn->websocket_first_frame = 0;
+        flags = swWebSocket_set_flags(1, 0, 1, 0, 0);
         if (zdata && Z_TYPE_P(zdata) == IS_STRING && Z_STRLEN_P(zdata) > 0)
         {
             swString_clear(swoole_zlib_buffer);
