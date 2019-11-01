@@ -109,15 +109,17 @@ static sw_inline void swWebSocket_mask(char *data, size_t len, const char *mask_
     }
 }
 
-void swWebSocket_encode(swString *buffer, const char *data, size_t length, char opcode, uint8_t flags)
+void swWebSocket_encode(swString *buffer, const char *data, size_t length, char opcode, uint8_t _flags)
 {
     int pos = 0;
     char frame_header[16];
     swWebSocket_frame_header *header = (swWebSocket_frame_header *) frame_header;
-    header->FIN = flags & SW_WEBSOCKET_FLAG_FIN;
+    header->FIN = !!(_flags & SW_WEBSOCKET_FLAG_FIN);
     header->OPCODE = opcode;
-    header->RSV1 = flags & SW_WEBSOCKET_FLAG_RSV1;
-    header->MASK = flags & SW_WEBSOCKET_FLAG_MASK;
+    header->RSV1 = !!(_flags & SW_WEBSOCKET_FLAG_RSV1);
+    header->RSV2 = 0;
+    header->RSV3 = 0;
+    header->MASK = !!(_flags & SW_WEBSOCKET_FLAG_MASK);
     pos = 2;
 
     if (length < 126)

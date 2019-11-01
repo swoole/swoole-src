@@ -704,7 +704,7 @@ static PHP_METHOD(swoole_websocket_server, push)
         if (zdata && !ZVAL_IS_NULL(zdata))
         {
             swString_clear(swoole_zlib_buffer);
-            if ((flags & SW_WEBSOCKET_FLAG_RSV1) && websocket_message_compress(Z_STRVAL_P(zdata), Z_STRLEN_P(zdata), Z_DEFAULT_COMPRESSION))
+            if (websocket_message_compress(Z_STRVAL_P(zdata), Z_STRLEN_P(zdata), Z_DEFAULT_COMPRESSION))
             {
                 ZVAL_STRINGL(&_zlib_data, swoole_zlib_buffer->str, swoole_zlib_buffer->length);
                 zdata = &_zlib_data;
