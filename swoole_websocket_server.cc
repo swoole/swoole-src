@@ -701,7 +701,7 @@ static PHP_METHOD(swoole_websocket_server, push)
     {
         flags = swWebSocket_set_flags(1, 0, conn->websocket_first_frame, 0, 0);
         conn->websocket_first_frame = 0;
-        if (zdata && !ZVAL_IS_NULL(zdata))
+        if (zdata && Z_TYPE_P(zdata) == IS_STRING && Z_STRLEN_P(zdata) > 0)
         {
             swString_clear(swoole_zlib_buffer);
             if (websocket_message_compress(Z_STRVAL_P(zdata), Z_STRLEN_P(zdata), Z_DEFAULT_COMPRESSION))
