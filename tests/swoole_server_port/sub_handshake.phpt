@@ -72,23 +72,27 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-object(Swoole\WebSocket\Frame)#%d (4) {
+object(Swoole\WebSocket\Frame)#%d (5) {
   ["fd"]=>
   int(1)
   ["data"]=>
   string(6) "Hello~"
   ["opcode"]=>
   int(1)
+  ["flags"]=>
+  int(%d)
   ["finish"]=>
   bool(true)
 }
-object(Swoole\WebSocket\Frame)#%d (4) {
+object(Swoole\WebSocket\Frame)#%d (5) {
   ["fd"]=>
   int(0)
   ["data"]=>
   string(2) "OK"
   ["opcode"]=>
   int(1)
+  ["flags"]=>
+  int(%d)
   ["finish"]=>
   bool(true)
 }
