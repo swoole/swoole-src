@@ -109,7 +109,7 @@ static bool websocket_message_compress(swString *buffer, const char *data, size_
 static bool websocket_message_uncompress(swString *buffer, const char *in, size_t in_len);
 #endif
 
-static void php_swoole_websocket_construct_frame(zval *zframe, zend_long opcode, char *payload, size_t payload_length, zend_bool finish)
+static void php_swoole_websocket_construct_frame(zval *zframe, zend_long opcode, char *payload, size_t payload_length, uint8_t flags)
 {
     if (opcode == WEBSOCKET_OPCODE_CLOSE)
     {
@@ -136,8 +136,10 @@ static void php_swoole_websocket_construct_frame(zval *zframe, zend_long opcode,
         object_init_ex(zframe, swoole_websocket_frame_ce);
         zend_update_property_stringl(swoole_websocket_frame_ce, zframe, ZEND_STRL("data"), payload, payload_length);
     }
-    zend_update_property_bool(swoole_websocket_frame_ce, zframe, ZEND_STRL("finish"), finish);
     zend_update_property_long(swoole_websocket_frame_ce, zframe, ZEND_STRL("opcode"), opcode);
+    zend_update_property_long(swoole_websocket_frame_ce, zframe, ZEND_STRL("flags"), flags);
+    /* BC */
+    zend_update_property_bool(swoole_websocket_frame_ce, zframe, ZEND_STRL("finish"), flags & SW_WEBSOCKET_FLAG_FIN);
 }
 
 void php_swoole_websocket_frame_unpack(swString *data, zval *zframe)
@@ -152,7 +154,7 @@ void php_swoole_websocket_frame_unpack(swString *data, zval *zframe)
     }
 
     swWebSocket_decode(&frame, data);
-    php_swoole_websocket_construct_frame(zframe, frame.header.OPCODE, frame.payload, frame.payload_length, frame.header.FIN);
+    php_swoole_websocket_construct_frame(zframe, frame.header.OPCODE, frame.payload, frame.payload_length, swWebSocket_get_flags(&frame));
 }
 
 int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opcode, uint8_t flags)
@@ -189,11 +191,15 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
         {
             flags = zval_get_long(ztmp) & SW_WEBSOCKET_FLAGS_ALL;
         }
-        if ((ztmp = sw_zend_read_property(swoole_websocket_frame_ce, zframe, ZEND_STRL("finish"), 0)))
+        if ((ztmp = sw_zend_read_property_not_null(swoole_websocket_frame_ce, zframe, ZEND_STRL("finish"), 0)))
         {
             if (zval_is_true(ztmp))
             {
                 flags |= SW_WEBSOCKET_FLAG_FIN;
+            }
+            else
+            {
+                flags &= ~SW_WEBSOCKET_FLAG_FIN;
             }
         }
     }
@@ -563,7 +569,7 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
     zval args[2];
 
     args[0] = *(zval *) serv->ptr2;
-    php_swoole_websocket_construct_frame(&args[1], opcode, Z_STRVAL(zdata), Z_STRLEN(zdata), flags & SW_WEBSOCKET_FLAG_FIN);
+    php_swoole_websocket_construct_frame(&args[1], opcode, Z_STRVAL(zdata), Z_STRLEN(zdata), flags);
     zend_update_property_long(swoole_websocket_frame_ce, &args[1], ZEND_STRL("fd"), fd);
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
@@ -610,7 +616,8 @@ void php_swoole_websocket_server_minit(int module_number)
     zend_declare_property_long(swoole_websocket_frame_ce,   ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_websocket_frame_ce, ZEND_STRL("data"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_websocket_frame_ce,   ZEND_STRL("opcode"), WEBSOCKET_OPCODE_TEXT, ZEND_ACC_PUBLIC);
-    zend_declare_property_bool(swoole_websocket_frame_ce,   ZEND_STRL("flags"), SW_WEBSOCKET_FLAG_FIN, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_websocket_frame_ce,   ZEND_STRL("flags"), SW_WEBSOCKET_FLAG_FIN, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_websocket_frame_ce,   ZEND_STRL("finish"), ZEND_ACC_PUBLIC);
 
     SW_INIT_CLASS_ENTRY_EX(swoole_websocket_closeframe, "Swoole\\WebSocket\\CloseFrame", "swoole_websocket_closeframe", NULL, NULL, swoole_websocket_frame);
     zend_declare_property_long(swoole_websocket_closeframe_ce,   ZEND_STRL("opcode"), WEBSOCKET_OPCODE_CLOSE, ZEND_ACC_PUBLIC);
