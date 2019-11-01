@@ -120,7 +120,9 @@ struct http_context
     uint32_t keepalive :1;
     uint32_t http2 :1;
     uint32_t websocket :1;
+#ifdef SW_HAVE_ZLIB
     uint32_t websocket_compression :1;
+#endif
     uint32_t upgrade :1;
     uint32_t detached :1;
     uint32_t parse_cookie :1;

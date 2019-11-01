@@ -118,7 +118,7 @@ public:
     void recv(zval *zframe, double timeout = 0);
     bool recv_http_response(double timeout = 0);
     bool upgrade(std::string path);
-    bool push(zval *zdata, zend_long opcode = WEBSOCKET_OPCODE_TEXT, bool fin = true);
+    bool push(zval *zdata, zend_long opcode = WEBSOCKET_OPCODE_TEXT, uint8_t flags = SW_WEBSOCKET_FLAG_FIN);
     bool close(const bool should_be_reset = true);
 
     void get_header_out(zval *return_value)
@@ -1439,7 +1439,7 @@ bool http_client::upgrade(std::string path)
     return websocket;
 }
 
-bool http_client::push(zval *zdata, zend_long opcode, bool fin)
+bool http_client::push(zval *zdata, zend_long opcode, uint8_t flags)
 {
     if (!websocket)
     {
@@ -1458,8 +1458,13 @@ bool http_client::push(zval *zdata, zend_long opcode, bool fin)
     }
 
     swString *buffer = socket->get_write_buffer();
+
+    if (websocket_mask)
+    {
+        flags |= SW_WEBSOCKET_FLAG_MASK;
+    }
+
     swString_clear(buffer);
-    uint8_t flags = swWebSocket_set_flags(fin, websocket_mask, 0, 0, 0);
     if (php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags) < 0)
     {
         return false;
@@ -1997,16 +2002,16 @@ static PHP_METHOD(swoole_http_client_coro, push)
     http_client* phc = swoole_get_phc(ZEND_THIS);
     zval *zdata;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
-    zend_bool fin = 1;
+    zend_long flags = SW_WEBSOCKET_FLAG_FIN;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
         Z_PARAM_ZVAL(zdata)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(opcode)
-        Z_PARAM_BOOL(fin)
+        Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(phc->push(zdata, opcode, fin));
+    RETURN_BOOL(phc->push(zdata, opcode, flags & SW_WEBSOCKET_FLAGS_ALL));
 }
 
 static PHP_METHOD(swoole_http_client_coro, recv)

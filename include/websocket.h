@@ -43,11 +43,21 @@ enum swWebsocket_status
 
 enum swWebSocket_frame_flag
 {
-    SW_WEBSOCKET_FLAG_FIN = 1,
+    SW_WEBSOCKET_FLAG_FIN = 1, /* BC: must be 1 */
     SW_WEBSOCKET_FLAG_RSV1 = 2,
     SW_WEBSOCKET_FLAG_RSV2 = 4,
     SW_WEBSOCKET_FLAG_RSV3 = 8,
     SW_WEBSOCKET_FLAG_MASK = 16,
+};
+
+enum swWebSocket_frame_union_flag
+{
+    SW_WEBSOCKET_FLAGS_ALL = /* used to prevent overflow  */
+        SW_WEBSOCKET_FLAG_FIN |
+        SW_WEBSOCKET_FLAG_RSV1 |
+        SW_WEBSOCKET_FLAG_RSV2 |
+        SW_WEBSOCKET_FLAG_RSV3 |
+        SW_WEBSOCKET_FLAG_MASK
 };
 
 typedef struct
