@@ -294,21 +294,6 @@ bool swoole_websocket_handshake(http_context *ctx)
 
     bool websocket_compression = false;
 
-#ifdef SW_HAVE_ZLIB
-    pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-extensions"));
-    if (pData && Z_TYPE_P(pData) == IS_STRING)
-    {
-        string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
-        string v = value.substr(0, value.find_first_of(';'));
-        if (v == "permessage-deflate")
-        {
-            websocket_compression = true;
-            swoole_http_response_set_header(ctx, ZEND_STRL("Sec-Websocket-Extensions"),
-                    ZEND_STRL("permessage-deflate; client_no_context_takeover; server_no_context_takeover"), false);
-        }
-    }
-#endif
-
     if (!ctx->co_socket)
     {
         swServer *serv = (swServer *)ctx->private_data;
@@ -318,6 +303,21 @@ bool swoole_websocket_handshake(http_context *ctx)
             swWarn("session[%d] is closed", ctx->fd);
             return false;
         }
+
+#ifdef SW_HAVE_ZLIB
+        if (serv->websocket_compression && (pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-extensions")))
+                && Z_TYPE_P(pData) == IS_STRING)
+        {
+            string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
+            string v = value.substr(0, value.find_first_of(';'));
+            if (v == "permessage-deflate")
+            {
+                websocket_compression = true;
+                swoole_http_response_set_header(ctx, ZEND_STRL("Sec-Websocket-Extensions"),
+                        ZEND_STRL("permessage-deflate; client_no_context_takeover; server_no_context_takeover"), false);
+            }
+        }
+#endif
         conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
         swListenPort *port = (swListenPort *) serv->connection_list[conn->server_fd].object;
         if (port && port->websocket_subprotocol)

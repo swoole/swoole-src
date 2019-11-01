@@ -430,12 +430,14 @@ struct _swServer
      * parse multipart/form-data files to match $_FILES
      */
     uint32_t http_parse_files :1;
-#ifdef SW_HAVE_COMPRESSION
     /**
      * http content compression
      */
     uint32_t http_compression :1;
-#endif
+    /**
+     * RFC-7692
+     */
+    uint32_t websocket_compression :1;
     /**
      * handle static files
      */
