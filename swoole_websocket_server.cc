@@ -335,7 +335,6 @@ bool swoole_websocket_handshake(http_context *ctx)
 
 #ifdef SW_HAVE_ZLIB
         if (
-            serv->websocket_compression &&
             (pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-extensions"))) &&
             Z_TYPE_P(pData) == IS_STRING
         )

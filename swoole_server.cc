@@ -2462,14 +2462,6 @@ static PHP_METHOD(swoole_server, set)
         serv->http_compression_level = level;
     }
 #endif
-
-#ifdef SW_HAVE_ZLIB
-    if (php_swoole_array_get_value(vht, "websocket_compression", ztmp))
-    {
-        serv->websocket_compression = zval_is_true(ztmp);
-    }
-#endif
-
     //temporary directory for HTTP uploaded file.
     if (php_swoole_array_get_value(vht, "upload_tmp_dir", ztmp))
     {

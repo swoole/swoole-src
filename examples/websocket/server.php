@@ -7,9 +7,8 @@ use Swoole\WebSocket\Server;
 $server = new Server("0.0.0.0", 9501, SWOOLE_BASE);
 //$server->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 $server->set([
-    // 'worker_num' => 4,
-    // 'task_worker_num' => 4,
-    'websocket_compression' => true,
+    'worker_num' => 4,
+    'task_worker_num' => 4
 ]);
 
 function user_handshake(Request $request, Response $response)
@@ -85,7 +84,7 @@ $server->on('message', function (Server $_server, $frame) {
 //            $_send = ''
             $_send = base64_encode(random_bytes(rand(100, 1024)));
 //            $_send = str_repeat('B', rand(100, 800));
-            $_server->push($frame->fd, $_send);
+            $_server->push($frame->fd, $_send, SWOOLE_WEBSOCKET_OPCODE_TEXT, SWOOLE_WEBSOCKET_FLAG_FIN | SWOOLE_WEBSOCKET_FLAG_RSV1);
             // echo "#$i\tserver sent " . strlen($_send) . " byte \n";
         }
     }
