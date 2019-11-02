@@ -1,5 +1,5 @@
 <?php
-if (ini_get('swoole.use_shortname') === 'On') {
+if (SWOOLE_USE_SHORTNAME) {
     /**
      * @param string $string
      * @return Swoole\StringObject

@@ -4,7 +4,15 @@
 
 static const char* swoole_library_source_constants =
     "\n"
-    "define('SWOOLE_LIBRARY', true);\n";
+    "define('SWOOLE_LIBRARY', true);\n"
+    "\n"
+    "$useShortname = ini_get_all('swoole')['swoole.use_shortname']['local_value'];\n"
+    "$useShortname = strtolower(trim(str_replace('0', '', $useShortname)));\n"
+    "if (! in_array($useShortname, ['', 'off', 'false'], true)) {\n"
+    "    define('SWOOLE_USE_SHORTNAME', true);\n"
+    "} else {\n"
+    "    define('SWOOLE_USE_SHORTNAME', false);\n"
+    "}\n";
 
 static const char* swoole_library_source_std_exec =
     "\n"
@@ -2240,7 +2248,7 @@ static const char* swoole_library_source_core_coroutine_server_connection =
 
 static const char* swoole_library_source_functions =
     "\n"
-    "if (ini_get('swoole.use_shortname') === 'On') {\n"
+    "if (SWOOLE_USE_SHORTNAME) {\n"
     "    /**\n"
     "     * @param string $string\n"
     "     * @return Swoole\\StringObject\n"
@@ -2291,7 +2299,7 @@ static const char* swoole_library_source_functions =
 
 static const char* swoole_library_source_alias =
     "\n"
-    "if (ini_get('swoole.use_shortname') === 'On') {\n"
+    "if (SWOOLE_USE_SHORTNAME) {\n"
     "    class_alias(Swoole\\Coroutine\\WaitGroup::class, Co\\WaitGroup::class, false);\n"
     "    class_alias(Swoole\\Coroutine\\Server::class, Co\\Server::class, false);\n"
     "}\n";
@@ -2312,7 +2320,7 @@ static const char* swoole_library_source_alias_ns =
     "\n"
     "namespace Co {\n"
     "\n"
-    "    if (ini_get('swoole.use_shortname') === 'On') {\n"
+    "    if (SWOOLE_USE_SHORTNAME) {\n"
     "        function run(callable $fn, ...$args)\n"
     "        {\n"
     "            return \\Swoole\\Coroutine\\Run($fn, ...$args);\n"
