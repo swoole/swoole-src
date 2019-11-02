@@ -508,10 +508,10 @@ sudo make install
 Enable it by adding a new line `extension=swoole_async.so` to `php.ini`.
 
 ## 💎 Frameworks & Components
-- [**Hyperf**](https://github.com/hyperf-cloud/hyperf) is a coroutine framework that focuses on hyperspeed and flexibility, specifically used for build microservices or middlewares.
+- [**Hyperf**](https://github.com/hyperf/hyperf) is a coroutine framework that focuses on hyperspeed and flexibility, specifically used for build microservices or middlewares.
 - [**Swoft**](https://github.com/swoft-cloud/swoft) is a modern, high-performance AOP and coroutine PHP framework.
 - [**Easyswoole**](https://www.easyswoole.com) is a simple, high-performance PHP framework, based on Swoole, which makes using Swoole as easy as `echo "hello world"`.
-- [**Saber**](https://github.com/swlib/saber) Is a human-friendly, high-performance HTTP client component that has almost everything you can imagine.
+- [**Saber**](https://github.com/swlib/saber) is a human-friendly, high-performance HTTP client component that has almost everything you can imagine.
 
 ## 🛠 Develop & Discussion
 
