@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-10-31</date>
+    <date>2019-11-04</date>
     <time>18:00:00</time>
     <version>
-        <release>4.4.10</release>
+        <release>4.4.11</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -54,14 +54,37 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
+        New API
+        ---
+        + Runtime::getHookFlags (#2915) (@limingxinleo)
+
         Enhancement
         ---
-        + Refactor compression handler (Gzip and Brotli) (#2928) (@twose)
+        + Support Websocket Compression on client-side (#2937) (@twose)
+        + Support compress websocket message by frame (#2937) (@twose)
+        + Optimized the detect logical of shortname (#2935) (@sy-records)
+        + Better compression handler (Gzip and Brotli) (#2928) (@twose)
+        + Reduce memory copy (#2893) (7fc93504) (@hantaohuang) (@twose)
+        + Accepted connection will inherit the options of server (#2898) (@twose)
+        + Coroutine\Http\Server support HTTP2 protocol now (5479dbc4) (@matyhtf)
+        + Automatically add Content-Type header when use sendfile (4e62bc52) (@matyhtf)
+        + Compatibility with Zend preloader (Special thanks to PHP team) (#2899) (@twose)
+        + Implement RFC-7692 (#2906) (@matyhtf)
+        + Support PHP error control operators (#2916) (@twose)
+        + Support socket_send_timeout option for sync client (#2919) (@matyhtf)
+        + Support NPN (#2900) (@matyhtf)
+        + Improve HTTP proxy handshake request (#2922) (@twose)
 
         Fixed
         ---
+        * Fixed Websocket Compression (ca818657) (@matyhtf)
         * Fixed compilation failure caused BrotliDecoder (#2925) (@twose)
         * Fixed memory error caused by compressing big data (#2928) (@twose)
+        * Fixed #2890 (start a Process\Pool without onWorkerStart event) (#2892) (@twose)
+        * Fixed the bug that close the connection in non-current worker (#2891) (@matyhtf)
+        * Fixed memory error of create socket failure (2948f10a) (@matyhtf)
+        * Fixed missing ssl_host_name of HTTPS proxy (#2904) (@twose)
+        * Fixed CID-1466865 (#2923) (@tutanhamon)
     </notes>
     <contents>
         <dir name="/">
@@ -1592,6 +1615,7 @@
             <file role="test" name="tests/swoole_timer/verify.phpt" />
             <file role="test" name="tests/swoole_websocket_server/close_frame_flag.phpt" />
             <file role="test" name="tests/swoole_websocket_server/close_frame_full.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/compression.phpt" />
             <file role="test" name="tests/swoole_websocket_server/disconnect.phpt" />
             <file role="test" name="tests/swoole_websocket_server/disconnect_with_code.phpt" />
             <file role="test" name="tests/swoole_websocket_server/exists_and_isEstablished.phpt" />

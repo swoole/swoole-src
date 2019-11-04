@@ -961,6 +961,7 @@ static const char* swoole_library_source_core_constant =
     "    const OPTION_DEFER = 'defer';\n"
     "    const OPTION_KEEP_ALIVE = 'keep_alive';\n"
     "    const OPTION_WEBSOCKET_MASK = 'websocket_mask';\n"
+    "    const OPTION_WEBSOCKET_COMPRESSION = 'websocket_compression';\n"
     "    const OPTION_HOST = 'host';\n"
     "    const OPTION_PORT = 'port';\n"
     "    const OPTION_SSL = 'ssl';\n"
