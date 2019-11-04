@@ -43,9 +43,9 @@
         <active>yes</active>
     </developer>
     <date>2019-11-04</date>
-    <time>18:00:00</time>
+    <time>21:00:00</time>
     <version>
-        <release>4.4.11</release>
+        <release>4.4.12</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -77,6 +77,8 @@
 
         Fixed
         ---
+        * Fixed AIO task num overflow (7038bdc1) (@twose)
+        * Fixed gdbinit, support get backtrace info of current stack (bd033e56) (@twose)
         * Fixed Websocket Compression (ca818657) (@matyhtf)
         * Fixed compilation failure caused BrotliDecoder (#2925) (@twose)
         * Fixed memory error caused by compressing big data (#2928) (@twose)
