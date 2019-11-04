@@ -56,6 +56,8 @@ const char* swoole_strerror(int code)
         return "Queue full";
     case SW_ERROR_OPERATION_NOT_SUPPORT:
         return "Operation not support";
+    case SW_ERROR_PROTOCOL_ERROR:
+        return "Protocol error";
     case SW_ERROR_FILE_NOT_EXIST:
         return "File not exist";
     case SW_ERROR_FILE_TOO_LARGE:
