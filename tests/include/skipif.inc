@@ -1,11 +1,4 @@
 <?php
-if (substr(PHP_OS, 0, 3) == 'WIN') {
-    exit('skip for Windows');
-}
-if (!extension_loaded('swoole')) {
-    exit('skip swoole extension is required');
-}
-
 define('SWOOLE_COLOR_RED', 1);
 define('SWOOLE_COLOR_GREEN', 2);
 define('SWOOLE_COLOR_YELLOW', 3);
@@ -13,6 +6,36 @@ define('SWOOLE_COLOR_BLUE', 4);
 define('SWOOLE_COLOR_MAGENTA', 5);
 define('SWOOLE_COLOR_CYAN', 6);
 define('SWOOLE_COLOR_WHITE', 7);
+
+skip(
+    'Linux only',
+    substr(PHP_OS, 0, 3) === 'WIN',
+    SWOOLE_COLOR_RED
+);
+skip(
+    'Swoole extension is required',
+    !extension_loaded('swoole'),
+    SWOOLE_COLOR_RED
+);
+skip(
+    'Please set "swoole.use_shortname = On"',
+    !SWOOLE_USE_SHORTNAME,
+    SWOOLE_COLOR_RED
+);
+
+(function () {
+    global $argv;
+    skip_if_php_version_lower_than('7.0');
+    if (!getenv('PHPT') && substr($argv[0], -4) === '.php') {
+        skip('please read ' . dirname(dirname(__FILE__)) . '/README.md and try again');
+    }
+    if (preg_match('#/(swoole_[^/]+)/#', $_SERVER['SCRIPT_FILENAME'], $dir)) {
+        $dir = $dir[1];
+        if (stripos($dir, 'http2') !== false) {
+            skip_if_no_http2();
+        }
+    }
+})();
 
 function swoole_color(string $content, int $color): string
 {
@@ -232,17 +255,3 @@ function skip_unsupported(string $message = '')
 {
     skip($message ?: 'the test cannot continue to work for some implementation reasons');
 }
-
-(function () {
-    global $argv;
-    skip_if_php_version_lower_than('7.0');
-    if (!getenv('PHPT') && substr($argv[0], -4) === '.php') {
-        skip('please read ' . dirname(dirname(__FILE__)) . '/README.md and try again');
-    }
-    if (preg_match('#\/(swoole_[^\/]+)\/#', $_SERVER['SCRIPT_FILENAME'], $dir)) {
-        $dir = $dir[1];
-        if (stripos($dir, 'http2') !== false) {
-            skip_if_no_http2();
-        }
-    }
-})();

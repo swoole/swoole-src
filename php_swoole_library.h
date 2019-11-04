@@ -8,11 +8,7 @@ static const char* swoole_library_source_constants =
     "\n"
     "$useShortname = ini_get_all('swoole')['swoole.use_shortname']['local_value'];\n"
     "$useShortname = strtolower(trim(str_replace('0', '', $useShortname)));\n"
-    "if (! in_array($useShortname, ['', 'off', 'false'], true)) {\n"
-    "    define('SWOOLE_USE_SHORTNAME', true);\n"
-    "} else {\n"
-    "    define('SWOOLE_USE_SHORTNAME', false);\n"
-    "}\n";
+    "define('SWOOLE_USE_SHORTNAME', !in_array($useShortname, ['', 'off', 'false'], true));\n";
 
 static const char* swoole_library_source_std_exec =
     "\n"
