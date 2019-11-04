@@ -13,7 +13,7 @@ namespace Swoole\Coroutine {
 
 namespace Co {
 
-    if (ini_get('swoole.use_shortname') === 'On') {
+    if (SWOOLE_USE_SHORTNAME) {
         function run(callable $fn, ...$args)
         {
             return \Swoole\Coroutine\Run($fn, ...$args);
