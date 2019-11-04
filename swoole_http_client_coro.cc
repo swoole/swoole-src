@@ -81,11 +81,12 @@ public:
     /* options */
     uint8_t reconnect_interval = 1;
     uint8_t reconnected_count = 0;
-    bool keep_alive = true;          // enable by default
-    bool websocket = false;          // if upgrade successfully
-    bool chunked = false;            // Transfer-Encoding: chunked
-    bool websocket_mask = true;      // enable websocket mask
-    int  download_file_fd = 0;       // save http response to file
+    bool keep_alive = true;             // enable by default
+    bool websocket = false;             // if upgrade successfully
+    bool chunked = false;               // Transfer-Encoding: chunked
+    bool websocket_mask = true;         // enable websocket mask
+    bool websocket_compression = false; // allow to compress websocket messages
+    int  download_file_fd = 0;          // save http response to file
     bool has_upload_files = false;
 
     /* safety zval */
@@ -321,9 +322,24 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
 
     add_assoc_stringl_ex(zheaders, header_name, http->tmp_header_field_name_len, (char *) at, length);
 
-    if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && strcmp(header_name, "upgrade") == 0 && strncasecmp(at, "websocket", length) == 0)
+    if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && strcmp(header_name, "upgrade") == 0)
     {
-        http->websocket = true;
+        if (strncasecmp(at, "websocket", length) == 0)
+        {
+            http->websocket = true;
+        }
+        /* TODO: protocol error? */
+    }
+    else if (http->websocket && http->websocket_compression && strcmp(header_name, "sec-websocket-extensions") == 0)
+    {
+        if (
+            strncasecmp(at, "permessage-deflate", length) == 0 &&
+            strncasecmp(at, "client_no_context_takeover", length) == 0 &&
+            strncasecmp(at, "server_no_context_takeover", length) == 0
+        )
+        {
+            http->websocket_compression = true;
+        }
     }
     else if (strcmp(header_name, "set-cookie") == 0)
     {
@@ -626,6 +642,10 @@ void http_client::apply_setting(zval *zset, const bool check_all)
         if (php_swoole_array_get_value(vht, "websocket_mask", ztmp))
         {
             websocket_mask = zval_is_true(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "websocket_compression", ztmp))
+        {
+            websocket_compression = zval_is_true(ztmp);
         }
     }
     if (socket)
@@ -1362,7 +1382,7 @@ void http_client::recv(zval *zframe, double timeout)
         swString msg;
         msg.length = retval;
         msg.str = socket->get_read_buffer()->str;
-        php_swoole_websocket_frame_unpack(&msg, zframe);
+        php_swoole_websocket_frame_unpack_ex(&msg, zframe, websocket_compression);
     }
 }
 
@@ -1430,10 +1450,16 @@ bool http_client::upgrade(std::string path)
         zval *zheaders = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestHeaders"), 0);
         zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestMethod"), "GET");
         http_client_create_token(SW_WEBSOCKET_KEY_LENGTH, buf);
-        add_assoc_string(zheaders, "Connection", (char* )"Upgrade");
+        add_assoc_string(zheaders, "Connection", (char* ) "Upgrade");
         add_assoc_string(zheaders, "Upgrade", (char* ) "websocket");
-        add_assoc_string(zheaders, "Sec-WebSocket-Version", (char*)SW_WEBSOCKET_VERSION);
+        add_assoc_string(zheaders, "Sec-WebSocket-Version", (char*) SW_WEBSOCKET_VERSION);
         add_assoc_str_ex(zheaders, ZEND_STRL("Sec-WebSocket-Key"), php_base64_encode((const unsigned char *) buf, SW_WEBSOCKET_KEY_LENGTH));
+#ifdef SW_HAVE_ZLIB
+        if (websocket_compression)
+        {
+            add_assoc_string(zheaders, "Sec-Websocket-Extensions", (char*) SW_WEBSOCKET_EXTENSION_DEFLATE);
+        }
+#endif
         exec(path);
     }
     return websocket;
@@ -1462,6 +1488,10 @@ bool http_client::push(zval *zdata, zend_long opcode, uint8_t flags)
     if (websocket_mask)
     {
         flags |= SW_WEBSOCKET_FLAG_MASK;
+    }
+    if (!websocket_compression)
+    {
+        flags &= ~SW_WEBSOCKET_FLAG_RSV1;
     }
 
     swString_clear(buffer);
@@ -1520,21 +1550,22 @@ void http_client::reset()
 
 bool http_client::close(const bool should_be_reset)
 {
-    Socket *socket = this->socket;
-    if (socket)
+    Socket *_socket = socket;
+    if (_socket)
     {
         zend_update_property_bool(swoole_http_client_coro_ce, zobject, ZEND_STRL("connected"), 0);
-        if (!socket->has_bound())
+        if (!_socket->has_bound())
         {
             if (should_be_reset)
             {
                 reset();
             }
             // reset the properties that depend on the connection
-            this->websocket = false;
-            this->socket = nullptr;
+            websocket = false;
+            websocket_compression = false;
+            socket = nullptr;
         }
-        php_swoole_client_coro_socket_free(socket);
+        php_swoole_client_coro_socket_free(_socket);
         return true;
     }
     return false;
