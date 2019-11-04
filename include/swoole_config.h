@@ -234,10 +234,10 @@
 #define SW_HTTP_FORM_FILE_DATA_FMT           "--%.*s\r\nContent-Disposition: form-data; name=\"%.*s\"; filename=\"%.*s\"\r\nContent-Type: %.*s\r\n\r\n"
 #define SW_HTTP_FORM_FILE_DATA_FMT_LEN       16
 
-#define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
 #define SW_WEBSOCKET_KEY_LENGTH          16
 #define SW_WEBSOCKET_QUEUE_SIZE          16
+#define SW_WEBSOCKET_EXTENSION_DEFLATE   "permessage-deflate; client_no_context_takeover; server_no_context_takeover"
 
 /**
  * MySQL Client
