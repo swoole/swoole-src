@@ -1,5 +1,5 @@
 --TEST--
-swoole_websocket_server: websocket with large data concurrency
+swoole_websocket_server: compression
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -10,6 +10,8 @@ use Swoole\WebSocket\Server;
 use Swoole\Coroutine\Http\Client;
 use Swoole\WebSocket\Frame;
 use SwooleTest\ProcessManager as ProcessManager;
+
+phpt_var_dump(defined('SWOOLE_HAVE_ZLIB'));
 
 $pm = new ProcessManager;
 $pm->initRandomData(MAX_REQUESTS);
@@ -29,10 +31,13 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             $cli->push(
                 $data,
                 SWOOLE_WEBSOCKET_OPCODE_TEXT,
-                SWOOLE_WEBSOCKET_FLAG_FIN | SWOOLE_WEBSOCKET_FLAG_RSV1
+                SWOOLE_WEBSOCKET_FLAG_FIN | SWOOLE_WEBSOCKET_FLAG_COMPRESS
             );
             $frame = $cli->recv();
             if (!Assert::same($frame->data, $data)) {
+                return;
+            }
+            if (!Assert::eq($frame->flags & SWOOLE_WEBSOCKET_FLAG_COMPRESS, defined('SWOOLE_HAVE_ZLIB'))) {
                 return;
             }
         }
@@ -49,7 +54,15 @@ $pm->childFunc = function () use ($pm) {
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $server->on('message', function (Server $server, Frame $frame) {
+    $server->on('message', function (Server $server, Frame $frame) use ($pm) {
+        if (!Assert::same($frame->data, $pm->getRandomData())) {
+            $server->close($frame->fd);
+            return;
+        }
+        if (!Assert::eq($frame->flags & SWOOLE_WEBSOCKET_FLAG_COMPRESS, defined('SWOOLE_HAVE_ZLIB'))) {
+            $server->close($frame->fd);
+            return;
+        }
         $server->push($frame->fd, $frame);
     });
     $server->start();

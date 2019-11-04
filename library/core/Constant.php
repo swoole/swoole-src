@@ -101,6 +101,7 @@ class Constant
     const OPTION_DEFER = 'defer';
     const OPTION_KEEP_ALIVE = 'keep_alive';
     const OPTION_WEBSOCKET_MASK = 'websocket_mask';
+    const OPTION_WEBSOCKET_COMPRESSION = 'websocket_compression';
     const OPTION_HOST = 'host';
     const OPTION_PORT = 'port';
     const OPTION_SSL = 'ssl';

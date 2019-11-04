@@ -85,7 +85,9 @@ public:
     bool websocket = false;             // if upgrade successfully
     bool chunked = false;               // Transfer-Encoding: chunked
     bool websocket_mask = true;         // enable websocket mask
+#ifdef SW_HAVE_ZLIB
     bool websocket_compression = false; // allow to compress websocket messages
+#endif
     int  download_file_fd = 0;          // save http response to file
     bool has_upload_files = false;
 
@@ -330,6 +332,7 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
         }
         /* TODO: protocol error? */
     }
+#ifdef SW_HAVE_ZLIB
     else if (http->websocket && http->websocket_compression && strcmp(header_name, "sec-websocket-extensions") == 0)
     {
         if (
@@ -341,6 +344,7 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
             http->websocket_compression = true;
         }
     }
+#endif
     else if (strcmp(header_name, "set-cookie") == 0)
     {
         zval *zcookies = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("cookies"), 0);
@@ -643,10 +647,12 @@ void http_client::apply_setting(zval *zset, const bool check_all)
         {
             websocket_mask = zval_is_true(ztmp);
         }
+#ifdef SW_HAVE_ZLIB
         if (php_swoole_array_get_value(vht, "websocket_compression", ztmp))
         {
             websocket_compression = zval_is_true(ztmp);
         }
+#endif
     }
     if (socket)
     {
@@ -1382,7 +1388,11 @@ void http_client::recv(zval *zframe, double timeout)
         swString msg;
         msg.length = retval;
         msg.str = socket->get_read_buffer()->str;
+#ifdef SW_HAVE_ZLIB
         php_swoole_websocket_frame_unpack_ex(&msg, zframe, websocket_compression);
+#else
+        php_swoole_websocket_frame_unpack(&msg, zframe);
+#endif
     }
 }
 
@@ -1489,10 +1499,12 @@ bool http_client::push(zval *zdata, zend_long opcode, uint8_t flags)
     {
         flags |= SW_WEBSOCKET_FLAG_MASK;
     }
-    if (!websocket_compression)
+#ifdef SW_HAVE_ZLIB
+    if ((flags & SW_WEBSOCKET_FLAG_COMPRESS) && !websocket_compression)
     {
-        flags &= ~SW_WEBSOCKET_FLAG_RSV1;
+        flags &= ~SW_WEBSOCKET_FLAG_COMPRESS;
     }
+#endif
 
     swString_clear(buffer);
     if (php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags) < 0)
@@ -1562,7 +1574,9 @@ bool http_client::close(const bool should_be_reset)
             }
             // reset the properties that depend on the connection
             websocket = false;
+#ifdef SW_HAVE_ZLIB
             websocket_compression = false;
+#endif
             socket = nullptr;
         }
         php_swoole_client_coro_socket_free(_socket);
