@@ -7,8 +7,9 @@ use Swoole\WebSocket\Server;
 $server = new Server("0.0.0.0", 9501, SWOOLE_BASE);
 //$server->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 $server->set([
-    'worker_num' => 4,
-    'task_worker_num' => 4
+    // 'worker_num' => 4,
+    // 'task_worker_num' => 4,
+    'websocket_compression' => true,
 ]);
 
 function user_handshake(Request $request, Response $response)

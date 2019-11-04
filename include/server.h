@@ -435,6 +435,10 @@ struct _swServer
      */
     uint32_t http_compression :1;
     /**
+     * RFC-7692
+     */
+    uint32_t websocket_compression :1;
+    /**
      * handle static files
      */
     uint32_t enable_static_handler :1;
