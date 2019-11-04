@@ -561,7 +561,7 @@ bool http_client::decompress_response(const char *in, size_t in_len)
     case HTTP_COMPRESS_BR:
     {
         if (!brotli_decoder_state) {
-            brotli_decoder_state = BrotliDecoderCreateInstance(NULL, NULL, NULL);
+            brotli_decoder_state = BrotliDecoderCreateInstance(php_brotli_alloc, php_brotli_free, NULL);
             if (!brotli_decoder_state)
             {
                 swWarn("BrotliDecoderCreateInstance() failed");

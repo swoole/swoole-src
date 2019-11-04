@@ -259,6 +259,18 @@ static sw_inline void php_zlib_free(voidpf opaque, voidpf address)
 }
 #endif
 
+#ifdef SW_HAVE_BROTLI
+static sw_inline void* php_brotli_alloc(void* opaque, size_t size)
+{
+    return emalloc(size);
+}
+
+static sw_inline void php_brotli_free(void* opaque, void* address)
+{
+    efree(address);
+}
+#endif
+
 static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *zset_cookie_headers)
 {
     const char *key = at;
