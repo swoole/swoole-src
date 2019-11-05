@@ -90,7 +90,11 @@ define co_bt
     if $argc > 0
         set $cid = (int) $arg0
     else
-        set $cid = 'swoole::Coroutine::get_current_cid'()
+        if swoole::Coroutine::current
+            set $cid = swoole::Coroutine::current->cid
+        else
+            set $cid = -1
+        end
     end
 
     printf "coroutine cid: [%d]\n", $cid
@@ -120,11 +124,11 @@ end
 
 define co_status
     printf "\t c_stack_size: %d\n",  'swoole::Coroutine::stack_size'
-    printf "\t call_stack_size: %d\n",  'swoole::Coroutine::call_stack_size'
     printf "\t active: %d\n",  'swoole::PHPCoroutine::active'
     printf "\t coro_num: %d\n",  swoole_coro_count()
-    printf "\t max_coro_num: %d\n",  'swoole::PHPCoroutine::max_num'
     printf "\t peak_coro_num: %d\n",  'swoole::Coroutine::peak_num'
+    printf "\t config: "
+    print swoole::PHPCoroutine::config
 end
 
 define ____sw_executor_globals
