@@ -241,7 +241,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_push, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
     ZEND_ARG_INFO(0, opcode)
-    ZEND_ARG_INFO(0, finish)
+    ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_recv, 0, 0, 0)
