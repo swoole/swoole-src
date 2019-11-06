@@ -343,39 +343,55 @@ bool swoole_websocket_handshake(http_context *ctx)
     swoole_http_response_set_header(ctx, ZEND_STRL("Sec-WebSocket-Version"), ZEND_STRL(SW_WEBSOCKET_VERSION), false);
 
 #ifdef SW_HAVE_ZLIB
+    bool enable_websocket_compression = true;
     bool websocket_compression = false;
 #endif
+    swServer *serv = nullptr;
+    swConnection *conn = nullptr;
 
     if (!ctx->co_socket)
     {
-        swServer *serv = (swServer *) ctx->private_data;
-        swConnection *conn = swWorker_get_connection(serv, ctx->fd);
+        serv = (swServer *) ctx->private_data;
+        conn = swWorker_get_connection(serv, ctx->fd);
         if (!conn)
         {
-            swWarn("session[%d] is closed", ctx->fd);
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed", ctx->fd);
             return false;
         }
+#ifdef SW_HAVE_ZLIB
+        enable_websocket_compression = serv->websocket_compression;
+#endif
+    }
+#ifdef SW_HAVE_ZLIB
+    else
+    {
+        enable_websocket_compression = ctx->websocket_compression;
+    }
+#endif
 
 #ifdef SW_HAVE_ZLIB
-        if (
-            serv->websocket_compression &&
-            (pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-extensions"))) &&
-            Z_TYPE_P(pData) == IS_STRING
-        )
+    if (
+        enable_websocket_compression &&
+        (pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-extensions"))) &&
+        Z_TYPE_P(pData) == IS_STRING
+    )
+    {
+        string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
+        if (value.substr(0, value.find_first_of(';')) == "permessage-deflate")
         {
-            string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
-            if (value.substr(0, value.find_first_of(';')) == "permessage-deflate")
-            {
-                websocket_compression = true;
-                swoole_http_response_set_header(
-                    ctx,
-                    ZEND_STRL("Sec-Websocket-Extensions"),
-                    ZEND_STRL(SW_WEBSOCKET_EXTENSION_DEFLATE),
-                    false
-                );
-            }
+            websocket_compression = true;
+            swoole_http_response_set_header(
+                ctx,
+                ZEND_STRL("Sec-Websocket-Extensions"),
+                ZEND_STRL(SW_WEBSOCKET_EXTENSION_DEFLATE),
+                false
+            );
         }
+    }
 #endif
+
+    if (conn)
+    {
         conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
         swListenPort *port = (swListenPort *) serv->connection_list[conn->server_fd].object;
         if (port && port->websocket_subprotocol)
@@ -811,7 +827,7 @@ static PHP_METHOD(swoole_websocket_server, push)
         }
         if (!conn->websocket_compression)
         {
-            flags &= ~SW_WEBSOCKET_FLAG_COMPRESS;
+            flags ^= SW_WEBSOCKET_FLAG_COMPRESS;
         }
     }
 #endif

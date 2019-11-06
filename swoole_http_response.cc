@@ -173,6 +173,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_create, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_push, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, opcode)
+    ZEND_ARG_INFO(0, finish)
+ZEND_END_ARG_INFO()
+
 const zend_function_entry swoole_http_response_methods[] =
 {
     PHP_ME(swoole_http_response, initHeader, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
@@ -197,7 +203,7 @@ const zend_function_entry swoole_http_response_methods[] =
      * WebSocket
      */
     PHP_ME(swoole_http_response, upgrade, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, push, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, push, arginfo_swoole_http_response_push, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, recv, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, close, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
@@ -1099,7 +1105,7 @@ static PHP_METHOD(swoole_http_response, ping)
 static PHP_METHOD(swoole_http_response, upgrade)
 {
     http_context *ctx = swoole_http_context_get(ZEND_THIS, 0);
-    if (UNEXPECTED(!ctx) || !ctx->co_socket)
+    if (UNEXPECTED(!ctx || !ctx->co_socket))
     {
         RETURN_FALSE;
     }
@@ -1123,6 +1129,13 @@ static PHP_METHOD(swoole_http_response, push)
     {
         RETURN_FALSE;
     }
+
+#ifdef SW_HAVE_ZLIB
+    if ((flags & SW_WEBSOCKET_FLAG_COMPRESS) && !ctx->websocket_compression)
+    {
+        flags ^= SW_WEBSOCKET_FLAG_COMPRESS;
+    }
+#endif
 
     swString *http_buffer = http_get_write_buffer(ctx);
     swString_clear(http_buffer);
@@ -1153,8 +1166,15 @@ static PHP_METHOD(swoole_http_response, recv)
         RETURN_FALSE;
     }
 
+    double timeout = 0;
+
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     Socket *sock = (Socket *) ctx->private_data;
-    ssize_t retval = sock->recv_packet(0);
+    ssize_t retval = sock->recv_packet(timeout);
     swString _tmp;
 
     if (retval < 0)
@@ -1170,7 +1190,12 @@ static PHP_METHOD(swoole_http_response, recv)
     {
         _tmp.str = sock->get_read_buffer()->str;
         _tmp.length = retval;
+
+#ifdef SW_HAVE_ZLIB
+        php_swoole_websocket_frame_unpack_ex(&_tmp, return_value, ctx->websocket_compression);
+#else
         php_swoole_websocket_frame_unpack(&_tmp, return_value);
+#endif
     }
 }
 

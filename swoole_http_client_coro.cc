@@ -1502,7 +1502,7 @@ bool http_client::push(zval *zdata, zend_long opcode, uint8_t flags)
 #ifdef SW_HAVE_ZLIB
     if ((flags & SW_WEBSOCKET_FLAG_COMPRESS) && !websocket_compression)
     {
-        flags &= ~SW_WEBSOCKET_FLAG_COMPRESS;
+        flags ^= SW_WEBSOCKET_FLAG_COMPRESS;
     }
 #endif
 

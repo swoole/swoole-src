@@ -67,12 +67,20 @@ public:
     php_swoole_fci *default_handler;
     bool running;
 
-public:
+    /* options */
+#ifdef SW_HAVE_ZLIB
+    bool websocket_compression;
+#endif
+
     http_server(enum swSocket_type type)
     {
         socket = new Socket(type);
-        running = true;
         default_handler = nullptr;
+        running = true;
+
+#ifdef SW_HAVE_ZLIB
+        websocket_compression = false;
+#endif
     }
 
     void set_handler(string pattern, php_swoole_fci *fci)
@@ -119,6 +127,9 @@ public:
 #ifdef SW_HAVE_COMPRESSION
         ctx->enable_compression = 1;
         ctx->compression_level = SW_Z_BEST_SPEED;
+#endif
+#ifdef SW_HAVE_ZLIB
+        ctx->websocket_compression = websocket_compression;
 #endif
         ctx->private_data = conn;
         ctx->co_socket = 1;
@@ -339,8 +350,8 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
     if (ssl)
     {
         zend_throw_exception_ex(
-                swoole_exception_ce,
-                EPROTONOSUPPORT, "you must configure with `--enable-openssl` to support ssl connection when compiling Swoole"
+            swoole_exception_ce,
+            EPROTONOSUPPORT, "you must configure with `--enable-openssl` to support ssl connection when compiling Swoole"
         );
         RETURN_FALSE;
     }
@@ -410,6 +421,15 @@ static PHP_METHOD(swoole_http_server_coro, start)
 
     zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
     php_swoole_socket_set_protocol(hs->socket, zsettings);
+
+#ifdef SW_HAVE_ZLIB
+    HashTable *vht = Z_ARRVAL_P(zsettings);
+    zval *ztmp;
+    if (php_swoole_array_get_value(vht, "websocket_compression", ztmp))
+    {
+        hs->websocket_compression = zval_is_true(ztmp);
+    }
+#endif
 
     php_swoole_http_server_init_global_variant();
 
