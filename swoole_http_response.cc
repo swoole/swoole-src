@@ -176,7 +176,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_push, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
     ZEND_ARG_INFO(0, opcode)
-    ZEND_ARG_INFO(0, finish)
+    ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
 const zend_function_entry swoole_http_response_methods[] =
