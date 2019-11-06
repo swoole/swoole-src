@@ -241,7 +241,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_push, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
     ZEND_ARG_INFO(0, opcode)
-    ZEND_ARG_INFO(0, finish)
+    ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_recv, 0, 0, 0)
@@ -1502,7 +1502,7 @@ bool http_client::push(zval *zdata, zend_long opcode, uint8_t flags)
 #ifdef SW_HAVE_ZLIB
     if ((flags & SW_WEBSOCKET_FLAG_COMPRESS) && !websocket_compression)
     {
-        flags &= ~SW_WEBSOCKET_FLAG_COMPRESS;
+        flags ^= SW_WEBSOCKET_FLAG_COMPRESS;
     }
 #endif
 
