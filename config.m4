@@ -114,6 +114,24 @@ AC_DEFUN([AC_SWOOLE_HAVE_REUSEPORT],
     ])
 ])
 
+dnl EPOLLEXCLUSIVE appeared in Linux 4.5, glibc 2.24
+AC_DEFUN([AC_SWOOLE_HAVE_EPOLLEXCLUSIVE],
+[
+    AC_MSG_CHECKING([for epoll EPOLLEXCLUSIVE])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #include <sys/epoll.h>
+    ]], [[    	
+	  	struct epoll_event ee;
+	  	ee.events = EPOLLIN|EPOLLEXCLUSIVE;
+	 	epoll_ctl(0, EPOLL_CTL_ADD, 0, &ee)
+    ]])],[
+        AC_DEFINE([HAVE_EPOLLEXCLUSIVE], 1, [have EPOLLEXCLUSIVE?])
+        AC_MSG_RESULT([yes])
+    ],[
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_DEFUN([AC_SWOOLE_HAVE_FUTEX],
 [
     AC_MSG_CHECKING([for futex])
@@ -347,10 +365,11 @@ if test "$PHP_SWOOLE" != "no"; then
 
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
+    AC_SWOOLE_HAVE_EPOLLEXCLUSIVE
     AC_SWOOLE_HAVE_FUTEX
     AC_SWOOLE_HAVE_UCONTEXT
     AC_SWOOLE_HAVE_VALGRIND
-    AC_SWOOLE_CHECK_SOCKETS
+    AC_SWOOLE_CHECK_SOCKETS    
 
     AS_CASE([$host_os],
       [darwin*], [SW_OS="MAC"],

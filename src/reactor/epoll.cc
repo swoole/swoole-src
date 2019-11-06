@@ -45,11 +45,19 @@ static sw_inline int swReactorEpoll_event_set(int fdtype)
     uint32_t flag = 0;
     if (swReactor_event_read(fdtype))
     {
+#ifdef HAVE_EPOLLEXCLUSIVE
+        flag |= EPOLLIN | EPOLLEXCLUSIVE;
+#else
         flag |= EPOLLIN;
+#endif
     }
     if (swReactor_event_write(fdtype))
     {
+#ifdef HAVE_EPOLLEXCLUSIVE
+        flag |= EPOLLOUT | EPOLLEXCLUSIVE;
+#else
         flag |= EPOLLOUT;
+#endif
     }
     if (fdtype & SW_EVENT_ONCE)
     {
