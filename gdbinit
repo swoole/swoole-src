@@ -90,8 +90,8 @@ define co_bt
     if $argc > 0
         set $cid = (int) $arg0
     else
-        if swoole::Coroutine::current
-            set $cid = swoole::Coroutine::current->cid
+        if 'swoole::Coroutine::current'
+            set $cid = (int) 'swoole::Coroutine::current->cid'
         else
             set $cid = -1
         end
@@ -113,7 +113,7 @@ define __co_bt
     set $cid = (int)$arg0
     set $co = swoole_coro_get($cid)
     if $co
-        set $task = (php_coro_task *)$co->task
+        set $task = (php_coro_task *) $co->task
         if $task
             sw_dump_bt $task->execute_data
         end
