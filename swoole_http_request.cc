@@ -409,47 +409,47 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
             conn->websocket_status = WEBSOCKET_STATUS_CONNECTION;
         }
     }
-    else if (parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT || parser->method == PHP_HTTP_DELETE || parser->method == PHP_HTTP_PATCH)
+    else if (
+        (parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT || parser->method == PHP_HTTP_DELETE || parser->method == PHP_HTTP_PATCH) &&
+        strncmp(header_name, "content-type", header_len) == 0
+    )
     {
-        if (strncmp(header_name, "content-type", header_len) == 0)
+        if (http_strncasecmp("application/x-www-form-urlencoded", at, length))
         {
-            if (http_strncasecmp("application/x-www-form-urlencoded", at, length))
+            ctx->request.post_form_urlencoded = 1;
+        }
+        else if (http_strncasecmp("multipart/form-data", at, length))
+        {
+            // start offset
+            offset = sizeof("multipart/form-data;") - 1;
+            while (at[offset] == ' ')
             {
-                ctx->request.post_form_urlencoded = 1;
+                offset++;
             }
-            else if (http_strncasecmp("multipart/form-data", at, length))
+            offset += sizeof("boundary=") - 1;
+
+            int boundary_len = length - offset;
+            char *boundary_str = (char *) at + offset;
+
+            // find ';'
+            char *tmp = (char*) memchr(boundary_str, ';', boundary_len);
+            if (tmp)
             {
-                // start offset
-                offset = sizeof("multipart/form-data;") - 1;
-                while (at[offset] == ' ')
-                {
-                    offset++;
-                }
-                offset += sizeof("boundary=") - 1;
-
-                int boundary_len = length - offset;
-                char *boundary_str = (char *) at + offset;
-
-                // find ';'
-                char *tmp = (char*) memchr(boundary_str, ';', boundary_len);
-                if (tmp)
-                {
-                    boundary_len = tmp - boundary_str;
-                }
-                if (boundary_len <= 0)
-                {
-                    swWarn("invalid multipart/form-data body fd:%d", ctx->fd);
-                    return 0;
-                }
-                // trim '"'
-                if (boundary_len >= 2 && boundary_str[0] == '"' && *(boundary_str + boundary_len - 1) == '"')
-                {
-                    boundary_str++;
-                    boundary_len -= 2;
-                }
-                swTraceLog(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
-                swoole_http_parse_form_data(ctx, boundary_str, boundary_len);
+                boundary_len = tmp - boundary_str;
             }
+            if (boundary_len <= 0)
+            {
+                swWarn("invalid multipart/form-data body fd:%d", ctx->fd);
+                return 0;
+            }
+            // trim '"'
+            if (boundary_len >= 2 && boundary_str[0] == '"' && *(boundary_str + boundary_len - 1) == '"')
+            {
+                boundary_str++;
+                boundary_len -= 2;
+            }
+            swTraceLog(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
+            swoole_http_parse_form_data(ctx, boundary_str, boundary_len);
         }
     }
 #ifdef SW_HAVE_COMPRESSION
