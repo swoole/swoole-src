@@ -9,50 +9,50 @@ if (swoole_cpu_num() === 1) {
 ?>
 --FILE--
 <?php
-error_reporting(0);
 require __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\Server;
-
-$pm = new SwooleTest\ProcessManager;
-$atomic = new Swoole\Atomic();
 const WORKER_NUM = 4;
+error_reporting(0);
+
+$pm = new ProcessManager;
+$atomic = new Swoole\Atomic;
 
 $pm->parentFunc = function ($pid) use ($pm) {
     $n = WORKER_NUM;
     $clients = [];
     while ($n--) {
-        $client = new swoole_client(SWOOLE_SOCK_TCP);
+        $client = new Swoole\Client(SWOOLE_SOCK_TCP);
         if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
             exit("connect failed\n");
         }
-        $client->send("hello world");
+        $client->send('hello world');
         $clients[] = $client;
     }
+    switch_process();
     //reload
     echo "[-1] start to reload\n";
     Swoole\Process::kill($pid, SIGUSR1);
-    sleep(4);
+    sleep(3);
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm, $atomic) {
-    $serv = new Server('127.0.0.1', $pm->getFreePort());
-    $serv->set([
-        "worker_num" => WORKER_NUM,
-        "max_wait_time" => 1,
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort());
+    $server->set([
+        'worker_num' => WORKER_NUM,
+        'max_wait_time' => 1,
     ]);
-    $serv->on("WorkerStart", function (Server $server, $worker_id) use ($pm, $atomic) {
+    $server->on('workerStart', function (Swoole\Server $server, $worker_id) use ($pm, $atomic) {
         echo "$worker_id [" . $server->worker_pid . "] start\n";
         $atomic->add(1);
-        if ($atomic->get() == 4) {
+        if ($atomic->get() === WORKER_NUM) {
             $pm->wakeup();
         }
     });
-    $serv->on('receive', function ($serv, $fd, $tid, $data) {
-        sleep(10);
+    $server->on('receive', function ($serv, $fd, $tid, $data) {
+        sleep(100);
     });
-    $serv->start();
+    $server->start();
 };
 
 $pm->childFirst();
