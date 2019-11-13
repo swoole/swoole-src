@@ -43,7 +43,7 @@ function swoole_array(array $array = []): Swoole\ArrayObject
  * @param $default_value
  * @return mixed
  */
-function swoole_array_default_value(array $array, $key, $default_value = '')
+function swoole_array_default_value(array $array, $key, $default_value = null)
 {
     return array_key_exists($key, $array) ? $array[$key] : $default_value;
 }
