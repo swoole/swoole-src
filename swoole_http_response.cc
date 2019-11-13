@@ -1121,13 +1121,21 @@ static PHP_METHOD(swoole_http_response, push)
         RETURN_FALSE;
     }
 
-    zval *zdata = NULL;
+    zval *zdata;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
+    zval *zflags = NULL;
     zend_long flags = SW_WEBSOCKET_FLAG_FIN;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|ll", &zdata, &opcode, &flags) == FAILURE)
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_ZVAL(zdata)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(opcode)
+        Z_PARAM_ZVAL_EX(zflags, 1, 0)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (zflags != NULL)
     {
-        RETURN_FALSE;
+        flags = zval_get_long(zflags);
     }
 
 #ifdef SW_HAVE_ZLIB

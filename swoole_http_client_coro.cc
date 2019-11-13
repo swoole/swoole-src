@@ -248,8 +248,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_recv, 0, 0, 0)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
-
-
 static PHP_METHOD(swoole_http_client_coro, __construct);
 static PHP_METHOD(swoole_http_client_coro, __destruct);
 static PHP_METHOD(swoole_http_client_coro, set);
@@ -2047,14 +2045,20 @@ static PHP_METHOD(swoole_http_client_coro, push)
     http_client* phc = swoole_get_phc(ZEND_THIS);
     zval *zdata;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
+    zval *zflags = NULL;
     zend_long flags = SW_WEBSOCKET_FLAG_FIN;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
         Z_PARAM_ZVAL(zdata)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(opcode)
-        Z_PARAM_LONG(flags)
+        Z_PARAM_ZVAL_EX(zflags, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (zflags != NULL)
+    {
+        flags = zval_get_long(zflags);
+    }
 
     RETURN_BOOL(phc->push(zdata, opcode, flags & SW_WEBSOCKET_FLAGS_ALL));
 }

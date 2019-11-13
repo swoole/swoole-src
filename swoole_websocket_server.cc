@@ -59,7 +59,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_push, 0, 0, 2)
     ZEND_ARG_INFO(0, fd)
     ZEND_ARG_INFO(0, data)
     ZEND_ARG_INFO(0, opcode)
-    ZEND_ARG_INFO(0, finish)
+    ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_disconnect, 0, 0, 1)
@@ -71,8 +71,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_pack, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
     ZEND_ARG_INFO(0, opcode)
-    ZEND_ARG_INFO(0, finish)
-    ZEND_ARG_INFO(0, mask)
+    ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_unpack, 0, 0, 1)
@@ -808,11 +807,20 @@ static PHP_METHOD(swoole_websocket_server, push)
     zend_long fd = 0;
     zval *zdata = NULL;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
+    zval *zflags = NULL;
     zend_long flags = SW_WEBSOCKET_FLAG_FIN;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "lz|ll", &fd, &zdata, &opcode, &flags) == FAILURE)
+    ZEND_PARSE_PARAMETERS_START(2, 4)
+        Z_PARAM_LONG(fd)
+        Z_PARAM_ZVAL(zdata)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(opcode)
+        Z_PARAM_ZVAL_EX(zflags, 1, 0)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (zflags != NULL)
     {
-        RETURN_FALSE;
+        flags = zval_get_long(zflags);
     }
 
     swServer *serv = (swServer *) swoole_get_object(ZEND_THIS);
@@ -851,13 +859,21 @@ static PHP_METHOD(swoole_websocket_server, push)
 static PHP_METHOD(swoole_websocket_server, pack)
 {
     swString *buffer = SwooleTG.buffer_stack;
-    zval *zdata = NULL;
+    zval *zdata;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
+    zval *zflags = NULL;
     zend_long flags = SW_WEBSOCKET_FLAG_FIN;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|ll", &zdata, &opcode, &flags) == FAILURE)
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_ZVAL(zdata)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(opcode)
+        Z_PARAM_ZVAL_EX(zflags, 1, 0)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (zflags != NULL)
     {
-        RETURN_FALSE;
+        flags = zval_get_long(zflags);
     }
 
     swString_clear(buffer);
