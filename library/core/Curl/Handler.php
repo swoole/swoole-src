@@ -57,7 +57,7 @@ class Handler
     private $urlInfo;
     private $postData;
     private $infile;
-    private $infileSize = 0;
+    private $infileSize = PHP_INT_MAX;
     private $outputStream;
     private $proxy;
     private $clientOptions = [];
@@ -174,16 +174,18 @@ class Handler
             if ($this->infile) {
                 $data = '';
                 while (true) {
-                    if (feof($this->infile)) {
-                        break;
-                    }
                     $nLength = $this->infileSize - strlen($data);
                     if ($nLength === 0) {
+                        break;
+                    }
+                    if (feof($this->infile)) {
                         break;
                     }
                     $data .= fread($this->infile, $nLength);
                 }
                 $client->setData($data);
+                $this->infile = null;
+                $this->infileSize = PHP_INT_MAX;
             }
             /**
              * Upload File
