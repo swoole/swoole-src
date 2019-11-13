@@ -12,7 +12,7 @@ use Iterator;
 class Handler
 {
     private const ERRORS = [
-        CURLE_URL_MALFORMAT => 'Missing URL',
+        CURLE_URL_MALFORMAT => 'No URL set!',
     ];
 
     /**
@@ -94,13 +94,17 @@ class Handler
 
     private function create(string $url): void
     {
-        if (!swoole_string($url)->contains('://')) {
+        if (strlen($url) === 0) {
+            $this->setError(CURLE_URL_MALFORMAT);
+            return;
+        }
+        if (strpos($url, '://') === false) {
             $url = 'http://' . $url;
         }
         $this->info['url'] = $url;
         $info = parse_url($url);
         if (!is_array($info)) {
-            $this->setError(CURLE_URL_MALFORMAT, "URL[{$url}] using bad/illegal format or missing URL");;
+            $this->setError(CURLE_URL_MALFORMAT, "URL[{$url}] using bad/illegal format");
             return;
         }
         $proto = swoole_array_default_value($info, 'scheme');
