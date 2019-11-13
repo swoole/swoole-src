@@ -4,10 +4,10 @@ function swoole_exec(string $command, &$output = null, &$returnVar = null)
     $result = Swoole\Coroutine::exec($command);
     if ($result) {
         $outputList = explode(PHP_EOL, $result['output']);
-        array_walk($outputList, function (&$value) {
+        foreach ($outputList as &$value) {
             $value = rtrim($value);
-        });
-        if ('' === $endLine = end($outputList)) {
+        }
+        if ('' === ($endLine = end($outputList))) {
             array_pop($outputList);
             $endLine = end($outputList);
         }
