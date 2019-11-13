@@ -12,7 +12,7 @@ use Iterator;
 class Handler
 {
     private const ERRORS = [
-        CURLE_URL_MALFORMAT => 'No URL set!',
+        CURLE_URL_MALFORMAT => 'Missing URL',
     ];
 
     /**
@@ -99,8 +99,12 @@ class Handler
         }
         $this->info['url'] = $url;
         $info = parse_url($url);
+        if (!is_array($info)) {
+            $this->setError(CURLE_URL_MALFORMAT, "URL[{$url}] using bad/illegal format or missing URL");;
+            return;
+        }
         $proto = swoole_array_default_value($info, 'scheme');
-        if ($proto != 'http' and $proto != 'https') {
+        if ($proto !== 'http' and $proto !== 'https') {
             $this->setError(CURLE_UNSUPPORTED_PROTOCOL, "Protocol \"{$proto}\" not supported or disabled in libcurl");
             return;
         }
@@ -123,7 +127,7 @@ class Handler
          * Socket
          */
         $client = $this->client;
-        if (!$client) {
+        if (!$client || !$this->urlInfo) {
             if (!$this->errCode) {
                 $this->setError(CURLE_URL_MALFORMAT);
             }
