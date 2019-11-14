@@ -1,4 +1,5 @@
 <?php
+/** @noinspection PhpDuplicateSwitchCaseBodyInspection */
 
 namespace Swoole\Curl;
 
@@ -55,6 +56,8 @@ class Handler
     private $withFileTime = false;
     private $urlInfo;
     private $postData;
+    private $infile;
+    private $infileSize = PHP_INT_MAX;
     private $outputStream;
     private $proxy;
     private $clientOptions = [];
@@ -91,13 +94,21 @@ class Handler
 
     private function create(string $url): void
     {
-        if (!swoole_string($url)->contains('://')) {
+        if (strlen($url) === 0) {
+            $this->setError(CURLE_URL_MALFORMAT);
+            return;
+        }
+        if (strpos($url, '://') === false) {
             $url = 'http://' . $url;
         }
         $this->info['url'] = $url;
         $info = parse_url($url);
+        if (!is_array($info)) {
+            $this->setError(CURLE_URL_MALFORMAT, "URL[{$url}] using bad/illegal format");
+            return;
+        }
         $proto = swoole_array_default_value($info, 'scheme');
-        if ($proto != 'http' and $proto != 'https') {
+        if ($proto !== 'http' and $proto !== 'https') {
             $this->setError(CURLE_UNSUPPORTED_PROTOCOL, "Protocol \"{$proto}\" not supported or disabled in libcurl");
             return;
         }
@@ -120,7 +131,7 @@ class Handler
          * Socket
          */
         $client = $this->client;
-        if (!$client) {
+        if (!$client || !$this->urlInfo) {
             if (!$this->errCode) {
                 $this->setError(CURLE_URL_MALFORMAT);
             }
@@ -165,6 +176,25 @@ class Handler
                 $client->set($this->clientOptions);
             }
             $client->setMethod($this->method);
+            /**
+             * Infile
+             */
+            if ($this->infile) {
+                $data = '';
+                while (true) {
+                    $nLength = $this->infileSize - strlen($data);
+                    if ($nLength === 0) {
+                        break;
+                    }
+                    if (feof($this->infile)) {
+                        break;
+                    }
+                    $data .= fread($this->infile, $nLength);
+                }
+                $client->setData($data);
+                $this->infile = null;
+                $this->infileSize = PHP_INT_MAX;
+            }
             /**
              * Upload File
              */
@@ -340,6 +370,18 @@ class Handler
     public function setOption(int $opt, $value): bool
     {
         switch ($opt) {
+            // case CURLOPT_STDERR:
+            // case CURLOPT_WRITEHEADER:
+            case CURLOPT_FILE:
+            case CURLOPT_INFILE:
+                if (!is_resource($value)) {
+                    trigger_error(E_USER_WARNING, 'swoole_curl_setopt(): supplied argument is not a valid File-Handle resource');
+                    return false;
+                }
+                break;
+        }
+
+        switch ($opt) {
             /**
              * Basic
              */
@@ -366,18 +408,18 @@ class Handler
             /**
              * Ignore options
              */
+            case CURLOPT_VERBOSE:
+                // trigger_error(E_USER_WARNING, 'swoole_curl_setopt(): CURLOPT_VERBOSE is not supported');
             case CURLOPT_SSLVERSION:
             case CURLOPT_NOSIGNAL:
             case CURLOPT_FRESH_CONNECT:
-            /**
-             * From PHP 5.1.3, this option has no effect: the raw output will always be returned when CURLOPT_RETURNTRANSFER is used.
-             */
-            case CURLOPT_BINARYTRANSFER:
-            /**
-             * TODO
-             */
-            case CURLOPT_VERBOSE:
+                /**
+                 * From PHP 5.1.3, this option has no effect: the raw output will always be returned when CURLOPT_RETURNTRANSFER is used.
+                 */
+            case CURLOPT_BINARYTRANSFER: /* TODO */
             case CURLOPT_DNS_CACHE_TIMEOUT:
+            case CURLOPT_STDERR:
+            case CURLOPT_WRITEHEADER:
                 break;
             /**
              * SSL
@@ -402,7 +444,7 @@ class Handler
              */
             case CURLOPT_SAFE_UPLOAD:
                 if (!$value) {
-                    trigger_error('curl_setopt(): Disabling safe uploads is no longer supported', E_USER_WARNING);
+                    trigger_error('swoole_curl_setopt(): Disabling safe uploads is no longer supported', E_USER_WARNING);
                 }
                 break;
             /**
@@ -438,15 +480,16 @@ class Handler
                 break;
 
             case CURLOPT_CUSTOMREQUEST:
+                $this->method = (string)$value;
                 break;
             case CURLOPT_PROTOCOLS:
                 if ($value > 3) {
-                    throw new Swoole\Curl\Exception("option[{$opt}={$value}] not supported");
+                    throw new Swoole\Curl\Exception("swoole_curl_setopt(): CURLOPT_PROTOCOLS[{$value}] is not supported");
                 }
                 break;
             case CURLOPT_HTTP_VERSION:
                 if ($value != CURL_HTTP_VERSION_1_1) {
-                    trigger_error("swoole_curl: http version[{$value}] not supported", E_USER_WARNING);
+                    trigger_error("swoole_curl_setopt(): CURLOPT_HTTP_VERSION[{$value}] is not supported", E_USER_WARNING);
                 }
                 break;
             /**
@@ -497,8 +540,17 @@ class Handler
             case CURLOPT_MAXREDIRS:
                 $this->maxRedirs = $value;
                 break;
+            case CURLOPT_PUT:
+                $this->method = 'PUT';
+                break;
+            case CURLOPT_INFILE:
+                $this->infile = $value;
+                break;
+            case CURLOPT_INFILESIZE:
+                $this->infileSize = $value;
+                break;
             default:
-                throw new Swoole\Curl\Exception("option[{$opt}] not supported");
+                throw new Swoole\Curl\Exception("swoole_curl_setopt(): option[{$opt}] is not supported");
         }
         return true;
     }
