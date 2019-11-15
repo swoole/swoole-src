@@ -72,6 +72,8 @@ size_t swAio_thread_count();
 void swAio_notify_one();
 #endif
 
+void swAio_handler_fread(swAio_event *event);
+void swAio_handler_fwrite(swAio_event *event);
 void swAio_handler_read(swAio_event *event);
 void swAio_handler_write(swAio_event *event);
 void swAio_handler_gethostbyname(swAio_event *event);

@@ -263,6 +263,71 @@ void swAio_handler_read(swAio_event *event)
     event->ret = ret;
 }
 
+void swAio_handler_fread(swAio_event *event)
+{
+    int ret = -1;
+    if (event->lock && flock(event->fd, LOCK_SH) < 0)
+    {
+        swSysWarn("flock(%d, LOCK_SH) failed", event->fd);
+        event->ret = -1;
+        event->error = errno;
+        return;
+    }
+    while (1)
+    {
+        ret = read(event->fd, event->buf, event->nbytes);
+        if (ret < 0 && (errno == EINTR || errno == EAGAIN))
+        {
+            continue;
+        }
+        break;
+    }
+    if (event->lock && flock(event->fd, LOCK_UN) < 0)
+    {
+        swSysWarn("flock(%d, LOCK_UN) failed", event->fd);
+    }
+    if (ret < 0)
+    {
+        event->error = errno;
+    }
+    event->ret = ret;
+}
+
+void swAio_handler_fwrite(swAio_event *event)
+{
+    int ret = -1;
+    if (event->lock && flock(event->fd, LOCK_EX) < 0)
+    {
+        swSysWarn("flock(%d, LOCK_EX) failed", event->fd);
+        return;
+    }
+    while (1)
+    {
+        ret = write(event->fd, event->buf, event->nbytes);
+        if (ret < 0 && (errno == EINTR || errno == EAGAIN))
+        {
+            continue;
+        }
+        break;
+    }
+    if (event->flags & SW_AIO_WRITE_FSYNC)
+    {
+        if (fsync(event->fd) < 0)
+        {
+            swSysWarn("fsync(%d) failed", event->fd);
+        }
+    }
+    if (event->lock && flock(event->fd, LOCK_UN) < 0)
+    {
+        swSysWarn("flock(%d, LOCK_UN) failed", event->fd);
+    }
+    if (ret < 0)
+    {
+        event->error = errno;
+    }
+    event->ret = ret;
+}
+
 void swAio_handler_fgets(swAio_event *event)
 {
     if (event->lock && flock(event->fd, LOCK_SH) < 0)
@@ -402,13 +467,14 @@ void swAio_handler_write(swAio_event *event)
         swSysWarn("flock(%d, LOCK_EX) failed", event->fd);
         return;
     }
-    if (event->offset == 0)
-    {
-        ret = write(event->fd, event->buf, event->nbytes);
-    }
-    else
+    while (1)
     {
         ret = pwrite(event->fd, event->buf, event->nbytes, event->offset);
+        if (ret < 0 && (errno == EINTR || errno == EAGAIN))
+        {
+            continue;
+        }
+        break;
     }
     if (event->flags & SW_AIO_WRITE_FSYNC)
     {

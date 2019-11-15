@@ -378,21 +378,20 @@ PHP_METHOD(swoole_coroutine_system, fread)
         return;
     }
 
-    struct stat file_stat;
-    if (fstat(fd, &file_stat) < 0)
-    {
-        SwooleG.error = errno;
-        RETURN_FALSE;
-    }
-
-    off_t _seek = lseek(fd, 0, SEEK_CUR);
-    if (_seek < 0)
-    {
-        SwooleG.error = errno;
-        RETURN_FALSE;
-    }
     if (length <= 0)
     {
+        struct stat file_stat;
+        if (swoole_coroutine_fstat(fd, &file_stat) < 0)
+        {
+            SwooleG.error = errno;
+            RETURN_FALSE;
+        }
+        off_t _seek = swoole_coroutine_lseek(fd, 0, SEEK_CUR);
+        if (_seek < 0)
+        {
+            SwooleG.error = errno;
+            RETURN_FALSE;
+        }
         if (_seek >= file_stat.st_size)
         {
             length = SW_BUFFER_SIZE_STD;
@@ -406,8 +405,8 @@ PHP_METHOD(swoole_coroutine_system, fread)
     swAio_event ev;
     bzero(&ev, sizeof(swAio_event));
 
-    ev.nbytes = length + 1;
-    ev.buf = emalloc(ev.nbytes);
+    ev.nbytes = length;
+    ev.buf = emalloc(ev.nbytes + 1);
     if (!ev.buf)
     {
         RETURN_FALSE;
@@ -418,10 +417,9 @@ PHP_METHOD(swoole_coroutine_system, fread)
     ((char *) ev.buf)[length] = 0;
     ev.flags = 0;
     ev.object = context;
-    ev.handler = swAio_handler_read;
+    ev.handler = swAio_handler_fread;
     ev.callback = aio_onReadCompleted;
     ev.fd = fd;
-    ev.offset = _seek;
 
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
@@ -543,12 +541,6 @@ PHP_METHOD(swoole_coroutine_system, fwrite)
         return;
     }
 
-    off_t _seek = lseek(fd, 0, SEEK_CUR);
-    if (_seek < 0)
-    {
-        SwooleG.error = errno;
-        RETURN_FALSE;
-    }
     if (length <= 0 || (size_t) length > l_str)
     {
         length = l_str;
@@ -569,10 +561,9 @@ PHP_METHOD(swoole_coroutine_system, fwrite)
 
     ev.flags = 0;
     ev.object = context;
-    ev.handler = swAio_handler_write;
+    ev.handler = swAio_handler_fwrite;
     ev.callback = aio_onWriteCompleted;
     ev.fd = fd;
-    ev.offset = _seek;
 
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
