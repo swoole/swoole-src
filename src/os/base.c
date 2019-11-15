@@ -246,7 +246,7 @@ void swAio_handler_read(swAio_event *event)
     while (1)
     {
         ret = pread(event->fd, event->buf, event->nbytes, event->offset);
-        if (ret < 0 && (errno == EINTR || errno == EAGAIN))
+        if (ret < 0 && errno == EINTR)
         {
             continue;
         }
@@ -276,7 +276,7 @@ void swAio_handler_fread(swAio_event *event)
     while (1)
     {
         ret = read(event->fd, event->buf, event->nbytes);
-        if (ret < 0 && (errno == EINTR || errno == EAGAIN))
+        if (ret < 0 && errno == EINTR)
         {
             continue;
         }
@@ -304,7 +304,7 @@ void swAio_handler_fwrite(swAio_event *event)
     while (1)
     {
         ret = write(event->fd, event->buf, event->nbytes);
-        if (ret < 0 && (errno == EINTR || errno == EAGAIN))
+        if (ret < 0 && errno == EINTR)
         {
             continue;
         }
@@ -470,7 +470,7 @@ void swAio_handler_write(swAio_event *event)
     while (1)
     {
         ret = pwrite(event->fd, event->buf, event->nbytes, event->offset);
-        if (ret < 0 && (errno == EINTR || errno == EAGAIN))
+        if (ret < 0 && errno == EINTR)
         {
             continue;
         }
