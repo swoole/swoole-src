@@ -66,6 +66,7 @@ public:
     map<string, php_swoole_fci *> handlers;
     php_swoole_fci *default_handler;
     bool running;
+    std::list<Socket *> receivers;
 
     /* options */
 #ifdef SW_HAVE_ZLIB
@@ -493,14 +494,18 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Socket *sock = php_swoole_get_socket(zconn);
+    swString* buffer = sock->get_read_buffer();
     size_t total_bytes = 0;
     size_t parsed_n;
     http_context *ctx = nullptr;
 
     while (true)
     {
-        auto buffer = sock->get_read_buffer();
+        hs->receivers.push_front(sock);
+        auto receiver = hs->receivers.begin();
         ssize_t retval = sock->recv(buffer->str + total_bytes + buffer->offset, buffer->size - total_bytes - buffer->offset);
+        hs->receivers.erase(receiver);
+
         if (sw_unlikely(retval <= 0))
         {
             break;
@@ -606,6 +611,10 @@ static PHP_METHOD(swoole_http_server_coro, shutdown)
     http_server *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     hs->running = false;
     hs->socket->cancel(SW_EVENT_READ);
+    while (!hs->receivers.empty())
+    {
+        hs->receivers.back()->close();
+    }
 }
 
 static void http2_server_onRequest(http2_session *session, http2_stream *stream)
