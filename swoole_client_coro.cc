@@ -150,7 +150,7 @@ static void swoole_client_coro_free_object(zend_object *object)
     client_coro *client = swoole_client_coro_fetch_object(object);
     if (client->sock)
     {
-        delete client->sock;
+        php_swoole_client_coro_socket_free(client->sock);
     }
     zend_object_std_dtor(&client->std);
 }
@@ -631,12 +631,7 @@ static PHP_METHOD(swoole_client_coro, __construct)
     RETURN_TRUE;
 }
 
-static PHP_METHOD(swoole_client_coro, __destruct)
-{
-    SW_PREVENT_USER_DESTRUCT();
-
-    client_coro_close(ZEND_THIS);
-}
+static PHP_METHOD(swoole_client_coro, __destruct) { }
 
 static PHP_METHOD(swoole_client_coro, set)
 {
