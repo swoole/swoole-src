@@ -438,9 +438,6 @@ static inline zend_bool php_swoole_server_isset_callback(swListenPort *port, int
 static void swoole_server_task_free_object(zend_object *object)
 {
     uint32_t handle = object->handle;
-    zval _zobject, *zobject = &_zobject;
-    ZVAL_OBJ(zobject, object);
-
     swDataHead *info = (swDataHead *) swoole_get_property_by_handle(handle, 0);
     efree(info);
     swoole_set_property_by_handle(handle, 0, NULL);
