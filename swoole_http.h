@@ -181,7 +181,7 @@ class http2_session
 {
 public:
     int fd;
-    std::unordered_map<int, http2_stream*> streams;
+    std::unordered_map<uint32_t, http2_stream*> streams;
 
     nghttp2_hd_inflater *inflater = nullptr;
     nghttp2_hd_deflater *deflater = nullptr;
@@ -321,7 +321,7 @@ bool swoole_websocket_handshake(http_context *ctx);
 
 #ifdef SW_USE_HTTP2
 int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData *req);
-int swoole_http2_server_parse(http2_session *client, char *buf);
+int swoole_http2_server_parse(http2_session *client, const char *buf);
 int swoole_http2_server_do_response(http_context *ctx, swString *body);
 void swoole_http2_server_session_free(swConnection *conn);
 void swoole_http2_response_end(http_context *ctx, zval *zdata, zval *return_value);

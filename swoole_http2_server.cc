@@ -67,6 +67,10 @@ http2_session::http2_session(int _fd)
 
 http2_session::~http2_session()
 {
+    for (auto iter = streams.begin(); iter != streams.end(); iter++)
+    {
+        delete iter->second;
+    }
     if (inflater)
     {
         nghttp2_hd_inflate_del(inflater);
@@ -75,9 +79,9 @@ http2_session::~http2_session()
     {
         nghttp2_hd_deflate_del(deflater);
     }
-    for (std::unordered_map<int, http2_stream*>::iterator iter = streams.begin(); iter != streams.end(); iter++)
+    if (default_ctx)
     {
-        delete iter->second;
+        efree(default_ctx);
     }
     http2_sessions.erase(fd);
 }
@@ -485,7 +489,7 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
     return SW_OK;
 }
 
-static int http2_parse_header(http2_session *client, http_context *ctx, int flags, char *in, size_t inlen)
+static int http2_parse_header(http2_session *client, http_context *ctx, int flags, const char *in, size_t inlen)
 {
     nghttp2_hd_inflater *inflater = client->inflater;
 
@@ -630,7 +634,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
     return SW_OK;
 }
 
-int swoole_http2_server_parse(http2_session *client, char *buf)
+int swoole_http2_server_parse(http2_session *client, const char *buf)
 {
     http2_stream *stream = nullptr;
     int type = buf[3];
@@ -877,15 +881,17 @@ int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData 
         client = new http2_session(session_id);
     }
 
+    client->handle = swoole_http2_onRequest;
+    if (!client->default_ctx)
+    {
+        client->default_ctx = (http_context *) emalloc(sizeof(*client->default_ctx));
+        client->default_ctx->fd = session_id;
+        swoole_http_server_init_context(serv, client->default_ctx);
+    }
+
     zval zdata;
     php_swoole_get_recv_data(serv, &zdata, req, NULL, 0);
-    client->handle = swoole_http2_onRequest;
-    client->default_ctx = (http_context *) emalloc(sizeof(*client->default_ctx));
-    client->default_ctx->fd = session_id;
-    swoole_http_server_init_context(serv, client->default_ctx);
-
-    char *buf = Z_STRVAL(zdata);
-    swoole_http2_server_parse(client, buf);
+    swoole_http2_server_parse(client, Z_STRVAL(zdata));
     zval_ptr_dtor(&zdata);
 
     return SW_OK;

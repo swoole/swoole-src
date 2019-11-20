@@ -1068,7 +1068,6 @@ static void http2_client_stream_free(void *ptr)
     if (stream->zresponse)
     {
         zval_ptr_dtor(stream->zresponse);
-        stream->zresponse = NULL;
     }
     efree(stream);
 }

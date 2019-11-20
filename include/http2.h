@@ -137,7 +137,7 @@ typedef struct _swHttp2_frame
     char data[0];
 } swHttp2_frame;
 
-static sw_inline ssize_t swHttp2_get_length(char *buf)
+static sw_inline ssize_t swHttp2_get_length(const char *buf)
 {
     return (((uint8_t) buf[0]) << 16) + (((uint8_t) buf[1]) << 8) + (uint8_t) buf[2];
 }
