@@ -52,7 +52,7 @@ void swoole_lock_set_ptr(zval *zobject, swLock *ptr)
 
 static void swoole_lock_free_object(zend_object *object)
 {
-    zend_object_std_dtor(&swoole_lock_fetch_object(object)->std);
+    zend_object_std_dtor(object);
 }
 
 static zend_object *swoole_lock_create_object(zend_class_entry *ce)

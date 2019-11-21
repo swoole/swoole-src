@@ -93,7 +93,7 @@ void swoole_atomic_set_ptr(zval *zobject, sw_atomic_t *ptr)
 
 static void swoole_atomic_free_object(zend_object *object)
 {
-    zend_object_std_dtor(&swoole_atomic_fetch_object(object)->std);
+    zend_object_std_dtor(object);
 }
 
 static zend_object *swoole_atomic_create_object(zend_class_entry *ce)
@@ -135,7 +135,7 @@ void swoole_atomic_long_set_ptr(zval *zobject, sw_atomic_long_t *ptr)
 
 static void swoole_atomic_long_free_object(zend_object *object)
 {
-    zend_object_std_dtor(&swoole_atomic_long_fetch_object(object)->std);
+    zend_object_std_dtor(object);
 }
 
 static zend_object *swoole_atomic_long_create_object(zend_class_entry *ce)
