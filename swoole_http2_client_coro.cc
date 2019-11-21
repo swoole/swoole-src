@@ -41,50 +41,6 @@ static zend_object_handlers swoole_http2_request_handlers;
 static zend_class_entry *swoole_http2_response_ce;
 static zend_object_handlers swoole_http2_response_handlers;
 
-class http2_client;
-
-typedef struct
-{
-    http2_client *h2c;
-    zend_object std;
-} http2_client_coro_t;
-
-static sw_inline http2_client_coro_t* swoole_http2_client_coro_fetch_object(zend_object *obj)
-{
-    return (http2_client_coro_t *) ((char *) obj - swoole_http2_client_coro_handlers.offset);
-}
-
-static sw_inline http2_client* swoole_get_h2c(zval *zobject)
-{
-    return swoole_http2_client_coro_fetch_object(Z_OBJ_P(zobject))->h2c;
-}
-
-static sw_inline void swoole_set_h2c(zval *zobject, http2_client *h2c)
-{
-    swoole_http2_client_coro_fetch_object(Z_OBJ_P(zobject))->h2c = h2c;
-}
-
-static void swoole_http2_client_coro_free_object(zend_object *object)
-{
-    http2_client_coro_t *request = swoole_http2_client_coro_fetch_object(object);
-    http2_client *h2c = request->h2c;
-
-    if (h2c)
-    {
-        delete h2c;
-    }
-    zend_object_std_dtor(&request->std);
-}
-
-static zend_object *swoole_http2_client_coro_create_object(zend_class_entry *ce)
-{
-    http2_client_coro_t *request = (http2_client_coro_t *) ecalloc(1, sizeof(http2_client_coro_t) + zend_object_properties_size(ce));
-    zend_object_std_init(&request->std, ce);
-    object_properties_init(&request->std, ce);
-    request->std.handlers = &swoole_http2_client_coro_handlers;
-    return &request->std;
-}
-
 struct http2_client_stream
 {
     uint32_t stream_id;
@@ -217,6 +173,48 @@ private:
         return true;
     }
 };
+
+typedef struct
+{
+    http2_client *h2c;
+    zend_object std;
+} http2_client_coro_t;
+
+static sw_inline http2_client_coro_t* swoole_http2_client_coro_fetch_object(zend_object *obj)
+{
+    return (http2_client_coro_t *) ((char *) obj - swoole_http2_client_coro_handlers.offset);
+}
+
+static sw_inline http2_client* swoole_get_h2c(zval *zobject)
+{
+    return swoole_http2_client_coro_fetch_object(Z_OBJ_P(zobject))->h2c;
+}
+
+static sw_inline void swoole_set_h2c(zval *zobject, http2_client *h2c)
+{
+    swoole_http2_client_coro_fetch_object(Z_OBJ_P(zobject))->h2c = h2c;
+}
+
+static void swoole_http2_client_coro_free_object(zend_object *object)
+{
+    http2_client_coro_t *request = swoole_http2_client_coro_fetch_object(object);
+    http2_client *h2c = request->h2c;
+
+    if (h2c)
+    {
+        delete h2c;
+    }
+    zend_object_std_dtor(&request->std);
+}
+
+static zend_object *swoole_http2_client_coro_create_object(zend_class_entry *ce)
+{
+    http2_client_coro_t *request = (http2_client_coro_t *) ecalloc(1, sizeof(http2_client_coro_t) + zend_object_properties_size(ce));
+    zend_object_std_init(&request->std, ce);
+    object_properties_init(&request->std, ce);
+    request->std.handlers = &swoole_http2_client_coro_handlers;
+    return &request->std;
+}
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
