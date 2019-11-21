@@ -349,7 +349,7 @@ static PHP_METHOD(swoole_process, __construct)
         Z_PARAM_BOOL(enable_coroutine)
     ZEND_PARSE_PARAMETERS_END_EX(efree(func); RETURN_FALSE);
 
-    swWorker *process = (swWorker *) ecalloc(1, sizeof(swWorker));
+    process = (swWorker *) ecalloc(1, sizeof(swWorker));
 
     uint32_t base = 1;
     if (SwooleG.serv && SwooleG.serv->gs->start)
