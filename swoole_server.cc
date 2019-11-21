@@ -740,22 +740,9 @@ void php_swoole_get_recv_data(swServer *serv, zval *zdata, swEventData *req, cha
 
 size_t php_swoole_get_send_data(zval *zdata, char **str)
 {
-    size_t length;
-
-    if (Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_buffer_ce))
-    {
-        swString *str_buffer = (swString *) swoole_get_object(zdata);
-        length = str_buffer->length - str_buffer->offset;
-        *str = str_buffer->str + str_buffer->offset;
-    }
-    else
-    {
-        convert_to_string(zdata);
-        length = Z_STRLEN_P(zdata);
-        *str = Z_STRVAL_P(zdata);
-    }
-
-    return length;
+    convert_to_string(zdata);
+    *str = Z_STRVAL_P(zdata);
+    return Z_STRLEN_P(zdata);
 }
 
 static sw_inline int php_swoole_check_task_param(swServer *serv, zend_long dst_worker_id)

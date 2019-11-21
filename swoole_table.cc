@@ -199,7 +199,7 @@ static swTable * swoole_table_row_get_and_check_ptr(zval *zobject)
     swTable *table_row = swoole_table_row_get_ptr(zobject);
     if (!table_row)
     {
-        php_swoole_fatal_error(E_ERROR, "you must call Lock constructor first");
+        php_swoole_fatal_error(E_ERROR, "you can only get Table\\Row from Table");
     }
     return table_row;
 }
