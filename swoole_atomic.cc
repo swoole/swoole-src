@@ -371,8 +371,6 @@ PHP_METHOD(swoole_atomic_long, __construct)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     *atomic_long = (sw_atomic_long_t) value;
-    swoole_set_object(ZEND_THIS, (void*) atomic_long);
-
     RETURN_TRUE;
 }
 
