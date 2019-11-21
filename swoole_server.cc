@@ -2684,6 +2684,8 @@ static PHP_METHOD(swoole_server, listen)
     RETURN_ZVAL(port_object, 1, NULL);
 }
 
+extern swWorker* swoole_process_get_and_check_worker(zval *zobject);
+
 static PHP_METHOD(swoole_server, addProcess)
 {
     swServer *serv = (swServer *) swoole_get_object(ZEND_THIS);
@@ -2724,7 +2726,7 @@ static PHP_METHOD(swoole_server, addProcess)
 
     Z_TRY_ADDREF_P(process);
 
-    swWorker *worker = (swWorker *) swoole_get_object(process);
+    swWorker *worker = swoole_process_get_and_check_worker(process);
     worker->ptr = process;
 
     int id = swServer_add_worker(serv, worker);
