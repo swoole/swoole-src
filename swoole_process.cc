@@ -52,7 +52,7 @@ swWorker* swoole_process_get_and_check_worker(zval *zobject)
     return worker;
 }
 
-static void swoole_process_set_ptr(zval *zobject, swWorker *worker)
+void swoole_process_set_worker(zval *zobject, swWorker *worker)
 {
     swoole_process_fetch_object(Z_OBJ_P(zobject))->worker = worker;
 }
@@ -399,7 +399,7 @@ static PHP_METHOD(swoole_process, __construct)
     proc->enable_coroutine = enable_coroutine;
     process->ptr2 = proc;
 
-    swoole_process_set_ptr(ZEND_THIS, process);
+    swoole_process_set_worker(ZEND_THIS, process);
 }
 
 static PHP_METHOD(swoole_process, __destruct) { }

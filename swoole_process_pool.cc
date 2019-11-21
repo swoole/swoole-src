@@ -509,6 +509,8 @@ static PHP_METHOD(swoole_process_pool, start)
     swProcessPool_shutdown(pool);
 }
 
+extern void swoole_process_set_worker(zval *zobject, swWorker *worker);
+
 static PHP_METHOD(swoole_process_pool, getProcess)
 {
     long worker_id = -1;
@@ -566,7 +568,7 @@ static PHP_METHOD(swoole_process_pool, getProcess)
             worker->pipe_object = nullptr;
             zend_update_property_long(swoole_process_ce, zprocess, ZEND_STRL("pipe"), worker->pipe);
         }
-        swoole_set_object(zprocess, worker);
+        swoole_process_set_worker(zprocess, worker);
         process_pool_property *pp = (process_pool_property *) swoole_get_property(ZEND_THIS, 0);
         zend::process *proc = new zend::process;
         proc->pipe_type = zend::PIPE_TYPE_STREAM;
