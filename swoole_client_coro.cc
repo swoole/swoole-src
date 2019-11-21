@@ -176,7 +176,7 @@ void php_swoole_client_coro_minit(int module_number)
     zend_declare_property_string(swoole_client_coro_ce, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_client_coro_ce, ZEND_STRL("fd"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_client_coro_ce, ZEND_STRL("socket"), ZEND_ACC_PRIVATE);
-    zend_declare_property_long(swoole_client_coro_ce, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_client_coro_ce, ZEND_STRL("type"), SW_SOCK_TCP, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_client_coro_ce, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_client_coro_ce, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC);
 
