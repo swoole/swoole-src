@@ -30,12 +30,12 @@ static sw_inline lock_t* swoole_lock_fetch_object(zend_object *obj)
     return (lock_t *) ((char *) obj - swoole_lock_handlers.offset);
 }
 
-swLock * swoole_lock_get_ptr(zval *zobject)
+static swLock * swoole_lock_get_ptr(zval *zobject)
 {
     return swoole_lock_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
-swLock * swoole_lock_get_and_check_ptr(zval *zobject)
+static swLock * swoole_lock_get_and_check_ptr(zval *zobject)
 {
     swLock *lock = swoole_lock_get_ptr(zobject);
     if (!lock)

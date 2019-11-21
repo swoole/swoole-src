@@ -81,7 +81,7 @@ static sw_inline atomic_t* swoole_atomic_fetch_object(zend_object *obj)
     return (atomic_t *) ((char *) obj - swoole_atomic_handlers.offset);
 }
 
-sw_atomic_t * swoole_atomic_get_ptr(zval *zobject)
+static sw_atomic_t * swoole_atomic_get_ptr(zval *zobject)
 {
     return swoole_atomic_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
@@ -123,7 +123,7 @@ static sw_inline atomic_long_t* swoole_atomic_long_fetch_object(zend_object *obj
     return (atomic_long_t *) ((char *) obj - swoole_atomic_long_handlers.offset);
 }
 
-sw_atomic_long_t * swoole_atomic_long_get_ptr(zval *zobject)
+static sw_atomic_long_t * swoole_atomic_long_get_ptr(zval *zobject)
 {
     return swoole_atomic_long_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
