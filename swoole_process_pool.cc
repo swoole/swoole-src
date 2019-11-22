@@ -43,12 +43,12 @@ static sw_inline process_pool_t* swoole_process_pool_fetch_object(zend_object *o
     return (process_pool_t *) ((char *) obj - swoole_process_pool_handlers.offset);
 }
 
-static swProcessPool * swoole_process_pool_get_pool(zval *zobject)
+static sw_inline swProcessPool * swoole_process_pool_get_pool(zval *zobject)
 {
     return swoole_process_pool_fetch_object(Z_OBJ_P(zobject))->pool;
 }
 
-static swProcessPool * swoole_process_pool_get_and_check_pool(zval *zobject)
+static sw_inline swProcessPool * swoole_process_pool_get_and_check_pool(zval *zobject)
 {
     swProcessPool *pool = swoole_process_pool_get_pool(zobject);
     if (!pool)
@@ -58,17 +58,17 @@ static swProcessPool * swoole_process_pool_get_and_check_pool(zval *zobject)
     return pool;
 }
 
-void swoole_process_pool_set_pool(zval *zobject, swProcessPool *pool)
+static sw_inline void swoole_process_pool_set_pool(zval *zobject, swProcessPool *pool)
 {
     swoole_process_pool_fetch_object(Z_OBJ_P(zobject))->pool = pool;
 }
 
-static process_pool_property * swoole_process_pool_get_pp(zval *zobject)
+static sw_inline process_pool_property * swoole_process_pool_get_pp(zval *zobject)
 {
     return swoole_process_pool_fetch_object(Z_OBJ_P(zobject))->pp;
 }
 
-static process_pool_property * swoole_process_pool_get_and_check_pp(zval *zobject)
+static sw_inline process_pool_property * swoole_process_pool_get_and_check_pp(zval *zobject)
 {
     process_pool_property *pp = swoole_process_pool_get_pp(zobject);
     if (!pp)
@@ -78,7 +78,7 @@ static process_pool_property * swoole_process_pool_get_and_check_pp(zval *zobjec
     return pp;
 }
 
-void swoole_process_pool_set_pp(zval *zobject, process_pool_property *pp)
+static sw_inline void swoole_process_pool_set_pp(zval *zobject, process_pool_property *pp)
 {
     swoole_process_pool_fetch_object(Z_OBJ_P(zobject))->pp = pp;
 }

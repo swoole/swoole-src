@@ -604,6 +604,11 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset)
 
 static PHP_METHOD(swoole_client_coro, __construct)
 {
+    if (swoole_get_client(ZEND_THIS)->sock)
+    {
+        php_swoole_fatal_error(E_ERROR, "constructor can only be called once");
+    }
+
     zend_long type = 0;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
@@ -619,11 +624,6 @@ static PHP_METHOD(swoole_client_coro, __construct)
             class_name, space, get_active_function_name(), 1, type
         );
         RETURN_FALSE;
-    }
-
-    if (swoole_get_client(ZEND_THIS)->sock)
-    {
-        php_swoole_fatal_error(E_ERROR, "constructor can only be called once");
     }
 
     zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("type"), type);
