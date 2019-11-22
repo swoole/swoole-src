@@ -194,12 +194,12 @@ http_context* swoole_http_context_new(int fd)
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
     object_init_ex(zrequest_object, swoole_http_request_ce);
-    swoole_http_request_set_context(zrequest_object, ctx);
+    php_swoole_http_request_set_context(zrequest_object, ctx);
 
     zval *zresponse_object = &ctx->response._zobject;
     ctx->response.zobject = zresponse_object;
     object_init_ex(zresponse_object, swoole_http_response_ce);
-    swoole_http_response_set_context(zresponse_object, ctx);
+    php_swoole_http_response_set_context(zresponse_object, ctx);
 
     zend_update_property_long(swoole_http_request_ce, zrequest_object, ZEND_STRL("fd"), fd);
     zend_update_property_long(swoole_http_response_ce, zresponse_object, ZEND_STRL("fd"), fd);
@@ -249,9 +249,9 @@ void swoole_http_context_free(http_context *ctx)
 {
     if (ctx->request.zobject)
     {
-        swoole_http_request_set_context(ctx->request.zobject, NULL);
+        php_swoole_http_request_set_context(ctx->request.zobject, NULL);
     }
-    swoole_http_response_set_context(ctx->response.zobject, NULL);
+    php_swoole_http_response_set_context(ctx->response.zobject, NULL);
     http_request *req = &ctx->request;
     http_response *res = &ctx->response;
     if (req->path)
@@ -299,9 +299,9 @@ void php_swoole_http_server_init_global_variant()
     }
 }
 
-http_context* swoole_http_request_get_and_check_context(zval *zobject)
+http_context* php_swoole_http_request_get_and_check_context(zval *zobject)
 {
-    http_context *ctx = swoole_http_request_get_context(zobject);
+    http_context *ctx = php_swoole_http_request_get_context(zobject);
     if (!ctx)
     {
         php_swoole_fatal_error(E_WARNING, "http request is unavailable (maybe it has been ended)");
@@ -309,9 +309,9 @@ http_context* swoole_http_request_get_and_check_context(zval *zobject)
     return ctx;
 }
 
-http_context* swoole_http_response_get_and_check_context(zval *zobject, bool check_end)
+http_context* php_swoole_http_response_get_and_check_context(zval *zobject, bool check_end)
 {
-    http_context *ctx = swoole_http_response_get_context(zobject);
+    http_context *ctx = php_swoole_http_response_get_context(zobject);
     if (!ctx || (check_end && ctx->end))
     {
         php_swoole_fatal_error(E_WARNING, "http response is unavailable (maybe it has been ended or detached)");

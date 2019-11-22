@@ -30,14 +30,14 @@ static sw_inline buffer_t* swoole_buffer_fetch_object(zend_object *obj)
     return (buffer_t *) ((char *) obj - swoole_buffer_handlers.offset);
 }
 
-static swString * swoole_buffer_get_ptr(zval *zobject)
+static swString * php_swoole_buffer_get_ptr(zval *zobject)
 {
     return swoole_buffer_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
-static swString * swoole_buffer_get_and_check_ptr(zval *zobject)
+static swString * php_swoole_buffer_get_and_check_ptr(zval *zobject)
 {
-    swString *buffer = swoole_buffer_get_ptr(zobject);
+    swString *buffer = php_swoole_buffer_get_ptr(zobject);
     if (!buffer)
     {
         php_swoole_fatal_error(E_ERROR, "you must call Buffer constructor first");
@@ -45,7 +45,7 @@ static swString * swoole_buffer_get_and_check_ptr(zval *zobject)
     return buffer;
 }
 
-void swoole_buffer_set_ptr(zval *zobject, swString *ptr)
+void php_swoole_buffer_set_ptr(zval *zobject, swString *ptr)
 {
     swoole_buffer_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
 }
@@ -154,7 +154,7 @@ static PHP_METHOD(swoole_buffer, __construct)
         ZSTR_VAL(swoole_buffer_ce->name)
     );
 
-    swString *buffer = swoole_buffer_get_ptr(ZEND_THIS);
+    swString *buffer = php_swoole_buffer_get_ptr(ZEND_THIS);
     if (buffer)
     {
         php_swoole_fatal_error(E_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
@@ -185,7 +185,7 @@ static PHP_METHOD(swoole_buffer, __construct)
         RETURN_FALSE;
     }
 
-    swoole_buffer_set_ptr(ZEND_THIS, buffer);
+    php_swoole_buffer_set_ptr(ZEND_THIS, buffer);
     zend_update_property_long(swoole_buffer_ce, ZEND_THIS, ZEND_STRL("capacity"), size);
     zend_update_property_long(swoole_buffer_ce, ZEND_THIS, ZEND_STRL("length"), 0);
 }
@@ -194,7 +194,7 @@ static PHP_METHOD(swoole_buffer, __destruct) { }
 
 static PHP_METHOD(swoole_buffer, append)
 {
-    swString *buffer = swoole_buffer_get_and_check_ptr(ZEND_THIS);
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
     swString str = { 0 };
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &str.str, &str.length) == FAILURE)
@@ -232,7 +232,7 @@ static PHP_METHOD(swoole_buffer, append)
 
 static PHP_METHOD(swoole_buffer, substr)
 {
-    swString *buffer = swoole_buffer_get_and_check_ptr(ZEND_THIS);
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
     zend_long offset;
     zend_long length = -1;
     zend_bool remove = 0;
@@ -275,13 +275,13 @@ static PHP_METHOD(swoole_buffer, substr)
 
 static PHP_METHOD(swoole_buffer, __toString)
 {
-    swString *buffer = swoole_buffer_get_and_check_ptr(ZEND_THIS);
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
     RETURN_STRINGL(buffer->str + buffer->offset, buffer->length - buffer->offset);
 }
 
 static PHP_METHOD(swoole_buffer, write)
 {
-    swString *buffer = swoole_buffer_get_and_check_ptr(ZEND_THIS);
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
     zend_long offset;
     swString str = { 0 };
 
@@ -333,7 +333,7 @@ static PHP_METHOD(swoole_buffer, write)
 
 static PHP_METHOD(swoole_buffer, read)
 {
-    swString *buffer = swoole_buffer_get_and_check_ptr(ZEND_THIS);
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
     zend_long offset;
     zend_long length;
 
@@ -364,7 +364,7 @@ static PHP_METHOD(swoole_buffer, read)
 
 static PHP_METHOD(swoole_buffer, expand)
 {
-    swString *buffer = swoole_buffer_get_and_check_ptr(ZEND_THIS);
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
     zend_long size = -1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &size) == FAILURE)
@@ -391,7 +391,7 @@ static PHP_METHOD(swoole_buffer, expand)
 
 static PHP_METHOD(swoole_buffer, recycle)
 {
-    swString *buffer = swoole_buffer_get_and_check_ptr(ZEND_THIS);
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
 
     swoole_buffer_recycle(buffer);
     zend_update_property_long(swoole_buffer_ce, ZEND_THIS, ZEND_STRL("length"), buffer->length);
@@ -399,7 +399,7 @@ static PHP_METHOD(swoole_buffer, recycle)
 
 static PHP_METHOD(swoole_buffer, clear)
 {
-    swString *buffer = swoole_buffer_get_and_check_ptr(ZEND_THIS);
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
 
     buffer->length = 0;
     buffer->offset = 0;

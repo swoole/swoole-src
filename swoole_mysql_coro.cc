@@ -1810,7 +1810,7 @@ static sw_inline mysql_coro_t* swoole_mysql_coro_fetch_object(zend_object *obj)
     return (mysql_coro_t *) ((char *) obj - swoole_mysql_coro_handlers.offset);
 }
 
-static sw_inline mysql_client* swoole_get_mysql_client(zval *zobject)
+static sw_inline mysql_client* php_swoole_get_mysql_client(zval *zobject)
 {
     return swoole_mysql_coro_fetch_object(Z_OBJ_P(zobject))->client;
 }
@@ -1837,7 +1837,7 @@ static sw_inline mysql_coro_statement_t* swoole_mysql_coro_statement_fetch_objec
     return (mysql_coro_statement_t *) ((char *) obj - swoole_mysql_coro_statement_handlers.offset);
 }
 
-static sw_inline mysql_statement* swoole_get_mysql_statement(zval *zobject)
+static sw_inline mysql_statement* php_swoole_get_mysql_statement(zval *zobject)
 {
     return swoole_mysql_coro_statement_fetch_object(Z_OBJ_P(zobject))->statement;
 }
@@ -2004,7 +2004,7 @@ static PHP_METHOD(swoole_mysql_coro, __destruct) { }
 
 static PHP_METHOD(swoole_mysql_coro, connect)
 {
-    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
+    mysql_client *mc = php_swoole_get_mysql_client(ZEND_THIS);
     zval *zserver_info = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2119,13 +2119,13 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 
 static PHP_METHOD(swoole_mysql_coro, getDefer)
 {
-    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
+    mysql_client *mc = php_swoole_get_mysql_client(ZEND_THIS);
     RETURN_BOOL(mc->get_defer());
 }
 
 static PHP_METHOD(swoole_mysql_coro, setDefer)
 {
-    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
+    mysql_client *mc = php_swoole_get_mysql_client(ZEND_THIS);
     zend_bool defer = 1;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2143,7 +2143,7 @@ static PHP_METHOD(swoole_mysql_coro, setDefer)
 
 static PHP_METHOD(swoole_mysql_coro, query)
 {
-    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
+    mysql_client *mc = php_swoole_get_mysql_client(ZEND_THIS);
     char *sql;
     size_t sql_length;
     double timeout = 0;
@@ -2162,7 +2162,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
 
 static PHP_METHOD(swoole_mysql_coro, fetch)
 {
-    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
+    mysql_client *mc = php_swoole_get_mysql_client(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2181,7 +2181,7 @@ static PHP_METHOD(swoole_mysql_coro, fetch)
 
 static PHP_METHOD(swoole_mysql_coro, fetchAll)
 {
-    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
+    mysql_client *mc = php_swoole_get_mysql_client(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2200,7 +2200,7 @@ static PHP_METHOD(swoole_mysql_coro, fetchAll)
 
 static PHP_METHOD(swoole_mysql_coro, nextResult)
 {
-    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
+    mysql_client *mc = php_swoole_get_mysql_client(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2224,7 +2224,7 @@ static PHP_METHOD(swoole_mysql_coro, nextResult)
 
 static PHP_METHOD(swoole_mysql_coro, prepare)
 {
-    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
+    mysql_client *mc = php_swoole_get_mysql_client(ZEND_THIS);
     char *statement;
     size_t statement_length;
     double timeout = 0;
@@ -2260,7 +2260,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
 
 static PHP_METHOD(swoole_mysql_coro, recv)
 {
-    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
+    mysql_client *mc = php_swoole_get_mysql_client(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2312,7 +2312,7 @@ static PHP_METHOD(swoole_mysql_coro, recv)
 
 static void swoole_mysql_coro_query_transcation(INTERNAL_FUNCTION_PARAMETERS, const char* command, size_t command_length)
 {
-    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
+    mysql_client *mc = php_swoole_get_mysql_client(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2352,7 +2352,7 @@ static PHP_METHOD(swoole_mysql_coro, rollback)
 #ifdef SW_USE_MYSQLND
 static PHP_METHOD(swoole_mysql_coro, escape)
 {
-    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
+    mysql_client *mc = php_swoole_get_mysql_client(ZEND_THIS);
     char *str;
     size_t str_length;
     zend_long flags = 0;
@@ -2389,7 +2389,7 @@ static PHP_METHOD(swoole_mysql_coro, escape)
 
 static PHP_METHOD(swoole_mysql_coro, close)
 {
-    mysql_client *mc = swoole_get_mysql_client(ZEND_THIS);
+    mysql_client *mc = php_swoole_get_mysql_client(ZEND_THIS);
     mc->close();
     zend_update_property_bool(swoole_mysql_coro_ce, ZEND_THIS, ZEND_STRL("connected"), 0);
     RETURN_TRUE;
@@ -2397,7 +2397,7 @@ static PHP_METHOD(swoole_mysql_coro, close)
 
 static PHP_METHOD(swoole_mysql_coro_statement, execute)
 {
-    mysql_statement *ms = swoole_get_mysql_statement(ZEND_THIS);
+    mysql_statement *ms = php_swoole_get_mysql_statement(ZEND_THIS);
     zval *params = nullptr;
     double timeout = 0;
 
@@ -2415,7 +2415,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
 
 static PHP_METHOD(swoole_mysql_coro_statement, fetch)
 {
-    mysql_statement *ms = swoole_get_mysql_statement(ZEND_THIS);
+    mysql_statement *ms = php_swoole_get_mysql_statement(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2434,7 +2434,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetch)
 
 static PHP_METHOD(swoole_mysql_coro_statement, fetchAll)
 {
-    mysql_statement *ms = swoole_get_mysql_statement(ZEND_THIS);
+    mysql_statement *ms = php_swoole_get_mysql_statement(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2453,7 +2453,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetchAll)
 
 static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
 {
-    mysql_statement *ms = swoole_get_mysql_statement(ZEND_THIS);
+    mysql_statement *ms = php_swoole_get_mysql_statement(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2478,7 +2478,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
 
 static PHP_METHOD(swoole_mysql_coro_statement, recv)
 {
-    mysql_statement *ms = swoole_get_mysql_statement(ZEND_THIS);
+    mysql_statement *ms = php_swoole_get_mysql_statement(ZEND_THIS);
     double timeout = 0;
     enum sw_mysql_state state;
 
@@ -2518,7 +2518,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, recv)
 
 static PHP_METHOD(swoole_mysql_coro_statement, close)
 {
-    mysql_statement *ms = swoole_get_mysql_statement(ZEND_THIS);
+    mysql_statement *ms = php_swoole_get_mysql_statement(ZEND_THIS);
     ms->close();
     RETURN_TRUE;
 }

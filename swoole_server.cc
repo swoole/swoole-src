@@ -48,7 +48,7 @@ struct
     zval *zobjects[SW_MAX_LISTEN_PORT];
     zval *zports;
     uint8_t num;
-    swoole_server_port_property *primary_port;
+    php_swoole_server_port_property *primary_port;
 } server_port_list;
 
 typedef struct
@@ -109,7 +109,7 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port);
 
 static inline zend_bool php_swoole_server_isset_callback(swListenPort *port, int event_type)
 {
-    swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
+    php_swoole_server_port_property *property = (php_swoole_server_port_property *) port->ptr;
     if (property->callbacks[event_type] || server_port_list.primary_port->callbacks[event_type])
     {
         return SW_TRUE;
@@ -187,14 +187,14 @@ static sw_inline server_t* swoole_server_fetch_object(zend_object *obj)
     return (server_t *) ((char *) obj - swoole_server_handlers.offset);
 }
 
-static sw_inline swServer* swoole_server_get_server(zval *zobject)
+static sw_inline swServer* php_swoole_server_get_server(zval *zobject)
 {
     return swoole_server_fetch_object(Z_OBJ_P(zobject))->serv;
 }
 
-swServer* swoole_server_get_and_check_server(zval *zobject)
+swServer* php_swoole_server_get_and_check_server(zval *zobject)
 {
-    swServer* serv = swoole_server_get_server(zobject);
+    swServer* serv = php_swoole_server_get_server(zobject);
     if (UNEXPECTED(!serv))
     {
         php_swoole_fatal_error(E_ERROR, "Invaild instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
@@ -202,7 +202,7 @@ swServer* swoole_server_get_and_check_server(zval *zobject)
     return serv;
 }
 
-static sw_inline void swoole_server_set_server(zval *zobject, swServer *serv)
+static sw_inline void php_swoole_server_set_server(zval *zobject, swServer *serv)
 {
     swoole_server_fetch_object(Z_OBJ_P(zobject))->serv = serv;
 }
@@ -269,14 +269,14 @@ static sw_inline connection_iterator_t* swoole_connection_iterator_fetch_object(
     return (connection_iterator_t *) ((char *) obj - swoole_connection_iterator_handlers.offset);
 }
 
-static sw_inline swConnectionIterator* swoole_connection_iterator_get_ptr(zval *zobject)
+static sw_inline swConnectionIterator* php_swoole_connection_iterator_get_ptr(zval *zobject)
 {
     return &swoole_connection_iterator_fetch_object(Z_OBJ_P(zobject))->iterator;
 }
 
-swConnectionIterator* swoole_connection_iterator_get_and_check_ptr(zval *zobject)
+swConnectionIterator* php_swoole_connection_iterator_get_and_check_ptr(zval *zobject)
 {
-    swConnectionIterator* iterator = swoole_connection_iterator_get_ptr(zobject);
+    swConnectionIterator* iterator = php_swoole_connection_iterator_get_ptr(zobject);
     if (UNEXPECTED(!iterator->serv))
     {
         php_swoole_fatal_error(E_ERROR, "Invaild instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
@@ -310,7 +310,7 @@ static sw_inline server_task_t* swoole_server_task_fetch_object(zend_object *obj
     return (server_task_t *) ((char *) obj - swoole_server_task_handlers.offset);
 }
 
-static sw_inline swServer* swoole_server_task_get_server(zval *zobject)
+static sw_inline swServer* php_swoole_server_task_get_server(zval *zobject)
 {
     swServer* serv = swoole_server_task_fetch_object(Z_OBJ_P(zobject))->serv;
     if (!serv)
@@ -320,12 +320,12 @@ static sw_inline swServer* swoole_server_task_get_server(zval *zobject)
     return serv;
 }
 
-static sw_inline void swoole_server_task_set_server(zval *zobject, swServer *serv)
+static sw_inline void php_swoole_server_task_set_server(zval *zobject, swServer *serv)
 {
     swoole_server_task_fetch_object(Z_OBJ_P(zobject))->serv = serv;
 }
 
-static sw_inline swDataHead* swoole_server_task_get_info(zval *zobject)
+static sw_inline swDataHead* php_swoole_server_task_get_info(zval *zobject)
 {
     server_task_t *task = swoole_server_task_fetch_object(Z_OBJ_P(zobject));
     if (!task->serv)
@@ -335,7 +335,7 @@ static sw_inline swDataHead* swoole_server_task_get_info(zval *zobject)
     return &task->info;
 }
 
-static sw_inline void swoole_server_task_set_info(zval *zobject, swDataHead *info)
+static sw_inline void php_swoole_server_task_set_info(zval *zobject, swDataHead *info)
 {
     swoole_server_task_fetch_object(Z_OBJ_P(zobject))->info = *info;
 }
@@ -738,14 +738,14 @@ void php_swoole_server_minit(int module_number)
 zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
-    swoole_server_port_property *property;
+    php_swoole_server_port_property *property;
     zend_fcall_info_cache* fci_cache;
 
     if (sw_unlikely(!port))
     {
         return NULL;
     }
-    if ((property = (swoole_server_port_property *) port->ptr) && (fci_cache = property->caches[event_type]))
+    if ((property = (php_swoole_server_port_property *) port->ptr) && (fci_cache = property->caches[event_type]))
     {
         return fci_cache;
     }
@@ -1048,9 +1048,9 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
     efree(task_co);
 }
 
-extern swListenPort* swoole_server_port_get_and_check_ptr(zval *zobject);
-extern void swoole_server_port_set_ptr(zval *zobject, swListenPort *port);
-extern swoole_server_port_property* swoole_server_port_get_property(zval *zobject);
+extern swListenPort* php_swoole_server_port_get_and_check_ptr(zval *zobject);
+extern void php_swoole_server_port_set_ptr(zval *zobject, swListenPort *port);
+extern php_swoole_server_port_property* php_swoole_server_port_get_property(zval *zobject);
 
 static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
 {
@@ -1061,10 +1061,10 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
     server_port_list.zobjects[server_port_list.num++] = zport;
 
     /* port ptr */
-    swoole_server_port_set_ptr(zport, port);
+    php_swoole_server_port_set_ptr(zport, port);
 
     /* port property */
-    swoole_server_port_property *property = swoole_server_port_get_property(zport);
+    php_swoole_server_port_property *property = php_swoole_server_port_get_property(zport);
     property->serv = serv;
     property->port = port;
 
@@ -1085,7 +1085,7 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
         zval connection_iterator;
         object_init_ex(&connection_iterator, swoole_connection_iterator_ce);
 
-        swConnectionIterator *iterator = swoole_connection_iterator_get_ptr(&connection_iterator);
+        swConnectionIterator *iterator = php_swoole_connection_iterator_get_ptr(&connection_iterator);
         iterator->serv = serv;
         iterator->port = port;
 
@@ -1172,7 +1172,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     for (i = 0; i < server_port_list.num; i++)
     {
         zport = server_port_list.zobjects[i];
-        port = swoole_server_port_get_and_check_ptr(zport);
+        port = php_swoole_server_port_get_and_check_ptr(zport);
 
         if (swSocket_is_dgram(port->type) && !php_swoole_server_isset_callback(port, SW_SERVER_CB_onPacket))
         {
@@ -1434,8 +1434,8 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
 static sw_inline void php_swoole_create_task_object(zval *ztask, swServer *serv, swEventData *req, zval *zdata)
 {
     object_init_ex(ztask, swoole_server_task_ce);
-    swoole_server_task_set_server(ztask, serv);
-    swoole_server_task_set_info(ztask, &req->info);
+    php_swoole_server_task_set_server(ztask, serv);
+    php_swoole_server_task_set_info(ztask, &req->info);
 
     zend_update_property_long(swoole_server_task_ce, ztask, ZEND_STRL("worker_id"), (zend_long) req->info.reactor_id);
     zend_update_property_long(swoole_server_task_ce, ztask, ZEND_STRL("id"), (zend_long) req->info.fd);
@@ -2058,7 +2058,7 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
 
 static PHP_METHOD(swoole_server, __construct)
 {
-    swServer *serv = swoole_server_get_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_server(ZEND_THIS);
     if (serv)
     {
         php_swoole_fatal_error(E_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
@@ -2160,7 +2160,7 @@ static PHP_METHOD(swoole_server, __construct)
             php_swoole_server_add_port(serv, ls);
         }
 
-        server_port_list.primary_port = (swoole_server_port_property *) serv->listen_list->ptr;
+        server_port_list.primary_port = (php_swoole_server_port_property *) serv->listen_list->ptr;
 
         zend_update_property(swoole_server_ce, zserv, ZEND_STRL("ports"), ports);
     } while (0);
@@ -2171,7 +2171,7 @@ static PHP_METHOD(swoole_server, __construct)
         zval connection_iterator;
         object_init_ex(&connection_iterator, swoole_connection_iterator_ce);
 
-        swConnectionIterator *iterator = swoole_connection_iterator_get_ptr(&connection_iterator);
+        swConnectionIterator *iterator = php_swoole_connection_iterator_get_ptr(&connection_iterator);
         iterator->serv = serv;
 
         zend_update_property(swoole_server_ce, zserv, ZEND_STRL("connections"), &connection_iterator);
@@ -2183,7 +2183,7 @@ static PHP_METHOD(swoole_server, __construct)
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("port"), (zend_long) serv->listen_list->port);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("mode"), serv->factory_mode);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("type"), sock_type);
-    swoole_server_set_server(zserv, serv);
+    php_swoole_server_set_server(zserv, serv);
 }
 
 static PHP_METHOD(swoole_server, __destruct) { }
@@ -2191,7 +2191,7 @@ static PHP_METHOD(swoole_server, __destruct) { }
 static PHP_METHOD(swoole_server, set)
 {
     zval *zserv = ZEND_THIS;
-    swServer *serv = swoole_server_get_and_check_server(zserv);
+    swServer *serv = php_swoole_server_get_and_check_server(zserv);
     if (serv->gs->start > 0)
     {
         php_swoole_fatal_error(E_WARNING, "server is running, unable to execute %s->set", SW_Z_OBJCE_NAME_VAL_P(zserv));
@@ -2710,7 +2710,7 @@ static PHP_METHOD(swoole_server, set)
 
 static PHP_METHOD(swoole_server, on)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (serv->gs->start > 0)
     {
         php_swoole_fatal_error(E_WARNING, "server is running, unable to register event callback function");
@@ -2789,7 +2789,7 @@ static PHP_METHOD(swoole_server, getCallback)
 
 static PHP_METHOD(swoole_server, listen)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (serv->gs->start > 0)
     {
         php_swoole_fatal_error(E_WARNING, "server is running, can't add listener");
@@ -2816,11 +2816,11 @@ static PHP_METHOD(swoole_server, listen)
     RETURN_ZVAL(port_object, 1, NULL);
 }
 
-extern swWorker* swoole_process_get_and_check_worker(zval *zobject);
+extern swWorker* php_swoole_process_get_and_check_worker(zval *zobject);
 
 static PHP_METHOD(swoole_server, addProcess)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (serv->gs->start > 0)
     {
         php_swoole_fatal_error(E_WARNING, "server is running, can't add process");
@@ -2859,7 +2859,7 @@ static PHP_METHOD(swoole_server, addProcess)
 
     Z_TRY_ADDREF_P(process);
 
-    swWorker *worker = swoole_process_get_and_check_worker(process);
+    swWorker *worker = php_swoole_process_get_and_check_worker(process);
     worker->ptr = process;
 
     int id = swServer_add_worker(serv, worker);
@@ -2885,7 +2885,7 @@ static inline zend_bool is_http_server(zval *zobject)
 static PHP_METHOD(swoole_server, start)
 {
     zval *zserv = ZEND_THIS;
-    swServer *serv = swoole_server_get_and_check_server(zserv);
+    swServer *serv = php_swoole_server_get_and_check_server(zserv);
     if (serv->gs->start > 0)
     {
         php_swoole_fatal_error(E_WARNING, "server is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
@@ -2944,7 +2944,7 @@ static PHP_METHOD(swoole_server, start)
 
 static PHP_METHOD(swoole_server, send)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3014,7 +3014,7 @@ static PHP_METHOD(swoole_server, send)
 
 static PHP_METHOD(swoole_server, sendto)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3079,7 +3079,7 @@ static PHP_METHOD(swoole_server, sendto)
 
 static PHP_METHOD(swoole_server, sendfile)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3114,7 +3114,7 @@ static PHP_METHOD(swoole_server, close)
         RETURN_FALSE;
     }
 
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3141,7 +3141,7 @@ static PHP_METHOD(swoole_server, confirm)
         RETURN_FALSE;
     }
 
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3160,7 +3160,7 @@ static PHP_METHOD(swoole_server, confirm)
 
 static PHP_METHOD(swoole_server, pause)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3179,7 +3179,7 @@ static PHP_METHOD(swoole_server, pause)
 
 static PHP_METHOD(swoole_server, resume)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3198,7 +3198,7 @@ static PHP_METHOD(swoole_server, resume)
 
 static PHP_METHOD(swoole_server, stats)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3271,7 +3271,7 @@ static PHP_METHOD(swoole_server, stats)
 
 static PHP_METHOD(swoole_server, reload)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3296,7 +3296,7 @@ static PHP_METHOD(swoole_server, reload)
 
 static PHP_METHOD(swoole_server, heartbeat)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3352,7 +3352,7 @@ static PHP_METHOD(swoole_server, taskwait)
         RETURN_FALSE;
     }
 
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3447,7 +3447,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
         RETURN_FALSE;
     }
 
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3598,7 +3598,7 @@ static PHP_METHOD(swoole_server, taskCo)
         RETURN_FALSE;
     }
 
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3696,7 +3696,7 @@ static PHP_METHOD(swoole_server, taskCo)
 
 static PHP_METHOD(swoole_server, task)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3757,7 +3757,7 @@ static PHP_METHOD(swoole_server, task)
 
 static PHP_METHOD(swoole_server, sendMessage)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3807,7 +3807,7 @@ static PHP_METHOD(swoole_server, sendMessage)
 
 static PHP_METHOD(swoole_server, finish)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3830,7 +3830,7 @@ static PHP_METHOD(swoole_server, finish)
 
 static PHP_METHOD(swoole_server_task, finish)
 {
-    swServer *serv = swoole_server_task_get_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_task_get_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3843,7 +3843,7 @@ static PHP_METHOD(swoole_server_task, finish)
         Z_PARAM_ZVAL(zdata)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    swDataHead *info = swoole_server_task_get_info(ZEND_THIS);
+    swDataHead *info = php_swoole_server_task_get_info(ZEND_THIS);
     SW_CHECK_RETURN(php_swoole_task_finish(serv, zdata, (swEventData* )info));
 }
 
@@ -3867,7 +3867,7 @@ static PHP_METHOD(swoole_server_task, pack)
 
 static PHP_METHOD(swoole_server, bind)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3910,7 +3910,7 @@ static PHP_METHOD(swoole_server, bind)
 #ifdef SWOOLE_SOCKETS_SUPPORT
 static PHP_METHOD(swoole_server, getSocket)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
 
     zend_long port = 0;
 
@@ -3934,7 +3934,7 @@ static PHP_METHOD(swoole_server, getSocket)
 
 static PHP_METHOD(swoole_server, getClientInfo)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -4001,7 +4001,7 @@ static PHP_METHOD(swoole_server, getClientInfo)
 
 static PHP_METHOD(swoole_server, getClientList)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -4075,7 +4075,7 @@ static PHP_METHOD(swoole_server, getClientList)
 
 static PHP_METHOD(swoole_server, sendwait)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -4110,7 +4110,7 @@ static PHP_METHOD(swoole_server, sendwait)
 
 static PHP_METHOD(swoole_server, exists)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -4141,7 +4141,7 @@ static PHP_METHOD(swoole_server, exists)
 
 static PHP_METHOD(swoole_server, protect)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -4176,7 +4176,7 @@ static PHP_METHOD(swoole_server, protect)
 #ifdef SW_BUFFER_RECV_TIME
 static PHP_METHOD(swoole_server, getReceivedTime)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -4196,7 +4196,7 @@ static PHP_METHOD(swoole_server, getReceivedTime)
 
 static PHP_METHOD(swoole_server, shutdown)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -4216,7 +4216,7 @@ static PHP_METHOD(swoole_server, shutdown)
 
 static PHP_METHOD(swoole_server, stop)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -4264,14 +4264,14 @@ static PHP_METHOD(swoole_connection_iterator, __construct)
 
 static PHP_METHOD(swoole_connection_iterator, rewind)
 {
-    swConnectionIterator *iterator = swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
+    swConnectionIterator *iterator = php_swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
     iterator->index = 0;
     iterator->current_fd = swServer_get_minfd(iterator->serv);
 }
 
 static PHP_METHOD(swoole_connection_iterator, valid)
 {
-    swConnectionIterator *iterator = swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
+    swConnectionIterator *iterator = php_swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
     int fd = iterator->current_fd;
     swConnection *conn;
 
@@ -4304,25 +4304,25 @@ static PHP_METHOD(swoole_connection_iterator, valid)
 
 static PHP_METHOD(swoole_connection_iterator, current)
 {
-    swConnectionIterator *iterator = swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
+    swConnectionIterator *iterator = php_swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
     RETURN_LONG(iterator->session_id);
 }
 
 static PHP_METHOD(swoole_connection_iterator, next)
 {
-    swConnectionIterator *iterator = swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
+    swConnectionIterator *iterator = php_swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
     iterator->current_fd++;
 }
 
 static PHP_METHOD(swoole_connection_iterator, key)
 {
-    swConnectionIterator *iterator = swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
+    swConnectionIterator *iterator = php_swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
     RETURN_LONG(iterator->index);
 }
 
 static PHP_METHOD(swoole_connection_iterator, count)
 {
-    swConnectionIterator *iterator = swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
+    swConnectionIterator *iterator = php_swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
     if (iterator->port)
     {
         RETURN_LONG(iterator->port->connection_num);
@@ -4335,7 +4335,7 @@ static PHP_METHOD(swoole_connection_iterator, count)
 
 static PHP_METHOD(swoole_connection_iterator, offsetExists)
 {
-    swConnectionIterator *iterator = swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
+    swConnectionIterator *iterator = php_swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
     zval *zserv = (zval *) iterator->serv->ptr2;
     zval *zfd;
     zval retval;
@@ -4349,7 +4349,7 @@ static PHP_METHOD(swoole_connection_iterator, offsetExists)
 
 static PHP_METHOD(swoole_connection_iterator, offsetGet)
 {
-    swConnectionIterator *iterator = swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
+    swConnectionIterator *iterator = php_swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
     zval *zserv = (zval *) iterator->serv->ptr2;
     zval *zfd;
     zval retval;

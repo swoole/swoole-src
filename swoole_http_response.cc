@@ -105,12 +105,12 @@ static sw_inline http_response_t* swoole_http_response_fetch_object(zend_object 
     return (http_response_t *) ((char *) obj - swoole_http_response_handlers.offset);
 }
 
-http_context * swoole_http_response_get_context(zval *zobject)
+http_context * php_swoole_http_response_get_context(zval *zobject)
 {
     return swoole_http_response_fetch_object(Z_OBJ_P(zobject))->ctx;
 }
 
-void swoole_http_response_set_context(zval *zobject, http_context *ctx)
+void php_swoole_http_response_set_context(zval *zobject, http_context *ctx)
 {
     swoole_http_response_fetch_object(Z_OBJ_P(zobject))->ctx = ctx;
 }
@@ -306,7 +306,7 @@ static PHP_METHOD(swoole_http_response, write)
         RETURN_FALSE;
     }
 
-    http_context *ctx = swoole_http_response_get_and_check_context(ZEND_THIS, 0);
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
     if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
@@ -653,7 +653,7 @@ int swoole_http_response_compress(swString *body, int method, int level)
 
 static PHP_METHOD(swoole_http_response, initHeader)
 {
-    http_context *ctx = swoole_http_response_get_and_check_context(ZEND_THIS, 0);
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
     if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
@@ -669,7 +669,7 @@ static PHP_METHOD(swoole_http_response, initHeader)
 
 static PHP_METHOD(swoole_http_response, end)
 {
-    http_context *ctx = swoole_http_response_get_and_check_context(ZEND_THIS, 1);
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 1);
     if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
@@ -889,7 +889,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
         RETURN_FALSE;
     }
 
-    http_context *ctx = swoole_http_response_get_and_check_context(ZEND_THIS, 0);
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
     if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
@@ -980,7 +980,7 @@ static void swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool
         Z_PARAM_STRING(samesite, samesite_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    http_context *ctx = swoole_http_response_get_and_check_context(ZEND_THIS, 0);
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
     if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
@@ -1088,7 +1088,7 @@ static PHP_METHOD(swoole_http_response, status)
         Z_PARAM_STRING(reason, reason_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    http_context *ctx = swoole_http_response_get_and_check_context(ZEND_THIS, 0);
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
     if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
@@ -1112,7 +1112,7 @@ static PHP_METHOD(swoole_http_response, header)
         Z_PARAM_BOOL(ucwords)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    http_context *ctx = swoole_http_response_get_and_check_context(ZEND_THIS, 0);
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
     if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
@@ -1133,7 +1133,7 @@ static PHP_METHOD(swoole_http_response, trailer)
         Z_PARAM_STRING_EX(v, vlen, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    http_context *ctx = swoole_http_response_get_and_check_context(ZEND_THIS, 0);
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
     if (!ctx || !ctx->stream)
     {
         RETURN_FALSE;
@@ -1164,7 +1164,7 @@ static PHP_METHOD(swoole_http_response, trailer)
 
 static PHP_METHOD(swoole_http_response, ping)
 {
-    http_context *ctx = swoole_http_response_get_and_check_context(ZEND_THIS, 0);
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
     if (!ctx || !ctx->stream)
     {
         RETURN_FALSE;
@@ -1175,7 +1175,7 @@ static PHP_METHOD(swoole_http_response, ping)
 
 static PHP_METHOD(swoole_http_response, upgrade)
 {
-    http_context *ctx = swoole_http_response_get_and_check_context(ZEND_THIS, 0);
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
     if (UNEXPECTED(!ctx || !ctx->co_socket))
     {
         RETURN_FALSE;
@@ -1185,7 +1185,7 @@ static PHP_METHOD(swoole_http_response, upgrade)
 
 static PHP_METHOD(swoole_http_response, push)
 {
-    http_context *ctx = swoole_http_response_get_and_check_context(ZEND_THIS, 0);
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
     if (UNEXPECTED(!ctx) || !ctx->co_socket || !ctx->upgrade)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
@@ -1227,7 +1227,7 @@ static PHP_METHOD(swoole_http_response, push)
 
 static PHP_METHOD(swoole_http_response, close)
 {
-    http_context *ctx = swoole_http_response_get_and_check_context(ZEND_THIS, 0);
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
     if (UNEXPECTED(!ctx) || !ctx->co_socket || !ctx->upgrade)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
@@ -1238,7 +1238,7 @@ static PHP_METHOD(swoole_http_response, close)
 
 static PHP_METHOD(swoole_http_response, recv)
 {
-    http_context *ctx = swoole_http_response_get_and_check_context(ZEND_THIS, 0);
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
     if (UNEXPECTED(!ctx) || !ctx->co_socket || !ctx->upgrade)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
@@ -1280,7 +1280,7 @@ static PHP_METHOD(swoole_http_response, recv)
 
 static PHP_METHOD(swoole_http_response, detach)
 {
-    http_context *context = swoole_http_response_get_and_check_context(ZEND_THIS, 0);
+    http_context *context = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
     if (!context)
     {
         RETURN_FALSE;
@@ -1313,7 +1313,7 @@ static PHP_METHOD(swoole_http_response, create)
     swoole_http_server_init_context(SwooleG.serv, ctx);
 
     object_init_ex(return_value, swoole_http_response_ce);
-    swoole_http_response_set_context(return_value, ctx);
+    php_swoole_http_response_set_context(return_value, ctx);
     ctx->response.zobject = return_value;
     sw_copy_to_stack(ctx->response.zobject, ctx->response._zobject);
 
@@ -1331,7 +1331,7 @@ static PHP_METHOD(swoole_http_response, redirect)
         Z_PARAM_ZVAL_EX(zhttp_code, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    http_context *ctx = swoole_http_response_get_and_check_context(ZEND_THIS, 0);
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
     if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;

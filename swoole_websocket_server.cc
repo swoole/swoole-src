@@ -781,7 +781,7 @@ static sw_inline int swoole_websocket_server_close(swServer *serv, int fd, swStr
     }
 }
 
-extern swServer* swoole_server_get_and_check_server(zval *zobject);
+extern swServer* php_swoole_server_get_and_check_server(zval *zobject);
 
 static PHP_METHOD(swoole_websocket_server, disconnect)
 {
@@ -801,14 +801,14 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
     }
     SW_CHECK_RETURN(
         swoole_websocket_server_close(
-            swoole_server_get_and_check_server(ZEND_THIS), fd, swoole_http_buffer, 1
+            php_swoole_server_get_and_check_server(ZEND_THIS), fd, swoole_http_buffer, 1
         )
     );
 }
 
 static PHP_METHOD(swoole_websocket_server, push)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     zend_long fd = 0;
     zval *zdata = NULL;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
@@ -920,7 +920,7 @@ static PHP_METHOD(swoole_websocket_server, unpack)
 
 static PHP_METHOD(swoole_websocket_server, isEstablished)
 {
-    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     zend_long fd;
 
     if (sw_unlikely(!serv->gs->start))

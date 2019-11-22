@@ -216,8 +216,8 @@ extern swString *swoole_zlib_buffer;
     (strncasecmp(at, ZEND_STRL(const_str)) == 0))
 
 http_context* swoole_http_context_new(int fd);
-http_context* swoole_http_request_get_and_check_context(zval *zobject);
-http_context* swoole_http_response_get_and_check_context(zval *zobject, bool check_end);
+http_context* php_swoole_http_request_get_and_check_context(zval *zobject);
+http_context* php_swoole_http_response_get_and_check_context(zval *zobject, bool check_end);
 void swoole_http_context_free(http_context *ctx);
 void swoole_http_context_copy(http_context *src, http_context *dst);
 
@@ -237,10 +237,10 @@ int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
 void swoole_http_server_init_context(swServer *serv, http_context *ctx);
 
-http_context * swoole_http_request_get_context(zval *zobject);
-void swoole_http_request_set_context(zval *zobject, http_context *context);
-http_context * swoole_http_response_get_context(zval *zobject);
-void swoole_http_response_set_context(zval *zobject, http_context *context);
+http_context * php_swoole_http_request_get_context(zval *zobject);
+void php_swoole_http_request_set_context(zval *zobject, http_context *context);
+http_context * php_swoole_http_response_get_context(zval *zobject);
+void php_swoole_http_response_set_context(zval *zobject, http_context *context);
 size_t swoole_http_requset_parse(http_context *ctx, const char *data, size_t length);
 
 bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t klen, const char *v, size_t vlen, bool ucwords);

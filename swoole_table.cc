@@ -134,14 +134,14 @@ static sw_inline table_t* swoole_table_fetch_object(zend_object *obj)
     return (table_t *) ((char *) obj - swoole_table_handlers.offset);
 }
 
-static swTable * swoole_table_get_ptr(zval *zobject)
+static swTable * php_swoole_table_get_ptr(zval *zobject)
 {
     return swoole_table_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
-static swTable * swoole_table_get_and_check_ptr(zval *zobject)
+static swTable * php_swoole_table_get_and_check_ptr(zval *zobject)
 {
-    swTable *table = swoole_table_get_ptr(zobject);
+    swTable *table = php_swoole_table_get_ptr(zobject);
     if (!table)
     {
         php_swoole_fatal_error(E_ERROR, "you must call Table constructor first");
@@ -149,9 +149,9 @@ static swTable * swoole_table_get_and_check_ptr(zval *zobject)
     return table;
 }
 
-static swTable * swoole_table_get_and_check_ptr2(zval *zobject)
+static swTable * php_swoole_table_get_and_check_ptr2(zval *zobject)
 {
-    swTable *table = swoole_table_get_and_check_ptr(zobject);
+    swTable *table = php_swoole_table_get_and_check_ptr(zobject);
     if (!table->memory)
     {
         php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
@@ -159,7 +159,7 @@ static swTable * swoole_table_get_and_check_ptr2(zval *zobject)
     return table;
 }
 
-void swoole_table_set_ptr(zval *zobject, swTable *ptr)
+void php_swoole_table_set_ptr(zval *zobject, swTable *ptr)
 {
     swoole_table_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
 }
@@ -189,14 +189,14 @@ static sw_inline table_row_t* swoole_table_row_fetch_object(zend_object *obj)
     return (table_row_t *) ((char *) obj - swoole_table_row_handlers.offset);
 }
 
-static swTable * swoole_table_row_get_ptr(zval *zobject)
+static swTable * php_swoole_table_row_get_ptr(zval *zobject)
 {
     return swoole_table_row_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
-static swTable * swoole_table_row_get_and_check_ptr(zval *zobject)
+static swTable * php_swoole_table_row_get_and_check_ptr(zval *zobject)
 {
-    swTable *table_row = swoole_table_row_get_ptr(zobject);
+    swTable *table_row = php_swoole_table_row_get_ptr(zobject);
     if (!table_row)
     {
         php_swoole_fatal_error(E_ERROR, "you can only get Table\\Row from Table");
@@ -204,7 +204,7 @@ static swTable * swoole_table_row_get_and_check_ptr(zval *zobject)
     return table_row;
 }
 
-void swoole_table_row_set_ptr(zval *zobject, swTable *ptr)
+void php_swoole_table_row_set_ptr(zval *zobject, swTable *ptr)
 {
     swoole_table_row_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
 }
@@ -385,7 +385,7 @@ void swoole_table_column_free(swTableColumn *col)
 
 PHP_METHOD(swoole_table, __construct)
 {
-    swTable *table = swoole_table_get_ptr(ZEND_THIS);
+    swTable *table = php_swoole_table_get_ptr(ZEND_THIS);
     if (table)
     {
         php_swoole_fatal_error(E_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
@@ -406,12 +406,12 @@ PHP_METHOD(swoole_table, __construct)
         zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
-    swoole_table_set_ptr(ZEND_THIS, table);
+    php_swoole_table_set_ptr(ZEND_THIS, table);
 }
 
 PHP_METHOD(swoole_table, column)
 {
-    swTable *table = swoole_table_get_and_check_ptr(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr(ZEND_THIS);
     char *name;
     size_t len;
     long type;
@@ -446,7 +446,7 @@ PHP_METHOD(swoole_table, column)
 
 static PHP_METHOD(swoole_table, create)
 {
-    swTable *table = swoole_table_get_and_check_ptr(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr(ZEND_THIS);
 
     if (swTable_create(table) < 0)
     {
@@ -460,7 +460,7 @@ static PHP_METHOD(swoole_table, create)
 
 static PHP_METHOD(swoole_table, destroy)
 {
-    swTable *table = swoole_table_get_and_check_ptr2(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
 
     swTable_free(table);
     RETURN_TRUE;
@@ -468,7 +468,7 @@ static PHP_METHOD(swoole_table, destroy)
 
 static PHP_METHOD(swoole_table, set)
 {
-    swTable *table = swoole_table_get_and_check_ptr2(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     zval *array;
     char *key;
     size_t keylen;
@@ -542,7 +542,7 @@ static PHP_METHOD(swoole_table, offsetSet)
 
 static PHP_METHOD(swoole_table, incr)
 {
-    swTable *table = swoole_table_get_and_check_ptr2(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     char *key;
     size_t key_len;
     char *col;
@@ -612,7 +612,7 @@ static PHP_METHOD(swoole_table, incr)
 
 static PHP_METHOD(swoole_table, decr)
 {
-    swTable *table = swoole_table_get_and_check_ptr2(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     char *key;
     size_t key_len;
     char *col;
@@ -682,7 +682,7 @@ static PHP_METHOD(swoole_table, decr)
 
 static PHP_METHOD(swoole_table, get)
 {
-    swTable *table = swoole_table_get_and_check_ptr2(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     char *key;
     size_t keylen;
     char *field = NULL;
@@ -712,7 +712,7 @@ static PHP_METHOD(swoole_table, get)
 
 static PHP_METHOD(swoole_table, offsetGet)
 {
-    swTable *table = swoole_table_get_and_check_ptr2(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     char *key;
     size_t keylen;
     char *field = NULL;
@@ -740,12 +740,12 @@ static PHP_METHOD(swoole_table, offsetGet)
     zend_update_property(swoole_table_row_ce, return_value, ZEND_STRL("value"), &value);
     zend_update_property_stringl(swoole_table_row_ce, return_value, ZEND_STRL("key"), key, keylen);
     zval_ptr_dtor(&value);
-    swoole_table_row_set_ptr(return_value, table);
+    php_swoole_table_row_set_ptr(return_value, table);
 }
 
 static PHP_METHOD(swoole_table, exists)
 {
-    swTable *table = swoole_table_get_and_check_ptr2(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     char *key;
     size_t keylen;
 
@@ -775,7 +775,7 @@ static PHP_METHOD(swoole_table, offsetExists)
 
 static PHP_METHOD(swoole_table, del)
 {
-    swTable *table = swoole_table_get_and_check_ptr2(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     char *key;
     size_t keylen;
 
@@ -797,7 +797,7 @@ static PHP_METHOD(swoole_table, count)
     #define COUNT_NORMAL            0
     #define COUNT_RECURSIVE         1
 
-    swTable *table = swoole_table_get_and_check_ptr2(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     long mode = COUNT_NORMAL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &mode) == FAILURE)
@@ -817,7 +817,7 @@ static PHP_METHOD(swoole_table, count)
 
 static PHP_METHOD(swoole_table, getMemorySize)
 {
-    swTable *table = swoole_table_get_ptr(ZEND_THIS);
+    swTable *table = php_swoole_table_get_ptr(ZEND_THIS);
 
     if (!table)
     {
@@ -835,14 +835,14 @@ static PHP_METHOD(swoole_table, getMemorySize)
 
 static PHP_METHOD(swoole_table, rewind)
 {
-    swTable *table = swoole_table_get_and_check_ptr2(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     swTable_iterator_rewind(table);
     swTable_iterator_forward(table);
 }
 
 static PHP_METHOD(swoole_table, current)
 {
-    swTable *table = swoole_table_get_and_check_ptr2(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     swTableRow *row = swTable_iterator_current(table);
     if (row)
     {
@@ -858,7 +858,7 @@ static PHP_METHOD(swoole_table, current)
 
 static PHP_METHOD(swoole_table, key)
 {
-    swTable *table = swoole_table_get_and_check_ptr2(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     swTableRow *row = swTable_iterator_current(table);
     if (row)
     {
@@ -874,13 +874,13 @@ static PHP_METHOD(swoole_table, key)
 
 static PHP_METHOD(swoole_table, next)
 {
-    swTable *table = swoole_table_get_and_check_ptr2(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     swTable_iterator_forward(table);
 }
 
 static PHP_METHOD(swoole_table, valid)
 {
-    swTable *table = swoole_table_get_and_check_ptr2(ZEND_THIS);
+    swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     swTableRow *row = swTable_iterator_current(table);
     RETURN_BOOL(row != NULL);
 }
@@ -920,7 +920,7 @@ static PHP_METHOD(swoole_table_row, offsetGet)
 
 static PHP_METHOD(swoole_table_row, offsetSet)
 {
-    swTable *table = swoole_table_row_get_and_check_ptr(ZEND_THIS);
+    swTable *table = php_swoole_table_row_get_and_check_ptr(ZEND_THIS);
     zval *value;
     char *key;
     size_t keylen;

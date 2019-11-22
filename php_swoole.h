@@ -196,7 +196,7 @@ typedef struct
     swServer *serv;
     swListenPort *port;
     zval *zsetting;
-} swoole_server_port_property;
+} php_swoole_server_port_property;
 //---------------------------------------------------------
 #define SW_FLAG_KEEP                        (1u << 12)
 #define SW_FLAG_ASYNC                       (1u << 10)

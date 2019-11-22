@@ -225,12 +225,12 @@ static sw_inline http_request_t* swoole_http_request_fetch_object(zend_object *o
     return (http_request_t *) ((char *) obj - swoole_http_request_handlers.offset);
 }
 
-http_context * swoole_http_request_get_context(zval *zobject)
+http_context * php_swoole_http_request_get_context(zval *zobject)
 {
     return swoole_http_request_fetch_object(Z_OBJ_P(zobject))->ctx;
 }
 
-void swoole_http_request_set_context(zval *zobject, http_context *ctx)
+void php_swoole_http_request_set_context(zval *zobject, http_context *ctx)
 {
     swoole_http_request_fetch_object(Z_OBJ_P(zobject))->ctx = ctx;
 }
@@ -952,7 +952,7 @@ const char* swoole_http_get_content_encoding(http_context *ctx)
 
 static PHP_METHOD(swoole_http_request, rawContent)
 {
-    http_context *ctx = swoole_http_request_get_and_check_context(ZEND_THIS);
+    http_context *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
@@ -976,7 +976,7 @@ static PHP_METHOD(swoole_http_request, rawContent)
 
 static PHP_METHOD(swoole_http_request, getData)
 {
-    http_context *ctx = swoole_http_request_get_and_check_context(ZEND_THIS);
+    http_context *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;

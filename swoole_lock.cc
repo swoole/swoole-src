@@ -30,14 +30,14 @@ static sw_inline lock_t* swoole_lock_fetch_object(zend_object *obj)
     return (lock_t *) ((char *) obj - swoole_lock_handlers.offset);
 }
 
-static swLock * swoole_lock_get_ptr(zval *zobject)
+static swLock * php_swoole_lock_get_ptr(zval *zobject)
 {
     return swoole_lock_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
-static swLock * swoole_lock_get_and_check_ptr(zval *zobject)
+static swLock * php_swoole_lock_get_and_check_ptr(zval *zobject)
 {
-    swLock *lock = swoole_lock_get_ptr(zobject);
+    swLock *lock = php_swoole_lock_get_ptr(zobject);
     if (!lock)
     {
         php_swoole_fatal_error(E_ERROR, "you must call Lock constructor first");
@@ -45,7 +45,7 @@ static swLock * swoole_lock_get_and_check_ptr(zval *zobject)
     return lock;
 }
 
-void swoole_lock_set_ptr(zval *zobject, swLock *ptr)
+void php_swoole_lock_set_ptr(zval *zobject, swLock *ptr)
 {
     swoole_lock_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
 }
@@ -132,7 +132,7 @@ void php_swoole_lock_minit(int module_number)
 
 static PHP_METHOD(swoole_lock, __construct)
 {
-    swLock *lock = swoole_lock_get_ptr(ZEND_THIS);
+    swLock *lock = php_swoole_lock_get_ptr(ZEND_THIS);
 
     if (lock != NULL)
     {
@@ -198,7 +198,7 @@ static PHP_METHOD(swoole_lock, __construct)
         RETURN_FALSE;
     }
 
-    swoole_lock_set_ptr(ZEND_THIS, lock);
+    php_swoole_lock_set_ptr(ZEND_THIS, lock);
     RETURN_TRUE;
 }
 
@@ -206,7 +206,7 @@ static PHP_METHOD(swoole_lock, __destruct) { }
 
 static PHP_METHOD(swoole_lock, lock)
 {
-    swLock *lock = swoole_lock_get_and_check_ptr(ZEND_THIS);
+    swLock *lock = php_swoole_lock_get_and_check_ptr(ZEND_THIS);
     SW_LOCK_CHECK_RETURN(lock->lock(lock));
 }
 
@@ -218,7 +218,7 @@ static PHP_METHOD(swoole_lock, lockwait)
     {
         RETURN_FALSE;
     }
-    swLock *lock = swoole_lock_get_and_check_ptr(ZEND_THIS);
+    swLock *lock = php_swoole_lock_get_and_check_ptr(ZEND_THIS);
     if (lock->type != SW_MUTEX)
     {
         zend_throw_exception(swoole_exception_ce, "only mutex supports lockwait", -2);
@@ -229,13 +229,13 @@ static PHP_METHOD(swoole_lock, lockwait)
 
 static PHP_METHOD(swoole_lock, unlock)
 {
-    swLock *lock = swoole_lock_get_and_check_ptr(ZEND_THIS);
+    swLock *lock = php_swoole_lock_get_and_check_ptr(ZEND_THIS);
     SW_LOCK_CHECK_RETURN(lock->unlock(lock));
 }
 
 static PHP_METHOD(swoole_lock, trylock)
 {
-    swLock *lock = swoole_lock_get_and_check_ptr(ZEND_THIS);
+    swLock *lock = php_swoole_lock_get_and_check_ptr(ZEND_THIS);
     if (lock->trylock == NULL)
     {
         php_swoole_error(E_WARNING, "lock[type=%d] can't use trylock", lock->type);
@@ -246,7 +246,7 @@ static PHP_METHOD(swoole_lock, trylock)
 
 static PHP_METHOD(swoole_lock, trylock_read)
 {
-    swLock *lock = swoole_lock_get_and_check_ptr(ZEND_THIS);
+    swLock *lock = php_swoole_lock_get_and_check_ptr(ZEND_THIS);
     if (lock->trylock_rd == NULL)
     {
         php_swoole_error(E_WARNING, "lock[type=%d] can't use trylock_read", lock->type);
@@ -257,7 +257,7 @@ static PHP_METHOD(swoole_lock, trylock_read)
 
 static PHP_METHOD(swoole_lock, lock_read)
 {
-    swLock *lock = swoole_lock_get_and_check_ptr(ZEND_THIS);
+    swLock *lock = php_swoole_lock_get_and_check_ptr(ZEND_THIS);
     if (lock->lock_rd == NULL)
     {
         php_swoole_error(E_WARNING, "lock[type=%d] can't use lock_read", lock->type);
@@ -268,6 +268,6 @@ static PHP_METHOD(swoole_lock, lock_read)
 
 static PHP_METHOD(swoole_lock, destroy)
 {
-    swLock *lock = swoole_lock_get_and_check_ptr(ZEND_THIS);
+    swLock *lock = php_swoole_lock_get_and_check_ptr(ZEND_THIS);
     lock->free(lock);
 }
