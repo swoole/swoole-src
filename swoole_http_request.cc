@@ -58,13 +58,6 @@ enum http_upload_errno
     HTTP_UPLOAD_ERR_CANT_WRITE,
 };
 
-zend_class_entry *swoole_http_request_ce;
-static zend_object_handlers swoole_http_request_handlers;
-
-static PHP_METHOD(swoole_http_request, getData);
-static PHP_METHOD(swoole_http_request, rawContent);
-static PHP_METHOD(swoole_http_request, __destruct);
-
 static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length);
 static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length);
 static int http_request_on_body(swoole_http_parser *parser, const char *at, size_t length);
@@ -188,17 +181,6 @@ static sw_inline const char* http_get_method_name(int method)
     }
 }
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-const zend_function_entry swoole_http_request_methods[] =
-{
-    PHP_ME(swoole_http_request, rawContent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_request, getData, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_request, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
-    PHP_FE_END
-};
-
 static const swoole_http_parser_settings http_parser_settings =
 {
     NULL,
@@ -229,13 +211,93 @@ size_t swoole_http_requset_parse(http_context *ctx, const char *data, size_t len
     return swoole_http_parser_execute(&ctx->parser, &http_parser_settings, data, length);
 }
 
+zend_class_entry *swoole_http_request_ce;
+static zend_object_handlers swoole_http_request_handlers;
+
+typedef struct
+{
+    http_context *ctx;
+    zend_object std;
+} http_request_t;
+
+static sw_inline http_request_t* php_swoole_http_request_fetch_object(zend_object *obj)
+{
+    return (http_request_t *) ((char *) obj - swoole_http_request_handlers.offset);
+}
+
+http_context * php_swoole_http_request_get_context(zval *zobject)
+{
+    return php_swoole_http_request_fetch_object(Z_OBJ_P(zobject))->ctx;
+}
+
+void php_swoole_http_request_set_context(zval *zobject, http_context *ctx)
+{
+    php_swoole_http_request_fetch_object(Z_OBJ_P(zobject))->ctx = ctx;
+}
+
+static void php_swoole_http_request_free_object(zend_object *object)
+{
+    http_request_t *request = php_swoole_http_request_fetch_object(object);
+    http_context *ctx = request->ctx;
+    zval zobject, *ztmpfiles;
+
+    ZVAL_OBJ(&zobject, object);
+    ztmpfiles = sw_zend_read_property(swoole_http_request_ce, &zobject, ZEND_STRL("tmpfiles"), 0);
+    if (ZVAL_IS_ARRAY(ztmpfiles))
+    {
+        zval *z_file_path;
+        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmpfiles), z_file_path)
+        {
+            if (Z_TYPE_P(z_file_path) != IS_STRING)
+            {
+                continue;
+            }
+            unlink(Z_STRVAL_P(z_file_path));
+            if (SG(rfc1867_uploaded_files))
+            {
+                zend_hash_str_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(z_file_path), Z_STRLEN_P(z_file_path));
+            }
+        }
+        SW_HASHTABLE_FOREACH_END();
+    }
+    if (ctx)
+    {
+        ctx->request.zobject = NULL;
+    }
+    zend_object_std_dtor(&request->std);
+}
+
+static zend_object *php_swoole_http_request_create_object(zend_class_entry *ce)
+{
+    http_request_t *request = (http_request_t *) ecalloc(1, sizeof(http_request_t) + zend_object_properties_size(ce));
+    zend_object_std_init(&request->std, ce);
+    object_properties_init(&request->std, ce);
+    request->std.handlers = &swoole_http_request_handlers;
+    return &request->std;
+}
+
+static PHP_METHOD(swoole_http_request, getData);
+static PHP_METHOD(swoole_http_request, rawContent);
+static PHP_METHOD(swoole_http_request, __destruct);
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+const zend_function_entry swoole_http_request_methods[] =
+{
+    PHP_ME(swoole_http_request, rawContent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, getData, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+
 void php_swoole_http_request_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", NULL, swoole_http_request_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_http_request, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http_request, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_request, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_http_request);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_request, php_swoole_http_request_create_object, php_swoole_http_request_free_object, http_request_t, std);
 
     zend_declare_property_long(swoole_http_request_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
 #ifdef SW_USE_HTTP2
@@ -890,7 +952,7 @@ const char* swoole_http_get_content_encoding(http_context *ctx)
 
 static PHP_METHOD(swoole_http_request, rawContent)
 {
-    http_context *ctx = swoole_http_context_get(ZEND_THIS, 0);
+    http_context *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
@@ -914,7 +976,7 @@ static PHP_METHOD(swoole_http_request, rawContent)
 
 static PHP_METHOD(swoole_http_request, getData)
 {
-    http_context *ctx = swoole_http_context_get(ZEND_THIS, 0);
+    http_context *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx))
     {
         RETURN_FALSE;
@@ -936,33 +998,4 @@ static PHP_METHOD(swoole_http_request, getData)
     RETURN_EMPTY_STRING();
 }
 
-static PHP_METHOD(swoole_http_request, __destruct)
-{
-    SW_PREVENT_USER_DESTRUCT();
-
-    zval *ztmpfiles = sw_zend_read_property(swoole_http_request_ce, ZEND_THIS, ZEND_STRL("tmpfiles"), 0);
-    //upload files
-    if (ztmpfiles && ZVAL_IS_ARRAY(ztmpfiles))
-    {
-        zval *z_file_path;
-        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmpfiles), z_file_path)
-        {
-            if (Z_TYPE_P(z_file_path) != IS_STRING)
-            {
-                continue;
-            }
-            unlink(Z_STRVAL_P(z_file_path));
-            if (SG(rfc1867_uploaded_files))
-            {
-                zend_hash_str_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(z_file_path), Z_STRLEN_P(z_file_path));
-            }
-        }
-        SW_HASHTABLE_FOREACH_END();
-    }
-    http_context *ctx = (http_context *) swoole_get_object(ZEND_THIS);
-    if (ctx)
-    {
-        ctx->request.zobject = NULL;
-    }
-    swoole_set_object(ZEND_THIS, NULL);
-}
+static PHP_METHOD(swoole_http_request, __destruct) { }

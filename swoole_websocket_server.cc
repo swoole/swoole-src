@@ -652,7 +652,6 @@ void php_swoole_websocket_server_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_websocket_server, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_websocket_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_websocket_server, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_websocket_server);
     zend_declare_property_null(swoole_websocket_server_ce, ZEND_STRL("onHandshake"), ZEND_ACC_PRIVATE);
 
     SW_INIT_CLASS_ENTRY(swoole_websocket_frame, "Swoole\\WebSocket\\Frame", "swoole_websocket_frame", NULL, swoole_websocket_frame_methods);
@@ -782,6 +781,8 @@ static sw_inline int swoole_websocket_server_close(swServer *serv, int fd, swStr
     }
 }
 
+extern swServer* php_swoole_server_get_and_check_server(zval *zobject);
+
 static PHP_METHOD(swoole_websocket_server, disconnect)
 {
     zend_long fd = 0;
@@ -798,12 +799,16 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
     {
         RETURN_FALSE;
     }
-    swServer *serv = (swServer *) swoole_get_object(ZEND_THIS);
-    SW_CHECK_RETURN(swoole_websocket_server_close(serv, fd, swoole_http_buffer, 1));
+    SW_CHECK_RETURN(
+        swoole_websocket_server_close(
+            php_swoole_server_get_and_check_server(ZEND_THIS), fd, swoole_http_buffer, 1
+        )
+    );
 }
 
 static PHP_METHOD(swoole_websocket_server, push)
 {
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     zend_long fd = 0;
     zval *zdata = NULL;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
@@ -822,8 +827,6 @@ static PHP_METHOD(swoole_websocket_server, push)
     {
         flags = zval_get_long(zflags);
     }
-
-    swServer *serv = (swServer *) swoole_get_object(ZEND_THIS);
 
 #ifdef SW_HAVE_ZLIB
     if (flags & SW_WEBSOCKET_FLAG_COMPRESS)
@@ -917,9 +920,9 @@ static PHP_METHOD(swoole_websocket_server, unpack)
 
 static PHP_METHOD(swoole_websocket_server, isEstablished)
 {
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     zend_long fd;
 
-    swServer *serv = (swServer *) swoole_get_object(ZEND_THIS);
     if (sw_unlikely(!serv->gs->start))
     {
         php_error_docref(NULL, E_WARNING, "the server is not running");

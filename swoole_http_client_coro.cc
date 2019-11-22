@@ -1592,14 +1592,14 @@ http_client::~http_client()
     }
 }
 
-static sw_inline http_client_coro* swoole_http_client_coro_fetch_object(zend_object *obj)
+static sw_inline http_client_coro* php_swoole_http_client_coro_fetch_object(zend_object *obj)
 {
     return (http_client_coro *) ((char *) obj - swoole_http_client_coro_handlers.offset);
 }
 
-static sw_inline http_client * swoole_get_phc(zval *zobject)
+static sw_inline http_client * php_swoole_get_phc(zval *zobject)
 {
-    http_client *phc = swoole_http_client_coro_fetch_object(Z_OBJ_P(zobject))->phc;
+    http_client *phc = php_swoole_http_client_coro_fetch_object(Z_OBJ_P(zobject))->phc;
     if (UNEXPECTED(!phc))
     {
         php_swoole_fatal_error(E_ERROR, "you must call Http Client constructor first");
@@ -1607,9 +1607,9 @@ static sw_inline http_client * swoole_get_phc(zval *zobject)
     return phc;
 }
 
-static void swoole_http_client_coro_free_object(zend_object *object)
+static void php_swoole_http_client_coro_free_object(zend_object *object)
 {
-    http_client_coro *hcc = swoole_http_client_coro_fetch_object(object);
+    http_client_coro *hcc = php_swoole_http_client_coro_fetch_object(object);
     if (hcc->phc)
     {
         delete hcc->phc;
@@ -1618,7 +1618,7 @@ static void swoole_http_client_coro_free_object(zend_object *object)
     zend_object_std_dtor(&hcc->std);
 }
 
-static zend_object *swoole_http_client_coro_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_http_client_coro_create_object(zend_class_entry *ce)
 {
     http_client_coro *hcc = (http_client_coro *) ecalloc(1, sizeof(http_client_coro) + zend_object_properties_size(ce));
     zend_object_std_init(&hcc->std, ce);
@@ -1633,7 +1633,7 @@ void php_swoole_http_client_coro_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_http_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http_client_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_client_coro, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_client_coro, swoole_http_client_coro_create_object, swoole_http_client_coro_free_object, http_client_coro, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_client_coro, php_swoole_http_client_coro_create_object, php_swoole_http_client_coro_free_object, http_client_coro, std);
 
     // client status
     zend_declare_property_long(swoole_http_client_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
@@ -1679,7 +1679,7 @@ void php_swoole_http_client_coro_minit(int module_number)
 
 static PHP_METHOD(swoole_http_client_coro, __construct)
 {
-    http_client_coro *hcc = swoole_http_client_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
+    http_client_coro *hcc = php_swoole_http_client_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
     char *host;
     size_t host_len;
     zend_long port = 80;
@@ -1719,7 +1719,7 @@ static PHP_METHOD(swoole_http_client_coro, __destruct) { }
 
 static PHP_METHOD(swoole_http_client_coro, set)
 {
-    http_client* phc = swoole_get_phc(ZEND_THIS);
+    http_client* phc = php_swoole_get_phc(ZEND_THIS);
     zval *zset;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -1741,14 +1741,14 @@ static PHP_METHOD(swoole_http_client_coro, set)
 
 static PHP_METHOD(swoole_http_client_coro, getDefer)
 {
-    http_client *phc = swoole_get_phc(ZEND_THIS);
+    http_client *phc = php_swoole_get_phc(ZEND_THIS);
 
     RETURN_BOOL(phc->defer);
 }
 
 static PHP_METHOD(swoole_http_client_coro, setDefer)
 {
-    http_client *phc = swoole_get_phc(ZEND_THIS);
+    http_client *phc = php_swoole_get_phc(ZEND_THIS);
     zend_bool defer = 1;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -1791,7 +1791,7 @@ static PHP_METHOD(swoole_http_client_coro, setHeaders)
 
 static PHP_METHOD(swoole_http_client_coro, setBasicAuth)
 {
-    http_client* phc = swoole_get_phc(ZEND_THIS);
+    http_client* phc = php_swoole_get_phc(ZEND_THIS);
     char *username, *password;
     size_t username_len, password_len;
 
@@ -1962,7 +1962,7 @@ static PHP_METHOD(swoole_http_client_coro, addData)
 
 static PHP_METHOD(swoole_http_client_coro, execute)
 {
-    http_client* phc = swoole_get_phc(ZEND_THIS);
+    http_client* phc = php_swoole_get_phc(ZEND_THIS);
     char *path = NULL;
     size_t path_len = 0;
 
@@ -1975,7 +1975,7 @@ static PHP_METHOD(swoole_http_client_coro, execute)
 
 static PHP_METHOD(swoole_http_client_coro, get)
 {
-    http_client* phc = swoole_get_phc(ZEND_THIS);
+    http_client* phc = php_swoole_get_phc(ZEND_THIS);
     char *path = NULL;
     size_t path_len = 0;
 
@@ -1990,7 +1990,7 @@ static PHP_METHOD(swoole_http_client_coro, get)
 
 static PHP_METHOD(swoole_http_client_coro, post)
 {
-    http_client* phc = swoole_get_phc(ZEND_THIS);
+    http_client* phc = php_swoole_get_phc(ZEND_THIS);
     char *path = NULL;
     size_t path_len = 0;
     zval *post_data;
@@ -2008,7 +2008,7 @@ static PHP_METHOD(swoole_http_client_coro, post)
 
 static PHP_METHOD(swoole_http_client_coro, download)
 {
-    http_client* phc = swoole_get_phc(ZEND_THIS);
+    http_client* phc = php_swoole_get_phc(ZEND_THIS);
     char *path;
     size_t path_len;
     zval *download_file;
@@ -2029,7 +2029,7 @@ static PHP_METHOD(swoole_http_client_coro, download)
 
 static PHP_METHOD(swoole_http_client_coro, upgrade)
 {
-    http_client* phc = swoole_get_phc(ZEND_THIS);
+    http_client* phc = php_swoole_get_phc(ZEND_THIS);
     char *path = NULL;
     size_t path_len = 0;
 
@@ -2042,7 +2042,7 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
 
 static PHP_METHOD(swoole_http_client_coro, push)
 {
-    http_client* phc = swoole_get_phc(ZEND_THIS);
+    http_client* phc = php_swoole_get_phc(ZEND_THIS);
     zval *zdata;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
     zval *zflags = NULL;
@@ -2065,7 +2065,7 @@ static PHP_METHOD(swoole_http_client_coro, push)
 
 static PHP_METHOD(swoole_http_client_coro, recv)
 {
-    http_client *phc = swoole_get_phc(ZEND_THIS);
+    http_client *phc = php_swoole_get_phc(ZEND_THIS);
     double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -2086,7 +2086,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
 
 static PHP_METHOD(swoole_http_client_coro, close)
 {
-    http_client* phc = swoole_get_phc(ZEND_THIS);
+    http_client* phc = php_swoole_get_phc(ZEND_THIS);
 
     RETURN_BOOL(phc->close());
 }
@@ -2113,6 +2113,6 @@ static PHP_METHOD(swoole_http_client_coro, getStatusCode)
 
 static PHP_METHOD(swoole_http_client_coro, getHeaderOut)
 {
-    http_client *phc = swoole_get_phc(ZEND_THIS);
+    http_client *phc = php_swoole_get_phc(ZEND_THIS);
     phc->get_header_out(return_value);
 }

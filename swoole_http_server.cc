@@ -178,7 +178,6 @@ void php_swoole_http_server_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_http_server, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_http_server);
 
     zend_declare_property_null(swoole_http_server_ce, ZEND_STRL("onRequest"), ZEND_ACC_PRIVATE);
 }
@@ -195,12 +194,12 @@ http_context* swoole_http_context_new(int fd)
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
     object_init_ex(zrequest_object, swoole_http_request_ce);
-    swoole_set_object(zrequest_object, ctx);
+    php_swoole_http_request_set_context(zrequest_object, ctx);
 
     zval *zresponse_object = &ctx->response._zobject;
     ctx->response.zobject = zresponse_object;
     object_init_ex(zresponse_object, swoole_http_response_ce);
-    swoole_set_object(zresponse_object, ctx);
+    php_swoole_http_response_set_context(zresponse_object, ctx);
 
     zend_update_property_long(swoole_http_request_ce, zrequest_object, ZEND_STRL("fd"), fd);
     zend_update_property_long(swoole_http_response_ce, zresponse_object, ZEND_STRL("fd"), fd);
@@ -250,9 +249,9 @@ void swoole_http_context_free(http_context *ctx)
 {
     if (ctx->request.zobject)
     {
-        swoole_set_object(ctx->request.zobject, NULL);
+        php_swoole_http_request_set_context(ctx->request.zobject, NULL);
     }
-    swoole_set_object(ctx->response.zobject, NULL);
+    php_swoole_http_response_set_context(ctx->response.zobject, NULL);
     http_request *req = &ctx->request;
     http_response *res = &ctx->response;
     if (req->path)
@@ -300,12 +299,22 @@ void php_swoole_http_server_init_global_variant()
     }
 }
 
-http_context* swoole_http_context_get(zval *zobject, const bool check_end)
+http_context* php_swoole_http_request_get_and_check_context(zval *zobject)
 {
-    http_context *ctx = (http_context *) swoole_get_object(zobject);
+    http_context *ctx = php_swoole_http_request_get_context(zobject);
+    if (!ctx)
+    {
+        php_swoole_fatal_error(E_WARNING, "http request is unavailable (maybe it has been ended)");
+    }
+    return ctx;
+}
+
+http_context* php_swoole_http_response_get_and_check_context(zval *zobject, bool check_end)
+{
+    http_context *ctx = php_swoole_http_response_get_context(zobject);
     if (!ctx || (check_end && ctx->end))
     {
-        php_swoole_fatal_error(E_WARNING, "http context is unavailable (maybe it has been ended or detached)");
+        php_swoole_fatal_error(E_WARNING, "http response is unavailable (maybe it has been ended or detached)");
         return NULL;
     }
     return ctx;
