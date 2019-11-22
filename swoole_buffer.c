@@ -25,14 +25,14 @@ typedef struct
     zend_object std;
 } buffer_t;
 
-static sw_inline buffer_t* swoole_buffer_fetch_object(zend_object *obj)
+static sw_inline buffer_t* php_swoole_buffer_fetch_object(zend_object *obj)
 {
     return (buffer_t *) ((char *) obj - swoole_buffer_handlers.offset);
 }
 
 static swString * php_swoole_buffer_get_ptr(zval *zobject)
 {
-    return swoole_buffer_fetch_object(Z_OBJ_P(zobject))->ptr;
+    return php_swoole_buffer_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
 static swString * php_swoole_buffer_get_and_check_ptr(zval *zobject)
@@ -47,12 +47,12 @@ static swString * php_swoole_buffer_get_and_check_ptr(zval *zobject)
 
 void php_swoole_buffer_set_ptr(zval *zobject, swString *ptr)
 {
-    swoole_buffer_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
+    php_swoole_buffer_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
 }
 
-static void swoole_buffer_free_object(zend_object *object)
+static void php_swoole_buffer_free_object(zend_object *object)
 {
-    buffer_t *buffer = swoole_buffer_fetch_object(object);
+    buffer_t *buffer = php_swoole_buffer_fetch_object(object);
     if (buffer->ptr)
     {
         swString_free(buffer->ptr);
@@ -60,7 +60,7 @@ static void swoole_buffer_free_object(zend_object *object)
     zend_object_std_dtor(object);
 }
 
-static zend_object *swoole_buffer_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_buffer_create_object(zend_class_entry *ce)
 {
     buffer_t *buffer = (buffer_t *) ecalloc(1, sizeof(buffer_t) + zend_object_properties_size(ce));
     zend_object_std_init(&buffer->std, ce);
@@ -132,7 +132,7 @@ void php_swoole_buffer_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_buffer, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_buffer, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_buffer, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_buffer, swoole_buffer_create_object, swoole_buffer_free_object, buffer_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_buffer, php_swoole_buffer_create_object, php_swoole_buffer_free_object, buffer_t, std);
 
     zend_declare_property_long(swoole_buffer_ce, ZEND_STRL("capacity"), SW_STRING_BUFFER_DEFAULT, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_buffer_ce, ZEND_STRL("length"), 0, ZEND_ACC_PUBLIC);

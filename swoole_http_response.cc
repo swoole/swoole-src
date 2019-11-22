@@ -100,24 +100,24 @@ typedef struct
     zend_object std;
 } http_response_t;
 
-static sw_inline http_response_t* swoole_http_response_fetch_object(zend_object *obj)
+static sw_inline http_response_t* php_swoole_http_response_fetch_object(zend_object *obj)
 {
     return (http_response_t *) ((char *) obj - swoole_http_response_handlers.offset);
 }
 
 http_context * php_swoole_http_response_get_context(zval *zobject)
 {
-    return swoole_http_response_fetch_object(Z_OBJ_P(zobject))->ctx;
+    return php_swoole_http_response_fetch_object(Z_OBJ_P(zobject))->ctx;
 }
 
 void php_swoole_http_response_set_context(zval *zobject, http_context *ctx)
 {
-    swoole_http_response_fetch_object(Z_OBJ_P(zobject))->ctx = ctx;
+    php_swoole_http_response_fetch_object(Z_OBJ_P(zobject))->ctx = ctx;
 }
 
-static void swoole_http_response_free_object(zend_object *object)
+static void php_swoole_http_response_free_object(zend_object *object)
 {
-    http_response_t *response = swoole_http_response_fetch_object(object);
+    http_response_t *response = php_swoole_http_response_fetch_object(object);
     http_context *ctx = response->ctx;
     zval ztmp; /* bool, not required to release it */
 
@@ -156,7 +156,7 @@ static void swoole_http_response_free_object(zend_object *object)
     zend_object_std_dtor(&response->std);
 }
 
-static zend_object *swoole_http_response_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_http_response_create_object(zend_class_entry *ce)
 {
     http_response_t *response = (http_response_t *) ecalloc(1, sizeof(http_response_t) + zend_object_properties_size(ce));
     zend_object_std_init(&response->std, ce);
@@ -287,7 +287,7 @@ void php_swoole_http_response_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_http_response, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http_response, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_response, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_response, swoole_http_response_create_object, swoole_http_response_free_object, http_response_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_response, php_swoole_http_response_create_object, php_swoole_http_response_free_object, http_response_t, std);
 
     zend_declare_property_long(swoole_http_response_ce, ZEND_STRL("fd"), 0,  ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("socket"), ZEND_ACC_PUBLIC);

@@ -76,27 +76,27 @@ typedef struct
     zend_object std;
 } atomic_t;
 
-static sw_inline atomic_t* swoole_atomic_fetch_object(zend_object *obj)
+static sw_inline atomic_t* php_swoole_atomic_fetch_object(zend_object *obj)
 {
     return (atomic_t *) ((char *) obj - swoole_atomic_handlers.offset);
 }
 
 static sw_atomic_t * php_swoole_atomic_get_ptr(zval *zobject)
 {
-    return swoole_atomic_fetch_object(Z_OBJ_P(zobject))->ptr;
+    return php_swoole_atomic_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
 void php_swoole_atomic_set_ptr(zval *zobject, sw_atomic_t *ptr)
 {
-    swoole_atomic_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
+    php_swoole_atomic_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
 }
 
-static void swoole_atomic_free_object(zend_object *object)
+static void php_swoole_atomic_free_object(zend_object *object)
 {
     zend_object_std_dtor(object);
 }
 
-static zend_object *swoole_atomic_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_atomic_create_object(zend_class_entry *ce)
 {
     atomic_t *atomic = (atomic_t *) ecalloc(1, sizeof(atomic_t) + zend_object_properties_size(ce));
     zend_object_std_init(&atomic->std, ce);
@@ -118,27 +118,27 @@ typedef struct
     zend_object std;
 } atomic_long_t;
 
-static sw_inline atomic_long_t* swoole_atomic_long_fetch_object(zend_object *obj)
+static sw_inline atomic_long_t* php_swoole_atomic_long_fetch_object(zend_object *obj)
 {
     return (atomic_long_t *) ((char *) obj - swoole_atomic_long_handlers.offset);
 }
 
 static sw_atomic_long_t * php_swoole_atomic_long_get_ptr(zval *zobject)
 {
-    return swoole_atomic_long_fetch_object(Z_OBJ_P(zobject))->ptr;
+    return php_swoole_atomic_long_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
 void php_swoole_atomic_long_set_ptr(zval *zobject, sw_atomic_long_t *ptr)
 {
-    swoole_atomic_long_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
+    php_swoole_atomic_long_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
 }
 
-static void swoole_atomic_long_free_object(zend_object *object)
+static void php_swoole_atomic_long_free_object(zend_object *object)
 {
     zend_object_std_dtor(object);
 }
 
-static zend_object *swoole_atomic_long_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_atomic_long_create_object(zend_class_entry *ce)
 {
     atomic_long_t *atomic_long = (atomic_long_t *) ecalloc(1, sizeof(atomic_long_t) + zend_object_properties_size(ce));
     zend_object_std_init(&atomic_long->std, ce);
@@ -232,13 +232,13 @@ void php_swoole_atomic_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_atomic, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_atomic, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_atomic, swoole_atomic_create_object, swoole_atomic_free_object, atomic_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_atomic, php_swoole_atomic_create_object, php_swoole_atomic_free_object, atomic_t, std);
 
     SW_INIT_CLASS_ENTRY(swoole_atomic_long, "Swoole\\Atomic\\Long", "swoole_atomic_long", NULL, swoole_atomic_long_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_atomic_long, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_atomic_long, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic_long, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_atomic_long, swoole_atomic_long_create_object, swoole_atomic_long_free_object, atomic_long_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_atomic_long, php_swoole_atomic_long_create_object, php_swoole_atomic_long_free_object, atomic_long_t, std);
 }
 
 PHP_METHOD(swoole_atomic, __construct)

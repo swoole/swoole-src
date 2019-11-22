@@ -38,14 +38,14 @@ typedef struct
     zend_object std;
 } process_pool_t;
 
-static sw_inline process_pool_t* swoole_process_pool_fetch_object(zend_object *obj)
+static sw_inline process_pool_t* php_swoole_process_pool_fetch_object(zend_object *obj)
 {
     return (process_pool_t *) ((char *) obj - swoole_process_pool_handlers.offset);
 }
 
 static sw_inline swProcessPool * php_swoole_process_pool_get_pool(zval *zobject)
 {
-    return swoole_process_pool_fetch_object(Z_OBJ_P(zobject))->pool;
+    return php_swoole_process_pool_fetch_object(Z_OBJ_P(zobject))->pool;
 }
 
 static sw_inline swProcessPool * php_swoole_process_pool_get_and_check_pool(zval *zobject)
@@ -60,12 +60,12 @@ static sw_inline swProcessPool * php_swoole_process_pool_get_and_check_pool(zval
 
 static sw_inline void php_swoole_process_pool_set_pool(zval *zobject, swProcessPool *pool)
 {
-    swoole_process_pool_fetch_object(Z_OBJ_P(zobject))->pool = pool;
+    php_swoole_process_pool_fetch_object(Z_OBJ_P(zobject))->pool = pool;
 }
 
 static sw_inline process_pool_property * php_swoole_process_pool_get_pp(zval *zobject)
 {
-    return swoole_process_pool_fetch_object(Z_OBJ_P(zobject))->pp;
+    return php_swoole_process_pool_fetch_object(Z_OBJ_P(zobject))->pp;
 }
 
 static sw_inline process_pool_property * php_swoole_process_pool_get_and_check_pp(zval *zobject)
@@ -80,12 +80,12 @@ static sw_inline process_pool_property * php_swoole_process_pool_get_and_check_p
 
 static sw_inline void php_swoole_process_pool_set_pp(zval *zobject, process_pool_property *pp)
 {
-    swoole_process_pool_fetch_object(Z_OBJ_P(zobject))->pp = pp;
+    php_swoole_process_pool_fetch_object(Z_OBJ_P(zobject))->pp = pp;
 }
 
-static void swoole_process_pool_free_object(zend_object *object)
+static void php_swoole_process_pool_free_object(zend_object *object)
 {
-    process_pool_t *process_pool = swoole_process_pool_fetch_object(object);
+    process_pool_t *process_pool = php_swoole_process_pool_fetch_object(object);
 
     swProcessPool *pool = process_pool->pool;
     if (pool)
@@ -123,7 +123,7 @@ static void swoole_process_pool_free_object(zend_object *object)
     zend_object_std_dtor(object);
 }
 
-static zend_object *swoole_process_pool_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_process_pool_create_object(zend_class_entry *ce)
 {
     process_pool_t *process_pool = (process_pool_t *) ecalloc(1, sizeof(process_pool_t) + zend_object_properties_size(ce));
     zend_object_std_init(&process_pool->std, ce);
@@ -195,7 +195,7 @@ void php_swoole_process_pool_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_process_pool, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_process_pool, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process_pool, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_process_pool, swoole_process_pool_create_object, swoole_process_pool_free_object, process_pool_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_process_pool, php_swoole_process_pool_create_object, php_swoole_process_pool_free_object, process_pool_t, std);
 
     zend_declare_property_long(swoole_process_pool_ce, ZEND_STRL("master_pid"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_process_pool_ce, ZEND_STRL("workers"), ZEND_ACC_PUBLIC);

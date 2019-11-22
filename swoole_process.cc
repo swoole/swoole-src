@@ -32,14 +32,14 @@ typedef struct
     zend_object std;
 } process_t;
 
-static sw_inline process_t* swoole_process_fetch_object(zend_object *obj)
+static sw_inline process_t* php_swoole_process_fetch_object(zend_object *obj)
 {
     return (process_t *) ((char *) obj - swoole_process_handlers.offset);
 }
 
 static swWorker* php_swoole_process_get_worker(zval *zobject)
 {
-    return swoole_process_fetch_object(Z_OBJ_P(zobject))->worker;
+    return php_swoole_process_fetch_object(Z_OBJ_P(zobject))->worker;
 }
 
 swWorker* php_swoole_process_get_and_check_worker(zval *zobject)
@@ -54,12 +54,12 @@ swWorker* php_swoole_process_get_and_check_worker(zval *zobject)
 
 void php_swoole_process_set_worker(zval *zobject, swWorker *worker)
 {
-    swoole_process_fetch_object(Z_OBJ_P(zobject))->worker = worker;
+    php_swoole_process_fetch_object(Z_OBJ_P(zobject))->worker = worker;
 }
 
-static void swoole_process_free_object(zend_object *object)
+static void php_swoole_process_free_object(zend_object *object)
 {
-    swWorker *worker = swoole_process_fetch_object(object)->worker;
+    swWorker *worker = php_swoole_process_fetch_object(object)->worker;
 
     swPipe *_pipe = worker->pipe_object;
     if (_pipe)
@@ -83,7 +83,7 @@ static void swoole_process_free_object(zend_object *object)
     zend_object_std_dtor(object);
 }
 
-static zend_object *swoole_process_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_process_create_object(zend_class_entry *ce)
 {
     process_t *process = (process_t *) ecalloc(1, sizeof(process_t) + zend_object_properties_size(ce));
     zend_object_std_init(&process->std, ce);
@@ -247,7 +247,7 @@ void php_swoole_process_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_process, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_process, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_process, swoole_process_create_object, swoole_process_free_object, process_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_process, php_swoole_process_create_object, php_swoole_process_free_object, process_t, std);
 
     zend_declare_class_constant_long(swoole_process_ce, ZEND_STRL("IPC_NOWAIT"), MSGQUEUE_NOWAIT);
     zend_declare_class_constant_long(swoole_process_ce, ZEND_STRL("PIPE_MASTER"), SW_PIPE_CLOSE_MASTER);

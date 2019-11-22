@@ -1805,24 +1805,24 @@ void mysql_statement::next_result(zval *return_value)
     }
 }
 
-static sw_inline mysql_coro_t* swoole_mysql_coro_fetch_object(zend_object *obj)
+static sw_inline mysql_coro_t* php_swoole_mysql_coro_fetch_object(zend_object *obj)
 {
     return (mysql_coro_t *) ((char *) obj - swoole_mysql_coro_handlers.offset);
 }
 
 static sw_inline mysql_client* php_swoole_get_mysql_client(zval *zobject)
 {
-    return swoole_mysql_coro_fetch_object(Z_OBJ_P(zobject))->client;
+    return php_swoole_mysql_coro_fetch_object(Z_OBJ_P(zobject))->client;
 }
 
-static void swoole_mysql_coro_free_object(zend_object *object)
+static void php_swoole_mysql_coro_free_object(zend_object *object)
 {
-    mysql_coro_t *zmc = swoole_mysql_coro_fetch_object(object);
+    mysql_coro_t *zmc = php_swoole_mysql_coro_fetch_object(object);
     delete zmc->client;
     zend_object_std_dtor(&zmc->std);
 }
 
-static zend_object *swoole_mysql_coro_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_mysql_coro_create_object(zend_class_entry *ce)
 {
     mysql_coro_t *zmc = (mysql_coro_t *) ecalloc(1, sizeof(mysql_coro_t) + zend_object_properties_size(ce));
     zend_object_std_init(&zmc->std, ce);
@@ -1832,25 +1832,25 @@ static zend_object *swoole_mysql_coro_create_object(zend_class_entry *ce)
     return &zmc->std;
 }
 
-static sw_inline mysql_coro_statement_t* swoole_mysql_coro_statement_fetch_object(zend_object *obj)
+static sw_inline mysql_coro_statement_t* php_swoole_mysql_coro_statement_fetch_object(zend_object *obj)
 {
     return (mysql_coro_statement_t *) ((char *) obj - swoole_mysql_coro_statement_handlers.offset);
 }
 
 static sw_inline mysql_statement* php_swoole_get_mysql_statement(zval *zobject)
 {
-    return swoole_mysql_coro_statement_fetch_object(Z_OBJ_P(zobject))->statement;
+    return php_swoole_mysql_coro_statement_fetch_object(Z_OBJ_P(zobject))->statement;
 }
 
-static void swoole_mysql_coro_statement_free_object(zend_object *object)
+static void php_swoole_mysql_coro_statement_free_object(zend_object *object)
 {
-    mysql_coro_statement_t *zms = swoole_mysql_coro_statement_fetch_object(object);
+    mysql_coro_statement_t *zms = php_swoole_mysql_coro_statement_fetch_object(object);
     delete zms->statement;
     OBJ_RELEASE(zms->zclient);
     zend_object_std_dtor(&zms->std);
 }
 
-static sw_inline zend_object* swoole_mysql_coro_statement_create_object(zend_class_entry *ce, mysql_statement *statement, zend_object *client)
+static sw_inline zend_object* php_swoole_mysql_coro_statement_create_object(zend_class_entry *ce, mysql_statement *statement, zend_object *client)
 {
     zval zobject;
     mysql_coro_statement_t *zms = (mysql_coro_statement_t *) ecalloc(1, sizeof(mysql_coro_statement_t) + zend_object_properties_size(ce));
@@ -1865,12 +1865,12 @@ static sw_inline zend_object* swoole_mysql_coro_statement_create_object(zend_cla
     return &zms->std;
 }
 
-static sw_inline zend_object* swoole_mysql_coro_statement_create_object(mysql_statement *statement, zend_object *client)
+static sw_inline zend_object* php_swoole_mysql_coro_statement_create_object(mysql_statement *statement, zend_object *client)
 {
-    return swoole_mysql_coro_statement_create_object(swoole_mysql_coro_statement_ce, statement, client);
+    return php_swoole_mysql_coro_statement_create_object(swoole_mysql_coro_statement_ce, statement, client);
 }
 
-static zend_object* swoole_mysql_coro_statement_create_object(zend_class_entry *ce)
+static zend_object* php_swoole_mysql_coro_statement_create_object(zend_class_entry *ce)
 {
     php_swoole_fatal_error(E_ERROR, "you must create mysql statement object by prepare method");
     return nullptr;
@@ -1914,13 +1914,13 @@ static sw_inline void swoole_mysql_coro_sync_execute_error_properties(zval *zobj
 
     /* backward compatibility (sync error info to client) */
     zval zclient;
-    ZVAL_OBJ(&zclient, swoole_mysql_coro_statement_fetch_object(Z_OBJ_P(zobject))->zclient);
+    ZVAL_OBJ(&zclient, php_swoole_mysql_coro_statement_fetch_object(Z_OBJ_P(zobject))->zclient);
     swoole_mysql_coro_sync_error_properties(&zclient, error_code, error_msg, connected);
 }
 
 static sw_inline void swoole_mysql_coro_sync_execute_result_properties(zval *zobject, zval *return_value)
 {
-    mysql_coro_statement_t *zms = swoole_mysql_coro_statement_fetch_object(Z_OBJ_P(zobject));
+    mysql_coro_statement_t *zms = php_swoole_mysql_coro_statement_fetch_object(Z_OBJ_P(zobject));
     mysql_statement *ms = zms->statement;
 
     switch (Z_TYPE_P(return_value))
@@ -1954,13 +1954,13 @@ void php_swoole_mysql_coro_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_mysql_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_mysql_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_mysql_coro, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_mysql_coro, swoole_mysql_coro_create_object, swoole_mysql_coro_free_object, mysql_coro_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_mysql_coro, php_swoole_mysql_coro_create_object, php_swoole_mysql_coro_free_object, mysql_coro_t, std);
 
     SW_INIT_CLASS_ENTRY(swoole_mysql_coro_statement, "Swoole\\Coroutine\\MySQL\\Statement", NULL, "Co\\MySQL\\Statement", swoole_mysql_coro_statement_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_mysql_coro_statement, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_mysql_coro_statement, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_mysql_coro_statement, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_mysql_coro_statement, swoole_mysql_coro_statement_create_object, swoole_mysql_coro_statement_free_object, mysql_coro_statement_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_mysql_coro_statement, php_swoole_mysql_coro_statement_create_object, php_swoole_mysql_coro_statement_free_object, mysql_coro_statement_t, std);
 
     SW_INIT_CLASS_ENTRY_EX(swoole_mysql_coro_exception, "Swoole\\Coroutine\\MySQL\\Exception", NULL, "Co\\MySQL\\Exception", NULL, swoole_exception);
     SW_SET_CLASS_SERIALIZABLE(swoole_mysql_coro_exception, zend_class_serialize_deny, zend_class_unserialize_deny);
@@ -2253,7 +2253,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         {
             goto _failed;
         }
-        RETVAL_OBJ(swoole_mysql_coro_statement_create_object(statement, Z_OBJ_P(ZEND_THIS)));
+        RETVAL_OBJ(php_swoole_mysql_coro_statement_create_object(statement, Z_OBJ_P(ZEND_THIS)));
     }
     mc->del_timeout_controller();
 }
@@ -2292,7 +2292,7 @@ static PHP_METHOD(swoole_mysql_coro, recv)
         }
         else
         {
-            RETVAL_OBJ(swoole_mysql_coro_statement_create_object(statement, Z_OBJ_P(ZEND_THIS)));
+            RETVAL_OBJ(php_swoole_mysql_coro_statement_create_object(statement, Z_OBJ_P(ZEND_THIS)));
         }
         break;
     }

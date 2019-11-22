@@ -25,14 +25,14 @@ typedef struct
     zend_object std;
 } lock_t;
 
-static sw_inline lock_t* swoole_lock_fetch_object(zend_object *obj)
+static sw_inline lock_t* php_swoole_lock_fetch_object(zend_object *obj)
 {
     return (lock_t *) ((char *) obj - swoole_lock_handlers.offset);
 }
 
 static swLock * php_swoole_lock_get_ptr(zval *zobject)
 {
-    return swoole_lock_fetch_object(Z_OBJ_P(zobject))->ptr;
+    return php_swoole_lock_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
 static swLock * php_swoole_lock_get_and_check_ptr(zval *zobject)
@@ -47,15 +47,15 @@ static swLock * php_swoole_lock_get_and_check_ptr(zval *zobject)
 
 void php_swoole_lock_set_ptr(zval *zobject, swLock *ptr)
 {
-    swoole_lock_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
+    php_swoole_lock_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
 }
 
-static void swoole_lock_free_object(zend_object *object)
+static void php_swoole_lock_free_object(zend_object *object)
 {
     zend_object_std_dtor(object);
 }
 
-static zend_object *swoole_lock_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_lock_create_object(zend_class_entry *ce)
 {
     lock_t *lock = (lock_t *) ecalloc(1, sizeof(lock_t) + zend_object_properties_size(ce));
     zend_object_std_init(&lock->std, ce);
@@ -106,7 +106,7 @@ void php_swoole_lock_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_lock, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_lock, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_lock, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_lock, swoole_lock_create_object, swoole_lock_free_object, lock_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_lock, php_swoole_lock_create_object, php_swoole_lock_free_object, lock_t, std);
 
     zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("FILELOCK"), SW_FILELOCK);
     zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("MUTEX"), SW_MUTEX);

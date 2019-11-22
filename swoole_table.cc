@@ -129,14 +129,14 @@ typedef struct
     zend_object std;
 } table_t;
 
-static sw_inline table_t* swoole_table_fetch_object(zend_object *obj)
+static sw_inline table_t* php_swoole_table_fetch_object(zend_object *obj)
 {
     return (table_t *) ((char *) obj - swoole_table_handlers.offset);
 }
 
 static swTable * php_swoole_table_get_ptr(zval *zobject)
 {
-    return swoole_table_fetch_object(Z_OBJ_P(zobject))->ptr;
+    return php_swoole_table_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
 static swTable * php_swoole_table_get_and_check_ptr(zval *zobject)
@@ -161,15 +161,15 @@ static swTable * php_swoole_table_get_and_check_ptr2(zval *zobject)
 
 void php_swoole_table_set_ptr(zval *zobject, swTable *ptr)
 {
-    swoole_table_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
+    php_swoole_table_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
 }
 
-static void swoole_table_free_object(zend_object *object)
+static void php_swoole_table_free_object(zend_object *object)
 {
     zend_object_std_dtor(object);
 }
 
-static zend_object *swoole_table_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_table_create_object(zend_class_entry *ce)
 {
     table_t *table = (table_t *) ecalloc(1, sizeof(table_t) + zend_object_properties_size(ce));
     zend_object_std_init(&table->std, ce);
@@ -184,14 +184,14 @@ typedef struct
     zend_object std;
 } table_row_t;
 
-static sw_inline table_row_t* swoole_table_row_fetch_object(zend_object *obj)
+static sw_inline table_row_t* php_swoole_table_row_fetch_object(zend_object *obj)
 {
     return (table_row_t *) ((char *) obj - swoole_table_row_handlers.offset);
 }
 
 static swTable * php_swoole_table_row_get_ptr(zval *zobject)
 {
-    return swoole_table_row_fetch_object(Z_OBJ_P(zobject))->ptr;
+    return php_swoole_table_row_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
 static swTable * php_swoole_table_row_get_and_check_ptr(zval *zobject)
@@ -206,15 +206,15 @@ static swTable * php_swoole_table_row_get_and_check_ptr(zval *zobject)
 
 void php_swoole_table_row_set_ptr(zval *zobject, swTable *ptr)
 {
-    swoole_table_row_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
+    php_swoole_table_row_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
 }
 
-static void swoole_table_row_free_object(zend_object *object)
+static void php_swoole_table_row_free_object(zend_object *object)
 {
     zend_object_std_dtor(object);
 }
 
-static zend_object *swoole_table_row_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_table_row_create_object(zend_class_entry *ce)
 {
     table_row_t *table_row = (table_row_t *) ecalloc(1, sizeof(table_row_t) + zend_object_properties_size(ce));
     zend_object_std_init(&table_row->std, ce);
@@ -357,7 +357,7 @@ void php_swoole_table_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_table, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_table, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_table, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_table, swoole_table_create_object, swoole_table_free_object, table_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_table, php_swoole_table_create_object, php_swoole_table_free_object, table_t, std);
     zend_class_implements(swoole_table_ce, 2, zend_ce_iterator, zend_ce_arrayaccess);
 #ifdef SW_HAVE_COUNTABLE
     zend_class_implements(swoole_table_ce, 1, zend_ce_countable);
@@ -371,7 +371,7 @@ void php_swoole_table_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_table_row, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_table_row, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_table_row, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_table_row, swoole_table_row_create_object, swoole_table_row_free_object, table_row_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_table_row, php_swoole_table_row_create_object, php_swoole_table_row_free_object, table_row_t, std);
     zend_class_implements(swoole_table_row_ce, 1, zend_ce_arrayaccess);
 
     zend_declare_property_null(swoole_table_row_ce, ZEND_STRL("key"), ZEND_ACC_PUBLIC);

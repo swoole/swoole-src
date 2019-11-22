@@ -47,14 +47,14 @@ typedef struct
     zend_object std;
 } server_port_t;
 
-static sw_inline server_port_t* swoole_server_port_fetch_object(zend_object *obj)
+static sw_inline server_port_t* php_swoole_server_port_fetch_object(zend_object *obj)
 {
     return (server_port_t *) ((char *) obj - swoole_server_port_handlers.offset);
 }
 
 static sw_inline swListenPort* php_swoole_server_port_get_ptr(zval *zobject)
 {
-    return swoole_server_port_fetch_object(Z_OBJ_P(zobject))->port;
+    return php_swoole_server_port_fetch_object(Z_OBJ_P(zobject))->port;
 }
 
 swListenPort* php_swoole_server_port_get_and_check_ptr(zval *zobject)
@@ -69,12 +69,12 @@ swListenPort* php_swoole_server_port_get_and_check_ptr(zval *zobject)
 
 void php_swoole_server_port_set_ptr(zval *zobject, swListenPort *port)
 {
-    swoole_server_port_fetch_object(Z_OBJ_P(zobject))->port = port;
+    php_swoole_server_port_fetch_object(Z_OBJ_P(zobject))->port = port;
 }
 
 php_swoole_server_port_property* php_swoole_server_port_get_property(zval *zobject)
 {
-    return &swoole_server_port_fetch_object(Z_OBJ_P(zobject))->property;
+    return &php_swoole_server_port_fetch_object(Z_OBJ_P(zobject))->property;
 }
 
 static php_swoole_server_port_property* php_swoole_server_port_get_and_check_property(zval *zobject)
@@ -87,9 +87,9 @@ static php_swoole_server_port_property* php_swoole_server_port_get_and_check_pro
     return property;
 }
 
-static void swoole_server_port_free_object(zend_object *object)
+static void php_swoole_server_port_free_object(zend_object *object)
 {
-    server_port_t *server_port = swoole_server_port_fetch_object(object);
+    server_port_t *server_port = php_swoole_server_port_fetch_object(object);
 
     php_swoole_server_port_property *property = &server_port->property;
     if (property->serv)
@@ -118,7 +118,7 @@ static void swoole_server_port_free_object(zend_object *object)
     zend_object_std_dtor(object);
 }
 
-static zend_object *swoole_server_port_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_server_port_create_object(zend_class_entry *ce)
 {
     server_port_t *server_port = (server_port_t *) ecalloc(1, sizeof(server_port_t) + zend_object_properties_size(ce));
     zend_object_std_init(&server_port->std, ce);
@@ -172,7 +172,7 @@ void php_swoole_server_port_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_server_port, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_server_port, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_port, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_server_port, swoole_server_port_create_object, swoole_server_port_free_object, server_port_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_server_port, php_swoole_server_port_create_object, php_swoole_server_port_free_object, server_port_t, std);
 
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onConnect"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onReceive"), ZEND_ACC_PRIVATE);

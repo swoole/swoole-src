@@ -207,7 +207,7 @@ static const zend_function_entry swoole_http_server_coro_methods[] =
     PHP_FE_END
 };
 
-static zend_object *swoole_http_server_coro_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_http_server_coro_create_object(zend_class_entry *ce)
 {
     http_server_coro_t *hsc = (http_server_coro_t *) ecalloc(1, sizeof(http_server_coro_t) + zend_object_properties_size(ce));
     zend_object_std_init(&hsc->std, ce);
@@ -216,14 +216,14 @@ static zend_object *swoole_http_server_coro_create_object(zend_class_entry *ce)
     return &hsc->std;
 }
 
-static sw_inline http_server_coro_t* swoole_http_server_coro_fetch_object(zend_object *obj)
+static sw_inline http_server_coro_t* php_swoole_http_server_coro_fetch_object(zend_object *obj)
 {
     return (http_server_coro_t *) ((char *) obj - swoole_http_server_coro_handlers.offset);
 }
 
 static sw_inline http_server* http_server_get_object(zend_object *obj)
 {
-    return swoole_http_server_coro_fetch_object(obj)->server;
+    return php_swoole_http_server_coro_fetch_object(obj)->server;
 }
 
 static inline void http_server_set_error(zval *zobject, Socket *sock)
@@ -250,9 +250,9 @@ static bool http_context_disconnect(http_context* ctx)
     return sock->close();
 }
 
-static void swoole_http_server_coro_free_object(zend_object *object)
+static void php_swoole_http_server_coro_free_object(zend_object *object)
 {
-    http_server_coro_t *hsc = swoole_http_server_coro_fetch_object(object);
+    http_server_coro_t *hsc = php_swoole_http_server_coro_fetch_object(object);
     if (hsc->server)
     {
         http_server *hs = hsc->server;
@@ -278,7 +278,7 @@ void php_swoole_http_server_coro_minit(int module_number)
     SW_SET_CLASS_CLONEABLE(swoole_http_server_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_http_server_coro);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_server_coro, swoole_http_server_coro_create_object, swoole_http_server_coro_free_object, http_server_coro_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_server_coro, php_swoole_http_server_coro_create_object, php_swoole_http_server_coro_free_object, http_server_coro_t, std);
     swoole_http_server_coro_ce->ce_flags |= ZEND_ACC_FINAL;
 
     zend_declare_property_long(swoole_http_server_coro_ce, ZEND_STRL("fd"), -1, ZEND_ACC_PUBLIC);
@@ -316,7 +316,7 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
         RETURN_FALSE;
     }
 
-    http_server_coro_t *hsc = swoole_http_server_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
+    http_server_coro_t *hsc = php_swoole_http_server_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
     string host_str(host, l_host);
     hsc->server = new http_server(Socket::convert_to_type(host_str));
     Socket *sock = hsc->server->socket;

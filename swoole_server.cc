@@ -182,14 +182,14 @@ typedef struct
     zend_object std;
 } server_t;
 
-static sw_inline server_t* swoole_server_fetch_object(zend_object *obj)
+static sw_inline server_t* php_swoole_server_fetch_object(zend_object *obj)
 {
     return (server_t *) ((char *) obj - swoole_server_handlers.offset);
 }
 
 static sw_inline swServer* php_swoole_server_get_server(zval *zobject)
 {
-    return swoole_server_fetch_object(Z_OBJ_P(zobject))->serv;
+    return php_swoole_server_fetch_object(Z_OBJ_P(zobject))->serv;
 }
 
 swServer* php_swoole_server_get_and_check_server(zval *zobject)
@@ -204,12 +204,12 @@ swServer* php_swoole_server_get_and_check_server(zval *zobject)
 
 static sw_inline void php_swoole_server_set_server(zval *zobject, swServer *serv)
 {
-    swoole_server_fetch_object(Z_OBJ_P(zobject))->serv = serv;
+    php_swoole_server_fetch_object(Z_OBJ_P(zobject))->serv = serv;
 }
 
-static void swoole_server_free_object(zend_object *object)
+static void php_swoole_server_free_object(zend_object *object)
 {
-    server_t *server = swoole_server_fetch_object(object);
+    server_t *server = php_swoole_server_fetch_object(object);
     swServer *serv = server->serv;
 
     if (serv)
@@ -249,7 +249,7 @@ static void swoole_server_free_object(zend_object *object)
     zend_object_std_dtor(object);
 }
 
-static zend_object *swoole_server_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_server_create_object(zend_class_entry *ce)
 {
     server_t *server = (server_t *) ecalloc(1, sizeof(server_t) + zend_object_properties_size(ce));
     zend_object_std_init(&server->std, ce);
@@ -264,14 +264,14 @@ typedef struct
     zend_object std;
 } connection_iterator_t;
 
-static sw_inline connection_iterator_t* swoole_connection_iterator_fetch_object(zend_object *obj)
+static sw_inline connection_iterator_t* php_swoole_connection_iterator_fetch_object(zend_object *obj)
 {
     return (connection_iterator_t *) ((char *) obj - swoole_connection_iterator_handlers.offset);
 }
 
 static sw_inline swConnectionIterator* php_swoole_connection_iterator_get_ptr(zval *zobject)
 {
-    return &swoole_connection_iterator_fetch_object(Z_OBJ_P(zobject))->iterator;
+    return &php_swoole_connection_iterator_fetch_object(Z_OBJ_P(zobject))->iterator;
 }
 
 swConnectionIterator* php_swoole_connection_iterator_get_and_check_ptr(zval *zobject)
@@ -284,12 +284,12 @@ swConnectionIterator* php_swoole_connection_iterator_get_and_check_ptr(zval *zob
     return iterator;
 }
 
-static void swoole_connection_iterator_free_object(zend_object *object)
+static void php_swoole_connection_iterator_free_object(zend_object *object)
 {
     zend_object_std_dtor(object);
 }
 
-static zend_object *swoole_connection_iterator_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_connection_iterator_create_object(zend_class_entry *ce)
 {
     connection_iterator_t *connection = (connection_iterator_t *) ecalloc(1, sizeof(connection_iterator_t) + zend_object_properties_size(ce));
     zend_object_std_init(&connection->std, ce);
@@ -305,14 +305,14 @@ typedef struct
     zend_object std;
 } server_task_t;
 
-static sw_inline server_task_t* swoole_server_task_fetch_object(zend_object *obj)
+static sw_inline server_task_t* php_swoole_server_task_fetch_object(zend_object *obj)
 {
     return (server_task_t *) ((char *) obj - swoole_server_task_handlers.offset);
 }
 
 static sw_inline swServer* php_swoole_server_task_get_server(zval *zobject)
 {
-    swServer* serv = swoole_server_task_fetch_object(Z_OBJ_P(zobject))->serv;
+    swServer* serv = php_swoole_server_task_fetch_object(Z_OBJ_P(zobject))->serv;
     if (!serv)
     {
         php_swoole_fatal_error(E_ERROR, "Invaild instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
@@ -322,12 +322,12 @@ static sw_inline swServer* php_swoole_server_task_get_server(zval *zobject)
 
 static sw_inline void php_swoole_server_task_set_server(zval *zobject, swServer *serv)
 {
-    swoole_server_task_fetch_object(Z_OBJ_P(zobject))->serv = serv;
+    php_swoole_server_task_fetch_object(Z_OBJ_P(zobject))->serv = serv;
 }
 
 static sw_inline swDataHead* php_swoole_server_task_get_info(zval *zobject)
 {
-    server_task_t *task = swoole_server_task_fetch_object(Z_OBJ_P(zobject));
+    server_task_t *task = php_swoole_server_task_fetch_object(Z_OBJ_P(zobject));
     if (!task->serv)
     {
         php_swoole_fatal_error(E_ERROR, "Invaild instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
@@ -337,15 +337,15 @@ static sw_inline swDataHead* php_swoole_server_task_get_info(zval *zobject)
 
 static sw_inline void php_swoole_server_task_set_info(zval *zobject, swDataHead *info)
 {
-    swoole_server_task_fetch_object(Z_OBJ_P(zobject))->info = *info;
+    php_swoole_server_task_fetch_object(Z_OBJ_P(zobject))->info = *info;
 }
 
-static void swoole_server_task_free_object(zend_object *object)
+static void php_swoole_server_task_free_object(zend_object *object)
 {
     zend_object_std_dtor(object);
 }
 
-static zend_object *swoole_server_task_create_object(zend_class_entry *ce)
+static zend_object *php_swoole_server_task_create_object(zend_class_entry *ce)
 {
     server_task_t *server_task = (server_task_t *) ecalloc(1, sizeof(server_task_t) + zend_object_properties_size(ce));
     zend_object_std_init(&server_task->std, ce);
@@ -666,7 +666,7 @@ void php_swoole_server_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_server, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_server, swoole_server_create_object, swoole_server_free_object, server_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_server, php_swoole_server_create_object, php_swoole_server_free_object, server_t, std);
 
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "after", &swoole_server_ce->function_table, "after");
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "tick", &swoole_server_ce->function_table, "tick");
@@ -679,13 +679,13 @@ void php_swoole_server_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_server_task, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_server_task, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_task, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CREATE_AND_FREE(swoole_server_task, swoole_server_task_create_object, swoole_server_task_free_object);
+    SW_SET_CLASS_CREATE_AND_FREE(swoole_server_task, php_swoole_server_task_create_object, php_swoole_server_task_free_object);
 
     SW_INIT_CLASS_ENTRY(swoole_connection_iterator, "Swoole\\Connection\\Iterator", "swoole_connection_iterator", NULL, swoole_connection_iterator_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_connection_iterator, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_connection_iterator, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_connection_iterator, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_connection_iterator, swoole_connection_iterator_create_object, swoole_connection_iterator_free_object, connection_iterator_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_connection_iterator, php_swoole_connection_iterator_create_object, php_swoole_connection_iterator_free_object, connection_iterator_t, std);
     zend_class_implements(swoole_connection_iterator_ce, 2, zend_ce_iterator, zend_ce_arrayaccess);
 #ifdef SW_HAVE_COUNTABLE
     zend_class_implements(swoole_connection_iterator_ce, 1, zend_ce_countable);
