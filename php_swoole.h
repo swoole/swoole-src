@@ -97,20 +97,6 @@ extern zend_module_entry swoole_module_entry;
 #define ifr_hwaddr ifr_addr
 #endif
 
-#define SWOOLE_PROPERTY_MAX     32
-#define SWOOLE_OBJECT_DEFAULT   8
-#define SWOOLE_OBJECT_MAX       10000000
-
-typedef struct
-{
-    void **array;
-    uint32_t size;
-    void **property[SWOOLE_PROPERTY_MAX];
-    uint32_t property_size[SWOOLE_PROPERTY_MAX];
-} swoole_object_array;
-
-extern swoole_object_array swoole_objects;
-
 #define SW_CHECK_RETURN(s)      if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}
 #define SW_LOCK_CHECK_RETURN(s) if(s==0){RETURN_TRUE;}else{zend_update_property_long(NULL,ZEND_THIS,SW_STRL("errCode"),s);RETURN_FALSE;}
 
@@ -379,44 +365,6 @@ zval* php_swoole_task_unpack(swEventData *task_result);
 #ifdef SW_HAVE_ZLIB
 int php_swoole_zlib_decompress(z_stream *stream, swString *buffer, char *body, int length);
 #endif
-
-static sw_inline void* swoole_get_object_by_handle(uint32_t handle)
-{
-    assert(handle < swoole_objects.size);
-    return swoole_objects.array[handle];
-}
-
-static sw_inline void* swoole_get_property_by_handle(uint32_t handle, int property_id)
-{
-    if (sw_unlikely(handle >= swoole_objects.property_size[property_id]))
-    {
-        return NULL;
-    }
-    return swoole_objects.property[property_id][handle];
-}
-
-static sw_inline void* swoole_get_object(zval *zobject)
-{
-    return swoole_get_object_by_handle(Z_OBJ_HANDLE_P(zobject));
-}
-
-static sw_inline void* swoole_get_property(zval *zobject, int property_id)
-{
-    return swoole_get_property_by_handle(Z_OBJ_HANDLE_P(zobject), property_id);
-}
-
-void swoole_set_object_by_handle(uint32_t handle, void *ptr);
-void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr);
-
-static sw_inline void swoole_set_object(zval *zobject, void *ptr)
-{
-    swoole_set_object_by_handle(Z_OBJ_HANDLE_P(zobject), ptr);
-}
-
-static sw_inline void swoole_set_property(zval *zobject, int property_id, void *ptr)
-{
-    swoole_set_property_by_handle(Z_OBJ_HANDLE_P(zobject), property_id, ptr);
-}
 
 int swoole_convert_to_fd(zval *zsocket);
 int swoole_convert_to_fd_ex(zval *zsocket, int *async);
