@@ -1172,6 +1172,7 @@ bool Socket::bind(std::string address, int port)
 
         if (bind_address.size() >= sizeof(sa->sun_path))
         {
+            swSysWarn("unixSocket bind path(%s) is too long,the maxium limit of bytes number is 108", bind_address.c_str());
             return false;
         }
         memcpy(&sa->sun_path, bind_address.c_str(), bind_address.size());
