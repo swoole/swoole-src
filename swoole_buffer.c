@@ -157,7 +157,7 @@ static PHP_METHOD(swoole_buffer, __construct)
     swString *buffer = swoole_buffer_get_ptr(ZEND_THIS);
     if (buffer)
     {
-        php_swoole_fatal_error(E_ERROR, "constructor can only be called once");
+        php_swoole_fatal_error(E_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
     }
 
     zend_long size = SW_STRING_BUFFER_DEFAULT;

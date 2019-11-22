@@ -2087,7 +2087,7 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 
     if (redis->zobject)
     {
-        php_swoole_fatal_error(E_ERROR, "constructor can only be called once");
+        php_swoole_fatal_error(E_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
 
