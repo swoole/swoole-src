@@ -24,6 +24,15 @@ using swoole::coroutine::Socket;
 
 using namespace swoole;
 
+static zend_class_entry *swoole_client_coro_ce;
+static zend_object_handlers swoole_client_coro_handlers;
+
+typedef struct
+{
+    Socket *sock;
+    zend_object std;
+} client_coro;
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -121,8 +130,39 @@ static const zend_function_entry swoole_client_coro_methods[] =
     PHP_FE_END
 };
 
-zend_class_entry *swoole_client_coro_ce;
-static zend_object_handlers swoole_client_coro_handlers;
+static sw_inline client_coro* php_swoole_client_coro_fetch_object(zend_object *obj)
+{
+    return (client_coro *) ((char *) obj - swoole_client_coro_handlers.offset);
+}
+
+static sw_inline client_coro* php_swoole_get_client(zval *zobject)
+{
+    return php_swoole_client_coro_fetch_object(Z_OBJ_P(zobject));
+}
+
+static sw_inline Socket* php_swoole_get_sock(zval *zobject)
+{
+    return php_swoole_get_client(zobject)->sock;
+}
+
+static void php_swoole_client_coro_free_object(zend_object *object)
+{
+    client_coro *client = php_swoole_client_coro_fetch_object(object);
+    if (client->sock)
+    {
+        php_swoole_client_coro_socket_free(client->sock);
+    }
+    zend_object_std_dtor(&client->std);
+}
+
+static zend_object *php_swoole_client_coro_create_object(zend_class_entry *ce)
+{
+    client_coro *sock_t = (client_coro *) ecalloc(1, sizeof(client_coro) + zend_object_properties_size(ce));
+    zend_object_std_init(&sock_t->std, ce);
+    object_properties_init(&sock_t->std, ce);
+    sock_t->std.handlers = &swoole_client_coro_handlers;
+    return &sock_t->std;
+}
 
 void php_swoole_client_coro_minit(int module_number)
 {
@@ -130,13 +170,13 @@ void php_swoole_client_coro_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_client_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_client_coro, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_client_coro);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_client_coro, php_swoole_client_coro_create_object, php_swoole_client_coro_free_object, client_coro, std);
 
     zend_declare_property_long(swoole_client_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_client_coro_ce, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_client_coro_ce, ZEND_STRL("fd"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_client_coro_ce, ZEND_STRL("socket"), ZEND_ACC_PRIVATE);
-    zend_declare_property_long(swoole_client_coro_ce, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_client_coro_ce, ZEND_STRL("type"), SW_SOCK_TCP, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_client_coro_ce, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_client_coro_ce, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC);
 
@@ -148,7 +188,7 @@ void php_swoole_client_coro_minit(int module_number)
 
 static sw_inline Socket* client_get_ptr(zval *zobject, bool silent = false)
 {
-    Socket *cli = (Socket *) swoole_get_object(zobject);
+    Socket *cli = php_swoole_get_client(zobject)->sock;
     if (cli)
     {
         return cli;
@@ -195,20 +235,20 @@ static Socket* client_coro_new(zval *zobject, int port)
     }
 #endif
 
-    swoole_set_object(zobject, cli);
+    php_swoole_get_client(zobject)->sock = cli;
 
     return cli;
 }
 
 static bool client_coro_close(zval *zobject)
 {
-    Socket *cli = (Socket *) swoole_get_object(zobject);
+    Socket *cli = php_swoole_get_sock(zobject);
     if (cli)
     {
         zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), 0);
         if (!cli->get_bound_cid())
         {
-            swoole_set_object(zobject, NULL);
+            php_swoole_get_client(zobject)->sock = nullptr;
         }
         php_swoole_client_coro_socket_free(cli);
         return true;
@@ -564,6 +604,11 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset)
 
 static PHP_METHOD(swoole_client_coro, __construct)
 {
+    if (php_swoole_get_client(ZEND_THIS)->sock)
+    {
+        php_swoole_fatal_error(E_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+    }
+
     zend_long type = 0;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
@@ -582,17 +627,11 @@ static PHP_METHOD(swoole_client_coro, __construct)
     }
 
     zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("type"), type);
-    //init
-    swoole_set_object(ZEND_THIS, NULL);
+
     RETURN_TRUE;
 }
 
-static PHP_METHOD(swoole_client_coro, __destruct)
-{
-    SW_PREVENT_USER_DESTRUCT();
-
-    client_coro_close(ZEND_THIS);
-}
+static PHP_METHOD(swoole_client_coro, __destruct) { }
 
 static PHP_METHOD(swoole_client_coro, set)
 {
@@ -641,7 +680,7 @@ static PHP_METHOD(swoole_client_coro, connect)
         RETURN_FALSE;
     }
 
-    Socket *cli = (Socket *) swoole_get_object(ZEND_THIS);
+    Socket *cli = php_swoole_get_sock(ZEND_THIS);
     if (cli)
     {
         RETURN_FALSE;
@@ -733,7 +772,7 @@ static PHP_METHOD(swoole_client_coro, sendto)
         RETURN_FALSE;
     }
 
-    Socket *cli = (Socket *) swoole_get_object(ZEND_THIS);
+    Socket *cli = php_swoole_get_sock(ZEND_THIS);
     if (!cli)
     {
         cli = client_coro_new(ZEND_THIS, (int) port);
@@ -760,7 +799,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
         RETURN_FALSE;
     }
 
-    Socket *cli = (Socket *) swoole_get_object(ZEND_THIS);
+    Socket *cli = php_swoole_get_sock(ZEND_THIS);
     if (!cli)
     {
         cli = client_coro_new(ZEND_THIS);
@@ -923,7 +962,7 @@ static PHP_METHOD(swoole_client_coro, peek)
 
 static PHP_METHOD(swoole_client_coro, isConnected)
 {
-    Socket *cli = (Socket *) swoole_get_object(ZEND_THIS);
+    Socket *cli = php_swoole_get_sock(ZEND_THIS);
     if (cli && cli->is_connect())
     {
         RETURN_TRUE;

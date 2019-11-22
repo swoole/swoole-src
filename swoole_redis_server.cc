@@ -70,7 +70,6 @@ void php_swoole_redis_server_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_redis_server, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_redis_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_redis_server, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_redis_server);
 
     zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("NIL"), SW_REDIS_REPLY_NIL);
     zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("ERROR"), SW_REDIS_REPLY_ERROR);
@@ -218,11 +217,13 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     return SW_OK;
 }
 
+extern swServer* php_swoole_server_get_and_check_server(zval *zobject);
+
 static PHP_METHOD(swoole_redis_server, start)
 {
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     zval *zserv = ZEND_THIS;
 
-    swServer *serv = (swServer *) swoole_get_object(zserv);
     if (serv->gs->start > 0)
     {
         php_swoole_error(E_WARNING, "server is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));

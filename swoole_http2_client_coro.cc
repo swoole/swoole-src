@@ -174,6 +174,48 @@ private:
     }
 };
 
+typedef struct
+{
+    http2_client *h2c;
+    zend_object std;
+} http2_client_coro_t;
+
+static sw_inline http2_client_coro_t* php_swoole_http2_client_coro_fetch_object(zend_object *obj)
+{
+    return (http2_client_coro_t *) ((char *) obj - swoole_http2_client_coro_handlers.offset);
+}
+
+static sw_inline http2_client* php_swoole_get_h2c(zval *zobject)
+{
+    return php_swoole_http2_client_coro_fetch_object(Z_OBJ_P(zobject))->h2c;
+}
+
+static sw_inline void php_swoole_set_h2c(zval *zobject, http2_client *h2c)
+{
+    php_swoole_http2_client_coro_fetch_object(Z_OBJ_P(zobject))->h2c = h2c;
+}
+
+static void php_swoole_http2_client_coro_free_object(zend_object *object)
+{
+    http2_client_coro_t *request = php_swoole_http2_client_coro_fetch_object(object);
+    http2_client *h2c = request->h2c;
+
+    if (h2c)
+    {
+        delete h2c;
+    }
+    zend_object_std_dtor(&request->std);
+}
+
+static zend_object *php_swoole_http2_client_coro_create_object(zend_class_entry *ce)
+{
+    http2_client_coro_t *request = (http2_client_coro_t *) ecalloc(1, sizeof(http2_client_coro_t) + zend_object_properties_size(ce));
+    zend_object_std_init(&request->std, ce);
+    object_properties_init(&request->std, ce);
+    request->std.handlers = &swoole_http2_client_coro_handlers;
+    return &request->std;
+}
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -252,7 +294,7 @@ void php_swoole_http2_client_coro_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_http2_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http2_client_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http2_client_coro, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_http2_client_coro);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_http2_client_coro, php_swoole_http2_client_coro_create_object, php_swoole_http2_client_coro_free_object, http2_client_coro_t, std);
 
     SW_INIT_CLASS_ENTRY_EX(swoole_http2_client_coro_exception, "Swoole\\Coroutine\\Http2\\Client\\Exception", NULL, "Co\\Http2\\Client\\Exception", NULL, swoole_exception);
 
@@ -770,7 +812,7 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
 #endif
     }
 
-    swoole_set_object(ZEND_THIS, h2c);
+    php_swoole_set_h2c(ZEND_THIS, h2c);
 
     zend_update_property_stringl(swoole_http2_client_coro_ce, ZEND_THIS, ZEND_STRL("host"), host, host_len);
     zend_update_property_long(swoole_http2_client_coro_ce, ZEND_THIS, ZEND_STRL("port"), port);
@@ -779,7 +821,7 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
 
 static PHP_METHOD(swoole_http2_client_coro, set)
 {
-    http2_client *h2c = (http2_client *) swoole_get_object(ZEND_THIS);
+    http2_client *h2c = php_swoole_get_h2c(ZEND_THIS);
     zval *zset;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -940,7 +982,7 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
 
 static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *buffer)
 {
-    http2_client *h2c = (http2_client *) swoole_get_object(zobject);
+    http2_client *h2c = php_swoole_get_h2c(zobject);
     zval *zmethod = sw_zend_read_property(swoole_http2_request_ce, zrequest, ZEND_STRL("method"), 0);
     zval *zpath = sw_zend_read_property(swoole_http2_request_ce, zrequest, ZEND_STRL("path"), 0);
     zval *zheaders = sw_zend_read_property(swoole_http2_request_ce, zrequest, ZEND_STRL("headers"), 0);
@@ -1284,7 +1326,7 @@ bool http2_client::send_goaway_frame(zend_long error_code, const char *debug_dat
 static PHP_METHOD(swoole_http2_client_coro, send)
 {
     zval *request;
-    http2_client *h2c = (http2_client *) swoole_get_object(ZEND_THIS);
+    http2_client *h2c = php_swoole_get_h2c(ZEND_THIS);
 
     if (!h2c->is_available())
     {
@@ -1314,7 +1356,7 @@ static PHP_METHOD(swoole_http2_client_coro, send)
 
 static PHP_METHOD(swoole_http2_client_coro, recv)
 {
-    http2_client *h2c = (http2_client *) swoole_get_object(ZEND_THIS);
+    http2_client *h2c = php_swoole_get_h2c(ZEND_THIS);
 
     double timeout = 0;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
@@ -1348,28 +1390,17 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
     }
 }
 
-static PHP_METHOD(swoole_http2_client_coro, __destruct)
-{
-    SW_PREVENT_USER_DESTRUCT();
-
-    http2_client *h2c = (http2_client *) swoole_get_object(ZEND_THIS);
-    if (!h2c)
-    {
-        return;
-    }
-    delete h2c;
-    swoole_set_object(ZEND_THIS, nullptr);
-}
+static PHP_METHOD(swoole_http2_client_coro, __destruct) { }
 
 static PHP_METHOD(swoole_http2_client_coro, close)
 {
-    http2_client *h2c = (http2_client *) swoole_get_object(ZEND_THIS);
+    http2_client *h2c = php_swoole_get_h2c(ZEND_THIS);
     RETURN_BOOL(h2c->close());
 }
 
 static PHP_METHOD(swoole_http2_client_coro, connect)
 {
-    http2_client *h2c = (http2_client *) swoole_get_object(ZEND_THIS);
+    http2_client *h2c = php_swoole_get_h2c(ZEND_THIS);
     RETURN_BOOL(h2c->connect());
 }
 
@@ -1385,7 +1416,7 @@ static sw_inline void http2_settings_to_array(swHttp2_settings *settings, zval* 
 
 static PHP_METHOD(swoole_http2_client_coro, stats)
 {
-    http2_client *h2c = (http2_client *) swoole_get_object(ZEND_THIS);
+    http2_client *h2c = php_swoole_get_h2c(ZEND_THIS);
     zval _zarray, *zarray = &_zarray;
     swString key = {0};
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|s", &key.str, &key.length) == FAILURE)
@@ -1442,7 +1473,7 @@ static PHP_METHOD(swoole_http2_client_coro, isStreamExist)
         RETURN_FALSE;
     }
 
-    http2_client *h2c = (http2_client *) swoole_get_object(ZEND_THIS);
+    http2_client *h2c = php_swoole_get_h2c(ZEND_THIS);
     if (!h2c->client)
     {
         RETURN_FALSE;
@@ -1464,7 +1495,7 @@ static PHP_METHOD(swoole_http2_client_coro, isStreamExist)
 
 static PHP_METHOD(swoole_http2_client_coro, write)
 {
-    http2_client *h2c = (http2_client *) swoole_get_object(ZEND_THIS);
+    http2_client *h2c = php_swoole_get_h2c(ZEND_THIS);
 
     if (!h2c->is_available())
     {
@@ -1483,7 +1514,7 @@ static PHP_METHOD(swoole_http2_client_coro, write)
 
 static PHP_METHOD(swoole_http2_client_coro, ping)
 {
-    http2_client *h2c = (http2_client *) swoole_get_object(ZEND_THIS);
+    http2_client *h2c = php_swoole_get_h2c(ZEND_THIS);
 
     if (!h2c->is_available())
     {
@@ -1504,7 +1535,7 @@ static PHP_METHOD(swoole_http2_client_coro, ping)
  */
 static PHP_METHOD(swoole_http2_client_coro, goaway)
 {
-    http2_client *h2c = (http2_client *) swoole_get_object(ZEND_THIS);
+    http2_client *h2c = php_swoole_get_h2c(ZEND_THIS);
     zend_long error_code = SW_HTTP2_ERROR_NO_ERROR;
     char* debug_data = NULL;
     size_t debug_data_len = 0;
