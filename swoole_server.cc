@@ -679,7 +679,7 @@ void php_swoole_server_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_server_task, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_server_task, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_task, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CREATE_AND_FREE(swoole_server_task, php_swoole_server_task_create_object, php_swoole_server_task_free_object);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_server_task, php_swoole_server_task_create_object, php_swoole_server_task_free_object, server_task_t, std);
 
     SW_INIT_CLASS_ENTRY(swoole_connection_iterator, "Swoole\\Connection\\Iterator", "swoole_connection_iterator", NULL, swoole_connection_iterator_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_connection_iterator, zend_class_serialize_deny, zend_class_unserialize_deny);
@@ -3753,11 +3753,9 @@ static PHP_METHOD(swoole_server, task)
     {
         RETURN_LONG(buf.info.fd);
     }
-    else
-    {
-        sw_atomic_fetch_sub(&serv->stats->tasking_num, 1);
-        RETURN_FALSE;
-    }
+
+    sw_atomic_fetch_sub(&serv->stats->tasking_num, 1);
+    RETURN_FALSE;
 }
 
 static PHP_METHOD(swoole_server, sendMessage)
