@@ -218,11 +218,13 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     return SW_OK;
 }
 
+extern swServer* swoole_server_get_and_check_server(zval *zobject);
+
 static PHP_METHOD(swoole_redis_server, start)
 {
+    swServer *serv = swoole_server_get_and_check_server(ZEND_THIS);
     zval *zserv = ZEND_THIS;
 
-    swServer *serv = (swServer *) swoole_get_object(zserv);
     if (serv->gs->start > 0)
     {
         php_swoole_error(E_WARNING, "server is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
