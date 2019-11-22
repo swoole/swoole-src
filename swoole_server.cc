@@ -3360,6 +3360,8 @@ static PHP_METHOD(swoole_server, taskwait)
     }
 
     swEventData buf;
+    memset(&buf.info, 0, sizeof(buf.info));
+
     zval *zdata;
     double timeout = SW_TASKWAIT_TIMEOUT;
     zend_long dst_worker_id = -1;
@@ -3455,6 +3457,8 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
     }
 
     swEventData buf;
+    memset(&buf.info, 0, sizeof(buf.info));
+
     zval *ztasks;
     zval *ztask;
     double timeout = SW_TASKWAIT_TIMEOUT;
@@ -3618,6 +3622,7 @@ static PHP_METHOD(swoole_server, taskCo)
     int task_id;
     int i = 0;
     uint32_t n_task = php_swoole_array_length(ztasks);
+
     swEventData buf;
     memset(&buf.info, 0, sizeof(buf.info));
 
@@ -3763,9 +3768,14 @@ static PHP_METHOD(swoole_server, sendMessage)
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
+    if (!serv->onPipeMessage)
+    {
+        php_swoole_fatal_error(E_WARNING, "onPipeMessage is null, can't use sendMessage");
+        RETURN_FALSE;
+    }
 
     zval *zmessage;
-    long worker_id = -1;
+    zend_long worker_id = -1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "zl", &zmessage, &worker_id) == FAILURE)
     {
@@ -3777,16 +3787,9 @@ static PHP_METHOD(swoole_server, sendMessage)
         php_swoole_fatal_error(E_WARNING, "can't send messages to self");
         RETURN_FALSE;
     }
-
     if (worker_id >= serv->worker_num + serv->task_worker_num)
     {
         php_swoole_fatal_error(E_WARNING, "worker_id[%d] is invalid", (int) worker_id);
-        RETURN_FALSE;
-    }
-
-    if (!serv->onPipeMessage)
-    {
-        php_swoole_fatal_error(E_WARNING, "onPipeMessage is null, can't use sendMessage");
         RETURN_FALSE;
     }
 
@@ -3849,7 +3852,9 @@ static PHP_METHOD(swoole_server_task, finish)
 
 static PHP_METHOD(swoole_server_task, pack)
 {
-    swEventData buf = {{0}};
+    swEventData buf;
+    memset(&buf.info, 0, sizeof(buf.info));
+
     zval *zdata;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -4364,12 +4369,3 @@ static PHP_METHOD(swoole_connection_iterator, offsetGet)
 static PHP_METHOD(swoole_connection_iterator, offsetSet) { }
 static PHP_METHOD(swoole_connection_iterator, offsetUnset) { }
 static PHP_METHOD(swoole_connection_iterator, __destruct) { }
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: noet sw=4 ts=4 fdm=marker
- * vim<600: noet sw=4 ts=4
- */
