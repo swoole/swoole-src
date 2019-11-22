@@ -98,7 +98,7 @@ extern zend_module_entry swoole_module_entry;
 #endif
 
 #define SWOOLE_PROPERTY_MAX     32
-#define SWOOLE_OBJECT_DEFAULT   65536
+#define SWOOLE_OBJECT_DEFAULT   8
 #define SWOOLE_OBJECT_MAX       10000000
 
 typedef struct
