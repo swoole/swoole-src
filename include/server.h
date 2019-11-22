@@ -1021,7 +1021,15 @@ static sw_inline int swServer_get_send_pipe(swServer *serv, int session_id, int 
 
 static sw_inline uint8_t swServer_support_unsafe_events(swServer *serv)
 {
-    return !serv->enable_unsafe_event && serv->dispatch_mode != SW_DISPATCH_ROUND && serv->dispatch_mode != SW_DISPATCH_QUEUE && serv->dispatch_mode != SW_DISPATCH_STREAM;
+    if (serv->dispatch_mode != SW_DISPATCH_ROUND && serv->dispatch_mode != SW_DISPATCH_QUEUE
+            && serv->dispatch_mode != SW_DISPATCH_STREAM)
+    {
+        return 1;
+    }
+    else
+    {
+        return serv->enable_unsafe_event;
+    }
 }
 
 static sw_inline uint8_t swServer_dispatch_mode_is_mod(swServer *serv)
