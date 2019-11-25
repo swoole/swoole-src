@@ -1172,6 +1172,8 @@ bool Socket::bind(std::string address, int port)
 
         if (bind_address.size() >= sizeof(sa->sun_path))
         {
+            set_err(EINVAL);
+            swWarn("UNIXSocket bind path(%s) is too long, the maxium limit of bytes number is %zu", bind_address.c_str(), sizeof(sa->sun_path));
             return false;
         }
         memcpy(&sa->sun_path, bind_address.c_str(), bind_address.size());
@@ -1188,6 +1190,7 @@ bool Socket::bind(std::string address, int port)
         sa->sin_port = htons((unsigned short) bind_port);
         if (!inet_aton(bind_address.c_str(), &sa->sin_addr))
         {
+            set_err(EINVAL);
             return false;
         }
         retval = ::bind(sock_fd, (struct sockaddr *) sa, sizeof(struct sockaddr_in));
