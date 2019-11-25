@@ -1073,8 +1073,12 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
     zend_update_property_long(swoole_server_port_ce, zport, ZEND_STRL("type"), port->type);
     zend_update_property_long(swoole_server_port_ce, zport, ZEND_STRL("sock"), port->sock);
 
-    zval *zserv = (zval *) serv->ptr2;
-    (void) add_next_index_zval(sw_zend_update_and_read_property_array(Z_OBJCE_P(zserv), zserv, ZEND_STRL("ports")), zport);
+    do {
+        zval *zserv = (zval *) serv->ptr2;
+        zval *zports = sw_zend_read_and_convert_property_array(Z_OBJCE_P(zserv), zserv, ZEND_STRL("ports"), 0);
+        (void) add_next_index_zval(zports, zport);
+        Z_ADDREF_P(zport);
+    } while (0);
 
     /* iterator */
     do
