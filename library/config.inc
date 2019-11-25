@@ -13,7 +13,7 @@ return [
     'core/Coroutine/Server.php',
     'core/Coroutine/Server/Connection.php',
     # <core for ext> #
-    'core/Http/StatusCode.php',
+    'core/Http/Status.php',
     'core/Curl/Exception.php',
     'core/Curl/Handler.php',
     # <ext> #
