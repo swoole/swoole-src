@@ -1,8 +1,8 @@
 #!/usr/bin/env php
 <?php
-require __DIR__ . '/functions.php';
+require __DIR__ . '/bootstrap.php';
 
-$root_dir = dirname(__DIR__);
+$root_dir = ROOT_DIR;
 $file_list = explode("\n", `cd {$root_dir} && git ls-files`);
 $file_list = array_filter($file_list, function (string $filename) {
     $ext = pathinfo($filename, PATHINFO_EXTENSION);
@@ -21,7 +21,7 @@ foreach ($matches as $option) {
     $result .= space(4) . sprintf("const OPTION_%s = '%s';\n", strtoupper($option), $option);
 }
 
-$constant_php = __DIR__ . '/../library/core/Constant.php';
+$constant_php = LIBRARY_DIR . '/core/Constant.php';
 $constant_php_content = file_get_contents($constant_php);
 $constant_php_content = preg_replace(
     '/(\/\* \{\{\{ OPTION \*\/\n)([\s\S]*)(\/\* \}\}\} OPTION \*\/)/',

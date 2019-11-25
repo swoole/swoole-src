@@ -1,19 +1,17 @@
 #!/usr/bin/env php
 <?php
-define('ROOT_DIR', dirname(__DIR__));
-define('LIB_DIR', ROOT_DIR . '/library/src');
-define('LIB_H', ROOT_DIR . '/php_swoole_library.h');
+require __DIR__ . '/bootstrap.php';
+
+define('LIBRARY_HEADER', ROOT_DIR . '/php_swoole_library.h');
 define('PHP_TAG', '<?php');
 
-require __DIR__ . '/functions.php';
-
-$list = require LIB_DIR . '/config.inc';
+$list = require LIBRARY_DIR . '/config.inc';
 if (empty($list)) {
     swoole_error('can not read library config');
 }
 $source_str = $eval_str = '';
 foreach ($list as $file) {
-    $php_file = LIB_DIR . '/' . $file;
+    $php_file = LIBRARY_DIR . '/' . $file;
     if (strpos(`/usr/bin/env php -n -l {$php_file} 2>&1`, 'No syntax errors detected') === false) {
         swoole_error("syntax error in file {$php_file}");
     } else {
@@ -54,7 +52,7 @@ static void php_swoole_load_library()
 
 PHP;
 
-if (file_put_contents(LIB_H, $content) != strlen($content)) {
-    swoole_error('Can not write source codes to ' . LIB_H);
+if (file_put_contents(LIBRARY_HEADER, $content) != strlen($content)) {
+    swoole_error('Can not write source codes to ' . LIBRARY_HEADER);
 }
 swoole_success("Generated swoole php library successfully!");

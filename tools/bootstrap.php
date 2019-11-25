@@ -1,4 +1,7 @@
 <?php
+define('ROOT_DIR', dirname(__DIR__));
+define('LIBRARY_DIR', ROOT_DIR . '/library/src');
+
 define('EMOJI_OK', '✅');
 define('EMOJI_SUCCESS', '🚀');
 define('EMOJI_ERROR', '❌');

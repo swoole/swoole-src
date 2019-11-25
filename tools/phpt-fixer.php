@@ -1,6 +1,6 @@
 #!/usr/bin/env php
 <?php
-require __DIR__ . '/functions.php';
+require __DIR__ . '/bootstrap.php';
 
 function fix_tests_in_this_dir(string $dir, string $root = '')
 {
@@ -106,7 +106,7 @@ function fix_tests_in_this_dir(string $dir, string $root = '')
     }
 }
 
-$root = realpath(__DIR__ . '/../tests');
+$root = realpath(ROOT_DIR . '/tests');
 $dirs = scan_dir($root, function (string $file) {
     return strpos(pathinfo($file, PATHINFO_FILENAME), 'swoole_') === 0;
 });

@@ -1,10 +1,10 @@
 #!/usr/bin/env php
 <?php
-require __DIR__ . '/functions.php';
+require __DIR__ . '/bootstrap.php';
 
-$swoole_c = __DIR__ . '/../swoole.cc';
+$swoole_c = ROOT_DIR . '/swoole.cc';
 $swoole_c_content = file_get_contents($swoole_c);
-$error_h = __DIR__ . '/../include/error.h';
+$error_h = ROOT_DIR . '/include/error.h';
 $error_h_content = file_get_contents($error_h);
 
 if (!preg_match_all('/SW_ERROR_[0-9A-Z_]+/', $error_h_content, $matches, PREG_PATTERN_ORDER) || empty($matches[0])) {
@@ -30,7 +30,7 @@ swoole_check($is_ok, 'Generate ERROR constants');
 file_put_contents($swoole_c, $swoole_c_content);
 
 // generate ERROR strings
-$swoole_error_cc = __DIR__ . '/../src/core/error.cc';
+$swoole_error_cc = ROOT_DIR . '/src/core/error.cc';
 $swoole_error_cc_content = file_get_contents($swoole_error_cc);
 $swstrerror_output = space(4) . "switch(code)\n" . space(4) . "{\n";
 foreach ($matches[0] as $match) {

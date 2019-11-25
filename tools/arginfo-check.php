@@ -1,11 +1,11 @@
 #!/usr/bin/env php
 <?php
-require __DIR__ . '/functions.php';
+require __DIR__ . '/bootstrap.php';
 
 // if no output, it means there is no mistake.
 $GLOBALS['error'] = 0;
 
-$root_dir = dirname(__DIR__);
+$root_dir = ROOT_DIR;
 $file_list_raw = explode("\n", `cd {$root_dir} && git ls-files`);
 $file_list_raw = array_filter($file_list_raw, function (string $filename) {
     $ext = pathinfo($filename, PATHINFO_EXTENSION);

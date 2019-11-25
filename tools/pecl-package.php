@@ -6,7 +6,7 @@
 # role="doc" => in $(pecl config-get doc_dir), which is /usr/share/doc/pecl/swoole on RPM distro (LICENSE being an exception, manually moved to /usr/share/licenses)
 # role="test" => in $(pecl config-get test_dir), which is /usr/share/tests/pecl/swoole on RPM distro
 
-require __DIR__ . '/functions.php';
+require __DIR__ . '/bootstrap.php';
 
 function check_source_ver(string $expect_ver, $source_file)
 {
@@ -97,7 +97,7 @@ swoole_execute_and_check('php ' . __DIR__ . '/phpt-fixer.php');
 // prepare
 swoole_ok('Start to package...');
 $this_dir = __DIR__;
-$tests_dir = __DIR__ . '/../tests/';
+$tests_dir = ROOT_DIR . '/tests/';
 `cd {$tests_dir} && ./clean && cd {$this_dir}`;
 
 $root_dir = SWOOLE_SOURCE_ROOT;

@@ -1,6 +1,6 @@
 #!/usr/bin/env php
 <?php
-require __DIR__ . '/functions.php';
+require __DIR__ . '/bootstrap.php';
 
 $config_m4 = __DIR__ . '/../config.m4';
 $config_m4_content = file_get_contents($config_m4);
