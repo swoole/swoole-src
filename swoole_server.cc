@@ -46,7 +46,6 @@ static int dgram_server_socket;
 struct
 {
     zval *zobjects[SW_MAX_LISTEN_PORT];
-    zval *zports;
     uint8_t num;
     php_swoole_server_port_property *primary_port;
 } server_port_list;
@@ -242,8 +241,6 @@ static void php_swoole_server_free_object(zend_object *object)
             sw_zval_free(server_port_list.zobjects[i]);
             server_port_list.zobjects[i] = NULL;
         }
-        sw_zval_free(server_port_list.zports);
-        server_port_list.zports = NULL;
     }
 
     zend_object_std_dtor(object);
@@ -1076,8 +1073,8 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
     zend_update_property_long(swoole_server_port_ce, zport, ZEND_STRL("type"), port->type);
     zend_update_property_long(swoole_server_port_ce, zport, ZEND_STRL("sock"), port->sock);
 
-    (void) add_next_index_zval(server_port_list.zports, zport);
-    Z_TRY_ADDREF_P(zport);
+    zval *zserv = (zval *) serv->ptr2;
+    (void) add_next_index_zval(sw_zend_update_and_read_property_array(Z_OBJCE_P(zserv), zserv, ZEND_STRL("ports")), zport);
 
     /* iterator */
     do
@@ -1109,8 +1106,6 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
 
     swTraceLog(SW_TRACE_SERVER, "Create Swoole\\Server: host=%s, port=%d, mode=%d, type=%d", serv->listen_list->host, (int) serv->listen_list->port, serv->factory_mode, (int) serv->listen_list->type);
 
-    serv->ptr2 = sw_zval_dup(zobject);
-
     if (serv->enable_coroutine)
     {
         serv->reload_async = 1;
@@ -1130,9 +1125,6 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     zend_update_property_long(swoole_server_ce, zobject, ZEND_STRL("master_pid"), getpid());
 
     zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_ce, zobject, ZEND_STRL("setting"), 0);
-#ifdef HT_ALLOW_COW_VIOLATION
-    HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(zsetting));
-#endif
 
     if (!zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("worker_num")))
     {
@@ -2113,6 +2105,8 @@ static PHP_METHOD(swoole_server, __construct)
     }
 
     swServer_init(serv);
+    serv->ptr2 = sw_zval_dup(zserv);
+    php_swoole_server_set_server(zserv, serv);
 
     if (serv_mode == SW_MODE_BASE)
     {
@@ -2146,13 +2140,6 @@ static PHP_METHOD(swoole_server, __construct)
             }
         }
 
-        zval *ports = sw_malloc_zval();
-        array_init(ports);
-        server_port_list.zports = ports;
-
-    #ifdef HT_ALLOW_COW_VIOLATION
-        HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(ports));
-    #endif
 
         swListenPort *ls;
         LL_FOREACH(serv->listen_list, ls)
@@ -2161,8 +2148,6 @@ static PHP_METHOD(swoole_server, __construct)
         }
 
         server_port_list.primary_port = (php_swoole_server_port_property *) serv->listen_list->ptr;
-
-        zend_update_property(swoole_server_ce, zserv, ZEND_STRL("ports"), ports);
     } while (0);
 
     /* iterator */
@@ -2183,7 +2168,6 @@ static PHP_METHOD(swoole_server, __construct)
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("port"), (zend_long) serv->listen_list->port);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("mode"), serv->factory_mode);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("type"), sock_type);
-    php_swoole_server_set_server(zserv, serv);
 }
 
 static PHP_METHOD(swoole_server, __destruct) { }
