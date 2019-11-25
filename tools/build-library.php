@@ -1,8 +1,8 @@
 #!/usr/bin/env php
 <?php
-define('SRC_DIR', dirname(__DIR__));
-define('LIB_DIR', SRC_DIR . '/library');
-define('LIB_H', SRC_DIR . '/php_swoole_library.h');
+define('ROOT_DIR', dirname(__DIR__));
+define('LIB_DIR', ROOT_DIR . '/library/src');
+define('LIB_H', ROOT_DIR . '/php_swoole_library.h');
 define('PHP_TAG', '<?php');
 
 require __DIR__ . '/functions.php';
