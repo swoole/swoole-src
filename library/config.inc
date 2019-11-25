@@ -4,19 +4,20 @@ return [
     'constants.php',
     # <std> #
     'std/exec.php',
-    # <ext> #
-    'core/Curl/Exception.php',
-    'core/Http/StatusCode.php',
-    'core/Curl/Handler.php',
-    'ext/curl.php',
     # <core> #
     'core/Constant.php',
-    'core/Coroutine/WaitGroup.php',
-    'core/Coroutine/ObjectPool.php',
     'core/StringObject.php',
     'core/ArrayObject.php',
+    'core/Coroutine/WaitGroup.php',
+    'core/Coroutine/ObjectPool.php',
     'core/Coroutine/Server.php',
     'core/Coroutine/Server/Connection.php',
+    # <core for ext> #
+    'core/Http/StatusCode.php',
+    'core/Curl/Exception.php',
+    'core/Curl/Handler.php',
+    # <ext> #
+    'ext/curl.php',
     # <finalizer> #
     'functions.php',
     'alias.php',

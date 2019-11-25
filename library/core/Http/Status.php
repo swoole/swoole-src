@@ -2,7 +2,7 @@
 
 namespace Swoole\Http;
 
-abstract class StatusCode
+abstract class Status
 {
     const CONTINUE = 100;
     const SWITCHING_PROTOCOLS = 101;
@@ -129,6 +129,14 @@ abstract class StatusCode
         self::NOT_EXTENDED => 'Not Extended',
         self::NETWORK_AUTHENTICATION_REQUIRED => 'Network Authentication Required'
     ];
+
+    /**
+     * @return array
+     */
+    public static function getReasonPhrases(): array
+    {
+        return static::$reasonPhrases;
+    }
 
     /**
      * getReasonPhrase

@@ -6,25 +6,30 @@ use Swoole\Coroutine\Socket;
 
 class Connection
 {
-    public $socket;
+    protected $socket;
 
     public function __construct(Socket $conn)
     {
         $this->socket = $conn;
     }
 
-    public function recv($timeout = 0)
+    public function recv(float $timeout = 0)
     {
         return $this->socket->recvPacket($timeout);
     }
 
-    public function send($data)
+    public function send(string $data)
     {
         return $this->socket->sendAll($data);
     }
 
-    public function close()
+    public function close(): bool
     {
         return $this->socket->close();
+    }
+
+    public function exportSocket(): Socket
+    {
+        return $this->socket;
     }
 }

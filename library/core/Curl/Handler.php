@@ -277,14 +277,14 @@ class Handler
         if ($client->headers) {
             $cb = $this->headerFunction;
             if ($client->statusCode > 0) {
-                $row = 'HTTP/1.1 ' . $client->statusCode . ' ' . Swoole\Http\StatusCode::getReasonPhrase($client->statusCode) . "\r\n";
+                $row = "HTTP/1.1 {$client->statusCode} " . Swoole\Http\Status::getReasonPhrase($client->statusCode) . "\r\n";
                 if ($cb) {
                     $cb($this, $row);
                 }
                 $headerContent .= $row;
             }
             foreach ($client->headers as $k => $v) {
-                $row = "$k: $v\r\n";
+                $row = "{$k}: {$v}\r\n";
                 if ($cb) {
                     $cb($this, $row);
                 }
