@@ -806,12 +806,12 @@ bool Socket::connect(string _host, int _port, int flags)
     {
         if (_port == -1)
         {
-            swWarn("Socket of type AF_INET/AF_INET6 requires port argument");
+            set_err(EINVAL, "Socket of type AF_INET/AF_INET6 requires port argument");
             return false;
         }
         else if (_port == 0 || _port >= 65536)
         {
-            swWarn("Invalid port argument[%d]", _port);
+            set_err(EINVAL, cpp_string::format("Invalid port [%d]", _port).c_str());
             return false;
         }
     }
@@ -1136,7 +1136,7 @@ bool Socket::bind(std::string address, int port)
     }
     if ((sock_domain == AF_INET || sock_domain == AF_INET6) && (port < 0 || port > 65535))
     {
-        swWarn("invalid port [%d]", port);
+        set_err(EINVAL, cpp_string::format("Invalid port [%d]", port).c_str());
         return false;
     }
 
@@ -1172,8 +1172,13 @@ bool Socket::bind(std::string address, int port)
 
         if (bind_address.size() >= sizeof(sa->sun_path))
         {
-            set_err(EINVAL);
-            swWarn("UNIXSocket bind path(%s) is too long, the maxium limit of bytes number is %zu", bind_address.c_str(), sizeof(sa->sun_path));
+            set_err(
+                EINVAL,
+                cpp_string::format(
+                    "UNIXSocket bind path(%s) is too long, the maxium limit of bytes number is %zu",
+                    bind_address.c_str(), sizeof(sa->sun_path)
+                ).c_str()
+            );
             return false;
         }
         memcpy(&sa->sun_path, bind_address.c_str(), bind_address.size());
@@ -1436,7 +1441,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length)
     int file_fd = ::open(filename, O_RDONLY);
     if (file_fd < 0)
     {
-        swSysWarn("open(%s) failed", filename);
+        set_err(errno, cpp_string::format("open(%s) failed, %s", filename, strerror(errno)).c_str());
         return false;
     }
 
@@ -1445,7 +1450,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length)
         struct stat file_stat;
         if (::fstat(file_fd, &file_stat) < 0)
         {
-            swSysWarn("fstat(%s) failed", filename);
+            set_err(errno, cpp_string::format("fstat(%s) failed, %s", filename, strerror(errno)).c_str());
             ::close(file_fd);
             return false;
         }
@@ -1478,14 +1483,13 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length)
         }
         else if (n == 0)
         {
-            swWarn("sendfile return zero");
+            set_err(SW_ERROR_SYSTEM_CALL_FAIL, "sendfile return zero");
             ::close(file_fd);
             return false;
         }
         else if (errno != EAGAIN)
         {
-            swSysWarn("sendfile(%d, %s) failed", sock_fd, filename);
-            set_err(errno);
+            set_err(errno, cpp_string::format("sendfile(%d, %s) failed, %s", sock_fd, filename, strerror(errno)).c_str());
             ::close(file_fd);
             return false;
         }
@@ -1521,9 +1525,8 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
     {
         if (::inet_aton(address, &addr.in.sin_addr) == 0)
         {
-            swWarn("ip[%s] is invalid", address);
+            set_err(EINVAL, cpp_string::format("ip[%s] is invalid", address).c_str());
             retval = -1;
-            errno = EINVAL;
             break;
         }
         addr.in.sin_family = AF_INET;
@@ -1535,8 +1538,9 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
     {
         if (::inet_pton(AF_INET6, address, &addr.in6.sin6_addr) < 0)
         {
-            swWarn("ip[%s] is invalid", address);
-            return SW_ERR;
+            set_err(EINVAL, cpp_string::format("ip[%s] is invalid", address).c_str());
+            retval = -1;
+            break;
         }
         addr.in6.sin6_port = (uint16_t) htons(port);
         addr.in6.sin6_family = AF_INET6;
@@ -1551,8 +1555,8 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
         break;
     }
     default:
+        set_err(EPROTONOSUPPORT);
         retval = -1;
-        errno = EPROTONOSUPPORT;
         break;
     }
 
@@ -1563,9 +1567,9 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
             retval = ::sendto(sock_fd, __buf, __n, 0, (struct sockaddr *) &addr, addr_size);
             swTraceLog(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, __n, errno);
         } while (retval < 0 && (errno == EINTR || (swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n))));
+        set_err(retval < 0 ? errno : 0);
     }
 
-    set_err(retval < 0 ? errno : 0);
     return retval;
 }
 
