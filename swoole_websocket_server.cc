@@ -785,6 +785,13 @@ extern swServer* php_swoole_server_get_and_check_server(zval *zobject);
 
 static PHP_METHOD(swoole_websocket_server, disconnect)
 {
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
+    if (sw_unlikely(!serv->gs->start))
+    {
+        php_swoole_fatal_error(E_WARNING, "server is not running");
+        RETURN_FALSE;
+    }
+
     zend_long fd = 0;
     zend_long code = WEBSOCKET_CLOSE_NORMAL;
     char *data = NULL;
@@ -799,16 +806,18 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
     {
         RETURN_FALSE;
     }
-    SW_CHECK_RETURN(
-        swoole_websocket_server_close(
-            php_swoole_server_get_and_check_server(ZEND_THIS), fd, swoole_http_buffer, 1
-        )
-    );
+    SW_CHECK_RETURN(swoole_websocket_server_close(serv, fd, swoole_http_buffer, 1));
 }
 
 static PHP_METHOD(swoole_websocket_server, push)
 {
     swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
+    if (sw_unlikely(!serv->gs->start))
+    {
+        php_swoole_fatal_error(E_WARNING, "server is not running");
+        RETURN_FALSE;
+    }
+
     zend_long fd = 0;
     zval *zdata = NULL;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
@@ -921,6 +930,12 @@ static PHP_METHOD(swoole_websocket_server, unpack)
 static PHP_METHOD(swoole_websocket_server, isEstablished)
 {
     swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
+    if (sw_unlikely(!serv->gs->start))
+    {
+        php_swoole_fatal_error(E_WARNING, "server is not running");
+        RETURN_FALSE;
+    }
+
     zend_long fd;
 
     if (sw_unlikely(!serv->gs->start))
