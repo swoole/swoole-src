@@ -180,13 +180,6 @@ void php_swoole_http_server_minit(int module_number)
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server, sw_zend_class_unset_property_deny);
 
     zend_declare_property_null(swoole_http_server_ce, ZEND_STRL("onRequest"), ZEND_ACC_PRIVATE);
-
-    swoole_http_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
-    if (!swoole_http_buffer)
-    {
-        php_swoole_fatal_error(E_ERROR, "[swoole_http_buffer] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
-        return;
-    }
 }
 
 http_context* swoole_http_context_new(int fd)
@@ -284,6 +277,13 @@ void swoole_http_context_free(http_context *ctx)
 
 void php_swoole_http_server_init_global_variant()
 {
+    swoole_http_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
+    if (!swoole_http_buffer)
+    {
+        php_swoole_fatal_error(E_ERROR, "[swoole_http_buffer] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
+        return;
+    }
+
     swoole_http_form_data_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_http_form_data_buffer)
     {
