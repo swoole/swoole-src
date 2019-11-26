@@ -45,7 +45,7 @@ int main(int argc, char **argv)
     ::testing::InitGoogleTest(&argc, argv);
     int retval = RUN_ALL_TESTS();
 
-    kill(server_pid, SIGTERM);
+    kill(server_pid, SIGKILL);
     int status = 0;
     wait(&status);
 
