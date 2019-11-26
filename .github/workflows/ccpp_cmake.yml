@@ -10,13 +10,13 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: configure
-      run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-debug-log 
+      run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-debug-log
+    - name: export
+      run: export SWOOLE_DIR=`pwd`
     - name: cmake
       run: cmake .
     - name: make
       run: make
-    - name: export
-      run: export SWOOLE_DIR=`pwd`
     - name: make test
       run: cd core-tests && cmake . && make
     - name: test
