@@ -30,4 +30,4 @@ jobs:
     - name: make test
       run: cd core-tests && cmake . && make
     - name: test
-      run: cd core-tests && bin/core-tests
+      run: pwd && ls && ls core-tests && ls core-tests/bin && cd core-tests && bin/core-tests
