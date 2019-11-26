@@ -766,7 +766,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
         return SW_ERR;
     }
     //main function
-    if (UNEXPECTED(!zend::function::call(&proc->func->fci_cache, 1, zobject, NULL, proc->enable_coroutine)))
+    if (UNEXPECTED(!zend::function::call(&proc->fci->fci_cache, 1, zobject, NULL, proc->enable_coroutine)))
     {
         php_swoole_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
