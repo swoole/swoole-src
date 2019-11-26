@@ -43,7 +43,7 @@ TEST(coroutine_gethostbyname, resolve_without_cache)
             ASSERT_NE(addr2, "");
         }
 
-        ASSERT_GT(swTimer_get_absolute_msec() - start, 5);
+        ASSERT_GT(swTimer_get_absolute_msec() - start, 3);
     });
 }
 

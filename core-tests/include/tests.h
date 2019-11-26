@@ -12,10 +12,8 @@
 class coro_test
 {
 public:
-    coro_test(coroutine_func_t _fn, void *_arg, int *_complete_num) : fn(_fn), arg(_arg), complete_num(_complete_num)
-    {
-
-    }
+    coro_test(coroutine_func_t _fn, void *_arg, int *_complete_num) :
+            fn(_fn), arg(_arg), complete_num(_complete_num) { }
 
     void run()
     {

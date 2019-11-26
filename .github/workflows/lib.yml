@@ -1,0 +1,27 @@
+name: lib-swoole
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: gtest_install
+      run: sudo apt install -y googletest libgtest-dev &&
+           cd /usr/src/googletest/googletest &&
+           sudo mkdir build &&
+           cd build &&
+           sudo cmake .. &&
+           sudo make &&
+           sudo make install &&
+           cd - &&
+           sudo rm -rf /usr/src/googletest/googletest/build
+    - name: configure
+      run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2
+    - name: make
+      run: cmake . && make
+    - name: make test
+      run: cd core-tests && ./run.sh
