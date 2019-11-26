@@ -10,15 +10,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: gtest_install
-      run: sudo apt install -y libgtest-dev && \
-           cd /usr/src/googletest/googletest && \
-           sudo mkdir build && \
-           cd build && \
-           sudo cmake .. && \
-           sudo make && \
-           sudo make install && \
-           cd - && \
-           sudo rm -rf /usr/src/googletest/googletest/build
+      run: sudo apt install -y googletest libgtest-dev
     - name: configure
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-debug-log
     - name: export
