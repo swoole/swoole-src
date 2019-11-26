@@ -355,7 +355,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset);
 #ifdef SW_USE_OPENSSL
 void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset);
 #endif
-int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opcode, uint8_t flags);
+int php_swoole_websocket_frame_pack(swString *buffer, uint32_t argc, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress);
 void php_swoole_websocket_frame_unpack(swString *data, zval *zframe);
 void php_swoole_websocket_frame_unpack_ex(swString *data, zval *zframe, uchar allow_uncompress);
 

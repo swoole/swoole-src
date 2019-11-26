@@ -121,7 +121,7 @@ public:
     void recv(zval *zframe, double timeout = 0);
     bool recv_http_response(double timeout = 0);
     bool upgrade(std::string path);
-    bool push(zval *zdata, zend_long opcode = WEBSOCKET_OPCODE_TEXT, uint8_t flags = SW_WEBSOCKET_FLAG_FIN);
+    bool push(uint32_t argc, zval *zdata, zend_long opcode = WEBSOCKET_OPCODE_TEXT, uint8_t flags = SW_WEBSOCKET_FLAG_FIN);
     bool close(const bool should_be_reset = true);
 
     void get_header_out(zval *return_value)
@@ -1473,7 +1473,7 @@ bool http_client::upgrade(std::string path)
     return websocket;
 }
 
-bool http_client::push(zval *zdata, zend_long opcode, uint8_t flags)
+bool http_client::push(uint32_t argc, zval *zdata, zend_long opcode, uint8_t flags)
 {
     if (!websocket)
     {
@@ -1493,19 +1493,8 @@ bool http_client::push(zval *zdata, zend_long opcode, uint8_t flags)
 
     swString *buffer = socket->get_write_buffer();
 
-    if (websocket_mask)
-    {
-        flags |= SW_WEBSOCKET_FLAG_MASK;
-    }
-#ifdef SW_HAVE_ZLIB
-    if ((flags & SW_WEBSOCKET_FLAG_COMPRESS) && !websocket_compression)
-    {
-        flags ^= SW_WEBSOCKET_FLAG_COMPRESS;
-    }
-#endif
-
     swString_clear(buffer);
-    if (php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags) < 0)
+    if (php_swoole_websocket_frame_pack(buffer, argc, zdata, opcode, flags, websocket_mask, websocket_compression) < 0)
     {
         return false;
     }
@@ -2060,7 +2049,7 @@ static PHP_METHOD(swoole_http_client_coro, push)
         flags = zval_get_long(zflags);
     }
 
-    RETURN_BOOL(phc->push(zdata, opcode, flags & SW_WEBSOCKET_FLAGS_ALL));
+    RETURN_BOOL(phc->push(EX_NUM_ARGS(), zdata, opcode, flags & SW_WEBSOCKET_FLAGS_ALL));
 }
 
 static PHP_METHOD(swoole_http_client_coro, recv)
