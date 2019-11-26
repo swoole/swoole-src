@@ -3,13 +3,16 @@
 
 static int server_onReceive(swServer *serv, swEventData *req)
 {
-    if (req->info.len >= sizeof("close") && memcmp(req->data, SW_STRS("close")) == 0)
+    char *data;
+    size_t length = swWorker_get_data(serv, req, &data);
+
+    if (length >= sizeof("close") && memcmp(data, SW_STRS("close")) == 0)
     {
         serv->close(serv, req->info.fd, 0);
     }
     else
     {
-        serv->send(serv, req->info.fd, req->data, req->info.len);
+        serv->send(serv, req->info.fd, data, length);
     }
     return SW_OK;
 }
