@@ -240,7 +240,6 @@ static void php_swoole_server_free_object(zend_object *object)
             sw_zval_free(server_port_list.zobjects[i]);
             server_port_list.zobjects[i] = NULL;
         }
-        sw_free(serv);
     }
 
     zend_object_std_dtor(object);
