@@ -221,7 +221,6 @@ static void php_swoole_server_free_object(zend_object *object)
         if (serv->ptr2)
         {
             efree(serv->ptr2);
-            serv->ptr2 = NULL;
         }
         for (int i = 0; i < PHP_SWOOLE_SERVER_CALLBACK_NUM; i++)
         {
@@ -241,6 +240,7 @@ static void php_swoole_server_free_object(zend_object *object)
             sw_zval_free(server_port_list.zobjects[i]);
             server_port_list.zobjects[i] = NULL;
         }
+        sw_free(serv);
     }
 
     zend_object_std_dtor(object);

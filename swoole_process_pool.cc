@@ -671,9 +671,7 @@ static PHP_METHOD(swoole_process_pool, getProcess)
         }
         php_swoole_process_set_worker(zprocess, worker);
         process_pool_property *pp = php_swoole_process_pool_get_and_check_pp(ZEND_THIS);
-        zend::process *proc = new zend::process;
-        proc->pipe_type = zend::PIPE_TYPE_STREAM;
-        proc->enable_coroutine = pp->enable_coroutine;
+        zend::process *proc = new zend::process(nullptr, zend::PIPE_TYPE_STREAM, pp->enable_coroutine);
         worker->ptr2 = proc;
         (void) add_index_zval(zworkers, worker_id, zprocess);
     }

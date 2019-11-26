@@ -392,11 +392,7 @@ static PHP_METHOD(swoole_process, __construct)
         zend_update_property_long(swoole_process_ce, ZEND_THIS, ZEND_STRL("pipe"), process->pipe_master);
     }
 
-    zend::process *proc = new zend::process;
-    sw_zend_fci_cache_persist(&func->fci_cache);
-    proc->func = func;
-    proc->pipe_type = (enum zend::process_pipe_type) pipe_type;
-    proc->enable_coroutine = enable_coroutine;
+    zend::process *proc = new zend::process(func, (enum zend::process_pipe_type) pipe_type, enable_coroutine);
     process->ptr2 = proc;
 
     php_swoole_process_set_worker(ZEND_THIS, process);
