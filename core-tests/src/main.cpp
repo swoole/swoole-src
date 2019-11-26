@@ -1,6 +1,12 @@
 #include "tests.h"
 #include "swoole_api.h"
 
+static int server_onReceive(swServer *serv, swEventData *req)
+{
+    serv->send(serv, req->info.fd, req->data, req->info.len);
+    return SW_OK;
+}
+
 static pid_t create_server()
 {
     pid_t pid;
@@ -15,11 +21,7 @@ static pid_t create_server()
         swServer_init(&serv);
         serv.worker_num = 1;
         serv.factory_mode = SW_MODE_BASE;
-        serv.onReceive = [](swServer *serv, swEventData *req)
-        {
-            serv->send(serv, req->info.fd, req->data, req->info.len);
-            return SW_OK;
-        };
+        serv.onReceive = server_onReceive;
         if (swServer_create(&serv) != 0)
         {
             abort();
