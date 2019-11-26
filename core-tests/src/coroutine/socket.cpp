@@ -48,7 +48,7 @@ TEST(coroutine_socket, recv_success)
         bool retval = sock.connect("127.0.0.1", 9501, -1);
         ASSERT_EQ(retval, true);
         ASSERT_EQ(sock.errCode, 0);
-        sock.send("echo", 5);
+        sock.send(SW_STRS("hello world\n"));
         char buf[128];
         int n = sock.recv(buf, sizeof(buf));
         buf[n] = 0;

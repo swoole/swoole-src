@@ -1,6 +1,6 @@
 #include "tests.h"
 
-const std::string greeter = "Hello Swoole";
+#define GREETER "Hello Swoole"
 
 TEST(client, tcp)
 {
@@ -12,10 +12,10 @@ TEST(client, tcp)
     ASSERT_EQ(ret, 0);
     ret = cli.connect(&cli, "127.0.0.1", 9501, -1, 0);
     ASSERT_EQ(ret, 0);
-    ret = cli.send(&cli, greeter.c_str(), greeter.length(), 0);
+    ret = cli.send(&cli, SW_STRS(GREETER), 0);
     ASSERT_GT(ret, 0);
     ret = cli.recv(&cli, buf, 128, 0);
     ASSERT_GT(ret, 0);
     cli.close(&cli);
-    ASSERT_EQ(std::string(buf, ret), greeter);
+    ASSERT_EQ(strncmp(buf, SW_STRL(GREETER)), 0);
 }

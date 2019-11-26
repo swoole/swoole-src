@@ -3,7 +3,14 @@
 
 static int server_onReceive(swServer *serv, swEventData *req)
 {
-    serv->send(serv, req->info.fd, req->data, req->info.len);
+    if (req->info.len >= sizeof("close") && memcmp(req->data, SW_STRS("close")) == 0)
+    {
+        serv->close(serv, req->info.fd, 0);
+    }
+    else
+    {
+        serv->send(serv, req->info.fd, req->data, req->info.len);
+    }
     return SW_OK;
 }
 
