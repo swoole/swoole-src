@@ -21,13 +21,7 @@ jobs:
            sudo rm -rf /usr/src/googletest/googletest/build
     - name: configure
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-debug-log
-    - name: export
-      run: export SWOOLE_DIR=`pwd`
-    - name: cmake
-      run: cmake .
     - name: make
-      run: make
+      run: cmake . && make
     - name: make test
-      run: cd core-tests && cmake . && make
-    - name: test
-      run: pwd && ls && ls core-tests && ls core-tests/bin && cd core-tests && bin/core-tests
+      run: cd core-tests && ./run.sh
