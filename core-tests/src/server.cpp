@@ -56,7 +56,7 @@ int server_test()
     if (ret < 0)
     {
         swTrace("create server fail[error=%d].\n", ret);
-        exit(0);
+        exit(1);
     }
 
     swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
@@ -73,7 +73,7 @@ int server_test()
     if (ret < 0)
     {
         swTrace("start server fail[error=%d].\n", ret);
-        exit(0);
+        exit(1);
     }
     return 0;
 }
