@@ -1,0 +1,19 @@
+name: libswoole
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v1
+    - name: cmake
+      run: cmake .
+    - name: make
+      run: make
+    - name: make test
+      run: cd core-tests && cmake . && make
+    - name: test
+      run: cd - && cd core-tests && bin/core-tests 
