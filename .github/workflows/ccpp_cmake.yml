@@ -20,7 +20,7 @@ jobs:
            cd - &&
            sudo rm -rf /usr/src/googletest/googletest/build
     - name: configure
-      run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-debug-log
+      run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2
     - name: make
       run: cmake . && make
     - name: make test
