@@ -40,6 +40,12 @@ static void swServer_disable_accept(swServer *serv)
 {
     swListenPort *ls;
 
+    serv->enable_accept_timer = swoole_timer_add(1000, 0, swServer_enable_accept, serv);
+    if (serv->enable_accept_timer == nullptr)
+    {
+        return;
+    }
+
     LL_FOREACH(serv->listen_list, ls)
     {
         //UDP
@@ -49,8 +55,6 @@ static void swServer_disable_accept(swServer *serv)
         }
         swoole_event_del(ls->sock);
     }
-
-    swoole_timer_add(1000, 0, swServer_enable_accept, serv);
 }
 
 static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode)
@@ -66,6 +70,8 @@ static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode)
         }
         swoole_event_add(ls->sock, SW_EVENT_READ, SW_FD_STREAM_SERVER);
     }
+
+    serv->enable_accept_timer = nullptr;
 }
 
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port)
@@ -791,6 +797,25 @@ int swServer_create(swServer *serv)
     }
 }
 
+void swServer_clear_timer(swServer *serv)
+{
+    if (serv->master_timer)
+    {
+        swoole_timer_del(serv->master_timer);
+        serv->master_timer = nullptr;
+    }
+    if (serv->heartbeat_timer)
+    {
+        swoole_timer_del(serv->heartbeat_timer);
+        serv->heartbeat_timer = nullptr;
+    }
+    if (serv->enable_accept_timer)
+    {
+        swoole_timer_del(serv->enable_accept_timer);
+        serv->enable_accept_timer = nullptr;
+    }
+}
+
 int swServer_shutdown(swServer *serv)
 {
     serv->running = 0;
@@ -807,11 +832,7 @@ int swServer_shutdown(swServer *serv)
                 reactor->del(reactor, port->sock);
             }
         }
-        if (serv->master_timer)
-        {
-            swoole_timer_del(serv->master_timer);
-            serv->master_timer = NULL;
-        }
+        swServer_clear_timer(serv);
     }
     else
     {

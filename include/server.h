@@ -497,6 +497,7 @@ struct _swServer
     long timezone;
     swTimer_node *master_timer;
     swTimer_node *heartbeat_timer;
+    swTimer_node *enable_accept_timer;
 
     /* buffer output/input setting*/
     uint32_t buffer_output_size;
@@ -637,7 +638,7 @@ int swServer_add_worker(swServer *serv, swWorker *worker);
 int swServer_add_systemd_socket(swServer *serv);
 int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback func, int push_back);
 void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg);
-
+void swServer_clear_timer(swServer *serv);
 int swServer_create(swServer *serv);
 int swServer_shutdown(swServer *serv);
 
