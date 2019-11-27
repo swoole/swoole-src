@@ -28,6 +28,7 @@ static zend_fcall_info_cache *signal_fci_caches[SW_SIGNO_MAX] = {0};
 
 typedef struct
 {
+    zend_fcall_info_cache fcc;
     swWorker *worker;
     zend_object std;
 } process_t;
@@ -37,7 +38,22 @@ static sw_inline process_t* php_swoole_process_fetch_object(zend_object *obj)
     return (process_t *) ((char *) obj - swoole_process_handlers.offset);
 }
 
-static swWorker* php_swoole_process_get_worker(zval *zobject)
+zend_fcall_info_cache* php_swoole_process_get_and_check_fcc(zval *zobject)
+{
+    zend_fcall_info_cache *fcc = &php_swoole_process_fetch_object(Z_OBJ_P(zobject))->fcc;
+    if (!fcc)
+    {
+        php_swoole_fatal_error(E_ERROR, "you must call Process constructor first");
+    }
+    return fcc;
+}
+
+static sw_inline void php_swoole_process_set_fcc(zval *zobject, zend_fcall_info_cache *fcc)
+{
+    php_swoole_process_fetch_object(Z_OBJ_P(zobject))->fcc = *fcc;
+}
+
+static sw_inline swWorker* php_swoole_process_get_worker(zval *zobject)
 {
     return php_swoole_process_fetch_object(Z_OBJ_P(zobject))->worker;
 }
@@ -59,26 +75,30 @@ void php_swoole_process_set_worker(zval *zobject, swWorker *worker)
 
 static void php_swoole_process_free_object(zend_object *object)
 {
-    swWorker *worker = php_swoole_process_fetch_object(object)->worker;
+    process_t *process = php_swoole_process_fetch_object(object);
+    swWorker *worker = process->worker;
 
-    swPipe *_pipe = worker->pipe_object;
-    if (_pipe)
+    if (worker)
     {
-        _pipe->close(_pipe);
-        efree(_pipe);
-    }
+        swPipe *_pipe = worker->pipe_object;
+        if (_pipe)
+        {
+            _pipe->close(_pipe);
+            efree(_pipe);
+        }
 
-    if (worker->queue)
-    {
-        efree(worker->queue);
-    }
+        if (worker->queue)
+        {
+            efree(worker->queue);
+        }
 
-    zend::process *proc = (zend::process *) worker->ptr2;
-    if (proc)
-    {
-        delete proc;
+        zend::process *proc = (zend::process *) worker->ptr2;
+        if (proc)
+        {
+            delete proc;
+        }
+        efree(worker);
     }
-    efree(worker);
 
     zend_object_std_dtor(object);
 }
@@ -256,11 +276,12 @@ void php_swoole_process_minit(int module_number)
     zend_declare_class_constant_long(swoole_process_ce, ZEND_STRL("PIPE_WRITE"), SW_PIPE_CLOSE_WRITE);
 
     zend_declare_property_null(swoole_process_ce, ZEND_STRL("pipe"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_process_ce, ZEND_STRL("callback"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_process_ce, ZEND_STRL("msgQueueId"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_process_ce, ZEND_STRL("msgQueueKey"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_process_ce, ZEND_STRL("pid"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_process_ce, ZEND_STRL("id"), ZEND_ACC_PUBLIC);
+
+    zend_declare_property_null(swoole_process_ce, ZEND_STRL("callback"), ZEND_ACC_PRIVATE);
 
     /**
      * 31 signal constants
@@ -336,18 +357,18 @@ static PHP_METHOD(swoole_process, __construct)
         RETURN_FALSE;
     }
 
-    php_swoole_fci *func = (php_swoole_fci*) emalloc(sizeof(php_swoole_fci));
+    php_swoole_fci func;
     zend_bool redirect_stdin_and_stdout = 0;
     zend_long pipe_type = 2;
     zend_bool enable_coroutine = SW_FALSE;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
-        Z_PARAM_FUNC(func->fci, func->fci_cache);
+        Z_PARAM_FUNC(func.fci, func.fci_cache);
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(redirect_stdin_and_stdout)
         Z_PARAM_LONG(pipe_type)
         Z_PARAM_BOOL(enable_coroutine)
-    ZEND_PARSE_PARAMETERS_END_EX(efree(func); RETURN_FALSE);
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     process = (swWorker *) ecalloc(1, sizeof(swWorker));
 
@@ -379,7 +400,8 @@ static PHP_METHOD(swoole_process, __construct)
         int socket_type = pipe_type == zend::PIPE_TYPE_STREAM ? SOCK_STREAM : SOCK_DGRAM;
         if (swPipeUnsock_create(_pipe, 1, socket_type) < 0)
         {
-            efree(func);
+            zend_throw_exception(swoole_exception_ce, "swPipeUnsock_create failed", errno);
+            efree(_pipe);
             efree(process);
             RETURN_FALSE;
         }
@@ -392,9 +414,11 @@ static PHP_METHOD(swoole_process, __construct)
         zend_update_property_long(swoole_process_ce, ZEND_THIS, ZEND_STRL("pipe"), process->pipe_master);
     }
 
-    zend::process *proc = new zend::process(func, (enum zend::process_pipe_type) pipe_type, enable_coroutine);
+    zend::process *proc = new zend::process((enum zend::process_pipe_type) pipe_type, enable_coroutine);
     process->ptr2 = proc;
 
+    zend_update_property(swoole_process_ce, ZEND_THIS, ZEND_STRL("callback"), ZEND_CALL_ARG(execute_data, 1));
+    php_swoole_process_set_fcc(ZEND_THIS, &func.fci_cache);
     php_swoole_process_set_worker(ZEND_THIS, process);
 }
 
@@ -724,6 +748,9 @@ void php_swoole_process_clean()
 
 int php_swoole_process_start(swWorker *process, zval *zobject)
 {
+    zend_fcall_info_cache *fcc = php_swoole_process_get_and_check_fcc(zobject);
+    zend::process *proc = (zend::process *) process->ptr2;
+
     process->pipe = process->pipe_worker;
     process->pid = getpid();
 
@@ -758,15 +785,13 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
     zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pid"), process->pid);
     zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pipe"), process->pipe_worker);
 
-    zend::process *proc = (zend::process *) process->ptr2;
-
     //eventloop create
     if (proc->enable_coroutine && php_swoole_reactor_init() < 0)
     {
         return SW_ERR;
     }
     //main function
-    if (UNEXPECTED(!zend::function::call(&proc->fci->fci_cache, 1, zobject, NULL, proc->enable_coroutine)))
+    if (UNEXPECTED(!zend::function::call(fcc, 1, zobject, NULL, proc->enable_coroutine)))
     {
         php_swoole_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }

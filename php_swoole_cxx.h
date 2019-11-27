@@ -310,27 +310,15 @@ enum process_pipe_type
 class process
 {
 public:
-    php_swoole_fci *fci;
     zend_object *zsocket = nullptr;
     enum process_pipe_type pipe_type;
     bool enable_coroutine;
 
-    process(php_swoole_fci *fci, enum process_pipe_type pipe_type, bool enable_coroutine) :
-            fci(fci), pipe_type(pipe_type), enable_coroutine(enable_coroutine)
-    {
-        if (fci)
-        {
-            sw_zend_fci_cache_persist(&fci->fci_cache);
-        }
-    }
+    process(enum process_pipe_type pipe_type, bool enable_coroutine) :
+        pipe_type(pipe_type), enable_coroutine(enable_coroutine) { }
 
     ~process()
     {
-        if (fci)
-        {
-            sw_zend_fci_cache_discard(&fci->fci_cache);
-            efree(fci);
-        }
         if (zsocket)
         {
             OBJ_RELEASE(zsocket);
