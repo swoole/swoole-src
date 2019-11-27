@@ -1633,10 +1633,6 @@ struct _swReactor
     uint32_t once :1;
     uint32_t wait_exit :1;
     /**
-     * disable accept new connection
-     */
-    uint32_t disable_accept :1;
-    /**
      * callback signal
      */
     uint32_t check_signalfd :1;
@@ -1681,7 +1677,6 @@ struct _swReactor
     void (*onFinish)(swReactor *);
     void (*onBegin)(swReactor *);
 
-    void (*enable_accept)(swReactor *);
     int (*is_empty)(swReactor *);
 
     int (*write)(swReactor *, int, const void *, int);

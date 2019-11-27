@@ -23,7 +23,8 @@
 static int swServer_destory(swServer *serv);
 static int swServer_start_check(swServer *serv);
 static void swServer_signal_handler(int sig);
-static void swServer_disable_accept(swReactor *reactor);
+static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode);
+static void swServer_disable_accept(swServer *serv);
 static void swServer_master_update_time(swServer *serv);
 
 static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_t length);
@@ -35,10 +36,9 @@ static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd);
 
-static void swServer_disable_accept(swReactor *reactor)
+static void swServer_disable_accept(swServer *serv)
 {
     swListenPort *ls;
-    swServer *serv = (swServer *) reactor->ptr;
 
     LL_FOREACH(serv->listen_list, ls)
     {
@@ -47,23 +47,24 @@ static void swServer_disable_accept(swReactor *reactor)
         {
             continue;
         }
-        reactor->del(reactor, ls->sock);
+        swoole_event_del(ls->sock);
     }
+
+    swoole_timer_add(1000, 0, swServer_enable_accept, serv);
 }
 
-void swServer_enable_accept(swReactor *reactor)
+static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode)
 {
     swListenPort *ls;
-    swServer *serv = (swServer *) reactor->ptr;
+    swServer *serv = (swServer *) tnode->data;
 
     LL_FOREACH(serv->listen_list, ls)
     {
-        //UDP
-        if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
+        if (swSocket_is_dgram(ls->type))
         {
             continue;
         }
-        reactor->add(reactor, ls->sock, SW_FD_STREAM_SERVER);
+        swoole_event_add(ls->sock, SW_EVENT_READ, SW_FD_STREAM_SERVER);
     }
 }
 
@@ -103,8 +104,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             default:
                 if (errno == EMFILE || errno == ENFILE)
                 {
-                    swServer_disable_accept(reactor);
-                    reactor->disable_accept = 1;
+                    swServer_disable_accept(serv);
                 }
                 swSysWarn("accept() failed");
                 return SW_OK;
