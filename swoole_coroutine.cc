@@ -941,8 +941,8 @@ static PHP_METHOD(swoole_exit_exception, getStatus)
 
 PHP_FUNCTION(swoole_coroutine_create)
 {
-    zend_fcall_info fci = empty_fcall_info;
-    zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
 
     ZEND_PARSE_PARAMETERS_START(1, -1)
         Z_PARAM_FUNC(fci, fci_cache)
@@ -972,8 +972,8 @@ PHP_FUNCTION(swoole_coroutine_create)
 
 PHP_FUNCTION(swoole_coroutine_defer)
 {
-    zend_fcall_info fci = empty_fcall_info;
-    zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
     php_swoole_fci *defer_fci;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)

@@ -407,7 +407,7 @@ static PHP_METHOD(swoole_http_server_coro, start)
 
     auto sock = hs->socket;
     char *func_name = NULL;
-    zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
+    zend_fcall_info_cache fci_cache;
     zval zcallback;
     ZVAL_STRING(&zcallback, "onAccept");
 
