@@ -1211,9 +1211,19 @@ static PHP_METHOD(swoole_http_response, push)
 
     swString *http_buffer = http_get_write_buffer(ctx);
     swString_clear(http_buffer);
-    if (php_swoole_websocket_frame_pack(http_buffer, EX_NUM_ARGS(), zdata, opcode, flags & SW_WEBSOCKET_FLAGS_ALL, 0, ctx->websocket_compression) < 0)
+    if (php_swoole_websocket_frame_is_object(zdata))
     {
-        RETURN_FALSE;
+        if (php_swoole_websocket_frame_object_pack(http_buffer, zdata, 0, ctx->websocket_compression) < 0)
+        {
+            RETURN_FALSE;
+        }
+    }
+    else
+    {
+        if (php_swoole_websocket_frame_pack(http_buffer, zdata, opcode, flags & SW_WEBSOCKET_FLAGS_ALL, 0, ctx->websocket_compression) < 0)
+        {
+            RETURN_FALSE;
+        }
     }
     RETURN_BOOL(ctx->send(ctx, http_buffer->str, http_buffer->length));
 }

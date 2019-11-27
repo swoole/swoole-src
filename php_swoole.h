@@ -237,6 +237,7 @@ extern zend_class_entry *swoole_process_ce;
 extern zend_class_entry *swoole_http_server_ce;
 extern zend_object_handlers swoole_http_server_handlers;
 extern zend_class_entry *swoole_websocket_server_ce;
+extern zend_class_entry *swoole_websocket_frame_ce;
 extern zend_class_entry *swoole_server_port_ce;
 extern zend_class_entry *swoole_exception_ce;
 extern zend_object_handlers swoole_exception_handlers;
@@ -355,7 +356,14 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset);
 #ifdef SW_USE_OPENSSL
 void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset);
 #endif
-int php_swoole_websocket_frame_pack(swString *buffer, uint32_t argc, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress);
+
+static sw_inline zend_bool php_swoole_websocket_frame_is_object(zval *zdata)
+{
+    return Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_ce);
+}
+
+int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress);
+int php_swoole_websocket_frame_object_pack(swString *buffer, zval *zdata, zend_bool mask, zend_bool allow_compress);
 void php_swoole_websocket_frame_unpack(swString *data, zval *zframe);
 void php_swoole_websocket_frame_unpack_ex(swString *data, zval *zframe, uchar allow_uncompress);
 
