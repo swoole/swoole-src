@@ -40,7 +40,7 @@ static void swServer_disable_accept(swServer *serv)
 {
     swListenPort *ls;
 
-    serv->enable_accept_timer = swoole_timer_add(1000, 0, swServer_enable_accept, serv);
+    serv->enable_accept_timer = swoole_timer_add(SW_ACCEPT_RETRY_TIME * 1000, 0, swServer_enable_accept, serv);
     if (serv->enable_accept_timer == nullptr)
     {
         return;
