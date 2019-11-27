@@ -805,8 +805,6 @@ int swReactorThread_start(swServer *serv)
     }
 
     swReactor *reactor = SwooleTG.reactor;
-    reactor->disable_accept = 0;
-    reactor->enable_accept = swServer_enable_accept;
 
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd)

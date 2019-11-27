@@ -454,7 +454,7 @@ static PHP_METHOD(swoole_http_server_coro, start)
              */
             if (sock->errCode == EMFILE || sock->errCode == ENFILE)
             {
-                _wait_1s: System::sleep(1.0);
+                _wait_1s: System::sleep(SW_ACCEPT_RETRY_TIME);
             }
             else if (sock->errCode == ETIMEDOUT)
             {

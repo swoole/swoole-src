@@ -529,17 +529,7 @@ void swWorker_stop(swWorker *worker)
                 swReactor_remove_read_event(reactor, fd);
             }
         }
-        //clear timer
-        if (serv->master_timer)
-        {
-            swoole_timer_del(serv->master_timer);
-            serv->master_timer = NULL;
-        }
-        if (serv->heartbeat_timer)
-        {
-            swoole_timer_del(serv->heartbeat_timer);
-            serv->heartbeat_timer = NULL;
-        }
+        swServer_clear_timer(serv);
         goto _try_to_exit;
     }
 

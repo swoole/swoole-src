@@ -151,6 +151,7 @@
  * max accept times for single time
  */
 #define SW_ACCEPT_MAX_COUNT              64
+#define SW_ACCEPT_RETRY_TIME             1.0
 
 #define SW_TCP_KEEPCOUNT                 5
 #define SW_TCP_KEEPIDLE                  3600 // 1 hour

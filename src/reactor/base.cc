@@ -202,12 +202,6 @@ static void reactor_finish(swReactor *reactor)
 static void reactor_timeout(swReactor *reactor)
 {
     reactor_finish(reactor);
-
-    if (reactor->disable_accept)
-    {
-        reactor->enable_accept(reactor);
-        reactor->disable_accept = 0;
-    }
 }
 
 void swReactor_activate_future_task(swReactor *reactor)
