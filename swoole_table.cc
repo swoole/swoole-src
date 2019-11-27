@@ -463,6 +463,7 @@ static PHP_METHOD(swoole_table, destroy)
     swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
 
     swTable_free(table);
+    php_swoole_table_set_ptr(ZEND_THIS, nullptr);
     RETURN_TRUE;
 }
 
@@ -797,8 +798,13 @@ static PHP_METHOD(swoole_table, count)
     #define COUNT_NORMAL            0
     #define COUNT_RECURSIVE         1
 
-    swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
-    long mode = COUNT_NORMAL;
+    swTable *table = php_swoole_table_get_ptr(ZEND_THIS);
+    if (!table)
+    {
+        RETURN_LONG(0);
+    }
+
+    zend_long mode = COUNT_NORMAL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &mode) == FAILURE)
     {
