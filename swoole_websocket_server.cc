@@ -178,52 +178,14 @@ void php_swoole_websocket_frame_unpack(swString *data, zval *zframe)
     return php_swoole_websocket_frame_unpack_ex(data, zframe, 0);
 }
 
-int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opcode, uint8_t flags)
+static sw_inline int php_swoole_websocket_frame_pack_ex(
+    swString *buffer,
+    zval *zdata, zend_long opcode, zend_long code, uint8_t flags,
+    zend_bool mask, zend_bool allow_compress
+)
 {
     char *data = NULL;
     size_t length = 0;
-    zend_long code = WEBSOCKET_CLOSE_NORMAL;
-
-    if (Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_ce))
-    {
-        zval *zframe = zdata;
-        zval *ztmp = NULL;
-        zdata = NULL;
-        if ((ztmp = sw_zend_read_property(swoole_websocket_frame_ce, zframe, ZEND_STRL("opcode"), 0)))
-        {
-            opcode = zval_get_long(ztmp);
-        }
-        if (opcode == WEBSOCKET_OPCODE_CLOSE)
-        {
-            if ((ztmp = sw_zend_read_property_not_null(swoole_websocket_frame_ce, zframe, ZEND_STRL("code"), 1)))
-            {
-                code = zval_get_long(ztmp);
-            }
-            if ((ztmp = sw_zend_read_property_not_null(swoole_websocket_frame_ce, zframe, ZEND_STRL("reason"), 1)))
-            {
-                zdata = ztmp;
-            }
-        }
-        if (!zdata && (ztmp = sw_zend_read_property(swoole_websocket_frame_ce, zframe, ZEND_STRL("data"), 0)))
-        {
-            zdata = ztmp;
-        }
-        if ((ztmp = sw_zend_read_property(swoole_websocket_frame_ce, zframe, ZEND_STRL("flags"), 0)))
-        {
-            flags = zval_get_long(ztmp) & SW_WEBSOCKET_FLAGS_ALL;
-        }
-        if ((ztmp = sw_zend_read_property_not_null(swoole_websocket_frame_ce, zframe, ZEND_STRL("finish"), 0)))
-        {
-            if (zval_is_true(ztmp))
-            {
-                flags |= SW_WEBSOCKET_FLAG_FIN;
-            }
-            else
-            {
-                flags &= ~SW_WEBSOCKET_FLAG_FIN;
-            }
-        }
-    }
 
     if (sw_unlikely(opcode > SW_WEBSOCKET_OPCODE_MAX))
     {
@@ -239,15 +201,27 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
         length = str_zdata.len();
     }
 
-#ifdef SW_HAVE_ZLIB
-    if ((flags & SW_WEBSOCKET_FLAG_COMPRESS) && length > 0)
+    if (mask)
     {
-        swString_clear(swoole_zlib_buffer);
-        if (websocket_message_compress(swoole_zlib_buffer, data, length, Z_DEFAULT_COMPRESSION))
+        flags |= SW_WEBSOCKET_FLAG_MASK;
+    }
+
+#ifdef SW_HAVE_ZLIB
+    if (flags & SW_WEBSOCKET_FLAG_COMPRESS)
+    {
+        if (!allow_compress)
         {
-            data = swoole_zlib_buffer->str;
-            length = swoole_zlib_buffer->length;
-            flags |= SW_WEBSOCKET_FLAG_RSV1;
+            flags ^= SW_WEBSOCKET_FLAG_COMPRESS;
+        }
+        else if (length > 0)
+        {
+            swString_clear(swoole_zlib_buffer);
+            if (websocket_message_compress(swoole_zlib_buffer, data, length, Z_DEFAULT_COMPRESSION))
+            {
+                data = swoole_zlib_buffer->str;
+                length = swoole_zlib_buffer->length;
+                flags |= SW_WEBSOCKET_FLAG_RSV1;
+            }
         }
     }
 #endif
@@ -260,6 +234,58 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
         swWebSocket_encode(buffer, data, length, opcode, flags);
     }
     return SW_OK;
+}
+
+int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress)
+{
+    return php_swoole_websocket_frame_pack_ex(buffer, zdata, opcode, WEBSOCKET_CLOSE_NORMAL, flags, mask, allow_compress);
+}
+
+int php_swoole_websocket_frame_object_pack(swString *buffer, zval *zdata, zend_bool mask, zend_bool allow_compress)
+{
+    zval *zframe = zdata;
+    zend_long opcode = WEBSOCKET_OPCODE_TEXT;
+    zend_long code = WEBSOCKET_CLOSE_NORMAL;
+    zend_long flags = SW_WEBSOCKET_FLAG_FIN;
+    zval *ztmp = NULL;
+
+    zdata = NULL;
+    if ((ztmp = sw_zend_read_property(swoole_websocket_frame_ce, zframe, ZEND_STRL("opcode"), 0)))
+    {
+        opcode = zval_get_long(ztmp);
+    }
+    if (opcode == WEBSOCKET_OPCODE_CLOSE)
+    {
+        if ((ztmp = sw_zend_read_property_not_null(swoole_websocket_frame_ce, zframe, ZEND_STRL("code"), 1)))
+        {
+            code = zval_get_long(ztmp);
+        }
+        if ((ztmp = sw_zend_read_property_not_null(swoole_websocket_frame_ce, zframe, ZEND_STRL("reason"), 1)))
+        {
+            zdata = ztmp;
+        }
+    }
+    if (!zdata && (ztmp = sw_zend_read_property(swoole_websocket_frame_ce, zframe, ZEND_STRL("data"), 0)))
+    {
+        zdata = ztmp;
+    }
+    if ((ztmp = sw_zend_read_property(swoole_websocket_frame_ce, zframe, ZEND_STRL("flags"), 0)))
+    {
+        flags = zval_get_long(ztmp) & SW_WEBSOCKET_FLAGS_ALL;
+    }
+    if ((ztmp = sw_zend_read_property_not_null(swoole_websocket_frame_ce, zframe, ZEND_STRL("finish"), 0)))
+    {
+        if (zval_is_true(ztmp))
+        {
+            flags |= SW_WEBSOCKET_FLAG_FIN;
+        }
+        else
+        {
+            flags &= ~SW_WEBSOCKET_FLAG_FIN;
+        }
+    }
+
+    return php_swoole_websocket_frame_pack_ex(buffer, zdata, opcode, code, flags & SW_WEBSOCKET_FLAGS_ALL, mask, allow_compress);
 }
 
 void swoole_websocket_onOpen(swServer *serv, http_context *ctx)
@@ -823,6 +849,7 @@ static PHP_METHOD(swoole_websocket_server, push)
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
     zval *zflags = NULL;
     zend_long flags = SW_WEBSOCKET_FLAG_FIN;
+    zend_bool allow_compress = 0;
 
     ZEND_PARSE_PARAMETERS_START(2, 4)
         Z_PARAM_LONG(fd)
@@ -838,24 +865,28 @@ static PHP_METHOD(swoole_websocket_server, push)
     }
 
 #ifdef SW_HAVE_ZLIB
-    if (flags & SW_WEBSOCKET_FLAG_COMPRESS)
+    swConnection *conn = swServer_connection_verify(serv, fd);
+    if (!conn)
     {
-        swConnection *conn = swServer_connection_verify(serv, fd);
-        if (!conn)
-        {
-            RETURN_FALSE;
-        }
-        if (!conn->websocket_compression)
-        {
-            flags ^= SW_WEBSOCKET_FLAG_COMPRESS;
-        }
+        RETURN_FALSE;
     }
+    allow_compress = conn->websocket_compression;
 #endif
 
     swString_clear(swoole_http_buffer);
-    if (php_swoole_websocket_frame_pack(swoole_http_buffer, zdata, opcode, flags & SW_WEBSOCKET_FLAGS_ALL) < 0)
+    if (php_swoole_websocket_frame_is_object(zdata))
     {
-        RETURN_FALSE;
+        if (php_swoole_websocket_frame_object_pack(swoole_http_buffer, zdata, 0, allow_compress) < 0)
+        {
+            RETURN_FALSE;
+        }
+    }
+    else
+    {
+        if (php_swoole_websocket_frame_pack(swoole_http_buffer, zdata, opcode, flags & SW_WEBSOCKET_FLAGS_ALL, 0, allow_compress) < 0)
+        {
+            RETURN_FALSE;
+        }
     }
 
     switch (opcode)
@@ -889,30 +920,33 @@ static PHP_METHOD(swoole_websocket_server, pack)
     }
 
     swString_clear(buffer);
-    if (php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags & SW_WEBSOCKET_FLAGS_ALL) < 0)
+    if (php_swoole_websocket_frame_is_object(zdata))
     {
-        RETURN_EMPTY_STRING();
+        if (php_swoole_websocket_frame_object_pack(buffer, zdata, 0, 1) < 0)
+        {
+            RETURN_EMPTY_STRING();
+        }
     }
     else
     {
-        RETVAL_STRINGL(buffer->str, buffer->length);
+        if (php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags & SW_WEBSOCKET_FLAGS_ALL, 0, 1) < 0)
+        {
+            RETURN_EMPTY_STRING();
+        }
     }
+    RETURN_STRINGL(buffer->str, buffer->length);
 }
 
 static PHP_METHOD(swoole_websocket_frame, __toString)
 {
     swString *buffer = SwooleTG.buffer_stack;
-    zval *zdata = ZEND_THIS;
 
     swString_clear(buffer);
-    if (php_swoole_websocket_frame_pack(buffer, zdata, WEBSOCKET_OPCODE_TEXT, SW_WEBSOCKET_FLAG_FIN) < 0)
+    if (php_swoole_websocket_frame_object_pack(buffer, ZEND_THIS, 0, 1) < 0)
     {
         RETURN_EMPTY_STRING();
     }
-    else
-    {
-        RETVAL_STRINGL(buffer->str, buffer->length);
-    }
+    RETURN_STRINGL(buffer->str, buffer->length);
 }
 
 static PHP_METHOD(swoole_websocket_server, unpack)
@@ -937,12 +971,6 @@ static PHP_METHOD(swoole_websocket_server, isEstablished)
     }
 
     zend_long fd;
-
-    if (sw_unlikely(!serv->gs->start))
-    {
-        php_error_docref(NULL, E_WARNING, "the server is not running");
-        RETURN_FALSE;
-    }
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &fd) == FAILURE)
     {

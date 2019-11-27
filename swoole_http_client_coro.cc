@@ -1492,22 +1492,20 @@ bool http_client::push(zval *zdata, zend_long opcode, uint8_t flags)
     }
 
     swString *buffer = socket->get_write_buffer();
-
-    if (websocket_mask)
-    {
-        flags |= SW_WEBSOCKET_FLAG_MASK;
-    }
-#ifdef SW_HAVE_ZLIB
-    if ((flags & SW_WEBSOCKET_FLAG_COMPRESS) && !websocket_compression)
-    {
-        flags ^= SW_WEBSOCKET_FLAG_COMPRESS;
-    }
-#endif
-
     swString_clear(buffer);
-    if (php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags) < 0)
+    if (php_swoole_websocket_frame_is_object(zdata))
     {
-        return false;
+        if (php_swoole_websocket_frame_object_pack(buffer, zdata, websocket_mask, websocket_compression) < 0)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        if (php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags, websocket_mask, websocket_compression) < 0)
+        {
+            return false;
+        }
     }
 
     if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length)

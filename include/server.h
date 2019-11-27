@@ -961,11 +961,7 @@ static sw_inline swConnection *swServer_connection_verify(swServer *serv, int se
 {
     swConnection *conn = swServer_connection_verify_no_ssl(serv, session_id);
 #ifdef SW_USE_OPENSSL
-    if (!conn)
-    {
-        return NULL;
-    }
-    if (conn->ssl && !conn->ssl_ready)
+    if (conn && conn->ssl && !conn->ssl_ready)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SSL_NOT_READY, "SSL not ready");
         return NULL;
