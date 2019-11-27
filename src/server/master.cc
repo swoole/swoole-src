@@ -1828,8 +1828,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     {
         swServer_set_maxfd(serv, fd);
     }
-
-    if (fd < swServer_get_minfd(serv))
+    else if (fd < swServer_get_minfd(serv))
     {
         swServer_set_minfd(serv, fd);
     }
