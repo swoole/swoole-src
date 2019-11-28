@@ -174,6 +174,7 @@ public:
 
     http2_stream(int _fd, uint32_t _id);
     ~http2_stream();
+
     void reset(uint32_t error_code);
 };
 

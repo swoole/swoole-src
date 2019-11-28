@@ -41,7 +41,10 @@ http2_stream::http2_stream(int _fd, uint32_t _id)
 
 http2_stream::~http2_stream()
 {
-    swoole_http_context_free(ctx);
+    if (ctx)
+    {
+        swoole_http_context_free(ctx);
+    }
 }
 
 void http2_stream::reset(uint32_t error_code)
@@ -299,8 +302,6 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     ret = swoole_itoa(intbuf[1], body_length);
     headers.add(ZEND_STRL("content-length"), intbuf[1], ret);
 
-    ctx->send_header = 1;
-
     http2_session *client = http2_sessions[ctx->fd];
     nghttp2_hd_deflater *deflater = client->deflater;
     if (!deflater)
@@ -329,6 +330,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
         return -1;
     }
 
+    ctx->send_header = 1;
     return rv;
 }
 
@@ -379,7 +381,7 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
      */
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("trailer"), 0);
-    if (!ZVAL_IS_ARRAY(ztrailer))
+    if (php_swoole_array_length_safe(ztrailer) == 0)
     {
         ztrailer = NULL;
     }
@@ -408,7 +410,9 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
         return SW_ERR;
     }
 
-    ctx->send_header = 1;
+    /* if send body failed, retries are no longer allowed */
+    ctx->end = 1;
+
     if (!ztrailer && body->length == 0)
     {
         goto _end;
@@ -451,6 +455,7 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
 
         if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
         {
+            ctx->close(ctx);
             return SW_ERR;
         }
         else
@@ -472,6 +477,7 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
             swString_append_ptr(swoole_http_buffer, header_buffer, ret);
             if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
             {
+                ctx->close(ctx);
                 return SW_ERR;
             }
         }
@@ -716,8 +722,7 @@ int swoole_http2_server_parse(http2_session *client, const char *buf)
             stream = new http2_stream(client->fd, stream_id);
             if (sw_unlikely(!stream->ctx))
             {
-                swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER,
-                        "http2 create stream#%d context error", stream_id);
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 create stream#%d context error", stream_id);
                 return SW_ERR;
             }
             ctx = stream->ctx;

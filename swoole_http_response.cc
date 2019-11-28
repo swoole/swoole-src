@@ -129,7 +129,15 @@ static void php_swoole_http_response_free_object(zend_object *object)
             {
                 ctx->response.status = 500;
             }
-            if (ctx->co_socket)
+
+            if (0) { }
+#ifdef SW_USE_HTTP2
+            else if (ctx->stream)
+            {
+                swoole_http2_response_end(ctx, nullptr, &ztmp);
+            }
+#endif
+            else if (ctx->co_socket)
             {
                 swoole_http_response_end(ctx, nullptr, &ztmp);
             }
@@ -137,21 +145,18 @@ static void php_swoole_http_response_free_object(zend_object *object)
             {
                 swServer *serv = (swServer *) ctx->private_data;
                 swConnection *conn = swWorker_get_connection(serv, ctx->fd);
-                if (!conn || conn->closed || conn->peer_closed || ctx->detached)
+                if (conn && !conn->closed && !conn->peer_closed && !ctx->detached)
                 {
-                    swoole_http_context_free(ctx);
-                    ctx = nullptr;
-                }
-                else
-                {
-                    swoole_http_response_end(ctx, nullptr, &ztmp);
+#ifdef SW_USE_HTTP2
+                    if (!conn->http2_stream)
+#endif
+                    {
+                        swoole_http_response_end(ctx, nullptr, &ztmp);
+                    }
                 }
             }
         }
-        if (ctx)
-        {
-            swoole_http_context_free(ctx);
-        }
+        swoole_http_context_free(ctx);
     }
     zend_object_std_dtor(&response->std);
 }
@@ -874,6 +879,25 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
 
 static PHP_METHOD(swoole_http_response, sendfile)
 {
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
+    if (UNEXPECTED(!ctx))
+    {
+        RETURN_FALSE;
+    }
+
+    if (ctx->chunk)
+    {
+        php_swoole_fatal_error(E_ERROR, "can't use sendfile when Http-Chunk is enabled");
+        RETURN_FALSE;
+    }
+#ifdef SW_USE_HTTP2
+    if (ctx->stream)
+    {
+        php_swoole_fatal_error(E_WARNING, "can't use sendfile when http2 connection is established");
+        RETURN_FALSE;
+    }
+#endif
+
     char *file;
     size_t l_file;
     zend_long offset = 0;
@@ -883,25 +907,10 @@ static PHP_METHOD(swoole_http_response, sendfile)
     {
         RETURN_FALSE;
     }
-    if (l_file <= 0)
+
+    if (l_file == 0)
     {
         php_swoole_error(E_WARNING, "file name is empty");
-        RETURN_FALSE;
-    }
-
-    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS, 0);
-    if (UNEXPECTED(!ctx))
-    {
-        RETURN_FALSE;
-    }
-
-#ifdef SW_HAVE_COMPRESSION
-    ctx->accept_compression = 0;
-#endif
-
-    if (ctx->chunk)
-    {
-        php_swoole_fatal_error(E_ERROR, "can't use sendfile when Http-Chunk is enabled");
         RETURN_FALSE;
     }
 
@@ -931,28 +940,36 @@ static PHP_METHOD(swoole_http_response, sendfile)
         length = file_stat.st_size - offset;
     }
 
-    swString *http_buffer = http_get_write_buffer(ctx);
+#ifdef SW_HAVE_COMPRESSION
+    ctx->accept_compression = 0;
+#endif
 
-    swString_clear(http_buffer);
-
-    zval *zheader = sw_zend_read_and_convert_property_array(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
-    if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("Content-Type")))
+    if (ctx->send_header)
     {
-        add_assoc_string(zheader, "Content-Type", (char *) swoole_mime_type_get(file));
+        swString *http_buffer = http_get_write_buffer(ctx);
+
+        swString_clear(http_buffer);
+
+        zval *zheader = sw_zend_read_and_convert_property_array(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
+        if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("Content-Type")))
+        {
+            add_assoc_string(zheader, "Content-Type", (char *) swoole_mime_type_get(file));
+        }
+
+        http_build_header(ctx, http_buffer, length);
+
+        if (!ctx->send(ctx, http_buffer->str, http_buffer->length))
+        {
+            ctx->send_header = 0;
+            RETURN_FALSE;
+        }
     }
 
-    http_build_header(ctx, http_buffer, length);
-
-    if (!ctx->send(ctx, http_buffer->str, http_buffer->length))
-    {
-        ctx->send_header = 0;
-        RETURN_FALSE;
-    }
     if (!ctx->sendfile(ctx, file, l_file, offset, length))
     {
-        ctx->send_header = 0;
         RETURN_FALSE;
     }
+
     if (!ctx->keepalive)
     {
         ctx->close(ctx);

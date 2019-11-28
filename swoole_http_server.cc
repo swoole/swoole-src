@@ -252,6 +252,13 @@ void swoole_http_context_free(http_context *ctx)
         php_swoole_http_request_set_context(ctx->request.zobject, NULL);
     }
     php_swoole_http_response_set_context(ctx->response.zobject, NULL);
+#ifdef SW_USE_HTTP2
+    if (ctx->stream)
+    {
+        ((http2_stream *) ctx->stream)->ctx = nullptr;
+    }
+#endif
+
     http_request *req = &ctx->request;
     http_response *res = &ctx->response;
     if (req->path)
