@@ -118,7 +118,6 @@ struct http_context
 #endif
     uint32_t chunk :1;
     uint32_t keepalive :1;
-    uint32_t http2 :1;
     uint32_t websocket :1;
 #ifdef SW_HAVE_ZLIB
     uint32_t websocket_compression :1;
@@ -162,6 +161,7 @@ struct http_context
     bool (*close)(http_context* ctx);
 };
 
+#ifdef SW_USE_HTTP2
 class http2_stream
 {
 public:
@@ -201,6 +201,7 @@ public:
     http2_session(int _fd);
     ~http2_session();
 };
+#endif
 
 extern zend_class_entry *swoole_http_server_ce;
 extern zend_class_entry *swoole_http_request_ce;
