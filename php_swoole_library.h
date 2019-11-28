@@ -4,16 +4,7 @@
 
 static const char* swoole_library_source_constants =
     "\n"
-    "define('SWOOLE_LIBRARY', true);\n"
-    "define('SWOOLE_USE_SHORTNAME',\n"
-    "    !in_array(\n"
-    "        strtolower(trim(str_replace('0', '',\n"
-    "            ini_get_all('swoole')['swoole.use_shortname']['local_value']\n"
-    "        ))),\n"
-    "        ['', 'off', 'false'],\n"
-    "        true\n"
-    "    )\n"
-    ");\n";
+    "define('SWOOLE_LIBRARY', true);\n";
 
 static const char* swoole_library_source_std_exec =
     "\n"

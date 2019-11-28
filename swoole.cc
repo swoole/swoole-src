@@ -246,6 +246,8 @@ PHP_MINIT_FUNCTION(swoole)
     SW_REGISTER_BOOL_CONSTANT("SWOOLE_USE_HTTP2", 1);
 #endif
 
+    SW_REGISTER_BOOL_CONSTANT("SWOOLE_USE_SHORTNAME", SWOOLE_G(use_shortname));
+
     /**
      * mode type
      */
