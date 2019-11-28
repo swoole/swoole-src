@@ -1914,7 +1914,7 @@ static const char* swoole_library_source_core_curl_handler =
     "            $this->info['request_header'] = $headerOutContent ? $headerOutContent . \"\\r\\n\\r\\n\" : '';\n"
     "        }\n"
     "        if ($this->withFileTime) {\n"
-    "            if (!empty($client->headers['last-modified'])) {\n"
+    "            if (isset($client->headers['last-modified'])) {\n"
     "                $this->info['filetime'] = strtotime($client->headers['last-modified']);\n"
     "            } else {\n"
     "                $this->info['filetime'] = -1;\n"
