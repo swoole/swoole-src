@@ -104,7 +104,7 @@ function skip_if_file_not_exist(string $filename)
 
 function skip_if_command_not_found(string $command)
 {
-    skip("command {$command} not found", `{$command} --help | grep -i usage`);
+    skip("command {$command} not found", empty(`{$command} --help | grep -i usage`));
 }
 
 function skip_if_no_ssl()
