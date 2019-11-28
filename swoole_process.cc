@@ -28,7 +28,6 @@ static zend_fcall_info_cache *signal_fci_caches[SW_SIGNO_MAX] = {0};
 
 typedef struct
 {
-    zend_fcall_info_cache fcc;
     swWorker *worker;
     zend_object std;
 } process_t;
@@ -36,21 +35,6 @@ typedef struct
 static sw_inline process_t* php_swoole_process_fetch_object(zend_object *obj)
 {
     return (process_t *) ((char *) obj - swoole_process_handlers.offset);
-}
-
-zend_fcall_info_cache* php_swoole_process_get_and_check_fcc(zval *zobject)
-{
-    zend_fcall_info_cache *fcc = &php_swoole_process_fetch_object(Z_OBJ_P(zobject))->fcc;
-    if (!fcc)
-    {
-        php_swoole_fatal_error(E_ERROR, "you must call Process constructor first");
-    }
-    return fcc;
-}
-
-static sw_inline void php_swoole_process_set_fcc(zval *zobject, zend_fcall_info_cache *fcc)
-{
-    php_swoole_process_fetch_object(Z_OBJ_P(zobject))->fcc = *fcc;
 }
 
 static sw_inline swWorker* php_swoole_process_get_worker(zval *zobject)
@@ -418,7 +402,6 @@ static PHP_METHOD(swoole_process, __construct)
     process->ptr2 = proc;
 
     zend_update_property(swoole_process_ce, ZEND_THIS, ZEND_STRL("callback"), ZEND_CALL_ARG(execute_data, 1));
-    php_swoole_process_set_fcc(ZEND_THIS, &func.fci_cache);
     php_swoole_process_set_worker(ZEND_THIS, process);
 }
 
@@ -748,7 +731,15 @@ void php_swoole_process_clean()
 
 int php_swoole_process_start(swWorker *process, zval *zobject)
 {
-    zend_fcall_info_cache *fcc = php_swoole_process_get_and_check_fcc(zobject);
+    zval *zcallback = sw_zend_read_property(swoole_process_ce, zobject, ZEND_STRL("callback"), 0);
+    zend_fcall_info_cache fci_cache;
+
+    if (!sw_zend_is_callable_ex(zcallback, NULL, 0, NULL, 0, &fci_cache, NULL))
+    {
+        php_swoole_fatal_error(E_ERROR, "Illegal callback function of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        return SW_ERR;
+    }
+
     zend::process *proc = (zend::process *) process->ptr2;
 
     process->pipe = process->pipe_worker;
@@ -791,7 +782,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
         return SW_ERR;
     }
     //main function
-    if (UNEXPECTED(!zend::function::call(fcc, 1, zobject, NULL, proc->enable_coroutine)))
+    if (UNEXPECTED(!zend::function::call(&fci_cache, 1, zobject, NULL, proc->enable_coroutine)))
     {
         php_swoole_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
