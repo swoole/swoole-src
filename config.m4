@@ -26,16 +26,16 @@ PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets          Do you have sockets extension?], no, no)
 
 PHP_ARG_ENABLE(openssl, enable openssl support,
-[  --enable-openssl          Use openssl?], no, no)
+[  --enable-openssl          Use openssl], no, no)
 
 PHP_ARG_ENABLE(http2, enable http2.0 support,
-[  --enable-http2            Use http2.0?], no, no)
+[  --enable-http2            Use http2.0], no, no)
 
 PHP_ARG_ENABLE(swoole, swoole support,
 [  --enable-swoole           Enable swoole support], [enable_swoole="yes"])
 
 PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
-[  --enable-mysqlnd          Do you have mysqlnd?], no, no)
+[  --enable-mysqlnd          Enable mysqlnd], no, no)
 
 PHP_ARG_WITH(openssl_dir, dir of openssl,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
@@ -396,7 +396,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
-    if test "$PHP_HTTP2" = "yes" || test "$PHP_NGHTTP2_DIR" != "no"; then
+    if test "$PHP_HTTP2" = "yes"; then
         AC_DEFINE(SW_USE_HTTP2, 1, [enable HTTP2 support])
     fi
 
