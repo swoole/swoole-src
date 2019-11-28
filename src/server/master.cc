@@ -117,7 +117,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             }
         }
 
-        swTrace("[Master] Accept new connection. maxfd=%d|reactor_id=%d|conn=%d", swServer_get_maxfd(serv), reactor->id, new_fd);
+        swTrace("[Master] Accept new connection. maxfd=%d|minfd=%d|reactor_id=%d|conn=%d", swServer_get_maxfd(serv), swServer_get_minfd(serv), reactor->id, new_fd);
 
         //too many connection
         if (new_fd >= (int) serv->max_connection)
@@ -1827,6 +1827,10 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     if (fd > swServer_get_maxfd(serv))
     {
         swServer_set_maxfd(serv, fd);
+    }
+    else if (fd < swServer_get_minfd(serv))
+    {
+        swServer_set_minfd(serv, fd);
     }
 
     connection = &(serv->connection_list[fd]);
