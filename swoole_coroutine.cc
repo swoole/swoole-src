@@ -140,10 +140,10 @@ bool PHPCoroutine::active = false;
 swoole::coroutine::Config PHPCoroutine::config =
 {
     SW_DEFAULT_MAX_CORO_NUM,
-    false,
+    0,
     /* TODO: enable hook in v5.0.0 */
     // SW_HOOK_ALL
-    0,
+    false,
 };
 
 php_coro_task PHPCoroutine::main_task = {0};
