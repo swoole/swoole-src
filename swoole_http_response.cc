@@ -781,6 +781,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
                 }
                 if (!ctx->send(ctx, send_body_str, send_body_len))
                 {
+                    ctx->end = 1;
                     ctx->close(ctx);
                     RETURN_FALSE;
                 }
@@ -791,7 +792,8 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
 
         if (!ctx->send(ctx, http_buffer->str, http_buffer->length))
         {
-            ctx->send_header = 0;
+            ctx->end = 1;
+            ctx->close(ctx);
             RETURN_FALSE;
         }
     }
