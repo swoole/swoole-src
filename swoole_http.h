@@ -213,10 +213,6 @@ extern swString *swoole_http_form_data_buffer;
 extern swString *swoole_zlib_buffer;
 #endif
 
-#define http_strncasecmp(const_str, at, length) \
-    ((length >= sizeof(const_str)-1) && \
-    (strncasecmp(at, ZEND_STRL(const_str)) == 0))
-
 http_context* swoole_http_context_new(int fd);
 http_context* php_swoole_http_request_get_and_check_context(zval *zobject);
 http_context* php_swoole_http_response_get_and_check_context(zval *zobject);

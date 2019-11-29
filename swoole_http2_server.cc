@@ -223,19 +223,19 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
             zend::string str_value(zvalue);
             char *c_key = ZSTR_VAL(key);
             size_t c_keylen = ZSTR_LEN(key);
-            if (strncmp("server", c_key, c_keylen) == 0)
+            if (SW_STREQ(c_key, c_keylen, "server"))
             {
                 header_flag |= HTTP_HEADER_SERVER;
             }
-            else if (strncmp("content-length", c_key, c_keylen) == 0)
+            else if (SW_STREQ(c_key, c_keylen, "content-length"))
             {
                 continue; // ignore
             }
-            else if (strncmp("date", c_key, c_keylen) == 0)
+            else if (SW_STREQ(c_key, c_keylen, "date"))
             {
                 header_flag |= HTTP_HEADER_DATE;
             }
-            else if (strncmp("content-type", c_key, c_keylen) == 0)
+            else if (SW_STREQ(c_key, c_keylen, "content-type") == 0)
             {
                 header_flag |= HTTP_HEADER_CONTENT_TYPE;
             }
@@ -592,13 +592,13 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
             {
                 if (strncasecmp((char *) nv.name, "content-type", nv.namelen) == 0)
                 {
-                    if (http_strncasecmp("application/x-www-form-urlencoded", (char *) nv.value, nv.valuelen))
+                    if (SW_STRCASEEQ((char *) nv.value, nv.valuelen, "application/x-www-form-urlencoded"))
                     {
                         ctx->request.post_form_urlencoded = 1;
                     }
-                    else if (http_strncasecmp("multipart/form-data", (char *) nv.value, nv.valuelen))
+                    else if (SW_STRCASEEQ((char *) nv.value, nv.valuelen, "multipart/form-data"))
                     {
-                        int boundary_len = nv.valuelen - strlen("multipart/form-data; boundary=");
+                        int boundary_len = nv.valuelen - (sizeof("multipart/form-data; boundary=") - 1);
                         if (boundary_len <= 0)
                         {
                             swWarn("invalid multipart/form-data body fd:%d", ctx->fd);
