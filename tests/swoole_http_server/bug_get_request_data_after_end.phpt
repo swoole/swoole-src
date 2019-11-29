@@ -22,19 +22,13 @@ $pm->childFunc = function () use ($pm) {
     $http->on("request", function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->end('OK');
         switch_process();
-        var_dump($request->rawContent());
-        var_dump($request->getData());
+        Assert::notEmpty($request->rawContent());
+        Assert::notEmpty($request->getData());
     });
     $http->start();
 };
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECTF--
+--EXPECT--
 OK
-
-Warning: Swoole\Http\Request::rawContent(): %s in %s on line %d
-bool(false)
-
-Warning: Swoole\Http\Request::getData(): %s in %s on line %d
-bool(false)
