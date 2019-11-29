@@ -1184,7 +1184,11 @@ static PHP_METHOD(swoole_http_response, trailer)
 static PHP_METHOD(swoole_http_response, ping)
 {
     http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
-    if (UNEXPECTED(!ctx || !ctx->stream))
+    if (UNEXPECTED(!ctx))
+    {
+        RETURN_FALSE;
+    }
+    if (UNEXPECTED(!ctx->stream))
     {
         php_swoole_fatal_error(E_WARNING, "fd[%d] is not a HTTP2 conncetion", ctx->fd);
         RETURN_FALSE;
@@ -1196,7 +1200,11 @@ static PHP_METHOD(swoole_http_response, ping)
 static PHP_METHOD(swoole_http_response, upgrade)
 {
     http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
-    if (UNEXPECTED(!ctx || !ctx->co_socket))
+    if (UNEXPECTED(!ctx))
+    {
+        RETURN_FALSE;
+    }
+    if (UNEXPECTED(!ctx->co_socket))
     {
         php_swoole_fatal_error(E_WARNING, "async server dose not support protocol upgrade");
         RETURN_FALSE;
@@ -1206,9 +1214,10 @@ static PHP_METHOD(swoole_http_response, upgrade)
 
 static PHP_METHOD(swoole_http_response, push)
 {
-    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    http_context *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (UNEXPECTED(!ctx))
     {
+        SwooleG.error = SW_ERROR_SESSION_CLOSED;
         RETURN_FALSE;
     }
     if (UNEXPECTED(!ctx->co_socket || !ctx->upgrade))
@@ -1265,9 +1274,10 @@ static PHP_METHOD(swoole_http_response, close)
 
 static PHP_METHOD(swoole_http_response, recv)
 {
-    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    http_context *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (UNEXPECTED(!ctx))
     {
+        SwooleG.error = SW_ERROR_SESSION_CLOSED;
         RETURN_FALSE;
     }
     if (UNEXPECTED(!ctx->co_socket || !ctx->upgrade))
