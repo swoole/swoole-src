@@ -41,10 +41,9 @@ http2_stream::http2_stream(int _fd, uint32_t _id)
 
 http2_stream::~http2_stream()
 {
-    if (ctx)
-    {
-        swoole_http_context_free(ctx);
-    }
+    ctx->stream = nullptr;
+    /* it will be free'd when request/response are free'd */
+    // swoole_http_context_free(ctx);
 }
 
 void http2_stream::reset(uint32_t error_code)

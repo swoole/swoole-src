@@ -247,11 +247,11 @@ void swoole_http_context_copy(http_context *src, http_context *dst)
 
 void swoole_http_context_free(http_context *ctx)
 {
-    if (ctx->request.zobject)
+    /* http context can only be free'd after request and response were free'd */
+    if (ctx->request.zobject || ctx->response.zobject)
     {
-        php_swoole_http_request_set_context(ctx->request.zobject, NULL);
+        return;
     }
-    php_swoole_http_response_set_context(ctx->response.zobject, NULL);
 #ifdef SW_USE_HTTP2
     if (ctx->stream)
     {

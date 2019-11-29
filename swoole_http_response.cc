@@ -156,8 +156,10 @@ static void php_swoole_http_response_free_object(zend_object *object)
                 }
             }
         }
+        ctx->response.zobject = NULL;
         swoole_http_context_free(ctx);
     }
+
     zend_object_std_dtor(&response->std);
 }
 
@@ -696,10 +698,6 @@ static PHP_METHOD(swoole_http_response, end)
 #endif
     {
         swoole_http_response_end(ctx, zdata, return_value);
-        if (!ctx->upgrade)
-        {
-            swoole_http_context_free(ctx);
-        }
     }
 }
 
@@ -1399,10 +1397,6 @@ static PHP_METHOD(swoole_http_response, redirect)
         return;
     }
     swoole_http_response_end(ctx, nullptr, return_value);
-    if (!ctx->end)
-    {
-        swoole_http_context_free(ctx);
-    }
 }
 
 static PHP_METHOD(swoole_http_response, __destruct) { }
