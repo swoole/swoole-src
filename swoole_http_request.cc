@@ -484,9 +484,8 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         }
         else if (SW_STRCASECT(at, length, "multipart/form-data"))
         {
-            // start offset
-            offset = sizeof("multipart/form-data;") - 1;
-            while (at[offset] == ' ')
+            offset = sizeof("multipart/form-data") - 1;
+            while (at[offset] == ' ' || at[offset] == ';')
             {
                 offset++;
             }
