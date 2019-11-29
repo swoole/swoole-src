@@ -478,11 +478,11 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         SW_STREQ(header_name, header_len, "content-type")
     )
     {
-        if (SW_STRCASEEQ(at, length, "application/x-www-form-urlencoded"))
+        if (SW_STRCASECT(at, length, "application/x-www-form-urlencoded"))
         {
             ctx->request.post_form_urlencoded = 1;
         }
-        else if (SW_STRCASEEQ(at, length, "multipart/form-data"))
+        else if (SW_STRCASECT(at, length, "multipart/form-data"))
         {
             // start offset
             offset = sizeof("multipart/form-data;") - 1;

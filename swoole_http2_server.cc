@@ -592,11 +592,11 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
             {
                 if (strncasecmp((char *) nv.name, "content-type", nv.namelen) == 0)
                 {
-                    if (SW_STRCASEEQ((char *) nv.value, nv.valuelen, "application/x-www-form-urlencoded"))
+                    if (SW_STRCASECT((char *) nv.value, nv.valuelen, "application/x-www-form-urlencoded"))
                     {
                         ctx->request.post_form_urlencoded = 1;
                     }
-                    else if (SW_STRCASEEQ((char *) nv.value, nv.valuelen, "multipart/form-data"))
+                    else if (SW_STRCASECT((char *) nv.value, nv.valuelen, "multipart/form-data"))
                     {
                         int boundary_len = nv.valuelen - (sizeof("multipart/form-data; boundary=") - 1);
                         if (boundary_len <= 0)
