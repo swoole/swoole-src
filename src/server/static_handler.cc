@@ -314,7 +314,7 @@ bool static_handler::done()
         return false;
     }
 
-    if (strncmp(real_path, serv->document_root, serv->document_root_len) != 0)
+    if (swoole_streq(real_path, strlen(real_path), serv->document_root, serv->document_root_len) != 0)
     {
         return false;
     }
