@@ -12,7 +12,6 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $content = "POST / HTTP/1.1\r\n" .
         "Host: local.swoole.com\r\n" .
         "Content-Type: multipart/form-data; boundary=Boundary+D80E45AE1BB1E1E1\r\n" .
-        "Accept-Encoding: gzip, deflate\r\n" .
         "Connection: keep-alive\r\n" .
         "Accept: */*\r\n" .
         "User-Agent: SCRM/1.0.1 (iPhone; iOS 10.3.3; Scale/2.00)\r\n" .
