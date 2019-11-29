@@ -219,7 +219,7 @@ extern swString *swoole_zlib_buffer;
 
 http_context* swoole_http_context_new(int fd);
 http_context* php_swoole_http_request_get_and_check_context(zval *zobject);
-http_context* php_swoole_http_response_get_and_check_context(zval *zobject, bool check_end);
+http_context* php_swoole_http_response_get_and_check_context(zval *zobject);
 void swoole_http_context_free(http_context *ctx);
 void swoole_http_context_copy(http_context *src, http_context *dst);
 

@@ -316,10 +316,10 @@ http_context* php_swoole_http_request_get_and_check_context(zval *zobject)
     return ctx;
 }
 
-http_context* php_swoole_http_response_get_and_check_context(zval *zobject, bool check_end)
+http_context* php_swoole_http_response_get_and_check_context(zval *zobject)
 {
     http_context *ctx = php_swoole_http_response_get_context(zobject);
-    if (!ctx || (check_end && ctx->end))
+    if (!ctx || (ctx->end || ctx->detached))
     {
         php_swoole_fatal_error(E_WARNING, "http response is unavailable (maybe it has been ended or detached)");
         return NULL;

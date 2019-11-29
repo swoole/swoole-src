@@ -165,6 +165,8 @@ static void swoole_http2_onRequest(http2_session *client, http2_stream *stream)
     int server_fd = conn->server_fd;
     swConnection *serv_sock = swServer_connection_get(serv, server_fd);
 
+    ctx->request.version = 200;
+
     add_assoc_long(zserver, "request_time", serv->gs->now);
     add_assoc_double(zserver, "request_time_float", swoole_microtime());
     if (serv_sock)
