@@ -57,7 +57,9 @@ static bool http_context_send_data(http_context* ctx, const char *data, size_t l
 static bool http_context_send_file(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(http_context* ctx);
 
+#ifdef SW_USE_HTTP2
 static void http2_server_onRequest(http2_session *session, http2_stream *stream);
+#endif
 
 class http_server
 {
@@ -617,6 +619,7 @@ static PHP_METHOD(swoole_http_server_coro, shutdown)
     }
 }
 
+#ifdef SW_USE_HTTP2
 static void http2_server_onRequest(http2_session *session, http2_stream *stream)
 {
     http_context *ctx = stream->ctx;
@@ -642,3 +645,4 @@ static void http2_server_onRequest(http2_session *session, http2_stream *stream)
     zval_ptr_dtor(&args[0]);
     zval_ptr_dtor(&args[1]);
 }
+#endif
