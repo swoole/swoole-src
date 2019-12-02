@@ -641,6 +641,10 @@ enum swReturn_code http2_client::parse_frame(zval *return_value)
     }
     else if (type == SW_HTTP2_TYPE_DATA)
     {
+        if (!(flags & SW_HTTP2_FLAG_END_STREAM))
+        {
+            zend_update_property_bool(swoole_http2_response_ce, stream->zresponse, ZEND_STRL("pipeline"), 1);
+        }
         if (length > 0)
         {
             if (!stream->buffer)
@@ -686,31 +690,23 @@ enum swReturn_code http2_client::parse_frame(zval *return_value)
         }
     }
 
-    uint8_t stream_type = stream->type;
     if (
-        (type == SW_HTTP2_TYPE_DATA && stream_type == SW_HTTP2_STREAM_PIPELINE) ||       // pipeline data frame
-        (stream_type == SW_HTTP2_STREAM_NORMAL && (flags & SW_HTTP2_FLAG_END_STREAM)) || // normal end frame
-        type == SW_HTTP2_TYPE_RST_STREAM || type == SW_HTTP2_TYPE_GOAWAY                 // rst or goaway frame
+        (flags & SW_HTTP2_FLAG_END_STREAM) ||
+        type == SW_HTTP2_TYPE_RST_STREAM ||
+        type == SW_HTTP2_TYPE_GOAWAY
     )
     {
         zval zresponse = *stream->zresponse;
-
         if (type == SW_HTTP2_TYPE_RST_STREAM)
         {
             zend_update_property_long(swoole_http2_response_ce, &zresponse, ZEND_STRL("statusCode"), -3);
             zend_update_property_long(swoole_http2_response_ce, &zresponse, ZEND_STRL("errCode"), value);
         }
-        else if (stream_type == SW_HTTP2_STREAM_PIPELINE && !(flags & SW_HTTP2_FLAG_END_STREAM))
-        {
-            zend_update_property_bool(swoole_http2_response_ce, &zresponse, ZEND_STRL("pipeline"), 1);
-        }
-
         if (stream->buffer)
         {
             zend_update_property_stringl(swoole_http2_response_ce, stream->zresponse, ZEND_STRL("data"), stream->buffer->str, stream->buffer->length);
             swString_clear(stream->buffer);
         }
-
         Z_ADDREF_P(&zresponse);
         swHashMap_del_int(streams, stream_id);
         RETVAL_ZVAL(&zresponse, 0, 0);
