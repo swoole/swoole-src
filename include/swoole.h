@@ -309,6 +309,24 @@ static sw_inline char* swoole_strndup(const char *s, size_t n)
     return p;
 }
 
+/* string equal */
+static sw_inline unsigned int swoole_streq(const char *str1, size_t len1, const char *str2, size_t len2)
+{
+    return (len1 == len2) && (strncmp(str1, str2, len1) == 0);
+}
+
+static sw_inline unsigned int swoole_strcaseeq(const char *str1, size_t len1, const char *str2, size_t len2)
+{
+    return (len1 == len2) && (strncasecmp(str1, str2, len1) == 0);
+}
+
+#define SW_STREQ(str, len, const_str)      swoole_streq(str, len, SW_STRL(const_str))
+#define SW_STRCASEEQ(str, len, const_str)  swoole_strcaseeq(str, len, SW_STRL(const_str))
+
+/* string contain */
+#define SW_STRCT(str, len, const_str)     ((len >= (sizeof(const_str) - 1)) && (strncmp(str, SW_STRL(const_str)) == 0))
+#define SW_STRCASECT(str, len, const_str) ((len >= (sizeof(const_str) - 1)) && (strncasecmp(str, SW_STRL(const_str)) == 0))
+
 /*--------------------------------Constants------------------------------------*/
 enum swResult_code
 {
