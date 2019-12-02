@@ -793,15 +793,17 @@ void PHPCoroutine::main_func(void *arg)
     }
 
     // resources release
-    zval_ptr_dtor(retval);
+    if (task->context)
+    {
+        zend_object *context = task->context;
+        task->context = (zend_object *) ~0;
+        OBJ_RELEASE(context);
+    }
     if (fci_cache.object)
     {
         OBJ_RELEASE(fci_cache.object);
     }
-    if (task->context)
-    {
-        OBJ_RELEASE(task->context);
-    }
+    zval_ptr_dtor(retval);
 
     // TODO: exceptions will only cause the coroutine to exit
     if (UNEXPECTED(EG(exception)))
@@ -1040,6 +1042,12 @@ PHP_METHOD(swoole_coroutine, getContext)
     php_coro_task *task = (php_coro_task *) (EXPECTED(cid == 0) ? Coroutine::get_current_task() : Coroutine::get_task_by_cid(cid));
     if (UNEXPECTED(!task))
     {
+        RETURN_NULL();
+    }
+    if (UNEXPECTED(task->context == (zend_object *) ~0))
+    {
+        /* bad context (has been destroyed), see: https://github.com/swoole/swoole-src/issues/2991 */
+        php_swoole_fatal_error(E_WARNING, "Context of this coroutine has been destroyed");
         RETURN_NULL();
     }
     if (UNEXPECTED(!task->context))
