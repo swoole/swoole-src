@@ -1520,6 +1520,9 @@ void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
 
+SW_API const char* swoole_version(void);
+SW_API int swoole_version_id(void);
+
 SW_API int swoole_add_function(const char *name, void* func);
 SW_API void* swoole_get_function(const char *name, uint32_t length);
 SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back);

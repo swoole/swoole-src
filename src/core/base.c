@@ -146,6 +146,16 @@ void swoole_init(void)
 #endif
 }
 
+SW_API const char* swoole_version(void)
+{
+    return SWOOLE_VERSION;
+}
+
+SW_API int swoole_version_id(void)
+{
+    return SWOOLE_VERSION_ID;
+}
+
 void swoole_clean(void)
 {
     if (SwooleG.task_tmpdir)
