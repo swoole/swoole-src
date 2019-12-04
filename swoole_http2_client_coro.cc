@@ -1424,25 +1424,25 @@ static PHP_METHOD(swoole_http2_client_coro, stats)
     }
     if (key.length > 0)
     {
-        if (strcmp(key.str, "current_stream_id") == 0)
+        if (SW_STREQ(key.str, key.length, "current_stream_id"))
         {
             RETURN_LONG(h2c->stream_id);
         }
-        else if (strcmp(key.str, "last_stream_id") == 0)
+        else if (SW_STREQ(key.str, key.length, "last_stream_id"))
         {
             RETURN_LONG(h2c->last_stream_id);
         }
-        else if (strcmp(key.str, "local_settings") == 0)
+        else if (SW_STREQ(key.str, key.length, "local_settings"))
         {
             http2_settings_to_array(&h2c->local_settings, zarray);
             RETURN_ZVAL(zarray, 0, 0);
         }
-        else if (strcmp(key.str, "remote_settings") == 0)
+        else if (SW_STREQ(key.str, key.length, "remote_settings"))
         {
             http2_settings_to_array(&h2c->remote_settings, zarray);
             RETURN_ZVAL(zarray, 0, 0);
         }
-        else if (strcmp(key.str, "active_stream_num") == 0)
+        else if (SW_STREQ(key.str, key.length, "active_stream_num"))
         {
             RETURN_LONG(h2c->streams ? swHashMap_count(h2c->streams) : 0);
         }

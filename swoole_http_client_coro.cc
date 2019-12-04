@@ -318,11 +318,12 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
     zval* zobject = (zval*) http->zobject;
     zval *zheaders = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 0);
     char *header_name = zend_str_tolower_dup(http->tmp_header_field_name, http->tmp_header_field_name_len);
+    size_t header_len = http->tmp_header_field_name_len;
     int ret = 0;
 
     add_assoc_stringl_ex(zheaders, header_name, http->tmp_header_field_name_len, (char *) at, length);
 
-    if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && strcmp(header_name, "upgrade") == 0)
+    if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && SW_STREQ(header_name, header_len, "upgrade"))
     {
         if (SW_STRCASEEQ(at, length, "websocket"))
         {
@@ -331,7 +332,7 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
         /* TODO: protocol error? */
     }
 #ifdef SW_HAVE_ZLIB
-    else if (http->websocket && http->websocket_compression && strcmp(header_name, "sec-websocket-extensions") == 0)
+    else if (http->websocket && http->websocket_compression && SW_STREQ(header_name, header_len, "sec-websocket-extensions"))
     {
         if (
             SW_STRCASECT(at, length, "permessage-deflate") &&
@@ -343,14 +344,14 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
         }
     }
 #endif
-    else if (strcmp(header_name, "set-cookie") == 0)
+    else if (SW_STREQ(header_name, header_len, "set-cookie"))
     {
         zval *zcookies = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("cookies"), 0);
         zval *zset_cookie_headers = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("set_cookie_headers"), 0);
         ret = http_parse_set_cookies(at, length, zcookies, zset_cookie_headers);
     }
 #ifdef SW_HAVE_COMPRESSION
-    else if (strcmp(header_name, "content-encoding") == 0)
+    else if (SW_STREQ(header_name, header_len, "content-encoding"))
     {
         if (0) { }
 #ifdef SW_HAVE_BROTLI
