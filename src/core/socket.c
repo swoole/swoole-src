@@ -480,7 +480,7 @@ int swSocket_create_server(int type, const char *address, int port, int backlog)
     char host[32];
     int port = 0;
 
-    if (strncasecmp(address, "unix:/", 6) == 0)
+    if (SW_STRCASECT(address, strlen(address), "unix:/"))
     {
         address += 5;
         type = SW_SOCK_UNIX_STREAM;

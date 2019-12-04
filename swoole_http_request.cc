@@ -597,7 +597,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
     size_t header_len = ctx->current_header_name_len;
     char *headername = zend_str_tolower_dup(ctx->current_header_name, header_len);
 
-    if (strncasecmp(headername, "content-disposition", header_len) == 0)
+    if (SW_STRCASEEQ(headername, header_len, "content-disposition"))
     {
         //not form data
         if (swoole_strnpos((char *) at, length, (char *) ZEND_STRL("form-data;")) < 0)
@@ -666,7 +666,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
         }
         zval_ptr_dtor(&tmp_array);
     }
-    else if (strncasecmp(headername, "content-type", header_len) == 0 && ctx->current_multipart_header)
+    else if (SW_STRCASEEQ(headername, header_len, "content-type") && ctx->current_multipart_header)
     {
         zval *z_multipart_header = ctx->current_multipart_header;
         zval *zerr = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("error"));

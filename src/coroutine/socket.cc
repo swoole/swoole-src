@@ -466,14 +466,15 @@ bool Socket::http_proxy_handshake()
     int len = n;
     int state = 0;
     char *p = buf;
-    for (p = buf; p < buf + len; p++)
+    char *pe = buf + len;
+    for (; p < buf + len; p++)
     {
         if (state == 0)
         {
-            if (strncasecmp(p, SW_STRL("HTTP/1.1")) == 0 || strncasecmp(p, SW_STRL("HTTP/1.0")) == 0)
+            if (SW_STRCASECT(p, pe - p, "HTTP/1.1") || SW_STRCASECT(p, pe - p, "HTTP/1.0"))
             {
                 state = 1;
-                p += 8;
+                p += sizeof("HTTP/1.x") - 1;
             }
             else
             {
@@ -488,10 +489,10 @@ bool Socket::http_proxy_handshake()
             }
             else
             {
-                if (strncasecmp(p, SW_STRL("200")) == 0)
+                if (SW_STRCASECT(p, pe - p, "200"))
                 {
                     state = 2;
-                    p += 3;
+                    p += sizeof("200") - 1;
                 }
                 else
                 {
@@ -507,7 +508,7 @@ bool Socket::http_proxy_handshake()
             }
             else
             {
-                if (strncasecmp(p, SW_STRL("Connection established")) == 0)
+                if (SW_STRCASECT(p, pe - p, "Connection established"))
                 {
                     ret = true;
                 }

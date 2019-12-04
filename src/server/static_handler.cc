@@ -119,7 +119,7 @@ int static_handler::send_response()
         switch (state)
         {
         case 0:
-            if (strncasecmp(p, SW_STRL("If-Modified-Since")) == 0)
+            if (SW_STRCASECT(p, pe - p, "If-Modified-Since"))
             {
                 p += sizeof("If-Modified-Since");
                 state = 1;
@@ -133,7 +133,7 @@ int static_handler::send_response()
             }
             break;
         case 2:
-            if (strncasecmp(p, SW_STRL("\r\n")) == 0)
+            if (SW_STRCASECT(p, pe - p, "\r\n"))
             {
                 length_if_modified_since = p - date_if_modified_since;
                 goto _check_modify_date;
@@ -249,6 +249,7 @@ bool static_handler::done()
 {
     char *p = task.filename;
     char *url = request->buffer->str + request->url_offset;
+    size_t url_length = request->url_length;
 
     /**
      * discard the url parameter
@@ -268,7 +269,7 @@ bool static_handler::done()
     {
         for (auto i = locations.begin(); i != locations.end(); i++)
         {
-            if (strncasecmp(i->c_str(), url, i->size()) == 0)
+            if (swoole_strcasect(url, url_length, i->c_str(), i->size()))
             {
                 last = true;
             }

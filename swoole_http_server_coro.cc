@@ -114,7 +114,7 @@ public:
     {
         for (auto i = handlers.begin(); i != handlers.end(); i++)
         {
-            if (strncasecmp(i->first.c_str(), ctx->request.path, i->first.length()) == 0)
+            if (swoole_strcasect(ctx->request.path, ctx->request.path_len, i->first.c_str(), i->first.length()))
             {
                 return i->second;
             }

@@ -702,7 +702,7 @@ static PHP_METHOD(swoole_server_port, on)
 
     for (i = 0; i < PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM; i++)
     {
-        if (strncasecmp(callback_name[i], name, len) != 0)
+        if (!swoole_strcaseeq(name, len, callback_name[i], strlen(callback_name[i])))
         {
             continue;
         }

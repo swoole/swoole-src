@@ -924,14 +924,17 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
         {
             if (nv.name[0] == ':')
             {
-                if (strncasecmp((char *) nv.name + 1, "status", nv.namelen -1) == 0)
+                if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "status"))
                 {
                     zend_update_property_long(swoole_http2_response_ce, zresponse, ZEND_STRL("statusCode"), atoi((char *) nv.value));
                     continue;
                 }
             }
 #ifdef SW_HAVE_ZLIB
-            else if (strncasecmp((char *) nv.name, "content-encoding", nv.namelen) == 0 && strncasecmp((char *) nv.value, "gzip", nv.valuelen) == 0)
+            else if (
+                SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-encoding") &&
+                SW_STRCASEEQ((char *) nv.value, nv.valuelen, "gzip")
+            )
             {
                 /**
                  * init zlib stream
@@ -951,7 +954,7 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
                 }
             }
 #endif
-            else if (strncasecmp((char *) nv.name, "set-cookie", nv.namelen) == 0)
+            else if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "set-cookie"))
             {
                 if (SW_OK != http_parse_set_cookies((char *) nv.value, nv.valuelen, zcookies, zset_cookie_headers))
                 {
@@ -1025,7 +1028,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
                 continue;
             }
             zend::string str_value(zvalue);
-            if (strncasecmp("host", ZSTR_VAL(key), ZSTR_LEN(key)) == 0)
+            if (SW_STRCASEEQ(ZSTR_VAL(key), ZSTR_LEN(key), "host"))
             {
                 headers.add(HTTP2_CLIENT_HOST_HEADER_INDEX, ZEND_STRL(":authority"), str_value.val(), str_value.len());
                 find_host = true;

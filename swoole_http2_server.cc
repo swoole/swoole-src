@@ -235,7 +235,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
             {
                 header_flag |= HTTP_HEADER_DATE;
             }
-            else if (SW_STREQ(c_key, c_keylen, "content-type") == 0)
+            else if (SW_STREQ(c_key, c_keylen, "content-type"))
             {
                 header_flag |= HTTP_HEADER_CONTENT_TYPE;
             }
@@ -547,11 +547,11 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
 
             if (nv.name[0] == ':')
             {
-                if (strncasecmp((char *) nv.name + 1, "method", nv.namelen -1) == 0)
+                if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen -1, "method"))
                 {
                     add_assoc_stringl_ex(zserver, ZEND_STRL("request_method"), (char *) nv.value, nv.valuelen);
                 }
-                else if (strncasecmp((char *) nv.name + 1, "path", nv.namelen -1) == 0)
+                else if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen -1, "path"))
                 {
                     char *pathbuf = SwooleTG.buffer_stack->str;
                     char *v_str = strchr((char *) nv.value, '?');
@@ -583,14 +583,14 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                     ZSTR_LEN(zstr_path) = php_url_decode(ZSTR_VAL(zstr_path), ZSTR_LEN(zstr_path));
                     add_assoc_str_ex(zserver, ZEND_STRL("path_info"), zstr_path);
                 }
-                else if (strncasecmp((char *) nv.name + 1, "authority", nv.namelen -1) == 0)
+                else if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen -1, "authority"))
                 {
                     add_assoc_stringl_ex(zheader, ZEND_STRL("host"), (char * ) nv.value, nv.valuelen);
                 }
             }
             else
             {
-                if (strncasecmp((char *) nv.name, "content-type", nv.namelen) == 0)
+                if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-type"))
                 {
                     if (SW_STRCASECT((char *) nv.value, nv.valuelen, "application/x-www-form-urlencoded"))
                     {
@@ -608,7 +608,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                         ctx->parser.data = ctx;
                     }
                 }
-                else if (strncasecmp((char *) nv.name, "cookie", nv.namelen) == 0)
+                else if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "cookie"))
                 {
                     swoole_http_parse_cookie(
                         swoole_http_init_and_read_property(swoole_http_request_ce, ctx->request.zobject, &ctx->request.zcookie, ZEND_STRL("cookie")),
@@ -617,7 +617,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                     continue;
                 }
 #ifdef SW_HAVE_COMPRESSION
-                else if (ctx->enable_compression && strncasecmp((char *) nv.name, "accept-encoding", nv.namelen) == 0)
+                else if (ctx->enable_compression && SW_STRCASEEQ((char *) nv.name, nv.namelen, "accept-encoding"))
                 {
                     swoole_http_get_compression_method(ctx, (char *) nv.value, nv.valuelen);
                 }

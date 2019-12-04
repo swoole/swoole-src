@@ -320,12 +320,22 @@ static sw_inline unsigned int swoole_strcaseeq(const char *str1, size_t len1, co
     return (len1 == len2) && (strncasecmp(str1, str2, len1) == 0);
 }
 
+static sw_inline unsigned int swoole_strct(const char *pstr, size_t plen, const char *sstr, size_t slen)
+{
+    return (plen >= slen) && (strncmp(pstr, sstr, slen) == 0);
+}
+
+static sw_inline unsigned int swoole_strcasect(const char *pstr, size_t plen, const char *sstr, size_t slen)
+{
+    return (plen >= slen) && (strncasecmp(pstr, sstr, slen) == 0);
+}
+
 #define SW_STREQ(str, len, const_str)      swoole_streq(str, len, SW_STRL(const_str))
 #define SW_STRCASEEQ(str, len, const_str)  swoole_strcaseeq(str, len, SW_STRL(const_str))
 
 /* string contain */
-#define SW_STRCT(str, len, const_str)     ((len >= (sizeof(const_str) - 1)) && (strncmp(str, SW_STRL(const_str)) == 0))
-#define SW_STRCASECT(str, len, const_str) ((len >= (sizeof(const_str) - 1)) && (strncasecmp(str, SW_STRL(const_str)) == 0))
+#define SW_STRCT(str, len, const_sub_str)      swoole_strct(str, len, SW_STRL(const_sub_str))
+#define SW_STRCASECT(str, len, const_sub_str)  swoole_strcasect(str, len, SW_STRL(const_sub_str))
 
 /*--------------------------------Constants------------------------------------*/
 enum swResult_code

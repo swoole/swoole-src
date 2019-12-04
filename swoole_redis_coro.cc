@@ -1106,7 +1106,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
         tv.tv_sec = redis->connect_timeout;
         tv.tv_usec = (redis->connect_timeout - (double) tv.tv_sec) * 1000 * 1000;
     }
-    if (strncasecmp(host.val(), ZEND_STRL("unix:/")) == 0)
+    if (SW_STRCASECT(host.val(), host.length(), "unix:/"))
     {
         context = redisConnectUnixWithTimeout(host.val() + 5 + strspn(host.val() + 5, "/") - 1, tv);
     }

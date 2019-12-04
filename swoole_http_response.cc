@@ -421,27 +421,27 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
             {
                 continue;
             }
-            if (strncasecmp(key, "Server", keylen) == 0)
+            if (SW_STRCASEEQ(key, keylen, "Server"))
             {
                 header_flag |= HTTP_HEADER_SERVER;
             }
-            else if (strncasecmp(key, "Connection", keylen) == 0)
+            else if (SW_STRCASEEQ(key, keylen, "Connection"))
             {
                 header_flag |= HTTP_HEADER_CONNECTION;
             }
-            else if (strncasecmp(key, "Date", keylen) == 0)
+            else if (SW_STRCASEEQ(key, keylen, "Date"))
             {
                 header_flag |= HTTP_HEADER_DATE;
             }
-            else if (strncasecmp(key, "Content-Length", keylen) == 0 && ctx->parser.method != PHP_HTTP_HEAD)
+            else if (SW_STRCASEEQ(key, keylen, "Content-Length") && ctx->parser.method != PHP_HTTP_HEAD)
             {
                 continue; // ignore
             }
-            else if (strncasecmp(key, "Content-Type", keylen) == 0)
+            else if (SW_STRCASEEQ(key, keylen, "Content-Type"))
             {
                 header_flag |= HTTP_HEADER_CONTENT_TYPE;
             }
-            else if (strncasecmp(key, "Transfer-Encoding", keylen) == 0)
+            else if (SW_STRCASEEQ(key, keylen, "Transfer-Encoding"))
             {
                 header_flag |= HTTP_HEADER_TRANSFER_ENCODING;
             }
