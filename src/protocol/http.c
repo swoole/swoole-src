@@ -29,10 +29,10 @@ static const char *method_strings[] =
     "SUBSCRIBE", "UNSUBSCRIBE", "PURGE", "PRI",
 };
 
-int swHttp_get_method(const char *method_str, int method_len)
+int swHttp_get_method(const char *method_str, size_t method_len)
 {
-    int i;
-    for (i = 0; i < SW_HTTP_PRI; i++)
+    int i = 0;
+    for (; i < SW_HTTP_PRI; i++)
     {
         if (swoole_strcaseeq(method_strings[i], strlen(method_strings[i]), method_str, method_len))
         {

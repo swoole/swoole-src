@@ -933,7 +933,7 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
 #ifdef SW_HAVE_ZLIB
             else if (
                 SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-encoding") &&
-                SW_STRCASEEQ((char *) nv.value, nv.valuelen, "gzip")
+                SW_STRCASECT((char *) nv.value, nv.valuelen, "gzip")
             )
             {
                 /**

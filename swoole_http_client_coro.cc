@@ -848,20 +848,25 @@ bool http_client::send()
     }
 
     // ============ method ============
-    zend::string str_method;
-    const char *method;
-    if (zmethod)
     {
-        str_method = zmethod;
-        method = str_method.val();
+        zend::string str_method;
+        const char *method;
+        size_t method_len;
+        if (zmethod)
+        {
+            str_method = zmethod;
+            method = str_method.val();
+            method_len = str_method.len();
+        }
+        else
+        {
+            method = zbody ? "POST" : "GET";
+            method_len = strlen(method);
+        }
+        this->method = swHttp_get_method(method, method_len);
+        swString_append_ptr(buffer, method, method_len);
+        swString_append_ptr(buffer, ZEND_STRL(" "));
     }
-    else
-    {
-        method = zbody ? "POST" : "GET";
-    }
-    this->method = swHttp_get_method(method, strlen(method) + 1);
-    swString_append_ptr(buffer, method, strlen(method));
-    swString_append_ptr(buffer, ZEND_STRL(" "));
 
     // ============ path & proxy ============
 #ifdef SW_USE_OPENSSL
