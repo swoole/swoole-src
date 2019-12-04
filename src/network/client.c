@@ -1030,14 +1030,15 @@ static int swClient_https_proxy_handshake(swClient *cli)
     size_t len = cli->buffer->length;
     int state = 0;
     char *p = buf;
-    for (p = buf; p < buf + len; p++)
+    char *pe = buf + len;
+    for (; p < pe; p++)
     {
         if (state == 0)
         {
-            if (strncasecmp(p, "HTTP/1.1", 8) == 0 || strncasecmp(p, "HTTP/1.0", 8) == 0)
+            if (SW_STRCASECT(p, pe - p, "HTTP/1.1") || SW_STRCASECT(p, pe - p, "HTTP/1.0"))
             {
                 state = 1;
-                p += 8;
+                p += sizeof("HTTP/1.x") - 1;
             }
             else
             {
@@ -1052,10 +1053,10 @@ static int swClient_https_proxy_handshake(swClient *cli)
             }
             else
             {
-                if (strncasecmp(p, "200", 3) == 0)
+                if (SW_STRCASECT(p, pe - p, "200"))
                 {
                     state = 2;
-                    p += 3;
+                    p += sizeof("200") - 1;
                 }
                 else
                 {
@@ -1071,7 +1072,7 @@ static int swClient_https_proxy_handshake(swClient *cli)
             }
             else
             {
-                if (strncasecmp(p, "Connection established", sizeof("Connection established") - 1) == 0)
+                if (SW_STRCASECT(p, pe - p, "Connection established"))
                 {
                     return SW_OK;
                 }

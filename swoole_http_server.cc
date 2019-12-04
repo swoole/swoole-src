@@ -157,8 +157,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
 void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
 {
-    int fd = ev->fd;
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = swWorker_get_connection(serv, ev->fd);
     if (!conn)
     {
         return;

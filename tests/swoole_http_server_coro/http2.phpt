@@ -40,11 +40,7 @@ $pm->parentFunc = function () use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-//    Co::set([
-//        'trace_flags' => SWOOLE_TRACE_HTTP2 | SWOOLE_TRACE_SOCKET,
-//        'log_level' => 0,
-//    ]);
-    go(function () use ($pm) {
+    Co\run(function () use ($pm) {
         $server = new Swoole\Coroutine\Http\Server("127.0.0.1", $pm->getFreePort(), false);
         $server->handle('/', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
             $response->end($request->rawContent());
@@ -56,7 +52,6 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
         $server->start();
     });
-    swoole_event_wait();
 };
 $pm->childFirst();
 $pm->run();

@@ -568,7 +568,7 @@ static int swSSL_check_name(char *name, ASN1_STRING *pattern)
     uchar *p = ASN1_STRING_data(pattern);
     plen = ASN1_STRING_length(pattern);
 
-    if (slen == plen && strncasecmp(s, (char*) p, plen) == 0)
+    if (swoole_strcaseeq(s, slen, (char*) p, plen))
     {
         return SW_OK;
     }
@@ -588,7 +588,7 @@ static int swSSL_check_name(char *name, ASN1_STRING *pattern)
 
         slen = end - s;
 
-        if (plen == slen && strncasecmp(s, (char*) p, plen) == 0)
+        if (swoole_strcaseeq(s, slen, (char*) p, plen))
         {
             return SW_OK;
         }

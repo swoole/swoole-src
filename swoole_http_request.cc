@@ -465,7 +465,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         {
             swWarn("connection[%d] is closed", ctx->fd);
             efree(header_name);
-            return SW_ERR;
+            return -1;
         }
         swListenPort *port = (swListenPort *) serv->connection_list[conn->server_fd].object;
         if (port->open_websocket_protocol)
@@ -503,7 +503,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
             if (boundary_len <= 0)
             {
                 swWarn("invalid multipart/form-data body fd:%d", ctx->fd);
-                return 0;
+                return -1;
             }
             // trim '"'
             if (boundary_len >= 2 && boundary_str[0] == '"' && *(boundary_str + boundary_len - 1) == '"')
@@ -578,6 +578,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 {
     char value_buf[SW_HTTP_FORM_KEYLEN];
     int value_len;
+    int ret = 0;
 
     http_context *ctx = (http_context *) p->data;
     /**
@@ -595,30 +596,31 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
     }
 
     size_t header_len = ctx->current_header_name_len;
-    char *headername = zend_str_tolower_dup(ctx->current_header_name, header_len);
+    char *header_name = zend_str_tolower_dup(ctx->current_header_name, header_len);
 
-    if (strncasecmp(headername, "content-disposition", header_len) == 0)
+    if (SW_STRCASEEQ(header_name, header_len, "content-disposition"))
     {
         //not form data
-        if (swoole_strnpos((char *) at, length, (char *) ZEND_STRL("form-data;")) < 0)
+        if (swoole_strnpos(at, length, ZEND_STRL("form-data;")) < 0)
         {
-            return SW_OK;
+            goto _end;
         }
 
         zval tmp_array;
         array_init(&tmp_array);
-        swoole_http_parse_cookie(&tmp_array, (char *) at + sizeof("form-data;") - 1, length - sizeof("form-data;") + 1);
+        swoole_http_parse_cookie(&tmp_array, at + sizeof("form-data;") - 1, length - sizeof("form-data;") + 1);
 
         zval *zform_name;
         if (!(zform_name = zend_hash_str_find(Z_ARRVAL(tmp_array), ZEND_STRL("name"))))
         {
-            return SW_OK;
+            goto _end;
         }
 
         if (Z_STRLEN_P(zform_name) >= SW_HTTP_FORM_KEYLEN)
         {
             swWarn("form_name[%s] is too large", Z_STRVAL_P(zform_name));
-            return SW_OK;
+            ret = -1;
+            goto _end;
         }
 
         strncpy(value_buf, Z_STRVAL_P(zform_name), Z_STRLEN_P(zform_name));
@@ -638,7 +640,8 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
             if (Z_STRLEN_P(zfilename) >= SW_HTTP_FORM_KEYLEN)
             {
                 swWarn("filename[%s] is too large", Z_STRVAL_P(zfilename));
-                return SW_OK;
+                ret = -1;
+                goto _end;
             }
             ctx->current_input_name = estrndup(tmp, value_len);
             ctx->current_input_name_len = value_len;
@@ -666,7 +669,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
         }
         zval_ptr_dtor(&tmp_array);
     }
-    else if (strncasecmp(headername, "content-type", header_len) == 0 && ctx->current_multipart_header)
+    else if (SW_STRCASEEQ(header_name, header_len, "content-type") && ctx->current_multipart_header)
     {
         zval *z_multipart_header = ctx->current_multipart_header;
         zval *zerr = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("error"));
@@ -676,9 +679,10 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
         }
     }
 
-    efree(headername);
+    _end:
+    efree(header_name);
 
-    return 0;
+    return ret;
 }
 
 static int multipart_body_on_data(multipart_parser* p, const char *at, size_t length)
@@ -808,7 +812,7 @@ static int multipart_body_on_data_end(multipart_parser* p)
 
     zval *zfiles = swoole_http_init_and_read_property(swoole_http_request_ce, ctx->request.zobject, &ctx->request.zfiles, ZEND_STRL("files")); 
 
-    int input_path_pos = swoole_strnpos(ctx->current_input_name, ctx->current_input_name_len, (char *) ZEND_STRL("["));
+    int input_path_pos = swoole_strnpos(ctx->current_input_name, ctx->current_input_name_len, ZEND_STRL("["));
     if (ctx->parse_files && input_path_pos > 0)
     {
         char meta_name[SW_HTTP_FORM_KEYLEN + sizeof("[tmp_name]") - 1];
@@ -905,19 +909,19 @@ static int http_request_message_complete(swoole_http_parser *parser)
 void swoole_http_get_compression_method(http_context *ctx, const char *accept_encoding, size_t length)
 {
 #ifdef SW_HAVE_BROTLI
-    if (swoole_strnpos((char *) accept_encoding, length, (char *) ZEND_STRL("br")) >= 0)
+    if (swoole_strnpos(accept_encoding, length, ZEND_STRL("br")) >= 0)
     {
         ctx->accept_compression = 1;
         ctx->compression_method = HTTP_COMPRESS_BR;
     }
     else
 #endif
-    if (swoole_strnpos((char *) accept_encoding, length, (char *) ZEND_STRL("gzip")) >= 0)
+    if (swoole_strnpos(accept_encoding, length, ZEND_STRL("gzip")) >= 0)
     {
         ctx->accept_compression = 1;
         ctx->compression_method = HTTP_COMPRESS_GZIP;
     }
-    else if (swoole_strnpos((char *) accept_encoding, length, (char *) ZEND_STRL("deflate")) >= 0)
+    else if (swoole_strnpos(accept_encoding, length, ZEND_STRL("deflate")) >= 0)
     {
         ctx->accept_compression = 1;
         ctx->compression_method = HTTP_COMPRESS_DEFLATE;

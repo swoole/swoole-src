@@ -107,7 +107,7 @@ typedef struct _swHttpRequest
 
 } swHttpRequest;
 
-int swHttp_get_method(const char *method_str, int method_len);
+int swHttp_get_method(const char *method_str, size_t method_len);
 const char* swHttp_get_method_string(int method);
 const char *swHttp_get_status_message(int code);
 
