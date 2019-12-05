@@ -232,7 +232,6 @@ static const char* swoole_library_source_core_constant =
 
 static const char* swoole_library_source_core_string_object =
     "\n"
-    "declare(strict_types=1);\n"
     "\n"
     "namespace Swoole;\n"
     "\n"
@@ -472,7 +471,6 @@ static const char* swoole_library_source_core_string_object =
 
 static const char* swoole_library_source_core_array_object =
     "\n"
-    "declare(strict_types=1);\n"
     "\n"
     "namespace Swoole;\n"
     "\n"
@@ -732,7 +730,7 @@ static const char* swoole_library_source_core_array_object =
     "     */\n"
     "    public function unserialize($string): self\n"
     "    {\n"
-    "        $this->array = (array)unserialize($string);\n"
+    "        $this->array = (array)unserialize((string)$string);\n"
     "        return $this;\n"
     "    }\n"
     "\n"
