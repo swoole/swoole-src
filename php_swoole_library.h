@@ -43,6 +43,7 @@ static const char* swoole_library_source_std_exec =
 
 static const char* swoole_library_source_core_constant =
     "\n"
+    "declare(strict_types=1);\n"
     "\n"
     "namespace Swoole;\n"
     "\n"
@@ -231,6 +232,7 @@ static const char* swoole_library_source_core_constant =
 
 static const char* swoole_library_source_core_string_object =
     "\n"
+    "declare(strict_types=1);\n"
     "\n"
     "namespace Swoole;\n"
     "\n"
@@ -470,6 +472,7 @@ static const char* swoole_library_source_core_string_object =
 
 static const char* swoole_library_source_core_array_object =
     "\n"
+    "declare(strict_types=1);\n"
     "\n"
     "namespace Swoole;\n"
     "\n"
@@ -1196,6 +1199,7 @@ static const char* swoole_library_source_core_object_proxy =
 
 static const char* swoole_library_source_core_coroutine_wait_group =
     "\n"
+    "declare(strict_types=1);\n"
     "\n"
     "namespace Swoole\\Coroutine;\n"
     "\n"
@@ -1251,6 +1255,7 @@ static const char* swoole_library_source_core_coroutine_wait_group =
 
 static const char* swoole_library_source_core_coroutine_server =
     "\n"
+    "declare(strict_types=1);\n"
     "\n"
     "namespace Swoole\\Coroutine;\n"
     "\n"
@@ -1378,6 +1383,7 @@ static const char* swoole_library_source_core_coroutine_server =
 
 static const char* swoole_library_source_core_coroutine_server_connection =
     "\n"
+    "declare(strict_types=1);\n"
     "\n"
     "namespace Swoole\\Coroutine\\Server;\n"
     "\n"
@@ -2273,6 +2279,10 @@ static const char* swoole_library_source_core_database_redis_config =
     "    protected $retry_interval = 0;\n"
     "    /** @var float */\n"
     "    protected $read_timeout = 0.0;\n"
+    "    /** @var string */\n"
+    "    protected $auth = '';\n"
+    "    /** @var int */\n"
+    "    protected $dbIndex = 0;\n"
     "\n"
     "    public function getHost()\n"
     "    {\n"
@@ -2339,6 +2349,28 @@ static const char* swoole_library_source_core_database_redis_config =
     "        $this->read_timeout = $read_timeout;\n"
     "        return $this;\n"
     "    }\n"
+    "\n"
+    "    public function getAuth(): string\n"
+    "    {\n"
+    "        return $this->auth;\n"
+    "    }\n"
+    "\n"
+    "    public function withAuth(string $auth): self\n"
+    "    {\n"
+    "        $this->auth = $auth;\n"
+    "        return $this;\n"
+    "    }\n"
+    "\n"
+    "    public function getDbIndex(): int\n"
+    "    {\n"
+    "        return $this->dbIndex;\n"
+    "    }\n"
+    "\n"
+    "    public function withDbIndex(int $dbIndex): self\n"
+    "    {\n"
+    "        $this->dbIndex = $dbIndex;\n"
+    "        return $this;\n"
+    "    }\n"
     "}\n";
 
 static const char* swoole_library_source_core_database_redis_pool =
@@ -2372,6 +2404,12 @@ static const char* swoole_library_source_core_database_redis_pool =
     "                $this->config->getRetryInterval(),\n"
     "                $this->config->getReadTimeout()\n"
     "            );\n"
+    "            if ($this->config->getAuth()) {\n"
+    "                $redis->auth($this->config->getAuth());\n"
+    "            }\n"
+    "            if ($this->config->getDbIndex() !== 0) {\n"
+    "                $redis->select($this->config->getDbIndex());\n"
+    "            }\n"
     "            return $redis;\n"
     "        }, $size);\n"
     "    }\n"
@@ -2379,6 +2417,7 @@ static const char* swoole_library_source_core_database_redis_pool =
 
 static const char* swoole_library_source_core_http_status =
     "\n"
+    "declare(strict_types=1);\n"
     "\n"
     "namespace Swoole\\Http;\n"
     "\n"
@@ -2531,6 +2570,7 @@ static const char* swoole_library_source_core_http_status =
 
 static const char* swoole_library_source_core_curl_exception =
     "\n"
+    "declare(strict_types=1);\n"
     "\n"
     "namespace Swoole\\Curl;\n"
     "\n"
@@ -2546,7 +2586,6 @@ static const char* swoole_library_source_core_curl_handler =
     "/** @noinspection PhpDuplicateSwitchCaseBodyInspection */\n"
     "\n"
     "namespace Swoole\\Curl;\n"
-    "\n"
     "\n"
     "use Swoole;\n"
     "use Swoole\\Coroutine\\Http\\Client;\n"
@@ -2629,7 +2668,7 @@ static const char* swoole_library_source_core_curl_handler =
     "    public $errCode = 0;\n"
     "    public $errMsg = '';\n"
     "\n"
-    "    public function __construct($url = null)\n"
+    "    public function __construct(string $url = '')\n"
     "    {\n"
     "        if ($url) {\n"
     "            $this->create($url);\n"
@@ -3158,29 +3197,16 @@ static const char* swoole_library_source_core_curl_handler =
 static const char* swoole_library_source_ext_curl =
     "\n"
     "\n"
-    "function swoole_curl_init($url = null): Swoole\\Curl\\Handler\n"
+    "function swoole_curl_init(string $url = ''): Swoole\\Curl\\Handler\n"
     "{\n"
     "    return new Swoole\\Curl\\Handler($url);\n"
     "}\n"
     "\n"
-    "/**\n"
-    " * @param Swoole\\Curl\\Handler $obj\n"
-    " * @param $opt\n"
-    " * @param $value\n"
-    " * @return bool\n"
-    " * @throws Swoole\\Curl\\Exception\n"
-    " */\n"
-    "function swoole_curl_setopt(Swoole\\Curl\\Handler $obj, $opt, $value): bool\n"
+    "function swoole_curl_setopt(Swoole\\Curl\\Handler $obj, int $opt, $value): bool\n"
     "{\n"
     "    return $obj->setOption($opt, $value);\n"
     "}\n"
     "\n"
-    "/**\n"
-    " * @param Swoole\\Curl\\Handler $obj\n"
-    " * @param $array\n"
-    " * @return bool\n"
-    " * @throws Swoole\\Curl\\Exception\n"
-    " */\n"
     "function swoole_curl_setopt_array(Swoole\\Curl\\Handler $obj, $array): bool\n"
     "{\n"
     "    foreach ($array as $k => $v) {\n"
