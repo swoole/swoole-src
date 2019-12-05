@@ -154,6 +154,10 @@ PHP_FUNCTION(swoole_async_set)
         {
             SwooleG.reuse_port = 1;
         }
+        else
+        {
+            SwooleG.reuse_port = 0;
+        }
     }
 #endif
 }

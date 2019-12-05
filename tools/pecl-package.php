@@ -207,6 +207,8 @@ if (!preg_match('/Package (?<filename>swoole-.+?.tgz) done/', $package, $matches
     swoole_error($package);
 } else {
     $file_name = $matches['filename'];
-    $file_size = file_size("{$root_dir}/{$file_name}");
-    swoole_success("Package {$file_name} ({$file_size}) done");
+    $file_path = "{$root_dir}/{$file_name}";
+    $file_size = file_size($file_path);
+    $file_hash = substr(md5_file($file_path), 0, 8);
+    swoole_success("Package {$file_name} ({$file_size}) ({$file_hash}) done");
 }
