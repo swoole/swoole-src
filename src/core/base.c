@@ -189,18 +189,25 @@ pid_t swoole_fork(int flags)
         if (swoole_coroutine_is_in())
         {
             swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "must be forked outside the coroutine");
-            return -1;
         }
         if (SwooleTG.aio_init)
         {
-            swError("can not create server after using async file operation");
-            return -1;
+            swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "can not create server after using async file operation");
         }
+    }
+    if (flags & SW_FORK_PRECHECK)
+    {
+        return 0;
     }
 
     pid_t pid = fork();
     if (pid == 0)
     {
+        if (flags & SW_FORK_DAEMON)
+        {
+            SwooleG.pid = getpid();
+            return pid;
+        }
         /**
          * [!!!] All timers and event loops must be cleaned up after fork
          */

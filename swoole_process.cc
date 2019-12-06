@@ -1113,7 +1113,7 @@ static PHP_METHOD(swoole_process, daemon)
         ZEND_HASH_FOREACH_END();
     }
 
-    RETURN_BOOL(daemon(nochdir, noclose) == 0);
+    RETURN_BOOL(swoole_daemon(nochdir, noclose) == 0);
 }
 
 #ifdef HAVE_CPU_AFFINITY
