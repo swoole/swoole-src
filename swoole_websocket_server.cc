@@ -236,12 +236,12 @@ static sw_inline int php_swoole_websocket_frame_pack_ex(
     return SW_OK;
 }
 
-int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress)
+int php_swoole_websocket_frame_pack_ex(swString *buffer, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress)
 {
     return php_swoole_websocket_frame_pack_ex(buffer, zdata, opcode, WEBSOCKET_CLOSE_NORMAL, flags, mask, allow_compress);
 }
 
-int php_swoole_websocket_frame_object_pack(swString *buffer, zval *zdata, zend_bool mask, zend_bool allow_compress)
+int php_swoole_websocket_frame_object_pack_ex(swString *buffer, zval *zdata, zend_bool mask, zend_bool allow_compress)
 {
     zval *zframe = zdata;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
@@ -844,7 +844,9 @@ static PHP_METHOD(swoole_websocket_server, push)
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
     zval *zflags = NULL;
     zend_long flags = SW_WEBSOCKET_FLAG_FIN;
+#ifdef SW_HAVE_ZLIB
     zend_bool allow_compress = 0;
+#endif
 
     ZEND_PARSE_PARAMETERS_START(2, 4)
         Z_PARAM_LONG(fd)

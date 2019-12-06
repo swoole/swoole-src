@@ -362,8 +362,17 @@ static sw_inline zend_bool php_swoole_websocket_frame_is_object(zval *zdata)
     return Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_ce);
 }
 
-int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress);
-int php_swoole_websocket_frame_object_pack(swString *buffer, zval *zdata, zend_bool mask, zend_bool allow_compress);
+#ifdef SW_HAVE_ZLIB
+#define php_swoole_websocket_frame_pack        php_swoole_websocket_frame_pack_ex
+#define php_swoole_websocket_frame_object_pack php_swoole_websocket_frame_object_pack_ex
+#else
+#define php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags, mask, allow_compress) \
+        php_swoole_websocket_frame_pack_ex(buffer, zdata, opcode, flags, mask, 0)
+#define php_swoole_websocket_frame_object_pack(buffer, zdata, mask, allow_compress) \
+        php_swoole_websocket_frame_object_pack_ex(buffer, zdata, mask, 0)
+#endif
+int php_swoole_websocket_frame_pack_ex(swString *buffer, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress);
+int php_swoole_websocket_frame_object_pack_ex(swString *buffer, zval *zdata, zend_bool mask, zend_bool allow_compress);
 void php_swoole_websocket_frame_unpack(swString *data, zval *zframe);
 void php_swoole_websocket_frame_unpack_ex(swString *data, zval *zframe, uchar allow_uncompress);
 
