@@ -23,5 +23,5 @@ $cm->run(function ($host) {
 }, false);
 ?>
 --EXPECTREGEX--
-string\(\d+\) "([^\r\n]*rotocol[^\r\n]+|Could not resolve host: .+)"
+string\(\d+\) ".+URL.+"
 int\(\d\)
