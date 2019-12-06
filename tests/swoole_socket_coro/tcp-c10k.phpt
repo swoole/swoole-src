@@ -15,17 +15,18 @@ go(function () use ($port) {
     Assert::assert($socket->listen(MAX_CONCURRENCY_MID));
     $i = 0;
     while ($conn = $socket->accept()) {
-        for ($n = MAX_REQUESTS; $n--;) {
-            $data = $conn->recv(tcp_length($conn->recv(tcp_type_length())));
-            Assert::same($data, "Hello Swoole Server #{$n}!");
-            $conn->send(tcp_pack("Hello Swoole Client #{$n}!"));
-        }
-        $conn->close();
-        if (++$i === MAX_CONCURRENCY_MID) {
-            $socket->close();
-            echo "DONE\n";
-            break;
-        }
+        go(function () use ($socket, $conn, &$i) {
+            for ($n = MAX_REQUESTS; $n--;) {
+                $data = $conn->recv(tcp_length($conn->recv(tcp_type_length())));
+                Assert::same($data, "Hello Swoole Server #{$n}!");
+                $conn->send(tcp_pack("Hello Swoole Client #{$n}!"));
+            }
+            $conn->close();
+            if (++$i === MAX_CONCURRENCY_MID) {
+                $socket->close();
+                echo "DONE\n";
+            }
+        });
     }
 });
 for ($c = MAX_CONCURRENCY_MID; $c--;) {

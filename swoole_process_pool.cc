@@ -404,7 +404,7 @@ static PHP_METHOD(swoole_process_pool, on)
 
     process_pool_property *pp = php_swoole_process_pool_get_and_check_pp(ZEND_THIS);
 
-    if (strncasecmp("WorkerStart", name, l_name) == 0)
+    if (SW_STRCASEEQ(name, l_name, "WorkerStart"))
     {
         if (pp->onWorkerStart)
         {
@@ -419,7 +419,7 @@ static PHP_METHOD(swoole_process_pool, on)
         sw_zend_fci_cache_persist(pp->onWorkerStart);
         RETURN_TRUE;
     }
-    else if (strncasecmp("Message", name, l_name) == 0)
+    else if (SW_STRCASEEQ(name, l_name, "Message"))
     {
         if (pp->enable_coroutine)
         {
@@ -444,7 +444,7 @@ static PHP_METHOD(swoole_process_pool, on)
         sw_zend_fci_cache_persist(pp->onMessage);
         RETURN_TRUE;
     }
-    else if (strncasecmp("WorkerStop", name, l_name) == 0)
+    else if (SW_STRCASEEQ(name, l_name, "WorkerStop"))
     {
         if (pp->onWorkerStop)
         {
@@ -459,7 +459,7 @@ static PHP_METHOD(swoole_process_pool, on)
         sw_zend_fci_cache_persist(pp->onWorkerStop);
         RETURN_TRUE;
     }
-    else if (strncasecmp("Start", name, l_name) == 0)
+    else if (SW_STRCASEEQ(name, l_name, "Start"))
     {
         if (pp->onStart)
         {
@@ -510,7 +510,7 @@ static PHP_METHOD(swoole_process_pool, listen)
     SwooleG.reuse_port = 0;
     int ret;
     //unix socket
-    if (strncasecmp("unix:/", host, 6) == 0)
+    if (SW_STRCASECT(host, l_host, "unix:/"))
     {
         ret = swProcessPool_create_unix_socket(pool, host + 5, backlog);
     }

@@ -186,6 +186,7 @@ void swAio_free(void)
 }
 #endif
 
+#if __APPLE__
 int swoole_daemon(int nochdir, int noclose)
 {
     pid_t pid;
@@ -215,7 +216,7 @@ int swoole_daemon(int nochdir, int noclose)
         close(fd);
     }
 
-    pid = fork();
+    pid = swoole_fork(SW_FORK_DAEMON);
     if (pid < 0)
     {
         swSysWarn("fork() failed");
@@ -232,6 +233,15 @@ int swoole_daemon(int nochdir, int noclose)
     }
     return 0;
 }
+#else
+int swoole_daemon(int nochdir, int noclose)
+{
+    if (swoole_fork(SW_FORK_PRECHECK) < 0) {
+        return -1;
+    }
+    return daemon(nochdir, noclose);
+}
+#endif
 
 void swAio_handler_read(swAio_event *event)
 {

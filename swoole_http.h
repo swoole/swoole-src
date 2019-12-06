@@ -118,7 +118,6 @@ struct http_context
 #endif
     uint32_t chunk :1;
     uint32_t keepalive :1;
-    uint32_t http2 :1;
     uint32_t websocket :1;
 #ifdef SW_HAVE_ZLIB
     uint32_t websocket_compression :1;
@@ -162,6 +161,7 @@ struct http_context
     bool (*close)(http_context* ctx);
 };
 
+#ifdef SW_USE_HTTP2
 class http2_stream
 {
 public:
@@ -174,6 +174,7 @@ public:
 
     http2_stream(int _fd, uint32_t _id);
     ~http2_stream();
+
     void reset(uint32_t error_code);
 };
 
@@ -200,6 +201,7 @@ public:
     http2_session(int _fd);
     ~http2_session();
 };
+#endif
 
 extern zend_class_entry *swoole_http_server_ce;
 extern zend_class_entry *swoole_http_request_ce;
@@ -211,13 +213,9 @@ extern swString *swoole_http_form_data_buffer;
 extern swString *swoole_zlib_buffer;
 #endif
 
-#define http_strncasecmp(const_str, at, length) \
-    ((length >= sizeof(const_str)-1) && \
-    (strncasecmp(at, ZEND_STRL(const_str)) == 0))
-
 http_context* swoole_http_context_new(int fd);
 http_context* php_swoole_http_request_get_and_check_context(zval *zobject);
-http_context* php_swoole_http_response_get_and_check_context(zval *zobject, bool check_end);
+http_context* php_swoole_http_response_get_and_check_context(zval *zobject);
 void swoole_http_context_free(http_context *ctx);
 void swoole_http_context_copy(http_context *src, http_context *dst);
 

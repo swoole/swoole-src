@@ -577,7 +577,7 @@ int swServer_start(swServer *serv)
             }
         }
 
-        if (daemon(0, 1) < 0)
+        if (swoole_daemon(0, 1) < 0)
         {
             return SW_ERR;
         }

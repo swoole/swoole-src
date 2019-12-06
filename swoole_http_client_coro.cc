@@ -318,60 +318,61 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
     zval* zobject = (zval*) http->zobject;
     zval *zheaders = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 0);
     char *header_name = zend_str_tolower_dup(http->tmp_header_field_name, http->tmp_header_field_name_len);
+    size_t header_len = http->tmp_header_field_name_len;
     int ret = 0;
 
     add_assoc_stringl_ex(zheaders, header_name, http->tmp_header_field_name_len, (char *) at, length);
 
-    if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && strcmp(header_name, "upgrade") == 0)
+    if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && SW_STREQ(header_name, header_len, "upgrade"))
     {
-        if (strncasecmp(at, "websocket", length) == 0)
+        if (SW_STRCASEEQ(at, length, "websocket"))
         {
             http->websocket = true;
         }
         /* TODO: protocol error? */
     }
 #ifdef SW_HAVE_ZLIB
-    else if (http->websocket && http->websocket_compression && strcmp(header_name, "sec-websocket-extensions") == 0)
+    else if (http->websocket && http->websocket_compression && SW_STREQ(header_name, header_len, "sec-websocket-extensions"))
     {
         if (
-            strncasecmp(at, "permessage-deflate", length) == 0 &&
-            strncasecmp(at, "client_no_context_takeover", length) == 0 &&
-            strncasecmp(at, "server_no_context_takeover", length) == 0
+            SW_STRCASECT(at, length, "permessage-deflate") &&
+            SW_STRCASECT(at, length, "client_no_context_takeover") &&
+            SW_STRCASECT(at, length, "server_no_context_takeover")
         )
         {
             http->websocket_compression = true;
         }
     }
 #endif
-    else if (strcmp(header_name, "set-cookie") == 0)
+    else if (SW_STREQ(header_name, header_len, "set-cookie"))
     {
         zval *zcookies = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("cookies"), 0);
         zval *zset_cookie_headers = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("set_cookie_headers"), 0);
         ret = http_parse_set_cookies(at, length, zcookies, zset_cookie_headers);
     }
 #ifdef SW_HAVE_COMPRESSION
-    else if (strcmp(header_name, "content-encoding") == 0)
+    else if (SW_STREQ(header_name, header_len, "content-encoding"))
     {
         if (0) { }
-#ifdef SW_HAVE_ZLIB
-        else if (strncasecmp(at, "gzip", length) == 0)
-        {
-            http->compress_method = HTTP_COMPRESS_GZIP;
-        }
-        else if (strncasecmp(at, "deflate", length) == 0)
-        {
-            http->compress_method = HTTP_COMPRESS_DEFLATE;
-        }
-#endif
 #ifdef SW_HAVE_BROTLI
-        else if (strncasecmp(at, "br", length) == 0)
+        else if (SW_STRCASECT(at, length, "br"))
         {
             http->compress_method = HTTP_COMPRESS_BR;
         }
 #endif
+#ifdef SW_HAVE_ZLIB
+        else if (SW_STRCASECT(at, length, "gzip"))
+        {
+            http->compress_method = HTTP_COMPRESS_GZIP;
+        }
+        else if (SW_STRCASECT(at, length, "deflate"))
+        {
+            http->compress_method = HTTP_COMPRESS_DEFLATE;
+        }
+#endif
     }
 #endif
-    else if (strcasecmp(header_name, "transfer-encoding") == 0 && strncasecmp(at, "chunked", length) == 0)
+    else if (strcasecmp(header_name, "transfer-encoding") == 0 && SW_STRCASECT(at, length, "chunked"))
     {
         http->chunked = true;
     }
@@ -848,20 +849,25 @@ bool http_client::send()
     }
 
     // ============ method ============
-    zend::string str_method;
-    const char *method;
-    if (zmethod)
     {
-        str_method = zmethod;
-        method = str_method.val();
+        zend::string str_method;
+        const char *method;
+        size_t method_len;
+        if (zmethod)
+        {
+            str_method = zmethod;
+            method = str_method.val();
+            method_len = str_method.len();
+        }
+        else
+        {
+            method = zbody ? "POST" : "GET";
+            method_len = strlen(method);
+        }
+        this->method = swHttp_get_method(method, method_len);
+        swString_append_ptr(buffer, method, method_len);
+        swString_append_ptr(buffer, ZEND_STRL(" "));
     }
-    else
-    {
-        method = zbody ? "POST" : "GET";
-    }
-    this->method = swHttp_get_method(method, strlen(method) + 1);
-    swString_append_ptr(buffer, method, strlen(method));
-    swString_append_ptr(buffer, ZEND_STRL(" "));
 
     // ============ path & proxy ============
 #ifdef SW_USE_OPENSSL
@@ -930,21 +936,21 @@ bool http_client::send()
             {
                 continue;
             }
-            if (strncasecmp(key, ZEND_STRL("Host")) == 0)
+            if (SW_STRCASEEQ(key, keylen, "Host"))
             {
                 continue;
             }
-            if (strncasecmp(key, ZEND_STRL("Content-Length")) == 0)
+            if (SW_STRCASEEQ(key, keylen, "Content-Length"))
             {
                 header_flag |= HTTP_HEADER_CONTENT_LENGTH;
                 //ignore custom Content-Length value
                 continue;
             }
-            else if (strncasecmp(key, ZEND_STRL("Connection")) == 0)
+            else if (SW_STRCASEEQ(key, keylen, "Connection"))
             {
                 header_flag |= HTTP_HEADER_CONNECTION;
             }
-            else if (strncasecmp(key, ZEND_STRL("Accept-Encoding")) == 0)
+            else if (SW_STRCASEEQ(key, keylen, "Accept-Encoding"))
             {
                 header_flag |= HTTP_HEADER_ACCEPT_ENCODING;
             }

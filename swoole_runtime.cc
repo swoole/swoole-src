@@ -925,19 +925,12 @@ static php_stream *socket_create(
 
     Coroutine::get_current_safe();
 
-    if (strncmp(proto, "unix", protolen) == 0)
+    if (SW_STREQ(proto, protolen, "tcp"))
     {
-        sock = new Socket(SW_SOCK_UNIX_STREAM);
+        _tcp:
+        sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
     }
-    else if (strncmp(proto, "udp", protolen) == 0)
-    {
-        sock = new Socket(SW_SOCK_UDP);
-    }
-    else if (strncmp(proto, "udg", protolen) == 0)
-    {
-        sock = new Socket(SW_SOCK_UNIX_DGRAM);
-    }
-    else if (strncmp(proto, "ssl", protolen) == 0 || strncmp(proto, "tls", protolen) == 0)
+    else if (SW_STREQ(proto, protolen, "ssl") || SW_STREQ(proto, protolen, "tls"))
     {
 #ifdef SW_USE_OPENSSL
         sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
@@ -947,9 +940,22 @@ static php_stream *socket_create(
         return NULL;
 #endif
     }
+    else if (SW_STREQ(proto, protolen, "unix"))
+    {
+        sock = new Socket(SW_SOCK_UNIX_STREAM);
+    }
+    else if (SW_STREQ(proto, protolen, "udp"))
+    {
+        sock = new Socket(SW_SOCK_UDP);
+    }
+    else if (SW_STREQ(proto, protolen, "udg"))
+    {
+        sock = new Socket(SW_SOCK_UNIX_DGRAM);
+    }
     else
     {
-        sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
+        /* abort? */
+        goto _tcp;
     }
 
     if (UNEXPECTED(sock->get_fd() < 0))

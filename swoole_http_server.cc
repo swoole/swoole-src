@@ -157,8 +157,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
 void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
 {
-    int fd = ev->fd;
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = swWorker_get_connection(serv, ev->fd);
     if (!conn)
     {
         return;
@@ -247,11 +246,18 @@ void swoole_http_context_copy(http_context *src, http_context *dst)
 
 void swoole_http_context_free(http_context *ctx)
 {
-    if (ctx->request.zobject)
+    /* http context can only be free'd after request and response were free'd */
+    if (ctx->request.zobject || ctx->response.zobject)
     {
-        php_swoole_http_request_set_context(ctx->request.zobject, NULL);
+        return;
     }
-    php_swoole_http_response_set_context(ctx->response.zobject, NULL);
+#ifdef SW_USE_HTTP2
+    if (ctx->stream)
+    {
+        ((http2_stream *) ctx->stream)->ctx = nullptr;
+    }
+#endif
+
     http_request *req = &ctx->request;
     http_response *res = &ctx->response;
     if (req->path)
@@ -309,10 +315,10 @@ http_context* php_swoole_http_request_get_and_check_context(zval *zobject)
     return ctx;
 }
 
-http_context* php_swoole_http_response_get_and_check_context(zval *zobject, bool check_end)
+http_context* php_swoole_http_response_get_and_check_context(zval *zobject)
 {
     http_context *ctx = php_swoole_http_response_get_context(zobject);
-    if (!ctx || (check_end && ctx->end))
+    if (!ctx || (ctx->end || ctx->detached))
     {
         php_swoole_fatal_error(E_WARNING, "http response is unavailable (maybe it has been ended or detached)");
         return NULL;

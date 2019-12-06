@@ -22,13 +22,16 @@ function space(int $length): string
 
 function camelize(string $uncamelized_words, string $separator = '_'): string
 {
-    $uncamelized_words = $separator . str_replace($separator, " ", strtolower($uncamelized_words));
-    return ltrim(str_replace(" ", "", ucwords($uncamelized_words)), $separator);
+    $uncamelized_words = $separator . str_replace($separator, ' ', strtolower($uncamelized_words));
+    return ltrim(str_replace(' ', '', ucwords($uncamelized_words)), $separator);
 }
 
 function unCamelize(string $camelCaps, string $separator = '_'): string
 {
-    return strtolower(preg_replace('/([a-z])([A-Z])/', "$1" . $separator . "$2", $camelCaps));
+    $camelCaps = preg_replace('/([a-z])([A-Z])/', "\${1}{$separator}\${2}", $camelCaps);
+    /* for special case like: PDOPool => pdo_pool */
+    $camelCaps = preg_replace('/([A-Z]+)([A-Z][a-z]+)/', "\${1}{$separator}\${2}\${3}", $camelCaps);
+    return strtolower($camelCaps);
 }
 
 function print_split_line(string $title = '', int $length = 32)

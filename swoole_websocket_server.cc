@@ -327,7 +327,6 @@ void swoole_websocket_onRequest(http_context *ctx)
     ctx->send(ctx, (char *) bad_request, strlen(bad_request));
     ctx->end = 1;
     ctx->close(ctx);
-    swoole_http_context_free(ctx);
 }
 
 void swoole_sha1(const char *str, int _len, unsigned char *digest)
@@ -664,10 +663,6 @@ int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_contex
     else
     {
         serv->close(serv, fd, 1);
-    }
-    if (!ctx->end)
-    {
-        swoole_http_context_free(ctx);
     }
     return SW_OK;
 }

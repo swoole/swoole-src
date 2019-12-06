@@ -5,12 +5,46 @@ require __DIR__ . '/bootstrap.php';
 define('LIBRARY_HEADER', ROOT_DIR . '/php_swoole_library.h');
 define('PHP_TAG', '<?php');
 
-$list = require LIBRARY_DIR . '/config.inc';
-if (empty($list)) {
-    swoole_error('can not read library config');
-}
+$files = [
+    # <basic> #
+    'constants.php',
+    # <std> #
+    'std/exec.php',
+    # <core> #
+    'core/Constant.php',
+    'core/StringObject.php',
+    'core/ArrayObject.php',
+    'core/ObjectProxy.php',
+    'core/Coroutine/WaitGroup.php',
+    'core/Coroutine/Server.php',
+    'core/Coroutine/Server/Connection.php',
+    # <core for connection pool> #
+    'core/ConnectionPool.php',
+    'core/Database/MysqliConfig.php',
+    'core/Database/MysqliException.php',
+    'core/Database/MysqliPool.php',
+    'core/Database/MysqliProxy.php',
+    'core/Database/MysqliStatementProxy.php',
+    'core/Database/PDOConfig.php',
+    'core/Database/PDOPool.php',
+    'core/Database/PDOProxy.php',
+    'core/Database/PDOStatementProxy.php',
+    'core/Database/RedisConfig.php',
+    'core/Database/RedisPool.php',
+    # <core for ext-curl> #
+    'core/Http/Status.php',
+    'core/Curl/Exception.php',
+    'core/Curl/Handler.php',
+    # <ext> #
+    'ext/curl.php',
+    # <finalizer> #
+    'functions.php',
+    'alias.php',
+    'alias_ns.php',
+];
+
 $source_str = $eval_str = '';
-foreach ($list as $file) {
+foreach ($files as $file) {
     $php_file = LIBRARY_DIR . '/' . $file;
     if (strpos(`/usr/bin/env php -n -l {$php_file} 2>&1`, 'No syntax errors detected') === false) {
         swoole_error("syntax error in file {$php_file}");
