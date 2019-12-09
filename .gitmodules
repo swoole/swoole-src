@@ -1,6 +1,3 @@
 [submodule "thirdparty/jemalloc"]
 	path = thirdparty/jemalloc
 	url = https://github.com/jemalloc/jemalloc.git
-[submodule "library"]
-	path = library
-	url = https://github.com/swoole/library.git

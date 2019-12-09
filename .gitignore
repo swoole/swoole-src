@@ -20,8 +20,9 @@ modules/*
 /cmake_install.cmake
 /CMakeCache.txt
 /Makefile
-/lib
 /bin
+/lib
+/library
 /install_manifest.txt
 /config.guess
 /config.h
