@@ -17,6 +17,7 @@ $pm->parentFunc = function () use ($pm) {
         switch_process();
     }
     $pm->kill();
+    echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
     $pm->wakeup();
