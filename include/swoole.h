@@ -1710,6 +1710,7 @@ struct _swReactor
     void (*onBegin)(swReactor *);
 
     int (*is_empty)(swReactor *);
+    int (*can_exit)(swReactor *);
 
     int (*write)(swReactor *, int, const void *, int);
     int (*close)(swReactor *, int);
@@ -2421,6 +2422,7 @@ typedef struct
     swHashMap *functions;
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];
 
+    int (*reactor_can_exit)(swReactor *);
 } swGlobal_t;
 
 extern swGlobal_t SwooleG;              //Local Global Variable
