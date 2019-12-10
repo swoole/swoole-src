@@ -170,12 +170,12 @@ static bool swoole_http2_is_static_file(swServer *serv, http_context *ctx)
             return false;
         }
 
-        swString null_body;
-        null_body.length = 0;
-        null_body.str = nullptr;
-
         if (handler.status_code == SW_HTTP_NOT_FOUND)
         {
+            swString null_body;
+            null_body.length = 0;
+            null_body.str = nullptr;
+
             ctx->response.status = SW_HTTP_NOT_FOUND;
             swoole_http2_server_do_response(ctx, &null_body);
 
@@ -202,7 +202,7 @@ static bool swoole_http2_is_static_file(swServer *serv, http_context *ctx)
         zend::string _filename(handler.get_filename_std_string());
         zval zfilename;
         ZVAL_STR(&zfilename, _filename.get());
-        zval retval;
+        zval retval; /* do not care the retval (the connection will be closed if failed) */
         sw_zend_call_method_with_1_params(ctx->response.zobject, swoole_http_response_ce, NULL, "sendfile", &retval, &zfilename);
 
         return true;
