@@ -34,7 +34,7 @@ function unCamelize(string $camelCaps, string $separator = '_'): string
     return strtolower($camelCaps);
 }
 
-function print_split_line(string $title = '', int $length = 32)
+function print_split_line(string $title = '', int $length = 32): void
 {
     if ($length % 2 !== 0) {
         $length += 1;
@@ -42,12 +42,12 @@ function print_split_line(string $title = '', int $length = 32)
     echo "< {$title} > " . str_repeat('=', $length) . PHP_EOL;
 }
 
-function swoole_log(string $content, int $color = 0)
+function swoole_log(string $content, int $color = 0): void
 {
     echo ($color ? "\033[3{$color}m{$content}\033[0m" : $content) . PHP_EOL;
 }
 
-function swoole_check(bool $is_ok, string $output)
+function swoole_check(bool $is_ok, string $output): void
 {
     if ($is_ok) {
         swoole_ok("{$output} OK!");
@@ -56,14 +56,14 @@ function swoole_check(bool $is_ok, string $output)
     }
 }
 
-function swoole_warn(string ...$args)
+function swoole_warn(string ...$args): void
 {
     foreach ($args as $arg) {
         swoole_log(EMOJI_WARN . " {$arg}", SWOOLE_COLOR_YELLOW);
     }
 }
 
-function swoole_error(string ...$args)
+function swoole_error(string ...$args): void
 {
     foreach ($args as $arg) {
         swoole_log(EMOJI_ERROR . " {$arg}", SWOOLE_COLOR_RED);
@@ -71,14 +71,14 @@ function swoole_error(string ...$args)
     exit(255);
 }
 
-function swoole_ok(string ...$args)
+function swoole_ok(string ...$args): void
 {
     foreach ($args as $arg) {
         swoole_log(EMOJI_OK . " {$arg}", SWOOLE_COLOR_GREEN);
     }
 }
 
-function swoole_success(string $content)
+function swoole_success(string $content): void
 {
     swoole_log(
         str_repeat(EMOJI_SUCCESS, 3) . $content . str_repeat(EMOJI_SUCCESS, 3),
@@ -87,11 +87,12 @@ function swoole_success(string $content)
     exit(0);
 }
 
-function swoole_execute_and_check(string $command)
+function swoole_execute_and_check(array $commands): void
 {
-    $basename = pathinfo(explode(' ', $command)[1], PATHINFO_FILENAME);
+    $basename = pathinfo($commands[1] ?? '', PATHINFO_FILENAME);
     echo "[{$basename}]" . PHP_EOL;
     echo "===========  Execute  ==============" . PHP_EOL;
+    $command = implode(' ', $commands);
     exec($command, $output, $return_var);
     if (substr($output[0] ?? '', 0, 2) === '#!') {
         array_shift($output);
@@ -110,7 +111,7 @@ function scan_dir(string $dir, callable $filter = null): array
     return array_values($filter ? array_filter($files, $filter) : $files);
 }
 
-function file_size(string $filename, int $decimals = 2)
+function file_size(string $filename, int $decimals = 2): string
 {
     $bytes = filesize($filename);
     $sz = 'BKMGTP';

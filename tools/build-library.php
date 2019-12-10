@@ -45,7 +45,7 @@ $files = [
 
 foreach ($files as $file) {
     if (!file_exists(LIBRARY_DIR . '/' . $file)) {
-        swoole_error("unable to find source file [{$file}]");
+        swoole_error("Unable to find source file [{$file}]");
     }
 }
 
@@ -53,16 +53,16 @@ $source_str = $eval_str = '';
 foreach ($files as $file) {
     $php_file = LIBRARY_DIR . '/' . $file;
     if (strpos(`/usr/bin/env php -n -l {$php_file} 2>&1`, 'No syntax errors detected') === false) {
-        swoole_error("syntax error in file [{$php_file}]");
+        swoole_error("Syntax error in file [{$php_file}]");
     } else {
-        swoole_ok("syntax correct in [{$file}]");
+        swoole_ok("Syntax correct in [{$file}]");
     }
     $code = file_get_contents($php_file);
     if ($code === false) {
-        swoole_error("can not read file [{$file}]");
+        swoole_error("Can not read file [{$file}]");
     }
     if (strpos($code, PHP_TAG) !== 0) {
-        swoole_error("file [{$file}] must start with \"<?php\"");
+        swoole_error("File [{$file}] must start with \"<?php\"");
     }
     $name = unCamelize(str_replace(['/', '.php'], ['_', ''], $file));
     // keep line breaks to align line numbers

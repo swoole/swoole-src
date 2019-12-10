@@ -2,6 +2,11 @@
 <?php
 require __DIR__ . '/bootstrap.php';
 
+$constant_php = LIBRARY_DIR . '/core/Constant.php';
+if (!file_exists($constant_php)) {
+    swoole_error("Unable to find source file [{$constant_php}]");
+}
+
 $root_dir = ROOT_DIR;
 $file_list = explode("\n", `cd {$root_dir} && git ls-files`);
 $file_list = array_filter($file_list, function (string $filename) {
@@ -21,7 +26,6 @@ foreach ($matches as $option) {
     $result .= space(4) . sprintf("const OPTION_%s = '%s';\n", strtoupper($option), $option);
 }
 
-$constant_php = LIBRARY_DIR . '/core/Constant.php';
 $constant_php_content = file_get_contents($constant_php);
 $constant_php_content = preg_replace(
     '/(\/\* \{\{\{ OPTION \*\/\n)([\s\S]*)(\/\* \}\}\} OPTION \*\/)/',
@@ -31,7 +35,7 @@ $constant_php_content = preg_replace(
     $replaced
 );
 
-if (!$replaced || !file_put_contents($constant_php, $constant_php_content)) {
+if (!$replaced || !file_put_contents(CONSTANT_PHP, $constant_php_content)) {
     swoole_error('Update Constant failed ');
 }
 
