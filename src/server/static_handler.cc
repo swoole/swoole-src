@@ -138,7 +138,7 @@ bool StaticHandler::hit()
     {
         if (last)
         {
-            status_code = 404;
+            status_code = SW_HTTP_NOT_FOUND;
             return true;
         }
         else
@@ -173,7 +173,7 @@ bool StaticHandler::hit()
     {
         if (last)
         {
-            status_code = 404;
+            status_code = SW_HTTP_NOT_FOUND;
             return true;
         }
         else

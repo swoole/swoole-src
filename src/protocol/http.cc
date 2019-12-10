@@ -74,7 +74,7 @@ int swHttp_static_handler_hit(swServer *serv, swHttpRequest *request, swConnecti
     response.info.fd = conn->session_id;
     response.info.type = SW_SERVER_EVENT_SEND_DATA;
 
-    if (handler.status_code == 404)
+    if (handler.status_code == SW_HTTP_NOT_FOUND)
     {
         response.info.len = sw_snprintf(
             header_buffer, sizeof(header_buffer),
@@ -82,7 +82,7 @@ int swHttp_static_handler_hit(swServer *serv, swHttpRequest *request, swConnecti
             "Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"
             "Content-Length: %zu\r\n"
             "\r\n%s",
-            swHttp_get_status_message(404),
+            swHttp_get_status_message(SW_HTTP_NOT_FOUND),
             sizeof(SW_HTTP_PAGE_404) - 1, SW_HTTP_PAGE_404
         );
         response.data = header_buffer;
