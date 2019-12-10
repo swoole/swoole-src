@@ -1338,7 +1338,7 @@ static PHP_METHOD(swoole_http2_client_coro, send)
     }
     if (Z_TYPE_P(request) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(request), swoole_http2_request_ce))
     {
-        php_swoole_fatal_error(E_ERROR, "object is not instanceof swoole_http2_request");
+        zend_throw_exception_ex(swoole_http2_client_coro_exception_ce, SW_ERROR_INVALID_PARAMS, "Object is not a instanceof %s", ZSTR_VAL(swoole_http2_request_ce->name));
         RETURN_FALSE;
     }
 

@@ -888,14 +888,14 @@ static PHP_METHOD(swoole_http_response, sendfile)
 #ifdef SW_USE_HTTP2
     if (ctx->stream)
     {
-        php_swoole_fatal_error(E_WARNING, "can't use sendfile when http2 connection is established");
+        php_swoole_fatal_error(E_WARNING, "can't use sendfile when HTTP2 connection is established");
         RETURN_FALSE;
     }
 #endif
 
     if (ctx->chunk)
     {
-        php_swoole_fatal_error(E_ERROR, "can't use sendfile when Http-Chunk is enabled");
+        php_swoole_fatal_error(E_WARNING, "can't use sendfile when HTTP chunk is enabled");
         RETURN_FALSE;
     }
 
