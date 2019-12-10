@@ -43,22 +43,27 @@ $files = [
     'alias_ns.php',
 ];
 
+foreach ($files as $file) {
+    if (!file_exists(LIBRARY_DIR . '/' . $file)) {
+        swoole_error("unable to find source file [{$file}]");
+    }
+}
+
 $source_str = $eval_str = '';
 foreach ($files as $file) {
     $php_file = LIBRARY_DIR . '/' . $file;
     if (strpos(`/usr/bin/env php -n -l {$php_file} 2>&1`, 'No syntax errors detected') === false) {
-        swoole_error("syntax error in file {$php_file}");
+        swoole_error("syntax error in file [{$php_file}]");
     } else {
         swoole_ok("syntax correct in [{$file}]");
     }
     $code = file_get_contents($php_file);
     if ($code === false) {
-        swoole_error("can not read file {$file}");
+        swoole_error("can not read file [{$file}]");
     }
     if (strpos($code, PHP_TAG) !== 0) {
-        swoole_error('swoole library php file must start with "<?php"');
+        swoole_error("file [{$file}] must start with \"<?php\"");
     }
-
     $name = unCamelize(str_replace(['/', '.php'], ['_', ''], $file));
     // keep line breaks to align line numbers
     $code = rtrim(substr($code, strlen(PHP_TAG)));
