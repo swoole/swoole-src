@@ -221,7 +221,7 @@ static void swoole_http2_onRequest(http2_session *client, http2_stream *stream)
     int server_fd = conn->server_fd;
     swConnection *serv_sock = swServer_connection_get(serv, server_fd);
 
-    ctx->request.version = 200;
+    ctx->request.version = SW_HTTP_OK;
 
     if (serv->enable_static_handler && swoole_http2_is_static_file(serv, ctx))
     {
@@ -267,7 +267,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     // status code
     if (ctx->response.status == 0)
     {
-        ctx->response.status = 200;
+        ctx->response.status = SW_HTTP_OK;
     }
     ret = swoole_itoa(intbuf[0], ctx->response.status);
     headers.add(ZEND_STRL(":status"), intbuf[0], ret);
