@@ -27,13 +27,13 @@ unordered_set<string> locations;
 
 bool StaticHandler::is_modified(const string &date_if_modified_since)
 {
-    if (date_if_modified_since.empty())
+    char date_tmp[64];
+    if (date_if_modified_since.empty() || date_if_modified_since.length() > sizeof(date_tmp) - 1)
     {
         return false;
     }
 
     struct tm tm3;
-    char date_tmp[64];
     memcpy(date_tmp, date_if_modified_since.c_str(), date_if_modified_since.length());
     date_tmp[date_if_modified_since.length()] = 0;
 
