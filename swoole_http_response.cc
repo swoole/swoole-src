@@ -885,11 +885,6 @@ static PHP_METHOD(swoole_http_response, sendfile)
         RETURN_FALSE;
     }
 
-    if (ctx->chunk)
-    {
-        php_swoole_fatal_error(E_ERROR, "can't use sendfile when Http-Chunk is enabled");
-        RETURN_FALSE;
-    }
 #ifdef SW_USE_HTTP2
     if (ctx->stream)
     {
@@ -897,6 +892,12 @@ static PHP_METHOD(swoole_http_response, sendfile)
         RETURN_FALSE;
     }
 #endif
+
+    if (ctx->chunk)
+    {
+        php_swoole_fatal_error(E_ERROR, "can't use sendfile when Http-Chunk is enabled");
+        RETURN_FALSE;
+    }
 
     char *file;
     size_t l_file;

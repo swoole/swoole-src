@@ -19,6 +19,8 @@
 #ifdef SW_USE_HTTP2
 #include "swoole_http.h"
 
+#include "static_handler.h"
+
 #include "http2.h"
 #include "main/php_variables.h"
 
@@ -27,6 +29,8 @@
 extern swString *swoole_http_buffer;
 
 using namespace swoole;
+using swoole::http::StaticHandler;
+using std::string;
 
 static std::unordered_map<int, http2_session*> http2_sessions;
 
@@ -154,6 +158,59 @@ static ssize_t http2_build_trailer(http_context *ctx, uchar *buffer)
     return 0;
 }
 
+static bool swoole_http2_is_static_file(swServer *serv, http_context *ctx)
+{
+    zval *zserver = ctx->request.zserver;
+    zval *zrequest_uri = zend_hash_str_find(Z_ARR_P(zserver), ZEND_STRL("request_uri"));
+    if (zrequest_uri && Z_TYPE_P(zrequest_uri) == IS_STRING)
+    {
+        StaticHandler handler(serv, Z_STRVAL_P(zrequest_uri), Z_STRLEN_P(zrequest_uri));
+        if (!handler.hit())
+        {
+            return false;
+        }
+
+        swString null_body;
+        null_body.length = 0;
+        null_body.str = nullptr;
+
+        if (handler.status_code == SW_HTTP_NOT_FOUND)
+        {
+            ctx->response.status = SW_HTTP_NOT_FOUND;
+            swoole_http2_server_do_response(ctx, &null_body);
+
+            return true;
+        }
+
+        auto date_str = handler.get_date();
+        auto date_str_last_modified = handler.get_date_last_modified();
+
+        zval *zheader = ctx->request.zserver;
+        swoole_http_response_set_header(ctx, ZEND_STRL("Last-Modified"), date_str.c_str(), date_str.length(), 0);
+
+        zval *zdate_if_modified_since = zend_hash_str_find(Z_ARR_P(zheader), ZEND_STRL("if-modified-since"));
+        if (zdate_if_modified_since)
+        {
+            string date_if_modified_since(Z_STRVAL_P(zdate_if_modified_since), Z_STRLEN_P(zdate_if_modified_since));
+            if (!date_if_modified_since.empty() && handler.is_modified(date_if_modified_since))
+            {
+                ctx->response.status = SW_HTTP_NOT_MODIFIED;
+                return true;
+            }
+        }
+
+        zend::string _filename(handler.get_filename_std_string());
+        zval zfilename;
+        ZVAL_STR(&zfilename, _filename.get());
+        zval retval;
+        sw_zend_call_method_with_1_params(ctx->response.zobject, swoole_http_response_ce, NULL, "sendfile", &retval, &zfilename);
+
+        return true;
+    }
+
+    return false;
+}
+
 static void swoole_http2_onRequest(http2_session *client, http2_stream *stream)
 {
     http_context *ctx = stream->ctx;
@@ -165,6 +222,13 @@ static void swoole_http2_onRequest(http2_session *client, http2_stream *stream)
     swConnection *serv_sock = swServer_connection_get(serv, server_fd);
 
     ctx->request.version = 200;
+
+    if (serv->enable_static_handler && swoole_http2_is_static_file(serv, ctx))
+    {
+        zval_ptr_dtor(ctx->request.zobject);
+        zval_ptr_dtor(ctx->response.zobject);
+        return;
+    }
 
     add_assoc_long(zserver, "request_time", serv->gs->now);
     add_assoc_double(zserver, "request_time_float", swoole_microtime());
@@ -184,6 +248,7 @@ static void swoole_http2_onRequest(http2_session *client, http2_stream *stream)
         stream->reset(SW_HTTP2_ERROR_INTERNAL_ERROR);
         php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));
     }
+
     zval_ptr_dtor(&args[0]);
     zval_ptr_dtor(&args[1]);
 }

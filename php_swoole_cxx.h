@@ -53,6 +53,16 @@ public:
         str = nullptr;
     }
 
+    string(const char *_str, size_t len)
+    {
+        str = zend_string_init(_str, len, 0);
+    }
+
+    string(const std::string &_str)
+    {
+        str = zend_string_init(_str.c_str(), _str.length(), 0);
+    }
+
     string(zval *v)
     {
         str = zval_get_string(v);

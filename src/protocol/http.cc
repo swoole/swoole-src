@@ -13,14 +13,19 @@
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
  +----------------------------------------------------------------------+
  */
-#include "swoole.h"
 #include "server.h"
 #include "http.h"
 #include "http2.h"
 #include "websocket.h"
+#include "static_handler.h"
 
 #include <assert.h>
 #include <stddef.h>
+
+#include <string>
+
+using std::string;
+using swoole::http::StaticHandler;
 
 static const char *method_strings[] =
 {
@@ -28,6 +33,8 @@ static const char *method_strings[] =
     "PROPFIND", "PROPPATCH", "UNLOCK", "REPORT", "MKACTIVITY", "CHECKOUT", "MERGE", "M-SEARCH", "NOTIFY",
     "SUBSCRIBE", "UNSUBSCRIBE", "PURGE", "PRI",
 };
+
+string swHttpRequest_get_date_if_modified_since(swHttpRequest *request);
 
 int swHttp_get_method(const char *method_str, size_t method_len)
 {
@@ -51,6 +58,99 @@ const char* swHttp_get_method_string(int method)
     return method_strings[method - 1];
 }
 
+int swHttp_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn)
+{
+    char *url = request->buffer->str + request->url_offset;
+    size_t url_length = request->url_length;
+
+    StaticHandler handler(serv, url, url_length);
+    if (!handler.hit())
+    {
+        return false;
+    }
+
+    char header_buffer[1024];
+    swSendData response;
+    response.info.fd = conn->session_id;
+    response.info.type = SW_SERVER_EVENT_SEND_DATA;
+
+    if (handler.status_code == 404)
+    {
+        response.info.len = sw_snprintf(
+            header_buffer, sizeof(header_buffer),
+            "HTTP/1.1 %s\r\n"
+            "Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"
+            "Content-Length: %zu\r\n"
+            "\r\n%s",
+            swHttp_get_status_message(404),
+            sizeof(SW_HTTP_PAGE_404) - 1, SW_HTTP_PAGE_404
+        );
+        response.data = header_buffer;
+        swServer_master_send(serv, &response);
+
+        return true;
+    }
+
+    auto date_str = handler.get_date();
+    auto date_str_last_modified = handler.get_date_last_modified();
+
+    string date_if_modified_since = swHttpRequest_get_date_if_modified_since(request);
+    if (!date_if_modified_since.empty() && handler.is_modified(date_if_modified_since))
+    {
+        response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer), "HTTP/1.1 304 Not Modified\r\n"
+                            "%s"
+                            "Date: %s\r\n"
+                            "Last-Modified: %s\r\n"
+                            "Server: %s\r\n\r\n", request->keep_alive ? "Connection: keep-alive\r\n" : "", date_str.c_str(),
+                            date_str_last_modified.c_str(),
+                            SW_HTTP_SERVER_SOFTWARE);
+        response.data = header_buffer;
+        swServer_master_send(serv, &response);
+
+        return true;
+    }
+
+    const swSendFile_request* task = handler.get_task();
+
+    response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer), "HTTP/1.1 200 OK\r\n"
+            "%s"
+            "Content-Length: %ld\r\n"
+            "Content-Type: %s\r\n"
+            "Date: %s\r\n"
+            "Last-Modified: %s\r\n"
+            "Server: %s\r\n\r\n", request->keep_alive ? "Connection: keep-alive\r\n" : "", (long) task->length,
+            swoole_mime_type_get(handler.get_filename()), date_str.c_str(), date_str_last_modified.c_str(),
+            SW_HTTP_SERVER_SOFTWARE);
+
+    response.data = header_buffer;
+
+#ifdef HAVE_TCP_NOPUSH
+    if (conn->socket->tcp_nopush == 0)
+    {
+        if (swSocket_tcp_nopush(conn->fd, 1) == -1)
+        {
+            swSysWarn("swSocket_tcp_nopush() failed");
+        }
+        conn->socket->tcp_nopush = 1;
+    }
+#endif
+    swServer_master_send(serv, &response);
+
+    response.info.type = SW_SERVER_EVENT_SEND_FILE;
+    response.info.len = sizeof(swSendFile_request) + task->length + 1;
+    response.data = (char*) task;
+
+    swServer_master_send(serv, &response);
+
+    if (!request->keep_alive)
+    {
+        response.info.type = SW_SERVER_EVENT_CLOSE;
+        response.data = NULL;
+        swServer_master_send(serv, &response);
+    }
+
+    return true;
+}
 
 const char *swHttp_get_status_message(int code)
 {
@@ -226,16 +326,16 @@ char* swHttp_url_encode(char const *str, size_t len)
     static unsigned char hexchars[] = "0123456789ABCDEF";
 
     register size_t x, y;
-    char *ret = sw_malloc(len * 3);
+    char *ret = (char*) sw_malloc(len * 3);
 
-    for (x = 0, y = 0; len--; x++, y++) {
+    for (x = 0, y = 0; len--; x++, y++)
+    {
         char c = str[x];
 
         ret[y] = c;
-        if ((c < '0' && c != '-' &&  c != '.') ||
-            (c < 'A' && c > '9') ||
-            (c > 'Z' && c < 'a' && c != '_') ||
-            (c > 'z' && c != '~')) {
+        if ((c < '0' && c != '-' && c != '.') || (c < 'A' && c > '9') || (c > 'Z' && c < 'a' && c != '_')
+                || (c > 'z' && c != '~'))
+        {
             ret[y++] = '%';
             ret[y++] = hexchars[(unsigned char) c >> 4];
             ret[y] = hexchars[(unsigned char) c & 15];
@@ -243,9 +343,10 @@ char* swHttp_url_encode(char const *str, size_t len)
     }
     ret[y] = '\0';
 
-    do {
+    do
+    {
         size_t size = y + 1;
-        char *tmp = sw_malloc(size);
+        char *tmp = (char*) sw_malloc(size);
         memcpy(tmp, ret, size);
         sw_free(ret);
         ret = tmp;
@@ -445,7 +546,7 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
 
 void swHttpRequest_free(swConnection *conn)
 {
-    swHttpRequest *request = conn->object;
+    swHttpRequest *request = (swHttpRequest *) conn->object;
     if (!request)
     {
         return;
@@ -456,7 +557,7 @@ void swHttpRequest_free(swConnection *conn)
     }
     bzero(request, sizeof(swHttpRequest));
     sw_free(request);
-    conn->object = NULL;
+    conn->object = nullptr;
 }
 
 /**
@@ -575,6 +676,51 @@ int swHttpRequest_get_header_length(swHttpRequest *request)
     }
     return SW_ERR;
 }
+
+string swHttpRequest_get_date_if_modified_since(swHttpRequest *request)
+{
+    char *p = request->buffer->str + request->url_offset + request->url_length + 10;
+    char *pe = request->buffer->str + request->header_length;
+
+    string result;
+
+    char *date_if_modified_since = NULL;
+    size_t length_if_modified_since = 0;
+
+    int state = 0;
+    for (; p < pe; p++)
+    {
+        switch (state)
+        {
+        case 0:
+            if (SW_STRCASECT(p, pe - p, "If-Modified-Since"))
+            {
+                p += sizeof("If-Modified-Since");
+                state = 1;
+            }
+            break;
+        case 1:
+            if (!isspace(*p))
+            {
+                date_if_modified_since = p;
+                state = 2;
+            }
+            break;
+        case 2:
+            if (SW_STRCASECT(p, pe - p, "\r\n"))
+            {
+                length_if_modified_since = p - date_if_modified_since;
+                return string(date_if_modified_since, length_if_modified_since);
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+    return string("");
+}
+
 
 #ifdef SW_USE_HTTP2
 ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *socket, char *data, uint32_t length)
