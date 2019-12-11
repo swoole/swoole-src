@@ -145,6 +145,7 @@ int swHttp_static_handler_hit(swServer *serv, swHttpRequest *request, swConnecti
     if (!request->keep_alive)
     {
         response.info.type = SW_SERVER_EVENT_CLOSE;
+        response.info.len = 0;
         response.data = NULL;
         swServer_master_send(serv, &response);
     }
