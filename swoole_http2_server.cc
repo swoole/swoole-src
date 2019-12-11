@@ -31,8 +31,11 @@ extern swString *swoole_http_buffer;
 using namespace swoole;
 using swoole::http::StaticHandler;
 using std::string;
+using swoole::coroutine::System;
 
 static std::unordered_map<int, http2_session*> http2_sessions;
+
+static bool swoole_http2_server_respond(http_context *ctx, swString *body);
 
 http2_stream::http2_stream(int _fd, uint32_t _id)
 {
@@ -177,9 +180,7 @@ static bool swoole_http2_is_static_file(swServer *serv, http_context *ctx)
             null_body.str = nullptr;
 
             ctx->response.status = SW_HTTP_NOT_FOUND;
-            swoole_http2_server_do_response(ctx, &null_body);
-
-            return true;
+            return swoole_http2_server_respond(ctx, &null_body);
         }
 
         auto date_str = handler.get_date();
@@ -407,27 +408,13 @@ int swoole_http2_server_ping(http_context *ctx)
     return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE) ? SW_OK : SW_ERR;
 }
 
-int swoole_http2_server_do_response(http_context *ctx, swString *body)
+bool http2_stream::send_header(size_t body_length, bool end_stream)
 {
-    http2_session *client = http2_sessions[ctx->fd];
-    http2_stream *stream = (http2_stream *) ctx->stream;
     char header_buffer[SW_BUFFER_SIZE_STD];
-    int ret;
-
-#ifdef SW_HAVE_COMPRESSION
-    if (ctx->accept_compression)
-    {
-        if (body->length == 0 || swoole_http_response_compress(body, ctx->compression_method, ctx->compression_level) != SW_OK)
-        {
-            ctx->accept_compression = 0;
-        }
-    }
-#endif
-
-    ret = http2_build_header(ctx, (uchar *) header_buffer, body->length);
+    int ret = http2_build_header(ctx, (uchar *) header_buffer, body_length);
     if (ret < 0)
     {
-        return SW_ERR;
+        return false;
     }
 
     swString_clear(swoole_http_buffer);
@@ -446,44 +433,33 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
      +---------------------------------------------------------------+
      */
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
-    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("trailer"), 0);
-    if (php_swoole_array_length_safe(ztrailer) == 0)
-    {
-        ztrailer = NULL;
-    }
 
-    if (!ztrailer && body->length == 0)
+    if (end_stream && body_length == 0)
     {
-        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->id);
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
     }
     else
     {
-        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS, stream->id);
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS, id);
     }
 
     swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
     swString_append_ptr(swoole_http_buffer, header_buffer, ret);
 
-    int flag = SW_HTTP2_FLAG_END_STREAM;
-    if (ztrailer)
-    {
-        flag = SW_HTTP2_FLAG_NONE;
-    }
-
     if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
     {
         ctx->send_header = 0;
-        return SW_ERR;
+        return false;
     }
 
     /* if send body failed, retries are no longer allowed */
     ctx->end = 1;
+    return true;
+}
 
-    if (!ztrailer && body->length == 0)
-    {
-        goto _end;
-    }
-
+bool http2_stream::send_body(swString *body, bool end_stream, size_t max_frame_size)
+{
+    char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     char *p;
     size_t l;
     size_t send_n;
@@ -501,13 +477,15 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
         l = body->length;
     }
 
+    int flag = end_stream ? SW_HTTP2_FLAG_END_STREAM : SW_HTTP2_FLAG_NONE;
+
     while (l > 0)
     {
         int _send_flag;
         swString_clear(swoole_http_buffer);
-        if (l > client->max_frame_size)
+        if (l > max_frame_size)
         {
-            send_n = client->max_frame_size;
+            send_n = max_frame_size;
             _send_flag = 0;
         }
         else
@@ -515,14 +493,14 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
             send_n = l;
             _send_flag = flag;
         }
-        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, send_n, _send_flag, stream->id);
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, send_n, _send_flag, id);
         swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
         swString_append_ptr(swoole_http_buffer, p, send_n);
 
         if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
         {
             ctx->close(ctx);
-            return SW_ERR;
+            return false;
         }
         else
         {
@@ -531,28 +509,143 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
         }
     }
 
+    return true;
+}
+
+bool http2_stream::send_trailer()
+{
+    char header_buffer[SW_BUFFER_SIZE_STD];
+    char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
+
+    swString_clear(swoole_http_buffer);
+    memset(header_buffer, 0, sizeof(header_buffer));
+    int ret = http2_build_trailer(ctx, (uchar *) header_buffer);
+    if (ret > 0)
+    {
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
+        swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
+        swString_append_ptr(swoole_http_buffer, header_buffer, ret);
+        if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
+        {
+            ctx->close(ctx);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool swoole_http2_server_respond(http_context *ctx, swString *body)
+{
+    http2_session *client = http2_sessions[ctx->fd];
+    http2_stream *stream = (http2_stream *) ctx->stream;
+
+#ifdef SW_HAVE_COMPRESSION
+    if (ctx->accept_compression)
+    {
+        if (body->length == 0 || swoole_http_response_compress(body, ctx->compression_method, ctx->compression_level) != SW_OK)
+        {
+            ctx->accept_compression = 0;
+        }
+    }
+#endif
+
+    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("trailer"), 0);
+    if (php_swoole_array_length_safe(ztrailer) == 0)
+    {
+        ztrailer = nullptr;
+    }
+
+    bool end_stream = (ztrailer == nullptr);
+    if (!stream->send_header(body->length, end_stream))
+    {
+        return false;
+    }
+
+    if (!ztrailer && body->length == 0)
+    {
+        goto _end;
+    }
+
+    if (!stream->send_body(body, end_stream, client->max_frame_size))
+    {
+        return false;
+    }
+
     if (ztrailer)
     {
-        swString_clear(swoole_http_buffer);
-        memset(header_buffer, 0, sizeof(header_buffer));
-        ret = http2_build_trailer(ctx, (uchar *) header_buffer);
-        if (ret > 0)
-        {
-            swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->id);
-            swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
-            swString_append_ptr(swoole_http_buffer, header_buffer, ret);
-            if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
-            {
-                ctx->close(ctx);
-                return SW_ERR;
-            }
-        }
+        stream->send_trailer();
     }
 
     _end:
     if (body->length > 0)
     {
         client->send_window -= body->length;    // TODO: flow control?
+    }
+
+    client->streams.erase(stream->id);
+    delete stream;
+
+    return true;
+}
+
+int swoole_http2_server_sendfile(http_context *ctx, const char* file, struct stat *file_stat)
+{
+    http2_session *client = http2_sessions[ctx->fd];
+    http2_stream *stream = (http2_stream *) ctx->stream;
+
+    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("trailer"), 0);
+    if (php_swoole_array_length_safe(ztrailer) == 0)
+    {
+        ztrailer = nullptr;
+    }
+
+    bool end_stream = (ztrailer == nullptr);
+    if (!stream->send_header(file_stat->st_size, end_stream))
+    {
+        return false;
+    }
+
+    swString *body = nullptr;
+    if (swoole_coroutine_is_in())
+    {
+        body = System::read_file(file, false);
+        if (!body)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        int fd = open(file, O_RDONLY);
+        if (fd < 0)
+        {
+            return false;
+        }
+        body = swoole_sync_readfile_eof(fd);
+        close(fd);
+        if (!body)
+        {
+            return false;
+        }
+
+        if (!stream->send_body(body, end_stream, client->max_frame_size))
+        {
+            swString_free(body);
+            return false;
+        }
+    }
+
+    swString_free(body);
+
+    if (ztrailer)
+    {
+        stream->send_trailer();
+    }
+
+    if (file_stat->st_size > 0)
+    {
+        client->send_window -= file_stat->st_size;    // TODO: flow control?
     }
 
     client->streams.erase(stream->id);
@@ -993,7 +1086,7 @@ void swoole_http2_response_end(http_context *ctx, zval *zdata, zval *return_valu
         http_body.str = NULL;
     }
 
-    RETURN_BOOL(swoole_http2_server_do_response(ctx, &http_body) == SW_OK);
+    RETURN_BOOL(swoole_http2_server_respond(ctx, &http_body));
 }
 
 #endif
