@@ -117,8 +117,6 @@ void php_swoole_coroutine_scheduler_minit(int module_number)
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_coroutine_scheduler);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_coroutine_scheduler, scheduler_create_object, scheduler_free_object, scheduler_t, std);
     swoole_coroutine_scheduler_ce->ce_flags |= ZEND_ACC_FINAL;
-
-    zend_declare_property_null(swoole_coroutine_scheduler_ce, ZEND_STRL("_list"), ZEND_ACC_PRIVATE);
 }
 
 PHP_METHOD(swoole_coroutine_scheduler, set)
