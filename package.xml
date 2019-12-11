@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-12-05</date>
-    <time>19:00:00</time>
+    <date>2019-12-11</date>
+    <time>15:00:00</time>
     <version>
-        <release>4.4.13RC1</release>
+        <release>4.4.13RC2</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -60,35 +60,41 @@
 
         Enhancement
         ---
-        * Support websocket compression on Coroutine\Http\Server (#2943) (@twose)
-        * Support CURLOPT_PUT, CURLOPT_INFILE, CURLOPT_INFILESIZE (#2954) (@twose)
-        * Add error info for bind error (@LeiZhang-Hunter) (@twose) (#2972)
-        * Update error info if socket call failed (it will not warn anymore if not necessary) (1e9b8cbb) (@twose)
-        * Make library submodule (@twose)
+        + Support websocket compression on Coroutine\Http\Server (#2943) (@twose)
+        + Support `CURLOPT_PUT`, `CURLOPT_INFILE`, `CURLOPT_INFILESIZE` (#2954) (@twose)
+        + Add error info for bind error (#2972) (@LeiZhang-Hunter) (@twose)
+        + Update error info if socket call failed (it will not warn anymore if not necessary) (1e9b8cbb) (@twose)
+        + Move the library to [a separate repo](https://github.com/swoole/library) (@twose)
+        + Support `CURLOPT_IPRESOLVE` (library-12ffb4d6) (@twose)
+        + Support `CURLOPT_PORT`, `CURLOPT_PROXYPORT`, `CURLOPT_DNS_USE_GLOBAL_CACHE` (library-5a718920) (@twose)
+        + Better `CURLOPT_ENCODING` support (library-7b680712) (@twose)
+        + Support `curl_reset`, `CURLOPT_PROXYTYPE`, `CURLOPT_PROXYUSERNAME`, `CURLOPT_PROXYPASSWORD`, `CURLOPT_PROXYUSERPWD` (library-84ce0a04) (@twose)
 
         Fixed
         ---
         * Fixed gdbinit in docker (missing symbol) (d46dc2d7 (@twose)
         * Fixed compression in POST request (#2947) (@twose)
-        * Fixed compatibility of Websocket->push method (ac7dbcbc) (@twose)
-        * Fixed $output result inconsistency (Yurunsoft) (#2955)
-        * Fixed Coroutine::fread (#2958) (@matyhtf)
-        * Fixed Coroutine\Server can not exit normally #2837 (#2962) (@twose)
-        * Fixed memory leak in HTTP2\Server (#2964) (@twose)
-        * Fixed unsafe_event (#2970) (@matyhtf)
+        * Fixed compatibility of `Websocket->push` method (ac7dbcbc) (@twose)
+        * Fixed `$output` result inconsistency (@Yurunsoft) (#2955)
+        * Fixed `Coroutine::fread` (#2958) (@matyhtf)
+        * Fixed `Coroutine\Server` can not exit normally #2837 (#2962) (@twose)
+        * Fixed memory leak in HTTP2 Server (#2964) (@twose)
+        * Fixed `unsafe_event` (#2970) (@matyhtf)
         * Fixed illegal call after server start (#2977) (@twose)
-        * Fixed WebSocket\Frame can not enable mask (#2982) (#2983) (@twose)
-        * Fixed memory leak of Process callback (898894a7) (@twose)
+        * Fixed `WebSocket\Frame` can not enable mask (#2982) (#2983) (@twose)
+        * Fixed memory leak of `Process` callback (898894a7) (@twose)
         * Fixed case where minfd is never updated (#2985)
         * Fixed HTTP2 module is always enable (3925e212) (@twose)
         * Fixed HTTP2 context double free (#2987) (f4cdff1b) (@twose)
         * Fixed string comparison (#2988) (97c6c425) (9e5eae63) (@twose)
         * Fixed HTTP2 pipeline (#2993) (@twose)
         * Fixed coroutine context has been destroyed (#2991) (@twose)
+        * Fixed illegal usage of `Process::daemon` (#3005) (@twose)
+        * Fixed compilation without zlib (#3008) (@twose)
 
         Kernel
         ---
-        * Refactor swoole_(get|set)_object to the way of extending zend_object (more stable and faster) (#2966) (@twose)
+        * Refactor `swoole_(get|set)_object` to the way of extending `zend_object` (more stable and efficient) (#2966) (@twose)
         * Support Github Actions (@twose) (@matyhtf)
     </notes>
     <contents>
@@ -102,6 +108,7 @@
             <file role="src" name="benchmark/aio.php" />
             <file role="src" name="benchmark/benchmark.php" />
             <file role="src" name="benchmark/bin/async.php" />
+            <file role="src" name="benchmark/bin/ipc.php" />
             <file role="test" name="benchmark/bin/keep_conn.phpt" />
             <file role="src" name="benchmark/bin/sync.php" />
             <file role="src" name="benchmark/co_http_client.php" />

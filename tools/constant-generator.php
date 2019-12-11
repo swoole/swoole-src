@@ -35,7 +35,7 @@ $constant_php_content = preg_replace(
     $replaced
 );
 
-if (!$replaced || !file_put_contents(CONSTANT_PHP, $constant_php_content)) {
+if (!$replaced || !file_put_contents($constant_php, $constant_php_content)) {
     swoole_error('Update Constant failed ');
 }
 
