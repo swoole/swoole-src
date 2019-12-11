@@ -21,7 +21,7 @@ $pm->parentFunc = function () use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $pm->wakeup();
     Coroutine::set([
-        'can_exit' => function () {
+        'exit_condition' => function () {
             return Coroutine::stats()['signal_listener_num'] === 0;
         }
     ]);
