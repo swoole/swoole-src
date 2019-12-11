@@ -180,7 +180,8 @@ static bool swoole_http2_is_static_file(swServer *serv, http_context *ctx)
             null_body.str = nullptr;
 
             ctx->response.status = SW_HTTP_NOT_FOUND;
-            return swoole_http2_server_respond(ctx, &null_body);
+            swoole_http2_server_respond(ctx, &null_body);
+            return true;
         }
 
         auto date_str = handler.get_date();

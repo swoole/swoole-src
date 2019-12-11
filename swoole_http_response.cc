@@ -940,7 +940,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
 #ifdef SW_USE_HTTP2
     if (ctx->stream)
     {
-        swoole_http2_server_sendfile(ctx, file, &file_stat);
+        RETURN_BOOL(swoole_http2_server_sendfile(ctx, file, &file_stat));
     }
 #endif
 
