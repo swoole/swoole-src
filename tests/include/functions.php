@@ -215,6 +215,7 @@ function httpRequest(string $uri, array $options = [])
         return [
             'statusCode' => $response->statusCode,
             'headers' => $response->headers,
+            'set_cookie_headers' => $response->set_cookie_headers,
             'body' => $response->data
         ];
     } else {
@@ -233,6 +234,7 @@ function httpRequest(string $uri, array $options = [])
         return [
             'statusCode' => $cli->statusCode,
             'headers' => $cli->headers,
+            'set_cookie_headers' => $cli->set_cookie_headers,
             'body' => $cli->body
         ];
     }

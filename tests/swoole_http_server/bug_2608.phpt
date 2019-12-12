@@ -1,15 +1,16 @@
 --TEST--
 swoole_http_server: bug #2608
 --SKIPIF--
-<?php use Swoole\Http\Request;
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
+--FILE--
+<?php
+require __DIR__ . '/../include/bootstrap.php';
+
+use Swoole\Http\Request;
 use Swoole\Http\Response;
 use Swoole\Http\Server;
 use Swoole\Coroutine;
 
-require __DIR__ . '/../include/skipif.inc'; ?>
---FILE--
-<?php
-require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     foreach ([false, true] as $http2) {
@@ -53,6 +54,7 @@ $pm->childFunc = function () use ($pm) {
 };
 $pm->childFirst();
 $pm->run();
+
 ?>
 --EXPECT--
 DONE
