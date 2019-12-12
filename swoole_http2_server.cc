@@ -590,7 +590,7 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body)
     return true;
 }
 
-int swoole_http2_server_sendfile(http_context *ctx, const char* file, struct stat *file_stat)
+bool swoole_http2_server_sendfile(http_context *ctx, const char* file, struct stat *file_stat)
 {
     http2_session *client = http2_sessions[ctx->fd];
     http2_stream *stream = (http2_stream *) ctx->stream;
@@ -629,15 +629,14 @@ int swoole_http2_server_sendfile(http_context *ctx, const char* file, struct sta
         {
             return false;
         }
-
-        if (!stream->send_body(body, end_stream, client->max_frame_size))
-        {
-            swString_free(body);
-            return false;
-        }
     }
 
+    bool retval = stream->send_body(body, end_stream, client->max_frame_size);
     swString_free(body);
+    if (!retval)
+    {
+        return false;
+    }
 
     if (ztrailer)
     {
@@ -652,7 +651,7 @@ int swoole_http2_server_sendfile(http_context *ctx, const char* file, struct sta
     client->streams.erase(stream->id);
     delete stream;
 
-    return SW_OK;
+    return true;
 }
 
 static int http2_parse_header(http2_session *client, http_context *ctx, int flags, const char *in, size_t inlen)
