@@ -163,47 +163,94 @@ function httpRequest(string $uri, array $options = [])
     $path = $url_info['path'] ?? null ?: '/';
     $query = $url_info['query'] ?? null ? "?{$url_info['query']}" : '';
     $port = (int)($url_info['port'] ?? null ?: 80);
-    $cli = new Swoole\Coroutine\Http\Client($domain, $port, $scheme === 'https' || $port === 443);
+    $http2 = $options['http2'] ?? false;
+    $connect_args = [$domain, $port, $scheme === 'https' || $port === 443];
+    if ($http2) {
+        $cli = new Swoole\Coroutine\Http2\Client(...$connect_args);
+        $request = new Swoole\Http2\Request;
+    } else {
+        $cli = new Swoole\Coroutine\Http\Client(...$connect_args);
+        $request = null;
+    }
     $cli->set($options + ['timeout' => 5]);
     if (isset($options['method'])) {
-        $cli->setMethod($options['method']);
+        if ($http2) {
+            $request->method = $options['method'];
+        } else {
+            $cli->setMethod($options['method']);
+        }
     }
     if (isset($options['headers'])) {
-        $cli->setHeaders($options['headers']);
+        if ($http2) {
+            $request->headers = $options['headers'];
+        } else {
+            $cli->setHeaders($options['headers']);
+        }
     }
     if (isset($options['data'])) {
-        $cli->setData($options['data']);
+        if ($http2) {
+            $request->data = $options['data'];
+        } else {
+            $cli->setData($options['data']);
+        }
     }
     if (is_array($options['download'] ?? null)) {
+        if ($http2) {
+            throw new RuntimeException('HTTP2 not support download');
+        }
         $cli->download(...array_values($options['download']));
         return $cli;
     }
-    $redirect_times = $options['redirect'] ?? 3;
-    while (true) {
-        $cli->execute($path . $query);
-        if ($redirect_times-- && ($cli->headers['location'] ?? null) && $cli->headers['location'][0] === '/') {
-            $path = $cli->headers['location'];
-            $query = '';
-            continue;
+    if ($http2) {
+        if (!$cli->connect()) {
+            throw new RuntimeException("HTTP2 connect {$domain}:{$port} failed: {$cli->errMsg}");
         }
-        break;
+        $request->path = "{$path}{$query}";
+        if (!$cli->send($request)) {
+            throw new RuntimeException("HTTP2 send request to {$uri} failed: {$cli->errMsg}");
+        }
+        if (!($response = $cli->recv())) {
+            throw new RuntimeException("HTTP2 recv from {$uri} failed: {$cli->errMsg}");
+        }
+        return [
+            'statusCode' => $response->statusCode,
+            'headers' => $response->headers,
+            'body' => $response->data
+        ];
+    } else {
+        $redirect_times = $options['redirect'] ?? 3;
+        while (true) {
+            if (!$cli->execute($path . $query)) {
+                throw new RuntimeException("HTTP execute {$uri} failed: {$cli->errMsg}");
+            }
+            if ($redirect_times-- && ($cli->headers['location'] ?? null) && $cli->headers['location'][0] === '/') {
+                $path = $cli->headers['location'];
+                $query = '';
+                continue;
+            }
+            break;
+        }
+        return [
+            'statusCode' => $cli->statusCode,
+            'headers' => $cli->headers,
+            'body' => $cli->body
+        ];
     }
-    return $cli;
 }
 
 function httpGetStatusCode(string $uri, array $options = [])
 {
-    return httpRequest($uri, $options)->statusCode;
+    return httpRequest($uri, $options)['statusCode'];
 }
 
 function httpGetHeaders(string $uri, array $options = [])
 {
-    return httpRequest($uri, $options)->headers;
+    return httpRequest($uri, $options)['headers'];
 }
 
 function httpGetBody(string $uri, array $options = [])
 {
-    return httpRequest($uri, $options)->body;
+    return httpRequest($uri, $options)['body'];
 }
 
 function content_hook_replace(string $content, array $kv_map): string
@@ -543,12 +590,12 @@ function start_server($file, $host, $port, $redirect_file = "/dev/null", $ext1 =
             fclose($fp);
         }
     }
-// linux上有问题，client端事件循环还没起起来就会先调用这个shutdown回调, 结束了子进程
-// 第二个shutdown_function swoole才会把子进程的事件循环起来
-//    register_shutdown_function(function() use($handle, $redirect_file) {
-//        proc_terminate($handle, SIGTERM);
-//        @unlink($redirect_file);
-//    });
+    // linux上有问题，client端事件循环还没起起来就会先调用这个shutdown回调, 结束了子进程
+    // 第二个shutdown_function swoole才会把子进程的事件循环起来
+    //    register_shutdown_function(function() use($handle, $redirect_file) {
+    //        proc_terminate($handle, SIGTERM);
+    //        @unlink($redirect_file);
+    //    });
     swoole_async_set(['enable_coroutine' => false]); // need use exit
     return function () use ($handle, $redirect_file) {
         // @unlink($redirect_file);
@@ -628,25 +675,31 @@ function spawn_exec($cmd, $input = null, $tv_sec = null, $tv_usec = null, $cwd =
         restore_error_handler();
         if ($n === false) {
             break;
-        } else if ($n === 0) {
-            // 超时kill -9
-            assert(proc_terminate($proc, SIGKILL));
-            throw new \RuntimeException("exec $cmd time out");
-        } else if ($n > 0) {
-            foreach ($r as $handle) {
-                if ($handle === $pipes[1]) {
-                    $_ = &$out;
-                } else if ($handle === $pipes[2]) {
-                    $_ = &$err;
-                } else {
-                    $_ = "";
-                }
-                $line = fread($handle, 8192);
-                $isEOF = $line === "";
-                if ($isEOF) {
-                    break 2;
-                } else {
-                    $_ .= $line;
+        } else {
+            if ($n === 0) {
+                // 超时kill -9
+                assert(proc_terminate($proc, SIGKILL));
+                throw new \RuntimeException("exec $cmd time out");
+            } else {
+                if ($n > 0) {
+                    foreach ($r as $handle) {
+                        if ($handle === $pipes[1]) {
+                            $_ = &$out;
+                        } else {
+                            if ($handle === $pipes[2]) {
+                                $_ = &$err;
+                            } else {
+                                $_ = "";
+                            }
+                        }
+                        $line = fread($handle, 8192);
+                        $isEOF = $line === "";
+                        if ($isEOF) {
+                            break 2;
+                        } else {
+                            $_ .= $line;
+                        }
+                    }
                 }
             }
         }
