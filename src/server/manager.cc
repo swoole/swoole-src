@@ -270,6 +270,7 @@ static int swManager_loop(swServer *serv)
 
     //for reload
     swSignal_add(SIGHUP, NULL);
+    swSignal_add(SIGCHLD, swManager_signal_handler);
     swSignal_add(SIGTERM, swManager_signal_handler);
     swSignal_add(SIGUSR1, swManager_signal_handler);
     swSignal_add(SIGUSR2, swManager_signal_handler);
