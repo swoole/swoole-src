@@ -19,12 +19,12 @@ $pm->parentFunc = function () use ($pm) {
                     ['headers' => ['Accept-Encoding' => $compression]] + $download
                 );
                 Assert::same(
-                    empty($download) ? $response->body : file_get_contents(TEST_LOG_FILE),
+                    empty($download) ? $response['body'] : file_get_contents(TEST_LOG_FILE),
                     $pm->getRandomData()
                 );
                 if (empty($download)) {
-                    phpt_var_dump($response->headers['content-encoding'] ?? 'no-compression');
-                    var_dump($response->headers['content-encoding'] ?? $compression);
+                    phpt_var_dump($response['headers']['content-encoding'] ?? 'no-compression');
+                    var_dump($response['headers']['content-encoding'] ?? $compression);
                 }
             }
         }

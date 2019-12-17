@@ -887,16 +887,9 @@ static PHP_METHOD(swoole_http_response, sendfile)
 
     if (ctx->chunk)
     {
-        php_swoole_fatal_error(E_ERROR, "can't use sendfile when Http-Chunk is enabled");
+        php_swoole_fatal_error(E_WARNING, "can't use sendfile when HTTP chunk is enabled");
         RETURN_FALSE;
     }
-#ifdef SW_USE_HTTP2
-    if (ctx->stream)
-    {
-        php_swoole_fatal_error(E_WARNING, "can't use sendfile when http2 connection is established");
-        RETURN_FALSE;
-    }
-#endif
 
     char *file;
     size_t l_file;
@@ -942,6 +935,13 @@ static PHP_METHOD(swoole_http_response, sendfile)
 
 #ifdef SW_HAVE_COMPRESSION
     ctx->accept_compression = 0;
+#endif
+
+#ifdef SW_USE_HTTP2
+    if (ctx->stream)
+    {
+        RETURN_BOOL(swoole_http2_server_sendfile(ctx, file, &file_stat));
+    }
 #endif
 
     if (!ctx->send_header)

@@ -17,6 +17,7 @@
 #include "php_swoole_cxx.h"
 #include "swoole_http.h"
 
+#include "http.h"
 #ifdef SW_USE_HTTP2
 #include "http2.h"
 #endif
@@ -589,7 +590,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
         }
         else
         {
-            ctx->response.status = 404;
+            ctx->response.status = SW_HTTP_NOT_FOUND;
         }
 
         zval_dtor(&args[0]);
