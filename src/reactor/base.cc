@@ -61,6 +61,7 @@ int swReactor_create(swReactor *reactor, int max_event)
     reactor->onFinish = reactor_finish;
     reactor->onTimeout = reactor_timeout;
     reactor->is_empty = swReactor_empty;
+    reactor->can_exit = SwooleG.reactor_can_exit;
 
     reactor->write = swReactor_write;
     reactor->close = swReactor_close;
@@ -154,6 +155,11 @@ int swReactor_empty(swReactor *reactor)
     if (event_num == 0)
     {
         empty = SW_TRUE;
+    }
+    //custom
+    if (reactor->can_exit && !reactor->can_exit(reactor))
+    {
+        empty = SW_FALSE;
     }
     return empty;
 }

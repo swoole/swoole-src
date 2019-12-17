@@ -993,11 +993,8 @@ PHP_FUNCTION(swoole_coroutine_defer)
 PHP_METHOD(swoole_coroutine, stats)
 {
     array_init(return_value);
-    if (SwooleTG.reactor)
-    {
-        add_assoc_long_ex(return_value, ZEND_STRL("event_num"), SwooleTG.reactor->event_num);
-        add_assoc_long_ex(return_value, ZEND_STRL("signal_listener_num"), SwooleTG.reactor->signal_listener_num);
-    }
+    add_assoc_long_ex(return_value, ZEND_STRL("event_num"), SwooleTG.reactor ? SwooleTG.reactor->event_num : 0);
+    add_assoc_long_ex(return_value, ZEND_STRL("signal_listener_num"), SwooleTG.reactor ? SwooleTG.reactor->signal_listener_num : 0);
     add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), SwooleTG.aio_task_num);
     add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), swAio_thread_count());
     add_assoc_long_ex(return_value, ZEND_STRL("c_stack_size"), Coroutine::get_stack_size());
