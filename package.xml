@@ -42,15 +42,15 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-12-11</date>
-    <time>15:00:00</time>
+    <date>2019-12-17</date>
+    <time>16:00:00</time>
     <version>
-        <release>4.4.13RC2</release>
+        <release>4.4.13</release>
         <api>4.0</api>
     </version>
     <stability>
-        <release>beta</release>
-        <api>beta</api>
+        <release>stable</release>
+        <api>stable</api>
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
