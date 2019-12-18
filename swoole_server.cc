@@ -554,6 +554,11 @@ static PHP_METHOD(swoole_server, shutdown);
 static PHP_METHOD(swoole_server, heartbeat);
 static PHP_METHOD(swoole_server, getClientList);
 static PHP_METHOD(swoole_server, getClientInfo);
+static PHP_METHOD(swoole_server, getInstance);
+static PHP_METHOD(swoole_server, getWorkerId);
+static PHP_METHOD(swoole_server, getWorkerPid);
+static PHP_METHOD(swoole_server, getManagerPid);
+static PHP_METHOD(swoole_server, getMasterPid);
 #ifdef SW_BUFFER_RECV_TIME
 static PHP_METHOD(swoole_server, getReceivedTime);
 #endif
@@ -615,6 +620,11 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, heartbeat, arginfo_swoole_server_heartbeat, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, getClientInfo, arginfo_swoole_getClientInfo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, getClientList, arginfo_swoole_getClientList, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, getInstance, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_server, getWorkerId, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, getWorkerPid, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, getManagerPid, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, getMasterPid, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     //psr-0 style
     PHP_MALIAS(swoole_server, connection_info, getClientInfo, arginfo_swoole_getClientInfo, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_server, connection_list, getClientList, arginfo_swoole_getClientList, ZEND_ACC_PUBLIC)
@@ -4183,6 +4193,56 @@ static PHP_METHOD(swoole_server, getReceivedTime)
     }
 }
 #endif
+
+static PHP_METHOD(swoole_server, getInstance)
+{
+    if (!SwooleG.serv)
+    {
+        RETURN_FALSE;
+    }
+    swServer *serv = SwooleG.serv;
+    if (!serv->ptr2)
+    {
+        RETURN_FALSE;
+    }
+    RETURN_ZVAL((zval * )serv->ptr2, 1, 0);
+}
+
+static PHP_METHOD(swoole_server, getWorkerId)
+{
+    if (!swIsWorker())
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        RETURN_LONG(SwooleWG.id);
+    }
+}
+
+static PHP_METHOD(swoole_server, getWorkerPid)
+{
+    if (!swIsWorker())
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        RETURN_LONG(SwooleG.pid);
+    }
+}
+
+static PHP_METHOD(swoole_server, getManagerPid)
+{
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
+    RETURN_LONG(serv->gs->manager_pid);
+}
+
+static PHP_METHOD(swoole_server, getMasterPid)
+{
+    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
+    RETURN_LONG(serv->gs->master_pid);
+}
 
 static PHP_METHOD(swoole_server, shutdown)
 {
