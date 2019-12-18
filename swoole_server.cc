@@ -4205,7 +4205,7 @@ static PHP_METHOD(swoole_server, getInstance)
     {
         RETURN_FALSE;
     }
-    RETURN_ZVAL((zval * )serv->ptr2, 0, 0);
+    RETURN_ZVAL((zval * )serv->ptr2, 1, 0);
 }
 
 static PHP_METHOD(swoole_server, getWorkerId)
