@@ -73,6 +73,11 @@ public:
         return task.filename;
     }
 
+    inline const char* get_mimetype()
+    {
+        return swoole_mime_type_get(get_filename());
+    }
+
     inline std::string get_filename_std_string()
     {
         return std::string(task.filename, l_filename);

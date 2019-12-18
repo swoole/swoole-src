@@ -119,7 +119,7 @@ int swHttp_static_handler_hit(swServer *serv, swHttpRequest *request, swConnecti
             "Date: %s\r\n"
             "Last-Modified: %s\r\n"
             "Server: %s\r\n\r\n", request->keep_alive ? "Connection: keep-alive\r\n" : "", (long) task->length,
-            swoole_mime_type_get(handler.get_filename()), date_str.c_str(), date_str_last_modified.c_str(),
+            handler.get_mimetype(), date_str.c_str(), date_str_last_modified.c_str(),
             SW_HTTP_SERVER_SOFTWARE);
 
     response.data = header_buffer;

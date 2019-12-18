@@ -601,6 +601,9 @@ bool swoole_http2_server_sendfile(http_context *ctx, const char* file, struct st
         ztrailer = nullptr;
     }
 
+    const char* mimetype = swoole_mime_type_get(file);
+    swoole_http_response_set_header(ctx, ZEND_STRL("content-type"), mimetype, strlen(mimetype), 0);
+
     bool end_stream = (ztrailer == nullptr);
     if (!stream->send_header(file_stat->st_size, end_stream))
     {
