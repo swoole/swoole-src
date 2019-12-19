@@ -27,7 +27,7 @@
 int swConnection_onSendfile(swSocket *conn, swBuffer_chunk *chunk)
 {
     int ret;
-    swTask_sendfile *task = chunk->store.ptr;
+    swTask_sendfile *task = (swTask_sendfile *) chunk->store.ptr;
 
 #ifdef HAVE_TCP_NOPUSH
     if (task->offset == 0 && conn->tcp_nopush == 0)
@@ -89,7 +89,7 @@ int swConnection_onSendfile(swSocket *conn, swBuffer_chunk *chunk)
     }
 
     //sendfile finish
-    if (task->offset >= task->length)
+    if ((size_t) task->offset >= task->length)
     {
         swBuffer_pop_chunk(conn->out_buffer, chunk);
 
@@ -124,11 +124,9 @@ int swConnection_onSendfile(swSocket *conn, swBuffer_chunk *chunk)
  */
 int swConnection_buffer_send(swSocket *conn)
 {
-    int ret, sendn;
-
     swBuffer *buffer = conn->out_buffer;
     swBuffer_chunk *chunk = swBuffer_get_chunk(buffer);
-    sendn = chunk->length - chunk->offset;
+    uint32_t sendn = chunk->length - chunk->offset;
 
     if (sendn == 0)
     {
@@ -136,7 +134,7 @@ int swConnection_buffer_send(swSocket *conn)
         return SW_OK;
     }
 
-    ret = swConnection_send(conn, (char*) chunk->store.ptr + chunk->offset, sendn, 0);
+    ssize_t ret = swConnection_send(conn, (char*) chunk->store.ptr + chunk->offset, sendn, 0);
     if (ret < 0)
     {
         switch (swConnection_error(errno))
@@ -163,6 +161,14 @@ int swConnection_buffer_send(swSocket *conn)
     else
     {
         chunk->offset += ret;
+        /**
+         * kernel is not fully processing and socket buffer is full.
+         */
+        if (ret < sendn)
+        {
+            conn->send_wait = 1;
+            return SW_ERR;
+        }
     }
     return SW_OK;
 }
@@ -203,7 +209,7 @@ int swConnection_get_port(enum swSocket_type socket_type, swSocketAddress *info)
 
 void swConnection_sendfile_destructor(swBuffer_chunk *chunk)
 {
-    swTask_sendfile *task = chunk->store.ptr;
+    swTask_sendfile *task = (swTask_sendfile *) chunk->store.ptr;
     close(task->fd);
     sw_free(task->filename);
     sw_free(task);
@@ -221,7 +227,7 @@ int swConnection_sendfile(swSocket *conn, const char *filename, off_t offset, si
     }
 
     swBuffer_chunk error_chunk;
-    swTask_sendfile *task = sw_malloc(sizeof(swTask_sendfile));
+    swTask_sendfile *task = (swTask_sendfile *) sw_malloc(sizeof(swTask_sendfile));
     if (task == NULL)
     {
         swWarn("malloc for swTask_sendfile failed");
@@ -249,7 +255,7 @@ int swConnection_sendfile(swSocket *conn, const char *filename, off_t offset, si
         swConnection_sendfile_destructor(&error_chunk);
         return SW_ERR;
     }
-    if (offset < 0 || (length + offset > file_stat.st_size))
+    if (offset < 0 || (length + offset > (size_t) file_stat.st_size))
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length or offset is invalid");
         error_chunk.store.ptr = task;
