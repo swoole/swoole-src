@@ -1035,25 +1035,19 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
     {
         return -1;
     }
-    ssize_t retval, total_bytes = 0;
+    ssize_t total_bytes = 0;
     timer_controller timer(&read_timer, read_timeout, this, timer_callback);
     while (true)
     {
         char *read_p = (char *) __buf + total_bytes;
         size_t read_n = __n - total_bytes;
-        retval = swConnection_recv(socket, read_p, read_n, 0);
+        ssize_t retval = swConnection_recv(socket, read_p, read_n, 0);
         if (retval >= 0)
         {
             total_bytes += retval;
             if (retval < read_n)
             {
-                _would_block:
-                if (timer.start() && wait_event(SW_EVENT_READ))
-                {
-                    continue;
-                }
-                retval = -1;
-                break;
+                goto _would_block;
             }
             else if ((size_t) total_bytes == __n)
             {
@@ -1064,16 +1058,20 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
         {
             if (swConnection_error(errno) == SW_WAIT)
             {
-                goto _would_block;
+                _would_block:
+                if (timer.start() && wait_event(SW_EVENT_READ))
+                {
+                    continue;
+                }
             }
             if (total_bytes == 0)
             {
-                total_bytes = retval;
+                total_bytes = -1;
             }
             break;
         }
     }
-    set_err(retval < 0 ? errno : 0);
+    set_err(total_bytes != __n ? errno : 0);
     return total_bytes;
 }
 
@@ -1083,25 +1081,19 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     {
         return -1;
     }
-    ssize_t retval, total_bytes = 0;
+    ssize_t total_bytes = 0;
     timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     while (true)
     {
         char *send_p = (char *) __buf + total_bytes;
         size_t send_n = __n - total_bytes;
-        retval = swConnection_send(socket, send_p, send_n, 0);
+        ssize_t retval = swConnection_send(socket, send_p, send_n, 0);
         if (retval >= 0)
         {
             total_bytes += retval;
             if (retval < send_n)
             {
-                _would_block:
-                if (timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n))
-                {
-                    continue;
-                }
-                retval = -1;
-                break;
+                goto _would_block;
             }
             else if ((size_t) total_bytes == __n)
             {
@@ -1112,16 +1104,20 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
         {
             if (swConnection_error(errno) == SW_WAIT)
             {
-                goto _would_block;
+                _would_block:
+                if (timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n))
+                {
+                    continue;
+                }
             }
             if (total_bytes == 0)
             {
-                total_bytes = retval;
+                total_bytes = -1;
             }
             break;
         }
     }
-    set_err(retval < 0 ? errno : 0);
+    set_err(total_bytes != __n ? errno : 0);
     return total_bytes;
 }
 
