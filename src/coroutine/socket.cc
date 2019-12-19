@@ -1039,20 +1039,39 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
     timer_controller timer(&read_timer, read_timeout, this, timer_callback);
     while (true)
     {
-        do {
-            retval = swConnection_recv(socket, (char *) __buf + total_bytes, __n - total_bytes, 0);
-        } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
-        if (sw_unlikely(retval <= 0))
+        char *read_p = (char *) __buf + total_bytes;
+        size_t read_n = __n - total_bytes;
+        retval = swConnection_recv(socket, read_p, read_n, 0);
+        if (retval >= 0)
         {
+            total_bytes += retval;
+            if (retval < read_n)
+            {
+                _would_block:
+                if (!timer.start())
+                {
+                    break;
+                }
+                if (!wait_event(SW_EVENT_READ))
+                {
+                    break;
+                }
+            }
+            else if ((size_t) total_bytes == __n)
+            {
+                break;
+            }
+        }
+        else
+        {
+            if (swConnection_error(errno) == SW_WAIT)
+            {
+                goto _would_block;
+            }
             if (total_bytes == 0)
             {
                 total_bytes = retval;
             }
-            break;
-        }
-        total_bytes += retval;
-        if ((size_t) total_bytes == __n)
-        {
             break;
         }
     }
@@ -1070,25 +1089,39 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     while (true)
     {
-        do
+        char *send_p = (char *) __buf + total_bytes;
+        size_t send_n = __n - total_bytes;
+        retval = swConnection_send(socket, send_p, send_n, 0);
+        if (retval >= 0)
         {
-            retval = swConnection_send(socket, (char *) __buf + total_bytes, __n - total_bytes, 0);
+            total_bytes += retval;
+            if (retval < send_n)
+            {
+                _would_block:
+                if (!timer.start())
+                {
+                    break;
+                }
+                if (!wait_event(SW_EVENT_WRITE, &__buf, __n))
+                {
+                    break;
+                }
+            }
+            else if ((size_t) total_bytes == __n)
+            {
+                break;
+            }
         }
-        while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n));
-        /**
-         * failed to send
-         */
-        if (sw_unlikely(retval <= 0))
+        else
         {
+            if (swConnection_error(errno) == SW_WAIT)
+            {
+                goto _would_block;
+            }
             if (total_bytes == 0)
             {
                 total_bytes = retval;
             }
-            break;
-        }
-        total_bytes += retval;
-        if ((size_t) total_bytes == __n)
-        {
             break;
         }
     }
