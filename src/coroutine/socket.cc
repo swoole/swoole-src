@@ -1048,14 +1048,12 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
             if (retval < read_n)
             {
                 _would_block:
-                if (!timer.start())
+                if (timer.start() && wait_event(SW_EVENT_READ))
                 {
-                    break;
+                    continue;
                 }
-                if (!wait_event(SW_EVENT_READ))
-                {
-                    break;
-                }
+                retval = -1;
+                break;
             }
             else if ((size_t) total_bytes == __n)
             {
@@ -1098,14 +1096,12 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
             if (retval < send_n)
             {
                 _would_block:
-                if (!timer.start())
+                if (timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n))
                 {
-                    break;
+                    continue;
                 }
-                if (!wait_event(SW_EVENT_WRITE, &__buf, __n))
-                {
-                    break;
-                }
+                retval = -1;
+                break;
             }
             else if ((size_t) total_bytes == __n)
             {
