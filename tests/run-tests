@@ -126,7 +126,7 @@ if ((substr(PHP_OS, 0, 3) == "WIN") && empty($environment["SystemRoot"])) {
     }
 }
 
-// swoole patch (composer)
+/* swoole patch (composer)
 (function () {
     $composer_dir = __DIR__ . '/include/lib';
     $composer_autoloader = $composer_dir . '/vendor/autoload.php';
@@ -141,6 +141,7 @@ if ((substr(PHP_OS, 0, 3) == "WIN") && empty($environment["SystemRoot"])) {
     }
     file_put_contents($composer_time_recorder, $composer_time);
 })();
+*/
 
 // Don't ever guess at the PHP executable location.
 // Require the explicit specification.
