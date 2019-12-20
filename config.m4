@@ -443,7 +443,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/memory/shared_memory.c \
         src/memory/table.c \
         src/network/client.c \
-        src/network/connection.c \
+        src/network/connection.cc \
         src/network/dns.cc \
         src/network/process_pool.c \
         src/network/stream.c \
