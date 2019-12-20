@@ -484,6 +484,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
     {
         int pipe_fd = worker->pipe_master;
         swConnection *conn = swServer_connection_get(serv, pipe_fd);
+        swReactorThread *thread = swServer_get_thread(serv, conn->reactor_id);
         swLock *lock = (swLock *) conn->object;
 
         //lock thread
@@ -495,7 +496,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
             ret = write(pipe_fd, (void *) data, len);
             if (ret < 0 && swConnection_error(errno) == SW_WAIT)
             {
-                if (swoole_event_set(pipe_fd, SW_EVENT_READ | SW_EVENT_WRITE, SW_FD_PIPE) < 0)
+                if (thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE) < 0)
                 {
                     swSysWarn("reactor->set(%d, PIPE | READ | WRITE) failed", pipe_fd);
                 }
