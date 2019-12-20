@@ -621,7 +621,7 @@ PHP_MINFO_FUNCTION(swoole)
 #endif
 #endif
 #ifdef SW_HAVE_BROTLI
-    snprintf(buf, sizeof(buf), "%u/%u", BrotliEncoderVersion(), BrotliDecoderVersion());
+    snprintf(buf, sizeof(buf), "E%u/D%u", BrotliEncoderVersion(), BrotliDecoderVersion());
     php_info_print_table_row(2, "brotli", buf);
 #endif
 #ifdef HAVE_MUTEX_TIMEDLOCK
