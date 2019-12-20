@@ -498,7 +498,6 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
     Socket *sock = php_swoole_get_socket(zconn);
     swString* buffer = sock->get_read_buffer();
     size_t total_bytes = 0;
-    size_t parsed_n;
     http_context *ctx = nullptr;
 
     while (true)
@@ -528,7 +527,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
             break;
         }
 
-        parsed_n = swoole_http_requset_parse(ctx, buffer->str + total_bytes - retval, retval);
+        size_t parsed_n = swoole_http_requset_parse(ctx, buffer->str + total_bytes - retval, retval);
 
         swTraceLog(SW_TRACE_CO_HTTP_SERVER, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d", parsed_n, retval, total_bytes, ctx->completed);
 
@@ -567,6 +566,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
         }
 
         ZVAL_STRINGL(&ctx->request.zdata, buffer->str, total_bytes);
+        total_bytes = 0;
 
         zval *zserver = ctx->request.zserver;
         add_assoc_long(zserver, "server_port", hs->socket->get_bind_port());
