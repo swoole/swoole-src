@@ -480,12 +480,10 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
     int ret = -1;
 
     //reactor thread
-    if (SwooleTG.type == SW_THREAD_REACTOR)
+    if (SwooleTG.reactor)
     {
         int pipe_fd = worker->pipe_master;
         swConnection *conn = swServer_connection_get(serv, pipe_fd);
-        int thread_id = conn->reactor_id;
-        swReactorThread *thread = swServer_get_thread(serv, thread_id);
         swLock *lock = (swLock *) conn->object;
 
         //lock thread
@@ -497,7 +495,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
             ret = write(pipe_fd, (void *) data, len);
             if (ret < 0 && swConnection_error(errno) == SW_WAIT)
             {
-                if (thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE) < 0)
+                if (swoole_event_set(pipe_fd, SW_EVENT_READ | SW_EVENT_WRITE, SW_FD_PIPE) < 0)
                 {
                     swSysWarn("reactor->set(%d, PIPE | READ | WRITE) failed", pipe_fd);
                 }
