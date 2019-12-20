@@ -480,7 +480,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
     int ret = -1;
 
     //reactor thread
-    if (SwooleTG.reactor)
+    if (SwooleTG.type == SW_THREAD_REACTOR)
     {
         int pipe_fd = worker->pipe_master;
         swConnection *conn = swServer_connection_get(serv, pipe_fd);
