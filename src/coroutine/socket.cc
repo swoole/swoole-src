@@ -1042,7 +1042,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
         char *read_p = (char *) __buf + total_bytes;
         size_t read_n = __n - total_bytes;
         ssize_t retval = swConnection_recv(socket, read_p, read_n, 0);
-        if (retval >= 0)
+        if (retval > 0)
         {
             total_bytes += retval;
             if (retval < read_n)
@@ -1054,7 +1054,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
                 break;
             }
         }
-        else
+        else if (retval < 0)
         {
             if (swConnection_error(errno) == SW_WAIT)
             {
@@ -1070,8 +1070,12 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
             }
             break;
         }
+        else // if (retval == 0) /* connection closed */
+        {
+            break;
+        }
     }
-    set_err(total_bytes != __n ? errno : 0);
+    set_err((total_bytes != __n && total_bytes != 0) ? errno : 0);
     return total_bytes;
 }
 
