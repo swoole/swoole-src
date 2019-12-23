@@ -1572,6 +1572,7 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
 }
 
 swSocket* swSocket_new(int fd, enum swFd_type type);
+void swSocket_free(swSocket *sock);
 int swSocket_create(int type);
 int swSocket_bind(int sock, int type, const char *host, int *port);
 int swSocket_accept(int fd, swSocketAddress *sa);

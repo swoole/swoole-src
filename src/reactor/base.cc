@@ -41,16 +41,6 @@ static void reactor_begin(swReactor *reactor);
 static void defer_task_do(swReactor *reactor);
 static void defer_task_add(swReactor *reactor, swCallback callback, void *data);
 
-static void reactor_close_socket(void *ptr)
-{
-    swSocket *sock = (swSocket *) ptr;
-    if (sock->fd != -1 && close(sock->fd) != 0)
-    {
-        swSysWarn("close(%d) failed", sock->fd);
-    }
-    sw_free(sock);
-}
-
 int swReactor_create(swReactor *reactor, int max_event)
 {
     int ret;
@@ -230,7 +220,7 @@ int swReactor_close(swReactor *reactor, swSocket *socket)
     swTraceLog(SW_TRACE_CLOSE, "fd=%d", socket->fd);
 
     socket->removed = 1;
-    defer_task_add(reactor, reactor_close_socket, socket);
+    swSocket_free(socket);
 
     return SW_OK;
 }

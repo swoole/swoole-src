@@ -580,16 +580,18 @@ void Socket::init_reactor_socket(int _fd)
     {
         swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "operation not support (reactor is not ready)");
     }
+    if (swSocket_new(_fd, SW_FD_CORO_SOCKET) < 0)
+    {
+        swFatalError(SW_ERROR_MALLOC_FAIL, "malloc failed");
+    }
 
-    socket = new swSocket;
-    bzero(socket, sizeof(swSocket));
-    sock_fd = socket->fd = _fd;
+    sock_fd = _fd;
     socket->object = this;
     socket->socket_type = type;
     socket->removed = 1;
-    socket->fdtype = SW_FD_CORO_SOCKET;
 
     swSocket_set_nonblock(sock_fd);
+    socket->nonblock = 1;
 }
 
 Socket::Socket(int _domain, int _type, int _protocol) :

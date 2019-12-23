@@ -125,7 +125,7 @@ static int swReactorEpoll_add(swReactor *reactor, swSocket *socket, int events)
         return SW_ERR;
     }
 
-    swTraceLog(SW_TRACE_EVENT, "add event[reactor_id=%d, fd=%d, events=%d]", reactor->id, fd, swReactor_events(fdtype));
+    swTraceLog(SW_TRACE_EVENT, "add event[reactor_id=%d, fd=%d, events=%d]", reactor->id, socket->fd, events);
 
     return SW_OK;
 }
@@ -139,7 +139,7 @@ static int swReactorEpoll_del(swReactor *reactor, swSocket *_socket)
         return SW_ERR;
     }
 
-    swTraceLog(SW_TRACE_REACTOR, "remove event[reactor_id=%d|fd=%d]", reactor->id, fd);
+    swTraceLog(SW_TRACE_REACTOR, "remove event[reactor_id=%d|fd=%d]", reactor->id, _socket->fd);
     swReactor_del(reactor, _socket);
 
     return SW_OK;
@@ -161,7 +161,7 @@ static int swReactorEpoll_set(swReactor *reactor, swSocket *socket, int events)
         return SW_ERR;
     }
 
-    swTraceLog(SW_TRACE_EVENT, "set event[reactor_id=%d, fd=%d, events=%d]", reactor->id, fd, swReactor_events(fdtype));
+    swTraceLog(SW_TRACE_EVENT, "set event[reactor_id=%d, fd=%d, events=%d]", reactor->id, fd, events);
     swReactor_set(reactor, socket, events);
 
     return SW_OK;

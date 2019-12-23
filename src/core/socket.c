@@ -14,7 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
+#include "swoole_api.h"
 #include "connection.h"
 
 int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t length, double timeout)
@@ -360,6 +360,28 @@ swSocket* swSocket_new(int fd, enum swFd_type type)
     socket->fd = fd;
     socket->fdtype = type;
     return socket;
+}
+
+static void socket_free_defer(void *ptr)
+{
+    swSocket *sock = (swSocket *) ptr;
+    if (sock->fd != -1 && close(sock->fd) != 0)
+    {
+        swSysWarn("close(%d) failed", sock->fd);
+    }
+    sw_free(sock);
+}
+
+void swSocket_free(swSocket *sock)
+{
+    if (SwooleTG.reactor)
+    {
+        swoole_event_defer(socket_free_defer, sock);
+    }
+    else
+    {
+        socket_free_defer(sock);
+    }
 }
 
 int swSocket_bind(int sock, int type, const char *host, int *port)

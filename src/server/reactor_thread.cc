@@ -214,7 +214,7 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
     sw_atomic_fetch_add(&serv->stats->close_count, 1);
     sw_atomic_fetch_sub(&serv->stats->connection_num, 1);
 
-    swTrace("Close Event.fd=%d|from=%d", fd, reactor->id);
+    swTrace("Close Event.fd=%d|from=%d", socket->fd, reactor->id);
 
 #ifdef SW_USE_OPENSSL
     if (conn->socket->ssl)

@@ -94,7 +94,7 @@ static int swReactorPoll_add(swReactor *reactor, swSocket *socket, int events)
 
     swReactor_add(reactor, socket, events);
 
-    swTrace("fd=%d, fdtype=%d", fd, fdtype);
+    swTrace("fd=%d, events=%d", fd, events);
 
     object->fds[cur] = socket;
     object->events[cur].fd = fd;
@@ -121,7 +121,7 @@ static int swReactorPoll_set(swReactor *reactor, swSocket *socket, int events)
     uint32_t i;
     swReactorPoll *object = reactor->object;
 
-    swTrace("fd=%d, fdtype=%d", fd, fdtype);
+    swTrace("fd=%d, events=%d", socket->fd, events);
 
     for (i = 0; i < reactor->event_num; i++)
     {
@@ -234,7 +234,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
                 event.reactor_id = reactor->id;
                 event.type = event.socket->fdtype;
 
-                swTrace("Event: fd=%d|reactor_id=%d|type=%d", event.fd, reactor->id, object->fds[i].fdtype);
+                swTrace("Event: fd=%d|reactor_id=%d|type=%d", event.fd, reactor->id, event.type);
                 //in
                 if ((object->events[i].revents & POLLIN) && !event.socket->removed)
                 {
