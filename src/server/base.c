@@ -169,7 +169,7 @@ static int swFactory_end(swFactory *factory, int fd)
         if (swBuffer_empty(conn->socket->out_buffer) || conn->peer_closed)
         {
             swReactor *reactor = SwooleTG.reactor;
-            return swReactorThread_close(reactor, conn->fd);
+            return swReactorThread_close(reactor, conn->socket);
         }
         else
         {

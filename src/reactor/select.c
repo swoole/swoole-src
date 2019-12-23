@@ -20,8 +20,7 @@
 typedef struct _swFdList_node
 {
     struct _swFdList_node *next, *prev;
-    int fd;
-    int fdtype;
+    swSocket *socket;
 } swFdList_node;
 
 typedef struct _swReactorSelect
@@ -37,11 +36,11 @@ typedef struct _swReactorSelect
 #define SW_FD_CLR(fd, set)    do{ if (fd<FD_SETSIZE) FD_CLR(fd, set);} while(0)
 #define SW_FD_ISSET(fd, set) ((fd < FD_SETSIZE) && FD_ISSET(fd, set))
 
-static int swReactorSelect_add(swReactor *reactor, int fd, int fdtype);
+static int swReactorSelect_add(swReactor *reactor, swSocket *socket, int events);
+static int swReactorSelect_set(swReactor *reactor, swSocket *socket, int events);
+static int swReactorSelect_del(swReactor *reactor, swSocket *socket);
 static int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo);
 static void swReactorSelect_free(swReactor *reactor);
-static int swReactorSelect_del(swReactor *reactor, int fd);
-static int swReactorSelect_set(swReactor *reactor, int fd, int fdtype);
 static int swReactorSelect_cmp(swFdList_node *a, swFdList_node *b);
 
 int swReactorSelect_create(swReactor *reactor)
@@ -80,13 +79,15 @@ void swReactorSelect_free(swReactor *reactor)
     sw_free(reactor->object);
 }
 
-int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
+int swReactorSelect_add(swReactor *reactor, swSocket *socket, int events)
 {
+    int fd = socket->fd;
     if (fd > FD_SETSIZE)
     {
         swWarn("max fd value is FD_SETSIZE(%d).\n", FD_SETSIZE);
         return SW_ERR;
     }
+
     swReactorSelect *object = reactor->object;
     swFdList_node *ev = sw_malloc(sizeof(swFdList_node));
     if (ev == NULL)
@@ -95,10 +96,9 @@ int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
         return SW_ERR;
     }
 
-    swReactor_add(reactor, fd, fdtype);
+    swReactor_add(reactor, socket, events);
+    ev->socket = socket;
 
-    ev->fd = fd;
-    ev->fdtype = fdtype;
     LL_APPEND(object->fds, ev);
     if (fd > object->maxfd)
     {
@@ -110,14 +110,15 @@ int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
 
 static int swReactorSelect_cmp(swFdList_node *a, swFdList_node *b)
 {
-    return a->fd == b->fd ? 0 : (a->fd > b->fd ? -1 : 1);
+    return a->socket->fd == b->socket->fd ? 0 : (a->socket->fd > b->socket->fd ? -1 : 1);
 }
 
-int swReactorSelect_del(swReactor *reactor, int fd)
+int swReactorSelect_del(swReactor *reactor, swSocket *socket)
 {
     swReactorSelect *object = reactor->object;
     swFdList_node ev, *s_ev = NULL;
-    ev.fd = fd;
+    int fd = socket->fd;
+    ev.socket = socket;
     LL_SEARCH(object->fds, s_ev, &ev, swReactorSelect_cmp);
     if (s_ev == NULL)
     {
@@ -129,24 +130,22 @@ int swReactorSelect_del(swReactor *reactor, int fd)
     SW_FD_CLR(fd, &object->wfds);
     SW_FD_CLR(fd, &object->efds);
     sw_free(s_ev);
-    swReactor_del(reactor, fd);
+    swReactor_del(reactor, socket);
     return SW_OK;
 }
 
-int swReactorSelect_set(swReactor *reactor, int fd, int fdtype)
+int swReactorSelect_set(swReactor *reactor, swSocket *socket, int events)
 {
     swReactorSelect *object = reactor->object;
     swFdList_node ev, *s_ev = NULL;
-    ev.fd = fd;
+    ev.socket = socket;
     LL_SEARCH(object->fds, s_ev, &ev, swReactorSelect_cmp);
     if (s_ev == NULL)
     {
-        swWarn("swReactorSelect: sock[%d] not found", fd);
+        swWarn("swReactorSelect: sock[%d] not found", socket->fd);
         return SW_ERR;
     }
-    s_ev->fdtype = fdtype;
-    //execute parent method
-    swReactor_set(reactor, fd, fdtype);
+    swReactor_set(reactor, socket, events);
     return SW_OK;
 }
 
@@ -187,17 +186,19 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 
         LL_FOREACH(object->fds, ev)
         {
-            if (swReactor_event_read(ev->fdtype))
+            int fd = ev->socket->fd;
+            int events = ev->socket->events;
+            if (swReactor_event_read(events))
             {
-                SW_FD_SET(ev->fd, &(object->rfds));
+                SW_FD_SET(fd, &(object->rfds));
             }
-            if (swReactor_event_write(ev->fdtype))
+            if (swReactor_event_write(events))
             {
-                SW_FD_SET(ev->fd, &(object->wfds));
+                SW_FD_SET(fd, &(object->wfds));
             }
-            if (swReactor_event_error(ev->fdtype))
+            if (swReactor_event_error(events))
             {
-                SW_FD_SET(ev->fd, &(object->efds));
+                SW_FD_SET(fd, &(object->efds));
             }
         }
 
@@ -242,10 +243,10 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
         {
             LL_FOREACH_SAFE(object->fds, ev, tmp)
             {
-                event.fd = ev->fd;
+                event.socket = ev->socket;
+                event.fd = event.socket->fd;
                 event.reactor_id = reactor->id;
-                event.type = swReactor_fdtype(ev->fdtype);
-                event.socket = swReactor_get(reactor, event.fd);
+                event.type = event.socket->fdtype;
 
                 //read
                 if (SW_FD_ISSET(event.fd, &(object->rfds)) && !event.socket->removed)
@@ -279,7 +280,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                 }
                 if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE))
                 {
-                    swReactorSelect_del(reactor, event.fd);
+                    swReactorSelect_del(reactor, event.socket);
                 }
             }
         }

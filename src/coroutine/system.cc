@@ -372,7 +372,7 @@ static inline void socket_poll_clean(coro_poll_task *task)
     for (auto i = task->fds->begin(); i != task->fds->end(); i++)
     {
         coro_poll_task_map.erase(i->first);
-        if (swoole_event_del(i->first) < 0)
+        if (swoole_event_del(i->second.socket) < 0)
         {
             //TODO print error log
             continue;
@@ -508,15 +508,15 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
 
     for (auto i = fds.begin(); i != fds.end(); i++)
     {
-        if (swoole_event_add(i->first, i->second.events, SW_FD_CORO_POLL) < 0)
+        swSocket *socket = i->second.socket;
+        socket->fd = i->first;
+        socket->fdtype = SW_FD_CORO_POLL;
+        if (swoole_event_add(i->second.socket, i->second.events) < 0)
         {
             continue;
         }
-        else
-        {
-            coro_poll_task_map[i->first] = &task;
-            tasked_num++;
-        }
+        coro_poll_task_map[i->first] = &task;
+        tasked_num++;
     }
 
     if (sw_unlikely(tasked_num == 0))

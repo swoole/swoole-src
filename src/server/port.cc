@@ -29,7 +29,7 @@ static int swPort_onRead_redis(swReactor *reactor, swListenPort *lp, swEvent *ev
 
 void swPort_init(swListenPort *port)
 {
-    port->sock = 0;
+    port->socket = nullptr;
     port->ssl = 0;
 
     //listen backlog
@@ -93,7 +93,7 @@ int swPort_enable_ssl_encrypt(swListenPort *ls)
 
 int swPort_listen(swListenPort *ls)
 {
-    int sock = ls->sock;
+    int sock = ls->socket->fd;
     int option = 1;
 
     //listen stream socket
@@ -609,7 +609,8 @@ void swPort_free(swListenPort *port)
     }
 #endif
 
-    close(port->sock);
+    close(port->socket->fd);
+    sw_free(port->socket);
 
     //remove unix socket file
     if (port->type == SW_SOCK_UNIX_STREAM || port->type == SW_SOCK_UNIX_DGRAM)

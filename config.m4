@@ -442,7 +442,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/memory/ring_buffer.c \
         src/memory/shared_memory.c \
         src/memory/table.c \
-        src/network/client.c \
+        src/network/client.cc \
         src/network/connection.cc \
         src/network/dns.cc \
         src/network/process_pool.c \

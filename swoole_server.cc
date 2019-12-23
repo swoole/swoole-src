@@ -1080,9 +1080,10 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
     zend_update_property_string(swoole_server_port_ce, zport, ZEND_STRL("host"), port->host);
     zend_update_property_long(swoole_server_port_ce, zport, ZEND_STRL("port"), port->port);
     zend_update_property_long(swoole_server_port_ce, zport, ZEND_STRL("type"), port->type);
-    zend_update_property_long(swoole_server_port_ce, zport, ZEND_STRL("sock"), port->sock);
+    zend_update_property_long(swoole_server_port_ce, zport, ZEND_STRL("sock"), port->socket->fd);
 
-    do {
+    do
+    {
         zval *zserv = (zval *) serv->ptr2;
         zval *zports = sw_zend_read_and_convert_property_array(Z_OBJCE_P(zserv), zserv, ZEND_STRL("ports"), 0);
         (void) add_next_index_zval(zports, zport);
@@ -4338,7 +4339,8 @@ static PHP_METHOD(swoole_connection_iterator, valid)
                 continue;
             }
 #endif
-            if (iterator->port && (iterator->port->sock < 0 || conn->server_fd != (uint32_t) iterator->port->sock))
+            if (iterator->port
+                    && (iterator->port->socket->fd < 0 || conn->server_fd != (uint32_t) iterator->port->socket->fd))
             {
                 continue;
             }

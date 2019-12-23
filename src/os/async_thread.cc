@@ -171,7 +171,6 @@ public:
         auto _event_copy = new AsyncEvent(*request);
         _event_copy->task_id = current_task_id++;
         _event_copy->timestamp = swoole_microtime();
-        _event_copy->pipe_fd = SwooleTG.aio_pipe_write;
         event_mutex.lock();
         _queue.push(_event_copy);
         _cv.notify_one();
@@ -349,7 +348,7 @@ void swoole::async::ThreadPool::create_thread(const bool is_core_worker)
                                 event = new AsyncEvent;
                                 event->object = new thread::id(this_thread::get_id());
                                 event->callback = aio_thread_release;
-                                event->pipe_fd = SwooleG.aio_default_pipe_fd;
+                                event->pipe_fd = SwooleG.aio_default_socket->fd;
                                 event->canceled = false;
 
                                 --n_waiting;
@@ -389,7 +388,7 @@ static void swAio_free(void *private_data)
         return;
     }
     SwooleTG.aio_init = 0;
-    swoole_event_del(SwooleTG.aio_pipe_read);
+    swoole_event_del(SwooleTG.aio_read_socket);
     SwooleTG.aio_pipe.close(&SwooleTG.aio_pipe);
     if (pool->current_pid == getpid())
     {
@@ -397,6 +396,11 @@ static void swAio_free(void *private_data)
         {
             delete pool;
             pool = nullptr;
+
+            sw_free(SwooleTG.aio_read_socket);
+            sw_free(SwooleTG.aio_write_socket);
+            SwooleTG.aio_read_socket = nullptr;
+            SwooleTG.aio_write_socket = nullptr;
         }
     }
 }
@@ -419,9 +423,28 @@ static int swAio_init()
         swoole_throw_error(SW_ERROR_SYSTEM_CALL_FAIL);
     }
 
-    SwooleTG.aio_pipe_read = SwooleTG.aio_pipe.getFd(&SwooleTG.aio_pipe, 0);
-    SwooleTG.aio_pipe_write = SwooleTG.aio_pipe.getFd(&SwooleTG.aio_pipe, 1);
-    swoole_event_add(SwooleTG.aio_pipe_read, SW_EVENT_READ, SW_FD_AIO);
+    int _read_fd = SwooleTG.aio_pipe.getFd(&SwooleTG.aio_pipe, 0);
+    int _write_fd = SwooleTG.aio_pipe.getFd(&SwooleTG.aio_pipe, 1);
+
+    SwooleTG.aio_read_socket = swSocket_new(_read_fd, SW_FD_AIO);
+    SwooleTG.aio_write_socket = swSocket_new(_write_fd, SW_FD_AIO);
+
+    if (!SwooleTG.aio_read_socket || SwooleTG.aio_write_socket)
+    {
+        if (SwooleTG.aio_read_socket)
+        {
+            sw_free(SwooleTG.aio_read_socket);
+            SwooleTG.aio_read_socket = nullptr;
+        }
+        if (SwooleTG.aio_write_socket)
+        {
+            sw_free(SwooleTG.aio_write_socket);
+            SwooleTG.aio_write_socket = nullptr;
+        }
+        return SW_ERR;
+    }
+
+    swoole_event_add(SwooleTG.aio_read_socket, SW_EVENT_READ);
     swReactor_add_destroy_callback(SwooleTG.reactor, swAio_free, nullptr);
 
     init_lock.lock();
@@ -433,7 +456,7 @@ static int swAio_init()
         );
         pool->start();
         SwooleTG.aio_schedule = 1;
-        SwooleG.aio_default_pipe_fd = SwooleTG.aio_pipe_write;
+        SwooleG.aio_default_socket = SwooleTG.aio_write_socket;
     }
     SwooleTG.aio_init = 1;
     init_lock.unlock();

@@ -229,27 +229,19 @@ static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
 {
     swServer *serv = (swServer *) pool->ptr;
+    swSocket *socket = worker->pipe_worker;
     worker->status = SW_WORKER_IDLE;
 
-    int pipe_worker = worker->pipe_worker;
-
-    swSocket_set_nonblock(pipe_worker);
+    swSocket_set_nonblock(socket->fd);
     SwooleTG.reactor->ptr = pool;
-    swoole_event_add(pipe_worker, SW_EVENT_READ, SW_FD_PIPE);
+    swoole_event_add(socket, SW_EVENT_READ);
     swReactor_set_handler(SwooleTG.reactor, SW_FD_PIPE, swTaskWorker_onPipeReceive);
 
-    /**
-     * set pipe buffer size
-     */
-    uint32_t i;
-    swSocket *pipe_socket;
-    for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
+    for (uint i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
         worker = swServer_get_worker(serv, i);
-        pipe_socket = swReactor_get(SwooleTG.reactor, worker->pipe_master);
-        pipe_socket->buffer_size = INT_MAX;
-        pipe_socket = swReactor_get(SwooleTG.reactor, worker->pipe_worker);
-        pipe_socket->buffer_size = INT_MAX;
+        worker->pipe_master->buffer_size = INT_MAX;
+        worker->pipe_worker->buffer_size = INT_MAX;
     }
 
     //main loop

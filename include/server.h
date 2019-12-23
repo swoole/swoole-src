@@ -117,6 +117,7 @@ typedef struct _swReactorThread
     swReactor reactor;
     int notify_pipe;
     uint32_t pipe_num;
+    swSocket *pipe_sockets;
     void *send_buffers;
 } swReactorThread;
 
@@ -150,7 +151,7 @@ typedef struct _swListenPort
     enum swSocket_type type;
     uint8_t ssl;
     int port;
-    int sock;
+    swSocket *socket;
     pthread_t thread_id;
     char host[SW_HOST_MAXSIZE];
 
@@ -566,10 +567,10 @@ struct _swServer
     /**
      * stream
      */
-    char *stream_socket;
-    int stream_fd;
+    char *stream_socket_file;
+    swSocket *stream_socket;
     swProtocol stream_protocol;
-    int last_stream_fd;
+    swSocket *last_stream_socket;
     swLinkedList *buffer_pool;
 
 #ifdef SW_BUFFER_RECV_TIME
@@ -975,7 +976,7 @@ static sw_inline int swServer_connection_incoming(swServer *serv, swReactor *rea
 #ifdef SW_USE_OPENSSL
     if (conn->socket->ssl)
     {
-        return reactor->add(reactor, conn->fd, SW_FD_SESSION | SW_EVENT_READ);
+        return reactor->add(reactor, conn->socket, SW_FD_SESSION | SW_EVENT_READ);
     }
 #endif
     //delay receive, wait resume command.
@@ -984,7 +985,7 @@ static sw_inline int swServer_connection_incoming(swServer *serv, swReactor *rea
         conn->socket->listen_wait = 1;
         return SW_OK;
     }
-    if (reactor->add(reactor, conn->fd, SW_FD_SESSION | SW_EVENT_READ) < 0)
+    if (reactor->add(reactor, conn->socket, SW_FD_SESSION | SW_EVENT_READ) < 0)
     {
         return SW_ERR;
     }
@@ -1004,7 +1005,7 @@ void swServer_connection_each(swServer *serv, void (*callback)(swConnection *con
 /**
  * reactor_id: The fd in which the reactor.
  */
-static sw_inline int swServer_get_send_pipe(swServer *serv, int session_id, int reactor_id)
+static sw_inline swSocket* swServer_get_send_pipe(swServer *serv, int session_id, int reactor_id)
 {
     int pipe_index = session_id % serv->reactor_pipe_num;
     /**
@@ -1059,9 +1060,9 @@ int swReactorThread_start(swServer *serv);
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_join(swServer *serv);
 void swReactorThread_free(swServer *serv);
-int swReactorThread_close(swReactor *reactor, int fd);
+int swReactorThread_close(swReactor *reactor, swSocket *_socket);
 int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, char *data, uint32_t length);
-int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, int len);
+int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, size_t len);
 
 int swReactorProcess_create(swServer *serv);
 int swReactorProcess_start(swServer *serv);

@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
+#include "swoole_cxx.h"
 #include "coroutine_cxx_api.h"
 
 #include <sys/file.h>
@@ -25,10 +25,19 @@
 #include <dirent.h>
 #include <string>
 #include <iostream>
+#include <unordered_map>
 
 using swoole::Coroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using std::unordered_map;
+
+static unordered_map<int, Socket *> socket_map;
+
+Socket* swoole_coroutine_get_socket_object(int sockfd)
+{
+    return socket_map[sockfd];
+}
 
 SW_EXTERN_C_BEGIN
 
@@ -44,6 +53,7 @@ int swoole_coroutine_socket(int domain, int type, int protocol)
     {
         delete socket;
     }
+    socket_map[fd] = socket;
     return fd;
 }
 
@@ -53,12 +63,11 @@ ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags
     {
         _no_coro: return ::send(sockfd, buf, len, flags);
     }
-    swSocket *conn = swReactor_get(SwooleTG.reactor, sockfd);
-    if (conn == nullptr)
+    Socket *socket = socket_map[sockfd];
+    if (socket == nullptr)
     {
         goto _no_coro;
     }
-    Socket *socket = (Socket *) conn->object;
     return socket->send(buf, len);
 }
 
@@ -68,12 +77,11 @@ ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags
     {
         _no_coro: return ::sendmsg(sockfd, msg, flags);
     }
-    swSocket *conn = swReactor_get(SwooleTG.reactor, sockfd);
-    if (conn == nullptr)
+    Socket *socket = socket_map[sockfd];
+    if (socket == nullptr)
     {
         goto _no_coro;
     }
-    Socket *socket = (Socket *) conn->object;
     return socket->sendmsg(msg, flags);
 }
 
@@ -83,12 +91,11 @@ ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags)
     {
         _no_coro: return ::recvmsg(sockfd, msg, flags);
     }
-    swSocket *conn = swReactor_get(SwooleTG.reactor, sockfd);
-    if (conn == nullptr)
+    Socket *socket = socket_map[sockfd];
+    if (socket == nullptr)
     {
         goto _no_coro;
     }
-    Socket *socket = (Socket *) conn->object;
     return socket->recvmsg(msg, flags);
 }
 
@@ -98,12 +105,11 @@ ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags)
     {
         _no_coro: return ::recv(sockfd, buf, len, flags);
     }
-    swSocket *conn = swReactor_get(SwooleTG.reactor, sockfd);
-    if (conn == nullptr)
+    Socket *socket = socket_map[sockfd];
+    if (socket == nullptr)
     {
         goto _no_coro;
     }
-    Socket *socket = (Socket *) conn->object;
     if (flags & MSG_PEEK)
     {
         return socket->peek(buf, len);
@@ -114,21 +120,18 @@ ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags)
     }
 }
 
-int swoole_coroutine_close(int fd)
+int swoole_coroutine_close(int sockfd)
 {
-    if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current()))
+    Socket *socket = socket_map[sockfd];
+    if (socket == nullptr)
     {
-        _no_coro: return close(fd);
+        errno = EBADFD;
+        return SW_ERR;
     }
-    swSocket *conn = swReactor_get(SwooleTG.reactor, fd);
-    if (conn == nullptr)
-    {
-        goto _no_coro;
-    }
-    Socket *socket = (Socket *) conn->object;
     if (socket->close())
     {
         delete socket;
+        socket_map.erase(sockfd);
         return 0;
     }
     else
@@ -143,12 +146,11 @@ int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t 
     {
         _no_coro: return connect(sockfd, addr, addrlen);
     }
-    swSocket *conn = swReactor_get(SwooleTG.reactor, sockfd);
-    if (conn == nullptr)
+    Socket *socket = socket_map[sockfd];
+    if (socket == nullptr)
     {
         goto _no_coro;
     }
-    Socket *socket = (Socket *) conn->object;
     return socket->connect(addr, addrlen) ? 0 : -1;
 }
 
@@ -159,12 +161,11 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout)
     {
         _poll: return poll(fds, nfds, timeout);
     }
-    swSocket *conn = swReactor_get(SwooleTG.reactor, fds[0].fd);
-    if (conn == nullptr)
+    Socket *socket = socket_map[fds[0].fd];
+    if (socket == nullptr)
     {
         goto _poll;
     }
-    Socket *socket = (Socket *) conn->object;
     socket->set_timeout((double) timeout / 1000);
     if (fds[0].events & POLLIN)
     {
@@ -317,23 +318,22 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode)
     return ev.ret;
 }
 
-ssize_t swoole_coroutine_read(int fd, void *buf, size_t count)
+ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count)
 {
     if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current()))
     {
-        return read(fd, buf, count);
+        return read(sockfd, buf, count);
     }
 
-    swSocket *conn = swReactor_get(SwooleTG.reactor, fd);
-    if (conn && conn->fdtype == SW_FD_CORO_SOCKET)
+    Socket *socket = socket_map[sockfd];
+    if (socket && socket->socket->fdtype == SW_FD_CORO_SOCKET)
     {
-        Socket *socket = (Socket *) conn->object;
         return socket->read(buf, count);
     }
 
     swAio_event ev;
     bzero(&ev, sizeof(ev));
-    ev.fd = fd;
+    ev.fd = sockfd;
     ev.buf = buf;
     ev.nbytes = count;
     ev.handler = handler_read;
@@ -350,23 +350,22 @@ ssize_t swoole_coroutine_read(int fd, void *buf, size_t count)
     return ev.ret;
 }
 
-ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count)
+ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count)
 {
     if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current()))
     {
-        return write(fd, buf, count);
+        return write(sockfd, buf, count);
     }
 
-    swSocket *conn = swReactor_get(SwooleTG.reactor, fd);
-    if (conn && conn->fdtype == SW_FD_CORO_SOCKET)
+    Socket *socket = socket_map[sockfd];
+    if (socket && socket->socket->fdtype == SW_FD_CORO_SOCKET)
     {
-        Socket *socket = (Socket *) conn->object;
         return socket->write(buf, count);
     }
 
     swAio_event ev;
     bzero(&ev, sizeof(ev));
-    ev.fd = fd;
+    ev.fd = sockfd;
     ev.buf = (void*) buf;
     ev.nbytes = count;
     ev.handler = handler_write;
@@ -681,19 +680,18 @@ void swoole_coroutine_usleep(int usec)
     System::sleep((double) usec / 1024 / 1024);
 }
 
-int swoole_coroutine_socket_set_timeout(int fd, int which, double timeout)
+int swoole_coroutine_socket_set_timeout(int sockfd, int which, double timeout)
 {
     if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current()))
     {
         _error: errno = EINVAL;
         return SW_ERR;
     }
-    swSocket *conn = swReactor_get(SwooleTG.reactor, fd);
-    if (conn == nullptr)
+    Socket *socket = socket_map[sockfd];
+    if (socket == nullptr)
     {
         goto _error;
     }
-    Socket *socket = (Socket *) conn->object;
     if (which == SO_RCVTIMEO)
     {
         socket->set_timeout(timeout, swoole::SW_TIMEOUT_READ);
@@ -710,19 +708,18 @@ int swoole_coroutine_socket_set_timeout(int fd, int which, double timeout)
     }
 }
 
-int swoole_coroutine_socket_wait_event(int fd, int event, double timeout)
+int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout)
 {
     if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current()))
     {
         _error: errno = EINVAL;
         return SW_ERR;
     }
-    swSocket *conn = swReactor_get(SwooleTG.reactor, fd);
-    if (conn == nullptr)
+    Socket *socket = socket_map[sockfd];
+    if (socket == nullptr)
     {
         goto _error;
     }
-    Socket *socket = (Socket *) conn->object;
     double ori_timeout = socket->get_timeout(event == SW_EVENT_READ ? swoole::SW_TIMEOUT_READ : swoole::SW_TIMEOUT_WRITE);
     socket->set_timeout(timeout);
     bool retval = socket->poll((enum swEvent_type) event);

@@ -1529,7 +1529,8 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, s
         {
             i->second.events |= event;
         }
-    } ZEND_HASH_FOREACH_END();
+    }
+    ZEND_HASH_FOREACH_END();
 }
 
 static int stream_array_emulate_read_fd_set(zval *stream_array)

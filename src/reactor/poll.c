@@ -17,22 +17,17 @@
 #include "swoole.h"
 #include <poll.h>
 
-static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype);
-static int swReactorPoll_set(swReactor *reactor, int fd, int fdtype);
-static int swReactorPoll_del(swReactor *reactor, int fd);
+static int swReactorPoll_add(swReactor *reactor, swSocket *socket, int events);
+static int swReactorPoll_set(swReactor *reactor, swSocket *socket, int events);
+static int swReactorPoll_del(swReactor *reactor, swSocket *socket);
 static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo);
 static void swReactorPoll_free(swReactor *reactor);
 static int swReactorPoll_exist(swReactor *reactor, int fd);
 
-typedef struct _swPollFdInfo
-{
-    int fdtype;
-} swPollFdInfo;
-
 typedef struct _swReactorPoll
 {
     int max_fd_num;
-    swPollFdInfo *fds;
+    swSocket **fds;
     struct pollfd *events;
 } swReactorPoll;
 
@@ -47,7 +42,7 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
     }
     bzero(object, sizeof(swReactorPoll));
 
-    object->fds = sw_calloc(max_fd_num, sizeof(swPollFdInfo));
+    object->fds = sw_calloc(max_fd_num, sizeof(swSocket*));
     if (object->fds == NULL)
     {
         swWarn("malloc[1] failed");
@@ -64,7 +59,6 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
     object->max_fd_num = max_fd_num;
     reactor->max_event_num = max_fd_num;
     reactor->object = object;
-    //binding method
     reactor->add = swReactorPoll_add;
     reactor->del = swReactorPoll_del;
     reactor->set = swReactorPoll_set;
@@ -81,8 +75,9 @@ static void swReactorPoll_free(swReactor *reactor)
     sw_free(reactor->object);
 }
 
-static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
+static int swReactorPoll_add(swReactor *reactor, swSocket *socket, int events)
 {
+    int fd = socket->fd;
     if (swReactorPoll_exist(reactor, fd))
     {
         swWarn("fd#%d is already exists", fd);
@@ -97,23 +92,23 @@ static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
         return SW_ERR;
     }
 
-    swReactor_add(reactor, fd, fdtype);
+    swReactor_add(reactor, socket, events);
 
     swTrace("fd=%d, fdtype=%d", fd, fdtype);
 
-    object->fds[cur].fdtype = swReactor_fdtype(fdtype);
+    object->fds[cur] = socket;
     object->events[cur].fd = fd;
     object->events[cur].events = 0;
 
-    if (swReactor_event_read(fdtype))
+    if (swReactor_event_read(events))
     {
         object->events[cur].events |= POLLIN;
     }
-    if (swReactor_event_write(fdtype))
+    if (swReactor_event_write(events))
     {
         object->events[cur].events |= POLLOUT;
     }
-    if (swReactor_event_error(fdtype))
+    if (swReactor_event_error(events))
     {
         object->events[cur].events |= POLLHUP;
     }
@@ -121,7 +116,7 @@ static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
     return SW_OK;
 }
 
-static int swReactorPoll_set(swReactor *reactor, int fd, int fdtype)
+static int swReactorPoll_set(swReactor *reactor, swSocket *socket, int events)
 {
     uint32_t i;
     swReactorPoll *object = reactor->object;
@@ -131,41 +126,40 @@ static int swReactorPoll_set(swReactor *reactor, int fd, int fdtype)
     for (i = 0; i < reactor->event_num; i++)
     {
         //found
-        if (object->events[i].fd == fd)
+        if (object->events[i].fd == socket->fd)
         {
-            object->fds[i].fdtype = swReactor_fdtype(fdtype);
-            //object->events[i].events = POLLRDHUP;
             object->events[i].events = 0;
-            if (swReactor_event_read(fdtype))
+            if (swReactor_event_read(events))
             {
                 object->events[i].events |= POLLIN;
             }
-            if (swReactor_event_write(fdtype))
+            if (swReactor_event_write(events))
             {
                 object->events[i].events |= POLLOUT;
             }
             //execute parent method
-            swReactor_set(reactor, fd, fdtype);
+            swReactor_set(reactor, socket, events);
             return SW_OK;
         }
     }
+
     return SW_ERR;
 }
 
-static int swReactorPoll_del(swReactor *reactor, int fd)
+static int swReactorPoll_del(swReactor *reactor, swSocket *socket)
 {
     uint32_t i;
     swReactorPoll *object = reactor->object;
 
     for (i = 0; i < reactor->event_num; i++)
     {
-        if (object->events[i].fd == fd)
+        if (object->events[i].fd == socket->fd)
         {
             for (; i < reactor->event_num; i++)
             {
                 if (i == reactor->event_num)
                 {
-                    object->fds[i].fdtype = 0;
+                    object->fds[i] = NULL;
                     object->events[i].fd = 0;
                     object->events[i].events = 0;
                 }
@@ -175,7 +169,7 @@ static int swReactorPoll_del(swReactor *reactor, int fd)
                     object->events[i] = object->events[i + 1];
                 }
             }
-            swReactor_del(reactor, fd);
+            swReactor_del(reactor, socket);
             return SW_OK;
         }
     }
@@ -235,10 +229,10 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
         {
             for (i = 0; i < reactor->event_num; i++)
             {
+                event.socket = object->fds[i];
                 event.fd = object->events[i].fd;
                 event.reactor_id = reactor->id;
-                event.type = object->fds[i].fdtype;
-                event.socket = swReactor_get(reactor, event.fd);
+                event.type = event.socket->fdtype;
 
                 swTrace("Event: fd=%d|reactor_id=%d|type=%d", event.fd, reactor->id, object->fds[i].fdtype);
                 //in
@@ -278,7 +272,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
                 }
                 if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE))
                 {
-                    swReactorPoll_del(reactor, event.fd);
+                    swReactorPoll_del(reactor, event.socket);
                 }
             }
         }
@@ -298,7 +292,7 @@ static int swReactorPoll_exist(swReactor *reactor, int fd)
     int i;
     for (i = 0; i < reactor->event_num; i++)
     {
-        if (object->events[i].fd == fd )
+        if (object->events[i].fd == fd)
         {
             return SW_TRUE;
         }

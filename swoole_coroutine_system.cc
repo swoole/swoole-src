@@ -14,10 +14,10 @@ using swoole::coroutine::Socket;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
 
-struct util_socket
+struct tmp_socket
 {
     php_coro_context context;
-    int fd;
+    swSocket socket;
     zend_string *buf;
     uint32_t nbytes;
     swTimer_node *timer;
@@ -212,13 +212,13 @@ static void aio_onWriteCompleted(swAio_event *event)
 
 static int co_socket_onReadable(swReactor *reactor, swEvent *event)
 {
-    util_socket *sock = (util_socket *) event->socket->object;
+    tmp_socket *sock = (tmp_socket *) event->socket->object;
     php_coro_context *context = &sock->context;
 
     zval *retval = NULL;
     zval result;
 
-    swoole_event_del(sock->fd);
+    swoole_event_del(event->socket);
 
     if (sock->timer)
     {
@@ -226,7 +226,7 @@ static int co_socket_onReadable(swReactor *reactor, swEvent *event)
         sock->timer = NULL;
     }
 
-    int n = read(sock->fd, ZSTR_VAL(sock->buf), sock->nbytes);
+    int n = read(event->fd, ZSTR_VAL(sock->buf), sock->nbytes);
     if (n < 0)
     {
         ZVAL_FALSE(&result);
@@ -255,13 +255,13 @@ static int co_socket_onReadable(swReactor *reactor, swEvent *event)
 
 static int co_socket_onWritable(swReactor *reactor, swEvent *event)
 {
-    util_socket *sock = (util_socket *) event->socket->object;
+    tmp_socket *sock = (tmp_socket *) event->socket->object;
     php_coro_context *context = &sock->context;
 
     zval *retval = NULL;
     zval result;
 
-    swoole_event_del(sock->fd);
+    swoole_event_del(event->socket);
 
     if (sock->timer)
     {
@@ -269,7 +269,7 @@ static int co_socket_onWritable(swReactor *reactor, swEvent *event)
         sock->timer = NULL;
     }
 
-    int n = write(sock->fd, context->private_data, sock->nbytes);
+    int n = write(event->fd, context->private_data, sock->nbytes);
     if (n < 0)
     {
         SwooleG.error = errno;
@@ -297,18 +297,20 @@ static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETER
         swReactor_set_handler(SwooleTG.reactor, PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_WRITE, co_socket_onWritable);
     }
 
-    if (swoole_event_add(fd, SW_EVENT_READ, PHP_SWOOLE_FD_CO_UTIL) < 0)
+    tmp_socket *sock = (tmp_socket *) emalloc(sizeof(tmp_socket));
+    bzero(sock, sizeof(tmp_socket));
+
+    sock->socket.fd = fd;
+    sock->socket.fdtype = (enum swFd_type) PHP_SWOOLE_FD_CO_UTIL;
+    sock->socket.object = sock;
+
+    if (swoole_event_add(&sock->socket, SW_EVENT_READ) < 0)
     {
         SwooleG.error = errno;
+        efree(sock);
         RETURN_FALSE;
     }
 
-    swSocket *_socket = swReactor_get(SwooleTG.reactor, fd);
-    util_socket *sock = (util_socket *) emalloc(sizeof(util_socket));
-    bzero(sock, sizeof(util_socket));
-    _socket->object = sock;
-
-    sock->fd = fd;
     sock->buf = zend_string_alloc(length + 1, 0);
     sock->nbytes = length <= 0 ? SW_BUFFER_SIZE_STD : length;
 
@@ -332,17 +334,21 @@ static void co_socket_write(int fd, char* str, size_t l_str, INTERNAL_FUNCTION_P
         RETURN_LONG(ret);
     }
 
+    tmp_socket *sock;
+
     _yield:
-    if (swoole_event_add(fd, SW_EVENT_WRITE, PHP_SWOOLE_FD_SOCKET) < 0)
+    sock = (tmp_socket *) emalloc(sizeof(tmp_socket));
+    bzero(sock, sizeof(tmp_socket));
+
+    sock->socket.fd = fd;
+    sock->socket.fdtype = (enum swFd_type) PHP_SWOOLE_FD_CO_UTIL;
+    sock->socket.object = sock;
+
+    if (swoole_event_add(&sock->socket, SW_EVENT_WRITE) < 0)
     {
         SwooleG.error = errno;
         RETURN_FALSE;
     }
-
-    swSocket *_socket = swReactor_get(SwooleTG.reactor, fd);
-    util_socket *sock = (util_socket *) emalloc(sizeof(util_socket));
-    bzero(sock, sizeof(util_socket));
-    _socket->object = sock;
 
     php_coro_context *context = &sock->context;
     context->private_data = str;

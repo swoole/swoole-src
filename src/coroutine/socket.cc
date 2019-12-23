@@ -152,11 +152,11 @@ bool Socket::add_event(const enum swEvent_type event)
     {
         if (socket->removed)
         {
-            ret = swoole_event_add(sock_fd, event, SW_FD_CORO_SOCKET) == SW_OK;
+            ret = swoole_event_add(socket, event) == SW_OK;
         }
         else
         {
-            ret = swoole_event_set(sock_fd, socket->events | event, SW_FD_CORO_SOCKET) == SW_OK;
+            ret = swoole_event_set(socket, socket->events | event) == SW_OK;
         }
     }
     set_err(ret ? 0 : errno);
@@ -229,11 +229,11 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
         swReactor *reactor = SwooleTG.reactor;
         if (sw_likely(added_event == SW_EVENT_READ))
         {
-            swReactor_remove_read_event(reactor, sock_fd);
+            swReactor_remove_read_event(reactor, socket);
         }
         else // if (added_event == SW_EVENT_WRITE)
         {
-            swReactor_remove_write_event(reactor, sock_fd);
+            swReactor_remove_write_event(reactor, socket);
         }
     }
 #ifdef SW_USE_OPENSSL
@@ -581,7 +581,7 @@ void Socket::init_reactor_socket(int _fd)
         swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "operation not support (reactor is not ready)");
     }
 
-    socket = swReactor_get(reactor, _fd);
+    socket = new swSocket;
     bzero(socket, sizeof(swSocket));
     sock_fd = socket->fd = _fd;
     socket->object = this;
@@ -1932,17 +1932,6 @@ bool Socket::close()
     }
 }
 
-static void socket_close_fd(void *ptr)
-{
-    swSocket *sock = (swSocket *) ptr;
-    if (::close(sock->fd) != 0)
-    {
-        swSysWarn("close(%d) failed", sock->fd);
-    }
-    bzero(sock, sizeof(swSocket));
-    sock->removed = 1;
-}
-
 /**
  * Warn:
  * the destructor should only be called in following two cases:
@@ -2021,10 +2010,14 @@ Socket::~Socket()
     if (SwooleTG.reactor)
     {
         socket->removed = 1;
-        swoole_event_defer(socket_close_fd, socket);
+        SwooleTG.reactor->close(SwooleTG.reactor, socket);
     }
     else
     {
-        socket_close_fd(socket);
+        if (::close(sock_fd) != 0)
+        {
+            swSysWarn("close(%d) failed", sock_fd);
+        }
+        sw_free(socket);
     }
 }

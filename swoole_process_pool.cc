@@ -657,17 +657,17 @@ static PHP_METHOD(swoole_process_pool, getProcess)
             //current process
             if (worker->id == SwooleWG.id)
             {
-                worker->pipe = worker->pipe_worker;
+                worker->pipe_current = worker->pipe_worker;
             }
             else
             {
-                worker->pipe = worker->pipe_master;
+                worker->pipe_current = worker->pipe_master;
             }
             /**
              * Forbidden to close pipe in the php layer
              */
             worker->pipe_object = nullptr;
-            zend_update_property_long(swoole_process_ce, zprocess, ZEND_STRL("pipe"), worker->pipe);
+            zend_update_property_long(swoole_process_ce, zprocess, ZEND_STRL("pipe"), worker->pipe_current->fd);
         }
         php_swoole_process_set_worker(zprocess, worker);
         process_pool_property *pp = php_swoole_process_pool_get_and_check_pp(ZEND_THIS);

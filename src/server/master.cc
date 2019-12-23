@@ -53,7 +53,7 @@ static void swServer_disable_accept(swServer *serv)
         {
             continue;
         }
-        swoole_event_del(ls->sock);
+        swoole_event_del(ls->socket);
     }
 }
 
@@ -68,7 +68,7 @@ static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode)
         {
             continue;
         }
-        swoole_event_add(ls->sock, SW_EVENT_READ, SW_FD_STREAM_SERVER);
+        swoole_event_add(ls->socket, SW_EVENT_READ);
     }
 
     serv->enable_accept_timer = nullptr;
@@ -85,7 +85,9 @@ void swServer_close_port(swServer *serv, enum swBool_type only_stream_port)
             continue;
         }
         //stream socket
-        close(ls->sock);
+        close(ls->socket->fd);
+        sw_free(ls->socket);
+        ls->socket = nullptr;
     }
 }
 
@@ -129,16 +131,21 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 
         //add to connection_list
         swConnection *conn = swServer_connection_new(serv, listen_host, new_fd, event->fd);
+        if (conn == nullptr)
+        {
+            close(new_fd);
+            return SW_OK;
+        }
         memcpy(&conn->info.addr, &event->socket->info, sizeof(event->socket->info));
         conn->socket_type = listen_host->type;
+        swSocket *_socket = conn->socket;
 
 #ifdef SW_USE_OPENSSL
-        swSocket *_socket = swReactor_get(reactor, conn->fd);
         if (listen_host->ssl)
         {
             if (swSSL_create(_socket, listen_host->ssl_context, 0) < 0)
             {
-                reactor->close(reactor, new_fd);
+                reactor->close(reactor, _socket);
                 return SW_OK;
             }
             else
@@ -155,7 +162,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         {
             if (swServer_connection_incoming(serv, reactor, conn) < 0)
             {
-                reactor->close(reactor, new_fd);
+                reactor->close(reactor, _socket);
                 return SW_OK;
             }
         }
@@ -164,10 +171,10 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             swDataHead ev = {0};
             ev.type = SW_SERVER_EVENT_INCOMING;
             ev.fd = new_fd;
-            int _pipe_fd = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
-            if (reactor->write(reactor, _pipe_fd, &ev, sizeof(ev)) < 0)
+            swSocket *_pipe_sock = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
+            if (reactor->write(reactor, _pipe_sock, &ev, sizeof(ev)) < 0)
             {
-                reactor->close(reactor, new_fd);
+                reactor->close(reactor, _socket);
                 return SW_OK;
             }
         }
@@ -303,7 +310,7 @@ void swServer_store_listen_socket(swServer *serv)
     int sockfd;
     LL_FOREACH(serv->listen_list, ls)
     {
-        sockfd = ls->sock;
+        sockfd = ls->socket->fd;
         //save server socket to connection_list
         serv->connection_list[sockfd].fd = sockfd;
         //socket type
@@ -782,11 +789,6 @@ int swServer_create(swServer *serv)
         return SW_ERR;
     }
 
-    if (SwooleG.socket_array->item_num < serv->max_connection)
-    {
-        swArray_alloc(SwooleG.socket_array, serv->max_connection);
-    }
-
     if (serv->factory_mode == SW_MODE_BASE)
     {
         return swReactorProcess_create(serv);
@@ -829,7 +831,7 @@ int swServer_shutdown(swServer *serv)
         {
             if (swSocket_is_stream(port->type))
             {
-                reactor->del(reactor, port->sock);
+                reactor->del(reactor, port->socket);
             }
         }
         swServer_clear_timer(serv);
@@ -947,9 +949,9 @@ void swServer_store_pipe_fd(swServer *serv, swPipe *p)
     int worker_fd = p->getFd(p, SW_PIPE_WORKER);
 
     serv->connection_list[worker_fd].object = p;
-    serv->connection_list[worker_fd].socket = (swSocket *) swArray_alloc(SwooleG.socket_array, worker_fd);
+    serv->connection_list[worker_fd].socket = (swSocket *) malloc(sizeof(swSocket));
     serv->connection_list[master_fd].object = p;
-    serv->connection_list[master_fd].socket = (swSocket *) swArray_alloc(SwooleG.socket_array, master_fd);
+    serv->connection_list[master_fd].socket = (swSocket *) malloc(sizeof(swSocket));
 
     if (master_fd > swServer_get_minfd(serv))
     {
@@ -1049,7 +1051,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     }
     else if (_send->info.type == SW_SERVER_EVENT_CONFIRM)
     {
-        reactor->add(reactor, conn->fd, conn->socket->fdtype | SW_EVENT_READ);
+        reactor->add(reactor, conn->socket, SW_EVENT_READ);
         conn->socket->listen_wait = 0;
         return SW_OK;
     }
@@ -1060,11 +1062,11 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     {
         if (_socket->events & SW_EVENT_WRITE)
         {
-            return reactor->set(reactor, conn->fd, conn->socket->fdtype | SW_EVENT_WRITE);
+            return reactor->set(reactor, conn->socket, SW_EVENT_WRITE);
         }
         else
         {
-            return reactor->del(reactor, conn->fd);
+            return reactor->del(reactor, conn->socket);
         }
     }
     /**
@@ -1074,11 +1076,11 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     {
         if (_socket->events & SW_EVENT_WRITE)
         {
-            return reactor->set(reactor, conn->fd, _socket->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+            return reactor->set(reactor, _socket, SW_EVENT_READ | SW_EVENT_WRITE);
         }
         else
         {
-            return reactor->add(reactor, conn->fd, _socket->fdtype | SW_EVENT_READ);
+            return reactor->add(reactor, _socket, SW_EVENT_READ);
         }
     }
 
@@ -1090,7 +1092,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
         if (_send->info.type == SW_SERVER_EVENT_CLOSE)
         {
             _close_fd:
-            reactor->close(reactor, fd);
+            reactor->close(reactor, _socket);
             return SW_OK;
         }
         //Direct send
@@ -1195,8 +1197,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     }
 
     //listen EPOLLOUT event
-    if (reactor->set(reactor, fd, SW_FD_SESSION | SW_EVENT_WRITE | SW_EVENT_READ) < 0
-            && (errno == EBADF || errno == ENOENT))
+    if (reactor->set(reactor, _socket, SW_EVENT_WRITE | SW_EVENT_READ) < 0 && (errno == EBADF || errno == ENOENT))
     {
         goto _close_fd;
     }
@@ -1584,7 +1585,12 @@ int swServer_add_systemd_socket(swServer *serv)
         }
         //O_NONBLOCK & O_CLOEXEC
         swoole_fcntl_set_option(sock, 1, 1);
-        ls->sock = sock;
+        ls->socket = swSocket_new(sock, swSocket_is_dgram(ls->type) ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
+        if (ls->socket == nullptr)
+        {
+            close(sock);
+            return count;
+        }
 
         if (swSocket_is_dgram(ls->type))
         {
@@ -1680,7 +1686,12 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
     }
     //O_NONBLOCK & O_CLOEXEC
     swoole_fcntl_set_option(sock, 1, 1);
-    ls->sock = sock;
+    ls->socket = swSocket_new(sock, swSocket_is_dgram(ls->type) ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
+    if (ls->socket == nullptr)
+    {
+        close(sock);
+        return nullptr;
+    }
 
     if (swSocket_is_dgram(ls->type))
     {
@@ -1712,7 +1723,7 @@ int swServer_get_socket(swServer *serv, int port)
     {
         if (ls->port == port || port == 0)
         {
-            return ls->sock;
+            return ls->socket->fd;
         }
     }
     return SW_ERR;
@@ -1818,7 +1829,13 @@ void swServer_connection_each(swServer *serv, void (*callback)(swConnection *con
  */
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd)
 {
-    swConnection* connection = NULL;
+    swSocket *_socket = (swSocket *) sw_malloc(sizeof(swSocket));
+    if (_socket == nullptr)
+    {
+        swSysWarn("malloc(%ld) failed", sizeof(swSocket));
+        return nullptr;
+    }
+    bzero(_socket, sizeof(*_socket));
 
     serv->stats->accept_count++;
     sw_atomic_fetch_add(&serv->stats->connection_num, 1);
@@ -1833,10 +1850,8 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
         swServer_set_minfd(serv, fd);
     }
 
-    connection = &(serv->connection_list[fd]);
-    bzero(connection, sizeof(swConnection));
-
-    swSocket *_socket = swReactor_get(SwooleTG.reactor, fd);
+    swConnection *connection = &(serv->connection_list[fd]);
+    bzero(connection, sizeof(*connection));
     _socket->object = connection;
     _socket->buffer_size = ls->socket_buffer_size;
     _socket->fd = fd;
@@ -1913,5 +1928,3 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
 
     return connection;
 }
-
-

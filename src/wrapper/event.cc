@@ -53,19 +53,19 @@ int swoole_event_init()
     return SW_OK;
 }
 
-int swoole_event_add(int fd, int events, int fdtype)
+int swoole_event_add(swSocket *socket, int events)
 {
-    return SwooleTG.reactor->add(SwooleTG.reactor, fd, fdtype | events);
+    return SwooleTG.reactor->add(SwooleTG.reactor, socket, events);
 }
 
-int swoole_event_set(int fd, int events, int fdtype)
+int swoole_event_set(swSocket *socket, int events)
 {
-    return SwooleTG.reactor->set(SwooleTG.reactor, fd, fdtype | events);
+    return SwooleTG.reactor->set(SwooleTG.reactor, socket, events);
 }
 
-int swoole_event_del(int fd)
+int swoole_event_del(swSocket *socket)
 {
-    return SwooleTG.reactor->del(SwooleTG.reactor, fd);
+    return SwooleTG.reactor->del(SwooleTG.reactor, socket);
 }
 
 int swoole_event_wait()
@@ -100,7 +100,7 @@ void swoole_event_defer(swCallback cb, void *private_data)
 /**
  * @return SW_OK or SW_ERR
  */
-int swoole_event_write(int fd, const void *data, size_t len)
+int swoole_event_write(swSocket *socket, const void *data, size_t len)
 {
-    return SwooleTG.reactor->write(SwooleTG.reactor, fd, data, len);
+    return SwooleTG.reactor->write(SwooleTG.reactor, socket, data, len);
 }

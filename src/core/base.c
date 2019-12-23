@@ -107,12 +107,6 @@ void swoole_init(void)
     }
 
     SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
-    SwooleG.socket_array = swArray_new(SW_SOCKET_ARRAY_INIT_SIZE, sizeof(swSocket));
-    if (!SwooleG.socket_array)
-    {
-        swSysWarn("[Core] Fatal Error: socket array memory allocation failure");
-        exit(1);
-    }
     SwooleG.socket_send_timeout = SW_SOCKET_SEND_TIMEOUT;
 
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
@@ -170,11 +164,6 @@ void swoole_clean(void)
     {
         swoole_event_free();
     }
-    if (SwooleG.socket_array)
-    {
-        swArray_free(SwooleG.socket_array);
-    }
-    //free the global memory
     if (SwooleG.memory_pool != NULL)
     {
         SwooleG.memory_pool->destroy(SwooleG.memory_pool);

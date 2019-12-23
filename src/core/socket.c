@@ -177,10 +177,10 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
     return SW_OK;
 }
 
-int swSocket_write_blocking(int __fd, const void *__data, int __len)
+ssize_t swSocket_write_blocking(int __fd, const void *__data, int __len)
 {
-    int n = 0;
-    int written = 0;
+    ssize_t n = 0;
+    ssize_t written = 0;
 
     while (written < __len)
     {
@@ -208,9 +208,9 @@ int swSocket_write_blocking(int __fd, const void *__data, int __len)
     return written;
 }
 
-int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags)
+ssize_t swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags)
 {
-    int ret;
+    ssize_t ret;
     size_t read_bytes = 0;
 
     while (read_bytes != __len)
@@ -347,6 +347,19 @@ int swSocket_create(int type)
         return SW_ERR;
     }
     return socket(_domain, _type, 0);
+}
+
+swSocket* swSocket_new(int fd, enum swFd_type type)
+{
+    swSocket *socket = sw_calloc(1, sizeof(*socket));
+    if (!socket)
+    {
+        swSysWarn("calloc(1, %ld) failed", sizeof(*socket));
+        return NULL;
+    }
+    socket->fd = fd;
+    socket->fdtype = type;
+    return socket;
 }
 
 int swSocket_bind(int sock, int type, const char *host, int *port)
