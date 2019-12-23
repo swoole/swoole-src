@@ -302,7 +302,7 @@ static PHP_METHOD(swoole_buffer, write)
     }
     if (offset < 0)
     {
-        php_error_docref(NULL, E_WARNING, "offset(%ld) is out of bounds", offset);
+        php_error_docref(NULL, E_WARNING, "offset(" ZEND_LONG_FMT ") is out of bounds", offset);
         RETURN_FALSE;
     }
 
@@ -348,7 +348,7 @@ static PHP_METHOD(swoole_buffer, read)
     }
     if (offset < 0)
     {
-        php_error_docref(NULL, E_WARNING, "offset(%ld) is out of bounds", offset);
+        php_error_docref(NULL, E_WARNING, "offset(" ZEND_LONG_FMT ") is out of bounds", offset);
         RETURN_FALSE;
     }
 
