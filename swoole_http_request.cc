@@ -902,7 +902,7 @@ static int http_request_message_complete(swoole_http_parser *parser)
     }
     ctx->completed = 1;
 
-    return 0;
+    return 1; /* return from execute */
 }
 
 #ifdef SW_HAVE_COMPRESSION
