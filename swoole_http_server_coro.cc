@@ -504,7 +504,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
     while (true)
     {
         ssize_t retval;
-        if (total_bytes == 0)
+        if (ctx != nullptr || total_bytes == 0)
         {
             hs->receivers.push_front(sock);
             auto receiver = hs->receivers.begin();
@@ -568,7 +568,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
                 && memcmp(buffer->str, SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1) == 0)
         {
             buffer->length = total_bytes - (sizeof(SW_HTTP2_PRI_STRING) - 1);
-            buffer->offset = buffer->length == 0 ? 0 : total_parsed_n;
+            buffer->offset = buffer->length == 0 ? 0 : (sizeof(SW_HTTP2_PRI_STRING) - 1);
             hs->recv_http2_frame(ctx);
             break;
         }
@@ -624,10 +624,8 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
             ctx = nullptr;
             continue;
         }
-        else
-        {
-            break;
-        }
+
+        break;
     }
 
     return;
