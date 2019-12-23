@@ -562,12 +562,6 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
             }
             continue;
         }
-        else
-        {
-            /* p++ in parser */
-            parsed_n += 1;
-            total_parsed_n += 1;
-        }
 
 #ifdef SW_USE_HTTP2
         if (ctx->parser.method == PHP_HTTP_NOT_IMPLEMENTED
