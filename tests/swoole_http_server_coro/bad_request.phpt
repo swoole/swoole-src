@@ -12,7 +12,7 @@ use Swoole\Coroutine\Socket;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 
-const REQUEST = "GET / HTTP/1.1\r\nContent-Length: 1\r\n123\r\n";
+const REQUEST = "GET / HTTP/1.1\r\nContent-Length: invalid\r\n\r\n";
 
 Coroutine\run(function () {
     $server = new Server('127.0.0.1', 0);

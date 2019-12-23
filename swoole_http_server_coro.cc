@@ -524,7 +524,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
             if (total_bytes + retval > sock->protocol.package_max_length)
             {
                 ctx->response.status = SW_HTTP_REQUEST_ENTITY_TOO_LARGE;
-                goto _error;
+                break;
             }
         }
         else
@@ -550,14 +550,14 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
             if (ctx->parser.state == s_dead)
             {
                 ctx->response.status = SW_HTTP_BAD_REQUEST;
-                goto _error;
+                break;
             }
             if (total_bytes == buffer->size)
             {
                 if (swString_extend(buffer, buffer->size * 2) != SW_OK)
                 {
                     ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
-                    goto _error;
+                    break;
                 }
             }
             continue;
@@ -628,10 +628,11 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
         break;
     }
 
-    return;
-    _error:
-    zval_dtor(ctx->request.zobject);
-    zval_dtor(ctx->response.zobject);
+    if (ctx)
+    {
+        zval_dtor(ctx->request.zobject);
+        zval_dtor(ctx->response.zobject);
+    }
 }
 
 static PHP_METHOD(swoole_http_server_coro, shutdown)

@@ -1441,9 +1441,9 @@ bool http_client::recv_http_response(double timeout)
         if (parser.state == s_start_res)
         {
             // handle redundant data (websocket packet)
-            if (parser.upgrade && (size_t) retval > parsed_n + 1 + SW_WEBSOCKET_HEADER_LEN)
+            if (parser.upgrade && (size_t) retval > parsed_n + SW_WEBSOCKET_HEADER_LEN)
             {
-                swString_sub(buffer, parsed_n + 1, retval - parsed_n - 1);
+                swString_sub(buffer, parsed_n, retval - parsed_n);
             }
             return true;
         }
