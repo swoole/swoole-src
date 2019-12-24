@@ -177,7 +177,7 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
     return SW_OK;
 }
 
-ssize_t swSocket_write_blocking(int __fd, const void *__data, int __len)
+ssize_t swSocket_write_blocking(int __fd, const void *__data, size_t __len)
 {
     ssize_t n = 0;
     ssize_t written = 0;

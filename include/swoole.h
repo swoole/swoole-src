@@ -1585,7 +1585,7 @@ ssize_t swSocket_udp_sendto(int server_sock, const char *dst_ip, int dst_port, c
 ssize_t swSocket_udp_sendto6(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len);
 ssize_t swSocket_unix_sendto(int server_sock, const char *dst_path, const char *data, uint32_t len);
 int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t length, double timeout);
-ssize_t swSocket_write_blocking(int __fd, const void *__data, int __len);
+ssize_t swSocket_write_blocking(int __fd, const void *__data, size_t __len);
 ssize_t swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
 
 static sw_inline int swSocket_set_nonblock(int sock)
@@ -1693,10 +1693,10 @@ struct _swReactor
 
     struct _swTimer *timer;
 
-    int (*add)(swReactor *, swSocket *socket, int events);
-    int (*set)(swReactor *, swSocket *socket, int events);
-    int (*del)(swReactor *, swSocket *socket);
-    int (*wait)(swReactor *, struct timeval *);
+    int (*add)(swReactor *reactor, swSocket *socket, int events);
+    int (*set)(swReactor *reactor, swSocket *socket, int events);
+    int (*del)(swReactor *reactor, swSocket *socket);
+    int (*wait)(swReactor *reactor, struct timeval *);
     void (*free)(swReactor *);
 
     void *defer_tasks;
@@ -1705,16 +1705,16 @@ struct _swReactor
     swDefer_callback idle_task;
     swDefer_callback future_task;
 
-    void (*onTimeout)(swReactor *);
-    void (*onFinish)(swReactor *);
-    void (*onBegin)(swReactor *);
+    void (*onTimeout)(swReactor *reactor);
+    void (*onFinish)(swReactor *reactor);
+    void (*onBegin)(swReactor *reactor);
 
-    int (*is_empty)(swReactor *);
-    int (*can_exit)(swReactor *);
+    int (*is_empty)(swReactor *reactor);
+    int (*can_exit)(swReactor *reactor);
 
-    int (*write)(swReactor *, swSocket *, const void *, int);
-    int (*close)(swReactor *, swSocket *);
-    void (*defer)(swReactor *, swCallback, void *);
+    int (*write)(swReactor *reactor, swSocket *socket, const void *buf, int n);
+    int (*close)(swReactor *reactor, swSocket *socket);
+    void (*defer)(swReactor *reactor, swCallback callback, void *data);
 };
 
 typedef struct _swWorker swWorker;
@@ -2060,7 +2060,7 @@ static sw_inline swReactor_handler swReactor_get_handler(swReactor *reactor, enu
     return NULL;
 }
 
-int swReactor_set_handler(swReactor *, int, swReactor_handler);
+int swReactor_set_handler(swReactor *reactor, int fdtype, swReactor_handler);
 
 static sw_inline int swReactor_trigger_close_event(swReactor *reactor, swEvent *event)
 {
