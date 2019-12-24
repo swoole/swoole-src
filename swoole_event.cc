@@ -529,12 +529,11 @@ static PHP_FUNCTION(swoole_event_add)
     }
 
     check_reactor();
-    swSocket_set_nonblock(socket_fd);
 
-    swSocket *socket = (swSocket *) ecalloc(1, sizeof(*socket));
-    socket->fd = socket_fd;
-    socket->fdtype = SW_FD_USER;
+    swSocket *socket = swSocket_new(socket_fd, SW_FD_USER);
     socket->object = peo;
+
+    swSocket_set_nonblock(socket_fd);
     socket->nonblock = 1;
 
     if (swoole_event_add(socket, events) < 0)
@@ -647,14 +646,14 @@ static PHP_FUNCTION(swoole_event_del)
     }
 
     swSocket *socket = event_socket_map[socket_fd];
-    if (socket)
+    if (!socket)
     {
         RETURN_FALSE;
     }
     swoole_event_defer(php_event_object_free, socket->object);
     int retval = swoole_event_del(socket);
     event_socket_map.erase(socket_fd);
-    efree(socket);
+    swSocket_free(socket);
     RETURN_BOOL(retval == SW_OK);
 }
 

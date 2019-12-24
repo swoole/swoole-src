@@ -286,7 +286,12 @@ static void swSignalfd_clear()
         {
             swSysWarn("sigprocmask(SIG_UNBLOCK) failed");
         }
-        close(signal_fd);
+        if (signal_socket)
+        {
+            swoole_event_del(signal_socket);
+            swSocket_free(signal_socket);
+            signal_socket = NULL;
+        }
         bzero(&signalfd_mask, sizeof(signalfd_mask));
     }
     signal_fd = 0;
