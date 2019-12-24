@@ -381,7 +381,6 @@ static inline void socket_poll_clean(coro_poll_task *task)
         socket->fd = -1;
         swSocket_free(socket);
         i->second.socket = nullptr;
-
         if (retval < 0)
         {
             continue;

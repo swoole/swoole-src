@@ -427,21 +427,17 @@ static int swAio_init()
     int _read_fd = SwooleTG.aio_pipe.getFd(&SwooleTG.aio_pipe, 0);
     int _write_fd = SwooleTG.aio_pipe.getFd(&SwooleTG.aio_pipe, 1);
 
-    SwooleTG.aio_read_socket = swSocket_new(_read_fd, SW_FD_AIO);
-    SwooleTG.aio_write_socket = swSocket_new(_write_fd, SW_FD_AIO);
-
-    if (!SwooleTG.aio_read_socket || !SwooleTG.aio_write_socket)
+    SwooleTG.aio_read_socket = swSocket_new(_read_fd, SW_FD_AIO);\
+    if (!SwooleTG.aio_read_socket)
     {
-        if (SwooleTG.aio_read_socket)
-        {
-            sw_free(SwooleTG.aio_read_socket);
-            SwooleTG.aio_read_socket = nullptr;
-        }
-        if (SwooleTG.aio_write_socket)
-        {
-            sw_free(SwooleTG.aio_write_socket);
-            SwooleTG.aio_write_socket = nullptr;
-        }
+        return SW_ERR;
+    }
+
+    SwooleTG.aio_write_socket = swSocket_new(_write_fd, SW_FD_AIO);
+    if (!SwooleTG.aio_write_socket)
+    {
+        swSocket_free(SwooleTG.aio_read_socket);
+        SwooleTG.aio_read_socket = nullptr;
         return SW_ERR;
     }
 

@@ -142,6 +142,11 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
     }
 
     swSocket *socket = swSocket_new(fd, SW_FD_STREAM);
+    if (!socket)
+    {
+        close(fd);
+        return SW_OK;
+    }
     socket->socket_type = SW_SOCK_UNIX_STREAM;
     socket->nonblock = 1;
 

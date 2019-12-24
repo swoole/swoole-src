@@ -1825,13 +1825,11 @@ void swServer_connection_each(swServer *serv, void (*callback)(swConnection *con
  */
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd)
 {
-    swSocket *_socket = (swSocket *) sw_malloc(sizeof(swSocket));
+    swSocket *_socket = swSocket_new(fd, SW_FD_SESSION);
     if (_socket == nullptr)
     {
-        swSysWarn("malloc(%ld) failed", sizeof(swSocket));
         return nullptr;
     }
-    bzero(_socket, sizeof(*_socket));
 
     serv->stats->accept_count++;
     sw_atomic_fetch_add(&serv->stats->connection_num, 1);
@@ -1850,8 +1848,6 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     bzero(connection, sizeof(*connection));
     _socket->object = connection;
     _socket->buffer_size = ls->socket_buffer_size;
-    _socket->fd = fd;
-    _socket->fdtype = SW_FD_SESSION;
 
     //TCP Nodelay
     if (ls->open_tcp_nodelay && ls->type != SW_SOCK_UNIX_STREAM)

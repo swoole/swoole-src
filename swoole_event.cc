@@ -479,7 +479,7 @@ static PHP_FUNCTION(swoole_event_add)
     zend_fcall_info_cache fci_cache_read = empty_fcall_info_cache;
     zend_fcall_info fci_write = empty_fcall_info;
     zend_fcall_info_cache fci_cache_write = empty_fcall_info_cache;
-    zend_long events = 0;
+    zend_long events = SW_EVENT_READ;
 
     ZEND_PARSE_PARAMETERS_START(1, 4)
         Z_PARAM_ZVAL(zfd)
@@ -511,6 +511,11 @@ static PHP_FUNCTION(swoole_event_add)
         php_swoole_fatal_error(E_WARNING, "already exist");
         RETURN_FALSE;
     }
+    if (!((events & SW_EVENT_WRITE) || (events & SW_EVENT_READ)))
+    {
+        php_swoole_fatal_error(E_WARNING, "invalid events");
+        RETURN_FALSE;
+    }
 
     php_event_object *peo = (php_event_object *) ecalloc(1, sizeof(php_event_object));
 
@@ -531,10 +536,14 @@ static PHP_FUNCTION(swoole_event_add)
     check_reactor();
 
     swSocket *socket = swSocket_new(socket_fd, SW_FD_USER);
-    socket->object = peo;
+    if (!socket)
+    {
+        RETURN_FALSE;
+    }
 
     swSocket_set_nonblock(socket_fd);
     socket->nonblock = 1;
+    socket->object = peo;
 
     if (swoole_event_add(socket, events) < 0)
     {
@@ -653,6 +662,7 @@ static PHP_FUNCTION(swoole_event_del)
     swoole_event_defer(php_event_object_free, socket->object);
     int retval = swoole_event_del(socket);
     event_socket_map.erase(socket_fd);
+    socket->fd = -1;
     swSocket_free(socket);
     RETURN_BOOL(retval == SW_OK);
 }
@@ -809,7 +819,17 @@ static PHP_FUNCTION(swoole_event_isset)
         RETURN_FALSE;
     }
 
-    swSocket *socket = event_socket_map[socket_fd];
-    RETURN_BOOL(socket != nullptr);
+    swSocket *_socket = event_socket_map[socket_fd];
+    if (_socket == nullptr || _socket->removed)
+    {
+        RETURN_FALSE;
+    }
+    if (_socket->events & events)
+    {
+        RETURN_TRUE;
+    }
+    else
+    {
+        RETURN_FALSE;
+    }
 }
-
