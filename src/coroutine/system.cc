@@ -373,9 +373,15 @@ static inline void socket_poll_clean(coro_poll_task *task)
     {
         coro_poll_task_map.erase(i->first);
         swSocket *socket = i->second.socket;
-
+        if (!socket)
+        {
+            continue;
+        }
         int retval = swoole_event_del(i->second.socket);
+        socket->fd = -1;
         swSocket_free(socket);
+        i->second.socket = nullptr;
+
         if (retval < 0)
         {
             continue;

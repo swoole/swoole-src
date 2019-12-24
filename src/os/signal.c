@@ -288,7 +288,6 @@ static void swSignalfd_clear()
         }
         if (signal_socket)
         {
-            swoole_event_del(signal_socket);
             swSocket_free(signal_socket);
             signal_socket = NULL;
         }
