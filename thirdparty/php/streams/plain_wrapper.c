@@ -947,13 +947,24 @@ static php_stream *stream_opener(php_stream_wrapper *wrapper, const char *path, 
     }
 
     /** phar_open_archive_fp, cannot use async-io */
-    if ((options & (IGNORE_URL | STREAM_MUST_SEEK)) && SW_STREQ(mode, strlen(mode), "rb"))
+    if (
+        EG(current_execute_data) &&
+        EG(current_execute_data)->func &&
+        ZEND_USER_CODE(EG(current_execute_data)->func->type)
+    )
     {
-        size_t path_len = strlen(path);
-        size_t phar_len = sizeof(".phar") - 1;
-        if (path_len > phar_len && memcmp(path + path_len - phar_len, ".phar", phar_len) == 0)
+        const zend_op* opline = EG(current_execute_data)->opline;
+        if (
+            opline && opline->opcode == ZEND_INCLUDE_OR_EVAL &&
+            (opline->extended_value & (ZEND_INCLUDE | ZEND_INCLUDE_ONCE | ZEND_REQUIRE | ZEND_REQUIRE_ONCE))
+        )
         {
-            return php_stream_fopen_rel(path, mode, opened_path, options);
+            size_t path_len = strlen(path);
+            size_t phar_len = sizeof(".phar") - 1;
+            if (path_len > phar_len && memcmp(path + path_len - phar_len, ".phar", phar_len) == 0)
+            {
+                return php_stream_fopen_rel(path, mode, opened_path, options);
+            }
         }
     }
     /** include file, cannot use async-io */
