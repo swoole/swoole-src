@@ -171,6 +171,7 @@ public:
         auto _event_copy = new AsyncEvent(*request);
         _event_copy->task_id = current_task_id++;
         _event_copy->timestamp = swoole_microtime();
+        _event_copy->pipe_fd = SwooleTG.aio_write_socket->fd;
         event_mutex.lock();
         _queue.push(_event_copy);
         _cv.notify_one();
@@ -429,7 +430,7 @@ static int swAio_init()
     SwooleTG.aio_read_socket = swSocket_new(_read_fd, SW_FD_AIO);
     SwooleTG.aio_write_socket = swSocket_new(_write_fd, SW_FD_AIO);
 
-    if (!SwooleTG.aio_read_socket || SwooleTG.aio_write_socket)
+    if (!SwooleTG.aio_read_socket || !SwooleTG.aio_write_socket)
     {
         if (SwooleTG.aio_read_socket)
         {

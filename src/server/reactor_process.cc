@@ -346,7 +346,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
             }
         }
 #endif
-        if (reactor->add(reactor, ls->socket, fdtype) < 0)
+        if (reactor->add(reactor, ls->socket, SW_EVENT_READ) < 0)
         {
             return SW_ERR;
         }

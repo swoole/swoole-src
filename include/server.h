@@ -976,7 +976,7 @@ static sw_inline int swServer_connection_incoming(swServer *serv, swReactor *rea
 #ifdef SW_USE_OPENSSL
     if (conn->socket->ssl)
     {
-        return reactor->add(reactor, conn->socket, SW_FD_SESSION | SW_EVENT_READ);
+        return reactor->add(reactor, conn->socket, SW_EVENT_READ);
     }
 #endif
     //delay receive, wait resume command.
@@ -985,7 +985,7 @@ static sw_inline int swServer_connection_incoming(swServer *serv, swReactor *rea
         conn->socket->listen_wait = 1;
         return SW_OK;
     }
-    if (reactor->add(reactor, conn->socket, SW_FD_SESSION | SW_EVENT_READ) < 0)
+    if (reactor->add(reactor, conn->socket, SW_EVENT_READ) < 0)
     {
         return SW_ERR;
     }

@@ -813,7 +813,7 @@ int swReactorThread_start(swServer *serv)
         {
             continue;
         }
-        reactor->add(reactor, ls->socket, SW_FD_STREAM_SERVER);
+        reactor->add(reactor, ls->socket, SW_EVENT_READ);
     }
 
     if (serv->single_thread)
@@ -1001,7 +1001,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
         }
         socket->in_buffer = buffer;
 
-        if (reactor->add(reactor, socket, SW_FD_PIPE) < 0)
+        if (reactor->add(reactor, socket, SW_EVENT_READ) < 0)
         {
             return SW_ERR;
         }

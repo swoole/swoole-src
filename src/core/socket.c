@@ -359,6 +359,7 @@ swSocket* swSocket_new(int fd, enum swFd_type type)
     }
     socket->fd = fd;
     socket->fdtype = type;
+    socket->removed = 1;
     return socket;
 }
 
@@ -376,6 +377,7 @@ void swSocket_free(swSocket *sock)
 {
     if (SwooleTG.reactor)
     {
+        sock->removed = 1;
         swoole_event_defer(socket_free_defer, sock);
     }
     else

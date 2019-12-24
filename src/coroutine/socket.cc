@@ -580,7 +580,8 @@ void Socket::init_reactor_socket(int _fd)
     {
         swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "operation not support (reactor is not ready)");
     }
-    if (swSocket_new(_fd, SW_FD_CORO_SOCKET) < 0)
+    socket = swSocket_new(_fd, SW_FD_CORO_SOCKET);
+    if (socket == nullptr)
     {
         swFatalError(SW_ERROR_MALLOC_FAIL, "malloc failed");
     }
@@ -588,7 +589,6 @@ void Socket::init_reactor_socket(int _fd)
     sock_fd = _fd;
     socket->object = this;
     socket->socket_type = type;
-    socket->removed = 1;
 
     swSocket_set_nonblock(sock_fd);
     socket->nonblock = 1;
@@ -2009,17 +2009,5 @@ Socket::~Socket()
     {
         ::unlink(socket->info.addr.un.sun_path);
     }
-    if (SwooleTG.reactor)
-    {
-        socket->removed = 1;
-        SwooleTG.reactor->close(SwooleTG.reactor, socket);
-    }
-    else
-    {
-        if (::close(sock_fd) != 0)
-        {
-            swSysWarn("close(%d) failed", sock_fd);
-        }
-        sw_free(socket);
-    }
+    swSocket_free(socket);
 }

@@ -219,7 +219,6 @@ int swReactor_close(swReactor *reactor, swSocket *socket)
 
     swTraceLog(SW_TRACE_CLOSE, "fd=%d", socket->fd);
 
-    socket->removed = 1;
     swSocket_free(socket);
 
     return SW_OK;

@@ -116,7 +116,16 @@ int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueu
             int pipe_master = pipe->getFd(pipe, SW_PIPE_MASTER);
             int pipe_worker = pipe->getFd(pipe, SW_PIPE_WORKER);
             pool->workers[i].pipe_master = swSocket_new(pipe_master, SW_FD_PIPE);
+            if (pool->workers[i].pipe_master == NULL)
+            {
+                return SW_ERR;
+            }
             pool->workers[i].pipe_worker = swSocket_new(pipe_worker, SW_FD_PIPE);
+            if (pool->workers[i].pipe_worker == NULL)
+            {
+                swSocket_free(pool->workers[i].pipe_master);
+                return SW_ERR;
+            }
             pool->workers[i].pipe_object = pipe;
         }
     }
@@ -860,8 +869,10 @@ static void swProcessPool_free(swProcessPool *pool)
         {
             _pipe = &pool->pipes[i];
             _pipe->close(_pipe);
-            sw_free(pool->workers[i].pipe_master);
-            sw_free(pool->workers[i].pipe_worker);
+            pool->workers[i].pipe_master->fd = -1;
+            pool->workers[i].pipe_worker->fd = -1;
+            swSocket_free(pool->workers[i].pipe_master);
+            swSocket_free(pool->workers[i].pipe_worker);
         }
         sw_free(pool->pipes);
     }

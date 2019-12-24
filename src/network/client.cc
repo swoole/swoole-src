@@ -107,19 +107,16 @@ int swClient_create(swClient *cli, int type, int async)
         return SW_ERR;
     }
 
-    cli->socket = (swSocket *) sw_malloc(sizeof(swSocket));
-    cli->buffer_input_size = SW_CLIENT_BUFFER_SIZE;
-
+    cli->reactor_fdtype = swSocket_is_stream(type) ? SW_FD_STREAM_CLIENT: SW_FD_DGRAM_CLIENT;
+    cli->socket = swSocket_new(sockfd, cli->reactor_fdtype);
     if (!cli->socket)
     {
         swWarn("malloc(%d) failed", (int ) sizeof(swConnection));
         close(sockfd);
         return SW_ERR;
     }
-
-    bzero(cli->socket, sizeof(swSocket));
-    cli->socket->fd = sockfd;
     cli->socket->object = cli;
+    cli->buffer_input_size = SW_CLIENT_BUFFER_SIZE;
 
     if (async)
     {
@@ -147,14 +144,12 @@ int swClient_create(swClient *cli, int type, int async)
             cli->send = swClient_tcp_send_sync;
             cli->sendfile = swClient_tcp_sendfile_sync;
         }
-        cli->reactor_fdtype = SW_FD_STREAM_CLIENT;
     }
     else
     {
         cli->connect = swClient_udp_connect;
         cli->recv = swClient_udp_recv;
         cli->send = swClient_udp_send;
-        cli->reactor_fdtype = SW_FD_DGRAM_CLIENT;
     }
 
     cli->_sock_domain = _domain;
@@ -429,9 +424,9 @@ void swClient_free(swClient *cli)
         swBuffer_free(cli->socket->in_buffer);
         cli->socket->in_buffer = NULL;
     }
-    if (cli->async && SwooleTG.reactor)
+    if (cli->async)
     {
-        SwooleTG.reactor->close(SwooleTG.reactor, cli->socket);
+        swSocket_free(cli->socket);
     }
     else
     {
