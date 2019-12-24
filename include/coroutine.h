@@ -63,7 +63,7 @@ struct socket_poll_fd
         events = _event;
         ptr = _ptr;
         revents = 0;
-        socket = new swSocket;
+        socket = nullptr;
     }
 };
 

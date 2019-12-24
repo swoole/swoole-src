@@ -68,6 +68,12 @@ static void php_swoole_process_free_object(zend_object *object)
         if (_pipe)
         {
             _pipe->close(_pipe);
+
+            worker->pipe_master->fd = -1;
+            worker->pipe_worker->fd = -1;
+            swSocket_free(worker->pipe_master);
+            swSocket_free(worker->pipe_worker);
+
             efree(_pipe);
         }
 
@@ -776,8 +782,10 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
     SwooleWG.worker = process;
 
     zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pid"), process->pid);
-    zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pipe"), process->pipe_worker->fd);
-
+    if (process->pipe_current)
+    {
+        zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pipe"), process->pipe_current->fd);
+    }
     //eventloop create
     if (proc->enable_coroutine && php_swoole_reactor_init() < 0)
     {
