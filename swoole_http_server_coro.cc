@@ -502,43 +502,61 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
 
     while (true)
     {
-        hs->receivers.push_front(sock);
-        auto receiver = hs->receivers.begin();
-        ssize_t retval = sock->recv(buffer->str + total_bytes + buffer->offset, buffer->size - total_bytes - buffer->offset);
-        hs->receivers.erase(receiver);
-
-        if (sw_unlikely(retval <= 0))
+        ssize_t retval;
+        if (ctx != nullptr || total_bytes == 0)
         {
-            break;
+            hs->receivers.push_front(sock);
+            auto receiver = hs->receivers.begin();
+            retval = sock->recv(buffer->str + total_bytes, buffer->size - total_bytes);
+            hs->receivers.erase(receiver);
+
+            if (sw_unlikely(retval <= 0))
+            {
+                break;
+            }
+
+            if (!ctx)
+            {
+                ctx = hs->create_context(sock, zconn);
+            }
+
+            if (total_bytes + retval > sock->protocol.package_max_length)
+            {
+                ctx->response.status = SW_HTTP_REQUEST_ENTITY_TOO_LARGE;
+                break;
+            }
         }
+        else
+        {
+            /* redundant data from previous packet */
+            retval = total_bytes;
+            total_bytes = 0;
+
+            if (!ctx)
+            {
+                ctx = hs->create_context(sock, zconn);
+            }
+        }
+
+        size_t parsed_n = swoole_http_requset_parse(ctx, buffer->str + total_bytes, retval);
+        size_t total_parsed_n = total_bytes + parsed_n;
         total_bytes += retval;
-
-        if (!ctx)
-        {
-            ctx = hs->create_context(sock, zconn);
-        }
-
-        if (total_bytes > sock->protocol.package_max_length)
-        {
-            ctx->response.status = 413;
-            _error:
-            zval_dtor(ctx->request.zobject);
-            zval_dtor(ctx->response.zobject);
-            break;
-        }
-
-        size_t parsed_n = swoole_http_requset_parse(ctx, buffer->str + total_bytes - retval, retval);
 
         swTraceLog(SW_TRACE_CO_HTTP_SERVER, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d", parsed_n, retval, total_bytes, ctx->completed);
 
         if (!ctx->completed)
         {
+            if (ctx->parser.state == s_dead)
+            {
+                ctx->response.status = SW_HTTP_BAD_REQUEST;
+                break;
+            }
             if (total_bytes == buffer->size)
             {
                 if (swString_extend(buffer, buffer->size * 2) != SW_OK)
                 {
-                    ctx->response.status = 503;
-                    goto _error;
+                    ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
+                    break;
                 }
             }
             continue;
@@ -548,25 +566,30 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
         if (ctx->parser.method == PHP_HTTP_NOT_IMPLEMENTED
                 && memcmp(buffer->str, SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1) == 0)
         {
-            buffer->length = retval - (sizeof(SW_HTTP2_PRI_STRING) - 1);
-            buffer->offset = buffer->length == 0 ? 0 : parsed_n;
+            buffer->length = total_bytes - (sizeof(SW_HTTP2_PRI_STRING) - 1);
+            buffer->offset = buffer->length == 0 ? 0 : (sizeof(SW_HTTP2_PRI_STRING) - 1);
             hs->recv_http2_frame(ctx);
             break;
         }
 #endif
 
-        if (retval > (ssize_t) parsed_n)
+        ZVAL_STRINGL(&ctx->request.zdata, buffer->str, total_parsed_n);
+
+        /* handle more packages */
+        if ((size_t) retval > parsed_n)
         {
-            buffer->offset = retval - parsed_n;
-            memmove(buffer->str, buffer->str + total_bytes + parsed_n, buffer->offset);
+            total_bytes = retval - parsed_n;
+            memmove(buffer->str, buffer->str + total_parsed_n, total_bytes);
+            if (ctx->websocket)
+            {
+                /* for recv_packet */
+                buffer->length = total_bytes;
+            }
         }
         else
         {
-            buffer->offset = 0;
+            total_bytes = 0;
         }
-
-        ZVAL_STRINGL(&ctx->request.zdata, buffer->str, total_bytes);
-        total_bytes = 0;
 
         zval *zserver = ctx->request.zserver;
         add_assoc_long(zserver, "server_port", hs->socket->get_bind_port());
@@ -594,17 +617,18 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
 
         zval_dtor(&args[0]);
         zval_dtor(&args[1]);
+        ctx = nullptr;
 
-        if (hs->running && keep_alive)
-        {
-            swTraceLog(SW_TRACE_CO_HTTP_SERVER, "http_server_coro keepalive");
-            ctx = nullptr;
-            continue;
-        }
-        else
+        if (!hs->running || !keep_alive)
         {
             break;
         }
+    }
+
+    if (ctx)
+    {
+        zval_dtor(ctx->request.zobject);
+        zval_dtor(ctx->response.zobject);
     }
 }
 

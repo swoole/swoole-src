@@ -1440,10 +1440,10 @@ bool http_client::recv_http_response(double timeout)
         swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d", parsed_n, retval, total_bytes, parser.state == s_start_res);
         if (parser.state == s_start_res)
         {
-            // websocket stick package
-            if (parser.upgrade && (size_t) retval > parsed_n + 1 + SW_WEBSOCKET_HEADER_LEN)
+            // handle redundant data (websocket packet)
+            if (parser.upgrade && (size_t) retval > parsed_n + SW_WEBSOCKET_HEADER_LEN)
             {
-                swString_sub(buffer, parsed_n + 1, retval - parsed_n - 1);
+                swString_sub(buffer, parsed_n, retval - parsed_n);
             }
             return true;
         }
