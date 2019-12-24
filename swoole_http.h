@@ -274,48 +274,6 @@ static sw_inline void php_brotli_free(void* opaque, void* address)
 }
 #endif
 
-static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *zset_cookie_headers)
-{
-    const char *key = at;
-    zval val;
-    size_t key_len = 0, val_len = 0;
-    const char *p, *eof = at + length;
-    // key
-    p = (char *) memchr(at, '=', length);
-    if (p)
-    {
-        key_len = p - at;
-    }
-    if (key_len == 0 || key_len >= length - 1)
-    {
-        swWarn("cookie key format is wrong");
-        return SW_ERR;
-    }
-    if (key_len > SW_HTTP_COOKIE_KEYLEN)
-    {
-        swWarn("cookie[%.8s...] name length %zu is exceed the max name len %d", key, key_len, SW_HTTP_COOKIE_KEYLEN);
-        return SW_ERR;
-    }
-    add_next_index_stringl(zset_cookie_headers, (char *) at, length);
-    // val
-    p++;
-    eof = (char*) memchr(p, ';', at + length - p);
-    if (!eof)
-    {
-        eof = at + length;
-    }
-    val_len = eof - p;
-    if (val_len > SW_HTTP_COOKIE_VALLEN)
-    {
-        swWarn("cookie[%.*s]'s value[v=%.8s...] length %d is exceed the max value len %d", (int) key_len, key, p, (int) val_len, SW_HTTP_COOKIE_VALLEN);
-        return SW_ERR;
-    }
-    ZVAL_STRINGL(&val, p, val_len);
-    Z_STRLEN(val) = php_url_decode(Z_STRVAL(val), val_len);
-    add_assoc_zval_ex(cookies, at, key_len, &val);
-    return SW_OK;
-}
-
 int swoole_websocket_onMessage(swServer *serv, swEventData *req);
 int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_context *ctx);
 void swoole_websocket_onOpen(http_context *ctx);

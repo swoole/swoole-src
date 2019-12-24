@@ -17,6 +17,7 @@
 #include "php_swoole_cxx.h"
 #include "swoole_http.h"
 
+#include "http.h"
 #ifdef SW_USE_HTTP2
 #include "http2.h"
 #endif
