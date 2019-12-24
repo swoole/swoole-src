@@ -16,6 +16,8 @@
 
 #include "swoole.h"
 
+#define EVENT_DEBUG   0
+
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
 #ifndef EPOLLRDHUP
@@ -27,6 +29,16 @@
 #endif
 
 typedef struct swReactorEpoll_s swReactorEpoll;
+
+#if EVENT_DEBUG
+#include <unordered_map>
+static thread_local std::unordered_map<int, swSocket *> event_map;
+
+swSocket* swoole_event_map_get(int sockfd)
+{
+    return event_map[sockfd];
+}
+#endif
 
 static int swReactorEpoll_add(swReactor *reactor, swSocket *socket, int events);
 static int swReactorEpoll_set(swReactor *reactor, swSocket *socket, int events);
@@ -118,12 +130,16 @@ static int swReactorEpoll_add(swReactor *reactor, swSocket *socket, int events)
 
     if (epoll_ctl(object->epfd, EPOLL_CTL_ADD, socket->fd, &e) < 0)
     {
-        swSysWarn("add events[fd=%d#%d, type=%d, events=%d] failed", socket->fd, reactor->id, socket->fdtype, e.events);
+        swSysWarn("add events[fd=%d#%d, type=%d, events=%d] failed", socket->fd, reactor->id, socket->fdtype, events);
         return SW_ERR;
     }
 
+#if EVENT_DEBUG
+    event_map[socket->fd] = socket;
+#endif
+
     swReactor_add(reactor, socket, events);
-    swTraceLog(SW_TRACE_EVENT, "add event[reactor_id=%d, fd=%d, events=%d]", reactor->id, socket->fd, events);
+    swTraceLog(SW_TRACE_EVENT, "add events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor->id, socket->fdtype, events);
 
     return SW_OK;
 }
@@ -136,6 +152,10 @@ static int swReactorEpoll_del(swReactor *reactor, swSocket *_socket)
         swSysWarn("epoll remove fd[%d#%d] failed", _socket->fd, reactor->id);
         return SW_ERR;
     }
+
+#if EVENT_DEBUG
+    event_map.erase(_socket->fd);
+#endif
 
     swTraceLog(SW_TRACE_REACTOR, "remove event[reactor_id=%d|fd=%d]", reactor->id, _socket->fd);
     swReactor_del(reactor, _socket);
