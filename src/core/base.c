@@ -992,7 +992,7 @@ static int *swoole_kmp_borders(char *needle, size_t nlen)
         return NULL;
     }
 
-    int i, j, *borders = malloc((nlen + 1) * sizeof(*borders));
+    int i, j, *borders = sw_malloc((nlen + 1) * sizeof(*borders));
     if (!borders)
     {
         return NULL;
@@ -1097,7 +1097,7 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
         return NULL;
     }
     char *match = swoole_kmp_search(haystack, length, needle, nlen, borders);
-    free(borders);
+    sw_free(borders);
     return match;
 }
 

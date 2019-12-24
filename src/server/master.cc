@@ -945,9 +945,9 @@ void swServer_store_pipe_fd(swServer *serv, swPipe *p)
     int worker_fd = p->getFd(p, SW_PIPE_WORKER);
 
     serv->connection_list[worker_fd].object = p;
-    serv->connection_list[worker_fd].socket = (swSocket *) malloc(sizeof(swSocket));
+    serv->connection_list[worker_fd].socket = (swSocket *) sw_malloc(sizeof(swSocket));
     serv->connection_list[master_fd].object = p;
-    serv->connection_list[master_fd].socket = (swSocket *) malloc(sizeof(swSocket));
+    serv->connection_list[master_fd].socket = (swSocket *) sw_malloc(sizeof(swSocket));
 
     if (master_fd > swServer_get_minfd(serv))
     {

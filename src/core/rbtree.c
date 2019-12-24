@@ -50,7 +50,7 @@ void swRbtree_insert(swRbtree *tree, uint32_t key, void *value)
     root = (swRbtree_node **) &tree->root;
     sentinel = tree->sentinel;
 
-    swRbtree_node *node = (swRbtree_node *) malloc(sizeof(swRbtree_node));
+    swRbtree_node *node = (swRbtree_node *) sw_malloc(sizeof(swRbtree_node));
 
     node->value = value;
     node->key = key;
