@@ -286,23 +286,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
                 socket->out_buffer = buffer;
             }
 
-            socket->events |= SW_EVENT_WRITE;
-
-            if (socket->events & SW_EVENT_READ)
-            {
-                if (reactor->set(reactor, socket, socket->events) < 0)
-                {
-                    swSysWarn("reactor->set(%d, SW_EVENT_WRITE) failed", fd);
-                }
-            }
-            else
-            {
-                if (reactor->add(reactor, socket, SW_EVENT_WRITE) < 0)
-                {
-                    swSysWarn("reactor->add(%d, SW_EVENT_WRITE) failed", fd);
-                }
-            }
-
+            swReactor_add_write_event(reactor, socket);
             goto _append_buffer;
         }
         else if (errno == EINTR)

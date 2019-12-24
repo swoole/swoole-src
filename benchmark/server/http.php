@@ -4,7 +4,8 @@ use Swoole\Http\Server;
 use Swoole\Http\Response;
 use Swoole\Http\Request;
 
-$http = new Server("127.0.0.1", 9501, SWOOLE_BASE);
+$http = new Server("127.0.0.1", 9501);
+///$http = new Server("127.0.0.1", 9501, SWOOLE_BASE);
 
 $pool = [];
 

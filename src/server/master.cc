@@ -79,15 +79,11 @@ void swServer_close_port(swServer *serv, enum swBool_type only_stream_port)
     swListenPort *ls;
     LL_FOREACH(serv->listen_list, ls)
     {
-        //dgram socket
-        if (only_stream_port && (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM))
+        if (only_stream_port && swSocket_is_dgram(ls->type))
         {
             continue;
         }
-        //stream socket
-        close(ls->socket->fd);
-        sw_free(ls->socket);
-        ls->socket = nullptr;
+        swSocket_free(ls->socket);
     }
 }
 

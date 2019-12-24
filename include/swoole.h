@@ -2017,6 +2017,32 @@ static sw_inline int swReactor_remove_write_event(swReactor *reactor, swSocket *
     }
 }
 
+static sw_inline int swReactor_add_read_event(swReactor *reactor, swSocket *_socket)
+{
+    if (_socket->events & SW_EVENT_WRITE)
+    {
+        _socket->events |= SW_EVENT_READ;
+        return reactor->set(reactor, _socket, _socket->events);
+    }
+    else
+    {
+        return reactor->add(reactor, _socket, SW_EVENT_READ);
+    }
+}
+
+static sw_inline int swReactor_add_write_event(swReactor *reactor, swSocket *_socket)
+{
+    if (_socket->events & SW_EVENT_READ)
+    {
+        _socket->events |= SW_EVENT_WRITE;
+        return reactor->set(reactor, _socket, _socket->events);
+    }
+    else
+    {
+        return reactor->add(reactor, _socket, SW_EVENT_WRITE);;
+    }
+}
+
 static sw_inline swReactor_handler swReactor_get_handler(swReactor *reactor, enum swEvent_type event_type, enum swFd_type fdtype)
 {
     switch(event_type)

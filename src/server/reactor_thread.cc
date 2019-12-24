@@ -495,11 +495,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     swEventData *send_data;
     swConnection *conn;
     swServer *serv = (swServer *) reactor->ptr;
-    swBuffer *buffer = ev->socket->in_buffer;
-    swLock *lock = (swLock *) serv->connection_list[ev->fd].object;
-
-    //lock thread
-    lock->lock(lock);
+    swBuffer *buffer = ev->socket->out_buffer;
 
     while (!swBuffer_empty(buffer))
     {
@@ -532,8 +528,6 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         ret = write(ev->fd, chunk->store.ptr, chunk->length);
         if (ret < 0)
         {
-            //release lock
-            lock->unlock(lock);
             return (swConnection_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
         }
         else
@@ -542,25 +536,13 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         }
     }
 
-    //remove EPOLLOUT event
     if (swBuffer_empty(buffer))
     {
-        if (serv->connection_list[ev->fd].reactor_id == SwooleTG.id)
-        {
-            ret = reactor->set(reactor, ev->socket, SW_EVENT_READ);
-        }
-        else
-        {
-            ret = reactor->del(reactor, ev->socket);
-        }
-        if (ret < 0)
+        if (swReactor_remove_write_event(reactor, ev->socket) < 0)
         {
             swSysWarn("reactor->set(%d) failed", ev->fd);
         }
     }
-
-    //release lock
-    lock->unlock(lock);
 
     return SW_OK;
 }
@@ -965,7 +947,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);
 
-    thread->send_buffers = new std::unordered_map<int, swString *>;
+    thread->send_buffers = new unordered_map<int, swString *>;
 
     int max_pipe_fd = swServer_get_worker(serv, serv->worker_num - 1)->pipe_master->fd + 2;
     thread->pipe_sockets = (swSocket *) sw_calloc(max_pipe_fd, sizeof(swSocket));
@@ -975,31 +957,22 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
         return SW_ERR;
     }
 
-    uint32_t i = 0;
-    for (i = 0; i < serv->worker_num; i++)
+    for (uint32_t i = 0; i < serv->worker_num; i++)
     {
-        if (i % serv->reactor_num != reactor_id)
-        {
-            continue;
-        }
-
         int pipe_fd = serv->workers[i].pipe_master->fd;
         swSocket *socket = &thread->pipe_sockets[pipe_fd];
 
         socket->fd = pipe_fd;
         socket->fdtype = SW_FD_PIPE;
+        socket->buffer_size = INT_MAX;
+
+        if (i % serv->reactor_num != reactor_id)
+        {
+            continue;
+        }
 
         swSocket_set_nonblock(pipe_fd);
         socket->nonblock = 1;
-
-        //for request
-        swBuffer *buffer = swBuffer_new(0);
-        if (!buffer)
-        {
-            swWarn("create buffer failed");
-            return SW_ERR;
-        }
-        socket->in_buffer = buffer;
 
         if (reactor->add(reactor, socket, SW_EVENT_READ) < 0)
         {
