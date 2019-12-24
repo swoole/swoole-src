@@ -88,7 +88,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
 
     size_t parsed_n = swoole_http_requset_parse(ctx, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
-    if (parsed_n < Z_STRLEN_P(zdata))
+    if (ctx->parser.state == s_dead)
     {
 #ifdef SW_HTTP_BAD_REQUEST_PACKET
         ctx->send(ctx, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
