@@ -35,6 +35,14 @@ do {                                                                 \
   }                                                                  \
 } while (0)
 
+#define CALLBACK_MESSAGE_COMPLETE()                                  \
+do {                                                                 \
+  if (settings->on_message_complete) {                               \
+    int ret = settings->on_message_complete(parser);                 \
+    if (0 != ret) return (p - data + (ret > 0 ? 1 : 0));             \
+  }                                                                  \
+} while (0)
+
 
 #define MARK(FOR)                                                    \
 do {                                                                 \
@@ -281,7 +289,7 @@ size_t swoole_http_parser_execute (swoole_http_parser *parser,
 
   if (len == 0) {
     if (state == s_body_identity_eof) {
-      CALLBACK2(message_complete);
+      CALLBACK_MESSAGE_COMPLETE();
     }
     return 0;
   }
@@ -1317,7 +1325,7 @@ size_t swoole_http_parser_execute (swoole_http_parser *parser,
 
         if (parser->flags & F_TRAILING) {
           /* End of a chunked request */
-          CALLBACK2(message_complete);
+          CALLBACK_MESSAGE_COMPLETE();
           state = NEW_MESSAGE();
           break;
         }
@@ -1350,7 +1358,7 @@ size_t swoole_http_parser_execute (swoole_http_parser *parser,
 
         /* Exit, the rest of the connect is in a different protocol. */
         if (parser->upgrade) {
-          CALLBACK2(message_complete);
+          CALLBACK_MESSAGE_COMPLETE();
           // WARNING: Swoole changes!
           // swoole only support websocket upgrade
           // so we return 0 to continue but return else to finish it
@@ -1358,7 +1366,7 @@ size_t swoole_http_parser_execute (swoole_http_parser *parser,
         }
 
         if (parser->flags & F_SKIPBODY) {
-          CALLBACK2(message_complete);
+          CALLBACK_MESSAGE_COMPLETE();
           state = NEW_MESSAGE();
         } else if (parser->flags & F_CHUNKED) {
           /* chunked encoding - ignore Content-Length header */
@@ -1366,7 +1374,7 @@ size_t swoole_http_parser_execute (swoole_http_parser *parser,
         } else {
           if (parser->content_length == 0) {
             /* Content-Length header given but zero: Content-Length: 0\r\n */
-            CALLBACK2(message_complete);
+            CALLBACK_MESSAGE_COMPLETE();
             state = NEW_MESSAGE();
           } else if (parser->content_length > 0) {
             /* Content-Length header given and non-zero */
@@ -1374,7 +1382,7 @@ size_t swoole_http_parser_execute (swoole_http_parser *parser,
           } else {
             if (parser->type == PHP_HTTP_REQUEST || swoole_http_should_keep_alive(parser)) {
               /* Assume content-length 0 - read the next */
-              CALLBACK2(message_complete);
+              CALLBACK_MESSAGE_COMPLETE();
               state = NEW_MESSAGE();
             } else {
               /* Read body until EOF */
@@ -1395,7 +1403,7 @@ size_t swoole_http_parser_execute (swoole_http_parser *parser,
           p += to_read - 1;
           parser->content_length -= to_read;
           if (parser->content_length == 0) {
-            CALLBACK2(message_complete);
+            CALLBACK_MESSAGE_COMPLETE();
             state = NEW_MESSAGE();
           }
         }
