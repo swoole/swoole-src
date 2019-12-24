@@ -427,15 +427,14 @@ void swWorker_onStart(swServer *serv)
         }
     }
 
-    uint32_t i;
-    for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
+    for (uint32_t i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
         swWorker *worker = swServer_get_worker(serv, i);
         if (SwooleWG.id == i)
         {
             continue;
         }
-        if (swIsWorker())
+        if (swIsWorker() && worker->pipe_master)
         {
             swSocket_set_nonblock(worker->pipe_master->fd);
         }
@@ -450,7 +449,7 @@ void swWorker_onStart(swServer *serv)
         /**
          * Use only the first block of pipe_buffer memory in worker process
          */
-        for (i = 1; i < serv->reactor_num; i++)
+        for (uint32_t i = 1; i < serv->reactor_num; i++)
         {
             sw_free(serv->pipe_buffers[i]);
         }
@@ -654,8 +653,14 @@ int swWorker_loop(swServer *serv, int worker_id)
     for (uint32_t i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
         swWorker *_worker = swServer_get_worker(serv, i);
-        _worker->pipe_master->buffer_size = INT_MAX;
-        _worker->pipe_worker->buffer_size = INT_MAX;
+        if (_worker->pipe_master)
+        {
+            _worker->pipe_master->buffer_size = INT_MAX;
+        }
+        if (_worker->pipe_worker)
+        {
+            _worker->pipe_worker->buffer_size = INT_MAX;
+        }
     }
 
     swSocket_set_nonblock(worker->pipe_worker->fd);
