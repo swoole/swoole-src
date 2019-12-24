@@ -947,10 +947,17 @@ static php_stream *stream_opener(php_stream_wrapper *wrapper, const char *path, 
     }
 
     /** phar_open_archive_fp, cannot use async-io */
-    if (EG(current_execute_data))
+    if (
+        EG(current_execute_data) &&
+        EG(current_execute_data)->func &&
+        ZEND_USER_CODE(EG(current_execute_data)->func->type)
+    )
     {
         const zend_op* opline = EG(current_execute_data)->opline;
-        if (opline && opline->opcode == ZEND_INCLUDE_OR_EVAL && (opline->extended_value & (ZEND_INCLUDE | ZEND_INCLUDE_ONCE | ZEND_REQUIRE | ZEND_REQUIRE_ONCE)))
+        if (
+            opline && opline->opcode == ZEND_INCLUDE_OR_EVAL &&
+            (opline->extended_value & (ZEND_INCLUDE | ZEND_INCLUDE_ONCE | ZEND_REQUIRE | ZEND_REQUIRE_ONCE))
+        )
         {
             size_t path_len = strlen(path);
             size_t phar_len = sizeof(".phar") - 1;
