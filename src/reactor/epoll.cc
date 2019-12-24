@@ -116,15 +116,13 @@ static int swReactorEpoll_add(swReactor *reactor, swSocket *socket, int events)
     e.events = swReactorEpoll_event_set(events);
     e.data.ptr = socket;
 
-    swReactor_add(reactor, socket, events);
-
     if (epoll_ctl(object->epfd, EPOLL_CTL_ADD, socket->fd, &e) < 0)
     {
         swSysWarn("add events[fd=%d#%d, type=%d, events=%d] failed", socket->fd, reactor->id, socket->fdtype, e.events);
-        swReactor_del(reactor, socket);
         return SW_ERR;
     }
 
+    swReactor_add(reactor, socket, events);
     swTraceLog(SW_TRACE_EVENT, "add event[reactor_id=%d, fd=%d, events=%d]", reactor->id, socket->fd, events);
 
     return SW_OK;
