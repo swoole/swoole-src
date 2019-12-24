@@ -618,14 +618,12 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
 
         zval_dtor(&args[0]);
         zval_dtor(&args[1]);
+        ctx = nullptr;
 
-        if (hs->running && keep_alive)
+        if (!hs->running || !keep_alive)
         {
-            ctx = nullptr;
-            continue;
+            break;
         }
-
-        break;
     }
 
     if (ctx)
