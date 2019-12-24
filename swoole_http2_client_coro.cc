@@ -149,7 +149,7 @@ public:
     http2_client_stream* create_stream(uint32_t stream_id, bool pipeline);
     bool send_window_update(int stream_id, uint32_t size);
     bool send_ping_frame();
-    bool send_data(uint32_t stream_id, zval *data, bool end);
+    bool send_data(uint32_t stream_id, zval *zdata, bool end);
     uint32_t send_request(zval *req);
     bool send_goaway_frame(zend_long error_code, const char *debug_data, size_t debug_data_len);
     enum swReturn_code parse_frame(zval *return_value);
@@ -1255,10 +1255,11 @@ uint32_t http2_client::send_request(zval *req)
     return stream->stream_id;
 }
 
-bool http2_client::send_data(uint32_t stream_id, zval *data, bool end)
+bool http2_client::send_data(uint32_t stream_id, zval *zdata, bool end)
 {
     char buffer[SW_HTTP2_FRAME_HEADER_SIZE];
     http2_client_stream *stream = get_stream(stream_id);
+    int flag = end ? SW_HTTP2_FLAG_END_STREAM : 0;
 
     if (stream == NULL || stream->type != SW_HTTP2_STREAM_PIPELINE)
     {
@@ -1266,41 +1267,36 @@ bool http2_client::send_data(uint32_t stream_id, zval *data, bool end)
         return false;
     }
 
-    int flag = end ? SW_HTTP2_FLAG_END_STREAM : 0;
-
-    if (ZVAL_IS_ARRAY(data))
+    if (ZVAL_IS_ARRAY(zdata))
     {
         size_t len;
         smart_str formstr_s = { 0 };
-        char *formstr = php_swoole_http_build_query(data, &len, &formstr_s);
+        char *formstr = php_swoole_http_build_query(zdata, &len, &formstr_s);
         if (formstr == NULL)
         {
             php_swoole_error(E_WARNING, "http_build_query failed");
             return false;
         }
-        memset(buffer, 0, SW_HTTP2_FRAME_HEADER_SIZE);
         swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, len, flag, stream_id);
         swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN ", END, STREAM#%d] length=%zu", swHttp2_get_type(SW_HTTP2_TYPE_DATA), stream_id, len);
         if (!send(buffer, SW_HTTP2_FRAME_HEADER_SIZE) || !send(formstr, len))
         {
+            smart_str_free(&formstr_s);
             return false;
         }
         smart_str_free(&formstr_s);
     }
-    else if (Z_TYPE_P(data) == IS_STRING)
+    else
     {
-        swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, Z_STRLEN_P(data), flag, stream_id);
-        swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN ", END, STREAM#%d] length=%zu", swHttp2_get_type(SW_HTTP2_TYPE_DATA), stream_id, Z_STRLEN_P(data));
-        if (!send(buffer, SW_HTTP2_FRAME_HEADER_SIZE) || !send(Z_STRVAL_P(data), Z_STRLEN_P(data)))
+        zend::string data(zdata);
+        swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, data.len(), flag, stream_id);
+        swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN ", END, STREAM#%d] length=%zu", swHttp2_get_type(SW_HTTP2_TYPE_DATA), stream_id, data.len());
+        if (!send(buffer, SW_HTTP2_FRAME_HEADER_SIZE) || !send(data.val(), data.len()))
         {
             return false;
         }
     }
-    else
-    {
-        php_swoole_error(E_WARNING, "unknown data type[%d]", Z_TYPE_P(data) );
-        return false;
-    }
+
     return true;
 }
 
