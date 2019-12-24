@@ -699,7 +699,7 @@ enum swReturn_code http2_client::parse_frame(zval *return_value)
         zval zresponse = *stream->zresponse;
         if (type == SW_HTTP2_TYPE_RST_STREAM)
         {
-            zend_update_property_long(swoole_http2_response_ce, &zresponse, ZEND_STRL("statusCode"), -3);
+            zend_update_property_long(swoole_http2_response_ce, &zresponse, ZEND_STRL("statusCode"), -3 /* HTTP_CLIENT_ESTATUS_SERVER_RESET */);
             zend_update_property_long(swoole_http2_response_ce, &zresponse, ZEND_STRL("errCode"), value);
         }
         if (stream->buffer)
@@ -883,6 +883,8 @@ bool http2_client::send_setting()
     swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN "]\t[length=%d]", swHttp2_get_type(SW_HTTP2_TYPE_SETTINGS), 18);
     return send(frame, SW_HTTP2_FRAME_HEADER_SIZE + 18);
 }
+
+int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *zset_cookie_headers);
 
 int http2_client::parse_header(http2_client_stream *stream, int flags, char *in, size_t inlen)
 {

@@ -14,23 +14,26 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SWOOLE_HTTP_CLIENT_H_
-#define SWOOLE_HTTP_CLIENT_H_
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "ext/standard/basic_functions.h"
-#include "ext/standard/php_http.h"
-#include "ext/standard/base64.h"
-
 #include "swoole_http.h"
 #include "websocket.h"
 #include "thirdparty/swoole_http_parser.h"
 
+#include "ext/standard/basic_functions.h"
+#include "ext/standard/php_http.h"
+#include "ext/standard/base64.h"
+
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 enum http_client_error_status_code
@@ -39,12 +42,6 @@ enum http_client_error_status_code
     HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT = -2,
     HTTP_CLIENT_ESTATUS_SERVER_RESET = -3,
     HTTP_CLIENT_ESTATUS_SEND_FAILED = -4,
-};
-
-enum http_client_error_flags
-{
-    HTTP_CLIENT_EFLAG_TIMEOUT = 1,
-    HTTP_CLIENT_EFLAG_UPGRADE = 1 << 1,
 };
 
 static sw_inline void http_client_create_token(int length, char *buf)
@@ -73,13 +70,3 @@ static sw_inline void http_client_append_content_length(swString* buf, int lengt
     int n = snprintf(SW_STRS(content_length_str), "Content-Length: %d\r\n\r\n", length);
     swString_append_ptr(buf, content_length_str, n);
 }
-
-#ifdef SW_HAVE_COMPRESSION
-extern swString *swoole_zlib_buffer;
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* SWOOLE_HTTP_CLIENT_H_ */
