@@ -753,9 +753,7 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 
 #define SW_CLASS_ALIAS(name, module) do { \
     if (name) { \
-        int ret = sw_zend_register_class_alias(ZEND_STRL(name), module##_ce); \
-        SW_ASSERT(ret == SUCCESS && "Alias " name " failed"); \
-        (void) ret; \
+        sw_zend_register_class_alias(ZEND_STRL(name), module##_ce); \
     } \
 } while (0)
 
@@ -796,11 +794,8 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     } \
 } while (0)
 
-#define SW_FUNCTION_ALIAS(origin_function_table, origin, alias_function_table, alias) do { \
-    int ret = sw_zend_register_function_alias(origin_function_table, ZEND_STRL(origin), alias_function_table, ZEND_STRL(alias)); \
-    SW_ASSERT(ret == SUCCESS && "Alias " alias " failed"); \
-    (void) ret; \
-} while (0)
+#define SW_FUNCTION_ALIAS(origin_function_table, origin, alias_function_table, alias) \
+    sw_zend_register_function_alias(origin_function_table, ZEND_STRL(origin), alias_function_table, ZEND_STRL(alias))
 
 static sw_inline int sw_zend_register_function_alias
 (
