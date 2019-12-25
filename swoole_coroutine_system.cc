@@ -104,8 +104,6 @@ void php_swoole_coroutine_system_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_system, "Swoole\\Coroutine\\System", NULL, "Co\\System", swoole_coroutine_system_methods, NULL);
     SW_SET_CLASS_CREATE(swoole_coroutine_system, sw_zend_create_object_deny);
-
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "exec", CG(function_table), "swoole_coroutine_exec");
 }
 
 PHP_METHOD(swoole_coroutine_system, sleep)
