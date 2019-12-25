@@ -884,7 +884,7 @@ bool http2_client::send_setting()
     return send(frame, SW_HTTP2_FRAME_HEADER_SIZE + 18);
 }
 
-int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *zset_cookie_headers);
+int http_parse_set_cookies(const char *at, size_t length, zval *zcookies, zval *zset_cookie_headers);
 
 int http2_client::parse_header(http2_client_stream *stream, int flags, char *in, size_t inlen)
 {
