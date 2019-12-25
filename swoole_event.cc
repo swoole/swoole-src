@@ -42,6 +42,7 @@ static void php_swoole_event_onEndCallback(void *data);
 static PHP_FUNCTION(swoole_event_add);
 static PHP_FUNCTION(swoole_event_set);
 static PHP_FUNCTION(swoole_event_del);
+static PHP_FUNCTION(swoole_event_write);
 static PHP_FUNCTION(swoole_event_wait);
 static PHP_FUNCTION(swoole_event_rshutdown);
 static PHP_FUNCTION(swoole_event_exit);
@@ -99,6 +100,7 @@ static const zend_function_entry swoole_event_methods[] =
     ZEND_FENTRY(dispatch, ZEND_FN(swoole_event_dispatch), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(defer, ZEND_FN(swoole_event_defer), arginfo_swoole_event_defer, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(cycle, ZEND_FN(swoole_event_cycle), arginfo_swoole_event_cycle, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(write, ZEND_FN(swoole_event_write), arginfo_swoole_event_write, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(wait, ZEND_FN(swoole_event_wait), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(rshutdown, ZEND_FN(swoole_event_rshutdown), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exit, ZEND_FN(swoole_event_exit), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -117,6 +119,7 @@ void php_swoole_event_minit(int module_number)
     SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "dispatch", CG(function_table), "swoole_event_dispatch");
     SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "defer", CG(function_table), "swoole_event_defer");
     SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "cycle", CG(function_table), "swoole_event_cycle");
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "write", CG(function_table), "swoole_event_write");
     SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "wait", CG(function_table), "swoole_event_wait");
     SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "exit", CG(function_table), "swoole_event_exit");
 }
@@ -556,6 +559,48 @@ static PHP_FUNCTION(swoole_event_add)
     event_socket_map[socket_fd] = socket;
 
     RETURN_LONG(socket_fd);
+}
+
+static PHP_FUNCTION(swoole_event_write)
+{
+    zval *zfd;
+    char *data;
+    size_t len;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zs", &zfd, &data, &len) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    if (len == 0)
+    {
+        php_swoole_fatal_error(E_WARNING, "data empty");
+        RETURN_FALSE;
+    }
+
+    int socket_fd = swoole_convert_to_fd(zfd);
+    if (socket_fd < 0)
+    {
+        php_swoole_fatal_error(E_WARNING, "unknow type");
+        RETURN_FALSE;
+    }
+
+    swSocket *socket = event_socket_map[socket_fd];
+    if (socket == nullptr)
+    {
+        php_swoole_fatal_error(E_WARNING, "socket[%d] is not found in the reactor", socket_fd);
+        RETURN_FALSE;
+    }
+
+    check_reactor();
+    if (swoole_event_write(socket, data, len) < 0)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        RETURN_TRUE;
+    }
 }
 
 static PHP_FUNCTION(swoole_event_set)
