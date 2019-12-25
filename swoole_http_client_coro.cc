@@ -304,48 +304,39 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
     PHP_FE_END
 };
 
-int http_parse_set_cookies(const char *at, size_t length, zval *zcookies, zval *zset_cookie_headers)
+void http_parse_set_cookies(const char *at, size_t length, zval *zcookies, zval *zset_cookie_headers)
 {
-    const char *key = at;
-    zval zvalue;
-    size_t key_len = 0, val_len = 0;
     const char *p, *eof = at + length;
+    size_t key_len = 0, value_len = 0;
+    zval zvalue;
+
     // key
     p = (char *) memchr(at, '=', length);
     if (p)
     {
         key_len = p - at;
-        p++;
+        p++; // point to value
     }
     else
     {
-        p = at;
+        p = at; // key is empty
     }
-    if (key_len >= length - 1)
-    {
-        swWarn("cookie key format is wrong");
-        return SW_ERR;
-    }
-    if (key_len > SW_HTTP_COOKIE_KEYLEN)
-    {
-        swWarn("cookie[%.8s...] name length %zu is exceed the max name len %d", key, key_len, SW_HTTP_COOKIE_KEYLEN);
-        return SW_ERR;
-    }
-    add_next_index_stringl(zset_cookie_headers, (char *) at, length);
-    // val
+    // value
     eof = (char*) memchr(p, ';', at + length - p);
     if (!eof)
     {
         eof = at + length;
     }
-    val_len = eof - p;
-    if (val_len > SW_HTTP_COOKIE_VALLEN)
+    value_len = eof - p;
+    if (value_len != 0)
     {
-        swWarn("cookie[%.*s]'s value[v=%.8s...] length %d is exceed the max value len %d", (int) key_len, key, p, (int) val_len, SW_HTTP_COOKIE_VALLEN);
-        return SW_ERR;
+        ZVAL_STRINGL(&zvalue, p, value_len);
+        Z_STRLEN(zvalue) = php_url_decode(Z_STRVAL(zvalue), value_len);
     }
-    ZVAL_STRINGL(&zvalue, p, val_len);
-    Z_STRLEN(zvalue) = php_url_decode(Z_STRVAL(zvalue), val_len);
+    else
+    {
+        ZVAL_EMPTY_STRING(&zvalue);
+    }
     if (key_len == 0)
     {
         add_next_index_zval(zcookies, &zvalue);
@@ -354,7 +345,9 @@ int http_parse_set_cookies(const char *at, size_t length, zval *zcookies, zval *
     {
         add_assoc_zval_ex(zcookies, at, key_len, &zvalue);
     }
-    return SW_OK;
+
+    // set_cookie_headers
+    add_next_index_stringl(zset_cookie_headers, (char *) at, length);
 }
 
 static int http_parser_on_header_field(swoole_http_parser *parser, const char *at, size_t length)
@@ -372,7 +365,6 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
     zval *zheaders = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 0);
     char *header_name = zend_str_tolower_dup(http->tmp_header_field_name, http->tmp_header_field_name_len);
     size_t header_len = http->tmp_header_field_name_len;
-    int ret = 0;
 
     add_assoc_stringl_ex(zheaders, header_name, http->tmp_header_field_name_len, (char *) at, length);
 
@@ -401,7 +393,7 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
     {
         zval *zcookies = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("cookies"), 0);
         zval *zset_cookie_headers = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("set_cookie_headers"), 0);
-        ret = http_parse_set_cookies(at, length, zcookies, zset_cookie_headers);
+        http_parse_set_cookies(at, length, zcookies, zset_cookie_headers);
     }
 #ifdef SW_HAVE_COMPRESSION
     else if (SW_STREQ(header_name, header_len, "content-encoding"))
@@ -431,7 +423,7 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
     }
 
     efree(header_name);
-    return ret;
+    return 0;
 }
 
 static int http_parser_on_headers_complete(swoole_http_parser *parser)
