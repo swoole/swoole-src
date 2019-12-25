@@ -884,7 +884,7 @@ bool http2_client::send_setting()
     return send(frame, SW_HTTP2_FRAME_HEADER_SIZE + 18);
 }
 
-int http_parse_set_cookies(const char *at, size_t length, zval *zcookies, zval *zset_cookie_headers);
+void http_parse_set_cookies(const char *at, size_t length, zval *zcookies, zval *zset_cookie_headers);
 
 int http2_client::parse_header(http2_client_stream *stream, int flags, char *in, size_t inlen)
 {
@@ -958,10 +958,7 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
 #endif
             else if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "set-cookie"))
             {
-                if (SW_OK != http_parse_set_cookies((char *) nv.value, nv.valuelen, zcookies, zset_cookie_headers))
-                {
-                    return SW_ERR;
-                }
+                http_parse_set_cookies((char *) nv.value, nv.valuelen, zcookies, zset_cookie_headers);
             }
             add_assoc_stringl_ex(zheaders, (char *) nv.name, nv.namelen, (char *) nv.value, nv.valuelen);
         }
