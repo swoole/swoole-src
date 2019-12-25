@@ -224,7 +224,7 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
 #endif
 
     //free the receive memory buffer
-    swConnection_free_buffer(conn->socket);
+    swSocket_free_buffer(conn->socket);
 
     swListenPort *port = swServer_get_port(serv, socket->fd);
     sw_atomic_fetch_sub(&port->connection_num, 1);
@@ -525,7 +525,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
             }
         }
 
-        ret = swConnection_send(ev->socket, chunk->store.ptr, chunk->length, 0);
+        ret = swSocket_send(ev->socket, chunk->store.ptr, chunk->length, 0);
         if (ret < 0)
         {
             return (swConnection_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
@@ -652,11 +652,11 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         }
         else if (chunk->type == SW_CHUNK_SENDFILE)
         {
-            ret = swConnection_onSendfile(socket, chunk);
+            ret = swSocket_onSendfile(socket, chunk);
         }
         else
         {
-            ret = swConnection_buffer_send(socket);
+            ret = swSocket_buffer_send(socket);
         }
 
         if (ret < 0)

@@ -1396,7 +1396,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     swConnection *from_sock = swServer_connection_get(serv, req->info.server_fd);
     if (from_sock)
     {
-        add_assoc_long(&zaddr, "server_port", swConnection_get_port(from_sock->socket_type, &from_sock->info));
+        add_assoc_long(&zaddr, "server_port", swSocket_get_port(from_sock->socket_type, &from_sock->info));
     }
 
     char address[INET6_ADDRSTRLEN];
@@ -3986,13 +3986,13 @@ static PHP_METHOD(swoole_server, getClientInfo)
         swConnection *from_sock = swServer_connection_get(serv, conn->server_fd);
         if (from_sock)
         {
-            add_assoc_long(return_value, "server_port", swConnection_get_port(from_sock->socket_type, &from_sock->info));
+            add_assoc_long(return_value, "server_port", swSocket_get_port(from_sock->socket_type, &from_sock->info));
         }
         add_assoc_long(return_value, "server_fd", conn->server_fd);
         add_assoc_long(return_value, "socket_fd", conn->fd);
         add_assoc_long(return_value, "socket_type", conn->socket_type);
-        add_assoc_long(return_value, "remote_port", swConnection_get_port(conn->socket_type, &conn->info));
-        add_assoc_string(return_value, "remote_ip", (char *) swConnection_get_ip(conn->socket_type, &conn->info));
+        add_assoc_long(return_value, "remote_port", swSocket_get_port(conn->socket_type, &conn->info));
+        add_assoc_string(return_value, "remote_ip", (char *) swSocket_get_ip(conn->socket_type, &conn->info));
         add_assoc_long(return_value, "reactor_id", conn->reactor_id);
         add_assoc_long(return_value, "connect_time", conn->connect_time);
         add_assoc_long(return_value, "last_time", conn->last_time);

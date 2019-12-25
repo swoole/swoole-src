@@ -257,7 +257,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
         }
 #endif
         _do_send:
-        ret = swConnection_send(socket, ptr, n, 0);
+        ret = swSocket_send(socket, ptr, n, 0);
 
         if (ret > 0)
         {
@@ -345,11 +345,11 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
         }
         else if (chunk->type == SW_CHUNK_SENDFILE)
         {
-            ret = swConnection_onSendfile(socket, chunk);
+            ret = swSocket_onSendfile(socket, chunk);
         }
         else
         {
-            ret = swConnection_buffer_send(socket);
+            ret = swSocket_buffer_send(socket);
         }
 
         if (ret < 0)

@@ -261,8 +261,8 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data,
         frame_buffer = conn->websocket_buffer;
         if (frame_buffer == NULL)
         {
-            swWarn("bad frame[opcode=0]. remote_addr=%s:%d", swConnection_get_ip(conn->socket_type, &conn->info),
-                    swConnection_get_port(conn->socket_type, &conn->info));
+            swWarn("bad frame[opcode=0]. remote_addr=%s:%d", swSocket_get_ip(conn->socket_type, &conn->info),
+                    swSocket_get_port(conn->socket_type, &conn->info));
             return SW_ERR;
         }
         offset = length - ws.payload_length;
@@ -271,8 +271,8 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data,
         //frame data overflow
         if (frame_buffer->length + frame_length > port->protocol.package_max_length)
         {
-            swWarn("websocket frame is too big, remote_addr=%s:%d", swConnection_get_ip(conn->socket_type, &conn->info),
-                    swConnection_get_port(conn->socket_type, &conn->info));
+            swWarn("websocket frame is too big, remote_addr=%s:%d", swSocket_get_ip(conn->socket_type, &conn->info),
+                    swSocket_get_port(conn->socket_type, &conn->info));
             return SW_ERR;
         }
         //merge incomplete data
@@ -297,8 +297,8 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data,
             if (conn->websocket_buffer)
             {
                 swWarn("merging incomplete frame, bad request. remote_addr=%s:%d",
-                        swConnection_get_ip(conn->socket_type, &conn->info),
-                        swConnection_get_port(conn->socket_type, &conn->info));
+                        swSocket_get_ip(conn->socket_type, &conn->info),
+                        swSocket_get_port(conn->socket_type, &conn->info));
                 return SW_ERR;
             }
             conn->websocket_buffer = swString_dup(data + offset, length - offset);
@@ -313,8 +313,8 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data,
         if (length >= (sizeof(buf) - SW_WEBSOCKET_HEADER_LEN))
         {
             swWarn("ping frame application data is too big. remote_addr=%s:%d",
-                    swConnection_get_ip(conn->socket_type, &conn->info),
-                    swConnection_get_port(conn->socket_type, &conn->info));
+                    swSocket_get_ip(conn->socket_type, &conn->info),
+                    swSocket_get_port(conn->socket_type, &conn->info));
             return SW_ERR;
         }
         else if (length == SW_WEBSOCKET_HEADER_LEN)
@@ -326,7 +326,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data,
             offset = ws.header.MASK ? SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN : SW_WEBSOCKET_HEADER_LEN;
             swWebSocket_encode(&send_frame, data += offset, length - offset, WEBSOCKET_OPCODE_PONG, SW_WEBSOCKET_FLAG_FIN);
         }
-        swConnection_send(_socket, send_frame.str, send_frame.length, 0);
+        swSocket_send(_socket, send_frame.str, send_frame.length, 0);
         break;
 
     case WEBSOCKET_OPCODE_PONG:
@@ -352,7 +352,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data,
             // Get payload and return it as it is
             memcpy(send_frame.str + SW_WEBSOCKET_HEADER_LEN, frame.str + frame.length - ws.payload_length, ws.payload_length);
             send_frame.length = SW_WEBSOCKET_HEADER_LEN + ws.payload_length;
-            swConnection_send(_socket, send_frame.str, send_frame.length, 0);
+            swSocket_send(_socket, send_frame.str, send_frame.length, 0);
         }
         else
         {

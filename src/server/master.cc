@@ -1101,7 +1101,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
             ssize_t n;
 
             _direct_send:
-            n = swConnection_send(_socket, _send_data, _send_length, 0);
+            n = swSocket_send(_socket, _send_data, _send_length, 0);
             if (n == _send_length)
             {
                 return SW_OK;
@@ -1148,7 +1148,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE)
     {
         swSendFile_request *req = (swSendFile_request *) _send_data;
-        swConnection_sendfile(conn->socket, req->filename, req->offset, req->length);
+        swSocket_sendfile(conn->socket, req->filename, req->offset, req->length);
     }
     //send data
     else

@@ -24,7 +24,7 @@
 #define MSG_NOSIGNAL        0
 #endif
 
-int swConnection_onSendfile(swSocket *conn, swBuffer_chunk *chunk)
+int swSocket_onSendfile(swSocket *conn, swBuffer_chunk *chunk)
 {
     int ret;
     swTask_sendfile *task = (swTask_sendfile *) chunk->store.ptr;
@@ -122,7 +122,7 @@ int swConnection_onSendfile(swSocket *conn, swBuffer_chunk *chunk)
 /**
  * send buffer to client
  */
-int swConnection_buffer_send(swSocket *conn)
+int swSocket_buffer_send(swSocket *conn)
 {
     swBuffer *buffer = conn->out_buffer;
     swBuffer_chunk *chunk = swBuffer_get_chunk(buffer);
@@ -134,7 +134,7 @@ int swConnection_buffer_send(swSocket *conn)
         return SW_OK;
     }
 
-    ssize_t ret = swConnection_send(conn, (char*) chunk->store.ptr + chunk->offset, sendn, 0);
+    ssize_t ret = swSocket_send(conn, (char*) chunk->store.ptr + chunk->offset, sendn, 0);
     if (ret < 0)
     {
         switch (swConnection_error(errno))
@@ -207,7 +207,7 @@ int swConnection_get_port(enum swSocket_type socket_type, swSocketAddress *info)
     }
 }
 
-void swConnection_sendfile_destructor(swBuffer_chunk *chunk)
+void swSocket_sendfile_destructor(swBuffer_chunk *chunk)
 {
     swTask_sendfile *task = (swTask_sendfile *) chunk->store.ptr;
     close(task->fd);
@@ -215,7 +215,7 @@ void swConnection_sendfile_destructor(swBuffer_chunk *chunk)
     sw_free(task);
 }
 
-int swConnection_sendfile(swSocket *conn, const char *filename, off_t offset, size_t length)
+int swSocket_sendfile(swSocket *conn, const char *filename, off_t offset, size_t length)
 {
     if (conn->out_buffer == NULL)
     {
@@ -252,14 +252,14 @@ int swConnection_sendfile(swSocket *conn, const char *filename, off_t offset, si
     {
         swSysWarn("fstat(%s) failed", filename);
         error_chunk.store.ptr = task;
-        swConnection_sendfile_destructor(&error_chunk);
+        swSocket_sendfile_destructor(&error_chunk);
         return SW_ERR;
     }
     if (offset < 0 || (length + offset > (size_t) file_stat.st_size))
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length or offset is invalid");
         error_chunk.store.ptr = task;
-        swConnection_sendfile_destructor(&error_chunk);
+        swSocket_sendfile_destructor(&error_chunk);
         return SW_OK;
     }
     if (length == 0)
@@ -276,12 +276,12 @@ int swConnection_sendfile(swSocket *conn, const char *filename, off_t offset, si
     {
         swWarn("get out_buffer chunk failed");
         error_chunk.store.ptr = task;
-        swConnection_sendfile_destructor(&error_chunk);
+        swSocket_sendfile_destructor(&error_chunk);
         return SW_ERR;
     }
 
     chunk->store.ptr = (void *) task;
-    chunk->destroy = swConnection_sendfile_destructor;
+    chunk->destroy = swSocket_sendfile_destructor;
 
     return SW_OK;
 }
