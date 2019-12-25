@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine_server: tcp
+swoole_server_coro: tcp
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
