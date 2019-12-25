@@ -175,7 +175,7 @@ int swSocket_buffer_send(swSocket *conn)
 
 static char tmp_address[INET6_ADDRSTRLEN];
 
-const char* swConnection_get_ip(enum swSocket_type socket_type, swSocketAddress *info)
+const char* swSocket_get_ip(enum swSocket_type socket_type, swSocketAddress *info)
 {
     if (socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_UDP)
     {
@@ -195,7 +195,7 @@ const char* swConnection_get_ip(enum swSocket_type socket_type, swSocketAddress 
     return "unknown";
 }
 
-int swConnection_get_port(enum swSocket_type socket_type, swSocketAddress *info)
+int swSocket_get_port(enum swSocket_type socket_type, swSocketAddress *info)
 {
     if (socket_type == SW_SOCK_TCP)
     {
