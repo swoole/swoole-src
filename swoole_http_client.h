@@ -16,11 +16,11 @@
 
 #pragma once
 
+#include "swoole_http.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "swoole_http.h"
 #include "websocket.h"
 #include "thirdparty/swoole_http_parser.h"
 
