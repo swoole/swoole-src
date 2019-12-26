@@ -53,7 +53,10 @@ int swoole_coroutine_socket(int domain, int type, int protocol)
     {
         delete socket;
     }
-    socket_map[fd] = socket;
+    else
+    {
+        socket_map[fd] = socket;
+    }
     return fd;
 }
 
