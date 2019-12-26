@@ -374,7 +374,7 @@ private:
     Socket(int _fd, swSocketAddress *addr, Socket *socket);
     inline void init_sock_type(enum swSocket_type _type);
     inline bool init_sock();
-    void init_reactor_socket(int fd);
+    bool init_reactor_socket(int fd);
     inline void init_options()
     {
         if (type == SW_SOCK_TCP || type == SW_SOCK_TCP6)

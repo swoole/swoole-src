@@ -569,11 +569,10 @@ bool Socket::init_sock()
     {
         return false;
     }
-    init_reactor_socket(_fd);
-    return true;
+    return init_reactor_socket(_fd);
 }
 
-void Socket::init_reactor_socket(int _fd)
+bool Socket::init_reactor_socket(int _fd)
 {
     swReactor *reactor = SwooleTG.reactor;
     if (sw_unlikely(!reactor))
@@ -583,7 +582,7 @@ void Socket::init_reactor_socket(int _fd)
     socket = swSocket_new(_fd, SW_FD_CORO_SOCKET);
     if (socket == nullptr)
     {
-        swFatalError(SW_ERROR_MALLOC_FAIL, "malloc failed");
+        return false;
     }
 
     sock_fd = _fd;
@@ -592,6 +591,7 @@ void Socket::init_reactor_socket(int _fd)
 
     swSocket_set_nonblock(sock_fd);
     socket->nonblock = 1;
+    return true;
 }
 
 Socket::Socket(int _domain, int _type, int _protocol) :
@@ -618,7 +618,10 @@ Socket::Socket(enum swSocket_type _type)
 Socket::Socket(int _fd, enum swSocket_type _type)
 {
     init_sock_type(_type);
-    init_reactor_socket(_fd);
+    if (sw_unlikely(!init_reactor_socket(_fd)))
+    {
+        return;
+    }
     init_options();
 }
 
@@ -626,7 +629,10 @@ Socket::Socket(int _fd, int _domain, int _type, int _protocol) :
         sock_domain(_domain), sock_type(_type), sock_protocol(_protocol)
 {
     type = convert_to_type(_domain, _type, _protocol);
-    init_reactor_socket(_fd);
+    if (sw_unlikely(!init_reactor_socket(_fd)))
+    {
+        return;
+    }
     init_options();
 }
 
@@ -636,7 +642,10 @@ Socket::Socket(int _fd, swSocketAddress *addr, Socket *server_sock)
     sock_domain = server_sock->sock_domain;
     sock_type = server_sock->sock_type;
     sock_protocol = server_sock->sock_protocol;
-    init_reactor_socket(_fd);
+    if (sw_unlikely(!init_reactor_socket(_fd)))
+    {
+        return;
+    }
     init_options();
     /* inherits server socket options */
     connect_timeout = server_sock->connect_timeout;
