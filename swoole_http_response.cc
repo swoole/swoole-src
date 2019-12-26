@@ -1264,9 +1264,10 @@ static PHP_METHOD(swoole_http_response, push)
 
 static PHP_METHOD(swoole_http_response, close)
 {
-    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    http_context *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (UNEXPECTED(!ctx))
     {
+        SwooleG.error = SW_ERROR_SESSION_CLOSED;
         RETURN_FALSE;
     }
     RETURN_BOOL(ctx->close(ctx));
