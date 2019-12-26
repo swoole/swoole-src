@@ -936,7 +936,7 @@ bool Socket::check_liveness()
     {
         static char buf;
         errno = 0;
-        int ret = swConnection_peek(socket, &buf, sizeof(buf), 0);
+        int ret = swSocket_peek(socket, &buf, sizeof(buf), 0);
         if (ret == 0 || (ret < 0 && swConnection_error(errno) != SW_WAIT)) {
             set_err(errno ? errno : ECONNRESET);
             return false;
@@ -948,7 +948,7 @@ bool Socket::check_liveness()
 
 ssize_t Socket::peek(void *__buf, size_t __n)
 {
-    ssize_t retval = swConnection_peek(socket, __buf, __n, 0);
+    ssize_t retval = swSocket_peek(socket, __buf, __n, 0);
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -980,7 +980,7 @@ ssize_t Socket::recv(void *__buf, size_t __n)
     timer_controller timer(&read_timer, read_timeout, this, timer_callback);
     do
     {
-        retval = swConnection_recv(socket, __buf, __n, 0);
+        retval = swSocket_recv(socket, __buf, __n, 0);
     } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
     set_err(retval < 0 ? errno : 0);
     return retval;
@@ -995,7 +995,7 @@ ssize_t Socket::send(const void *__buf, size_t __n)
     ssize_t retval;
     timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     do {
-        retval = swConnection_send(socket, __buf, __n, 0);
+        retval = swSocket_send(socket, __buf, __n, 0);
     } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n));
     set_err(retval < 0 ? errno : 0);
     return retval;
@@ -1042,7 +1042,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
     while (true)
     {
         do {
-            retval = swConnection_recv(socket, (char *) __buf + total_bytes, __n - total_bytes, 0);
+            retval = swSocket_recv(socket, (char *) __buf + total_bytes, __n - total_bytes, 0);
         } while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
         if (sw_unlikely(retval <= 0))
         {
@@ -1074,7 +1074,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     {
         do
         {
-            retval = swConnection_send(socket, (char *) __buf + total_bytes, __n - total_bytes, 0);
+            retval = swSocket_send(socket, (char *) __buf + total_bytes, __n - total_bytes, 0);
         }
         while (retval < 0 && swConnection_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n));
         /**

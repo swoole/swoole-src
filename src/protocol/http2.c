@@ -47,7 +47,7 @@ int swHttp2_send_setting_frame(swProtocol *protocol, swSocket *_socket)
     value = htonl(SW_HTTP2_MAX_MAX_FRAME_SIZE);
     memcpy(p + 2, &value, sizeof(value));
 
-    return swConnection_send(_socket, setting_frame, sizeof(setting_frame), 0);
+    return swSocket_send(_socket, setting_frame, sizeof(setting_frame), 0);
 }
 
 /**

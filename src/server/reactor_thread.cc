@@ -224,7 +224,7 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
 #endif
 
     //free the receive memory buffer
-    swConnection_free_buffer(conn->socket);
+    swSocket_free_buffer(conn->socket);
 
     swListenPort *port = swServer_get_port(serv, socket->fd);
     sw_atomic_fetch_sub(&port->connection_num, 1);
@@ -525,7 +525,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
             }
         }
 
-        ret = write(ev->fd, chunk->store.ptr, chunk->length);
+        ret = swSocket_send(ev->socket, chunk->store.ptr, chunk->length, 0);
         if (ret < 0)
         {
             return (swConnection_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
@@ -652,11 +652,11 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         }
         else if (chunk->type == SW_CHUNK_SENDFILE)
         {
-            ret = swConnection_onSendfile(socket, chunk);
+            ret = swSocket_onSendfile(socket, chunk);
         }
         else
         {
-            ret = swConnection_buffer_send(socket);
+            ret = swSocket_buffer_send(socket);
         }
 
         if (ret < 0)
@@ -982,7 +982,6 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
         {
             thread->notify_pipe = serv->workers[i].pipe_worker->fd;
         }
-
         thread->pipe_num++;
     }
 
@@ -1270,7 +1269,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                 {
                     serv->notify(serv, conn, SW_SERVER_EVENT_CLOSE);
                 }
-                //TODO use pipe message
                 else
                 {
                     reactor->set(reactor, conn->socket, SW_EVENT_WRITE);

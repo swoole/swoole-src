@@ -54,13 +54,13 @@ typedef struct _swSSL_option
 
 #endif
 
-int swConnection_buffer_send(swSocket *conn);
+int swSocket_buffer_send(swSocket *conn);
 
-int swConnection_sendfile(swSocket *conn, const char *filename, off_t offset, size_t length);
-int swConnection_onSendfile(swSocket *conn, swBuffer_chunk *chunk);
-void swConnection_sendfile_destructor(swBuffer_chunk *chunk);
-const char* swConnection_get_ip(enum swSocket_type socket_type, swSocketAddress *info);
-int swConnection_get_port(enum swSocket_type socket_type, swSocketAddress *info);
+int swSocket_sendfile(swSocket *conn, const char *filename, off_t offset, size_t length);
+int swSocket_onSendfile(swSocket *conn, swBuffer_chunk *chunk);
+void swSocket_sendfile_destructor(swBuffer_chunk *chunk);
+const char* swSocket_get_ip(enum swSocket_type socket_type, swSocketAddress *info);
+int swSocket_get_port(enum swSocket_type socket_type, swSocketAddress *info);
 
 static sw_inline swString *swSocket_get_buffer(swSocket *_socket)
 {
@@ -78,7 +78,7 @@ static sw_inline swString *swSocket_get_buffer(swSocket *_socket)
     return buffer;
 }
 
-static sw_inline void swConnection_free_buffer(swSocket *conn)
+static sw_inline void swSocket_free_buffer(swSocket *conn)
 {
     if (conn->recv_buffer)
     {
@@ -167,7 +167,7 @@ int swSSL_sendfile(swSocket *conn, int fd, off_t *offset, size_t size);
 /**
  * Receive data from connection
  */
-static sw_inline ssize_t swConnection_recv(swSocket *conn, void *__buf, size_t __n, int __flags)
+static sw_inline ssize_t swSocket_recv(swSocket *conn, void *__buf, size_t __n, int __flags)
 {
     ssize_t total_bytes = 0;
 
@@ -221,7 +221,7 @@ static sw_inline ssize_t swConnection_recv(swSocket *conn, void *__buf, size_t _
 /**
  * Send data to connection
  */
-static sw_inline ssize_t swConnection_send(swSocket *conn, const void *__buf, size_t __n, int __flags)
+static sw_inline ssize_t swSocket_send(swSocket *conn, const void *__buf, size_t __n, int __flags)
 {
     ssize_t retval;
 
@@ -252,11 +252,10 @@ static sw_inline ssize_t swConnection_send(swSocket *conn, const void *__buf, si
     return retval;
 }
 
-
 /**
  * Receive data from connection
  */
-static sw_inline ssize_t swConnection_peek(swSocket *conn, void *__buf, size_t __n, int __flags)
+static sw_inline ssize_t swSocket_peek(swSocket *conn, void *__buf, size_t __n, int __flags)
 {
     ssize_t retval;
     __flags |= MSG_PEEK;

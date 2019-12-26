@@ -791,7 +791,7 @@ static int swClient_tcp_send_sync(swClient *cli, const char *data, int length, i
 
     while (written < length)
     {
-        n = swConnection_send(cli->socket, data, length - written, flags);
+        n = swSocket_send(cli->socket, data, length - written, flags);
         if (n < 0)
         {
             if (errno == EINTR)
@@ -827,7 +827,7 @@ static int swClient_tcp_sendfile_sync(swClient *cli, const char *filename, off_t
 
 static int swClient_tcp_sendfile_async(swClient *cli, const char *filename, off_t offset, size_t length)
 {
-    if (swConnection_sendfile(cli->socket, filename, offset, length) < 0)
+    if (swSocket_sendfile(cli->socket, filename, offset, length) < 0)
     {
         SwooleG.error = errno;
         return SW_ERR;
@@ -862,7 +862,7 @@ static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int f
             return -1;
         }
 #endif
-        ret = swConnection_recv(cli->socket, data, len, flag);
+        ret = swSocket_recv(cli->socket, data, len, flag);
         if (ret >= 0)
         {
             break;
@@ -1094,7 +1094,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl)
         {
-            n = swConnection_recv(event->socket, buf, buf_size, 0);
+            n = swSocket_recv(event->socket, buf, buf_size, 0);
             if (n <= 0)
             {
                 goto __close;
@@ -1140,7 +1140,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
     }
     if (cli->socks5_proxy && cli->socks5_proxy->state != SW_SOCKS5_STATE_READY)
     {
-        n = swConnection_recv(event->socket, buf, buf_size, 0);
+        n = swSocket_recv(event->socket, buf, buf_size, 0);
         if (n <= 0)
         {
             goto __close;
@@ -1241,7 +1241,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
 #ifdef SW_CLIENT_RECV_AGAIN
     _recv_again:
 #endif
-    n = swConnection_recv(event->socket, buf, buf_size, 0);
+    n = swSocket_recv(event->socket, buf, buf_size, 0);
     if (n < 0)
     {
         switch (swConnection_error(errno))

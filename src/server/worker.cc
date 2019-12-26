@@ -199,6 +199,11 @@ static int swWorker_onStreamClose(swReactor *reactor, swEvent *event)
     reactor->del(reactor, sock);
     reactor->close(reactor, sock);
 
+    if (serv->last_stream_socket == sock)
+    {
+        serv->last_stream_socket = nullptr;
+    }
+
     return SW_OK;
 }
 

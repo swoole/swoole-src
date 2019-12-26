@@ -826,8 +826,8 @@ int swSSL_accept(swSocket *conn)
     else if (err == SSL_ERROR_SSL)
     {
         int reason = ERR_GET_REASON(ERR_peek_error());
-        swWarn("bad SSL client[%s:%d], reason=%d", swConnection_get_ip(conn->socket_type, &conn->info),
-                swConnection_get_port(conn->socket_type, &conn->info), reason);
+        swWarn("bad SSL client[%s:%d], reason=%d", swSocket_get_ip(conn->socket_type, &conn->info),
+                swSocket_get_port(conn->socket_type, &conn->info), reason);
         return SW_ERROR;
     }
     //EOF was observed
@@ -1039,7 +1039,7 @@ static sw_inline void swSSL_connection_error(swSocket *conn)
 #endif
 
     swoole_error_log(level, SW_ERROR_SSL_BAD_PROTOCOL, "SSL connection#%d[%s:%d] protocol error[%d]", conn->fd,
-            swConnection_get_ip(conn->socket_type, &conn->info), swConnection_get_port(conn->socket_type, &conn->info),
+            swSocket_get_ip(conn->socket_type, &conn->info), swSocket_get_port(conn->socket_type, &conn->info),
             reason);
 }
 

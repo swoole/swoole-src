@@ -944,14 +944,13 @@ void swServer_store_pipe_fd(swServer *serv, swPipe *p)
     int master_fd = p->getFd(p, SW_PIPE_MASTER);
     int worker_fd = p->getFd(p, SW_PIPE_WORKER);
 
-    serv->connection_list[worker_fd].object = p;
-    serv->connection_list[worker_fd].socket = (swSocket *) sw_malloc(sizeof(swSocket));
-    serv->connection_list[master_fd].object = p;
-    serv->connection_list[master_fd].socket = (swSocket *) sw_malloc(sizeof(swSocket));
-
-    if (master_fd > swServer_get_minfd(serv))
+    if (master_fd > swServer_get_maxfd(serv))
     {
-        swServer_set_minfd(serv, master_fd);
+        swServer_set_maxfd(serv, master_fd);
+    }
+    if (worker_fd > swServer_get_maxfd(serv))
+    {
+        swServer_set_maxfd(serv, worker_fd);
     }
 }
 
@@ -1102,7 +1101,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
             ssize_t n;
 
             _direct_send:
-            n = swConnection_send(_socket, _send_data, _send_length, 0);
+            n = swSocket_send(_socket, _send_data, _send_length, 0);
             if (n == _send_length)
             {
                 return SW_OK;
@@ -1149,7 +1148,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE)
     {
         swSendFile_request *req = (swSendFile_request *) _send_data;
-        swConnection_sendfile(conn->socket, req->filename, req->offset, req->length);
+        swSocket_sendfile(conn->socket, req->filename, req->offset, req->length);
     }
     //send data
     else

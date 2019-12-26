@@ -41,8 +41,8 @@ ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *conn, char
     if (body_length < 0)
     {
         swWarn("invalid package, remote_addr=%s:%d, length=%d, size=%d",
-                swConnection_get_ip(conn->socket_type, &conn->info),
-                swConnection_get_port(conn->socket_type, &conn->info), body_length, size);
+                swSocket_get_ip(conn->socket_type, &conn->info),
+                swSocket_get_port(conn->socket_type, &conn->info), body_length, size);
         return SW_ERR;
     }
     swDebug("length=%d", protocol->package_body_offset + body_length);
@@ -141,7 +141,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swSocket *conn, swString 
         recv_size = protocol->package_length_offset + package_length_size;
     }
 
-    recv_n = swConnection_recv(conn, buffer->str + buffer->length, recv_size, 0);
+    recv_n = swSocket_recv(conn, buffer->str + buffer->length, recv_size, 0);
     if (recv_n < 0)
     {
         switch (swConnection_error(errno))
@@ -222,8 +222,8 @@ int swProtocol_recv_check_length(swProtocol *protocol, swSocket *conn, swString 
             {
                 swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
                         "package is too big, remote_addr=%s:%d, length=%zu",
-                        swConnection_get_ip(conn->socket_type, &conn->info),
-                        swConnection_get_port(conn->socket_type, &conn->info), package_length);
+                        swSocket_get_ip(conn->socket_type, &conn->info),
+                        swSocket_get_port(conn->socket_type, &conn->info), package_length);
                 return SW_ERR;
             }
             //get length success
@@ -271,7 +271,7 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swSocket *conn, swString *bu
         buf_size = SW_BUFFER_SIZE_STD;
     }
 
-    int n = swConnection_recv(conn, buf_ptr, buf_size, 0);
+    int n = swSocket_recv(conn, buf_ptr, buf_size, 0);
     if (n < 0)
     {
         switch (swConnection_error(errno))
