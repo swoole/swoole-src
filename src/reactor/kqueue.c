@@ -64,7 +64,7 @@ static sw_inline void swReactorKqueue_del_once_socket(swReactor *reactor, swSock
 {
     if ((socket->events & SW_EVENT_ONCE) && !socket->removed)
     {
-        swReactorKqueue_del(reactor, socket->fd);
+        swReactorKqueue_del(reactor, socket);
     }
 }
 
@@ -118,9 +118,8 @@ static void swReactorKqueue_free(swReactor *reactor)
 static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events)
 {
     swReactorKqueue *object = reactor->object;
-    struct kevent e;
+    struct kevent e = { 0 };
     int ret;
-    bzero(&e, sizeof(e));
 
     int fd = socket->fd;
     int fflags = 0;
@@ -137,7 +136,7 @@ static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events)
         if (ret < 0)
         {
             swSysWarn("add events[fd=%d#%d, type=%d, events=read] failed", fd, reactor->id, socket->fdtype);
-            swReactor_del(reactor, fd);
+            swReactor_del(reactor, socket);
             return SW_ERR;
         }
     }
@@ -150,12 +149,12 @@ static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events)
         if (ret < 0)
         {
             swSysWarn("add events[fd=%d#%d, type=%d, events=write] failed", fd, reactor->id, socket->fdtype);
-            swReactor_del(reactor, fd);
+            swReactor_del(reactor, socket);
             return SW_ERR;
         }
     }
 
-    swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]EP=%d|FD=%d, events=%d", SwooleTG.id, object->epfd, fd, fdtype);
+    swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]EP=%d|FD=%d, events=%d", SwooleTG.id, object->epfd, fd, socket->fdtype);
     return SW_OK;
 }
 
@@ -219,7 +218,7 @@ static int swReactorKqueue_set(swReactor *reactor, swSocket *socket, int events)
     }
     swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]EP=%d|FD=%d, events=%d", SwooleTG.id, object->epfd, fd, socket->fdtype);
     //execute parent method
-    swReactor_set(reactor, fd, socket->fdtype);
+    swReactor_set(reactor, socket, socket->fdtype);
     return SW_OK;
 }
 
@@ -253,7 +252,7 @@ static int swReactorKqueue_del(swReactor *reactor, swSocket *socket)
     }
 
     swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]EP=%d|FD=%d", SwooleTG.id, object->epfd, fd);
-    swReactor_del(reactor, fd);
+    swReactor_del(reactor, socket);
     return SW_OK;
 }
 
