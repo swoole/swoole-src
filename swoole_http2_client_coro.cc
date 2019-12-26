@@ -370,10 +370,18 @@ bool http2_client::connect()
     }
 
     client = new Socket(SW_SOCK_TCP);
+    if (UNEXPECTED(client->get_fd() < 0))
+    {
+        php_swoole_sys_error(E_WARNING, "new Socket() failed");
+        zend_update_property_long(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errCode"), errno);
+        zend_update_property_string(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errMsg"), swoole_strerror(errno));
+        delete client;
+        client = nullptr;
+        return false;
+    }
 #ifdef SW_USE_OPENSSL
     client->open_ssl = ssl;
 #endif
-
     client->http2 = 1;
     client->open_length_check = 1;
     client->protocol.get_package_length = swHttp2_get_frame_length;
