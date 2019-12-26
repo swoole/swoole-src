@@ -251,27 +251,13 @@ const char* swoole_http_get_content_encoding(http_context *ctx);
 #endif
 
 #ifdef SW_HAVE_ZLIB
-static sw_inline voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
-{
-    return (voidpf) safe_emalloc(items, size, 0);
-}
-
-static sw_inline void php_zlib_free(voidpf opaque, voidpf address)
-{
-    efree((void *)address);
-}
+voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
+void php_zlib_free(voidpf opaque, voidpf address);
 #endif
 
 #ifdef SW_HAVE_BROTLI
-static sw_inline void* php_brotli_alloc(void* opaque, size_t size)
-{
-    return emalloc(size);
-}
-
-static sw_inline void php_brotli_free(void* opaque, void* address)
-{
-    efree(address);
-}
+void* php_brotli_alloc(void* opaque, size_t size);
+void php_brotli_free(void* opaque, void* address);
 #endif
 
 int swoole_websocket_onMessage(swServer *serv, swEventData *req);
