@@ -541,6 +541,30 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
     ctx->send_header = 1;
 }
 
+#ifdef SW_HAVE_ZLIB
+voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
+{
+    return (voidpf) safe_emalloc(items, size, 0);
+}
+
+void php_zlib_free(voidpf opaque, voidpf address)
+{
+    efree((void *)address);
+}
+#endif
+
+#ifdef SW_HAVE_BROTLI
+void* php_brotli_alloc(void* opaque, size_t size)
+{
+    return emalloc(size);
+}
+
+void php_brotli_free(void* opaque, void* address)
+{
+    efree(address);
+}
+#endif
+
 #ifdef SW_HAVE_COMPRESSION
 int swoole_http_response_compress(swString *body, int method, int level)
 {
