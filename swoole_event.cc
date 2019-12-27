@@ -475,6 +475,16 @@ static void check_reactor()
     }
 }
 
+static swSocket* get_event_socket(int socket_fd)
+{
+    auto i = event_socket_map.find(socket_fd);
+    if (i == event_socket_map.end())
+    {
+        return nullptr;
+    }
+    return i->second;
+}
+
 static PHP_FUNCTION(swoole_event_add)
 {
     zval *zfd;
@@ -509,7 +519,7 @@ static PHP_FUNCTION(swoole_event_add)
         php_swoole_fatal_error(E_WARNING, "invalid socket fd [%d]", socket_fd);
         RETURN_FALSE;
     }
-    if (event_socket_map[socket_fd] != nullptr)
+    if (event_socket_map.find(socket_fd) == event_socket_map.end())
     {
         php_swoole_fatal_error(E_WARNING, "already exist");
         RETURN_FALSE;
@@ -585,7 +595,7 @@ static PHP_FUNCTION(swoole_event_write)
         RETURN_FALSE;
     }
 
-    swSocket *socket = event_socket_map[socket_fd];
+    swSocket *socket = get_event_socket(socket_fd);
     if (socket == nullptr)
     {
         php_swoole_fatal_error(E_WARNING, "socket[%d] is not found in the reactor", socket_fd);
@@ -633,7 +643,7 @@ static PHP_FUNCTION(swoole_event_set)
         RETURN_FALSE;
     }
 
-    swSocket *socket = event_socket_map[socket_fd];
+    swSocket *socket = get_event_socket(socket_fd);
     if (socket == nullptr)
     {
         php_swoole_fatal_error(E_WARNING, "socket[%d] is not found in the reactor", socket_fd);
@@ -699,7 +709,7 @@ static PHP_FUNCTION(swoole_event_del)
         RETURN_FALSE;
     }
 
-    swSocket *socket = event_socket_map[socket_fd];
+    swSocket *socket = get_event_socket(socket_fd);
     if (!socket)
     {
         RETURN_FALSE;
@@ -864,7 +874,7 @@ static PHP_FUNCTION(swoole_event_isset)
         RETURN_FALSE;
     }
 
-    swSocket *_socket = event_socket_map[socket_fd];
+    swSocket *_socket = get_event_socket(socket_fd);
     if (_socket == nullptr || _socket->removed)
     {
         RETURN_FALSE;
