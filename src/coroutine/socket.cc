@@ -698,7 +698,7 @@ const char* Socket::get_ip()
     }
     else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6)
     {
-        static char tmp_address[INET6_ADDRSTRLEN + 1];
+        char tmp_address[INET6_ADDRSTRLEN + 1];
         if (inet_ntop(AF_INET6, &socket->info.addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address)))
         {
             return tmp_address;
@@ -943,10 +943,10 @@ bool Socket::check_liveness()
     }
     else
     {
-        static char buf;
+        char buf;
         errno = 0;
-        int ret = swSocket_peek(socket, &buf, sizeof(buf), 0);
-        if (ret == 0 || (ret < 0 && swConnection_error(errno) != SW_WAIT)) {
+        ssize_t retval = swSocket_peek(socket, &buf, sizeof(buf), 0);
+        if (retval == 0 || (retval < 0 && swConnection_error(errno) != SW_WAIT)) {
             set_err(errno ? errno : ECONNRESET);
             return false;
         }
