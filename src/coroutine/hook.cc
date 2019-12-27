@@ -143,12 +143,8 @@ int swoole_coroutine_close(int sockfd)
     {
         delete socket;
         socket_map.erase(sockfd);
-        return 0;
     }
-    else
-    {
-        return -1;
-    }
+    return 0;
 }
 
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
