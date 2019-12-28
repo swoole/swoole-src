@@ -1573,11 +1573,6 @@ int swServer_add_systemd_socket(swServer *serv)
 
         ls->host[SW_HOST_MAXSIZE - 1] = 0;
 
-        //dgram socket, setting socket buffer size
-        if (swSocket_is_dgram(ls->type))
-        {
-            swSocket_set_buffer_size(sock, ls->socket_buffer_size);
-        }
         //O_NONBLOCK & O_CLOEXEC
         swoole_fcntl_set_option(sock, 1, 1);
         ls->socket = swSocket_new(sock, swSocket_is_dgram(ls->type) ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
@@ -1586,9 +1581,10 @@ int swServer_add_systemd_socket(swServer *serv)
             close(sock);
             return count;
         }
-
         if (swSocket_is_dgram(ls->type))
         {
+            //dgram socket, setting socket buffer size
+            swSocket_set_buffer_size(ls->socket, ls->socket_buffer_size);
             serv->have_dgram_sock = 1;
             serv->dgram_port_num++;
             if (ls->type == SW_SOCK_UDP)
@@ -1674,11 +1670,6 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         close(sock);
         return NULL;
     }
-    //dgram socket, setting socket buffer size
-    if (swSocket_is_dgram(ls->type))
-    {
-        swSocket_set_buffer_size(sock, ls->socket_buffer_size);
-    }
     //O_NONBLOCK & O_CLOEXEC
     swoole_fcntl_set_option(sock, 1, 1);
     ls->socket = swSocket_new(sock, swSocket_is_dgram(ls->type) ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
@@ -1687,7 +1678,11 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         close(sock);
         return nullptr;
     }
-
+    //dgram socket, setting socket buffer size
+    if (swSocket_is_dgram(ls->type))
+    {
+        swSocket_set_buffer_size(ls->socket, ls->socket_buffer_size);
+    }
     if (swSocket_is_dgram(ls->type))
     {
         serv->have_dgram_sock = 1;

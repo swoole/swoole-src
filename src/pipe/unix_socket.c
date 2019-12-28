@@ -102,9 +102,9 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
             return SW_ERR;
         }
 
-        int sbsize = SwooleG.socket_buffer_size;
-        swSocket_set_buffer_size(object->socks[0], sbsize);
-        swSocket_set_buffer_size(object->socks[1], sbsize);
+        uint32_t sbsize = SwooleG.socket_buffer_size;
+        swSocket_set_buffer_size(p->master_socket, sbsize);
+        swSocket_set_buffer_size(p->worker_socket, sbsize);
 
         p->object = object;
         p->read = swPipeUnsock_read;

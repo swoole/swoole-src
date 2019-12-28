@@ -1187,6 +1187,7 @@ static PHP_METHOD(swoole_process, exit)
     }
 
     close(process->pipe_current->fd);
+    process->pipe_current->fd = -1;
 
     SwooleG.running = 0;
 

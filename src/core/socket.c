@@ -474,8 +474,9 @@ int swSocket_bind(int sock, int type, const char *host, int *port)
     return ret;
 }
 
-int swSocket_set_buffer_size(int fd, uint32_t buffer_size)
+int swSocket_set_buffer_size(swSocket *sock, uint32_t buffer_size)
 {
+    int fd = sock->fd;
     if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(buffer_size)) != 0)
     {
         swSysWarn("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, buffer_size);
