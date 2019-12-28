@@ -519,7 +519,7 @@ static PHP_FUNCTION(swoole_event_add)
         php_swoole_fatal_error(E_WARNING, "invalid socket fd [%d]", socket_fd);
         RETURN_FALSE;
     }
-    if (event_socket_map.find(socket_fd) == event_socket_map.end())
+    if (event_socket_map.find(socket_fd) != event_socket_map.end())
     {
         php_swoole_fatal_error(E_WARNING, "already exist");
         RETURN_FALSE;
