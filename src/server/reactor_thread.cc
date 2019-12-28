@@ -766,8 +766,7 @@ int swReactorThread_start(swServer *serv)
 
     if (serv->stream_socket)
     {
-        close(serv->stream_socket->fd);
-        sw_free(serv->stream_socket);
+        swSocket_free(serv->stream_socket);
         serv->stream_socket = nullptr;
     }
 
