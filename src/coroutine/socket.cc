@@ -588,9 +588,8 @@ bool Socket::init_reactor_socket(int _fd)
     sock_fd = _fd;
     socket->object = this;
     socket->socket_type = type;
+    swSocket_set_nonblock(socket);
 
-    swSocket_set_nonblock(sock_fd);
-    socket->nonblock = 1;
     return true;
 }
 

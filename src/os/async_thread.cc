@@ -390,7 +390,7 @@ static void swAio_free(void *private_data)
     }
     SwooleTG.aio_init = 0;
     swoole_event_del(SwooleTG.aio_read_socket);
-    SwooleTG.aio_pipe.close(&SwooleTG.aio_pipe);
+    
     if (pool->current_pid == getpid())
     {
         if ((--refcount) == 0)
@@ -398,8 +398,7 @@ static void swAio_free(void *private_data)
             delete pool;
             pool = nullptr;
 
-            sw_free(SwooleTG.aio_read_socket);
-            sw_free(SwooleTG.aio_write_socket);
+            SwooleTG.aio_pipe.close(&SwooleTG.aio_pipe);
             SwooleTG.aio_read_socket = nullptr;
             SwooleTG.aio_write_socket = nullptr;
         }
@@ -424,22 +423,10 @@ static int swAio_init()
         swoole_throw_error(SW_ERROR_SYSTEM_CALL_FAIL);
     }
 
-    int _read_fd = SwooleTG.aio_pipe.getFd(&SwooleTG.aio_pipe, 0);
-    int _write_fd = SwooleTG.aio_pipe.getFd(&SwooleTG.aio_pipe, 1);
-
-    SwooleTG.aio_read_socket = swSocket_new(_read_fd, SW_FD_AIO);\
-    if (!SwooleTG.aio_read_socket)
-    {
-        return SW_ERR;
-    }
-
-    SwooleTG.aio_write_socket = swSocket_new(_write_fd, SW_FD_AIO);
-    if (!SwooleTG.aio_write_socket)
-    {
-        swSocket_free(SwooleTG.aio_read_socket);
-        SwooleTG.aio_read_socket = nullptr;
-        return SW_ERR;
-    }
+    SwooleTG.aio_read_socket = SwooleTG.aio_pipe.getSocket(&SwooleTG.aio_pipe, 0);
+    SwooleTG.aio_write_socket = SwooleTG.aio_pipe.getSocket(&SwooleTG.aio_pipe, 1);
+    SwooleTG.aio_read_socket->fdtype = SW_FD_AIO;
+    SwooleTG.aio_write_socket->fdtype = SW_FD_AIO;
 
     swoole_event_add(SwooleTG.aio_read_socket, SW_EVENT_READ);
     swReactor_add_destroy_callback(SwooleTG.reactor, swAio_free, nullptr);

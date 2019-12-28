@@ -3394,10 +3394,10 @@ static PHP_METHOD(swoole_server, taskwait)
     swEventData *task_result = &(serv->task_result[SwooleWG.id]);
     bzero(task_result, sizeof(swEventData));
     swPipe *task_notify_pipe = &serv->task_notify[SwooleWG.id];
-    int efd = task_notify_pipe->getFd(task_notify_pipe, 0);
+    swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_WORKER);
 
     //clear history task
-    while (read(efd, &notify, sizeof(notify)) > 0);
+    while (read(task_notify_socket->fd, &notify, sizeof(notify)) > 0) {}
 
     sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
 
@@ -3502,8 +3502,8 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
     worker->lock.unlock(&worker->lock);
 
     //clear history task
-    int efd = task_notify_pipe->getFd(task_notify_pipe, 0);
-    while (read(efd, &notify, sizeof(notify)) > 0);
+    swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_WORKER);
+    while (read(task_notify_socket->fd, &notify, sizeof(notify)) > 0);
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztasks), ztask)
         task_id = php_swoole_task_pack(&buf, ztask);

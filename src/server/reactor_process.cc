@@ -378,8 +378,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     if (worker->pipe_worker)
     {
-        swSocket_set_nonblock(worker->pipe_worker->fd);
-        swSocket_set_nonblock(worker->pipe_master->fd);
+        swSocket_set_nonblock(worker->pipe_worker);
+        swSocket_set_nonblock(worker->pipe_master);
         if (reactor->add(reactor, worker->pipe_worker, SW_EVENT_READ) < 0)
         {
             return SW_ERR;
@@ -393,16 +393,11 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //task workers
     if (serv->task_worker_num > 0)
     {
-        swPipe *p;
-        int pfd;
-
         if (serv->task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
         {
             for (uint32_t i = 0; i < serv->gs->task_workers.worker_num; i++)
             {
-                p = serv->gs->task_workers.workers[i].pipe_object;
-                pfd = p->getFd(p, 1);
-                swSocket_set_nonblock(pfd);
+                swSocket_set_nonblock(serv->gs->task_workers.workers[i].pipe_master);
             }
         }
     }
@@ -655,7 +650,7 @@ static int swReactorProcess_reuse_port(swListenPort *ls)
     //stream socket, set nonblock
     if (swSocket_is_stream(ls->type))
     {
-        swSocket_set_nonblock(sock);
+        swSocket_set_nonblock(ls->socket);
     }
     ls->socket->fd = sock;
     return swPort_listen(ls);

@@ -69,7 +69,7 @@ int swoole_coroutine_socket(int domain, int type, int protocol)
 {
     if (sw_unlikely(is_no_coro()))
     {
-        return socket(domain, type, protocol);
+        return ::socket(domain, type, protocol);
     }
     Socket *socket = new Socket(domain, type, protocol);
     int fd = socket->get_fd();
@@ -136,8 +136,7 @@ int swoole_coroutine_close(int sockfd)
     Socket *socket = get_socket(sockfd);
     if (socket == nullptr)
     {
-        errno = EBADF;
-        return -1;
+        return ::close(sockfd);
     }
     if (socket->close())
     {
@@ -152,7 +151,7 @@ int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t 
     Socket *socket = get_socket_ex(sockfd);
     if (sw_unlikely(socket == nullptr))
     {
-        return connect(sockfd, addr, addrlen);
+        return ::connect(sockfd, addr, addrlen);
     }
     return socket->connect(addr, addrlen) ? 0 : -1;
 }

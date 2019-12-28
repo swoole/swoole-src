@@ -21,7 +21,6 @@
 
 static int swPipeEventfd_read(swPipe *p, void *data, int length);
 static int swPipeEventfd_write(swPipe *p, void *data, int length);
-static int swPipeEventfd_getFd(swPipe *p, int isWriteFd);
 static int swPipeEventfd_close(swPipe *p);
 
 typedef struct _swPipeEventfd
@@ -71,10 +70,18 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout)
     }
     else
     {
+        p->master_socket = swSocket_new(efd, SW_FD_PIPE);
+        if (p->master_socket == NULL)
+        {
+            close(efd);
+            sw_free(object);
+            return -1;
+        }
+        p->worker_socket = p->master_socket;
         p->object = object;
         p->read = swPipeEventfd_read;
         p->write = swPipeEventfd_write;
-        p->getFd = swPipeEventfd_getFd;
+        p->getSocket = swPipe_getSocket;
         p->close = swPipeEventfd_close;
         object->event_fd = efd;
     }
@@ -126,17 +133,11 @@ static int swPipeEventfd_write(swPipe *p, void *data, int length)
     return ret;
 }
 
-static int swPipeEventfd_getFd(swPipe *p, int isWriteFd)
-{
-    return ((swPipeEventfd *) (p->object))->event_fd;
-}
-
 static int swPipeEventfd_close(swPipe *p)
 {
-    int ret;
-    ret = close(((swPipeEventfd *) (p->object))->event_fd);
+    swSocket_free(p->master_socket);
     sw_free(p->object);
-    return ret;
+    return SW_OK;
 }
 
 #endif

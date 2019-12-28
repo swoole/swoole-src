@@ -1031,9 +1031,12 @@ typedef struct _swPipe
     int blocking;
     double timeout;
 
+    swSocket *master_socket;
+    swSocket *worker_socket;
+
     int (*read)(struct _swPipe *, void *recv, int length);
     int (*write)(struct _swPipe *, void *send, int length);
-    int (*getFd)(struct _swPipe *, int master);
+    swSocket* (*getSocket)(struct _swPipe *, int master);
     int (*close)(struct _swPipe *);
 } swPipe;
 
@@ -1050,6 +1053,8 @@ int swPipeBase_create(swPipe *p, int blocking);
 int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout);
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
 int swPipeUnsock_close_ext(swPipe *p, int which);
+int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking);
+swSocket* swPipe_getSocket(swPipe *p, int master);
 
 static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
 {
@@ -1588,14 +1593,30 @@ int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t 
 ssize_t swSocket_write_blocking(int __fd, const void *__data, size_t __len);
 ssize_t swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
 
-static sw_inline int swSocket_set_nonblock(int sock)
+static sw_inline int swSocket_set_nonblock(swSocket *sock)
 {
-    return swoole_fcntl_set_option(sock, 1, -1);
+    if (swoole_fcntl_set_option(sock->fd, 1, -1) < 0)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        sock->nonblock = 1;
+        return SW_OK;
+    }
 }
 
-static sw_inline int swSocket_set_blocking(int sock)
+static sw_inline int swSocket_set_blocking(swSocket *sock)
 {
-    return swoole_fcntl_set_option(sock, 0, -1);
+    if (swoole_fcntl_set_option(sock->fd, 0, -1) < 0)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        sock->nonblock = 0;
+        return SW_OK;
+    }
 }
 
 static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options)

@@ -156,26 +156,14 @@ static int swFactoryProcess_start(swFactory *factory)
     {
         if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0)
         {
-            _error:
             sw_free(object->pipes);
             object->pipes = NULL;
             return SW_ERR;
         }
 
-        int pipe_master = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_MASTER);
-        int pipe_worker = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_WORKER);
-        serv->workers[i].pipe_master = swSocket_new(pipe_master, SW_FD_PIPE);
-        if (serv->workers[i].pipe_master == nullptr)
-        {
-            goto _error;
-        }
-        serv->workers[i].pipe_worker = swSocket_new(pipe_worker, SW_FD_PIPE);
-        if (serv->workers[i].pipe_worker == nullptr)
-        {
-            swSocket_free(serv->workers[i].pipe_master);
-            goto _error;
-        }
-
+        serv->workers[i].pipe_master = object->pipes[i].getSocket(&object->pipes[i], SW_PIPE_MASTER);
+        serv->workers[i].pipe_worker = object->pipes[i].getSocket(&object->pipes[i], SW_PIPE_WORKER);
+        
         int kernel_buffer_size = SW_UNIXSOCK_MAX_BUF_SIZE;
         setsockopt(serv->workers[i].pipe_master->fd, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
         setsockopt(serv->workers[i].pipe_worker->fd, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));

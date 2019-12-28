@@ -1147,7 +1147,6 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
         return false;
     }
 
-    swSocket_set_nonblock(context->fd);
     socket->set_timeout(redis->timeout, SW_TIMEOUT_RDWR);
     redis->reconnected_count = 0;
     zend_update_property_bool(swoole_redis_coro_ce, zobject, ZEND_STRL("connected"), 1);

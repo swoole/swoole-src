@@ -941,16 +941,16 @@ static int swServer_tcp_feedback(swServer *serv, int session_id, int event)
 
 void swServer_store_pipe_fd(swServer *serv, swPipe *p)
 {
-    int master_fd = p->getFd(p, SW_PIPE_MASTER);
-    int worker_fd = p->getFd(p, SW_PIPE_WORKER);
+    swSocket* master_socket = p->getSocket(p, SW_PIPE_MASTER);
+    swSocket* worker_socket = p->getSocket(p, SW_PIPE_WORKER);
 
-    if (master_fd > swServer_get_maxfd(serv))
+    if (master_socket->fd > swServer_get_maxfd(serv))
     {
-        swServer_set_maxfd(serv, master_fd);
+        swServer_set_maxfd(serv, master_socket->fd);
     }
-    if (worker_fd > swServer_get_maxfd(serv))
+    if (worker_socket->fd > swServer_get_maxfd(serv))
     {
-        swServer_set_maxfd(serv, worker_fd);
+        swServer_set_maxfd(serv, worker_socket->fd);
     }
 }
 

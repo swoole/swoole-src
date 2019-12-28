@@ -18,13 +18,48 @@
 
 static int swPipeBase_read(swPipe *p, void *data, int length);
 static int swPipeBase_write(swPipe *p, void *data, int length);
-static int swPipeBase_getFd(swPipe *p, int isWriteFd);
 static int swPipeBase_close(swPipe *p);
 
 typedef struct _swPipeBase
 {
     int pipes[2];
 } swPipeBase;
+
+int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking)
+{
+    p->master_socket = swSocket_new(master_fd, SW_FD_PIPE);
+    if (p->master_socket == NULL)
+    {
+        _error:
+        close(master_fd);
+        close(worker_fd);
+        return SW_ERR;
+    }
+    p->worker_socket = swSocket_new(worker_fd, SW_FD_PIPE);
+    if (p->worker_socket == NULL)
+    {
+        swSocket_free(p->master_socket);
+        goto _error;
+    }
+
+    if (blocking)
+    {
+        swSocket_set_blocking(p->worker_socket);
+        swSocket_set_blocking(p->master_socket);
+    }
+    else
+    {
+        swSocket_set_nonblock(p->worker_socket);
+        swSocket_set_nonblock(p->master_socket);
+    }
+
+    return SW_OK;
+}
+
+swSocket* swPipe_getSocket(swPipe *p, int master)
+{
+    return master ? p->master_socket : p->worker_socket;
+}
 
 int swPipeBase_create(swPipe *p, int blocking)
 {
@@ -44,14 +79,17 @@ int swPipeBase_create(swPipe *p, int blocking)
     }
     else
     {
-        //Nonblock
-        swSocket_set_nonblock(object->pipes[0]);
-        swSocket_set_nonblock(object->pipes[1]);
+        if (swPipe_init_socket(p, object->pipes[1], object->pipes[0], blocking) < 0)
+        {
+            sw_free(object);
+            return SW_ERR;
+        }
+
         p->timeout = -1;
         p->object = object;
         p->read = swPipeBase_read;
         p->write = swPipeBase_write;
-        p->getFd = swPipeBase_getFd;
+        p->getSocket = swPipe_getSocket;
         p->close = swPipeBase_close;
     }
     return 0;
@@ -76,18 +114,11 @@ static int swPipeBase_write(swPipe *p, void *data, int length)
     return write(object->pipes[1], data, length);
 }
 
-static int swPipeBase_getFd(swPipe *p, int isWriteFd)
-{
-    swPipeBase *this = p->object;
-    return (isWriteFd == 0) ? this->pipes[0] : this->pipes[1];
-}
-
 static int swPipeBase_close(swPipe *p)
 {
-    int ret1, ret2;
     swPipeBase *object = p->object;
-    ret1 = close(object->pipes[0]);
-    ret2 = close(object->pipes[1]);
+    swSocket_free(p->master_socket);
+    swSocket_free(p->worker_socket);
     sw_free(object);
-    return 0 - ret1 - ret2;
+    return SW_OK;
 }

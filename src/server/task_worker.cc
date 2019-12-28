@@ -232,7 +232,7 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
     swSocket *socket = worker->pipe_worker;
     worker->status = SW_WORKER_IDLE;
 
-    swSocket_set_nonblock(socket->fd);
+    swSocket_set_nonblock(socket);
     SwooleTG.reactor->ptr = pool;
     swoole_event_add(socket, SW_EVENT_READ);
     swReactor_set_handler(SwooleTG.reactor, SW_FD_PIPE, swTaskWorker_onPipeReceive);
@@ -240,8 +240,8 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
     for (uint i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
         worker = swServer_get_worker(serv, i);
-        worker->pipe_master->buffer_size = INT_MAX;
-        worker->pipe_worker->buffer_size = INT_MAX;
+        worker->pipe_master->buffer_size = UINT_MAX;
+        worker->pipe_worker->buffer_size = UINT_MAX;
     }
 
     //main loop
@@ -407,7 +407,7 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
             ret = task_notify_pipe->write(task_notify_pipe, &flag, sizeof(flag));
             if (ret < 0 && swConnection_error(errno) == SW_WAIT)
             {
-                if (swSocket_wait(task_notify_pipe->getFd(task_notify_pipe, 1), -1, SW_EVENT_WRITE) == 0)
+                if (swSocket_wait(task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_MASTER)->fd, -1, SW_EVENT_WRITE) == 0)
                 {
                     continue;
                 }

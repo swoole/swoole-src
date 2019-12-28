@@ -789,8 +789,7 @@ PHP_METHOD(swoole_coroutine_system, exec)
     {
         RETURN_FALSE;
     }
-
-    swSocket_set_nonblock(fd);
+    
     Socket socket(fd, SW_SOCK_UNIX_STREAM);
     while (1)
     {

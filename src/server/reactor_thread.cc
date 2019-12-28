@@ -916,7 +916,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
         swListenPort *ls;
         LL_FOREACH(serv->listen_list, ls)
         {
-            if (swSocket_is_stream(ls->type))
+            if (!swSocket_is_dgram(ls->type))
             {
                 continue;
             }
@@ -964,15 +964,14 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
 
         socket->fd = pipe_fd;
         socket->fdtype = SW_FD_PIPE;
-        socket->buffer_size = INT_MAX;
+        socket->buffer_size = UINT_MAX;
 
         if (i % serv->reactor_num != reactor_id)
         {
             continue;
         }
 
-        swSocket_set_nonblock(pipe_fd);
-        socket->nonblock = 1;
+        swSocket_set_nonblock(socket);
 
         if (reactor->add(reactor, socket, SW_EVENT_READ) < 0)
         {

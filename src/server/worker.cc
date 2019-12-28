@@ -441,7 +441,7 @@ void swWorker_onStart(swServer *serv)
         }
         if (swIsWorker() && worker->pipe_master)
         {
-            swSocket_set_nonblock(worker->pipe_master->fd);
+            swSocket_set_nonblock(worker->pipe_master);
         }
     }
 
@@ -504,8 +504,7 @@ void swWorker_stop(swWorker *worker)
     if (serv->stream_socket)
     {
         reactor->del(reactor, serv->stream_socket);
-        close(serv->stream_socket->fd);
-        sw_free(serv->stream_socket);
+        swSocket_free(serv->stream_socket);
         serv->stream_socket = nullptr;
     }
 
@@ -660,16 +659,15 @@ int swWorker_loop(swServer *serv, int worker_id)
         swWorker *_worker = swServer_get_worker(serv, i);
         if (_worker->pipe_master)
         {
-            _worker->pipe_master->buffer_size = INT_MAX;
+            _worker->pipe_master->buffer_size = UINT_MAX;
         }
         if (_worker->pipe_worker)
         {
-            _worker->pipe_worker->buffer_size = INT_MAX;
+            _worker->pipe_worker->buffer_size = UINT_MAX;
         }
     }
 
-    swSocket_set_nonblock(worker->pipe_worker->fd);
-    worker->pipe_worker->nonblock = 1;
+    swSocket_set_nonblock(worker->pipe_worker);
     reactor->ptr = serv;
     reactor->add(reactor, worker->pipe_worker, SW_EVENT_READ);
     swReactor_set_handler(reactor, SW_FD_PIPE, swWorker_onPipeReceive);
@@ -681,7 +679,7 @@ int swWorker_loop(swServer *serv, int worker_id)
         swReactor_set_handler(reactor, SW_FD_STREAM, swWorker_onStreamRead);
         swStream_set_protocol(&serv->stream_protocol);
         serv->stream_protocol.private_data_2 = serv;
-        serv->stream_protocol.package_max_length = INT_MAX;
+        serv->stream_protocol.package_max_length = UINT_MAX;
         serv->stream_protocol.onPackage = swWorker_onStreamPackage;
         serv->buffer_pool = swLinkedList_new(0, NULL);
         if (serv->buffer_pool == nullptr)
