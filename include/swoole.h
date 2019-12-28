@@ -1514,7 +1514,7 @@ int swoole_gethostbyname(int type, const char *name, char *addr);
 int swoole_getaddrinfo(swRequest_getaddrinfo *req);
 char* swoole_string_format(size_t n, const char *format, ...);
 //----------------------core function---------------------
-int swSocket_set_timeout(int sock, double timeout);
+int swSocket_set_timeout(swSocket *sock, double timeout);
 int swSocket_create_server(int type, const char *address, int port, int backlog);
 //----------------------------------------Socket---------------------------------------
 static sw_inline int swSocket_is_dgram(uint8_t type)

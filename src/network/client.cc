@@ -538,7 +538,7 @@ static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, 
     {
         if (cli->timeout > 0)
         {
-            swSocket_set_timeout(cli->socket->fd, timeout);
+            swSocket_set_timeout(cli->socket, timeout);
         }
 #ifndef HAVE_KQUEUE
         swSocket_set_blocking(cli->socket);
@@ -915,7 +915,7 @@ static int swClient_udp_connect(swClient *cli, const char *host, int port, doubl
 
     if (timeout > 0)
     {
-        swSocket_set_timeout(cli->socket->fd, timeout);
+        swSocket_set_timeout(cli->socket, timeout);
     }
 
     if (cli->type == SW_SOCK_UNIX_DGRAM)

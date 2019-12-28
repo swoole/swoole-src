@@ -297,8 +297,7 @@ static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETER
         swReactor_set_handler(SwooleTG.reactor, PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_WRITE, co_socket_onWritable);
     }
 
-    tmp_socket *sock = (tmp_socket *) emalloc(sizeof(tmp_socket));
-    bzero(sock, sizeof(tmp_socket));
+    tmp_socket *sock = (tmp_socket *) ecalloc(1, sizeof(tmp_socket));
 
     sock->socket.fd = fd;
     sock->socket.fdtype = (enum swFd_type) PHP_SWOOLE_FD_CO_UTIL;
@@ -337,8 +336,7 @@ static void co_socket_write(int fd, char* str, size_t l_str, INTERNAL_FUNCTION_P
     tmp_socket *sock;
 
     _yield:
-    sock = (tmp_socket *) emalloc(sizeof(tmp_socket));
-    bzero(sock, sizeof(tmp_socket));
+    sock = (tmp_socket *) ecalloc(1, sizeof(tmp_socket));
 
     sock->socket.fd = fd;
     sock->socket.fdtype = (enum swFd_type) PHP_SWOOLE_FD_CO_UTIL;
