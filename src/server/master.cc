@@ -944,6 +944,9 @@ void swServer_store_pipe_fd(swServer *serv, swPipe *p)
     swSocket* master_socket = p->getSocket(p, SW_PIPE_MASTER);
     swSocket* worker_socket = p->getSocket(p, SW_PIPE_WORKER);
 
+    serv->connection_list[master_socket->fd].object = p;
+    serv->connection_list[worker_socket->fd].object = p;
+
     if (master_socket->fd > swServer_get_maxfd(serv))
     {
         swServer_set_maxfd(serv, master_socket->fd);

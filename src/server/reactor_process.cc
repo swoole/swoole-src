@@ -19,8 +19,8 @@
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
 static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
 static int swReactorProcess_onClose(swReactor *reactor, swEvent *event);
-static int swReactorProcess_send2client(swFactory *, swSendData *);
-static int swReactorProcess_send2worker(swSocket *socket, const void *, size_t);
+static int swReactorProcess_send2client(swFactory *, swSendData *data);
+static int swReactorProcess_send2worker(swSocket *socket, const void *data, size_t length);
 static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode);
 
 #ifdef HAVE_REUSEPORT
@@ -517,16 +517,16 @@ static int swReactorProcess_send2worker(swSocket *socket, const void *data, size
     }
 }
 
-static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
+static int swReactorProcess_send2client(swFactory *factory, swSendData *data)
 {
     swServer *serv = (swServer *) factory->ptr;
-    int session_id = _send->info.fd;
+    int session_id = data->info.fd;
 
     swSession *session = swServer_get_session(serv, session_id);
     if (session->fd == 0)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send %d byte failed, session#%d does not exist",
-                _send->info.len, session_id);
+                data->info.len, session_id);
         return SW_ERR;
     }
     //proxy
@@ -537,13 +537,13 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
         swEventData proxy_msg;
         bzero(&proxy_msg.info, sizeof(proxy_msg.info));
 
-        if (_send->info.type == SW_SERVER_EVENT_SEND_DATA)
+        if (data->info.type == SW_SERVER_EVENT_SEND_DATA)
         {
             proxy_msg.info.fd = session_id;
             proxy_msg.info.reactor_id = SwooleWG.id;
             proxy_msg.info.type = SW_SERVER_EVENT_PROXY_START;
 
-            size_t send_n = _send->info.len;
+            size_t send_n = data->info.len;
             size_t offset = 0;
 
             while (send_n > 0)
@@ -557,7 +557,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
                     proxy_msg.info.type = SW_SERVER_EVENT_PROXY_END;
                     proxy_msg.info.len = send_n;
                 }
-                memcpy(proxy_msg.data, _send->data + offset, proxy_msg.info.len);
+                memcpy(proxy_msg.data, data->data + offset, proxy_msg.info.len);
                 send_n -= proxy_msg.info.len;
                 offset += proxy_msg.info.len;
                 swReactorProcess_send2worker(worker->pipe_master, (const char *) &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
@@ -565,22 +565,22 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
 
             swTrace("proxy message, fd=%d, len=%ld",worker->pipe_master, sizeof(proxy_msg.info) + proxy_msg.info.len);
         }
-        else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE)
+        else if (data->info.type == SW_SERVER_EVENT_SEND_FILE)
         {
-            memcpy(&proxy_msg.info, &_send->info, sizeof(proxy_msg.info));
-            memcpy(proxy_msg.data, _send->data, _send->info.len);
+            memcpy(&proxy_msg.info, &data->info, sizeof(proxy_msg.info));
+            memcpy(proxy_msg.data, data->data, data->info.len);
             return swReactorProcess_send2worker(worker->pipe_master, (const char *) &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
         }
         else
         {
-            swWarn("unkown event type[%d]", _send->info.type);
+            swWarn("unkown event type[%d]", data->info.type);
             return SW_ERR;
         }
         return SW_OK;
     }
     else
     {
-        return swFactory_finish(factory, _send);
+        return swFactory_finish(factory, data);
     }
 }
 

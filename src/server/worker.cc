@@ -707,19 +707,15 @@ int swWorker_loop(swServer *serv, int worker_id)
  */
 int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int session_id)
 {
-    int ret;
-    swSocket *_pipe_sock = swServer_get_send_pipe(serv, session_id, ev_data->info.reactor_id);
-
+    swSocket *pipe_sock = swServer_get_send_pipe(serv, session_id, ev_data->info.reactor_id);
     if (SwooleTG.reactor)
     {
-        ret = SwooleTG.reactor->write(SwooleTG.reactor, _pipe_sock, ev_data, sendn);
+        return SwooleTG.reactor->write(SwooleTG.reactor, pipe_sock, ev_data, sendn);
     }
     else
     {
-        ret = swSocket_write_blocking(_pipe_sock->fd, ev_data, sendn);
+        return swSocket_write_blocking(pipe_sock->fd, ev_data, sendn);
     }
-
-    return ret;
 }
 
 /**
@@ -761,7 +757,6 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 
 int swWorker_send2worker(swWorker *dst_worker, const void *buf, int n, int flag)
 {
-    int ret;
     swSocket *pipe_sock;
 
     if (flag & SW_PIPE_MASTER)
@@ -794,8 +789,6 @@ int swWorker_send2worker(swWorker *dst_worker, const void *buf, int n, int flag)
     }
     else
     {
-        ret = swSocket_write_blocking(pipe_sock->fd, buf, n);
+        return swSocket_write_blocking(pipe_sock->fd, buf, n);
     }
-
-    return ret;
 }

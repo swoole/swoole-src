@@ -514,6 +514,9 @@ static int swClient_close(swClient *cli)
         cli->active = 0;
     }
 
+    /**
+     * fd marked -1, prevent double close
+     */
     cli->socket->fd = -1;
 
     return close(fd);

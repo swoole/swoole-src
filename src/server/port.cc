@@ -609,8 +609,7 @@ void swPort_free(swListenPort *port)
     }
 #endif
 
-    close(port->socket->fd);
-    sw_free(port->socket);
+    swSocket_free(port->socket);
 
     //remove unix socket file
     if (port->type == SW_SOCK_UNIX_STREAM || port->type == SW_SOCK_UNIX_DGRAM)

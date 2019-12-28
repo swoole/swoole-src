@@ -378,6 +378,9 @@ static inline void socket_poll_clean(coro_poll_task *task)
             continue;
         }
         int retval = swoole_event_del(i->second.socket);
+        /**
+         * Temporary socket, fd marked -1, skip close
+         */
         socket->fd = -1;
         swSocket_free(socket);
         i->second.socket = nullptr;

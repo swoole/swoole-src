@@ -468,20 +468,16 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
 
 int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, size_t len)
 {
-    ssize_t retval = -1;
-    int pipe_fd = worker->pipe_master->fd;
-
     if (SwooleTG.reactor)
     {
         swReactorThread *thread = swServer_get_thread(serv, SwooleTG.id);
-        swSocket *socket = &thread->pipe_sockets[pipe_fd];
-        retval = swoole_event_write(socket, data, len);
+        swSocket *socket = &thread->pipe_sockets[worker->pipe_master->fd];
+        return swoole_event_write(socket, data, len);
     }
     else
     {
-        retval = swSocket_write_blocking(pipe_fd, data, len);
+        return swSocket_write_blocking(worker->pipe_master->fd, data, len);
     }
-    return retval;
 }
 
 /**
