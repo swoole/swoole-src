@@ -103,6 +103,8 @@ static int redisCreateSocket(redisContext *c, int type) {
 }
 
 static int redisSetBlocking(redisContext *c, int blocking) {
+
+    return REDIS_OK;
     int flags;
 
     /* Set the socket nonblocking.
