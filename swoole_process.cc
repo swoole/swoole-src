@@ -68,12 +68,6 @@ static void php_swoole_process_free_object(zend_object *object)
         if (_pipe)
         {
             _pipe->close(_pipe);
-
-            worker->pipe_master->fd = -1;
-            worker->pipe_worker->fd = -1;
-            swSocket_free(worker->pipe_master);
-            swSocket_free(worker->pipe_worker);
-
             efree(_pipe);
         }
 

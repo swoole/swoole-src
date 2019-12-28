@@ -524,7 +524,7 @@ static PHP_FUNCTION(swoole_event_add)
         php_swoole_fatal_error(E_WARNING, "already exist");
         RETURN_FALSE;
     }
-    if (!((events & SW_EVENT_WRITE) || (events & SW_EVENT_READ)))
+    if (!(events & (SW_EVENT_WRITE | SW_EVENT_READ)))
     {
         php_swoole_fatal_error(E_WARNING, "invalid events");
         RETURN_FALSE;
