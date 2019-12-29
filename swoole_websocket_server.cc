@@ -343,10 +343,12 @@ bool swoole_websocket_handshake(http_context *ctx)
     zval *header = ctx->request.zheader;
     HashTable *ht = Z_ARRVAL_P(header);
     zval *pData;
+    zval retval;
 
     if (!(pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-key"))))
     {
-        php_swoole_fatal_error(E_WARNING, "unable to find sec-websocket-key in header during websocket handshake");
+        ctx->response.status = SW_HTTP_BAD_REQUEST;
+        swoole_http_response_end(ctx, nullptr, &retval);
         return false;
     }
 
@@ -442,10 +444,9 @@ bool swoole_websocket_handshake(http_context *ctx)
 #endif
     }
 
-    ctx->response.status = 101;
+    ctx->response.status = SW_HTTP_SWITCHING_PROTOCOLS;
     ctx->upgrade = 1;
 
-    zval retval;
     swoole_http_response_end(ctx, nullptr, &retval);
     return Z_TYPE(retval) == IS_TRUE;
 }
