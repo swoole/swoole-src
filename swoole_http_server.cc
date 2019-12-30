@@ -44,7 +44,7 @@ static bool http_context_disconnect(http_context* ctx);
 int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 {
     int fd = req->info.fd;
-    int from_fd = req->info.server_fd;
+    int server_fd = req->info.server_fd;
 
     swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
     if (!conn)
@@ -53,7 +53,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         return SW_ERR;
     }
 
-    swListenPort *port = (swListenPort *) serv->connection_list[from_fd].object;
+    swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
     //other server port
     if (!port->open_http_protocol)
     {
@@ -116,7 +116,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
-            fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onHandShake);
+            fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onHandShake);
             if (fci_cache == NULL)
             {
                 swoole_websocket_onHandshake(serv, port, ctx);
@@ -130,7 +130,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         }
         else
         {
-            fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onRequest);
+            fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onRequest);
             if (fci_cache == NULL)
             {
                 swoole_websocket_onRequest(ctx);
