@@ -44,13 +44,13 @@ int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking)
 
     if (blocking)
     {
-        swSocket_set_blocking(p->worker_socket);
-        swSocket_set_blocking(p->master_socket);
+        swSocket_set_block(p->worker_socket);
+        swSocket_set_block(p->master_socket);
     }
     else
     {
-        swSocket_set_nonblocking(p->worker_socket);
-        swSocket_set_nonblocking(p->master_socket);
+        swSocket_set_nonblock(p->worker_socket);
+        swSocket_set_nonblock(p->master_socket);
     }
 
     return SW_OK;

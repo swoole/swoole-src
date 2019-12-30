@@ -966,7 +966,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
             continue;
         }
 
-        swSocket_set_nonblocking(socket);
+        swSocket_set_nonblock(socket);
 
         if (reactor->add(reactor, socket, SW_EVENT_READ) < 0)
         {

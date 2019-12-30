@@ -380,7 +380,7 @@ int swReactor_wait_write_buffer(swReactor *reactor, swSocket *socket)
 
     if (!swBuffer_empty(socket->out_buffer))
     {
-        swSocket_set_blocking(socket);
+        swSocket_set_block(socket);
         event.fd = socket->fd;
         return swReactor_onWrite(reactor, &event);
     }
