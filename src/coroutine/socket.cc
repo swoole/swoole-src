@@ -642,6 +642,8 @@ Socket::Socket(swSocket *sock, swSocketAddress *addr, Socket *server_sock)
     sock_domain = server_sock->sock_domain;
     sock_type = server_sock->sock_type;
     sock_protocol = server_sock->sock_protocol;
+    sock_fd = sock->fd;
+    socket = sock;
     socket->object = this;
     socket->socket_type = type;
     socket->fdtype = SW_FD_CORO_SOCKET;
