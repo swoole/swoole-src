@@ -417,7 +417,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/log.c \
         src/core/rbtree.c \
         src/core/ring_queue.c \
-        src/core/socket.c \
+        src/core/socket.cc \
         src/core/string.c \
         src/coroutine/base.cc \
         src/coroutine/channel.cc \
@@ -475,7 +475,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/reactor/kqueue.c \
         src/reactor/poll.c \
         src/reactor/select.c \
-        src/server/base.c \
+        src/server/base.cc \
         src/server/manager.cc \
         src/server/master.cc \
         src/server/port.cc \

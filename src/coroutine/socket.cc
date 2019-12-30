@@ -636,16 +636,15 @@ Socket::Socket(int _fd, int _domain, int _type, int _protocol) :
     init_options();
 }
 
-Socket::Socket(int _fd, swSocketAddress *addr, Socket *server_sock)
+Socket::Socket(swSocket *sock, swSocketAddress *addr, Socket *server_sock)
 {
     type = server_sock->type;
     sock_domain = server_sock->sock_domain;
     sock_type = server_sock->sock_type;
     sock_protocol = server_sock->sock_protocol;
-    if (sw_unlikely(!init_reactor_socket(_fd)))
-    {
-        return;
-    }
+    socket->object = this;
+    socket->socket_type = type;
+    socket->fdtype = SW_FD_CORO_SOCKET;
     init_options();
     /* inherits server socket options */
     connect_timeout = server_sock->connect_timeout;
@@ -1287,17 +1286,17 @@ Socket* Socket::accept(double timeout)
         return nullptr;
     }
     swSocketAddress client_addr;
-    int conn = swSocket_accept(sock_fd, &client_addr);
-    if (conn < 0 && errno == EAGAIN)
+    swSocket *conn = swSocket_accept(socket, &client_addr);
+    if (conn == nullptr && errno == EAGAIN)
     {
         timer_controller timer(&read_timer, timeout == 0 ? read_timeout : timeout, this, timer_callback);
         if (!timer.start() || !wait_event(SW_EVENT_READ))
         {
             return nullptr;
         }
-        conn = swSocket_accept(sock_fd, &client_addr);
+        conn = swSocket_accept(socket, &client_addr);
     }
-    if (conn < 0)
+    if (conn == nullptr)
     {
         set_err(errno);
         return nullptr;

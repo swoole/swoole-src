@@ -127,8 +127,8 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
 static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
 {
     swSocketAddress client_addr;
-    int fd =  swSocket_accept(event->fd, &client_addr);
-    if (fd < 0)
+    swSocket *sock = swSocket_accept(event->socket, &client_addr);
+    if (sock == nullptr)
     {
         switch (errno)
         {
@@ -141,16 +141,10 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
         }
     }
 
-    swSocket *socket = swSocket_new(fd, SW_FD_STREAM);
-    if (!socket)
-    {
-        close(fd);
-        return SW_OK;
-    }
-    socket->socket_type = SW_SOCK_UNIX_STREAM;
-    socket->nonblock = 1;
+    sock->fdtype = SW_FD_STREAM;
+    sock->socket_type = SW_SOCK_UNIX_STREAM;
 
-    return reactor->add(reactor, socket, SW_EVENT_READ);
+    return reactor->add(reactor, sock, SW_EVENT_READ);
 }
 
 static int swWorker_onStreamRead(swReactor *reactor, swEvent *event)

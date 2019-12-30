@@ -49,7 +49,7 @@ static int swFactory_shutdown(swFactory *factory)
 
 static int swFactory_dispatch(swFactory *factory, swSendData *task)
 {
-    swServer *serv = factory->ptr;
+    swServer *serv = (swServer *) factory->ptr;
     swPacket_ptr pkg;
 
     if (swEventData_is_stream(task->info.type))
@@ -94,7 +94,7 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
  */
 static int swFactory_notify(swFactory *factory, swDataHead *info)
 {
-    swServer *serv = factory->ptr;
+    swServer *serv = (swServer *) factory->ptr;
     swConnection *conn = swServer_connection_get(serv, info->fd);
     if (conn == NULL || conn->active == 0)
     {
@@ -116,7 +116,7 @@ static int swFactory_notify(swFactory *factory, swDataHead *info)
 
 static int swFactory_end(swFactory *factory, int fd)
 {
-    swServer *serv = factory->ptr;
+    swServer *serv = (swServer *) factory->ptr;
     swSendData _send;
     swDataHead info;
 
@@ -183,7 +183,7 @@ static int swFactory_end(swFactory *factory, int fd)
 
 int swFactory_finish(swFactory *factory, swSendData *resp)
 {
-    if (swServer_master_send(factory->ptr, resp) < 0)
+    if (swServer_master_send((swServer *) factory->ptr, resp) < 0)
     {
         return SW_ERR;
     }

@@ -34,7 +34,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
-static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd);
+static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, swSocket *_socket, int server_fd);
 
 static void swServer_disable_accept(swServer *serv)
 {
@@ -92,12 +92,10 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
     swServer *serv = (swServer *) reactor->ptr;
     swListenPort *listen_host = (swListenPort *) serv->connection_list[event->fd].object;
 
-    int new_fd = 0, i;
-
-    for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
+    for (int i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
     {
-        new_fd = swSocket_accept(event->fd, &event->socket->info);
-        if (new_fd < 0)
+        swSocket *_socket = swSocket_accept(event->socket, &event->socket->info);
+        if (_socket == nullptr)
         {
             switch (errno)
             {
@@ -118,23 +116,23 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         swTrace("[Master] Accept new connection. maxfd=%d|minfd=%d|reactor_id=%d|conn=%d", swServer_get_maxfd(serv), swServer_get_minfd(serv), reactor->id, new_fd);
 
         //too many connection
-        if (new_fd >= (int) serv->max_connection)
+        if (_socket->fd >= (int) serv->max_connection)
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "Too many connections [now: %d]", new_fd);
-            close(new_fd);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "Too many connections [now: %d]", _socket->fd);
+            swSocket_free(_socket);
             return SW_OK;
         }
 
         //add to connection_list
-        swConnection *conn = swServer_connection_new(serv, listen_host, new_fd, event->fd);
+        swConnection *conn = swServer_connection_new(serv, listen_host, _socket, event->fd);
         if (conn == nullptr)
         {
-            close(new_fd);
+            swSocket_free(_socket);
             return SW_OK;
         }
+
         memcpy(&conn->info.addr, &event->socket->info, sizeof(event->socket->info));
         conn->socket_type = listen_host->type;
-        swSocket *_socket = conn->socket;
 
 #ifdef SW_USE_OPENSSL
         if (listen_host->ssl)
@@ -166,7 +164,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         {
             swDataHead ev = {0};
             ev.type = SW_SERVER_EVENT_INCOMING;
-            ev.fd = new_fd;
+            ev.fd = _socket->fd;
             swSocket *_pipe_sock = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
             if (reactor->write(reactor, _pipe_sock, &ev, sizeof(ev)) < 0)
             {
@@ -175,6 +173,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             }
         }
     }
+
     return SW_OK;
 }
 
@@ -1820,18 +1819,13 @@ void swServer_connection_each(swServer *serv, void (*callback)(swConnection *con
 /**
  * new connection
  */
-static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int server_fd)
+static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, swSocket *_socket, int server_fd)
 {
-    swSocket *_socket = swSocket_new(fd, SW_FD_SESSION);
-    if (_socket == nullptr)
-    {
-        return nullptr;
-    }
-
     serv->stats->accept_count++;
     sw_atomic_fetch_add(&serv->stats->connection_num, 1);
     sw_atomic_fetch_add(&ls->connection_num, 1);
 
+    int fd = _socket->fd;
     if (fd > swServer_get_maxfd(serv))
     {
         swServer_set_maxfd(serv, fd);

@@ -44,7 +44,7 @@ int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t 
     }
 
     int n, sendn;
-    while (offset < length)
+    while (offset < (off_t) length)
     {
         if (swSocket_wait(sock, timeout_ms, SW_EVENT_WRITE) < 0)
         {
@@ -129,7 +129,7 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
 {
     assert(n_fd < 65535);
 
-    struct pollfd *event_list = sw_calloc(n_fd, sizeof(struct pollfd));
+    struct pollfd *event_list = (struct pollfd *) sw_calloc(n_fd, sizeof(*event_list));
     if (!event_list)
     {
         swWarn("malloc[1] failed");
@@ -182,9 +182,9 @@ ssize_t swSocket_write_blocking(int __fd, const void *__data, size_t __len)
     ssize_t n = 0;
     ssize_t written = 0;
 
-    while (written < __len)
+    while (written < (ssize_t) __len)
     {
-        n = write(__fd, __data + written, __len - written);
+        n = write(__fd, (char*) __data + written, __len - written);
         if (n < 0)
         {
             if (errno == EINTR)
@@ -233,20 +233,32 @@ ssize_t swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags)
     return read_bytes;
 }
 
-int swSocket_accept(int fd, swSocketAddress *sa)
+swSocket* swSocket_accept(swSocket *sock, swSocketAddress *sa)
 {
     int conn;
     sa->len = sizeof(sa->addr);
 #ifdef HAVE_ACCEPT4
-    conn = accept4(fd, (struct sockaddr *) &sa->addr, &sa->len, SOCK_NONBLOCK | SOCK_CLOEXEC);
+    conn = accept4(sock->fd, (struct sockaddr *) &sa->addr, &sa->len, SOCK_NONBLOCK | SOCK_CLOEXEC);
 #else
-    conn = accept(fd, (struct sockaddr *) &sa->addr, &sa->len);
+    conn = accept(sock->fd, (struct sockaddr *) &sa->addr, &sa->len);
     if (conn >= 0)
     {
         swoole_fcntl_set_option(conn, 1, 1);
     }
 #endif
-    return conn;
+
+    swSocket *socket = swSocket_new(conn, SW_FD_SESSION);
+    if (!socket)
+    {
+        close(conn);
+    }
+    else
+    {
+        socket->nonblock = 1;
+        socket->cloexec = 1;
+    }
+
+    return socket;
 }
 
 ssize_t swSocket_udp_sendto(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len)
@@ -351,7 +363,7 @@ int swSocket_create(int type)
 
 swSocket* swSocket_new(int fd, enum swFd_type type)
 {
-    swSocket *socket = sw_calloc(1, sizeof(*socket));
+    swSocket *socket = (swSocket *) sw_calloc(1, sizeof(*socket));
     if (!socket)
     {
         swSysWarn("calloc(1, %ld) failed", sizeof(*socket));

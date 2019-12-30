@@ -675,6 +675,7 @@ typedef struct _swSocket
 
     uint8_t removed :1;
     uint8_t nonblock :1;
+    uint8_t cloexec :1;
     uint8_t direct_send :1;
 #ifdef SW_USE_OPENSSL
     uint8_t ssl_send :1;
@@ -1580,7 +1581,7 @@ swSocket* swSocket_new(int fd, enum swFd_type type);
 void swSocket_free(swSocket *sock);
 int swSocket_create(int type);
 int swSocket_bind(int sock, int type, const char *host, int *port);
-int swSocket_accept(int fd, swSocketAddress *sa);
+swSocket* swSocket_accept(swSocket *sock, swSocketAddress *sa);
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
