@@ -347,12 +347,18 @@ bool swoole_websocket_handshake(http_context *ctx)
 
     if (!(pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-key"))))
     {
+        _bad_request:
         ctx->response.status = SW_HTTP_BAD_REQUEST;
         swoole_http_response_end(ctx, nullptr, &retval);
         return false;
     }
 
     zend::string str_pData(pData);
+
+    if (str_pData.len() != BASE64_ENCODE_OUT_SIZE(SW_WEBSOCKET_SEC_KEY_LEN))
+    {
+        goto _bad_request;
+    }
 
     char sha1_str[20];
     // sec_websocket_accept

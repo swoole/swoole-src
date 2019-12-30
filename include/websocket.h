@@ -21,6 +21,7 @@
 
 SW_EXTERN_C_BEGIN
 
+#define SW_WEBSOCKET_SEC_KEY_LEN            16
 #define SW_WEBSOCKET_GUID                   "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 #define SW_WEBSOCKET_HEADER_LEN             2
 #define SW_WEBSOCKET_MASK_LEN               4
