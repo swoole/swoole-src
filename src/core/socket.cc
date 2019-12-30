@@ -247,6 +247,11 @@ swSocket* swSocket_accept(swSocket *sock, swSocketAddress *sa)
     }
 #endif
 
+    if (conn < 0)
+    {
+        return nullptr;
+    }
+
     swSocket *socket = swSocket_new(conn, SW_FD_SESSION);
     if (!socket)
     {
