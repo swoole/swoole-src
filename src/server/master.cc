@@ -94,8 +94,8 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 
     for (int i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
     {
-        swSocket *_socket = swSocket_accept(event->socket, &event->socket->info);
-        if (_socket == nullptr)
+        swSocket *sock = swSocket_accept(event->socket, &event->socket->info);
+        if (sock == nullptr)
         {
             switch (errno)
             {
@@ -113,21 +113,21 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             }
         }
 
-        swTrace("[Master] Accept new connection. maxfd=%d|minfd=%d|reactor_id=%d|conn=%d", swServer_get_maxfd(serv), swServer_get_minfd(serv), reactor->id, new_fd);
+        swTrace("[Master] Accept new connection. maxfd=%d|minfd=%d|reactor_id=%d|conn=%d", swServer_get_maxfd(serv), swServer_get_minfd(serv), reactor->id, sock->fd);
 
         //too many connection
-        if (_socket->fd >= (int) serv->max_connection)
+        if (sock->fd >= (int) serv->max_connection)
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "Too many connections [now: %d]", _socket->fd);
-            swSocket_free(_socket);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "Too many connections [now: %d]", sock->fd);
+            swSocket_free(sock);
             return SW_OK;
         }
 
         //add to connection_list
-        swConnection *conn = swServer_connection_new(serv, listen_host, _socket, event->fd);
+        swConnection *conn = swServer_connection_new(serv, listen_host, sock, event->fd);
         if (conn == nullptr)
         {
-            swSocket_free(_socket);
+            swSocket_free(sock);
             return SW_OK;
         }
 
@@ -137,9 +137,9 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 #ifdef SW_USE_OPENSSL
         if (listen_host->ssl)
         {
-            if (swSSL_create(_socket, listen_host->ssl_context, 0) < 0)
+            if (swSSL_create(sock, listen_host->ssl_context, 0) < 0)
             {
-                reactor->close(reactor, _socket);
+                reactor->close(reactor, sock);
                 return SW_OK;
             }
             else
@@ -149,14 +149,14 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         }
         else
         {
-            _socket->ssl = NULL;
+            sock->ssl = NULL;
         }
 #endif
         if (serv->single_thread)
         {
             if (swServer_connection_incoming(serv, reactor, conn) < 0)
             {
-                reactor->close(reactor, _socket);
+                reactor->close(reactor, sock);
                 return SW_OK;
             }
         }
@@ -164,11 +164,11 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         {
             swDataHead ev = {0};
             ev.type = SW_SERVER_EVENT_INCOMING;
-            ev.fd = _socket->fd;
+            ev.fd = sock->fd;
             swSocket *_pipe_sock = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
             if (reactor->write(reactor, _pipe_sock, &ev, sizeof(ev)) < 0)
             {
-                reactor->close(reactor, _socket);
+                reactor->close(reactor, sock);
                 return SW_OK;
             }
         }
