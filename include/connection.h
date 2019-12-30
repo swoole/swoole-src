@@ -213,6 +213,11 @@ static sw_inline ssize_t swSocket_recv(swSocket *conn, void *__buf, size_t __n, 
     }
 #endif
 
+    if (conn->event_hup && total_bytes < 0 && swConnection_error(errno) == SW_WAIT)
+    {
+        total_bytes = 0;
+    }
+
     swTraceLog(SW_TRACE_SOCKET, "recv %ld/%ld bytes, errno=%d", total_bytes, __n, errno);
 
     return total_bytes;
