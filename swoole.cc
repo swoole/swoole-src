@@ -680,6 +680,8 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 
     rshutdown_callbacks.execute();
 
+    swoole_event_free();
+
     php_swoole_server_rshutdown();
     php_swoole_async_coro_rshutdown();
     php_swoole_redis_server_rshutdown();

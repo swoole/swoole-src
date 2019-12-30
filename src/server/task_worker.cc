@@ -186,10 +186,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 
 void swTaskWorker_onStop(swProcessPool *pool, int worker_id)
 {
-    if (SwooleTG.reactor)
-    {
-        swoole_event_free();
-    }
+    swoole_event_free();
     swServer *serv = (swServer *) pool->ptr;
     swWorker_onStop(serv);
 }

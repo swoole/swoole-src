@@ -553,10 +553,7 @@ static PHP_METHOD(swoole_process_pool, start)
         RETURN_FALSE;
     }
 
-    if (SwooleTG.reactor)
-    {
-        swoole_event_free();
-    }
+    swoole_event_free();
 
     process_pool_property *pp = php_swoole_process_pool_get_and_check_pp(ZEND_THIS);
 

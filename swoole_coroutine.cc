@@ -406,10 +406,7 @@ void PHPCoroutine::error(int type, const char *error_filename, const uint32_t er
             /* update the last coroutine's info */
             save_task(get_task());
         }
-        if (SwooleTG.reactor)
-        {
-            swoole_event_free();
-        }
+        swoole_event_free();
     }
     if (sw_likely(orig_error_function))
     {
@@ -814,10 +811,7 @@ void PHPCoroutine::main_func(void *arg)
 #ifdef SW_CORO_SUPPORT_BAILOUT
     } zend_catch {
         Coroutine::bailout([](){
-            if (SwooleTG.reactor)
-            {
-                swoole_event_free();
-            }
+            swoole_event_free();
             sw_zend_bailout();
         });
     } zend_end_try();
