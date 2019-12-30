@@ -571,7 +571,7 @@ static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, 
                 }
                 else
                 {
-                    swSocket_set_blocking(cli->socket->fd);
+                    swSocket_set_blocking(cli->socket);
                     ret = 0;
                 }
             }
