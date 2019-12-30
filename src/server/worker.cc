@@ -441,7 +441,7 @@ void swWorker_onStart(swServer *serv)
         }
         if (swIsWorker() && worker->pipe_master)
         {
-            swSocket_set_nonblock(worker->pipe_master);
+            swSocket_set_nonblocking(worker->pipe_master);
         }
     }
 
@@ -667,7 +667,7 @@ int swWorker_loop(swServer *serv, int worker_id)
         }
     }
 
-    swSocket_set_nonblock(worker->pipe_worker);
+    swSocket_set_nonblocking(worker->pipe_worker);
     reactor->ptr = serv;
     reactor->add(reactor, worker->pipe_worker, SW_EVENT_READ);
     swReactor_set_handler(reactor, SW_FD_PIPE, swWorker_onPipeReceive);

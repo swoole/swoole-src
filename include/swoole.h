@@ -1593,7 +1593,7 @@ int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t 
 ssize_t swSocket_write_blocking(int __fd, const void *__data, size_t __len);
 ssize_t swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
 
-static sw_inline int swSocket_set_nonblock(swSocket *sock)
+static sw_inline int swSocket_set_nonblocking(swSocket *sock)
 {
     if (swoole_fcntl_set_option(sock->fd, 1, -1) < 0)
     {

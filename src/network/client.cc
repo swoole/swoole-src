@@ -120,7 +120,7 @@ int swClient_create(swClient *cli, int type, int async)
 
     if (async)
     {
-        swSocket_set_nonblock(cli->socket);
+        swSocket_set_nonblocking(cli->socket);
     }
     else
     {
@@ -535,7 +535,7 @@ static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, 
 
     if (nonblock)
     {
-        swSocket_set_nonblock(cli->socket);
+        swSocket_set_nonblocking(cli->socket);
     }
     else
     {
@@ -557,7 +557,7 @@ static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, 
         }
         else
         {
-            swSocket_set_nonblock(cli->socket);
+            swSocket_set_nonblocking(cli->socket);
             ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
             if (ret < 0)
             {

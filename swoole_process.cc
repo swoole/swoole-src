@@ -1307,6 +1307,6 @@ static PHP_METHOD(swoole_process, setBlocking)
     }
     else
     {
-        swSocket_set_nonblock(process->pipe_current);
+        swSocket_set_nonblocking(process->pipe_current);
     }
 }

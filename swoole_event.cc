@@ -554,7 +554,7 @@ static PHP_FUNCTION(swoole_event_add)
         RETURN_FALSE;
     }
 
-    swSocket_set_nonblock(socket);
+    swSocket_set_nonblocking(socket);
     socket->object = peo;
 
     if (swoole_event_add(socket, events) < 0)

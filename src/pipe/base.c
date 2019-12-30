@@ -49,8 +49,8 @@ int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking)
     }
     else
     {
-        swSocket_set_nonblock(p->worker_socket);
-        swSocket_set_nonblock(p->master_socket);
+        swSocket_set_nonblocking(p->worker_socket);
+        swSocket_set_nonblocking(p->master_socket);
     }
 
     return SW_OK;
