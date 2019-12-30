@@ -120,6 +120,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "Too many connections [now: %d]", sock->fd);
             swSocket_free(sock);
+            swServer_disable_accept(serv);
             return SW_OK;
         }
 
