@@ -1680,13 +1680,10 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         close(sock);
         return nullptr;
     }
-    //dgram socket, setting socket buffer size
     if (swSocket_is_dgram(ls->type))
     {
+        //dgram socket, setting socket buffer size
         swSocket_set_buffer_size(ls->socket, ls->socket_buffer_size);
-    }
-    if (swSocket_is_dgram(ls->type))
-    {
         serv->have_dgram_sock = 1;
         serv->dgram_port_num++;
         if (ls->type == SW_SOCK_UDP)
