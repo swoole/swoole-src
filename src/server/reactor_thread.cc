@@ -484,8 +484,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, in
     {
         int pipe_fd = worker->pipe_master;
         swConnection *conn = swServer_connection_get(serv, pipe_fd);
-        int thread_id = conn->reactor_id;
-        swReactorThread *thread = swServer_get_thread(serv, thread_id);
+        swReactorThread *thread = swServer_get_thread(serv, conn->reactor_id);
         swLock *lock = (swLock *) conn->object;
 
         //lock thread
@@ -805,8 +804,6 @@ int swReactorThread_start(swServer *serv)
     }
 
     swReactor *reactor = SwooleTG.reactor;
-    reactor->disable_accept = 0;
-    reactor->enable_accept = swServer_enable_accept;
 
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd)

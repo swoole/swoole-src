@@ -8,7 +8,9 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
     go(function () use ($pm) {
-        echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        Assert::throws(function () use ($pm) {
+            httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
+        }, Exception::class);
         $pm->kill();
     });
 };

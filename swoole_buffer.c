@@ -16,6 +16,59 @@
 
 #include "php_swoole.h"
 
+zend_class_entry *swoole_buffer_ce;
+static zend_object_handlers swoole_buffer_handlers;
+
+typedef struct
+{
+    swString *ptr;
+    zend_object std;
+} buffer_t;
+
+static sw_inline buffer_t* php_swoole_buffer_fetch_object(zend_object *obj)
+{
+    return (buffer_t *) ((char *) obj - swoole_buffer_handlers.offset);
+}
+
+static swString * php_swoole_buffer_get_ptr(zval *zobject)
+{
+    return php_swoole_buffer_fetch_object(Z_OBJ_P(zobject))->ptr;
+}
+
+static swString * php_swoole_buffer_get_and_check_ptr(zval *zobject)
+{
+    swString *buffer = php_swoole_buffer_get_ptr(zobject);
+    if (!buffer)
+    {
+        php_swoole_fatal_error(E_ERROR, "you must call Buffer constructor first");
+    }
+    return buffer;
+}
+
+void php_swoole_buffer_set_ptr(zval *zobject, swString *ptr)
+{
+    php_swoole_buffer_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
+}
+
+static void php_swoole_buffer_free_object(zend_object *object)
+{
+    buffer_t *buffer = php_swoole_buffer_fetch_object(object);
+    if (buffer->ptr)
+    {
+        swString_free(buffer->ptr);
+    }
+    zend_object_std_dtor(object);
+}
+
+static zend_object *php_swoole_buffer_create_object(zend_class_entry *ce)
+{
+    buffer_t *buffer = (buffer_t *) ecalloc(1, sizeof(buffer_t) + zend_object_properties_size(ce));
+    zend_object_std_init(&buffer->std, ce);
+    object_properties_init(&buffer->std, ce);
+    buffer->std.handlers = &swoole_buffer_handlers;
+    return &buffer->std;
+}
+
 static PHP_METHOD(swoole_buffer, __construct);
 static PHP_METHOD(swoole_buffer, __destruct);
 static PHP_METHOD(swoole_buffer, __toString);
@@ -73,16 +126,13 @@ static const zend_function_entry swoole_buffer_methods[] =
     PHP_FE_END
 };
 
-zend_class_entry *swoole_buffer_ce;
-static zend_object_handlers swoole_buffer_handlers;
-
 void php_swoole_buffer_minit(int module_number)
 {
     SW_INIT_CLASS_ENTRY(swoole_buffer, "Swoole\\Buffer", "swoole_buffer", NULL, swoole_buffer_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_buffer, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_buffer, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_buffer, sw_zend_class_unset_property_deny);
-    // SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_buffer);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_buffer, php_swoole_buffer_create_object, php_swoole_buffer_free_object, buffer_t, std);
 
     zend_declare_property_long(swoole_buffer_ce, ZEND_STRL("capacity"), SW_STRING_BUFFER_DEFAULT, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_buffer_ce, ZEND_STRL("length"), 0, ZEND_ACC_PUBLIC);
@@ -104,6 +154,12 @@ static PHP_METHOD(swoole_buffer, __construct)
         ZSTR_VAL(swoole_buffer_ce->name)
     );
 
+    swString *buffer = php_swoole_buffer_get_ptr(ZEND_THIS);
+    if (buffer)
+    {
+        php_swoole_fatal_error(E_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+    }
+
     zend_long size = SW_STRING_BUFFER_DEFAULT;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
@@ -122,34 +178,24 @@ static PHP_METHOD(swoole_buffer, __construct)
         RETURN_FALSE;
     }
 
-    swString *buffer = swString_new(size);
+    buffer = swString_new(size);
     if (buffer == NULL)
     {
         zend_throw_exception_ex(swoole_exception_ce, errno, "malloc(" ZEND_LONG_FMT ") failed", size);
         RETURN_FALSE;
     }
 
-    swoole_set_object(ZEND_THIS, buffer);
+    php_swoole_buffer_set_ptr(ZEND_THIS, buffer);
     zend_update_property_long(swoole_buffer_ce, ZEND_THIS, ZEND_STRL("capacity"), size);
     zend_update_property_long(swoole_buffer_ce, ZEND_THIS, ZEND_STRL("length"), 0);
 }
 
-static PHP_METHOD(swoole_buffer, __destruct)
-{
-    SW_PREVENT_USER_DESTRUCT();
-
-    swString *buffer = swoole_get_object(ZEND_THIS);
-    if (buffer)
-    {
-        swString_free(buffer);
-    }
-    swoole_set_object(ZEND_THIS, NULL);
-}
+static PHP_METHOD(swoole_buffer, __destruct) { }
 
 static PHP_METHOD(swoole_buffer, append)
 {
-    swString str;
-    bzero(&str, sizeof(str));
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
+    swString str = { 0 };
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &str.str, &str.length) == FAILURE)
     {
@@ -160,7 +206,6 @@ static PHP_METHOD(swoole_buffer, append)
         php_error_docref(NULL, E_WARNING, "string empty");
         RETURN_FALSE;
     }
-    swString *buffer = swoole_get_object(ZEND_THIS);
 
     if ((str.length + buffer->length) > buffer->size && (str.length + buffer->length) > SW_STRING_BUFFER_MAXLEN)
     {
@@ -187,6 +232,7 @@ static PHP_METHOD(swoole_buffer, append)
 
 static PHP_METHOD(swoole_buffer, substr)
 {
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
     zend_long offset;
     zend_long length = -1;
     zend_bool remove = 0;
@@ -195,7 +241,6 @@ static PHP_METHOD(swoole_buffer, substr)
     {
         RETURN_FALSE;
     }
-    swString *buffer = swoole_get_object(ZEND_THIS);
 
     if (remove && !(offset == 0 && length <= buffer->length))
     {
@@ -230,16 +275,15 @@ static PHP_METHOD(swoole_buffer, substr)
 
 static PHP_METHOD(swoole_buffer, __toString)
 {
-    swString *buffer = swoole_get_object(ZEND_THIS);
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
     RETURN_STRINGL(buffer->str + buffer->offset, buffer->length - buffer->offset);
 }
 
 static PHP_METHOD(swoole_buffer, write)
 {
-    long offset;
-    swString str;
-
-    bzero(&str, sizeof(str));
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
+    zend_long offset;
+    swString str = { 0 };
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "ls", &offset, &str.str, &str.length) == FAILURE)
     {
@@ -252,15 +296,13 @@ static PHP_METHOD(swoole_buffer, write)
         RETURN_FALSE;
     }
 
-    swString *buffer = swoole_get_object(ZEND_THIS);
-
     if (offset < 0)
     {
         offset = buffer->length - buffer->offset + offset;
     }
     if (offset < 0)
     {
-        php_error_docref(NULL, E_WARNING, "offset(%ld) is out of bounds", offset);
+        php_error_docref(NULL, E_WARNING, "offset(" ZEND_LONG_FMT ") is out of bounds", offset);
         RETURN_FALSE;
     }
 
@@ -291,15 +333,14 @@ static PHP_METHOD(swoole_buffer, write)
 
 static PHP_METHOD(swoole_buffer, read)
 {
-    long offset;
-    long length;
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
+    zend_long offset;
+    zend_long length;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "ll", &offset, &length) == FAILURE)
     {
         RETURN_FALSE;
     }
-
-    swString *buffer = swoole_get_object(ZEND_THIS);
 
     if (offset < 0)
     {
@@ -307,7 +348,7 @@ static PHP_METHOD(swoole_buffer, read)
     }
     if (offset < 0)
     {
-        php_error_docref(NULL, E_WARNING, "offset(%ld) is out of bounds", offset);
+        php_error_docref(NULL, E_WARNING, "offset(" ZEND_LONG_FMT ") is out of bounds", offset);
         RETURN_FALSE;
     }
 
@@ -323,14 +364,13 @@ static PHP_METHOD(swoole_buffer, read)
 
 static PHP_METHOD(swoole_buffer, expand)
 {
-    long size = -1;
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
+    zend_long size = -1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &size) == FAILURE)
     {
         RETURN_FALSE;
     }
-
-    swString *buffer = swoole_get_object(ZEND_THIS);
 
     if (size <= buffer->size)
     {
@@ -351,16 +391,16 @@ static PHP_METHOD(swoole_buffer, expand)
 
 static PHP_METHOD(swoole_buffer, recycle)
 {
-    swString *buffer = swoole_get_object(ZEND_THIS);
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
 
     swoole_buffer_recycle(buffer);
-
     zend_update_property_long(swoole_buffer_ce, ZEND_THIS, ZEND_STRL("length"), buffer->length);
 }
 
 static PHP_METHOD(swoole_buffer, clear)
 {
-    swString *buffer = swoole_get_object(ZEND_THIS);
+    swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
+
     buffer->length = 0;
     buffer->offset = 0;
     zend_update_property_long(swoole_buffer_ce, ZEND_THIS, ZEND_STRL("length"), 0);

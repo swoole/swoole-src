@@ -4,6 +4,8 @@ swoole_websocket_server: websocket frame pack/unpack
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
+declare(strict_types=1);
+
 require __DIR__ . '/../include/bootstrap.php';
 
 error_reporting(error_reporting() & ~(E_NOTICE));
@@ -20,7 +22,6 @@ for ($i = 1000; $i--;) {
         $data = substr($data, -mt_rand(3, 125), 125);
     }
     $finish = !!mt_rand(0, 1);
-    $mask = !!mt_rand(0, 1);
 
     // pack them
     if (mt_rand(0, 1) || $opcode === WEBSOCKET_OPCODE_CLOSE) {
@@ -34,7 +35,6 @@ for ($i = 1000; $i--;) {
         }
         $frame->opcode = $opcode;
         $frame->finish = $finish;
-        $frame->mask = $mask;
         if (!mt_rand(0, 4)) {
             unset($frame->data);
             unset($frame->reason);
@@ -46,7 +46,7 @@ for ($i = 1000; $i--;) {
             $packed = f::pack($frame);
         }
     } else {
-        $packed = f::pack($data, $opcode, $finish, $mask);
+        $packed = f::pack($data, $opcode, $finish);
     }
 
     // unpack

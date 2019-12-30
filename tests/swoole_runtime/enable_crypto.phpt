@@ -4,6 +4,7 @@ swoole_runtime: stream_socket_enable_crypto
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_no_ssl();
+skip_if_offline();
 ?>
 --FILE--
 <?php

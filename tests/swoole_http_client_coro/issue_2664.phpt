@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     Co\Run(function () use ($pm) {
-        var_dump(httpRequest("http://127.0.0.1:{$pm->getFreePort()}")->set_cookie_headers);
+        var_dump(httpRequest("http://127.0.0.1:{$pm->getFreePort()}")['set_cookie_headers']);
     });
     $pm->kill();
 };

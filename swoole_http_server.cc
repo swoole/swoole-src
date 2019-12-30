@@ -28,7 +28,8 @@ using namespace swoole;
 using swoole::coroutine::Socket;
 
 swString *swoole_http_buffer;
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
+/* not only be used by zlib but also be used by br */
 swString *swoole_zlib_buffer;
 #endif
 swString *swoole_http_form_data_buffer;
@@ -87,7 +88,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
 
     size_t parsed_n = swoole_http_requset_parse(ctx, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
-    if (parsed_n < Z_STRLEN_P(zdata))
+    if (ctx->parser.state == s_dead)
     {
 #ifdef SW_HTTP_BAD_REQUEST_PACKET
         ctx->send(ctx, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
@@ -156,8 +157,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
 void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
 {
-    int fd = ev->fd;
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = swWorker_get_connection(serv, ev->fd);
     if (!conn)
     {
         return;
@@ -177,7 +177,6 @@ void php_swoole_http_server_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_http_server, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_http_server);
 
     zend_declare_property_null(swoole_http_server_ce, ZEND_STRL("onRequest"), ZEND_ACC_PRIVATE);
 }
@@ -194,12 +193,12 @@ http_context* swoole_http_context_new(int fd)
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
     object_init_ex(zrequest_object, swoole_http_request_ce);
-    swoole_set_object(zrequest_object, ctx);
+    php_swoole_http_request_set_context(zrequest_object, ctx);
 
     zval *zresponse_object = &ctx->response._zobject;
     ctx->response.zobject = zresponse_object;
     object_init_ex(zresponse_object, swoole_http_response_ce);
-    swoole_set_object(zresponse_object, ctx);
+    php_swoole_http_response_set_context(zresponse_object, ctx);
 
     zend_update_property_long(swoole_http_request_ce, zrequest_object, ZEND_STRL("fd"), fd);
     zend_update_property_long(swoole_http_response_ce, zresponse_object, ZEND_STRL("fd"), fd);
@@ -220,7 +219,7 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx)
     ctx->parse_cookie = serv->http_parse_cookie;
     ctx->parse_body = serv->http_parse_post;
     ctx->parse_files = serv->http_parse_files;
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     ctx->enable_compression = serv->http_compression;
 #endif
     ctx->private_data = serv;
@@ -235,7 +234,7 @@ void swoole_http_context_copy(http_context *src, http_context *dst)
     dst->parse_cookie = src->parse_cookie;
     dst->parse_body = src->parse_body;
     dst->parse_files = src->parse_files;
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     dst->enable_compression = src->enable_compression;
 #endif
     dst->private_data = src->private_data;
@@ -247,11 +246,18 @@ void swoole_http_context_copy(http_context *src, http_context *dst)
 
 void swoole_http_context_free(http_context *ctx)
 {
-    if (ctx->request.zobject)
+    /* http context can only be free'd after request and response were free'd */
+    if (ctx->request.zobject || ctx->response.zobject)
     {
-        swoole_set_object(ctx->request.zobject, NULL);
+        return;
     }
-    swoole_set_object(ctx->response.zobject, NULL);
+#ifdef SW_USE_HTTP2
+    if (ctx->stream)
+    {
+        ((http2_stream *) ctx->stream)->ctx = nullptr;
+    }
+#endif
+
     http_request *req = &ctx->request;
     http_response *res = &ctx->response;
     if (req->path)
@@ -280,14 +286,14 @@ void php_swoole_http_server_init_global_variant()
     swoole_http_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_http_buffer)
     {
-        php_swoole_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
+        php_swoole_fatal_error(E_ERROR, "[swoole_http_buffer] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
         return;
     }
 
     swoole_http_form_data_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_http_form_data_buffer)
     {
-        php_swoole_fatal_error(E_ERROR, "[2] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
+        php_swoole_fatal_error(E_ERROR, "[swoole_http_form_data_buffer] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
         return;
     }
 
@@ -299,12 +305,22 @@ void php_swoole_http_server_init_global_variant()
     }
 }
 
-http_context* swoole_http_context_get(zval *zobject, const bool check_end)
+http_context* php_swoole_http_request_get_and_check_context(zval *zobject)
 {
-    http_context *ctx = (http_context *) swoole_get_object(zobject);
-    if (!ctx || (check_end && ctx->end))
+    http_context *ctx = php_swoole_http_request_get_context(zobject);
+    if (!ctx)
     {
-        php_swoole_fatal_error(E_WARNING, "http context is unavailable (maybe it has been ended or detached)");
+        php_swoole_fatal_error(E_WARNING, "http request is unavailable (maybe it has been ended)");
+    }
+    return ctx;
+}
+
+http_context* php_swoole_http_response_get_and_check_context(zval *zobject)
+{
+    http_context *ctx = php_swoole_http_response_get_context(zobject);
+    if (!ctx || (ctx->end || ctx->detached))
+    {
+        php_swoole_fatal_error(E_WARNING, "http response is unavailable (maybe it has been ended or detached)");
         return NULL;
     }
     return ctx;

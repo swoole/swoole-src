@@ -3,6 +3,7 @@ swoole_runtime: stream context
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+skip_if_offline();
 ?>
 --FILE--
 <?php

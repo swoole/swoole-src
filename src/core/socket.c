@@ -191,9 +191,9 @@ int swSocket_write_blocking(int __fd, const void *__data, int __len)
             {
                 continue;
             }
-            else if (swConnection_error(errno) == SW_WAIT)
+            else if (swConnection_error(errno) == SW_WAIT
+                    && swSocket_wait(__fd, (int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK)
             {
-                swSocket_wait(__fd, SW_WORKER_WAIT_TIMEOUT, SW_EVENT_WRITE);
                 continue;
             }
             else
@@ -296,22 +296,16 @@ ssize_t swSocket_sendto_blocking(int fd, const void *__buf, size_t __n, int flag
         {
             break;
         }
-        else
+        if (errno == EINTR)
         {
-            if (errno == EINTR)
-            {
-                continue;
-            }
-            else if (swConnection_error(errno) == SW_WAIT)
-            {
-                swSocket_wait(fd, 1000, SW_EVENT_WRITE);
-                continue;
-            }
-            else
-            {
-                break;
-            }
+            continue;
         }
+        if (swConnection_error(errno) == SW_WAIT
+                && swSocket_wait(fd, (int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK)
+        {
+            continue;
+        }
+        break;
     }
 
     return n;
@@ -486,7 +480,7 @@ int swSocket_create_server(int type, const char *address, int port, int backlog)
     char host[32];
     int port = 0;
 
-    if (strncasecmp(address, "unix:/", 6) == 0)
+    if (SW_STRCASECT(address, strlen(address), "unix:/"))
     {
         address += 5;
         type = SW_SOCK_UNIX_STREAM;

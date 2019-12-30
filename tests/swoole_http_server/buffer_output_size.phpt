@@ -13,8 +13,9 @@ $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $response = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}", ['timeout' => 0.1]);
         Assert::same(strrpos($response, RANDOM_CHAR) + 1, BUFFER_OUTPUT_SIZE - HTTP_HEADER_SIZE);
-        $response = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/full", ['timeout' => 0.1]);
-        Assert::assert(!$response);
+        Assert::throws(function () use ($pm) {
+            $response = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/full", ['timeout' => 0.1]);
+        }, Exception::class);
         echo file_get_contents(TEST_LOG_FILE);
         $pm->kill();
         echo "DONE\n";

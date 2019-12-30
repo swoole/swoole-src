@@ -13,6 +13,7 @@ dnl  | to obtain it through the world-wide-web, please send a note to       |
 dnl  | license@swoole.com so we can mail you a copy immediately.            |
 dnl  +----------------------------------------------------------------------+
 dnl  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+dnl  | Author: Twosee  <twose@qq.com>                                       |
 dnl  +----------------------------------------------------------------------+
 
 PHP_ARG_ENABLE(debug-log, enable debug log,
@@ -25,16 +26,16 @@ PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets          Do you have sockets extension?], no, no)
 
 PHP_ARG_ENABLE(openssl, enable openssl support,
-[  --enable-openssl          Use openssl?], no, no)
+[  --enable-openssl          Use openssl], no, no)
 
 PHP_ARG_ENABLE(http2, enable http2.0 support,
-[  --enable-http2            Use http2.0?], no, no)
+[  --enable-http2            Use http2.0], no, no)
 
 PHP_ARG_ENABLE(swoole, swoole support,
 [  --enable-swoole           Enable swoole support], [enable_swoole="yes"])
 
 PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
-[  --enable-mysqlnd          Do you have mysqlnd?], no, no)
+[  --enable-mysqlnd          Enable mysqlnd], no, no)
 
 PHP_ARG_WITH(openssl_dir, dir of openssl,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
@@ -278,14 +279,19 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
 
-    AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
-        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
-        PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
-    ])
-
     AC_CHECK_LIB(z, gzgets, [
+        AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
+    ])
+
+    AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
+        AC_CHECK_LIB(brotlidec, BrotliDecoderCreateInstance, [
+            AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
+            AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
+            PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
+            PHP_ADD_LIBRARY(brotlidec, 1, SWOOLE_SHARED_LIBADD)
+        ])
     ])
 
     PHP_ADD_LIBRARY(pthread)
@@ -390,7 +396,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
-    if test "$PHP_HTTP2" = "yes" || test "$PHP_NGHTTP2_DIR" != "no"; then
+    if test "$PHP_HTTP2" = "yes"; then
         AC_DEFINE(SW_USE_HTTP2, 1, [enable HTTP2 support])
     fi
 
@@ -437,7 +443,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/memory/shared_memory.c \
         src/memory/table.c \
         src/network/client.c \
-        src/network/connection.c \
+        src/network/connection.cc \
         src/network/dns.cc \
         src/network/process_pool.c \
         src/network/stream.c \
@@ -455,7 +461,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/pipe/unix_socket.c \
         src/protocol/base.cc \
         src/protocol/base64.c \
-        src/protocol/http.c \
+        src/protocol/http.cc \
         src/protocol/http2.c \
         src/protocol/mime_types.cc \
         src/protocol/mqtt.c \

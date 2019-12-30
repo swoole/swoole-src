@@ -296,7 +296,7 @@ void swoole::async::ThreadPool::create_thread(const bool is_core_worker)
                         {
                             if (errno == EAGAIN)
                             {
-                                swSocket_wait(SwooleTG.aio_pipe_write, 1000, SW_EVENT_WRITE);
+                                swSocket_wait(event->pipe_fd, 1000, SW_EVENT_WRITE);
                                 continue;
                             }
                             else if (errno == EINTR)
@@ -350,6 +350,7 @@ void swoole::async::ThreadPool::create_thread(const bool is_core_worker)
                                 event->object = new thread::id(this_thread::get_id());
                                 event->callback = aio_thread_release;
                                 event->pipe_fd = SwooleG.aio_default_pipe_fd;
+                                event->canceled = false;
 
                                 --n_waiting;
                                 ++n_closing;
@@ -488,7 +489,7 @@ int swAio_callback(swReactor *reactor, swEvent *event)
         AsyncEvent *event = events[i];
         if (!event->canceled)
         {
-            event->callback(events[i]);
+            event->callback(event);
         }
         SwooleTG.aio_task_num--;
         delete event;

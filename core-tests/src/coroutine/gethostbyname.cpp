@@ -5,45 +5,31 @@
 using swoole::Coroutine;
 using swoole::coroutine::System;
 
-TEST(coroutine_gethostbyname, resolve_with_cache)
+TEST(coroutine_gethostbyname, resolve_cache)
 {
     coro_test([](void *arg)
     {
         System::set_dns_cache_capacity(10);
-
         std::string addr1 = System::gethostbyname("www.baidu.com", AF_INET);
         ASSERT_NE(addr1, "");
-
-        int64_t start = swTimer_get_absolute_msec();
-
+        int64_t with_cache = swTimer_get_absolute_msec();
         for (int i = 0; i < 100; ++i)
         {
             std::string addr2 = System::gethostbyname("www.baidu.com", AF_INET);
             ASSERT_EQ(addr1, addr2);
         }
+        with_cache = swTimer_get_absolute_msec() - with_cache;
 
-        ASSERT_LT(swTimer_get_absolute_msec() - start, 5);
-    });
-}
-
-TEST(coroutine_gethostbyname, resolve_without_cache)
-{
-    coro_test([](void *arg)
-    {
         System::set_dns_cache_capacity(0);
-
-        std::string addr1 = System::gethostbyname("www.baidu.com", AF_INET);
-        ASSERT_NE(addr1, "");
-
-        int64_t start = swTimer_get_absolute_msec();
-
+        int64_t without_cache = swTimer_get_absolute_msec();
         for (int i = 0; i < 5; ++i)
         {
             std::string addr2 = System::gethostbyname("www.baidu.com", AF_INET);
             ASSERT_NE(addr2, "");
         }
+        without_cache = swTimer_get_absolute_msec() - without_cache;
 
-        ASSERT_GT(swTimer_get_absolute_msec() - start, 5);
+        ASSERT_GT(without_cache, with_cache);
     });
 }
 

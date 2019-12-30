@@ -62,6 +62,10 @@ struct php_coro_task
     zend_output_globals *output_ptr;
     /* for array_walk non-reentrancy */
     php_swoole_fci *array_walk_fci;
+    /* for error control `@` */
+    bool in_silence;
+    int ori_error_reporting;
+    int tmp_error_reporting;
     swoole::Coroutine *co;
     std::stack<php_swoole_fci *> *defer_tasks;
     long pcid;

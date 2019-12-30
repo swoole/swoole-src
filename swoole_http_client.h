@@ -14,23 +14,26 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SWOOLE_HTTP_CLIENT_H_
-#define SWOOLE_HTTP_CLIENT_H_
+#pragma once
+
+#include "swoole_http.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+#include "websocket.h"
+#include "thirdparty/swoole_http_parser.h"
 
 #include "ext/standard/basic_functions.h"
 #include "ext/standard/php_http.h"
 #include "ext/standard/base64.h"
 
-#include "swoole_http.h"
-#include "websocket.h"
-#include "thirdparty/swoole_http_parser.h"
-
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 enum http_client_error_status_code
@@ -39,12 +42,6 @@ enum http_client_error_status_code
     HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT = -2,
     HTTP_CLIENT_ESTATUS_SERVER_RESET = -3,
     HTTP_CLIENT_ESTATUS_SEND_FAILED = -4,
-};
-
-enum http_client_error_flags
-{
-    HTTP_CLIENT_EFLAG_TIMEOUT = 1,
-    HTTP_CLIENT_EFLAG_UPGRADE = 1 << 1,
 };
 
 static sw_inline void http_client_create_token(int length, char *buf)
@@ -59,24 +56,6 @@ static sw_inline void http_client_create_token(int length, char *buf)
     buf[length] = '\0';
 }
 
-static sw_inline int http_client_check_data(zval *data)
-{
-    if (Z_TYPE_P(data) != IS_ARRAY && Z_TYPE_P(data) != IS_STRING)
-    {
-        php_swoole_error(E_WARNING, "parameter $data must be an array or string");
-        return SW_ERR;
-    }
-    else if (Z_TYPE_P(data) == IS_ARRAY && php_swoole_array_length(data) == 0)
-    {
-        php_swoole_error(E_WARNING, "parameter $data is empty");
-    }
-    else if (Z_TYPE_P(data) == IS_STRING && Z_STRLEN_P(data) == 0)
-    {
-        php_swoole_error(E_WARNING, "parameter $data is empty");
-    }
-    return SW_OK;
-}
-
 static sw_inline void http_client_swString_append_headers(swString* swStr, const char* key, size_t key_len, const char* data, size_t data_len)
 {
     swString_append_ptr(swStr, key, key_len);
@@ -88,16 +67,6 @@ static sw_inline void http_client_swString_append_headers(swString* swStr, const
 static sw_inline void http_client_append_content_length(swString* buf, int length)
 {
     char content_length_str[32];
-    int n = snprintf(content_length_str, sizeof(content_length_str), "Content-Length: %d\r\n\r\n", length);
+    int n = snprintf(SW_STRS(content_length_str), "Content-Length: %d\r\n\r\n", length);
     swString_append_ptr(buf, content_length_str, n);
 }
-
-#ifdef SW_HAVE_ZLIB
-extern swString *swoole_zlib_buffer;
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* SWOOLE_HTTP_CLIENT_H_ */

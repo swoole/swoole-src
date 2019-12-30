@@ -222,7 +222,7 @@ void swSSL_server_http_advise(SSL_CTX* ssl_context, swSSL_config *cfg)
 
     if (cfg->http)
     {
-        SSL_CTX_set_session_id_context(ssl_context, (const unsigned char *) "HTTP", strlen("HTTP"));
+        SSL_CTX_set_session_id_context(ssl_context, (const unsigned char *) "HTTP", sizeof("HTTP") - 1);
         SSL_CTX_set_session_cache_mode(ssl_context, SSL_SESS_CACHE_SERVER);
         SSL_CTX_sess_set_cache_size(ssl_context, 1);
     }
@@ -568,7 +568,7 @@ static int swSSL_check_name(char *name, ASN1_STRING *pattern)
     uchar *p = ASN1_STRING_data(pattern);
     plen = ASN1_STRING_length(pattern);
 
-    if (slen == plen && strncasecmp(s, (char*) p, plen) == 0)
+    if (swoole_strcaseeq(s, slen, (char*) p, plen))
     {
         return SW_OK;
     }
@@ -588,7 +588,7 @@ static int swSSL_check_name(char *name, ASN1_STRING *pattern)
 
         slen = end - s;
 
-        if (plen == slen && strncasecmp(s, (char*) p, plen) == 0)
+        if (swoole_strcaseeq(s, slen, (char*) p, plen))
         {
             return SW_OK;
         }

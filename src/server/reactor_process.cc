@@ -364,8 +364,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     reactor->max_socket = serv->max_connection;
 
-    reactor->disable_accept = 0;
-    reactor->enable_accept = swServer_enable_accept;
     reactor->close = swReactorThread_close;
 
     //set event handler

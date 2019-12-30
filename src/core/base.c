@@ -94,7 +94,7 @@ void swoole_init(void)
         exit(1);
     }
 
-    SwooleG.max_sockets = 1024;
+    SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {
@@ -102,17 +102,18 @@ void swoole_init(void)
     }
     else
     {
-        SwooleG.max_sockets = MAX((uint32_t) rlmt.rlim_cur, 1024);
+        SwooleG.max_sockets = MAX((uint32_t) rlmt.rlim_cur, SW_MAX_SOCKETS_DEFAULT);
         SwooleG.max_sockets = MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
 
     SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
-    SwooleG.socket_array = swArray_new(1024, sizeof(swSocket));
+    SwooleG.socket_array = swArray_new(SW_SOCKET_ARRAY_INIT_SIZE, sizeof(swSocket));
     if (!SwooleG.socket_array)
     {
         swSysWarn("[Core] Fatal Error: socket array memory allocation failure");
         exit(1);
     }
+    SwooleG.socket_send_timeout = SW_SOCKET_SEND_TIMEOUT;
 
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == NULL)
@@ -143,6 +144,16 @@ void swoole_init(void)
     SwooleG.use_signalfd = 1;
     SwooleG.enable_signalfd = 1;
 #endif
+}
+
+SW_API const char* swoole_version(void)
+{
+    return SWOOLE_VERSION;
+}
+
+SW_API int swoole_version_id(void)
+{
+    return SWOOLE_VERSION_ID;
 }
 
 void swoole_clean(void)
@@ -178,18 +189,25 @@ pid_t swoole_fork(int flags)
         if (swoole_coroutine_is_in())
         {
             swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "must be forked outside the coroutine");
-            return -1;
         }
         if (SwooleTG.aio_init)
         {
-            swError("can not create server after using async file operation");
-            return -1;
+            swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "can not create server after using async file operation");
         }
+    }
+    if (flags & SW_FORK_PRECHECK)
+    {
+        return 0;
     }
 
     pid_t pid = fork();
     if (pid == 0)
     {
+        if (flags & SW_FORK_DAEMON)
+        {
+            SwooleG.pid = getpid();
+            return pid;
+        }
         /**
          * [!!!] All timers and event loops must be cleaned up after fork
          */

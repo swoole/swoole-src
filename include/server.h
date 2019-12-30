@@ -430,12 +430,14 @@ struct _swServer
      * parse multipart/form-data files to match $_FILES
      */
     uint32_t http_parse_files :1;
-#ifdef SW_HAVE_ZLIB
     /**
      * http content compression
      */
     uint32_t http_compression :1;
-#endif
+    /**
+     * RFC-7692
+     */
+    uint32_t websocket_compression :1;
     /**
      * handle static files
      */
@@ -495,6 +497,7 @@ struct _swServer
     long timezone;
     swTimer_node *master_timer;
     swTimer_node *heartbeat_timer;
+    swTimer_node *enable_accept_timer;
 
     /* buffer output/input setting*/
     uint32_t buffer_output_size;
@@ -635,7 +638,7 @@ int swServer_add_worker(swServer *serv, swWorker *worker);
 int swServer_add_systemd_socket(swServer *serv);
 int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback func, int push_back);
 void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg);
-
+void swServer_clear_timer(swServer *serv);
 int swServer_create(swServer *serv);
 int swServer_shutdown(swServer *serv);
 
@@ -704,7 +707,6 @@ void swServer_worker_start(swServer *serv, swWorker *worker);
 
 swString** swServer_create_worker_buffer(swServer *serv);
 int swServer_create_task_worker(swServer *serv);
-void swServer_enable_accept(swReactor *reactor);
 void swServer_reopen_log_file(swServer *serv);
 
 void swTaskWorker_init(swServer *serv);
@@ -959,11 +961,7 @@ static sw_inline swConnection *swServer_connection_verify(swServer *serv, int se
 {
     swConnection *conn = swServer_connection_verify_no_ssl(serv, session_id);
 #ifdef SW_USE_OPENSSL
-    if (!conn)
-    {
-        return NULL;
-    }
-    if (conn->ssl && !conn->ssl_ready)
+    if (conn && conn->ssl && !conn->ssl_ready)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SSL_NOT_READY, "SSL not ready");
         return NULL;
@@ -1019,7 +1017,15 @@ static sw_inline int swServer_get_send_pipe(swServer *serv, int session_id, int 
 
 static sw_inline uint8_t swServer_support_unsafe_events(swServer *serv)
 {
-    return !serv->enable_unsafe_event && serv->dispatch_mode != SW_DISPATCH_ROUND && serv->dispatch_mode != SW_DISPATCH_QUEUE && serv->dispatch_mode != SW_DISPATCH_STREAM;
+    if (serv->dispatch_mode != SW_DISPATCH_ROUND && serv->dispatch_mode != SW_DISPATCH_QUEUE
+            && serv->dispatch_mode != SW_DISPATCH_STREAM)
+    {
+        return 1;
+    }
+    else
+    {
+        return serv->enable_unsafe_event;
+    }
 }
 
 static sw_inline uint8_t swServer_dispatch_mode_is_mod(swServer *serv)

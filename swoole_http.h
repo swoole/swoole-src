@@ -112,15 +112,16 @@ struct http_context
     uint32_t completed :1;
     uint32_t end :1;
     uint32_t send_header :1;
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     uint32_t enable_compression :1;
     uint32_t accept_compression :1;
 #endif
     uint32_t chunk :1;
     uint32_t keepalive :1;
-    uint32_t http2 :1;
     uint32_t websocket :1;
+#ifdef SW_HAVE_ZLIB
     uint32_t websocket_compression :1;
+#endif
     uint32_t upgrade :1;
     uint32_t detached :1;
     uint32_t parse_cookie :1;
@@ -128,7 +129,7 @@ struct http_context
     uint32_t parse_files :1;
     uint32_t co_socket :1;
 
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
     int8_t compression_level;
     int8_t compression_method;
 #endif
@@ -160,6 +161,7 @@ struct http_context
     bool (*close)(http_context* ctx);
 };
 
+#ifdef SW_USE_HTTP2
 class http2_stream
 {
 public:
@@ -172,6 +174,11 @@ public:
 
     http2_stream(int _fd, uint32_t _id);
     ~http2_stream();
+
+    bool send_header(size_t body_length, bool end_stream);
+    bool send_body(swString *body, bool end_stream, size_t max_frame_size);
+    bool send_trailer();
+
     void reset(uint32_t error_code);
 };
 
@@ -179,7 +186,7 @@ class http2_session
 {
 public:
     int fd;
-    std::unordered_map<int, http2_stream*> streams;
+    std::unordered_map<uint32_t, http2_stream*> streams;
 
     nghttp2_hd_inflater *inflater = nullptr;
     nghttp2_hd_deflater *deflater = nullptr;
@@ -198,6 +205,7 @@ public:
     http2_session(int _fd);
     ~http2_session();
 };
+#endif
 
 extern zend_class_entry *swoole_http_server_ce;
 extern zend_class_entry *swoole_http_request_ce;
@@ -205,16 +213,13 @@ extern zend_class_entry *swoole_http_response_ce;
 
 extern swString *swoole_http_buffer;
 extern swString *swoole_http_form_data_buffer;
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
 extern swString *swoole_zlib_buffer;
 #endif
 
-#define http_strncasecmp(const_str, at, length) \
-    ((length >= sizeof(const_str)-1) && \
-    (strncasecmp(at, ZEND_STRL(const_str)) == 0))
-
 http_context* swoole_http_context_new(int fd);
-http_context* swoole_http_context_get(zval *zobject, const bool check_end);
+http_context* php_swoole_http_request_get_and_check_context(zval *zobject);
+http_context* php_swoole_http_response_get_and_check_context(zval *zobject);
 void swoole_http_context_free(http_context *ctx);
 void swoole_http_context_copy(http_context *src, http_context *dst);
 
@@ -234,68 +239,30 @@ int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
 void swoole_http_server_init_context(swServer *serv, http_context *ctx);
 
+http_context * php_swoole_http_request_get_context(zval *zobject);
+void php_swoole_http_request_set_context(zval *zobject, http_context *context);
+http_context * php_swoole_http_response_get_context(zval *zobject);
+void php_swoole_http_response_set_context(zval *zobject, http_context *context);
 size_t swoole_http_requset_parse(http_context *ctx, const char *data, size_t length);
 
 bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t klen, const char *v, size_t vlen, bool ucwords);
 void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value);
 
-#ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_COMPRESSION
 int swoole_http_response_compress(swString *body, int method, int level);
 void swoole_http_get_compression_method(http_context *ctx, const char *accept_encoding, size_t length);
 const char* swoole_http_get_content_encoding(http_context *ctx);
-
-static sw_inline voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
-{
-    return (voidpf) safe_emalloc(items, size, 0);
-}
-
-static sw_inline void php_zlib_free(voidpf opaque, voidpf address)
-{
-    efree((void *)address);
-}
 #endif
 
-static int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *zset_cookie_headers)
-{
-    const char *key = at;
-    zval val;
-    size_t key_len = 0, val_len = 0;
-    const char *p, *eof = at + length;
-    // key
-    p = (char *) memchr(at, '=', length);
-    if (p)
-    {
-        key_len = p - at;
-    }
-    if (key_len == 0 || key_len >= length - 1)
-    {
-        swWarn("cookie key format is wrong");
-        return SW_ERR;
-    }
-    if (key_len > SW_HTTP_COOKIE_KEYLEN)
-    {
-        swWarn("cookie[%.8s...] name length %zu is exceed the max name len %d", key, key_len, SW_HTTP_COOKIE_KEYLEN);
-        return SW_ERR;
-    }
-    add_next_index_stringl(zset_cookie_headers, (char *) at, length);
-    // val
-    p++;
-    eof = (char*) memchr(p, ';', at + length - p);
-    if (!eof)
-    {
-        eof = at + length;
-    }
-    val_len = eof - p;
-    if (val_len > SW_HTTP_COOKIE_VALLEN)
-    {
-        swWarn("cookie[%.*s]'s value[v=%.8s...] length %d is exceed the max value len %d", (int) key_len, key, p, (int) val_len, SW_HTTP_COOKIE_VALLEN);
-        return SW_ERR;
-    }
-    ZVAL_STRINGL(&val, p, val_len);
-    Z_STRLEN(val) = php_url_decode(Z_STRVAL(val), val_len);
-    add_assoc_zval_ex(cookies, at, key_len, &val);
-    return SW_OK;
-}
+#ifdef SW_HAVE_ZLIB
+voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
+void php_zlib_free(voidpf opaque, voidpf address);
+#endif
+
+#ifdef SW_HAVE_BROTLI
+void* php_brotli_alloc(void* opaque, size_t size);
+void php_brotli_free(void* opaque, void* address);
+#endif
 
 int swoole_websocket_onMessage(swServer *serv, swEventData *req);
 int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_context *ctx);
@@ -305,8 +272,8 @@ bool swoole_websocket_handshake(http_context *ctx);
 
 #ifdef SW_USE_HTTP2
 int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData *req);
-int swoole_http2_server_parse(http2_session *client, char *buf);
-int swoole_http2_server_do_response(http_context *ctx, swString *body);
+int swoole_http2_server_parse(http2_session *client, const char *buf);
+bool swoole_http2_server_sendfile(http_context *ctx, const char* file, struct stat *file_stat);
 void swoole_http2_server_session_free(swConnection *conn);
 void swoole_http2_response_end(http_context *ctx, zval *zdata, zval *return_value);
 int swoole_http2_server_ping(http_context *ctx);

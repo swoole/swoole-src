@@ -53,6 +53,16 @@ public:
         str = nullptr;
     }
 
+    string(const char *_str, size_t len)
+    {
+        str = zend_string_init(_str, len, 0);
+    }
+
+    string(const std::string &_str)
+    {
+        str = zend_string_init(_str.c_str(), _str.length(), 0);
+    }
+
     string(zval *v)
     {
         str = zval_get_string(v);
@@ -310,26 +320,15 @@ enum process_pipe_type
 class process
 {
 public:
-    php_swoole_fci *func;
-    zend_object *zsocket;
+    zend_object *zsocket = nullptr;
     enum process_pipe_type pipe_type;
     bool enable_coroutine;
 
-    process()
-    {
-        func = nullptr;
-        zsocket = nullptr;
-        pipe_type = PIPE_TYPE_NONE;
-        enable_coroutine = false;
-    }
+    process(enum process_pipe_type pipe_type, bool enable_coroutine) :
+        pipe_type(pipe_type), enable_coroutine(enable_coroutine) { }
 
     ~process()
     {
-        if (func)
-        {
-            sw_zend_fci_cache_discard(&func->fci_cache);
-            efree(func);
-        }
         if (zsocket)
         {
             OBJ_RELEASE(zsocket);

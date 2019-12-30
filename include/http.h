@@ -107,7 +107,7 @@ typedef struct _swHttpRequest
 
 } swHttpRequest;
 
-int swHttp_get_method(const char *method_str, int method_len);
+int swHttp_get_method(const char *method_str, size_t method_len);
 const char* swHttp_get_method_string(int method);
 const char *swHttp_get_status_message(int code);
 
@@ -124,7 +124,7 @@ static inline void swHttpRequest_clean(swHttpRequest *request)
     memset(request, 0, offsetof(swHttpRequest, buffer));
 }
 
-int swHttp_static_handler(swServer *serv, swHttpRequest *request, swConnection *conn);
+int swHttp_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn);
 int swHttp_static_handler_add_location(swServer *serv, const char *location, size_t length);
 
 #ifdef SW_HTTP_100_CONTINUE

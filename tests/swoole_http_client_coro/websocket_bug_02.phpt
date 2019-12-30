@@ -4,6 +4,8 @@ swoole_http_client_coro: websocket bug use client in server
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
+declare(strict_types=1);
+
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new \ProcessManager;
 $pm->parentFunc = function () use ($pm) {
@@ -14,7 +16,7 @@ $pm->parentFunc = function () use ($pm) {
         Assert::assert($ret);
         echo $cli->recv()->data;
         for ($i = 0; $i < 5; $i++) {
-            $cli->push("hello server\n");
+            $cli->push("hello server\n", SWOOLE_WEBSOCKET_OPCODE_TEXT, true);
             echo ($cli->recv(1))->data;
             co::sleep(0.1);
         }

@@ -8,27 +8,28 @@ require __DIR__ . '/../include/bootstrap.php';
 $randomData = '';
 Co\run(function () {
     go(function () {
-        $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_DGRAM, 0);
-        $socket->bind('127.0.0.1', 9601);
+        $socket = new Swoole\Coroutine\Socket(AF_UNIX, SOCK_DGRAM, IPPROTO_IP);
+        $socket->bind('/tmp/test-server.sock', 0);
         $data = $socket->recvfrom($peer);
+        if (!$data) {
+            return;
+        }
         Assert::same($data, 'hello');
-        Assert::same($peer['address'], '127.0.0.1');
-        Assert::greaterThan($peer['port'], 0);
+        Assert::same($peer['address'], '/tmp/test-client.sock');
+        Assert::same($peer['port'], 0);
         global $randomData;
-        for ($x = 0; $x < MAX_CONCURRENCY; $x++) {
-            for ($y = 0; $y < MAX_CONCURRENCY; $y++) {
-                $chunk = get_safe_random(1024);
-                $randomData .= $chunk;
-                Assert::same($socket->sendto($peer['address'], $peer['port'], $chunk), strlen($chunk));
-            }
-            Co::sleep(0.001);
+        for ($n = 0; $n < MAX_CONCURRENCY * MAX_REQUESTS; $n++) {
+            $chunk = get_safe_random(1024);
+            $randomData .= $chunk;
+            Assert::same($socket->sendto($peer['address'], $peer['port'], $chunk), strlen($chunk));
         }
         // close
         Assert::same($socket->sendto($peer['address'], $peer['port'], ''), 0);
     });
     go(function () {
-        $socket = new  Swoole\Coroutine\Socket(AF_INET, SOCK_DGRAM, 0);
-        $socket->sendto('127.0.0.1', 9601, 'hello');
+        $socket = new  Swoole\Coroutine\Socket(AF_UNIX, SOCK_DGRAM, IPPROTO_IP);
+        $socket->bind('/tmp/test-client.sock', 0);
+        $socket->sendto('/tmp/test-server.sock', 0, 'hello');
         $data = '';
         while (true) {
             $tmp = $socket->recvfrom($peer);

@@ -38,6 +38,6 @@ $cm->run(function ($host) {
 --EXPECTF--
 *** Testing curl with HTTP/1.0 ***
 
-Warning: swoole_curl: http version[1] not supported in %s on line %d
+Warning: swoole_curl_setopt(): CURLOPT_HTTP_VERSION[%d] is not supported in %s on line %d
 string(8) "HTTP/1.1"
 ===DONE===

@@ -4,6 +4,10 @@ swoole_http_client_coro: really keep alive
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip('too slow');
+if (getenv("SKIP_SLOW_TESTS")) {
+    die("skip slow test");
+}
+skip_if_offline();
 ?>
 --FILE--
 <?php

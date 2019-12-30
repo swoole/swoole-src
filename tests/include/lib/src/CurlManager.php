@@ -4,6 +4,7 @@ namespace SwooleTest;
 
 use Swoole\Process;
 use Swoole;
+use function Swoole\Coroutine\run as run;
 
 class CurlManager
 {
@@ -18,7 +19,7 @@ class CurlManager
     {
         $proc = new Process(function (Process $p) use ($port) {
             $exec = "/usr/bin/env php -t " . __DIR__ . " -n -S 127.0.0.1:{$port} " . __DIR__ . "/responder/get.php";
-            $p->exec('/bin/sh', array('-c', $exec));
+            $p->exec('/bin/sh', ['-c', $exec]);
         }, true, 1);
 
         $proc->start();
@@ -45,13 +46,13 @@ class CurlManager
             Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_CURL);
         }
 
-        go(function () use ($fn, $proc) {
+        run(function () use ($fn, $proc) {
             $fn("127.0.0.1:{$this->port}");
             if ($proc) {
                 Swoole\Process::kill($proc->pid);
             }
         });
-        Swoole\Event::wait();
+
         if ($createCliServer) {
             Process::wait();
         }

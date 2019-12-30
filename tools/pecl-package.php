@@ -6,7 +6,7 @@
 # role="doc" => in $(pecl config-get doc_dir), which is /usr/share/doc/pecl/swoole on RPM distro (LICENSE being an exception, manually moved to /usr/share/licenses)
 # role="test" => in $(pecl config-get test_dir), which is /usr/share/tests/pecl/swoole on RPM distro
 
-require __DIR__ . '/functions.php';
+require __DIR__ . '/bootstrap.php';
 
 function check_source_ver(string $expect_ver, $source_file)
 {
@@ -51,7 +51,7 @@ function check_source_ver(string $expect_ver, $source_file)
 
     if (!preg_match('/^\d+?\.\d+?\.\d+?$/', $source_ver)) {
         $is_release_ver = false;
-        swoole_warn("SWOOLE_VERSION v{$source_ver} is not a release version number in {$source_file}.");
+        swoole_warn("SWOOLE_VERSION v{$source_ver} is not a release version number in {$source_file}");
     } else {
         $is_release_ver = true;
     }
@@ -63,7 +63,7 @@ function check_source_ver(string $expect_ver, $source_file)
                     _replaced_error:
                     swoole_error("Fix version number failed in {$source_file}");
                 }
-                swoole_warn("SWOOLE_VERSION v{$source_ver} will be replaced to v{$expect_ver} in {$source_file}.");
+                swoole_warn("SWOOLE_VERSION v{$source_ver} will be replaced to v{$expect_ver} in {$source_file}");
                 $source_content = preg_replace(
                     $source_ver_regex, '$1${2}' . $expect_ver . '$4',
                     $source_content, 1, $replaced
@@ -79,7 +79,7 @@ function check_source_ver(string $expect_ver, $source_file)
         case 1: // >
             {
                 if ($is_release_ver) {
-                    swoole_error("Wrong SWOOLE_VERSION {$source_ver} in {$source_file}, please check your package.xml.");
+                    swoole_error("Wrong SWOOLE_VERSION {$source_ver} in {$source_file}, please check your package.xml");
                 }
             }
             break;
@@ -87,17 +87,21 @@ function check_source_ver(string $expect_ver, $source_file)
 }
 
 // all check
-swoole_execute_and_check('php ' . __DIR__ . '/arginfo-check.php');
-swoole_execute_and_check('php ' . __DIR__ . '/build-library.php');
-swoole_execute_and_check('php ' . __DIR__ . '/code-generator.php');
-swoole_execute_and_check('php ' . __DIR__ . '/config-generator.php');
-swoole_execute_and_check('php ' . __DIR__ . '/constant-generator.php');
-swoole_execute_and_check('php ' . __DIR__ . '/phpt-fixer.php');
+swoole_execute_and_check(['php', __DIR__ . '/config-generator.php']);
+swoole_execute_and_check(['php', __DIR__ . '/arginfo-check.php']);
+swoole_execute_and_check(['php', __DIR__ . '/code-generator.php']);
+if (file_exists(LIBRARY_DIR)) {
+    swoole_execute_and_check(['php', __DIR__ . '/constant-generator.php']);
+    swoole_execute_and_check(['php', __DIR__ . '/build-library.php']);
+} else {
+    swoole_warn('Unable to find source of library, this step will be skipped');
+}
+swoole_execute_and_check(['php', __DIR__ . '/phpt-fixer.php']);
 
 // prepare
 swoole_ok('Start to package...');
 $this_dir = __DIR__;
-$tests_dir = __DIR__ . '/../tests/';
+$tests_dir = ROOT_DIR . '/tests/';
 `cd {$tests_dir} && ./clean && cd {$this_dir}`;
 
 $root_dir = SWOOLE_SOURCE_ROOT;
@@ -109,11 +113,15 @@ $package_release_ver = $matches['release_v'];
 $package_api_ver = $matches['api_v'];
 $package_release_stable = $matches['release_s'];
 $package_api_stable = $matches['api_s'];
-if (round($package_release_ver, 0, PHP_ROUND_HALF_DOWN) != $package_api_ver) {
+if (round((float)$package_release_ver, 0, PHP_ROUND_HALF_DOWN) != $package_api_ver) {
     swoole_error("Wrong api version [{$package_api_ver}] with release version [{$package_release_ver}]");
 }
 if ($package_release_stable . $package_api_stable !== 'stable' . 'stable') {
-    swoole_warn("It's not a stable version, can't be released by pecl.");
+    if (preg_match('/RC\d+$/', $package_release_ver)) {
+        swoole_warn("It's not a stable version (RC)");
+    } else {
+        swoole_warn("It's not a stable version, can't be released by pecl");
+    }
 }
 echo "[Version] => {$package_release_ver}\n";
 echo "[API-Ver] => {$package_api_ver}\n";
@@ -207,6 +215,8 @@ if (!preg_match('/Package (?<filename>swoole-.+?.tgz) done/', $package, $matches
     swoole_error($package);
 } else {
     $file_name = $matches['filename'];
-    $file_size = file_size("{$root_dir}/{$file_name}");
-    swoole_success("Package {$file_name} ({$file_size}) done");
+    $file_path = "{$root_dir}/{$file_name}";
+    $file_size = file_size($file_path);
+    $file_hash = substr(md5_file($file_path), 0, 8);
+    swoole_success("Package {$file_name} ({$file_size}) ({$file_hash}) done");
 }

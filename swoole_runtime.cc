@@ -54,6 +54,7 @@ extern "C"
 {
 static PHP_METHOD(swoole_runtime, enableStrictMode);
 static PHP_METHOD(swoole_runtime, enableCoroutine);
+static PHP_METHOD(swoole_runtime, getHookFlags);
 static PHP_FUNCTION(swoole_sleep);
 static PHP_FUNCTION(swoole_usleep);
 static PHP_FUNCTION(swoole_time_nanosleep);
@@ -149,6 +150,7 @@ static const zend_function_entry swoole_runtime_methods[] =
 {
     PHP_ME(swoole_runtime, enableStrictMode, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_runtime, enableCoroutine, arginfo_swoole_runtime_enableCoroutine, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_runtime, getHookFlags, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -923,31 +925,37 @@ static php_stream *socket_create(
 
     Coroutine::get_current_safe();
 
-    if (strncmp(proto, "unix", protolen) == 0)
+    if (SW_STREQ(proto, protolen, "tcp"))
     {
-        sock = new Socket(SW_SOCK_UNIX_STREAM);
+        _tcp:
+        sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
     }
-    else if (strncmp(proto, "udp", protolen) == 0)
-    {
-        sock = new Socket(SW_SOCK_UDP);
-    }
-    else if (strncmp(proto, "udg", protolen) == 0)
-    {
-        sock = new Socket(SW_SOCK_UNIX_DGRAM);
-    }
-    else if (strncmp(proto, "ssl", protolen) == 0 || strncmp(proto, "tls", protolen) == 0)
+    else if (SW_STREQ(proto, protolen, "ssl") || SW_STREQ(proto, protolen, "tls"))
     {
 #ifdef SW_USE_OPENSSL
         sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
         sock->open_ssl = true;
 #else
-        php_swoole_error(E_WARNING, "you must configure with `enable-openssl` to support ssl connection");
+        php_swoole_error(E_WARNING, "you must configure with `--enable-openssl` to support ssl connection when compiling Swoole");
         return NULL;
 #endif
     }
+    else if (SW_STREQ(proto, protolen, "unix"))
+    {
+        sock = new Socket(SW_SOCK_UNIX_STREAM);
+    }
+    else if (SW_STREQ(proto, protolen, "udp"))
+    {
+        sock = new Socket(SW_SOCK_UDP);
+    }
+    else if (SW_STREQ(proto, protolen, "udg"))
+    {
+        sock = new Socket(SW_SOCK_UNIX_DGRAM);
+    }
     else
     {
-        sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
+        /* abort? */
+        goto _tcp;
     }
 
     if (UNEXPECTED(sock->get_fd() < 0))
@@ -1008,7 +1016,7 @@ static php_stream *socket_create(
         add_assoc_zval_ex(&zalias, ZEND_STRL(alias), ztmp); \
     } \
 } while (0);
-                SSL_OPTION_ALIAS("peer_name", "ssl_hostname");
+                SSL_OPTION_ALIAS("peer_name", "ssl_host_name");
                 SSL_OPTION_ALIAS("verify_peer", "ssl_verify_peer");
                 SSL_OPTION_ALIAS("allow_self_signed", "ssl_allow_self_signed");
                 SSL_OPTION_ALIAS("cafile", "ssl_cafile");
@@ -1340,6 +1348,11 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
     }
 
     RETURN_BOOL(PHPCoroutine::enable_hook(flags));
+}
+
+static PHP_METHOD(swoole_runtime, getHookFlags)
+{
+    RETURN_LONG(hook_flags);
 }
 
 static PHP_FUNCTION(swoole_sleep)

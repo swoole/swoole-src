@@ -39,6 +39,8 @@
 #define SW_MALLOC_TRIM_PAD         0
 #define SW_USE_MONOTONIC_TIME      1
 
+#define SW_MAX_SOCKETS_DEFAULT     1024
+
 #define SW_SOCKET_OVERFLOW_WAIT    100
 #define SW_SOCKET_MAX_DEFAULT      65536
 #if defined(__MACH__) || defined(__FreeBSD__)
@@ -46,6 +48,9 @@
 #else
 #define SW_SOCKET_BUFFER_SIZE      8388608
 #endif
+#define SW_SOCKET_SEND_TIMEOUT     1.0
+#define SW_SOCKET_ARRAY_INIT_SIZE  1024
+
 #define SW_SYSTEMD_FDS_START       3
 
 #define SW_GLOBAL_MEMORY_PAGESIZE  (2*1024*1024) // global memory page
@@ -60,6 +65,7 @@
 #define SW_CLIENT_BUFFER_SIZE      65536
 #define SW_CLIENT_CONNECT_TIMEOUT  0.5
 #define SW_CLIENT_MAX_PORT         65535
+
 
 // !!!Don't modify.----------------------------------------------------------
 #ifdef __MACH__
@@ -145,6 +151,7 @@
  * max accept times for single time
  */
 #define SW_ACCEPT_MAX_COUNT              64
+#define SW_ACCEPT_RETRY_TIME             1.0
 
 #define SW_TCP_KEEPCOUNT                 5
 #define SW_TCP_KEEPIDLE                  3600 // 1 hour
@@ -228,10 +235,10 @@
 #define SW_HTTP_FORM_FILE_DATA_FMT           "--%.*s\r\nContent-Disposition: form-data; name=\"%.*s\"; filename=\"%.*s\"\r\nContent-Type: %.*s\r\n\r\n"
 #define SW_HTTP_FORM_FILE_DATA_FMT_LEN       16
 
-#define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
 #define SW_WEBSOCKET_KEY_LENGTH          16
 #define SW_WEBSOCKET_QUEUE_SIZE          16
+#define SW_WEBSOCKET_EXTENSION_DEFLATE   "permessage-deflate; client_no_context_takeover; server_no_context_takeover"
 
 /**
  * MySQL Client

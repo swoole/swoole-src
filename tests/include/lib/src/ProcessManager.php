@@ -19,13 +19,15 @@
 
 namespace SwooleTest;
 
-use Swoole;
-use swoole_atomic;
+use RuntimeException;
+use Swoole\Atomic;
+use Swoole\Event;
+use Swoole\Process;
 
 class ProcessManager
 {
     /**
-     * @var swoole_atomic
+     * @var Atomic
      */
     protected $atomic;
     protected $alone = false;
@@ -47,13 +49,13 @@ class ProcessManager
     protected $childStatus = 255;
     protected $parentFirst = false;
     /**
-     * @var Swoole\Process
+     * @var Process
      */
     protected $childProcess;
 
     public function __construct()
     {
-        $this->atomic = new Swoole\Atomic(0);
+        $this->atomic = new Atomic(0);
     }
 
     public function setParent(callable $func)
@@ -170,7 +172,7 @@ class ProcessManager
         if (!empty($this->randomData[$block_id])) {
             return array_shift($this->randomData[$block_id]);
         } else {
-            throw new \RuntimeException('Out of the bound');
+            throw new RuntimeException('Out of the bound');
         }
     }
 
@@ -194,8 +196,8 @@ class ProcessManager
             define('PCNTL_ESRCH', 3);
         }
         if (!$this->alone && $this->childPid) {
-            if ($force || (!@Swoole\Process::kill($this->childPid) && swoole_errno() !== PCNTL_ESRCH)) {
-                if (!@Swoole\Process::kill($this->childPid, SIGKILL) && swoole_errno() !== PCNTL_ESRCH) {
+            if ($force || (!@Process::kill($this->childPid) && swoole_errno() !== PCNTL_ESRCH)) {
+                if (!@Process::kill($this->childPid, SIGKILL) && swoole_errno() !== PCNTL_ESRCH) {
                     exit('KILL CHILD PROCESS ERROR');
                 }
             }
@@ -223,11 +225,11 @@ class ProcessManager
             } elseif ($argv[1] == 'parent') {
                 return $this->runParentFunc();
             } else {
-                throw new \RuntimeException("bad parameter \$1\n");
+                throw new RuntimeException("bad parameter \$1\n");
             }
         }
         $this->initFreePorts();
-        $this->childProcess = new Swoole\Process(function () {
+        $this->childProcess = new Process(function () {
             if ($this->parentFirst) {
                 $this->wait();
             }
@@ -244,8 +246,8 @@ class ProcessManager
             $this->wait();
         }
         $this->runParentFunc($this->childPid = $this->childProcess->pid);
-        Swoole\Event::wait();
-        $waitInfo = Swoole\Process::wait(true);
+        Event::wait();
+        $waitInfo = Process::wait(true);
         $this->childStatus = $waitInfo['code'];
         return true;
     }
@@ -270,6 +272,8 @@ class ProcessManager
         if (!is_array($code)) {
             $code = [$code];
         }
-        assert(in_array($this->childStatus, $code), "unexpected exit code {$this->childStatus}");
+        if (!in_array($this->childStatus, $code)) {
+            throw new RuntimeException("Unexpected exit code {$this->childStatus}");
+        }
     }
 }

@@ -1,7 +1,9 @@
 --TEST--
-swoole_http2_client_coro: http2 error and dead wait
+swoole_http2_client_coro: multi
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc';
+skip_if_offline();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -44,7 +46,7 @@ go(function () {
         }
     }
     Assert::assert(empty(array_diff([1, 3, 5, 7], $stream_map)));
-    Assert::same(count(array_unique($responses_headers_count_map)), 1);
+    Assert::lessThanEq(count(array_unique($responses_headers_count_map)), 2);
     Assert::assert($responses_headers_count_map[0] > 10);
 });
 swoole_event::wait();
