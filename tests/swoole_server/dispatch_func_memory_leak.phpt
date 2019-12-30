@@ -18,6 +18,7 @@ $pm->parentFunc = function () use ($pm) {
         });
     }
     Swoole\Event::wait();
+    sleep(1);
     $pm->kill();
     echo "DONE\n";
 };
@@ -26,9 +27,9 @@ $pm->childFunc = function () use ($pm) {
     function dispatch_packet($server, $fd, $type, $data)
     {
         global $mem_size;
-        if($mem_size){
+        if ($mem_size) {
             Assert::assert($mem_size + 128 * 1024 > memory_get_usage());
-        }else {
+        } else {
             $mem_size = memory_get_usage();
         }
         return str_repeat('0', 1024 * 1024);
@@ -38,7 +39,9 @@ $pm->childFunc = function () use ($pm) {
     $server->set([
         'worker_num' => rand(4, 8),
         'log_file' => '/dev/null',
-        'dispatch_func' => 'dispatch_packet'
+        'dispatch_func' => 'dispatch_packet',
+        'trace_flags' => SWOOLE_TRACE_EVENT,
+        'log_level' => 0,
     ]);
     $server->on("WorkerStart", function (Server $serv)  use ($pm)
     {

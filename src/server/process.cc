@@ -90,11 +90,11 @@ static void swFactoryProcess_free(swFactory *factory)
     }
     sw_free(serv->pipe_buffers);
 
-    if (serv->stream_socket)
+    if (serv->stream_socket_file)
     {
-        unlink(serv->stream_socket);
-        close(serv->stream_fd);
-        sw_free(serv->stream_socket);
+        unlink(serv->stream_socket_file);
+        close(serv->stream_socket->fd);
+        sw_free(serv->stream_socket_file);
     }
 
     for (i = 0; i < serv->worker_num; i++)
@@ -110,19 +110,26 @@ static int swFactoryProcess_start(swFactory *factory)
 
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
     {
-        serv->stream_socket = swoole_string_format(64, "/tmp/swoole.%d.sock", serv->gs->master_pid);
-        if (serv->stream_socket == NULL)
+        serv->stream_socket_file = swoole_string_format(64, "/tmp/swoole.%d.sock", serv->gs->master_pid);
+        if (serv->stream_socket_file == NULL)
         {
             return SW_ERR;
         }
         int _reuse_port = SwooleG.reuse_port;
         SwooleG.reuse_port = 0;
-        serv->stream_fd = swSocket_create_server(SW_SOCK_UNIX_STREAM, serv->stream_socket, 0, 2048);
-        if (serv->stream_fd < 0)
+        int sock_fd = swSocket_create_server(SW_SOCK_UNIX_STREAM, serv->stream_socket_file, 0, 2048);
+        if (sock_fd < 0)
         {
             return SW_ERR;
         }
-        swoole_fcntl_set_option(serv->stream_fd, 1, 1);
+        serv->stream_socket = swSocket_new(sock_fd, SW_FD_STREAM_SERVER);
+        if (!serv->stream_socket)
+        {
+            close(sock_fd);
+            return SW_ERR;
+        }
+        swoole_fcntl_set_option(sock_fd, 1, 1);
+        serv->stream_socket->nonblock = 1;
         SwooleG.reuse_port = _reuse_port;
     }
 
@@ -153,12 +160,13 @@ static int swFactoryProcess_start(swFactory *factory)
             object->pipes = NULL;
             return SW_ERR;
         }
-        serv->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_MASTER);
-        serv->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_WORKER);
 
+        serv->workers[i].pipe_master = object->pipes[i].getSocket(&object->pipes[i], SW_PIPE_MASTER);
+        serv->workers[i].pipe_worker = object->pipes[i].getSocket(&object->pipes[i], SW_PIPE_WORKER);
+        
         int kernel_buffer_size = SW_UNIXSOCK_MAX_BUF_SIZE;
-        setsockopt(serv->workers[i].pipe_master, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
-        setsockopt(serv->workers[i].pipe_worker, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
+        setsockopt(serv->workers[i].pipe_master->fd, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
+        setsockopt(serv->workers[i].pipe_worker->fd, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
 
         serv->workers[i].pipe_object = &object->pipes[i];
         swServer_store_pipe_fd(serv, serv->workers[i].pipe_object);
@@ -172,7 +180,7 @@ static int swFactoryProcess_start(swFactory *factory)
     /**
      * Get the maximum ipc[unix socket with dgram] transmission length
      */
-    if (getsockopt(serv->workers[0].pipe_master, SOL_SOCKET, SO_SNDBUF, &bufsize, &_len) != 0)
+    if (getsockopt(serv->workers[0].pipe_master->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, &_len) != 0)
     {
         bufsize = SW_IPC_MAX_SIZE;
     }
@@ -446,19 +454,19 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     /**
      * stream
      */
-    if (serv->last_stream_fd > 0)
+    if (serv->last_stream_socket)
     {
         int _len = resp->info.len;
         int _header = htonl(_len + sizeof(resp->info));
-        if (SwooleTG.reactor->write(SwooleTG.reactor, serv->last_stream_fd, (char*) &_header, sizeof(_header)) < 0)
+        if (SwooleTG.reactor->write(SwooleTG.reactor, serv->last_stream_socket, (char*) &_header, sizeof(_header)) < 0)
         {
             return SW_ERR;
         }
-        if (SwooleTG.reactor->write(SwooleTG.reactor, serv->last_stream_fd, &resp->info, sizeof(resp->info)) < 0)
+        if (SwooleTG.reactor->write(SwooleTG.reactor, serv->last_stream_socket, &resp->info, sizeof(resp->info)) < 0)
         {
             return SW_ERR;
         }
-        if (SwooleTG.reactor->write(SwooleTG.reactor, serv->last_stream_fd, resp->data, _len) < 0)
+        if (SwooleTG.reactor->write(SwooleTG.reactor, serv->last_stream_socket, resp->data, _len) < 0)
         {
             return SW_ERR;
         }

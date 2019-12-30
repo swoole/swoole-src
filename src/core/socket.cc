@@ -14,7 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
+#include "swoole_api.h"
 #include "connection.h"
 
 int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t length, double timeout)
@@ -44,7 +44,7 @@ int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t 
     }
 
     int n, sendn;
-    while (offset < length)
+    while (offset < (off_t) length)
     {
         if (swSocket_wait(sock, timeout_ms, SW_EVENT_WRITE) < 0)
         {
@@ -129,7 +129,7 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
 {
     assert(n_fd < 65535);
 
-    struct pollfd *event_list = sw_calloc(n_fd, sizeof(struct pollfd));
+    struct pollfd *event_list = (struct pollfd *) sw_calloc(n_fd, sizeof(*event_list));
     if (!event_list)
     {
         swWarn("malloc[1] failed");
@@ -177,14 +177,14 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
     return SW_OK;
 }
 
-int swSocket_write_blocking(int __fd, const void *__data, int __len)
+ssize_t swSocket_write_blocking(int __fd, const void *__data, size_t __len)
 {
-    int n = 0;
-    int written = 0;
+    ssize_t n = 0;
+    ssize_t written = 0;
 
-    while (written < __len)
+    while (written < (ssize_t) __len)
     {
-        n = write(__fd, __data + written, __len - written);
+        n = write(__fd, (char*) __data + written, __len - written);
         if (n < 0)
         {
             if (errno == EINTR)
@@ -208,9 +208,9 @@ int swSocket_write_blocking(int __fd, const void *__data, int __len)
     return written;
 }
 
-int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags)
+ssize_t swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags)
 {
-    int ret;
+    ssize_t ret;
     size_t read_bytes = 0;
 
     while (read_bytes != __len)
@@ -233,20 +233,37 @@ int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags)
     return read_bytes;
 }
 
-int swSocket_accept(int fd, swSocketAddress *sa)
+swSocket* swSocket_accept(swSocket *sock, swSocketAddress *sa)
 {
     int conn;
     sa->len = sizeof(sa->addr);
 #ifdef HAVE_ACCEPT4
-    conn = accept4(fd, (struct sockaddr *) &sa->addr, &sa->len, SOCK_NONBLOCK | SOCK_CLOEXEC);
+    conn = accept4(sock->fd, (struct sockaddr *) &sa->addr, &sa->len, SOCK_NONBLOCK | SOCK_CLOEXEC);
 #else
-    conn = accept(fd, (struct sockaddr *) &sa->addr, &sa->len);
+    conn = accept(sock->fd, (struct sockaddr *) &sa->addr, &sa->len);
     if (conn >= 0)
     {
         swoole_fcntl_set_option(conn, 1, 1);
     }
 #endif
-    return conn;
+
+    if (conn < 0)
+    {
+        return nullptr;
+    }
+
+    swSocket *socket = swSocket_new(conn, SW_FD_SESSION);
+    if (!socket)
+    {
+        close(conn);
+    }
+    else
+    {
+        socket->nonblock = 1;
+        socket->cloexec = 1;
+    }
+
+    return socket;
 }
 
 ssize_t swSocket_udp_sendto(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len)
@@ -349,6 +366,43 @@ int swSocket_create(int type)
     return socket(_domain, _type, 0);
 }
 
+swSocket* swSocket_new(int fd, enum swFd_type type)
+{
+    swSocket *socket = (swSocket *) sw_calloc(1, sizeof(*socket));
+    if (!socket)
+    {
+        swSysWarn("calloc(1, %ld) failed", sizeof(*socket));
+        return NULL;
+    }
+    socket->fd = fd;
+    socket->fdtype = type;
+    socket->removed = 1;
+    return socket;
+}
+
+static void socket_free_defer(void *ptr)
+{
+    swSocket *sock = (swSocket *) ptr;
+    if (sock->fd != -1 && close(sock->fd) != 0)
+    {
+        swSysWarn("close(%d) failed", sock->fd);
+    }
+    sw_free(sock);
+}
+
+void swSocket_free(swSocket *sock)
+{
+    if (SwooleTG.reactor)
+    {
+        sock->removed = 1;
+        swoole_event_defer(socket_free_defer, sock);
+    }
+    else
+    {
+        socket_free_defer(sock);
+    }
+}
+
 int swSocket_bind(int sock, int type, const char *host, int *port)
 {
     int ret;
@@ -437,8 +491,9 @@ int swSocket_bind(int sock, int type, const char *host, int *port)
     return ret;
 }
 
-int swSocket_set_buffer_size(int fd, uint32_t buffer_size)
+int swSocket_set_buffer_size(swSocket *sock, uint32_t buffer_size)
 {
+    int fd = sock->fd;
     if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(buffer_size)) != 0)
     {
         swSysWarn("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, buffer_size);
@@ -452,19 +507,19 @@ int swSocket_set_buffer_size(int fd, uint32_t buffer_size)
     return SW_OK;
 }
 
-int swSocket_set_timeout(int sock, double timeout)
+int swSocket_set_timeout(swSocket *sock, double timeout)
 {
     int ret;
     struct timeval timeo;
     timeo.tv_sec = (int) timeout;
     timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);
-    ret = setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (void *) &timeo, sizeof(timeo));
+    ret = setsockopt(sock->fd, SOL_SOCKET, SO_SNDTIMEO, (void *) &timeo, sizeof(timeo));
     if (ret < 0)
     {
         swSysWarn("setsockopt(SO_SNDTIMEO) failed");
         return SW_ERR;
     }
-    ret = setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (void *) &timeo, sizeof(timeo));
+    ret = setsockopt(sock->fd, SOL_SOCKET, SO_RCVTIMEO, (void *) &timeo, sizeof(timeo));
     if (ret < 0)
     {
         swSysWarn("setsockopt(SO_RCVTIMEO) failed");

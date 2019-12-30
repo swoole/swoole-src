@@ -900,7 +900,8 @@ ZEND_END_ARG_INFO()
 typedef struct
 {
     redisContext *context;
-    struct {
+    struct
+    {
         bool auth;
         long db_num;
         bool subscribe;
@@ -949,8 +950,7 @@ static sw_inline Socket* swoole_redis_coro_get_socket(redisContext *context)
 {
     if (context->fd > 0 && SwooleTG.reactor)
     {
-        swSocket *conn = swReactor_get(SwooleTG.reactor, context->fd);
-        return conn ? (Socket *) conn->object : nullptr;
+        return swoole_coroutine_get_socket_object(context->fd);
     }
     return nullptr;
 }
@@ -959,8 +959,9 @@ static sw_inline bool swoole_redis_coro_close(swRedisClient *redis)
 {
     if (redis->context)
     {
+        int sockfd = redis->context->fd;
         Socket *socket = swoole_redis_coro_get_socket(redis->context);
-        swTraceLog(SW_TRACE_REDIS_CLIENT, "redis connection closed, fd=%d", redis->context->fd);
+        swTraceLog(SW_TRACE_REDIS_CLIENT, "redis connection closed, fd=%d", sockfd);
         zend_update_property_bool(swoole_redis_coro_ce, redis->zobject, ZEND_STRL("connected"), 0);
         if (!(socket && socket->has_bound()))
         {
@@ -968,9 +969,9 @@ static sw_inline bool swoole_redis_coro_close(swRedisClient *redis)
             redis->context = NULL;
             redis->session = { false, 0, false };
         }
-        if (socket && socket->close())
+        if (socket)
         {
-            delete socket;
+            swoole_coroutine_close(sockfd);
         }
         return true;
     }
@@ -1146,7 +1147,6 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
         return false;
     }
 
-    swSocket_set_nonblock(context->fd);
     socket->set_timeout(redis->timeout, SW_TIMEOUT_RDWR);
     redis->reconnected_count = 0;
     zend_update_property_bool(swoole_redis_coro_ce, zobject, ZEND_STRL("connected"), 1);

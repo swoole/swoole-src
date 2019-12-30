@@ -103,10 +103,10 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         swConnection *serv_sock = swServer_connection_get(serv, conn->server_fd);
         if (serv_sock)
         {
-            add_assoc_long(zserver, "server_port", swConnection_get_port(serv_sock->socket_type, &serv_sock->info));
+            add_assoc_long(zserver, "server_port", swSocket_get_port(serv_sock->socket_type, &serv_sock->info));
         }
-        add_assoc_long(zserver, "remote_port", swConnection_get_port(conn->socket_type, &conn->info));
-        add_assoc_string(zserver, "remote_addr", (char *) swConnection_get_ip(conn->socket_type, &conn->info));
+        add_assoc_long(zserver, "remote_port", swSocket_get_port(conn->socket_type, &conn->info));
+        add_assoc_string(zserver, "remote_addr", (char *) swSocket_get_ip(conn->socket_type, &conn->info));
         add_assoc_long(zserver, "master_time", conn->last_time);
     } while (0);
 

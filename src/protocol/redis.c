@@ -64,7 +64,7 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
     buf_ptr = buffer->str + buffer->length;
     buf_size = buffer->size - buffer->length;
 
-    int n = swConnection_recv(socket, buf_ptr, buf_size, 0);
+    int n = swSocket_recv(socket, buf_ptr, buf_size, 0);
     if (n < 0)
     {
         switch (swConnection_error(errno))

@@ -29,7 +29,7 @@ static int swPort_onRead_redis(swReactor *reactor, swListenPort *lp, swEvent *ev
 
 void swPort_init(swListenPort *port)
 {
-    port->sock = 0;
+    port->socket = nullptr;
     port->ssl = 0;
 
     //listen backlog
@@ -93,7 +93,7 @@ int swPort_enable_ssl_encrypt(swListenPort *ls)
 
 int swPort_listen(swListenPort *ls)
 {
-    int sock = ls->sock;
+    int sock = ls->socket->fd;
     int option = 1;
 
     //listen stream socket
@@ -229,7 +229,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     swConnection *conn = (swConnection *) _socket->object;
     char *buffer = SwooleTG.buffer_stack->str;
 
-    n = swConnection_recv(_socket, buffer, SwooleTG.buffer_stack->size, 0);
+    n = swSocket_recv(_socket, buffer, SwooleTG.buffer_stack->size, 0);
     if (n < 0)
     {
         switch (swConnection_error(errno))
@@ -347,7 +347,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     buf = buffer->str + buffer->length;
     buf_len = buffer->size - buffer->length;
 
-    n = swConnection_recv(_socket, buf, buf_len, 0);
+    n = swSocket_recv(_socket, buf, buf_len, 0);
     if (n < 0)
     {
         switch (swConnection_error(errno))
@@ -385,7 +385,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             _bad_request:
 #endif
 #ifdef SW_HTTP_BAD_REQUEST_PACKET
-            swConnection_send(_socket, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET), 0);
+            swSocket_send(_socket, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET), 0);
 #endif
             goto _close_fd;
         }
@@ -484,7 +484,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             else if (request->content_length > (protocol->package_max_length - request->header_length))
             {
                 swWarn("Content-Length is too big, MaxSize=[%d]", protocol->package_max_length - request->header_length);
-                swConnection_send(_socket, SW_STRL(SW_HTTP_BAD_REQUEST_TOO_LARGE), 0);
+                swSocket_send(_socket, SW_STRL(SW_HTTP_BAD_REQUEST_TOO_LARGE), 0);
                 goto _close_fd;
             }
         }
@@ -519,7 +519,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 
                 int send_times = 0;
                 _direct_send:
-                n = swConnection_send(_socket, _send.data, _send.info.len, 0);
+                n = swSocket_send(_socket, _send.data, _send.info.len, 0);
                 if (n < _send.info.len)
                 {
                     _send.data += n;
@@ -609,7 +609,7 @@ void swPort_free(swListenPort *port)
     }
 #endif
 
-    close(port->sock);
+    swSocket_free(port->socket);
 
     //remove unix socket file
     if (port->type == SW_SOCK_UNIX_STREAM || port->type == SW_SOCK_UNIX_DGRAM)

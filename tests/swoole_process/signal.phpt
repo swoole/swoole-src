@@ -49,7 +49,9 @@ Swoole\Timer::after(500, function() use ($pid) {
 });
 
 //never calback
-Swoole\Event::add(STDIN, function () {});
+Swoole\Event::add(STDIN, function ($fp) {
+    echo fread($fp, 8192);
+});
 
 Swoole\Event::wait();
 ?>

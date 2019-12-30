@@ -112,9 +112,9 @@ int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueu
             if (swPipeUnsock_create(pipe, 1, SOCK_DGRAM) < 0)
             {
                 return SW_ERR;
-            }
-            pool->workers[i].pipe_master = pipe->getFd(pipe, SW_PIPE_MASTER);
-            pool->workers[i].pipe_worker = pipe->getFd(pipe, SW_PIPE_WORKER);
+            }          
+            pool->workers[i].pipe_master = pipe->getSocket(pipe, SW_PIPE_MASTER);
+            pool->workers[i].pipe_worker = pipe->getSocket(pipe, SW_PIPE_WORKER);
             pool->workers[i].pipe_object = pipe;
         }
     }
@@ -526,10 +526,10 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         }
         else
         {
-            n = read(worker->pipe_worker, &out.buf, sizeof(out.buf));
+            n = read(worker->pipe_worker->fd, &out.buf, sizeof(out.buf));
             if (n < 0 && errno != EINTR)
             {
-                swSysWarn("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker);
+                swSysWarn("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker->fd);
             }
         }
 
@@ -672,10 +672,10 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
         }
         else
         {
-            n = read(worker->pipe_worker, pool->packet_buffer, pool->max_packet_size);
+            n = read(worker->pipe_worker->fd, pool->packet_buffer, pool->max_packet_size);
             if (n < 0 && errno != EINTR)
             {
-                swSysWarn("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker);
+                swSysWarn("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker->fd);
             }
             data = pool->packet_buffer;
         }

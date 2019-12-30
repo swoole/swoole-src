@@ -782,7 +782,7 @@ static PHP_METHOD(swoole_server_port, getCallback)
 static PHP_METHOD(swoole_server_port, getSocket)
 {
     swListenPort *port = php_swoole_server_port_get_and_check_ptr(ZEND_THIS);
-    php_socket *socket_object = swoole_convert_to_socket(port->sock);
+    php_socket *socket_object = swoole_convert_to_socket(port->socket->fd);
     if (!socket_object)
     {
         RETURN_FALSE;

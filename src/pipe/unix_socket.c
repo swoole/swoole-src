@@ -18,7 +18,6 @@
 
 static int swPipeUnsock_read(swPipe *p, void *data, int length);
 static int swPipeUnsock_write(swPipe *p, void *data, int length);
-static int swPipeUnsock_getFd(swPipe *p, int master);
 static int swPipeUnsock_close(swPipe *p);
 
 typedef struct _swPipeUnsock
@@ -38,12 +37,6 @@ typedef struct _swPipeUnsock
     uint8_t pipe_worker_closed;
 } swPipeUnsock;
 
-static int swPipeUnsock_getFd(swPipe *p, int master)
-{
-    swPipeUnsock *this = p->object;
-    return master == 1 ? this->socks[1] : this->socks[0];
-}
-
 static int swPipeUnsock_close(swPipe *p)
 {
     swPipeUnsock *object = p->object;
@@ -54,7 +47,6 @@ static int swPipeUnsock_close(swPipe *p)
 
 int swPipeUnsock_close_ext(swPipe *p, int which)
 {
-    int ret1 = 0, ret2 = 0;
     swPipeUnsock *object = p->object;
 
     if (which == SW_PIPE_CLOSE_MASTER)
@@ -63,7 +55,7 @@ int swPipeUnsock_close_ext(swPipe *p, int which)
         {
             return SW_ERR;
         }
-        ret1 = close(object->socks[1]);
+        swSocket_free(p->master_socket);
         object->pipe_master_closed = 1;
     }
     else if (which == SW_PIPE_CLOSE_WORKER)
@@ -72,16 +64,16 @@ int swPipeUnsock_close_ext(swPipe *p, int which)
         {
             return SW_ERR;
         }
-        ret1 = close(object->socks[0]);
+        swSocket_free(p->worker_socket);;
         object->pipe_worker_closed = 1;
     }
     else
     {
-        ret1 = swPipeUnsock_close_ext(p, SW_PIPE_CLOSE_MASTER);
-        ret2 = swPipeUnsock_close_ext(p, SW_PIPE_CLOSE_WORKER);
+        swPipeUnsock_close_ext(p, SW_PIPE_CLOSE_MASTER);
+        swPipeUnsock_close_ext(p, SW_PIPE_CLOSE_WORKER);
     }
 
-    return 0 - ret1 - ret2;
+    return SW_OK;
 }
 
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
@@ -104,21 +96,20 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
     }
     else
     {
-        //Nonblock
-        if (blocking == 0)
+        if (swPipe_init_socket(p, object->socks[1], object->socks[0], blocking) < 0)
         {
-            swSocket_set_nonblock(object->socks[0]);
-            swSocket_set_nonblock(object->socks[1]);
+            sw_free(object);
+            return SW_ERR;
         }
 
-        int sbsize = SwooleG.socket_buffer_size;
-        swSocket_set_buffer_size(object->socks[0], sbsize);
-        swSocket_set_buffer_size(object->socks[1], sbsize);
+        uint32_t sbsize = SwooleG.socket_buffer_size;
+        swSocket_set_buffer_size(p->master_socket, sbsize);
+        swSocket_set_buffer_size(p->worker_socket, sbsize);
 
         p->object = object;
         p->read = swPipeUnsock_read;
         p->write = swPipeUnsock_write;
-        p->getFd = swPipeUnsock_getFd;
+        p->getSocket = swPipe_getSocket;
         p->close = swPipeUnsock_close;
     }
     return 0;

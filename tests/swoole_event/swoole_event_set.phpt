@@ -35,6 +35,7 @@ swoole_event_set($fp, null, 'write_callback', SWOOLE_EVENT_WRITE);
 
 swoole_event_write($fp, "GET / HTTP/1.1\r\nHost: www.qq.com\r\n\r\n");
 echo "Finish\n";
+swoole_event_wait();
 ?>
 --EXPECT--
 Finish

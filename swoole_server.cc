@@ -1080,9 +1080,10 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
     zend_update_property_string(swoole_server_port_ce, zport, ZEND_STRL("host"), port->host);
     zend_update_property_long(swoole_server_port_ce, zport, ZEND_STRL("port"), port->port);
     zend_update_property_long(swoole_server_port_ce, zport, ZEND_STRL("type"), port->type);
-    zend_update_property_long(swoole_server_port_ce, zport, ZEND_STRL("sock"), port->sock);
+    zend_update_property_long(swoole_server_port_ce, zport, ZEND_STRL("sock"), port->socket->fd);
 
-    do {
+    do
+    {
         zval *zserv = (zval *) serv->ptr2;
         zval *zports = sw_zend_read_and_convert_property_array(Z_OBJCE_P(zserv), zserv, ZEND_STRL("ports"), 0);
         (void) add_next_index_zval(zports, zport);
@@ -1395,7 +1396,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     swConnection *from_sock = swServer_connection_get(serv, req->info.server_fd);
     if (from_sock)
     {
-        add_assoc_long(&zaddr, "server_port", swConnection_get_port(from_sock->socket_type, &from_sock->info));
+        add_assoc_long(&zaddr, "server_port", swSocket_get_port(from_sock->socket_type, &from_sock->info));
     }
 
     char address[INET6_ADDRSTRLEN];
@@ -3393,10 +3394,10 @@ static PHP_METHOD(swoole_server, taskwait)
     swEventData *task_result = &(serv->task_result[SwooleWG.id]);
     bzero(task_result, sizeof(swEventData));
     swPipe *task_notify_pipe = &serv->task_notify[SwooleWG.id];
-    int efd = task_notify_pipe->getFd(task_notify_pipe, 0);
+    swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_WORKER);
 
     //clear history task
-    while (read(efd, &notify, sizeof(notify)) > 0);
+    while (read(task_notify_socket->fd, &notify, sizeof(notify)) > 0) {}
 
     sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
 
@@ -3501,8 +3502,8 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
     worker->lock.unlock(&worker->lock);
 
     //clear history task
-    int efd = task_notify_pipe->getFd(task_notify_pipe, 0);
-    while (read(efd, &notify, sizeof(notify)) > 0);
+    swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_WORKER);
+    while (read(task_notify_socket->fd, &notify, sizeof(notify)) > 0);
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztasks), ztask)
         task_id = php_swoole_task_pack(&buf, ztask);
@@ -3985,13 +3986,13 @@ static PHP_METHOD(swoole_server, getClientInfo)
         swConnection *from_sock = swServer_connection_get(serv, conn->server_fd);
         if (from_sock)
         {
-            add_assoc_long(return_value, "server_port", swConnection_get_port(from_sock->socket_type, &from_sock->info));
+            add_assoc_long(return_value, "server_port", swSocket_get_port(from_sock->socket_type, &from_sock->info));
         }
         add_assoc_long(return_value, "server_fd", conn->server_fd);
         add_assoc_long(return_value, "socket_fd", conn->fd);
         add_assoc_long(return_value, "socket_type", conn->socket_type);
-        add_assoc_long(return_value, "remote_port", swConnection_get_port(conn->socket_type, &conn->info));
-        add_assoc_string(return_value, "remote_ip", (char *) swConnection_get_ip(conn->socket_type, &conn->info));
+        add_assoc_long(return_value, "remote_port", swSocket_get_port(conn->socket_type, &conn->info));
+        add_assoc_string(return_value, "remote_ip", (char *) swSocket_get_ip(conn->socket_type, &conn->info));
         add_assoc_long(return_value, "reactor_id", conn->reactor_id);
         add_assoc_long(return_value, "connect_time", conn->connect_time);
         add_assoc_long(return_value, "last_time", conn->last_time);
@@ -4338,7 +4339,8 @@ static PHP_METHOD(swoole_connection_iterator, valid)
                 continue;
             }
 #endif
-            if (iterator->port && (iterator->port->sock < 0 || conn->server_fd != (uint32_t) iterator->port->sock))
+            if (iterator->port
+                    && (iterator->port->socket->fd < 0 || conn->server_fd != (uint32_t) iterator->port->socket->fd))
             {
                 continue;
             }

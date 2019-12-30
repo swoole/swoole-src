@@ -32,9 +32,9 @@ TEST(coroutine_channel, push_yield)
             int i = 1;
             bool ret;
 
-            ret = chan->push(&i);
+            ret = chan->push(new int(i));
             ASSERT_TRUE(ret);
-            ret = chan->push(&i);
+            ret = chan->push(new int(i));
             ASSERT_TRUE(ret);
         }, &chan),
 

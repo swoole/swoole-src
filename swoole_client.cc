@@ -474,7 +474,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
         {
             value = INT_MAX;
         }
-        swSocket_set_buffer_size(cli->socket->fd, value);
+        swSocket_set_buffer_size(cli->socket, value);
         cli->socket->buffer_size = value;
     }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", ztmp))

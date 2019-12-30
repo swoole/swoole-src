@@ -56,12 +56,14 @@ struct socket_poll_fd
     int16_t events;
     int16_t revents;
     void *ptr;
+    swSocket *socket;
 
     socket_poll_fd(int16_t _event, void *_ptr)
     {
         events = _event;
         ptr = _ptr;
         revents = 0;
+        socket = nullptr;
     }
 };
 

@@ -7,7 +7,8 @@ require __DIR__ . '/../include/skipif.inc';
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$pm = new ProcessManager;
+
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     for ($c = MAX_CONCURRENCY; $c--;) {
         go(function () use ($pm) {

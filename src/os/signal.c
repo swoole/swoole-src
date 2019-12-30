@@ -24,6 +24,7 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
 
 static sigset_t signalfd_mask;
 static int signal_fd = 0;
+static swSocket *signal_socket = NULL;
 #endif
 
 #ifdef HAVE_KQUEUE
@@ -250,6 +251,13 @@ int swSignalfd_setup(swReactor *reactor)
             swSysWarn("signalfd() failed");
             return SW_ERR;
         }
+        signal_socket = swSocket_new(signal_fd, SW_FD_SIGNAL);
+        if (signal_socket == NULL)
+        {
+            close(signal_fd);
+            signal_fd = 0;
+            return SW_ERR;
+        }
         SwooleG.signal_fd = signal_fd;
         if (sigprocmask(SIG_BLOCK, &signalfd_mask, NULL) == -1)
         {
@@ -257,7 +265,7 @@ int swSignalfd_setup(swReactor *reactor)
             return SW_ERR;
         }
         swReactor_set_handler(reactor, SW_FD_SIGNAL, swSignalfd_onSignal);
-        if (swoole_event_add(signal_fd, SW_EVENT_READ, SW_FD_SIGNAL) < 0)
+        if (swoole_event_add(signal_socket, SW_EVENT_READ) < 0)
         {
             return SW_ERR;
         }
@@ -278,7 +286,11 @@ static void swSignalfd_clear()
         {
             swSysWarn("sigprocmask(SIG_UNBLOCK) failed");
         }
-        close(signal_fd);
+        if (signal_socket)
+        {
+            swSocket_free(signal_socket);
+            signal_socket = NULL;
+        }
         bzero(&signalfd_mask, sizeof(signalfd_mask));
     }
     signal_fd = 0;

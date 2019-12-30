@@ -63,7 +63,7 @@ typedef struct _swClient
     int _sock_type;
     int _sock_domain;
     int _protocol;
-    int reactor_fdtype;
+    enum swFd_type reactor_fdtype;
 
     uint32_t active :1;
     uint32_t async :1;

@@ -74,6 +74,7 @@ public:
     Socket(int _fd, int _domain, int _type, int _protocol);
     Socket(enum swSocket_type type = SW_SOCK_TCP);
     Socket(int _fd, enum swSocket_type _type);
+    Socket(swSocket *sock, swSocketAddress *addr, Socket *socket);
     ~Socket();
     bool connect(std::string host, int port, int flags = 0);
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
@@ -371,10 +372,10 @@ private:
     static int writable_event_callback(swReactor *reactor, swEvent *event);
     static int error_event_callback(swReactor *reactor, swEvent *event);
 
-    Socket(int _fd, swSocketAddress *addr, Socket *socket);
     inline void init_sock_type(enum swSocket_type _type);
     inline bool init_sock();
-    void init_reactor_socket(int fd);
+    bool init_reactor_socket(int fd);
+
     inline void init_options()
     {
         if (type == SW_SOCK_TCP || type == SW_SOCK_TCP6)
