@@ -164,6 +164,40 @@ ssize_t swSSL_send(swSocket *conn, const void *__buf, size_t __n);
 int swSSL_sendfile(swSocket *conn, int fd, off_t *offset, size_t size);
 #endif
 
+static sw_inline int swConnection_error(int err)
+{
+    switch (err)
+    {
+    case EFAULT:
+        abort();
+        return SW_ERROR;
+    case EBADF:
+    case ECONNRESET:
+#ifdef __CYGWIN__
+    case ECONNABORTED:
+#endif
+    case EPIPE:
+    case ENOTCONN:
+    case ETIMEDOUT:
+    case ECONNREFUSED:
+    case ENETDOWN:
+    case ENETUNREACH:
+    case EHOSTDOWN:
+    case EHOSTUNREACH:
+    case SW_ERROR_SSL_BAD_CLIENT:
+    case SW_ERROR_SSL_RESET:
+        return SW_CLOSE;
+    case EAGAIN:
+#ifdef HAVE_KQUEUE
+    case ENOBUFS:
+#endif
+    case 0:
+        return SW_WAIT;
+    default:
+        return SW_ERROR;
+    }
+}
+
 /**
  * Receive data from connection
  */
@@ -212,6 +246,11 @@ static sw_inline ssize_t swSocket_recv(swSocket *conn, void *__buf, size_t __n, 
         conn->total_recv_bytes += total_bytes;
     }
 #endif
+
+    if (total_bytes < 0 && swConnection_error(errno) == SW_WAIT && conn->event_hup)
+    {
+        total_bytes = 0;
+    }
 
     swTraceLog(SW_TRACE_SOCKET, "recv %ld/%ld bytes, errno=%d", total_bytes, __n, errno);
 
@@ -277,40 +316,6 @@ static sw_inline ssize_t swSocket_peek(swSocket *conn, void *__buf, size_t __n, 
     swTraceLog(SW_TRACE_SOCKET, "peek %ld/%ld bytes, errno=%d", retval, __n, errno);
 
     return retval;
-}
-
-static sw_inline int swConnection_error(int err)
-{
-    switch (err)
-    {
-    case EFAULT:
-        abort();
-        return SW_ERROR;
-    case EBADF:
-    case ECONNRESET:
-#ifdef __CYGWIN__
-    case ECONNABORTED:
-#endif
-    case EPIPE:
-    case ENOTCONN:
-    case ETIMEDOUT:
-    case ECONNREFUSED:
-    case ENETDOWN:
-    case ENETUNREACH:
-    case EHOSTDOWN:
-    case EHOSTUNREACH:
-    case SW_ERROR_SSL_BAD_CLIENT:
-    case SW_ERROR_SSL_RESET:
-        return SW_CLOSE;
-    case EAGAIN:
-#ifdef HAVE_KQUEUE
-    case ENOBUFS:
-#endif
-    case 0:
-        return SW_WAIT;
-    default:
-        return SW_ERROR;
-    }
 }
 
 SW_EXTERN_C_END

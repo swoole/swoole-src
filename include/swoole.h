@@ -692,6 +692,7 @@ typedef struct _swSocket
     uint8_t tcp_nodelay :1;
     uint8_t skip_recv :1;
     uint8_t recv_wait :1;
+    uint8_t event_hup :1;
 
     /**
      * memory buffer size;
