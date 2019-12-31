@@ -244,6 +244,10 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
                 //in
                 if ((object->events[i].revents & POLLIN) && !event.socket->removed)
                 {
+                    if (object->events[i].revents & (POLLHUP | POLLERR))
+                    {
+                        event.socket->event_hup = 1;
+                    }
                     handler = swReactor_get_handler(reactor, SW_EVENT_READ, event.type);
                     ret = handler(reactor, &event);
                     if (ret < 0)

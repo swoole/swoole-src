@@ -249,6 +249,10 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             //read
             if ((events[i].events & EPOLLIN) && !event.socket->removed)
             {
+                if (events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP))
+                {
+                    event.socket->event_hup = 1;
+                }
                 handler = swReactor_get_handler(reactor, SW_EVENT_READ, event.type);
                 ret = handler(reactor, &event);
                 if (ret < 0)
