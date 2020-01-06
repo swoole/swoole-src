@@ -475,6 +475,7 @@ PHP_MINIT_FUNCTION(swoole)
     {
         zend_hash_str_del(CG(function_table), ZEND_STRL("go"));
         zend_hash_str_del(CG(function_table), ZEND_STRL("defer"));
+        zend_hash_rehash(CG(function_table));
     }
 
     swoole_init();
