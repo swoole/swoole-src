@@ -35,7 +35,7 @@
 #ifdef HAVE_MALLOC_TRIM
 #define SW_USE_MALLOC_TRIM         1
 #endif
-#define SW_MALLOC_TRIM_INTERVAL    1
+#define SW_MALLOC_TRIM_INTERVAL    60
 #define SW_MALLOC_TRIM_PAD         0
 #define SW_USE_MONOTONIC_TIME      1
 
