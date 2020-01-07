@@ -69,8 +69,7 @@ Co\run(function () {
         Assert::assert($cache_time < $no_cache_multi_time);
         Assert::assert($no_cache_multi_time < $no_cache_time);
     }
-    echo co::gethostbyname('m.cust.edu.cn') . "\n";
+    Assert::assert(filter_var(co::gethostbyname('m.cust.edu.cn'), FILTER_VALIDATE_IP, FILTER_FLAG_IPV4));
 });
 ?>
 --EXPECTF--
-210.47.1.47
