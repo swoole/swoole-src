@@ -974,6 +974,7 @@ typedef struct _swDataHead
     uint8_t type;
     uint8_t flags;
     uint16_t server_fd;
+    uint16_t ext_info;
 #ifdef SW_BUFFER_RECV_TIME
     double time;
 #endif

@@ -884,7 +884,7 @@ void php_swoole_get_recv_data(swServer *serv, zval *zdata, swEventData *req, cha
 {
     char *data = NULL;
 
-    size_t length = swWorker_get_data(serv, req, &data);
+    size_t length = serv->get_packet(serv, req, &data);
     if (header_length >= length)
     {
         ZVAL_EMPTY_STRING(zdata);
@@ -1386,7 +1386,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     zval zaddr;
 
     char *buffer;
-    swWorker_get_data(serv, req, &buffer);
+    serv->get_packet(serv, req, &buffer);
 
     array_init(&zaddr);
 

@@ -247,6 +247,48 @@ static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEvent
     sw_atomic_fetch_add(&serv->stats->request_count, 1);
 }
 
+static sw_inline swString *swWorker_get_buffer(swServer *serv, int reactor_id)
+{
+    if (serv->factory_mode == SW_MODE_BASE)
+    {
+        return SwooleWG.buffer_input[0];
+    }
+    else
+    {
+        return SwooleWG.buffer_input[reactor_id];
+    }
+}
+
+static int swWorker_merge_chunk(swServer *serv, int key, const char *data, size_t len)
+{
+    swString *package = swWorker_get_buffer(serv, key);
+    //merge data to package buffer
+    return swString_append_ptr(package, data, len);
+}
+
+static size_t swWorker_get_packet(swServer *serv, swEventData *req, char **data_ptr)
+{
+    size_t length;
+    if (req->info.flags & SW_EVENT_DATA_PTR)
+    {
+        swPacket_ptr *task = (swPacket_ptr *) req;
+        *data_ptr = task->data.str;
+        length = task->data.length;
+    }
+    else if (req->info.flags & SW_EVENT_DATA_END)
+    {
+        swString *worker_buffer = swWorker_get_buffer(serv, req->info.reactor_id);
+        *data_ptr = worker_buffer->str;
+    }
+    else
+    {
+        *data_ptr = req->data;
+        length = req->info.len;
+    }
+
+    return length;
+}
+
 int swWorker_onTask(swFactory *factory, swEventData *task)
 {
     swServer *serv = (swServer *) factory->ptr;
@@ -262,9 +304,12 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     //packet chunk
     if (task->info.flags & SW_EVENT_DATA_CHUNK)
     {
-        package = swWorker_get_buffer(serv, task->info.reactor_id);
-        //merge data to package buffer
-        swString_append_ptr(package, task->data, task->info.len);
+        if (serv->merge_chunk(serv, task->info.reactor_id, task->data, task->info.len) < 0)
+        {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_DATA,
+                    "cannot merge chunk to worker buffer, data[fd=%d, size=%d] lost", task->info.fd, task->info.len);
+            return SW_OK;
+        }
         //wait more data
         if (!(task->info.flags & SW_EVENT_DATA_END))
         {
@@ -306,7 +351,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         {
             conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
             char *cert_data = NULL;
-            size_t length = swWorker_get_data(serv, task, &cert_data);
+            size_t length = serv->get_packet(serv, task, &cert_data);
             conn->ssl_client_cert = swString_dup(cert_data, length);
             conn->ssl_client_cert_pid = SwooleG.pid;
         }
@@ -453,6 +498,9 @@ void swWorker_onStart(swServer *serv)
             sw_free(serv->pipe_buffers[i]);
         }
     }
+
+    serv->merge_chunk = swWorker_merge_chunk;
+    serv->get_packet = swWorker_get_packet;
 
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd && SwooleTG.reactor && SwooleG.signal_fd == 0)

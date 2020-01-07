@@ -174,7 +174,7 @@ static DataBuffer get_recv_data(swServer *serv, swEventData *req, char *header, 
 {
     char *data_ptr = NULL;
     DataBuffer retval;
-    size_t data_len = swWorker_get_data(serv, req, &data_ptr);
+    size_t data_len = serv->get_packet(serv, req, &data_ptr);
 
     if (header_length >= (uint32_t) data_len)
     {
@@ -462,7 +462,7 @@ int Server::_onPacket(swServer *serv, swEventData *req)
     swDgramPacket *packet;
 
     char *buffer;
-    swWorker_get_data(serv, req, &buffer);
+    serv->get_packet(serv, req, &buffer);
     packet = (swDgramPacket *) buffer;
 
     char *data = NULL;

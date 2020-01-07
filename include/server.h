@@ -619,7 +619,14 @@ struct _swServer
     int (*close)(swServer *serv, int session_id, int reset);
     int (*notify)(swServer *serv, swConnection *conn, int event);
     int (*feedback)(swServer *serv, int session_id, int event);
-
+    /**
+     * Chunk control
+     */
+    int (*merge_chunk)(swServer *serv, int key, const char *data, size_t len);
+    size_t (*get_packet)(swServer *serv, swEventData *req, char **data_ptr);
+    /**
+     * Hook
+     */
     int (*dispatch_func)(swServer *, swConnection *, swSendData *);
 };
 
@@ -905,41 +912,6 @@ static sw_inline swConnection *swWorker_get_connection(swServer *serv, int sessi
     int real_fd = swServer_get_fd(serv, session_id);
     swConnection *conn = swServer_connection_get(serv, real_fd);
     return conn;
-}
-
-static sw_inline swString *swWorker_get_buffer(swServer *serv, int reactor_id)
-{
-    if (serv->factory_mode == SW_MODE_BASE)
-    {
-        return SwooleWG.buffer_input[0];
-    }
-    else
-    {
-        return SwooleWG.buffer_input[reactor_id];
-    }
-}
-
-static sw_inline size_t swWorker_get_data(swServer *serv, swEventData *req, char **data_ptr)
-{
-    size_t length;
-    if (req->info.flags & SW_EVENT_DATA_PTR)
-    {
-        swPacket_ptr *task = (swPacket_ptr *) req;
-        *data_ptr = task->data.str;
-        length = task->data.length;
-    }
-    else if (req->info.flags & SW_EVENT_DATA_END)
-    {
-        swString *worker_buffer = swWorker_get_buffer(serv, req->info.reactor_id);
-        *data_ptr = worker_buffer->str;
-        length = worker_buffer->length;
-    }
-    else
-    {
-        *data_ptr = req->data;
-        length = req->info.len;
-    }
-    return length;
 }
 
 static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv, uint32_t session_id)
