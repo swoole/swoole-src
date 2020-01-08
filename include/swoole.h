@@ -837,7 +837,7 @@ typedef struct _swProtocol
     /* one package: eof check */
     uint8_t split_by_eof;
     uint8_t package_eof_len;
-    char package_eof[SW_DATA_EOF_MAXLEN + 1];
+    char package_eof[SW_DATA_EOF_MAXLEN];
 
     char package_length_type;
     uint8_t package_length_size;

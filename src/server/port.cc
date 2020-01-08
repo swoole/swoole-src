@@ -151,9 +151,9 @@ void swPort_set_protocol(swServer *serv, swListenPort *ls)
     //will free after onFinish
     if (ls->open_eof_check)
     {
-        if (ls->protocol.package_eof_len > sizeof(ls->protocol.package_eof))
+        if (ls->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
         {
-            ls->protocol.package_eof_len = sizeof(ls->protocol.package_eof);
+            ls->protocol.package_eof_len = SW_DATA_EOF_MAXLEN;
         }
         ls->protocol.onPackage = swReactorThread_dispatch;
         ls->onRead = swPort_onRead_check_eof;
