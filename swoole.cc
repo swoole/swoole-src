@@ -103,8 +103,6 @@ const zend_function_entry swoole_functions[] =
     /*------swoole_coroutine------*/
     PHP_FE(swoole_coroutine_create, arginfo_swoole_coroutine_create)
     PHP_FE(swoole_coroutine_defer, arginfo_swoole_coroutine_defer)
-    PHP_FALIAS(go, swoole_coroutine_create, arginfo_swoole_coroutine_create)
-    PHP_FALIAS(defer, swoole_coroutine_defer, arginfo_swoole_coroutine_defer)
     /*------other-----*/
     PHP_FE(swoole_client_select, arginfo_swoole_client_select)
     PHP_FALIAS(swoole_select, swoole_client_select, arginfo_swoole_client_select)
@@ -471,10 +469,10 @@ PHP_MINIT_FUNCTION(swoole)
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_UNIXSOCK", SW_IPC_UNIXSOCK);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_SOCKET", SW_IPC_SOCKET);
 
-    if (!SWOOLE_G(use_shortname))
+    if (SWOOLE_G(use_shortname))
     {
-        zend_hash_str_del(CG(function_table), ZEND_STRL("go"));
-        zend_hash_str_del(CG(function_table), ZEND_STRL("defer"));
+        SW_FUNCTION_ALIAS(CG(function_table), "swoole_coroutine_create", CG(function_table), "go");
+        SW_FUNCTION_ALIAS(CG(function_table), "swoole_coroutine_defer", CG(function_table), "defer");
     }
 
     swoole_init();
