@@ -886,18 +886,18 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset)
         zend::string str_v(ztmp);
         if (str_v.len() == 0)
         {
-            php_swoole_fatal_error(E_ERROR, "pacakge_eof cannot be an empty string");
+            php_swoole_fatal_error(E_ERROR, "package_eof cannot be an empty string");
             ret = false;
         }
         else if (str_v.len() > SW_DATA_EOF_MAXLEN)
         {
-            php_swoole_fatal_error(E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
+            php_swoole_fatal_error(E_ERROR, "package_eof max length is %d", SW_DATA_EOF_MAXLEN);
             ret = false;
         }
         else
         {
             sock->protocol.package_eof_len = str_v.len();
-            strncpy(sock->protocol.package_eof, str_v.val(), str_v.len())[str_v.len()] = '\0';
+            memcpy(sock->protocol.package_eof, str_v.val(), str_v.len());
         }
     }
     // open mqtt protocol

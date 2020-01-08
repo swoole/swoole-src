@@ -350,15 +350,14 @@ static PHP_METHOD(swoole_server_port, set)
         port->protocol.package_eof_len = str_v.len();
         if (port->protocol.package_eof_len == 0)
         {
-            php_swoole_fatal_error(E_ERROR, "pacakge_eof cannot be an empty string");
+            php_swoole_fatal_error(E_ERROR, "package_eof cannot be an empty string");
             RETURN_FALSE;
         }
         else if (port->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
         {
-            php_swoole_fatal_error(E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
+            php_swoole_fatal_error(E_ERROR, "package_eof max length is %d", SW_DATA_EOF_MAXLEN);
             RETURN_FALSE;
         }
-        bzero(port->protocol.package_eof, SW_DATA_EOF_MAXLEN);
         memcpy(port->protocol.package_eof, str_v.val(), str_v.len());
     }
     //http_protocol
