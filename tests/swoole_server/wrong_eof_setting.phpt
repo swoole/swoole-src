@@ -49,6 +49,6 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Fatal error: %s: pacakge_eof cannot be an empty string in %s on line %d
+Fatal error: %s: package_eof cannot be an empty string in %s on line %d
 
-Fatal error: %s: pacakge_eof cannot be an empty string in %s on line %d
+Fatal error: %s: package_eof cannot be an empty string in %s on line %d
