@@ -1370,11 +1370,7 @@ static PHP_METHOD(swoole_http_response, create)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = (http_context *) ecalloc(1, sizeof(http_context));
-    if (UNEXPECTED(!ctx))
-    {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "ecalloc(%ld) failed", sizeof(http_context));
-        RETURN_FALSE;
-    }
+
     ctx->fd = (int) fd;
     ctx->keepalive = 1;
 
@@ -1385,7 +1381,7 @@ static PHP_METHOD(swoole_http_response, create)
     ctx->response.zobject = return_value;
     sw_copy_to_stack(ctx->response.zobject, ctx->response._zobject);
 
-    zend_update_property_long(swoole_http_response_ce, return_value, ZEND_STRL("fd"), ctx->fd);
+    zend_update_property_long(swoole_http_response_ce, return_value, ZEND_STRL("fd"), fd);
 }
 
 static PHP_METHOD(swoole_http_response, redirect)

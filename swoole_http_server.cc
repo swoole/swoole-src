@@ -184,11 +184,6 @@ void php_swoole_http_server_minit(int module_number)
 http_context* swoole_http_context_new(int fd)
 {
     http_context *ctx = (http_context *) ecalloc(1, sizeof(http_context));
-    if (UNEXPECTED(!ctx))
-    {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "ecalloc(%ld) failed", sizeof(http_context));
-        return NULL;
-    }
 
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
