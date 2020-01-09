@@ -279,6 +279,7 @@ static size_t swWorker_get_packet(swServer *serv, swEventData *req, char **data_
     {
         swString *worker_buffer = swWorker_get_buffer(serv, req->info.reactor_id);
         *data_ptr = worker_buffer->str;
+        length = worker_buffer->length;
     }
     else
     {
@@ -776,9 +777,6 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     {
         ret = swWorker_onTask(factory, (swEventData *) buffer);
 #ifndef SW_WORKER_RECV_AGAIN
-        /**
-         * Big package
-         */
         if (buffer->info.flags & SW_EVENT_DATA_CHUNK)
 #endif
         {
@@ -794,6 +792,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
         }
         return ret;
     }
+
     return SW_ERR;
 }
 
