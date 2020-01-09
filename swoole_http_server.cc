@@ -268,6 +268,10 @@ void swoole_http_context_free(http_context *ctx)
     {
         zend_string_release(Z_STR(req->zdata));
     }
+    if (req->chunked_body)
+    {
+        swString_free(req->chunked_body);
+    }
 #ifdef SW_USE_HTTP2
     if (req->h2_data_buffer)
     {
@@ -338,7 +342,7 @@ bool http_context_send_data(http_context* ctx, const char *data, size_t length)
         php_swoole_server_send_yield(serv, ctx->fd, &_yield_data, return_value);
         if (Z_TYPE_P(return_value) == IS_FALSE)
         {
-            ctx->chunk = 0;
+            ctx->send_chunked = 0;
             ctx->send_header = 0;
         }
     }

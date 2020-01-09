@@ -418,6 +418,33 @@ char* swoole_dec2hex(int value, int base)
     return sw_strndup(ptr, end - ptr);
 }
 
+size_t swoole_hex2dec(char** hex)
+{
+    size_t value = 0;
+    while (1)
+    {
+        char c = **hex;
+        if ((c >= '0') && (c <= '9'))
+        {
+            value = value * 16 + (c - '0');
+        }
+        else
+        {
+            c = toupper(c);
+            if ((c >= 'A') && (c <= 'Z'))
+            {
+                value = value * 16 + (c - 'A') + 10;
+            }
+            else
+            {
+                break;
+            }
+        }
+        (*hex)++;
+    }
+    return value;
+}
+
 size_t swoole_sync_writefile(int fd, const void *data, size_t len)
 {
     ssize_t n = 0;
