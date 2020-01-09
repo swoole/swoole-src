@@ -337,12 +337,12 @@ static PHP_METHOD(swoole_http_response, write)
 
     if (!ctx->send_header)
     {
-        ctx->chunk = 1;
+        ctx->send_chunked = 1;
         swString_clear(http_buffer);
         http_build_header(ctx, http_buffer, -1);
         if (!ctx->send(ctx, http_buffer->str, http_buffer->length))
         {
-            ctx->chunk = 0;
+            ctx->send_chunked = 0;
             ctx->send_header = 0;
             RETURN_FALSE;
         }
@@ -490,7 +490,7 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
         efree(date_str);
     }
 
-    if (ctx->chunk)
+    if (ctx->send_chunked)
     {
         if (!(header_flag & HTTP_HEADER_TRANSFER_ENCODING))
         {
@@ -740,13 +740,13 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
 
     ctx->private_data_2 = return_value;
 
-    if (ctx->chunk)
+    if (ctx->send_chunked)
     {
         if (!ctx->send(ctx, ZEND_STRL("0\r\n\r\n")))
         {
             RETURN_FALSE;
         }
-        ctx->chunk = 0;
+        ctx->send_chunked = 0;
     }
     //no http chunk
     else
@@ -909,7 +909,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
         RETURN_FALSE;
     }
 
-    if (ctx->chunk)
+    if (ctx->send_chunked)
     {
         php_swoole_fatal_error(E_WARNING, "can't use sendfile when HTTP chunk is enabled");
         RETURN_FALSE;

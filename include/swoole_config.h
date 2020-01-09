@@ -206,14 +206,15 @@
 #define SW_HTTP_RFC1123_DATE_UTC         "%a, %d %b %Y %T UTC"
 #define SW_HTTP_RFC850_DATE              "%A, %d-%b-%y %T GMT"
 #define SW_HTTP_ASCTIME_DATE             "%a %b %e %T %Y"
-// #define SW_HTTP_100_CONTINUE
 #define SW_HTTP_SEND_TWICE               1
 
-#define SW_HTTP_BAD_REQUEST_PACKET         "HTTP/1.1 400 Bad Request\r\n\r\n"
-#define SW_HTTP_SERVICE_UNAVAILABLE_PACKET "HTTP/1.1 503 Service Unavailable\r\n\r\n"
-#define SW_HTTP_BAD_REQUEST_TOO_LARGE      "HTTP/1.1 413 Request Entity Too Large\r\n\r\n"
-#define SW_HTTP_PAGE_400                   "<html><body><h2>HTTP 400 Bad Request</h2><hr><i>Powered by Swoole</i></body></html>"
-#define SW_HTTP_PAGE_404                   "<html><body><h2>HTTP 404 Not Found</h2><hr><i>Powered by Swoole</i></body></html>"
+// #define SW_HTTP_100_CONTINUE
+#define SW_HTTP_100_CONTINUE_PACKET                "HTTP/1.1 100 Continue\r\n\r\n"
+#define SW_HTTP_BAD_REQUEST_PACKET                 "HTTP/1.1 400 Bad Request\r\n\r\n"
+#define SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET    "HTTP/1.1 413 Request Entity Too Large\r\n\r\n"
+#define SW_HTTP_SERVICE_UNAVAILABLE_PACKET         "HTTP/1.1 503 Service Unavailable\r\n\r\n"
+#define SW_HTTP_PAGE_400                           "<html><body><h2>HTTP 400 Bad Request</h2><hr><i>Powered by Swoole</i></body></html>"
+#define SW_HTTP_PAGE_404                           "<html><body><h2>HTTP 404 Not Found</h2><hr><i>Powered by Swoole</i></body></html>"
 
 /**
  * HTTP2 Protocol

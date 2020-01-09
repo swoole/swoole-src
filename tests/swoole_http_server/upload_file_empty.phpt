@@ -29,7 +29,6 @@ $pm->parentFunc = function () use ($pm) {
         "Content-Type: multipart/form-data; boundary=$boundary",
         'Content-Length: ' . strlen($body),
         '',
-        '',
         $body,
     ]);
 
@@ -47,7 +46,7 @@ $pm->parentFunc = function () use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $http = new swoole_http_server('127.0.0.1', $pm->getFreePort());
     $http->set([
-        'log_file' => '/dev/null',
+        'log_file' => '/dev/null'
     ]);
     $http->on('workerStart', function () use ($pm) {
         $pm->wakeup();
