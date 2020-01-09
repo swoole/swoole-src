@@ -12,17 +12,18 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $boundary = "Boundary+D80E45AE1BB1E1E1";
     $body = implode("\r\n", [
         "--$boundary\r\nContent-Disposition: form-data; name=\"folder_id\"\r\n\r\n999999955",
-        "--$boundary\r\nContent-Disposition: form-data; name=\"name\"\r\n\r\n".str_repeat('A', rand(100, 200)),
-        "--$boundary--",
-        "\r\n",
+        "--$boundary\r\nContent-Disposition: form-data; name=\"name\"\r\n\r\n" . str_repeat('A', rand(100, 200)),
+        "--$boundary--"
     ]);
+    $body .= "\r\n";
     $len = strlen($body);
-    $data = implode("\r\n", array("POST /file_service/v3/file/upload_do HTTP/1.1",
+    $data = implode("\r\n", [
+        "POST /file_service/v3/file/upload_do HTTP/1.1",
         "Content-Type: multipart/form-data; boundary=$boundary; error=bad",
         "Content-Length: $len",
         "\r\n",
         $body,
-    ));
+    ]);
     fwrite($sock, $data);
     stream_set_chunk_size($sock, 2 * 1024 * 1024);
     $data = fread($sock, 2 * 1024 * 1024);
@@ -44,8 +45,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
 
-    $http->on("request", function (swoole_http_request $request, swoole_http_response $response)
-    {
+    $http->on("request", function (swoole_http_request $request, swoole_http_response $response) {
         $response->end(json_encode($request->post));
     });
 

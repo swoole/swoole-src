@@ -65,6 +65,7 @@ struct http_request
 
     zval zdata;
     size_t body_length;
+    swString *chunked_body;
 #ifdef SW_USE_HTTP2
     swString *h2_data_buffer;
 #endif
@@ -116,7 +117,8 @@ struct http_context
     uint32_t enable_compression :1;
     uint32_t accept_compression :1;
 #endif
-    uint32_t chunk :1;
+    uint32_t send_chunked :1;
+    uint32_t recv_chunked :1;
     uint32_t keepalive :1;
     uint32_t websocket :1;
 #ifdef SW_HAVE_ZLIB

@@ -417,7 +417,7 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
 #endif
     }
 #endif
-    else if (strcasecmp(header_name, "transfer-encoding") == 0 && SW_STRCASECT(at, length, "chunked"))
+    else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STRCASECT(at, length, "chunked"))
     {
         http->chunked = true;
     }

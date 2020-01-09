@@ -27,6 +27,9 @@ $pm->parentFunc = function () use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort());
     $http->set(['log_file' => '/dev/null']);
+    $http->on('workerStart', function () use ($pm) {
+        $pm->wakeup();
+    });
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm) {
         $response->end($pm->getRandomData());
     });

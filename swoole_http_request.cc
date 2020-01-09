@@ -463,7 +463,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         swConnection *conn = swWorker_get_connection(serv, ctx->fd);
         if (!conn)
         {
-            swWarn("connection[%d] is closed", ctx->fd);
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed", ctx->fd);
             efree(header_name);
             return -1;
         }
@@ -521,6 +521,10 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         swoole_http_get_compression_method(ctx, at, length);
     }
 #endif
+    else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STRCASECT(at, length, "chunked"))
+    {
+        ctx->recv_chunked = 1;
+    }
 
     _add_header:
     add_assoc_stringl_ex(zheader, header_name, header_len, (char *) at, length);
@@ -586,8 +590,11 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
      */
     if (ctx->input_var_num > PG(max_input_vars))
     {
-        php_swoole_error(E_WARNING, "Input variables exceeded " ZEND_LONG_FMT ". "
-                "To increase the limit change max_input_vars in php.ini", PG(max_input_vars));
+        php_swoole_error(E_WARNING,
+            "Input variables exceeded " ZEND_LONG_FMT ". "
+            "To increase the limit change max_input_vars in php.ini",
+            PG(max_input_vars)
+        );
         return SW_OK;
     }
     else
@@ -861,9 +868,26 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
 {
     http_context *ctx = (http_context *) parser->data;
 
+    if (ctx->recv_chunked)
+    {
+        if (length != 0)
+        {
+            if (ctx->request.chunked_body == nullptr)
+            {
+                ctx->request.chunked_body = swString_new(SW_BUFFER_SIZE_STD);
+                if (ctx->request.chunked_body == nullptr)
+                {
+                    return -1;
+                }
+            }
+            swString_append_ptr(ctx->request.chunked_body, at, length);
+        }
+        return 0;
+    }
+
     ctx->request.body_length = length;
 
-    swTraceLog(SW_TRACE_HTTP, "length=%ld", length);
+    swTraceLog(SW_TRACE_HTTP, "request body_length=%ld", length);
 
     if (ctx->parse_body && ctx->request.post_form_urlencoded)
     {
@@ -969,8 +993,12 @@ static PHP_METHOD(swoole_http_request, rawContent)
         zval *zdata = &req->zdata;
         RETURN_STRINGL(Z_STRVAL_P(zdata) + Z_STRLEN_P(zdata) - req->body_length, req->body_length);
     }
+    else if (req->chunked_body && req->chunked_body->length != 0)
+    {
+        RETURN_STRINGL(req->chunked_body->str, req->chunked_body->length);
+    }
 #ifdef SW_USE_HTTP2
-    else if (req->h2_data_buffer && req->h2_data_buffer->length > 0)
+    else if (req->h2_data_buffer && req->h2_data_buffer->length != 0)
     {
         RETURN_STRINGL(req->h2_data_buffer->str, req->h2_data_buffer->length);
     }
