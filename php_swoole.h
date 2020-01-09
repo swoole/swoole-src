@@ -50,8 +50,7 @@
 #define SW_HAVE_COUNTABLE 1
 #endif
 
-#include "swoole.h"
-#include "server.h"
+#include "swoole_api.h"
 #include "client.h"
 #include "async.h"
 
@@ -141,48 +140,6 @@ enum php_swoole_client_callback_type
     SW_CLIENT_CB_onSSLReady,
 #endif
 };
-//--------------------------------------------------------
-enum php_swoole_server_callback_type
-{
-    SW_SERVER_CB_onStart,          //master
-    SW_SERVER_CB_onShutdown,       //master
-    SW_SERVER_CB_onWorkerStart,    //worker(event & task)
-    SW_SERVER_CB_onWorkerStop,     //worker(event & task)
-    SW_SERVER_CB_onTask,           //worker(task)
-    SW_SERVER_CB_onFinish,         //worker(event & task)
-    SW_SERVER_CB_onWorkerExit,     //worker(event)
-    SW_SERVER_CB_onWorkerError,    //manager
-    SW_SERVER_CB_onManagerStart,   //manager
-    SW_SERVER_CB_onManagerStop,    //manager
-    SW_SERVER_CB_onPipeMessage,    //worker(event & task)
-};
-//--------------------------------------------------------
-enum php_swoole_server_port_callback_type
-{
-    SW_SERVER_CB_onConnect,        //worker(event)
-    SW_SERVER_CB_onReceive,        //worker(event)
-    SW_SERVER_CB_onClose,          //worker(event)
-    SW_SERVER_CB_onPacket,         //worker(event)
-    SW_SERVER_CB_onRequest,        //http server
-    SW_SERVER_CB_onHandShake,      //worker(event)
-    SW_SERVER_CB_onOpen,           //worker(event)
-    SW_SERVER_CB_onMessage,        //worker(event)
-    SW_SERVER_CB_onBufferFull,     //worker(event)
-    SW_SERVER_CB_onBufferEmpty,    //worker(event)
-};
-
-#define PHP_SWOOLE_SERVER_CALLBACK_NUM         (SW_SERVER_CB_onPipeMessage + 1)
-#define PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM    (SW_SERVER_CB_onBufferEmpty + 1)
-
-typedef struct
-{
-    zval *callbacks[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
-    zend_fcall_info_cache *caches[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
-    zval _callbacks[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
-    swServer *serv;
-    swListenPort *port;
-    zval *zsetting;
-} php_swoole_server_port_property;
 //---------------------------------------------------------
 #define SW_FLAG_KEEP                        (1u << 12)
 #define SW_FLAG_ASYNC                       (1u << 10)

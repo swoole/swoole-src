@@ -18,6 +18,8 @@
 #include "php_streams.h"
 #include "php_network.h"
 
+#include "server.h"
+
 using namespace swoole;
 
 zend_class_entry *swoole_process_ce;

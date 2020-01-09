@@ -396,12 +396,6 @@ enum swEvent_type
     SW_EVENT_ONCE   = 1u << 12,
 };
 
-enum swPipe_type
-{
-    SW_PIPE_READ  = 0,
-    SW_PIPE_WRITE = 1,
-};
-
 enum swGlobal_hook_type
 {
     SW_GLOBAL_HOOK_BEFORE_SERVER_START,
@@ -1328,6 +1322,21 @@ enum swProcess_type
     SW_PROCESS_MANAGER    = 3,
     SW_PROCESS_TASKWORKER = 4,
     SW_PROCESS_USERWORKER = 5,
+};
+
+enum swIPC_type
+{
+    SW_IPC_NONE     = 0,
+    SW_IPC_UNIXSOCK = 1,
+    SW_IPC_MSGQUEUE = 2,
+    SW_IPC_SOCKET   = 3,
+};
+
+enum swPipe_type
+{
+    SW_PIPE_WORKER     = 0,
+    SW_PIPE_MASTER     = 1,
+    SW_PIPE_NONBLOCK   = 2,
 };
 
 #define swIsMaster()          (SwooleG.process_type==SW_PROCESS_MASTER)

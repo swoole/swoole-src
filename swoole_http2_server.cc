@@ -13,15 +13,13 @@
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
 */
-
-#include "php_swoole_cxx.h"
-
 #ifdef SW_USE_HTTP2
-#include "swoole_http.h"
+
+#include "swoole_http_server.h"
 
 #include "static_handler.h"
-
 #include "http2.h"
+
 #include "main/php_variables.h"
 
 #include <vector>

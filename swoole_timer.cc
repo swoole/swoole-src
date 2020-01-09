@@ -18,6 +18,8 @@
 
 #include "php_swoole_cxx.h"
 
+#include "server.h"
+
 #include "ext/spl/spl_array.h"
 
 using namespace swoole;

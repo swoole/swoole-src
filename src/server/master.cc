@@ -790,6 +790,11 @@ int swServer_create(swServer *serv)
         return SW_ERR;
     }
 
+    if (serv->enable_static_handler)
+    {
+        serv->locations = new std::unordered_set<std::string>;
+    }
+
     if (serv->factory_mode == SW_MODE_BASE)
     {
         return swReactorProcess_create(serv);

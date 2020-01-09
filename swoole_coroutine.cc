@@ -18,6 +18,8 @@
  */
 
 #include "php_swoole_cxx.h"
+
+#include "server.h"
 #include "swoole_coroutine_system.h"
 
 #include "zend_builtin_functions.h"

@@ -65,14 +65,14 @@ int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueu
 {
     bzero(pool, sizeof(swProcessPool));
 
-    int i;
+    uint32_t i;
 
     pool->worker_num = worker_num;
 
     /**
      * Shared memory is used here
      */
-    pool->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num * sizeof(swWorker));
+    pool->workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num * sizeof(swWorker));
     if (pool->workers == NULL)
     {
         swSysWarn("malloc[1] failed");
@@ -84,7 +84,7 @@ int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueu
         pool->use_msgqueue = 1;
         pool->msgqueue_key = msgqueue_key;
 
-        pool->queue = sw_malloc(sizeof(swMsgQueue));
+        pool->queue = (swMsgQueue *) sw_malloc(sizeof(swMsgQueue));
         if (pool->queue == NULL)
         {
             swSysWarn("malloc[2] failed");
@@ -98,7 +98,7 @@ int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueu
     }
     else if (ipc_mode == SW_IPC_UNIXSOCK)
     {
-        pool->pipes = sw_calloc(worker_num, sizeof(swPipe));
+        pool->pipes = (swPipe *) sw_calloc(worker_num, sizeof(swPipe));
         if (pool->pipes == NULL)
         {
             swWarn("malloc[2] failed");
@@ -121,7 +121,7 @@ int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueu
     else if (ipc_mode == SW_IPC_SOCKET)
     {
         pool->use_socket = 1;
-        pool->stream = sw_malloc(sizeof(swStreamInfo));
+        pool->stream = (swStreamInfo *) sw_malloc(sizeof(swStreamInfo));
         if (pool->stream == NULL)
         {
             swWarn("malloc[2] failed");
@@ -323,7 +323,7 @@ int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int 
         {
             return SW_ERR;
         }
-        if (_socket.send(&_socket, (void*) data, sendn, 0) < 0)
+        if (_socket.send(&_socket, (char*) data, sendn, 0) < 0)
         {
             return SW_ERR;
         }
@@ -586,7 +586,7 @@ int swProcessPool_set_protocol(swProcessPool *pool, int task_protocol, uint32_t 
     }
     else
     {
-        pool->packet_buffer = sw_malloc(max_packet_size);
+        pool->packet_buffer = (char *) sw_malloc(max_packet_size);
         if (pool->packet_buffer == NULL)
         {
             swSysWarn("malloc(%d) failed", max_packet_size);
@@ -610,7 +610,7 @@ int swProcessPool_set_protocol(swProcessPool *pool, int task_protocol, uint32_t 
 
 static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
 {
-    int n;
+    uint32_t n;
     char *data;
 
     swQueue_data *outbuf = (swQueue_data *) pool->packet_buffer;
@@ -737,7 +737,7 @@ int swProcessPool_wait(swProcessPool *pool)
     int ret;
     int status;
 
-    pool->reload_workers = sw_calloc(pool->worker_num, sizeof(swWorker));
+    pool->reload_workers = (swWorker *) sw_calloc(pool->worker_num, sizeof(swWorker));
     if (pool->reload_workers == NULL)
     {
         swError("malloc[reload_workers] failed");
@@ -784,7 +784,7 @@ int swProcessPool_wait(swProcessPool *pool)
 
         if (SwooleG.running == 1)
         {
-            swWorker *exit_worker = swHashMap_find_int(pool->map, pid);
+            swWorker *exit_worker = (swWorker *) swHashMap_find_int(pool->map, pid);
             if (exit_worker == NULL)
             {
                 if (pool->onWorkerNotFound)

@@ -17,6 +17,7 @@
  */
 
 #include "php_swoole_cxx.h"
+#include "server.h"
 
 using namespace swoole;
 using namespace std;

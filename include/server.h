@@ -14,14 +14,14 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_SERVER_H_
-#define SW_SERVER_H_
+#pragma once
 
 #include "swoole_api.h"
 #include "buffer.h"
 #include "connection.h"
 
-SW_EXTERN_C_BEGIN
+#include <string>
+#include <unordered_set>
 
 #define SW_REACTOR_NUM             SW_CPU_NUM
 #define SW_WORKER_NUM              (SW_CPU_NUM*2)
@@ -55,27 +55,12 @@ enum swServer_event_type
     SW_SERVER_EVENT_SHUTDOWN,
 };
 
-enum swIPC_type
-{
-    SW_IPC_NONE     = 0,
-    SW_IPC_UNIXSOCK = 1,
-    SW_IPC_MSGQUEUE = 2,
-    SW_IPC_SOCKET   = 3,
-};
-
 enum swTask_ipc_mode
 {
     SW_TASK_IPC_UNIXSOCK    = 1,
     SW_TASK_IPC_MSGQUEUE    = 2,
     SW_TASK_IPC_PREEMPTIVE  = 3,
     SW_TASK_IPC_STREAM      = 4,
-};
-
-enum swWorker_pipe_type
-{
-    SW_PIPE_WORKER     = 0,
-    SW_PIPE_MASTER     = 1,
-    SW_PIPE_NONBLOCK   = 2,
 };
 
 /**
@@ -539,6 +524,9 @@ struct _swServer
 
     swServerStats *stats;
     swServerGS *gs;
+
+    std::unordered_set<std::string> *types;
+    std::unordered_set<std::string> *locations;
 
 #ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_t barrier;
@@ -1045,7 +1033,3 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
 pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker);
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);
 void swManager_kill_user_worker(swServer *serv);
-
-SW_EXTERN_C_END
-
-#endif /* SW_SERVER_H_ */

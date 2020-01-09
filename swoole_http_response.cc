@@ -14,8 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole_cxx.h"
-#include "swoole_http.h"
+#include "swoole_http_server.h"
+
 #include "mime_types.h"
 
 extern "C"

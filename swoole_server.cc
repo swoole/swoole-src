@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-#include "php_swoole_cxx.h"
+#include "swoole_server.h"
 #include "connection.h"
 #include "websocket.h"
 #include "ext/standard/php_var.h"

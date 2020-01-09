@@ -264,12 +264,6 @@ void* php_brotli_alloc(void* opaque, size_t size);
 void php_brotli_free(void* opaque, void* address);
 #endif
 
-int swoole_websocket_onMessage(swServer *serv, swEventData *req);
-int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_context *ctx);
-void swoole_websocket_onOpen(http_context *ctx);
-void swoole_websocket_onRequest(http_context *ctx);
-bool swoole_websocket_handshake(http_context *ctx);
-
 #ifdef SW_USE_HTTP2
 int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData *req);
 int swoole_http2_server_parse(http2_session *client, const char *buf);

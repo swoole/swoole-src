@@ -1348,31 +1348,31 @@ int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream)
 
     if (child_pid == 0)
     {
-        close(fds[SW_PIPE_READ]);
+        close(fds[SW_PIPE_MASTER]);
 
         if (get_error_stream)
         {
-            if (fds[SW_PIPE_WRITE] == fileno(stdout))
+            if (fds[SW_PIPE_WORKER] == fileno(stdout))
             {
-                dup2(fds[SW_PIPE_WRITE], fileno(stderr));
+                dup2(fds[SW_PIPE_WORKER], fileno(stderr));
             }
-            else if (fds[SW_PIPE_WRITE] == fileno(stderr))
+            else if (fds[SW_PIPE_WORKER] == fileno(stderr))
             {
-                dup2(fds[SW_PIPE_WRITE], fileno(stdout));
+                dup2(fds[SW_PIPE_WORKER], fileno(stdout));
             }
             else
             {
-                dup2(fds[SW_PIPE_WRITE], fileno(stdout));
-                dup2(fds[SW_PIPE_WRITE], fileno(stderr));
-                close(fds[SW_PIPE_WRITE]);
+                dup2(fds[SW_PIPE_WORKER], fileno(stdout));
+                dup2(fds[SW_PIPE_WORKER], fileno(stderr));
+                close(fds[SW_PIPE_WORKER]);
             }
         }
         else
         {
-            if (fds[SW_PIPE_WRITE] != fileno(stdout))
+            if (fds[SW_PIPE_WORKER] != fileno(stdout))
             {
-                dup2(fds[SW_PIPE_WRITE], fileno(stdout));
-                close(fds[SW_PIPE_WRITE]);
+                dup2(fds[SW_PIPE_WORKER], fileno(stdout));
+                close(fds[SW_PIPE_WORKER]);
             }
         }
 
@@ -1382,9 +1382,9 @@ int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream)
     else
     {
         *pid = child_pid;
-        close(fds[SW_PIPE_WRITE]);
+        close(fds[SW_PIPE_WORKER]);
     }
-    return fds[SW_PIPE_READ];
+    return fds[SW_PIPE_MASTER];
 }
 
 char* swoole_string_format(size_t n, const char *format, ...)
