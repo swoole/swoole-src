@@ -98,7 +98,7 @@ typedef struct _swHttpRequest
     uint8_t header_parsed :1;
     uint8_t tried_to_dispatch :1;
 
-    uint8_t known_length;
+    uint8_t known_length :1;
     uint8_t keep_alive :1;
     uint8_t chunked :1;
     uint8_t nobody_chunked :1;
