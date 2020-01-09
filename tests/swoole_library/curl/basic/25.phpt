@@ -22,27 +22,27 @@ $cm->run(function ($host) {
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_exec($ch);
+    Assert::null(curl_multi_getcontent($ch));
     curl_close($ch);
     echo PHP_EOL;
-    Assert::assert(null === curl_multi_getcontent($ch));
 
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
+    Assert::null(curl_multi_getcontent($ch));
     curl_close($ch);
-    Assert::assert(null === curl_multi_getcontent($ch));
 
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_URL, $url);
     $curl_content = curl_exec($ch);
+    Assert::same(curl_multi_getcontent($ch), $curl_content);
     curl_close($ch);
-    Assert::assert($curl_content === curl_multi_getcontent($ch));
 
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_URL, $url);
+    Assert::same(curl_multi_getcontent($ch), '');
     curl_close($ch);
-    Assert::assert('' === curl_multi_getcontent($ch));
 });
 ?>
 ===DONE===

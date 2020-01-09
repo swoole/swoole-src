@@ -1274,14 +1274,14 @@ bool PHPCoroutine::enable_hook(int flags)
         {
             hook_func(ZEND_STRL("curl_init"));
             hook_func(ZEND_STRL("curl_setopt"));
-            hook_func(ZEND_STRL("curl_exec"));
-            hook_func(ZEND_STRL("curl_multi_getcontent"));
             hook_func(ZEND_STRL("curl_setopt_array"));
-            hook_func(ZEND_STRL("curl_error"));
+            hook_func(ZEND_STRL("curl_exec"));
             hook_func(ZEND_STRL("curl_getinfo"));
             hook_func(ZEND_STRL("curl_errno"));
-            hook_func(ZEND_STRL("curl_close"));
+            hook_func(ZEND_STRL("curl_error"));
             hook_func(ZEND_STRL("curl_reset"));
+            hook_func(ZEND_STRL("curl_close"));
+            hook_func(ZEND_STRL("curl_multi_getcontent"));
         }
     }
     else
@@ -1290,13 +1290,14 @@ bool PHPCoroutine::enable_hook(int flags)
         {
             unhook_func(ZEND_STRL("curl_init"));
             unhook_func(ZEND_STRL("curl_setopt"));
-            unhook_func(ZEND_STRL("curl_exec"));
             unhook_func(ZEND_STRL("curl_setopt_array"));
-            unhook_func(ZEND_STRL("curl_error"));
+            unhook_func(ZEND_STRL("curl_exec"));
             unhook_func(ZEND_STRL("curl_getinfo"));
             unhook_func(ZEND_STRL("curl_errno"));
-            unhook_func(ZEND_STRL("curl_close"));
+            unhook_func(ZEND_STRL("curl_error"));
             unhook_func(ZEND_STRL("curl_reset"));
+            unhook_func(ZEND_STRL("curl_close"));
+            unhook_func(ZEND_STRL("curl_multi_getcontent"));
         }
     }
 
