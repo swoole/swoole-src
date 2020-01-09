@@ -2364,11 +2364,6 @@ static PHP_METHOD(swoole_mysql_coro, escape)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     char *newstr = (char *) safe_emalloc(2, str_length + 1, 1);
-    if (!newstr)
-    {
-        php_swoole_fatal_error(E_ERROR, "emalloc(%ld) failed", str_length + 1);
-        RETURN_FALSE;
-    }
     const MYSQLND_CHARSET* cset = mysqlnd_find_charset_nr(mc->charset);
     if (!cset)
     {
