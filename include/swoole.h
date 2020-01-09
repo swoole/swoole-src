@@ -1506,6 +1506,7 @@ swString* swoole_file_get_contents(const char *filename);
 int swoole_file_put_contents(const char *filename, const char *content, size_t length);
 long swoole_file_size(const char *filename);
 char *swoole_dec2hex(int value, int base);
+size_t swoole_hex2dec(char** hex);
 int swoole_version_compare(const char *version1, const char *version2);
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void);
