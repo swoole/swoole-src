@@ -1145,6 +1145,10 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     if (_send->info.type == SW_SERVER_EVENT_CLOSE)
     {
         chunk = swBuffer_new_chunk(_socket->out_buffer, SW_CHUNK_CLOSE, 0);
+        if (chunk == nullptr)
+        {
+            return SW_ERR;
+        }
         chunk->store.data.val1 = _send->info.type;
         conn->close_queued = 1;
     }
@@ -1152,7 +1156,10 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE)
     {
         swSendFile_request *req = (swSendFile_request *) _send_data;
-        swConnection_sendfile(conn->socket, req->filename, req->offset, req->length);
+        if (swConnection_sendfile(conn->socket, req->filename, req->offset, req->length) < 0)
+        {
+            return SW_ERR;
+        }
     }
     //send data
     else
