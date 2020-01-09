@@ -34,6 +34,9 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
+static int swServer_worker_merge_chunk(swServer *serv, int key, const char *data, size_t len);
+static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr);
+
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, swSocket *_socket, int server_fd);
 
 static void swServer_disable_accept(swServer *serv)
@@ -599,6 +602,8 @@ int swServer_start(swServer *serv)
     serv->close = swServer_tcp_close;
     serv->notify = swServer_tcp_notify;
     serv->feedback = swServer_tcp_feedback;
+    serv->merge_chunk = swServer_worker_merge_chunk;
+    serv->get_packet = swServer_worker_get_packet;
 
     serv->workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
     if (serv->workers == NULL)
@@ -1294,6 +1299,49 @@ static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uin
         return SW_ERR;
     }
     return swSocket_write_blocking(conn->fd, data, length);
+}
+
+static sw_inline swString *swServer_worker_get_input_buffer(swServer *serv, int reactor_id)
+{
+    if (serv->factory_mode == SW_MODE_BASE)
+    {
+        return SwooleWG.buffer_input[0];
+    }
+    else
+    {
+        return SwooleWG.buffer_input[reactor_id];
+    }
+}
+
+static int swServer_worker_merge_chunk(swServer *serv, int key, const char *data, size_t len)
+{
+    swString *package = swServer_worker_get_input_buffer(serv, key);
+    //merge data to package buffer
+    return swString_append_ptr(package, data, len);
+}
+
+static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr)
+{
+    size_t length;
+    if (req->info.flags & SW_EVENT_DATA_PTR)
+    {
+        swPacket_ptr *task = (swPacket_ptr *) req;
+        *data_ptr = task->data.str;
+        length = task->data.length;
+    }
+    else if (req->info.flags & SW_EVENT_DATA_END)
+    {
+        swString *worker_buffer = swServer_worker_get_input_buffer(serv, req->info.reactor_id);
+        *data_ptr = worker_buffer->str;
+        length = worker_buffer->length;
+    }
+    else
+    {
+        *data_ptr = req->data;
+        length = req->info.len;
+    }
+
+    return length;
 }
 
 SW_API void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg)
