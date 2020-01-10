@@ -147,12 +147,7 @@ static void php_swoole_http_response_free_object(zend_object *object)
                 swConnection *conn = swWorker_get_connection(serv, ctx->fd);
                 if (conn && !conn->closed && !conn->peer_closed)
                 {
-#ifdef SW_USE_HTTP2
-                    if (!conn->http2_stream)
-#endif
-                    {
-                        swoole_http_response_end(ctx, nullptr, &ztmp);
-                    }
+                    swoole_http_response_end(ctx, nullptr, &ztmp);
                 }
             }
         }

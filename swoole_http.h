@@ -277,6 +277,7 @@ int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData 
 int swoole_http2_server_parse(http2_session *client, const char *buf);
 bool swoole_http2_server_sendfile(http_context *ctx, const char* file, struct stat *file_stat);
 void swoole_http2_server_session_free(swConnection *conn);
+void swoole_http2_server_stream_free(http_context *ctx);
 void swoole_http2_response_end(http_context *ctx, zval *zdata, zval *return_value);
 int swoole_http2_server_ping(http_context *ctx);
 
