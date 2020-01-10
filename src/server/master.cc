@@ -1438,7 +1438,7 @@ void swServer_signal_init(swServer *serv)
     swSignal_add(SIGALRM, swSystemTimer_signal_handler);
     //for test
     swSignal_add(SIGVTALRM, swServer_signal_handler);
-    swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
+    swServer_set_minfd(sw_server(), SwooleG.signal_fd);
 }
 
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
@@ -1783,7 +1783,7 @@ static void swServer_signal_handler(int sig)
 {
     swTraceLog(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swSignal_str(sig), getpid());
 
-    swServer *serv = SwooleG.serv;
+    swServer *serv = sw_server();
     int status;
     pid_t pid;
     switch (sig)
@@ -1799,7 +1799,7 @@ static void swServer_signal_handler(int sig)
         {
             break;
         }
-        if (SwooleG.serv->factory_mode == SW_MODE_BASE)
+        if (sw_server()->factory_mode == SW_MODE_BASE)
         {
             break;
         }
@@ -1820,7 +1820,7 @@ static void swServer_signal_handler(int sig)
          */
     case SIGUSR1:
     case SIGUSR2:
-        if (SwooleG.serv->factory_mode == SW_MODE_BASE)
+        if (sw_server()->factory_mode == SW_MODE_BASE)
         {
             if (serv->gs->event_workers.reloading)
             {
@@ -1840,16 +1840,16 @@ static void swServer_signal_handler(int sig)
         {
             uint32_t i;
             swWorker *worker;
-            for (i = 0; i < SwooleG.serv->worker_num + serv->task_worker_num + SwooleG.serv->user_worker_num; i++)
+            for (i = 0; i < sw_server()->worker_num + serv->task_worker_num + sw_server()->user_worker_num; i++)
             {
-                worker = swServer_get_worker(SwooleG.serv, i);
+                worker = swServer_get_worker(sw_server(), i);
                 swoole_kill(worker->pid, SIGRTMIN);
             }
-            if (SwooleG.serv->factory_mode == SW_MODE_PROCESS)
+            if (sw_server()->factory_mode == SW_MODE_PROCESS)
             {
                 swoole_kill(serv->gs->manager_pid, SIGRTMIN);
             }
-            swLog_reopen(SwooleG.serv->daemonize ? SW_TRUE : SW_FALSE);
+            swLog_reopen(sw_server()->daemonize ? SW_TRUE : SW_FALSE);
         }
 #endif
         break;

@@ -19,6 +19,7 @@
 #include "swoole_api.h"
 #include "buffer.h"
 #include "connection.h"
+#include "http.h"
 
 #include <string>
 #include <unordered_set>
@@ -251,25 +252,24 @@ typedef struct _swPacket_ptr
     swDataHead info;
     swString data;
 } swPacket_ptr;
+
 //-----------------------------------Factory--------------------------------------------
-struct _swFactory
+struct swFactory
 {
     void *object;
     void *ptr; //server object
 
-    int (*start)(struct _swFactory *);
-    int (*shutdown)(struct _swFactory *);
-    int (*dispatch)(struct _swFactory *, swSendData *);
+    int (*start)(swFactory *);
+    int (*shutdown)(swFactory *);
+    int (*dispatch)(swFactory *, swSendData *);
     /**
      * Returns the number of bytes sent
      */
-    int (*finish)(struct _swFactory *, swSendData *);
-    int (*notify)(struct _swFactory *, swDataHead *);    //send a event notify
-    int (*end)(struct _swFactory *, int fd);
-    void (*free)(struct _swFactory *);
+    int (*finish)(swFactory *, swSendData *);
+    int (*notify)(swFactory *, swDataHead *);    //send a event notify
+    int (*end)(swFactory *, int fd);
+    void (*free)(swFactory *);
 };
-
-typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);
 
 int swFactory_create(swFactory *factory);
 int swFactory_finish(swFactory *factory, swSendData *_send);
@@ -325,7 +325,7 @@ typedef struct _swServerGS
 
 } swServerGS;
 
-struct _swServer
+struct swServer
 {
     /**
      * reactor thread/process num
@@ -618,6 +618,8 @@ struct _swServer
     int (*dispatch_func)(swServer *, swConnection *, swSendData *);
 };
 
+typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);
+
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode);
 int swServer_master_send(swServer *serv, swSendData *_send);
@@ -892,6 +894,9 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
 void swServer_worker_onStart(swServer *serv);
 void swServer_worker_onStop(swServer *serv);
 
+int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn);
+int swServer_http_static_handler_add_location(swServer *serv, const char *location, size_t length);
+
 int swWorker_onTask(swFactory *factory, swEventData *task);
 void swWorker_stop(swWorker *worker);
 
@@ -992,6 +997,11 @@ static sw_inline uint8_t swServer_support_unsafe_events(swServer *serv)
 static sw_inline uint8_t swServer_dispatch_mode_is_mod(swServer *serv)
 {
     return serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD;
+}
+
+static sw_inline swServer* sw_server()
+{
+    return (swServer *) SwooleG.serv;
 }
 
 #define swServer_support_send_yield swServer_dispatch_mode_is_mod

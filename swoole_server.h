@@ -63,3 +63,18 @@ typedef struct
     swListenPort *port;
     zval *zsetting;
 } php_swoole_server_port_property;
+
+void php_swoole_server_register_callbacks(swServer *serv);
+zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int server_fd, int event_type);
+void php_swoole_server_before_start(swServer *serv, zval *zobject);
+void php_swoole_http_server_init_global_variant();
+void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value);
+void php_swoole_get_recv_data(swServer *serv, zval *zdata, swEventData *req, char *header, uint32_t header_length);
+void php_swoole_onConnect(swServer *, swDataHead *);
+int php_swoole_onReceive(swServer *, swEventData *);
+int php_swoole_http_onReceive(swServer *, swEventData *);
+void php_swoole_http_onClose(swServer *, swDataHead *);
+int php_swoole_onPacket(swServer *, swEventData *);
+void php_swoole_onClose(swServer *, swDataHead *);
+void php_swoole_onBufferFull(swServer *, swDataHead *);
+void php_swoole_onBufferEmpty(swServer *, swDataHead *);

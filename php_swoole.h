@@ -51,7 +51,6 @@
 #endif
 
 #include "swoole_api.h"
-#include "client.h"
 #include "async.h"
 
 #ifdef SW_HAVE_ZLIB
@@ -306,17 +305,16 @@ void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_event_exit();
 
-void php_swoole_server_register_callbacks(swServer *serv);
-void php_swoole_client_free(zval *zobject, swClient *cli);
-swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int port);
-void php_swoole_client_check_setting(swClient *cli, zval *zset);
-#ifdef SW_USE_OPENSSL
-void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset);
-#endif
-
 static sw_inline zend_bool php_swoole_websocket_frame_is_object(zval *zdata)
 {
     return Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_ce);
+}
+
+static sw_inline size_t php_swoole_get_send_data(zval *zdata, char **str)
+{
+    convert_to_string(zdata);
+    *str = Z_STRVAL_P(zdata);
+    return Z_STRLEN_P(zdata);
 }
 
 #ifdef SW_HAVE_ZLIB
@@ -348,27 +346,9 @@ php_socket *swoole_convert_to_socket(int sock);
 void swoole_php_socket_free(zval *zsocket);
 #endif
 
-zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int server_fd, int event_type);
-void php_swoole_server_before_start(swServer *serv, zval *zobject);
-void php_swoole_http_server_init_global_variant();
-void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value);
-void php_swoole_get_recv_data(swServer *serv, zval *zdata, swEventData *req, char *header, uint32_t header_length);
-size_t php_swoole_get_send_data(zval *zdata, char **str);
-void php_swoole_onConnect(swServer *, swDataHead *);
-int php_swoole_onReceive(swServer *, swEventData *);
-int php_swoole_http_onReceive(swServer *, swEventData *);
-void php_swoole_http_onClose(swServer *, swDataHead *);
-int php_swoole_onPacket(swServer *, swEventData *);
-void php_swoole_onClose(swServer *, swDataHead *);
-void php_swoole_onBufferFull(swServer *, swDataHead *);
-void php_swoole_onBufferEmpty(swServer *, swDataHead *);
 ssize_t php_swoole_length_func(swProtocol *protocol, swSocket *_socket, char *data, uint32_t length);
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
 zend_bool php_swoole_signal_isset_handler(int signo);
-
-#ifdef SW_USE_OPENSSL
-void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset);
-#endif
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool display_errors;

@@ -237,7 +237,6 @@ static sw_inline zval* swoole_http_init_and_read_property(zend_class_entry *ce, 
 }
 int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len);
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
-void swoole_http_server_init_context(swServer *serv, http_context *ctx);
 
 http_context * php_swoole_http_request_get_context(zval *zobject);
 void php_swoole_http_request_set_context(zval *zobject, http_context *context);
@@ -265,7 +264,6 @@ void php_brotli_free(void* opaque, void* address);
 #endif
 
 #ifdef SW_USE_HTTP2
-int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData *req);
 int swoole_http2_server_parse(http2_session *client, const char *buf);
 bool swoole_http2_server_sendfile(http_context *ctx, const char* file, struct stat *file_stat);
 void swoole_http2_server_session_free(swConnection *conn);

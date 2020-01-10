@@ -241,7 +241,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     {
         flags |= SW_EXIT_IN_COROUTINE;
     }
-    if (SwooleG.serv && SwooleG.serv->gs->start)
+    if (sw_server() && sw_server()->gs->start)
     {
         flags |= SW_EXIT_IN_SERVER;
     }

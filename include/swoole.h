@@ -2395,9 +2395,6 @@ typedef struct
     } address;
 } swDNS_server;
 
-typedef struct _swServer swServer;
-typedef struct _swFactory swFactory;
-
 typedef struct
 {
     uint8_t init :1;
@@ -2445,7 +2442,7 @@ typedef struct
     uint32_t socket_buffer_size;
     double socket_send_timeout;
 
-    swServer *serv;
+    void *serv;
 
     swMemoryPool *memory_pool;
     swLock lock;
