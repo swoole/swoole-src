@@ -123,11 +123,11 @@ static void php_swoole_http_response_free_object(zend_object *object)
 
     if (ctx)
     {
-        if (!ctx->end)
+        if (!ctx->end && !ctx->detached)
         {
             if (ctx->response.status == 0)
             {
-                ctx->response.status = 500;
+                ctx->response.status = SW_HTTP_INTERNAL_SERVER_ERROR;
             }
 
             if (0) { }
@@ -145,14 +145,9 @@ static void php_swoole_http_response_free_object(zend_object *object)
             {
                 swServer *serv = (swServer *) ctx->private_data;
                 swConnection *conn = swWorker_get_connection(serv, ctx->fd);
-                if (conn && !conn->closed && !conn->peer_closed && !ctx->detached)
+                if (conn && !conn->closed && !conn->peer_closed)
                 {
-#ifdef SW_USE_HTTP2
-                    if (!conn->http2_stream)
-#endif
-                    {
-                        swoole_http_response_end(ctx, nullptr, &ztmp);
-                    }
+                    swoole_http_response_end(ctx, nullptr, &ztmp);
                 }
             }
         }
@@ -337,12 +332,12 @@ static PHP_METHOD(swoole_http_response, write)
 
     if (!ctx->send_header)
     {
-        ctx->chunk = 1;
+        ctx->send_chunked = 1;
         swString_clear(http_buffer);
         http_build_header(ctx, http_buffer, -1);
         if (!ctx->send(ctx, http_buffer->str, http_buffer->length))
         {
-            ctx->chunk = 0;
+            ctx->send_chunked = 0;
             ctx->send_header = 0;
             RETURN_FALSE;
         }
@@ -490,7 +485,7 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
         efree(date_str);
     }
 
-    if (ctx->chunk)
+    if (ctx->send_chunked)
     {
         if (!(header_flag & HTTP_HEADER_TRANSFER_ENCODING))
         {
@@ -740,13 +735,13 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
 
     ctx->private_data_2 = return_value;
 
-    if (ctx->chunk)
+    if (ctx->send_chunked)
     {
         if (!ctx->send(ctx, ZEND_STRL("0\r\n\r\n")))
         {
             RETURN_FALSE;
         }
-        ctx->chunk = 0;
+        ctx->send_chunked = 0;
     }
     //no http chunk
     else
@@ -909,7 +904,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
         RETURN_FALSE;
     }
 
-    if (ctx->chunk)
+    if (ctx->send_chunked)
     {
         php_swoole_fatal_error(E_WARNING, "can't use sendfile when HTTP chunk is enabled");
         RETURN_FALSE;
@@ -1370,11 +1365,7 @@ static PHP_METHOD(swoole_http_response, create)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = (http_context *) ecalloc(1, sizeof(http_context));
-    if (UNEXPECTED(!ctx))
-    {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "ecalloc(%ld) failed", sizeof(http_context));
-        RETURN_FALSE;
-    }
+
     ctx->fd = (int) fd;
     ctx->keepalive = 1;
 
@@ -1385,7 +1376,7 @@ static PHP_METHOD(swoole_http_response, create)
     ctx->response.zobject = return_value;
     sw_copy_to_stack(ctx->response.zobject, ctx->response._zobject);
 
-    zend_update_property_long(swoole_http_response_ce, return_value, ZEND_STRL("fd"), ctx->fd);
+    zend_update_property_long(swoole_http_response_ce, return_value, ZEND_STRL("fd"), fd);
 }
 
 static PHP_METHOD(swoole_http_response, redirect)

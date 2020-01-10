@@ -448,7 +448,7 @@ bool Socket::http_proxy_handshake()
     /* use eof protocol (provisional) */
     bool ori_open_eof_check = open_eof_check;
     uint8_t ori_package_eof_len = protocol.package_eof_len;
-    char ori_package_eof[SW_DATA_EOF_MAXLEN + 1];
+    char ori_package_eof[SW_DATA_EOF_MAXLEN];
     memcpy(ori_package_eof, SW_STRS(protocol.package_eof));
     open_eof_check = true;
     protocol.package_eof_len = sizeof("\r\n\r\n") - 1;

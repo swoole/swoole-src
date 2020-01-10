@@ -183,11 +183,6 @@ void php_swoole_http_server_minit(int module_number)
 http_context* swoole_http_context_new(int fd)
 {
     http_context *ctx = (http_context *) ecalloc(1, sizeof(http_context));
-    if (UNEXPECTED(!ctx))
-    {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "ecalloc(%ld) failed", sizeof(http_context));
-        return NULL;
-    }
 
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
@@ -253,7 +248,8 @@ void swoole_http_context_free(http_context *ctx)
 #ifdef SW_USE_HTTP2
     if (ctx->stream)
     {
-        ((http2_stream *) ctx->stream)->ctx = nullptr;
+        swoole_http2_server_stream_free(ctx);
+        SW_ASSERT(ctx->stream == nullptr);
     }
 #endif
 
@@ -266,6 +262,10 @@ void swoole_http_context_free(http_context *ctx)
     if (Z_TYPE(req->zdata) == IS_STRING)
     {
         zend_string_release(Z_STR(req->zdata));
+    }
+    if (req->chunked_body)
+    {
+        swString_free(req->chunked_body);
     }
 #ifdef SW_USE_HTTP2
     if (req->h2_data_buffer)
@@ -337,7 +337,7 @@ bool http_context_send_data(http_context* ctx, const char *data, size_t length)
         php_swoole_server_send_yield(serv, ctx->fd, &_yield_data, return_value);
         if (Z_TYPE_P(return_value) == IS_FALSE)
         {
-            ctx->chunk = 0;
+            ctx->send_chunked = 0;
             ctx->send_header = 0;
         }
     }

@@ -119,7 +119,11 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
     }
     _discard_data:
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", task->info.len, session_id);
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
+            "[2] received the wrong data[%d bytes] from socket#%d",
+            task->info.len, session_id
+        );
     }
     return SW_TRUE;
 }

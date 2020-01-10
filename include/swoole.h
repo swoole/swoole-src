@@ -832,7 +832,7 @@ typedef struct _swProtocol
     /* one package: eof check */
     uint8_t split_by_eof;
     uint8_t package_eof_len;
-    char package_eof[SW_DATA_EOF_MAXLEN + 1];
+    char package_eof[SW_DATA_EOF_MAXLEN];
 
     char package_length_type;
     uint8_t package_length_size;
@@ -1516,6 +1516,7 @@ swString* swoole_file_get_contents(const char *filename);
 int swoole_file_put_contents(const char *filename, const char *content, size_t length);
 long swoole_file_size(const char *filename);
 char *swoole_dec2hex(int value, int base);
+size_t swoole_hex2dec(char** hex);
 int swoole_version_compare(const char *version1, const char *version2);
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void);
