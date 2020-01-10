@@ -183,7 +183,7 @@ bool StaticHandler::hit()
     return true;
 }
 
-int swHttp_static_handler_add_location(swServer *serv, const char *location, size_t length)
+int swServer_http_static_handler_add_location(swServer *serv, const char *location, size_t length)
 {
     serv->locations->insert(string(location, length));
     return SW_OK;

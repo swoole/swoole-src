@@ -38,7 +38,7 @@ set_target_properties(lib-swoole PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOL
 target_link_libraries(lib-swoole ${SWOOLE_CLFLAGS})
 
 # test_server
-set(TEST_SRC_LIST examples/cpp/test_server.c)
+set(TEST_SRC_LIST examples/cpp/test_server.cc)
 add_executable(test_server ${TEST_SRC_LIST})
 add_dependencies(test_server lib-swoole)
 target_link_libraries(test_server ${SWOOLE_CLFLAGS} swoole)

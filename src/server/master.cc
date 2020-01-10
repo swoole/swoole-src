@@ -912,6 +912,10 @@ static int swServer_destory(swServer *serv)
     {
         swReactorThread_free(serv);
     }
+    if (serv->locations)
+    {
+        delete serv->locations;
+    }
     serv->lock.free(&serv->lock);
     SwooleG.serv = nullptr;
     return SW_OK;
