@@ -713,6 +713,15 @@ typedef struct _swSocket
 
 } swSocket;
 
+typedef struct _swTask_sendfile
+{
+    char *filename;
+    uint16_t name_len;
+    int fd;
+    size_t length;
+    off_t offset;
+} swTask_sendfile;
+
 typedef struct _swConnection
 {
     /**

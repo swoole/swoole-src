@@ -389,10 +389,9 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
             if (resp->info.flags & SW_EVENT_DATA_CHUNK)
             {
                 int worker_id = resp->info.server_fd;
-                unordered_map<int, swString *> *_map = static_cast<unordered_map<int, swString *>*>(thread->send_buffers);
                 int key = (ev->fd << 16) + worker_id;
-                auto it = _map->find(key);
-                if (it == _map->end())
+                auto it = thread->send_buffers->find(key);
+                if (it == thread->send_buffers->end())
                 {
                     package = swString_new(SW_BUFFER_SIZE_BIG);
                     if (package == nullptr)
@@ -402,7 +401,7 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                     }
                     else
                     {
-                        _map->emplace(std::make_pair(key, package));
+                        thread->send_buffers->emplace(std::make_pair(key, package));
                     }
                 }
                 else
@@ -421,7 +420,7 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                 _send.info.len = package->length;
                 swServer_master_send(serv, &_send);
                 swString_free(package);
-                _map->erase(key);
+                thread->send_buffers->erase(key);
             }
             else
             {
@@ -1069,12 +1068,11 @@ static int swReactorThread_loop(swThreadParam *param)
 
     SwooleTG.reactor = nullptr;
 
-    unordered_map<int, swString *> *_map = static_cast<unordered_map<int, swString *>*>(thread->send_buffers);
-    for (auto it = _map->begin(); it != _map->end(); it++)
+    for (auto it = thread->send_buffers->begin(); it != thread->send_buffers->end(); it++)
     {
         swString_free(it->second);
     }
-    delete _map;
+    delete thread->send_buffers;
 
     swString_free(SwooleTG.buffer_stack);
     pthread_exit(0);

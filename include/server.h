@@ -22,6 +22,7 @@
 #include "http.h"
 
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 
 #define SW_REACTOR_NUM             SW_CPU_NUM
@@ -104,7 +105,7 @@ typedef struct _swReactorThread
     int notify_pipe;
     uint32_t pipe_num;
     swSocket *pipe_sockets;
-    void *send_buffers;
+    std::unordered_map<int, swString *> *send_buffers;
 } swReactorThread;
 
 typedef struct _swListenPort
@@ -218,15 +219,6 @@ typedef struct _swUserWorker_node
     struct _swUserWorker_node *next, *prev;
     swWorker *worker;
 } swUserWorker_node;
-
-typedef struct _swTask_sendfile
-{
-    char *filename;
-    uint16_t name_len;
-    int fd;
-    size_t length;
-    off_t offset;
-} swTask_sendfile;
 
 typedef struct _swWorkerStopMessage
 {
