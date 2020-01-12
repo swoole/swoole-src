@@ -13,9 +13,10 @@
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
 */
-#ifdef SW_USE_HTTP2
 
 #include "swoole_http_server.h"
+
+#ifdef SW_USE_HTTP2
 
 #include "static_handler.h"
 #include "http2.h"
@@ -38,7 +39,7 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body);
 http2_stream::http2_stream(int _fd, uint32_t _id)
 {
     ctx = swoole_http_context_new(_fd);
-    ctx->stream = (void *) this;
+    ctx->stream = this;
     id = _id;
     send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
     recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
@@ -536,7 +537,7 @@ bool http2_stream::send_trailer()
 static bool swoole_http2_server_respond(http_context *ctx, swString *body)
 {
     http2_session *client = http2_sessions[ctx->fd];
-    http2_stream *stream = (http2_stream *) ctx->stream;
+    http2_stream *stream = ctx->stream;
 
 #ifdef SW_HAVE_COMPRESSION
     if (ctx->accept_compression)
@@ -1043,9 +1044,6 @@ int swoole_http2_server_parse(http2_session *client, const char *buf)
     return SW_OK;
 }
 
-/**
- * Http2
- */
 int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData *req)
 {
     int session_id = req->info.fd;
@@ -1085,7 +1083,7 @@ void swoole_http2_server_session_free(swConnection *conn)
 void swoole_http2_server_stream_free(http_context *ctx)
 {
     http2_session *client = http2_sessions[ctx->fd];
-    http2_stream *stream = (http2_stream *) ctx->stream;
+    http2_stream *stream = ctx->stream;
     client->streams.erase(stream->id);
     delete stream;
 }

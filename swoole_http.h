@@ -107,6 +107,10 @@ struct http_response
     zval _ztrailer;
 };
 
+#ifdef SW_USE_HTTP2
+class http2_stream;
+#endif
+
 struct http_context
 {
     int fd;
@@ -137,7 +141,7 @@ struct http_context
 #endif
 
 #ifdef SW_USE_HTTP2
-    void* stream;
+    http2_stream* stream;
 #endif
     http_request request;
     http_response response;
@@ -266,12 +270,7 @@ void php_brotli_free(void* opaque, void* address);
 #endif
 
 #ifdef SW_USE_HTTP2
-int swoole_http2_server_parse(http2_session *client, const char *buf);
-bool swoole_http2_server_sendfile(http_context *ctx, const char* file, struct stat *file_stat);
-void swoole_http2_server_session_free(swConnection *conn);
-void swoole_http2_server_stream_free(http_context *ctx);
 void swoole_http2_response_end(http_context *ctx, zval *zdata, zval *return_value);
-int swoole_http2_server_ping(http_context *ctx);
 
 namespace swoole { namespace http2 {
 //-----------------------------------namespace begin--------------------------------------------

@@ -491,7 +491,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole.cc \
         swoole_async_coro.cc \
         swoole_atomic.cc \
-        swoole_buffer.c \
+        swoole_buffer.cc \
         swoole_channel_coro.cc \
         swoole_client.cc \
         swoole_client_coro.cc \
