@@ -14,14 +14,16 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_SERVER_H_
-#define SW_SERVER_H_
+#pragma once
 
 #include "swoole_api.h"
 #include "buffer.h"
 #include "connection.h"
+#include "http.h"
 
-SW_EXTERN_C_BEGIN
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
 
 #define SW_REACTOR_NUM             SW_CPU_NUM
 #define SW_WORKER_NUM              (SW_CPU_NUM*2)
@@ -55,27 +57,12 @@ enum swServer_event_type
     SW_SERVER_EVENT_SHUTDOWN,
 };
 
-enum swIPC_type
-{
-    SW_IPC_NONE     = 0,
-    SW_IPC_UNIXSOCK = 1,
-    SW_IPC_MSGQUEUE = 2,
-    SW_IPC_SOCKET   = 3,
-};
-
 enum swTask_ipc_mode
 {
     SW_TASK_IPC_UNIXSOCK    = 1,
     SW_TASK_IPC_MSGQUEUE    = 2,
     SW_TASK_IPC_PREEMPTIVE  = 3,
     SW_TASK_IPC_STREAM      = 4,
-};
-
-enum swWorker_pipe_type
-{
-    SW_PIPE_WORKER     = 0,
-    SW_PIPE_MASTER     = 1,
-    SW_PIPE_NONBLOCK   = 2,
 };
 
 /**
@@ -118,7 +105,7 @@ typedef struct _swReactorThread
     int notify_pipe;
     uint32_t pipe_num;
     swSocket *pipe_sockets;
-    void *send_buffers;
+    std::unordered_map<int, swString *> *send_buffers;
 } swReactorThread;
 
 typedef struct _swListenPort
@@ -233,15 +220,6 @@ typedef struct _swUserWorker_node
     swWorker *worker;
 } swUserWorker_node;
 
-typedef struct _swTask_sendfile
-{
-    char *filename;
-    uint16_t name_len;
-    int fd;
-    size_t length;
-    off_t offset;
-} swTask_sendfile;
-
 typedef struct _swWorkerStopMessage
 {
     pid_t pid;
@@ -266,25 +244,24 @@ typedef struct _swPacket_ptr
     swDataHead info;
     swString data;
 } swPacket_ptr;
+
 //-----------------------------------Factory--------------------------------------------
-struct _swFactory
+struct swFactory
 {
     void *object;
     void *ptr; //server object
 
-    int (*start)(struct _swFactory *);
-    int (*shutdown)(struct _swFactory *);
-    int (*dispatch)(struct _swFactory *, swSendData *);
+    int (*start)(swFactory *);
+    int (*shutdown)(swFactory *);
+    int (*dispatch)(swFactory *, swSendData *);
     /**
      * Returns the number of bytes sent
      */
-    int (*finish)(struct _swFactory *, swSendData *);
-    int (*notify)(struct _swFactory *, swDataHead *);    //send a event notify
-    int (*end)(struct _swFactory *, int fd);
-    void (*free)(struct _swFactory *);
+    int (*finish)(swFactory *, swSendData *);
+    int (*notify)(swFactory *, swDataHead *);    //send a event notify
+    int (*end)(swFactory *, int fd);
+    void (*free)(swFactory *);
 };
-
-typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);
 
 int swFactory_create(swFactory *factory);
 int swFactory_finish(swFactory *factory, swSendData *_send);
@@ -340,7 +317,7 @@ typedef struct _swServerGS
 
 } swServerGS;
 
-struct _swServer
+struct swServer
 {
     /**
      * reactor thread/process num
@@ -540,6 +517,9 @@ struct _swServer
     swServerStats *stats;
     swServerGS *gs;
 
+    std::unordered_set<std::string> *types;
+    std::unordered_set<std::string> *locations;
+
 #ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_t barrier;
 #endif
@@ -619,9 +599,18 @@ struct _swServer
     int (*close)(swServer *serv, int session_id, int reset);
     int (*notify)(swServer *serv, swConnection *conn, int event);
     int (*feedback)(swServer *serv, int session_id, int event);
-
+    /**
+     * Chunk control
+     */
+    int (*merge_chunk)(swServer *serv, int key, const char *data, size_t len);
+    size_t (*get_packet)(swServer *serv, swEventData *req, char **data_ptr);
+    /**
+     * Hook
+     */
     int (*dispatch_func)(swServer *, swConnection *, swSendData *);
 };
+
+typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode);
@@ -897,6 +886,9 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
 void swServer_worker_onStart(swServer *serv);
 void swServer_worker_onStop(swServer *serv);
 
+int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn);
+int swServer_http_static_handler_add_location(swServer *serv, const char *location, size_t length);
+
 int swWorker_onTask(swFactory *factory, swEventData *task);
 void swWorker_stop(swWorker *worker);
 
@@ -905,41 +897,6 @@ static sw_inline swConnection *swWorker_get_connection(swServer *serv, int sessi
     int real_fd = swServer_get_fd(serv, session_id);
     swConnection *conn = swServer_connection_get(serv, real_fd);
     return conn;
-}
-
-static sw_inline swString *swWorker_get_buffer(swServer *serv, int reactor_id)
-{
-    if (serv->factory_mode == SW_MODE_BASE)
-    {
-        return SwooleWG.buffer_input[0];
-    }
-    else
-    {
-        return SwooleWG.buffer_input[reactor_id];
-    }
-}
-
-static sw_inline size_t swWorker_get_data(swServer *serv, swEventData *req, char **data_ptr)
-{
-    size_t length;
-    if (req->info.flags & SW_EVENT_DATA_PTR)
-    {
-        swPacket_ptr *task = (swPacket_ptr *) req;
-        *data_ptr = task->data.str;
-        length = task->data.length;
-    }
-    else if (req->info.flags & SW_EVENT_DATA_END)
-    {
-        swString *worker_buffer = swWorker_get_buffer(serv, req->info.reactor_id);
-        *data_ptr = worker_buffer->str;
-        length = worker_buffer->length;
-    }
-    else
-    {
-        *data_ptr = req->data;
-        length = req->info.len;
-    }
-    return length;
 }
 
 static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv, uint32_t session_id)
@@ -1034,6 +991,11 @@ static sw_inline uint8_t swServer_dispatch_mode_is_mod(swServer *serv)
     return serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD;
 }
 
+static sw_inline swServer* sw_server()
+{
+    return (swServer *) SwooleG.serv;
+}
+
 #define swServer_support_send_yield swServer_dispatch_mode_is_mod
 
 //------------------------------------Listen Port-------------------------------------------
@@ -1073,7 +1035,3 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
 pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker);
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);
 void swManager_kill_user_worker(swServer *serv);
-
-SW_EXTERN_C_END
-
-#endif /* SW_SERVER_H_ */

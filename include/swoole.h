@@ -396,12 +396,6 @@ enum swEvent_type
     SW_EVENT_ONCE   = 1u << 12,
 };
 
-enum swPipe_type
-{
-    SW_PIPE_READ  = 0,
-    SW_PIPE_WRITE = 1,
-};
-
 enum swGlobal_hook_type
 {
     SW_GLOBAL_HOOK_BEFORE_SERVER_START,
@@ -719,6 +713,15 @@ typedef struct _swSocket
 
 } swSocket;
 
+typedef struct _swTask_sendfile
+{
+    char *filename;
+    uint16_t name_len;
+    int fd;
+    size_t length;
+    off_t offset;
+} swTask_sendfile;
+
 typedef struct _swConnection
 {
     /**
@@ -974,6 +977,7 @@ typedef struct _swDataHead
     uint8_t type;
     uint8_t flags;
     uint16_t server_fd;
+    uint16_t ext_info;
 #ifdef SW_BUFFER_RECV_TIME
     double time;
 #endif
@@ -1327,6 +1331,23 @@ enum swProcess_type
     SW_PROCESS_MANAGER    = 3,
     SW_PROCESS_TASKWORKER = 4,
     SW_PROCESS_USERWORKER = 5,
+};
+
+enum swIPC_type
+{
+    SW_IPC_NONE     = 0,
+    SW_IPC_UNIXSOCK = 1,
+    SW_IPC_MSGQUEUE = 2,
+    SW_IPC_SOCKET   = 3,
+};
+
+enum swPipe_type
+{
+    SW_PIPE_WORKER     = 0,
+    SW_PIPE_MASTER     = 1,
+    SW_PIPE_READ       = 0,
+    SW_PIPE_WRITE      = 1,
+    SW_PIPE_NONBLOCK   = 2,
 };
 
 #define swIsMaster()          (SwooleG.process_type==SW_PROCESS_MASTER)
@@ -2386,9 +2407,6 @@ typedef struct
     } address;
 } swDNS_server;
 
-typedef struct _swServer swServer;
-typedef struct _swFactory swFactory;
-
 typedef struct
 {
     uint8_t init :1;
@@ -2436,7 +2454,7 @@ typedef struct
     uint32_t socket_buffer_size;
     double socket_send_timeout;
 
-    swServer *serv;
+    void *serv;
 
     swMemoryPool *memory_pool;
     swLock lock;

@@ -63,8 +63,7 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
         //server active close, discard data.
         if (conn->closed)
         {
-            swWarn("dispatch[type=%d] failed, connection#%d is closed by server", task->info.type,
-                    task->info.fd);
+            swWarn("dispatch[type=%d] failed, connection#%d is closed by server", task->info.type, task->info.fd);
             return SW_OK;
         }
         //converted fd to session_id

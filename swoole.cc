@@ -22,6 +22,7 @@
 #include "zend_exceptions.h"
 
 #include "mime_types.h"
+#include "server.h"
 
 #include <netinet/in.h>
 #include <arpa/inet.h>

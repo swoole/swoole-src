@@ -18,6 +18,8 @@
  */
 
 #include "php_swoole_cxx.h"
+
+#include "server.h"
 #include "swoole_coroutine_system.h"
 
 #include "zend_builtin_functions.h"
@@ -239,7 +241,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     {
         flags |= SW_EXIT_IN_COROUTINE;
     }
-    if (SwooleG.serv && SwooleG.serv->gs->start)
+    if (sw_server() && sw_server()->gs->start)
     {
         flags |= SW_EXIT_IN_SERVER;
     }

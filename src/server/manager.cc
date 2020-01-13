@@ -633,7 +633,7 @@ static void swManager_signal_handler(int sig)
 #ifdef SIGRTMIN
         if (sig == SIGRTMIN)
         {
-            swLog_reopen(SwooleG.serv->daemonize ? SW_TRUE : SW_FALSE);
+            swLog_reopen(sw_server()->daemonize ? SW_TRUE : SW_FALSE);
         }
 #endif
         break;

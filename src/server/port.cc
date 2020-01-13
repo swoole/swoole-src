@@ -470,7 +470,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         if (request->content_length == 0 && (request->known_length || !request->chunked))
         {
             // send static file content directly in the reactor thread
-            if (!serv->enable_static_handler || !swHttp_static_handler_hit(serv, request, conn))
+            if (!serv->enable_static_handler || !swServer_http_static_handler_hit(serv, request, conn))
             {
                 // dynamic request, dispatch to worker
                 swReactorThread_dispatch(protocol, _socket, buffer->str, request->header_length);

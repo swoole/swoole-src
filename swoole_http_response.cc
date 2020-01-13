@@ -14,8 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole_cxx.h"
-#include "swoole_http.h"
+#include "swoole_http_server.h"
+
 #include "mime_types.h"
 
 extern "C"
@@ -1357,7 +1357,7 @@ static PHP_METHOD(swoole_http_response, detach)
 
 static PHP_METHOD(swoole_http_response, create)
 {
-    if (!SwooleG.serv || !SwooleG.serv->gs->start)
+    if (!sw_server() || !sw_server()->gs->start)
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
@@ -1374,7 +1374,7 @@ static PHP_METHOD(swoole_http_response, create)
     ctx->fd = (int) fd;
     ctx->keepalive = 1;
 
-    swoole_http_server_init_context(SwooleG.serv, ctx);
+    swoole_http_server_init_context(sw_server(), ctx);
 
     object_init_ex(return_value, swoole_http_response_ce);
     php_swoole_http_response_set_context(return_value, ctx);

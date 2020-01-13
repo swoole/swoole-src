@@ -14,8 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "server.h"
-#include "client.h"
 #include "swoole_cxx.h"
 #include "async.h"
 

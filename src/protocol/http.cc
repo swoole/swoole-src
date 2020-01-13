@@ -58,7 +58,7 @@ const char* swHttp_get_method_string(int method)
     return method_strings[method - 1];
 }
 
-int swHttp_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn)
+int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn)
 {
     char *url = request->buffer->str + request->url_offset;
     size_t url_length = request->url_length;

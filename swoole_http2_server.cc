@@ -14,14 +14,13 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole_cxx.h"
+#include "swoole_http_server.h"
 
 #ifdef SW_USE_HTTP2
-#include "swoole_http.h"
 
 #include "static_handler.h"
-
 #include "http2.h"
+
 #include "main/php_variables.h"
 
 #include <vector>
@@ -40,7 +39,7 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body);
 http2_stream::http2_stream(int _fd, uint32_t _id)
 {
     ctx = swoole_http_context_new(_fd);
-    ctx->stream = (void *) this;
+    ctx->stream = this;
     id = _id;
     send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
     recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
@@ -539,7 +538,7 @@ bool http2_stream::send_trailer()
 static bool swoole_http2_server_respond(http_context *ctx, swString *body)
 {
     http2_session *client = http2_sessions[ctx->fd];
-    http2_stream *stream = (http2_stream *) ctx->stream;
+    http2_stream *stream = ctx->stream;
 
 #ifdef SW_HAVE_COMPRESSION
     if (ctx->accept_compression)

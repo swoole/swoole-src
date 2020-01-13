@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-#include "php_swoole_cxx.h"
+#include "swoole_server.h"
 #include "connection.h"
 #include "websocket.h"
 #include "ext/standard/php_var.h"
@@ -133,12 +133,12 @@ static sw_inline zend_bool is_enable_coroutine(swServer *serv)
 
 void php_swoole_server_rshutdown()
 {
-    if (!SwooleG.serv)
+    if (!sw_server())
     {
         return;
     }
 
-    swServer *serv = SwooleG.serv;
+    swServer *serv = sw_server();
 
     swWorker_clean_pipe_buffer(serv);
 
@@ -884,7 +884,7 @@ void php_swoole_get_recv_data(swServer *serv, zval *zdata, swEventData *req, cha
 {
     char *data = NULL;
 
-    size_t length = swWorker_get_data(serv, req, &data);
+    size_t length = serv->get_packet(serv, req, &data);
     if (header_length >= length)
     {
         ZVAL_EMPTY_STRING(zdata);
@@ -897,13 +897,6 @@ void php_swoole_get_recv_data(swServer *serv, zval *zdata, swEventData *req, cha
     {
         memcpy(header, data, header_length);
     }
-}
-
-size_t php_swoole_get_send_data(zval *zdata, char **str)
-{
-    convert_to_string(zdata);
-    *str = Z_STRVAL_P(zdata);
-    return Z_STRLEN_P(zdata);
 }
 
 static sw_inline int php_swoole_check_task_param(swServer *serv, zend_long dst_worker_id)
@@ -1386,7 +1379,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     zval zaddr;
 
     char *buffer;
-    swWorker_get_data(serv, req, &buffer);
+    serv->get_packet(serv, req, &buffer);
 
     array_init(&zaddr);
 
@@ -2093,7 +2086,7 @@ static PHP_METHOD(swoole_server, __construct)
         RETURN_FALSE;
     }
 
-    if (SwooleG.serv != NULL)
+    if (sw_server() != NULL)
     {
         zend_throw_exception_ex(swoole_exception_ce, -3, "server is running. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
@@ -2658,7 +2651,7 @@ static PHP_METHOD(swoole_server, set)
                 zend::string __location(_location);
                 if (__location.len() > 0 && __location.val()[0] == '/')
                 {
-                    swHttp_static_handler_add_location(serv, __location.val(), __location.len());
+                    swServer_http_static_handler_add_location(serv, __location.val(), __location.len());
                 }
             SW_HASHTABLE_FOREACH_END();
         }
@@ -4197,11 +4190,11 @@ static PHP_METHOD(swoole_server, getReceivedTime)
 
 static PHP_METHOD(swoole_server, getInstance)
 {
-    if (!SwooleG.serv)
+    if (!sw_server())
     {
         RETURN_FALSE;
     }
-    swServer *serv = SwooleG.serv;
+    swServer *serv = sw_server();
     if (!serv->ptr2)
     {
         RETURN_FALSE;
