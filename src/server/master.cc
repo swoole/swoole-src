@@ -1030,7 +1030,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     {
         if (serv->send_yield)
         {
-            SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
+            SwooleG.error = SW_ERROR_OUTPUT_SEND_YIELD;
         }
         else
         {
@@ -1175,7 +1175,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
         {
             if (serv->send_yield)
             {
-                SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
+                SwooleG.error = SW_ERROR_OUTPUT_SEND_YIELD;
             }
             else
             {
