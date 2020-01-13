@@ -1345,6 +1345,8 @@ enum swPipe_type
 {
     SW_PIPE_WORKER     = 0,
     SW_PIPE_MASTER     = 1,
+    SW_PIPE_READ       = 0,
+    SW_PIPE_WRITE      = 1,
     SW_PIPE_NONBLOCK   = 2,
 };
 
