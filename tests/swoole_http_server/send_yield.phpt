@@ -22,7 +22,8 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
         $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), $mode);
         $http->set([
             'log_file' => '/dev/null',
-            'send_yield' => true
+            'send_yield' => true,
+            'http_compression' => false
         ]);
         $http->on('workerStart', function () use ($pm) {
             $pm->wakeup();
