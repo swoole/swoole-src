@@ -123,11 +123,11 @@ static void php_swoole_http_response_free_object(zend_object *object)
 
     if (ctx)
     {
-        if (!ctx->end && !ctx->detached)
+        if (!ctx->end)
         {
             if (ctx->response.status == 0)
             {
-                ctx->response.status = SW_HTTP_INTERNAL_SERVER_ERROR;
+                ctx->response.status = 500;
             }
 
             if (0) { }
@@ -145,7 +145,7 @@ static void php_swoole_http_response_free_object(zend_object *object)
             {
                 swServer *serv = (swServer *) ctx->private_data;
                 swConnection *conn = swWorker_get_connection(serv, ctx->fd);
-                if (conn && !conn->closed && !conn->peer_closed)
+                if (conn && !conn->closed && !conn->peer_closed && !ctx->detached)
                 {
 #ifdef SW_USE_HTTP2
                     if (!conn->http2_stream)

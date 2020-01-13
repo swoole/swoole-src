@@ -48,10 +48,7 @@ http2_stream::http2_stream(int _fd, uint32_t _id)
 
 http2_stream::~http2_stream()
 {
-    if (ctx)
-    {
-        ctx->stream = nullptr;
-    }
+    ctx->stream = nullptr;
     /* it will be free'd when request/response are free'd */
     // swoole_http_context_free(ctx);
 }
@@ -456,6 +453,8 @@ bool http2_stream::send_header(size_t body_length, bool end_stream)
         return false;
     }
 
+    /* if send body failed, retries are no longer allowed */
+    ctx->end = 1;
     return true;
 }
 
@@ -564,9 +563,6 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body)
         return false;
     }
 
-    /* headers has already been sent, retries are no longer allowed (even if send body failed) */
-    ctx->end = 1;
-
     if (!ztrailer && body->length == 0)
     {
         goto _end;
@@ -574,7 +570,6 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body)
 
     if (!stream->send_body(body, end_stream, client->max_frame_size))
     {
-        ctx->close(ctx);
         return false;
     }
 
