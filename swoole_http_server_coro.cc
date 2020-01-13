@@ -569,7 +569,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
             buffer->length = total_bytes - (sizeof(SW_HTTP2_PRI_STRING) - 1);
             buffer->offset = buffer->length == 0 ? 0 : (sizeof(SW_HTTP2_PRI_STRING) - 1);
             hs->recv_http2_frame(ctx);
-            break;
+            return;
         }
 #endif
 
