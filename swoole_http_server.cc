@@ -333,13 +333,9 @@ bool http_context_send_data(http_context* ctx, const char *data, size_t length)
     if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_SEND_YIELD)
     {
         zval _yield_data;
-        ZVAL_STRINGL(&_yield_data, swoole_http_buffer->str, swoole_http_buffer->length);
+        ZVAL_STRINGL(&_yield_data, data, length);
         php_swoole_server_send_yield(serv, ctx->fd, &_yield_data, return_value);
-        if (Z_TYPE_P(return_value) == IS_FALSE)
-        {
-            ctx->send_chunked = 0;
-            ctx->send_header = 0;
-        }
+        ret = Z_BVAL_P(return_value) ? SW_OK : SW_ERR;
     }
     return ret == SW_OK;
 }
