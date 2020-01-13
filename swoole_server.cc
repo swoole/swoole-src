@@ -2104,7 +2104,7 @@ static PHP_METHOD(swoole_server, __construct)
         RETURN_FALSE;
     }
 
-    serv = (swServer *) sw_malloc(sizeof (swServer));
+    serv = (swServer *) sw_malloc(sizeof(swServer));
     if (!serv)
     {
         zend_throw_exception_ex(swoole_exception_ce, errno, "malloc(%ld) failed", sizeof(swServer));

@@ -331,55 +331,54 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         {
             struct kevent *kevent = &object->events[i];
             void *udata = (void *) kevent->udata;
-            if (udata)
+            if (!udata)
             {
-                switch (kevent->filter)
+                continue;
+            }
+            switch (kevent->filter)
+            {
+            case EVFILT_READ:
+            case EVFILT_WRITE:
+            {
+                if (swReactorKqueue_fetch_event(reactor, &event, udata))
                 {
-                case EVFILT_READ:
-                case EVFILT_WRITE:
-                {
-                    if (swReactorKqueue_fetch_event(reactor, &event, udata))
+                    handler = swReactor_get_handler(reactor,
+                            sw_likely(kevent->filter == EVFILT_READ) ? SW_EVENT_READ : SW_EVENT_WRITE, event.type);
+                    if (sw_unlikely(handler(reactor, &event) < 0))
                     {
-                        handler = swReactor_get_handler(reactor, sw_likely(kevent->filter == EVFILT_READ) ? SW_EVENT_READ : SW_EVENT_WRITE, event.type);
-                        if (sw_unlikely(handler(reactor, &event) < 0))
-                        {
-                            swSysWarn("kqueue event %s socket#%d handler failed", kevent->filter == EVFILT_READ ? "read" : "write", event.fd);
-                        }
-                        swReactorKqueue_del_once_socket(reactor, event.socket);
+                        swSysWarn("kqueue event %s socket#%d handler failed",
+                                kevent->filter == EVFILT_READ ? "read" : "write", event.fd);
                     }
-                    break;
+                    swReactorKqueue_del_once_socket(reactor, event.socket);
                 }
-                case EVFILT_SIGNAL:
+                break;
+            }
+            case EVFILT_SIGNAL:
+            {
+                struct
                 {
-                    struct
-                    {
-                        swSignalHandler handler;
-                        uint16_t signo;
-                        uint16_t active;
-                    } *sw_signal = udata;
+                    swSignalHandler handler;
+                    uint16_t signo;
+                    uint16_t active;
+                }*sw_signal = udata;
 
-                    if (sw_signal->active)
-                    {
-                        if (sw_signal->handler)
-                        {
-                            sw_signal->handler(sw_signal->signo);
-                        }
-                        else
-                        {
-                            swoole_error_log(
-                                SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL,
-                                SW_UNREGISTERED_SIGNAL_FMT, swSignal_str(sw_signal->signo)
-                            );
-                        }
-                    }
-                    break;
-                }
-                default:
+                if (sw_signal->active)
                 {
-                    swWarn("unknown event filter[%d]", kevent->filter);
-                    break;
+                    if (sw_signal->handler)
+                    {
+                        sw_signal->handler(sw_signal->signo);
+                    }
+                    else
+                    {
+                        swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT,
+                                swSignal_str(sw_signal->signo));
+                    }
                 }
-                }
+                break;
+            }
+            default:
+                swWarn("unknown event filter[%d]", kevent->filter);
+                break;
             }
         }
 
