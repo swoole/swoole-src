@@ -2072,9 +2072,6 @@ static PHP_METHOD(swoole_server, __construct)
     {
         zend_throw_exception_ex(swoole_exception_ce, -1, "%s can only be used in CLI mode", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
-
-        php_swoole_fatal_error(E_ERROR, "%s can only be used in CLI mode", SW_Z_OBJCE_NAME_VAL_P(zserv));
-        RETURN_FALSE;
     }
 
     if (SwooleTG.reactor)
