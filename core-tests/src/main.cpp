@@ -4,7 +4,7 @@
 static int server_onReceive(swServer *serv, swEventData *req)
 {
     char *data;
-    size_t length = swWorker_get_data(serv, req, &data);
+    size_t length = serv->get_packet(serv, req, &data);
 
     if (length >= sizeof("close") && memcmp(data, SW_STRS("close")) == 0)
     {

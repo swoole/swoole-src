@@ -445,7 +445,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/client.cc \
         src/network/connection.cc \
         src/network/dns.cc \
-        src/network/process_pool.c \
+        src/network/process_pool.cc \
         src/network/stream.c \
         src/network/thread_pool.c \
         src/network/timer.c \
@@ -469,7 +469,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/sha1.c \
         src/protocol/socks5.c \
         src/protocol/ssl.c \
-        src/protocol/websocket.c \
+        src/protocol/websocket.cc \
         src/reactor/base.cc \
         src/reactor/epoll.cc \
         src/reactor/kqueue.c \
@@ -491,7 +491,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole.cc \
         swoole_async_coro.cc \
         swoole_atomic.cc \
-        swoole_buffer.c \
+        swoole_buffer.cc \
         swoole_channel_coro.cc \
         swoole_client.cc \
         swoole_client_coro.cc \

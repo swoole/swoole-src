@@ -34,6 +34,9 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
+static int swServer_worker_merge_chunk(swServer *serv, int key, const char *data, size_t len);
+static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr);
+
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, swSocket *_socket, int server_fd);
 
 static void swServer_disable_accept(swServer *serv)
@@ -599,6 +602,8 @@ int swServer_start(swServer *serv)
     serv->close = swServer_tcp_close;
     serv->notify = swServer_tcp_notify;
     serv->feedback = swServer_tcp_feedback;
+    serv->merge_chunk = swServer_worker_merge_chunk;
+    serv->get_packet = swServer_worker_get_packet;
 
     serv->workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
     if (serv->workers == NULL)
@@ -785,6 +790,11 @@ int swServer_create(swServer *serv)
         return SW_ERR;
     }
 
+    if (serv->enable_static_handler && serv->locations == nullptr)
+    {
+        serv->locations = new std::unordered_set<std::string>;
+    }
+
     if (serv->factory_mode == SW_MODE_BASE)
     {
         return swReactorProcess_create(serv);
@@ -901,6 +911,10 @@ static int swServer_destory(swServer *serv)
     else
     {
         swReactorThread_free(serv);
+    }
+    if (serv->locations)
+    {
+        delete serv->locations;
     }
     serv->lock.free(&serv->lock);
     SwooleG.serv = nullptr;
@@ -1296,6 +1310,49 @@ static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uin
     return swSocket_write_blocking(conn->fd, data, length);
 }
 
+static sw_inline swString *swServer_worker_get_input_buffer(swServer *serv, int reactor_id)
+{
+    if (serv->factory_mode == SW_MODE_BASE)
+    {
+        return SwooleWG.buffer_input[0];
+    }
+    else
+    {
+        return SwooleWG.buffer_input[reactor_id];
+    }
+}
+
+static int swServer_worker_merge_chunk(swServer *serv, int key, const char *data, size_t len)
+{
+    swString *package = swServer_worker_get_input_buffer(serv, key);
+    //merge data to package buffer
+    return swString_append_ptr(package, data, len);
+}
+
+static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr)
+{
+    size_t length;
+    if (req->info.flags & SW_EVENT_DATA_PTR)
+    {
+        swPacket_ptr *task = (swPacket_ptr *) req;
+        *data_ptr = task->data.str;
+        length = task->data.length;
+    }
+    else if (req->info.flags & SW_EVENT_DATA_END)
+    {
+        swString *worker_buffer = swServer_worker_get_input_buffer(serv, req->info.reactor_id);
+        *data_ptr = worker_buffer->str;
+        length = worker_buffer->length;
+    }
+    else
+    {
+        *data_ptr = req->data;
+        length = req->info.len;
+    }
+
+    return length;
+}
+
 SW_API void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg)
 {
     swLinkedList *hooks = serv->hooks[type];
@@ -1385,7 +1442,7 @@ void swServer_signal_init(swServer *serv)
     swSignal_add(SIGALRM, swSystemTimer_signal_handler);
     //for test
     swSignal_add(SIGVTALRM, swServer_signal_handler);
-    swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
+    swServer_set_minfd(sw_server(), SwooleG.signal_fd);
 }
 
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
@@ -1730,7 +1787,7 @@ static void swServer_signal_handler(int sig)
 {
     swTraceLog(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swSignal_str(sig), getpid());
 
-    swServer *serv = SwooleG.serv;
+    swServer *serv = sw_server();
     int status;
     pid_t pid;
     switch (sig)
@@ -1746,7 +1803,7 @@ static void swServer_signal_handler(int sig)
         {
             break;
         }
-        if (SwooleG.serv->factory_mode == SW_MODE_BASE)
+        if (sw_server()->factory_mode == SW_MODE_BASE)
         {
             break;
         }
@@ -1767,7 +1824,7 @@ static void swServer_signal_handler(int sig)
          */
     case SIGUSR1:
     case SIGUSR2:
-        if (SwooleG.serv->factory_mode == SW_MODE_BASE)
+        if (sw_server()->factory_mode == SW_MODE_BASE)
         {
             if (serv->gs->event_workers.reloading)
             {
@@ -1787,16 +1844,16 @@ static void swServer_signal_handler(int sig)
         {
             uint32_t i;
             swWorker *worker;
-            for (i = 0; i < SwooleG.serv->worker_num + serv->task_worker_num + SwooleG.serv->user_worker_num; i++)
+            for (i = 0; i < sw_server()->worker_num + serv->task_worker_num + sw_server()->user_worker_num; i++)
             {
-                worker = swServer_get_worker(SwooleG.serv, i);
+                worker = swServer_get_worker(sw_server(), i);
                 swoole_kill(worker->pid, SIGRTMIN);
             }
-            if (SwooleG.serv->factory_mode == SW_MODE_PROCESS)
+            if (sw_server()->factory_mode == SW_MODE_PROCESS)
             {
                 swoole_kill(serv->gs->manager_pid, SIGRTMIN);
             }
-            swLog_reopen(SwooleG.serv->daemonize ? SW_TRUE : SW_FALSE);
+            swLog_reopen(sw_server()->daemonize ? SW_TRUE : SW_FALSE);
         }
 #endif
         break;

@@ -107,6 +107,10 @@ struct http_response
     zval _ztrailer;
 };
 
+#ifdef SW_USE_HTTP2
+class http2_stream;
+#endif
+
 struct http_context
 {
     int fd;
@@ -137,7 +141,7 @@ struct http_context
 #endif
 
 #ifdef SW_USE_HTTP2
-    void* stream;
+    http2_stream* stream;
 #endif
     http_request request;
     http_response response;
@@ -239,7 +243,6 @@ static sw_inline zval* swoole_http_init_and_read_property(zend_class_entry *ce, 
 }
 int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len);
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
-void swoole_http_server_init_context(swServer *serv, http_context *ctx);
 
 http_context * php_swoole_http_request_get_context(zval *zobject);
 void php_swoole_http_request_set_context(zval *zobject, http_context *context);
@@ -266,19 +269,8 @@ void* php_brotli_alloc(void* opaque, size_t size);
 void php_brotli_free(void* opaque, void* address);
 #endif
 
-int swoole_websocket_onMessage(swServer *serv, swEventData *req);
-int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_context *ctx);
-void swoole_websocket_onOpen(http_context *ctx);
-void swoole_websocket_onRequest(http_context *ctx);
-bool swoole_websocket_handshake(http_context *ctx);
-
 #ifdef SW_USE_HTTP2
-int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData *req);
-int swoole_http2_server_parse(http2_session *client, const char *buf);
-bool swoole_http2_server_sendfile(http_context *ctx, const char* file, struct stat *file_stat);
-void swoole_http2_server_session_free(swConnection *conn);
 void swoole_http2_response_end(http_context *ctx, zval *zdata, zval *return_value);
-int swoole_http2_server_ping(http_context *ctx);
 
 namespace swoole { namespace http2 {
 //-----------------------------------namespace begin--------------------------------------------

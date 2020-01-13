@@ -18,6 +18,8 @@
 
 #include "php_swoole_cxx.h"
 
+#include "server.h"
+
 #include "ext/spl/spl_array.h"
 
 using namespace swoole;
@@ -193,7 +195,7 @@ static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent)
     }
 
     // no server || user worker || task process with async mode
-    if (!SwooleG.serv || swIsUserWorker() || (swIsTaskWorker() && SwooleG.serv->task_enable_coroutine))
+    if (!sw_server() || swIsUserWorker() || (swIsTaskWorker() && sw_server()->task_enable_coroutine))
     {
         php_swoole_check_reactor();
     }

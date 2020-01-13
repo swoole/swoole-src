@@ -16,7 +16,9 @@
  +----------------------------------------------------------------------+
  */
 
-#include "server.h"
+#include "swoole.h"
+#include "connection.h"
+#include "buffer.h"
 
 #include <sys/stat.h>
 

@@ -30,9 +30,9 @@ static sw_inline buffer_t* php_swoole_buffer_fetch_object(zend_object *obj)
     return (buffer_t *) ((char *) obj - swoole_buffer_handlers.offset);
 }
 
-static swString * php_swoole_buffer_get_ptr(zval *zobject)
+static swString* php_swoole_buffer_get_ptr(zval *zobject)
 {
-    return php_swoole_buffer_fetch_object(Z_OBJ_P(zobject))->ptr;
+    return (swString*) php_swoole_buffer_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
 static swString * php_swoole_buffer_get_and_check_ptr(zval *zobject)
@@ -242,7 +242,7 @@ static PHP_METHOD(swoole_buffer, substr)
         RETURN_FALSE;
     }
 
-    if (remove && !(offset == 0 && length <= buffer->length))
+    if (remove && !(offset == 0 && length <= (zend_long) buffer->length))
     {
         remove = 0;
     }
@@ -255,7 +255,7 @@ static PHP_METHOD(swoole_buffer, substr)
     {
         length = buffer->length - offset;
     }
-    if (length + offset > buffer->length)
+    if (length + offset > (zend_long) buffer->length)
     {
         php_swoole_error(E_WARNING, "offset(" ZEND_LONG_FMT ", " ZEND_LONG_FMT ") is out of bounds", offset, length);
         RETURN_FALSE;
@@ -265,7 +265,7 @@ static PHP_METHOD(swoole_buffer, substr)
         buffer->offset += length;
         zend_update_property_long(swoole_buffer_ce, ZEND_THIS, ZEND_STRL("length"), buffer->length - buffer->offset);
 
-        if (buffer->offset > SW_STRING_BUFFER_GARBAGE_MIN && buffer->offset * SW_STRING_BUFFER_GARBAGE_RATIO > buffer->size)
+        if (buffer->offset > SW_STRING_BUFFER_GARBAGE_MIN && buffer->offset * SW_STRING_BUFFER_GARBAGE_RATIO > (zend_long) buffer->size)
         {
             swoole_buffer_recycle(buffer);
         }
@@ -354,7 +354,7 @@ static PHP_METHOD(swoole_buffer, read)
 
     offset += buffer->offset;
 
-    if (length > buffer->length - offset)
+    if (length > (zend_long) buffer->length - offset)
     {
         RETURN_FALSE;
     }
@@ -372,7 +372,7 @@ static PHP_METHOD(swoole_buffer, expand)
         RETURN_FALSE;
     }
 
-    if (size <= buffer->size)
+    if (size <= (zend_long) buffer->size)
     {
         php_error_docref(NULL, E_WARNING, "new size must be more than %ld", buffer->size);
         RETURN_FALSE;

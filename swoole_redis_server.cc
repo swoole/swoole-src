@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole_cxx.h"
+#include "swoole_server.h"
 #include "redis.h"
 
 #include <unordered_map>

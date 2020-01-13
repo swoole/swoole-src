@@ -86,7 +86,7 @@ void swWorker_signal_handler(int signo)
 #ifdef SIGRTMIN
         if (signo == SIGRTMIN)
         {
-            swLog_reopen(SwooleG.serv->daemonize ? SW_TRUE : SW_FALSE);
+            swLog_reopen(sw_server()->daemonize ? SW_TRUE : SW_FALSE);
         }
 #endif
         break;
@@ -266,9 +266,12 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     //packet chunk
     if (task->info.flags & SW_EVENT_DATA_CHUNK)
     {
-        package = swWorker_get_buffer(serv, task->info.reactor_id);
-        //merge data to package buffer
-        swString_append_ptr(package, task->data, task->info.len);
+        if (serv->merge_chunk(serv, task->info.reactor_id, task->data, task->info.len) < 0)
+        {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_DATA,
+                    "cannot merge chunk to worker buffer, data[fd=%d, size=%d] lost", task->info.fd, task->info.len);
+            return SW_OK;
+        }
         //wait more data
         if (!(task->info.flags & SW_EVENT_DATA_END))
         {
@@ -310,7 +313,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         {
             conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
             char *cert_data = NULL;
-            size_t length = swWorker_get_data(serv, task, &cert_data);
+            size_t length = serv->get_packet(serv, task, &cert_data);
             conn->ssl_client_cert = swString_dup(cert_data, length);
             conn->ssl_client_cert_pid = SwooleG.pid;
         }
@@ -732,9 +735,6 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     {
         ret = swWorker_onTask(factory, (swEventData *) buffer);
 #ifndef SW_WORKER_RECV_AGAIN
-        /**
-         * Big package
-         */
         if (buffer->info.flags & SW_EVENT_DATA_CHUNK)
 #endif
         {
@@ -750,6 +750,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
         }
         return ret;
     }
+
     return SW_ERR;
 }
 

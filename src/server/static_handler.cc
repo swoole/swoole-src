@@ -17,13 +17,9 @@
 #include "static_handler.h"
 
 #include <string>
-#include <unordered_set>
 
 using namespace std;
 using swoole::http::StaticHandler;
-
-unordered_set<string> types;
-unordered_set<string> locations;
 
 bool StaticHandler::is_modified(const string &date_if_modified_since)
 {
@@ -94,9 +90,9 @@ bool StaticHandler::hit()
     memcpy(p, serv->document_root, serv->document_root_len);
     p += serv->document_root_len;
 
-    if (locations.size() > 0)
+    if (serv->locations->size() > 0)
     {
-        for (auto i = locations.begin(); i != locations.end(); i++)
+        for (auto i = serv->locations->begin(); i != serv->locations->end(); i++)
         {
             if (swoole_strcasect(url, url_length, i->c_str(), i->size()))
             {
@@ -187,8 +183,12 @@ bool StaticHandler::hit()
     return true;
 }
 
-int swHttp_static_handler_add_location(swServer *serv, const char *location, size_t length)
+int swServer_http_static_handler_add_location(swServer *serv, const char *location, size_t length)
 {
-    locations.insert(string(location, length));
+    if (serv->locations == nullptr)
+    {
+        serv->locations = new std::unordered_set<std::string>;
+    }
+    serv->locations->insert(string(location, length));
     return SW_OK;
 }

@@ -18,6 +18,8 @@
 #include "php_streams.h"
 #include "php_network.h"
 
+#include "server.h"
+
 using namespace swoole;
 
 zend_class_entry *swoole_process_ce;
@@ -329,7 +331,7 @@ static PHP_METHOD(swoole_process, __construct)
         RETURN_FALSE;
     }
 
-    if (SwooleG.serv && SwooleG.serv->gs->start == 1 && swIsMaster())
+    if (sw_server() && sw_server()->gs->start == 1 && swIsMaster())
     {
         php_swoole_fatal_error(E_ERROR, "%s can't be used in master process", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
@@ -357,9 +359,9 @@ static PHP_METHOD(swoole_process, __construct)
     process = (swWorker *) ecalloc(1, sizeof(swWorker));
 
     uint32_t base = 1;
-    if (SwooleG.serv && SwooleG.serv->gs->start)
+    if (sw_server() && sw_server()->gs->start)
     {
-        base = SwooleG.serv->worker_num + SwooleG.serv->task_worker_num + SwooleG.serv->user_worker_num;
+        base = sw_server()->worker_num + sw_server()->task_worker_num + sw_server()->user_worker_num;
     }
     if (php_swoole_worker_round_id == 0)
     {

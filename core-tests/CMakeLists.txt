@@ -4,7 +4,7 @@ project(core_tests)
 
 #set(CMAKE_BUILD_TYPE Released)
 set(CMAKE_CXX_STANDARD 11)
-set(ROOT_DIR "..")
+set(ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 file(GLOB_RECURSE SOURCE_FILES FOLLOW_SYMLINKS src/*.cpp)
 

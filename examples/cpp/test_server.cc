@@ -136,7 +136,7 @@ int my_onPacket(swServer *serv, swEventData *req)
 
     swDgramPacket *packet;
 
-    swWorker_get_data(serv, req, &data);
+    serv->get_packet(serv, req, &data);
     packet = (swDgramPacket*) data;
 
     int serv_sock = req->info.server_fd;
