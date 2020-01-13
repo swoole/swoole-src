@@ -790,7 +790,7 @@ int swServer_create(swServer *serv)
         return SW_ERR;
     }
 
-    if (serv->enable_static_handler)
+    if (serv->enable_static_handler && serv->locations == nullptr)
     {
         serv->locations = new std::unordered_set<std::string>;
     }

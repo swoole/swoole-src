@@ -185,6 +185,10 @@ bool StaticHandler::hit()
 
 int swServer_http_static_handler_add_location(swServer *serv, const char *location, size_t length)
 {
+    if (serv->locations == nullptr)
+    {
+        serv->locations = new std::unordered_set<std::string>;
+    }
     serv->locations->insert(string(location, length));
     return SW_OK;
 }
