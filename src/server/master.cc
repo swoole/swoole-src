@@ -1551,7 +1551,7 @@ int swServer_add_systemd_socket(swServer *serv)
     }
 
     int count = 0;
-    int sock, val;
+    int sock;
     socklen_t optlen;
     swSocketAddress address;
     int sock_type, sock_family;
@@ -1566,26 +1566,24 @@ int swServer_add_systemd_socket(swServer *serv)
             return count;
         }
         //get socket type
-        optlen = sizeof(val);
-        if (getsockopt(sock, SOL_SOCKET, SO_TYPE, &val, &optlen) < 0)
+        optlen = sizeof(sock_type);
+        if (getsockopt(sock, SOL_SOCKET, SO_TYPE, &sock_type, &optlen) < 0)
         {
             swWarn("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
             return count;
         }
-        sock_type = val;
         //get socket family
 #ifndef SO_DOMAIN
         swWarn("no getsockopt(SO_DOMAIN) supports");
         return count;
 #else
-        optlen = sizeof(val);
-        if (getsockopt(sock, SOL_SOCKET, SO_DOMAIN, &val, &optlen) < 0)
+        optlen = sizeof(sock_family);
+        if (getsockopt(sock, SOL_SOCKET, SO_DOMAIN, &sock_family, &optlen) < 0)
         {
             swWarn("getsockopt(%d, SOL_SOCKET, SO_DOMAIN) failed", sock);
             return count;
         }
 #endif
-        sock_family = val;
         //get address info
         address.len = sizeof(address.addr);
         if (getsockname(sock, (struct sockaddr*) &address.addr, &address.len) < 0)
