@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-12-25</date>
-    <time>19:00:00</time>
+    <date>2020-01-14</date>
+    <time>21:00:00</time>
     <version>
-        <release>4.4.14</release>
+        <release>4.4.15</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -56,15 +56,25 @@
     <notes>
         Enhancement
         ---
-        + Now cookie parsing on client-side always succeeds (#3035) (378a7fca) (@twose)
+        + Bad websocket handshake request will respond 400 (fdc1cb67) (@twose)
+        + Disable accept when have too many connections (dd9fbf2f) (@matyhtf)
+        + Binary security of package_eof (#3054) (@twose)
+        + Support HTTP chunked request (#3055) (@twose)
+        + Unified naming style and improve accessibility of Curl\Handler properties (library/curl) (@twose)
 
         Fixed
         ---
-        * Fixed Coroutine\HTTP\Server memory leak and can not handle pipeline request (#3025) (#3029) (@twose)
-        * Fixed compatibility issues with phar (e0558d6e) (4bf483f5) (4f93b793) (@twose)
-        * Fixed the concurrency capability of the Coroutine HTTP2 Server (daf45b57) (@twose)
-        * Fixed SIGCHLD listener for manager process (#3017) (@hejingsong)
-        * Fixed warning in buffer module (161f449c) (@twose)
+        * Fixed Http\Response->close (d30e3269) (@twose)
+        * Fixed possible memory overflow (2212e091) (@twose)
+        * Fixed memory error when MSHUTDOWN (undestroyed reactor) (78d6dd73) (@twose)
+        * Fixed handler of event HUP (#3046) (@matyhtf) (@twose)
+        * Fixed exit code 1 (f982b817) (@matyhtf) (@twose) (@qiqizjl)
+        * Fixed missing "unhook curl_multi_getcontent" (7b2e960e) (@twose)
+        * Fixed Coroutine HTTP2 Server memory error (d90eebe6) (@twose)
+        * Fixed http_context_send_data (#3059) (@twose)
+        * Fixed send_yield in BASE mode (edbb654d) (1b8096e9) (@twose)
+        * Refactor HTTP2 Server to fix some bugs (#3061) (@twose)
+        * Fixed behaviour of CURLOPT_POSTFIELDS, CURLOPT_HTTPHEADER, curl_close (library/curl) (@twose)
     </notes>
     <contents>
         <dir name="/">
@@ -1015,6 +1025,7 @@
             <file role="test" name="tests/swoole_http2_server/nghttp2_big_data.phpt" />
             <file role="test" name="tests/swoole_http2_server/no_compression.phpt" />
             <file role="test" name="tests/swoole_http2_server/ping.phpt" />
+            <file role="test" name="tests/swoole_http2_server/sendfile.phpt" />
             <file role="test" name="tests/swoole_http2_server/trailer.phpt" />
             <file role="test" name="tests/swoole_http2_server_coro/cookies.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/204.phpt" />
@@ -1085,6 +1096,7 @@
             <file role="test" name="tests/swoole_http_server/callback_with_private.phpt" />
             <file role="test" name="tests/swoole_http_server/callback_with_protected.phpt" />
             <file role="test" name="tests/swoole_http_server/chunk.phpt" />
+            <file role="test" name="tests/swoole_http_server/chunked_pipeline_request.phpt" />
             <file role="test" name="tests/swoole_http_server/co_switching.phpt" />
             <file role="test" name="tests/swoole_http_server/compression.phpt" />
             <file role="test" name="tests/swoole_http_server/cookie_delete.phpt" />
