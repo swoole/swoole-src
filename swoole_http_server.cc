@@ -161,13 +161,13 @@ void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
     {
         return;
     }
+    php_swoole_onClose(serv, ev);
 #ifdef SW_USE_HTTP2
     if (conn->http2_stream)
     {
         swoole_http2_server_session_free(conn);
     }
 #endif
-    php_swoole_onClose(serv, ev);
 }
 
 void php_swoole_http_server_minit(int module_number)
