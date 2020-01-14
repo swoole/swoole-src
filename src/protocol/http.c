@@ -398,7 +398,7 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
             {
                 continue;
             }
-            if (pe - p < (sizeof("HTTP/1.x") - 1))
+            if ((size_t) (pe - p) < (sizeof("HTTP/1.x") - 1))
             {
                 return SW_ERR;
             }
