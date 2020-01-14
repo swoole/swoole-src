@@ -1558,20 +1558,9 @@ int swServer_add_systemd_socket(swServer *serv)
         return 0;
     }
 
-    e = getenv("LISTEN_FDS");
-    if (!e)
+    int n = swoole_get_listen_fds();
+    if (n == 0)
     {
-        return 0;
-    }
-    int n = atoi(e);
-    if (n < 1)
-    {
-        swWarn("invalid LISTEN_FDS");
-        return 0;
-    }
-    else if (n >= SW_MAX_LISTEN_PORT)
-    {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "LISTEN_FDS is too big");
         return 0;
     }
 
