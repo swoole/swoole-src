@@ -1566,10 +1566,6 @@ int swServer_add_systemd_socket(swServer *serv)
 
     int count = 0;
     int sock;
-    socklen_t optlen;
-    swSocketAddress address;
-    int sock_type, sock_family;
-    char tmp[INET6_ADDRSTRLEN];
 
     for (sock = SW_SYSTEMD_FDS_START; sock < SW_SYSTEMD_FDS_START + n; sock++)
     {
@@ -1579,72 +1575,11 @@ int swServer_add_systemd_socket(swServer *serv)
             swWarn("alloc failed");
             return count;
         }
-        //get socket type
-        optlen = sizeof(sock_type);
-        if (getsockopt(sock, SOL_SOCKET, SO_TYPE, &sock_type, &optlen) < 0)
+
+        if (swPort_set_address(ls, sock) < 0)
         {
-            swWarn("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
             return count;
         }
-        //get socket family
-#ifndef SO_DOMAIN
-        swWarn("no getsockopt(SO_DOMAIN) supports");
-        return count;
-#else
-        optlen = sizeof(sock_family);
-        if (getsockopt(sock, SOL_SOCKET, SO_DOMAIN, &sock_family, &optlen) < 0)
-        {
-            swWarn("getsockopt(%d, SOL_SOCKET, SO_DOMAIN) failed", sock);
-            return count;
-        }
-#endif
-        //get address info
-        address.len = sizeof(address.addr);
-        if (getsockname(sock, (struct sockaddr*) &address.addr, &address.len) < 0)
-        {
-            swWarn("getsockname(%d) failed", sock);
-            return count;
-        }
-
-        swPort_init(ls);
-
-        switch (sock_family)
-        {
-        case AF_INET:
-            if (sock_type == SOCK_STREAM)
-            {
-                ls->type = SW_SOCK_TCP;
-            }
-            else
-            {
-                ls->type = SW_SOCK_UDP;
-            }
-            ls->port = ntohs(address.addr.inet_v4.sin_port);
-            strncpy(ls->host, inet_ntoa(address.addr.inet_v4.sin_addr), SW_HOST_MAXSIZE - 1);
-            break;
-        case AF_INET6:
-            if (sock_type == SOCK_STREAM)
-            {
-                ls->type = SW_SOCK_TCP6;
-            }
-            else
-            {
-                ls->type = SW_SOCK_UDP6;
-            }
-            ls->port = ntohs(address.addr.inet_v6.sin6_port);
-            inet_ntop(AF_INET6, &address.addr.inet_v6.sin6_addr, tmp, sizeof(tmp));
-            strncpy(ls->host, tmp, SW_HOST_MAXSIZE - 1);
-            break;
-        case AF_UNIX:
-            ls->type = sock_type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
-            ls->port = 0;
-            strncpy(ls->host, address.addr.un.sun_path, SW_HOST_MAXSIZE);
-            break;
-        default:
-            swWarn("Unknown socket family[%d]", sock_family);
-            break;
-        }
-
         ls->host[SW_HOST_MAXSIZE - 1] = 0;
 
         //O_NONBLOCK & O_CLOEXEC
