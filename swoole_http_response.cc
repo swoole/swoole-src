@@ -331,8 +331,6 @@ static PHP_METHOD(swoole_http_response, write)
     ctx->accept_compression = 0;
 #endif
 
-    ctx->private_data_2 = return_value;
-
     swString *http_buffer = http_get_write_buffer(ctx);
 
     if (!ctx->send_header)
@@ -737,8 +735,6 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
         http_body.length = 0;
         http_body.str = NULL;
     }
-
-    ctx->private_data_2 = return_value;
 
     if (ctx->send_chunked)
     {

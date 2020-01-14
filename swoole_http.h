@@ -161,7 +161,6 @@ struct http_context
     const char *upload_tmp_dir;
 
     void *private_data;
-    void *private_data_2;
     bool (*send)(http_context* ctx, const char *data, size_t length);
     bool (*sendfile)(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
     bool (*close)(http_context* ctx);

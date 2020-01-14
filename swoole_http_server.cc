@@ -327,14 +327,13 @@ http_context* php_swoole_http_response_get_and_check_context(zval *zobject)
 bool http_context_send_data(http_context* ctx, const char *data, size_t length)
 {
     swServer *serv = (swServer *) ctx->private_data;
-    zval *return_value = (zval *) ctx->private_data_2;
     ssize_t ret = serv->send(serv, ctx->fd, (void*) data, length);
     if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_SEND_YIELD)
     {
-        zval _yield_data;
-        ZVAL_STRINGL(&_yield_data, data, length);
-        php_swoole_server_send_yield(serv, ctx->fd, &_yield_data, return_value);
-        ret = Z_BVAL_P(return_value) ? SW_OK : SW_ERR;
+        zval yield_data, return_value;
+        ZVAL_STRINGL(&yield_data, data, length);
+        php_swoole_server_send_yield(serv, ctx->fd, &yield_data, &return_value);
+        ret = Z_BVAL_P(&return_value) ? SW_OK : SW_ERR;
     }
     return ret == SW_OK;
 }
