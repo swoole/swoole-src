@@ -127,7 +127,7 @@ static void php_swoole_http_response_free_object(zend_object *object)
         {
             if (ctx->response.status == 0)
             {
-                ctx->response.status = 500;
+                ctx->response.status = SW_HTTP_INTERNAL_SERVER_ERROR;
             }
 
             if (0) { }
