@@ -1015,7 +1015,7 @@ static PHP_METHOD(swoole_http_request, getData)
     }
 
 #ifdef SW_USE_HTTP2
-    if (ctx->stream)
+    if (ctx->http2)
     {
         php_swoole_fatal_error(E_WARNING, "unable to get data from HTTP2 request");
         RETURN_FALSE;

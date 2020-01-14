@@ -320,9 +320,9 @@ static PHP_METHOD(swoole_http_response, write)
     }
 
 #ifdef SW_USE_HTTP2
-    if (ctx->stream)
+    if (ctx->http2)
     {
-        php_swoole_error(E_WARNING, "Http2 client does not support HTTP-CHUNK");
+        php_swoole_error(E_WARNING, "HTTP2 client does not support HTTP-CHUNK");
         RETURN_FALSE;
     }
 #endif
@@ -712,7 +712,7 @@ static PHP_METHOD(swoole_http_response, end)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
 #ifdef SW_USE_HTTP2
-    if (ctx->stream)
+    if (ctx->http2)
     {
         swoole_http2_response_end(ctx, zdata, return_value);
     }
@@ -865,7 +865,7 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
         char key_buf[SW_HTTP_HEADER_KEY_SIZE];
         strncpy(key_buf, k, klen)[klen] = '\0';
 #ifdef SW_USE_HTTP2
-        if (ctx->stream)
+        if (ctx->http2)
         {
             swoole_strtolower(key_buf, klen);
         }
@@ -1173,7 +1173,7 @@ static PHP_METHOD(swoole_http_response, trailer)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
-    if (!ctx || !ctx->stream)
+    if (!ctx || !ctx->http2)
     {
         RETURN_FALSE;
     }
@@ -1208,7 +1208,7 @@ static PHP_METHOD(swoole_http_response, ping)
     {
         RETURN_FALSE;
     }
-    if (UNEXPECTED(!ctx->stream))
+    if (UNEXPECTED(!ctx->http2))
     {
         php_swoole_fatal_error(E_WARNING, "fd[%d] is not a HTTP2 conncetion", ctx->fd);
         RETURN_FALSE;
