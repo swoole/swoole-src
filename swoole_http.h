@@ -135,14 +135,14 @@ struct http_context
     uint32_t parse_files :1;
     uint32_t co_socket :1;
 
-#ifdef SW_HAVE_COMPRESSION
-    int8_t compression_level;
-    int8_t compression_method;
-#endif
-
 #ifdef SW_USE_HTTP2
     uint32_t http2 :1;
     http2_stream* stream;
+#endif
+
+#ifdef SW_HAVE_COMPRESSION
+    int8_t compression_level;
+    int8_t compression_method;
 #endif
 
     http_request request;
