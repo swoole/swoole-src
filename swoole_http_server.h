@@ -33,9 +33,7 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx);
 
 int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData *req);
 int swoole_http2_server_parse(http2_session *client, const char *buf);
-bool swoole_http2_server_sendfile(http_context *ctx, const char* file, struct stat *file_stat);
 void swoole_http2_server_session_free(swConnection *conn);
-void swoole_http2_server_stream_free(http_context *ctx);
 int swoole_http2_server_ping(http_context *ctx);
 
 #endif

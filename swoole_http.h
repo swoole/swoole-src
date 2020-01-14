@@ -184,7 +184,7 @@ public:
     ~http2_stream();
 
     bool send_header(size_t body_length, bool end_stream);
-    bool send_body(swString *body, bool end_stream, size_t max_frame_size);
+    bool send_body(swString *body, bool end_stream, size_t max_frame_size, off_t offset = 0, size_t length = 0);
     bool send_trailer();
 
     void reset(uint32_t error_code);

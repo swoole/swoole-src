@@ -953,19 +953,14 @@ static PHP_METHOD(swoole_http_response, sendfile)
         length = file_stat.st_size - offset;
     }
 
-#ifdef SW_HAVE_COMPRESSION
-    ctx->accept_compression = 0;
-#endif
-
 #ifdef SW_USE_HTTP2
-    if (ctx->stream)
-    {
-        RETURN_BOOL(swoole_http2_server_sendfile(ctx, file, &file_stat));
-    }
+    if (!ctx->http2)
 #endif
-
     if (!ctx->send_header)
     {
+#ifdef SW_HAVE_COMPRESSION
+        ctx->accept_compression = 0;
+#endif
         swString *http_buffer = http_get_write_buffer(ctx);
 
         swString_clear(http_buffer);
@@ -991,12 +986,13 @@ static PHP_METHOD(swoole_http_response, sendfile)
         RETURN_FALSE;
     }
 
+    ctx->end = 1;
+
     if (!ctx->keepalive)
     {
         ctx->close(ctx);
     }
 
-    ctx->end = 1;
     RETURN_TRUE;
 }
 
