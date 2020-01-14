@@ -119,8 +119,7 @@ PHP_METHOD(swoole_coroutine_system, sleep)
         php_swoole_fatal_error(E_WARNING, "Timer must be greater than or equal to " ZEND_TOSTR(SW_TIMER_MIN_SEC));
         RETURN_FALSE;
     }
-    System::sleep(seconds);
-    RETURN_TRUE;
+    RETURN_BOOL(System::sleep(seconds) == 0);
 }
 
 static void aio_onReadCompleted(swAio_event *event)
