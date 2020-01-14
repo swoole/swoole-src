@@ -39,7 +39,7 @@ static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char 
 
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, swSocket *_socket, int server_fd);
 
-static void swServer_check_swListenPort_type(swServer *serv, swListenPort *ls);
+static void swServer_check_port_type(swServer *serv, swListenPort *ls);
 
 static void swServer_disable_accept(swServer *serv)
 {
@@ -1517,7 +1517,7 @@ SW_API int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCal
     }
 }
 
-static void swServer_check_swListenPort_type(swServer *serv, swListenPort *ls)
+static void swServer_check_port_type(swServer *serv, swListenPort *ls)
 {
     if (swSocket_is_dgram(ls->type))
     {
@@ -1558,7 +1558,7 @@ int swServer_add_systemd_socket(swServer *serv)
         return 0;
     }
 
-    int n = swoole_get_listen_fds();
+    int n = swoole_get_systemd_listen_fds();
     if (n == 0)
     {
         return 0;
@@ -1590,7 +1590,7 @@ int swServer_add_systemd_socket(swServer *serv)
             close(sock);
             return count;
         }
-        swServer_check_swListenPort_type(serv, ls);
+        swServer_check_port_type(serv, ls);
 
         LL_APPEND(serv->listen_list, ls);
         serv->listen_port_num++;
@@ -1669,7 +1669,7 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         close(sock);
         return nullptr;
     }
-    swServer_check_swListenPort_type(serv, ls);
+    swServer_check_port_type(serv, ls);
 
     LL_APPEND(serv->listen_list, ls);
     serv->listen_port_num++;

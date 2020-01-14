@@ -1435,7 +1435,7 @@ char* swoole_string_format(size_t n, const char *format, ...)
     return NULL;
 }
 
-int swoole_get_listen_fds()
+int swoole_get_systemd_listen_fds()
 {
     int ret;
     char *e;
