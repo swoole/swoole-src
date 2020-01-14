@@ -1435,6 +1435,30 @@ char* swoole_string_format(size_t n, const char *format, ...)
     return NULL;
 }
 
+int swoole_get_systemd_listen_fds()
+{
+    int ret;
+    char *e;
+
+    e = getenv("LISTEN_FDS");
+    if (!e)
+    {
+        return 0;
+    }
+    ret = atoi(e);
+    if (ret < 1)
+    {
+        swWarn("invalid LISTEN_FDS");
+        return 0;
+    }
+    else if (ret >= SW_MAX_LISTEN_PORT)
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "LISTEN_FDS is too big");
+        return 0;
+    }
+    return ret;
+}
+
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void)
 {
