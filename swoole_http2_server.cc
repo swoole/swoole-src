@@ -36,10 +36,13 @@ static std::unordered_map<int, http2_session*> http2_sessions;
 
 static bool swoole_http2_server_respond(http_context *ctx, swString *body);
 
-http2_stream::http2_stream(int _fd, uint32_t _id)
+http2_stream::http2_stream(http2_session *client, uint32_t _id)
 {
-    ctx = swoole_http_context_new(_fd);
+    ctx = swoole_http_context_new(client->fd);
+    swoole_http_context_copy(client->default_ctx, ctx);
+    ctx->http2 = true;
     ctx->stream = this;
+    ctx->keepalive = true;
     id = _id;
     send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
     recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
@@ -881,14 +884,13 @@ int swoole_http2_server_parse(http2_session *client, const char *buf)
         http_context *ctx;
         if (!stream)
         {
-            stream = new http2_stream(client->fd, stream_id);
+            stream = new http2_stream(client, stream_id);
             if (sw_unlikely(!stream->ctx))
             {
                 swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 create stream#%d context error", stream_id);
                 return SW_ERR;
             }
             ctx = stream->ctx;
-            swoole_http_context_copy(client->default_ctx, ctx);
             client->streams[stream_id] = stream;
             zend_update_property_long(swoole_http_request_ce, ctx->request.zobject, ZEND_STRL("streamId"), stream_id);
         }
@@ -1052,8 +1054,11 @@ int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData 
     if (!client->default_ctx)
     {
         client->default_ctx = (http_context *) emalloc(sizeof(*client->default_ctx));
-        client->default_ctx->fd = session_id;
         swoole_http_server_init_context(serv, client->default_ctx);
+        client->default_ctx->fd = session_id;
+        client->default_ctx->http2 = true;
+        client->default_ctx->stream = (http2_stream *) -1;
+        client->default_ctx->keepalive = true;
     }
 
     zval zdata;

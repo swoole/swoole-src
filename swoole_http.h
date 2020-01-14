@@ -141,8 +141,10 @@ struct http_context
 #endif
 
 #ifdef SW_USE_HTTP2
+    uint32_t http2 :1;
     http2_stream* stream;
 #endif
+
     http_request request;
     http_response response;
 
@@ -167,6 +169,7 @@ struct http_context
 };
 
 #ifdef SW_USE_HTTP2
+class http2_session;
 class http2_stream
 {
 public:
@@ -177,7 +180,7 @@ public:
     uint32_t send_window;
     uint32_t recv_window;
 
-    http2_stream(int _fd, uint32_t _id);
+    http2_stream(http2_session *client, uint32_t _id);
     ~http2_stream();
 
     bool send_header(size_t body_length, bool end_stream);
