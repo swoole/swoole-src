@@ -41,8 +41,9 @@ static bool ssl_select_proto(const uchar **out, uchar *outlen, const uchar *in, 
 
 static bool ssl_select_h2(const uchar **out, uchar *outlen, const uchar *in, uint inlen)
 {
-    return ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_ALPN) || ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_16_ALPN)
-            || ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_14_ALPN);
+    return ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_ALPN) ||
+           ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_16_ALPN) ||
+           ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_14_ALPN);
 }
 
 static int ssl_select_next_proto_cb(SSL *ssl, uchar **out, uchar *outlen, const uchar *in, uint inlen, void *arg)
