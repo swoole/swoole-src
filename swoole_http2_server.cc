@@ -51,8 +51,7 @@ http2_stream::http2_stream(http2_session *client, uint32_t _id)
 http2_stream::~http2_stream()
 {
     ctx->stream = nullptr;
-    /* it will be free'd when request/response are free'd */
-    // swoole_http_context_free(ctx);
+    swoole_http_context_free(ctx);
 }
 
 void http2_stream::reset(uint32_t error_code)

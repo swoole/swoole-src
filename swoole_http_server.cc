@@ -248,7 +248,7 @@ void swoole_http_context_free(http_context *ctx)
 #ifdef SW_USE_HTTP2
     if (ctx->stream)
     {
-        ((http2_stream *) ctx->stream)->ctx = nullptr;
+        return;
     }
 #endif
 
