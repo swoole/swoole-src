@@ -37,7 +37,7 @@ zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
 
 static bool http_context_send_data(http_context* ctx, const char *data, size_t length);
-static bool http_context_send_file(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
+static bool http_context_sendfile(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(http_context* ctx);
 
 int php_swoole_http_onReceive(swServer *serv, swEventData *req)
@@ -219,7 +219,7 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx)
     ctx->private_data = serv;
     ctx->upload_tmp_dir = serv->upload_tmp_dir;
     ctx->send = http_context_send_data;
-    ctx->sendfile = http_context_send_file;
+    ctx->sendfile = http_context_sendfile;
     ctx->close = http_context_disconnect;
 }
 
@@ -338,7 +338,7 @@ bool http_context_send_data(http_context* ctx, const char *data, size_t length)
     return ret == SW_OK;
 }
 
-static bool http_context_send_file(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length)
+static bool http_context_sendfile(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length)
 {
     swServer *serv = (swServer *) ctx->private_data;
     return serv->sendfile(serv, ctx->fd, file, l_file, offset, length) == SW_OK;

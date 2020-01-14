@@ -588,7 +588,7 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body)
     return !error;
 }
 
-static bool http2_context_send_file(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length)
+static bool http2_context_sendfile(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length)
 {
     http2_session *client = http2_sessions[ctx->fd];
     http2_stream *stream = (http2_stream *) ctx->stream;
@@ -1081,7 +1081,7 @@ int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData 
         client->default_ctx->http2 = true;
         client->default_ctx->stream = (http2_stream *) -1;
         client->default_ctx->keepalive = true;
-        client->default_ctx->sendfile = http2_context_send_file;
+        client->default_ctx->sendfile = http2_context_sendfile;
     }
 
     zval zdata;
