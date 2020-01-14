@@ -1780,20 +1780,21 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
         if (_i_coros_list != send_coroutine_map.end())
         {
             list<php_coro_context *> *coros_list = _i_coros_list->second;
-            if (coros_list->size() == 0)
+            if (coros_list->empty())
             {
-                php_swoole_fatal_error(E_WARNING, "nothing can be resumed");
+                php_swoole_fatal_error(E_WARNING, "send_yield[onClose]: nothing can be resumed");
             }
             else
             {
-                php_coro_context *context = coros_list->front();
-                coros_list->pop_front();
-                SwooleG.error = ECONNRESET;
-                zval_ptr_dtor(&context->coro_params);
-                ZVAL_NULL(&context->coro_params);
-                //resume coroutine
-                php_swoole_server_send_resume(serv, context, info->fd);
-                //free memory
+                do
+                {
+                    php_coro_context *context = coros_list->front();
+                    coros_list->pop_front();
+                    SwooleG.error = ECONNRESET;
+                    zval_ptr_dtor(&context->coro_params);
+                    ZVAL_NULL(&context->coro_params);
+                    php_swoole_server_send_resume(serv, context, info->fd);
+                } while (!coros_list->empty());
                 delete coros_list;
                 send_coroutine_map.erase(info->fd);
             }
@@ -1894,7 +1895,7 @@ static enum swReturn_code php_swoole_server_send_resume(swServer *serv, php_coro
             goto _fail;
         }
         int ret = serv->send(serv, fd, data, length);
-        if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
+        if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_SEND_YIELD && serv->send_yield)
         {
             return SW_CONTINUE;
         }
@@ -2002,40 +2003,36 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
     zval *zserv = (zval *) serv->ptr2;
     zend_fcall_info_cache *fci_cache;
 
-    if (serv->send_yield == 0)
-    {
-        goto _callback;
-    }
-    else
+    if (serv->send_yield)
     {
         unordered_map<int, list<php_coro_context *> *>::iterator _i_coros_list = send_coroutine_map.find(info->fd);
         if (_i_coros_list != send_coroutine_map.end())
         {
             list<php_coro_context *> *coros_list = _i_coros_list->second;
-            if (coros_list->size() == 0)
+            if (coros_list->empty())
             {
-                php_swoole_fatal_error(E_WARNING, "nothing can resume");
-                goto _callback;
-            }
-            php_coro_context *context = coros_list->front();
-            //resume coroutine
-            if (php_swoole_server_send_resume(serv, context, info->fd) == SW_CONTINUE)
-            {
-                return;
+                php_swoole_fatal_error(E_WARNING, "send_yield: nothing can be resumed");
             }
             else
             {
-                coros_list->pop_front();
-                if (coros_list->size() == 0)
+                do
                 {
-                    delete coros_list;
-                    send_coroutine_map.erase(info->fd);
-                }
+                    php_coro_context *context = coros_list->front();
+                    if (php_swoole_server_send_resume(serv, context, info->fd) == SW_CONTINUE)
+                    {
+                        return;
+                    }
+                    else
+                    {
+                        coros_list->pop_front();
+                    }
+                } while (!coros_list->empty());
+                delete coros_list;
+                send_coroutine_map.erase(info->fd);
             }
         }
     }
 
-    _callback:
     fci_cache = php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onBufferEmpty);
     if (fci_cache)
     {
