@@ -39,6 +39,8 @@ static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char 
 
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, swSocket *_socket, int server_fd);
 
+static void swServer_check_swListenPort_type(swServer *serv, swListenPort *ls);
+
 static void swServer_disable_accept(swServer *serv)
 {
     swListenPort *ls;
@@ -1515,6 +1517,29 @@ SW_API int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCal
     }
 }
 
+static void swServer_check_swListenPort_type(swServer *serv, swListenPort *ls)
+{
+    if (swSocket_is_dgram(ls->type))
+    {
+        //dgram socket, setting socket buffer size
+        swSocket_set_buffer_size(ls->socket, ls->socket_buffer_size);
+        serv->have_dgram_sock = 1;
+        serv->dgram_port_num++;
+        if (ls->type == SW_SOCK_UDP)
+        {
+            serv->udp_socket_ipv4 = ls->socket->fd;
+        }
+        else if (ls->type == SW_SOCK_UDP6)
+        {
+            serv->udp_socket_ipv6 = ls->socket->fd;
+        }
+    }
+    else
+    {
+        serv->have_stream_sock = 1;
+    }
+}
+
 /**
  * Return the number of ports successfully
  */
@@ -1641,25 +1666,7 @@ int swServer_add_systemd_socket(swServer *serv)
             close(sock);
             return count;
         }
-        if (swSocket_is_dgram(ls->type))
-        {
-            //dgram socket, setting socket buffer size
-            swSocket_set_buffer_size(ls->socket, ls->socket_buffer_size);
-            serv->have_dgram_sock = 1;
-            serv->dgram_port_num++;
-            if (ls->type == SW_SOCK_UDP)
-            {
-                serv->udp_socket_ipv4 = sock;
-            }
-            else if (ls->type == SW_SOCK_UDP6)
-            {
-                serv->udp_socket_ipv6 = sock;
-            }
-        }
-        else
-        {
-            serv->have_stream_sock = 1;
-        }
+        swServer_check_swListenPort_type(serv, ls);
 
         LL_APPEND(serv->listen_list, ls);
         serv->listen_port_num++;
@@ -1738,25 +1745,7 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         close(sock);
         return nullptr;
     }
-    if (swSocket_is_dgram(ls->type))
-    {
-        //dgram socket, setting socket buffer size
-        swSocket_set_buffer_size(ls->socket, ls->socket_buffer_size);
-        serv->have_dgram_sock = 1;
-        serv->dgram_port_num++;
-        if (ls->type == SW_SOCK_UDP)
-        {
-            serv->udp_socket_ipv4 = sock;
-        }
-        else if (ls->type == SW_SOCK_UDP6)
-        {
-            serv->udp_socket_ipv6 = sock;
-        }
-    }
-    else
-    {
-        serv->have_stream_sock = 1;
-    }
+    swServer_check_swListenPort_type(serv, ls);
 
     LL_APPEND(serv->listen_list, ls);
     serv->listen_port_num++;
