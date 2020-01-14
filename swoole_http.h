@@ -107,6 +107,10 @@ struct http_response
     zval _ztrailer;
 };
 
+#ifdef SW_USE_HTTP2
+class http2_stream;
+#endif
+
 struct http_context
 {
     int fd;
@@ -131,14 +135,16 @@ struct http_context
     uint32_t parse_files :1;
     uint32_t co_socket :1;
 
+#ifdef SW_USE_HTTP2
+    uint32_t http2 :1;
+    http2_stream* stream;
+#endif
+
 #ifdef SW_HAVE_COMPRESSION
     int8_t compression_level;
     int8_t compression_method;
 #endif
 
-#ifdef SW_USE_HTTP2
-    void* stream;
-#endif
     http_request request;
     http_response response;
 
@@ -157,13 +163,13 @@ struct http_context
     const char *upload_tmp_dir;
 
     void *private_data;
-    void *private_data_2;
     bool (*send)(http_context* ctx, const char *data, size_t length);
     bool (*sendfile)(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
     bool (*close)(http_context* ctx);
 };
 
 #ifdef SW_USE_HTTP2
+class http2_session;
 class http2_stream
 {
 public:
@@ -174,7 +180,7 @@ public:
     uint32_t send_window;
     uint32_t recv_window;
 
-    http2_stream(int _fd, uint32_t _id);
+    http2_stream(http2_session *client, uint32_t _id);
     ~http2_stream();
 
     void reset(uint32_t error_code);

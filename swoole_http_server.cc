@@ -38,7 +38,7 @@ zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
 
 static bool http_context_send_data(http_context* ctx, const char *data, size_t length);
-static bool http_context_send_file(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
+static bool http_context_sendfile(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(http_context* ctx);
 
 int php_swoole_http_onReceive(swServer *serv, swEventData *req)
@@ -162,13 +162,13 @@ void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
     {
         return;
     }
+    php_swoole_onClose(serv, ev);
 #ifdef SW_USE_HTTP2
     if (conn->http2_stream)
     {
         swoole_http2_server_session_free(conn);
     }
 #endif
-    php_swoole_onClose(serv, ev);
 }
 
 void php_swoole_http_server_minit(int module_number)
@@ -220,7 +220,7 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx)
     ctx->private_data = serv;
     ctx->upload_tmp_dir = serv->upload_tmp_dir;
     ctx->send = http_context_send_data;
-    ctx->sendfile = http_context_send_file;
+    ctx->sendfile = http_context_sendfile;
     ctx->close = http_context_disconnect;
 }
 
@@ -249,7 +249,7 @@ void swoole_http_context_free(http_context *ctx)
 #ifdef SW_USE_HTTP2
     if (ctx->stream)
     {
-        ((http2_stream *) ctx->stream)->ctx = nullptr;
+        return;
     }
 #endif
 
@@ -328,19 +328,18 @@ http_context* php_swoole_http_response_get_and_check_context(zval *zobject)
 bool http_context_send_data(http_context* ctx, const char *data, size_t length)
 {
     swServer *serv = (swServer *) ctx->private_data;
-    zval *return_value = (zval *) ctx->private_data_2;
     ssize_t ret = serv->send(serv, ctx->fd, (void*) data, length);
     if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_SEND_YIELD)
     {
-        zval _yield_data;
-        ZVAL_STRINGL(&_yield_data, data, length);
-        php_swoole_server_send_yield(serv, ctx->fd, &_yield_data, return_value);
-        ret = Z_BVAL_P(return_value) ? SW_OK : SW_ERR;
+        zval yield_data, return_value;
+        ZVAL_STRINGL(&yield_data, data, length);
+        php_swoole_server_send_yield(serv, ctx->fd, &yield_data, &return_value);
+        ret = Z_BVAL_P(&return_value) ? SW_OK : SW_ERR;
     }
     return ret == SW_OK;
 }
 
-static bool http_context_send_file(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length)
+static bool http_context_sendfile(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length)
 {
     swServer *serv = (swServer *) ctx->private_data;
     return serv->sendfile(serv, ctx->fd, file, l_file, offset, length) == SW_OK;

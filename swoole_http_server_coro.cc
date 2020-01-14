@@ -55,7 +55,7 @@ static zend_class_entry *swoole_http_server_coro_ce;
 static zend_object_handlers swoole_http_server_coro_handlers;
 
 static bool http_context_send_data(http_context* ctx, const char *data, size_t length);
-static bool http_context_send_file(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
+static bool http_context_sendfile(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(http_context* ctx);
 
 #ifdef SW_USE_HTTP2
@@ -138,7 +138,7 @@ public:
         ctx->private_data = conn;
         ctx->co_socket = 1;
         ctx->send = http_context_send_data;
-        ctx->sendfile = http_context_send_file;
+        ctx->sendfile = http_context_sendfile;
         ctx->close = http_context_disconnect;
         ctx->upload_tmp_dir = "/tmp";
 
@@ -241,7 +241,7 @@ static bool http_context_send_data(http_context* ctx, const char *data, size_t l
     return sock->send_all(data, length) == (ssize_t) length;
 }
 
-static bool http_context_send_file(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length)
+static bool http_context_sendfile(http_context* ctx, const char *file, uint32_t l_file, off_t offset, size_t length)
 {
     Socket *sock = (Socket *) ctx->private_data;
     return sock->sendfile(file, offset, length);

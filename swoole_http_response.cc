@@ -123,33 +123,33 @@ static void php_swoole_http_response_free_object(zend_object *object)
 
     if (ctx)
     {
-        if (!ctx->end)
+        if (!ctx->end && !ctx->detached)
         {
             if (ctx->response.status == 0)
             {
-                ctx->response.status = 500;
+                ctx->response.status = SW_HTTP_INTERNAL_SERVER_ERROR;
             }
 
-            if (0) { }
 #ifdef SW_USE_HTTP2
-            else if (ctx->stream)
+            if (ctx->http2)
             {
-                swoole_http2_response_end(ctx, nullptr, &ztmp);
-            }
-#endif
-            else if (ctx->co_socket)
-            {
-                swoole_http_response_end(ctx, nullptr, &ztmp);
+                if (ctx->stream)
+                {
+                    swoole_http2_response_end(ctx, nullptr, &ztmp);
+                }
             }
             else
-            {
-                swServer *serv = (swServer *) ctx->private_data;
-                swConnection *conn = swWorker_get_connection(serv, ctx->fd);
-                if (conn && !conn->closed && !conn->peer_closed && !ctx->detached)
-                {
-#ifdef SW_USE_HTTP2
-                    if (!conn->http2_stream)
 #endif
+            {
+                if (ctx->co_socket)
+                {
+                    swoole_http_response_end(ctx, nullptr, &ztmp);
+                }
+                else
+                {
+                    swServer *serv = (swServer *) ctx->private_data;
+                    swConnection *conn = swWorker_get_connection(serv, ctx->fd);
+                    if (conn && !conn->closed && !conn->peer_closed)
                     {
                         swoole_http_response_end(ctx, nullptr, &ztmp);
                     }
@@ -320,9 +320,9 @@ static PHP_METHOD(swoole_http_response, write)
     }
 
 #ifdef SW_USE_HTTP2
-    if (ctx->stream)
+    if (ctx->http2)
     {
-        php_swoole_error(E_WARNING, "Http2 client does not support HTTP-CHUNK");
+        php_swoole_error(E_WARNING, "HTTP2 client does not support HTTP-CHUNK");
         RETURN_FALSE;
     }
 #endif
@@ -330,8 +330,6 @@ static PHP_METHOD(swoole_http_response, write)
 #ifdef SW_HAVE_COMPRESSION
     ctx->accept_compression = 0;
 #endif
-
-    ctx->private_data_2 = return_value;
 
     swString *http_buffer = http_get_write_buffer(ctx);
 
@@ -714,7 +712,7 @@ static PHP_METHOD(swoole_http_response, end)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
 #ifdef SW_USE_HTTP2
-    if (ctx->stream)
+    if (ctx->http2)
     {
         swoole_http2_response_end(ctx, zdata, return_value);
     }
@@ -737,8 +735,6 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
         http_body.length = 0;
         http_body.str = NULL;
     }
-
-    ctx->private_data_2 = return_value;
 
     if (ctx->send_chunked)
     {
@@ -869,7 +865,7 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
         char key_buf[SW_HTTP_HEADER_KEY_SIZE];
         strncpy(key_buf, k, klen)[klen] = '\0';
 #ifdef SW_USE_HTTP2
-        if (ctx->stream)
+        if (ctx->http2)
         {
             swoole_strtolower(key_buf, klen);
         }
@@ -915,7 +911,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
         RETURN_FALSE;
     }
 #ifdef SW_USE_HTTP2
-    if (ctx->stream)
+    if (ctx->http2)
     {
         php_swoole_fatal_error(E_WARNING, "can't use sendfile when http2 connection is established");
         RETURN_FALSE;
@@ -995,12 +991,13 @@ static PHP_METHOD(swoole_http_response, sendfile)
         RETURN_FALSE;
     }
 
+    ctx->end = 1;
+
     if (!ctx->keepalive)
     {
         ctx->close(ctx);
     }
 
-    ctx->end = 1;
     RETURN_TRUE;
 }
 
@@ -1177,7 +1174,7 @@ static PHP_METHOD(swoole_http_response, trailer)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
-    if (!ctx || !ctx->stream)
+    if (!ctx || !ctx->http2)
     {
         RETURN_FALSE;
     }
@@ -1212,7 +1209,7 @@ static PHP_METHOD(swoole_http_response, ping)
     {
         RETURN_FALSE;
     }
-    if (UNEXPECTED(!ctx->stream))
+    if (UNEXPECTED(!ctx->http2))
     {
         php_swoole_fatal_error(E_WARNING, "fd[%d] is not a HTTP2 conncetion", ctx->fd);
         RETURN_FALSE;
