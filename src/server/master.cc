@@ -1600,31 +1600,26 @@ int swServer_add_systemd_socket(swServer *serv)
             if (sock_type == SOCK_STREAM)
             {
                 ls->type = SW_SOCK_TCP;
-                ls->port = ntohs(address.addr.inet_v4.sin_port);
-                strncpy(ls->host, inet_ntoa(address.addr.inet_v4.sin_addr), SW_HOST_MAXSIZE - 1);
             }
             else
             {
                 ls->type = SW_SOCK_UDP;
-                ls->port = ntohs(address.addr.inet_v4.sin_port);
-                strncpy(ls->host, inet_ntoa(address.addr.inet_v4.sin_addr), SW_HOST_MAXSIZE - 1);
             }
+            ls->port = ntohs(address.addr.inet_v4.sin_port);
+            strncpy(ls->host, inet_ntoa(address.addr.inet_v4.sin_addr), SW_HOST_MAXSIZE - 1);
             break;
         case AF_INET6:
             if (sock_type == SOCK_STREAM)
             {
-                ls->port = ntohs(address.addr.inet_v6.sin6_port);
                 ls->type = SW_SOCK_TCP6;
-                inet_ntop(AF_INET6, &address.addr.inet_v6.sin6_addr, tmp, sizeof(tmp));
-                strncpy(ls->host, tmp, SW_HOST_MAXSIZE - 1);
             }
             else
             {
-                ls->port = ntohs(address.addr.inet_v6.sin6_port);
                 ls->type = SW_SOCK_UDP6;
-                inet_ntop(AF_INET6, &address.addr.inet_v6.sin6_addr, tmp, sizeof(tmp));
-                strncpy(ls->host, tmp, SW_HOST_MAXSIZE - 1);
             }
+            ls->port = ntohs(address.addr.inet_v6.sin6_port);
+            inet_ntop(AF_INET6, &address.addr.inet_v6.sin6_addr, tmp, sizeof(tmp));
+            strncpy(ls->host, tmp, SW_HOST_MAXSIZE - 1);
             break;
         case AF_UNIX:
             ls->type = sock_type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
@@ -1632,7 +1627,7 @@ int swServer_add_systemd_socket(swServer *serv)
             strncpy(ls->host, address.addr.un.sun_path, SW_HOST_MAXSIZE);
             break;
         default:
-            swWarn("Unknown socket type[%d]", sock_type);
+            swWarn("Unknown socket family[%d]", sock_family);
             break;
         }
 
