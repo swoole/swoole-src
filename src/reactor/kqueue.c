@@ -258,7 +258,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
     swReactor_handler handler;
 
     int i, n;
-    struct timespec t = {0};
+    struct timespec t = {};
     struct timespec *t_ptr;
 
     if (reactor->timeout_msec == 0)

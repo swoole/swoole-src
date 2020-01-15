@@ -41,7 +41,7 @@ int swSystemTimer_init(swTimer *timer, long interval)
  */
 static int swSystemTimer_signal_set(swTimer *timer, long interval)
 {
-    struct itimerval timer_set = {{0}};
+    struct itimerval timer_set = {};
     int sec = interval / 1000;
     int msec = interval % 1000;
 

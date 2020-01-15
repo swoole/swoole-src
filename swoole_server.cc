@@ -774,7 +774,7 @@ static int php_swoole_create_dir(const char* path, size_t length)
     int     endpath;
     int     i            = 0;
     int     pathlen      = length;
-    char    curpath[128] = {0};
+    char    curpath[128] = {};
     if ('/' != path[0])
     {
         if (getcwd(curpath, sizeof(curpath)) == NULL)
@@ -823,7 +823,7 @@ static int php_swoole_create_dir(const char* path, size_t length)
 
 int php_swoole_task_pack(swEventData *task, zval *zdata)
 {
-    smart_str serialized_data = { 0 };
+    smart_str serialized_data = {};
     php_serialize_data_t var_hash;
 
     task->info.type = SW_SERVER_EVENT_TASK;
@@ -1293,7 +1293,7 @@ void php_swoole_server_register_callbacks(swServer *serv)
 static int php_swoole_task_finish(swServer *serv, zval *zdata, swEventData *current_task)
 {
     int flags = 0;
-    smart_str serialized_data = {0};
+    smart_str serialized_data = {};
     php_serialize_data_t var_hash;
     char *data_str;
     int data_len = 0;
@@ -3468,7 +3468,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
         RETURN_FALSE;
     }
 
-    int list_of_id[SW_MAX_CONCURRENT_TASK] = {0};
+    int list_of_id[SW_MAX_CONCURRENT_TASK] = {};
 
     uint64_t notify;
     swEventData *task_result = &(serv->task_result[SwooleWG.id]);

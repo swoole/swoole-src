@@ -720,8 +720,8 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
 #if 0
 static void get_random_file_name(char *des, const char *src)
 {
-    unsigned char digest[16] = {0};
-    char buf[19] = {0};
+    unsigned char digest[16] = {};
+    char buf[19] = {};
     int n = sprintf(buf, "%s%d", src, swoole_system_random(0, 9999));
 
     PHP_MD5_CTX ctx;

@@ -83,7 +83,7 @@ static int get_dns_server()
 {
     FILE *fp;
     char line[100];
-    char buf[16] = {0};
+    char buf[16] = {};
 
     if ((fp = fopen(SW_DNS_SERVER_CONF, "rt")) == NULL)
     {
