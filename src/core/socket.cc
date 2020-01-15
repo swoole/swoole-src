@@ -406,11 +406,7 @@ void swSocket_free(swSocket *sock)
 int swSocket_bind(int sock, int type, const char *host, int *port)
 {
     int ret;
-
-    struct sockaddr_in addr_in4;
-    struct sockaddr_in6 addr_in6;
-    struct sockaddr_un addr_un;
-    socklen_t len;
+    swSocketAddress address;
 
     //SO_REUSEADDR option
     int option = 1;
@@ -433,51 +429,51 @@ int swSocket_bind(int sock, int type, const char *host, int *port)
     //unix socket
     if (type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM)
     {
-        bzero(&addr_un, sizeof(addr_un));
+        bzero(&(address.addr.un), sizeof(address.addr.un));
         unlink(host);
-        addr_un.sun_family = AF_UNIX;
-        strncpy(addr_un.sun_path, host, sizeof(addr_un.sun_path) - 1);
-        ret = bind(sock, (struct sockaddr*) &addr_un, sizeof(addr_un));
+        address.addr.un.sun_family = AF_UNIX;
+        strncpy(address.addr.un.sun_path, host, sizeof(address.addr.un.sun_path) - 1);
+        ret = bind(sock, (struct sockaddr*) &(address.addr.un), sizeof(address.addr.un));
     }
     //IPv6
     else if (type > SW_SOCK_UDP)
     {
-        bzero(&addr_in6, sizeof(addr_in6));
-        if (inet_pton(AF_INET6, host, &(addr_in6.sin6_addr)) < 0)
+        bzero(&(address.addr.inet_v6), sizeof(address.addr.inet_v6));
+        if (inet_pton(AF_INET6, host, &(address.addr.inet_v6.sin6_addr)) < 0)
         {
             swSysWarn("inet_pton(AF_INET6, %s) failed", host);
             return SW_ERR;
         }
-        addr_in6.sin6_port = htons(*port);
-        addr_in6.sin6_family = AF_INET6;
-        ret = bind(sock, (struct sockaddr *) &addr_in6, sizeof(addr_in6));
+        address.addr.inet_v6.sin6_port = htons(*port);
+        address.addr.inet_v6.sin6_family = AF_INET6;
+        ret = bind(sock, (struct sockaddr *) &(address.addr.inet_v6), sizeof(address.addr.inet_v6));
         if (ret == 0 && *port == 0)
         {
-            len = sizeof(addr_in6);
-            if (getsockname(sock, (struct sockaddr *) &addr_in6, &len) != -1)
+            address.len = sizeof(address.addr.inet_v6);
+            if (getsockname(sock, (struct sockaddr *) &(address.addr.inet_v6), &(address.len)) != -1)
             {
-                *port = ntohs(addr_in6.sin6_port);
+                *port = ntohs(address.addr.inet_v6.sin6_port);
             }
         }
     }
     //IPv4
     else
     {
-        bzero(&addr_in4, sizeof(addr_in4));
-        if (inet_pton(AF_INET, host, &(addr_in4.sin_addr)) < 0)
+        bzero(&(address.addr.inet_v4), sizeof(address.addr.inet_v4));
+        if (inet_pton(AF_INET, host, &(address.addr.inet_v4.sin_addr)) < 0)
         {
             swSysWarn("inet_pton(AF_INET, %s) failed", host);
             return SW_ERR;
         }
-        addr_in4.sin_port = htons(*port);
-        addr_in4.sin_family = AF_INET;
-        ret = bind(sock, (struct sockaddr *) &addr_in4, sizeof(addr_in4));
+        address.addr.inet_v4.sin_port = htons(*port);
+        address.addr.inet_v4.sin_family = AF_INET;
+        ret = bind(sock, (struct sockaddr *) &(address.addr.inet_v4), sizeof(address.addr.inet_v4));
         if (ret == 0 && *port == 0)
         {
-            len = sizeof(addr_in4);
-            if (getsockname(sock, (struct sockaddr *) &addr_in4, &len) != -1)
+            address.len = sizeof(address.addr.inet_v4);
+            if (getsockname(sock, (struct sockaddr *) &(address.addr.inet_v4), &(address.len)) != -1)
             {
-                *port = ntohs(addr_in4.sin_port);
+                *port = ntohs(address.addr.inet_v4.sin_port);
             }
         }
     }
