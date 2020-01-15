@@ -173,10 +173,13 @@ foreach ($file_list_raw as $file) {
     $file_list[] = "<file role=\"{$role}\" name=\"{$file}\" />\n";
 }
 
+// get content from package.xml and find out the file list
 $content = file_get_contents(__DIR__ . '/../package.xml');
 if (!preg_match('/([ ]*)\<dir[ ]name=\"\/\">/', $content, $matches)) {
     swoole_error('Match dir tag failed!');
 }
+
+// update file list
 $space = strlen($matches[1]);
 $space += 4;
 $space = str_repeat(' ', $space);
@@ -189,6 +192,8 @@ $content = str_replace($dir_tag, $dir_tag . $space . implode("{$space}", $file_l
 if (!$success) {
     swoole_error('Replace new content failed!');
 }
+
+// update date
 date_default_timezone_set('Asia/Shanghai');
 $date_tag = date('Y-m-d');
 $content = preg_replace('/(<date\>)\d+?-\d+?-\d+?(<\/date>)/', '${1}' . $date_tag . '${2}', $content, $success);
@@ -203,6 +208,8 @@ if (!$success) {
 if (!file_put_contents(__DIR__ . '/../package.xml', $content)) {
     swoole_error('Output package.xml failed!');
 }
+
+// pack
 $package = trim(`cd {$root_dir} && pecl package`);
 if (preg_match('/Warning/i', $package)) {
     $warn = explode("\n", $package);
@@ -210,6 +217,7 @@ if (preg_match('/Warning/i', $package)) {
     $warn = implode("\n", $warn);
     swoole_log("{$warn}\n", SWOOLE_COLOR_MAGENTA);
 }
+
 // check package status
 if (!preg_match('/Package (?<filename>swoole-.+?.tgz) done/', $package, $matches)) {
     swoole_error($package);
