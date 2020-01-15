@@ -184,7 +184,7 @@ ssize_t swSocket_write_blocking(int __fd, const void *__data, size_t __len)
 
     while (written < (ssize_t) __len)
     {
-        n = write(__fd, (char*) __data + written, __len - written);
+        n = write(__fd, (char *) __data + written, __len - written);
         if (n < 0)
         {
             if (errno == EINTR)
@@ -432,7 +432,7 @@ int swSocket_bind(int sock, int type, const char *host, int *port)
         unlink(host);
         address.addr.un.sun_family = AF_UNIX;
         strncpy(address.addr.un.sun_path, host, sizeof(address.addr.un.sun_path) - 1);
-        ret = bind(sock, (struct sockaddr*) &address.addr.un, sizeof(address.addr.un));
+        ret = bind(sock, (struct sockaddr *) &address.addr.un, sizeof(address.addr.un));
     }
     //IPv6
     else if (type > SW_SOCK_UDP)
