@@ -1537,6 +1537,7 @@ int swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
 int swoole_gethostbyname(int type, const char *name, char *addr);
 int swoole_getaddrinfo(swRequest_getaddrinfo *req);
 char* swoole_string_format(size_t n, const char *format, ...);
+int swoole_get_systemd_listen_fds();
 //----------------------core function---------------------
 int swSocket_set_timeout(swSocket *sock, double timeout);
 int swSocket_create_server(int type, const char *address, int port, int backlog);

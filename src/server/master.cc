@@ -39,6 +39,8 @@ static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char 
 
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, swSocket *_socket, int server_fd);
 
+static void swServer_check_port_type(swServer *serv, swListenPort *ls);
+
 static void swServer_disable_accept(swServer *serv)
 {
     swListenPort *ls;
@@ -1515,6 +1517,29 @@ SW_API int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCal
     }
 }
 
+static void swServer_check_port_type(swServer *serv, swListenPort *ls)
+{
+    if (swSocket_is_dgram(ls->type))
+    {
+        //dgram socket, setting socket buffer size
+        swSocket_set_buffer_size(ls->socket, ls->socket_buffer_size);
+        serv->have_dgram_sock = 1;
+        serv->dgram_port_num++;
+        if (ls->type == SW_SOCK_UDP)
+        {
+            serv->udp_socket_ipv4 = ls->socket->fd;
+        }
+        else if (ls->type == SW_SOCK_UDP6)
+        {
+            serv->udp_socket_ipv6 = ls->socket->fd;
+        }
+    }
+    else
+    {
+        serv->have_stream_sock = 1;
+    }
+}
+
 /**
  * Return the number of ports successfully
  */
@@ -1533,29 +1558,14 @@ int swServer_add_systemd_socket(swServer *serv)
         return 0;
     }
 
-    e = getenv("LISTEN_FDS");
-    if (!e)
+    int n = swoole_get_systemd_listen_fds();
+    if (n == 0)
     {
-        return 0;
-    }
-    int n = atoi(e);
-    if (n < 1)
-    {
-        swWarn("invalid LISTEN_FDS");
-        return 0;
-    }
-    else if (n >= SW_MAX_LISTEN_PORT)
-    {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "LISTEN_FDS is too big");
         return 0;
     }
 
     int count = 0;
-    int sock, val;
-    socklen_t optlen;
-    swSocketAddress address;
-    int sock_type, sock_family;
-    char tmp[INET6_ADDRSTRLEN];
+    int sock;
 
     for (sock = SW_SYSTEMD_FDS_START; sock < SW_SYSTEMD_FDS_START + n; sock++)
     {
@@ -1565,79 +1575,11 @@ int swServer_add_systemd_socket(swServer *serv)
             swWarn("alloc failed");
             return count;
         }
-        //get socket type
-        optlen = sizeof(val);
-        if (getsockopt(sock, SOL_SOCKET, SO_TYPE, &val, &optlen) < 0)
+
+        if (swPort_set_address(ls, sock) < 0)
         {
-            swWarn("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
             return count;
         }
-        sock_type = val;
-        //get socket family
-#ifndef SO_DOMAIN
-        swWarn("no getsockopt(SO_DOMAIN) supports");
-        return count;
-#else
-        optlen = sizeof(val);
-        if (getsockopt(sock, SOL_SOCKET, SO_DOMAIN, &val, &optlen) < 0)
-        {
-            swWarn("getsockopt(%d, SOL_SOCKET, SO_DOMAIN) failed", sock);
-            return count;
-        }
-#endif
-        sock_family = val;
-        //get address info
-        address.len = sizeof(address.addr);
-        if (getsockname(sock, (struct sockaddr*) &address.addr, &address.len) < 0)
-        {
-            swWarn("getsockname(%d) failed", sock);
-            return count;
-        }
-
-        swPort_init(ls);
-
-        switch (sock_family)
-        {
-        case AF_INET:
-            if (sock_type == SOCK_STREAM)
-            {
-                ls->type = SW_SOCK_TCP;
-                ls->port = ntohs(address.addr.inet_v4.sin_port);
-                strncpy(ls->host, inet_ntoa(address.addr.inet_v4.sin_addr), SW_HOST_MAXSIZE - 1);
-            }
-            else
-            {
-                ls->type = SW_SOCK_UDP;
-                ls->port = ntohs(address.addr.inet_v4.sin_port);
-                strncpy(ls->host, inet_ntoa(address.addr.inet_v4.sin_addr), SW_HOST_MAXSIZE - 1);
-            }
-            break;
-        case AF_INET6:
-            if (sock_type == SOCK_STREAM)
-            {
-                ls->port = ntohs(address.addr.inet_v6.sin6_port);
-                ls->type = SW_SOCK_TCP6;
-                inet_ntop(AF_INET6, &address.addr.inet_v6.sin6_addr, tmp, sizeof(tmp));
-                strncpy(ls->host, tmp, SW_HOST_MAXSIZE - 1);
-            }
-            else
-            {
-                ls->port = ntohs(address.addr.inet_v6.sin6_port);
-                ls->type = SW_SOCK_UDP6;
-                inet_ntop(AF_INET6, &address.addr.inet_v6.sin6_addr, tmp, sizeof(tmp));
-                strncpy(ls->host, tmp, SW_HOST_MAXSIZE - 1);
-            }
-            break;
-        case AF_UNIX:
-            ls->type = sock_type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
-            ls->port = 0;
-            strncpy(ls->host, address.addr.un.sun_path, SW_HOST_MAXSIZE);
-            break;
-        default:
-            swWarn("Unknown socket type[%d]", sock_type);
-            break;
-        }
-
         ls->host[SW_HOST_MAXSIZE - 1] = 0;
 
         //O_NONBLOCK & O_CLOEXEC
@@ -1648,25 +1590,7 @@ int swServer_add_systemd_socket(swServer *serv)
             close(sock);
             return count;
         }
-        if (swSocket_is_dgram(ls->type))
-        {
-            //dgram socket, setting socket buffer size
-            swSocket_set_buffer_size(ls->socket, ls->socket_buffer_size);
-            serv->have_dgram_sock = 1;
-            serv->dgram_port_num++;
-            if (ls->type == SW_SOCK_UDP)
-            {
-                serv->udp_socket_ipv4 = sock;
-            }
-            else if (ls->type == SW_SOCK_UDP6)
-            {
-                serv->udp_socket_ipv6 = sock;
-            }
-        }
-        else
-        {
-            serv->have_stream_sock = 1;
-        }
+        swServer_check_port_type(serv, ls);
 
         LL_APPEND(serv->listen_list, ls);
         serv->listen_port_num++;
@@ -1745,25 +1669,7 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         close(sock);
         return nullptr;
     }
-    if (swSocket_is_dgram(ls->type))
-    {
-        //dgram socket, setting socket buffer size
-        swSocket_set_buffer_size(ls->socket, ls->socket_buffer_size);
-        serv->have_dgram_sock = 1;
-        serv->dgram_port_num++;
-        if (ls->type == SW_SOCK_UDP)
-        {
-            serv->udp_socket_ipv4 = sock;
-        }
-        else if (ls->type == SW_SOCK_UDP6)
-        {
-            serv->udp_socket_ipv6 = sock;
-        }
-    }
-    else
-    {
-        serv->have_stream_sock = 1;
-    }
+    swServer_check_port_type(serv, ls);
 
     LL_APPEND(serv->listen_list, ls);
     serv->listen_port_num++;

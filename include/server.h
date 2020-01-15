@@ -1003,6 +1003,7 @@ void swPort_init(swListenPort *port);
 void swPort_free(swListenPort *port);
 int swPort_listen(swListenPort *ls);
 void swPort_set_protocol(swServer *serv, swListenPort *ls);
+int swPort_set_address(swListenPort *ls, int sock);
 #ifdef SW_USE_OPENSSL
 int swPort_enable_ssl_encrypt(swListenPort *ls);
 #endif
