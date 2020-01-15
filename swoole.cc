@@ -657,8 +657,11 @@ PHP_MINFO_FUNCTION(swoole)
 PHP_RINIT_FUNCTION(swoole)
 {
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
+
     SwooleG.running = 1;
+
     php_swoole_register_shutdown_function("swoole_internal_call_user_shutdown_begin");
+
     if (
         SWOOLE_G(enable_library) && SWOOLE_G(cli)
 #ifdef ZEND_COMPILE_PRELOAD
@@ -669,7 +672,14 @@ PHP_RINIT_FUNCTION(swoole)
     {
         php_swoole_load_library();
     }
+
+#ifdef ZEND_SIGNALS
+    /* Disable warning even in ZEND_DEBUG because we may register our own signal handlers  */
+    SIGG(check) = 0;
+#endif
+
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_END;
+
     return SUCCESS;
 }
 
@@ -734,6 +744,7 @@ static PHP_FUNCTION(swoole_hashcode)
     {
     case 1:
         RETURN_LONG(hashkit_one_at_a_time(data, l_data));
+        break; /* ide */
     default:
         RETURN_LONG(zend_hash_func(data, l_data));
     }
