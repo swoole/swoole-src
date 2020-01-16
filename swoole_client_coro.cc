@@ -221,7 +221,7 @@ static Socket* client_coro_new(zval *zobject, int port)
     {
         php_swoole_sys_error(E_WARNING, "new Socket() failed");
         zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), errno);
-        zend_update_property_string(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errMsg"), strerror(errno));
+        zend_update_property_string(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errMsg"), swoole_strerror(errno));
         delete cli;
         return NULL;
     }

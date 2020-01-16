@@ -1091,7 +1091,7 @@ static PHP_METHOD(swoole_client, sendfile)
     if (ret < 0)
     {
         SwooleG.error = errno;
-        php_swoole_fatal_error(E_WARNING, "sendfile() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
+        php_swoole_fatal_error(E_WARNING, "sendfile() failed. Error: %s [%d]", swoole_strerror(SwooleG.error), SwooleG.error);
         zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), SwooleG.error);
         RETVAL_FALSE;
     }
@@ -1302,7 +1302,7 @@ static PHP_METHOD(swoole_client, recv)
     if (ret < 0)
     {
         SwooleG.error = errno;
-        php_swoole_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
+        php_swoole_error(E_WARNING, "recv() failed. Error: %s [%d]", swoole_strerror(SwooleG.error), SwooleG.error);
         zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), SwooleG.error);
         if (buf)
         {
