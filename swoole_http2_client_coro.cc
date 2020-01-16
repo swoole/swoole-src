@@ -75,8 +75,8 @@ public:
     uint32_t stream_id = 0; // the next send stream id
     uint32_t last_stream_id = 0; // the last received stream id
 
-    swHttp2_settings local_settings = {0};
-    swHttp2_settings remote_settings = {0};
+    swHttp2_settings local_settings = {};
+    swHttp2_settings remote_settings = {};
 
     swHashMap *streams = nullptr;
 
@@ -1202,7 +1202,7 @@ uint32_t http2_client::send_request(zval *req)
     {
         char *p;
         size_t len;
-        smart_str formstr_s = { NULL, 0 };
+        smart_str formstr_s = {};
         uint8_t send_flag;
         uint32_t send_len;
         zend::string str_zpost_data;
@@ -1277,7 +1277,7 @@ bool http2_client::send_data(uint32_t stream_id, zval *zdata, bool end)
     if (ZVAL_IS_ARRAY(zdata))
     {
         size_t len;
-        smart_str formstr_s = { 0 };
+        smart_str formstr_s = {};
         char *formstr = php_swoole_http_build_query(zdata, &len, &formstr_s);
         if (formstr == NULL)
         {
@@ -1420,7 +1420,7 @@ static PHP_METHOD(swoole_http2_client_coro, stats)
 {
     http2_client *h2c = php_swoole_get_h2c(ZEND_THIS);
     zval _zarray, *zarray = &_zarray;
-    swString key = {0};
+    swString key = {};
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|s", &key.str, &key.length) == FAILURE)
     {
         RETURN_FALSE;

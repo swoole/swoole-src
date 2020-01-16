@@ -500,7 +500,7 @@ bool http2_stream::send_body(swString *body, bool end_stream, size_t max_frame_s
 
 bool http2_stream::send_trailer()
 {
-    char header_buffer[SW_BUFFER_SIZE_STD] = { 0 };
+    char header_buffer[SW_BUFFER_SIZE_STD] = {};
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
 
     swString_clear(swoole_http_buffer);

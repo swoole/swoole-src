@@ -648,7 +648,7 @@ int swoole_http_response_compress(swString *body, int method, int level)
         }
     }
 
-    z_stream zstream = { 0 };
+    z_stream zstream = {};
     int status;
 
     zstream.zalloc = php_zlib_alloc;

@@ -299,10 +299,10 @@ uint8_t get_static_type_size(uint8_t type)
 
 static uint32_t sha1_password_with_nonce(char* buf, const char* nonce, const char* password)
 {
-    char hash_0[20] = {0};
+    char hash_0[20] = {};
     swoole_sha1(password, strlen(password), (uchar *) hash_0);
 
-    char hash_1[20] = {0};
+    char hash_1[20] = {};
     swoole_sha1(hash_0, sizeof (hash_0), (uchar *) hash_1);
 
     char str[40];

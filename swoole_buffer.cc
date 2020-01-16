@@ -195,7 +195,7 @@ static PHP_METHOD(swoole_buffer, __destruct) { }
 static PHP_METHOD(swoole_buffer, append)
 {
     swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
-    swString str = { 0 };
+    swString str = {};
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &str.str, &str.length) == FAILURE)
     {
@@ -283,7 +283,7 @@ static PHP_METHOD(swoole_buffer, write)
 {
     swString *buffer = php_swoole_buffer_get_and_check_ptr(ZEND_THIS);
     zend_long offset;
-    swString str = { 0 };
+    swString str = {};
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "ls", &offset, &str.str, &str.length) == FAILURE)
     {

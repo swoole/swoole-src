@@ -1844,7 +1844,7 @@ static PHP_FUNCTION(swoole_user_func_handler)
     zend_fcall_info fci;
     fci.size = sizeof(fci);
     fci.object = NULL;
-    fci.function_name = {{0}};
+    fci.function_name = {};
     fci.retval = return_value;
     fci.param_count = ZEND_NUM_ARGS();
     fci.params = ZEND_CALL_ARG(execute_data, 1);

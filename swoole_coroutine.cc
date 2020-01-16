@@ -148,7 +148,7 @@ swoole::coroutine::Config PHPCoroutine::config =
     false,
 };
 
-php_coro_task PHPCoroutine::main_task = {0};
+php_coro_task PHPCoroutine::main_task = {};
 pthread_t PHPCoroutine::interrupt_thread_id;
 bool PHPCoroutine::interrupt_thread_running = false;
 

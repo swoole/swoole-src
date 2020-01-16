@@ -168,7 +168,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         }
         else
         {
-            swDataHead ev = {0};
+            swDataHead ev = {};
             ev.type = SW_SERVER_EVENT_INCOMING;
             ev.fd = sock->fd;
             swSocket *_pipe_sock = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
@@ -1231,7 +1231,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
  */
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
 {
-    swDataHead notify_event = {0};
+    swDataHead notify_event = {};
     notify_event.type = event;
     notify_event.reactor_id = conn->reactor_id;
     notify_event.fd = conn->fd;
@@ -1289,7 +1289,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
     req->length = length;
 
     // construct send data
-    swSendData send_data = {{0}};
+    swSendData send_data = {};
     send_data.info.fd = session_id;
     send_data.info.type = SW_SERVER_EVENT_SEND_FILE;
     send_data.info.len = sizeof(swSendFile_request) + l_file + 1;
@@ -1395,7 +1395,7 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset)
 
     int retval;
     swWorker *worker;
-    swDataHead ev = { 0 };
+    swDataHead ev = {};
 
     if (swServer_dispatch_mode_is_mod(serv))
     {

@@ -26,7 +26,7 @@ zend_class_entry *swoole_process_ce;
 static zend_object_handlers swoole_process_handlers;
 
 static uint32_t php_swoole_worker_round_id = 0;
-static zend_fcall_info_cache *signal_fci_caches[SW_SIGNO_MAX] = {0};
+static zend_fcall_info_cache *signal_fci_caches[SW_SIGNO_MAX] = {};
 
 typedef struct
 {
@@ -654,7 +654,7 @@ static PHP_METHOD(swoole_process, alarm)
         RETURN_FALSE;
     }
 
-    struct itimerval timer_set = {{0}};
+    struct itimerval timer_set = {};
 
     if (usec > 0)
     {

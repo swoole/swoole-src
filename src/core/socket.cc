@@ -406,7 +406,7 @@ void swSocket_free(swSocket *sock)
 int swSocket_bind(int sock, int type, const char *host, int *port)
 {
     int ret;
-    swSocketAddress address = { 0 };
+    swSocketAddress address = {};
 
     //SO_REUSEADDR option
     int option = 1;
