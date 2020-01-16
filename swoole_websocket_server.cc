@@ -528,7 +528,7 @@ static bool websocket_message_compress(swString *buffer, const char *data, size_
         level = Z_BEST_COMPRESSION;
     }
 
-    z_stream zstream = { 0 };
+    z_stream zstream = {};
     int status;
 
     zstream.zalloc = php_zlib_alloc;
@@ -955,7 +955,7 @@ static PHP_METHOD(swoole_websocket_frame, __toString)
 
 static PHP_METHOD(swoole_websocket_server, unpack)
 {
-    swString buffer = { 0 };
+    swString buffer = {};
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &buffer.str, &buffer.length) == FAILURE)
     {

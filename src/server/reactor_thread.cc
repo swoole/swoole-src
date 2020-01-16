@@ -1248,7 +1248,7 @@ void swReactorThread_join(swServer *serv)
         thread = &(serv->reactor_threads[i]);
         if (thread->notify_pipe)
         {
-            swDataHead ev = {0};
+            swDataHead ev = {};
             ev.type = SW_SERVER_EVENT_SHUTDOWN;
             if (swSocket_write_blocking(thread->notify_pipe, (void *) &ev, sizeof(ev)) < 0)
             {

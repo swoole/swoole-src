@@ -864,7 +864,7 @@ PHP_FUNCTION(swoole_get_local_mac)
 #ifdef SIOCGIFHWADDR
     struct ifconf ifc;
     struct ifreq buf[16];
-    char mac[32] = {0};
+    char mac[32] = {};
 
     int sock;
     int i = 0,num = 0;

@@ -1518,7 +1518,7 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
         struct sockaddr_in in;
         struct sockaddr_in6 in6;
         struct sockaddr_un un;
-    } addr = { { 0 } };
+    } addr = {};
     size_t addr_size = 0;
 
     switch (type)
@@ -2000,7 +2000,7 @@ Socket::~Socket()
     {
         sw_free(ssl_option.capath);
     }
-    ssl_option = {0};
+    ssl_option = {};
 #endif
     if (socket->in_buffer)
     {
@@ -2013,7 +2013,7 @@ Socket::~Socket()
     if (sock_domain == AF_UNIX && !bind_address.empty())
     {
         ::unlink(bind_address_info.addr.un.sun_path);
-        bind_address_info = {{}, 0};
+        bind_address_info = {};
     }
     if (sock_type == SW_SOCK_UNIX_DGRAM)
     {

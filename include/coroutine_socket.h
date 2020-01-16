@@ -61,13 +61,13 @@ public:
     bool open_eof_check = false;
     bool http2 = false;
 
-    swProtocol protocol = {0};
+    swProtocol protocol = {};
     struct _swSocks5 *socks5_proxy = nullptr;
     struct _http_proxy* http_proxy = nullptr;
 
 #ifdef SW_USE_OPENSSL
     bool open_ssl = false;
-    swSSL_option ssl_option = {0};
+    swSSL_option ssl_option = {};
 #endif
 
     Socket(int domain, int type, int protocol);
@@ -354,7 +354,7 @@ private:
 
     swString *read_buffer = nullptr;
     swString *write_buffer = nullptr;
-    swSocketAddress bind_address_info = {{}, 0};
+    swSocketAddress bind_address_info = {};
 
 #ifdef SW_USE_OPENSSL
     std::string ssl_host_name;
@@ -495,7 +495,7 @@ public:
         Socket *socket_;
         double timeout;
         enum swTimeout_type type;
-        double original_timeout[sizeof(swTimeout_type_list)] = {0};
+        double original_timeout[sizeof(swTimeout_type_list)] = {};
     };
 
     class timeout_controller: public timeout_setter

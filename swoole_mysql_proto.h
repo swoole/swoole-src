@@ -534,7 +534,7 @@ protected:
         char *header = nullptr;
         char *body = nullptr;
     } data;
-    char stack_buffer[SW_MYSQL_PACKET_HEADER_SIZE + 4] = {0};
+    char stack_buffer[SW_MYSQL_PACKET_HEADER_SIZE + 4] = {};
 };
 
 class command_packet : public client_packet
@@ -599,13 +599,13 @@ public:
     uint8_t protocol_version = 0;
     std::string server_version = "";
     int connection_id = 0;
-    char auth_plugin_data[SW_MYSQL_NONCE_LENGTH + 1] = {0}; // nonce + '\0'
+    char auth_plugin_data[SW_MYSQL_NONCE_LENGTH + 1] = {}; // nonce + '\0'
     uint8_t auth_plugin_data_length = 0;
     char filler = 0;
     int capability_flags = 0;
     char charset = SW_MYSQL_DEFAULT_CHARSET;
     mysql::server_status status_flags;
-    char reserved[10] = {0};
+    char reserved[10] = {};
     std::string auth_plugin_name = "";
     greeting_packet(const char *data);
 };
@@ -626,7 +626,7 @@ class auth_switch_request_packet : public server_packet
 {
 public:
     std::string auth_method_name = "mysql_native_password";
-    char auth_method_data[SW_MYSQL_NONCE_LENGTH + 1] = {0};
+    char auth_method_data[SW_MYSQL_NONCE_LENGTH + 1] = {};
     auth_switch_request_packet(const char *data);
 };
 
@@ -639,7 +639,7 @@ public:
 class auth_signature_request_packet : public server_packet
 {
 public:
-    char data[2] = {0};
+    char data[2] = {};
     auth_signature_request_packet(const char *data) :server_packet(data)
     {
         swMysqlPacketDump(header.length, header.number, data, "Protocol::AuthSignatureRequest");

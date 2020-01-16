@@ -242,7 +242,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data,
     frame.str = data;
     frame.length = length;
 
-    swString send_frame = {0};
+    swString send_frame = {};
     char buf[SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN + SW_WEBSOCKET_CLOSE_REASON_MAX_LEN];
     send_frame.str = buf;
     send_frame.size = sizeof(buf);

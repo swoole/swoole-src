@@ -858,7 +858,7 @@ ZEND_END_ARG_INFO()
 
 #define SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(_val) \
     if (redis->serialize) { \
-        smart_str sstr = {0}; \
+        smart_str sstr = {}; \
         php_serialize_data_t s_ht; \
         PHP_VAR_SERIALIZE_INIT(s_ht); \
         php_var_serialize(&sstr, _val, &s_ht); \
@@ -4630,7 +4630,7 @@ static PHP_METHOD(swoole_redis_coro, eval)
     SW_REDIS_COMMAND_ARGV_FILL("EVAL", 4)
     SW_REDIS_COMMAND_ARGV_FILL(script, script_len)
 
-    char keys_num_str[32] = {0};
+    char keys_num_str[32] = {};
     sprintf(keys_num_str, ZEND_LONG_FMT, keys_num);
     SW_REDIS_COMMAND_ARGV_FILL(keys_num_str, strlen(keys_num_str));
 
@@ -4676,7 +4676,7 @@ static PHP_METHOD(swoole_redis_coro, evalSha)
     SW_REDIS_COMMAND_ARGV_FILL("EVALSHA", 7)
     SW_REDIS_COMMAND_ARGV_FILL(sha, sha_len)
 
-    char keys_num_str[32] = {0};
+    char keys_num_str[32] = {};
     sprintf(keys_num_str, "%ld", keys_num);
     SW_REDIS_COMMAND_ARGV_FILL(keys_num_str, strlen(keys_num_str));
 

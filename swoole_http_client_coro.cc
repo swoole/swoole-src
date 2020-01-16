@@ -145,7 +145,7 @@ public:
 private:
     Socket* socket = nullptr;
     swSocket_type socket_type = SW_SOCK_TCP;
-    swoole_http_parser parser = {0};
+    swoole_http_parser parser = {};
     bool wait = false;
 };
 
@@ -1291,7 +1291,7 @@ bool http_client::send()
             http_client_swString_append_headers(buffer, ZEND_STRL("Content-Type"), ZEND_STRL("application/x-www-form-urlencoded"));
             if (php_swoole_array_length(zbody) > 0)
             {
-                smart_str formstr_s = { 0 };
+                smart_str formstr_s = {};
                 char *formstr = php_swoole_http_build_query(zbody, &len, &formstr_s);
                 if (formstr == NULL)
                 {
