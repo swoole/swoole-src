@@ -1075,7 +1075,7 @@ int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData 
     client->handle = swoole_http2_onRequest;
     if (!client->default_ctx)
     {
-        client->default_ctx = (http_context *) emalloc(sizeof(*client->default_ctx));
+        client->default_ctx = (http_context *) ecalloc(1, sizeof(http_context));
         swoole_http_server_init_context(serv, client->default_ctx);
         client->default_ctx->fd = session_id;
         client->default_ctx->http2 = true;
