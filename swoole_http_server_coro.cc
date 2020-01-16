@@ -177,6 +177,9 @@ public:
             swoole_http2_server_parse(&session, buffer->str);
         }
 
+        /* default_ctx does not blong to session object */
+        session.default_ctx = nullptr;
+
         ctx->detached = 1;
         zval_dtor(ctx->request.zobject);
         zval_dtor(ctx->response.zobject);
