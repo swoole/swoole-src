@@ -65,25 +65,25 @@ typedef struct _swClient
     int _protocol;
     enum swFd_type reactor_fdtype;
 
-    uint32_t active :1;
-    uint32_t async :1;
-    uint32_t keep :1;
-    uint32_t destroyed :1;
-    uint32_t http2 :1;
-    uint32_t sleep :1;
-    uint32_t wait_dns :1;
-    uint32_t shutdow_rw :1;
-    uint32_t shutdown_read :1;
-    uint32_t shutdown_write :1;
-    uint32_t remove_delay :1;
-    uint32_t closed :1;
-    uint32_t high_watermark :1;
+    uchar active :1;
+    uchar async :1;
+    uchar keep :1;
+    uchar destroyed :1;
+    uchar http2 :1;
+    uchar sleep :1;
+    uchar wait_dns :1;
+    uchar shutdow_rw :1;
+    uchar shutdown_read :1;
+    uchar shutdown_write :1;
+    uchar remove_delay :1;
+    uchar closed :1;
+    uchar high_watermark :1;
 
     /**
      * one package: length check
      */
-    uint32_t open_length_check :1;
-    uint32_t open_eof_check :1;
+    uchar open_length_check :1;
+    uchar open_eof_check :1;
 
     swProtocol protocol;
     struct _swSocks5 *socks5_proxy;
@@ -128,8 +128,8 @@ typedef struct _swClient
     uint32_t buffer_low_watermark;
 
 #ifdef SW_USE_OPENSSL
-    uint8_t open_ssl :1;
-    uint8_t ssl_wait_handshake :1;
+    uchar open_ssl :1;
+    uchar ssl_wait_handshake :1;
     SSL_CTX *ssl_context;
     swSSL_option ssl_option;
 #endif

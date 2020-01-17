@@ -132,7 +132,7 @@ typedef struct _swHttp2_frame
     uint32_t length :24;
     uint32_t type :8;
     uint32_t flags :8;
-    uint32_t rsv1 :1;
+    uchar rsv1 :1;
     uint32_t identifier :31;
     char data[0];
 } swHttp2_frame;
