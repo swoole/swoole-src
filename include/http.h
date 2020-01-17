@@ -93,15 +93,15 @@ typedef struct _swHttpRequest
 {
     uint8_t method;
     uint8_t version;
-    uint8_t excepted :1;
+    uchar excepted :1;
 
-    uint8_t header_parsed :1;
-    uint8_t tried_to_dispatch :1;
+    uchar header_parsed :1;
+    uchar tried_to_dispatch :1;
 
-    uint8_t known_length :1;
-    uint8_t keep_alive :1;
-    uint8_t chunked :1;
-    uint8_t nobody_chunked :1;
+    uchar known_length :1;
+    uchar keep_alive :1;
+    uchar chunked :1;
+    uchar nobody_chunked :1;
 
     uint32_t url_offset;
     uint32_t url_length;
