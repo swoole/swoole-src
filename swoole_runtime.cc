@@ -52,7 +52,6 @@ using swoole::coroutine::Socket;
 
 extern "C"
 {
-static PHP_METHOD(swoole_runtime, enableStrictMode);
 static PHP_METHOD(swoole_runtime, enableCoroutine);
 static PHP_METHOD(swoole_runtime, getHookFlags);
 static PHP_FUNCTION(swoole_sleep);
@@ -148,7 +147,6 @@ extern "C"
 
 static const zend_function_entry swoole_runtime_methods[] =
 {
-    PHP_ME(swoole_runtime, enableStrictMode, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_runtime, enableCoroutine, arginfo_swoole_runtime_enableCoroutine, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_runtime, getHookFlags, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
@@ -176,26 +174,6 @@ void php_swoole_runtime_minit(int module_number)
 
     swoole_proc_open_init(module_number);
 }
-
-static auto block_io_functions = {
-    "sleep",
-    "usleep",
-    "time_nanosleep",
-    "time_sleep_until",
-    "file_get_contents",
-    "curl_init",
-    "stream_select",
-    "pcntl_fork",
-    "popen",
-    "socket_select",
-    "gethostbyname",
-};
-
-static auto block_io_classes = {
-    "redis", "pdo", "mysqli",
-};
-
-static bool enable_strict_mode = false;
 
 struct real_func
 {
@@ -233,20 +211,6 @@ void php_swoole_runtime_rshutdown()
     zend_hash_destroy(function_table);
     efree(function_table);
     function_table = nullptr;
-}
-
-static PHP_METHOD(swoole_runtime, enableStrictMode)
-{
-    php_swoole_fatal_error(E_DEPRECATED, "Swoole\\Runtime::enableStrictMode is deprecated, it will be removed in v4.5.0");
-    for (auto f : block_io_functions)
-    {
-        zend_disable_function((char *) f, strlen((char *) f));
-    }
-    for (auto c : block_io_classes)
-    {
-        zend_disable_class((char *) c, strlen((char *) c));
-    }
-    enable_strict_mode = true;
 }
 
 static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *portno, int get_err, zend_string **err)
@@ -1041,11 +1005,6 @@ static php_stream *socket_create(
 
 bool PHPCoroutine::enable_hook(int flags)
 {
-    if (sw_unlikely(enable_strict_mode))
-    {
-        php_swoole_fatal_error(E_ERROR, "unable to enable the coroutine mode after you enable the strict mode");
-        return false;
-    }
     if (!hook_init)
     {
         HashTable *xport_hash = php_stream_xport_get_hash();
