@@ -224,8 +224,6 @@ protected:
             task->last_msec = swTimer_get_absolute_msec();
         }
     }
-
-    static bool inject_function();
 };
 }
 

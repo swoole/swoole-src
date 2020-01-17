@@ -347,13 +347,16 @@ void PHPCoroutine::deactivate(void *ptr)
     active = false;
 }
 
-static bool coro_global_active = false;
-
 inline void PHPCoroutine::activate()
 {
     if (sw_unlikely(active))
     {
         return;
+    }
+
+    if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug")))
+    {
+        php_swoole_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
     }
 
     /* init reactor and register event wait */
@@ -367,29 +370,17 @@ inline void PHPCoroutine::activate()
     orig_error_function = zend_error_cb;
     zend_error_cb = error;
 
-    if (config.hook_flags)
-    {
-        enable_hook(config.hook_flags);
-    }
-
     if (SWOOLE_G(enable_preemptive_scheduler) || config.enable_preemptive_scheduler)
     {
         /* create a thread to interrupt the coroutine that takes up too much time */
         interrupt_thread_start();
     }
 
-    if (!coro_global_active)
+    if (config.hook_flags)
     {
-        if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug")))
-        {
-            php_swoole_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
-        }
-
-        /* replace functions that can not work correctly in coroutine */
-        inject_function();
-
-        coro_global_active = true;
+        enable_hook(config.hook_flags);
     }
+
     /**
      * deactivate when reactor free.
      */
