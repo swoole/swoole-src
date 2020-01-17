@@ -207,10 +207,12 @@ struct real_func
 
 void php_swoole_runtime_rshutdown()
 {
-    if (!function_table)
+    if (!hook_init)
     {
         return;
     }
+
+    hook_init = false;
 
     void *ptr;
     ZEND_HASH_FOREACH_PTR(function_table, ptr)
@@ -1037,16 +1039,6 @@ static php_stream *socket_create(
     return stream;
 }
 
-static void init_function()
-{
-    if (function_table)
-    {
-        return;
-    }
-    function_table = (zend_array*) emalloc(sizeof(zend_array));
-    zend_hash_init(function_table, 8, NULL, NULL, 0);
-}
-
 bool PHPCoroutine::enable_hook(int flags)
 {
     if (sw_unlikely(enable_strict_mode))
@@ -1068,7 +1060,8 @@ bool PHPCoroutine::enable_hook(int flags)
         // file
         memcpy((void*) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
 
-        init_function();
+        function_table = (zend_array*) emalloc(sizeof(zend_array));
+        zend_hash_init(function_table, 8, NULL, NULL, 0);
 
         hook_init = true;
     }
@@ -1302,12 +1295,6 @@ bool PHPCoroutine::enable_hook(int flags)
     }
 
     hook_flags = flags;
-    return true;
-}
-
-bool PHPCoroutine::inject_function()
-{
-    init_function();
     return true;
 }
 
