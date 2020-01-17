@@ -54,7 +54,6 @@ set(ext_src_list  php_swoole_cxx.cc
         swoole.cc
         swoole_async_coro.cc
         swoole_atomic.cc
-        swoole_buffer.cc
         swoole_channel_coro.cc
         swoole_client.cc
         swoole_client_coro.cc

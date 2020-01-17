@@ -188,7 +188,6 @@ extern zend_class_entry *swoole_client_ce;
 extern zend_class_entry *swoole_server_ce;
 extern zend_object_handlers swoole_server_handlers;
 extern zend_class_entry *swoole_connection_iterator_ce;
-extern zend_class_entry *swoole_buffer_ce;
 extern zend_class_entry *swoole_process_ce;
 extern zend_class_entry *swoole_http_server_ce;
 extern zend_object_handlers swoole_http_server_handlers;
@@ -247,7 +246,6 @@ PHP_FUNCTION(swoole_last_error);
 void php_swoole_event_minit(int module_number);
 // base
 void php_swoole_atomic_minit(int module_number);
-void php_swoole_buffer_minit(int module_number);
 void php_swoole_lock_minit(int module_number);
 void php_swoole_process_minit(int module_number);
 void php_swoole_process_pool_minit(int module_number);

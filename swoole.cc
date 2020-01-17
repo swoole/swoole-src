@@ -494,7 +494,6 @@ PHP_MINIT_FUNCTION(swoole)
     php_swoole_event_minit(module_number);
     // base
     php_swoole_atomic_minit(module_number);
-    php_swoole_buffer_minit(module_number);
     php_swoole_lock_minit(module_number);
     php_swoole_process_minit(module_number);
     php_swoole_process_pool_minit(module_number);
