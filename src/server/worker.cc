@@ -254,7 +254,6 @@ static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEvent
 int swWorker_onTask(swFactory *factory, swEventData *task)
 {
     swServer *serv = (swServer *) factory->ptr;
-    swString *package = NULL;
 
 #ifdef SW_USE_OPENSSL
     swConnection *conn;
@@ -353,11 +352,6 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
 
     //worker idle
     worker->status = SW_WORKER_IDLE;
-
-    if (task->info.flags & SW_EVENT_DATA_END)
-    {
-        swString_clear(package);
-    }
 
     //maximum number of requests, process will exit.
     if (!SwooleWG.run_always && worker->request_count >= SwooleWG.max_request)

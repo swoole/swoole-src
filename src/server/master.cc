@@ -1345,6 +1345,7 @@ static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char 
         swString *worker_buffer = swServer_worker_get_input_buffer(serv, req->info.reactor_id);
         *data_ptr = worker_buffer->str;
         length = worker_buffer->length;
+        swString_clear(worker_buffer);
     }
     else
     {
