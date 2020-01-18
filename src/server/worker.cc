@@ -224,7 +224,7 @@ static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, char *dat
      * do task
      */
     serv->last_stream_socket = sock;
-    swWorker_onTask(&serv->factory, (swEventData *) &task);
+    swWorker_onTask(&serv->factory, (swEventData *) &task, task.data.length);
     serv->last_stream_socket = nullptr;
 
     /**
@@ -251,7 +251,7 @@ static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEvent
     sw_atomic_fetch_add(&serv->stats->request_count, 1);
 }
 
-int swWorker_onTask(swFactory *factory, swEventData *task)
+int swWorker_onTask(swFactory *factory, swEventData *task, size_t data_len)
 {
     swServer *serv = (swServer *) factory->ptr;
 
@@ -265,7 +265,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     //packet chunk
     if (task->info.flags & SW_EVENT_DATA_CHUNK)
     {
-        if (serv->merge_chunk(serv, task->info.reactor_id, task->data, task->info.len) < 0)
+        if (serv->merge_chunk(serv, task->info.reactor_id, task->data, data_len) < 0)
         {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_DATA,
                     "cannot merge chunk to worker buffer, data[fd=%d, size=%d] lost", task->info.fd, task->info.len);
@@ -722,12 +722,15 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     swFactory *factory = &serv->factory;
     swPipeBuffer *buffer = serv->pipe_buffers[0];
     int ret;
+    ssize_t recv_n;
 
     _read_from_pipe:
 
-    if (read(event->fd, buffer, serv->ipc_max_size) > 0)
+    recv_n = read(event->fd, buffer, serv->ipc_max_size);
+
+    if (recv_n > 0)
     {
-        ret = swWorker_onTask(factory, (swEventData *) buffer);
+        ret = swWorker_onTask(factory, (swEventData *) buffer, recv_n - sizeof(buffer->info));
 #ifndef SW_WORKER_RECV_AGAIN
         if (buffer->info.flags & SW_EVENT_DATA_CHUNK)
 #endif

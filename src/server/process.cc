@@ -322,6 +322,7 @@ static int process_send_packet(swServer *serv, swPipeBuffer *buf, swSendData *re
     const char* data = resp->data;
     uint32_t send_n = resp->info.len;
     off_t offset = 0;
+    uint32_t copy_n;
 
     uint32_t max_length = serv->ipc_max_size - sizeof(buf->info);
 
@@ -346,24 +347,25 @@ static int process_send_packet(swServer *serv, swPipeBuffer *buf, swSendData *re
     _ipc_use_chunk:
 #endif
     buf->info.flags = SW_EVENT_DATA_CHUNK;
+    buf->info.len = send_n;
 
     while (send_n > 0)
     {
         if (send_n > max_length)
         {
-            buf->info.len = max_length;
+            copy_n = max_length;
         }
         else
         {
             buf->info.flags |= SW_EVENT_DATA_END;
-            buf->info.len = send_n;
+            copy_n = send_n;
         }
 
-        memcpy(buf->data, data + offset, buf->info.len);
+        memcpy(buf->data, data + offset, copy_n);
 
-        swTrace("finish, type=%d|len=%d", buf->info.type, buf->info.len);
+        swTrace("finish, type=%d|len=%d", buf->info.type, copy_n);
 
-        if (_send(serv, buf, sizeof(buf->info) + buf->info.len, private_data) < 0)
+        if (_send(serv, buf, sizeof(buf->info) + copy_n, private_data) < 0)
         {
 #ifdef __linux__
             if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD)
@@ -375,8 +377,8 @@ static int process_send_packet(swServer *serv, swPipeBuffer *buf, swSendData *re
             return SW_ERR;
         }
 
-        send_n -= buf->info.len;
-        offset += buf->info.len;
+        send_n -= copy_n;
+        offset += copy_n;
     }
 
     return SW_OK;
