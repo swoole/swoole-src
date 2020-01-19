@@ -244,7 +244,7 @@ static int process_sendto_worker(swServer *serv, swPipeBuffer *buf, size_t n, vo
 
 static int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data)
 {
-    return swWorker_send2reactor(serv, (swEventData *) buf, sizeof(buf->info) + buf->info.len,
+    return swWorker_send2reactor(serv, (swEventData *) buf, n,
             ((swConnection *) private_data)->session_id);
 }
 
