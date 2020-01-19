@@ -889,7 +889,7 @@ void swServer_worker_onStop(swServer *serv);
 int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn);
 int swServer_http_static_handler_add_location(swServer *serv, const char *location, size_t length);
 
-int swWorker_onTask(swFactory *factory, swEventData *task);
+int swWorker_onTask(swFactory *factory, swEventData *task, size_t data_len);
 void swWorker_stop(swWorker *worker);
 
 static sw_inline swConnection *swWorker_get_connection(swServer *serv, int session_id)

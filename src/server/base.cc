@@ -79,12 +79,12 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
         pkg.data.length = task->info.len;
         pkg.data.str = task->data;
 
-        return swWorker_onTask(factory, (swEventData*) &pkg);
+        return swWorker_onTask(factory, (swEventData*) &pkg, pkg.data.length);
     }
     //no data
     else
     {
-        return swWorker_onTask(factory, (swEventData*) &task->info);
+        return swWorker_onTask(factory, (swEventData*) &task->info, 0);
     }
 }
 
@@ -110,7 +110,7 @@ static int swFactory_notify(swFactory *factory, swDataHead *info)
     info->fd = conn->session_id;
     info->server_fd = conn->server_fd;
     info->flags = SW_EVENT_DATA_NORMAL;
-    return swWorker_onTask(factory, (swEventData *) info);
+    return swWorker_onTask(factory, (swEventData *) info, info->len);
 }
 
 static int swFactory_end(swFactory *factory, int fd)
