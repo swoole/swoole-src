@@ -1338,18 +1338,24 @@ static int swServer_worker_recv_chunk(swServer *serv, swDataHead *info, swEvent 
     size_t i = 0;
     ssize_t chunk_num = CHUNK_NUM(info->len, serv->ipc_max_size);
     ssize_t vec_num = 2 * chunk_num;
-    char data[info->len];
+    swString *worker_buffer = swServer_worker_get_input_buffer(serv, info->reactor_id);
     char header[chunk_num * sizeof(*info)];
+    struct iovec buffers[vec_num];
 
-    struct iovec *buffers = (struct iovec *)malloc(vec_num);
-
+    swString_clear(worker_buffer);
+    if (worker_buffer->size < info->len)
+    {
+        swString_extend(worker_buffer, info->len);
+    }
+    
     swoole_create_header_vec(buffers, header, chunk_num, sizeof(*info));
-    swoole_create_data_vec(buffers, data, info->len, serv->ipc_max_size - sizeof(*info));
+    swoole_create_data_vec(buffers, worker_buffer->str, info->len, serv->ipc_max_size - sizeof(*info));
 
     for (i = 0; i < vec_num; i += 2)
     {
         readv(event->fd, &buffers[i], 2);
     }
+    worker_buffer->length = info->len;
 
     return 0;
 }
