@@ -214,6 +214,8 @@ typedef unsigned long ulong_t;
 #define MIN(A, B)              SW_MIN(A, B)
 #endif
 
+#define CHUNK_NUM(A, B) (A / B + (A % B == 0 ? 0 : 1))
+
 #ifdef SW_DEBUG
 #define SW_ASSERT(e)           assert(e)
 #define SW_ASSERT_1BYTE(v)     do { \

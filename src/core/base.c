@@ -1474,9 +1474,10 @@ void swoole_create_header_vec(struct iovec buffers[], char *buffer, uint32_t cou
 
 void swoole_create_data_vec(struct iovec buffers[], char *buffer, uint32_t buffer_size, uint32_t per_vec_size)
 {
-    char *p = buffer;
-    uint32_t count = 2 * (buffer_size / per_vec_size + 1);
     size_t i;
+    size_t chunk_num = CHUNK_NUM(buffer_size, per_vec_size);
+    uint32_t count = 2 * chunk_num;
+    char *p = buffer;
 
     for (i = 1; i < count; i += 2)
     {

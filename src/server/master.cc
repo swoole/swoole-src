@@ -1336,7 +1336,7 @@ static int swServer_worker_merge_chunk(swServer *serv, int key, const char *data
 static int swServer_worker_recv_chunk(swServer *serv, swDataHead *info, swEvent *event)
 {
     ssize_t tmp;
-    size_t chunk_num = (info->len - sizeof(*info)) / serv->ipc_max_size + 1;
+    ssize_t chunk_num = CHUNK_NUM(info->len, serv->ipc_max_size);
     char data[info->len];
     char header[chunk_num * sizeof(*info)];
 
