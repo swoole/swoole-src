@@ -262,21 +262,6 @@ int swWorker_onTask(swFactory *factory, swEventData *task, size_t data_len)
     swWorker *worker = SwooleWG.worker;
     //worker busy
     worker->status = SW_WORKER_BUSY;
-    //packet chunk
-    if (task->info.flags & SW_EVENT_DATA_CHUNK)
-    {
-        if (serv->merge_chunk(serv, task->info.reactor_id, task->data, data_len) < 0)
-        {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_DATA,
-                    "cannot merge chunk to worker buffer, data[fd=%d, size=%d] lost", task->info.fd, task->info.len);
-            return SW_OK;
-        }
-        //wait more data
-        if (!(task->info.flags & SW_EVENT_DATA_END))
-        {
-            return SW_OK;
-        }
-    }
 
     switch (task->info.type)
     {
@@ -723,37 +708,22 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     swPipeBuffer *buffer = serv->pipe_buffers[0];
     int ret;
     ssize_t recv_n;
-    struct iovec *buffers;
-    ssize_t tmp;
 
     // peek
     recv(event->fd, buffer, sizeof(buffer->info), MSG_PEEK);
     if (buffer->info.flags & SW_EVENT_DATA_CHUNK)
     {
-        serv->recv_chunk(serv, &(buffer->info), event);
+        recv_n = serv->recv_chunk(serv, &(buffer->info), event);
+        buffer->info.flags = SW_EVENT_DATA_END;
     }
-
-    _read_from_pipe:
-
-    recv_n = read(event->fd, buffer, serv->ipc_max_size);
+    else
+    {
+        recv_n = read(event->fd, buffer, serv->ipc_max_size);
+    }
 
     if (recv_n > 0)
     {
         ret = swWorker_onTask(factory, (swEventData *) buffer, recv_n - sizeof(buffer->info));
-#ifndef SW_WORKER_RECV_AGAIN
-        if (buffer->info.flags & SW_EVENT_DATA_CHUNK)
-#endif
-        {
-            //no data
-            if (ret < 0 && errno == EAGAIN)
-            {
-                return SW_OK;
-            }
-            else if (ret > 0)
-            {
-                goto _read_from_pipe;
-            }
-        }
         return ret;
     }
 

@@ -35,7 +35,7 @@ static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
 static int swServer_worker_merge_chunk(swServer *serv, int key, const char *data, size_t len);
-static int swServer_worker_recv_chunk(swServer *serv, swDataHead *info, swEvent *event);
+static size_t swServer_worker_recv_chunk(swServer *serv, swDataHead *info, swEvent *event);
 static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr);
 
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, swSocket *_socket, int server_fd);
@@ -1333,7 +1333,7 @@ static int swServer_worker_merge_chunk(swServer *serv, int key, const char *data
     return swString_append_ptr(package, data, len);
 }
 
-static int swServer_worker_recv_chunk(swServer *serv, swDataHead *info, swEvent *event)
+static size_t swServer_worker_recv_chunk(swServer *serv, swDataHead *info, swEvent *event)
 {
     size_t i = 0;
     ssize_t chunk_num = CHUNK_NUM(info->len, serv->ipc_max_size);
@@ -1356,8 +1356,7 @@ static int swServer_worker_recv_chunk(swServer *serv, swDataHead *info, swEvent 
         readv(event->fd, &buffers[i], 2);
     }
     worker_buffer->length = info->len;
-
-    return 0;
+    return worker_buffer->length;
 }
 
 static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr)
