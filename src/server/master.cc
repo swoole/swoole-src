@@ -1335,16 +1335,22 @@ static int swServer_worker_merge_chunk(swServer *serv, int key, const char *data
 
 static int swServer_worker_recv_chunk(swServer *serv, swDataHead *info, swEvent *event)
 {
-    ssize_t tmp;
+    size_t i = 0;
     ssize_t chunk_num = CHUNK_NUM(info->len, serv->ipc_max_size);
+    ssize_t vec_num = 2 * chunk_num;
     char data[info->len];
     char header[chunk_num * sizeof(*info)];
 
-    struct iovec *buffers = (struct iovec *)malloc(2 * chunk_num);
+    struct iovec *buffers = (struct iovec *)malloc(vec_num);
 
     swoole_create_header_vec(buffers, header, chunk_num, sizeof(*info));
     swoole_create_data_vec(buffers, data, info->len, serv->ipc_max_size - sizeof(*info));
-    tmp = readv(event->fd, buffers, 2);
+
+    for (i = 0; i < vec_num; i += 2)
+    {
+        readv(event->fd, &buffers[i], 2);
+    }
+
     return 0;
 }
 
