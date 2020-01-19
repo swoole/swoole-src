@@ -1459,6 +1459,42 @@ int swoole_get_systemd_listen_fds()
     return ret;
 }
 
+void swoole_create_header_vec(struct iovec buffers[], char *buffer, uint32_t count, uint32_t per_vec_size)
+{
+    char *p = buffer;
+    size_t i;
+
+    for (i = 0; i < 2 * count; i += 2)
+    {
+        buffers[i].iov_base = p;
+        buffers[i].iov_len = per_vec_size;
+        p += per_vec_size;
+    }
+}
+
+void swoole_create_data_vec(struct iovec buffers[], char *buffer, uint32_t buffer_size, uint32_t per_vec_size)
+{
+    char *p = buffer;
+    uint32_t count = 2 * (buffer_size / per_vec_size + 1);
+    size_t i;
+
+    for (i = 1; i < count; i += 2)
+    {
+        buffers[i].iov_base = p;
+        if (buffer_size > per_vec_size)
+        {
+            buffers[i].iov_len = per_vec_size;
+        }
+        else
+        {
+            buffers[i].iov_len = buffer_size;
+        }
+        p += per_vec_size;
+        buffer_size -= per_vec_size;
+    }
+}
+
+
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void)
 {

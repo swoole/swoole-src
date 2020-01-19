@@ -713,39 +713,6 @@ int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, in
     }
 }
 
-static void create_data_vec(struct iovec buffers[], char *buffer, uint32_t buffer_size, uint32_t per_vec_size)
-{
-    char *p = buffer;
-    uint32_t count = 2 * (buffer_size / per_vec_size + 1);
-
-    for (size_t i = 1; i < count; i += 2)
-    {
-        buffers[i].iov_base = p;
-        if (buffer_size > per_vec_size)
-        {
-            buffers[i].iov_len = per_vec_size;
-        }
-        else
-        {
-            buffers[i].iov_len = buffer_size;
-        }
-        p += per_vec_size;
-        buffer_size -= per_vec_size;
-    }
-}
-
-static void create_header_vec(struct iovec buffers[], char *buffer, uint32_t count, uint32_t per_vec_size)
-{
-    char *p = buffer;
-
-    for (size_t i = 0; i < 2 * count; i += 2)
-    {
-        buffers[i].iov_base = p;
-        buffers[i].iov_len = per_vec_size;
-        p += per_vec_size;
-    }
-}
-
 /**
  * receive data from reactor
  */
@@ -763,13 +730,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     recv(event->fd, buffer, sizeof(buffer->info), MSG_PEEK);
     if (buffer->info.flags & SW_EVENT_DATA_CHUNK)
     {
-        char data[buffer->info.len];
-        char header[buffer->info.len];
-        buffers = (struct iovec *)malloc(2 * (buffer->info.len / serv->ipc_max_size + 1));
-
-        create_header_vec(buffers, header, buffer->info.len / serv->ipc_max_size + 1, sizeof(buffer->info));
-        create_data_vec(buffers, data, buffer->info.len, serv->ipc_max_size - sizeof(buffer->info));
-        tmp = readv(event->fd, buffers, 2);
+        serv->recv_chunk(serv, &(buffer->info), event);
     }
 
     _read_from_pipe:

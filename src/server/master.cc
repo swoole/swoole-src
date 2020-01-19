@@ -35,6 +35,7 @@ static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
 static int swServer_worker_merge_chunk(swServer *serv, int key, const char *data, size_t len);
+static int swServer_worker_recv_chunk(swServer *serv, swDataHead *info, swEvent *event);
 static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr);
 
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, swSocket *_socket, int server_fd);
@@ -605,6 +606,7 @@ int swServer_start(swServer *serv)
     serv->notify = swServer_tcp_notify;
     serv->feedback = swServer_tcp_feedback;
     serv->merge_chunk = swServer_worker_merge_chunk;
+    serv->recv_chunk = swServer_worker_recv_chunk;
     serv->get_packet = swServer_worker_get_packet;
 
     serv->workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
@@ -1329,6 +1331,21 @@ static int swServer_worker_merge_chunk(swServer *serv, int key, const char *data
     swString *package = swServer_worker_get_input_buffer(serv, key);
     //merge data to package buffer
     return swString_append_ptr(package, data, len);
+}
+
+static int swServer_worker_recv_chunk(swServer *serv, swDataHead *info, swEvent *event)
+{
+    ssize_t tmp;
+    size_t chunk_num = (info->len - sizeof(*info)) / serv->ipc_max_size + 1;
+    char data[info->len];
+    char header[chunk_num * sizeof(*info)];
+
+    struct iovec *buffers = (struct iovec *)malloc(2 * chunk_num);
+
+    swoole_create_header_vec(buffers, header, chunk_num, sizeof(*info));
+    swoole_create_data_vec(buffers, data, info->len, serv->ipc_max_size - sizeof(*info));
+    tmp = readv(event->fd, buffers, 2);
+    return 0;
 }
 
 static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr)
