@@ -214,8 +214,6 @@ typedef unsigned long ulong_t;
 #define MIN(A, B)              SW_MIN(A, B)
 #endif
 
-#define CHUNK_NUM(A, B) (A / B + (A % B == 0 ? 0 : 1))
-
 #ifdef SW_DEBUG
 #define SW_ASSERT(e)           assert(e)
 #define SW_ASSERT_1BYTE(v)     do { \
@@ -1540,8 +1538,6 @@ int swoole_gethostbyname(int type, const char *name, char *addr);
 int swoole_getaddrinfo(swRequest_getaddrinfo *req);
 char* swoole_string_format(size_t n, const char *format, ...);
 int swoole_get_systemd_listen_fds();
-void swoole_create_header_vec(struct iovec buffers[], char *buffer, uint32_t count, uint32_t per_vec_size);
-void swoole_create_data_vec(struct iovec buffers[], char *buffer, uint32_t buffer_size, uint32_t per_vec_size);
 //----------------------core function---------------------
 int swSocket_set_timeout(swSocket *sock, double timeout);
 int swSocket_create_server(int type, const char *address, int port, int backlog);
