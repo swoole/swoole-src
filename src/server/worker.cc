@@ -725,10 +725,6 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     if (buffer->info.flags & SW_EVENT_DATA_CHUNK)
     {
         worker_buffer = serv->get_buffer(serv, &buffer->info);
-        if (worker_buffer->size < buffer->info.len)
-        {
-            swString_extend(worker_buffer, buffer->info.len);
-        }
         _read_from_pipe:
 
         buffers[0].iov_base = &buffer->info;

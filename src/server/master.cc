@@ -1333,9 +1333,16 @@ static int swServer_worker_merge_chunk(swServer *serv, int key, const char *data
     return swString_append_ptr(package, data, len);
 }
 
-static swString* swServer_worker_get_buffer(swServer *serv, swDataHead *info)
+static sw_inline swString* swServer_worker_get_buffer(swServer *serv, swDataHead *info)
 {
-    return swServer_worker_get_input_buffer(serv, info->reactor_id);
+    swString *worker_buffer = swServer_worker_get_input_buffer(serv, info->reactor_id);
+    
+    if (worker_buffer->size < info->len)
+    {
+        swString_extend(worker_buffer, info->len);
+    }
+
+    return worker_buffer;
 }
 
 static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr)
