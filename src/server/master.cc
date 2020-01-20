@@ -35,7 +35,7 @@ static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
 static int swServer_worker_merge_chunk(swServer *serv, int key, const char *data, size_t len);
-static size_t swServer_worker_recv_chunk(swServer *serv, swDataHead *info, swEvent *event);
+static swString* swServer_worker_get_buffer(swServer *serv, swDataHead *info);
 static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr);
 
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, swSocket *_socket, int server_fd);
@@ -606,7 +606,7 @@ int swServer_start(swServer *serv)
     serv->notify = swServer_tcp_notify;
     serv->feedback = swServer_tcp_feedback;
     serv->merge_chunk = swServer_worker_merge_chunk;
-    serv->recv_chunk = swServer_worker_recv_chunk;
+    serv->get_buffer = swServer_worker_get_buffer;
     serv->get_packet = swServer_worker_get_packet;
 
     serv->workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
@@ -1333,29 +1333,9 @@ static int swServer_worker_merge_chunk(swServer *serv, int key, const char *data
     return swString_append_ptr(package, data, len);
 }
 
-static size_t swServer_worker_recv_chunk(swServer *serv, swDataHead *info, swEvent *event)
+static swString* swServer_worker_get_buffer(swServer *serv, swDataHead *info)
 {
-    swString *worker_buffer = swServer_worker_get_input_buffer(serv, info->reactor_id);
-    struct iovec buffers[2];
-    ssize_t recv_n;
-
-    if (worker_buffer->size < info->len)
-    {
-        swString_extend(worker_buffer, info->len);
-    }
-
-    buffers[0].iov_base = info;
-    buffers[0].iov_len = sizeof(*info);
-    buffers[1].iov_base = worker_buffer->str + worker_buffer->length;
-    buffers[1].iov_len = serv->ipc_max_size - sizeof(*info);
-    
-    recv_n = readv(event->fd, buffers, 2);
-    if (recv_n > 0)
-    {
-        worker_buffer->length += recv_n - sizeof(*info);
-    }
-
-    return recv_n;
+    return swServer_worker_get_input_buffer(serv, info->reactor_id);
 }
 
 static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr)
@@ -1366,6 +1346,14 @@ static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char 
         swPacket_ptr *task = (swPacket_ptr *) req;
         *data_ptr = task->data.str;
         length = task->data.length;
+    }
+    else if (req->info.flags & SW_EVENT_DATA_STR_PTR)
+    {
+        swString *str;
+        memcpy(&str, req->data, sizeof(str));
+        *data_ptr = str->str;
+        length = str->length;
+        swString_clear(str);
     }
     else if (req->info.flags & SW_EVENT_DATA_END)
     {

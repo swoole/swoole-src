@@ -703,37 +703,71 @@ int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, in
  */
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 {
+    int ret;
+    ssize_t recv_n = 0;
     swServer *serv = (swServer *) reactor->ptr;
     swFactory *factory = &serv->factory;
-    swPipeBuffer *buffer = serv->pipe_buffers[0];
-    int ret;
-    ssize_t recv_n;
+    swEventData event_data;
+    swString *worker_buffer;
+    struct iovec buffers[2];
 
     // peek
-    recv(event->fd, buffer, sizeof(buffer->info), MSG_PEEK);
-    if (buffer->info.flags & SW_EVENT_DATA_CHUNK)
+    recv_n = recv(event->fd, &event_data.info, sizeof(event_data.info), MSG_PEEK);
+    if (recv_n < 0 && errno == EAGAIN)
     {
+        return SW_OK;
+    }
+    else if (recv_n < 0)
+    {
+        return SW_ERR;
+    }
+
+    if (event_data.info.len == 0)
+    {
+        recv_n = recv(event->fd, &event_data.info, sizeof(event_data.info), 0);
+    }
+    else
+    {
+        worker_buffer = serv->get_buffer(serv, &event_data.info);
+        if (worker_buffer->size < event_data.info.len)
+        {
+            swString_extend(worker_buffer, event_data.info.len);
+        }
         _read_from_pipe:
 
-        recv_n = serv->recv_chunk(serv, &(buffer->info), event);
+        buffers[0].iov_base = &event_data.info;
+        buffers[0].iov_len = sizeof(event_data.info);
+        buffers[1].iov_base = worker_buffer->str + worker_buffer->length;
+        buffers[1].iov_len = serv->ipc_max_size - sizeof(event_data.info);
+        
+        recv_n = readv(event->fd, buffers, 2);
         if (recv_n < 0 && errno == EAGAIN)
         {
             return SW_OK;
         }
-        //wait more chunk data
-        if (!(buffer->info.flags & SW_EVENT_DATA_END))
+        if (recv_n > 0)
         {
-            goto _read_from_pipe;
+            worker_buffer->length += recv_n - sizeof(event_data.info);
         }
-    }
-    else
-    {
-        recv_n = read(event->fd, buffer, serv->ipc_max_size);
+
+        if (event_data.info.flags & SW_EVENT_DATA_CHUNK)
+        {
+            //wait more chunk data
+            if (!(event_data.info.flags & SW_EVENT_DATA_END))
+            {
+                goto _read_from_pipe;
+            }
+            else
+            {
+                event_data.info.flags |= SW_EVENT_DATA_STR_PTR;
+                memcpy(event_data.data, &worker_buffer, sizeof(worker_buffer));
+            }
+        }
     }
 
     if (recv_n > 0)
     {
-        ret = swWorker_onTask(factory, (swEventData *) buffer, recv_n - sizeof(buffer->info));
+        ret = swWorker_onTask(factory, &event_data, recv_n);
         return ret;
     }
 
