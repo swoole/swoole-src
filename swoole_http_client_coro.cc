@@ -1442,6 +1442,7 @@ void http_client::recv(zval *zframe, double timeout)
 #else
         php_swoole_websocket_frame_unpack(&msg, zframe);
 #endif
+        zend_update_property_long(swoole_websocket_frame_ce, zframe, ZEND_STRL("fd"), socket->get_fd());
     }
 }
 

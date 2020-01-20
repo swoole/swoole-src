@@ -1092,6 +1092,8 @@ int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, char *data, u
     bzero(&task.info, sizeof(task.info));
     task.info.server_fd = conn->server_fd;
     task.info.reactor_id = conn->reactor_id;
+    task.info.ext_flags = proto->ext_flags;
+    proto->ext_flags = 0;
     task.info.type = SW_SERVER_EVENT_SEND_DATA;
 #ifdef SW_BUFFER_RECV_TIME
     task.info.info.time = conn->last_time_usec;

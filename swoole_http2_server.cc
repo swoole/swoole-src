@@ -1085,7 +1085,7 @@ int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData 
     }
 
     zval zdata;
-    php_swoole_get_recv_data(serv, &zdata, req, NULL, 0);
+    php_swoole_get_recv_data(serv, &zdata, req);
     swoole_http2_server_parse(client, Z_STRVAL(zdata));
     zval_ptr_dtor(&zdata);
 

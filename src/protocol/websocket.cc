@@ -19,6 +19,14 @@
 #include "websocket.h"
 #include "connection.h"
 
+static inline uint16_t swWebSocket_get_ext_flags(uchar opcode, uchar flags)
+{
+    uint16_t ext_flags = opcode;
+    ext_flags = ext_flags << 8;
+    ext_flags += flags;
+    return ext_flags;
+}
+
 /*  The following is websocket data frame:
  +-+-+-+-+-------+-+-------------+-------------------------------+
  0                   1                   2                   3   |
@@ -280,6 +288,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data,
         //frame is finished, do dispatch
         if (ws.header.FIN)
         {
+            proto->ext_flags = conn->websocket_buffer->offset;
             swReactorThread_dispatch(proto, _socket, frame_buffer->str, frame_buffer->length);
             swString_free(frame_buffer);
             conn->websocket_buffer = NULL;
@@ -289,9 +298,9 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data,
     case WEBSOCKET_OPCODE_TEXT:
     case WEBSOCKET_OPCODE_BINARY:
     {
-        offset = length - ws.payload_length - SW_WEBSOCKET_HEADER_LEN;
-        data[offset] = swWebSocket_get_flags(&ws);
-        data[offset + 1] = ws.header.OPCODE;
+        offset = length - ws.payload_length;
+        proto->ext_flags = swWebSocket_get_ext_flags(ws.header.OPCODE, swWebSocket_get_flags(&ws));
+
         if (!ws.header.FIN)
         {
             if (conn->websocket_buffer)
@@ -302,6 +311,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data,
                 return SW_ERR;
             }
             conn->websocket_buffer = swString_dup(data + offset, length - offset);
+            conn->websocket_buffer->offset = proto->ext_flags;
         }
         else
         {
@@ -341,9 +351,9 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data,
         if (conn->websocket_status != WEBSOCKET_STATUS_CLOSING)
         {
             // Dispatch the frame with the same format of message frame
-            offset = length - ws.payload_length - SW_WEBSOCKET_HEADER_LEN;
-            data[offset] = 1;
-            data[offset + 1] = WEBSOCKET_OPCODE_CLOSE;
+            offset = length - ws.payload_length;
+            proto->ext_flags = swWebSocket_get_ext_flags(ws.header.OPCODE, swWebSocket_get_flags(&ws));
+
             swReactorThread_dispatch(proto, _socket, data + offset, length - offset);
 
             // Client attempt to close

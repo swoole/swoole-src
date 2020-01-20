@@ -852,6 +852,7 @@ typedef struct _swProtocol
     void *private_data;
     void *private_data_2;
     uint16_t real_header_length;
+    uint16_t ext_flags;
 
     int (*onPackage)(struct _swProtocol *, swSocket *, char *, uint32_t);
     ssize_t (*get_package_length)(struct _swProtocol *, swSocket *, char *, uint32_t);
@@ -977,7 +978,7 @@ typedef struct _swDataHead
     uint8_t type;
     uint8_t flags;
     uint16_t server_fd;
-    uint16_t ext_info;
+    uint16_t ext_flags;
 #ifdef SW_BUFFER_RECV_TIME
     double time;
 #endif

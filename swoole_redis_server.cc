@@ -107,7 +107,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     }
 
     zval zdata;
-    php_swoole_get_recv_data(serv, &zdata, req, NULL, 0);
+    php_swoole_get_recv_data(serv, &zdata, req);
     char *p = Z_STRVAL(zdata);
     char *pe = p + Z_STRLEN(zdata);
     int ret;
