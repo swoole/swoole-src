@@ -713,8 +713,18 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     recv(event->fd, buffer, sizeof(buffer->info), MSG_PEEK);
     if (buffer->info.flags & SW_EVENT_DATA_CHUNK)
     {
+        _read_from_pipe:
+
         recv_n = serv->recv_chunk(serv, &(buffer->info), event);
-        buffer->info.flags = SW_EVENT_DATA_END;
+        if (recv_n < 0 && errno == EAGAIN)
+        {
+            return SW_OK;
+        }
+        //wait more chunk data
+        if (!(buffer->info.flags & SW_EVENT_DATA_END))
+        {
+            goto _read_from_pipe;
+        }
     }
     else
     {
