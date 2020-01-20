@@ -757,12 +757,9 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
             {
                 goto _read_from_pipe;
             }
-            else
-            {
-                event_data.info.flags |= SW_EVENT_DATA_STR_PTR;
-                memcpy(event_data.data, &worker_buffer, sizeof(worker_buffer));
-            }
         }
+        event_data.info.flags |= SW_EVENT_DATA_STR_PTR;
+        memcpy(event_data.data, &worker_buffer, sizeof(worker_buffer));
     }
 
     if (recv_n > 0)
