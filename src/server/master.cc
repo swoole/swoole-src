@@ -34,7 +34,6 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
-static int swServer_worker_merge_chunk(swServer *serv, int key, const char *data, size_t len);
 static void* swServer_worker_get_buffer(swServer *serv, swDataHead *info);
 static void swServer_worker_add_buffer_len(swServer *serv, swDataHead *info, size_t len);
 static void swServer_worker_copy_buffer_addr(swServer *serv, swPipeBuffer *buffer);
@@ -608,7 +607,6 @@ int swServer_start(swServer *serv)
     serv->close = swServer_tcp_close;
     serv->notify = swServer_tcp_notify;
     serv->feedback = swServer_tcp_feedback;
-    serv->merge_chunk = swServer_worker_merge_chunk;
     serv->get_buffer = swServer_worker_get_buffer;
     serv->add_buffer_len = swServer_worker_add_buffer_len;
     serv->copy_buffer_addr = swServer_worker_copy_buffer_addr;
@@ -1331,14 +1329,7 @@ static sw_inline swString *swServer_worker_get_input_buffer(swServer *serv, int 
     }
 }
 
-static int swServer_worker_merge_chunk(swServer *serv, int key, const char *data, size_t len)
-{
-    swString *package = swServer_worker_get_input_buffer(serv, key);
-    //merge data to package buffer
-    return swString_append_ptr(package, data, len);
-}
-
-static sw_inline void* swServer_worker_get_buffer(swServer *serv, swDataHead *info)
+static void* swServer_worker_get_buffer(swServer *serv, swDataHead *info)
 {
     swString *worker_buffer = swServer_worker_get_input_buffer(serv, info->reactor_id);
     
@@ -1350,16 +1341,15 @@ static sw_inline void* swServer_worker_get_buffer(swServer *serv, swDataHead *in
     return worker_buffer->str + worker_buffer->length;
 }
 
-static sw_inline void swServer_worker_add_buffer_len(swServer *serv, swDataHead *info, size_t len)
+static void swServer_worker_add_buffer_len(swServer *serv, swDataHead *info, size_t len)
 {
     swString *worker_buffer = swServer_worker_get_input_buffer(serv, info->reactor_id);
     worker_buffer->length += len;
 }
 
-static sw_inline void swServer_worker_copy_buffer_addr(swServer *serv, swPipeBuffer *buffer)
+static void swServer_worker_copy_buffer_addr(swServer *serv, swPipeBuffer *buffer)
 {
     swString *worker_buffer = swServer_worker_get_input_buffer(serv, buffer->info.reactor_id);
-
     memcpy(buffer->data, &worker_buffer, sizeof(worker_buffer));
 }
 
@@ -1376,13 +1366,6 @@ static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char 
     {
         swString *worker_buffer;
         memcpy(&worker_buffer, req->data, sizeof(worker_buffer));
-        *data_ptr = worker_buffer->str;
-        length = worker_buffer->length;
-        swString_clear(worker_buffer);
-    }
-    else if (req->info.flags & SW_EVENT_DATA_END)
-    {
-        swString *worker_buffer = swServer_worker_get_input_buffer(serv, req->info.reactor_id);
         *data_ptr = worker_buffer->str;
         length = worker_buffer->length;
         swString_clear(worker_buffer);

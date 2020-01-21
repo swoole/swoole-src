@@ -602,7 +602,6 @@ struct swServer
     /**
      * Chunk control
      */
-    int (*merge_chunk)(swServer *serv, int key, const char *data, size_t len);
     void* (*get_buffer)(swServer *serv, swDataHead *info);
     void (*add_buffer_len)(swServer *serv, swDataHead *info, size_t len);
     void (*copy_buffer_addr)(swServer *serv, swPipeBuffer *buffer);
