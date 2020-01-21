@@ -1354,13 +1354,13 @@ static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char 
         *data_ptr = task->data.str;
         length = task->data.length;
     }
-    else if (req->info.flags & SW_EVENT_DATA_STR_PTR)
+    else if (req->info.flags & SW_EVENT_DATA_OBJ_PTR)
     {
-        swString *str;
-        memcpy(&str, req->data, sizeof(str));
-        *data_ptr = str->str;
-        length = str->length;
-        swString_clear(str);
+        swString *worker_buffer;
+        memcpy(&worker_buffer, req->data, sizeof(worker_buffer));
+        *data_ptr = worker_buffer->str;
+        length = worker_buffer->length;
+        swString_clear(worker_buffer);
     }
     else if (req->info.flags & SW_EVENT_DATA_END)
     {

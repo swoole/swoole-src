@@ -751,7 +751,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
             }
             else
             {
-                buffer->info.flags |= SW_EVENT_DATA_STR_PTR;
+                buffer->info.flags |= SW_EVENT_DATA_OBJ_PTR;
                 memcpy(buffer->data, &worker_buffer, sizeof(worker_buffer));
             }
         }
