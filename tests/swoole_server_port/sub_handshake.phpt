@@ -86,7 +86,7 @@ object(Swoole\WebSocket\Frame)#%d (5) {
 }
 object(Swoole\WebSocket\Frame)#%d (5) {
   ["fd"]=>
-  int(0)
+  int(%d)
   ["data"]=>
   string(2) "OK"
   ["opcode"]=>
