@@ -289,7 +289,7 @@ ssize_t swSocket_sendto_blocking(int fd, const void *__buf, size_t __n, int flag
 {
     ssize_t n = 0;
 
-    while (1)
+    for (int i = 0; i < SW_SOCKET_SYNC_SEND_RETRY_COUNT; i++)
     {
         n = sendto(fd, __buf, __n, flag, __addr, __addr_len);
         if (n >= 0)
