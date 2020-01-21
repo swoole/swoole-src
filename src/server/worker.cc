@@ -20,6 +20,7 @@
 
 #include <pwd.h>
 #include <grp.h>
+#include <sys/uio.h>
 
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event);
