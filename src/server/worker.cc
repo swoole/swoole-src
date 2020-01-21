@@ -752,6 +752,11 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
             else
             {
                 buffer->info.flags |= SW_EVENT_DATA_OBJ_PTR;
+                /**
+                 * Because we don't want to split the swEventData parameters into swDataHead and data, 
+                 * we store the value of the worker_buffer pointer in swEventData.data. 
+                 * The value of this pointer will be fetched in the swServer_worker_get_packet function.
+                 */
                 memcpy(buffer->data, &worker_buffer, sizeof(worker_buffer));
             }
         }
