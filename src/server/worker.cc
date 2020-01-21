@@ -262,21 +262,6 @@ int swWorker_onTask(swFactory *factory, swEventData *task, size_t data_len)
     swWorker *worker = SwooleWG.worker;
     //worker busy
     worker->status = SW_WORKER_BUSY;
-    //packet chunk
-    if (task->info.flags & SW_EVENT_DATA_CHUNK)
-    {
-        if (serv->merge_chunk(serv, task->info.reactor_id, task->data, data_len) < 0)
-        {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_DATA,
-                    "cannot merge chunk to worker buffer, data[fd=%d, size=%d] lost", task->info.fd, task->info.len);
-            return SW_OK;
-        }
-        //wait more data
-        if (!(task->info.flags & SW_EVENT_DATA_END))
-        {
-            return SW_OK;
-        }
-    }
 
     switch (task->info.type)
     {
@@ -718,33 +703,72 @@ int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, in
  */
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 {
+    int ret;
+    ssize_t recv_n = 0;
     swServer *serv = (swServer *) reactor->ptr;
     swFactory *factory = &serv->factory;
-    swPipeBuffer *buffer = serv->pipe_buffers[0];
-    int ret;
-    ssize_t recv_n;
+    swPipeBuffer *pipe_buffer = serv->pipe_buffers[0];
+    void *buffer;
+    struct iovec buffers[2];
 
-    _read_from_pipe:
-
-    recv_n = read(event->fd, buffer, serv->ipc_max_size);
-
-    if (recv_n > 0)
+    // peek
+    recv_n = recv(event->fd, &pipe_buffer->info, sizeof(pipe_buffer->info), MSG_PEEK);
+    if (recv_n < 0 && errno == EAGAIN)
     {
-        ret = swWorker_onTask(factory, (swEventData *) buffer, recv_n - sizeof(buffer->info));
-#ifndef SW_WORKER_RECV_AGAIN
-        if (buffer->info.flags & SW_EVENT_DATA_CHUNK)
-#endif
+        return SW_OK;
+    }
+    else if (recv_n < 0)
+    {
+        return SW_ERR;
+    }
+    
+    if (pipe_buffer->info.flags & SW_EVENT_DATA_CHUNK)
+    {
+        buffer = serv->get_buffer(serv, &pipe_buffer->info);
+        _read_from_pipe:
+
+        buffers[0].iov_base = &pipe_buffer->info;
+        buffers[0].iov_len = sizeof(pipe_buffer->info);
+        buffers[1].iov_base = buffer;
+        buffers[1].iov_len = serv->ipc_max_size - sizeof(pipe_buffer->info);
+        
+        recv_n = readv(event->fd, buffers, 2);
+        if (recv_n < 0 && errno == EAGAIN)
         {
-            //no data
-            if (ret < 0 && errno == EAGAIN)
-            {
-                return SW_OK;
-            }
-            else if (ret > 0)
+            return SW_OK;
+        }
+        if (recv_n > 0)
+        {
+            serv->add_buffer_len(serv, &pipe_buffer->info, recv_n - sizeof(pipe_buffer->info));
+        }
+
+        if (pipe_buffer->info.flags & SW_EVENT_DATA_CHUNK)
+        {
+            //wait more chunk data
+            if (!(pipe_buffer->info.flags & SW_EVENT_DATA_END))
             {
                 goto _read_from_pipe;
             }
+            else
+            {
+                pipe_buffer->info.flags |= SW_EVENT_DATA_OBJ_PTR;
+                /**
+                 * Because we don't want to split the swEventData parameters into swDataHead and data, 
+                 * we store the value of the worker_buffer pointer in swEventData.data. 
+                 * The value of this pointer will be fetched in the swServer_worker_get_packet function.
+                 */
+                serv->copy_buffer_addr(serv, pipe_buffer);
+            }
         }
+    }
+    else
+    {
+        recv_n = read(event->fd, pipe_buffer, serv->ipc_max_size);
+    }
+
+    if (recv_n > 0)
+    {
+        ret = swWorker_onTask(factory, (swEventData *) pipe_buffer, recv_n - sizeof(pipe_buffer->info));
         return ret;
     }
 

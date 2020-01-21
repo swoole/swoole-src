@@ -968,6 +968,7 @@ enum _swEventData_flag
     SW_EVENT_DATA_PTR = 1u << 1,
     SW_EVENT_DATA_CHUNK = 1u << 2,
     SW_EVENT_DATA_END = 1u << 3,
+    SW_EVENT_DATA_OBJ_PTR = 1u << 4,
 };
 
 typedef struct _swDataHead
