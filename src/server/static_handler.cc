@@ -170,10 +170,6 @@ bool StaticHandler::hit()
             return false;
         }
     }
-    if (file_stat.st_size == 0)
-    {
-        return false;
-    }
     if ((file_stat.st_mode & S_IFMT) != S_IFREG)
     {
         return false;
