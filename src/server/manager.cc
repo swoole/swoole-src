@@ -391,6 +391,7 @@ static int swManager_loop(swServer *serv)
                 if (serv->task_worker_num == 0)
                 {
                     swWarn("cannot reload task workers, task workers is not started");
+                    ManagerProcess.reloading = false;
                     continue;
                 }
                 swInfo("Server is reloading task workers now");
