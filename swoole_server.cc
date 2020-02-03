@@ -2059,8 +2059,6 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
 
 static void** php_swoole_server_create_worker_buffer(swServer *serv, int buffer_num)
 {
-    int i;
-
     zend_string **buffers = (zend_string **) sw_malloc(sizeof(zend_string *) * buffer_num);
     if (buffers == NULL)
     {
@@ -2068,7 +2066,7 @@ static void** php_swoole_server_create_worker_buffer(swServer *serv, int buffer_
         return NULL;
     }
 
-    for (i = 0; i < buffer_num; i++)
+    for (int i = 0; i < buffer_num; i++)
     {
         buffers[i] = NULL;
     }

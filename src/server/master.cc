@@ -372,8 +372,6 @@ int sw_inline swServer_worker_buffer_num(swServer *serv)
 
 void** swServer_create_worker_buffer(swServer *serv, int buffer_num)
 {
-    int i;
-
     swString **buffers = (swString **) sw_malloc(sizeof(swString *) * buffer_num);
     if (buffers == NULL)
     {
@@ -381,7 +379,7 @@ void** swServer_create_worker_buffer(swServer *serv, int buffer_num)
         return NULL;
     }
 
-    for (i = 0; i < buffer_num; i++)
+    for (int i = 0; i < buffer_num; i++)
     {
         buffers[i] = swString_new(SW_BUFFER_SIZE_BIG);
         if (buffers[i] == NULL)
