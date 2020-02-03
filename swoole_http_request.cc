@@ -885,7 +885,7 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
         return 0;
     }
 
-    ctx->request.body_length = length;
+    ctx->request.body_length += length;
 
     swTraceLog(SW_TRACE_HTTP, "request body_length=%ld", length);
 
