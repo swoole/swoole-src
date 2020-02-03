@@ -355,9 +355,8 @@ void swServer_store_listen_socket(swServer *serv)
     }
 }
 
-void** swServer_create_worker_buffer(swServer *serv)
+int sw_inline swServer_worker_buffer_num(swServer *serv)
 {
-    int i;
     int buffer_num;
 
     if (serv->factory_mode == SW_MODE_BASE)
@@ -368,8 +367,14 @@ void** swServer_create_worker_buffer(swServer *serv)
     {
         buffer_num = serv->reactor_num + serv->dgram_port_num;
     }
+    return buffer_num;
+}
 
-    swString **buffers = (swString **) sw_malloc(sizeof(swString*) * buffer_num);
+void** swServer_create_worker_buffer(swServer *serv, int buffer_num)
+{
+    int i;
+
+    swString **buffers = (swString **) sw_malloc(sizeof(swString *) * buffer_num);
     if (buffers == NULL)
     {
         swError("malloc for worker buffer_input failed");
@@ -386,7 +391,7 @@ void** swServer_create_worker_buffer(swServer *serv)
         }
     }
 
-    return (void **)buffers;
+    return (void **) buffers;
 }
 
 int swServer_create_task_worker(swServer *serv)
@@ -472,7 +477,7 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     //signal init
     swWorker_signal_init();
 
-    SwooleWG.buffer_input = serv->create_worker_buffer(serv);
+    SwooleWG.buffer_input = serv->create_worker_buffer(serv, swServer_worker_buffer_num(serv));
     if (!SwooleWG.buffer_input)
     {
         return SW_ERR;

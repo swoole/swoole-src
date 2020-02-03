@@ -604,7 +604,7 @@ struct swServer
     /**
      * Worker Buffer
      */
-    void** (*create_worker_buffer)(swServer *serv);
+    void** (*create_worker_buffer)(swServer *serv, int buffer_num);
     /**
      * Chunk control
      */
@@ -703,7 +703,7 @@ int swServer_worker_create(swServer *serv, swWorker *worker);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 void swServer_worker_start(swServer *serv, swWorker *worker);
 
-void** swServer_create_worker_buffer(swServer *serv);
+void** swServer_create_worker_buffer(swServer *serv, int buffer_num);
 int swServer_create_task_worker(swServer *serv);
 void swServer_reopen_log_file(swServer *serv);
 
