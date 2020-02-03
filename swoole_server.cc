@@ -1122,6 +1122,9 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
         }
     }
 
+    /**
+     * init method
+     */
     serv->create_worker_buffer = php_swoole_server_create_worker_buffer;
 
     /**

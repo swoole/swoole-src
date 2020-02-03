@@ -602,6 +602,10 @@ struct swServer
     int (*notify)(swServer *serv, swConnection *conn, int event);
     int (*feedback)(swServer *serv, int session_id, int event);
     /**
+     * Worker Buffer
+     */
+    void** (*create_worker_buffer)(swServer *serv);
+    /**
      * Chunk control
      */
     void* (*get_buffer)(swServer *serv, swDataHead *info);
@@ -612,10 +616,6 @@ struct swServer
      * Hook
      */
     int (*dispatch_func)(swServer *, swConnection *, swSendData *);
-    /**
-     * Worker Buffer
-     */
-    void** (*create_worker_buffer)(swServer *serv);
 };
 
 typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);
