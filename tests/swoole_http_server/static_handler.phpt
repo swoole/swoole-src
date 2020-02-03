@@ -31,8 +31,8 @@ $pm->parentFunc = function () use ($pm) {
             Assert::assert(md5($data) === md5_file(TEST_IMAGE));
 
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/http/empty.txt");
-            Assert::assert(200 === $response['statusCode']);
-            Assert::assert('' === $response['body']);
+            Assert::assert(200 === $response->statusCode);
+            Assert::assert('' === $response->body);
         });
     }
     echo "DONE\n";

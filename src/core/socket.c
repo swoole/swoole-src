@@ -287,9 +287,10 @@ ssize_t swSocket_unix_sendto(int server_sock, const char *dst_path, const char *
 
 ssize_t swSocket_sendto_blocking(int fd, const void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len)
 {
+    int i = 0;
     ssize_t n = 0;
 
-    for (int i = 0; i < SW_SOCKET_SYNC_SEND_RETRY_COUNT; i++)
+    for (; i < SW_SOCKET_SYNC_SEND_RETRY_COUNT; i++)
     {
         n = sendto(fd, __buf, __n, flag, __addr, __addr_len);
         if (n >= 0)
