@@ -588,7 +588,7 @@ int swoole_http_response_compress(swString *body, int method, int level)
     {
         if (level < BROTLI_MIN_QUALITY)
         {
-            level = BROTLI_MAX_QUALITY;
+            level = BROTLI_MIN_QUALITY;
         }
         else if (level > BROTLI_MAX_QUALITY)
         {
@@ -630,7 +630,7 @@ int swoole_http_response_compress(swString *body, int method, int level)
         return SW_ERR;
     }
 #ifdef SW_HAVE_ZLIB
-    if (level == Z_NO_COMPRESSION)
+    if (level <= Z_NO_COMPRESSION)
     {
         level = Z_DEFAULT_COMPRESSION;
     }

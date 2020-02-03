@@ -216,6 +216,7 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx)
     ctx->parse_files = serv->http_parse_files;
 #ifdef SW_HAVE_COMPRESSION
     ctx->enable_compression = serv->http_compression;
+    ctx->compression_level = serv->http_compression_level;
 #endif
     ctx->private_data = serv;
     ctx->upload_tmp_dir = serv->upload_tmp_dir;
@@ -231,6 +232,7 @@ void swoole_http_context_copy(http_context *src, http_context *dst)
     dst->parse_files = src->parse_files;
 #ifdef SW_HAVE_COMPRESSION
     dst->enable_compression = src->enable_compression;
+    dst->compression_level = src->compression_level;
 #endif
     dst->private_data = src->private_data;
     dst->upload_tmp_dir = src->upload_tmp_dir;

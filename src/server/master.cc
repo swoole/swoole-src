@@ -729,8 +729,8 @@ void swServer_init(swServer *serv)
     serv->http_parse_post = 1;
 #ifdef SW_HAVE_COMPRESSION
     serv->http_compression = 1;
-#endif
     serv->http_compression_level = SW_Z_BEST_SPEED;
+#endif
     serv->upload_tmp_dir = sw_strdup("/tmp");
 
     serv->buffer_input_size = SW_BUFFER_INPUT_SIZE;

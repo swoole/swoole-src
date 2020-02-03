@@ -553,7 +553,9 @@ struct _swServer
     /**
      * http compression level for gzip/br
      */
+#ifdef SW_HAVE_COMPRESSION
     uint8_t http_compression_level;
+#endif
     /**
      * http static file directory
      */
