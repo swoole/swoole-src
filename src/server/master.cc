@@ -611,7 +611,6 @@ int swServer_start(swServer *serv)
     serv->add_buffer_len = swServer_worker_add_buffer_len;
     serv->copy_buffer_addr = swServer_worker_copy_buffer_addr;
     serv->get_packet = swServer_worker_get_packet;
-    serv->create_worker_buffer = swServer_create_worker_buffer;
 
     serv->workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
     if (serv->workers == NULL)

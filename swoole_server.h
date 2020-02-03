@@ -78,3 +78,8 @@ int php_swoole_onPacket(swServer *, swEventData *);
 void php_swoole_onClose(swServer *, swDataHead *);
 void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
+
+/**
+ * Worker Buffer
+ */
+void** php_swoole_server_create_worker_buffer(swServer *serv);

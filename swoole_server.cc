@@ -1122,6 +1122,8 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
         }
     }
 
+    serv->create_worker_buffer = php_swoole_server_create_worker_buffer;
+
     /**
      * Master Process ID
      */
@@ -2046,6 +2048,40 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
             php_swoole_error(E_WARNING, "%s->onBufferEmpty handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
+}
+
+void** php_swoole_server_create_worker_buffer(swServer *serv)
+{
+    int i;
+    int buffer_num;
+
+    if (serv->factory_mode == SW_MODE_BASE)
+    {
+        buffer_num = 1;
+    }
+    else
+    {
+        buffer_num = serv->reactor_num + serv->dgram_port_num;
+    }
+
+    swString **buffers = (swString **) sw_malloc(sizeof(swString*) * buffer_num);
+    if (buffers == NULL)
+    {
+        swError("malloc for worker buffer_input failed");
+        return NULL;
+    }
+
+    for (i = 0; i < buffer_num; i++)
+    {
+        buffers[i] = swString_new(SW_BUFFER_SIZE_BIG);
+        if (buffers[i] == NULL)
+        {
+            swError("worker buffer_input init failed");
+            return NULL;
+        }
+    }
+
+    return (void **)buffers;
 }
 
 static PHP_METHOD(swoole_server, __construct)
