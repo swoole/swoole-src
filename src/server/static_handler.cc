@@ -94,10 +94,6 @@ int static_handler::send_response()
             return SW_FALSE;
         }
     }
-    if (file_stat.st_size == 0)
-    {
-        return SW_FALSE;
-    }
     if ((file_stat.st_mode & S_IFMT) != S_IFREG)
     {
         return SW_FALSE;
