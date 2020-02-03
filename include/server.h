@@ -157,51 +157,51 @@ typedef struct _swListenPort
     /**
      * check data eof
      */
-    uint32_t open_eof_check :1;
+    uchar open_eof_check :1;
     /**
      * built-in http protocol
      */
-    uint32_t open_http_protocol :1;
+    uchar open_http_protocol :1;
     /**
      * built-in http2.0 protocol
      */
-    uint32_t open_http2_protocol :1;
+    uchar open_http2_protocol :1;
     /**
      * built-in websocket protocol
      */
-    uint32_t open_websocket_protocol :1;
+    uchar open_websocket_protocol :1;
     /**
      * open websocket close frame
      */
-    uint32_t open_websocket_close_frame :1;
+    uchar open_websocket_close_frame :1;
     /**
      *  one package: length check
      */
-    uint32_t open_length_check :1;
+    uchar open_length_check :1;
     /**
      * for mqtt protocol
      */
-    uint32_t open_mqtt_protocol :1;
+    uchar open_mqtt_protocol :1;
     /**
      *  redis protocol
      */
-    uint32_t open_redis_protocol :1;
+    uchar open_redis_protocol :1;
     /**
      * open tcp nodelay option
      */
-    uint32_t open_tcp_nodelay :1;
+    uchar open_tcp_nodelay :1;
     /**
      * open tcp nopush option(for sendfile)
      */
-    uint32_t open_tcp_nopush :1;
+    uchar open_tcp_nopush :1;
     /**
      * open tcp keepalive
      */
-    uint32_t open_tcp_keepalive :1;
+    uchar open_tcp_keepalive :1;
     /**
      * open tcp keepalive
      */
-    uint32_t open_ssl_encrypt :1;
+    uchar open_ssl_encrypt :1;
     /**
      * Sec-WebSocket-Protocol
      */
@@ -397,87 +397,87 @@ struct _swServer
     /**
      * run as a daemon process
      */
-    uint32_t daemonize :1;
+    uchar daemonize :1;
     /**
      * have dgram socket
      */
-    uint32_t have_dgram_sock :1;
+    uchar have_dgram_sock :1;
     /**
      * have stream socket
      */
-    uint32_t have_stream_sock :1;
+    uchar have_stream_sock :1;
     /**
      * open cpu affinity setting
      */
-    uint32_t open_cpu_affinity :1;
+    uchar open_cpu_affinity :1;
     /**
      * disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
      */
-    uint32_t disable_notify :1;
+    uchar disable_notify :1;
     /**
      * discard the timeout request
      */
-    uint32_t discard_timeout_request :1;
+    uchar discard_timeout_request :1;
     /**
      * parse cookie header
      */
-    uint32_t http_parse_cookie :1;
+    uchar http_parse_cookie :1;
     /**
      * parse x-www-form-urlencoded data
      */
-    uint32_t http_parse_post :1;
+    uchar http_parse_post :1;
     /**
      * parse multipart/form-data files to match $_FILES
      */
-    uint32_t http_parse_files :1;
+    uchar http_parse_files :1;
     /**
      * http content compression
      */
-    uint32_t http_compression :1;
+    uchar http_compression :1;
     /**
      * RFC-7692
      */
-    uint32_t websocket_compression :1;
+    uchar websocket_compression :1;
     /**
      * handle static files
      */
-    uint32_t enable_static_handler :1;
+    uchar enable_static_handler :1;
     /**
      * enable onConnect/onClose event when use dispatch_mode=1/3
      */
-    uint32_t enable_unsafe_event :1;
+    uchar enable_unsafe_event :1;
     /**
      * waiting for worker onConnect callback function to return
      */
-    uint32_t enable_delay_receive :1;
+    uchar enable_delay_receive :1;
     /**
      * asynchronous reloading
      */
-    uint32_t reload_async :1;
+    uchar reload_async :1;
     /**
      * use task object
      */
-    uint32_t task_use_object :1;
+    uchar task_use_object :1;
     /**
      * enable coroutine in task worker
      */
-    uint32_t task_enable_coroutine :1;
+    uchar task_enable_coroutine :1;
     /**
      * yield coroutine when the output buffer is full
      */
-    uint32_t send_yield :1;
+    uchar send_yield :1;
     /**
      * enable coroutine
      */
-    uint32_t enable_coroutine :1;
+    uchar enable_coroutine :1;
     /**
      * disable multi-threads
      */
-    uint32_t single_thread :1;
+    uchar single_thread :1;
     /**
      * server status
      */
-    uint32_t running :1;
+    uchar running :1;
 
     /**
      *  heartbeat check time

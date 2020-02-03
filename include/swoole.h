@@ -673,25 +673,25 @@ typedef struct _swSocket
     enum swSocket_type socket_type;
     int events;
 
-    uint8_t removed :1;
-    uint8_t nonblock :1;
-    uint8_t direct_send :1;
+    uchar removed :1;
+    uchar nonblock :1;
+    uchar direct_send :1;
 #ifdef SW_USE_OPENSSL
-    uint8_t ssl_send :1;
-    uint8_t ssl_want_read :1;
-    uint8_t ssl_want_write :1;
-    uint8_t ssl_renegotiation :1;
-    uint8_t ssl_handshake_buffer_set :1;
+    uchar ssl_send :1;
+    uchar ssl_want_read :1;
+    uchar ssl_want_write :1;
+    uchar ssl_renegotiation :1;
+    uchar ssl_handshake_buffer_set :1;
 #endif
-    uint8_t dontwait :1;
-    uint8_t close_wait :1;
-    uint8_t send_wait :1;
-    uint8_t listen_wait :1;
-    uint8_t tcp_nopush :1;
-    uint8_t tcp_nodelay :1;
-    uint8_t skip_recv :1;
-    uint8_t recv_wait :1;
-    uint8_t event_hup :1;
+    uchar dontwait :1;
+    uchar close_wait :1;
+    uchar send_wait :1;
+    uchar listen_wait :1;
+    uchar tcp_nopush :1;
+    uchar tcp_nodelay :1;
+    uchar skip_recv :1;
+    uchar recv_wait :1;
+    uchar event_hup :1;
 
     /**
      * memory buffer size;
@@ -1661,15 +1661,15 @@ struct _swReactor
     uint32_t max_event_num;
     uint32_t signal_listener_num;
 
-    uint32_t check_timer :1;
-    uint32_t running :1;
-    uint32_t start :1;
-    uint32_t once :1;
-    uint32_t wait_exit :1;
+    uchar check_timer :1;
+    uchar running :1;
+    uchar start :1;
+    uchar once :1;
+    uchar wait_exit :1;
     /**
      * callback signal
      */
-    uint32_t check_signalfd :1;
+    uchar check_signalfd :1;
     /**
      * reactor->wait timeout (millisecond) or -1
      */
@@ -1743,17 +1743,17 @@ struct _swWorker
     /**
      * redirect stdout to pipe_master
      */
-    uint8_t redirect_stdout :1;
+    uchar redirect_stdout :1;
 
     /**
      * redirect stdin to pipe_worker
      */
-    uint8_t redirect_stdin :1;
+    uchar redirect_stdin :1;
 
     /**
      * redirect stderr to pipe_worker
      */
-    uint8_t redirect_stderr :1;
+    uchar redirect_stderr :1;
 
     /**
      * worker status, IDLE or BUSY
@@ -2309,7 +2309,7 @@ typedef struct
      */
     int pipe_used;
 
-    uint32_t shutdown :1;
+    uchar shutdown :1;
 
     uint32_t max_request;
 
@@ -2353,15 +2353,15 @@ typedef struct _swFactory swFactory;
 
 typedef struct
 {
-    uint8_t init :1;
-    uint8_t running :1;
-    uint8_t enable_coroutine :1;
-    uint8_t use_signalfd :1;
-    uint8_t enable_signalfd :1;
-    uint8_t reuse_port :1;
-    uint8_t socket_dontwait :1;
-    uint8_t dns_lookup_random :1;
-    uint8_t use_async_resolver :1;
+    uchar init :1;
+    uchar running :1;
+    uchar enable_coroutine :1;
+    uchar use_signalfd :1;
+    uchar enable_signalfd :1;
+    uchar reuse_port :1;
+    uchar socket_dontwait :1;
+    uchar dns_lookup_random :1;
+    uchar use_async_resolver :1;
 
     int error;
     int process_type;

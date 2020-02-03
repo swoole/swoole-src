@@ -39,16 +39,16 @@ typedef struct _swSSL_option
     char *passphrase;
     char *client_cert_file;
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    uint8_t disable_tls_host_name :1;
+    uchar disable_tls_host_name :1;
     char *tls_host_name;
 #endif
     char *cafile;
     char *capath;
     uint8_t verify_depth;
     uint8_t method;
-    uint8_t disable_compress :1;
-    uint8_t verify_peer :1;
-    uint8_t allow_self_signed :1;
+    uchar disable_compress :1;
+    uchar verify_peer :1;
+    uchar allow_self_signed :1;
     uint32_t disable_protocols;
 } swSSL_option;
 
@@ -132,12 +132,12 @@ enum swSSL_method
 
 typedef struct
 {
-    uint32_t http :1;
-    uint32_t http_v2 :1;
-    uint32_t prefer_server_ciphers :1;
-    uint32_t session_tickets :1;
-    uint32_t stapling :1;
-    uint32_t stapling_verify :1;
+    uchar http :1;
+    uchar http_v2 :1;
+    uchar prefer_server_ciphers :1;
+    uchar session_tickets :1;
+    uchar stapling :1;
+    uchar stapling_verify :1;
     char *ciphers;
     char *ecdh_curve;
     char *session_cache;

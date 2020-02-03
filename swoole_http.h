@@ -114,29 +114,29 @@ class http2_stream;
 struct http_context
 {
     int fd;
-    uint32_t completed :1;
-    uint32_t end :1;
-    uint32_t send_header :1;
+    uchar completed :1;
+    uchar end :1;
+    uchar send_header :1;
 #ifdef SW_HAVE_COMPRESSION
-    uint32_t enable_compression :1;
-    uint32_t accept_compression :1;
+    uchar enable_compression :1;
+    uchar accept_compression :1;
 #endif
-    uint32_t send_chunked :1;
-    uint32_t recv_chunked :1;
-    uint32_t keepalive :1;
-    uint32_t websocket :1;
+    uchar send_chunked :1;
+    uchar recv_chunked :1;
+    uchar keepalive :1;
+    uchar websocket :1;
 #ifdef SW_HAVE_ZLIB
-    uint32_t websocket_compression :1;
+    uchar websocket_compression :1;
 #endif
-    uint32_t upgrade :1;
-    uint32_t detached :1;
-    uint32_t parse_cookie :1;
-    uint32_t parse_body :1;
-    uint32_t parse_files :1;
-    uint32_t co_socket :1;
+    uchar upgrade :1;
+    uchar detached :1;
+    uchar parse_cookie :1;
+    uchar parse_body :1;
+    uchar parse_files :1;
+    uchar co_socket :1;
 
 #ifdef SW_USE_HTTP2
-    uint32_t http2 :1;
+    uchar http2 :1;
     http2_stream* stream;
 #endif
 

@@ -47,9 +47,9 @@ enum swMqtt_opcode
 typedef struct
 {
     uint8_t type :4;
-    uint8_t dup :1;
+    uchar dup :1;
     uint8_t qos :2;
-    uint8_t retain :1;
+    uchar retain :1;
 
     uint32_t length;
 
