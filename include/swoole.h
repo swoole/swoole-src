@@ -2375,7 +2375,7 @@ typedef struct
 
     uint32_t max_request;
 
-    swString **buffer_input;
+    void **buffer_input;
     swString **buffer_output;
     swWorker *worker;
     time_t exit_time;

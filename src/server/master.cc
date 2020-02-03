@@ -355,7 +355,7 @@ void swServer_store_listen_socket(swServer *serv)
     }
 }
 
-swString** swServer_create_worker_buffer(swServer *serv)
+void** swServer_create_worker_buffer(swServer *serv)
 {
     int i;
     int buffer_num;
@@ -386,7 +386,7 @@ swString** swServer_create_worker_buffer(swServer *serv)
         }
     }
 
-    return buffers;
+    return (void **)buffers;
 }
 
 int swServer_create_task_worker(swServer *serv)
@@ -472,7 +472,7 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     //signal init
     swWorker_signal_init();
 
-    SwooleWG.buffer_input = swServer_create_worker_buffer(serv);
+    SwooleWG.buffer_input = serv->create_worker_buffer(serv);
     if (!SwooleWG.buffer_input)
     {
         return SW_ERR;
@@ -611,6 +611,7 @@ int swServer_start(swServer *serv)
     serv->add_buffer_len = swServer_worker_add_buffer_len;
     serv->copy_buffer_addr = swServer_worker_copy_buffer_addr;
     serv->get_packet = swServer_worker_get_packet;
+    serv->create_worker_buffer = swServer_create_worker_buffer;
 
     serv->workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
     if (serv->workers == NULL)
@@ -1319,13 +1320,14 @@ static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uin
 
 static sw_inline swString *swServer_worker_get_input_buffer(swServer *serv, int reactor_id)
 {
+    swString **buffer = (swString **) SwooleWG.buffer_input;
     if (serv->factory_mode == SW_MODE_BASE)
     {
-        return SwooleWG.buffer_input[0];
+        return buffer[0];
     }
     else
     {
-        return SwooleWG.buffer_input[reactor_id];
+        return buffer[reactor_id];
     }
 }
 

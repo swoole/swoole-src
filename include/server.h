@@ -612,6 +612,10 @@ struct swServer
      * Hook
      */
     int (*dispatch_func)(swServer *, swConnection *, swSendData *);
+    /**
+     * Worker Buffer
+     */
+    void** (*create_worker_buffer)(swServer *serv);
 };
 
 typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);
@@ -699,7 +703,7 @@ int swServer_worker_create(swServer *serv, swWorker *worker);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 void swServer_worker_start(swServer *serv, swWorker *worker);
 
-swString** swServer_create_worker_buffer(swServer *serv);
+void** swServer_create_worker_buffer(swServer *serv);
 int swServer_create_task_worker(swServer *serv);
 void swServer_reopen_log_file(swServer *serv);
 
