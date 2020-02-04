@@ -106,6 +106,16 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode);
 static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, swSendData *data);
 static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port);
 
+/**
+ * Worker Buffer
+ */
+static void** php_swoole_server_worker_create_buffer(swServer *serv, int buffer_num);
+static void* php_swoole_server_worker_get_buffer(swServer *serv, swDataHead *info);
+static void php_swoole_server_worker_add_buffer_len(swServer *serv, swDataHead *info, size_t len);
+static void php_swoole_server_worker_copy_buffer_addr(swServer *serv, swPipeBuffer *buffer);
+
+static size_t php_swoole_server_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr);
+
 static inline zend_bool php_swoole_server_isset_callback(swListenPort *port, int event_type)
 {
     php_swoole_server_port_property *property = (php_swoole_server_port_property *) port->ptr;
