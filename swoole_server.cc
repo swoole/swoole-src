@@ -2081,12 +2081,8 @@ static void** php_swoole_server_create_worker_buffer(swServer *serv, int buffer_
         return NULL;
     }
 
-    for (int i = 0; i < buffer_num; i++)
-    {
-        buffers[i] = NULL;
-    }
-
-    return (void **)buffers;
+    memset(buffers, 0, sizeof(zend_string *) * buffer_num);
+    return (void **) buffers;
 }
 
 static sw_inline zend_string *php_swoole_server_worker_get_input_buffer(swServer *serv, int reactor_id)
