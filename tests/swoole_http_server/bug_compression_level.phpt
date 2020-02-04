@@ -57,7 +57,10 @@ $sortedContentLengthArray = $contentLengthArray;
 rsort($sortedContentLengthArray);
 phpt_var_dump($contentLengthArray);
 phpt_var_dump($sortedContentLengthArray);
-Assert::same($sortedContentLengthArray, $contentLengthArray);
+if (!Assert::same($sortedContentLengthArray, $contentLengthArray)) {
+    var_dump($contentLengthArray);
+    var_dump($sortedContentLengthArray);
+}
 echo "DONE\n";
 
 ?>
