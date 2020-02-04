@@ -608,6 +608,7 @@ struct swServer
     void* (*get_buffer)(swServer *serv, swDataHead *info);
     void (*add_buffer_len)(swServer *serv, swDataHead *info, size_t len);
     void (*copy_buffer_addr)(swServer *serv, swPipeBuffer *buffer);
+    void (*clear_buffer)(swServer *serv, swDataHead *info);
     size_t (*get_packet)(swServer *serv, swEventData *req, char **data_ptr);
     /**
      * Hook
