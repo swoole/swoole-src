@@ -880,9 +880,16 @@ int php_swoole_task_pack(swEventData *task, zval *zdata)
     return task->info.fd;
 }
 
+static sw_inline void php_swoole_server_worker_clear_buffer(swServer *serv, swDataHead *info)
+{
+    zend_string **buffer = (zend_string **) SwooleWG.buffer_input;
+    buffer[info->reactor_id] = NULL;
+}
+
 void php_swoole_get_recv_data(swServer *serv, zval *zdata, swEventData *req)
 {
     char *data = NULL;
+    zend_string *worker_buffer;
 
     size_t length = serv->get_packet(serv, req, &data);
     if (length == 0)
@@ -891,7 +898,15 @@ void php_swoole_get_recv_data(swServer *serv, zval *zdata, swEventData *req)
     }
     else
     {
-        ZVAL_STRINGL(zdata, data, length);
+        if (req->info.flags & SW_EVENT_DATA_OBJ_PTR)
+        {
+            worker_buffer = (zend_string *) (data - XtOffsetOf(zend_string, val));
+            ZVAL_STR(zdata, worker_buffer);
+        }
+        else
+        {
+            ZVAL_STRINGL(zdata, data, length);
+        }
     }
 }
 
@@ -1371,8 +1386,8 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
             php_swoole_error(E_WARNING, "%s->onReceive handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
             serv->close(serv, req->info.fd, 0);
         }
-
         zval_ptr_dtor(&args[3]);
+        php_swoole_server_worker_clear_buffer(serv, (swDataHead *) req);
     }
 
     return SW_OK;
@@ -2093,13 +2108,6 @@ static sw_inline void php_swoole_server_worker_set_buffer(swServer *serv, swData
     buffer[info->reactor_id] = addr;
 }
 
-static sw_inline void php_swoole_server_worker_clear_buffer(swServer *serv, swDataHead *info)
-{
-    zend_string **buffer = (zend_string **) SwooleWG.buffer_input;
-    zend_string_free(buffer[info->reactor_id]);
-    buffer[info->reactor_id] = NULL;
-}
-
 static void* php_swoole_server_worker_get_buffer(swServer *serv, swDataHead *info)
 {
     zend_string *worker_buffer = php_swoole_server_worker_get_input_buffer(serv, info->reactor_id);
@@ -2141,7 +2149,6 @@ static size_t php_swoole_server_worker_get_packet(swServer *serv, swEventData *r
         memcpy(&worker_buffer, req->data, sizeof(worker_buffer));
         *data_ptr = worker_buffer->val;
         length = worker_buffer->len;
-        php_swoole_server_worker_clear_buffer(serv, (swDataHead *)req);
     }
     else
     {
