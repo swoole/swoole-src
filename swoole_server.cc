@@ -1140,7 +1140,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     /**
      * init method
      */
-    serv->create_worker_buffer = php_swoole_server_create_worker_buffer;
+    serv->create_buffer = php_swoole_server_worker_create_buffer;
     serv->get_buffer = php_swoole_server_worker_get_buffer;
     serv->add_buffer_len = php_swoole_server_worker_add_buffer_len;
     serv->copy_buffer_addr = php_swoole_server_worker_copy_buffer_addr;
@@ -2072,7 +2072,7 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
     }
 }
 
-static void** php_swoole_server_create_worker_buffer(swServer *serv, int buffer_num)
+static void** php_swoole_server_worker_create_buffer(swServer *serv, int buffer_num)
 {
     zend_string **buffers = (zend_string **) sw_malloc(sizeof(zend_string *) * buffer_num);
     if (buffers == NULL)

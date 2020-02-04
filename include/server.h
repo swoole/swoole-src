@@ -602,12 +602,9 @@ struct swServer
     int (*notify)(swServer *serv, swConnection *conn, int event);
     int (*feedback)(swServer *serv, int session_id, int event);
     /**
-     * Worker Buffer
-     */
-    void** (*create_worker_buffer)(swServer *serv, int buffer_num);
-    /**
      * Chunk control
      */
+    void** (*create_buffer)(swServer *serv, int buffer_num);
     void* (*get_buffer)(swServer *serv, swDataHead *info);
     void (*add_buffer_len)(swServer *serv, swDataHead *info, size_t len);
     void (*copy_buffer_addr)(swServer *serv, swPipeBuffer *buffer);
@@ -703,7 +700,6 @@ int swServer_worker_create(swServer *serv, swWorker *worker);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 void swServer_worker_start(swServer *serv, swWorker *worker);
 
-void** swServer_create_worker_buffer(swServer *serv, int buffer_num);
 int swServer_create_task_worker(swServer *serv);
 void swServer_reopen_log_file(swServer *serv);
 
