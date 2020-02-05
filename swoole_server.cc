@@ -2080,13 +2080,11 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
 
 static void** php_swoole_server_worker_create_buffers(swServer *serv, int buffer_num)
 {
-    zend_string **buffers = (zend_string **) sw_malloc(sizeof(zend_string *) * buffer_num);
+    zend_string **buffers = (zend_string **) sw_calloc(buffer_num, sizeof(zend_string *));
     if (buffers == NULL)
     {
         swError("malloc for worker buffer_input failed");
     }
-
-    memset(buffers, 0, sizeof(zend_string *) * buffer_num);
     return (void **) buffers;
 }
 
