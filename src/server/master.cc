@@ -1317,14 +1317,14 @@ static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uin
 
 static sw_inline swString *swServer_worker_get_input_buffer(swServer *serv, int reactor_id)
 {
-    swString **buffer = (swString **) SwooleWG.buffer_inputs;
+    swString **buffers = (swString **) SwooleWG.buffer_inputs;
     if (serv->factory_mode == SW_MODE_BASE)
     {
-        return buffer[0];
+        return buffers[0];
     }
     else
     {
-        return buffer[reactor_id];
+        return buffers[reactor_id];
     }
 }
 

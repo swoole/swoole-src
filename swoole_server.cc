@@ -2090,14 +2090,14 @@ static void** php_swoole_server_worker_create_buffers(swServer *serv, uint buffe
 
 static sw_inline zend_string *php_swoole_server_worker_get_input_buffer(swServer *serv, int reactor_id)
 {
-    zend_string **buffer = (zend_string **) SwooleWG.buffer_inputs;
+    zend_string **buffers = (zend_string **) SwooleWG.buffer_inputs;
     if (serv->factory_mode == SW_MODE_BASE)
     {
-        return buffer[0];
+        return buffers[0];
     }
     else
     {
-        return buffer[reactor_id];
+        return buffers[reactor_id];
     }
 }
 
