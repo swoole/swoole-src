@@ -2103,8 +2103,8 @@ static sw_inline zend_string *php_swoole_server_worker_get_input_buffer(swServer
 
 static sw_inline void php_swoole_server_worker_set_buffer(swServer *serv, swDataHead *info, zend_string *addr)
 {
-    zend_string **buffer = (zend_string **) SwooleWG.buffer_inputs;
-    buffer[info->reactor_id] = addr;
+    zend_string **buffers = (zend_string **) SwooleWG.buffer_inputs;
+    buffers[info->reactor_id] = addr;
 }
 
 static void* php_swoole_server_worker_get_buffer(swServer *serv, swDataHead *info)
