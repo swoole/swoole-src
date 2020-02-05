@@ -109,7 +109,7 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port);
 /**
  * Worker Buffer
  */
-static void** php_swoole_server_worker_create_buffers(swServer *serv, int buffer_num);
+static void** php_swoole_server_worker_create_buffers(swServer *serv, uint buffer_num);
 static void* php_swoole_server_worker_get_buffer(swServer *serv, swDataHead *info);
 static void php_swoole_server_worker_add_buffer_len(swServer *serv, swDataHead *info, size_t len);
 static void php_swoole_server_worker_copy_buffer_addr(swServer *serv, swPipeBuffer *buffer);
@@ -2078,19 +2078,19 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
     }
 }
 
-static void** php_swoole_server_worker_create_buffers(swServer *serv, int buffer_num)
+static void** php_swoole_server_worker_create_buffers(swServer *serv, uint buffer_num)
 {
     zend_string **buffers = (zend_string **) sw_calloc(buffer_num, sizeof(zend_string *));
     if (buffers == NULL)
     {
-        swError("malloc for worker buffer_input failed");
+        swError("malloc for worker buffer_inputs failed");
     }
     return (void **) buffers;
 }
 
 static sw_inline zend_string *php_swoole_server_worker_get_input_buffer(swServer *serv, int reactor_id)
 {
-    zend_string **buffer = (zend_string **) SwooleWG.buffer_input;
+    zend_string **buffer = (zend_string **) SwooleWG.buffer_inputs;
     if (serv->factory_mode == SW_MODE_BASE)
     {
         return buffer[0];
@@ -2103,7 +2103,7 @@ static sw_inline zend_string *php_swoole_server_worker_get_input_buffer(swServer
 
 static sw_inline void php_swoole_server_worker_set_buffer(swServer *serv, swDataHead *info, zend_string *addr)
 {
-    zend_string **buffer = (zend_string **) SwooleWG.buffer_input;
+    zend_string **buffer = (zend_string **) SwooleWG.buffer_inputs;
     buffer[info->reactor_id] = addr;
 }
 
@@ -2135,7 +2135,7 @@ static void php_swoole_server_worker_copy_buffer_addr(swServer *serv, swPipeBuff
 
 static void php_swoole_server_worker_clear_buffer(swServer *serv, swDataHead *info)
 {
-    zend_string **buffer = (zend_string **) SwooleWG.buffer_input;
+    zend_string **buffer = (zend_string **) SwooleWG.buffer_inputs;
     buffer[info->reactor_id] = NULL;
 }
 
