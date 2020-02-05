@@ -23,7 +23,7 @@ preg_match_all('/php_swoole_array_get_value\(.+?, "(.+?)", .+?\)/', $source_cont
 $matches = array_unique($matches[1]);
 $result = '';
 foreach ($matches as $option) {
-    $result .= space(4) . sprintf("const OPTION_%s = '%s';\n", strtoupper($option), $option);
+    $result .= space(4) . sprintf("public const OPTION_%s = '%s';\n", strtoupper($option), $option);
 }
 
 $constant_php_content = file_get_contents($constant_php);
