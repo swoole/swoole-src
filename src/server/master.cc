@@ -34,7 +34,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
-static void** swServer_worker_create_buffer(swServer *serv, int buffer_num);
+static void** swServer_worker_create_buffers(swServer *serv, int buffer_num);
 static void* swServer_worker_get_buffer(swServer *serv, swDataHead *info);
 static void swServer_worker_add_buffer_len(swServer *serv, swDataHead *info, size_t len);
 static void swServer_worker_copy_buffer_addr(swServer *serv, swPipeBuffer *buffer);
@@ -371,7 +371,7 @@ int sw_inline swServer_worker_buffer_num(swServer *serv)
     return buffer_num;
 }
 
-void** swServer_worker_create_buffer(swServer *serv, int buffer_num)
+void** swServer_worker_create_buffers(swServer *serv, int buffer_num)
 {
     swString **buffers = (swString **) sw_malloc(sizeof(swString *) * buffer_num);
     if (buffers == NULL)
@@ -476,7 +476,7 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     //signal init
     swWorker_signal_init();
 
-    SwooleWG.buffer_input = serv->create_buffer(serv, swServer_worker_buffer_num(serv));
+    SwooleWG.buffer_input = serv->create_buffers(serv, swServer_worker_buffer_num(serv));
     if (!SwooleWG.buffer_input)
     {
         return SW_ERR;

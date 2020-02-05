@@ -604,7 +604,7 @@ struct swServer
     /**
      * Chunk control
      */
-    void** (*create_buffer)(swServer *serv, int buffer_num);
+    void** (*create_buffers)(swServer *serv, int buffer_num);
     void* (*get_buffer)(swServer *serv, swDataHead *info);
     void (*add_buffer_len)(swServer *serv, swDataHead *info, size_t len);
     void (*copy_buffer_addr)(swServer *serv, swPipeBuffer *buffer);
