@@ -600,10 +600,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
         add_assoc_string(zserver, "remote_addr", (char *) hs->socket->get_ip());
 
         php_swoole_fci *fci = hs->get_handler(ctx);
-        zval args[2];
-        args[0] = *ctx->request.zobject;
-        args[1] = *ctx->response.zobject;
-
+        zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
         bool keep_alive = swoole_http_should_keep_alive(&ctx->parser) && !ctx->websocket;
 
         if (fci)
@@ -662,13 +659,21 @@ static void http2_server_onRequest(http2_session *session, http2_stream *stream)
     add_assoc_string(zserver, "server_protocol", (char * ) "HTTP/2");
 
     php_swoole_fci *fci = hs->get_handler(ctx);
-
     zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
-    if (UNEXPECTED(!zend::function::call(&fci->fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
+
+    if (fci)
     {
-        stream->reset(SW_HTTP2_ERROR_INTERNAL_ERROR);
-        php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));
+        if (UNEXPECTED(!zend::function::call(&fci->fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
+        {
+            stream->reset(SW_HTTP2_ERROR_INTERNAL_ERROR);
+            php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));
+        }
     }
+    else
+    {
+        ctx->response.status = SW_HTTP_NOT_FOUND;
+    }
+
     zval_ptr_dtor(&args[0]);
     zval_ptr_dtor(&args[1]);
 }
