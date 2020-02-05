@@ -2084,7 +2084,6 @@ static void** php_swoole_server_worker_create_buffers(swServer *serv, int buffer
     if (buffers == NULL)
     {
         swError("malloc for worker buffer_input failed");
-        return NULL;
     }
 
     memset(buffers, 0, sizeof(zend_string *) * buffer_num);

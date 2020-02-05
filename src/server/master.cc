@@ -377,7 +377,6 @@ void** swServer_worker_create_buffers(swServer *serv, int buffer_num)
     if (buffers == NULL)
     {
         swError("malloc for worker buffer_input failed");
-        return NULL;
     }
 
     for (int i = 0; i < buffer_num; i++)
@@ -386,7 +385,6 @@ void** swServer_worker_create_buffers(swServer *serv, int buffer_num)
         if (buffers[i] == NULL)
         {
             swError("worker buffer_input init failed");
-            return NULL;
         }
     }
 
