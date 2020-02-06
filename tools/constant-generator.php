@@ -2,7 +2,7 @@
 <?php
 require __DIR__ . '/bootstrap.php';
 
-$constant_php = LIBRARY_DIR . '/core/Constant.php';
+$constant_php = LIBRARY_SRC_DIR . '/core/Constant.php';
 if (!file_exists($constant_php)) {
     swoole_error("Unable to find source file [{$constant_php}]");
 }
