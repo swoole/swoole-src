@@ -15,7 +15,7 @@ class WebSocketServer
 
         $this->webSocketServ->set([
             // 输出限制
-            "buffer_output_size" => 1024 * 1024 * 1024,
+            "output_buffer_size" => 1024 * 1024 * 1024,
 
             "max_connection" => 10240,
             "pipe_buffer_size" => 1024 * 1024 * 1024,

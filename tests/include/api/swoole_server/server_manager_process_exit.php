@@ -70,7 +70,7 @@ class TcpServer
     {
         $this->swooleServer = new \swoole_server(TCP_SERVER_HOST, TCP_SERVER_PORT, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
         $this->swooleServer->set([
-            "buffer_output_size" => 1024 * 1024 * 1024, // 输出限制
+            "output_buffer_size" => 1024 * 1024 * 1024, // 输出限制
             "max_connection" => 10240,
             "pipe_buffer_size" => 1024 * 1024 * 1024,
             'daemonize' => 0,

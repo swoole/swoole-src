@@ -407,13 +407,13 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     /**
      * More than the output buffer
      */
-    if (resp->info.len > serv->buffer_output_size)
+    if (resp->info.len > serv->output_buffer_size)
     {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_DATA_LENGTH_TOO_LARGE,
             "The length of data [%u] exceeds the output buffer size[%u], "
-            "please use the sendfile, chunked transfer mode or adjust the buffer_output_size",
-            resp->info.len, serv->buffer_output_size
+            "please use the sendfile, chunked transfer mode or adjust the output_buffer_size",
+            resp->info.len, serv->output_buffer_size
         );
         return SW_ERR;
     }

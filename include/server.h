@@ -478,7 +478,7 @@ struct swServer
     swTimer_node *enable_accept_timer;
 
     /* buffer output/input setting*/
-    uint32_t buffer_output_size;
+    uint32_t output_buffer_size;
     uint32_t input_buffer_size;
 
     uint32_t ipc_max_size;

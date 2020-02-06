@@ -141,7 +141,7 @@
 /**
  * ringbuffer memory pool size
  */
-#define SW_BUFFER_OUTPUT_SIZE            (2*1024*1024)
+#define SW_OUTPUT_BUFFER_SIZE            (2*1024*1024)
 #define SW_INPUT_BUFFER_SIZE             (2*1024*1024)
 #define SW_BUFFER_MIN_SIZE               65536
 #define SW_SEND_BUFFER_SIZE              65536

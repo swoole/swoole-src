@@ -746,7 +746,7 @@ void swServer_init(swServer *serv)
     serv->upload_tmp_dir = sw_strdup("/tmp");
 
     serv->input_buffer_size = SW_INPUT_BUFFER_SIZE;
-    serv->buffer_output_size = SW_BUFFER_OUTPUT_SIZE;
+    serv->output_buffer_size = SW_OUTPUT_BUFFER_SIZE;
 
     serv->task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
 

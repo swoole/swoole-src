@@ -1167,9 +1167,9 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     {
         add_assoc_long(zsetting, "task_worker_num", serv->task_worker_num);
     }
-    if (!zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("buffer_output_size")))
+    if (!zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("output_buffer_size")))
     {
-        add_assoc_long(zsetting, "buffer_output_size", serv->buffer_output_size);
+        add_assoc_long(zsetting, "output_buffer_size", serv->output_buffer_size);
     }
     if (!zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("max_connection")))
     {
@@ -2779,10 +2779,10 @@ static PHP_METHOD(swoole_server, set)
     /**
      * buffer output size
      */
-    if (php_swoole_array_get_value(vht, "buffer_output_size", ztmp))
+    if (php_swoole_array_get_value(vht, "output_buffer_size", ztmp))
     {
         zend_long v = zval_get_long(ztmp);
-        serv->buffer_output_size = SW_MAX(0, SW_MIN(v, UINT32_MAX));
+        serv->output_buffer_size = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     //message queue key
     if (php_swoole_array_get_value(vht, "message_queue_key", ztmp))
