@@ -347,7 +347,7 @@ static PHP_METHOD(swoole_process_pool, __construct)
     {
         if (ipc_type > 0)
         {
-            if (swProcessPool_set_protocol(pool, 0, SW_BUFFER_INPUT_SIZE) < 0)
+            if (swProcessPool_set_protocol(pool, 0, SW_INPUT_BUFFER_SIZE) < 0)
             {
                 zend_throw_exception_ex(swoole_exception_ce, errno, "failed to create process pool");
                 RETURN_FALSE;

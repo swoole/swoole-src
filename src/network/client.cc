@@ -116,7 +116,7 @@ int swClient_create(swClient *cli, int type, int async)
         return SW_ERR;
     }
     cli->socket->object = cli;
-    cli->buffer_input_size = SW_CLIENT_BUFFER_SIZE;
+    cli->input_buffer_size = SW_CLIENT_BUFFER_SIZE;
 
     if (async)
     {
@@ -161,7 +161,7 @@ int swClient_create(swClient *cli, int type, int async)
     cli->protocol.package_length_type = 'N';
     cli->protocol.package_length_size = 4;
     cli->protocol.package_body_offset = 0;
-    cli->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
+    cli->protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
     cli->protocol.onPackage = swClient_onPackage;
 
     return SW_OK;
@@ -655,7 +655,7 @@ static int swClient_tcp_connect_async(swClient *cli, const char *host, int port,
     if (!cli->buffer)
     {
         //alloc input memory buffer
-        cli->buffer = swString_new(cli->buffer_input_size);
+        cli->buffer = swString_new(cli->input_buffer_size);
         if (!cli->buffer)
         {
             return SW_ERR;

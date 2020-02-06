@@ -2771,10 +2771,10 @@ static PHP_METHOD(swoole_server, set)
     /**
      * buffer input size
      */
-    if (php_swoole_array_get_value(vht, "buffer_input_size", ztmp))
+    if (php_swoole_array_get_value(vht, "input_buffer_size", ztmp))
     {
         zend_long v = zval_get_long(ztmp);
-        serv->buffer_input_size = SW_MAX(0, SW_MIN(v, UINT32_MAX));
+        serv->input_buffer_size = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     /**
      * buffer output size

@@ -43,7 +43,7 @@ void swPort_init(swListenPort *port)
     port->protocol.package_length_type = 'N';
     port->protocol.package_length_size = 4;
     port->protocol.package_body_offset = 4;
-    port->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
+    port->protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
 
     port->socket_buffer_size = SwooleG.socket_buffer_size;
 
