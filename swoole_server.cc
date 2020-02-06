@@ -2083,14 +2083,14 @@ static void** php_swoole_server_worker_create_buffers(swServer *serv, uint buffe
     zend_string **buffers = (zend_string **) sw_calloc(buffer_num, sizeof(zend_string *));
     if (buffers == NULL)
     {
-        swError("malloc for worker buffer_inputs failed");
+        swError("malloc for worker input_buffers failed");
     }
     return (void **) buffers;
 }
 
 static sw_inline zend_string *php_swoole_server_worker_get_input_buffer(swServer *serv, int reactor_id)
 {
-    zend_string **buffers = (zend_string **) SwooleWG.buffer_inputs;
+    zend_string **buffers = (zend_string **) SwooleWG.input_buffers;
     if (serv->factory_mode == SW_MODE_BASE)
     {
         return buffers[0];
@@ -2103,7 +2103,7 @@ static sw_inline zend_string *php_swoole_server_worker_get_input_buffer(swServer
 
 static sw_inline void php_swoole_server_worker_set_buffer(swServer *serv, swDataHead *info, zend_string *addr)
 {
-    zend_string **buffers = (zend_string **) SwooleWG.buffer_inputs;
+    zend_string **buffers = (zend_string **) SwooleWG.input_buffers;
     buffers[info->reactor_id] = addr;
 }
 
@@ -2135,7 +2135,7 @@ static void php_swoole_server_worker_copy_buffer_addr(swServer *serv, swPipeBuff
 
 static void php_swoole_server_worker_clear_buffer(swServer *serv, swDataHead *info)
 {
-    zend_string **buffer = (zend_string **) SwooleWG.buffer_inputs;
+    zend_string **buffer = (zend_string **) SwooleWG.input_buffers;
     buffer[info->reactor_id] = NULL;
 }
 
