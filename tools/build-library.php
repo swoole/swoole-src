@@ -5,11 +5,21 @@ require __DIR__ . '/bootstrap.php';
 define('LIBRARY_HEADER', ROOT_DIR . '/php_swoole_library.h');
 define('PHP_TAG', '<?php');
 
+preg_match(
+    '/^(\d+)/',
+    trim(shell_exec('cd ' . LIBRARY_DIR . ' && git diff --shortstat')),
+    $file_change
+);
+$file_change = (int) ($file_change[1] ?? 0);
+if ($file_change > 0) {
+    swoole_error($file_change . ' file changed in [' . LIBRARY_DIR . ']');
+}
 $commit_id = trim(shell_exec('cd ' . LIBRARY_DIR . ' && git rev-parse HEAD'));
 if (!$commit_id || strlen($commit_id) != 40) {
     swoole_error('Unable to get commit id of library in [' . LIBRARY_DIR . ']');
 }
 
+/* Notice: Sort by dependency */
 $files = [
     # <basic> #
     'constants.php',
@@ -18,6 +28,7 @@ $files = [
     # <core> #
     'core/Constant.php',
     'core/StringObject.php',
+    'core/MultibyteStringObject.php',
     'core/ArrayObject.php',
     'core/ObjectProxy.php',
     'core/Coroutine/WaitGroup.php',
@@ -49,14 +60,14 @@ $files = [
 ];
 
 foreach ($files as $file) {
-    if (!file_exists(LIBRARY_DIR . '/' . $file)) {
+    if (!file_exists(LIBRARY_SRC_DIR . '/' . $file)) {
         swoole_error("Unable to find source file [{$file}]");
     }
 }
 
 $source_str = $eval_str = '';
 foreach ($files as $file) {
-    $php_file = LIBRARY_DIR . '/' . $file;
+    $php_file = LIBRARY_SRC_DIR . '/' . $file;
     if (strpos(`/usr/bin/env php -n -l {$php_file} 2>&1`, 'No syntax errors detected') === false) {
         swoole_error("Syntax error in file [{$php_file}]");
     } else {
