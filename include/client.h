@@ -122,7 +122,7 @@ typedef struct _swClient
 
     swString *buffer;
     uint32_t wait_length;
-    uint32_t buffer_input_size;
+    uint32_t input_buffer_size;
 
     uint32_t buffer_high_watermark;
     uint32_t buffer_low_watermark;

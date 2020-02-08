@@ -213,7 +213,7 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
     swSendData _send;
     swServer *serv = (swServer *) reactor->ptr;
     swFactory *factory = &serv->factory;
-    swString *buffer_output;
+    swString *output_buffer;
 
     if (read(event->fd, &task, sizeof(task)) <= 0)
     {
@@ -235,16 +235,16 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
         break;
     case SW_SERVER_EVENT_PROXY_START:
     case SW_SERVER_EVENT_PROXY_END:
-        buffer_output = SwooleWG.buffer_output[task.info.reactor_id];
-        swString_append_ptr(buffer_output, task.data, task.info.len);
+        output_buffer = SwooleWG.output_buffer[task.info.reactor_id];
+        swString_append_ptr(output_buffer, task.data, task.info.len);
         if (task.info.type == SW_SERVER_EVENT_PROXY_END)
         {
             memcpy(&_send.info, &task.info, sizeof(_send.info));
             _send.info.type = SW_SERVER_EVENT_SEND_DATA;
-            _send.data = buffer_output->str;
-            _send.info.len = buffer_output->length;
+            _send.data = output_buffer->str;
+            _send.info.len = output_buffer->length;
             factory->finish(factory, &_send);
-            swString_clear(buffer_output);
+            swString_clear(output_buffer);
         }
         break;
     default:
@@ -255,20 +255,20 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
 
 static int swReactorProcess_alloc_output_buffer(int n_buffer)
 {
-    SwooleWG.buffer_output = (swString **) sw_malloc(sizeof(swString*) * n_buffer);
-    if (SwooleWG.buffer_output == NULL)
+    SwooleWG.output_buffer = (swString **) sw_malloc(sizeof(swString*) * n_buffer);
+    if (SwooleWG.output_buffer == NULL)
     {
-        swError("malloc for SwooleWG.buffer_output failed");
+        swError("malloc for SwooleWG.output_buffer failed");
         return SW_ERR;
     }
 
     int i;
     for (i = 0; i < n_buffer; i++)
     {
-        SwooleWG.buffer_output[i] = swString_new(SW_BUFFER_SIZE_BIG);
-        if (SwooleWG.buffer_output[i] == NULL)
+        SwooleWG.output_buffer[i] = swString_new(SW_BUFFER_SIZE_BIG);
+        if (SwooleWG.output_buffer[i] == NULL)
         {
-            swError("buffer_output init failed");
+            swError("output_buffer init failed");
             return SW_ERR;
         }
     }
@@ -280,9 +280,9 @@ static void swReactor_free_output_buffer(int n_buffer)
     int i;
     for (i = 0; i < n_buffer; i++)
     {
-        swString_free(SwooleWG.buffer_output[i]);
+        swString_free(SwooleWG.output_buffer[i]);
     }
-    sw_free(SwooleWG.buffer_output);
+    sw_free(SwooleWG.output_buffer);
 }
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)

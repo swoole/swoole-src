@@ -462,7 +462,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
     }
     else
     {
-        cli->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
+        cli->protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
     }
     /**
      * socket send/recv buffer size

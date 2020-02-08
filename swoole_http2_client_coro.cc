@@ -386,7 +386,7 @@ bool http2_client::connect()
     client->open_length_check = 1;
     client->protocol.get_package_length = swHttp2_get_frame_length;
     client->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
-    client->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
+    client->protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
 
     apply_setting(sw_zend_read_property(swoole_http2_client_coro_ce, zobject, ZEND_STRL("setting"), 0));
 

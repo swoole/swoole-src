@@ -994,7 +994,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset)
     }
     else
     {
-        sock->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
+        sock->protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
     }
 
     return ret;
