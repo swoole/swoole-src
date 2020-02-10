@@ -1,6 +1,6 @@
 name: ext-swoole
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
