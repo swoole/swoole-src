@@ -147,7 +147,7 @@ int swClient_create(swClient *cli, int type, int async)
             cli->connect = swClient_tcp_connect_async;
             cli->send = swClient_tcp_send_async;
             cli->sendfile = swClient_tcp_sendfile_async;
-            cli->socket->dontwait = 1;
+            cli->socket->dontwait = SwooleG.socket_dontwait;
         }
         else
         {
