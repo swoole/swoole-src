@@ -38,6 +38,7 @@ static void** swServer_worker_create_buffers(swServer *serv, uint buffer_num);
 static void* swServer_worker_get_buffer(swServer *serv, swDataHead *info);
 static void swServer_worker_add_buffer_len(swServer *serv, swDataHead *info, size_t len);
 static void swServer_worker_copy_buffer_addr(swServer *serv, swPipeBuffer *buffer);
+static void swServer_worker_clear_buffer(swServer *serv, swDataHead *info);
 
 static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr);
 
@@ -777,6 +778,16 @@ void swServer_init(swServer *serv)
         swError("[Master] Fatal Error: failed to allocate memory for swServer->gs");
     }
 
+    /**
+     * init method
+     */
+    serv->create_buffers = swServer_worker_create_buffers;
+    serv->get_buffer = swServer_worker_get_buffer;
+    serv->add_buffer_len = swServer_worker_add_buffer_len;
+    serv->copy_buffer_addr = swServer_worker_copy_buffer_addr;
+    serv->clear_buffer = swServer_worker_clear_buffer;
+    serv->get_packet = swServer_worker_get_packet;
+
     SwooleG.serv = serv;
 }
 
@@ -1352,6 +1363,12 @@ static void swServer_worker_copy_buffer_addr(swServer *serv, swPipeBuffer *buffe
     memcpy(buffer->data, &worker_buffer, sizeof(worker_buffer));
 }
 
+static void swServer_worker_clear_buffer(swServer *serv, swDataHead *info)
+{
+    swString *worker_buffer = swServer_worker_get_input_buffer(serv, info->reactor_id);
+    swString_clear(worker_buffer);
+}
+
 static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr)
 {
     size_t length;
@@ -1367,7 +1384,6 @@ static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char 
         memcpy(&worker_buffer, req->data, sizeof(worker_buffer));
         *data_ptr = worker_buffer->str;
         length = worker_buffer->length;
-        swString_clear(worker_buffer);
     }
     else
     {
