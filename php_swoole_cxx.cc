@@ -56,9 +56,8 @@ zend_op_array* zend::swoole_compile_string(zval *source_string, ZEND_STR_CONST c
 
 bool zend::eval(std::string code, std::string filename)
 {
-    static zend_bool init = 0;
-    if (!init) {
-        init = 1;
+    if (!old_compile_string)
+    {
         old_compile_string = zend_compile_string;
     }
     //overwrite
