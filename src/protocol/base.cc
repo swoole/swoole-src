@@ -98,8 +98,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSoc
         return SW_CONTINUE;
     } else
     {
-        buffer->length = 0;
-        buffer->offset = 0;
+        swString_clear(buffer);
     }
 
     return SW_OK;
