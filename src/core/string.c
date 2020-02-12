@@ -195,6 +195,43 @@ char* swString_alloc(swString *str, size_t __size)
     return tmp;
 }
 
+/**
+ * data[data_size - 3] -> data
+ * data[data_size - 2] -> length
+ * data[data_size - 1] -> handler return value
+ */
+int swString_explode(
+    swString *str,
+    char *delimiter,
+    size_t delimiter_length,
+    swStringExplodeHandler handler,
+    void **data,
+    int data_size)
+{
+    assert(data_size >= 3);
+
+    int ret;
+    const char *start_addr = str->str;
+    const char *delimiter_addr;
+    delimiter_addr = swoole_strnaddr(start_addr, str->length, delimiter, delimiter_length);
+    while (delimiter_addr != NULL)
+    {
+        size_t length = delimiter_addr - start_addr + delimiter_length;
+        data[data_size - 3] = (void *) start_addr;
+        data[data_size - 2] = (void *) length;
+        ret = handler(data, data_size);
+        data[data_size - 1] = (void *)(intptr_t) ret;
+        if (ret < 0)
+        {
+            return SW_ERR;
+        }
+        start_addr = delimiter_addr + delimiter_length;
+        delimiter_addr = swoole_strnaddr(start_addr, str->length + length + 2, delimiter, delimiter_length);
+    }
+
+    return start_addr - str->str;
+}
+
 uint32_t swoole_utf8_decode(uchar **p, size_t n)
 {
     size_t len;

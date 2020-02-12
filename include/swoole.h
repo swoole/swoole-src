@@ -624,6 +624,8 @@ typedef struct
     uint32_t reactor_id :8;
 } swSession;
 
+typedef int (*swStringExplodeHandler)(void **data, int data_size);
+
 typedef struct _swString
 {
     size_t length;
@@ -901,6 +903,7 @@ int swString_write(swString *str, off_t offset, swString *write_str);
 int swString_write_ptr(swString *str, off_t offset, char *write_str, size_t length);
 int swString_extend(swString *str, size_t new_size);
 char* swString_alloc(swString *str, size_t __size);
+int swString_explode(swString *str, char *delimiter, size_t delimiter_length, swStringExplodeHandler handler, void **data, int data_size);
 
 static sw_inline void swString_clear(swString *str)
 {
@@ -1458,7 +1461,7 @@ static inline char* swoole_strnstr(const char *haystack, const char *needle, uin
     return NULL;
 }
 
-static inline int swoole_strnpos(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
+static inline const char *swoole_strnaddr(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
 {
     assert(needle_length > 0);
     uint32_t i;
@@ -1469,13 +1472,22 @@ static inline int swoole_strnpos(const char *haystack, uint32_t haystack_length,
         {
             if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length)))
             {
-                return i;
+                return haystack;
             }
             haystack++;
         }
     }
 
-    return -1;
+    return NULL;
+}
+
+static inline int swoole_strnpos(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
+{
+    assert(needle_length > 0);
+    const char *pos;
+
+    pos = swoole_strnaddr(haystack, haystack_length, needle, needle_length);
+    return pos == NULL ? -1 : pos - haystack;
 }
 
 static inline int swoole_strrnpos(const char *haystack, const char *needle, uint32_t length)
