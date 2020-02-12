@@ -196,11 +196,15 @@ char* swString_alloc(swString *str, size_t __size)
 }
 
 /**
+ * @param data
  * data[data_size - 3] -> data
  * data[data_size - 2] -> length
  * data[data_size - 1] -> handler return value
+ * 
+ * @return
+ * SW_ERR represents the need to get the handler's return value from data[data_size-1]
  */
-int swString_explode(
+size_t swString_explode(
     swString *str,
     char *delimiter,
     size_t delimiter_length,
@@ -225,8 +229,9 @@ int swString_explode(
         {
             return SW_ERR;
         }
+        str->offset += length;
         start_addr = delimiter_addr + delimiter_length;
-        delimiter_addr = swoole_strnaddr(start_addr, str->length + length + 2, delimiter, delimiter_length);
+        delimiter_addr = swoole_strnaddr(start_addr, str->length - str->offset, delimiter, delimiter_length);
     }
 
     return start_addr - str->str;
