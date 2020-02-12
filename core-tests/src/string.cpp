@@ -111,10 +111,11 @@ TEST(string, explode)
         swString_explode(&str, needle, needle_length, [](void **data, int data_size) -> int {
             explode_str = (char *) (data[data_size - 3]);
             explode_length = (size_t) (data[data_size - 2]);
-            return -10;
+            data[data_size - 1] = (void *)(intptr_t) 5;
+            return -1;
         }, data, data_size);
         ASSERT_EQ(haystack, explode_str);
         ASSERT_EQ(6, explode_length);
-        ASSERT_EQ(-10, (int)(intptr_t) data[data_size - 1]);
+        ASSERT_EQ(5, (int)(intptr_t) data[data_size - 1]);
     }
 }

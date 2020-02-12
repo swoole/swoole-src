@@ -224,7 +224,6 @@ size_t swString_explode(
         data[data_size - 3] = (void *) start_addr;
         data[data_size - 2] = (void *) length;
         ret = handler(data, data_size);
-        data[data_size - 1] = (void *)(intptr_t) ret;
         if (ret < 0)
         {
             return SW_ERR;
