@@ -215,14 +215,15 @@ size_t swString_explode(
     assert(data_size >= 3);
 
     int ret;
-    const char *start_addr = str->str;
+    const char *start_addr = str->str + str->offset;
     const char *delimiter_addr;
-    delimiter_addr = swoole_strnaddr(start_addr, str->length, delimiter, delimiter_length);
+    off_t offset = str->offset;
+    delimiter_addr = swoole_strnaddr(start_addr, str->length - str->offset, delimiter, delimiter_length);
     while (delimiter_addr != NULL)
     {
         size_t length = delimiter_addr - start_addr + delimiter_length;
         data[data_size - 3] = (void *) start_addr;
-        data[data_size - 2] = (void *) length;
+        data[data_size - 2] = (void *) length + offset;
         ret = handler(data, data_size);
         if (ret < 0)
         {
@@ -231,9 +232,15 @@ size_t swString_explode(
         str->offset += length;
         start_addr = delimiter_addr + delimiter_length;
         delimiter_addr = swoole_strnaddr(start_addr, str->length - str->offset, delimiter, delimiter_length);
+        offset = 0;
     }
 
-    return start_addr - str->str;
+    if (offset == str->offset)
+    {
+        str->offset = str->length;
+    }
+
+    return start_addr - str->str - offset;
 }
 
 uint32_t swoole_utf8_decode(uchar **p, size_t n)
