@@ -222,7 +222,7 @@ size_t swString_explode(
     while (delimiter_addr != NULL)
     {
         size_t length = delimiter_addr - start_addr + delimiter_length;
-        data[data_size - 3] = (void *) start_addr - length - offset;
+        data[data_size - 3] = (void *) start_addr - offset;
         data[data_size - 2] = (void *) length + offset;
         ret = handler(data, data_size);
         if (ret < 0)
@@ -230,7 +230,7 @@ size_t swString_explode(
             return SW_ERR;
         }
         str->offset += length;
-        start_addr = delimiter_addr + delimiter_length;
+        start_addr = str->str + str->offset;
         delimiter_addr = swoole_strnaddr(start_addr, str->length - str->offset, delimiter, delimiter_length);
         offset = 0;
     }
