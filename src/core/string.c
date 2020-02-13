@@ -237,7 +237,7 @@ size_t swString_explode(
 
     if (offset == str->offset)
     {
-        str->offset = str->length;
+        str->offset = str->length - delimiter_length;
     }
 
     return start_addr - str->str - offset;
