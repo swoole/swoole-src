@@ -826,8 +826,13 @@ int swSSL_accept(swSocket *conn)
     else if (err == SSL_ERROR_SSL)
     {
         int reason = ERR_GET_REASON(ERR_peek_error());
-        swWarn("bad SSL client[%s:%d], reason=%d", swConnection_get_ip(conn->socket_type, &conn->info),
-                swConnection_get_port(conn->socket_type, &conn->info), reason);
+        const char *error_string = ERR_error_string(reason, SwooleTG.buffer_stack->str);
+        swWarn(
+            "bad SSL client[%s:%d], reason=%d, error_string=%s",
+            swConnection_get_ip(conn->socket_type, &conn->info),
+            swConnection_get_port(conn->socket_type, &conn->info),
+            reason, error_string
+        );
         return SW_ERROR;
     }
     //EOF was observed
