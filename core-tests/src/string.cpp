@@ -102,6 +102,8 @@ TEST(string, explode)
         void *data[3];
         int data_size = sizeof(data) / sizeof(*data);
 
+        swString_clear(&str);
+
         strcpy(haystack, "hello world");
         haystack_length = sizeof("hello world") - 1;
         str.str = haystack;
