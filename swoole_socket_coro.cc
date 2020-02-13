@@ -911,6 +911,25 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset)
             memcpy(sock->protocol.package_eof, str_v.val(), str_v.len());
         }
     }
+    if (php_swoole_array_get_value(vht, "open_fastcgi_protocol", ztmp))
+    {
+        sock->open_length_check = zval_is_true(ztmp);
+        sock->protocol.get_package_length = [](swProtocol *protocol, swSocket *conn, char *data, uint32_t size) {
+            #define FCGI_HEADER_LEN 8
+            #define FCGI_MAX_LENGTH 0xffff
+            const uint8_t *p = (const uint8_t *) data;
+            size_t length = 0;
+            if (size > FCGI_HEADER_LEN)
+            {
+                length = ((p[4] << 8) | p[5]) + p[6];
+                if (length > FCGI_MAX_LENGTH)
+                {
+                    length = -1;
+                }
+            }
+            return length;
+        };
+    }
     // open mqtt protocol
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", ztmp))
     {
