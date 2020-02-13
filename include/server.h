@@ -480,6 +480,7 @@ struct swServer
     /* buffer output/input setting*/
     uint32_t output_buffer_size;
     uint32_t input_buffer_size;
+    uint32_t max_queued_bytes;
 
     uint32_t ipc_max_size;
 

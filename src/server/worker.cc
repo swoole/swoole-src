@@ -94,12 +94,9 @@ void swWorker_signal_handler(int signo)
     }
 }
 
-static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
+static sw_inline int swWorker_discard_data(swServer *serv, swConnection *conn, swEventData *task)
 {
-    int session_id = task->info.fd;
-    //check connection
-    swConnection *conn = swServer_connection_verify(serv, session_id);
-    if (conn == NULL)
+    if (conn == nullptr)
     {
         if (serv->disable_notify && !serv->discard_timeout_request)
         {
@@ -123,7 +120,7 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
             "[2] received the wrong data[%d bytes] from socket#%d",
-            task->info.len, session_id
+            task->info.len, task->info.fd
         );
     }
     return SW_TRUE;
@@ -256,10 +253,6 @@ int swWorker_onTask(swFactory *factory, swEventData *task, size_t data_len)
 {
     swServer *serv = (swServer *) factory->ptr;
 
-#ifdef SW_USE_OPENSSL
-    swConnection *conn;
-#endif
-
     swWorker *worker = SwooleWG.worker;
     //worker busy
     worker->status = SW_WORKER_BUSY;
@@ -267,21 +260,29 @@ int swWorker_onTask(swFactory *factory, swEventData *task, size_t data_len)
     switch (task->info.type)
     {
     case SW_SERVER_EVENT_SEND_DATA:
+    {
+        swConnection *conn = swServer_connection_verify(serv, task->info.fd);
+        if (conn && data_len > 0)
+        {
+            sw_atomic_fetch_sub(&conn->queued_bytes, data_len);
+        }
         //discard data
-        if (swWorker_discard_data(serv, task) == SW_TRUE)
+        if (swWorker_discard_data(serv, conn, task) == SW_TRUE)
         {
             break;
         }
         swWorker_do_task(serv, worker, task, serv->onReceive);
         break;
-
+    }
     case SW_SERVER_EVENT_SNED_DGRAM:
+    {
         swWorker_do_task(serv, worker, task, serv->onPacket);
         break;
-
+    }
     case SW_SERVER_EVENT_CLOSE:
+    {
 #ifdef SW_USE_OPENSSL
-        conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
+        swConnection *conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
         if (conn && conn->ssl_client_cert && conn->ssl_client_cert_pid == SwooleG.pid)
         {
             sw_free(conn->ssl_client_cert);
@@ -290,13 +291,14 @@ int swWorker_onTask(swFactory *factory, swEventData *task, size_t data_len)
 #endif
         factory->end(factory, task->info.fd);
         break;
-
+    }
     case SW_SERVER_EVENT_CONNECT:
+    {
 #ifdef SW_USE_OPENSSL
         //SSL client certificate
         if (task->info.len > 0)
         {
-            conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
+            swConnection *conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
             char *cert_data = NULL;
             size_t length = serv->get_packet(serv, task, &cert_data);
             conn->ssl_client_cert = swString_dup(cert_data, length);
@@ -308,29 +310,34 @@ int swWorker_onTask(swFactory *factory, swEventData *task, size_t data_len)
             serv->onConnect(serv, &task->info);
         }
         break;
+    }
 
     case SW_SERVER_EVENT_BUFFER_FULL:
+    {
         if (serv->onBufferFull)
         {
             serv->onBufferFull(serv, &task->info);
         }
         break;
-
+    }
     case SW_SERVER_EVENT_BUFFER_EMPTY:
+    {
         if (serv->onBufferEmpty)
         {
             serv->onBufferEmpty(serv, &task->info);
         }
         break;
-
+    }
     case SW_SERVER_EVENT_FINISH:
+    {
         serv->onFinish(serv, task);
         break;
-
+    }
     case SW_SERVER_EVENT_PIPE_MESSAGE:
+    {
         serv->onPipeMessage(serv, task);
         break;
-
+    }
     default:
         swWarn("[Worker] error event[type=%d]", (int )task->info.type);
         break;
@@ -704,7 +711,6 @@ int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, in
  */
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 {
-    int ret;
     ssize_t recv_n = 0;
     swServer *serv = (swServer *) reactor->ptr;
     swFactory *factory = &serv->factory;
@@ -769,8 +775,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 
     if (recv_n > 0)
     {
-        ret = swWorker_onTask(factory, (swEventData *) pipe_buffer, recv_n - sizeof(pipe_buffer->info));
-        return ret;
+        return swWorker_onTask(factory, (swEventData *) pipe_buffer, recv_n - sizeof(pipe_buffer->info));
     }
 
     return SW_ERR;

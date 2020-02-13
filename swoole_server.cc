@@ -2306,7 +2306,6 @@ static PHP_METHOD(swoole_server, set)
 
     vht = Z_ARRVAL_P(zset);
 
-    //chroot
     if (php_swoole_array_get_value(vht, "chroot", ztmp))
     {
         if (SwooleG.chroot)
@@ -2315,7 +2314,6 @@ static PHP_METHOD(swoole_server, set)
         }
         SwooleG.chroot = zend::string(ztmp).dup();
     }
-    //user
     if (php_swoole_array_get_value(vht, "user", ztmp))
     {
         if (SwooleG.user)
@@ -2324,7 +2322,6 @@ static PHP_METHOD(swoole_server, set)
         }
         SwooleG.user = zend::string(ztmp).dup();
     }
-    //group
     if (php_swoole_array_get_value(vht, "group", ztmp))
     {
         if (SwooleG.group)
@@ -2333,7 +2330,6 @@ static PHP_METHOD(swoole_server, set)
         }
         SwooleG.group = zend::string(ztmp).dup();
     }
-    //daemonize
     if (php_swoole_array_get_value(vht, "daemonize", ztmp))
     {
         serv->daemonize = zval_is_true(ztmp);
@@ -2361,7 +2357,6 @@ static PHP_METHOD(swoole_server, set)
         }
         serv->pid_file = zend::string(ztmp).dup();
     }
-    //reactor thread num
     if (php_swoole_array_get_value(vht, "reactor_num", ztmp))
     {
         zend_long v = zval_get_long(ztmp);
@@ -2375,7 +2370,6 @@ static PHP_METHOD(swoole_server, set)
     {
         serv->single_thread = zval_is_true(ztmp);
     }
-    //worker_num
     if (php_swoole_array_get_value(vht, "worker_num", ztmp))
     {
         zend_long v = zval_get_long(ztmp);
@@ -2385,11 +2379,14 @@ static PHP_METHOD(swoole_server, set)
             serv->worker_num = SW_CPU_NUM;
         }
     }
-    //max wait time
     if (php_swoole_array_get_value(vht, "max_wait_time", ztmp))
     {
         zend_long v = zval_get_long(ztmp);
         serv->max_wait_time = SW_MAX(0, SW_MIN(v, UINT32_MAX));
+    }
+    if (php_swoole_array_get_value(vht, "max_queued_bytes", ztmp))
+    {
+        serv->max_queued_bytes = zval_get_long(ztmp);
     }
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp))
     {
@@ -2409,7 +2406,6 @@ static PHP_METHOD(swoole_server, set)
     {
         serv->send_timeout = zval_get_double(ztmp);
     }
-    //dispatch_mode
     if (php_swoole_array_get_value(vht, "dispatch_mode", ztmp))
     {
         zend_long v = zval_get_long(ztmp);
@@ -2424,7 +2420,6 @@ static PHP_METHOD(swoole_server, set)
             serv->send_yield = 0;
         }
     }
-    //dispatch function
     if (php_swoole_array_get_value(vht, "dispatch_func", ztmp))
     {
         swServer_dispatch_function c_dispatch_func = NULL;
@@ -2464,7 +2459,6 @@ static PHP_METHOD(swoole_server, set)
         }
         serv->dispatch_func = c_dispatch_func;
     }
-    //log_file
     if (php_swoole_array_get_value(vht, "log_file", ztmp))
     {
         if (SwooleG.log_file)
@@ -2473,7 +2467,6 @@ static PHP_METHOD(swoole_server, set)
         }
         SwooleG.log_file = zend::string(ztmp).dup();
     }
-    //log_level
     if (php_swoole_array_get_value(vht, "log_level", ztmp))
     {
         zend_long level;

@@ -34,6 +34,7 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint32_t length);
 static int swReactorThread_is_empty(swReactor *reactor);
 static void swReactorThread_shutdown(swReactor *reactor);
+static void swReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *tnode);
 
 static void swHeartbeatThread_start(swServer *serv);
 static void swHeartbeatThread_loop(swThreadParam *param);
@@ -596,7 +597,14 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     session->last_time_usec = swoole_microtime();
 #endif
 
-    return port->onRead(reactor, port, event);
+    int retval = port->onRead(reactor, port, event);
+    if (serv->factory_mode == SW_MODE_PROCESS && serv->max_queued_bytes && session->queued_bytes > serv->max_queued_bytes)
+    {
+        swReactor_remove_read_event(sw_reactor(), event->socket);
+        session->waiting_time = session->waiting_time == 0 ? 1 : session->waiting_time * 2;
+        swoole_timer_after(session->waiting_time, swReactorThread_resume_data_receiving, event->socket);
+    }
+    return retval;
 }
 
 static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
@@ -1079,6 +1087,22 @@ static int swReactorThread_loop(swThreadParam *param)
     return SW_OK;
 }
 
+static void swReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *tnode)
+{
+    swSocket *_socket = (swSocket *) tnode->data;
+    swConnection *conn = (swConnection *) _socket->object;
+    if (conn->queued_bytes > sw_server()->max_queued_bytes)
+    {
+        conn->waiting_time = conn->waiting_time * 2;
+        swoole_timer_after(conn->waiting_time, swReactorThread_resume_data_receiving, _socket);
+    }
+    else
+    {
+        swReactor_add_read_event(sw_reactor(), _socket);
+        conn->waiting_time = 0;
+    }
+}
+
 /**
  * dispatch request data [only data frame]
  */
@@ -1132,7 +1156,15 @@ int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, char *data, u
         task.info.fd = conn->fd;
         task.info.len = length;
         task.data = data;
-        return serv->factory.dispatch(&serv->factory, &task);
+        if (serv->factory.dispatch(&serv->factory, &task) < 0)
+        {
+            return SW_ERR;
+        }
+        if (length > 0)
+        {
+            sw_atomic_fetch_add(&conn->queued_bytes, length);
+        }
+        return SW_OK;
     }
 }
 
