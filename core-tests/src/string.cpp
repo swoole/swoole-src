@@ -51,7 +51,7 @@ TEST(string, strnpos)
     }
 }
 
-TEST(string, strnaddr)
+TEST(string, strnstr)
 {
     {
         char haystack[1024];
