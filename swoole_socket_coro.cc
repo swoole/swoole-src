@@ -918,7 +918,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset)
             #define FCGI_HEADER_LEN 8
             #define FCGI_MAX_LENGTH 0xffff
             const uint8_t *p = (const uint8_t *) data;
-            size_t length = 0;
+            ssize_t length = 0;
             if (size > FCGI_HEADER_LEN)
             {
                 length = ((p[4] << 8) | p[5]) + p[6];
