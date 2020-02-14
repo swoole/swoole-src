@@ -89,14 +89,17 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSoc
     if (ret < 0)
     {
         return (intptr_t) data[4];
-    } else if (ret == 0)
+    }
+    else if (ret == 0)
     {
         return SW_CONTINUE;
-    } else if (ret < buffer->length)
+    }
+    else if (ret < buffer->length)
     {
         swString_pop_front(buffer, ret);
         return SW_CONTINUE;
-    } else
+    }
+    else
     {
         swString_clear(buffer);
     }
