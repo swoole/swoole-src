@@ -92,36 +92,36 @@ TEST(string, strnstr)
 
 TEST(string, explode)
 {
-    static char *explode_str;
-    static size_t explode_length;
+
+    char haystack[1024];
+    uint32_t haystack_length;
+    char needle[8];
+    uint32_t needle_length;
+    swString str;
+
+    swString_clear(&str);
+
+    strcpy(haystack, "hello world");
+    haystack_length = sizeof("hello world") - 1;
+    str.str = haystack;
+    str.length = haystack_length;
+    strcpy(needle, " ");
+    needle_length = sizeof(" ") - 1;
+
+    int value_1 = 0;
+
+    char *explode_str = nullptr;
+    size_t explode_length = 0;
+
+    swoole::string_explode(&str, needle, needle_length, [&value_1, &explode_str, &explode_length](char *data, size_t length) -> int
     {
-        char haystack[1024];
-        uint32_t haystack_length;
-        char needle[8];
-        uint32_t needle_length;
-        swString str;
+        explode_str = data;
+        explode_length = length;
+        value_1 = 5;
+        return -1;
+    });
 
-        swString_clear(&str);
-
-        strcpy(haystack, "hello world");
-        haystack_length = sizeof("hello world") - 1;
-        str.str = haystack;
-        str.length = haystack_length;
-        strcpy(needle, " ");
-        needle_length = sizeof(" ") - 1;
-
-        int value_1 = 0;
-
-        swoole::string_explode(&str, needle, needle_length, [&value_1](char *data, size_t length) -> int
-        {
-            explode_str = data;
-            explode_length = length;
-            value_1 = 5;
-            return -1;
-        });
-
-        ASSERT_EQ(haystack, explode_str);
-        ASSERT_EQ(6, explode_length);
-        ASSERT_EQ(5, value_1);
-    }
+    ASSERT_EQ(haystack, explode_str);
+    ASSERT_EQ(6, explode_length);
+    ASSERT_EQ(5, value_1);
 }
