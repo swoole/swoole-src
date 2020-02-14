@@ -218,7 +218,7 @@ size_t swString_explode(
     const char *start_addr = str->str + str->offset;
     const char *delimiter_addr;
     off_t offset = str->offset;
-    delimiter_addr = swoole_strnaddr(start_addr, str->length - str->offset, delimiter, delimiter_length);
+    delimiter_addr = swoole_strnstr(start_addr, str->length - str->offset, delimiter, delimiter_length);
     while (delimiter_addr != NULL)
     {
         size_t length = delimiter_addr - start_addr + delimiter_length;
@@ -231,7 +231,7 @@ size_t swString_explode(
         }
         str->offset += length;
         start_addr = str->str + str->offset;
-        delimiter_addr = swoole_strnaddr(start_addr, str->length - str->offset, delimiter, delimiter_length);
+        delimiter_addr = swoole_strnstr(start_addr, str->length - str->offset, delimiter, delimiter_length);
         offset = 0;
     }
 

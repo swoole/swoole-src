@@ -67,7 +67,7 @@ TEST(string, strnaddr)
         needle_length = sizeof(" ") - 1;
         needle[needle_length] = 0;
 
-        pos = swoole_strnaddr(haystack, haystack_length, needle, needle_length);
+        pos = swoole_strnstr(haystack, haystack_length, needle, needle_length);
         ASSERT_EQ(haystack + 5, pos);
     }
     {
@@ -84,7 +84,7 @@ TEST(string, strnaddr)
         needle_length = sizeof("*") - 1;
         needle[needle_length] = 0;
 
-        pos = swoole_strnaddr(haystack, haystack_length, needle, needle_length);
+        pos = swoole_strnstr(haystack, haystack_length, needle, needle_length);
         ASSERT_EQ(NULL, pos);
     }
 }
