@@ -197,30 +197,18 @@ char* swString_alloc(swString *str, size_t __size)
     return tmp;
 }
 
-/**
- * @param data
- * data[data_size - 3] -> data
- * data[data_size - 2] -> length
- * data[data_size - 1] -> handler return value
- * 
- * @return
- * SW_ERR represents the need to get the handler's return value from data[data_size-1]
- */
-size_t swoole::string_explode(swString *str, char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler)
+size_t swoole::string_explode(swString *str, const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler)
 {
-    int ret;
     const char *start_addr = str->str + str->offset;
-    const char *delimiter_addr;
+    const char *delimiter_addr = swoole_strnstr(start_addr, str->length - str->offset, delimiter, delimiter_length);
     off_t offset = str->offset;
-    delimiter_addr = swoole_strnstr(start_addr, str->length - str->offset, delimiter, delimiter_length);
 
-    while (delimiter_addr != NULL)
+    while (delimiter_addr)
     {
         size_t length = delimiter_addr - start_addr + delimiter_length;
-        ret = handler((char*) start_addr - offset, length + offset);
-        if (ret < 0)
+        if (handler((char*) start_addr - offset, length + offset) == false)
         {
-            return SW_ERR;
+            return -1;
         }
         str->offset += length;
         start_addr = str->str + str->offset;

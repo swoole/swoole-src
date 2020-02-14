@@ -59,8 +59,6 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSoc
     count++;
 #endif
 
-    size_t ret;
-
     if (buffer->length < protocol->package_eof_len)
     {
         return SW_CONTINUE;
@@ -68,31 +66,31 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSoc
 
     int retval;
 
-    ret = string_explode(buffer, protocol->package_eof, protocol->package_eof_len, [protocol, conn, &retval](char *data, size_t length) -> int {
+    size_t n = string_explode(buffer, protocol->package_eof, protocol->package_eof_len, [protocol, conn, &retval](char *data, size_t length) -> int {
         if (protocol->onPackage(protocol, conn, data, length) < 0)
         {
             retval = SW_CLOSE;
-            return SW_ERR;
+            return false;
         }
         if (conn->removed)
         {
             retval = SW_OK;
-            return SW_ERR;
+            return false;
         }
-        return SW_OK;
+        return true;
     });
 
-    if (ret < 0)
+    if (n < 0)
     {
         return retval;
     }
-    else if (ret == 0)
+    else if (n == 0)
     {
         return SW_CONTINUE;
     }
-    else if (ret < buffer->length)
+    else if (n < buffer->length)
     {
-        swString_pop_front(buffer, ret);
+        swString_pop_front(buffer, n);
         return SW_CONTINUE;
     }
     else

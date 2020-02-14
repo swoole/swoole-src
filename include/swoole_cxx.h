@@ -70,8 +70,8 @@ protected:
     std::list<Callback *> list_;
 };
 
-typedef std::function<int(char *, size_t)> StringExplodeHandler;
-size_t string_explode(swString *str, char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
+typedef std::function<bool (char *, size_t)> StringExplodeHandler;
+size_t string_explode(swString *str, const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
 
 //-------------------------------------------------------------------------------
 }

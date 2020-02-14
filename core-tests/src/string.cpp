@@ -118,7 +118,7 @@ TEST(string, explode)
         explode_str = data;
         explode_length = length;
         value_1 = 5;
-        return -1;
+        return false;
     });
 
     ASSERT_EQ(haystack, explode_str);
