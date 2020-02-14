@@ -17,8 +17,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
     if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
         exit("connect failed\n");
     }
-    $client->send("hello world");
-    Assert::assert($client->recv() == "");
+    @$client->send("hello world");
+    Assert::assert(@$client->recv() == "");
     $pm->kill();
 };
 
