@@ -16,8 +16,10 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
+#include "swoole_cxx.h"
 #include "connection.h"
+
+using namespace swoole;
 
 /**
  * return the package total length
@@ -58,37 +60,31 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSoc
 #endif
 
     size_t ret;
-    void *data[5];
-
-    data[0] = protocol;
-    data[1] = conn;
 
     if (buffer->length < protocol->package_eof_len)
     {
         return SW_CONTINUE;
     }
 
-    ret = swString_explode(buffer, protocol->package_eof, protocol->package_eof_len, [](void **_data, int data_size) -> int {
-        swProtocol *protocol = (swProtocol *) _data[0];
-        swSocket *conn = (swSocket *) _data[1];
-        char *data = (char *) _data[2];
-        uint32_t length = (uint32_t)(uintptr_t) _data[3];
+    int retval;
+
+    ret = string_explode(buffer, protocol->package_eof, protocol->package_eof_len, [protocol, conn, &retval](char *data, size_t length) -> int {
         if (protocol->onPackage(protocol, conn, data, length) < 0)
         {
-            _data[4] = (void *)(intptr_t) SW_CLOSE;
+            retval = SW_CLOSE;
             return SW_ERR;
         }
         if (conn->removed)
         {
-            _data[4] = (void *)(intptr_t) SW_OK;
+            retval = SW_OK;
             return SW_ERR;
         }
         return SW_OK;
-    }, data, SW_ARRAY_SIZE(data));
+    });
 
     if (ret < 0)
     {
-        return (intptr_t) data[4];
+        return retval;
     }
     else if (ret == 0)
     {

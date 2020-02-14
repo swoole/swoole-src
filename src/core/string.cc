@@ -14,11 +14,13 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
+#include "swoole_cxx.h"
+
+using swoole::StringExplodeHandler;
 
 swString *swString_new(size_t size)
 {
-    swString *str = sw_malloc(sizeof(swString));
+    swString *str = (swString *) sw_malloc(sizeof(swString));
     if (str == NULL)
     {
         swWarn("malloc[1] failed");
@@ -28,7 +30,7 @@ swString *swString_new(size_t size)
     str->length = 0;
     str->size = size;
     str->offset = 0;
-    str->str = sw_malloc(size);
+    str->str = (char *) sw_malloc(size);
 
     if (str->str == NULL)
     {
@@ -168,7 +170,7 @@ int swString_write_ptr(swString *str, off_t offset, char *write_str, size_t leng
 int swString_extend(swString *str, size_t new_size)
 {
     assert(new_size > str->size);
-    char *new_str = sw_realloc(str->str, new_size);
+    char *new_str = (char*) sw_realloc(str->str, new_size);
     if (new_str == NULL)
     {
         swSysWarn("realloc(%ld) failed", new_size);
@@ -204,10 +206,8 @@ char* swString_alloc(swString *str, size_t __size)
  * @return
  * SW_ERR represents the need to get the handler's return value from data[data_size-1]
  */
-size_t swString_explode(swString *str, char *delimiter, size_t delimiter_length, swStringExplodeHandler handler, void **data, int data_size)
+size_t swoole::string_explode(swString *str, char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler)
 {
-    assert(data_size >= 3);
-
     int ret;
     const char *start_addr = str->str + str->offset;
     const char *delimiter_addr;
@@ -217,9 +217,7 @@ size_t swString_explode(swString *str, char *delimiter, size_t delimiter_length,
     while (delimiter_addr != NULL)
     {
         size_t length = delimiter_addr - start_addr + delimiter_length;
-        data[data_size - 3] = (void *) start_addr - offset;
-        data[data_size - 2] = (void *) length + offset;
-        ret = handler(data, data_size);
+        ret = handler((char*) start_addr - offset, length + offset);
         if (ret < 0)
         {
             return SW_ERR;
@@ -326,8 +324,8 @@ void swoole_random_string(char *buf, size_t size)
         'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
     };
-    int i;
-    for (i = 0; i < size; i++)
+    size_t i = 0;
+    for (; i < size; i++)
     {
         buf[i] = characters[swoole_rand(0, sizeof(characters) - 1)];
     }

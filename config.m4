@@ -418,7 +418,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/rbtree.c \
         src/core/ring_queue.c \
         src/core/socket.cc \
-        src/core/string.c \
+        src/core/string.cc \
         src/coroutine/base.cc \
         src/coroutine/channel.cc \
         src/coroutine/context.cc \

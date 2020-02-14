@@ -1,4 +1,5 @@
 #include "tests.h"
+#include "swoole_cxx.h"
 
 TEST(string, rtrim)
 {
@@ -99,7 +100,6 @@ TEST(string, explode)
         char needle[8];
         uint32_t needle_length;
         swString str;
-        void *data[3];
 
         swString_clear(&str);
 
@@ -109,14 +109,19 @@ TEST(string, explode)
         str.length = haystack_length;
         strcpy(needle, " ");
         needle_length = sizeof(" ") - 1;
-        swString_explode(&str, needle, needle_length, [](void **data, int data_size) -> int {
-            explode_str = (char *) (data[data_size - 3]);
-            explode_length = (size_t) (data[data_size - 2]);
-            data[data_size - 1] = (void *)(intptr_t) 5;
+
+        int value_1 = 0;
+
+        swoole::string_explode(&str, needle, needle_length, [&value_1](char *data, size_t length) -> int
+        {
+            explode_str = data;
+            explode_length = length;
+            value_1 = 5;
             return -1;
-        }, data, SW_ARRAY_SIZE(data));
+        });
+
         ASSERT_EQ(haystack, explode_str);
         ASSERT_EQ(6, explode_length);
-        ASSERT_EQ(5, (int)(intptr_t) data[SW_ARRAY_SIZE(data) - 1]);
+        ASSERT_EQ(5, value_1);
     }
 }
