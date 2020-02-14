@@ -1,6 +1,8 @@
 #include "tests.h"
 #include "swoole_cxx.h"
 
+using namespace std;
+
 TEST(string, rtrim)
 {
     char buf[1024];
@@ -92,28 +94,20 @@ TEST(string, strnstr)
 
 TEST(string, explode)
 {
+    string  haystack= "hello world";
+    string needle = " ";
 
-    char haystack[1024];
-    uint32_t haystack_length;
-    char needle[8];
-    uint32_t needle_length;
     swString str;
-
     swString_clear(&str);
-
-    strcpy(haystack, "hello world");
-    haystack_length = sizeof("hello world") - 1;
-    str.str = haystack;
-    str.length = haystack_length;
-    strcpy(needle, " ");
-    needle_length = sizeof(" ") - 1;
+    str.str = (char*) haystack.c_str();
+    str.length = haystack.length();
 
     int value_1 = 0;
 
-    char *explode_str = nullptr;
+    const char *explode_str = nullptr;
     size_t explode_length = 0;
 
-    swoole::string_explode(&str, needle, needle_length, [&](char *data, size_t length) -> int
+    swoole::string_explode(&str, needle.c_str(), needle.length(), [&](char *data, size_t length) -> int
     {
         explode_str = data;
         explode_length = length;
@@ -124,4 +118,33 @@ TEST(string, explode)
     ASSERT_EQ(haystack, explode_str);
     ASSERT_EQ(6, explode_length);
     ASSERT_EQ(5, value_1);
+}
+
+TEST(string, explode_2)
+{
+    string  haystack= "hello,world,swoole,php,last";
+    string needle = ",";
+
+    swString str;
+    swString_clear(&str);
+    str.str = (char*) haystack.c_str();
+    str.length = haystack.length();
+
+    int count = 0;
+    vector<string> list;
+
+    size_t n = swoole::string_explode(&str, needle.c_str(), needle.length(), [&](char *data, size_t length) -> int
+    {
+        list.push_back(string(data, length-1));
+        count ++;
+        return true;
+    });
+
+    ASSERT_EQ(list[0], string("hello"));
+    ASSERT_EQ(list[1], string("world"));
+    ASSERT_EQ(list[2], string("swoole"));
+    ASSERT_EQ(list[3], string("php"));
+    ASSERT_EQ("last", string(str.str + n, str.length -n));
+    ASSERT_EQ(4, count);
+    ASSERT_EQ(list.size(), count);
 }
