@@ -100,7 +100,6 @@ TEST(string, explode)
         uint32_t needle_length;
         swString str;
         void *data[3];
-        int data_size = sizeof(data) / sizeof(*data);
 
         swString_clear(&str);
 
@@ -115,9 +114,9 @@ TEST(string, explode)
             explode_length = (size_t) (data[data_size - 2]);
             data[data_size - 1] = (void *)(intptr_t) 5;
             return -1;
-        }, data, data_size);
+        }, data, SW_ARRAY_SIZE(data));
         ASSERT_EQ(haystack, explode_str);
         ASSERT_EQ(6, explode_length);
-        ASSERT_EQ(5, (int)(intptr_t) data[data_size - 1]);
+        ASSERT_EQ(5, (int)(intptr_t) data[SW_ARRAY_SIZE(data) - 1]);
     }
 }

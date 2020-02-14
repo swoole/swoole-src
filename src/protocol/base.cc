@@ -84,7 +84,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSoc
             return SW_ERR;
         }
         return SW_OK;
-    }, data, sizeof(data) / sizeof(*data));
+    }, data, SW_ARRAY_SIZE(data));
 
     if (ret < 0)
     {
