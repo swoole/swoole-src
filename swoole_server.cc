@@ -2386,7 +2386,8 @@ static PHP_METHOD(swoole_server, set)
     }
     if (php_swoole_array_get_value(vht, "max_queued_bytes", ztmp))
     {
-        serv->max_queued_bytes = zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        serv->max_queued_bytes = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp))
     {
