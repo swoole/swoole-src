@@ -19,37 +19,19 @@ TEST(string, rtrim)
 TEST(string, strnpos)
 {
     {
-        char haystack[1024];
-        uint32_t haystack_length;
-        char needle[8];
-        uint32_t needle_length;
+        string  haystack= "hello world";
+        string needle = " ";
         int pos;
 
-        strcpy(haystack, "hello world");
-        haystack_length = sizeof("hello world") - 1;
-        haystack[haystack_length] = 0;
-        strcpy(needle, " ");
-        needle_length = sizeof(" ") - 1;
-        needle[needle_length] = 0;
-
-        pos = swoole_strnpos(haystack, haystack_length, needle, needle_length);
+        pos = swoole_strnpos(haystack.c_str(), haystack.length(), needle.c_str(), needle.length());
         ASSERT_EQ(pos, 5);
     }
     {
-        char haystack[1024];
-        uint32_t haystack_length;
-        char needle[8];
-        uint32_t needle_length;
+        string  haystack= "hello world";
+        string needle = "*";
         int pos;
 
-        strcpy(haystack, "hello world");
-        haystack_length = sizeof("hello world") - 1;
-        haystack[haystack_length] = 0;
-        strcpy(needle, "*");
-        needle_length = sizeof("*") - 1;
-        needle[needle_length] = 0;
-
-        pos = swoole_strnpos(haystack, haystack_length, needle, needle_length);
+        pos = swoole_strnpos(haystack.c_str(), haystack.length(), needle.c_str(), needle.length());
         ASSERT_EQ(-1, pos);
     }
 }
@@ -57,37 +39,19 @@ TEST(string, strnpos)
 TEST(string, strnstr)
 {
     {
-        char haystack[1024];
-        uint32_t haystack_length;
-        char needle[8];
-        uint32_t needle_length;
+        string  haystack= "hello world";
+        string needle = " ";
         const char *pos;
 
-        strcpy(haystack, "hello world");
-        haystack_length = sizeof("hello world") - 1;
-        haystack[haystack_length] = 0;
-        strcpy(needle, " ");
-        needle_length = sizeof(" ") - 1;
-        needle[needle_length] = 0;
-
-        pos = swoole_strnstr(haystack, haystack_length, needle, needle_length);
-        ASSERT_EQ(haystack + 5, pos);
+        pos = swoole_strnstr(haystack.c_str(), haystack.length(), needle.c_str(), needle.length());
+        ASSERT_EQ(haystack.c_str() + 5, pos);
     }
     {
-        char haystack[1024];
-        uint32_t haystack_length;
-        char needle[8];
-        uint32_t needle_length;
+        string  haystack= "hello world";
+        string needle = "*";
         const char *pos;
 
-        strcpy(haystack, "hello world");
-        haystack_length = sizeof("hello world") - 1;
-        haystack[haystack_length] = 0;
-        strcpy(needle, "*");
-        needle_length = sizeof("*") - 1;
-        needle[needle_length] = 0;
-
-        pos = swoole_strnstr(haystack, haystack_length, needle, needle_length);
+        pos = swoole_strnstr(haystack.c_str(), haystack.length(), needle.c_str(), needle.length());
         ASSERT_EQ(NULL, pos);
     }
 }
