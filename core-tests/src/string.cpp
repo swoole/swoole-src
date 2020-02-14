@@ -113,7 +113,7 @@ TEST(string, explode)
     char *explode_str = nullptr;
     size_t explode_length = 0;
 
-    swoole::string_explode(&str, needle, needle_length, [&value_1, &explode_str, &explode_length](char *data, size_t length) -> int
+    swoole::string_explode(&str, needle, needle_length, [&](char *data, size_t length) -> int
     {
         explode_str = data;
         explode_length = length;
