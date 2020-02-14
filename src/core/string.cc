@@ -170,7 +170,7 @@ int swString_write_ptr(swString *str, off_t offset, char *write_str, size_t leng
 int swString_extend(swString *str, size_t new_size)
 {
     assert(new_size > str->size);
-    char *new_str = (char*) sw_realloc(str->str, new_size);
+    char *new_str = (char *) sw_realloc(str->str, new_size);
     if (new_str == NULL)
     {
         swSysWarn("realloc(%ld) failed", new_size);
@@ -206,7 +206,7 @@ size_t swoole::string_explode(swString *str, const char *delimiter, size_t delim
     while (delimiter_addr)
     {
         size_t length = delimiter_addr - start_addr + delimiter_length;
-        if (handler((char*) start_addr - offset, length + offset) == false)
+        if (handler((char *) start_addr - offset, length + offset) == false)
         {
             return -1;
         }

@@ -98,6 +98,13 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSoc
         swString_clear(buffer);
     }
 
+#ifdef SW_USE_OPENSSL
+    if (conn->ssl)
+    {
+        return SW_CONTINUE;
+    }
+#endif
+
     return SW_OK;
 }
 
