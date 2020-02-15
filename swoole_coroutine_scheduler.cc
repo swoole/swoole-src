@@ -165,6 +165,11 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
     {
         Coroutine::set_stack_size(zval_get_long(ztmp));
     }
+    if (php_swoole_array_get_value(vht, "socket_dns_timeout", ztmp))
+    {
+        double t = zval_get_double(ztmp);
+        if (t != 0) { Socket::default_dns_timeout = t; }
+    }
     if (php_swoole_array_get_value(vht, "socket_connect_timeout", ztmp))
     {
         double t = zval_get_double(ztmp);
