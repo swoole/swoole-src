@@ -789,6 +789,7 @@ typedef struct _swConnection
     sw_atomic_t server_fd;
     sw_atomic_t queued_bytes;
     uint16_t waiting_time;
+    struct _swTimer_node *timer;
     /**
      * socket address
      */
