@@ -23,6 +23,7 @@
 #include <vector>
 #include <string>
 
+#define SW_DEFAULT_SOCKET_DNS_TIMEOUT       -1
 #define SW_DEFAULT_SOCKET_CONNECT_TIMEOUT    1
 #define SW_DEFAULT_SOCKET_READ_TIMEOUT      -1
 #define SW_DEFAULT_SOCKET_WRITE_TIMEOUT     -1
@@ -31,16 +32,17 @@ namespace swoole
 {
 enum swTimeout_type
 {
-    SW_TIMEOUT_CONNECT = 1u << 1,
-    SW_TIMEOUT_READ = 1u << 2,
-    SW_TIMEOUT_WRITE = 1u << 3,
+    SW_TIMEOUT_DNS = 1 << 0,
+    SW_TIMEOUT_CONNECT = 1 << 1,
+    SW_TIMEOUT_READ = 1 << 2,
+    SW_TIMEOUT_WRITE = 1 << 3,
     SW_TIMEOUT_RDWR = SW_TIMEOUT_READ | SW_TIMEOUT_WRITE,
-    SW_TIMEOUT_ALL = 0xff,
+    SW_TIMEOUT_ALL = SW_TIMEOUT_DNS | SW_TIMEOUT_CONNECT | SW_TIMEOUT_RDWR,
 };
 
-static constexpr enum swTimeout_type swTimeout_type_list[3] =
+static constexpr enum swTimeout_type swTimeout_type_list[] =
 {
-    SW_TIMEOUT_CONNECT, SW_TIMEOUT_READ, SW_TIMEOUT_WRITE
+    SW_TIMEOUT_DNS, SW_TIMEOUT_CONNECT, SW_TIMEOUT_READ, SW_TIMEOUT_WRITE
 };
 }
 
@@ -49,6 +51,7 @@ namespace swoole { namespace coroutine {
 class Socket
 {
 public:
+    static double default_dns_timeout;
     static double default_connect_timeout;
     static double default_read_timeout;
     static double default_write_timeout;
@@ -254,6 +257,10 @@ public:
         {
             return;
         }
+        if (type & SW_TIMEOUT_DNS)
+        {
+            dns_timeout = timeout;
+        }
         if (type & SW_TIMEOUT_CONNECT)
         {
             connect_timeout = timeout;
@@ -276,7 +283,11 @@ public:
     inline double get_timeout(enum swTimeout_type type = SW_TIMEOUT_ALL)
     {
         SW_ASSERT_1BYTE(type);
-        if (type == SW_TIMEOUT_CONNECT)
+        if (type == SW_TIMEOUT_DNS)
+        {
+            return dns_timeout;
+        }
+        else if (type == SW_TIMEOUT_CONNECT)
         {
             return connect_timeout;
         }
@@ -347,6 +358,7 @@ private:
     int bind_port = 0;
     int backlog = 0;
 
+    double dns_timeout = default_dns_timeout;
     double connect_timeout = default_connect_timeout;
     double read_timeout = default_read_timeout;
     double write_timeout = default_write_timeout;
