@@ -1393,8 +1393,10 @@ bool http_client::recv(double timeout)
     if (websocket)
     {
         socket->open_length_check = 1;
-        socket->protocol.get_package_length = swWebSocket_get_package_length;
         socket->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN;
+        socket->protocol.package_length_offset = 0;
+        socket->protocol.package_body_offset = 0;
+        socket->protocol.get_package_length = swWebSocket_get_package_length;
     }
     // handler keep alive
     if (!keep_alive && !websocket)

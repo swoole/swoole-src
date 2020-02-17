@@ -449,8 +449,10 @@ bool swoole_websocket_handshake(http_context *ctx)
     {
         Socket *sock = (Socket *) ctx->private_data;
         sock->open_length_check = 1;
-        sock->protocol.get_package_length = swWebSocket_get_package_length;
         sock->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN;
+        sock->protocol.package_length_offset = 0;
+        sock->protocol.package_body_offset = 0;
+        sock->protocol.get_package_length = swWebSocket_get_package_length;
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = websocket_compression;
 #endif

@@ -472,7 +472,7 @@ static PHP_METHOD(swoole_server_port, set)
     //length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp))
     {
-        while(1)
+        while (1)
         {
             if (Z_TYPE_P(ztmp) == IS_STRING)
             {
