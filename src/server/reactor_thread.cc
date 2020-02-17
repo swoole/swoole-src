@@ -606,7 +606,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     if (serv->factory_mode == SW_MODE_PROCESS && serv->max_queued_bytes && conn->queued_bytes > serv->max_queued_bytes)
     {
         conn->waiting_time = 1;
-        conn->timer = swoole_timer_add(conn->waiting_time, 0, swReactorThread_resume_data_receiving, event->socket);
+        conn->timer = swoole_timer_add(conn->waiting_time, false, swReactorThread_resume_data_receiving, event->socket);
         if (conn->timer)
         {
             swReactor_remove_read_event(sw_reactor(), event->socket);
@@ -1102,8 +1102,10 @@ static void swReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *
 
     if (conn->queued_bytes > sw_server()->max_queued_bytes)
     {
-        conn->waiting_time = SW_MIN(1024, conn->waiting_time * 2);
-        conn->timer = swoole_timer_add(conn->waiting_time, 0, swReactorThread_resume_data_receiving, _socket);
+        if (conn->waiting_time != 1024) {
+            conn->waiting_time *= 2;
+        }
+        conn->timer = swoole_timer_add(conn->waiting_time, false, swReactorThread_resume_data_receiving, _socket);
         if (conn->timer)
         {
             return;
@@ -1111,7 +1113,6 @@ static void swReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *
     }
 
     swReactor_add_read_event(sw_reactor(), _socket);
-    conn->waiting_time = 0;
     conn->timer = nullptr;
 }
 

@@ -5,18 +5,19 @@ swoole_server: max_queued_bytes
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$port = get_one_free_port();
 
-const N = 1024 * 1024 * 10;
+const N = 10 * 1024 * 1024;
 
 $pm = new SwooleTest\ProcessManager;
+$pm->initFreePorts();
 
-$pm->parentFunc = function ($pid) use ($port, $pm) {
-    $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
-    if (!$client->connect('127.0.0.1', $port)) {
-        exit("connect failed\n");
+$pm->parentFunc = function ($pid) use ($pm) {
+    $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
+        echo "FAILED\n";
+        $pm->kill();
+        return;
     }
-
     $bytes = 0;
     while ($bytes < N) {
         $write_n = $client->send(random_bytes(rand(1000, 80000)));
@@ -24,23 +25,25 @@ $pm->parentFunc = function ($pid) use ($port, $pm) {
             break;
         } else {
             $bytes += $write_n;
+            phpt_var_dump($bytes);
         }
     }
     Assert::assert($bytes > N);
     $pm->kill();
+    echo "DONE\n";
 };
 
-$pm->childFunc = function () use ($pm, $port) {
-    $serv = new Swoole\Server('127.0.0.1', $port);
+$pm->childFunc = function () use ($pm) {
+    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $serv->set([
         'worker_num' => 1,
         'log_file' => '/dev/null',
-        'max_queued_bytes' => 1024*1024,
+        'max_queued_bytes' => 1024 * 1024,
     ]);
-    $serv->on("workerStart", function ($serv) use ($pm) {
+    $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('receive', function ($serv, $fd, $reactor_id, $data) {
+    $serv->on('receive', function () {
         usleep(1000);
     });
     $serv->start();
@@ -48,5 +51,7 @@ $pm->childFunc = function () use ($pm, $port) {
 
 $pm->childFirst();
 $pm->run();
+
 ?>
 --EXPECT--
+DONE
