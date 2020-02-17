@@ -178,22 +178,27 @@ void swPort_set_protocol(swServer *serv, swListenPort *ls)
         }
         else if (ls->open_http2_protocol)
         {
-            ls->protocol.get_package_length = swHttp2_get_frame_length;
             ls->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
+            ls->protocol.get_package_length = swHttp2_get_frame_length;
             ls->protocol.onPackage = swReactorThread_dispatch;
         }
         else
 #endif
         if (ls->open_websocket_protocol)
         {
-            ls->protocol.get_package_length = swWebSocket_get_package_length;
             ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
+            ls->protocol.get_package_length = swWebSocket_get_package_length;
             ls->protocol.onPackage = swWebSocket_dispatch_frame;
         }
+        ls->protocol.package_length_offset = 0;
+        ls->protocol.package_body_offset = 0;
         ls->onRead = swPort_onRead_http;
     }
     else if (ls->open_mqtt_protocol)
     {
+        ls->protocol.package_length_size = SW_MQTT_MIN_LENGTH;
+        ls->protocol.package_length_offset = 0;
+        ls->protocol.package_body_offset = 0;
         ls->protocol.get_package_length = swMqtt_get_package_length;
         ls->protocol.onPackage = swReactorThread_dispatch;
         ls->onRead = swPort_onRead_check_length;

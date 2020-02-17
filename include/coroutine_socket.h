@@ -396,6 +396,7 @@ private:
         }
         protocol.package_length_type = 'N';
         protocol.package_length_size = 4;
+        protocol.package_length_offset = 0;
         protocol.package_body_offset = 0;
         protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
     }
