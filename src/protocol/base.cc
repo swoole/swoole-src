@@ -85,8 +85,10 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSoc
     }
     else if (n < buffer->length)
     {
+        off_t offset;
         swString_pop_front(buffer, n);
-        buffer->offset = buffer->length - protocol->package_eof_len;
+        offset = buffer->length - protocol->package_eof_len;
+        buffer->offset = offset > 0 ? offset : 0;
         return SW_CONTINUE;
     }
     else
