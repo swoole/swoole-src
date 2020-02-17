@@ -71,7 +71,7 @@ TEST(string, explode)
     const char *explode_str = nullptr;
     size_t explode_length = 0;
 
-    swoole::string_explode(&str, needle.c_str(), needle.length(), [&](char *data, size_t length) -> int
+    swoole::string_split(&str, needle.c_str(), needle.length(), [&](char *data, size_t length) -> int
     {
         explode_str = data;
         explode_length = length;
@@ -97,7 +97,7 @@ TEST(string, explode_2)
     int count = 0;
     vector<string> list;
 
-    size_t n = swoole::string_explode(&str, needle.c_str(), needle.length(), [&](char *data, size_t length) -> int
+    size_t n = swoole::string_split(&str, needle.c_str(), needle.length(), [&](char *data, size_t length) -> int
     {
         list.push_back(string(data, length-1));
         count ++;

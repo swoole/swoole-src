@@ -197,7 +197,13 @@ char* swString_alloc(swString *str, size_t __size)
     return tmp;
 }
 
-size_t swoole::string_explode(swString *str, const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler)
+/**
+ * @return retval
+ * 1. less than zero, ends the execution of the string_split function
+ * 2. equal to 0, eof was not found in the target string
+ * 3. greater than zero, 0 to retval has eof in the target string
+ */
+size_t swoole::string_split(swString *str, const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler)
 {
     const char *start_addr = str->str + str->offset;
     const char *delimiter_addr = swoole_strnstr(start_addr, str->length - str->offset, delimiter, delimiter_length);

@@ -71,7 +71,7 @@ protected:
 };
 
 typedef std::function<bool (char *, size_t)> StringExplodeHandler;
-size_t string_explode(swString *str, const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
+size_t string_split(swString *str, const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
 
 //-------------------------------------------------------------------------------
 }

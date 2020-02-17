@@ -66,7 +66,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSoc
 
     int retval;
 
-    size_t n = string_explode(buffer, protocol->package_eof, protocol->package_eof_len, [&](char *data, size_t length) -> int {
+    size_t n = string_split(buffer, protocol->package_eof, protocol->package_eof_len, [&](char *data, size_t length) -> int {
         if (protocol->onPackage(protocol, conn, data, length) < 0)
         {
             retval = SW_CLOSE;
