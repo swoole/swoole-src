@@ -212,6 +212,7 @@ size_t swoole::string_split(swString *str, const char *delimiter, size_t delimit
     const char *start_addr = str->str + str->offset;
     const char *delimiter_addr = swoole_strnstr(start_addr, str->length - str->offset, delimiter, delimiter_length);
     off_t offset = str->offset;
+    size_t ret;
 
     swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[0] count=%d, length=%ld, size=%ld, offset=%ld", count, str->length, str->size, (long) str->offset);
 
@@ -234,7 +235,17 @@ size_t swoole::string_split(swString *str, const char *delimiter, size_t delimit
         str->offset = str->length - delimiter_length;
     }
 
-    return start_addr - str->str - offset;
+    ret = start_addr - str->str - offset;
+    if (ret != 0 && ret < str->length)
+    {
+        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%zu", count, str->length - str->offset);
+    }
+    else if (ret >= str->length)
+    {
+        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%ld, offset=%ld", str->length, str->size, (long) str->offset);
+    }
+
+    return ret;
 }
 
 uint32_t swoole_utf8_decode(uchar **p, size_t n)
