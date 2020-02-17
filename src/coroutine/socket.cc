@@ -1648,7 +1648,10 @@ ssize_t Socket::recv_packet(double timeout)
         uint32_t header_len = protocol.package_length_offset + protocol.package_length_size;
         if (read_buffer->length > 0)
         {
-            if (read_buffer->length >= header_len || protocol.package_length_type == '\0')
+            if (
+                read_buffer->length >= header_len ||
+                (protocol.package_length_size == 0 && protocol.package_length_type == '\0') // custom package_length_func
+            )
             {
                 goto _get_length;
             }
