@@ -199,7 +199,7 @@ char* swString_alloc(swString *str, size_t __size)
 
 /**
  * @return retval
- * 1. less than zero, ends the execution of the string_split function
+ * 1. less than zero, the execution of the string_split function was terminated prematurely
  * 2. equal to zero, eof was not found in the target string
  * 3. greater than zero, 0 to retval has eof in the target string
  */
