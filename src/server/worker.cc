@@ -262,7 +262,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task, size_t data_len)
     case SW_SERVER_EVENT_SEND_DATA:
     {
         swConnection *conn = swServer_connection_verify(serv, task->info.fd);
-        if (conn && data_len > 0)
+        if (conn && serv->max_queued_bytes && data_len > 0)
         {
             sw_atomic_fetch_sub(&conn->queued_bytes, data_len);
         }

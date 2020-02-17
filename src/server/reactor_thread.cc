@@ -1102,7 +1102,8 @@ static void swReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *
 
     if (conn->queued_bytes > sw_server()->max_queued_bytes)
     {
-        if (conn->waiting_time != 1024) {
+        if (conn->waiting_time != 1024)
+        {
             conn->waiting_time *= 2;
         }
         conn->timer = swoole_timer_add(conn->waiting_time, false, swReactorThread_resume_data_receiving, _socket);
@@ -1173,7 +1174,7 @@ int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, char *data, u
         {
             return SW_ERR;
         }
-        if (length > 0)
+        if (serv->max_queued_bytes && length > 0)
         {
             sw_atomic_fetch_add(&conn->queued_bytes, length);
         }
