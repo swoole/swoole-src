@@ -2088,7 +2088,7 @@ static void** php_swoole_server_worker_create_buffers(swServer *serv, uint buffe
     return (void **) buffers;
 }
 
-static sw_inline zend_string *php_swoole_server_worker_get_input_buffer(swServer *serv, int reactor_id)
+static sw_inline zend_string* php_swoole_server_worker_get_input_buffer(swServer *serv, int reactor_id)
 {
     zend_string **buffers = (zend_string **) SwooleWG.input_buffers;
     if (serv->factory_mode == SW_MODE_BASE)
@@ -2131,6 +2131,7 @@ static void php_swoole_server_worker_copy_buffer_addr(swServer *serv, swPipeBuff
 {
     zend_string *worker_buffer = php_swoole_server_worker_get_input_buffer(serv, buffer->info.reactor_id);
     memcpy(buffer->data, &worker_buffer, sizeof(worker_buffer));
+    worker_buffer->val[worker_buffer->len] = '\0';
 }
 
 static void php_swoole_server_worker_clear_buffer(swServer *serv, swDataHead *info)
