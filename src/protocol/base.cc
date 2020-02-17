@@ -54,11 +54,6 @@ ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *conn, char
 
 static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSocket *conn, swString *buffer)
 {
-#ifdef SW_LOG_TRACE_OPEN
-    static int count;
-    count++;
-#endif
-
     if (buffer->length < protocol->package_eof_len)
     {
         return SW_CONTINUE;

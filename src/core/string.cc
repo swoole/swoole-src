@@ -205,13 +205,20 @@ char* swString_alloc(swString *str, size_t __size)
  */
 size_t swoole::string_split(swString *str, const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler)
 {
+#ifdef SW_LOG_TRACE_OPEN
+    static int count;
+    count++;
+#endif
     const char *start_addr = str->str + str->offset;
     const char *delimiter_addr = swoole_strnstr(start_addr, str->length - str->offset, delimiter, delimiter_length);
     off_t offset = str->offset;
 
+    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[0] count=%d, length=%ld, size=%ld, offset=%ld", count, str->length, str->size, (long) str->offset);
+
     while (delimiter_addr)
     {
         size_t length = delimiter_addr - start_addr + delimiter_length;
+        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[4] count=%d, length=%d", count, length + offset);
         if (handler((char *) start_addr - offset, length + offset) == false)
         {
             return -1;
