@@ -157,8 +157,10 @@ public:
         swHttp2_send_setting_frame(&sock->protocol, sock->socket);
 
         sock->open_length_check = true;
-        sock->protocol.get_package_length = swHttp2_get_frame_length;
         sock->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
+        sock->protocol.package_length_offset = 0;
+        sock->protocol.package_body_offset = 0;
+        sock->protocol.get_package_length = swHttp2_get_frame_length;
 
         http2_session session(ctx->fd);
         session.default_ctx = ctx;
