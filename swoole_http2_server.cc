@@ -46,6 +46,7 @@ http2_stream::http2_stream(http2_session *client, uint32_t _id)
 http2_stream::~http2_stream()
 {
     ctx->stream = nullptr;
+    ctx->end = true;
     swoole_http_context_free(ctx);
 }
 
@@ -351,11 +352,6 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
     http2_stream *stream = (http2_stream *) ctx->stream;
     char header_buffer[SW_BUFFER_SIZE_STD];
     ssize_t bytes;
-
-    if (sw_unlikely(!client))
-    {
-        return SW_ERR;
-    }
 
 #ifdef SW_HAVE_COMPRESSION
     if (ctx->accept_compression)
