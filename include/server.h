@@ -480,6 +480,7 @@ struct swServer
     /* buffer output/input setting*/
     uint32_t output_buffer_size;
     uint32_t input_buffer_size;
+    uint32_t max_queued_bytes;
 
     uint32_t ipc_max_size;
 
@@ -894,7 +895,7 @@ void swServer_worker_onStop(swServer *serv);
 int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn);
 int swServer_http_static_handler_add_location(swServer *serv, const char *location, size_t length);
 
-int swWorker_onTask(swFactory *factory, swEventData *task, size_t data_len);
+int swWorker_onTask(swFactory *factory, swEventData *task);
 void swWorker_stop(swWorker *worker);
 
 static sw_inline swConnection *swWorker_get_connection(swServer *serv, int session_id)

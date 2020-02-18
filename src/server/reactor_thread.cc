@@ -34,6 +34,7 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint32_t length);
 static int swReactorThread_is_empty(swReactor *reactor);
 static void swReactorThread_shutdown(swReactor *reactor);
+static void swReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *tnode);
 
 static void swHeartbeatThread_start(swServer *serv);
 static void swHeartbeatThread_loop(swThreadParam *param);
@@ -205,6 +206,11 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
 {
     swServer *serv = (swServer *) reactor->ptr;
     swConnection *conn = (swConnection *) socket->object;
+
+    if (conn->timer)
+    {
+        swoole_timer_del(conn->timer);
+    }
 
     if (!socket->removed && reactor->del(reactor, socket) < 0)
     {
@@ -574,12 +580,12 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
 static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
 {
     swServer *serv = (swServer *) reactor->ptr;
-    swConnection *session = swServer_connection_get(serv, event->fd);
+    swConnection *conn = swServer_connection_get(serv, event->fd);
     /**
      * invalid event
      * The server has been actively closed the connection, the client also initiated off, fd has been reused.
      */
-    if (!session || session->server_fd == 0)
+    if (!conn || conn->server_fd == 0)
     {
         return SW_OK;
     }
@@ -591,12 +597,22 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     }
 #endif
 
-    session->last_time = serv->gs->now;
+    conn->last_time = serv->gs->now;
 #ifdef SW_BUFFER_RECV_TIME
-    session->last_time_usec = swoole_microtime();
+    conn->last_time_usec = swoole_microtime();
 #endif
 
-    return port->onRead(reactor, port, event);
+    int retval = port->onRead(reactor, port, event);
+    if (serv->factory_mode == SW_MODE_PROCESS && serv->max_queued_bytes && conn->queued_bytes > serv->max_queued_bytes)
+    {
+        conn->waiting_time = 1;
+        conn->timer = swoole_timer_add(conn->waiting_time, false, swReactorThread_resume_data_receiving, event->socket);
+        if (conn->timer)
+        {
+            swReactor_remove_read_event(sw_reactor(), event->socket);
+        }
+    }
+    return retval;
 }
 
 static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
@@ -1079,6 +1095,28 @@ static int swReactorThread_loop(swThreadParam *param)
     return SW_OK;
 }
 
+static void swReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *tnode)
+{
+    swSocket *_socket = (swSocket *) tnode->data;
+    swConnection *conn = (swConnection *) _socket->object;
+
+    if (conn->queued_bytes > sw_server()->max_queued_bytes)
+    {
+        if (conn->waiting_time != 1024)
+        {
+            conn->waiting_time *= 2;
+        }
+        conn->timer = swoole_timer_add(conn->waiting_time, false, swReactorThread_resume_data_receiving, _socket);
+        if (conn->timer)
+        {
+            return;
+        }
+    }
+
+    swReactor_add_read_event(sw_reactor(), _socket);
+    conn->timer = nullptr;
+}
+
 /**
  * dispatch request data [only data frame]
  */
@@ -1132,7 +1170,16 @@ int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, char *data, u
         task.info.fd = conn->fd;
         task.info.len = length;
         task.data = data;
-        return serv->factory.dispatch(&serv->factory, &task);
+        if (serv->factory.dispatch(&serv->factory, &task) < 0)
+        {
+            return SW_ERR;
+        }
+        if (serv->max_queued_bytes && length > 0)
+        {
+            sw_atomic_fetch_add(&conn->queued_bytes, length);
+            swTraceLog(SW_TRACE_SERVER, "[Master] len=%d, qb=%d\n", length, conn->queued_bytes);
+        }
+        return SW_OK;
     }
 }
 

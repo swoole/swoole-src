@@ -234,6 +234,10 @@ static int swServer_start_check(swServer *serv)
             serv->send_yield = 0;
         }
     }
+    else
+    {
+        serv->max_queued_bytes = 0;
+    }
     //AsyncTask
     if (serv->task_worker_num > 0)
     {
