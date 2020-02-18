@@ -352,6 +352,11 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
     char header_buffer[SW_BUFFER_SIZE_STD];
     ssize_t bytes;
 
+    if (sw_unlikely(!client))
+    {
+        return SW_ERR;
+    }
+
 #ifdef SW_HAVE_COMPRESSION
     if (ctx->accept_compression)
     {
