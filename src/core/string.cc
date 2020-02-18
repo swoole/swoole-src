@@ -236,7 +236,7 @@ size_t swoole::string_split(swString *str, const char *delimiter, size_t delimit
     }
 
     ret = start_addr - str->str - offset;
-    if (ret != 0 && ret < str->length)
+    if (ret > 0 && ret < str->length)
     {
         swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%zu", count, str->length - str->offset);
     }
