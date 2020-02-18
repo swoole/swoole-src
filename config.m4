@@ -407,16 +407,16 @@ if test "$PHP_SWOOLE" != "no"; then
 
     swoole_source_file=" \
         php_swoole_cxx.cc \
-        src/core/array.c \
-        src/core/base.c \
-        src/core/channel.c \
+        src/core/array.cc \
+        src/core/base.cc \
+        src/core/channel.cc \
         src/core/error.cc \
-        src/core/hashmap.c \
-        src/core/heap.c \
-        src/core/list.c \
-        src/core/log.c \
-        src/core/rbtree.c \
-        src/core/ring_queue.c \
+        src/core/hashmap.cc \
+        src/core/heap.cc \
+        src/core/list.cc \
+        src/core/log.cc \
+        src/core/rbtree.cc \
+        src/core/ring_queue.cc \
         src/core/socket.cc \
         src/core/string.cc \
         src/coroutine/base.cc \
@@ -428,53 +428,53 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/system.cc \
         src/coroutine/thread_context.cc \
         src/coroutine/ucontext.cc \
-        src/lock/atomic.c \
-        src/lock/cond.c \
-        src/lock/file_lock.c \
-        src/lock/mutex.c \
-        src/lock/rw_lock.c \
-        src/lock/semaphore.c \
-        src/lock/spin_lock.c \
-        src/memory/buffer.c \
-        src/memory/fixed_pool.c \
-        src/memory/global_memory.c \
-        src/memory/malloc.c \
-        src/memory/ring_buffer.c \
-        src/memory/shared_memory.c \
-        src/memory/table.c \
+        src/lock/atomic.cc \
+        src/lock/cond.cc \
+        src/lock/file_lock.cc \
+        src/lock/mutex.cc \
+        src/lock/rw_lock.cc \
+        src/lock/semaphore.cc \
+        src/lock/spin_lock.cc \
+        src/memory/buffer.cc \
+        src/memory/fixed_pool.cc \
+        src/memory/global_memory.cc \
+        src/memory/malloc.cc \
+        src/memory/ring_buffer.cc \
+        src/memory/shared_memory.cc \
+        src/memory/table.cc \
         src/network/client.cc \
         src/network/connection.cc \
         src/network/dns.cc \
         src/network/process_pool.cc \
-        src/network/stream.c \
-        src/network/thread_pool.c \
-        src/network/timer.c \
+        src/network/stream.cc \
+        src/network/thread_pool.cc \
+        src/network/timer.cc \
         src/os/async_thread.cc \
-        src/os/base.c \
-        src/os/msg_queue.c \
-        src/os/sendfile.c \
-        src/os/signal.c \
-        src/os/timer.c \
+        src/os/base.cc \
+        src/os/msg_queue.cc \
+        src/os/sendfile.cc \
+        src/os/signal.cc \
+        src/os/timer.cc \
         src/os/wait.cc \
-        src/pipe/base.c \
-        src/pipe/eventfd.c \
-        src/pipe/unix_socket.c \
+        src/pipe/base.cc \
+        src/pipe/eventfd.cc \
+        src/pipe/unix_socket.cc \
         src/protocol/base.cc \
-        src/protocol/base64.c \
+        src/protocol/base64.cc \
         src/protocol/http.cc \
-        src/protocol/http2.c \
+        src/protocol/http2.cc \
         src/protocol/mime_types.cc \
-        src/protocol/mqtt.c \
-        src/protocol/redis.c \
-        src/protocol/sha1.c \
-        src/protocol/socks5.c \
-        src/protocol/ssl.c \
+        src/protocol/mqtt.cc \
+        src/protocol/redis.cc \
+        src/protocol/sha1.cc \
+        src/protocol/socks5.cc \
+        src/protocol/ssl.cc \
         src/protocol/websocket.cc \
         src/reactor/base.cc \
         src/reactor/epoll.cc \
-        src/reactor/kqueue.c \
-        src/reactor/poll.c \
-        src/reactor/select.c \
+        src/reactor/kqueue.cc \
+        src/reactor/poll.cc \
+        src/reactor/select.cc \
         src/server/base.cc \
         src/server/manager.cc \
         src/server/master.cc \
