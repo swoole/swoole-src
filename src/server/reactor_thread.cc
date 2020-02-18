@@ -1177,6 +1177,7 @@ int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, char *data, u
         if (serv->max_queued_bytes && length > 0)
         {
             sw_atomic_fetch_add(&conn->queued_bytes, length);
+            swTraceLog(SW_TRACE_SERVER, "[Master] len=%d, qb=%d\n", length, conn->queued_bytes);
         }
         return SW_OK;
     }

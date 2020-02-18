@@ -268,6 +268,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         if (conn && serv->max_queued_bytes && task->info.len > 0)
         {
             sw_atomic_fetch_sub(&conn->queued_bytes, task->info.len);
+            swTraceLog(SW_TRACE_SERVER, "[Worker] len=%d, qb=%d\n",  task->info.len, conn->queued_bytes);
         }
         //discard data
         if (swWorker_discard_data(serv, conn, task) == SW_TRUE)

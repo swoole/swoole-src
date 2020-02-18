@@ -29,6 +29,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         }
     }
     Assert::assert($bytes > N);
+    $pm->wait();
     $pm->kill();
     echo "DONE\n";
 };
@@ -43,12 +44,16 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('receive', static function ($serv, $fd, $reactor_id, $data) {
-        static $bytes = 0;
+    $serv->on('receive', static function ($serv, $fd, $reactor_id, $data) use ($pm) {
+        static $bytes;
         $bytes += strlen($data);
         phpt_echo("Server received {$bytes} bytes\n");
         usleep(1000);
+        if ($bytes > N) {
+            $pm->wakeup();
+        }
     });
+
     $serv->start();
 };
 
