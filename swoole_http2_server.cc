@@ -350,7 +350,7 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
     http2_session *client = http2_sessions[ctx->fd];
     http2_stream *stream = (http2_stream *) ctx->stream;
     char header_buffer[SW_BUFFER_SIZE_STD];
-    ssize_t ret; // FIXME: bytes
+    ssize_t bytes;
 
 #ifdef SW_HAVE_COMPRESSION
     if (ctx->accept_compression)
@@ -366,8 +366,8 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
     }
 #endif
 
-    ret = http2_build_header(ctx, (uchar *) header_buffer, body->length);
-    if (ret < 0)
+    bytes = http2_build_header(ctx, (uchar *) header_buffer, body->length);
+    if (bytes < 0)
     {
         return SW_ERR;
     }
@@ -396,15 +396,15 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
 
     if (!ztrailer && body->length == 0)
     {
-        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->id);
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->id);
     }
     else
     {
-        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS, stream->id);
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS, stream->id);
     }
 
     swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
-    swString_append_ptr(swoole_http_buffer, header_buffer, ret);
+    swString_append_ptr(swoole_http_buffer, header_buffer, bytes);
 
     int flag = SW_HTTP2_FLAG_END_STREAM;
     if (ztrailer)
@@ -464,12 +464,12 @@ int swoole_http2_server_do_response(http_context *ctx, swString *body)
     {
         swString_clear(swoole_http_buffer);
         memset(header_buffer, 0, sizeof(header_buffer));
-        ret = http2_build_trailer(ctx, (uchar *) header_buffer);
-        if (ret > 0)
+        bytes = http2_build_trailer(ctx, (uchar *) header_buffer);
+        if (bytes > 0)
         {
-            swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->id);
+            swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->id);
             swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
-            swString_append_ptr(swoole_http_buffer, header_buffer, ret);
+            swString_append_ptr(swoole_http_buffer, header_buffer, bytes);
             if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length))
             {
                 ctx->close(ctx);
