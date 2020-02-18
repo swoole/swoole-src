@@ -16,8 +16,10 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
+#include "swoole_cxx.h"
 #include "connection.h"
+
+using namespace swoole;
 
 /**
  * return the package total length
@@ -52,61 +54,55 @@ ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *conn, char
 
 static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSocket *conn, swString *buffer)
 {
-#ifdef SW_LOG_TRACE_OPEN
-    static int count;
-    count++;
-#endif
-
-    int eof_pos;
-    _find_eof:
     if (buffer->length < protocol->package_eof_len)
     {
         return SW_CONTINUE;
     }
-    else if (buffer->length - buffer->offset < protocol->package_eof_len)
+
+    int retval;
+
+    size_t n = string_split(buffer, protocol->package_eof, protocol->package_eof_len, [&](char *data, size_t length) -> int {
+        if (protocol->onPackage(protocol, conn, data, length) < 0)
+        {
+            retval = SW_CLOSE;
+            return false;
+        }
+        if (conn->removed)
+        {
+            retval = SW_OK;
+            return false;
+        }
+        return true;
+    });
+
+    if (n < 0)
     {
-        eof_pos = -1;
+        return retval;
+    }
+    else if (n == 0)
+    {
+        return SW_CONTINUE;
+    }
+    else if (n < buffer->length)
+    {
+        off_t offset;
+        swString_pop_front(buffer, n);
+        offset = buffer->length - protocol->package_eof_len;
+        buffer->offset = offset > 0 ? offset : 0;
+        return SW_CONTINUE;
     }
     else
     {
-        eof_pos = swoole_strnpos(buffer->str + buffer->offset, buffer->length - buffer->offset, protocol->package_eof, protocol->package_eof_len);
+        swString_clear(buffer);
     }
 
-    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[0] count=%d, length=%ld, size=%ld, offset=%ld", count, buffer->length, buffer->size, (long)buffer->offset);
-
-    //waiting for more data
-    if (eof_pos < 0)
-    {
-        buffer->offset = buffer->length - protocol->package_eof_len;
-        return SW_CONTINUE;
-    }
-
-    uint32_t length = buffer->offset + eof_pos + protocol->package_eof_len;
-    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[4] count=%d, length=%d", count, length);
-    if (protocol->onPackage(protocol, conn, buffer->str, length) < 0)
-    {
-        return SW_CLOSE;
-    }
-    if (conn->removed)
-    {
-        return SW_OK;
-    }
-
-    //there are remaining data
-    if (length < buffer->length)
-    {
-        swString_pop_front(buffer, length);
-        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%zu", count, buffer->length);
-        goto _find_eof;
-    }
-    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%ld, offset=%ld", buffer->length, buffer->size, (long)buffer->offset);
-    swString_clear(buffer);
 #ifdef SW_USE_OPENSSL
     if (conn->ssl)
     {
         return SW_CONTINUE;
     }
 #endif
+
     return SW_OK;
 }
 

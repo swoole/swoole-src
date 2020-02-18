@@ -1443,25 +1443,7 @@ static sw_inline int32_t swoole_unpack(char type, const void *data)
     }
 }
 
-static inline char* swoole_strnstr(const char *haystack, const char *needle, uint32_t length)
-{
-    int i;
-    uint32_t needle_length = strlen(needle);
-    assert(needle_length > 0);
-
-    for (i = 0; i < (int) (length - needle_length + 1); i++)
-    {
-        if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length)))
-        {
-            return (char *) haystack;
-        }
-        haystack++;
-    }
-
-    return NULL;
-}
-
-static inline int swoole_strnpos(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
+static inline const char *swoole_strnstr(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
 {
     assert(needle_length > 0);
     uint32_t i;
@@ -1472,13 +1454,22 @@ static inline int swoole_strnpos(const char *haystack, uint32_t haystack_length,
         {
             if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length)))
             {
-                return i;
+                return haystack;
             }
             haystack++;
         }
     }
 
-    return -1;
+    return NULL;
+}
+
+static inline int swoole_strnpos(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
+{
+    assert(needle_length > 0);
+    const char *pos;
+
+    pos = swoole_strnstr(haystack, haystack_length, needle, needle_length);
+    return pos == NULL ? -1 : pos - haystack;
 }
 
 static inline int swoole_strrnpos(const char *haystack, const char *needle, uint32_t length)

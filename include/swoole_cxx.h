@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <cstdio>
+#include <functional>
 
 namespace swoole {
 //-------------------------------------------------------------------------------
@@ -68,6 +69,9 @@ public:
 protected:
     std::list<Callback *> list_;
 };
+
+typedef std::function<bool (char *, size_t)> StringExplodeHandler;
+size_t string_split(swString *str, const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
 
 //-------------------------------------------------------------------------------
 }
