@@ -201,7 +201,7 @@ char* swString_alloc(swString *str, size_t __size)
  * @return retval
  * 1. less than zero, the execution of the string_split function was terminated prematurely
  * 2. equal to zero, eof was not found in the target string
- * 3. greater than zero, 0 to retval has eof in the target string
+ * 3. greater than zero, 0 to retval has eof in the target string, and the position of retval is eof
  */
 size_t swoole::string_split(swString *str, const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler)
 {
