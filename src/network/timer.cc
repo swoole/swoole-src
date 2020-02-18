@@ -147,7 +147,7 @@ swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, 
         return NULL;
     }
 
-    swTimer_node *tnode = sw_malloc(sizeof(swTimer_node));
+    swTimer_node *tnode = (swTimer_node *) sw_malloc(sizeof(swTimer_node));
     if (sw_unlikely(!tnode))
     {
         swSysWarn("malloc(%ld) failed", sizeof(swTimer_node));
@@ -244,7 +244,7 @@ int swTimer_select(swTimer *timer)
     swTraceLog(SW_TRACE_TIMER, "timer msec=%" PRId64 ", round=%" PRId64, now_msec, timer->round);
     while ((tmp = swHeap_top(timer->heap)))
     {
-        tnode = tmp->data;
+        tnode = (swTimer_node *) tmp->data;
         if (tnode->exec_msec > now_msec || tnode->round == timer->round)
         {
             break;

@@ -48,7 +48,7 @@ swChannel* swChannel_new(size_t size, int maxlen, int flags)
         swWarn("swChannel_create: malloc(%ld) failed", size);
         return NULL;
     }
-    swChannel *object = mem;
+    swChannel *object = (swChannel *) mem;
     mem = (char*) mem + sizeof(swChannel);
 
     bzero(object, sizeof(swChannel));

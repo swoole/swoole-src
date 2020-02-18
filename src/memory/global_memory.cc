@@ -77,7 +77,7 @@ swMemoryPool* swMemoryGlobal_new(uint32_t pagesize, uint8_t shared)
 
 static swMemoryGlobal_page* swMemoryGlobal_new_page(swMemoryGlobal *gm)
 {
-    swMemoryGlobal_page *page = (gm->shared == 1) ? sw_shm_malloc(gm->pagesize) : sw_malloc(gm->pagesize);
+    swMemoryGlobal_page *page = (swMemoryGlobal_page *)((gm->shared == 1) ? sw_shm_malloc(gm->pagesize) : sw_malloc(gm->pagesize));
     if (page == NULL)
     {
         return NULL;
@@ -98,7 +98,7 @@ static swMemoryGlobal_page* swMemoryGlobal_new_page(swMemoryGlobal *gm)
 
 static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
 {
-    swMemoryGlobal *gm = pool->object;
+    swMemoryGlobal *gm = (swMemoryGlobal *) pool->object;
     size = SW_MEM_ALIGNED_SIZE(size);
     gm->lock.lock(&gm->lock);
     if (size > gm->pagesize - sizeof(swMemoryGlobal_page))
@@ -131,7 +131,7 @@ static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr)
 
 static void swMemoryGlobal_destroy(swMemoryPool *poll)
 {
-    swMemoryGlobal *gm = poll->object;
+    swMemoryGlobal *gm = (swMemoryGlobal *) poll->object;
     swMemoryGlobal_page *page = gm->root_page;
     swMemoryGlobal_page *next;
 

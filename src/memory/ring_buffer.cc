@@ -60,14 +60,14 @@ swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared)
         return NULL;
     }
 
-    swRingBuffer *object = mem;
+    swRingBuffer *object = (swRingBuffer *) mem;
     mem = (char *) mem + sizeof(swRingBuffer);
     bzero(object, sizeof(swRingBuffer));
 
     object->size = (size - sizeof(swRingBuffer) - sizeof(swMemoryPool));
     object->shared = shared;
 
-    swMemoryPool *pool = mem;
+    swMemoryPool *pool = (swMemoryPool *) mem;
     mem = (char *) mem + sizeof(swMemoryPool);
 
     pool->object = object;
@@ -119,7 +119,7 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
 {
     assert(size > 0);
 
-    swRingBuffer *object = pool->object;
+    swRingBuffer *object = (swRingBuffer *) pool->object;
     swRingBuffer_item *item;
     uint32_t capacity;
 
@@ -178,7 +178,7 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
 
 static void swRingBuffer_free(swMemoryPool *pool, void *ptr)
 {
-    swRingBuffer *object = pool->object;
+    swRingBuffer *object = (swRingBuffer *) pool->object;
     swRingBuffer_item *item = (swRingBuffer_item *) ((char *) ptr - sizeof(swRingBuffer_item));
 
     assert(ptr >= object->memory);
@@ -202,7 +202,7 @@ static void swRingBuffer_free(swMemoryPool *pool, void *ptr)
 
 static void swRingBuffer_destroy(swMemoryPool *pool)
 {
-    swRingBuffer *object = pool->object;
+    swRingBuffer *object = (swRingBuffer *) pool->object;
     if (object->shared)
     {
         sw_shm_free(object);

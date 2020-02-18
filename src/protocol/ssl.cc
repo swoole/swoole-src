@@ -290,7 +290,7 @@ static void swSSL_info_callback(const SSL *ssl, int where, int ret)
 
     if (where & SSL_CB_HANDSHAKE_START)
     {
-        sock = SSL_get_ex_data(ssl, ssl_connection_index);
+        sock = (swSocket *) SSL_get_ex_data(ssl, ssl_connection_index);
 
         if (sock->ssl_state == SW_SSL_STATE_READY)
         {
@@ -301,7 +301,7 @@ static void swSSL_info_callback(const SSL *ssl, int where, int ret)
 
     if ((where & SSL_CB_ACCEPT_LOOP) == SSL_CB_ACCEPT_LOOP)
     {
-        sock = SSL_get_ex_data(ssl, ssl_connection_index);
+        sock = (swSocket *) SSL_get_ex_data(ssl, ssl_connection_index);
 
         if (!sock->ssl_handshake_buffer_set)
         {
@@ -738,6 +738,7 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
     long len;
     BIO *bio;
     X509 *cert;
+    int n;
 
     cert = SSL_get_peer_certificate(ssl);
     if (cert == NULL)
@@ -766,7 +767,7 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
         goto _failed;
     }
 
-    int n = BIO_read(bio, buffer, len);
+    n = BIO_read(bio, buffer, len);
 
     BIO_free(bio);
     X509_free(cert);
@@ -1297,7 +1298,7 @@ static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, con
     unsigned char *srv;
 
 #ifdef SW_USE_HTTP2
-    swSSL_config *cfg = arg;
+    swSSL_config *cfg = (swSSL_config *) arg;
     if (cfg->http_v2)
     {
         srv = (unsigned char *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
@@ -1322,7 +1323,7 @@ static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, con
 static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg)
 {
 #ifdef SW_USE_HTTP2
-    swSSL_config *cfg = arg;
+    swSSL_config *cfg = (swSSL_config *) arg;
     if (cfg->http_v2)
     {
         *out = (uchar *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;

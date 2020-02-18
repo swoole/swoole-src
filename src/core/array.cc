@@ -22,7 +22,7 @@
  */
 swArray *swArray_new(int page_size, size_t item_size)
 {
-    swArray *array = sw_malloc(sizeof(swArray));
+    swArray *array = (swArray *) sw_malloc(sizeof(swArray));
     if (array == NULL)
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "malloc[0] failed");
@@ -30,7 +30,7 @@ swArray *swArray_new(int page_size, size_t item_size)
     }
     bzero(array, sizeof(swArray));
 
-    array->pages = sw_malloc(sizeof(void*) * SW_ARRAY_PAGE_MAX);
+    array->pages = (void**) sw_malloc(sizeof(void*) * SW_ARRAY_PAGE_MAX);
     if (array->pages == NULL)
     {
         sw_free(array);

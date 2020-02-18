@@ -22,7 +22,7 @@ static void swMalloc_destroy(swMemoryPool *pool);
 
 swMemoryPool* swMalloc_new()
 {
-    swMemoryPool *pool = sw_malloc(sizeof(swMemoryPool));
+    swMemoryPool *pool = (swMemoryPool *) sw_malloc(sizeof(swMemoryPool));
     if (pool == NULL)
     {
         swSysWarn("mallc(%ld) failed", sizeof(swMemoryPool));

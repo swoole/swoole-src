@@ -42,7 +42,7 @@ static void swStream_onError(swClient *cli)
 {
     swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_CONNECT_FAIL,
             " connect() failed (%d: %s) while connecting to worker process", errno, strerror(errno));
-    swStream_free(cli->object);
+    swStream_free((swStream *) cli->object);
 }
 
 static void swStream_onReceive(swClient *cli, char *data, uint32_t length)
@@ -60,7 +60,7 @@ static void swStream_onReceive(swClient *cli, char *data, uint32_t length)
 
 static void swStream_onClose(swClient *cli)
 {
-    swStream_free(cli->object);
+    swStream_free((swStream *) cli->object);
 }
 
 static void swStream_free(swStream *stream)

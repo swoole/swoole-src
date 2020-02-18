@@ -415,12 +415,12 @@ void *swRbtree_find(swRbtree *tree, uint32_t key)
 
 swRbtree* swRbtree_new()
 {
-    swRbtree *rbtree = sw_malloc(sizeof(swRbtree));
+    swRbtree *rbtree = (swRbtree *) sw_malloc(sizeof(swRbtree));
     if (rbtree == NULL)
     {
         return NULL;
     }
-    swRbtree_node *sentinel = sw_malloc(sizeof(swRbtree_node));
+    swRbtree_node *sentinel = (swRbtree_node *) sw_malloc(sizeof(swRbtree_node));
     if (sentinel == NULL)
     {
         sw_free(rbtree);

@@ -68,20 +68,20 @@ static sw_inline swHashMap_node* swHashMap_node_each(swHashMap* hmap)
 {
     if (hmap->iterator)
     {
-        return hmap->iterator = hmap->iterator->hh.next;
+        return hmap->iterator = (struct swHashMap_node *) hmap->iterator->hh.next;
     }
     return NULL;
 }
 
 swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
 {
-    swHashMap *hmap = sw_malloc(sizeof(swHashMap));
+    swHashMap *hmap = (swHashMap *) sw_malloc(sizeof(swHashMap));
     if (!hmap)
     {
         swWarn("malloc[1] failed");
         return NULL;
     }
-    swHashMap_node *root = sw_malloc(sizeof(swHashMap_node));
+    swHashMap_node *root = (swHashMap_node *) sw_malloc(sizeof(swHashMap_node));
     if (!root)
     {
         swWarn("malloc[2] failed");

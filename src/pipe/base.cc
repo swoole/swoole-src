@@ -64,7 +64,7 @@ swSocket* swPipe_getSocket(swPipe *p, int master)
 int swPipeBase_create(swPipe *p, int blocking)
 {
     int ret;
-    swPipeBase *object = sw_malloc(sizeof(swPipeBase));
+    swPipeBase *object = (swPipeBase *) sw_malloc(sizeof(swPipeBase));
     if (object == NULL)
     {
         return -1;
@@ -97,7 +97,7 @@ int swPipeBase_create(swPipe *p, int blocking)
 
 static int swPipeBase_read(swPipe *p, void *data, int length)
 {
-    swPipeBase *object = p->object;
+    swPipeBase *object = (swPipeBase *) p->object;
     if (p->blocking == 1 && p->timeout > 0)
     {
         if (swSocket_wait(object->pipes[0], p->timeout * 1000, SW_EVENT_READ) < 0)
@@ -110,13 +110,13 @@ static int swPipeBase_read(swPipe *p, void *data, int length)
 
 static int swPipeBase_write(swPipe *p, void *data, int length)
 {
-    swPipeBase *object = p->object;
+    swPipeBase *object = (swPipeBase *) p->object;
     return write(object->pipes[1], data, length);
 }
 
 static int swPipeBase_close(swPipe *p)
 {
-    swPipeBase *object = p->object;
+    swPipeBase *object = (swPipeBase *) p->object;
     swSocket_free(p->master_socket);
     swSocket_free(p->worker_socket);
     sw_free(object);

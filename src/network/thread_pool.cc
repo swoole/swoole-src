@@ -138,8 +138,8 @@ int swThreadPool_free(swThreadPool *pool)
 
 static void* swThreadPool_loop(void *arg)
 {
-    swThreadParam *param = arg;
-    swThreadPool *pool = param->object;
+    swThreadParam *param = (swThreadParam *) arg;
+    swThreadPool *pool = (swThreadPool *) param->object;
 
     int id = param->pti;
     int ret;

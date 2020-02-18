@@ -218,7 +218,7 @@ pid_t swoole_fork(int flags)
             /**
              * reopen log file
              */
-            swLog_reopen(0);
+            swLog_reopen(SW_FALSE);
             /**
              * reset eventLoop
              */
@@ -1019,7 +1019,7 @@ static int *swoole_kmp_borders(char *needle, size_t nlen)
         return NULL;
     }
 
-    int i, j, *borders = sw_malloc((nlen + 1) * sizeof(*borders));
+    int i, j, *borders = (int *) sw_malloc((nlen + 1) * sizeof(*borders));
     if (!borders)
     {
         return NULL;
@@ -1150,7 +1150,7 @@ int swoole_gethostbyname(int flags, const char *name, char *addr)
     while ((rc = gethostbyname2_r(name, __af, &hbuf, buf, buf_len, &result, &err)) == ERANGE)
     {
         buf_len *= 2;
-        void *tmp = sw_realloc(buf, buf_len);
+        char *tmp = (char*) sw_realloc(buf, buf_len);
         if (NULL == tmp)
         {
             sw_free(buf);
@@ -1334,11 +1334,11 @@ SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int pu
     }
     if (push_back)
     {
-        return swLinkedList_append(SwooleG.hooks[type], func);
+        return swLinkedList_append(SwooleG.hooks[type], (void*) func);
     }
     else
     {
-        return swLinkedList_prepend(SwooleG.hooks[type], func);
+        return swLinkedList_prepend(SwooleG.hooks[type], (void*) func);
     }
 }
 
@@ -1350,7 +1350,7 @@ SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg)
 
     while (node)
     {
-        func = node->data;
+        func = (swCallback) node->data;
         func(arg);
         node = node->next;
     }
@@ -1416,7 +1416,7 @@ int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream)
 
 char* swoole_string_format(size_t n, const char *format, ...)
 {
-    char *buf = sw_malloc(n);
+    char *buf = (char*) sw_malloc(n);
     if (!buf)
     {
         return NULL;
