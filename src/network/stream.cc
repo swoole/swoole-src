@@ -146,18 +146,18 @@ int swStream_send(swStream *stream, char *data, size_t length)
 int swStream_recv_blocking(int fd, void *__buf, size_t __len)
 {
     int tmp = 0;
-    int ret = swSocket_recv_blocking(fd, &tmp, sizeof(tmp), MSG_WAITALL);
+    ssize_t ret = swSocket_recv_blocking(fd, &tmp, sizeof(tmp), MSG_WAITALL);
 
     if (ret <= 0)
     {
         return SW_CLOSE;
     }
-    int length = ntohl(tmp);
+    int length = (int) ntohl(tmp);
     if (length <= 0)
     {
         return SW_CLOSE;
     }
-    else if (length > __len)
+    else if (length > (int) __len)
     {
         return SW_CLOSE;
     }

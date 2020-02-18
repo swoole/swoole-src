@@ -150,7 +150,7 @@ void swSSL_destroy()
     }
     openssl_init = 0;
 #if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
-    CRYPTO_THREADID_set_callback(NULL);
+    (void) CRYPTO_THREADID_set_callback(NULL);
 #else
     CRYPTO_set_id_callback(NULL);
 #endif
@@ -202,7 +202,7 @@ void swSSL_init_thread_safety()
     }
 
 #if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
-    CRYPTO_THREADID_set_callback(swSSL_id_callback);
+    (void) CRYPTO_THREADID_set_callback(swSSL_id_callback);
 #else
     CRYPTO_set_id_callback(swSSL_id_callback);
 #endif
@@ -273,7 +273,7 @@ static int swSSL_passwd_callback(char *buf, int num, int verify, void *data)
     swSSL_option *option = (swSSL_option *) data;
     if (option->passphrase)
     {
-        size_t len = strlen(option->passphrase);
+        int len = strlen(option->passphrase);
         if (len < num - 1)
         {
             memcpy(buf, option->passphrase, len + 1);
@@ -761,7 +761,7 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
     }
 
     len = BIO_pending(bio);
-    if (len < 0 && len > length)
+    if (len < 0 && len > (long) length)
     {
         swWarn("certificate length[%ld] is too big", len);
         goto _failed;
@@ -975,7 +975,7 @@ void swSSL_close(swSocket *conn)
 
 static sw_inline void swSSL_connection_error(swSocket *conn)
 {
-    int level = SW_LOG_NOTICE;
+    uint32_t level = SW_LOG_NOTICE;
     int reason = ERR_GET_REASON(ERR_peek_error());
 
 #if 0

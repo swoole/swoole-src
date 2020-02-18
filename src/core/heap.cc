@@ -210,8 +210,7 @@ void *swHeap_peek(swHeap *heap)
 
 void swHeap_print(swHeap *heap)
 {
-    int i;
-    for(i = 1; i < heap->num; i++)
+    for(uint32_t i = 1; i < heap->num; i++)
     {
         printf("#%d\tpriority=%ld, data=%p\n", i, (long)heap->nodes[i]->priority, heap->nodes[i]->data);
     }

@@ -195,8 +195,7 @@ int swTable_create(swTable *table)
     memory = (char *) memory + table->size * sizeof(swTableRow *);
     memory_size -= table->size * sizeof(swTableRow *);
 
-    int i;
-    for (i = 0; i < table->size; i++)
+    for (size_t i = 0; i < table->size; i++)
     {
         table->rows[i] = (swTableRow *) ((char *) memory + (row_memory_size * i));
         memset(table->rows[i], 0, sizeof(swTableRow));
@@ -269,7 +268,7 @@ void swTable_iterator_forward(swTable *table)
         }
         else
         {
-            int i = 0;
+            uint32_t i = 0;
             for (;; i++)
             {
                 if (row == NULL)

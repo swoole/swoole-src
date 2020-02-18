@@ -262,8 +262,7 @@ uint64_t swoole_hash_key(char *str, int str_len)
 
 void swoole_dump_ascii(const char *data, size_t size)
 {
-    int i;
-    for (i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         printf("%d ", (unsigned) data[i]);
     }
@@ -289,8 +288,7 @@ void swoole_dump_bin(const char *data, char type, size_t size)
 
 void swoole_dump_hex(const char *data, size_t outlen)
 {
-    long i;
-    for (i = 0; i < outlen; ++i)
+    for (size_t i = 0; i < outlen; ++i)
     {
         if ((i & 0x0fu) == 0)
         {
@@ -745,7 +743,7 @@ int swoole_file_put_contents(const char *filename, const char *content, size_t l
         return SW_ERR;
     }
 
-    int n, chunk_size, written = 0;
+    size_t n, chunk_size, written = 0;
 
     while(written < length)
     {
@@ -890,7 +888,7 @@ size_t sw_snprintf(char *buf, size_t size, const char *format, ...)
         retval = 0;
         buf[0] = '\0';
     }
-    else if (sw_unlikely(retval >= size))
+    else if (sw_unlikely(retval >= (int )size))
     {
         retval = size - 1;
         buf[retval] = '\0';
@@ -906,7 +904,7 @@ size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args)
         retval = 0;
         buf[0] = '\0';
     }
-    else if (sw_unlikely(retval >= size))
+    else if (sw_unlikely(retval >= (int )size))
     {
         retval = size - 1;
         buf[retval] = '\0';

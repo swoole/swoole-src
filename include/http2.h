@@ -144,7 +144,7 @@ static sw_inline ssize_t swHttp2_get_length(const char *buf)
 
 ssize_t swHttp2_get_frame_length(swProtocol *protocol, swSocket *conn, char *buf, uint32_t length);
 int swHttp2_send_setting_frame(swProtocol *protocol, swSocket *conn);
-char* swHttp2_get_type(int type);
+const char* swHttp2_get_type(int type);
 int swHttp2_get_type_color(int type);
 
 static sw_inline void swHttp2_init_settings(swHttp2_settings *settings)

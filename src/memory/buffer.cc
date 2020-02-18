@@ -139,7 +139,7 @@ int swBuffer_free(swBuffer *buffer)
 int swBuffer_append(swBuffer *buffer, const void *data, uint32_t size)
 {
     uint32_t _length = size;
-    const void* _pos = data;
+    char* _pos = (char*) data;
     uint32_t _n;
 
     //buffer enQueue

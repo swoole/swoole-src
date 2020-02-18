@@ -24,7 +24,7 @@ typedef struct _swChannel_item
     char data[0];
 } swChannel_item;
 
-swChannel* swChannel_new(size_t size, int maxlen, int flags)
+swChannel* swChannel_new(size_t size, size_t maxlen, int flags)
 {
     assert(size >= maxlen);
     int ret;
@@ -109,7 +109,7 @@ int swChannel_in(swChannel *object, void *in, int data_length)
     {
         item = (swChannel_item *) ((char*) object->mem + object->tail);
         object->tail += msize;
-        if (object->tail >= object->size)
+        if (object->tail >= (off_t) object->size)
         {
             object->tail = 0;
             object->tail_tag = 1 - object->tail_tag;
@@ -136,7 +136,7 @@ int swChannel_out(swChannel *object, void *out, int buffer_length)
     assert(buffer_length >= item->length);
     memcpy(out, item->data, item->length);
     object->head += (item->length + sizeof(item->length));
-    if (object->head >= object->size)
+    if (object->head >= (off_t) object->size)
     {
         object->head = 0;
         object->head_tag = 1 - object->head_tag;
