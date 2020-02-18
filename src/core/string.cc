@@ -230,8 +230,15 @@ size_t swoole::string_split(swString *str, const char *delimiter, size_t delimit
         offset = 0;
     }
 
+    /**
+     * not found eof in str
+     */
     if (offset == str->offset)
     {
+        /**
+         * why is str->offset not equal to str->length,
+         * because the str->length may contain part of eof and the other part in the next recv
+         */
         str->offset = str->length - delimiter_length;
     }
 
