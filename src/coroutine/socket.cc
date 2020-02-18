@@ -14,6 +14,7 @@ using namespace std;
 using swoole::coroutine::System;
 using swoole::coroutine::Socket;
 
+double Socket::default_dns_timeout     = SW_DEFAULT_SOCKET_DNS_TIMEOUT;
 double Socket::default_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double Socket::default_read_timeout    = SW_DEFAULT_SOCKET_READ_TIMEOUT;
 double Socket::default_write_timeout   = SW_DEFAULT_SOCKET_WRITE_TIMEOUT;
@@ -650,6 +651,7 @@ Socket::Socket(swSocket *sock, swSocketAddress *addr, Socket *server_sock)
     socket->fdtype = SW_FD_CORO_SOCKET;
     init_options();
     /* inherits server socket options */
+    dns_timeout = server_sock->dns_timeout;
     connect_timeout = server_sock->connect_timeout;
     read_timeout = server_sock->read_timeout;
     write_timeout = server_sock->write_timeout;
@@ -854,7 +856,7 @@ bool Socket::connect(string _host, int _port, int flags)
 #endif
                 /* locked like wait_event */
                 read_co = write_co = Coroutine::get_current_safe();
-                connect_host = System::gethostbyname(connect_host, AF_INET, connect_timeout);
+                connect_host = System::gethostbyname(connect_host, AF_INET, dns_timeout);
                 read_co = write_co = nullptr;
                 if (connect_host.empty())
                 {
@@ -883,7 +885,7 @@ bool Socket::connect(string _host, int _port, int flags)
                     ssl_host_name = connect_host;
                 }
 #endif
-                connect_host = System::gethostbyname(connect_host, AF_INET6, connect_timeout);
+                connect_host = System::gethostbyname(connect_host, AF_INET6, dns_timeout);
                 if (connect_host.empty())
                 {
                     set_err(SwooleG.error);
@@ -1646,7 +1648,10 @@ ssize_t Socket::recv_packet(double timeout)
         uint32_t header_len = protocol.package_length_offset + protocol.package_length_size;
         if (read_buffer->length > 0)
         {
-            if (read_buffer->length >= header_len || protocol.package_length_type == '\0')
+            if (
+                read_buffer->length >= header_len ||
+                (protocol.package_length_size == 0 && protocol.package_length_type == '\0') // custom package_length_func
+            )
             {
                 goto _get_length;
             }
