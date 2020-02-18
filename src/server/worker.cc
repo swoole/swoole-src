@@ -222,7 +222,7 @@ static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, char *dat
      * do task
      */
     serv->last_stream_socket = sock;
-    swWorker_onTask(&serv->factory, (swEventData *) &task, task.data.length);
+    swWorker_onTask(&serv->factory, (swEventData *) &task);
     serv->last_stream_socket = nullptr;
 
     /**
@@ -249,7 +249,10 @@ static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEvent
     sw_atomic_fetch_add(&serv->stats->request_count, 1);
 }
 
-int swWorker_onTask(swFactory *factory, swEventData *task, size_t data_len)
+/**
+ * @param data_len
+ */
+int swWorker_onTask(swFactory *factory, swEventData *task)
 {
     swServer *serv = (swServer *) factory->ptr;
 
@@ -262,9 +265,9 @@ int swWorker_onTask(swFactory *factory, swEventData *task, size_t data_len)
     case SW_SERVER_EVENT_SEND_DATA:
     {
         swConnection *conn = swServer_connection_verify(serv, task->info.fd);
-        if (conn && serv->max_queued_bytes && data_len > 0)
+        if (conn && serv->max_queued_bytes && task->info.len > 0)
         {
-            sw_atomic_fetch_sub(&conn->queued_bytes, data_len);
+            sw_atomic_fetch_sub(&conn->queued_bytes, task->info.len);
         }
         //discard data
         if (swWorker_discard_data(serv, conn, task) == SW_TRUE)
@@ -775,7 +778,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 
     if (recv_n > 0)
     {
-        return swWorker_onTask(factory, (swEventData *) pipe_buffer, recv_n - sizeof(pipe_buffer->info));
+        return swWorker_onTask(factory, (swEventData *) pipe_buffer);
     }
 
     return SW_ERR;
