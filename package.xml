@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-01-14</date>
-    <time>21:00:00</time>
+    <date>2020-02-19</date>
+    <time>12:00:00</time>
     <version>
-        <release>4.4.15</release>
+        <release>4.4.16</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -56,25 +56,25 @@
     <notes>
         Enhancement
         ---
-        + Bad websocket handshake request will respond 400 (fdc1cb67) (@twose)
-        + Disable accept when have too many connections (dd9fbf2f) (@matyhtf)
-        + Binary security of package_eof (#3054) (@twose)
-        + Support HTTP chunked request (#3055) (@twose)
-        + Unified naming style and improve accessibility of Curl\Handler properties (library/curl) (@twose)
+        + Now you can get [Supported Versions of Swoole](https://github.com/swoole/swoole-src/blob/master/SUPPORTED.md) (@twose)
+        + More friendly error messages (0412f442) (09a48835) (@twose)
+        + Prevent endless loops that may occur in some special systems (069a0092) (@matyhtf)
+        + Add driver in PDOConfig (swoole/library#8) (@jcheron)
 
         Fixed
         ---
-        * Fixed Http\Response->close (d30e3269) (@twose)
-        * Fixed possible memory overflow (2212e091) (@twose)
-        * Fixed memory error when MSHUTDOWN (undestroyed reactor) (78d6dd73) (@twose)
-        * Fixed handler of event HUP (#3046) (@matyhtf) (@twose)
-        * Fixed exit code 1 (f982b817) (@matyhtf) (@twose) (@qiqizjl)
-        * Fixed missing "unhook curl_multi_getcontent" (7b2e960e) (@twose)
-        * Fixed Coroutine HTTP2 Server memory error (d90eebe6) (@twose)
-        * Fixed http_context_send_data (#3059) (@twose)
-        * Fixed send_yield in BASE mode (edbb654d) (1b8096e9) (@twose)
-        * Refactor HTTP2 Server to fix some bugs (#3061) (@twose)
-        * Fixed behaviour of CURLOPT_POSTFIELDS, CURLOPT_HTTPHEADER, curl_close (library/curl) (@twose)
+        * Fixed http2_session.default_ctx double free (bddbb9b1) (@twose)
+        * Fixed uninitialized http_context (ce77c641) (@twose)
+        * Fixed typo in Table (may lead to memory errors) (db4eec17) (@twose)
+        * Fixed status error when kill USR2 and no set task_num (e4378278) (@GXhua)
+        * Fixed incomplete raw-content of HTTP request (#3079) (#3085) (@hantaohuang)
+        * Fixed static handler (when the file content is empty, server should respond 404) (#3084) (@Yurunsoft)
+        * Fixed http_compression_level not work (16f9274e) (@twose)
+        * Fixed null pointer error of Coroutine HTTP2 Server caused by no handle (ed680989) (@twose)
+        * Fixed option socket_dontwait not work (27589376) (@matyhtf)
+        * Fixed double zend::eval (#3099) (@GXhua)
+        * Fixed HTTP2 Server null pointer error (respond after connection is closed) (#3110) (@twose)
+        * Fixed PDOStatementProxy::setFetchMode missing arguments (swoole/library#13) (@jcheron)
     </notes>
     <contents>
         <dir name="/">
@@ -83,6 +83,7 @@
             <file role="doc" name="LICENSE" />
             <file role="doc" name="README-CN.md" />
             <file role="doc" name="README.md" />
+            <file role="doc" name="SUPPORTED.md" />
             <file role="src" name="benchmark/ab.sh" />
             <file role="src" name="benchmark/aio.php" />
             <file role="src" name="benchmark/benchmark.php" />
@@ -295,6 +296,7 @@
             <file role="doc" name="examples/http/curl.php" />
             <file role="doc" name="examples/http/detach.php" />
             <file role="doc" name="examples/http/download.php" />
+            <file role="doc" name="examples/http/empty.txt" />
             <file role="doc" name="examples/http/http_proxy.php" />
             <file role="doc" name="examples/http/http_proxy_auth.php" />
             <file role="doc" name="examples/http/https_proxy.php" />
@@ -1088,6 +1090,7 @@
             <file role="test" name="tests/swoole_http_server/bug_2786.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_2947.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_2988.phpt" />
+            <file role="test" name="tests/swoole_http_server/bug_compression_level.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_get_request_data_after_end.phpt" />
             <file role="test" name="tests/swoole_http_server/callback_new_obj_method.phpt" />
             <file role="test" name="tests/swoole_http_server/callback_new_static_method.phpt" />
@@ -1144,6 +1147,7 @@
             <file role="test" name="tests/swoole_http_server_coro/bad_request.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/bug_2682.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/bug_3025.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/bug_no_handle.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/error_404.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/handle.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/http2.phpt" />
@@ -1153,6 +1157,7 @@
             <file role="test" name="tests/swoole_http_server_coro/pipeline.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/post_array.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/random_port.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/rawContent_get_big_data.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/reuse_port.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/sendfile.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/tcp_nodelay.phpt" />
@@ -1202,6 +1207,7 @@
             <file role="test" name="tests/swoole_library/exec/exec/1.phpt" />
             <file role="test" name="tests/swoole_library/exec/exec/2.phpt" />
             <file role="test" name="tests/swoole_library/exec/shell_exec/1.phpt" />
+            <file role="test" name="tests/swoole_library/multibyte_string_object/base.phpt" />
             <file role="test" name="tests/swoole_library/string_object/base.phpt" />
             <file role="test" name="tests/swoole_library/wait_group/normal.phpt" />
             <file role="test" name="tests/swoole_library/wait_group/timeout.phpt" />
