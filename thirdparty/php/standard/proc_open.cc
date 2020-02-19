@@ -95,7 +95,7 @@ static proc_co_env_t _php_array_to_envp(zval *environment)
         {
             l = ZSTR_LEN(key) + ZSTR_LEN(str) + 2;
             memcpy(p, ZSTR_VAL(key), ZSTR_LEN(key));
-            strncat(p, "=", 1);
+            strcat(p, "=");
             strncat(p, ZSTR_VAL(str), ZSTR_LEN(str));
 
             *ep = p;
