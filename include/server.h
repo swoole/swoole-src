@@ -699,7 +699,7 @@ void swServer_store_pipe_fd(swServer *serv, swPipe *p);
 void swServer_store_listen_socket(swServer *serv);
 
 int swServer_get_socket(swServer *serv, int port);
-int swServer_worker_create(swServer *serv, swWorker *worker);
+int swServer_worker_create_lock(swServer *serv, swWorker *worker);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 void swServer_worker_start(swServer *serv, swWorker *worker);
 

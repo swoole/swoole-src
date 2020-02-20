@@ -124,7 +124,7 @@ int swManager_start(swServer *serv)
         for (i = 0; i < serv->task_worker_num; i++)
         {
             worker = &serv->gs->task_workers.workers[i];
-            if (swServer_worker_create(serv, worker) < 0)
+            if (swServer_worker_create_lock(serv, worker) < 0)
             {
                 return SW_ERR;
             }
@@ -149,7 +149,7 @@ int swManager_start(swServer *serv)
         LL_FOREACH(serv->user_worker_list, user_worker)
         {
             memcpy(&serv->user_workers[i], user_worker->worker, sizeof(swWorker));
-            if (swServer_worker_create(serv, &serv->user_workers[i]) < 0)
+            if (swServer_worker_create_lock(serv, &serv->user_workers[i]) < 0)
             {
                 return SW_ERR;
             }

@@ -135,7 +135,7 @@ static int swFactoryProcess_start(swFactory *factory)
 
     for (i = 0; i < serv->worker_num; i++)
     {
-        if (swServer_worker_create(serv, swServer_get_worker(serv, i)) < 0)
+        if (swServer_worker_create_lock(serv, swServer_get_worker(serv, i)) < 0)
         {
             return SW_ERR;
         }

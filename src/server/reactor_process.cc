@@ -124,7 +124,7 @@ int swReactorProcess_start(swServer *serv)
 
     for (i = 0; i < serv->worker_num; i++)
     {
-        if (swServer_worker_create(serv, &serv->gs->event_workers.workers[i]) < 0)
+        if (swServer_worker_create_lock(serv, &serv->gs->event_workers.workers[i]) < 0)
         {
             return SW_ERR;
         }

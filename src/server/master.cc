@@ -442,7 +442,7 @@ int swServer_create_task_worker(swServer *serv)
 /**
  * [Master]
  */
-int swServer_worker_create(swServer *serv, swWorker *worker)
+int swServer_worker_create_lock(swServer *serv, swWorker *worker)
 {
     return swMutex_create(&worker->lock, 1);
 }
