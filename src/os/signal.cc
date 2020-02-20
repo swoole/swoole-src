@@ -332,10 +332,11 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
 {
     struct kevent ev;
     swReactor *reactor = SwooleTG.reactor;
-    struct
+    struct reactor_object
     {
         int fd;
-    } *reactor_obj = reactor->object;
+    };
+    struct reactor_object *reactor_obj = (struct reactor_object *) reactor->object;
     // clear signal
     if (handler == NULL)
     {

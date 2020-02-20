@@ -71,7 +71,7 @@ static sw_inline void swReactorKqueue_del_once_socket(swReactor *reactor, swSock
 int swReactorKqueue_create(swReactor *reactor, int max_event_num)
 {
     //create reactor object
-    swReactorKqueue *object = sw_calloc(1, sizeof(swReactorKqueue));
+    swReactorKqueue *object = (swReactorKqueue *) sw_calloc(1, sizeof(swReactorKqueue));
     if (object == NULL)
     {
         swWarn("[swReactorKqueueCreate] calloc[0] fail");
@@ -80,7 +80,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
 
     reactor->object = object;
     reactor->max_event_num = max_event_num;
-    object->events = sw_calloc(max_event_num, sizeof(struct kevent));
+    object->events = (struct kevent *) sw_calloc(max_event_num, sizeof(struct kevent));
 
     if (object->events == NULL)
     {
@@ -108,7 +108,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
 
 static void swReactorKqueue_free(swReactor *reactor)
 {
-    swReactorKqueue *object = reactor->object;
+    swReactorKqueue *object = (swReactorKqueue *) reactor->object;
     close(object->epfd);
     sw_free(object->events);
     sw_free(object);
@@ -116,7 +116,7 @@ static void swReactorKqueue_free(swReactor *reactor)
 
 static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events)
 {
-    swReactorKqueue *object = reactor->object;
+    swReactorKqueue *object = (swReactorKqueue *) reactor->object;
     struct kevent e;
     int ret;
 
@@ -158,7 +158,7 @@ static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events)
 
 static int swReactorKqueue_set(swReactor *reactor, swSocket *socket, int events)
 {
-    swReactorKqueue *object = reactor->object;
+    swReactorKqueue *object = (swReactorKqueue *) reactor->object;
     struct kevent e;
     int ret;
 
@@ -218,7 +218,7 @@ static int swReactorKqueue_set(swReactor *reactor, swSocket *socket, int events)
 
 static int swReactorKqueue_del(swReactor *reactor, swSocket *socket)
 {
-    swReactorKqueue *object = reactor->object;
+    swReactorKqueue *object = (swReactorKqueue *) reactor->object;
     struct kevent e;
     int ret;
     int fd = socket->fd;
@@ -356,12 +356,13 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
             }
             case EVFILT_SIGNAL:
             {
-                struct
+                struct sw_signal
                 {
                     swSignalHandler handler;
                     uint16_t signo;
                     uint16_t active;
-                } *sw_signal = udata;
+                };
+                struct sw_signal *sw_signal = (struct sw_signal *) udata;
 
                 if (sw_signal->active)
                 {
