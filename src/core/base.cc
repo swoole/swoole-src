@@ -15,6 +15,7 @@
  */
 
 #include "swoole_api.h"
+#include "swoole_cxx.h"
 #include "atomic.h"
 #include "async.h"
 #include "coroutine_c_api.h"
@@ -28,6 +29,8 @@
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>
 #endif
+
+#include <list>
 
 swGlobal_t SwooleG;
 swWorkerGlobal_t SwooleWG;
@@ -1322,36 +1325,12 @@ SW_API void* swoole_get_function(const char *name, uint32_t length)
 
 SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back)
 {
-    if (SwooleG.hooks[type] == NULL)
-    {
-        SwooleG.hooks[type] = swLinkedList_new(0, NULL);
-        if (SwooleG.hooks[type] == NULL)
-        {
-            return SW_ERR;
-        }
-    }
-    if (push_back)
-    {
-        return swLinkedList_append(SwooleG.hooks[type], (void*) func);
-    }
-    else
-    {
-        return swLinkedList_prepend(SwooleG.hooks[type], (void*) func);
-    }
+    return swoole::hook_add(SwooleG.hooks, type, func, push_back);
 }
 
 SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg)
 {
-    swLinkedList *hooks = SwooleG.hooks[type];
-    swLinkedList_node *node = hooks->head;
-    swCallback func = NULL;
-
-    while (node)
-    {
-        func = (swCallback) node->data;
-        func(arg);
-        node = node->next;
-    }
+    swoole::hook_call(SwooleG.hooks, type, arg);
 }
 
 int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream)

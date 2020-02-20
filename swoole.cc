@@ -184,7 +184,6 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
     swoole_globals->use_shortname = 1;
-    swoole_globals->rshutdown_functions = NULL;
 }
 
 void php_swoole_register_shutdown_function(const char *function)
