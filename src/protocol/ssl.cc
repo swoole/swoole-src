@@ -150,7 +150,7 @@ void swSSL_destroy()
     }
     openssl_init = 0;
 #if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
-    CRYPTO_THREADID_set_callback(NULL);
+    (void) CRYPTO_THREADID_set_callback(NULL);
 #else
     CRYPTO_set_id_callback(NULL);
 #endif
@@ -202,7 +202,7 @@ void swSSL_init_thread_safety()
     }
 
 #if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
-    CRYPTO_THREADID_set_callback(swSSL_id_callback);
+    (void) CRYPTO_THREADID_set_callback(swSSL_id_callback);
 #else
     CRYPTO_set_id_callback(swSSL_id_callback);
 #endif
@@ -273,7 +273,7 @@ static int swSSL_passwd_callback(char *buf, int num, int verify, void *data)
     swSSL_option *option = (swSSL_option *) data;
     if (option->passphrase)
     {
-        size_t len = strlen(option->passphrase);
+        int len = strlen(option->passphrase);
         if (len < num - 1)
         {
             memcpy(buf, option->passphrase, len + 1);
@@ -290,7 +290,7 @@ static void swSSL_info_callback(const SSL *ssl, int where, int ret)
 
     if (where & SSL_CB_HANDSHAKE_START)
     {
-        sock = SSL_get_ex_data(ssl, ssl_connection_index);
+        sock = (swSocket *) SSL_get_ex_data(ssl, ssl_connection_index);
 
         if (sock->ssl_state == SW_SSL_STATE_READY)
         {
@@ -301,7 +301,7 @@ static void swSSL_info_callback(const SSL *ssl, int where, int ret)
 
     if ((where & SSL_CB_ACCEPT_LOOP) == SSL_CB_ACCEPT_LOOP)
     {
-        sock = SSL_get_ex_data(ssl, ssl_connection_index);
+        sock = (swSocket *) SSL_get_ex_data(ssl, ssl_connection_index);
 
         if (!sock->ssl_handshake_buffer_set)
         {
@@ -738,6 +738,7 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
     long len;
     BIO *bio;
     X509 *cert;
+    int n;
 
     cert = SSL_get_peer_certificate(ssl);
     if (cert == NULL)
@@ -760,13 +761,13 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
     }
 
     len = BIO_pending(bio);
-    if (len < 0 && len > length)
+    if (len < 0 && len > (long) length)
     {
         swWarn("certificate length[%ld] is too big", len);
         goto _failed;
     }
 
-    int n = BIO_read(bio, buffer, len);
+    n = BIO_read(bio, buffer, len);
 
     BIO_free(bio);
     X509_free(cert);
@@ -974,7 +975,7 @@ void swSSL_close(swSocket *conn)
 
 static sw_inline void swSSL_connection_error(swSocket *conn)
 {
-    int level = SW_LOG_NOTICE;
+    uint32_t level = SW_LOG_NOTICE;
     int reason = ERR_GET_REASON(ERR_peek_error());
 
 #if 0
@@ -1297,7 +1298,7 @@ static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, con
     unsigned char *srv;
 
 #ifdef SW_USE_HTTP2
-    swSSL_config *cfg = arg;
+    swSSL_config *cfg = (swSSL_config *) arg;
     if (cfg->http_v2)
     {
         srv = (unsigned char *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
@@ -1322,7 +1323,7 @@ static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, con
 static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg)
 {
 #ifdef SW_USE_HTTP2
-    swSSL_config *cfg = arg;
+    swSSL_config *cfg = (swSSL_config *) arg;
     if (cfg->http_v2)
     {
         *out = (uchar *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;

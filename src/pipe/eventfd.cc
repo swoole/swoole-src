@@ -32,7 +32,7 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout)
 {
     int efd;
     int flag = 0;
-    swPipeEventfd *object = sw_malloc(sizeof(swPipeEventfd));
+    swPipeEventfd *object = (swPipeEventfd *) sw_malloc(sizeof(swPipeEventfd));
     if (object == NULL)
     {
         return -1;
@@ -91,7 +91,7 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout)
 static int swPipeEventfd_read(swPipe *p, void *data, int length)
 {
     int ret = -1;
-    swPipeEventfd *object = p->object;
+    swPipeEventfd *object = (swPipeEventfd *) p->object;
 
     //eventfd not support socket timeout
     if (p->blocking == 1 && p->timeout > 0)
@@ -117,7 +117,7 @@ static int swPipeEventfd_read(swPipe *p, void *data, int length)
 static int swPipeEventfd_write(swPipe *p, void *data, int length)
 {
     int ret;
-    swPipeEventfd *object = p->object;
+    swPipeEventfd *object = (swPipeEventfd *) p->object;
     while (1)
     {
         ret = write(object->event_fd, data, sizeof(uint64_t));

@@ -2187,7 +2187,7 @@ typedef struct _swChannel
     swPipe notify_fd;
 } swChannel;
 
-swChannel* swChannel_new(size_t size, int maxlen, int flag);
+swChannel* swChannel_new(size_t size, size_t maxlen, int flag);
 #define swChannel_empty(ch) (ch->num == 0)
 #define swChannel_full(ch) ((ch->head == ch->tail && ch->tail_tag != ch->head_tag) || (ch->bytes + sizeof(int) * ch->num == ch->size))
 int swChannel_pop(swChannel *object, void *out, int buffer_length);

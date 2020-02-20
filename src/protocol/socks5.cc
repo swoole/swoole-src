@@ -20,7 +20,7 @@
 #include "client.h"
 #include "socks5.h"
 
-char* swSocks5_strerror(int code)
+const char* swSocks5_strerror(int code)
 {
     switch (code)
     {
@@ -49,11 +49,12 @@ int swSocks5_connect(swClient *cli, char *recv_data, int length)
 {
     swSocks5 *ctx = cli->socks5_proxy;
     char *buf = ctx->buf;
+    uchar version, status, result, method;
 
     if (ctx->state == SW_SOCKS5_STATE_HANDSHAKE)
     {
-        uchar version = recv_data[0];
-        uchar method = recv_data[1];
+        version = recv_data[0];
+        method = recv_data[1];
         if (version != SW_SOCKS5_VERSION_CODE)
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
@@ -113,8 +114,8 @@ int swSocks5_connect(swClient *cli, char *recv_data, int length)
     }
     else if (ctx->state == SW_SOCKS5_STATE_AUTH)
     {
-        uchar version = recv_data[0];
-        uchar status = recv_data[1];
+        version = recv_data[0];
+        status = recv_data[1];
         if (version != 0x01)
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
@@ -129,13 +130,13 @@ int swSocks5_connect(swClient *cli, char *recv_data, int length)
     }
     else if (ctx->state == SW_SOCKS5_STATE_CONNECT)
     {
-        uchar version = recv_data[0];
+        version = recv_data[0];
         if (version != SW_SOCKS5_VERSION_CODE)
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
             return SW_ERR;
         }
-        uchar result = recv_data[1];
+        result = recv_data[1];
 #if 0
         uchar reg = recv_data[2];
         uchar type = recv_data[3];

@@ -22,7 +22,7 @@
  */
 swBuffer* swBuffer_new(uint32_t chunk_size)
 {
-    swBuffer *buffer = sw_malloc(sizeof(swBuffer));
+    swBuffer *buffer = (swBuffer *) sw_malloc(sizeof(swBuffer));
     if (buffer == NULL)
     {
         swSysWarn("malloc for buffer failed");
@@ -40,7 +40,7 @@ swBuffer* swBuffer_new(uint32_t chunk_size)
  */
 swBuffer_chunk *swBuffer_new_chunk(swBuffer *buffer, uint32_t type, uint32_t size)
 {
-    swBuffer_chunk *chunk = sw_malloc(sizeof(swBuffer_chunk));
+    swBuffer_chunk *chunk = (swBuffer_chunk *) sw_malloc(sizeof(swBuffer_chunk));
     if (chunk == NULL)
     {
         swSysWarn("malloc for chunk failed");
@@ -139,7 +139,7 @@ int swBuffer_free(swBuffer *buffer)
 int swBuffer_append(swBuffer *buffer, const void *data, uint32_t size)
 {
     uint32_t _length = size;
-    const void* _pos = data;
+    char* _pos = (char*) data;
     uint32_t _n;
 
     //buffer enQueue

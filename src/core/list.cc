@@ -18,7 +18,7 @@
 
 swLinkedList* swLinkedList_new(uint8_t type, swDestructor dtor)
 {
-    swLinkedList *q = sw_malloc(sizeof(swLinkedList));
+    swLinkedList *q = (swLinkedList *) sw_malloc(sizeof(swLinkedList));
     if (q == NULL)
     {
         swWarn("malloc(%ld) failed", sizeof(swLinkedList));
@@ -32,7 +32,7 @@ swLinkedList* swLinkedList_new(uint8_t type, swDestructor dtor)
 
 int swLinkedList_append(swLinkedList *ll, void *data)
 {
-    swLinkedList_node *node = sw_malloc(sizeof(swLinkedList_node));
+    swLinkedList_node *node = (swLinkedList_node *) sw_malloc(sizeof(swLinkedList_node));
     if (node == NULL)
     {
         swWarn("malloc(%ld) failed", sizeof(swLinkedList_node));
@@ -59,7 +59,7 @@ int swLinkedList_append(swLinkedList *ll, void *data)
 
 int swLinkedList_prepend(swLinkedList *ll, void *data)
 {
-    swLinkedList_node *node = sw_malloc(sizeof(swLinkedList_node));
+    swLinkedList_node *node = (swLinkedList_node *) sw_malloc(sizeof(swLinkedList_node));
     if (node == NULL)
     {
         swWarn("malloc(%ld) failed", sizeof(swLinkedList_node));

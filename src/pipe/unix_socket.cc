@@ -39,7 +39,7 @@ typedef struct _swPipeUnsock
 
 static int swPipeUnsock_close(swPipe *p)
 {
-    swPipeUnsock *object = p->object;
+    swPipeUnsock *object = (swPipeUnsock *) p->object;
     int ret = swPipeUnsock_close_ext(p, 0);
     sw_free(object);
     return ret;
@@ -47,7 +47,7 @@ static int swPipeUnsock_close(swPipe *p)
 
 int swPipeUnsock_close_ext(swPipe *p, int which)
 {
-    swPipeUnsock *object = p->object;
+    swPipeUnsock *object = (swPipeUnsock *) p->object;
 
     if (which == SW_PIPE_CLOSE_MASTER)
     {
@@ -79,7 +79,7 @@ int swPipeUnsock_close_ext(swPipe *p, int which)
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
 {
     int ret;
-    swPipeUnsock *object = sw_malloc(sizeof(swPipeUnsock));
+    swPipeUnsock *object = (swPipeUnsock *) sw_malloc(sizeof(swPipeUnsock));
     if (object == NULL)
     {
         swWarn("malloc() failed");

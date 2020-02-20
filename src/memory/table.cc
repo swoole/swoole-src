@@ -59,7 +59,7 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
         conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
     }
 
-    swTable *table = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swTable));
+    swTable *table = (swTable *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swTable));
     if (table == NULL)
     {
         return NULL;
@@ -69,7 +69,7 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
         swWarn("mutex create failed");
         return NULL;
     }
-    table->iterator = sw_malloc(sizeof(swTable_iterator));
+    table->iterator = (swTable_iterator *) sw_malloc(sizeof(swTable_iterator));
     if (!table->iterator)
     {
         swWarn("malloc failed");
@@ -92,7 +92,7 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
 
 int swTableColumn_add(swTable *table, const char *name, int len, int type, int size)
 {
-    swTableColumn *col = sw_malloc(sizeof(swTableColumn));
+    swTableColumn *col = (swTableColumn *) sw_malloc(sizeof(swTableColumn));
     if (!col)
     {
         return SW_ERR;
@@ -191,12 +191,11 @@ int swTable_create(swTable *table)
     table->memory_size = memory_size;
     table->memory = memory;
 
-    table->rows = memory;
+    table->rows = (swTableRow **) memory;
     memory = (char *) memory + table->size * sizeof(swTableRow *);
     memory_size -= table->size * sizeof(swTableRow *);
 
-    int i;
-    for (i = 0; i < table->size; i++)
+    for (size_t i = 0; i < table->size; i++)
     {
         table->rows[i] = (swTableRow *) ((char *) memory + (row_memory_size * i));
         memset(table->rows[i], 0, sizeof(swTableRow));
@@ -269,7 +268,7 @@ void swTable_iterator_forward(swTable *table)
         }
         else
         {
-            int i = 0;
+            uint32_t i = 0;
             for (;; i++)
             {
                 if (row == NULL)
@@ -351,7 +350,7 @@ swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableR
             else if (row->next == NULL)
             {
                 table->lock.lock(&table->lock);
-                swTableRow *new_row = table->pool->alloc(table->pool, 0);
+                swTableRow *new_row = (swTableRow *) table->pool->alloc(table->pool, 0);
 
 #ifdef SW_TABLE_DEBUG
                 conflict_count ++;
@@ -411,6 +410,9 @@ int swTableRow_del(swTable *table, char *key, int keylen)
         return SW_ERR;
     }
 
+    swTableRow *tmp = row;
+    swTableRow *prev = NULL;
+
     swTableRow_lock(row);
     if (row->next == NULL)
     {
@@ -426,9 +428,6 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     }
     else
     {
-        swTableRow *tmp = row;
-        swTableRow *prev = NULL;
-
         while (tmp)
         {
             if ((strncmp(tmp->key, key, keylen) == 0))

@@ -70,7 +70,7 @@ ssize_t swHttp2_get_frame_length(swProtocol *protocol, swSocket *conn, char *buf
     return swHttp2_get_length(buf) + SW_HTTP2_FRAME_HEADER_SIZE;
 }
 
-char* swHttp2_get_type(int type)
+const char* swHttp2_get_type(int type)
 {
     switch(type)
     {

@@ -46,7 +46,7 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
 
     if (conn->object == NULL)
     {
-        request = sw_malloc(sizeof(swRedis_request));
+        request = (swRedis_request *) sw_malloc(sizeof(swRedis_request));
         if (!request)
         {
             swWarn("malloc(%ld) failed", sizeof(swRedis_request));

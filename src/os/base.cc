@@ -349,7 +349,7 @@ void swAio_handler_fgets(swAio_event *event)
     }
 
     FILE *file = (FILE *) event->req;
-    char *data = fgets(event->buf, event->nbytes, file);
+    char *data = fgets((char*) event->buf, event->nbytes, file);
     if (data == NULL)
     {
         event->ret = -1;
@@ -366,7 +366,7 @@ void swAio_handler_fgets(swAio_event *event)
 void swAio_handler_read_file(swAio_event *event)
 {
     int ret = -1;
-    int fd = open(event->req, O_RDONLY);
+    int fd = open((char*) event->req, O_RDONLY);
     if (fd < 0)
     {
         swSysWarn("open(%s, O_RDONLY) failed", (char * )event->req);
@@ -436,7 +436,7 @@ void swAio_handler_read_file(swAio_event *event)
 void swAio_handler_write_file(swAio_event *event)
 {
     int ret = -1;
-    int fd = open(event->req, event->flags, 0644);
+    int fd = open((char*) event->req, event->flags, 0644);
     if (fd < 0)
     {
         swSysWarn("open(%s, %d) failed", (char * )event->req, event->flags);
@@ -515,11 +515,11 @@ void swAio_handler_gethostbyname(swAio_event *event)
 #endif
     if (event->flags == AF_INET6)
     {
-        ret = swoole_gethostbyname(AF_INET6, event->buf, (char *) &addr_v6);
+        ret = swoole_gethostbyname(AF_INET6, (char*) event->buf, (char *) &addr_v6);
     }
     else
     {
-        ret = swoole_gethostbyname(AF_INET, event->buf, (char *) &addr_v4);
+        ret = swoole_gethostbyname(AF_INET, (char*) event->buf, (char *) &addr_v4);
     }
     bzero(event->buf, event->nbytes);
 #ifndef HAVE_GETHOSTBYNAME2_R
@@ -533,7 +533,7 @@ void swAio_handler_gethostbyname(swAio_event *event)
     else
     {
         if (inet_ntop(event->flags == AF_INET6 ? AF_INET6 : AF_INET,
-                event->flags == AF_INET6 ? (void *) &addr_v6 : (void *) &addr_v4, event->buf, event->nbytes) == NULL)
+                event->flags == AF_INET6 ? (void *) &addr_v6 : (void *) &addr_v4, (char*) event->buf, event->nbytes) == NULL)
         {
             ret = -1;
             event->error = SW_ERROR_BAD_IPV6_ADDRESS;

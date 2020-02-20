@@ -46,7 +46,7 @@ static int swReactorSelect_cmp(swFdList_node *a, swFdList_node *b);
 int swReactorSelect_create(swReactor *reactor)
 {
     //create reactor object
-    swReactorSelect *object = sw_malloc(sizeof(swReactorSelect));
+    swReactorSelect *object = (swReactorSelect *) sw_malloc(sizeof(swReactorSelect));
     if (object == NULL)
     {
         swWarn("[swReactorSelect_create] malloc[0] fail\n");
@@ -69,7 +69,7 @@ int swReactorSelect_create(swReactor *reactor)
 
 void swReactorSelect_free(swReactor *reactor)
 {
-    swReactorSelect *object = reactor->object;
+    swReactorSelect *object = (swReactorSelect *) reactor->object;
     swFdList_node *ev, *tmp;
     LL_FOREACH_SAFE(object->fds, ev, tmp)
     {
@@ -88,8 +88,8 @@ int swReactorSelect_add(swReactor *reactor, swSocket *socket, int events)
         return SW_ERR;
     }
 
-    swReactorSelect *object = reactor->object;
-    swFdList_node *ev = sw_malloc(sizeof(swFdList_node));
+    swReactorSelect *object = (swReactorSelect *) reactor->object;
+    swFdList_node *ev = (swFdList_node *) sw_malloc(sizeof(swFdList_node));
     if (ev == NULL)
     {
         swWarn("malloc(%ld) failed", sizeof(swFdList_node));
@@ -115,7 +115,7 @@ static int swReactorSelect_cmp(swFdList_node *a, swFdList_node *b)
 
 int swReactorSelect_del(swReactor *reactor, swSocket *socket)
 {
-    swReactorSelect *object = reactor->object;
+    swReactorSelect *object = (swReactorSelect *) reactor->object;
     swFdList_node ev, *s_ev = NULL;
     int fd = socket->fd;
     ev.socket = socket;
@@ -136,7 +136,7 @@ int swReactorSelect_del(swReactor *reactor, swSocket *socket)
 
 int swReactorSelect_set(swReactor *reactor, swSocket *socket, int events)
 {
-    swReactorSelect *object = reactor->object;
+    swReactorSelect *object = (swReactorSelect *) reactor->object;
     swFdList_node ev, *s_ev = NULL;
     ev.socket = socket;
     LL_SEARCH(object->fds, s_ev, &ev, swReactorSelect_cmp);
@@ -151,7 +151,7 @@ int swReactorSelect_set(swReactor *reactor, swSocket *socket, int events)
 
 int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 {
-    swReactorSelect *object = reactor->object;
+    swReactorSelect *object = (swReactorSelect *) reactor->object;
     swFdList_node *ev;
     swFdList_node *tmp;
     swEvent event;

@@ -27,12 +27,12 @@ static void swHeap_percolate_down(swHeap *heap, uint32_t i);
 
 swHeap *swHeap_new(size_t n, uint8_t type)
 {
-    swHeap *heap = sw_malloc(sizeof(swHeap));
+    swHeap *heap = (swHeap *) sw_malloc(sizeof(swHeap));
     if (!heap)
     {
         return NULL;
     }
-    if (!(heap->nodes = sw_malloc((n + 1) * sizeof(void *))))
+    if (!(heap->nodes = (swHeap_node **) sw_malloc((n + 1) * sizeof(void *))))
     {
         sw_free(heap);
         return NULL;
@@ -128,11 +128,11 @@ swHeap_node* swHeap_push(swHeap *heap, uint64_t priority, void *data)
         {
             return NULL;
         }
-        heap->nodes = tmp;
+        heap->nodes = (swHeap_node **) tmp;
         heap->size = newsize;
     }
 
-    swHeap_node *node = sw_malloc(sizeof(swHeap_node));
+    swHeap_node *node = (swHeap_node *) sw_malloc(sizeof(swHeap_node));
     if (!node)
     {
         return NULL;
@@ -147,7 +147,7 @@ swHeap_node* swHeap_push(swHeap *heap, uint64_t priority, void *data)
 
 void swHeap_change_priority(swHeap *heap, uint64_t new_priority, void* ptr)
 {
-    swHeap_node *node = ptr;
+    swHeap_node *node = (swHeap_node *) ptr;
     uint32_t pos = node->position;
     uint64_t old_pri = node->priority;
 
@@ -210,8 +210,7 @@ void *swHeap_peek(swHeap *heap)
 
 void swHeap_print(swHeap *heap)
 {
-    int i;
-    for(i = 1; i < heap->num; i++)
+    for(uint32_t i = 1; i < heap->num; i++)
     {
         printf("#%d\tpriority=%ld, data=%p\n", i, (long)heap->nodes[i]->priority, heap->nodes[i]->data);
     }

@@ -218,7 +218,7 @@ pid_t swoole_fork(int flags)
             /**
              * reopen log file
              */
-            swLog_reopen(0);
+            swLog_reopen(SW_FALSE);
             /**
              * reset eventLoop
              */
@@ -262,8 +262,7 @@ uint64_t swoole_hash_key(char *str, int str_len)
 
 void swoole_dump_ascii(const char *data, size_t size)
 {
-    int i;
-    for (i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         printf("%d ", (unsigned) data[i]);
     }
@@ -289,8 +288,7 @@ void swoole_dump_bin(const char *data, char type, size_t size)
 
 void swoole_dump_hex(const char *data, size_t outlen)
 {
-    long i;
-    for (i = 0; i < outlen; ++i)
+    for (size_t i = 0; i < outlen; ++i)
     {
         if ((i & 0x0fu) == 0)
         {
@@ -745,7 +743,7 @@ int swoole_file_put_contents(const char *filename, const char *content, size_t l
         return SW_ERR;
     }
 
-    int n, chunk_size, written = 0;
+    size_t n, chunk_size, written = 0;
 
     while(written < length)
     {
@@ -890,7 +888,7 @@ size_t sw_snprintf(char *buf, size_t size, const char *format, ...)
         retval = 0;
         buf[0] = '\0';
     }
-    else if (sw_unlikely(retval >= size))
+    else if (sw_unlikely(retval >= (int )size))
     {
         retval = size - 1;
         buf[retval] = '\0';
@@ -906,7 +904,7 @@ size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args)
         retval = 0;
         buf[0] = '\0';
     }
-    else if (sw_unlikely(retval >= size))
+    else if (sw_unlikely(retval >= (int )size))
     {
         retval = size - 1;
         buf[retval] = '\0';
@@ -1019,7 +1017,7 @@ static int *swoole_kmp_borders(char *needle, size_t nlen)
         return NULL;
     }
 
-    int i, j, *borders = sw_malloc((nlen + 1) * sizeof(*borders));
+    int i, j, *borders = (int *) sw_malloc((nlen + 1) * sizeof(*borders));
     if (!borders)
     {
         return NULL;
@@ -1150,7 +1148,7 @@ int swoole_gethostbyname(int flags, const char *name, char *addr)
     while ((rc = gethostbyname2_r(name, __af, &hbuf, buf, buf_len, &result, &err)) == ERANGE)
     {
         buf_len *= 2;
-        void *tmp = sw_realloc(buf, buf_len);
+        char *tmp = (char*) sw_realloc(buf, buf_len);
         if (NULL == tmp)
         {
             sw_free(buf);
@@ -1334,11 +1332,11 @@ SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int pu
     }
     if (push_back)
     {
-        return swLinkedList_append(SwooleG.hooks[type], func);
+        return swLinkedList_append(SwooleG.hooks[type], (void*) func);
     }
     else
     {
-        return swLinkedList_prepend(SwooleG.hooks[type], func);
+        return swLinkedList_prepend(SwooleG.hooks[type], (void*) func);
     }
 }
 
@@ -1350,7 +1348,7 @@ SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg)
 
     while (node)
     {
-        func = node->data;
+        func = (swCallback) node->data;
         func(arg);
         node = node->next;
     }
@@ -1416,7 +1414,7 @@ int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream)
 
 char* swoole_string_format(size_t n, const char *format, ...)
 {
-    char *buf = sw_malloc(n);
+    char *buf = (char*) sw_malloc(n);
     if (!buf)
     {
         return NULL;

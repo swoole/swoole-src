@@ -42,7 +42,7 @@ static void swStream_onError(swClient *cli)
 {
     swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_CONNECT_FAIL,
             " connect() failed (%d: %s) while connecting to worker process", errno, strerror(errno));
-    swStream_free(cli->object);
+    swStream_free((swStream *) cli->object);
 }
 
 static void swStream_onReceive(swClient *cli, char *data, uint32_t length)
@@ -60,7 +60,7 @@ static void swStream_onReceive(swClient *cli, char *data, uint32_t length)
 
 static void swStream_onClose(swClient *cli)
 {
-    swStream_free(cli->object);
+    swStream_free((swStream *) cli->object);
 }
 
 static void swStream_free(swStream *stream)
@@ -146,18 +146,18 @@ int swStream_send(swStream *stream, char *data, size_t length)
 int swStream_recv_blocking(int fd, void *__buf, size_t __len)
 {
     int tmp = 0;
-    int ret = swSocket_recv_blocking(fd, &tmp, sizeof(tmp), MSG_WAITALL);
+    ssize_t ret = swSocket_recv_blocking(fd, &tmp, sizeof(tmp), MSG_WAITALL);
 
     if (ret <= 0)
     {
         return SW_CLOSE;
     }
-    int length = ntohl(tmp);
+    int length = (int) ntohl(tmp);
     if (length <= 0)
     {
         return SW_CLOSE;
     }
-    else if (length > __len)
+    else if (length > (int) __len)
     {
         return SW_CLOSE;
     }

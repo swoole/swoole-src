@@ -26,7 +26,7 @@ static int swReactorPoll_exist(swReactor *reactor, int fd);
 
 typedef struct _swReactorPoll
 {
-    int max_fd_num;
+    uint32_t max_fd_num;
     swSocket **fds;
     struct pollfd *events;
 } swReactorPoll;
@@ -34,7 +34,7 @@ typedef struct _swReactorPoll
 int swReactorPoll_create(swReactor *reactor, int max_fd_num)
 {
     //create reactor object
-    swReactorPoll *object = sw_malloc(sizeof(swReactorPoll));
+    swReactorPoll *object = (swReactorPoll *) sw_malloc(sizeof(swReactorPoll));
     if (object == NULL)
     {
         swWarn("malloc[0] failed");
@@ -42,14 +42,14 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
     }
     bzero(object, sizeof(swReactorPoll));
 
-    object->fds = sw_calloc(max_fd_num, sizeof(swSocket*));
+    object->fds = (swSocket **) sw_calloc(max_fd_num, sizeof(swSocket*));
     if (object->fds == NULL)
     {
         swWarn("malloc[1] failed");
         sw_free(object);
         return SW_ERR;
     }
-    object->events = sw_calloc(max_fd_num, sizeof(struct pollfd));
+    object->events = (struct pollfd *) sw_calloc(max_fd_num, sizeof(struct pollfd));
     if (object->events == NULL)
     {
         swWarn("malloc[2] failed");
@@ -70,7 +70,7 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
 
 static void swReactorPoll_free(swReactor *reactor)
 {
-    swReactorPoll *object = reactor->object;
+    swReactorPoll *object = (swReactorPoll *) reactor->object;
     sw_free(object->fds);
     sw_free(reactor->object);
 }
@@ -84,7 +84,7 @@ static int swReactorPoll_add(swReactor *reactor, swSocket *socket, int events)
         return SW_ERR;
     }
 
-    swReactorPoll *object = reactor->object;
+    swReactorPoll *object = (swReactorPoll *) reactor->object;
     int cur = reactor->event_num;
     if (reactor->event_num == object->max_fd_num)
     {
@@ -119,7 +119,7 @@ static int swReactorPoll_add(swReactor *reactor, swSocket *socket, int events)
 static int swReactorPoll_set(swReactor *reactor, swSocket *socket, int events)
 {
     uint32_t i;
-    swReactorPoll *object = reactor->object;
+    swReactorPoll *object = (swReactorPoll *) reactor->object;
 
     swTrace("fd=%d, events=%d", socket->fd, events);
 
@@ -149,7 +149,7 @@ static int swReactorPoll_set(swReactor *reactor, swSocket *socket, int events)
 static int swReactorPoll_del(swReactor *reactor, swSocket *socket)
 {
     uint32_t i;
-    swReactorPoll *object = reactor->object;
+    swReactorPoll *object = (swReactorPoll *) reactor->object;
 
     for (i = 0; i < reactor->event_num; i++)
     {
@@ -182,7 +182,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
     swEvent event;
     swReactor_handler handler;
 
-    int ret, i;
+    int ret;
 
     if (reactor->timeout_msec == 0)
     {
@@ -227,7 +227,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
         }
         else
         {
-            for (i = 0; i < reactor->event_num; i++)
+            for (uint32_t i = 0; i < reactor->event_num; i++)
             {
                 event.socket = object->fds[i];
                 event.fd = object->events[i].fd;
@@ -292,9 +292,8 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 
 static int swReactorPoll_exist(swReactor *reactor, int fd)
 {
-    swReactorPoll *object = reactor->object;
-    int i;
-    for (i = 0; i < reactor->event_num; i++)
+    swReactorPoll *object = (swReactorPoll *) reactor->object;
+    for (uint32_t i = 0; i < reactor->event_num; i++)
     {
         if (object->events[i].fd == fd)
         {
