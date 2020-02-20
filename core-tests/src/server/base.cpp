@@ -3,7 +3,6 @@
 void create_test_server(swServer *serv)
 {
     swServer_init(serv);
-    serv->worker_num = 1;
 
     swServer_create(serv);
 

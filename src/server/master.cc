@@ -1899,3 +1899,43 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, s
 
     return connection;
 }
+
+void swServer_set_ipc_max_size(swServer *serv)
+{
+#ifdef HAVE_KQUEUE
+    serv->ipc_max_size = SW_IPC_MAX_SIZE;
+#else
+    int bufsize;
+    socklen_t _len = sizeof(bufsize);
+    /**
+     * Get the maximum ipc[unix socket with dgram] transmission length
+     */
+    if (getsockopt(serv->workers[0].pipe_master->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, &_len) != 0)
+    {
+        bufsize = SW_IPC_MAX_SIZE;
+    }
+    serv->ipc_max_size = bufsize - DGRAM_HEADER_SIZE;
+#endif
+}
+
+int swServer_create_pipe_buffers(swServer *serv)
+{
+    serv->pipe_buffers = (swPipeBuffer **) sw_calloc(serv->reactor_num, sizeof(swPipeBuffer *));
+    if (serv->pipe_buffers == NULL)
+    {
+        swSysError("malloc[buffers] failed");
+        return SW_ERR;
+    }
+    for (uint32_t i = 0; i < serv->reactor_num; i++)
+    {
+        serv->pipe_buffers[i] = (swPipeBuffer *) sw_malloc(serv->ipc_max_size);
+        if (serv->pipe_buffers[i] == NULL)
+        {
+            swSysError("malloc[sndbuf][%d] failed", i);
+            return SW_ERR;
+        }
+        bzero(serv->pipe_buffers[i], sizeof(swDataHead));
+    }
+
+    return SW_OK;
+}

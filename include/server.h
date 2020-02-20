@@ -642,6 +642,7 @@ int swServer_create(swServer *serv);
 int swServer_shutdown(swServer *serv);
 
 void swServer_set_ipc_max_size(swServer *serv);
+int swServer_create_pipe_buffers(swServer *serv);
 
 static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
 {

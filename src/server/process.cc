@@ -139,24 +139,6 @@ int swFactoryProcess_create_pipes(swFactory *factory)
     return SW_OK;
 }
 
-void swServer_set_ipc_max_size(swServer *serv)
-{
-#ifdef HAVE_KQUEUE
-    serv->ipc_max_size = SW_IPC_MAX_SIZE;
-#else
-    int bufsize;
-    socklen_t _len = sizeof(bufsize);
-    /**
-     * Get the maximum ipc[unix socket with dgram] transmission length
-     */
-    if (getsockopt(serv->workers[0].pipe_master->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, &_len) != 0)
-    {
-        bufsize = SW_IPC_MAX_SIZE;
-    }
-    serv->ipc_max_size = bufsize - DGRAM_HEADER_SIZE;
-#endif
-}
-
 static int swFactoryProcess_start(swFactory *factory)
 {
     swServer *serv = (swServer *) factory->ptr;
@@ -203,26 +185,11 @@ static int swFactoryProcess_start(swFactory *factory)
     }
 
     swServer_set_ipc_max_size(serv);
-
-    /**
-     * alloc memory
-     */
-    serv->pipe_buffers = (swPipeBuffer **) sw_calloc(serv->reactor_num, sizeof(swPipeBuffer *));
-    if (serv->pipe_buffers == NULL)
+    if (swServer_create_pipe_buffers(serv) < 0)
     {
-        swSysError("malloc[buffers] failed");
         return SW_ERR;
     }
-    for (uint32_t i = 0; i < serv->reactor_num; i++)
-    {
-        serv->pipe_buffers[i] = (swPipeBuffer *) sw_malloc(serv->ipc_max_size);
-        if (serv->pipe_buffers[i] == NULL)
-        {
-            swSysError("malloc[sndbuf][%d] failed", i);
-            return SW_ERR;
-        }
-        bzero(serv->pipe_buffers[i], sizeof(swDataHead));
-    }
+    
     object->send_buffer = (swPipeBuffer *) sw_malloc(serv->ipc_max_size);
     if (object->send_buffer == NULL)
     {
