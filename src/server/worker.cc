@@ -158,15 +158,18 @@ static int swWorker_onStreamRead(swReactor *reactor, swEvent *event)
 
     if (!event->socket->recv_buffer)
     {
-        buffer = (swString *) swLinkedList_shift(serv->buffer_pool);
-        if (buffer == NULL)
+        if (serv->buffer_pool->empty())
         {
             buffer = swString_new(8192);
             if (!buffer)
             {
                 return SW_ERR;
             }
-
+        }
+        else
+        {
+            buffer = serv->buffer_pool->front();
+            serv->buffer_pool->pop();
         }
         event->socket->recv_buffer = buffer;
     }
@@ -189,7 +192,7 @@ static int swWorker_onStreamClose(swReactor *reactor, swEvent *event)
     swServer *serv = (swServer *) reactor->ptr;
 
     swString_clear(sock->recv_buffer);
-    swLinkedList_append(serv->buffer_pool, sock->recv_buffer);
+    serv->buffer_pool->push(sock->recv_buffer);
     sock->recv_buffer = nullptr;
 
     reactor->del(reactor, sock);
@@ -673,11 +676,7 @@ int swWorker_loop(swServer *serv, int worker_id)
         serv->stream_protocol.private_data_2 = serv;
         serv->stream_protocol.package_max_length = UINT_MAX;
         serv->stream_protocol.onPackage = swWorker_onStreamPackage;
-        serv->buffer_pool = swLinkedList_new(0, NULL);
-        if (serv->buffer_pool == nullptr)
-        {
-            return SW_ERR;
-        }
+        serv->buffer_pool = new std::queue<swString*>;
     }
 
     worker->status = SW_WORKER_IDLE;
@@ -691,6 +690,12 @@ int swWorker_loop(swServer *serv, int worker_id)
     swoole_event_free();
     //worker shutdown
     swWorker_onStop(serv);
+
+    if (serv->buffer_pool)
+    {
+        delete serv->buffer_pool;
+    }
+
     return SW_OK;
 }
 

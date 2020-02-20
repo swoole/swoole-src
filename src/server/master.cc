@@ -15,6 +15,7 @@
 */
 
 #include "server.h"
+#include "swoole_cxx.h"
 #include "http.h"
 #include "connection.h"
 #include <sys/time.h>
@@ -1400,16 +1401,7 @@ static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char 
 
 SW_API void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg)
 {
-    swLinkedList *hooks = serv->hooks[type];
-    swLinkedList_node *node = hooks->head;
-    swCallback func = NULL;
-
-    while (node)
-    {
-        func = (swCallback) node->data;
-        func(arg);
-        node = node->next;
-    }
+    swoole::hook_call(serv->hooks, type, arg);
 }
 
 /**
@@ -1542,22 +1534,7 @@ static void swServer_master_update_time(swServer *serv)
 
 SW_API int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback func, int push_back)
 {
-    if (serv->hooks[type] == NULL)
-    {
-        serv->hooks[type] = swLinkedList_new(0, NULL);
-        if (serv->hooks[type] == NULL)
-        {
-            return SW_ERR;
-        }
-    }
-    if (push_back)
-    {
-        return swLinkedList_append(serv->hooks[type], (void*) func);
-    }
-    else
-    {
-        return swLinkedList_prepend(serv->hooks[type], (void*) func);
-    }
+    return swoole::hook_add(serv->hooks, (int) type, func, push_back);
 }
 
 static void swServer_check_port_type(swServer *serv, swListenPort *ls)

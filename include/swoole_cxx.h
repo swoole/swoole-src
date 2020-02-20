@@ -70,6 +70,35 @@ protected:
     std::list<Callback *> list_;
 };
 
+static inline int hook_add(void **hooks, int type, swCallback func, int push_back)
+{
+    if (hooks[type] == NULL)
+    {
+        hooks[type] = new std::list<swCallback>;
+    }
+
+    std::list<swCallback> *l = static_cast<std::list<swCallback>*>(hooks[type]);
+    if (push_back)
+    {
+        l->push_back(func);
+    }
+    else
+    {
+        l->push_front(func);
+    }
+
+    return SW_OK;
+}
+
+static inline void hook_call(void **hooks, int type, void *arg)
+{
+    std::list<swCallback> *l = static_cast<std::list<swCallback>*>(hooks[type]);
+    for (auto i = l->begin(); i != l->end(); i++)
+    {
+        (*i)(arg);
+    }
+}
+
 typedef std::function<bool (char *, size_t)> StringExplodeHandler;
 size_t string_split(swString *str, const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
 
