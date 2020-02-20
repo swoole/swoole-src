@@ -105,8 +105,8 @@ void swoole_init(void)
     }
     else
     {
-        SwooleG.max_sockets = MAX((uint32_t) rlmt.rlim_cur, SW_MAX_SOCKETS_DEFAULT);
-        SwooleG.max_sockets = MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
+        SwooleG.max_sockets = SW_MAX((uint32_t) rlmt.rlim_cur, SW_MAX_SOCKETS_DEFAULT);
+        SwooleG.max_sockets = SW_MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
 
     SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
