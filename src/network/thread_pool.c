@@ -50,7 +50,7 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
         return SW_ERR;
     }
 #else
-    int size = MAX(SwooleG.max_sockets + 1, SW_THREADPOOL_QUEUE_LEN);
+    int size = SW_MAX(SwooleG.max_sockets + 1, SW_THREADPOOL_QUEUE_LEN);
     if (swRingQueue_init(&pool->queue, size) < 0)
     {
         sw_free(pool->threads);
