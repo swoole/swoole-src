@@ -103,10 +103,64 @@ static void swFactoryProcess_free(swFactory *factory)
     }
 }
 
+int swFactoryProcess_create_pipes(swFactory *factory)
+{
+    swServer *serv = (swServer *) factory->ptr;
+    swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
+
+    object->pipes = (swPipe *) sw_calloc(serv->worker_num, sizeof(swPipe));
+    if (object->pipes == NULL)
+    {
+        swSysError("malloc[pipes] failed");
+        return SW_ERR;
+    }
+
+    for (uint32_t i = 0; i < serv->worker_num; i++)
+    {
+        int kernel_buffer_size = SW_UNIXSOCK_MAX_BUF_SIZE;
+
+        if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0)
+        {
+            sw_free(object->pipes);
+            object->pipes = NULL;
+            return SW_ERR;
+        }
+
+        serv->workers[i].pipe_master = object->pipes[i].getSocket(&object->pipes[i], SW_PIPE_MASTER);
+        serv->workers[i].pipe_worker = object->pipes[i].getSocket(&object->pipes[i], SW_PIPE_WORKER);
+        
+        setsockopt(serv->workers[i].pipe_master->fd, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
+        setsockopt(serv->workers[i].pipe_worker->fd, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
+
+        serv->workers[i].pipe_object = &object->pipes[i];
+        swServer_store_pipe_fd(serv, serv->workers[i].pipe_object);
+    }
+
+    return SW_OK;
+}
+
+void swServer_set_ipc_max_size(swServer *serv)
+{
+#ifdef HAVE_KQUEUE
+    serv->ipc_max_size = SW_IPC_MAX_SIZE;
+#else
+    int bufsize;
+    socklen_t _len = sizeof(bufsize);
+    /**
+     * Get the maximum ipc[unix socket with dgram] transmission length
+     */
+    if (getsockopt(serv->workers[0].pipe_master->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, &_len) != 0)
+    {
+        bufsize = SW_IPC_MAX_SIZE;
+    }
+    serv->ipc_max_size = bufsize - DGRAM_HEADER_SIZE;
+#endif
+}
+
 static int swFactoryProcess_start(swFactory *factory)
 {
-    uint32_t i;
     swServer *serv = (swServer *) factory->ptr;
+    swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
 
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
     {
@@ -133,7 +187,7 @@ static int swFactoryProcess_start(swFactory *factory)
         SwooleG.reuse_port = _reuse_port;
     }
 
-    for (i = 0; i < serv->worker_num; i++)
+    for (uint32_t i = 0; i < serv->worker_num; i++)
     {
         if (swServer_worker_create(serv, swServer_get_worker(serv, i)) < 0)
         {
@@ -143,50 +197,13 @@ static int swFactoryProcess_start(swFactory *factory)
 
     serv->reactor_pipe_num = serv->worker_num / serv->reactor_num;
 
-    swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
-
-    object->pipes = (swPipe *) sw_calloc(serv->worker_num, sizeof(swPipe));
-    if (object->pipes == NULL)
+    if (swFactoryProcess_create_pipes(factory) < 0)
     {
-        swSysError("malloc[pipes] failed");
         return SW_ERR;
     }
 
-    for (i = 0; i < serv->worker_num; i++)
-    {
-        if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0)
-        {
-            sw_free(object->pipes);
-            object->pipes = NULL;
-            return SW_ERR;
-        }
+    swServer_set_ipc_max_size(serv);
 
-        serv->workers[i].pipe_master = object->pipes[i].getSocket(&object->pipes[i], SW_PIPE_MASTER);
-        serv->workers[i].pipe_worker = object->pipes[i].getSocket(&object->pipes[i], SW_PIPE_WORKER);
-        
-        int kernel_buffer_size = SW_UNIXSOCK_MAX_BUF_SIZE;
-        setsockopt(serv->workers[i].pipe_master->fd, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
-        setsockopt(serv->workers[i].pipe_worker->fd, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
-
-        serv->workers[i].pipe_object = &object->pipes[i];
-        swServer_store_pipe_fd(serv, serv->workers[i].pipe_object);
-    }
-
-#ifdef HAVE_KQUEUE
-    serv->ipc_max_size = SW_IPC_MAX_SIZE;
-#else
-    int bufsize;
-    socklen_t _len = sizeof(bufsize);
-    /**
-     * Get the maximum ipc[unix socket with dgram] transmission length
-     */
-    if (getsockopt(serv->workers[0].pipe_master->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, &_len) != 0)
-    {
-        bufsize = SW_IPC_MAX_SIZE;
-    }
-    // - dgram header [32 byte]
-    serv->ipc_max_size = bufsize - 32;
-#endif
     /**
      * alloc memory
      */
@@ -196,7 +213,7 @@ static int swFactoryProcess_start(swFactory *factory)
         swSysError("malloc[buffers] failed");
         return SW_ERR;
     }
-    for (i = 0; i < serv->reactor_num; i++)
+    for (uint32_t i = 0; i < serv->reactor_num; i++)
     {
         serv->pipe_buffers[i] = (swPipeBuffer *) sw_malloc(serv->ipc_max_size);
         if (serv->pipe_buffers[i] == NULL)

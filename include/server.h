@@ -269,6 +269,7 @@ int swFactory_finish(swFactory *factory, swSendData *_send);
 int swFactory_check_callback(swFactory *factory);
 
 int swFactoryProcess_create(swFactory *factory, uint32_t worker_num);
+int swFactoryProcess_create_pipes(swFactory *factory);
 
 //------------------------------------Server-------------------------------------------
 enum swServer_hook_type
@@ -639,6 +640,8 @@ void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg)
 void swServer_clear_timer(swServer *serv);
 int swServer_create(swServer *serv);
 int swServer_shutdown(swServer *serv);
+
+void swServer_set_ipc_max_size(swServer *serv);
 
 static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
 {

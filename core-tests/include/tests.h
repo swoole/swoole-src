@@ -72,3 +72,5 @@ static inline void coro_test(coroutine_func_t fn, void *arg = nullptr)
     coro_test_create(fn, arg, &complete_num);
     swoole_event_wait();
 }
+
+void create_test_server(swServer *serv);
