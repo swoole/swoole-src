@@ -1365,6 +1365,12 @@ static PHP_METHOD(swoole_socket_coro, close)
     {
         RETURN_FALSE;
     }
+    if (sock->socket->protocol.private_data)
+    {
+        zend_fcall_info_cache *package_length_func = (zend_fcall_info_cache *) sock->socket->protocol.private_data;
+        sw_zend_fci_cache_discard(package_length_func);
+        efree(package_length_func);
+    }
     if (sock->socket->close())
     {
         delete sock->socket;

@@ -1657,17 +1657,20 @@ ssize_t Socket::recv_packet(double timeout)
         }
 
         _get_length:
+        protocol.real_header_length = 0;
         buf_len = protocol.get_package_length(&protocol, socket, read_buffer->str, (uint32_t) read_buffer->length);
         swTraceLog(SW_TRACE_SOCKET, "packet_len=%ld, length=%ld", buf_len, read_buffer->length);
-        //error package
         if (buf_len < 0)
         {
-            set_err(SW_ERROR_PACKAGE_LENGTH_NOT_FOUND, "package length is wrong (negative)");
+            set_err(SW_ERROR_PACKAGE_LENGTH_NOT_FOUND, "get package length failed");
             return 0;
         }
         else if (buf_len == 0)
         {
-            header_len = protocol.real_header_length;
+            if (protocol.real_header_length != 0)
+            {
+                header_len = protocol.real_header_length;
+            }
             goto _recv_header;
         }
         else if (buf_len > protocol.package_max_length)
