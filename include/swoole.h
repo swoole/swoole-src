@@ -201,7 +201,6 @@ typedef unsigned long ulong_t;
 #include "list.h"
 #include "heap.h"
 #include "ring_queue.h"
-#include "array.h"
 #include "error.h"
 
 #define SW_MAX(A, B)           ((A) > (B) ? (A) : (B))
@@ -631,23 +630,6 @@ typedef struct _swString
     off_t offset;
     char *str;
 } swString;
-
-typedef struct _swLinkedList_node
-{
-    struct _swLinkedList_node *prev;
-    struct _swLinkedList_node *next;
-    ulong_t priority;
-    void *data;
-} swLinkedList_node;
-
-typedef struct
-{
-    uint32_t num;
-    uint8_t type;
-    swLinkedList_node *head;
-    swLinkedList_node *tail;
-    swDestructor dtor;
-} swLinkedList;
 
 typedef struct
 {
@@ -2200,16 +2182,6 @@ int swChannel_notify(swChannel *object);
 void swChannel_free(swChannel *object);
 void swChannel_print(swChannel *);
 
-/*----------------------------LinkedList-------------------------------*/
-swLinkedList* swLinkedList_new(uint8_t type, swDestructor dtor);
-int swLinkedList_append(swLinkedList *ll, void *data);
-void swLinkedList_remove_node(swLinkedList *ll, swLinkedList_node *remove_node);
-int swLinkedList_prepend(swLinkedList *ll, void *data);
-void* swLinkedList_pop(swLinkedList *ll);
-void* swLinkedList_shift(swLinkedList *ll);
-swLinkedList_node* swLinkedList_find(swLinkedList *ll, void *data);
-void swLinkedList_free(swLinkedList *ll);
-#define swLinkedList_remove(ll, data) (swLinkedList_remove_node(ll, swLinkedList_find(ll, data)))
 /*----------------------------Thread Pool-------------------------------*/
 enum swThread_type
 {
@@ -2473,7 +2445,7 @@ typedef struct
     swSocket *aio_default_socket;
 
     swHashMap *functions;
-    swLinkedList *hooks[SW_MAX_HOOK_TYPE];
+    void *hooks[SW_MAX_HOOK_TYPE];
 
     int (*reactor_can_exit)(swReactor *);
 } swGlobal_t;

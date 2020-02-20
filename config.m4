@@ -407,15 +407,11 @@ if test "$PHP_SWOOLE" != "no"; then
 
     swoole_source_file=" \
         php_swoole_cxx.cc \
-        src/core/array.cc \
         src/core/base.cc \
         src/core/channel.cc \
         src/core/error.cc \
         src/core/hashmap.cc \
         src/core/heap.cc \
-        src/core/list.cc \
-        src/core/log.cc \
-        src/core/rbtree.cc \
         src/core/ring_queue.cc \
         src/core/socket.cc \
         src/core/string.cc \

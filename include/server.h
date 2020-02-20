@@ -22,6 +22,7 @@
 #include "http.h"
 
 #include <string>
+#include <queue>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -554,7 +555,7 @@ struct swServer
     swSocket *stream_socket;
     swProtocol stream_protocol;
     swSocket *last_stream_socket;
-    swLinkedList *buffer_pool;
+    std::queue<swString*> *buffer_pool;
 
 #ifdef SW_BUFFER_RECV_TIME
     double last_receive_usec;
@@ -567,7 +568,7 @@ struct swServer
      */
     uint64_t message_queue_key;
 
-    swLinkedList *hooks[SW_MAX_HOOK_TYPE];
+    void *hooks[SW_MAX_HOOK_TYPE];
 
     void (*onStart)(swServer *serv);
     void (*onManagerStart)(swServer *serv);
