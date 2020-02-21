@@ -442,6 +442,9 @@ int swServer_create_task_workers(swServer *serv)
     return SW_OK;
 }
 
+/**
+ * only the memory of the swWorker structure is allocated, no process is fork
+ */
 int swServer_create_user_workers(swServer *serv)
 {
     serv->user_workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->user_worker_num * sizeof(swWorker));
