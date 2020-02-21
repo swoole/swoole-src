@@ -632,12 +632,11 @@ void swWorker_clean_pipe_buffer(swServer *serv)
 /**
  * main loop [Worker]
  */
-int swWorker_loop(swServer *serv, int worker_id)
+int swWorker_loop(swServer *serv, swWorker *worker)
 {
     //worker_id
-    SwooleWG.id = worker_id;
+    SwooleWG.id = worker->id;
 
-    swWorker *worker = swServer_get_worker(serv, worker_id);
     swServer_worker_init(serv, worker);
 
     if (swoole_event_init() < 0)
@@ -645,7 +644,7 @@ int swWorker_loop(swServer *serv, int worker_id)
         return SW_ERR;
     }
 
-    swReactor * reactor = SwooleTG.reactor;
+    swReactor *reactor = SwooleTG.reactor;
     /**
      * set pipe buffer size
      */

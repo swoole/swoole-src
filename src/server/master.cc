@@ -397,7 +397,10 @@ void** swServer_worker_create_buffers(swServer *serv, uint buffer_num)
     return (void **) buffers;
 }
 
-int swServer_create_task_worker(swServer *serv)
+/**
+ * only the memory of the swWorker structure is allocated, no process is fork
+ */
+int swServer_create_task_workers(swServer *serv)
 {
     key_t key = 0;
     int ipc_mode;
@@ -435,6 +438,20 @@ int swServer_create_task_worker(swServer *serv)
         {
             return SW_ERR;
         }
+    }
+    return SW_OK;
+}
+
+/**
+ * only the memory of the swWorker structure is allocated, no process is fork
+ */
+int swServer_create_user_workers(swServer *serv)
+{
+    serv->user_workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->user_worker_num * sizeof(swWorker));
+    if (serv->user_workers == NULL)
+    {
+        swSysWarn("gmalloc[server->user_workers] failed");
+        return SW_ERR;
     }
     return SW_OK;
 }

@@ -710,7 +710,8 @@ int swServer_worker_create(swServer *serv, swWorker *worker);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 void swServer_worker_start(swServer *serv, swWorker *worker);
 
-int swServer_create_task_worker(swServer *serv);
+int swServer_create_task_workers(swServer *serv);
+int swServer_create_user_workers(swServer *serv);
 void swServer_reopen_log_file(swServer *serv);
 
 void swTaskWorker_init(swServer *serv);
@@ -1025,7 +1026,7 @@ void swPort_clear_protocol(swListenPort *ls);
 //------------------------------------Worker Process-------------------------------------------
 void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
-int swWorker_loop(swServer *serv, int worker_pti);
+int swWorker_loop(swServer *serv, swWorker *worker);
 void swWorker_clean_pipe_buffer(swServer *serv);
 int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int session_id);
 int swWorker_send2worker(swWorker *dst_worker, const void *buf, int n, int flag);
