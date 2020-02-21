@@ -1918,6 +1918,9 @@ void swServer_set_ipc_max_size(swServer *serv)
 #endif
 }
 
+/**
+ * allocate memory for swServer::pipe_buffers
+ */
 int swServer_create_pipe_buffers(swServer *serv)
 {
     serv->pipe_buffers = (swPipeBuffer **) sw_calloc(serv->reactor_num, sizeof(swPipeBuffer *));

@@ -483,6 +483,11 @@ struct swServer
     uint32_t input_buffer_size;
     uint32_t max_queued_bytes;
 
+    /**
+     * the master process and worker process communicate using unix socket dgram.
+     * ipc_max_size represents the maximum size of each datagram, 
+     * which is obtained from the kernel send buffer of unix socket in swServer_set_ipc_max_size function.
+     */
     uint32_t ipc_max_size;
 
     void *ptr2;
