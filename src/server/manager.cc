@@ -107,6 +107,19 @@ static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int 
 }
 
 /**
+ * fork task worker processes
+ */
+static sw_inline int swManager_spawn_task_workers(swServer *serv)
+{
+    if (serv->task_worker_num > 0)
+    {
+        return swProcessPool_start(&serv->gs->task_workers);
+    }
+
+    return SW_OK;
+}
+
+/**
  * fork worker processes
  */
 static sw_inline int swManager_spawn_workers(swServer *serv)
@@ -224,14 +237,11 @@ int swManager_start(swServer *serv)
             return SW_OK;
         }
         swServer_close_port(serv, SW_TRUE);
-        /**
-         * create task worker process
-         */
-        if (serv->task_worker_num > 0)
+        
+        if (swManager_spawn_task_workers(serv) < 0)
         {
-            swProcessPool_start(&serv->gs->task_workers);
+            return SW_ERR;
         }
-
         if (swManager_spawn_workers(serv) < 0)
         {
             return SW_ERR;
