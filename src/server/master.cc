@@ -1914,7 +1914,7 @@ void swServer_set_ipc_max_size(swServer *serv)
     {
         bufsize = SW_IPC_MAX_SIZE;
     }
-    serv->ipc_max_size = bufsize - DGRAM_HEADER_SIZE;
+    serv->ipc_max_size = bufsize - SW_DGRAM_HEADER_SIZE;
 #endif
 }
 
