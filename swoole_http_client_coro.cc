@@ -429,12 +429,6 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
 static int http_parser_on_headers_complete(swoole_http_parser *parser)
 {
     http_client* http = (http_client*) parser->data;
-    //no content-length
-    if (http->chunked == 0 && parser->content_length == -1)
-    {
-        enum flags { F_CONNECTION_CLOSE = 1 << 2 };
-        parser->flags |= F_CONNECTION_CLOSE;
-    }
     if (http->method == SW_HTTP_HEAD || parser->status_code == SW_HTTP_NO_CONTENT)
     {
         return 1;
