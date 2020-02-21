@@ -1025,7 +1025,7 @@ void swPort_clear_protocol(swListenPort *ls);
 //------------------------------------Worker Process-------------------------------------------
 void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
-int swWorker_loop(swServer *serv, int worker_pti);
+int swWorker_loop(swServer *serv, swWorker *worker);
 void swWorker_clean_pipe_buffer(swServer *serv);
 int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int session_id);
 int swWorker_send2worker(swWorker *dst_worker, const void *buf, int n, int flag);

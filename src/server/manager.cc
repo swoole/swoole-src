@@ -43,7 +43,7 @@ typedef std::unordered_map<uint32_t, pid_t> reload_list_t;
 
 static int swManager_loop(swServer *serv);
 static void swManager_signal_handler(int sig);
-static pid_t swManager_spawn_worker(swServer *serv, int worker_id);
+static pid_t swManager_spawn_worker(swServer *serv, swWorker *worker);
 static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status);
 
 static swManagerProcess ManagerProcess;
@@ -115,7 +115,7 @@ static sw_inline int swManager_spawn_workers(swServer *serv)
         
     for (uint32_t i = 0; i < serv->worker_num; i++)
     {
-        pid = swManager_spawn_worker(serv, i);
+        pid = swManager_spawn_worker(serv, &serv->workers[i]);
         if (pid < 0)
         {
             swError("fork() failed");
@@ -344,7 +344,7 @@ static int swManager_loop(swServer *serv)
                 }
                 else
                 {
-                    pid_t new_pid = swManager_spawn_worker(serv, msg.worker_id);
+                    pid_t new_pid = swManager_spawn_worker(serv, &serv->workers[msg.worker_id]);
                     if (new_pid > 0)
                     {
                         serv->workers[msg.worker_id].pid = new_pid;
@@ -453,7 +453,7 @@ static int swManager_loop(swServer *serv)
 
                 while (1)
                 {
-                    new_pid = swManager_spawn_worker(serv, i);
+                    new_pid = swManager_spawn_worker(serv, &serv->workers[i]);
                     if (new_pid < 0)
                     {
                         SW_START_SLEEP;
@@ -589,7 +589,7 @@ static int swManager_loop(swServer *serv)
     return SW_OK;
 }
 
-static pid_t swManager_spawn_worker(swServer *serv, int worker_id)
+static pid_t swManager_spawn_worker(swServer *serv, swWorker *worker)
 {
     pid_t pid;
 
@@ -605,7 +605,7 @@ static pid_t swManager_spawn_worker(swServer *serv, int worker_id)
     else if (pid == 0)
     {
         
-        exit(swWorker_loop(serv, worker_id));
+        exit(swWorker_loop(serv, worker));
     }
     //parent,add to writer
     else
