@@ -189,10 +189,8 @@ int swManager_start(swServer *serv)
     //User Worker Process
     if (serv->user_worker_num > 0)
     {
-        serv->user_workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->user_worker_num * sizeof(swWorker));
-        if (serv->user_workers == NULL)
+        if (swServer_create_user_workers(serv) < 0)
         {
-            swSysWarn("gmalloc[server->user_workers] failed");
             return SW_ERR;
         }
         swUserWorker_node *user_worker;
