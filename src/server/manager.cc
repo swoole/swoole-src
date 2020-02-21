@@ -126,6 +126,8 @@ static sw_inline int swManager_spawn_workers(swServer *serv)
             serv->workers[i].pid = pid;
         }
     }
+
+    return SW_OK;
 }
 
 /**
@@ -133,6 +135,8 @@ static sw_inline int swManager_spawn_workers(swServer *serv)
  */
 static sw_inline int swManager_spawn_user_workers(swServer *serv)
 {
+    pid_t pid;
+
     if (serv->user_worker_list)
     {
         swUserWorker_node *user_worker;
@@ -142,9 +146,15 @@ static sw_inline int swManager_spawn_user_workers(swServer *serv)
             {
                 swServer_store_pipe_fd(serv, user_worker->worker->pipe_object);
             }
-            swManager_spawn_user_worker(serv, user_worker->worker);
+            pid = swManager_spawn_user_worker(serv, user_worker->worker);
+            if (pid < 0)
+            {
+                return SW_ERR;
+            }
         }
     }
+
+    return SW_OK;
 }
 
 //create worker child proccess
@@ -582,7 +592,6 @@ static int swManager_loop(swServer *serv)
 static pid_t swManager_spawn_worker(swServer *serv, int worker_id)
 {
     pid_t pid;
-    int ret;
 
     pid = swoole_fork(0);
 
