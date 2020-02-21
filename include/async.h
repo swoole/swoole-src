@@ -31,7 +31,7 @@ enum swAioFlag
     SW_AIO_EOF         = 1u << 2,
 };
 
-typedef struct _swAio_event
+struct swAio_event
 {
     int fd;
     size_t task_id;
@@ -58,7 +58,7 @@ typedef struct _swAio_event
     void *object;
     void (*handler)(struct _swAio_event *event);
     void (*callback)(struct _swAio_event *event);
-} swAio_event;
+} ;
 
 typedef void (*swAio_handler)(swAio_event *event);
 
