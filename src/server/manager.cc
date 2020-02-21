@@ -107,7 +107,7 @@ static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int 
 }
 
 /**
- * create worker processes
+ * fork worker processes
  */
 static sw_inline int swManager_spawn_workers(swServer *serv)
 {
@@ -131,7 +131,7 @@ static sw_inline int swManager_spawn_workers(swServer *serv)
 }
 
 /**
- * create user worker processes
+ * fork user worker processes
  */
 static sw_inline int swManager_spawn_user_workers(swServer *serv)
 {
