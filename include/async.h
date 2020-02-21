@@ -56,8 +56,8 @@ struct swAio_event
     int pipe_fd;
     double timestamp;
     void *object;
-    void (*handler)(struct _swAio_event *event);
-    void (*callback)(struct _swAio_event *event);
+    void (*handler)(struct swAio_event *event);
+    void (*callback)(struct swAio_event *event);
 } ;
 
 typedef void (*swAio_handler)(swAio_event *event);
