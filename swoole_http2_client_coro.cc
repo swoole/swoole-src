@@ -405,17 +405,17 @@ bool http2_client::connect()
     // [init]: we must set default value, server is not always send all the settings
     swHttp2_init_settings(&remote_settings);
 
-    int ret = nghttp2_hd_inflate_new(&inflater);
+    int ret = nghttp2_hd_inflate_new2(&inflater, php_nghttp2_mem());
     if (ret != 0)
     {
-        nghttp2_error(ret, "nghttp2_hd_inflate_new() failed");
+        nghttp2_error(ret, "nghttp2_hd_inflate_new2() failed");
         close();
         return false;
     }
-    ret = nghttp2_hd_deflate_new(&deflater, local_settings.header_table_size);
+    ret = nghttp2_hd_deflate_new2(&deflater, local_settings.header_table_size, php_nghttp2_mem());
     if (ret != 0)
     {
-        nghttp2_error(ret, "nghttp2_hd_deflate_new() failed");
+        nghttp2_error(ret, "nghttp2_hd_deflate_new2() failed");
         close();
         return false;
     }
@@ -915,8 +915,8 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
 
     if (flags & SW_HTTP2_FLAG_PRIORITY)
     {
-        //int stream_deps = ntohl(*(int *) (in));
-        //uint8_t weight = in[4];
+        // int stream_deps = ntohl(*(int *) (in));
+        // uint8_t weight = in[4];
         in += 5;
         inlen -= 5;
     }
@@ -930,7 +930,6 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
     {
         nghttp2_nv nv;
         int inflate_flags = 0;
-        size_t proclen;
 
         rv = nghttp2_hd_inflate_hd(inflater, &nv, &inflate_flags, (uchar *) in, inlen, 1);
         if (rv < 0)
@@ -939,11 +938,13 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
             return SW_ERR;
         }
 
-        proclen = (size_t) rv;
-        in += proclen;
-        inlen -= proclen;
+        in += (size_t) rv;
+        inlen -= (size_t) rv;
 
-        //swTraceLog(SW_TRACE_HTTP2, "Header: %s[%d]: %s[%d]", nv.name, nv.namelen, nv.value, nv.valuelen);
+        swTraceLog(
+            SW_TRACE_HTTP2, "[" SW_ECHO_GREEN "] %.*s[%d]: %.*s[%d]", "HEADER",
+            (int) nv.namelen, nv.name, nv.namelen, (int) nv.valuelen, nv.value, nv.valuelen
+        );
 
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT)
         {
@@ -952,7 +953,7 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
                 if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "status"))
                 {
                     zend_update_property_long(swoole_http2_response_ce, zresponse, ZEND_STRL("statusCode"), atoi((char *) nv.value));
-                    continue;
+                    goto _check_end;
                 }
             }
 #ifdef SW_HAVE_ZLIB
@@ -985,6 +986,7 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
             }
             add_assoc_stringl_ex(zheaders, (char *) nv.name, nv.namelen, (char *) nv.value, nv.valuelen);
         }
+        _check_end:
 
         if (inflate_flags & NGHTTP2_HD_INFLATE_FINAL)
         {
@@ -992,7 +994,7 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
             break;
         }
 
-        if ((inflate_flags & NGHTTP2_HD_INFLATE_EMIT) == 0 && inlen == 0)
+        if (inlen == 0)
         {
             break;
         }
@@ -1303,7 +1305,7 @@ bool http2_client::write_data(uint32_t stream_id, zval *zdata, bool end)
             return false;
         }
         swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, len, flag, stream_id);
-        swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN ", END, STREAM#%d] length=%zu", swHttp2_get_type(SW_HTTP2_TYPE_DATA), stream_id, len);
+        swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN ",%s STREAM#%d] length=%zu", swHttp2_get_type(SW_HTTP2_TYPE_DATA), end ? " END," : "", stream_id, len);
         if (!send(buffer, SW_HTTP2_FRAME_HEADER_SIZE) || !send(formstr, len))
         {
             smart_str_free(&formstr_s);
@@ -1315,7 +1317,7 @@ bool http2_client::write_data(uint32_t stream_id, zval *zdata, bool end)
     {
         zend::string data(zdata);
         swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, data.len(), flag, stream_id);
-        swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN ", END, STREAM#%d] length=%zu", swHttp2_get_type(SW_HTTP2_TYPE_DATA), stream_id, data.len());
+        swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN ",%s STREAM#%d] length=%zu", swHttp2_get_type(SW_HTTP2_TYPE_DATA), end ? " END," : "", stream_id, data.len());
         if (!send(buffer, SW_HTTP2_FRAME_HEADER_SIZE) || !send(data.val(), data.len()))
         {
             return false;

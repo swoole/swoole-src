@@ -135,10 +135,10 @@ static ssize_t http2_build_trailer(http_context *ctx, uchar *buffer)
 
         if (!deflater)
         {
-            int ret = nghttp2_hd_deflate_new(&deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
+            int ret = nghttp2_hd_deflate_new2(&deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE, php_nghttp2_mem());
             if (ret != 0)
             {
-                swWarn("nghttp2_hd_deflate_init() failed with error: %s", nghttp2_strerror(ret));
+                swWarn("nghttp2_hd_deflate_new2() failed with error: %s", nghttp2_strerror(ret));
                 return -1;
             }
             client->deflater = deflater;
@@ -376,10 +376,10 @@ static ssize_t http2_build_header(http_context *ctx, uchar *buffer, size_t body_
     nghttp2_hd_deflater *deflater = client->deflater;
     if (!deflater)
     {
-        ret = nghttp2_hd_deflate_new(&deflater, client->header_table_size);
+        ret = nghttp2_hd_deflate_new2(&deflater, client->header_table_size, php_nghttp2_mem());
         if (ret != 0)
         {
-            swWarn("nghttp2_hd_deflate_init() failed with error: %s", nghttp2_strerror(ret));
+            swWarn("nghttp2_hd_deflate_new2() failed with error: %s", nghttp2_strerror(ret));
             return -1;
         }
         client->deflater = deflater;
@@ -688,10 +688,10 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
 
     if (!inflater)
     {
-        int ret = nghttp2_hd_inflate_new(&inflater);
+        int ret = nghttp2_hd_inflate_new2(&inflater, php_nghttp2_mem());
         if (ret != 0)
         {
-            swWarn("nghttp2_hd_inflate_init() failed, Error: %s[%d]", nghttp2_strerror(ret), ret);
+            swWarn("nghttp2_hd_inflate_new2() failed, Error: %s[%d]", nghttp2_strerror(ret), ret);
             return SW_ERR;
         }
         client->inflater = inflater;

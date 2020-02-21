@@ -272,6 +272,19 @@ void php_brotli_free(void* opaque, void* address);
 #endif
 
 #ifdef SW_USE_HTTP2
+
+static sw_inline nghttp2_mem* php_nghttp2_mem()
+{
+    static nghttp2_mem mem = {
+        nullptr,
+        [](size_t size, void *mem_user_data){ return emalloc(size); },
+        [](void *ptr, void *mem_user_data){ return efree(ptr); },
+        [](size_t nmemb, size_t size, void *mem_user_data){ return ecalloc(nmemb, size); },
+        [](void *ptr, size_t size, void *mem_user_data){ return erealloc(ptr, size); }
+    };
+    return &mem;
+}
+
 void swoole_http2_response_end(http_context *ctx, zval *zdata, zval *return_value);
 
 namespace swoole { namespace http2 {
