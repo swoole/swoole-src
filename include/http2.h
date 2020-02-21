@@ -52,7 +52,7 @@ enum swHttp2_frame_type
     SW_HTTP2_TYPE_CONTINUATION = 9,
 };
 
-enum swHttp2FrameFlag
+enum swHttp2_frame_flag
 {
     SW_HTTP2_FLAG_NONE = 0x00,
     SW_HTTP2_FLAG_ACK = 0x01,
@@ -72,10 +72,12 @@ enum swHttp2_setting_id
     SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE   = 0x6,
 };
 
-enum swHttp2_stream_type
+enum swHttp2_stream_flag
 {
-    SW_HTTP2_STREAM_NORMAL      = 0,
-    SW_HTTP2_STREAM_PIPELINE    = 1,
+    SW_HTTP2_STREAM_NORMAL            = 0,
+    SW_HTTP2_STREAM_REQUEST_END       = 1 << 0,
+    SW_HTTP2_STREAM_PIPELINE_REQUEST  = 1 << 1,
+    SW_HTTP2_STREAM_PIPELINE_RESPONSE = 1 << 2,
 };
 
 #define SW_HTTP2_FRAME_HEADER_SIZE            9
