@@ -133,7 +133,7 @@ int swReactorProcess_start(swServer *serv)
     //task workers
     if (serv->task_worker_num > 0)
     {
-        if (swServer_create_task_worker(serv) < 0)
+        if (swServer_create_task_workers(serv) < 0)
         {
             return SW_ERR;
         }

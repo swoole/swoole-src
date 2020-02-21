@@ -397,7 +397,7 @@ void** swServer_worker_create_buffers(swServer *serv, uint buffer_num)
     return (void **) buffers;
 }
 
-int swServer_create_task_worker(swServer *serv)
+int swServer_create_task_workers(swServer *serv)
 {
     key_t key = 0;
     int ipc_mode;

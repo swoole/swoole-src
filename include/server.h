@@ -710,7 +710,7 @@ int swServer_worker_create(swServer *serv, swWorker *worker);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 void swServer_worker_start(swServer *serv, swWorker *worker);
 
-int swServer_create_task_worker(swServer *serv);
+int swServer_create_task_workers(swServer *serv);
 void swServer_reopen_log_file(swServer *serv);
 
 void swTaskWorker_init(swServer *serv);

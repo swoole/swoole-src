@@ -106,6 +106,47 @@ static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int 
     swoole_timer_after((long) (serv->max_wait_time * 2 * 1000), swManager_kill_timeout_process, _list);
 }
 
+/**
+ * create worker processes
+ */
+static sw_inline int swManager_spawn_workers(swServer *serv)
+{
+    pid_t pid;
+        
+    for (uint32_t i = 0; i < serv->worker_num; i++)
+    {
+        pid = swManager_spawn_worker(serv, i);
+        if (pid < 0)
+        {
+            swError("fork() failed");
+            return SW_ERR;
+        }
+        else
+        {
+            serv->workers[i].pid = pid;
+        }
+    }
+}
+
+/**
+ * create user worker processes
+ */
+static sw_inline int swManager_spawn_user_workers(swServer *serv)
+{
+    if (serv->user_worker_list)
+    {
+        swUserWorker_node *user_worker;
+        LL_FOREACH(serv->user_worker_list, user_worker)
+        {
+            if (user_worker->worker->pipe_object)
+            {
+                swServer_store_pipe_fd(serv, user_worker->worker->pipe_object);
+            }
+            swManager_spawn_user_worker(serv, user_worker->worker);
+        }
+    }
+}
+
 //create worker child proccess
 int swManager_start(swServer *serv)
 {
@@ -114,7 +155,7 @@ int swManager_start(swServer *serv)
 
     if (serv->task_worker_num > 0)
     {
-        if (swServer_create_task_worker(serv) < 0)
+        if (swServer_create_task_workers(serv) < 0)
         {
             return SW_ERR;
         }
@@ -182,39 +223,14 @@ int swManager_start(swServer *serv)
         {
             swProcessPool_start(&serv->gs->task_workers);
         }
-        /**
-         * create worker process
-         */
-        for (i = 0; i < serv->worker_num; i++)
+
+        if (swManager_spawn_workers(serv) < 0)
         {
-            pid = swManager_spawn_worker(serv, i);
-            if (pid < 0)
-            {
-                swError("fork() failed");
-                return SW_ERR;
-            }
-            else
-            {
-                serv->workers[i].pid = pid;
-            }
+            return SW_ERR;
         }
-        /**
-         * create user worker process
-         */
-        if (serv->user_worker_list)
+        if (swManager_spawn_user_workers(serv) < 0)
         {
-            swUserWorker_node *user_worker;
-            LL_FOREACH(serv->user_worker_list, user_worker)
-            {
-                /**
-                 * store the pipe object
-                 */
-                if (user_worker->worker->pipe_object)
-                {
-                    swServer_store_pipe_fd(serv, user_worker->worker->pipe_object);
-                }
-                swManager_spawn_user_worker(serv, user_worker->worker);
-            }
+            return SW_ERR;
         }
 
         SwooleG.process_type = SW_PROCESS_MANAGER;
@@ -579,8 +595,8 @@ static pid_t swManager_spawn_worker(swServer *serv, int worker_id)
     //worker child processor
     else if (pid == 0)
     {
-        ret = swWorker_loop(serv, worker_id);
-        exit(ret);
+        
+        exit(swWorker_loop(serv, worker_id));
     }
     //parent,add to writer
     else
