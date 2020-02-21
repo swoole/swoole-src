@@ -99,7 +99,7 @@ enum swFactory_dispatch_result
     SW_DISPATCH_RESULT_USERFUNC_FALLBACK = -3,
 };
 
-typedef struct _swReactorThread
+struct swReactorThread
 {
     pthread_t thread_id;
     swReactor reactor;
@@ -107,11 +107,11 @@ typedef struct _swReactorThread
     uint32_t pipe_num;
     swSocket *pipe_sockets;
     std::unordered_map<int, swString *> *send_buffers;
-} swReactorThread;
+};
 
-typedef struct _swListenPort
+struct swListenPort
 {
-    struct _swListenPort *next, *prev;
+    swListenPort *next, *prev;
 
     /**
      * tcp socket listen backlog
@@ -212,39 +212,39 @@ typedef struct _swListenPort
 
     swProtocol protocol;
     void *ptr;
-    int (*onRead)(swReactor *reactor, struct _swListenPort *port, swEvent *event);
-} swListenPort;
+    int (*onRead)(swReactor *reactor, swListenPort *port, swEvent *event);
+};
 
-typedef struct _swUserWorker_node
+struct swUserWorker_node
 {
-    struct _swUserWorker_node *next, *prev;
+    swUserWorker_node *next, *prev;
     swWorker *worker;
-} swUserWorker_node;
+};
 
-typedef struct _swWorkerStopMessage
+struct swWorkerStopMessage
 {
     pid_t pid;
     uint16_t worker_id;
-} swWorkerStopMessage;
+};
 
 //------------------------------------Packet-------------------------------------------
-typedef struct _swPacket_task
+struct swPacket_task
 {
     size_t length;
     char tmpfile[SW_TASK_TMPDIR_SIZE + sizeof(SW_TASK_TMP_FILE)];
-} swPacket_task;
+};
 
-typedef struct _swPacket_response
+struct swPacket_response
 {
     int length;
     int worker_id;
-} swPacket_response;
+};
 
-typedef struct _swPacket_ptr
+struct swPacket_ptr
 {
     swDataHead info;
     swString data;
-} swPacket_ptr;
+};
 
 //-----------------------------------Factory--------------------------------------------
 struct swFactory
@@ -290,7 +290,7 @@ enum swServer_hook_type
     SW_SERVER_HOOK_PROCESS_TIMER,
 };
 
-typedef struct _swServerStats
+struct swServerStats
 {
     time_t start_time;
     sw_atomic_t connection_num;
@@ -298,9 +298,9 @@ typedef struct _swServerStats
     sw_atomic_long_t accept_count;
     sw_atomic_long_t close_count;
     sw_atomic_long_t request_count;
-} swServerStats;
+};
 
-typedef struct _swServerGS
+struct swServerGS
 {
     pid_t master_pid;
     pid_t manager_pid;
@@ -315,8 +315,7 @@ typedef struct _swServerGS
 
     swProcessPool task_workers;
     swProcessPool event_workers;
-
-} swServerGS;
+};
 
 struct swServer
 {
