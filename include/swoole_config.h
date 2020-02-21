@@ -117,6 +117,8 @@
 #define SW_MSGMAX                        65536
 #define SW_UNIXSOCK_MAX_BUF_SIZE         (2*1024*1024)
 
+#define SW_DGRAM_HEADER_SIZE                32
+
 /**
  * The maximum number of Reactor threads
  * the number of the CPU cores threads will be started by default
