@@ -269,7 +269,6 @@ int swFactory_finish(swFactory *factory, swSendData *_send);
 int swFactory_check_callback(swFactory *factory);
 
 int swFactoryProcess_create(swFactory *factory, uint32_t worker_num);
-int swFactoryProcess_create_pipes(swFactory *factory);
 
 //------------------------------------Server-------------------------------------------
 enum swServer_hook_type

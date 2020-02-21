@@ -33,6 +33,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 static int swFactoryProcess_shutdown(swFactory *factory);
 static int swFactoryProcess_end(swFactory *factory, int fd);
 static void swFactoryProcess_free(swFactory *factory);
+static int swFactoryProcess_create_pipes(swFactory *factory);
 
 static int process_send_packet(swServer *serv, swPipeBuffer *buf, swSendData *resp, send_func_t _send, void* private_data);
 static int process_sendto_worker(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data);
@@ -103,7 +104,7 @@ static void swFactoryProcess_free(swFactory *factory)
     }
 }
 
-int swFactoryProcess_create_pipes(swFactory *factory)
+static int swFactoryProcess_create_pipes(swFactory *factory)
 {
     swServer *serv = (swServer *) factory->ptr;
     swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
