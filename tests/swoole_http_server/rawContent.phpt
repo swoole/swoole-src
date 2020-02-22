@@ -9,22 +9,30 @@ skip_if_in_valgrind();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$payload = str_repeat('A', rand(1024, 65536));
+use function Co\run;
+
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
-    go(function () use ($pm) {
-        global $payload;
+    run(function () use ($pm) {
+        $randomData = get_safe_random();
         $httpClient = new Co\http\Client(HTTP_SERVER_HOST, $pm->getFreePort(), false);
         $httpClient->setMethod("POST");
-        $httpClient->setData($payload);
-        $ok = $httpClient->execute("/rawcontent");
+        $httpClient->setData($randomData);
+
+        $ok = $httpClient->execute("/rawContent");
         Assert::assert($ok);
         Assert::same($httpClient->statusCode, 200);
         Assert::same($httpClient->errCode, 0);
-        Assert::same($httpClient->body, $payload);
+        Assert::same($httpClient->body, $randomData);
+
+        $ok = $httpClient->execute("/getContent");
+        Assert::assert($ok);
+        Assert::same($httpClient->statusCode, 200);
+        Assert::same($httpClient->errCode, 0);
+        Assert::same($httpClient->body, $randomData);
         $pm->kill();
+        echo "DONE\n";
     });
-    swoole_event_wait();
 };
 $pm->childFunc = function () use ($pm) {
     $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
@@ -33,7 +41,11 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response) {
-        $response->end($request->rawcontent());
+        if ($request->server['request_uri'] === '/rawContent') {
+            $response->end($request->rawContent());
+        } else {
+            $response->end($request->getContent());
+        }
     });
     $http->start();
 };
@@ -41,3 +53,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+DONE
