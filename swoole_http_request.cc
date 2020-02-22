@@ -287,6 +287,7 @@ ZEND_END_ARG_INFO()
 const zend_function_entry swoole_http_request_methods[] =
 {
     PHP_ME(swoole_http_request, rawContent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_http_request, getContent, rawContent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, getData, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
