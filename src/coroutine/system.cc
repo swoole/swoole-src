@@ -603,3 +603,64 @@ bool coroutine::async(swAio_handler handler, swAio_event &event, double timeout)
         return true;
     }
 }
+
+struct AsyncLambdaTask
+{
+    Coroutine *co;
+    std::function<void(void)> fn;
+};
+
+static void async_lambda_handler(swAio_event *event)
+{
+    AsyncLambdaTask *task = reinterpret_cast<AsyncLambdaTask *>(event->object);
+    task->fn();
+    event->error = 0;
+    event->ret = 0;
+}
+
+static void async_lambda_callback(swAio_event *event)
+{
+    if (event->canceled)
+    {
+        return;
+    }
+    AsyncLambdaTask *task = reinterpret_cast<AsyncLambdaTask *>(event->object);
+    task->co->resume();
+}
+
+bool coroutine::async(const std::function<void(void)> &fn, double timeout)
+{
+    swTimer_node *timer = nullptr;
+    swAio_event event = {};
+
+    AsyncLambdaTask task;
+    task.co = Coroutine::get_current_safe();
+    task.fn = fn;
+
+    event.object = &task;
+    event.handler = async_lambda_handler;
+    event.callback = async_lambda_callback;
+
+    swAio_event *_ev = swAio_dispatch2(&event);
+    if (_ev == nullptr)
+    {
+        return false;
+    }
+    if (timeout > 0)
+    {
+        timer = swoole_timer_add((long) (timeout * 1000), SW_FALSE, async_task_timeout, _ev);
+    }
+    task.co->yield();
+    if (event.error == SW_ERROR_AIO_TIMEOUT)
+    {
+        return false;
+    }
+    else
+    {
+        if (timer)
+        {
+            swoole_timer_del(timer);
+        }
+        return true;
+    }
+}

@@ -22,6 +22,7 @@
 
 #include <limits.h>
 
+#include <functional>
 #include <string>
 #include <unordered_map>
 
@@ -244,6 +245,7 @@ protected:
 namespace coroutine
 {
 bool async(swAio_handler handler, swAio_event &event, double timeout = -1);
+bool async(const std::function<void(void)> &fn, double timeout = -1);
 }
 //-------------------------------------------------------------------------------
 }
