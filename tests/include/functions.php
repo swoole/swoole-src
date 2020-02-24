@@ -74,29 +74,14 @@ function is_musl_libc(): bool
     return $bool;
 }
 
-function get_one_free_port()
+function get_one_free_port(): int
 {
-    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-    if (!socket_bind($socket, "0.0.0.0", 0)) {
-        return false;
-    }
-    if (!socket_listen($socket)) {
-        return false;
-    }
-    if (!socket_getsockname($socket, $addr, $port)) {
-        return false;
-    }
-    socket_close($socket);
-    return $port;
-}
-
-function get_one_free_port_coro()
-{
-    $socket = new Co\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-    $socket->bind('0.0.0.0');
-    $socket->listen();
-    $port = $socket->getsockname()['port'];
-    $socket->close();
+    $hookFlags = Swoole\Runtime::getHookFlags();
+    Swoole\Runtime::enableCoroutine(false);
+    $server = stream_socket_server('tcp://127.0.0.1:0');
+    $name = stream_socket_get_name($server, false);
+    $port = (parse_url($name)['port'] ?? -1) ?: -1;
+    Swoole\Runtime::enableCoroutine($hookFlags);
     return $port;
 }
 
@@ -488,19 +473,9 @@ function arrayEqual(array $a, array $b, $strict = true)
     }
 }
 
-function check_tcp_port($ip, $port)
+function check_tcp_port(string $host, int $port): bool
 {
-    $sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-    socket_set_nonblock($sock);
-    socket_connect($sock, $ip, $port);
-    socket_set_block($sock);
-    $r = [$sock];
-    $w = [$sock];
-    $f = [$sock];
-    $status = socket_select($r, $w, $f, 5);
-    socket_close($sock);
-
-    return $status;
+    return !!@fsockopen($host, $port);
 }
 
 function start_server($file, $host, $port, $redirect_file = "/dev/null", $ext1 = null, $ext2 = null, $debug = false)

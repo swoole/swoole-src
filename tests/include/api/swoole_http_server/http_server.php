@@ -67,10 +67,6 @@ class HttpServer
 
         $this->httpServ->on('close', [$this, 'onClose']);
 
-        $sock = $this->httpServ->getSocket();
-        if (!socket_set_option($sock, SOL_SOCKET, SO_REUSEADDR, 1)) {
-            echo 'Unable to set option on socket: '. socket_strerror(socket_last_error()) . PHP_EOL;
-        }
         $this->httpServ->start();
     }
 
