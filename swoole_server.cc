@@ -1741,6 +1741,11 @@ static void php_swoole_onBeforeReload(swServer *serv, int worker_id)
     zend_fcall_info_cache *fci_cache = server_callbacks[SW_SERVER_CB_onBeforeReload];
     zval *zserv = (zval *) serv->ptr2;
 
+    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("master_pid"), serv->gs->master_pid);
+    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("manager_pid"), serv->gs->manager_pid);
+    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_id"), worker_id);
+    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_pid"), serv->workers[worker_id].pid);
+
     if (fci_cache)
     {
         zval args[2];
@@ -1757,6 +1762,11 @@ static void php_swoole_onAfterReload(swServer *serv, int worker_id)
 {
     zend_fcall_info_cache *fci_cache = server_callbacks[SW_SERVER_CB_onAfterReload];
     zval *zserv = (zval *) serv->ptr2;
+
+    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("master_pid"), serv->gs->master_pid);
+    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("manager_pid"), serv->gs->manager_pid);
+    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_id"), worker_id);
+    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_pid"), serv->workers[worker_id].pid);
 
     if (fci_cache)
     {
