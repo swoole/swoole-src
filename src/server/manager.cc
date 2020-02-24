@@ -346,6 +346,10 @@ static int swManager_loop(swServer *serv)
                 {
                     continue;
                 }
+                if (serv->onBeforeReload != NULL)
+                {
+                    serv->onBeforeReload(serv, msg.worker_id);
+                }
                 if (msg.worker_id >= serv->worker_num)
                 {
                     swManager_spawn_task_worker(serv, swServer_get_worker(serv, msg.worker_id));
@@ -357,6 +361,10 @@ static int swManager_loop(swServer *serv)
                     {
                         serv->workers[msg.worker_id].pid = new_pid;
                     }
+                }
+                if (serv->onAfterReload != NULL)
+                {
+                    serv->onAfterReload(serv, msg.worker_id);
                 }
             }
             ManagerProcess.read_message = false;
@@ -483,7 +491,15 @@ static int swManager_loop(swServer *serv)
                 if (exit_worker != NULL)
                 {
                     swManager_check_exit_status(serv, exit_worker->id, pid, status);
+                    if (serv->onBeforeReload != NULL)
+                    {
+                        serv->onBeforeReload(serv, exit_worker->id);
+                    }
                     swManager_spawn_task_worker(serv, exit_worker);
+                    if (serv->onAfterReload != NULL)
+                    {
+                        serv->onAfterReload(serv, exit_worker->id);
+                    }
                 }
             }
             //user process
