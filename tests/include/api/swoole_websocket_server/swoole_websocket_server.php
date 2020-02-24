@@ -52,11 +52,6 @@ class WebSocketServer
 
         $this->webSocketServ->on('close', [$this, 'onClose']);
 
-        $sock = $this->webSocketServ->getSocket();
-        if (!socket_set_option($sock, SOL_SOCKET, SO_REUSEADDR, 1)) {
-            echo 'Unable to set option on socket: '. socket_strerror(socket_last_error()) . PHP_EOL;
-        }
-
         $this->webSocketServ->start();
     }
 
