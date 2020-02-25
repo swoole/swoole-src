@@ -181,16 +181,12 @@ static int swFactory_end(swFactory *factory, int fd)
     }
 }
 
+/**
+ * @return: success returns SW_OK, failure returns SW_ERR.
+ */
 int swFactory_finish(swFactory *factory, swSendData *resp)
 {
-    if (swServer_master_send((swServer *) factory->ptr, resp) < 0)
-    {
-        return SW_ERR;
-    }
-    else
-    {
-        return SW_OK;
-    }
+    return swServer_master_send((swServer *) factory->ptr, resp);
 }
 
 static void swFactory_free(swFactory *factory)

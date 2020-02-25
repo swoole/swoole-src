@@ -256,7 +256,7 @@ struct swFactory
     int (*shutdown)(swFactory *);
     int (*dispatch)(swFactory *, swSendData *);
     /**
-     * Returns the number of bytes sent
+     * success returns SW_OK, failure returns SW_ERR.
      */
     int (*finish)(swFactory *, swSendData *);
     int (*notify)(swFactory *, swDataHead *);    //send a event notify

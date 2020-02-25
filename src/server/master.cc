@@ -1034,7 +1034,7 @@ static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_
     _send.info.type = SW_SERVER_EVENT_SEND_DATA;
     _send.data = (char*) data;
     _send.info.len = length;
-    return factory->finish(factory, &_send) < 0 ? SW_ERR : SW_OK;
+    return factory->finish(factory, &_send);
 }
 
 /**
