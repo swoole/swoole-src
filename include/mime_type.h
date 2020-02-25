@@ -20,7 +20,7 @@
 #include <unordered_map>
 #include <string>
 
-namespace swoole { namespace mime_types {
+namespace swoole { namespace mime_type {
     const std::unordered_map<std::string, std::string>& list();
     bool add(const std::string &suffix, const std::string &mime_type);
     void set(const std::string &suffix, const std::string &mime_type);

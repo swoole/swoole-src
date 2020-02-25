@@ -16,11 +16,11 @@
  +----------------------------------------------------------------------+
  */
 
-#include "mime_types.h"
+#include "mime_type.h"
 
 using namespace std;
 
-namespace swoole { namespace mime_types {
+namespace swoole { namespace mime_type {
 unordered_map<string, string> map({
     { "ez", "application/andrew-inset" },
     { "aw", "application/applixware" },

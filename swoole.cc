@@ -21,7 +21,7 @@
 #endif
 #include "zend_exceptions.h"
 
-#include "mime_types.h"
+#include "mime_type.h"
 #include "server.h"
 
 #include <netinet/in.h>
@@ -815,7 +815,7 @@ PHP_FUNCTION(swoole_mime_type_add)
         Z_PARAM_STRING(mime_type, mime_type_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(swoole::mime_types::add(suffix, mime_type));
+    RETURN_BOOL(swoole::mime_type::add(suffix, mime_type));
 }
 
 PHP_FUNCTION(swoole_mime_type_set)
@@ -830,7 +830,7 @@ PHP_FUNCTION(swoole_mime_type_set)
         Z_PARAM_STRING(mime_type, mime_type_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    swoole::mime_types::set(suffix, mime_type);
+    swoole::mime_type::set(suffix, mime_type);
 }
 
 PHP_FUNCTION(swoole_mime_type_delete)
@@ -845,7 +845,7 @@ PHP_FUNCTION(swoole_mime_type_delete)
         Z_PARAM_STRING(mime_type, mime_type_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(swoole::mime_types::del(suffix, mime_type));
+    RETURN_BOOL(swoole::mime_type::del(suffix, mime_type));
 }
 
 PHP_FUNCTION(swoole_mime_type_get)
@@ -857,7 +857,7 @@ PHP_FUNCTION(swoole_mime_type_get)
         Z_PARAM_STRING(filename, filename_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_STRING(swoole::mime_types::get(filename).c_str());
+    RETURN_STRING(swoole::mime_type::get(filename).c_str());
 }
 
 PHP_FUNCTION(swoole_mime_type_exists)
@@ -869,13 +869,13 @@ PHP_FUNCTION(swoole_mime_type_exists)
         Z_PARAM_STRING(filename, filename_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(swoole::mime_types::exists(filename));
+    RETURN_BOOL(swoole::mime_type::exists(filename));
 }
 
 PHP_FUNCTION(swoole_mime_type_list)
 {
     array_init(return_value);
-    for (auto &i : swoole::mime_types::list()) {
+    for (auto &i : swoole::mime_type::list()) {
         add_next_index_string(return_value, i.second.c_str());
     }
 }

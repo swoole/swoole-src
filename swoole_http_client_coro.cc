@@ -21,7 +21,7 @@
 #include "coroutine_c_api.h"
 #include "swoole_http_client.h"
 
-#include "mime_types.h"
+#include "mime_type.h"
 #include "base64.h"
 
 #ifdef SW_HAVE_BROTLI
@@ -1933,7 +1933,7 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     }
     if (l_type == 0)
     {
-        type = (char *) swoole::mime_types::get(path).c_str();
+        type = (char *) swoole::mime_type::get(path).c_str();
         l_type = strlen(type);
     }
     if (l_filename == 0)

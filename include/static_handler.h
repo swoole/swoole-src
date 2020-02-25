@@ -18,7 +18,7 @@
 
 #include "server.h"
 #include "http.h"
-#include "mime_types.h"
+#include "mime_type.h"
 
 #include <string>
 
@@ -75,7 +75,7 @@ public:
 
     inline const char* get_mimetype()
     {
-        return swoole::mime_types::get(get_filename()).c_str();
+        return swoole::mime_type::get(get_filename()).c_str();
     }
 
     inline std::string get_filename_std_string()
