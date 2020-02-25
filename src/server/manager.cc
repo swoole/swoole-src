@@ -383,6 +383,10 @@ static int swManager_loop(swServer *serv)
             else if (ManagerProcess.reload_all_worker)
             {
                 swInfo("Server is reloading all workers now");
+                if (serv->onBeforeReload != NULL)
+                {
+                    serv->onBeforeReload(serv);
+                }
                 if (!ManagerProcess.reload_init)
                 {
                     ManagerProcess.reload_init = true;
@@ -429,6 +433,10 @@ static int swManager_loop(swServer *serv)
                     continue;
                 }
                 swInfo("Server is reloading task workers now");
+                if (serv->onBeforeReload != NULL)
+                {
+                    serv->onBeforeReload(serv);
+                }
                 if (!ManagerProcess.reload_init)
                 {
                     memcpy(ManagerProcess.reload_workers, serv->gs->task_workers.workers, sizeof(swWorker) * serv->task_worker_num);
@@ -505,6 +513,10 @@ static int swManager_loop(swServer *serv)
             {
                 reload_worker_pid = ManagerProcess.reload_worker_i = 0;
                 ManagerProcess.reload_init = ManagerProcess.reloading = false;
+                if (serv->onAfterReload != NULL)
+                {
+                    serv->onAfterReload(serv);
+                }
                 continue;
             }
             reload_worker_pid = ManagerProcess.reload_workers[ManagerProcess.reload_worker_i].pid;

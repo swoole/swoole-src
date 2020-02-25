@@ -580,6 +580,8 @@ struct swServer
     void (*onShutdown)(swServer *serv);
     void (*onPipeMessage)(swServer *, swEventData *);
     void (*onWorkerStart)(swServer *serv, int worker_id);
+    void (*onBeforeReload)(swServer *serv);
+    void (*onAfterReload)(swServer *serv);
     void (*onWorkerStop)(swServer *serv, int worker_id);
     void (*onWorkerExit)(swServer *serv, int worker_id);
     void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code, int signo);

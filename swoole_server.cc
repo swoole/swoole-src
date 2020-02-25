@@ -77,6 +77,8 @@ static unordered_map<string, server_event> server_event_map({
     { "shutdown",     server_event(SW_SERVER_CB_onShutdown,     "Shutdown") },
     { "workerstart",  server_event(SW_SERVER_CB_onWorkerStart,  "WorkerStart") },
     { "workerstop",   server_event(SW_SERVER_CB_onWorkerStop,   "WorkerStop") },
+    { "beforereload",  server_event(SW_SERVER_CB_onBeforeReload,  "BeforeReload") },
+    { "afterreload",  server_event(SW_SERVER_CB_onAfterReload,  "AfterReload") },
     { "task",         server_event(SW_SERVER_CB_onTask,         "Task") },
     { "finish",       server_event(SW_SERVER_CB_onFinish,       "Finish") },
     { "workerexit",   server_event(SW_SERVER_CB_onWorkerExit,   "WorkerExit") },
@@ -91,6 +93,8 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
 static void php_swoole_onStart(swServer *);
 static void php_swoole_onShutdown(swServer *);
 static void php_swoole_onWorkerStart(swServer *, int worker_id);
+static void php_swoole_onBeforeReload(swServer *serv);
+static void php_swoole_onAfterReload(swServer *serv);
 static void php_swoole_onWorkerStop(swServer *, int worker_id);
 static void php_swoole_onWorkerExit(swServer *serv, int worker_id);
 static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker);
@@ -712,6 +716,8 @@ void php_swoole_server_minit(int module_number)
     zend_declare_property_null(swoole_server_ce, ZEND_STRL("onShutdown"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_ce, ZEND_STRL("onWorkerStart"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_ce, ZEND_STRL("onWorkerStop"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_ce, ZEND_STRL("onBeforeReload"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_ce, ZEND_STRL("onAfterReload"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_ce, ZEND_STRL("onWorkerExit"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_ce, ZEND_STRL("onWorkerError"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_ce, ZEND_STRL("onTask"), ZEND_ACC_PRIVATE);
@@ -1278,6 +1284,16 @@ void php_swoole_server_register_callbacks(swServer *serv)
      */
     serv->onWorkerStart = php_swoole_onWorkerStart;
 
+    if (server_callbacks[SW_SERVER_CB_onBeforeReload] != NULL)
+    {
+        serv->onBeforeReload = php_swoole_onBeforeReload;
+    }
+
+    if (server_callbacks[SW_SERVER_CB_onAfterReload] != NULL)
+    {
+        serv->onAfterReload = php_swoole_onAfterReload;
+    }
+
     if (server_callbacks[SW_SERVER_CB_onWorkerStop] != NULL)
     {
         serv->onWorkerStop = php_swoole_onWorkerStop;
@@ -1716,6 +1732,38 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
         if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, is_enable_coroutine(serv))))
         {
             php_swoole_error(E_WARNING, "%s->onWorkerStart handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        }
+    }
+}
+
+static void php_swoole_onBeforeReload(swServer *serv)
+{
+    zend_fcall_info_cache *fci_cache = server_callbacks[SW_SERVER_CB_onBeforeReload];
+    zval *zserv = (zval *) serv->ptr2;
+
+    if (fci_cache)
+    {
+        zval args[1];
+        args[0] = *zserv;
+        if (UNEXPECTED(!zend::function::call(fci_cache, 1, args, NULL, false)))
+        {
+            php_swoole_error(E_WARNING, "%s->onBeforeReload handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        }
+    }
+}
+
+static void php_swoole_onAfterReload(swServer *serv)
+{
+    zend_fcall_info_cache *fci_cache = server_callbacks[SW_SERVER_CB_onAfterReload];
+    zval *zserv = (zval *) serv->ptr2;
+
+    if (fci_cache)
+    {
+        zval args[1];
+        args[0] = *zserv;
+        if (UNEXPECTED(!zend::function::call(fci_cache, 1, args, NULL, false)))
+        {
+            php_swoole_error(E_WARNING, "%s->onAfterReload handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
 }
