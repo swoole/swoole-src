@@ -302,6 +302,11 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
     return process_send_packet(serv, buf, task, process_sendto_worker, worker);
 }
 
+/**
+ * @description: master process send data to worker process.
+ *  If the data sent is larger than swServer::ipc_max_size, then it is sent in chunks. Otherwise send it directly。
+ * @return: send success returns SW_OK, send failure returns SW_ERR.
+ */
 static int process_send_packet(swServer *serv, swPipeBuffer *buf, swSendData *resp, send_func_t _send, void* private_data)
 {
     const char* data = resp->data;
@@ -325,7 +330,7 @@ static int process_send_packet(swServer *serv, swPipeBuffer *buf, swSendData *re
             goto _ipc_use_chunk;
         }
 #endif
-        return retval;
+        return retval < 0 ? SW_ERR : SW_OK;
     }
 
 #ifdef __linux__
