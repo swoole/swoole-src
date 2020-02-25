@@ -256,7 +256,7 @@ struct swFactory
     int (*shutdown)(swFactory *);
     int (*dispatch)(swFactory *, swSendData *);
     /**
-     * return SW_OK or SW_ERR
+     * success returns SW_OK, failure returns SW_ERR.
      */
     int (*finish)(swFactory *, swSendData *);
     int (*notify)(swFactory *, swDataHead *);    //send a event notify

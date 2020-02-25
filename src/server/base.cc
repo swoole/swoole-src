@@ -182,7 +182,7 @@ static int swFactory_end(swFactory *factory, int fd)
 }
 
 /**
- * @return: SW_OK | SW_ERR
+ * @return: success returns SW_OK, failure returns SW_ERR.
  */
 int swFactory_finish(swFactory *factory, swSendData *resp)
 {
