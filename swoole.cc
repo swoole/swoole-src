@@ -87,13 +87,13 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_hashcode, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 /* add/set/delete */
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mime_type_asd, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mime_type_write, 0, 0, 2)
     ZEND_ARG_INFO(0, suffix)
     ZEND_ARG_INFO(0, mime_type)
 ZEND_END_ARG_INFO()
 
 /* get/exists */
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mime_type_ge, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mime_type_read, 0, 0, 1)
     ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
 
@@ -124,12 +124,12 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
     PHP_FE(swoole_hashcode, arginfo_swoole_hashcode)
-    PHP_FE(swoole_mime_type_add, arginfo_swoole_mime_type_asd)
-    PHP_FE(swoole_mime_type_set, arginfo_swoole_mime_type_asd)
-    PHP_FE(swoole_mime_type_delete, arginfo_swoole_mime_type_asd)
-    PHP_FE(swoole_mime_type_get, arginfo_swoole_mime_type_ge)
-    PHP_FALIAS(swoole_get_mime_type, swoole_mime_type_get, arginfo_swoole_mime_type_ge)
-    PHP_FE(swoole_mime_type_exists, arginfo_swoole_mime_type_ge)
+    PHP_FE(swoole_mime_type_add, arginfo_swoole_mime_type_write)
+    PHP_FE(swoole_mime_type_set, arginfo_swoole_mime_type_write)
+    PHP_FE(swoole_mime_type_delete, arginfo_swoole_mime_type_write)
+    PHP_FE(swoole_mime_type_get, arginfo_swoole_mime_type_read)
+    PHP_FALIAS(swoole_get_mime_type, swoole_mime_type_get, arginfo_swoole_mime_type_read)
+    PHP_FE(swoole_mime_type_exists, arginfo_swoole_mime_type_read)
     PHP_FE(swoole_clear_dns_cache, arginfo_swoole_void)
     PHP_FE(swoole_internal_call_user_shutdown_begin, arginfo_swoole_void)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
