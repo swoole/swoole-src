@@ -633,7 +633,7 @@ static bool http2_context_sendfile(http_context* ctx, const char *file, uint32_t
         ztrailer = nullptr;
     }
 
-    const char* mimetype = swoole_mime_type_get(file);
+    const char* mimetype = swoole::mime_type::get(file).c_str();
     swoole_http_response_set_header(ctx, ZEND_STRL("content-type"), mimetype, strlen(mimetype), 0);
 
     bool end_stream = (ztrailer == nullptr);

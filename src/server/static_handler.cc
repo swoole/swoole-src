@@ -150,7 +150,7 @@ bool StaticHandler::hit()
      * non-static file
      */
     _detect_mime_type:
-    if (!swoole_mime_type_exists(task.filename))
+    if (!swoole::mime_type::exists(task.filename))
     {
         return false;
     }
