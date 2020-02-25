@@ -11,8 +11,6 @@ use Swoole\Server;
 use Swoole\Atomic;
 
 $WorkerStartAtomic = new Atomic(0);
-$BeforeReloadAtomic = new Atomic(0);
-$AfterReloadAtomic = new Atomic(0);
 
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm,$argv) {
@@ -24,7 +22,7 @@ $pm->parentFunc = function ($pid) use ($pm,$argv) {
     echo "DONE\n";
 };
 
-$pm->childFunc = function () use ($pm, $WorkerStartAtomic, $BeforeReloadAtomic, $AfterReloadAtomic) {
+$pm->childFunc = function () use ($pm, $WorkerStartAtomic) {
     $serv = new Server('127.0.0.1', $pm->getFreePort());
     $serv->set([
         'log_file' => TEST_LOG_FILE,
@@ -32,11 +30,11 @@ $pm->childFunc = function () use ($pm, $WorkerStartAtomic, $BeforeReloadAtomic, 
         "task_worker_num" => 2,
         "max_wait_time" => 1,
     ]);
-    $serv->on("BeforeReload", function (Server $serv, $worker_id) use ($BeforeReloadAtomic) {
-        $BeforeReloadAtomic->add(1);
+    $serv->on("BeforeReload", function (Server $serv) {
+        var_dump("BeforeReload");
     });
-    $serv->on("AfterReload", function (Server $serv, $worker_id) use ($AfterReloadAtomic) {
-        $AfterReloadAtomic->add(1);
+    $serv->on("AfterReload", function (Server $serv) {
+        var_dump("AfterReload");
     });
     $serv->on("WorkerStart", function (Server $serv, $worker_id) use ($pm, $WorkerStartAtomic) {
         $WorkerStartAtomic->add(1);
@@ -49,14 +47,12 @@ $pm->childFunc = function () use ($pm, $WorkerStartAtomic, $BeforeReloadAtomic, 
     });
     $serv->on('Task', function ($serv,$task_id, $reactor_id, $params) {
     });
-    $serv->on("Shutdown", function (Server $serv) use ($BeforeReloadAtomic, $AfterReloadAtomic) {
-        Assert::same($BeforeReloadAtomic->get(), 4);
-        Assert::same($AfterReloadAtomic->get(), 4);
-    });
     $serv->start();
 };
 $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+string(12) "BeforeReload"
+string(11) "AfterReload"
 DONE

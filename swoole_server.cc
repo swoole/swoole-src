@@ -93,8 +93,8 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
 static void php_swoole_onStart(swServer *);
 static void php_swoole_onShutdown(swServer *);
 static void php_swoole_onWorkerStart(swServer *, int worker_id);
-static void php_swoole_onBeforeReload(swServer *, int worker_id);
-static void php_swoole_onAfterReload(swServer *, int worker_id);
+static void php_swoole_onBeforeReload(swServer *serv);
+static void php_swoole_onAfterReload(swServer *serv);
 static void php_swoole_onWorkerStop(swServer *, int worker_id);
 static void php_swoole_onWorkerExit(swServer *serv, int worker_id);
 static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker);
@@ -1736,44 +1736,32 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     }
 }
 
-static void php_swoole_onBeforeReload(swServer *serv, int worker_id)
+static void php_swoole_onBeforeReload(swServer *serv)
 {
     zend_fcall_info_cache *fci_cache = server_callbacks[SW_SERVER_CB_onBeforeReload];
     zval *zserv = (zval *) serv->ptr2;
 
-    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("master_pid"), serv->gs->master_pid);
-    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("manager_pid"), serv->gs->manager_pid);
-    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_id"), worker_id);
-    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_pid"), serv->workers[worker_id].pid);
-
     if (fci_cache)
     {
-        zval args[2];
+        zval args[1];
         args[0] = *zserv;
-        ZVAL_LONG(&args[1], worker_id);
-        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, false)))
+        if (UNEXPECTED(!zend::function::call(fci_cache, 1, args, NULL, false)))
         {
             php_swoole_error(E_WARNING, "%s->onBeforeReload handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
 }
 
-static void php_swoole_onAfterReload(swServer *serv, int worker_id)
+static void php_swoole_onAfterReload(swServer *serv)
 {
     zend_fcall_info_cache *fci_cache = server_callbacks[SW_SERVER_CB_onAfterReload];
     zval *zserv = (zval *) serv->ptr2;
 
-    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("master_pid"), serv->gs->master_pid);
-    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("manager_pid"), serv->gs->manager_pid);
-    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_id"), worker_id);
-    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("worker_pid"), serv->workers[worker_id].pid);
-
     if (fci_cache)
     {
-        zval args[2];
+        zval args[1];
         args[0] = *zserv;
-        ZVAL_LONG(&args[1], worker_id);
-        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, false)))
+        if (UNEXPECTED(!zend::function::call(fci_cache, 1, args, NULL, false)))
         {
             php_swoole_error(E_WARNING, "%s->onAfterReload handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }

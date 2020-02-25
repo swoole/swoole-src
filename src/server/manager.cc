@@ -346,10 +346,6 @@ static int swManager_loop(swServer *serv)
                 {
                     continue;
                 }
-                if (serv->onBeforeReload != NULL)
-                {
-                    serv->onBeforeReload(serv, msg.worker_id);
-                }
                 if (msg.worker_id >= serv->worker_num)
                 {
                     swManager_spawn_task_worker(serv, swServer_get_worker(serv, msg.worker_id));
@@ -361,10 +357,6 @@ static int swManager_loop(swServer *serv)
                     {
                         serv->workers[msg.worker_id].pid = new_pid;
                     }
-                }
-                if (serv->onAfterReload != NULL)
-                {
-                    serv->onAfterReload(serv, msg.worker_id);
                 }
             }
             ManagerProcess.read_message = false;
@@ -391,6 +383,10 @@ static int swManager_loop(swServer *serv)
             else if (ManagerProcess.reload_all_worker)
             {
                 swInfo("Server is reloading all workers now");
+                if (serv->onBeforeReload != NULL)
+                {
+                    serv->onBeforeReload(serv);
+                }
                 if (!ManagerProcess.reload_init)
                 {
                     ManagerProcess.reload_init = true;
@@ -437,6 +433,10 @@ static int swManager_loop(swServer *serv)
                     continue;
                 }
                 swInfo("Server is reloading task workers now");
+                if (serv->onBeforeReload != NULL)
+                {
+                    serv->onBeforeReload(serv);
+                }
                 if (!ManagerProcess.reload_init)
                 {
                     memcpy(ManagerProcess.reload_workers, serv->gs->task_workers.workers, sizeof(swWorker) * serv->task_worker_num);
@@ -491,15 +491,7 @@ static int swManager_loop(swServer *serv)
                 if (exit_worker != NULL)
                 {
                     swManager_check_exit_status(serv, exit_worker->id, pid, status);
-                    if (serv->onBeforeReload != NULL)
-                    {
-                        serv->onBeforeReload(serv, exit_worker->id);
-                    }
                     swManager_spawn_task_worker(serv, exit_worker);
-                    if (serv->onAfterReload != NULL)
-                    {
-                        serv->onAfterReload(serv, exit_worker->id);
-                    }
                 }
             }
             //user process
@@ -521,6 +513,10 @@ static int swManager_loop(swServer *serv)
             {
                 reload_worker_pid = ManagerProcess.reload_worker_i = 0;
                 ManagerProcess.reload_init = ManagerProcess.reloading = false;
+                if (serv->onAfterReload != NULL)
+                {
+                    serv->onAfterReload(serv);
+                }
                 continue;
             }
             reload_worker_pid = ManagerProcess.reload_workers[ManagerProcess.reload_worker_i].pid;
