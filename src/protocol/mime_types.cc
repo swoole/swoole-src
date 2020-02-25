@@ -16,15 +16,12 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
-
-#include <iostream>
-#include <unordered_map>
-#include <string>
+#include "mime_types.h"
 
 using namespace std;
 
-static unordered_map<string, string> mime_map({
+namespace swoole { namespace mime_types {
+unordered_map<string, string> map({
     { "ez", "application/andrew-inset" },
     { "aw", "application/applixware" },
     { "atom", "application/atom+xml" },
@@ -390,28 +387,34 @@ static unordered_map<string, string> mime_map({
     { "7z", "application/x-7z-compressed" }
 });
 
-static string get_suffix(const char* filename)
+static const string octet_stream("application/octet-stream");
+
+static string get_suffix(const string &filename)
 {
-    string filename_s(filename);
-    return filename_s.substr(filename_s.find_last_of('.') + 1);
+    return string(filename).substr(filename.find_last_of('.') + 1);
 }
 
-const char* swoole_mime_type_get(const char *filename)
+const unordered_map<string, string>& list()
 {
-    auto suffix = get_suffix(filename);
-    auto i = mime_map.find(suffix);
-    if (i != mime_map.end())
+    return map;
+}
+
+const string& get(const string &filename)
+{
+    string suffix = get_suffix(filename);
+    auto i = map.find(suffix);
+    if (i != map.end())
     {
-        return i->second.c_str();
+        return i->second;
     }
-    return "application/octet-stream";
+    return octet_stream;
 }
 
-bool swoole_mime_type_add(const char *suffix, const char *mime_type)
+bool add(const string &suffix, const string &mime_type)
 {
-    if (mime_map.find(suffix) == mime_map.end())
+    if (map.find(suffix) == map.end())
     {
-        mime_map[string(suffix)] = string(mime_type);
+        map[suffix] = mime_type;
         return true;
     }
     else
@@ -420,26 +423,28 @@ bool swoole_mime_type_add(const char *suffix, const char *mime_type)
     }
 }
 
-void swoole_mime_type_set(const char *suffix, const char *mime_type)
+void set(const string &suffix, const string &mime_type)
 {
-    mime_map[string(suffix)] = string(mime_type);
+    map[suffix] = mime_type;
 }
 
-bool swoole_mime_type_delete(const char *suffix, const char *mime_type)
+bool del(const string &suffix, const string &mime_type)
 {
-    if (mime_map.find(suffix) == mime_map.end())
+    if (map.find(suffix) == map.end())
     {
         return false;
     }
     else
     {
-        mime_map.erase(string(suffix));
+        map.erase(suffix);
         return true;
     }
 }
 
-bool swoole_mime_type_exists(const char *filename)
+bool exists(const string &filename)
 {
-    auto suffix = get_suffix(filename);
-    return mime_map.find(suffix) != mime_map.end();
+    string suffix = get_suffix(filename);
+    return map.find(suffix) != map.end();
 }
+
+}}

@@ -1933,7 +1933,7 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     }
     if (l_type == 0)
     {
-        type = (char *) swoole_mime_type_get(path);
+        type = (char *) swoole::mime_types::get(path).c_str();
         l_type = strlen(type);
     }
     if (l_filename == 0)

@@ -75,7 +75,7 @@ public:
 
     inline const char* get_mimetype()
     {
-        return swoole_mime_type_get(get_filename());
+        return swoole::mime_types::get(get_filename()).c_str();
     }
 
     inline std::string get_filename_std_string()
