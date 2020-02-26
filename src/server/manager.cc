@@ -608,53 +608,6 @@ static int swManager_loop(swServer *serv)
     return SW_OK;
 }
 
-pid_t swManager_spawn_worker(swServer *serv, swWorker *worker)
-{
-    pid_t pid;
-
-    pid = swoole_fork(0);
-
-    //fork() failed
-    if (pid < 0)
-    {
-        swSysWarn("Fork Worker failed");
-        return SW_ERR;
-    }
-    //worker child processor
-    else if (pid == 0)
-    {
-        
-        exit(swWorker_loop(serv, worker));
-    }
-    //parent,add to writer
-    else
-    {
-        return pid;
-    }
-}
-
-pid_t swManager_spawn_worker_by_type(swServer *serv, swWorker *worker, int worker_type)
-{
-    pid_t pid;
-
-    switch (worker_type)
-    {
-    case SW_PROCESS_WORKER:
-        pid = swManager_spawn_worker(serv, worker);
-        break;
-    case SW_PROCESS_TASKWORKER:
-        pid = swManager_spawn_task_worker(serv, worker);
-        break;
-    case SW_PROCESS_USERWORKER:
-        pid = swManager_spawn_user_worker(serv, worker);
-        break;
-    default:
-        break;
-    }
-
-    return pid;
-}
-
 static void swManager_signal_handler(int sig)
 {
     switch (sig)
@@ -785,9 +738,29 @@ void swManager_kill_user_worker(swServer *serv)
     }
 }
 
-pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker)
+pid_t swManager_spawn_worker(swServer *serv, swWorker *worker)
 {
-    return swProcessPool_spawn(&serv->gs->task_workers, worker);
+    pid_t pid;
+
+    pid = swoole_fork(0);
+
+    //fork() failed
+    if (pid < 0)
+    {
+        swSysWarn("Fork Worker failed");
+        return SW_ERR;
+    }
+    //worker child processor
+    else if (pid == 0)
+    {
+        
+        exit(swWorker_loop(serv, worker));
+    }
+    //parent,add to writer
+    else
+    {
+        return pid;
+    }
 }
 
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
@@ -829,4 +802,31 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
         swHashMap_add_int(serv->user_worker_map, pid, worker);
         return pid;
     }
+}
+
+pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker)
+{
+    return swProcessPool_spawn(&serv->gs->task_workers, worker);
+}
+
+pid_t swManager_spawn_worker_by_type(swServer *serv, swWorker *worker, int worker_type)
+{
+    pid_t pid;
+
+    switch (worker_type)
+    {
+    case SW_PROCESS_WORKER:
+        pid = swManager_spawn_worker(serv, worker);
+        break;
+    case SW_PROCESS_TASKWORKER:
+        pid = swManager_spawn_task_worker(serv, worker);
+        break;
+    case SW_PROCESS_USERWORKER:
+        pid = swManager_spawn_user_worker(serv, worker);
+        break;
+    default:
+        break;
+    }
+
+    return pid;
 }
