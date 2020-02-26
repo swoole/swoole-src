@@ -1049,7 +1049,9 @@ int swReactorProcess_start(swServer *serv);
 void swReactorProcess_free(swServer *serv);
 
 int swManager_start(swServer *serv);
+pid_t swManager_spawn_worker(swServer *serv, swWorker *worker);
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
 pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker);
+pid_t swManager_spawn_worker_by_type(swServer *serv, swWorker *worker, int worker_type);
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);
 void swManager_kill_user_worker(swServer *serv);
