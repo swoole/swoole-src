@@ -704,7 +704,7 @@ void swManager_kill_user_worker(swServer *serv)
     {
         return;
     }
-    swWorker* user_worker;
+    swWorker *user_worker;
     uint64_t key;
     int __stat_loc;
 
