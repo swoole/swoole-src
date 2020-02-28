@@ -285,7 +285,6 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, sw
 
 #define CLIENT_INFO_FMT " from session#%u on %s:%d"
 #define CLIENT_INFO_ARGS conn->session_id, port->host, port->port
-#define CLIENT_INFO CLIENT_INFO_FMT, CLIENT_INFO_ARGS
 
 /**
  * For Http Protocol
@@ -399,13 +398,13 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         {
             return SW_OK;
         }
-        swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "Bad Request: unknown protocol" CLIENT_INFO);
+        swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "Bad Request: unknown protocol" CLIENT_INFO_FMT, CLIENT_INFO_ARGS);
         goto _bad_request;
     }
 
     if (request->method > SW_HTTP_PRI)
     {
-        swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "Bad Request: got unsupported HTTP method" CLIENT_INFO);
+        swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "Bad Request: got unsupported HTTP method" CLIENT_INFO_FMT, CLIENT_INFO_ARGS);
         goto _bad_request;
     }
     else if (request->method == SW_HTTP_PRI)
@@ -414,7 +413,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         if (sw_unlikely(!port->open_http2_protocol))
         {
 #endif
-            swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "Bad Request: can not handle HTTP2 request" CLIENT_INFO);
+            swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "Bad Request: can not handle HTTP2 request" CLIENT_INFO_FMT, CLIENT_INFO_ARGS);
             goto _bad_request;
 #ifdef SW_USE_HTTP2
         }
@@ -444,7 +443,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         {
             if (buffer->size == buffer->length)
             {
-                swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "Bad Request: request header is too long" CLIENT_INFO);
+                swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "Bad Request: request header is too long" CLIENT_INFO_FMT, CLIENT_INFO_ARGS);
                 goto _bad_request;
             }
             goto _recv_data;
@@ -503,7 +502,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         {
             if (request->excepted)
             {
-                swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "Bad Request: protocol error when parse chunked length" CLIENT_INFO);
+                swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "Bad Request: protocol error when parse chunked length" CLIENT_INFO_FMT, CLIENT_INFO_ARGS);
                 goto _bad_request;
             }
             request_length = request->header_length + request->content_length;
