@@ -774,10 +774,7 @@ static sw_inline swConnection* swServer_connection_get(swServer *serv, int fd)
     {
         return NULL;
     }
-    else
-    {
-        return &serv->connection_list[fd];
-    }
+    return &serv->connection_list[fd];
 }
 
 static sw_inline swSession* swServer_get_session(swServer *serv, uint32_t session_id)

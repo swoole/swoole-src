@@ -75,16 +75,16 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
     {
         memcpy(&pkg.info, &task->info, sizeof(pkg.info));
         pkg.info.flags = SW_EVENT_DATA_PTR;
-        bzero(&pkg.data, sizeof(pkg.data));
+        swString_clear(&pkg.data);
         pkg.data.length = task->info.len;
         pkg.data.str = task->data;
 
-        return swWorker_onTask(factory, (swEventData*) &pkg);
+        return swWorker_onTask(factory, (swEventData *) &pkg);
     }
     //no data
     else
     {
-        return swWorker_onTask(factory, (swEventData*) &task->info);
+        return swWorker_onTask(factory, (swEventData *) &task->info);
     }
 }
 

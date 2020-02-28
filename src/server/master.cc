@@ -60,7 +60,7 @@ static void swServer_disable_accept(swServer *serv)
     LL_FOREACH(serv->listen_list, ls)
     {
         //UDP
-        if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
+        if (swSocket_is_dgram(ls->type))
         {
             continue;
         }
