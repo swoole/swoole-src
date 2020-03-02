@@ -256,6 +256,7 @@ static int swServer_start_check(swServer *serv)
     //check thread num
     if (serv->reactor_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU)
     {
+        swWarn("serv->reactor_num > %d, Too many threads, the system will be slow", SW_CPU_NUM * SW_MAX_THREAD_NCPU);
         serv->reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
     }
     else if (serv->reactor_num == 0)
