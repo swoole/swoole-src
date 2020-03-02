@@ -929,7 +929,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
         swListenPort *ls;
         LL_FOREACH(serv->listen_list, ls)
         {
-            if (!swSocket_is_dgram(ls->type))
+            if (swSocket_is_stream(ls->type))
             {
                 continue;
             }
