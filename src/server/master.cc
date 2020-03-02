@@ -1811,6 +1811,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, s
     serv->stats->accept_count++;
     sw_atomic_fetch_add(&serv->stats->connection_num, 1);
     sw_atomic_fetch_add(&ls->connection_num, 1);
+    time_t now;
 
     int fd = _socket->fd;
     if (fd > swServer_get_maxfd(serv))
@@ -1856,11 +1857,13 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, s
         }
     }
 
+    now = time(NULL);
+
     connection->fd = fd;
     connection->reactor_id = serv->factory_mode == SW_MODE_BASE ? SwooleWG.id : fd % serv->reactor_num;
     connection->server_fd = (sw_atomic_t) server_fd;
-    connection->connect_time = time(NULL);
-    connection->last_time = time(NULL);
+    connection->connect_time = now;
+    connection->last_time = now;
     connection->active = 1;
     connection->socket = _socket;
 
