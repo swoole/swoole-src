@@ -309,8 +309,6 @@ struct swServerGS
     sw_atomic_t start;
     sw_atomic_t shutdown;
 
-    time_t now;
-
     sw_atomic_t spinlock;
 
     swProcessPool task_workers;

@@ -26,7 +26,6 @@ static int swServer_start_check(swServer *serv);
 static void swServer_signal_handler(int sig);
 static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode);
 static void swServer_disable_accept(swServer *serv);
-static void swServer_master_update_time(swServer *serv);
 
 static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_t length);
 static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uint32_t length);
@@ -516,7 +515,7 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
         }
     }
 
-    worker->start_time = serv->gs->now;
+    worker->start_time = time(NULL);
     worker->request_count = 0;
 
     return SW_OK;
@@ -621,7 +620,7 @@ int swServer_start(swServer *serv)
 
     //master pid
     serv->gs->master_pid = getpid();
-    serv->gs->now = serv->stats->start_time = time(NULL);
+    serv->stats->start_time = time(NULL);
 
     /**
      * init method
@@ -816,10 +815,6 @@ void swServer_init(swServer *serv)
 int swServer_create(swServer *serv)
 {
     serv->factory.ptr = serv;
-    /**
-     * init current time
-     */
-    swServer_master_update_time(serv);
 
     serv->session_list = (swSession *) sw_shm_calloc(SW_SESSION_LIST_SIZE, sizeof(swSession));
     if (serv->session_list == NULL)
@@ -1502,11 +1497,11 @@ void swServer_signal_init(swServer *serv)
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
 {
     swServer *serv = (swServer *) tnode->data;
-    swServer_master_update_time(serv);
-    if (serv->scheduler_warning && serv->warning_time < serv->gs->now)
+    time_t now = time(NULL);
+    if (serv->scheduler_warning && serv->warning_time < now)
     {
         serv->scheduler_warning = 0;
-        serv->warning_time = serv->gs->now;
+        serv->warning_time = now;
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_NO_IDLE_WORKER, "No idle worker is available");
     }
 
@@ -1534,19 +1529,6 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
     }
 
     return worker->id;
-}
-
-static void swServer_master_update_time(swServer *serv)
-{
-    time_t now = time(NULL);
-    if (now < 0)
-    {
-        swSysWarn("get time failed");
-    }
-    else
-    {
-        serv->gs->now = now;
-    }
 }
 
 SW_API int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback func, int push_back)
@@ -1877,8 +1859,8 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, s
     connection->fd = fd;
     connection->reactor_id = serv->factory_mode == SW_MODE_BASE ? SwooleWG.id : fd % serv->reactor_num;
     connection->server_fd = (sw_atomic_t) server_fd;
-    connection->connect_time = serv->gs->now;
-    connection->last_time = serv->gs->now;
+    connection->connect_time = time(NULL);
+    connection->last_time = time(NULL);
     connection->active = 1;
     connection->socket = _socket;
 

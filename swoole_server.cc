@@ -3462,7 +3462,7 @@ static PHP_METHOD(swoole_server, heartbeat)
     array_init(return_value);
 
     int fd;
-    int checktime = (int) serv->gs->now - serv->heartbeat_idle_time;
+    int checktime = (int) time(NULL) - serv->heartbeat_idle_time;
     swConnection *conn;
 
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)

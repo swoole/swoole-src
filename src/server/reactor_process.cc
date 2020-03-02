@@ -415,7 +415,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     }
 
     /**
-     * 1 second timer, update serv->gs->now
+     * 1 second timer
      */
     if ((serv->master_timer = swoole_timer_add(1000, SW_TRUE, swServer_master_onTimer, serv)) == NULL)
     {
@@ -590,8 +590,9 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     swServer *serv = (swServer *) reactor->ptr;
     swEvent notify_ev;
     swConnection *conn;
+    time_t now = time(NULL);
 
-    if (serv->gs->now < heartbeat_check_lasttime + 10)
+    if (now < heartbeat_check_lasttime + 10)
     {
         return;
     }
@@ -605,7 +606,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     int serv_max_fd = swServer_get_maxfd(serv);
     int serv_min_fd = swServer_get_minfd(serv);
 
-    checktime = serv->gs->now - serv->heartbeat_idle_time;
+    checktime = now - serv->heartbeat_idle_time;
 
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
