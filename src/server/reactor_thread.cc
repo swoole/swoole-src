@@ -341,7 +341,7 @@ static void swReactorThread_shutdown(swReactor *reactor)
         swListenPort *ls;
         LL_FOREACH(serv->listen_list, ls)
         {
-            if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
+            if (swSocket_is_dgram(ls->type))
             {
                 if (ls->socket->fd % serv->reactor_num != reactor->id)
                 {
