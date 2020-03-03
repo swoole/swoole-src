@@ -25,65 +25,6 @@ struct tmp_socket
 
 static zend_class_entry *swoole_coroutine_system_ce;
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_exec, 0, 0, 1)
-    ZEND_ARG_INFO(0, command)
-    ZEND_ARG_INFO(0, get_error_stream)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_sleep, 0, 0, 1)
-    ZEND_ARG_INFO(0, seconds)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_fread, 0, 0, 1)
-    ZEND_ARG_INFO(0, handle)
-    ZEND_ARG_INFO(0, length)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_fgets, 0, 0, 1)
-    ZEND_ARG_INFO(0, handle)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_fwrite, 0, 0, 2)
-    ZEND_ARG_INFO(0, handle)
-    ZEND_ARG_INFO(0, string)
-    ZEND_ARG_INFO(0, length)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_gethostbyname, 0, 0, 1)
-    ZEND_ARG_INFO(0, domain_name)
-    ZEND_ARG_INFO(0, family)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_dnsLookup, 0, 0, 1)
-    ZEND_ARG_INFO(0, domain_name)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_getaddrinfo, 0, 0, 1)
-    ZEND_ARG_INFO(0, hostname)
-    ZEND_ARG_INFO(0, family)
-    ZEND_ARG_INFO(0, socktype)
-    ZEND_ARG_INFO(0, protocol)
-    ZEND_ARG_INFO(0, service)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_readFile, 0, 0, 1)
-    ZEND_ARG_INFO(0, filename)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_writeFile, 0, 0, 2)
-    ZEND_ARG_INFO(0, filename)
-    ZEND_ARG_INFO(0, data)
-    ZEND_ARG_INFO(0, flags)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_statvfs, 0, 0, 1)
-    ZEND_ARG_INFO(0, path)
-ZEND_END_ARG_INFO()
-
-
 static const zend_function_entry swoole_coroutine_system_methods[] =
 {
     ZEND_FENTRY(gethostbyname, ZEND_FN(swoole_coroutine_gethostbyname), arginfo_swoole_coroutine_system_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -97,6 +38,9 @@ static const zend_function_entry swoole_coroutine_system_methods[] =
     PHP_ME(swoole_coroutine_system, readFile, arginfo_swoole_coroutine_system_readFile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, writeFile, arginfo_swoole_coroutine_system_writeFile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, statvfs, arginfo_swoole_coroutine_system_statvfs, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, wait, arginfo_swoole_coroutine_system_wait, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, waitPid, arginfo_swoole_coroutine_system_waitPid, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, waitSignal, arginfo_swoole_coroutine_system_waitSignal, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -834,3 +778,115 @@ PHP_METHOD(swoole_coroutine_system, exec)
     }
 }
 
+static void swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAMETERS, pid_t pid)
+{
+    int status;
+
+    /* check */
+    Coroutine::get_current_safe();
+    swoole_coroutine_signal_init();
+
+    if (pid < 0)
+    {
+        pid = swoole_coroutine_wait(&status);
+    }
+    else
+    {
+        pid = swoole_coroutine_waitpid(pid, &status, 0);
+    }
+    if (pid > 0)
+    {
+        array_init(return_value);
+        add_assoc_long(return_value, "pid", pid);
+        add_assoc_long(return_value, "code", WEXITSTATUS(status));
+        add_assoc_long(return_value, "signal", WTERMSIG(status));
+    }
+    else
+    {
+        RETURN_FALSE;
+    }
+}
+
+PHP_METHOD(swoole_coroutine_system, wait)
+{
+    swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAM_PASSTHRU, -1);
+}
+
+PHP_METHOD(swoole_coroutine_system, waitPid)
+{
+    zend_long pid;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(pid)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAM_PASSTHRU, pid);
+}
+
+PHP_METHOD(swoole_coroutine_system, waitSignal)
+{
+    static Coroutine* waiters[SW_SIGNO_MAX];
+    zend_long signo;
+    double timeout = -1;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_LONG(signo)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (SwooleTG.reactor->signal_listener_num > 0)
+    {
+        php_swoole_fatal_error(E_WARNING, "Unable to wait signal, async signal listener has been registered");
+        RETURN_FALSE;
+    }
+    if (signo < 0 || signo >= SW_SIGNO_MAX || signo == SIGCHLD)
+    {
+        php_swoole_fatal_error(E_WARNING, "Invalid signal [" ZEND_LONG_FMT "]", signo);
+        RETURN_FALSE;
+    }
+
+    Coroutine *co = Coroutine::get_current_safe();
+    /* resgiter signal */
+    waiters[signo] = co;
+    SwooleG.use_signalfd = SwooleG.enable_signalfd = 1;
+    swSignal_add(signo, [](int signo) {
+        Coroutine *co = waiters[signo];
+        if (co)
+        {
+            waiters[signo] = nullptr;
+            co->resume();
+        }
+    });
+    SwooleTG.reactor->co_signal_listener_num++;
+
+    swTimer_node* tnode = nullptr;
+    if (timeout > 0)
+    {
+        tnode = swoole_timer_add(timeout * 1000, 0, [](swTimer *timer, swTimer_node *tnode) {
+            Coroutine *co = (Coroutine *) tnode->data;
+            co->resume();
+        }, co);
+    }
+
+    co->yield();
+
+    swSignal_add(signo, nullptr);
+    SwooleTG.reactor->co_signal_listener_num--;
+
+    if (waiters[signo] == nullptr)
+    {
+        if (tnode)
+        {
+            swoole_timer_del(tnode);
+        }
+    }
+    else
+    {
+        /* timeout */
+        waiters[signo] = nullptr;
+        RETURN_FALSE;
+    }
+
+    RETURN_TRUE;
+}

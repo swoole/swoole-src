@@ -108,6 +108,11 @@ size_t swoole_coroutine_wait_count()
 
 pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options)
 {
+    if (__pid < 0)
+    {
+        return swoole_coroutine_wait(__stat_loc);
+    }
+
     auto i = child_processes.find(__pid);
     if (i != child_processes.end())
     {
@@ -144,7 +149,7 @@ pid_t swoole_coroutine_wait(int *__stat_loc)
 {
     if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current()))
     {
-        return wait( __stat_loc);
+        return wait(__stat_loc);
     }
 
     if (!child_processes.empty())

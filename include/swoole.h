@@ -1683,7 +1683,8 @@ struct _swReactor
 
     uint32_t event_num;
     uint32_t max_event_num;
-    uint32_t signal_listener_num;
+    uint16_t signal_listener_num;
+    uint16_t co_signal_listener_num;
 
     uchar check_timer :1;
     uchar running :1;
