@@ -666,14 +666,14 @@ static void swManager_signal_handler(int sig)
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status)
 {
     swServer *serv = (swServer *) pool->ptr;
-    swWorker *exit_worker = NULL;
+    swWorker *exit_worker = nullptr;
     int worker_type;
 
     do {
         if (serv->gs->task_workers.map)
         {
             exit_worker = (swWorker *) swHashMap_find_int(serv->gs->task_workers.map, pid);
-            if (exit_worker != NULL)
+            if (exit_worker != nullptr)
             {
                 worker_type = SW_PROCESS_TASKWORKER;
                 break;
@@ -682,16 +682,13 @@ int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status)
         if (serv->user_worker_map)
         {
             exit_worker = (swWorker *) swHashMap_find_int(serv->user_worker_map, pid);
-            if (exit_worker != NULL)
+            if (exit_worker != nullptr)
             {
                 worker_type = SW_PROCESS_USERWORKER;
                 break;
             }
         }
-        if (exit_worker == NULL)
-        {
-            return SW_ERR;
-        }
+        return SW_ERR;
     } while (0);
 
     swManager_check_exit_status(serv, exit_worker->id, pid, status);
@@ -811,7 +808,7 @@ pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker)
 
 pid_t swManager_spawn_worker_by_type(swServer *serv, swWorker *worker, int worker_type)
 {
-    pid_t pid;
+    pid_t pid = -1;
 
     switch (worker_type)
     {
@@ -825,7 +822,8 @@ pid_t swManager_spawn_worker_by_type(swServer *serv, swWorker *worker, int worke
         pid = swManager_spawn_user_worker(serv, worker);
         break;
     default:
-        break;
+        /* never here */
+        abort();
     }
 
     return pid;
