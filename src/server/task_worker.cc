@@ -166,7 +166,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     swWorker_onStart(serv);
 
     swWorker *worker = swProcessPool_get_worker(pool, worker_id);
-    worker->start_time = serv->gs->now;
+    worker->start_time = time(NULL);
     worker->request_count = 0;
     SwooleWG.worker = worker;
     SwooleWG.worker->status = SW_WORKER_IDLE;

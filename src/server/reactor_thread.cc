@@ -597,7 +597,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     }
 #endif
 
-    conn->last_time = serv->gs->now;
+    conn->last_time = time(NULL);
 #ifdef SW_BUFFER_RECV_TIME
     conn->last_time_usec = swoole_microtime();
 #endif
@@ -892,7 +892,7 @@ int swReactorThread_start(swServer *serv)
     }
 
     /**
-     * 1 second timer, update serv->gs->now
+     * 1 second timer
      */
     if ((serv->master_timer = swoole_timer_add(1000, SW_TRUE, swServer_master_onTimer, serv)) == NULL)
     {

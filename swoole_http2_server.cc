@@ -234,7 +234,7 @@ static void swoole_http2_onRequest(http2_session *client, http2_stream *stream)
         return;
     }
 
-    add_assoc_long(zserver, "request_time", serv->gs->now);
+    add_assoc_long(zserver, "request_time", time(NULL));
     add_assoc_double(zserver, "request_time_float", swoole_microtime());
     if (serv_sock)
     {
