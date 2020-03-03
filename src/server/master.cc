@@ -249,14 +249,14 @@ static int swServer_start_check(swServer *serv)
         }
         if (serv->task_worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
         {
-            swWarn("serv->task_worker_num == %d, Too many processes, the system will be slow. reset to %d", serv->task_worker_num, SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+            swWarn("serv->task_worker_num == %d, Too many processes, reset to max value %d", serv->task_worker_num, SW_CPU_NUM * SW_MAX_WORKER_NCPU);
             serv->task_worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
         }
     }
     //check thread num
     if (serv->reactor_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU)
     {
-        swWarn("serv->reactor_num == %d, Too many threads, the system will be slow. reset to %d", serv->reactor_num, SW_CPU_NUM * SW_MAX_THREAD_NCPU);
+        swWarn("serv->reactor_num == %d, Too many threads, reset to max value %d", serv->reactor_num, SW_CPU_NUM * SW_MAX_THREAD_NCPU);
         serv->reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
     }
     else if (serv->reactor_num == 0)
@@ -270,7 +270,7 @@ static int swServer_start_check(swServer *serv)
     //check worker num
     if (serv->worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
     {
-        swWarn("serv->worker_num == %d, Too many processes, the system will be slow. reset to %d", serv->worker_num, SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+        swWarn("serv->worker_num == %d, Too many processes, reset to max value %d", serv->worker_num, SW_CPU_NUM * SW_MAX_WORKER_NCPU);
         serv->worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
     }
     if (serv->worker_num < serv->reactor_num)
