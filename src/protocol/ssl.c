@@ -52,7 +52,7 @@ static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, con
     #define MAYBE_UNUSED
 #endif
 
-static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, char *file, int line);
+static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, const char *file, int line);
 
 static const SSL_METHOD *swSSL_get_method(int method)
 {
@@ -157,7 +157,7 @@ void swSSL_destroy()
     CRYPTO_set_locking_callback(NULL);
 }
 
-static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, char *file, int line)
+static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, const char *file, int line)
 {
     if (mode & CRYPTO_LOCK)
     {
@@ -207,7 +207,7 @@ void swSSL_init_thread_safety()
     CRYPTO_set_id_callback(swSSL_id_callback);
 #endif
 
-    CRYPTO_set_locking_callback((void (*)()) swSSL_lock_callback);
+    CRYPTO_set_locking_callback(swSSL_lock_callback);
 }
 
 void swSSL_server_http_advise(SSL_CTX* ssl_context, swSSL_config *cfg)
