@@ -341,7 +341,7 @@ static void swReactorThread_shutdown(swReactor *reactor)
         swListenPort *ls;
         LL_FOREACH(serv->listen_list, ls)
         {
-            if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
+            if (swSocket_is_dgram(ls->type))
             {
                 if (ls->socket->fd % serv->reactor_num != reactor->id)
                 {
@@ -780,6 +780,7 @@ int swReactorThread_start(swServer *serv)
             sw_free(reactor);
             return SW_ERR;
         }
+        reactor->add(reactor, ls->socket, SW_EVENT_READ);
     }
 
     if (serv->stream_socket)
@@ -801,15 +802,6 @@ int swReactorThread_start(swServer *serv)
 #ifdef HAVE_REUSEPORT
     SwooleG.reuse_port = 0;
 #endif
-
-    LL_FOREACH(serv->listen_list, ls)
-    {
-        if (swSocket_is_dgram(ls->type))
-        {
-            continue;
-        }
-        reactor->add(reactor, ls->socket, SW_EVENT_READ);
-    }
 
     if (serv->single_thread)
     {
@@ -929,7 +921,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
         swListenPort *ls;
         LL_FOREACH(serv->listen_list, ls)
         {
-            if (!swSocket_is_dgram(ls->type))
+            if (swSocket_is_stream(ls->type))
             {
                 continue;
             }

@@ -252,9 +252,6 @@ static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEvent
     sw_atomic_fetch_add(&serv->stats->request_count, 1);
 }
 
-/**
- * @param data_len
- */
 int swWorker_onTask(swFactory *factory, swEventData *task)
 {
     swServer *serv = (swServer *) factory->ptr;
