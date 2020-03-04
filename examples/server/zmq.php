@@ -25,7 +25,7 @@ $serv->set(array(
 ));
 
 $serv->on('workerStart', function($serv, $worker_id) {
-	global $killer;
+	global $sender;
     global $receiver;
 
     $rfd = $receiver->getsockopt(ZMQ::SOCKOPT_FD);
