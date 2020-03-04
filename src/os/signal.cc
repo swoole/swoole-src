@@ -26,12 +26,12 @@
 #include <sys/event.h>
 #endif
 
-typedef struct
+struct swSignal
 {
     swSignalHandler handler;
     uint16_t signo;
     uint16_t active;
-} swSignal;
+};
 
 #ifdef HAVE_SIGNALFD
 static void swSignalfd_set(int signo, swSignalHandler handler);
