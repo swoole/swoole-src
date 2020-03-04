@@ -117,7 +117,6 @@ static void** php_swoole_server_worker_create_buffers(swServer *serv, uint buffe
 static void* php_swoole_server_worker_get_buffer(swServer *serv, swDataHead *info);
 static void php_swoole_server_worker_add_buffer_len(swServer *serv, swDataHead *info, size_t len);
 static void php_swoole_server_worker_copy_buffer_addr(swServer *serv, swPipeBuffer *buffer);
-static void php_swoole_server_worker_clear_buffer(swServer *serv, swDataHead *info);
 
 static size_t php_swoole_server_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr);
 
@@ -1155,7 +1154,6 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     serv->get_buffer = php_swoole_server_worker_get_buffer;
     serv->add_buffer_len = php_swoole_server_worker_add_buffer_len;
     serv->copy_buffer_addr = php_swoole_server_worker_copy_buffer_addr;
-    serv->clear_buffer = php_swoole_server_worker_clear_buffer;
     serv->get_packet = php_swoole_server_worker_get_packet;
 
     /**
@@ -2148,6 +2146,12 @@ static sw_inline zend_string* php_swoole_server_worker_get_input_buffer(swServer
     }
 }
 
+static sw_inline void php_swoole_server_worker_set_input_buffer(swServer *serv, int reactor_id, zend_string *addr)
+{
+    zend_string **buffers = (zend_string **) SwooleWG.input_buffers;
+    buffers[reactor_id] = addr;
+}
+
 static sw_inline void php_swoole_server_worker_set_buffer(swServer *serv, swDataHead *info, zend_string *addr)
 {
     zend_string **buffers = (zend_string **) SwooleWG.input_buffers;
@@ -2179,13 +2183,7 @@ static void php_swoole_server_worker_copy_buffer_addr(swServer *serv, swPipeBuff
     zend_string *worker_buffer = php_swoole_server_worker_get_input_buffer(serv, buffer->info.reactor_id);
     memcpy(buffer->data, &worker_buffer, sizeof(worker_buffer));
     worker_buffer->val[worker_buffer->len] = '\0';
-    serv->clear_buffer(serv, &buffer->info);
-}
-
-static void php_swoole_server_worker_clear_buffer(swServer *serv, swDataHead *info)
-{
-    zend_string **buffer = (zend_string **) SwooleWG.input_buffers;
-    buffer[info->reactor_id] = NULL;
+    php_swoole_server_worker_set_input_buffer(serv, buffer->info.reactor_id, NULL);
 }
 
 static size_t php_swoole_server_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr)
