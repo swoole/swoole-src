@@ -391,6 +391,9 @@ bool System::waitSignal(int signo, double timeout)
 
     /* resgiter signal */
     listeners[signo] = co;
+    // for swSignalfd_setup
+    SwooleTG.reactor->check_signalfd = 1;
+    /* always enable signalfd */
     SwooleG.use_signalfd = SwooleG.enable_signalfd = 1;
     swSignal_add(signo, [](int signo) {
         Coroutine *co = listeners[signo];
