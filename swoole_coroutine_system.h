@@ -77,10 +77,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_statvfs, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_wait, 0, 0, 0)
+    ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_waitPid, 0, 0, 1)
     ZEND_ARG_INFO(0, pid)
+    ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_waitSignal, 0, 0, 1)

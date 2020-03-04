@@ -16,8 +16,24 @@
 
 #include "swoole_api.h"
 
+#include "coroutine.h"
+#include "coroutine_system.h"
+
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
+#endif
+#ifdef HAVE_KQUEUE
+#include <sys/event.h>
+#endif
+
+typedef struct
+{
+    swSignalHandler handler;
+    uint16_t signo;
+    uint16_t active;
+} swSignal;
+
+#ifdef HAVE_SIGNALFD
 static void swSignalfd_set(int signo, swSignalHandler handler);
 static void swSignalfd_clear();
 static int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
@@ -28,21 +44,13 @@ static swSocket *signal_socket = NULL;
 #endif
 
 #ifdef HAVE_KQUEUE
-#include <sys/event.h>
 static void swKqueueSignal_set(int signo, swSignalHandler handler);
 #endif
 
-typedef struct
-{
-    swSignalHandler handler;
-    uint16_t signo;
-    uint16_t active;
-} swSignal;
+static void swSignal_async_handler(int signo);
 
 static swSignal signals[SW_SIGNO_MAX];
 static int _lock = 0;
-
-static void swSignal_async_handler(int signo);
 
 char* swSignal_str(int sig)
 {
@@ -360,5 +368,67 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
         swSysWarn("kevent set signal[%d] error", signo);
     }
 }
-
 #endif
+
+namespace swoole { namespace coroutine {
+
+bool System::waitSignal(int signo, double timeout)
+{
+    static Coroutine* listeners[SW_SIGNO_MAX];
+
+    if (SwooleTG.reactor->signal_listener_num > 0)
+    {
+        errno = EBUSY;
+        return false;
+    }
+    if (signo < 0 || signo >= SW_SIGNO_MAX || signo == SIGCHLD)
+    {
+        errno = EINVAL;
+        return false;
+    }
+
+    Coroutine *co = Coroutine::get_current_safe();
+
+    /* resgiter signal */
+    listeners[signo] = co;
+    SwooleG.use_signalfd = SwooleG.enable_signalfd = 1;
+    swSignal_add(signo, [](int signo) {
+        Coroutine *co = listeners[signo];
+        if (co)
+        {
+            listeners[signo] = nullptr;
+            co->resume();
+        }
+    });
+    SwooleTG.reactor->co_signal_listener_num++;
+
+    swTimer_node* timer = nullptr;
+    if (timeout > 0)
+    {
+        timer = swoole_timer_add(timeout * 1000, 0, [](swTimer *timer, swTimer_node *tnode) {
+            Coroutine *co = (Coroutine *) tnode->data;
+            co->resume();
+        }, co);
+    }
+
+    co->yield();
+
+    swSignal_add(signo, nullptr);
+    SwooleTG.reactor->co_signal_listener_num--;
+
+    if (listeners[signo] != nullptr)
+    {
+        listeners[signo] = nullptr;
+        errno = ETIMEDOUT;
+        return false;
+    }
+
+    if (timer)
+    {
+        swoole_timer_del(timer);
+    }
+
+    return true;
+}
+
+}}

@@ -14,13 +14,17 @@
   +----------------------------------------------------------------------+
 */
 #include "swoole.h"
-#include "coroutine.h"
+#include "swoole_api.h"
 
-#include <queue>
+#include "coroutine.h"
+#include "coroutine_system.h"
+
+#include <list>
 #include <unordered_map>
 
 using namespace std;
 using namespace swoole;
+using swoole::coroutine::System;
 
 struct wait_task
 {
@@ -29,11 +33,11 @@ struct wait_task
     int status;
 };
 
+static list<wait_task *> wait_list;
 static unordered_map<int, wait_task *> waitpid_map;
-static queue<wait_task *> wait_list;
 static unordered_map<int, int> child_processes;
 
-bool signal_init = false;
+bool signal_ready = false;
 
 static void signal_handler(int signo)
 {
@@ -53,12 +57,10 @@ static void signal_handler(int signo)
             if (waitpid_map.find(__pid) != waitpid_map.end())
             {
                 task = waitpid_map[__pid];
-                waitpid_map.erase(__pid);
             }
             else if (!wait_list.empty())
             {
                 task = wait_list.front();
-                wait_list.pop();
             }
             else
             {
@@ -77,97 +79,148 @@ static void signal_handler(int signo)
 
 static void signal_free(void *nullopt)
 {
-    signal_init = false;
+    signal_ready = false;
     swSignal_clear();
 }
 
-extern "C"
+static void signal_init()
 {
-
-void swoole_coroutine_signal_init()
-{
-    if (!signal_init)
+    if (!signal_ready)
     {
-        signal_init = true;
+        swReactor *reactor = SwooleTG.reactor;
         swSignal_add(SIGCHLD, signal_handler);
 #ifdef HAVE_SIGNALFD
-        swReactor *reactor = SwooleTG.reactor;
         if (SwooleG.use_signalfd && !swReactor_isset_handler(reactor, SW_FD_SIGNAL))
         {
             swSignalfd_setup(reactor);
         }
-        swReactor_add_destroy_callback(reactor, (swCallback) signal_free, nullptr);
 #endif
+        swReactor_add_destroy_callback(reactor, (swCallback) signal_free, nullptr);
+        signal_ready = true;
     }
 }
+
+pid_t System::wait(int *__stat_loc , double timeout)
+{
+    return System::waitpid(-1, __stat_loc, 0, timeout);
+}
+
+pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeout)
+{
+    if (__pid < 0)
+    {
+        if (!child_processes.empty())
+        {
+            auto i = child_processes.begin();
+            pid_t __pid = i->first;
+            *__stat_loc = i->second;
+            child_processes.erase(i);
+            return __pid;
+        }
+    }
+    else
+    {
+        auto i = child_processes.find(__pid);
+        if (i != child_processes.end())
+        {
+            *__stat_loc = i->second;
+            child_processes.erase(i);
+            return __pid;
+        }
+    }
+
+    if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current() || (__options & WNOHANG)))
+    {
+        return ::waitpid(__pid, __stat_loc, __options);
+    }
+
+    /* try once if failed we init the task */
+    wait_task task;
+    task.pid = ::waitpid(__pid, __stat_loc, __options | WNOHANG);
+    if (task.pid > 0)
+    {
+        return task.pid;
+    }
+
+    signal_init();
+
+    task.pid = -1;
+    task.status = 0;
+    task.co = Coroutine::get_current();
+
+    /* enqueue */
+    if (__pid < 0)
+    {
+        wait_list.push_back(&task);
+    }
+    else
+    {
+        waitpid_map[__pid] = &task;
+    }
+
+    /* timeout controller */
+    swTimer_node* timer = nullptr;
+    if (timeout > 0)
+    {
+        timer = swoole_timer_add(timeout * 1000, 0, [](swTimer *timer, swTimer_node *tnode) {
+            Coroutine *co = (Coroutine *) tnode->data;
+            co->resume();
+        }, task.co);
+    }
+
+    task.co->yield();
+
+    /* dequeue */
+    if (__pid < 0)
+    {
+        if (task.pid > 0)
+        {
+            wait_list.pop_front();
+        }
+        else
+        {
+            /* timeout so we should remove it from the list */
+            wait_list.remove(&task);
+        }
+    }
+    else
+    {
+        waitpid_map.erase(__pid);
+    }
+
+    /* clear and assign result */
+    if (task.pid > 0)
+    {
+        if (timer)
+        {
+            swoole_timer_del(timer);
+        }
+        *__stat_loc = task.status;
+    }
+    else
+    {
+        errno = ETIMEDOUT;
+    }
+
+    return task.pid;
+}
+
+extern "C"
+{
 
 size_t swoole_coroutine_wait_count()
 {
     return wait_list.size() + waitpid_map.size();
 }
 
-pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options)
-{
-    if (__pid < 0)
-    {
-        return swoole_coroutine_wait(__stat_loc);
-    }
-
-    auto i = child_processes.find(__pid);
-    if (i != child_processes.end())
-    {
-        *__stat_loc = i->second;
-        child_processes.erase(i);
-        return __pid;
-    }
-
-    if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current() || (__options & WNOHANG)))
-    {
-        return waitpid(__pid, __stat_loc, __options);
-    }
-
-    wait_task task;
-    task.pid = waitpid(__pid, __stat_loc, __options | WNOHANG);
-    if (task.pid > 0)
-    {
-        return task.pid;
-    }
-    else
-    {
-        task.pid = 0;
-    }
-
-    task.co = Coroutine::get_current();
-    waitpid_map[__pid] = &task;
-    task.co->yield();
-    *__stat_loc = task.status;
-
-    return task.pid;
-}
-
 pid_t swoole_coroutine_wait(int *__stat_loc)
 {
-    if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current()))
-    {
-        return wait(__stat_loc);
-    }
+    return System::wait(__stat_loc);
+}
 
-    if (!child_processes.empty())
-    {
-        auto i = child_processes.begin();
-        pid_t __pid = i->first;
-        *__stat_loc = i->second;
-        child_processes.erase(i);
-        return __pid;
-    }
-
-    wait_task task;
-    task.co = Coroutine::get_current();
-    wait_list.push(&task);
-    task.co->yield();
-    *__stat_loc = task.status;
-
-    return task.pid;
+pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options)
+{
+    return System::waitpid(__pid, __stat_loc, __options);
 }
 
 }

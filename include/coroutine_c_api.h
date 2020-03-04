@@ -71,7 +71,6 @@ int swoole_coroutine_socket_wait_event(int fd, int event, double timeout);
 /**
  * wait
  */
-void swoole_coroutine_signal_init();
 size_t swoole_coroutine_wait_count();
 pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options);
 pid_t swoole_coroutine_wait(int *__stat_loc);

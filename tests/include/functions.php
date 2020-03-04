@@ -21,7 +21,7 @@ require_once __DIR__ . '/config.php';
 
 function switch_process()
 {
-    usleep((USE_VALGRIND ? 100 : 10) * 1000);
+    usleep((USE_VALGRIND ? 100 : 25) * 1000);
 }
 
 function clear_php()

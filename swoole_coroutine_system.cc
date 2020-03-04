@@ -713,7 +713,6 @@ PHP_METHOD(swoole_coroutine_system, exec)
     }
 
     Coroutine::get_current_safe();
-    swoole_coroutine_signal_init();
 
     pid_t pid;
     int fd = swoole_shell_exec(command, &pid, get_error_stream);
@@ -778,21 +777,19 @@ PHP_METHOD(swoole_coroutine_system, exec)
     }
 }
 
-static void swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAMETERS, pid_t pid)
+static void swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAMETERS, pid_t pid, double timeout)
 {
     int status;
 
-    /* check */
     Coroutine::get_current_safe();
-    swoole_coroutine_signal_init();
 
     if (pid < 0)
     {
-        pid = swoole_coroutine_wait(&status);
+        pid = System::wait(&status, timeout);
     }
     else
     {
-        pid = swoole_coroutine_waitpid(pid, &status, 0);
+        pid = System::waitpid(pid, &status, 0, timeout);
     }
     if (pid > 0)
     {
@@ -803,29 +800,39 @@ static void swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAMETERS, pid_t pid
     }
     else
     {
+        SwooleG.error = errno;
         RETURN_FALSE;
     }
 }
 
 PHP_METHOD(swoole_coroutine_system, wait)
 {
-    swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAM_PASSTHRU, -1);
+    double timeout = -1;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAM_PASSTHRU, -1, timeout);
 }
 
 PHP_METHOD(swoole_coroutine_system, waitPid)
 {
     zend_long pid;
+    double timeout = -1;
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_LONG(pid)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAM_PASSTHRU, pid);
+    swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAM_PASSTHRU, pid, timeout);
 }
 
 PHP_METHOD(swoole_coroutine_system, waitSignal)
 {
-    static Coroutine* waiters[SW_SIGNO_MAX];
     zend_long signo;
     double timeout = -1;
 
@@ -835,58 +842,19 @@ PHP_METHOD(swoole_coroutine_system, waitSignal)
         Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (SwooleTG.reactor->signal_listener_num > 0)
-    {
-        php_swoole_fatal_error(E_WARNING, "Unable to wait signal, async signal listener has been registered");
-        RETURN_FALSE;
-    }
-    if (signo < 0 || signo >= SW_SIGNO_MAX || signo == SIGCHLD)
-    {
-        php_swoole_fatal_error(E_WARNING, "Invalid signal [" ZEND_LONG_FMT "]", signo);
-        RETURN_FALSE;
-    }
+   if (!System::waitSignal(signo, timeout))
+   {
+       if (errno == EBUSY)
+       {
+           php_swoole_fatal_error(E_WARNING, "Unable to wait signal, async signal listener has been registered");
+       }
+       else if (errno == EINVAL)
+       {
+           php_swoole_fatal_error(E_WARNING, "Invalid signal [" ZEND_LONG_FMT "]", signo);
+       }
+       SwooleG.error = errno;
+       RETURN_FALSE;
+   }
 
-    Coroutine *co = Coroutine::get_current_safe();
-    /* resgiter signal */
-    waiters[signo] = co;
-    SwooleG.use_signalfd = SwooleG.enable_signalfd = 1;
-    swSignal_add(signo, [](int signo) {
-        Coroutine *co = waiters[signo];
-        if (co)
-        {
-            waiters[signo] = nullptr;
-            co->resume();
-        }
-    });
-    SwooleTG.reactor->co_signal_listener_num++;
-
-    swTimer_node* tnode = nullptr;
-    if (timeout > 0)
-    {
-        tnode = swoole_timer_add(timeout * 1000, 0, [](swTimer *timer, swTimer_node *tnode) {
-            Coroutine *co = (Coroutine *) tnode->data;
-            co->resume();
-        }, co);
-    }
-
-    co->yield();
-
-    swSignal_add(signo, nullptr);
-    SwooleTG.reactor->co_signal_listener_num--;
-
-    if (waiters[signo] == nullptr)
-    {
-        if (tnode)
-        {
-            swoole_timer_del(tnode);
-        }
-    }
-    else
-    {
-        /* timeout */
-        waiters[signo] = nullptr;
-        RETURN_FALSE;
-    }
-
-    RETURN_TRUE;
+   RETURN_TRUE;
 }
