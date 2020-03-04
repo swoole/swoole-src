@@ -335,7 +335,6 @@ PHP_FUNCTION(swoole_proc_open)
     }
 
     Coroutine::get_current_safe();
-    swoole_coroutine_signal_init();
 
 	command = estrdup(command);
 
