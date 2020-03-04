@@ -1409,7 +1409,6 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
             serv->close(serv, req->info.fd, 0);
         }
         zval_ptr_dtor(&args[3]);
-        serv->clear_buffer(serv, (swDataHead *) req);
     }
 
     return SW_OK;
@@ -2180,6 +2179,7 @@ static void php_swoole_server_worker_copy_buffer_addr(swServer *serv, swPipeBuff
     zend_string *worker_buffer = php_swoole_server_worker_get_input_buffer(serv, buffer->info.reactor_id);
     memcpy(buffer->data, &worker_buffer, sizeof(worker_buffer));
     worker_buffer->val[worker_buffer->len] = '\0';
+    serv->clear_buffer(serv, &buffer->info);
 }
 
 static void php_swoole_server_worker_clear_buffer(swServer *serv, swDataHead *info)
