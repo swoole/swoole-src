@@ -17,9 +17,11 @@ $pid = getmypid();
 $killer = new Process(function () use ($pid, $atomic) {
     $atomic->wait();
     echo "2\n";
+    switch_process();
     Process::kill($pid, SIGUSR1);
     $atomic->wait();
     echo "6\n";
+    switch_process();
     Process::kill($pid, SIGUSR2);
     echo "8\n";
 });
