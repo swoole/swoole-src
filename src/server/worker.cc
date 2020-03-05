@@ -769,7 +769,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
                  * we store the value of the worker_buffer pointer in swEventData.data. 
                  * The value of this pointer will be fetched in the swServer_worker_get_packet function.
                  */
-                serv->copy_buffer_addr(serv, pipe_buffer);
+                serv->move_buffer(serv, pipe_buffer);
             }
         }
     }
