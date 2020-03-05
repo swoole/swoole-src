@@ -1355,13 +1355,20 @@ static sw_inline swString *swServer_worker_get_input_buffer(swServer *serv, int 
     }
 }
 
+static sw_inline void swServer_server_worker_set_buffer(swServer *serv, swDataHead *info, swString *addr)
+{
+    swString **buffers = (swString **) SwooleWG.input_buffers;
+    buffers[info->reactor_id] = addr;
+}
+
 static void* swServer_worker_get_buffer(swServer *serv, swDataHead *info)
 {
     swString *worker_buffer = swServer_worker_get_input_buffer(serv, info->reactor_id);
     
-    if (worker_buffer->size < info->len)
+    if (worker_buffer == NULL)
     {
-        swString_extend(worker_buffer, info->len);
+        worker_buffer = swString_new(info->len);
+        swServer_server_worker_set_buffer(serv, info, worker_buffer);
     }
 
     return worker_buffer->str + worker_buffer->length;
@@ -1377,6 +1384,7 @@ static void swServer_worker_copy_buffer_addr(swServer *serv, swPipeBuffer *buffe
 {
     swString *worker_buffer = swServer_worker_get_input_buffer(serv, buffer->info.reactor_id);
     memcpy(buffer->data, &worker_buffer, sizeof(worker_buffer));
+    swServer_server_worker_set_buffer(serv, &buffer->info, NULL);
 }
 
 static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr)
