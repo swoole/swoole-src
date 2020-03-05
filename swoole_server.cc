@@ -116,7 +116,7 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port);
 static void** php_swoole_server_worker_create_buffers(swServer *serv, uint buffer_num);
 static void* php_swoole_server_worker_get_buffer(swServer *serv, swDataHead *info);
 static void php_swoole_server_worker_add_buffer_len(swServer *serv, swDataHead *info, size_t len);
-static void php_swoole_server_worker_copy_buffer_addr(swServer *serv, swPipeBuffer *buffer);
+static void php_swoole_server_worker_move_buffer(swServer *serv, swPipeBuffer *buffer);
 
 static size_t php_swoole_server_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr);
 
@@ -1153,7 +1153,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     serv->create_buffers = php_swoole_server_worker_create_buffers;
     serv->get_buffer = php_swoole_server_worker_get_buffer;
     serv->add_buffer_len = php_swoole_server_worker_add_buffer_len;
-    serv->copy_buffer_addr = php_swoole_server_worker_copy_buffer_addr;
+    serv->move_buffer = php_swoole_server_worker_move_buffer;
     serv->get_packet = php_swoole_server_worker_get_packet;
 
     /**
@@ -2172,7 +2172,7 @@ static void php_swoole_server_worker_add_buffer_len(swServer *serv, swDataHead *
     worker_buffer->len += len;
 }
 
-static void php_swoole_server_worker_copy_buffer_addr(swServer *serv, swPipeBuffer *buffer)
+static void php_swoole_server_worker_move_buffer(swServer *serv, swPipeBuffer *buffer)
 {
     zend_string *worker_buffer = php_swoole_server_worker_get_input_buffer(serv, buffer->info.reactor_id);
     memcpy(buffer->data, &worker_buffer, sizeof(worker_buffer));
