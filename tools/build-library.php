@@ -47,10 +47,33 @@ $files = [
     'core/Database/PDOStatementProxy.php',
     'core/Database/RedisConfig.php',
     'core/Database/RedisPool.php',
-    # <core for ext-curl> #
+    # <core for HTTP> #
     'core/Http/Status.php',
+    # <core for cURL> #
     'core/Curl/Exception.php',
     'core/Curl/Handler.php',
+    # <core for FastCGI> #
+    'core/FastCGI.php',
+    'core/FastCGI/Record.php',
+    'core/FastCGI/Record/Params.php',
+    'core/FastCGI/Record/AbortRequest.php',
+    'core/FastCGI/Record/BeginRequest.php',
+    'core/FastCGI/Record/Data.php',
+    'core/FastCGI/Record/EndRequest.php',
+    'core/FastCGI/Record/GetValues.php',
+    'core/FastCGI/Record/GetValuesResult.php',
+    'core/FastCGI/Record/Stdin.php',
+    'core/FastCGI/Record/Stdout.php',
+    'core/FastCGI/Record/Stderr.php',
+    'core/FastCGI/Record/UnknownType.php',
+    'core/FastCGI/FrameParser.php',
+    'core/FastCGI/Message.php',
+    'core/FastCGI/Request.php',
+    'core/FastCGI/Response.php',
+    'core/FastCGI/HttpRequest.php',
+    'core/FastCGI/HttpResponse.php',
+    'core/Coroutine/FastCGI/Client.php',
+    'core/Coroutine/FastCGI/Client/Exception.php',
     # <ext> #
     'ext/curl.php',
     # <finalizer> #
