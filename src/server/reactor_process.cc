@@ -197,7 +197,7 @@ int swReactorProcess_start(swServer *serv)
     swProcessPool_wait(&serv->gs->event_workers);
     swProcessPool_shutdown(&serv->gs->event_workers);
 
-    swManager_kill_user_worker(serv);
+    swManager_kill_user_workers(serv);
 
     if (serv->onManagerStop)
     {

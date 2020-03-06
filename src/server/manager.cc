@@ -558,8 +558,8 @@ static int swManager_loop(swServer *serv)
             uint64_t key;
             while (1)
             {
-                swWorker* user_worker = (swWorker *) swHashMap_each_int(serv->user_worker_map, &key);
-                //hashmap empty
+                swWorker *user_worker = (swWorker *) swHashMap_each_int(serv->user_worker_map, &key);
+                // no other user_worker
                 if (user_worker == NULL)
                 {
                     break;
@@ -572,29 +572,9 @@ static int swManager_loop(swServer *serv)
          */
         alarm(serv->max_wait_time * 2);
     }
-    //kill all child process
-    for (i = 0; i < serv->worker_num; i++)
-    {
-        swTrace("[Manager]kill worker processor");
-        swoole_kill(serv->workers[i].pid, SIGTERM);
-    }
-    for (i = 0; i < serv->worker_num; i++)
-    {
-        if (swoole_waitpid(serv->workers[i].pid, &status, 0) < 0)
-        {
-            swSysWarn("waitpid(%d) failed", serv->workers[i].pid);
-        }
-    }
-    //kill and wait task process
-    if (serv->task_worker_num > 0)
-    {
-        swProcessPool_shutdown(&serv->gs->task_workers);
-    }
-    //kill all user process
-    if (serv->user_worker_map)
-    {
-        swManager_kill_user_worker(serv);
-    }
+    swManager_kill_workers(serv);
+    swManager_kill_task_workers(serv);
+    swManager_kill_user_workers(serv);
     //force kill
     if (serv->max_wait_time)
     {
@@ -695,7 +675,10 @@ int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status)
     return swManager_spawn_worker_by_type(serv, exit_worker, worker_type);
 }
 
-void swManager_kill_user_worker(swServer *serv)
+/**
+ * kill and wait all user process
+ */
+void swManager_kill_user_workers(swServer *serv)
 {
     if (!serv->user_worker_map)
     {
@@ -733,6 +716,44 @@ void swManager_kill_user_worker(swServer *serv)
             swSysWarn("waitpid(%d) failed", user_worker->pid);
         }
     }
+}
+
+/**
+ * kill and wait all child process
+ */
+void swManager_kill_workers(swServer *serv)
+{
+    int status;
+
+    if (serv->worker_num == 0)
+    {
+        return;
+    }
+
+    for (uint32_t i = 0; i < serv->worker_num; i++)
+    {
+        swTrace("[Manager]kill worker processor");
+        swoole_kill(serv->workers[i].pid, SIGTERM);
+    }
+    for (uint32_t i = 0; i < serv->worker_num; i++)
+    {
+        if (swoole_waitpid(serv->workers[i].pid, &status, 0) < 0)
+        {
+            swSysWarn("waitpid(%d) failed", serv->workers[i].pid);
+        }
+    }
+}
+
+/**
+ * kill and wait task process
+ */
+void swManager_kill_task_workers(swServer *serv)
+{
+    if (serv->worker_num == 0)
+    {
+        return;
+    }
+    swProcessPool_shutdown(&serv->gs->task_workers);
 }
 
 pid_t swManager_spawn_worker(swServer *serv, swWorker *worker)
