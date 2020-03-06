@@ -1048,4 +1048,6 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
 pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker);
 pid_t swManager_spawn_worker_by_type(swServer *serv, swWorker *worker, int worker_type);
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);
-void swManager_kill_user_worker(swServer *serv);
+void swManager_kill_workers(swServer *serv);
+void swManager_kill_task_workers(swServer *serv);
+void swManager_kill_user_workers(swServer *serv);
