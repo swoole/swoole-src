@@ -749,7 +749,7 @@ void swManager_kill_workers(swServer *serv)
  */
 void swManager_kill_task_workers(swServer *serv)
 {
-    if (serv->worker_num == 0)
+    if (serv->task_worker_num == 0)
     {
         return;
     }
