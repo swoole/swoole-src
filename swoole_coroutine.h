@@ -138,6 +138,11 @@ public:
         return sw_likely(task) ? task->pcid : 0;
     }
 
+    static inline long get_elapsed(long cid = 0)
+    {
+        return sw_likely(active) ? Coroutine::get_elapsed(cid) : -1;
+    }
+
     static inline php_coro_task* get_task()
     {
         php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();

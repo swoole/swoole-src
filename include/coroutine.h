@@ -82,6 +82,11 @@ public:
         return state;
     }
 
+    inline long get_init_msec()
+    {
+        return init_msec;
+    }
+
     inline long get_cid()
     {
         return cid;
@@ -185,6 +190,12 @@ public:
         return peak_num;
     }
 
+    static inline long get_elapsed(long cid)
+    {
+        Coroutine *co = cid == 0 ? get_current() : get_by_cid(cid);
+        return sw_likely(co) ? swTimer_get_absolute_msec() - co->get_init_msec() : -1;
+    }
+
     static void print_list();
 
 protected:
@@ -199,6 +210,7 @@ protected:
 
     sw_coro_state state = SW_CORO_INIT;
     long cid;
+    long init_msec = swTimer_get_absolute_msec();
     void *task = nullptr;
     Context ctx;
     Coroutine *origin;
