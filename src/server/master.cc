@@ -1868,6 +1868,9 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, s
     connection->socket_type = ls->type;
     connection->socket = _socket;
 
+    memcpy(&connection->info.addr, &_socket->info.addr, _socket->info.len);
+    connection->info.len = _socket->info.len;
+
     if (!ls->ssl)
     {
         _socket->direct_send = 1;
