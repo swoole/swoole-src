@@ -262,7 +262,7 @@ swSocket* swSocket_accept(swSocket *sock, swSocketAddress *sa)
         socket->socket_type = sock->socket_type;
         socket->nonblock = 1;
         socket->cloexec = 1;
-        memcpy(&socket->info, sa, sa->len);
+        memcpy(&socket->info, sa, sizeof(*sa));
     }
 
     return socket;
