@@ -142,7 +142,9 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         }
 
         memcpy(&conn->info.addr, &event->socket->info, sizeof(event->socket->info));
+        memcpy(&sock->info.addr, &event->socket->info, sizeof(event->socket->info));
         conn->socket_type = listen_host->type;
+        sock->socket_type = listen_host->type;
 
 #ifdef SW_USE_OPENSSL
         if (listen_host->ssl)
