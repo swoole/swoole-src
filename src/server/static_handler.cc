@@ -189,9 +189,10 @@ bool StaticHandler::hit()
 
 size_t StaticHandler::get_dir_content(char *buffer)
 {
-    struct dirent *ptr;
-    char *p = buffer;
     int ret;
+    char *p = buffer;
+    std::string parent = basename(task.filename);
+    struct dirent *ptr;
 
     DIR *dir = opendir(task.filename);
     if (dir == NULL)
@@ -199,9 +200,14 @@ size_t StaticHandler::get_dir_content(char *buffer)
         return -1;
     }
 
+    if (parent.back() != '/')
+    {
+        parent.append("/");
+    }
+
     while((ptr = readdir(dir)) != NULL)
     {
-        ret = sprintf(p, "<li>%s</li>\n", ptr->d_name);
+        ret = sprintf(p, "<li ><a href=%s%s>%s</a></li>\n", parent.c_str(), ptr->d_name, ptr->d_name);
         p += ret;
     }
 
