@@ -70,6 +70,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
     }
 
     char header_buffer[1024];
+    char body_buffer[SW_BUFFER_SIZE_BIG];
     swSendData response;
     response.info.fd = conn->session_id;
     response.info.type = SW_SERVER_EVENT_SEND_DATA;
@@ -115,6 +116,33 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
     }
 
     const swSendFile_request *task = handler.get_task();
+
+    if (handler.is_dir())
+    {
+        size_t body_length = handler.get_dir_content(body_buffer);
+
+        response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
+            "HTTP/1.1 200 OK\r\n"
+            "%s"
+            "Content-Length: %ld\r\n"
+            "Content-Type: text/html\r\n"
+            "Date: %s\r\n"
+            "Last-Modified: %s\r\n"
+            "Server: %s\r\n\r\n",
+            request->keep_alive ?"Connection: keep-alive\r\n" : "",
+            (long) body_length,
+            date_str.c_str(),
+            date_str_last_modified.c_str(),
+            SW_HTTP_SERVER_SOFTWARE
+        );
+        response.data = header_buffer;
+        swServer_master_send(serv, &response);
+
+        response.info.len = body_length;
+        response.data = body_buffer;
+        swServer_master_send(serv, &response);
+        return true;
+    }
 
     response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
         "HTTP/1.1 200 OK\r\n"

@@ -54,6 +54,7 @@ public:
     }
     bool hit();
     bool is_modified(const std::string &date_if_modified_since);
+    size_t get_dir_content(char *buffer);
 
     std::string get_date();
 
@@ -91,6 +92,11 @@ public:
     inline const swSendFile_request* get_task()
     {
         return (const swSendFile_request*) &task;
+    }
+
+    inline const bool is_dir()
+    {
+        return S_ISDIR(file_stat.st_mode);
     }
 };
 

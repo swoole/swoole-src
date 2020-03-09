@@ -17,6 +17,7 @@
 #include "static_handler.h"
 
 #include <string>
+#include <dirent.h>
 
 using namespace std;
 using swoole::http::StaticHandler;
@@ -151,11 +152,6 @@ bool StaticHandler::hit()
      * non-static file
      */
     _detect_mime_type:
-    if (!swoole::mime_type::exists(task.filename))
-    {
-        return false;
-    }
-
     /**
      * file does not exist
      */
@@ -171,6 +167,17 @@ bool StaticHandler::hit()
             return false;
         }
     }
+
+    if(is_dir())
+    {
+        return true;
+    }
+
+    if (!swoole::mime_type::exists(task.filename))
+    {
+        return false;
+    }
+
     if ((file_stat.st_mode & S_IFMT) != S_IFREG)
     {
         return false;
@@ -178,6 +185,28 @@ bool StaticHandler::hit()
     task.length = get_filesize();
 
     return true;
+}
+
+size_t StaticHandler::get_dir_content(char *buffer)
+{
+    struct dirent *ptr;
+    char *p = buffer;
+    int ret;
+
+    DIR *dir = opendir(task.filename);
+    if (dir == NULL)
+    {
+        return -1;
+    }
+
+    while((ptr = readdir(dir)) != NULL)
+    {
+        ret = sprintf(p, "<li>%s</li>\n", ptr->d_name);
+        p += ret;
+    }
+
+    closedir(dir);
+    return p - buffer;
 }
 
 int swServer_http_static_handler_add_location(swServer *serv, const char *location, size_t length)
