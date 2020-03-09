@@ -189,9 +189,9 @@ bool StaticHandler::hit()
 
 size_t StaticHandler::get_dir_content(char *buffer, size_t size)
 {
-    int ret;
+    int ret = 0;
     char *p = buffer;
-    std::string parent = basename(task.filename);
+    std::string dirname = basename(task.filename);
     struct dirent *ptr;
 
     DIR *dir = opendir(task.filename);
@@ -200,16 +200,48 @@ size_t StaticHandler::get_dir_content(char *buffer, size_t size)
         return -1;
     }
 
-    if (parent.back() != '/')
+    if (dirname.back() != '/')
     {
-        parent.append("/");
+        dirname.append("/");
     }
+
+    ret = sw_snprintf(p, size - ret,
+        "<html>\n"
+        "<head>\n"
+        "\t<meta charset='UTF-8'>\n"
+        "\t<style>\n"
+            "\t\tul{\n"
+                "\t\t\tlist-style: none;\n"
+                "\t\t\t*list-style: decimal;\n"
+                "\t\t\tfont: 15px 'trebuchet MS', 'lucida sans';\n"
+                "\t\t\tpadding: 0;\n"
+                "\t\t\tmargin-bottom: 4em;\n"
+            "\t\t}\n"
+        "\t</style>\n"
+        "</head>\n"
+        "<body>\n"
+        "\t<ul>\n"
+    );
+
+    p += ret;
 
     while((ptr = readdir(dir)) != NULL)
     {
-        ret = sw_snprintf(p, size - ret, "<li ><a href=%s%s>%s</a></li>\n", parent.c_str(), ptr->d_name, ptr->d_name);
+        if (strncmp(ptr->d_name, ".", 1) == 0 || (dirname == "/" && strncmp(ptr->d_name, "..", 2) == 0))
+        {
+            continue;
+        }
+        ret = sw_snprintf(p, size - ret, "\t<li ><a href=%s%s>%s</a></li>\n", dirname.c_str(), ptr->d_name, ptr->d_name);
         p += ret;
     }
+
+    ret = sw_snprintf(p, size - ret,
+        "</ul>\n"
+        "</body>\n"
+        "</html>\n"
+    );
+
+    p += ret;
 
     closedir(dir);
     return p - buffer;
