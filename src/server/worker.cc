@@ -128,7 +128,8 @@ static sw_inline int swWorker_discard_data(swServer *serv, swConnection *conn, s
 
 static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
 {
-    swSocket *sock = swSocket_accept(event->socket, &event->socket->info);
+    swSocketAddress client_addr;
+    swSocket *sock = swSocket_accept(event->socket, &client_addr);
     if (sock == nullptr)
     {
         switch (errno)

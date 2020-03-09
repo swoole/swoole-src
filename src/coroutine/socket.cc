@@ -1290,7 +1290,8 @@ Socket* Socket::accept(double timeout)
     {
         return nullptr;
     }
-    swSocket *conn = swSocket_accept(socket, &socket->info);
+    swSocketAddress client_addr;
+    swSocket *conn = swSocket_accept(socket, &client_addr);
     if (conn == nullptr && errno == EAGAIN)
     {
         timer_controller timer(&read_timer, timeout == 0 ? read_timeout : timeout, this, timer_callback);
@@ -1298,14 +1299,14 @@ Socket* Socket::accept(double timeout)
         {
             return nullptr;
         }
-        conn = swSocket_accept(socket, &socket->info);
+        conn = swSocket_accept(socket, &client_addr);
     }
     if (conn == nullptr)
     {
         set_err(errno);
         return nullptr;
     }
-    Socket *client_sock = new Socket(conn, &socket->info, this);
+    Socket *client_sock = new Socket(conn, &client_addr, this);
     if (sw_unlikely(client_sock->get_fd() < 0))
     {
         swSysWarn("new Socket() failed");
