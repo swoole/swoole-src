@@ -54,7 +54,7 @@ public:
     }
     bool hit();
     bool is_modified(const std::string &date_if_modified_since);
-    size_t get_dir_content(char *buffer);
+    size_t get_dir_content(char *buffer, size_t size);
 
     std::string get_date();
 

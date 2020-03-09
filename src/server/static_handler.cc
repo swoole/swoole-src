@@ -187,7 +187,7 @@ bool StaticHandler::hit()
     return true;
 }
 
-size_t StaticHandler::get_dir_content(char *buffer)
+size_t StaticHandler::get_dir_content(char *buffer, size_t size)
 {
     int ret;
     char *p = buffer;
@@ -207,7 +207,7 @@ size_t StaticHandler::get_dir_content(char *buffer)
 
     while((ptr = readdir(dir)) != NULL)
     {
-        ret = sprintf(p, "<li ><a href=%s%s>%s</a></li>\n", parent.c_str(), ptr->d_name, ptr->d_name);
+        ret = sw_snprintf(p, size - ret, "<li ><a href=%s%s>%s</a></li>\n", parent.c_str(), ptr->d_name, ptr->d_name);
         p += ret;
     }
 
