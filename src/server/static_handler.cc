@@ -81,10 +81,10 @@ bool StaticHandler::hit()
      * discard the url parameter
      * [/test.jpg?version=1#position] -> [/test.jpg]
      */
-    char *params = (char*) memchr(url, '?', url_length);
+    char *params = (char *) memchr(url, '?', url_length);
     if (params == NULL)
     {
-        params = (char*) memchr(url, '#',  url_length);
+        params = (char *) memchr(url, '#',  url_length);
     }
     size_t n = params ? params - url : url_length;
 

@@ -114,7 +114,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
         return true;
     }
 
-    const swSendFile_request* task = handler.get_task();
+    const swSendFile_request *task = handler.get_task();
 
     response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
         "HTTP/1.1 200 OK\r\n"
@@ -148,7 +148,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
 
     response.info.type = SW_SERVER_EVENT_SEND_FILE;
     response.info.len = sizeof(swSendFile_request) + task->length + 1;
-    response.data = (char*) task;
+    response.data = (char *) task;
 
     swServer_master_send(serv, &response);
 
