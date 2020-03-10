@@ -419,6 +419,10 @@ struct swServer
      */
     uchar enable_static_handler :1;
     /**
+     * show file list in document_root
+     */
+    uchar autoindex :1;
+    /**
      * enable onConnect/onClose event when use dispatch_mode=1/3
      */
     uchar enable_unsafe_event :1;

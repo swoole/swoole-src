@@ -117,7 +117,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
 
     const swSendFile_request *task = handler.get_task();
 
-    if (handler.is_dir())
+    if (serv->autoindex && handler.is_dir())
     {
         size_t body_length = handler.get_dir_content(body_buffer, sizeof(body_buffer));
 
