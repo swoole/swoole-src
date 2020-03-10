@@ -421,7 +421,7 @@ struct swServer
     /**
      * show file list in document_root
      */
-    uchar autoindex :1;
+    uchar http_autoindex :1;
     /**
      * enable onConnect/onClose event when use dispatch_mode=1/3
      */

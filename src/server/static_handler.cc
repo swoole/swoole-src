@@ -168,7 +168,7 @@ bool StaticHandler::hit()
         }
     }
 
-    if(serv->autoindex && is_dir())
+    if(serv->http_autoindex && is_dir())
     {
         return true;
     }

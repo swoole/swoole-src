@@ -2781,9 +2781,9 @@ static PHP_METHOD(swoole_server, set)
         }
         serv->document_root_len = strlen(serv->document_root);
     }
-    if (php_swoole_array_get_value(vht, "autoindex", ztmp))
+    if (php_swoole_array_get_value(vht, "http_autoindex", ztmp))
     {
-        serv->autoindex = zval_is_true(ztmp);
+        serv->http_autoindex = zval_is_true(ztmp);
     }
     /**
      * [static_handler] locations
