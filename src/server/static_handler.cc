@@ -18,6 +18,7 @@
 
 #include <string>
 #include <dirent.h>
+#include <algorithm>
 
 using namespace std;
 using swoole::http::StaticHandler;
@@ -187,18 +188,11 @@ bool StaticHandler::hit()
     return true;
 }
 
-size_t StaticHandler::get_dir_content(char *buffer, size_t size)
+size_t StaticHandler::get_index_page(std::vector<std::string> &index_files, char *buffer, size_t size)
 {
     int ret = 0;
     char *p = buffer;
-    std::string dirname = basename(task.filename);
-    struct dirent *ptr;
-
-    DIR *dir = opendir(task.filename);
-    if (dir == NULL)
-    {
-        return -1;
-    }
+    std::string dirname = task.filename; // task.filename is directory
 
     if (dirname.back() != '/')
     {
@@ -225,17 +219,16 @@ size_t StaticHandler::get_dir_content(char *buffer, size_t size)
 
     p += ret;
 
-    while((ptr = readdir(dir)) != NULL)
+    for(auto iter = index_files.begin(); iter != index_files.end(); iter++)
     {
-        if (strncmp(ptr->d_name, ".", strlen(ptr->d_name)) == 0 ||
-                (dirname == "/" && strncmp(ptr->d_name, "..", strlen(ptr->d_name)) == 0))
+        if (*iter == "." || (dirname == "/" && *iter == ".."))
         {
             continue;
         }
-        ret = sw_snprintf(p, size - ret, "\t<li ><a href=%s%s>%s</a></li>\n", dirname.c_str(), ptr->d_name, ptr->d_name);
+        ret = sw_snprintf(p, size - ret, "\t<li ><a href=%s%s>%s</a></li>\n", dirname.c_str(), (*iter).c_str(), (*iter).c_str());
         p += ret;
     }
-
+    
     ret = sw_snprintf(p, size - ret,
         "</ul>\n"
         "</body>\n"
@@ -244,8 +237,61 @@ size_t StaticHandler::get_dir_content(char *buffer, size_t size)
 
     p += ret;
 
-    closedir(dir);
     return p - buffer;
+}
+
+bool StaticHandler::get_dir_files(std::vector<std::string> &index_files)
+{
+    struct dirent *ptr;
+
+    if (!is_dir())
+    {
+        return false;
+    }
+
+    DIR *dir = opendir(task.filename);
+    if (dir == NULL)
+    {
+        return false;
+    }
+
+    while((ptr = readdir(dir)) != NULL)
+    {
+        index_files.push_back(ptr->d_name);
+    }
+
+    closedir(dir);
+
+    return true;
+}
+
+bool StaticHandler::set_filename(std::string &filename)
+{
+    char *p = task.filename + l_filename;
+
+    if (*p != '/')
+    {
+        *p = '/';
+        p += 1;
+    }
+
+    memcpy(p, filename.c_str(), filename.length());
+    p += filename.length();
+    *p = 0;
+
+    if (lstat(task.filename, &file_stat) < 0)
+    {
+        return false;
+    }
+
+    if ((file_stat.st_mode & S_IFMT) != S_IFREG)
+    {
+        return false;
+    }
+    
+    task.length = get_filesize();
+
+    return true;
 }
 
 int swServer_http_static_handler_add_location(swServer *serv, const char *location, size_t length)
@@ -255,5 +301,20 @@ int swServer_http_static_handler_add_location(swServer *serv, const char *locati
         serv->locations = new std::unordered_set<std::string>;
     }
     serv->locations->insert(string(location, length));
+    return SW_OK;
+}
+
+int swServer_http_static_handler_add_http_index_files(swServer *serv, const char *filename, size_t length)
+{
+    if (serv->http_index_files == nullptr)
+    {
+        serv->http_index_files = new std::vector<std::string>;
+    }
+
+    auto iter = std::find(serv->http_index_files->begin(), serv->http_index_files->end(), filename);
+    if (iter == serv->http_index_files->end())
+    {
+        serv->http_index_files->push_back(filename);
+    }
     return SW_OK;
 }

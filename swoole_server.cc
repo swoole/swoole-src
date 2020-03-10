@@ -2785,6 +2785,25 @@ static PHP_METHOD(swoole_server, set)
     {
         serv->http_autoindex = zval_is_true(ztmp);
     }
+    if (php_swoole_array_get_value(vht, "http_index_files", ztmp))
+    {
+        if (ZVAL_IS_ARRAY(ztmp))
+        {
+            zval *_http_index_files;
+            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmp), _http_index_files)
+                zend::string __http_index_files(_http_index_files);
+                if (__http_index_files.len() > 0)
+                {
+                    swServer_http_static_handler_add_http_index_files(serv, __http_index_files.val(), __http_index_files.len());
+                }
+            SW_HASHTABLE_FOREACH_END();
+        }
+        else
+        {
+            php_swoole_fatal_error(E_ERROR, "http_index_files must be array");
+            RETURN_FALSE;
+        }
+    }
     /**
      * [static_handler] locations
      */

@@ -23,6 +23,7 @@
 #include <stddef.h>
 
 #include <string>
+#include <algorithm>
 
 using std::string;
 using swoole::http::StaticHandler;
@@ -56,6 +57,23 @@ const char* swHttp_get_method_string(int method)
         return NULL;
     }
     return method_strings[method - 1];
+}
+
+std::vector<std::string> intersection(std::vector<std::string> &v1,
+                                      std::vector<std::string> &v2)
+{
+    /**
+     * do not define it as std::vector<std::string> v3(n), otherwise there may be empty strings in v3
+     */
+    std::vector<std::string> v3;
+
+    std::sort(v1.begin(), v1.end());
+    std::sort(v2.begin(), v2.end());
+
+    std::set_intersection(v1.begin(),v1.end(),
+                          v2.begin(),v2.end(),
+                          back_inserter(v3));
+    return v3;
 }
 
 int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn)
@@ -118,29 +136,48 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
 
     if (serv->http_autoindex && handler.is_dir())
     {
-        size_t body_length = handler.get_dir_content(SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
+        std::vector<std::string> dir_files;
+        std::vector<std::string> intersection_files;
 
-        response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
-            "HTTP/1.1 200 OK\r\n"
-            "%s"
-            "Content-Length: %ld\r\n"
-            "Content-Type: text/html\r\n"
-            "Date: %s\r\n"
-            "Last-Modified: %s\r\n"
-            "Server: %s\r\n\r\n",
-            request->keep_alive ?"Connection: keep-alive\r\n" : "",
-            (long) body_length,
-            date_str.c_str(),
-            date_str_last_modified.c_str(),
-            SW_HTTP_SERVER_SOFTWARE
-        );
-        response.data = header_buffer;
-        swServer_master_send(serv, &response);
+        handler.get_dir_files(dir_files);
+        intersection_files = intersection(*serv->http_index_files, dir_files);
 
-        response.info.len = body_length;
-        response.data = SwooleTG.buffer_stack->str;
-        swServer_master_send(serv, &response);
-        return true;
+        /**
+         * the index file was not found in the current directory
+         */
+        if (intersection_files.empty())
+        {
+            size_t body_length = handler.get_index_page(dir_files, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
+
+            response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
+                "HTTP/1.1 200 OK\r\n"
+                "%s"
+                "Content-Length: %ld\r\n"
+                "Content-Type: text/html\r\n"
+                "Date: %s\r\n"
+                "Last-Modified: %s\r\n"
+                "Server: %s\r\n\r\n",
+                request->keep_alive ?"Connection: keep-alive\r\n" : "",
+                (long) body_length,
+                date_str.c_str(),
+                date_str_last_modified.c_str(),
+                SW_HTTP_SERVER_SOFTWARE
+            );
+            response.data = header_buffer;
+            swServer_master_send(serv, &response);
+
+            response.info.len = body_length;
+            response.data = SwooleTG.buffer_stack->str;
+            swServer_master_send(serv, &response);
+            return true;
+        }
+        else
+        {
+            if (!handler.set_filename(intersection_files[0]))
+            {
+                return false;
+            }
+        }
     }
 
     response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
