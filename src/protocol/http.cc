@@ -60,7 +60,9 @@ const char* swHttp_get_method_string(int method)
 }
 
 /**
- * TODO: need to modify, maybe should return v3 in order of v1
+ * TODO:
+ *  1. need to modify, maybe should return v3 in order of v1
+ *  2. don't need to find all the files, find the first file and return immediately
  */
 std::vector<std::string> intersection(std::vector<std::string> &v1,
                                       std::vector<std::string> &v2)
@@ -146,7 +148,8 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
         intersection_files = intersection(*serv->http_index_files, dir_files);
 
         /**
-         * the index file was not found in the current directory
+         * the index file was not found in the current directory, 
+         * should show the contents of the current directory.
          */
         if (intersection_files.empty())
         {
@@ -176,6 +179,9 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
         }
         else
         {
+            /**
+             * set filename to the index filename which be found
+             */
             if (!handler.set_filename(intersection_files[0]))
             {
                 return false;
