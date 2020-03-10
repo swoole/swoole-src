@@ -59,6 +59,9 @@ const char* swHttp_get_method_string(int method)
     return method_strings[method - 1];
 }
 
+/**
+ * TODO: need to modify, maybe should return v3 in order of v1
+ */
 std::vector<std::string> intersection(std::vector<std::string> &v1,
                                       std::vector<std::string> &v2)
 {
