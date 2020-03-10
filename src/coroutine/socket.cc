@@ -638,7 +638,7 @@ Socket::Socket(int _fd, int _domain, int _type, int _protocol) :
     init_options();
 }
 
-Socket::Socket(swSocket *sock, swSocketAddress *addr, Socket *server_sock)
+Socket::Socket(swSocket *sock, Socket *server_sock)
 {
     type = server_sock->type;
     sock_domain = server_sock->sock_domain;
@@ -659,7 +659,7 @@ Socket::Socket(swSocket *sock, swSocketAddress *addr, Socket *server_sock)
     open_eof_check = server_sock->open_eof_check;
     http2 = server_sock->http2;
     protocol = server_sock->protocol;
-    memcpy(&socket->info.addr, &addr, addr->len);
+
 #ifdef SW_USE_OPENSSL
     if (server_sock->open_ssl)
     {
@@ -1306,7 +1306,8 @@ Socket* Socket::accept(double timeout)
         set_err(errno);
         return nullptr;
     }
-    Socket *client_sock = new Socket(conn, &client_addr, this);
+
+    Socket *client_sock = new Socket(conn, this);
     if (sw_unlikely(client_sock->get_fd() < 0))
     {
         swSysWarn("new Socket() failed");
@@ -1314,6 +1315,7 @@ Socket* Socket::accept(double timeout)
         delete client_sock;
         return nullptr;
     }
+
     return client_sock;
 }
 
@@ -1428,10 +1430,21 @@ bool Socket::ssl_accept()
     int retval;
     timer_controller timer(&read_timer, read_timeout, this, timer_callback);
     open_ssl = true;
-    do {
+
+    do
+    {
         retval = swSSL_accept(socket);
     } while (retval == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
-    return retval == SW_READY;
+
+    if (retval != SW_READY)
+    {
+        set_err(SW_ERROR_SSL_BAD_CLIENT);
+        return false;
+    }
+    else
+    {
+        return true;
+    }
 }
 
 int Socket::ssl_verify(bool allow_self_signed)

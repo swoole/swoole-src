@@ -22,7 +22,7 @@ enum swErrorCode
     /**
      * Prevent repetition with errno [syscall error]
      */
-    SW_ERROR_START = 500,
+    SW_ERROR_BEGAIN = 500,
 
     /**
      * common error

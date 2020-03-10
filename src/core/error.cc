@@ -35,7 +35,7 @@ public:
 
 const char* swoole_strerror(int code)
 {
-    if (code < SW_ERROR_START)
+    if (code < SW_ERROR_BEGAIN)
     {
         return strerror(code);
     }
