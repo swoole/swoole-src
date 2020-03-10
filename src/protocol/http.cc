@@ -70,7 +70,6 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
     }
 
     char header_buffer[1024];
-    char body_buffer[SW_BUFFER_SIZE_BIG];
     swSendData response;
     response.info.fd = conn->session_id;
     response.info.type = SW_SERVER_EVENT_SEND_DATA;
@@ -119,7 +118,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
 
     if (serv->autoindex && handler.is_dir())
     {
-        size_t body_length = handler.get_dir_content(body_buffer, sizeof(body_buffer));
+        size_t body_length = handler.get_dir_content(SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
 
         response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
             "HTTP/1.1 200 OK\r\n"
@@ -139,7 +138,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
         swServer_master_send(serv, &response);
 
         response.info.len = body_length;
-        response.data = body_buffer;
+        response.data = SwooleTG.buffer_stack->str;
         swServer_master_send(serv, &response);
         return true;
     }
