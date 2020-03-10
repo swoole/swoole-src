@@ -100,10 +100,11 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
     swServer *serv = (swServer *) reactor->ptr;
     swListenPort *listen_host = (swListenPort *) serv->connection_list[event->fd].object;
+    swSocketAddress client_addr;
 
     for (int i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
     {
-        swSocket *sock = swSocket_accept(event->socket, &event->socket->info);
+        swSocket *sock = swSocket_accept(event->socket, &client_addr);
         if (sock == nullptr)
         {
             switch (errno)
@@ -140,11 +141,6 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             swSocket_free(sock);
             return SW_OK;
         }
-
-        memcpy(&conn->info.addr, &event->socket->info, sizeof(event->socket->info));
-        memcpy(&sock->info.addr, &event->socket->info, sizeof(event->socket->info));
-        conn->socket_type = listen_host->type;
-        sock->socket_type = listen_host->type;
 
 #ifdef SW_USE_OPENSSL
         if (listen_host->ssl)
@@ -1541,6 +1537,8 @@ SW_API int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCal
 
 static void swServer_check_port_type(swServer *serv, swListenPort *ls)
 {
+    ls->socket->socket_type = ls->type;
+
     if (swSocket_is_dgram(ls->type))
     {
         //dgram socket, setting socket buffer size
@@ -1868,7 +1866,11 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, s
     connection->connect_time = now;
     connection->last_time = now;
     connection->active = 1;
+    connection->socket_type = ls->type;
     connection->socket = _socket;
+
+    memcpy(&connection->info.addr, &_socket->info.addr, _socket->info.len);
+    connection->info.len = _socket->info.len;
 
     if (!ls->ssl)
     {

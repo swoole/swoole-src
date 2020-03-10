@@ -259,8 +259,11 @@ swSocket* swSocket_accept(swSocket *sock, swSocketAddress *sa)
     }
     else
     {
+        socket->socket_type = sock->socket_type;
         socket->nonblock = 1;
         socket->cloexec = 1;
+        memcpy(&socket->info.addr, sa, sa->len);
+        socket->info.len = sa->len;
     }
 
     return socket;
