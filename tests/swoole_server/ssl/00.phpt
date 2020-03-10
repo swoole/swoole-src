@@ -23,8 +23,8 @@ $pm->childFunc = function () use ($pm) {
     $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
     $serv->set([
         'log_file' => '/dev/null',
-        'ssl_cert_file' => dirname(__DIR__) . '/include/api/swoole_http_server/localhost-ssl/server.crt',
-        'ssl_key_file' => dirname(__DIR__) . '/include/api/swoole_http_server/localhost-ssl/server.key',
+        'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
+        'ssl_key_file' => SSL_FILE_DIR . '/server.key',
     ]);
     $serv->on("workerStart", function ($serv) use ($pm) {
         $pm->wakeup();

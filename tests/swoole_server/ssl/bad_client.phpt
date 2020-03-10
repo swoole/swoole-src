@@ -6,20 +6,20 @@ swoole_server/ssl: bad client
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
-define('ERROR_FILE', __DIR__.'/ssl_error');
-
 $pm = new SwooleTest\ProcessManager;
 
-$pm->parentFunc = function ($pid) use ($pm) {
-    $port = $pm->getFreePort();
-    $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
-    if (!$client->connect('127.0.0.1', $port))
-    {
-        exit("connect failed\n");
-    }
-    $client->send("hello world");
-    Assert::same($client->recv(), "");
-    echo httpGetBody("https://127.0.0.1:{$port}/stop?hello=1") . PHP_EOL;
+$pm->parentFunc = function () use ($pm) {
+    \Swoole\Coroutine\run(function () use ($pm) {
+        $port = $pm->getFreePort();
+        $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
+        if (!$client->connect('127.0.0.1', $port))
+        {
+            exit("connect failed\n");
+        }
+        $client->send("hello world");
+        Assert::same($client->recv(), "");
+        echo httpGetBody("https://127.0.0.1:{$port}/stop?hello=1") . PHP_EOL;
+    });
 };
 
 $pm->childFunc = function () use ($pm) {
@@ -28,8 +28,8 @@ $pm->childFunc = function () use ($pm) {
         $server->set(
             [
                 'open_tcp_nodelay' => true,
-                'ssl_cert_file' => dirname(__DIR__) . '/include/api/swoole_http_server/localhost-ssl/server.crt',
-                'ssl_key_file' => dirname(__DIR__) . '/include/api/swoole_http_server/localhost-ssl/server.key',
+                'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
+                'ssl_key_file' => SSL_FILE_DIR . '/server.key',
             ]
         );
         $server->handle('/', function ($request, $response) {
@@ -46,8 +46,8 @@ $pm->childFunc = function () use ($pm) {
 
 $pm->childFirst();
 $pm->run();
-readfile(ERROR_FILE);
-unlink(ERROR_FILE);
 ?>
 --EXPECTF--
 [%s]	WARNING	swSSL_accept: bad SSL client[127.0.0.1:%d], reason=%d, error_string=error:%s
+[%s]	WARNING	accept(:%d): new Socket() failed, Error: SSL bad client[%d]
+<h1>Stop</h1>

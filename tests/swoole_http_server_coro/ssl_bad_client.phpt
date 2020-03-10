@@ -26,8 +26,8 @@ $pm->childFunc = function () use ($pm) {
     $serv->set(
         [
             'log_file' => ERROR_FILE,
-            'ssl_cert_file' => INCLUDE_PATH . '/api/swoole_http_server/localhost-ssl/server.crt',
-            'ssl_key_file' => INCLUDE_PATH . '/api/swoole_http_server/localhost-ssl/server.key',
+            'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
+            'ssl_key_file' => SSL_FILE_DIR . '/server.key',
         ]
     );
     $serv->on("workerStart", function ($serv) use ($pm) {
