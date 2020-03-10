@@ -25,11 +25,11 @@ $pm->parentFunc = function ($pid) use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
     $serv->set([
-        'ssl_cert_file' => INCLUDE_PATH . '/api/swoole_http_server/localhost-ssl/server.crt',
-        'ssl_key_file' => INCLUDE_PATH . '/api/swoole_http_server/localhost-ssl/server.key',
+        'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
+        'ssl_key_file' => SSL_FILE_DIR . '/server.key',
         'ssl_verify_peer' => true,
         'ssl_allow_self_signed' => true,
-        'ssl_client_cert_file' => INCLUDE_PATH . '/api/swoole_http_server/localhost-ssl/ca.crt',
+        'ssl_client_cert_file' => SSL_FILE_DIR . '/ca.crt',
     ]);
     $serv->on("workerStart", function (Server $serv) use ($pm) {
         $pm->wakeup();
