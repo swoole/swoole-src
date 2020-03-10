@@ -1,1 +1,0 @@
-[2020-03-10 10:06:27 *16018.0]	WARNING	swSSL_accept: bad SSL client[127.0.0.1:34318], reason=267, error_string=error:0000010B:lib(0):func(0):reason(267)

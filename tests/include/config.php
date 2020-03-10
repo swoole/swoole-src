@@ -12,6 +12,7 @@ define('HAS_HTTP2', class_exists("swoole_http2_request", false));
 
 /** ============== Files ============== */
 define('SOURCE_ROOT_PATH', __DIR__ . '/../../');
+define('INCLUDE_PATH', realpath(__DIR__));
 define('TRAVIS_DIR_PATH', __DIR__ . '/../../travis/');
 define('TEST_IMAGE', __DIR__ . '/../../examples/test.jpg');
 define('TEST_IMAGE2', __DIR__ . '/../../examples/logo.svg');

@@ -1,13 +1,13 @@
 --TEST--
-swoole_server: ssl server verify client success
+swoole_server/ssl: server verify client success
 --SKIPIF--
 <?php
-require __DIR__ . '/../include/skipif.inc';
+require __DIR__ . '/../../include/skipif.inc';
 skip_if_openssl_version_lower_than('1.1.0');
 ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
 $pm = new SwooleTest\ProcessManager;
 

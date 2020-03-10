@@ -1,10 +1,10 @@
 --TEST--
-swoole_server/ssl: bad client
+swoole_http_server_coro: ssl bad client
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 define('ERROR_FILE', __DIR__.'/ssl_error');
 
