@@ -77,7 +77,7 @@ public:
     Socket(int _fd, int _domain, int _type, int _protocol);
     Socket(enum swSocket_type type = SW_SOCK_TCP);
     Socket(int _fd, enum swSocket_type _type);
-    Socket(swSocket *sock, swSocketAddress *addr, Socket *socket);
+    Socket(swSocket *sock, Socket *socket);
     ~Socket();
     bool connect(std::string host, int port, int flags = 0);
     bool connect(const struct sockaddr *addr, socklen_t addrlen);

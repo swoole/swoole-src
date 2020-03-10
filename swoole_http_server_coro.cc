@@ -463,7 +463,7 @@ static PHP_METHOD(swoole_http_server_coro, start)
             {
                 _wait_1s: System::sleep(SW_ACCEPT_RETRY_TIME);
             }
-            else if (sock->errCode == ETIMEDOUT)
+            else if (sock->errCode == ETIMEDOUT || sock->errCode == SW_ERROR_SSL_BAD_CLIENT)
             {
                 continue;
             }
