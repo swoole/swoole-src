@@ -227,7 +227,8 @@ size_t StaticHandler::get_dir_content(char *buffer, size_t size)
 
     while((ptr = readdir(dir)) != NULL)
     {
-        if (strncmp(ptr->d_name, ".", 1) == 0 || (dirname == "/" && strncmp(ptr->d_name, "..", 2) == 0))
+        if (strncmp(ptr->d_name, ".", strlen(ptr->d_name)) == 0 ||
+                (dirname == "/" && strncmp(ptr->d_name, "..", strlen(ptr->d_name)) == 0))
         {
             continue;
         }
