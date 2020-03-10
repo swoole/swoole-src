@@ -100,10 +100,11 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
     swServer *serv = (swServer *) reactor->ptr;
     swListenPort *listen_host = (swListenPort *) serv->connection_list[event->fd].object;
+    swSocketAddress client_addr;
 
     for (int i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
     {
-        swSocket *sock = swSocket_accept(event->socket, &event->socket->info);
+        swSocket *sock = swSocket_accept(event->socket, &client_addr);
         if (sock == nullptr)
         {
             switch (errno)
