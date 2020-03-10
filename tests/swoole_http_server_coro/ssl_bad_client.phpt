@@ -1,5 +1,5 @@
 --TEST--
-swoole_server/ssl: bad client
+swoole_http_server_coro: bad client
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
