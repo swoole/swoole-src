@@ -1148,7 +1148,11 @@ bool PHPCoroutine::enable_hook(int flags)
     {
         if (hook_flags & SW_HOOK_SSL)
         {
-            php_stream_xport_register("ssl", ori_factory.ssl);
+            if (ori_factory.ssl != nullptr) {
+                php_stream_xport_register("ssl", ori_factory.ssl);
+            } else {
+                php_stream_xport_unregister("ssl");
+            }
         }
     }
     if (flags & SW_HOOK_TLS)
@@ -1165,7 +1169,11 @@ bool PHPCoroutine::enable_hook(int flags)
     {
         if (hook_flags & SW_HOOK_TLS)
         {
-            php_stream_xport_register("tls", ori_factory.tls);
+            if (ori_factory.tls != nullptr) {
+                php_stream_xport_register("tls", ori_factory.tls);
+            } else {
+                php_stream_xport_unregister("tls");
+            }
         }
     }
     if (flags & SW_HOOK_STREAM_FUNCTION)
