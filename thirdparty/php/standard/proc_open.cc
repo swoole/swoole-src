@@ -580,9 +580,16 @@ PHP_FUNCTION(swoole_proc_open)
     proc->env = env;
     proc->running = true;
 
-	zval_ptr_dtor(pipes);
-	array_init(pipes);
-
+#if PHP_VERSION_ID >= 70400
+    pipes = zend_try_array_init(pipes);
+    if (!pipes)
+    {
+        goto exit_fail;
+    }
+#else
+    zval_ptr_dtor(pipes);
+    array_init(pipes);
+#endif
 
 	/* clean up all the child ends and then open streams on the parent
 	 * ends, where appropriate */
