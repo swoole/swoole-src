@@ -25,7 +25,6 @@
 #include <queue>
 #include <unordered_map>
 #include <unordered_set>
-#include <set>
 
 #define SW_REACTOR_NUM             SW_CPU_NUM
 #define SW_WORKER_NUM              (SW_CPU_NUM*2)

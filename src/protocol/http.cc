@@ -24,7 +24,6 @@
 #include <stddef.h>
 
 #include <string>
-#include <algorithm>
 
 using std::string;
 using swoole::http::StaticHandler;
