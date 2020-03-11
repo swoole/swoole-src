@@ -10,7 +10,7 @@ skip_if_function_not_exist('curl_init');
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($pm) {
+$pm->parentFunc = function () use ($pm) {
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1:{$pm->getFreePort()}");
     curl_setopt($ch, CURLOPT_HEADER, 0);
@@ -38,16 +38,17 @@ $pm->parentFunc = function ($pid) use ($pm) {
     Assert::same($res, md5_file($file));
     curl_close($ch);
 
-    swoole_process::kill($pid);
+    $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
     $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
 
-    $http->set(['log_file' => '/dev/null']);
+    $http->set([
+        'log_file' => '/dev/null'
+    ]);
 
-    $http->on("WorkerStart", function ($serv, $wid) {
-        global $pm;
+    $http->on("WorkerStart", function () use ($pm) {
         $pm->wakeup();
     });
 

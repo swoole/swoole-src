@@ -54,7 +54,7 @@ Co\run(function () {
                 throw new Exception('Connect failed: ' . $client->errMsg);
             }
             for ($n = MAX_REQUESTS; $n--;) {
-                $bytes = mt_rand(1, 1024);
+                $bytes = mt_rand(2, 1024);
                 $random = $bytes ? get_safe_random($bytes - 1) . 'S' : '';
                 $data = Protocol::pack(mt_rand(0, 127), mt_rand(0, 4294967295), $random);
                 if ($client->sendAll($data) !== strlen($data)) {

@@ -19,7 +19,7 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
             $rand_list = [];
             $times = MAX_REQUESTS;
             for ($n = $times; $n--;) {
-                $rand = openssl_random_pseudo_bytes(mt_rand(1, 1280));
+                $rand = get_safe_random(mt_rand(1, 1280));
                 $rand_list[] = $rand;
                 $opcode = $n === $times - 1 ? WEBSOCKET_OPCODE_TEXT : WEBSOCKET_OPCODE_CONTINUATION;
                 $finish = $n === 0;

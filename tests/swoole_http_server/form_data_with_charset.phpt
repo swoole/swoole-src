@@ -40,7 +40,7 @@ function sendData(string $host, int $port, array $get, array $post): string
     }
 
     $get = http_build_query($get);
-    $boundary = '++++' . md5(openssl_random_pseudo_bytes(16));
+    $boundary = '++++' . md5(get_safe_random(16));
     $content_type = "multipart/form-data; boundary={$boundary}; charset=UTF-8";
     $post = arrayToMultipartString($post, $boundary);
 
