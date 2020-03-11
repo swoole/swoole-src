@@ -419,7 +419,7 @@ struct swServer
      */
     uchar enable_static_handler :1;
     /**
-     * show file list in document_root
+     * show file list in the current directory
      */
     uchar http_autoindex :1;
     /**

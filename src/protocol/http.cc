@@ -120,7 +120,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
     std::vector<std::string> dir_files;
     std::string index_file = "";
     /**
-     * http_index_files is enabled, need to search the index file first.
+     * if http_index_files is enabled, need to search the index file first.
      * if the index file is found, set filename to index filename.
      */
     if (serv->http_index_files && !serv->http_index_files->empty() && handler.is_dir())
@@ -140,7 +140,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
     }
     /**
      * the index file was not found in the current directory, 
-     * should show the contents of the current directory.
+     * if http_autoindex is enabled, should show the list of files in the current directory.
      */
     if (index_file == "" && serv->http_autoindex && handler.is_dir())
     {
