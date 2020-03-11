@@ -1510,13 +1510,13 @@ std::string swoole::intersection(std::vector<std::string> &vec1, std::vector<std
 {
     std::string result = "";
 
-    std::for_each(vec2.begin(),vec2.end(), [&](std::string &str) -> void
+    std::find_if(vec1.begin(),vec1.end(), [&](std::string &str) -> bool
     {
-        auto iter = std::find(vec1.begin(), vec1.end(), str);
-        if (iter != vec1.end())
+        auto iter = std::find(vec2.begin(), vec2.end(), str);
+        if (iter != vec2.end())
         {
             result = *iter;
-            return;
+            return true;
         }
     });
 
