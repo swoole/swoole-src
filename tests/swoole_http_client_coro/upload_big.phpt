@@ -10,7 +10,7 @@ require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $cli = new Swoole\Coroutine\Http\Client(IS_IN_TRAVIS ? 'news.mit.edu' : 'www.cust.edu.cn');
     $cli->set(['timeout' => 30]);
-    $content = str_repeat(openssl_random_pseudo_bytes(1024), 5 * 1024);
+    $content = str_repeat(get_safe_random(1024), 5 * 1024);
     file_put_contents('/tmp/test.jpg', $content);
     $cli->addFile('/tmp/test.jpg', 'test.jpg');
     $ret = $cli->post('/', ['name' => 'rango']);

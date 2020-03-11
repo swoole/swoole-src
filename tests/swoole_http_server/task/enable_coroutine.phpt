@@ -7,7 +7,7 @@ swoole_http_server/task: use async io and coroutine in task process
 require __DIR__ . '/../../include/bootstrap.php';
 $randoms = [];
 for ($n = MAX_REQUESTS; $n--;) {
-    $randoms[] = openssl_random_pseudo_bytes(mt_rand(0, 65536));
+    $randoms[] = get_safe_random(mt_rand(0, 65536));
 }
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {

@@ -16,7 +16,7 @@ use Swoole\WebSocket\CloseFrame as cf;
 for ($i = 1000; $i--;) {
     // generate some rand frames
     $opcode = mt_rand(WEBSOCKET_OPCODE_CONTINUATION, WEBSOCKET_OPCODE_PONG);
-    $data = base64_encode(openssl_random_pseudo_bytes(mt_rand(0, 128000))) . 'EOL';
+    $data = base64_encode(get_safe_random(mt_rand(0, 128000))) . 'EOL';
     if ($opcode === WEBSOCKET_OPCODE_CLOSE) {
         $code = mt_rand(0, 5000);
         $data = substr($data, -mt_rand(3, 125), 125);

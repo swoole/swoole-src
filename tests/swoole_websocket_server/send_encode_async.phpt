@@ -7,7 +7,7 @@ swoole_websocket_server: websocket server full test
 require __DIR__ . '/../include/bootstrap.php';
 $data_list = [];
 for ($i = MAX_REQUESTS; $i--;) {
-    $rand = openssl_random_pseudo_bytes(mt_rand(1, 128000));
+    $rand = get_safe_random(mt_rand(1, 128000));
     if (mt_rand(0, 1)) {
         $data_list[$i] = $i . '|' . WEBSOCKET_OPCODE_BINARY . '|' . $rand;
     } else {

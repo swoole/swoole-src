@@ -21,7 +21,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             $ret = $cli->upgrade('/');
             Assert::assert($ret);
             $len = mt_rand(35000, 40000);
-            $data = openssl_random_pseudo_bytes($len);
+            $data = get_safe_random($len);
             for ($n = MAX_REQUESTS; $n--;) {
                 $cli->push($data);
                 $ret = $cli->recv();

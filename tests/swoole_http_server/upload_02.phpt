@@ -50,7 +50,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $content = content_hook_replace(
         $content, [
             'content_length' => $length,
-            'file_content' => str_repeat(openssl_random_pseudo_bytes(1), $length - 718)
+            'file_content' => str_repeat(get_safe_random(1), $length - 718)
         ]
     );
     fwrite($sock, $content);
