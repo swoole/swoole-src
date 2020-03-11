@@ -868,28 +868,29 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
 {
     http_context *ctx = (http_context *) parser->data;
 
-    if (ctx->recv_chunked)
+    if (length == 0)
     {
-        if (length != 0)
-        {
-            if (ctx->request.chunked_body == nullptr)
-            {
-                ctx->request.chunked_body = swString_new(SW_BUFFER_SIZE_STD);
-                if (ctx->request.chunked_body == nullptr)
-                {
-                    return -1;
-                }
-            }
-            swString_append_ptr(ctx->request.chunked_body, at, length);
-        }
         return 0;
     }
 
-    ctx->request.body_length += length;
+    if (ctx->recv_chunked)
+    {
+        if (ctx->request.chunked_body == nullptr)
+        {
+            ctx->request.chunked_body = swString_new(SW_BUFFER_SIZE_STD);
+            if (ctx->request.chunked_body == nullptr)
+            {
+                return -1;
+            }
+        }
+        swString_append_ptr(ctx->request.chunked_body, at, length);
+    }
+    else
+    {
+        ctx->request.body_length += length;
+    }
 
-    swTraceLog(SW_TRACE_HTTP, "request body_length=%ld", length);
-
-    if (ctx->parse_body && ctx->request.post_form_urlencoded)
+    if (!ctx->recv_chunked && ctx->parse_body && ctx->request.post_form_urlencoded)
     {
         sapi_module.treat_data(
             PARSE_STRING,
@@ -919,12 +920,25 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
 static int http_request_message_complete(swoole_http_parser *parser)
 {
     http_context *ctx = (http_context *) parser->data;
+    size_t content_length =  ctx->request.chunked_body ? ctx->request.chunked_body->length : ctx->request.body_length;
+
+    if (ctx->request.chunked_body != nullptr && ctx->parse_body && ctx->request.post_form_urlencoded)
+    {
+        /* parse dechunked content */
+        sapi_module.treat_data(
+            PARSE_STRING,
+            estrndup(ctx->request.chunked_body->str, content_length), // do not free, it will be freed by treat_data
+            swoole_http_init_and_read_property(swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post"))
+        );
+    }
     if (ctx->mt_parser)
     {
         multipart_parser_free(ctx->mt_parser);
         ctx->mt_parser = NULL;
     }
     ctx->completed = 1;
+
+    swTraceLog(SW_TRACE_HTTP, "request body length=%ld", content_length);
 
     return 1; /* return from execute */
 }
