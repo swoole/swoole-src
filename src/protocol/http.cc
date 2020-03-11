@@ -18,6 +18,7 @@
 #include "http2.h"
 #include "websocket.h"
 #include "static_handler.h"
+#include "swoole_cxx.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -57,28 +58,6 @@ const char* swHttp_get_method_string(int method)
         return NULL;
     }
     return method_strings[method - 1];
-}
-
-/**
- * TODO:
- *  1. need to modify, maybe should return v3 in order of v1
- *  2. don't need to find all the files, find the first file and return immediately
- */
-std::vector<std::string> intersection(std::vector<std::string> &v1,
-                                      std::vector<std::string> &v2)
-{
-    /**
-     * do not define it as std::vector<std::string> v3(n), otherwise there may be empty strings in v3
-     */
-    std::vector<std::string> v3;
-
-    std::sort(v1.begin(), v1.end());
-    std::sort(v2.begin(), v2.end());
-
-    std::set_intersection(v1.begin(),v1.end(),
-                          v2.begin(),v2.end(),
-                          back_inserter(v3));
-    return v3;
 }
 
 int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn)
@@ -142,16 +121,16 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
     if (serv->http_autoindex && handler.is_dir())
     {
         std::vector<std::string> dir_files;
-        std::vector<std::string> intersection_files;
+        std::string intersection_file;
 
         handler.get_dir_files(dir_files);
-        intersection_files = intersection(*serv->http_index_files, dir_files);
+        intersection_file = swoole::intersection(*serv->http_index_files, dir_files);
 
         /**
          * the index file was not found in the current directory, 
          * should show the contents of the current directory.
          */
-        if (intersection_files.empty())
+        if (intersection_file == "")
         {
             size_t body_length = handler.get_index_page(dir_files, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
 
@@ -182,7 +161,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
             /**
              * set filename to the index filename which be found
              */
-            if (!handler.set_filename(intersection_files[0]))
+            if (!handler.set_filename(intersection_file))
             {
                 return false;
             }

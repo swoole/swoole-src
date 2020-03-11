@@ -7,6 +7,7 @@
 #include <string>
 #include <cstdio>
 #include <functional>
+#include <vector>
 
 namespace swoole {
 //-------------------------------------------------------------------------------
@@ -101,6 +102,7 @@ static inline void hook_call(void **hooks, int type, void *arg)
 
 typedef std::function<bool (char *, size_t)> StringExplodeHandler;
 size_t string_split(swString *str, const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
+std::string intersection(std::vector<std::string> &vec1, std::vector<std::string> &vec2);
 
 //-------------------------------------------------------------------------------
 }
