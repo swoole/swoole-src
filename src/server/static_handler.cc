@@ -116,6 +116,11 @@ bool StaticHandler::hit()
     memcpy(p, url, n);
     p += n;
     *p = '\0';
+    if (dir_path != "")
+    {
+        dir_path.clear();
+    }
+    dir_path = std::string(url, n);
 
     l_filename = swHttp_url_decode(task.filename, p - task.filename);
     task.filename[l_filename] = '\0';
@@ -169,6 +174,11 @@ bool StaticHandler::hit()
         }
     }
 
+    if (serv->http_index_files && !serv->http_index_files->empty() && is_dir())
+    {
+        return true;
+    }
+
     if(serv->http_autoindex && is_dir())
     {
         return true;
@@ -192,11 +202,10 @@ size_t StaticHandler::get_index_page(std::vector<std::string> &index_files, char
 {
     int ret = 0;
     char *p = buffer;
-    std::string dirname = task.filename; // task.filename is directory
 
-    if (dirname.back() != '/')
+    if (dir_path.back() != '/')
     {
-        dirname.append("/");
+        dir_path.append("/");
     }
 
     ret = sw_snprintf(p, size - ret,
@@ -221,11 +230,11 @@ size_t StaticHandler::get_index_page(std::vector<std::string> &index_files, char
 
     for(auto iter = index_files.begin(); iter != index_files.end(); iter++)
     {
-        if (*iter == "." || (dirname == "/" && *iter == ".."))
+        if (*iter == "." || (dir_path == "/" && *iter == ".."))
         {
             continue;
         }
-        ret = sw_snprintf(p, size - ret, "\t<li ><a href=%s%s>%s</a></li>\n", dirname.c_str(), (*iter).c_str(), (*iter).c_str());
+        ret = sw_snprintf(p, size - ret, "\t<li ><a href=%s%s>%s</a></li>\n", dir_path.c_str(), (*iter).c_str(), (*iter).c_str());
         p += ret;
     }
     

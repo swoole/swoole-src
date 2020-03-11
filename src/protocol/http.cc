@@ -117,54 +117,60 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
 
     const swSendFile_request *task = handler.get_task();
 
-    if (serv->http_autoindex && handler.is_dir())
+    std::vector<std::string> dir_files;
+    std::string index_file = "";
+    /**
+     * http_index_files is enabled, need to search the index file first.
+     * if the index file is found, set filename to index filename.
+     */
+    if (serv->http_index_files && !serv->http_index_files->empty() && handler.is_dir())
     {
-        std::vector<std::string> dir_files;
-        std::string index_file;
 
         handler.get_dir_files(dir_files);
         index_file = swoole::intersection(*serv->http_index_files, dir_files);
 
-        /**
-         * the index file was not found in the current directory, 
-         * should show the contents of the current directory.
-         */
-        if (index_file == "")
+        if (index_file != "" && !handler.set_filename(index_file))
         {
-            size_t body_length = handler.get_index_page(dir_files, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
-
-            response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
-                "HTTP/1.1 200 OK\r\n"
-                "%s"
-                "Content-Length: %ld\r\n"
-                "Content-Type: text/html\r\n"
-                "Date: %s\r\n"
-                "Last-Modified: %s\r\n"
-                "Server: %s\r\n\r\n",
-                request->keep_alive ?"Connection: keep-alive\r\n" : "",
-                (long) body_length,
-                date_str.c_str(),
-                date_str_last_modified.c_str(),
-                SW_HTTP_SERVER_SOFTWARE
-            );
-            response.data = header_buffer;
-            swServer_master_send(serv, &response);
-
-            response.info.len = body_length;
-            response.data = SwooleTG.buffer_stack->str;
-            swServer_master_send(serv, &response);
-            return true;
+            return false;
         }
-        else
+        else if (index_file == "" && !serv->http_autoindex)
         {
-            /**
-             * set filename to the index filename which be found
-             */
-            if (!handler.set_filename(index_file))
-            {
-                return false;
-            }
+            return false;
         }
+    }
+    /**
+     * the index file was not found in the current directory, 
+     * should show the contents of the current directory.
+     */
+    if (index_file == "" && serv->http_autoindex && handler.is_dir())
+    {
+        if (dir_files.empty())
+        {
+            handler.get_dir_files(dir_files);
+        }
+        size_t body_length = handler.get_index_page(dir_files, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
+
+        response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
+            "HTTP/1.1 200 OK\r\n"
+            "%s"
+            "Content-Length: %ld\r\n"
+            "Content-Type: text/html\r\n"
+            "Date: %s\r\n"
+            "Last-Modified: %s\r\n"
+            "Server: %s\r\n\r\n",
+            request->keep_alive ?"Connection: keep-alive\r\n" : "",
+            (long) body_length,
+            date_str.c_str(),
+            date_str_last_modified.c_str(),
+            SW_HTTP_SERVER_SOFTWARE
+        );
+        response.data = header_buffer;
+        swServer_master_send(serv, &response);
+
+        response.info.len = body_length;
+        response.data = SwooleTG.buffer_stack->str;
+        swServer_master_send(serv, &response);
+        return true;
     }
 
     response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),

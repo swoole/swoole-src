@@ -29,6 +29,7 @@ class StaticHandler
 private:
     swServer *serv;
     std::string request_url;
+    std::string dir_path;
     struct
     {
         off_t offset;
@@ -51,6 +52,7 @@ public:
         last = false;
         status_code = 200;
         l_filename = 0;
+        dir_path = "";
     }
     bool hit();
     bool is_modified(const std::string &date_if_modified_since);
