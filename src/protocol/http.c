@@ -576,19 +576,23 @@ int swHttpRequest_get_chunked_body_length(swHttpRequest *request)
 
     while (1)
     {
-        char *end = p;
-        size_t chunk_length = swoole_hex2dec(&end);
-        if (*end != '\r')
+        if (pe - p < (1 + (sizeof("\r\n") - 1))) {
+            /* need the next chunk */
+            return SW_ERR;
+        }
+        char *head = p;
+        size_t chunk_length = swoole_hex2dec(&head);
+        if (*head != '\r')
         {
             request->excepted = 1;
             return SW_ERR;
         }
-        p = end + (sizeof("\r\n") - 1) + chunk_length + (sizeof("\r\n") - 1);
+        p = head + (sizeof("\r\n") - 1) + chunk_length + (sizeof("\r\n") - 1);
         /* used to check package_max_length */
         request->content_length = p - (buffer->str  + request->header_length);
         if (p > pe)
         {
-            /* need recv again */
+            /* need recv chunk body again */
             return SW_ERR;
         }
         buffer->offset = p - buffer->str;
