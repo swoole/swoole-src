@@ -121,16 +121,16 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
     if (serv->http_autoindex && handler.is_dir())
     {
         std::vector<std::string> dir_files;
-        std::string intersection_file;
+        std::string index_file;
 
         handler.get_dir_files(dir_files);
-        intersection_file = swoole::intersection(*serv->http_index_files, dir_files);
+        index_file = swoole::intersection(*serv->http_index_files, dir_files);
 
         /**
          * the index file was not found in the current directory, 
          * should show the contents of the current directory.
          */
-        if (intersection_file == "")
+        if (index_file == "")
         {
             size_t body_length = handler.get_index_page(dir_files, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
 
@@ -161,7 +161,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
             /**
              * set filename to the index filename which be found
              */
-            if (!handler.set_filename(intersection_file))
+            if (!handler.set_filename(index_file))
             {
                 return false;
             }
