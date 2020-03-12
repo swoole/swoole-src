@@ -130,7 +130,8 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 
         //add to connection_list
         swConnection *conn = swServer_connection_new(serv, listen_host, new_fd, event->fd);
-        memcpy(&conn->info.addr, &event->socket->info, sizeof(event->socket->info));
+        memcpy(&conn->info.addr, &event->socket->info.addr, event->socket->info.len);
+        conn->info.len = event->socket->info.len;
         conn->socket_type = listen_host->type;
 
 #ifdef SW_USE_OPENSSL
@@ -145,6 +146,9 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             else
             {
                 conn->ssl = 1;
+                memcpy(&_socket->info.addr, &conn->info.addr, conn->info.len);
+                _socket->info.len = conn->info.len;
+                _socket->socket_type = conn->socket_type;
             }
         }
         else

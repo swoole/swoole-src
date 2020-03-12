@@ -645,7 +645,11 @@ Socket::Socket(int _fd, swSocketAddress *addr, Socket *server_sock)
     open_eof_check = server_sock->open_eof_check;
     http2 = server_sock->http2;
     protocol = server_sock->protocol;
-    memcpy(&socket->info.addr, &addr, addr->len);
+
+    socket->socket_type = server_sock->socket->socket_type;
+    memcpy(&socket->info.addr, addr, addr->len);
+    socket->info.len = addr->len;
+
 #ifdef SW_USE_OPENSSL
     if (server_sock->open_ssl)
     {
