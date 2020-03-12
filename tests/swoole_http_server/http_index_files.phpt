@@ -13,12 +13,15 @@ $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
+        $index_content = file_get_contents(DOCUMENT_ROOT . '/index.html');
+        $dir2_index_txt_content = file_get_contents(DOCUMENT_ROOT . '/dir2/index.txt');
+
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
-        Assert::assert(md5($data) === md5_file(DOCUMENT_ROOT . '/index.html'));
+        Assert::same($data, $index_content);
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/dir1");
         Assert::same($data, 'dynamic request');
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/dir2");
-        Assert::assert(md5($data) === md5_file(DOCUMENT_ROOT . '/dir2/index.txt'));
+        Assert::assert($data, $dir2_index_txt_content);
 
         $pm->kill();
     });
