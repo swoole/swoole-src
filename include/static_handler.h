@@ -21,6 +21,7 @@
 #include "mime_type.h"
 
 #include <string>
+#include <set>
 
 namespace swoole { namespace http {
 
@@ -29,6 +30,7 @@ class StaticHandler
 private:
     swServer *serv;
     std::string request_url;
+    std::string dir_path;
     struct
     {
         off_t offset;
@@ -51,9 +53,13 @@ public:
         last = false;
         status_code = 200;
         l_filename = 0;
+        dir_path = "";
     }
     bool hit();
     bool is_modified(const std::string &date_if_modified_since);
+    size_t get_index_page(std::set<std::string> &index_files, char *buffer, size_t size);
+    bool get_dir_files(std::set<std::string> &index_files);
+    bool set_filename(std::string &filename);
 
     std::string get_date();
 
@@ -91,6 +97,11 @@ public:
     inline const swSendFile_request* get_task()
     {
         return (const swSendFile_request*) &task;
+    }
+
+    inline const bool is_dir()
+    {
+        return S_ISDIR(file_stat.st_mode);
     }
 };
 

@@ -17,6 +17,8 @@
 #include "static_handler.h"
 
 #include <string>
+#include <dirent.h>
+#include <algorithm>
 
 using namespace std;
 using swoole::http::StaticHandler;
@@ -81,10 +83,10 @@ bool StaticHandler::hit()
      * discard the url parameter
      * [/test.jpg?version=1#position] -> [/test.jpg]
      */
-    char *params = (char*) memchr(url, '?', url_length);
+    char *params = (char *) memchr(url, '?', url_length);
     if (params == NULL)
     {
-        params = (char*) memchr(url, '#',  url_length);
+        params = (char *) memchr(url, '#',  url_length);
     }
     size_t n = params ? params - url : url_length;
 
@@ -114,6 +116,11 @@ bool StaticHandler::hit()
     memcpy(p, url, n);
     p += n;
     *p = '\0';
+    if (dir_path != "")
+    {
+        dir_path.clear();
+    }
+    dir_path = std::string(url, n);
 
     l_filename = swHttp_url_decode(task.filename, p - task.filename);
     task.filename[l_filename] = '\0';
@@ -151,11 +158,6 @@ bool StaticHandler::hit()
      * non-static file
      */
     _detect_mime_type:
-    if (!swoole::mime_type::exists(task.filename))
-    {
-        return false;
-    }
-
     /**
      * file does not exist
      */
@@ -171,10 +173,131 @@ bool StaticHandler::hit()
             return false;
         }
     }
+
+    if (serv->http_index_files && !serv->http_index_files->empty() && is_dir())
+    {
+        return true;
+    }
+
+    if(serv->http_autoindex && is_dir())
+    {
+        return true;
+    }
+
+    if (!swoole::mime_type::exists(task.filename))
+    {
+        return false;
+    }
+
     if ((file_stat.st_mode & S_IFMT) != S_IFREG)
     {
         return false;
     }
+    task.length = get_filesize();
+
+    return true;
+}
+
+size_t StaticHandler::get_index_page(std::set<std::string> &index_files, char *buffer, size_t size)
+{
+    int ret = 0;
+    char *p = buffer;
+
+    if (dir_path.back() != '/')
+    {
+        dir_path.append("/");
+    }
+
+    ret = sw_snprintf(p, size - ret,
+        "<html>\n"
+        "<head>\n"
+        "\t<meta charset='UTF-8'>\n"
+        "\t<style>\n"
+            "\t\tul{\n"
+                "\t\t\tlist-style: none;\n"
+                "\t\t\t*list-style: decimal;\n"
+                "\t\t\tfont: 15px 'trebuchet MS', 'lucida sans';\n"
+                "\t\t\tpadding: 0;\n"
+                "\t\t\tmargin-bottom: 4em;\n"
+            "\t\t}\n"
+        "\t</style>\n"
+        "</head>\n"
+        "<body>\n"
+        "\t<ul>\n"
+    );
+
+    p += ret;
+
+    for(auto iter = index_files.begin(); iter != index_files.end(); iter++)
+    {
+        if (*iter == "." || (dir_path == "/" && *iter == ".."))
+        {
+            continue;
+        }
+        ret = sw_snprintf(p, size - ret, "\t\t<li><a href=%s%s>%s</a></li>\n", dir_path.c_str(), (*iter).c_str(), (*iter).c_str());
+        p += ret;
+    }
+    
+    ret = sw_snprintf(p, size - ret,
+        "\t</ul>\n"
+        "</body>\n"
+        "</html>\n"
+    );
+
+    p += ret;
+
+    return p - buffer;
+}
+
+bool StaticHandler::get_dir_files(std::set<std::string> &index_files)
+{
+    struct dirent *ptr;
+
+    if (!is_dir())
+    {
+        return false;
+    }
+
+    DIR *dir = opendir(task.filename);
+    if (dir == NULL)
+    {
+        return false;
+    }
+
+    while((ptr = readdir(dir)) != NULL)
+    {
+        index_files.insert(ptr->d_name);
+    }
+
+    closedir(dir);
+
+    return true;
+}
+
+bool StaticHandler::set_filename(std::string &filename)
+{
+    char *p = task.filename + l_filename;
+
+    if (*p != '/')
+    {
+        *p = '/';
+        p += 1;
+    }
+
+    memcpy(p, filename.c_str(), filename.length());
+    p += filename.length();
+    *p = 0;
+
+    if (lstat(task.filename, &file_stat) < 0)
+    {
+        return false;
+    }
+
+    if ((file_stat.st_mode & S_IFMT) != S_IFREG)
+    {
+        return false;
+    }
+    
     task.length = get_filesize();
 
     return true;
@@ -187,5 +310,20 @@ int swServer_http_static_handler_add_location(swServer *serv, const char *locati
         serv->locations = new std::unordered_set<std::string>;
     }
     serv->locations->insert(string(location, length));
+    return SW_OK;
+}
+
+int swServer_http_static_handler_add_http_index_files(swServer *serv, const char *filename, size_t length)
+{
+    if (serv->http_index_files == nullptr)
+    {
+        serv->http_index_files = new std::vector<std::string>;
+    }
+
+    auto iter = std::find(serv->http_index_files->begin(), serv->http_index_files->end(), filename);
+    if (iter == serv->http_index_files->end())
+    {
+        serv->http_index_files->push_back(filename);
+    }
     return SW_OK;
 }

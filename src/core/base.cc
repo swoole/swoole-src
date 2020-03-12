@@ -26,11 +26,14 @@
 #include <sys/resource.h>
 #include <sys/ioctl.h>
 
+#include <algorithm>
+
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>
 #endif
 
 #include <list>
+#include <set>
 
 swGlobal_t SwooleG;
 swWorkerGlobal_t SwooleWG;
@@ -1499,4 +1502,25 @@ void swDataHead_dump(const swDataHead *data)
             "    uint8_t flags = %d;\n"
             "    uint16_t server_fd = %d;\n"
             "}\n", data, data->fd, data->len, data->reactor_id, data->type, data->flags, data->server_fd);
+}
+
+/**
+ * return the first file of the intersection, in order of vec1
+ */
+std::string swoole::intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2)
+{
+    std::string result = "";
+
+    std::find_if(vec1.begin(),vec1.end(), [&](std::string &str) -> bool
+    {
+        auto iter = std::find(vec2.begin(), vec2.end(), str);
+        if (iter != vec2.end())
+        {
+            result = *iter;
+            return true;
+        }
+        return false;
+    });
+
+    return result;
 }

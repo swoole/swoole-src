@@ -419,6 +419,10 @@ struct swServer
      */
     uchar enable_static_handler :1;
     /**
+     * show file list in the current directory
+     */
+    uchar http_autoindex :1;
+    /**
      * enable onConnect/onClose event when use dispatch_mode=1/3
      */
     uchar enable_unsafe_event :1;
@@ -523,6 +527,7 @@ struct swServer
 
     std::unordered_set<std::string> *types;
     std::unordered_set<std::string> *locations;
+    std::vector<std::string> *http_index_files;
 
 #ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_t barrier;
@@ -899,6 +904,7 @@ void swServer_worker_onStop(swServer *serv);
 
 int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn);
 int swServer_http_static_handler_add_location(swServer *serv, const char *location, size_t length);
+int swServer_http_static_handler_add_http_index_files(swServer *serv, const char *filename, size_t length);
 
 int swWorker_onTask(swFactory *factory, swEventData *task);
 void swWorker_stop(swWorker *worker);
