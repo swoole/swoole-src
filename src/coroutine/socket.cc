@@ -1415,7 +1415,16 @@ bool Socket::ssl_accept()
     do {
         retval = swSSL_accept(socket);
     } while (retval == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
-    return retval == SW_READY;
+
+    if (retval != SW_READY)
+    {
+        set_err(SW_ERROR_SSL_BAD_CLIENT);
+        return false;
+    }
+    else
+    {
+        return true;
+    }
 }
 
 int Socket::ssl_verify(bool allow_self_signed)
