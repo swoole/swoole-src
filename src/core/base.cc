@@ -1519,6 +1519,7 @@ std::string swoole::intersection(std::vector<std::string> &vec1, std::set<std::s
             result = *iter;
             return true;
         }
+        return false;
     });
 
     return result;
