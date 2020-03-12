@@ -21,6 +21,7 @@
 #include "mime_type.h"
 
 #include <string>
+#include <set>
 
 namespace swoole { namespace http {
 
@@ -56,8 +57,8 @@ public:
     }
     bool hit();
     bool is_modified(const std::string &date_if_modified_since);
-    size_t get_index_page(std::vector<std::string> &index_files, char *buffer, size_t size);
-    bool get_dir_files(std::vector<std::string> &index_files);
+    size_t get_index_page(std::set<std::string> &index_files, char *buffer, size_t size);
+    bool get_dir_files(std::set<std::string> &index_files);
     bool set_filename(std::string &filename);
 
     std::string get_date();

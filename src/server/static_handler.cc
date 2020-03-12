@@ -198,7 +198,7 @@ bool StaticHandler::hit()
     return true;
 }
 
-size_t StaticHandler::get_index_page(std::vector<std::string> &index_files, char *buffer, size_t size)
+size_t StaticHandler::get_index_page(std::set<std::string> &index_files, char *buffer, size_t size)
 {
     int ret = 0;
     char *p = buffer;
@@ -234,12 +234,12 @@ size_t StaticHandler::get_index_page(std::vector<std::string> &index_files, char
         {
             continue;
         }
-        ret = sw_snprintf(p, size - ret, "\t<li ><a href=%s%s>%s</a></li>\n", dir_path.c_str(), (*iter).c_str(), (*iter).c_str());
+        ret = sw_snprintf(p, size - ret, "\t\t<li><a href=%s%s>%s</a></li>\n", dir_path.c_str(), (*iter).c_str(), (*iter).c_str());
         p += ret;
     }
     
     ret = sw_snprintf(p, size - ret,
-        "</ul>\n"
+        "\t</ul>\n"
         "</body>\n"
         "</html>\n"
     );
@@ -249,7 +249,7 @@ size_t StaticHandler::get_index_page(std::vector<std::string> &index_files, char
     return p - buffer;
 }
 
-bool StaticHandler::get_dir_files(std::vector<std::string> &index_files)
+bool StaticHandler::get_dir_files(std::set<std::string> &index_files)
 {
     struct dirent *ptr;
 
@@ -266,7 +266,7 @@ bool StaticHandler::get_dir_files(std::vector<std::string> &index_files)
 
     while((ptr = readdir(dir)) != NULL)
     {
-        index_files.push_back(ptr->d_name);
+        index_files.insert(ptr->d_name);
     }
 
     closedir(dir);

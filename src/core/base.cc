@@ -33,6 +33,7 @@
 #endif
 
 #include <list>
+#include <set>
 
 swGlobal_t SwooleG;
 swWorkerGlobal_t SwooleWG;
@@ -1506,7 +1507,7 @@ void swDataHead_dump(const swDataHead *data)
 /**
  * return the first file of the intersection, in order of vec1
  */
-std::string swoole::intersection(std::vector<std::string> &vec1, std::vector<std::string> &vec2)
+std::string swoole::intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2)
 {
     std::string result = "";
 

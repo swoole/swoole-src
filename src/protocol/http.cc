@@ -117,7 +117,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
 
     const swSendFile_request *task = handler.get_task();
 
-    std::vector<std::string> dir_files;
+    std::set<std::string> dir_files;
     std::string index_file = "";
     /**
      * if http_index_files is enabled, need to search the index file first.
