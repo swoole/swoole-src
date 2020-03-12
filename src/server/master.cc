@@ -950,6 +950,10 @@ static int swServer_destory(swServer *serv)
     {
         delete serv->locations;
     }
+    if (serv->http_index_files)
+    {
+        delete serv->http_index_files;
+    }
     serv->lock.free(&serv->lock);
     SwooleG.serv = nullptr;
     return SW_OK;
