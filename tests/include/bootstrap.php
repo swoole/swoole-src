@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php'; // (`once` because it may required in skip when we run phpt)
+require  __DIR__ . '/../../tools/bootstrap.php';
 
 // PHP settings
 error_reporting(E_ALL ^ E_DEPRECATED);
