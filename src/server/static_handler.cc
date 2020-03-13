@@ -198,7 +198,7 @@ bool StaticHandler::hit()
     return true;
 }
 
-size_t StaticHandler::get_index_page(std::set<std::string> &index_files, char *buffer, size_t size)
+size_t StaticHandler::get_index_page(std::set<std::string> &files, char *buffer, size_t size)
 {
     int ret = 0;
     char *p = buffer;
@@ -211,24 +211,15 @@ size_t StaticHandler::get_index_page(std::set<std::string> &index_files, char *b
     ret = sw_snprintf(p, size - ret,
         "<html>\n"
         "<head>\n"
-        "\t<meta charset='UTF-8'>\n"
-        "\t<style>\n"
-            "\t\tul{\n"
-                "\t\t\tlist-style: none;\n"
-                "\t\t\t*list-style: decimal;\n"
-                "\t\t\tfont: 15px 'trebuchet MS', 'lucida sans';\n"
-                "\t\t\tpadding: 0;\n"
-                "\t\t\tmargin-bottom: 4em;\n"
-            "\t\t}\n"
-        "\t</style>\n"
+        "\t<meta charset='UTF-8'>\n<title>Index of %s</title>"
         "</head>\n"
-        "<body>\n"
-        "\t<ul>\n"
+        "<body>\n<h1>Index of %s</h1><hr/>"
+        "\t<ul>\n", dir_path.c_str(), dir_path.c_str()
     );
 
     p += ret;
 
-    for(auto iter = index_files.begin(); iter != index_files.end(); iter++)
+    for (auto iter = files.begin(); iter != files.end(); iter++)
     {
         if (*iter == "." || (dir_path == "/" && *iter == ".."))
         {
@@ -240,7 +231,7 @@ size_t StaticHandler::get_index_page(std::set<std::string> &index_files, char *b
     
     ret = sw_snprintf(p, size - ret,
         "\t</ul>\n"
-        "</body>\n"
+        "<hr><i>Powered by Swoole</i></body>\n"
         "</html>\n"
     );
 
@@ -264,7 +255,7 @@ bool StaticHandler::get_dir_files(std::set<std::string> &index_files)
         return false;
     }
 
-    while((ptr = readdir(dir)) != NULL)
+    while ((ptr = readdir(dir)) != NULL)
     {
         index_files.insert(ptr->d_name);
     }

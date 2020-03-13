@@ -1,4 +1,12 @@
 <?php
+/**
+ * This file is part of Swoole, for internal use only
+ *
+ * @link     https://www.swoole.com
+ * @contact  team@swoole.com
+ * @license  https://github.com/swoole/library/blob/master/LICENSE
+ */
+
 define('ROOT_DIR', dirname(__DIR__));
 define('LIBRARY_DIR', ROOT_DIR . '/library');
 define('LIBRARY_SRC_DIR', LIBRARY_DIR . '/src');
@@ -8,13 +16,16 @@ define('EMOJI_SUCCESS', '🚀');
 define('EMOJI_ERROR', '❌');
 define('EMOJI_WARN', '⚠️');
 define('SWOOLE_SOURCE_ROOT', dirname(__DIR__) . '/');
-define('SWOOLE_COLOR_RED', 1);
-define('SWOOLE_COLOR_GREEN', 2);
-define('SWOOLE_COLOR_YELLOW', 3);
-define('SWOOLE_COLOR_BLUE', 4);
-define('SWOOLE_COLOR_MAGENTA', 5);
-define('SWOOLE_COLOR_CYAN', 6);
-define('SWOOLE_COLOR_WHITE', 7);
+
+if (!defined('SWOOLE_COLOR_RED')) {
+    define('SWOOLE_COLOR_RED', 1);
+    define('SWOOLE_COLOR_GREEN', 2);
+    define('SWOOLE_COLOR_YELLOW', 3);
+    define('SWOOLE_COLOR_BLUE', 4);
+    define('SWOOLE_COLOR_MAGENTA', 5);
+    define('SWOOLE_COLOR_CYAN', 6);
+    define('SWOOLE_COLOR_WHITE', 7);
+}
 
 function space(int $length): string
 {
