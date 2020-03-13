@@ -14,7 +14,6 @@ $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $index_content = file_get_contents(DOCUMENT_ROOT . '/index.html');
-        $dir1_index_page_content = file_get_contents(DOCUMENT_ROOT . '/dir1/index_page.html');
         $dir2_index_txt_content = file_get_contents(DOCUMENT_ROOT . '/dir2/index.txt');
 
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
