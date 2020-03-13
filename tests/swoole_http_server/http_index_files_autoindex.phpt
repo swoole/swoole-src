@@ -19,8 +19,13 @@ $pm->parentFunc = function () use ($pm) {
 
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
         Assert::same($data, $index_content);
+
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/dir1");
-        Assert::same($data, $dir1_index_page_content);
+        $files = scan_dir(DOCUMENT_ROOT.'/dir1');
+        foreach ($files as $f) {
+            Assert::contains($data, basename($f));
+        }
+
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/dir2");
         Assert::assert($data, $dir2_index_txt_content);
 

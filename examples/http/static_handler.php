@@ -4,7 +4,7 @@ $http = new Swoole\Http\Server("0.0.0.0", 9501, SWOOLE_BASE);
 $http->set([
     'enable_static_handler' => true,
     'http_autoindex' => true,
-    'document_root' => __DIR__,
+    'document_root' => realpath(__DIR__.'/../www/'),
 ]);
 
 $http->on('request', function ($req, $resp) {

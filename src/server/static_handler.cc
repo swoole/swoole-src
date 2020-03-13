@@ -198,7 +198,7 @@ bool StaticHandler::hit()
     return true;
 }
 
-size_t StaticHandler::get_index_page(std::set<std::string> &index_files, char *buffer, size_t size)
+size_t StaticHandler::get_index_page(std::set<std::string> &files, char *buffer, size_t size)
 {
     int ret = 0;
     char *p = buffer;
@@ -211,15 +211,15 @@ size_t StaticHandler::get_index_page(std::set<std::string> &index_files, char *b
     ret = sw_snprintf(p, size - ret,
         "<html>\n"
         "<head>\n"
-        "\t<meta charset='UTF-8'>\n"
+        "\t<meta charset='UTF-8'>\n<title>Index of %s</title>"
         "</head>\n"
         "<body>\n<h1>Index of %s</h1><hr/>"
-        "\t<ul>\n", dir_path.c_str()
+        "\t<ul>\n", dir_path.c_str(), dir_path.c_str()
     );
 
     p += ret;
 
-    for (auto iter = index_files.begin(); iter != index_files.end(); iter++)
+    for (auto iter = files.begin(); iter != files.end(); iter++)
     {
         if (*iter == "." || (dir_path == "/" && *iter == ".."))
         {

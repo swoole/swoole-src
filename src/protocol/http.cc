@@ -125,7 +125,6 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
      */
     if (serv->http_index_files && !serv->http_index_files->empty() && handler.is_dir())
     {
-
         handler.get_dir_files(dir_files);
         index_file = swoole::intersection(*serv->http_index_files, dir_files);
 
