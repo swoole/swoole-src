@@ -731,7 +731,6 @@ function readfile_with_lock($file)
     return $data;
 }
 
-
 function space(int $length): string
 {
     return str_repeat(' ', $length);
