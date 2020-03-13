@@ -576,7 +576,8 @@ int swHttpRequest_get_chunked_body_length(swHttpRequest *request)
 
     while (1)
     {
-        if (pe - p < (1 + (sizeof("\r\n") - 1))) {
+        if ((size_t) (pe - p) < (1 + (sizeof("\r\n") - 1)))
+        {
             /* need the next chunk */
             return SW_ERR;
         }
@@ -589,7 +590,7 @@ int swHttpRequest_get_chunked_body_length(swHttpRequest *request)
         }
         p = head + (sizeof("\r\n") - 1) + chunk_length + (sizeof("\r\n") - 1);
         /* used to check package_max_length */
-        request->content_length = p - (buffer->str  + request->header_length);
+        request->content_length = p - (buffer->str + request->header_length);
         if (p > pe)
         {
             /* need recv chunk body again */
