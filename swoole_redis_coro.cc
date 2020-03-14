@@ -2967,7 +2967,7 @@ static PHP_METHOD(swoole_redis_coro, sRandMember)
         buf_len = sw_snprintf(buf, sizeof(buf), "%ld", count);
         SW_REDIS_COMMAND_ARGV_FILL((char *)buf, buf_len);
     }
-    redis_request(redis, argc, argv, argvlen, return_value);;
+    redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
 }
 
@@ -3937,7 +3937,7 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
     }
     efree(z_args);
 
-    redis_request(redis, argc, argv, argvlen, return_value);;
+    redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
 }
 
@@ -3964,7 +3964,7 @@ static PHP_METHOD(swoole_redis_coro, zPopMin)
         buf_len = sw_snprintf(buf, sizeof(buf), "%ld", count);
         SW_REDIS_COMMAND_ARGV_FILL((char *)buf, buf_len);
     }
-    redis_request(redis, argc, argv, argvlen, return_value);;
+    redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
 }
 
@@ -3991,7 +3991,7 @@ static PHP_METHOD(swoole_redis_coro, zPopMax)
         buf_len = sw_snprintf(buf, sizeof(buf), "%ld", count);
         SW_REDIS_COMMAND_ARGV_FILL((char *)buf, buf_len);
     }
-    redis_request(redis, argc, argv, argvlen, return_value);;
+    redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
 }
 
