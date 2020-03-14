@@ -981,7 +981,8 @@ static PHP_METHOD(swoole_client_coro, getsockname)
         RETURN_FALSE;
     }
 
-    if (!cli->getsockname())
+    swSocketAddress sa;
+    if (!cli->getsockname(&sa))
     {
         zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), cli->errCode);
         zend_update_property_string(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errMsg"), cli->errMsg);
@@ -989,8 +990,8 @@ static PHP_METHOD(swoole_client_coro, getsockname)
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "host", (char *) cli->get_ip());
-    add_assoc_long(return_value, "port", cli->get_port());
+    add_assoc_string(return_value, "address", (char *) swSocket_get_ip(cli->get_type(), &sa));
+    add_assoc_long(return_value, "port", swSocket_get_port(cli->get_type(), &sa));
 }
 
 /**
@@ -1025,7 +1026,8 @@ static PHP_METHOD(swoole_client_coro, getpeername)
         RETURN_FALSE;
     }
 
-    if (!cli->getsockname())
+    swSocketAddress sa;
+    if (!cli->getpeername(&sa))
     {
         zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), cli->errCode);
         zend_update_property_string(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errMsg"), cli->errMsg);
@@ -1033,8 +1035,8 @@ static PHP_METHOD(swoole_client_coro, getpeername)
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "host", (char *) cli->get_ip());
-    add_assoc_long(return_value, "port", cli->get_port());
+    add_assoc_string(return_value, "address", (char *) swSocket_get_ip(cli->get_type(), &sa));
+    add_assoc_long(return_value, "port", swSocket_get_port(cli->get_type(), &sa));
 }
 
 static PHP_METHOD(swoole_client_coro, close)
