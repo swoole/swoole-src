@@ -224,11 +224,14 @@ int static_handler::send_response()
     task.offset = 0;
     task.length = file_stat.st_size;
 
-    response.info.type = SW_SERVER_EVENT_SEND_FILE;
-    response.info.len = sizeof(swSendFile_request) + task.length + 1;
-    response.data = (char*) &task;
+    if (task.length != 0)
+    {
+        response.info.type = SW_SERVER_EVENT_SEND_FILE;
+        response.info.len = sizeof(swSendFile_request) + task.length + 1;
+        response.data = (char*) &task;
 
-    swServer_master_send(serv, &response);
+        swServer_master_send(serv, &response);
+    }
 
     _finish:
     if (!request->keep_alive)
