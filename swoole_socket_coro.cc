@@ -1383,30 +1383,32 @@ static PHP_METHOD(swoole_socket_coro, getsockname)
 {
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    if (!sock->socket->getsockname())
+    swSocketAddress sa;
+    if (!sock->socket->getsockname(&sa))
     {
         swoole_socket_coro_sync_properties(ZEND_THIS, sock);
         RETURN_FALSE;
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "address", (char *) sock->socket->get_ip());
-    add_assoc_long(return_value, "port", sock->socket->get_port());
+    add_assoc_string(return_value, "address", (char *) swSocket_get_ip(sock->socket->get_type(), &sa));
+    add_assoc_long(return_value, "port", swSocket_get_port(sock->socket->get_type(), &sa));
 }
 
 static PHP_METHOD(swoole_socket_coro, getpeername)
 {
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    if (!sock->socket->getpeername())
+    swSocketAddress sa;
+    if (!sock->socket->getpeername(&sa))
     {
         swoole_socket_coro_sync_properties(ZEND_THIS, sock);
         RETURN_FALSE;
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "address", (char *) sock->socket->get_ip());
-    add_assoc_long(return_value, "port", sock->socket->get_port());
+    add_assoc_string(return_value, "address", (char *) swSocket_get_ip(sock->socket->get_type(), &sa));
+    add_assoc_long(return_value, "port", swSocket_get_port(sock->socket->get_type(), &sa));
 }
 
 static PHP_METHOD(swoole_socket_coro, getOption)
