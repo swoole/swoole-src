@@ -202,11 +202,14 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
 #endif
     swServer_master_send(serv, &response);
 
-    response.info.type = SW_SERVER_EVENT_SEND_FILE;
-    response.info.len = sizeof(swSendFile_request) + task->length + 1;
-    response.data = (char *) task;
+    if (task->length != 0)
+    {
+        response.info.type = SW_SERVER_EVENT_SEND_FILE;
+        response.info.len = sizeof(swSendFile_request) + task->length + 1;
+        response.data = (char *) task;
 
-    swServer_master_send(serv, &response);
+        swServer_master_send(serv, &response);
+    }
 
     if (!request->keep_alive)
     {
