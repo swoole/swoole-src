@@ -186,8 +186,8 @@ public:
         return bind_port;
     }
 
-    bool getsockname();
-    bool getpeername();
+    bool getsockname(swSocketAddress *sa);
+    bool getpeername(swSocketAddress *sa);
     const char* get_ip();
     int get_port();
 

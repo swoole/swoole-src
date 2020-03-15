@@ -672,10 +672,10 @@ Socket::Socket(swSocket *sock, Socket *server_sock)
 #endif
 }
 
-bool Socket::getsockname()
+bool Socket::getsockname(swSocketAddress *sa)
 {
-    socket->info.len = sizeof(socket->info.addr);
-    if (::getsockname(sock_fd, (struct sockaddr *) &socket->info.addr, &socket->info.len) != 0)
+    sa->len = sizeof(sa->addr);
+    if (::getsockname(sock_fd, (struct sockaddr *) &sa->addr, &sa->len) != 0)
     {
         set_err(errno);
         return false;
@@ -683,10 +683,10 @@ bool Socket::getsockname()
     return true;
 }
 
-bool Socket::getpeername()
+bool Socket::getpeername(swSocketAddress *sa)
 {
-    socket->info.len = sizeof(socket->info.addr);
-    if (::getpeername(sock_fd, (struct sockaddr *) &socket->info.addr, &socket->info.len) != 0)
+    sa->len = sizeof(sa->addr);
+    if (::getpeername(sock_fd, (struct sockaddr *) &sa->addr, &sa->len) != 0)
     {
         set_err(errno);
         return false;
