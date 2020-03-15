@@ -13,7 +13,7 @@ Co\run(
         $conn = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $conn->connect('www.baidu.com', 80);
         $info = $conn->getpeername();
-        Assert::eq($info['address'], System::gethostbyname('www.baidu.com'));
+        Assert::eq($info['host'], System::gethostbyname('www.baidu.com'));
         Assert::eq($info['port'], 80);
     }
 );
