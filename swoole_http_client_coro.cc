@@ -289,8 +289,6 @@ static PHP_METHOD(swoole_http_client_coro, setData);
 static PHP_METHOD(swoole_http_client_coro, addFile);
 static PHP_METHOD(swoole_http_client_coro, addData);
 static PHP_METHOD(swoole_http_client_coro, execute);
-static PHP_METHOD(swoole_http_client_coro, getsockname);
-static PHP_METHOD(swoole_http_client_coro, getpeername);
 static PHP_METHOD(swoole_http_client_coro, get);
 static PHP_METHOD(swoole_http_client_coro, post);
 static PHP_METHOD(swoole_http_client_coro, download);
@@ -319,8 +317,6 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
     PHP_ME(swoole_http_client_coro, addFile, arginfo_swoole_http_client_coro_addFile, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, addData, arginfo_swoole_http_client_coro_addData, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, execute, arginfo_swoole_http_client_coro_execute, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getpeername, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getsockname, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, get, arginfo_swoole_http_client_coro_get, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, post, arginfo_swoole_http_client_coro_post, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, download, arginfo_swoole_http_client_coro_download, ZEND_ACC_PUBLIC)
@@ -798,7 +794,6 @@ bool http_client::connect()
         }
         reconnected_count = 0;
         zend_update_property_bool(swoole_http_client_coro_ce, zobject, ZEND_STRL("connected"), 1);
-        zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("localPort"), socket->get_port());
     }
     return true;
 }
@@ -2193,16 +2188,4 @@ static PHP_METHOD(swoole_http_client_coro, getHeaderOut)
 {
     http_client *phc = php_swoole_get_phc(ZEND_THIS);
     phc->get_header_out(return_value);
-}
-
-static PHP_METHOD(swoole_http_client_coro, getsockname)
-{
-    http_client *phc = php_swoole_get_phc(ZEND_THIS);
-    phc->getsockname(return_value);
-}
-
-static PHP_METHOD(swoole_http_client_coro, getpeername)
-{
-    http_client *phc = php_swoole_get_phc(ZEND_THIS);
-    phc->getpeername(return_value);
 }
