@@ -798,7 +798,6 @@ bool http_client::connect()
         }
         reconnected_count = 0;
         zend_update_property_bool(swoole_http_client_coro_ce, zobject, ZEND_STRL("connected"), 1);
-        zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("localPort"), socket->get_port());
     }
     return true;
 }

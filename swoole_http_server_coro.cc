@@ -661,8 +661,7 @@ static void http2_server_onRequest(http2_session *session, http2_stream *stream)
     add_assoc_string(zserver, "server_protocol", (char * ) "HTTP/2");
 
     php_swoole_fci *fci = hs->get_handler(ctx);
-    zval args[2] =
-    { *ctx->request.zobject, *ctx->response.zobject };
+    zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
 
     if (fci)
     {
