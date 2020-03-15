@@ -1391,8 +1391,8 @@ static PHP_METHOD(swoole_socket_coro, getsockname)
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "address", (char *) swSocket_get_ip(sock->socket->get_type(), &sa));
-    add_assoc_long(return_value, "port", swSocket_get_port(sock->socket->get_type(), &sa));
+    add_assoc_string(return_value, "address", (char *) swConnection_get_ip(sock->socket->get_type(), &sa));
+    add_assoc_long(return_value, "port", swConnection_get_port(sock->socket->get_type(), &sa));
 }
 
 static PHP_METHOD(swoole_socket_coro, getpeername)
@@ -1407,8 +1407,8 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "address", (char *) swSocket_get_ip(sock->socket->get_type(), &sa));
-    add_assoc_long(return_value, "port", swSocket_get_port(sock->socket->get_type(), &sa));
+    add_assoc_string(return_value, "address", (char *) swConnection_get_ip(sock->socket->get_type(), &sa));
+    add_assoc_long(return_value, "port", swConnection_get_port(sock->socket->get_type(), &sa));
 }
 
 static PHP_METHOD(swoole_socket_coro, getOption)

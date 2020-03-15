@@ -150,8 +150,8 @@ public:
         }
 
         array_init(return_value);
-        add_assoc_string(return_value, "address", (char *) swSocket_get_ip(socket->get_type(), &sa));
-        add_assoc_long(return_value, "port", swSocket_get_port(socket->get_type(), &sa));
+        add_assoc_string(return_value, "host", (char *) swConnection_get_ip(socket->get_type(), &sa));
+        add_assoc_long(return_value, "port", swConnection_get_port(socket->get_type(), &sa));
     }
 
     void getpeername(zval *return_value)
@@ -164,8 +164,8 @@ public:
         }
 
         array_init(return_value);
-        add_assoc_string(return_value, "address", (char *) swSocket_get_ip(socket->get_type(), &sa));
-        add_assoc_long(return_value, "port", swSocket_get_port(socket->get_type(), &sa));
+        add_assoc_string(return_value, "host", (char *) swConnection_get_ip(socket->get_type(), &sa));
+        add_assoc_long(return_value, "port", swConnection_get_port(socket->get_type(), &sa));
     }
 
     ~http_client();

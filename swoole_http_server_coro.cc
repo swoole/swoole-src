@@ -603,7 +603,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
         add_assoc_string(zserver, "remote_addr", (char *) sock->get_ip());
 
         php_swoole_fci *fci = hs->get_handler(ctx);
-        zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
+        zval args[2] = { *ctx->request.zobject, *ctx->response.zobject };
         bool keep_alive = swoole_http_should_keep_alive(&ctx->parser) && !ctx->websocket;
 
         if (fci)
@@ -662,8 +662,7 @@ static void http2_server_onRequest(http2_session *session, http2_stream *stream)
     add_assoc_string(zserver, "server_protocol", (char * ) "HTTP/2");
 
     php_swoole_fci *fci = hs->get_handler(ctx);
-    zval args[2] =
-    { *ctx->request.zobject, *ctx->response.zobject };
+    zval args[2] = { *ctx->request.zobject, *ctx->response.zobject };
 
     if (fci)
     {

@@ -18,7 +18,7 @@ $pm->parentFunc = function () use ($pm) {
             Assert::assert($data);
             $json = json_decode($data);
             $info = $client->getsockname();
-            Assert::eq($json->remote_addr, $info['address']);
+            Assert::eq($json->remote_addr, $info['host']);
             Assert::eq($json->remote_port, $info['port']);
             httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/stop") . PHP_EOL;
         }
