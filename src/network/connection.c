@@ -211,6 +211,28 @@ void swConnection_sendfile_destructor(swBuffer_chunk *chunk)
 
 int swConnection_sendfile(swSocket *conn, const char *filename, off_t offset, size_t length)
 {
+    int file_fd = open(filename, O_RDONLY);
+    if (file_fd < 0)
+    {
+        swSysWarn("open(%s) failed", filename);
+        return SW_OK;
+    }
+
+    struct stat file_stat;
+    if (fstat(file_fd, &file_stat) < 0)
+    {
+        swSysWarn("fstat(%s) failed", filename);
+        close(file_fd);
+        return SW_ERR;
+    }
+
+    if (file_stat.st_size == 0)
+    {
+        swWarn("empty file[%s]", filename);
+        close(file_fd);
+        return SW_ERR;
+    }
+
     if (conn->out_buffer == NULL)
     {
         conn->out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
@@ -230,25 +252,9 @@ int swConnection_sendfile(swSocket *conn, const char *filename, off_t offset, si
     bzero(task, sizeof(swTask_sendfile));
 
     task->filename = sw_strdup(filename);
-    int file_fd = open(filename, O_RDONLY);
-    if (file_fd < 0)
-    {
-        sw_free(task->filename);
-        sw_free(task);
-        swSysWarn("open(%s) failed", filename);
-        return SW_OK;
-    }
     task->fd = file_fd;
     task->offset = offset;
 
-    struct stat file_stat;
-    if (fstat(file_fd, &file_stat) < 0)
-    {
-        swSysWarn("fstat(%s) failed", filename);
-        error_chunk.store.ptr = task;
-        swConnection_sendfile_destructor(&error_chunk);
-        return SW_ERR;
-    }
     if (offset < 0 || (length + offset > file_stat.st_size))
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length or offset is invalid");
