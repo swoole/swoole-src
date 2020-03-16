@@ -8,7 +8,7 @@ skip_if_offline();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
-    $domain = 'www.swoole.com';
+    $domain = 'mail.qq.com';
     $cli = new Swoole\Coroutine\Http2\Client($domain, 443, true);
     $cli->set([
         'timeout' => 10,
