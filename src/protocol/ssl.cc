@@ -46,6 +46,9 @@ static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, v
 static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg);
 #endif
 
+static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len);
+static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len);
+
 #ifdef __GNUC__
     #define MAYBE_UNUSED __attribute__((used))
 #else
@@ -103,6 +106,10 @@ static const SSL_METHOD *swSSL_get_method(int method)
     case SW_DTLSv1_CLIENT_METHOD:
         return DTLSv1_client_method();
 #endif
+    case SW_DTLS_CLIENT_METHOD:
+        return DTLS_client_method();
+    case SW_DTLS_SERVER_METHOD:
+        return DTLS_server_method();
     case SW_SSLv23_METHOD:
     default:
         return SSLv23_method();
@@ -468,6 +475,12 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
         }
     }
 
+    if (option->dtls)
+    {
+        SSL_CTX_set_cookie_generate_cb(ssl_context, swSSL_generate_cookie);
+        SSL_CTX_set_cookie_verify_cb(ssl_context, swSSL_verify_cookie);
+    }
+
     return ssl_context;
 }
 
@@ -596,6 +609,21 @@ static int swSSL_check_name(char *name, ASN1_STRING *pattern)
     return SW_ERR;
 }
 #endif
+
+static char cookie_str[] = "BISCUIT!";
+
+static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len)
+{
+    memmove(cookie, cookie_str, sizeof(cookie_str) - 1);
+    *cookie_len = sizeof(cookie_str) - 1;
+
+    return 1;
+}
+
+static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len)
+{
+    return sizeof(cookie_str) - 1 == cookie_len && memcmp(cookie, cookie_str, sizeof(cookie_str) - 1) == 0;
+}
 
 int swSSL_check_host(swSocket *conn, char *tls_host_name)
 {
@@ -786,7 +814,15 @@ int swSSL_accept(swSocket *conn)
 {
     swSSL_clear_error(conn);
 
-    int n = SSL_do_handshake(conn->ssl);
+    int n;
+    if (conn->dtls)
+    {
+        n = SSL_accept(conn->ssl);
+    }
+    else
+    {
+        n = SSL_do_handshake(conn->ssl);
+    }
     /**
      * The TLS/SSL handshake was successfully completed
      */
@@ -1141,7 +1177,7 @@ int swSSL_create(swSocket *conn, SSL_CTX* ssl_context, int flags)
     {
         SSL_set_connect_state(ssl);
     }
-    else
+    else if (flags & SW_SSL_SERVER)
     {
         SSL_set_accept_state(ssl);
     }

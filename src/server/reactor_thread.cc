@@ -22,6 +22,7 @@
 #include <unordered_map>
 
 using std::unordered_map;
+using namespace swoole;
 
 static int swReactorThread_loop(swThreadParam *param);
 static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t reactor_id);
@@ -139,6 +140,7 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
     swSendData task;
     swDgramPacket *pkt = (swDgramPacket *) SwooleTG.buffer_stack->str;
     swFactory *factory = &serv->factory;
+    swListenPort *port = (swListenPort *) server_sock->object;
 
     pkt->socket_addr.len = sizeof(pkt->socket_addr.addr);
 
@@ -152,11 +154,8 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
 
     int socket_type = server_sock->socket_type;
 
-    _do_recvfrom:
-    ret = recvfrom(
-        fd, pkt->data, SwooleTG.buffer_stack->size - sizeof(*pkt), 0,
-        (struct sockaddr *) &pkt->socket_addr.addr, &pkt->socket_addr.len
-    );
+    _do_recvfrom: ret = recvfrom(fd, pkt->data, SwooleTG.buffer_stack->size - sizeof(*pkt), 0,
+            (struct sockaddr *) &pkt->socket_addr.addr, &pkt->socket_addr.len);
 
     if (ret <= 0)
     {
@@ -169,6 +168,39 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
             swSysWarn("recvfrom(%d) failed", fd);
             return ret;
         }
+    }
+
+    if (port->ssl_option.dtls)
+    {
+        swoole::dtls::Session *session = swServer_dtls_accept(serv, port, &pkt->socket_addr);
+        session->append(pkt->data, ret);
+        session->handshake();
+
+        swConnection *conn = (swConnection *) session->socket->object;
+        if (serv->single_thread)
+        {
+            if (swServer_connection_incoming(serv, reactor, conn) < 0)
+            {
+                reactor->close(reactor, session->socket);
+                return SW_OK;
+            }
+        }
+        else
+        {
+            swDataHead ev = {};
+            ev.type = SW_SERVER_EVENT_INCOMING;
+            ev.fd = session->socket->fd;
+            swSocket *_pipe_sock = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
+            swReactorThread *thread = swServer_get_thread(serv, SwooleTG.id);
+            swSocket *socket = &thread->pipe_sockets[_pipe_sock->fd];
+            if (reactor->write(reactor, socket, &ev, sizeof(ev)) < 0)
+            {
+                reactor->close(reactor, session->socket);
+                return SW_OK;
+            }
+        }
+
+        return SW_OK;
     }
 
     if (socket_type == SW_SOCK_UDP)
@@ -206,6 +238,7 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
 {
     swServer *serv = (swServer *) reactor->ptr;
     swConnection *conn = (swConnection *) socket->object;
+    swListenPort *port = swServer_get_port(serv, socket->fd);
 
     if (conn->timer)
     {
@@ -223,16 +256,21 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
     swTrace("Close Event.fd=%d|from=%d", socket->fd, reactor->id);
 
 #ifdef SW_USE_OPENSSL
-    if (conn->socket->ssl)
+    if (socket->ssl)
     {
         swSSL_close(conn->socket);
+    }
+    if (socket->dtls)
+    {
+        dtls::Session *session = port->dtls_sessions->find(socket->fd)->second;
+        port->dtls_sessions->erase(socket->fd);
+        delete session;
     }
 #endif
 
     //free the receive memory buffer
     swSocket_free_buffer(conn->socket);
 
-    swListenPort *port = swServer_get_port(serv, socket->fd);
     sw_atomic_fetch_sub(&port->connection_num, 1);
 
     if (port->open_http_protocol && conn->object)
@@ -569,7 +607,7 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
     //listen the all tcp port
     LL_FOREACH(serv->listen_list, ls)
     {
-        if (swSocket_is_dgram(ls->type))
+        if (swSocket_is_dgram(ls->type) && !ls->ssl_option.dtls)
         {
             continue;
         }
@@ -591,7 +629,20 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     }
     swListenPort *port = swServer_get_port(serv, event->fd);
 #ifdef SW_USE_OPENSSL
-    if (swReactorThread_verify_ssl_state(reactor, port, event->socket) < 0)
+    if (port->ssl_option.dtls)
+    {
+        dtls::Buffer *buffer = (dtls::Buffer *) sw_malloc(sizeof(*buffer) + SW_BUFFER_SIZE_UDP);
+        buffer->length = read(event->fd, buffer->data, SW_BUFFER_SIZE_UDP);
+        dtls::Session *session = port->dtls_sessions->find(event->fd)->second;
+        session->rxqueue.push_back(buffer);
+
+        if (!session->established)
+        {
+            session->handshake();
+            return SW_OK;
+        }
+    }
+    else if (swReactorThread_verify_ssl_state(reactor, port, event->socket) < 0)
     {
         return swReactorThread_close(reactor, event->socket);
     }

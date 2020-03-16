@@ -29,8 +29,11 @@ SW_EXTERN_C_BEGIN
 #include <openssl/conf.h>
 #include <openssl/ossl_typ.h>
 
-#define SW_SSL_BUFFER      1
-#define SW_SSL_CLIENT      2
+enum swSSL_create_flag
+{
+    SW_SSL_SERVER = 1,
+    SW_SSL_CLIENT = 2,
+};
 
 typedef struct _swSSL_option
 {
@@ -46,12 +49,12 @@ typedef struct _swSSL_option
     char *capath;
     uint8_t verify_depth;
     uint8_t method;
+    uint8_t dtls;
     uchar disable_compress :1;
     uchar verify_peer :1;
     uchar allow_self_signed :1;
     uint32_t disable_protocols;
 } swSSL_option;
-
 #endif
 
 int swSocket_buffer_send(swSocket *conn);
@@ -128,6 +131,8 @@ enum swSSL_method
     SW_DTLSv1_METHOD,
     SW_DTLSv1_SERVER_METHOD,
     SW_DTLSv1_CLIENT_METHOD,
+    SW_DTLS_CLIENT_METHOD,
+    SW_DTLS_SERVER_METHOD,
 };
 
 typedef struct

@@ -20,6 +20,7 @@
 #include "buffer.h"
 #include "connection.h"
 #include "http.h"
+#include "dtls.h"
 
 #include <string>
 #include <queue>
@@ -206,6 +207,7 @@ struct swListenPort
     SSL_CTX *ssl_context;
     swSSL_config ssl_config;
     swSSL_option ssl_option;
+    std::unordered_map<int, swoole::dtls::Session*> *dtls_sessions;
 #endif
 
     sw_atomic_t connection_num;
@@ -646,6 +648,7 @@ int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback f
 void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg);
 void swServer_clear_timer(swServer *serv);
 int swServer_create(swServer *serv);
+swoole::dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *ls, swSocketAddress *sa);
 int swServer_shutdown(swServer *serv);
 
 void swServer_set_ipc_max_size(swServer *serv);

@@ -21,6 +21,8 @@
 #include <sys/time.h>
 #include <time.h>
 
+using namespace swoole;
+
 static int swServer_destory(swServer *serv);
 static int swServer_start_check(swServer *serv);
 static void swServer_signal_handler(int sig);
@@ -183,6 +185,116 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
     }
 
     return SW_OK;
+}
+
+dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *port, swSocketAddress *sa)
+{
+    swSocket *sock;
+    dtls::Session *session;
+    swConnection *conn;
+
+    int fd = swSocket_create(port->type);
+    if (fd < 0)
+    {
+        return nullptr;
+    }
+
+    int on = 1, off = 0;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const void*) &on, (socklen_t) sizeof(on));
+
+    switch (port->type)
+    {
+    case SW_SOCK_UDP:
+    {
+        if (inet_pton(AF_INET, port->host, &port->socket->info.addr.inet_v4.sin_addr) < 0)
+        {
+            swSysWarn("inet_pton(AF_INET, %s) failed", port->host);
+            goto _cleanup;
+        }
+        port->socket->info.addr.inet_v4.sin_port = htons(port->port);
+        port->socket->info.addr.inet_v4.sin_family = AF_INET;
+
+        if (bind(fd, (const struct sockaddr *) &port->socket->info.addr, sizeof(struct sockaddr_in)))
+        {
+            swSysWarn("bind() failed");
+            goto _cleanup;
+        }
+        if (connect(fd, (struct sockaddr *) &sa->addr, sizeof(struct sockaddr_in)))
+        {
+            swSysWarn("connect() failed");
+            goto _cleanup;
+        }
+        break;
+    }
+    case SW_SOCK_UDP6:
+    {
+        if (inet_pton(AF_INET6, port->host, &port->socket->info.addr.inet_v6.sin6_addr) < 0)
+        {
+            swSysWarn("inet_pton(AF_INET6, %s) failed", port->host);
+            goto _cleanup;
+        }
+        port->socket->info.addr.inet_v6.sin6_port = htons(port->port);
+        port->socket->info.addr.inet_v6.sin6_family = AF_INET6;
+
+        setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, (char *) &off, sizeof(off));
+        if (bind(fd, (const struct sockaddr *) &port->socket->info.addr, sizeof(struct sockaddr_in6)))
+        {
+            swSysWarn("bind() failed");
+            goto _cleanup;
+        }
+        if (connect(fd, (struct sockaddr *) &sa->addr, sizeof(struct sockaddr_in6)))
+        {
+            swSysWarn("connect() failed");
+            goto _cleanup;
+        }
+        break;
+    }
+    default:
+        OPENSSL_assert(0);
+        break;
+    }
+
+    sock = (swSocket *) sw_calloc(1, sizeof(*sock));
+    memcpy(&sock->info, sa, sizeof(*sa));
+    swoole_fcntl_set_option(fd, 1, 1);
+
+    sock->fd = fd;
+    sock->socket_type = port->type;
+    sock->nonblock = 1;
+    sock->cloexec = 1;
+
+    conn = swServer_connection_new(serv, port, sock, port->socket->fd);
+    if (conn == nullptr)
+    {
+        goto _cleanup;
+    }
+
+    session = new dtls::Session(sock, port->ssl_context);
+    port->dtls_sessions->emplace(fd, session);
+
+    if (!session->init())
+    {
+        goto _cleanup;
+    }
+
+    return session;
+
+    _cleanup:
+    if (sock)
+    {
+        sw_free(sock);
+    }
+    if (conn)
+    {
+        bzero(conn, sizeof(*conn));
+    }
+    if (session)
+    {
+        delete session;
+    }
+    close(fd);
+
+    return nullptr;
 }
 
 static int swServer_start_check(swServer *serv)
@@ -1654,23 +1766,48 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
     strncpy(ls->host, host, SW_HOST_MAXSIZE - 1);
     ls->host[SW_HOST_MAXSIZE - 1] = 0;
 
+#ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL)
     {
-        type = (enum swSocket_type) (type & (~SW_SOCK_SSL));
-        if (swSocket_is_stream(type))
+        if (swSocket_is_dgram(type))
         {
-            ls->type = type;
-            ls->ssl = 1;
-#ifdef SW_USE_OPENSSL
-            ls->ssl_config.prefer_server_ciphers = 1;
-            ls->ssl_config.session_tickets = 0;
-            ls->ssl_config.stapling = 1;
-            ls->ssl_config.stapling_verify = 1;
-            ls->ssl_config.ciphers = sw_strdup(SW_SSL_CIPHER_LIST);
-            ls->ssl_config.ecdh_curve = sw_strdup(SW_SSL_ECDH_CURVE);
-#endif
+            swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "SWOOLE_SSL can only be used for stream socket");
+            return NULL;
         }
+
+        type = (enum swSocket_type) (type & (~SW_SOCK_SSL));
+        ls->type = type;
+        ls->ssl = 1;
+        ls->ssl_config.prefer_server_ciphers = 1;
+        ls->ssl_config.session_tickets = 0;
+        ls->ssl_config.stapling = 1;
+        ls->ssl_config.stapling_verify = 1;
+        ls->ssl_config.ciphers = sw_strdup(SW_SSL_CIPHER_LIST);
+        ls->ssl_config.ecdh_curve = sw_strdup(SW_SSL_ECDH_CURVE);
+
     }
+    if (type & SW_SOCK_DTLS)
+    {
+        if (swSocket_is_stream(type) && type != SW_SOCK_UNIX_DGRAM)
+        {
+            swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "SWOOLE_DTLS can only be used for UDP/UDP6 socket");
+            return NULL;
+        }
+
+        type = (enum swSocket_type) (type & (~SW_SOCK_DTLS));
+        ls->type = type;
+        ls->ssl = 1;
+        ls->ssl_config.prefer_server_ciphers = 1;
+        ls->ssl_config.session_tickets = 0;
+        ls->ssl_config.stapling = 1;
+        ls->ssl_config.stapling_verify = 1;
+        ls->ssl_config.ciphers = sw_strdup(SW_SSL_CIPHER_LIST);
+        ls->ssl_config.ecdh_curve = sw_strdup(SW_SSL_ECDH_CURVE);
+        ls->ssl_option.method = SW_DTLS_SERVER_METHOD;
+        ls->ssl_option.dtls = 1;
+        ls->dtls_sessions = new std::unordered_map<int, swoole::dtls::Session*>;
+    }
+#endif
 
     //create server socket
     int sock = swSocket_create(ls->type);
@@ -1834,7 +1971,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, s
     _socket->buffer_size = ls->socket_buffer_size;
 
     //TCP Nodelay
-    if (ls->open_tcp_nodelay && ls->type != SW_SOCK_UNIX_STREAM)
+    if (ls->open_tcp_nodelay && (ls->type == SW_SOCK_TCP || ls->type == SW_SOCK_TCP6))
     {
         int sockopt = 1;
         if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) != 0)
