@@ -651,7 +651,9 @@ int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback f
 void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg);
 void swServer_clear_timer(swServer *serv);
 int swServer_create(swServer *serv);
+#ifdef SW_USE_OPENSSL
 swoole::dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *ls, swSocketAddress *sa);
+#endif
 int swServer_shutdown(swServer *serv);
 
 void swServer_set_ipc_max_size(swServer *serv);
