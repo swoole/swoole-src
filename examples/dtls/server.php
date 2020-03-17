@@ -1,5 +1,5 @@
 <?php
-$server = new swoole_server('0.0.0.0', 9905, SWOOLE_BASE, SWOOLE_SOCK_UDP | SWOOLE_DTLS);
+$server = new swoole_server('0.0.0.0', 9905, SWOOLE_BASE, SWOOLE_SOCK_UDP | SWOOLE_SSL);
 
 $server->set(
     [

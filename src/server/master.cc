@@ -1771,12 +1771,6 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL)
     {
-        if (swSocket_is_dgram(type))
-        {
-            swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "SWOOLE_SSL can only be used for stream socket");
-            return NULL;
-        }
-
         type = (enum swSocket_type) (type & (~SW_SOCK_SSL));
         ls->type = type;
         ls->ssl = 1;
@@ -1787,27 +1781,12 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         ls->ssl_config.ciphers = sw_strdup(SW_SSL_CIPHER_LIST);
         ls->ssl_config.ecdh_curve = sw_strdup(SW_SSL_ECDH_CURVE);
 
-    }
-    if (type & SW_SOCK_DTLS)
-    {
-        if (swSocket_is_stream(type) && type != SW_SOCK_UNIX_DGRAM)
+        if (swSocket_is_dgram(type))
         {
-            swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "SWOOLE_DTLS can only be used for UDP/UDP6 socket");
-            return NULL;
+            ls->ssl_option.method = SW_DTLS_SERVER_METHOD;
+            ls->ssl_option.dtls = 1;
+            ls->dtls_sessions = new std::unordered_map<int, swoole::dtls::Session*>;
         }
-
-        type = (enum swSocket_type) (type & (~SW_SOCK_DTLS));
-        ls->type = type;
-        ls->ssl = 1;
-        ls->ssl_config.prefer_server_ciphers = 1;
-        ls->ssl_config.session_tickets = 0;
-        ls->ssl_config.stapling = 1;
-        ls->ssl_config.stapling_verify = 1;
-        ls->ssl_config.ciphers = sw_strdup(SW_SSL_CIPHER_LIST);
-        ls->ssl_config.ecdh_curve = sw_strdup(SW_SSL_ECDH_CURVE);
-        ls->ssl_option.method = SW_DTLS_SERVER_METHOD;
-        ls->ssl_option.dtls = 1;
-        ls->dtls_sessions = new std::unordered_map<int, swoole::dtls::Session*>;
     }
 #endif
 

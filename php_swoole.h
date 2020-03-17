@@ -177,7 +177,7 @@ typedef struct
     zend_fcall_info_cache fci_cache;
 } php_swoole_fci;
 //---------------------------------------------------------
-#define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL) & (~SW_SOCK_DTLS))
+#define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 

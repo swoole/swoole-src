@@ -430,7 +430,6 @@ enum swSocket_type
     SW_SOCK_UNIX_DGRAM   =  6,  //unix sock dgram
 };
 #define SW_SOCK_SSL         (1u << 9)
-#define SW_SOCK_DTLS        (1u << 10)
 //-------------------------------------------------------------------------------
 enum swLog_level
 {
