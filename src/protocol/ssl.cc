@@ -1180,7 +1180,7 @@ int swSSL_create(swSocket *conn, SSL_CTX* ssl_context, int flags)
     {
         SSL_set_connect_state(ssl);
     }
-    else if (flags & SW_SSL_SERVER)
+    else
     {
         SSL_set_accept_state(ssl);
     }
