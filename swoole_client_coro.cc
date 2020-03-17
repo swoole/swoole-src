@@ -208,15 +208,16 @@ static Socket* client_coro_new(zval *zobject, int port)
 {
     zval *ztype = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("type"), 0);
     zend_long type = zval_get_long(ztype);
+    enum swSocket_type sock_type = (enum swSocket_type) php_swoole_socktype(type);
 
-    if ((type == SW_SOCK_TCP || type == SW_SOCK_TCP6) && (port <= 0 || port > SW_CLIENT_MAX_PORT))
+    if ((sock_type == SW_SOCK_TCP || sock_type == SW_SOCK_TCP6) && (port <= 0 || port > SW_CLIENT_MAX_PORT))
     {
         php_swoole_fatal_error(E_WARNING, "The port is invalid");
         return NULL;
     }
 
     php_swoole_check_reactor();
-    Socket *cli = new Socket((enum swSocket_type) type);
+    Socket *cli = new Socket(sock_type);
     if (UNEXPECTED(cli->get_fd() < 0))
     {
         php_swoole_sys_error(E_WARNING, "new Socket() failed");
@@ -232,6 +233,12 @@ static Socket* client_coro_new(zval *zobject, int port)
     if (type & SW_SOCK_SSL)
     {
         cli->open_ssl = true;
+    }
+    else if (type & SW_SOCK_DTLS)
+    {
+        cli->open_ssl = true;
+        cli->ssl_option.dtls = 1;
+        cli->ssl_option.method = SW_DTLS_CLIENT_METHOD;
     }
 #endif
 

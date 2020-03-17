@@ -660,6 +660,7 @@ typedef struct _swSocket
     uchar ssl_want_write :1;
     uchar ssl_renegotiation :1;
     uchar ssl_handshake_buffer_set :1;
+    uchar ssl_quiet_shutdown :1;
     uchar dtls :1;
 #endif
     uchar dontwait :1;
