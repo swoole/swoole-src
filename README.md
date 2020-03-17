@@ -436,23 +436,19 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 
 > As with any open source project, Swoole always provides the most reliable stability and the most powerful features in **the latest released version**. Please ensure as much as possible that you are using the latest version.
 
-### 1. From binary package (beginners + dev-env)
-
-See our [download page](https://www.swoole.com/page/download)
-
 ### Compiling requirements
 
 + Linux, OS X or Cygwin, WSL
 + PHP 7.0.0 or later (The higher the version, the better the performance.)
 + GCC 4.8 or later
 
-### 2. Install via PECL (beginners)
+### 1. Install via PECL (beginners)
 
 ```shell
 pecl install swoole
 ```
 
-### 3. Install from source (recommended)
+### 2. Install from source (recommended)
 
 Please download the source packages from [Releases](https://github.com/swoole/swoole-src/releases) or:
 
@@ -517,10 +513,10 @@ Enable it by adding a new line `extension=swoole_async.so` to `php.ini`.
 
 ## 🛠 Develop & Discussion
 
-+ __中文文档__: <http://wiki.swoole.com>
++ __中文文档__: <https://wiki.swoole.com>
 + __Documentation__: <https://www.swoole.co.uk/docs>
 + __IDE Helper & API__: <https://github.com/swoole/ide-helper>
-+ __中文社区__: <https://wiki.swoole.com/wiki/page/p-discussion.html>
++ __中文社区__: <https://wiki.swoole.com/#/other/discussion>
 + __Twitter__: <https://twitter.com/php_swoole>
 + __Slack Group__: <https://swoole.slack.com>
 

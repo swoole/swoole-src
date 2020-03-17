@@ -368,7 +368,7 @@ bool php_swoole_client_set(Socket *cli, zval *zset)
          */
         if (php_swoole_array_get_value(vht, "bind_address", ztmp))
         {
-            if (swSocket_bind(cli->get_fd(), cli->get_type(), zend::string(ztmp).val(), &bind_port) != SW_OK)
+            if (!cli->bind(zend::string(ztmp).val(), bind_port))
             {
                 ret = false;
             }
