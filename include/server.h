@@ -20,7 +20,10 @@
 #include "buffer.h"
 #include "connection.h"
 #include "http.h"
+
+#ifdef SW_USE_OPENSSL
 #include "dtls.h"
+#endif
 
 #include <string>
 #include <queue>
