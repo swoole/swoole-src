@@ -14,6 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
+#include "swoole_cxx.h"
 #include "server.h"
 #include "hash.h"
 #include "client.h"
@@ -170,6 +171,7 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
         }
     }
 
+#ifdef SW_USE_OPENSSL
     if (port->ssl_option.dtls)
     {
         swoole::dtls::Session *session = swServer_dtls_accept(serv, port, &pkt->socket_addr);
@@ -202,6 +204,7 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
 
         return SW_OK;
     }
+#endif
 
     if (socket_type == SW_SOCK_UDP)
     {
@@ -607,7 +610,11 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
     //listen the all tcp port
     LL_FOREACH(serv->listen_list, ls)
     {
-        if (swSocket_is_dgram(ls->type) && !ls->ssl_option.dtls)
+        if (swSocket_is_dgram(ls->type)
+#ifdef SW_USE_OPENSSL
+                && !ls->ssl_option.dtls
+#endif
+                )
         {
             continue;
         }
