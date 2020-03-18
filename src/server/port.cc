@@ -723,6 +723,10 @@ void swPort_free(swListenPort *port)
         {
             sw_free(port->ssl_option.client_cert_file);
         }
+        if (port->dtls_sessions)
+        {
+            delete port->dtls_sessions;
+        }
     }
 #endif
 

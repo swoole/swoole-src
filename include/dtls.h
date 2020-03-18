@@ -56,6 +56,16 @@ struct Session
         ctx = _ctx;
     }
 
+    ~Session()
+    {
+        while(!rxqueue.empty())
+        {
+            Buffer *buffer = rxqueue.front();
+            rxqueue.pop_front();
+            delete buffer;
+        }
+    }
+
     bool init();
     bool handshake();
 

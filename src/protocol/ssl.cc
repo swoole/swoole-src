@@ -124,7 +124,7 @@ void swSSL_init(void)
         return;
     }
 #if OPENSSL_VERSION_NUMBER >= 0x10100003L && !defined(LIBRESSL_VERSION_NUMBER)
-    OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG, NULL);
+    OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
 #else
     OPENSSL_config(NULL);
     SSL_library_init();
@@ -174,6 +174,20 @@ static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, const char *fil
     {
         pthread_mutex_unlock(&(lock_array[type]));
     }
+}
+
+static int ssl_error_cb(const char *str, size_t len, void *buf)
+{
+    memcpy(buf, str, len);
+
+    return 0;
+}
+
+const char* swSSL_get_error()
+{
+    ERR_print_errors_cb(ssl_error_cb, SwooleTG.buffer_stack->str);
+
+    return SwooleTG.buffer_stack->str;
 }
 
 static sw_inline void swSSL_clear_error(swSocket *conn)

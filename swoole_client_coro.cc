@@ -233,11 +233,6 @@ static Socket* client_coro_new(zval *zobject, int port)
     if (type & SW_SOCK_SSL)
     {
         cli->open_ssl = true;
-        if (swSocket_is_dgram(sock_type))
-        {
-            cli->ssl_option.dtls = 1;
-            cli->ssl_option.method = SW_DTLS_CLIENT_METHOD;
-        }
     }
 #endif
 

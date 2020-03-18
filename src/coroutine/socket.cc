@@ -1326,6 +1326,12 @@ bool Socket::ssl_check_context()
     {
         return true;
     }
+    if (swSocket_is_dgram(sock_type))
+    {
+        socket->dtls = 1;
+        ssl_option.dtls = 1;
+        ssl_option.method = SW_DTLS_CLIENT_METHOD;
+    }
     ssl_context = swSSL_get_context(&ssl_option);
     if (ssl_context == nullptr)
     {
@@ -1348,12 +1354,10 @@ bool Socket::ssl_handshake()
     {
         return false;
     }
-    ssl_context = swSSL_get_context(&ssl_option);
-    if (ssl_context == NULL)
+    if (!ssl_check_context())
     {
         return false;
     }
-
     if (ssl_option.verify_peer)
     {
         if (swSSL_set_capath(&ssl_option, ssl_context) < 0)

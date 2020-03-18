@@ -814,6 +814,7 @@ static int swClient_tcp_send_sync(swClient *cli, const char *data, int length, i
         written += n;
         data += n;
     }
+
     return written;
 }
 
@@ -935,6 +936,19 @@ static int swClient_udp_connect(swClient *cli, const char *host, int port, doubl
         }
     }
 
+#ifdef SW_USE_OPENSSL
+    if (cli->open_ssl)
+    {
+        udp_connect = 1;
+        cli->ssl_option.dtls = 1;
+        cli->socket->dtls = 1;
+        cli->ssl_option.method = SW_DTLS_CLIENT_METHOD;
+
+        cli->send = swClient_tcp_send_sync;
+        cli->recv = swClient_tcp_recv_no_buffer;
+    }
+#endif
+
     if (udp_connect != 1)
     {
         goto _connect_ok;
@@ -956,6 +970,19 @@ static int swClient_udp_connect(swClient *cli, const char *host, int port, doubl
             }
             execute_onConnect(cli);
         }
+#ifdef SW_USE_OPENSSL
+        if (cli->open_ssl)
+        {
+            if (swClient_enable_ssl_encrypt(cli) < 0)
+            {
+                return SW_ERR;
+            }
+            if (swClient_ssl_handshake(cli) < 0)
+            {
+                return SW_ERR;
+            }
+        }
+#endif
         return SW_OK;
     }
     else
@@ -973,8 +1000,7 @@ static int swClient_udp_connect(swClient *cli, const char *host, int port, doubl
 
 static int swClient_udp_send(swClient *cli, const char *data, int len, int flags)
 {
-    int n;
-    n = sendto(cli->socket->fd, data, len, 0, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+    int n = sendto(cli->socket->fd, data, len, 0, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
     if (n < 0 || n < len)
     {
         return SW_ERR;

@@ -160,6 +160,7 @@ int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth);
 int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx);
 int swSSL_check_host(swSocket *conn, char *tls_host_name);
 int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length);
+const char* swSSL_get_error();
 int swSSL_verify(swSocket *conn, int allow_self_signed);
 int swSSL_accept(swSocket *conn);
 int swSSL_connect(swSocket *conn);

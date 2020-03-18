@@ -188,12 +188,25 @@ bool Session::handshake()
     if (!listened)
     {
         retval = DTLSv1_listen(socket->ssl, NULL);
-        if (retval <= 0)
+        if (retval == 0)
         {
-            ERR_print_errors_fp(stderr);
+            int reason = ERR_GET_REASON(ERR_peek_error());
+            swWarn(
+                "DTLSv1_listen() failed, client[%s:%d], reason=%d, error_string=%s",
+                swSocket_get_ip(socket->socket_type, &socket->info),
+                swSocket_get_port(socket->socket_type, &socket->info),
+                reason, swSSL_get_error()
+            );
             return false;
         }
-        listened = true;
+        else if (retval < 0)
+        {
+            return errno == 0;
+        }
+        else
+        {
+            listened = true;
+        }
     }
 
     ERR_clear_error();
@@ -202,20 +215,28 @@ bool Session::handshake()
     if (retval == 1)
     {
         established = true;
-        swWarn("[1] !!!! SSL_accept -> %d\n", retval);
+        swTrace("SSL_accept() -> %d", retval);
         return true;
     }
 
     int code = SSL_get_error(socket->ssl, retval);
     if (code == SSL_ERROR_SSL)
     {
-        swWarn("[2] SSL_accept() -> %d, retval=%d, errno=%d", code, retval, errno);
-        ERR_print_errors_fp(stderr);
+        int reason = ERR_GET_REASON(ERR_peek_error());
+        const char *error_string = ERR_error_string(reason, SwooleTG.buffer_stack->str);
+        swWarn(
+            "bad SSL client[%s:%d], reason=%d, error_string=%s",
+            swSocket_get_ip(socket->socket_type, &socket->info),
+            swSocket_get_port(socket->socket_type, &socket->info),
+            reason, error_string
+        );
     }
     else
     {
-        swWarn("[3] SSL_accept() -> %d, retval=%d, errno=%d", code, retval, errno);
-        ERR_print_errors_fp(stderr);
+        if (errno != 0)
+        {
+            return false;
+        }
     }
 
     return true;
