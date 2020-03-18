@@ -793,7 +793,7 @@ PHP_FUNCTION(swoole_strerror)
     {
         RETURN_STRING(hstrerror(swoole_errno));
     }
-    else if (error_type == SW_STRERROR_SWOOLE || (swoole_errno > SW_ERROR_BEGAIN && swoole_errno < SW_ERROR_END))
+    else if (error_type == SW_STRERROR_SWOOLE || (swoole_errno > SW_ERROR_BEGIN && swoole_errno < SW_ERROR_END))
     {
         RETURN_STRING(swoole_strerror(swoole_errno));
     }
