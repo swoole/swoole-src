@@ -87,12 +87,6 @@ int BIO_create(BIO *b)
     return 1;
 }
 
-long BIO_callback_ctrl(BIO *b, int, BIO_info_cb *cb)
-{
-    swWarn("BIO_callback_ctrl(BIO[0x%016lX], %p)", b, cb);
-    return -1;
-}
-
 int BIO_destroy(BIO *b)
 {
     swTrace("BIO_destroy(BIO[0x%016lX])\n", b);
@@ -112,9 +106,7 @@ BIO_METHOD *BIO_get_methods(void)
     dtls_session_index = BIO_get_new_index();
     _bio_methods = BIO_meth_new(dtls_session_index | BIO_TYPE_SOURCE_SINK, "swoole_dtls_bio");
 
-    BIO_meth_set_write_ex(_bio_methods, BIO_write_ex);
     BIO_meth_set_write(_bio_methods, BIO_write);
-    BIO_meth_set_read_ex(_bio_methods, BIO_read_ex);
     BIO_meth_set_read(_bio_methods, BIO_read);
     BIO_meth_set_ctrl(_bio_methods, BIO_ctrl);
     BIO_meth_set_create(_bio_methods, BIO_create);
