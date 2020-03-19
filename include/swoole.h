@@ -612,7 +612,7 @@ typedef unsigned char uchar;
 #ifdef SW_USE_OPENSSL
 #include <openssl/ssl.h>
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
-#define SW_HAVE_DTLS
+#define SW_SUPPORT_DTLS
 #endif
 #endif
 

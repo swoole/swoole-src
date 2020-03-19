@@ -938,7 +938,7 @@ static int swClient_udp_connect(swClient *cli, const char *host, int port, doubl
 
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl)
-#ifdef SW_HAVE_DTLS
+#ifdef SW_SUPPORT_DTLS
     {
         udp_connect = 1;
         cli->ssl_option.dtls = 1;

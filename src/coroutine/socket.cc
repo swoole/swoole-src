@@ -1328,7 +1328,7 @@ bool Socket::ssl_check_context()
     }
     if (swSocket_is_dgram(sock_type))
     {
-#ifdef SW_HAVE_DTLS
+#ifdef SW_SUPPORT_DTLS
         socket->dtls = 1;
         ssl_option.dtls = 1;
         ssl_option.method = SW_DTLS_CLIENT_METHOD;

@@ -172,7 +172,7 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
         }
     }
 
-#ifdef SW_HAVE_DTLS
+#ifdef SW_SUPPORT_DTLS
     if (port->ssl_option.dtls)
     {
         swoole::dtls::Session *session = swServer_dtls_accept(serv, port, &pkt->socket_addr);
@@ -274,7 +274,7 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
     {
         swSSL_close(conn->socket);
     }
-#ifdef SW_HAVE_DTLS
+#ifdef SW_SUPPORT_DTLS
     if (socket->dtls)
     {
         dtls::Session *session = port->dtls_sessions->find(socket->fd)->second;
@@ -624,7 +624,7 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
     LL_FOREACH(serv->listen_list, ls)
     {
         if (swSocket_is_dgram(ls->type)
-#ifdef SW_HAVE_DTLS
+#ifdef SW_SUPPORT_DTLS
                 && !ls->ssl_option.dtls
 #endif
                 )
@@ -649,7 +649,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     }
     swListenPort *port = swServer_get_port(serv, event->fd);
 #ifdef SW_USE_OPENSSL
-#ifdef SW_HAVE_DTLS
+#ifdef SW_SUPPORT_DTLS
     if (port->ssl_option.dtls)
     {
         dtls::Buffer *buffer = (dtls::Buffer *) sw_malloc(sizeof(*buffer) + SW_BUFFER_SIZE_UDP);
@@ -669,7 +669,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     case SW_ERROR:
         return swReactorThread_close(reactor, event->socket);
     case SW_READY:
-#ifdef SW_HAVE_DTLS
+#ifdef SW_SUPPORT_DTLS
         if (event->socket->dtls)
         {
             return SW_OK;

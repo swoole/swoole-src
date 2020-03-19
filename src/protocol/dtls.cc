@@ -1,6 +1,6 @@
 #include "server.h"
 
-#ifdef SW_HAVE_DTLS
+#ifdef SW_SUPPORT_DTLS
 
 namespace swoole { namespace dtls {
 //-------------------------------------------------------------------------------
