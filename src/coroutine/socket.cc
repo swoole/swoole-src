@@ -1431,7 +1431,7 @@ bool Socket::ssl_handshake()
 
 bool Socket::ssl_accept()
 {
-    int retval;
+    enum swReturn_code retval;
     timer_controller timer(&read_timer, read_timeout, this, timer_callback);
     open_ssl = true;
 

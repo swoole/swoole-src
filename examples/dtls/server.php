@@ -15,8 +15,8 @@ $server->set(
 $server->on('Receive', function (swoole_server $serv, $fd, $tid, $data)
 {
     var_dump($fd, $data, $serv->getClientInfo($fd));
-    $serv->send($fd, "Swoole: $data");
-    echo "close dtls session\n";
+    $serv->send($fd, "Swoole: $data\n");
+    //echo "close dtls session\n";
     //$serv->close($fd);
 });
 

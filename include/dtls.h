@@ -44,7 +44,6 @@ struct Buffer
 struct Session
 {
     SSL_CTX *ctx;
-    bool established = false;
     bool listened = false;
     swSocket *socket;
     std::deque<Buffer*> rxqueue;
@@ -67,7 +66,7 @@ struct Session
     }
 
     bool init();
-    bool handshake();
+    bool listen();
 
     void append(const char* data, ssize_t len);
 };

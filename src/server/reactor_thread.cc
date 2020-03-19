@@ -42,71 +42,68 @@ static void swHeartbeatThread_start(swServer *serv);
 static void swHeartbeatThread_loop(swThreadParam *param);
 
 #ifdef SW_USE_OPENSSL
-static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swListenPort *port, swSocket *_socket)
+static inline enum swReturn_code swReactorThread_verify_ssl_state(swReactor *reactor, swListenPort *port, swSocket *_socket)
 {
     swServer *serv = (swServer *) reactor->ptr;
-
-    if (_socket->ssl_state == 0 && _socket->ssl)
+    if (!_socket->ssl || _socket->ssl_state == SW_SSL_STATE_READY)
     {
-        int ret = swSSL_accept(_socket);
-        if (ret == SW_READY)
+        return SW_CONTINUE;
+    }
+
+    enum swReturn_code code = swSSL_accept(_socket);
+    if (code != SW_READY)
+    {
+        return code;
+    }
+
+    swConnection *conn = (swConnection *) _socket->object;
+    conn->ssl_ready = 1;
+    if (port->ssl_option.client_cert_file)
+    {
+        int retval = swSSL_get_client_certificate(_socket->ssl, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
+        if (retval < 0)
         {
-            swConnection *conn = (swConnection *) _socket->object;
-            conn->ssl_ready = 1;
-            if (port->ssl_option.client_cert_file)
-            {
-                ret = swSSL_get_client_certificate(_socket->ssl, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
-                if (ret < 0)
-                {
-                    goto _no_client_cert;
-                }
-                else
-                {
-                    if (!port->ssl_option.verify_peer || swSSL_verify(_socket, port->ssl_option.allow_self_signed) == SW_OK)
-                    {
-                        swFactory *factory = &serv->factory;
-                        swSendData task;
-                        task.info.fd = _socket->fd;
-                        task.info.type = SW_SERVER_EVENT_CONNECT;
-                        task.info.reactor_id = reactor->id;
-                        task.info.len = ret;
-                        task.data = SwooleTG.buffer_stack->str;
-                        factory->dispatch(factory, &task);
-                        goto _delay_receive;
-                    }
-                    else
-                    {
-                        return SW_ERR;
-                    }
-                }
-            }
-            _no_client_cert:
             if (port->ssl_option.verify_peer)
             {
-                return SW_ERR;
+                return SW_ERROR;
             }
-            if (serv->onConnect)
-            {
-                serv->notify(serv, (swConnection *) _socket->object, SW_SERVER_EVENT_CONNECT);
-            }
-            _delay_receive:
-            if (serv->enable_delay_receive)
-            {
-                _socket->listen_wait = 1;
-                return reactor->del(reactor, _socket);
-            }
-            return SW_OK;
-        }
-        else if (ret == SW_WAIT)
-        {
-            return SW_OK;
         }
         else
         {
-            return SW_ERR;
+            if (!port->ssl_option.verify_peer || swSSL_verify(_socket, port->ssl_option.allow_self_signed) == SW_OK)
+            {
+                swFactory *factory = &serv->factory;
+                swSendData task;
+                task.info.fd = _socket->fd;
+                task.info.type = SW_SERVER_EVENT_CONNECT;
+                task.info.reactor_id = reactor->id;
+                task.info.len = retval;
+                task.data = SwooleTG.buffer_stack->str;
+                factory->dispatch(factory, &task);
+                goto _delay_receive;
+            }
+            else
+            {
+                return SW_ERROR;
+            }
         }
     }
-    return SW_OK;
+
+    if (serv->onConnect)
+    {
+        serv->notify(serv, (swConnection *) _socket->object, SW_SERVER_EVENT_CONNECT);
+    }
+    _delay_receive:
+    if (serv->enable_delay_receive)
+    {
+        _socket->listen_wait = 1;
+        if (reactor->del(reactor, _socket) < 0)
+        {
+            return SW_ERROR;
+        }
+    }
+
+    return SW_READY;
 }
 #endif
 
@@ -176,9 +173,11 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
     {
         swoole::dtls::Session *session = swServer_dtls_accept(serv, port, &pkt->socket_addr);
         session->append(pkt->data, ret);
-        if (!session->handshake())
+
+        printf("[1]listend=%d\n", session->listened);
+        if (!session->listen())
         {
-            swReactorThread_close(reactor, session->socket);
+            return swReactorThread_close(reactor, session->socket);
         }
 
         swConnection *conn = (swConnection *) session->socket->object;
@@ -645,19 +644,26 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
         buffer->length = read(event->fd, buffer->data, SW_BUFFER_SIZE_UDP);
         dtls::Session *session = port->dtls_sessions->find(event->fd)->second;
         session->rxqueue.push_back(buffer);
-
-        if (!session->established)
+        if (!session->listened && !session->listen())
         {
-            if (!session->handshake())
-            {
-                swReactorThread_close(reactor, event->socket);
-            }
+            swReactorThread_close(reactor, event->socket);
             return SW_OK;
         }
     }
-    else if (swReactorThread_verify_ssl_state(reactor, port, event->socket) < 0)
+
+    enum swReturn_code code = swReactorThread_verify_ssl_state(reactor, port, event->socket);
+    switch(code)
     {
+    case SW_ERROR:
         return swReactorThread_close(reactor, event->socket);
+    case SW_READY:
+    case SW_WAIT:
+        return SW_OK;
+    case SW_CONTINUE:
+        break;
+    default:
+        assert(0);
+        break;
     }
 #endif
 

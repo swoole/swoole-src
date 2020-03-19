@@ -824,7 +824,7 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
     return SW_ERR;
 }
 
-int swSSL_accept(swSocket *conn)
+enum swReturn_code swSSL_accept(swSocket *conn)
 {
     swSSL_clear_error(conn);
 
@@ -886,9 +886,13 @@ int swSSL_accept(swSocket *conn)
         );
         return SW_ERROR;
     }
-    //EOF was observed
     else if (err == SSL_ERROR_SYSCALL)
     {
+        if (conn->dtls && errno == 0)
+        {
+            conn->ssl_want_read = 1;
+            return SW_WAIT;
+        }
         return SW_ERROR;
     }
     swWarn("SSL_do_handshake() failed. Error: %s[%ld|%d]", strerror(errno), err, errno);
