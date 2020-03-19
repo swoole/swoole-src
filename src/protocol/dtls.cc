@@ -44,14 +44,20 @@ long BIO_ctrl(BIO *b, int cmd, long larg, void *pargs)
 {
     long ret = 0;
 
-    swTrace("BIO_ctrl(BIO[0x%016lX], cmd[%d], larg[%ld], pargs[0x%016lX])\n", b, cmd, larg, pargs);
+    swTrace("BIO_ctrl(BIO[0x%016lX], cmd[%d], larg[%ld], pargs[0x%016lX])", b, cmd, larg, pargs);
 
     switch (cmd)
     {
     case BIO_CTRL_FLUSH:
     case BIO_CTRL_DGRAM_SET_CONNECTED:
     case BIO_CTRL_DGRAM_SET_PEER:
+        ret = 1;
+        break;
     case BIO_CTRL_DGRAM_GET_PEER:
+        if (pargs)
+        {
+            memcpy(pargs, &((Session *) BIO_get_data(b))->socket->info, sizeof(swSocketAddress));
+        }
         ret = 1;
         break;
     case BIO_CTRL_WPENDING:

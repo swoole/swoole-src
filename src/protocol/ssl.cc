@@ -22,6 +22,7 @@
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+#include <openssl/rand.h>
 
 static int openssl_init = 0;
 static int ssl_connection_index = 0;
@@ -627,19 +628,88 @@ static int swSSL_check_name(char *name, ASN1_STRING *pattern)
 #endif
 
 #ifdef SW_SUPPORT_DTLS
-static char cookie_str[] = "BISCUIT!";
+
+#define COOKIE_SECRET_LENGTH (32)
+
+static void calculate_cookie(SSL* ssl, uchar *cookie_secret, uint cookie_length)
+{
+    long rv = (long) ssl;
+    long inum = (cookie_length - (((long) cookie_secret) % sizeof(long))) / sizeof(long);
+    long i = 0;
+    long *ip = (long*) cookie_secret;
+    for (i = 0; i < inum; ++i, ++ip)
+    {
+        *ip = rv;
+    }
+}
 
 static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len)
 {
-    memmove(cookie, cookie_str, sizeof(cookie_str) - 1);
-    *cookie_len = sizeof(cookie_str) - 1;
+    uchar *buffer, result[EVP_MAX_MD_SIZE];
+    uint length = 0, result_len;
+    swSocketAddress sa = {};
+
+    uchar cookie_secret[COOKIE_SECRET_LENGTH];
+    calculate_cookie(ssl, cookie_secret, sizeof(cookie_secret));
+
+    /* Read peer information */
+    (void) BIO_dgram_get_peer(SSL_get_wbio(ssl), &sa);
+
+    length = 0;
+    switch (sa.addr.ss.sa_family)
+    {
+    case AF_INET:
+        length += sizeof(struct in_addr);
+        break;
+    case AF_INET6:
+        length += sizeof(struct in6_addr);
+        break;
+    default:
+        OPENSSL_assert(0);
+        break;
+    }
+
+    length += sizeof(in_port_t);
+    buffer = (uchar*) OPENSSL_malloc(length);
+
+    if (buffer == NULL)
+    {
+        swSysWarn("out of memory");
+        return 0;
+    }
+
+    switch (sa.addr.ss.sa_family)
+    {
+    case AF_INET:
+        memcpy(buffer, &sa.addr.inet_v4.sin_port, sizeof(in_port_t));
+        memcpy(buffer + sizeof(sa.addr.inet_v4.sin_port), &sa.addr.inet_v4.sin_addr, sizeof(struct in_addr));
+        break;
+    case AF_INET6:
+        memcpy(buffer, &sa.addr.inet_v6.sin6_port, sizeof(in_port_t));
+        memcpy(buffer + sizeof(in_port_t), &sa.addr.inet_v6.sin6_addr, sizeof(struct in6_addr));
+        break;
+    default:
+        OPENSSL_assert(0);
+        break;
+    }
+
+    HMAC(EVP_sha1(), (const void*) cookie_secret, COOKIE_SECRET_LENGTH, buffer, length, result, &result_len);
+    OPENSSL_free(buffer);
+
+    memcpy(cookie, result, result_len);
+    *cookie_len = result_len;
 
     return 1;
 }
 
 static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len)
 {
-    return sizeof(cookie_str) - 1 == cookie_len && memcmp(cookie, cookie_str, sizeof(cookie_str) - 1) == 0;
+    uint result_len = 0;
+    uchar result[COOKIE_SECRET_LENGTH];
+
+    swSSL_generate_cookie(ssl, result, &result_len);
+
+    return cookie_len == result_len && memcmp(result, cookie, result_len) == 0;
 }
 #endif
 

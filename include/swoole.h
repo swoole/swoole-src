@@ -638,6 +638,7 @@ typedef struct
 {
     union
     {
+        struct sockaddr ss;
         struct sockaddr_in inet_v4;
         struct sockaddr_in6 inet_v6;
         struct sockaddr_un un;
