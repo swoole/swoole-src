@@ -1,6 +1,6 @@
 #include "server.h"
 
-#ifdef SW_USE_OPENSSL
+#ifdef SW_HAVE_DTLS
 
 namespace swoole { namespace dtls {
 //-------------------------------------------------------------------------------

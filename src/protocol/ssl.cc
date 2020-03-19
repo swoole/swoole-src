@@ -489,11 +489,13 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
         }
     }
 
+#ifdef SW_HAVE_DTLS
     if (option->dtls)
     {
         SSL_CTX_set_cookie_generate_cb(ssl_context, swSSL_generate_cookie);
         SSL_CTX_set_cookie_verify_cb(ssl_context, swSSL_verify_cookie);
     }
+#endif
 
     return ssl_context;
 }
@@ -624,6 +626,7 @@ static int swSSL_check_name(char *name, ASN1_STRING *pattern)
 }
 #endif
 
+#ifdef SW_HAVE_DTLS
 static char cookie_str[] = "BISCUIT!";
 
 static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len)
@@ -638,6 +641,7 @@ static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len)
 {
     return sizeof(cookie_str) - 1 == cookie_len && memcmp(cookie, cookie_str, sizeof(cookie_str) - 1) == 0;
 }
+#endif
 
 int swSSL_check_host(swSocket *conn, char *tls_host_name)
 {
@@ -829,11 +833,13 @@ enum swReturn_code swSSL_accept(swSocket *conn)
     swSSL_clear_error(conn);
 
     int n;
+#ifdef SW_HAVE_DTLS
     if (conn->dtls)
     {
         n = SSL_accept(conn->ssl);
     }
     else
+#endif
     {
         n = SSL_do_handshake(conn->ssl);
     }
@@ -888,11 +894,13 @@ enum swReturn_code swSSL_accept(swSocket *conn)
     }
     else if (err == SSL_ERROR_SYSCALL)
     {
+#ifdef SW_HAVE_DTLS
         if (conn->dtls && errno == 0)
         {
             conn->ssl_want_read = 1;
             return SW_WAIT;
         }
+#endif
         return SW_ERROR;
     }
     swWarn("SSL_do_handshake() failed. Error: %s[%ld|%d]", strerror(errno), err, errno);

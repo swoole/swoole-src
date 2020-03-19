@@ -17,6 +17,8 @@
 #pragma once
 
 #include "swoole_api.h"
+
+#ifdef SW_HAVE_DTLS
 #include <deque>
 
 namespace swoole { namespace dtls {
@@ -70,3 +72,4 @@ struct Session
 };
 //-------------------------------------------------------------------------------
 }}
+#endif

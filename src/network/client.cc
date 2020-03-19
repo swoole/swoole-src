@@ -938,15 +938,20 @@ static int swClient_udp_connect(swClient *cli, const char *host, int port, doubl
 
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl)
+#ifdef SW_HAVE_DTLS
     {
         udp_connect = 1;
         cli->ssl_option.dtls = 1;
         cli->socket->dtls = 1;
-        cli->ssl_option.method = SW_DTLS_CLIENT_METHOD;
-
         cli->send = swClient_tcp_send_sync;
         cli->recv = swClient_tcp_recv_no_buffer;
     }
+#else
+    {
+        swWarn("DTLS support require openssl-1.1 or later");
+        return SW_ERR;
+    }
+#endif
 #endif
 
     if (udp_connect != 1)

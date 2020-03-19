@@ -1328,9 +1328,14 @@ bool Socket::ssl_check_context()
     }
     if (swSocket_is_dgram(sock_type))
     {
+#ifdef SW_HAVE_DTLS
         socket->dtls = 1;
         ssl_option.dtls = 1;
         ssl_option.method = SW_DTLS_CLIENT_METHOD;
+#else
+        swWarn("DTLS support require openssl-1.1 or later");
+        return false;
+#endif
     }
     ssl_context = swSSL_get_context(&ssl_option);
     if (ssl_context == nullptr)

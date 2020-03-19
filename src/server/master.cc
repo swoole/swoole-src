@@ -187,7 +187,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-#ifdef SW_USE_OPENSSL
+#ifdef SW_HAVE_DTLS
 dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *port, swSocketAddress *sa)
 {
     swSocket *sock = nullptr;
@@ -1785,9 +1785,15 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
 
         if (swSocket_is_dgram(type))
         {
+#ifdef SW_HAVE_DTLS
             ls->ssl_option.method = SW_DTLS_SERVER_METHOD;
             ls->ssl_option.dtls = 1;
             ls->dtls_sessions = new std::unordered_map<int, swoole::dtls::Session*>;
+
+#else
+            swWarn("DTLS support require openssl-1.1 or later");
+            return NULL;
+#endif
         }
     }
 #endif
@@ -1799,7 +1805,7 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         swSysWarn("create socket failed");
         return NULL;
     }
-#if defined(SW_USE_OPENSSL) &&  defined(HAVE_KQUEUE)
+#if defined(SW_HAVE_DTLS) && !defined(__linux__)
     if (ls->ssl_option.dtls)
     {
         int on = 1;
