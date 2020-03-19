@@ -263,6 +263,7 @@ dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *port, swSocket
     sock->socket_type = port->type;
     sock->nonblock = 1;
     sock->cloexec = 1;
+    sock->removed = 1;
 
     conn = swServer_connection_new(serv, port, sock, port->socket->fd);
     if (conn == nullptr)

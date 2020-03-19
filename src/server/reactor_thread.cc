@@ -176,7 +176,10 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
     {
         swoole::dtls::Session *session = swServer_dtls_accept(serv, port, &pkt->socket_addr);
         session->append(pkt->data, ret);
-        session->handshake();
+        if (!session->handshake())
+        {
+            swReactorThread_close(reactor, session->socket);
+        }
 
         swConnection *conn = (swConnection *) session->socket->object;
         if (serv->single_thread)
@@ -645,7 +648,10 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
 
         if (!session->established)
         {
-            session->handshake();
+            if (!session->handshake())
+            {
+                swReactorThread_close(reactor, event->socket);
+            }
             return SW_OK;
         }
     }

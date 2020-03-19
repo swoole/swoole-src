@@ -652,28 +652,6 @@ void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg)
 void swServer_clear_timer(swServer *serv);
 int swServer_create(swServer *serv);
 
-static inline const char* swServer_if_require_callback(swServer *serv, swListenPort *port, bool isset_onReceive, bool isset_onPacket)
-{
-#ifdef SW_USE_OPENSSL
-    if (((swSocket_is_dgram(port->type) && port->ssl) || swSocket_is_stream(port->type)) && !isset_onReceive)
-#else
-    if (swSocket_is_stream(port->type) && !isset_onReceive)
-#endif
-    {
-        return "onReceive";
-    }
-#ifdef SW_USE_OPENSSL
-    if (swSocket_is_dgram(port->type) && !port->ssl && !isset_onPacket)
-#else
-    if (swSocket_is_dgram(port->type) && !isset_onPacket)
-#endif
-    {
-        return "onPacket";
-    }
-
-    return nullptr;
-}
-
 static inline bool swServer_if_require_receive_callback(swServer *serv, swListenPort *port, bool isset)
 {
 #ifdef SW_USE_OPENSSL
