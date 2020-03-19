@@ -40,20 +40,6 @@ static void BIO_meth_free(BIO_METHOD *method)
 namespace swoole { namespace dtls {
 //-------------------------------------------------------------------------------
 
-int BIO_write_ex(BIO *b, const char *data, size_t dlen, size_t *written)
-{
-    swWarn("BIO_s_custom_write_ex(BIO[0x%016lX], data[0x%016lX], dlen[%ld], *written[%ld])\n", b, data, dlen, *written);
-
-    return -1;
-}
-
-int BIO_read_ex(BIO *b, char *data, size_t dlen, size_t *readbytes)
-{
-    swWarn("BIO_read_ex(BIO[0x%016lX], data[0x%016lX], dlen[%ld], *readbytes[%ld])\n", b, data, dlen, *readbytes);
-
-    return -1;
-}
-
 int BIO_write(BIO *b, const char *data, int dlen)
 {
     swTrace("BIO_write(%d)", dlen);

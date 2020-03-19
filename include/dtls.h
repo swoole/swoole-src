@@ -22,9 +22,7 @@
 namespace swoole { namespace dtls {
 //-------------------------------------------------------------------------------
 
-int BIO_write_ex(BIO *b, const char *data, size_t dlen, size_t *written);
 int BIO_write(BIO *b, const char *data, int dlen);
-int BIO_read_ex(BIO *b, char *data, size_t dlen, size_t *readbytes);
 int BIO_read(BIO *b, char *data, int dlen);
 int BIO_gets(BIO *b, char *data, int size);
 int BIO_puts(BIO *b, const char *data);
