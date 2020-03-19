@@ -942,6 +942,7 @@ static int swClient_udp_connect(swClient *cli, const char *host, int port, doubl
     {
         udp_connect = 1;
         cli->ssl_option.dtls = 1;
+        cli->ssl_option.method = SW_DTLS_CLIENT_METHOD;
         cli->socket->dtls = 1;
         cli->send = swClient_tcp_send_sync;
         cli->recv = swClient_tcp_recv_no_buffer;
