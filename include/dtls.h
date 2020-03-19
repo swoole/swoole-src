@@ -29,6 +29,7 @@ int BIO_puts(BIO *b, const char *data);
 long BIO_ctrl(BIO *b, int cmd, long larg, void *pargs);
 int BIO_create(BIO *b);
 int BIO_destroy(BIO *b);
+long BIO_callback_ctrl(BIO *, int, BIO_info_cb *);
 BIO_METHOD *BIO_get_methods(void);
 void BIO_meth_free(void);
 

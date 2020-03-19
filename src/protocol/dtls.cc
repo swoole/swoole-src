@@ -2,41 +2,6 @@
 
 #ifdef SW_USE_OPENSSL
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-
-static BIO_METHOD *BIO_meth_new(int type, const char *name)
-{
-    BIO_METHOD *method = (BIO_METHOD *) sw_calloc(1, sizeof(*method));
-
-    if (method != NULL)
-    {
-        method->type = type;
-        method->name = name;
-    }
-
-    return method;
-}
-
-static void BIO_meth_free(BIO_METHOD *method)
-{
-    sw_free(method);
-}
-
-#define BIO_meth_set_write(b, f) (b)->bwrite = (f)
-#define BIO_meth_set_read(b, f) (b)->bread = (f)
-#define BIO_meth_set_ctrl(b, f) (b)->ctrl = (f)
-#define BIO_meth_set_create(b, f) (b)->create = (f)
-#define BIO_meth_set_destroy(b, f) (b)->destroy = (f)
-
-#define BIO_set_init(b, val) (b)->init = (val)
-#define BIO_set_data(b, val) (b)->ptr = (val)
-#define BIO_set_shutdown(b, val) (b)->shutdown = (val)
-#define BIO_get_init(b) (b)->init
-#define BIO_get_data(b) (b)->ptr
-#define BIO_get_shutdown(b) (b)->shutdown
-
-#endif
-
 namespace swoole { namespace dtls {
 //-------------------------------------------------------------------------------
 
@@ -99,12 +64,10 @@ long BIO_ctrl(BIO *b, int cmd, long larg, void *pargs)
     case BIO_CTRL_DGRAM_GET_MTU_OVERHEAD:
         ret = 96; // random guess
         break;
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
     case BIO_CTRL_DGRAM_SET_PEEK_MODE:
         ((Session *) BIO_get_data(b))->peek_mode = !!larg;
         ret = 1;
         break;
-#endif
     case BIO_CTRL_PUSH:
     case BIO_CTRL_POP:
     case BIO_CTRL_DGRAM_SET_NEXT_TIMEOUT:
@@ -124,6 +87,12 @@ int BIO_create(BIO *b)
     return 1;
 }
 
+long BIO_callback_ctrl(BIO *b, int, BIO_info_cb *cb)
+{
+    swWarn("BIO_callback_ctrl(BIO[0x%016lX], %p)", b, cb);
+    return -1;
+}
+
 int BIO_destroy(BIO *b)
 {
     swTrace("BIO_destroy(BIO[0x%016lX])\n", b);
@@ -140,18 +109,17 @@ BIO_METHOD *BIO_get_methods(void)
         return _bio_methods;
     }
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    dtls_session_index = 0;
-#else
     dtls_session_index = BIO_get_new_index();
-#endif
     _bio_methods = BIO_meth_new(dtls_session_index | BIO_TYPE_SOURCE_SINK, "swoole_dtls_bio");
 
+    BIO_meth_set_write_ex(_bio_methods, BIO_write_ex);
     BIO_meth_set_write(_bio_methods, BIO_write);
+    BIO_meth_set_read_ex(_bio_methods, BIO_read_ex);
     BIO_meth_set_read(_bio_methods, BIO_read);
     BIO_meth_set_ctrl(_bio_methods, BIO_ctrl);
     BIO_meth_set_create(_bio_methods, BIO_create);
     BIO_meth_set_destroy(_bio_methods, BIO_destroy);
+    BIO_meth_set_callback_ctrl(_bio_methods, BIO_callback_ctrl);
 
     return _bio_methods;
 }
