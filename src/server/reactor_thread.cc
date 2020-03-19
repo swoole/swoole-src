@@ -652,11 +652,16 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     }
 
     enum swReturn_code code = swReactorThread_verify_ssl_state(reactor, port, event->socket);
-    switch(code)
+    switch (code)
     {
     case SW_ERROR:
         return swReactorThread_close(reactor, event->socket);
     case SW_READY:
+        if (event->socket->dtls)
+        {
+            return SW_OK;
+        }
+        break;
     case SW_WAIT:
         return SW_OK;
     case SW_CONTINUE:
