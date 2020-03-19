@@ -49,7 +49,7 @@ typedef struct _swSSL_option
     char *capath;
     uint8_t verify_depth;
     uint8_t method;
-#ifdef SW_HAVE_DTLS
+#ifdef SW_SUPPORT_DTLS
     uint8_t dtls;
 #endif
     uchar disable_compress :1;

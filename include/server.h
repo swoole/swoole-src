@@ -210,7 +210,7 @@ struct swListenPort
     SSL_CTX *ssl_context;
     swSSL_config ssl_config;
     swSSL_option ssl_option;
-#ifdef SW_HAVE_DTLS
+#ifdef SW_SUPPORT_DTLS
     std::unordered_map<int, swoole::dtls::Session*> *dtls_sessions;
 #endif
 #endif
@@ -672,7 +672,7 @@ static inline bool swServer_if_require_packet_callback(swServer *serv, swListenP
 #endif
 }
 
-#ifdef SW_HAVE_DTLS
+#ifdef SW_SUPPORT_DTLS
 swoole::dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *ls, swSocketAddress *sa);
 #endif
 int swServer_shutdown(swServer *serv);

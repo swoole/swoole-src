@@ -18,7 +18,7 @@
 
 #include "swoole_api.h"
 
-#ifdef SW_HAVE_DTLS
+#ifdef SW_SUPPORT_DTLS
 #include <deque>
 
 namespace swoole { namespace dtls {

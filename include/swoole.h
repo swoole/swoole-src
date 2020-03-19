@@ -663,7 +663,7 @@ typedef struct _swSocket
     uchar ssl_renegotiation :1;
     uchar ssl_handshake_buffer_set :1;
     uchar ssl_quiet_shutdown :1;
-#ifdef SW_HAVE_DTLS
+#ifdef SW_SUPPORT_DTLS
     uchar dtls :1;
 #endif
 #endif
