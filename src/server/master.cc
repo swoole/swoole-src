@@ -202,6 +202,9 @@ dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *port, swSocket
 
     int on = 1, off = 0;
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const void*) &on, (socklen_t) sizeof(on));
+#ifdef HAVE_KQUEUE
+    setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, (const void*) &on, (socklen_t) sizeof(on));
+#endif
 
     switch (port->type)
     {
@@ -1796,6 +1799,13 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         swSysWarn("create socket failed");
         return NULL;
     }
+#if defined(SW_USE_OPENSSL) &&  defined(HAVE_KQUEUE)
+    if (ls->ssl_option.dtls)
+    {
+        int on = 1;
+        setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &on, (socklen_t) sizeof(on));
+    }
+#endif
     //bind address and port
     if (swSocket_bind(sock, ls->type, ls->host, &ls->port) < 0)
     {
