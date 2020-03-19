@@ -446,7 +446,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/stream.cc \
         src/network/thread_pool.cc \
         src/network/timer.cc \
-	src/network/dtls.cc \
         src/os/async_thread.cc \
         src/os/base.cc \
         src/os/msg_queue.cc \
@@ -467,6 +466,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/sha1.cc \
         src/protocol/socks5.cc \
         src/protocol/ssl.cc \
+        src/protocol/dtls.cc \
         src/protocol/websocket.cc \
         src/reactor/base.cc \
         src/reactor/epoll.cc \

@@ -12,12 +12,6 @@ $server->set(
     ]
 );
 
-$server->on('Packet', function (swoole_server $serv, $fd, $tid, $data)
-{
-    var_dump($fd, $data);
-});
-
-
 $server->on('Receive', function (swoole_server $serv, $fd, $tid, $data)
 {
     var_dump($fd, $data, $serv->getClientInfo($fd));

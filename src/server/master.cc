@@ -301,18 +301,6 @@ dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *port, swSocket
 
 static int swServer_start_check(swServer *serv)
 {
-    //stream
-    if (serv->have_stream_sock && serv->onReceive == NULL)
-    {
-        swWarn("onReceive event callback must be set");
-        return SW_ERR;
-    }
-    //dgram
-    if (serv->have_dgram_sock && serv->onPacket == NULL)
-    {
-        swWarn("onPacket event callback must be set");
-        return SW_ERR;
-    }
     //disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
@@ -411,6 +399,16 @@ static int swServer_start_check(swServer *serv)
         if (ls->protocol.package_max_length < SW_BUFFER_MIN_SIZE)
         {
             ls->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
+        }
+        if (swServer_if_require_receive_callback(serv, ls, serv->onReceive))
+        {
+            swWarn("require onReceive callback");
+            return SW_ERR;
+        }
+        if (swServer_if_require_packet_callback(serv, ls, serv->onPacket))
+        {
+            swWarn("require onPacket callback");
+            return SW_ERR;
         }
     }
 #ifdef SW_USE_OPENSSL

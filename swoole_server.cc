@@ -1203,11 +1203,12 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
         zport = server_port_list.zobjects[i];
         port = php_swoole_server_port_get_and_check_ptr(zport);
 
-        if (swSocket_is_dgram(port->type) && !php_swoole_server_isset_callback(port, SW_SERVER_CB_onPacket))
+        if (swServer_if_require_packet_callback(serv, port, php_swoole_server_isset_callback(port, SW_SERVER_CB_onPacket)))
         {
             php_swoole_fatal_error(E_ERROR, "require onPacket callback");
             return;
         }
+
 #ifdef SW_USE_OPENSSL
         if (port->ssl_option.verify_peer && !port->ssl_option.client_cert_file)
         {
