@@ -152,8 +152,12 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
 
     int socket_type = server_sock->socket_type;
 
-    _do_recvfrom: ret = recvfrom(fd, pkt->data, SwooleTG.buffer_stack->size - sizeof(*pkt), 0,
-            (struct sockaddr *) &pkt->socket_addr.addr, &pkt->socket_addr.len);
+    _do_recvfrom:
+
+    ret = recvfrom(
+        fd, pkt->data, SwooleTG.buffer_stack->size - sizeof(*pkt), 0,
+        (struct sockaddr *) &pkt->socket_addr.addr, &pkt->socket_addr.len
+    );
 
     if (ret <= 0)
     {
@@ -164,7 +168,7 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
         else
         {
             swSysWarn("recvfrom(%d) failed", fd);
-            return ret;
+            return SW_ERR;
         }
     }
 
@@ -172,6 +176,12 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
     if (port->ssl_option.dtls)
     {
         swoole::dtls::Session *session = swServer_dtls_accept(serv, port, &pkt->socket_addr);
+
+        if (!session)
+        {
+            return SW_ERR;
+        }
+
         session->append(pkt->data, ret);
 
         if (!session->listen())
