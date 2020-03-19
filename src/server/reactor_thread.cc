@@ -174,7 +174,6 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
         swoole::dtls::Session *session = swServer_dtls_accept(serv, port, &pkt->socket_addr);
         session->append(pkt->data, ret);
 
-        printf("[1]listend=%d\n", session->listened);
         if (!session->listen())
         {
             return swReactorThread_close(reactor, session->socket);
@@ -667,8 +666,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     case SW_CONTINUE:
         break;
     default:
-        assert(0);
-        break;
+        abort();
     }
 #endif
 
