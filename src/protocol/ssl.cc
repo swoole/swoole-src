@@ -47,7 +47,11 @@ static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, con
 #endif
 
 static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+static int swSSL_verify_cookie(SSL *ssl, uchar *cookie, uint cookie_len);
+#else
 static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len);
+#endif
 
 #ifdef __GNUC__
     #define MAYBE_UNUSED __attribute__((used))
@@ -634,7 +638,11 @@ static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len)
     return 1;
 }
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+static int swSSL_verify_cookie(SSL *ssl, uchar *cookie, uint cookie_len)
+#else
 static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len)
+#endif
 {
     return sizeof(cookie_str) - 1 == cookie_len && memcmp(cookie, cookie_str, sizeof(cookie_str) - 1) == 0;
 }
