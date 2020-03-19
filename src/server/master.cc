@@ -190,9 +190,9 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 #ifdef SW_USE_OPENSSL
 dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *port, swSocketAddress *sa)
 {
-    swSocket *sock;
-    dtls::Session *session;
-    swConnection *conn;
+    swSocket *sock = nullptr;
+    dtls::Session *session = nullptr;
+    swConnection *conn = nullptr;
 
     int fd = swSocket_create(port->type);
     if (fd < 0)
