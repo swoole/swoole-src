@@ -11,6 +11,7 @@
   | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  |         Twosee  <twose@qq.com>                                       |
   +----------------------------------------------------------------------+
 */
 
