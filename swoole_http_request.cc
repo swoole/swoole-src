@@ -901,13 +901,7 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
     else if (ctx->mt_parser != NULL)
     {
         multipart_parser *multipart_parser = ctx->mt_parser;
-        char *c = (char *) at;
-        while (*c == '\r' && *(c + 1) == '\n')
-        {
-            c += 2;
-            length -= 2;
-        }
-        size_t n = multipart_parser_execute(multipart_parser, c, length);
+        size_t n = multipart_parser_execute(multipart_parser, at, length);
         if (n != length)
         {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, n=%zu", n);
