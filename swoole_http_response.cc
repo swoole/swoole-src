@@ -858,11 +858,6 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
         php_swoole_error(E_WARNING, "header key is too long");
         return false;
     }
-    if (UNEXPECTED(vlen > SW_HTTP_HEADER_VALUE_SIZE - 1))
-    {
-        php_swoole_error(E_WARNING, "header value is too long");
-        return false;
-    }
     zval *zheader = swoole_http_init_and_read_property(swoole_http_response_ce, ctx->response.zobject, &ctx->response.zheader, ZEND_STRL("header"));
     if (ucwords)
     {
@@ -1180,11 +1175,6 @@ static PHP_METHOD(swoole_http_response, trailer)
     if (UNEXPECTED(klen > SW_HTTP_HEADER_KEY_SIZE - 1))
     {
         php_swoole_error(E_WARNING, "trailer key is too long");
-        RETURN_FALSE;
-    }
-    if (UNEXPECTED(vlen > SW_HTTP_HEADER_VALUE_SIZE - 1))
-    {
-        php_swoole_error(E_WARNING, "trailer value is too long");
         RETURN_FALSE;
     }
     zval *ztrailer = swoole_http_init_and_read_property(swoole_http_response_ce, ctx->response.zobject, &ctx->response.ztrailer, ZEND_STRL("trailer"));
