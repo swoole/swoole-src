@@ -123,7 +123,7 @@ static void php_swoole_http_response_free_object(zend_object *object)
 
     if (ctx)
     {
-        if (!ctx->end && !ctx->detached)
+        if (!ctx->end && !ctx->detached && sw_reactor())
         {
             if (ctx->response.status == 0)
             {
