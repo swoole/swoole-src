@@ -172,7 +172,6 @@
 
 #define SW_SSL_BUFFER_SIZE               16384
 #define SW_SSL_CIPHER_LIST               "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH"
-#define SW_SSL_ECDH_CURVE                "secp384r1"
 #define SW_SSL_NPN_ADVERTISE             "\x08http/1.1"
 #define SW_SSL_HTTP2_NPN_ADVERTISE       "\x02h2"
 
