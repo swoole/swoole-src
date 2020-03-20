@@ -866,12 +866,13 @@ static int multipart_body_on_data_end(multipart_parser* p)
 
 static int http_request_on_body(swoole_http_parser *parser, const char *at, size_t length)
 {
-    http_context *ctx = (http_context *) parser->data;
-
     if (length == 0)
     {
         return 0;
     }
+
+    http_context *ctx = (http_context *) parser->data;
+    bool is_beginning =  (ctx->request.chunked_body ? ctx->request.chunked_body->length : ctx->request.body_length) == 0;
 
     if (ctx->recv_chunked)
     {
@@ -901,6 +902,19 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
     else if (ctx->mt_parser != NULL)
     {
         multipart_parser *multipart_parser = ctx->mt_parser;
+        if (is_beginning)
+        {
+            /* Compatibility: some clients may send extra EOL */
+            do
+            {
+                if (*at != '\r' && *at != '\n')
+                {
+                    break;
+                }
+                at++;
+                length--;
+            } while (length != 0);
+        }
         size_t n = multipart_parser_execute(multipart_parser, at, length);
         if (n != length)
         {
