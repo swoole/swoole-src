@@ -955,6 +955,23 @@ typedef struct _swDataHead
 
 void swDataHead_dump(const swDataHead *data);
 
+#define swTask_type(task)                  ((task)->info.server_fd)
+
+/**
+ * use swDataHead->server_fd, 1 byte 8 bit
+ */
+enum swTask_type
+{
+    SW_TASK_TMPFILE    = 1,  //tmp file
+    SW_TASK_SERIALIZE  = 2,  //php serialize
+    SW_TASK_NONBLOCK   = 4,  //task
+    SW_TASK_CALLBACK   = 8,  //callback
+    SW_TASK_WAITALL    = 16, //for taskWaitAll
+    SW_TASK_COROUTINE  = 32, //coroutine
+    SW_TASK_PEEK       = 64, //peek
+    SW_TASK_NOREPLY    = 128, //don't reply
+};
+
 typedef struct _swEvent
 {
     int fd;
