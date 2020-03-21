@@ -345,6 +345,7 @@ int swSocket_create(int type)
         break;
     default:
         swWarn("unknown socket type [%d]", type);
+        errno = ESOCKTNOSUPPORT;
         return SW_ERR;
     }
     return socket(_domain, _type, 0);
