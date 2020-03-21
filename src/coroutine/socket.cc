@@ -594,6 +594,7 @@ Socket::Socket(int _fd, enum swSocket_type _type)
     {
         return;
     }
+    swSocket_set_nonblock(socket);
     init_options();
 }
 
