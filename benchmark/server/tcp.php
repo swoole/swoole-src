@@ -1,10 +1,12 @@
 <?php
-swoole_async_set(array('enable_reuse_port' => true));
 $serv = new Swoole\Server("0.0.0.0", 9502, SWOOLE_BASE);
 //$serv = new swoole_server("0.0.0.0", 9502);
-$serv->set(array(
-    'worker_num' => 2,
-));
+$serv->set(
+    array(
+        'worker_num' => 2,
+        'enable_reuse_port' => true,
+    )
+);
 $serv->on('workerstart', function ($server, $id) {
     global $argv;
     swoole_set_process_name("php {$argv[0]}: worker");

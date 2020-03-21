@@ -150,7 +150,7 @@ typedef struct _swClient
 } swClient;
 
 void swClient_init_reactor(swReactor *reactor);
-int swClient_create(swClient *cli, int type, int async);
+int swClient_create(swClient *cli, enum swSocket_type type, int async);
 int swClient_sleep(swClient *cli);
 int swClient_wakeup(swClient *cli);
 int swClient_shutdown(swClient *cli, int __how);
@@ -170,7 +170,7 @@ typedef struct _swStream
     swClient client;
 } swStream;
 
-swStream* swStream_new(char *dst_host, int dst_port, int type);
+swStream* swStream_new(char *dst_host, int dst_port, enum swSocket_type type);
 int swStream_send(swStream *stream, char *data, size_t length);
 void swStream_set_protocol(swProtocol *protocol);
 void swStream_set_max_length(swStream *stream, uint32_t max_length);

@@ -1,7 +1,8 @@
 <?php
+
 //$server = new swoole_websocket_server("0.0.0.0", 9502);
 $server = new swoole_websocket_server("0.0.0.0", 9502, SWOOLE_BASE);
-$server->set(['worker_num' => 4]);
+$server->set(['worker_num' => 4, 'enable_reuse_port' => true,]);
 //
 //$server->on('open', function (swoole_websocket_server $_server, swoole_http_request $request) {
 //    //echo "server#{$_server->worker_pid}: handshake success with fd#{$request->fd}\n";

@@ -60,47 +60,11 @@ void swClient_init_reactor(swReactor *reactor)
     swReactor_set_handler(reactor, SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, swClient_onError);
 }
 
-int swClient_create(swClient *cli, int type, int async)
+int swClient_create(swClient *cli, enum swSocket_type type, int async)
 {
-    int _domain;
-    int _type;
-
     bzero(cli, sizeof(swClient));
-    switch (type)
-    {
-    case SW_SOCK_TCP:
-        _domain = AF_INET;
-        _type = SOCK_STREAM;
-        break;
-    case SW_SOCK_TCP6:
-        _domain = AF_INET6;
-        _type = SOCK_STREAM;
-        break;
-    case SW_SOCK_UNIX_STREAM:
-        _domain = AF_UNIX;
-        _type = SOCK_STREAM;
-        break;
-    case SW_SOCK_UDP:
-        _domain = AF_INET;
-        _type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UDP6:
-        _domain = AF_INET6;
-        _type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UNIX_DGRAM:
-        _domain = AF_UNIX;
-        _type = SOCK_DGRAM;
-        break;
-    default:
-        return SW_ERR;
-    }
 
-#ifdef SOCK_CLOEXEC
-    int sockfd = socket(_domain, _type | SOCK_CLOEXEC, 0);
-#else
-    int sockfd = socket(_domain, _type, 0);
-#endif
+    int sockfd = swSocket_create(type, async, 1);
     if (sockfd < 0)
     {
         swSysWarn("socket() failed");
@@ -118,14 +82,8 @@ int swClient_create(swClient *cli, int type, int async)
     cli->socket->object = cli;
     cli->input_buffer_size = SW_CLIENT_BUFFER_SIZE;
 
-    if (async)
-    {
-        swSocket_set_nonblock(cli->socket);
-    }
-    else
-    {
-        cli->socket->nonblock = 0;
-    }
+    cli->socket->nonblock = async ? 1 : 0;
+    cli->socket->cloexec = 1;
 
     if (swSocket_is_stream(type))
     {
@@ -151,8 +109,7 @@ int swClient_create(swClient *cli, int type, int async)
         cli->send = swClient_udp_send;
     }
 
-    cli->_sock_domain = _domain;
-    cli->_sock_type = _type;
+    swSocket_get_domain_and_type(type, &cli->_sock_domain, &cli->_sock_type);
 
     cli->close = swClient_close;
     cli->type = type;

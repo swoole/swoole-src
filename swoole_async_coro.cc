@@ -146,20 +146,6 @@ PHP_FUNCTION(swoole_async_set)
     {
         SwooleG.enable_coroutine = zval_is_true(ztmp);
     }
-#if defined(HAVE_REUSEPORT) && defined(HAVE_EPOLL)
-    //reuse port
-    if (php_swoole_array_get_value(vht, "enable_reuse_port", ztmp))
-    {
-        if (zval_is_true(ztmp) && swoole_version_compare(SwooleG.uname.release, "3.9.0") >= 0)
-        {
-            SwooleG.reuse_port = 1;
-        }
-        else
-        {
-            SwooleG.reuse_port = 0;
-        }
-    }
-#endif
 }
 
 PHP_FUNCTION(swoole_async_dns_lookup_coro)

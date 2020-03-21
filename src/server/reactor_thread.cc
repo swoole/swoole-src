@@ -799,10 +799,6 @@ int swReactorThread_start(swServer *serv)
 
     swServer_store_listen_socket(serv);
 
-#ifdef HAVE_REUSEPORT
-    SwooleG.reuse_port = 0;
-#endif
-
     if (serv->single_thread)
     {
         swReactorThread_init(serv, reactor, 0);

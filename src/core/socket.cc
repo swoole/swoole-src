@@ -331,43 +331,46 @@ ssize_t swSocket_sendto_blocking(int fd, const void *__buf, size_t __n, int flag
     return n;
 }
 
-int swSocket_create(int type)
+int swSocket_create(enum swSocket_type type, uchar nonblock, uchar cloexec)
 {
-    int _domain;
-    int _type;
+    int sock_domain;
+    int sock_type;
 
-    switch (type)
+    if (swSocket_get_domain_and_type(type, &sock_domain, &sock_type) < 0)
     {
-    case SW_SOCK_TCP:
-        _domain = PF_INET;
-        _type = SOCK_STREAM;
-        break;
-    case SW_SOCK_TCP6:
-        _domain = PF_INET6;
-        _type = SOCK_STREAM;
-        break;
-    case SW_SOCK_UDP:
-        _domain = PF_INET;
-        _type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UDP6:
-        _domain = PF_INET6;
-        _type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UNIX_DGRAM:
-        _domain = PF_UNIX;
-        _type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UNIX_STREAM:
-        _domain = PF_UNIX;
-        _type = SOCK_STREAM;
-        break;
-    default:
         swWarn("unknown socket type [%d]", type);
         errno = ESOCKTNOSUPPORT;
         return SW_ERR;
     }
-    return socket(_domain, _type, 0);
+
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+    int flags = 0;
+    if (nonblock)
+    {
+        flags |= SOCK_NONBLOCK;
+    }
+    if (cloexec)
+    {
+        flags |= SOCK_CLOEXEC;
+    }
+    return socket(sock_domain, sock_type | flags, 0);
+#else
+    int sockfd = socket(sock_domain, sock_type, 0);
+    if (sockfd < 0)
+    {
+        return SW_ERR;
+    }
+    if (!nonblock && !cloexec)
+    {
+        return sockfd;
+    }
+    if (swoole_fcntl_set_option(sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1) < 0)
+    {
+        close(sockfd);
+        return SW_ERR;
+    }
+    return sockfd;
+#endif
 }
 
 swSocket* swSocket_new(int fd, enum swFd_type type)
@@ -412,25 +415,12 @@ int swSocket_bind(int sock, int type, const char *host, int *port)
     int ret;
     swSocketAddress address = {};
 
-    //SO_REUSEADDR option
     int option = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) != 0)
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed", sock);
     }
-    //reuse port
-#ifdef HAVE_REUSEPORT
-    if (SwooleG.reuse_port)
-    {
-        if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) != 0)
-        {
-            swSysWarn("setsockopt(SO_REUSEPORT) failed");
-            SwooleG.reuse_port = 0;
-        }
-    }
-#endif
-
-    //unix socket
+    //UnixSocket
     if (type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM)
     {
         unlink(host);
@@ -525,7 +515,7 @@ int swSocket_set_timeout(swSocket *sock, double timeout)
     return SW_OK;
 }
 
-int swSocket_create_server(int type, const char *address, int port, int backlog)
+int swSocket_create_server(enum swSocket_type type, const char *address, int port, int backlog)
 {
 #if 0
     int type;
@@ -553,7 +543,7 @@ int swSocket_create_server(int type, const char *address, int port, int backlog)
     }
 #endif
 
-    int fd = swSocket_create(type);
+    int fd = swSocket_create(type, 0, 0);
     if (fd < 0)
     {
         swSysWarn("socket() failed");

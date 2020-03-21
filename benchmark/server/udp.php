@@ -2,12 +2,15 @@
 //Swoole\Async::set(array('enable_reuse_port' => true));
 //$serv = new swoole_server("0.0.0.0", 9502, SWOOLE_BASE, SWOOLE_SOCK_UDP);
 $serv = new swoole_server("0.0.0.0", 9502, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
-$serv->set(array(
-    'dispatch_mode' => 1,
-    'worker_num' => 8,    //worker process num
+$serv->set(
+    array(
+        'dispatch_mode' => 1,
+        'enable_reuse_port' => true,
+        'worker_num' => 8,    //worker process num
 //    //'log_file' => '/tmp/swoole.log',
 //    //'daemonize' => true,
-));
+    )
+);
 
 function my_onStart($serv)
 {
