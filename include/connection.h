@@ -164,7 +164,7 @@ ssize_t swSSL_send(swSocket *conn, const void *__buf, size_t __n);
 int swSSL_sendfile(swSocket *conn, int fd, off_t *offset, size_t size);
 #endif
 
-static sw_inline int swConnection_error(int err)
+static sw_inline int swSocket_error(int err)
 {
     switch (err)
     {
@@ -247,7 +247,7 @@ static sw_inline ssize_t swSocket_recv(swSocket *conn, void *__buf, size_t __n, 
     }
 #endif
 
-    if (total_bytes < 0 && swConnection_error(errno) == SW_WAIT && conn->event_hup)
+    if (total_bytes < 0 && swSocket_error(errno) == SW_WAIT && conn->event_hup)
     {
         total_bytes = 0;
     }

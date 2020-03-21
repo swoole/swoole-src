@@ -191,7 +191,7 @@ ssize_t swSocket_write_blocking(swSocket *sock, const void *__data, size_t __len
             {
                 continue;
             }
-            else if (swConnection_error(errno) == SW_WAIT
+            else if (swSocket_error(errno) == SW_WAIT
                     && swSocket_wait(sock->fd, (int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK)
             {
                 continue;
@@ -325,7 +325,7 @@ ssize_t swSocket_sendto_blocking(int fd, const void *__buf, size_t __n, int flag
         {
             continue;
         }
-        if (swConnection_error(errno) == SW_WAIT
+        if (swSocket_error(errno) == SW_WAIT
                 && swSocket_wait(fd, (int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK)
         {
             continue;
@@ -421,7 +421,7 @@ int swSocket_bind(swSocket *sock, const char *host, int *port)
     swSocketAddress address = {};
 
     int option = 1;
-    if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) != 0)
+    if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed", sock->fd);
     }

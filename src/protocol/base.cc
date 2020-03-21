@@ -139,7 +139,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swSocket *conn, swString 
     recv_n = swSocket_recv(conn, buffer->str + buffer->length, recv_size, 0);
     if (recv_n < 0)
     {
-        switch (swConnection_error(errno))
+        switch (swSocket_error(errno))
         {
         case SW_ERROR:
             swSysWarn("recv(%d, %d) failed", conn->fd, recv_size);
@@ -269,7 +269,7 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swSocket *conn, swString *bu
     int n = swSocket_recv(conn, buf_ptr, buf_size, 0);
     if (n < 0)
     {
-        switch (swConnection_error(errno))
+        switch (swSocket_error(errno))
         {
         case SW_ERROR:
             swSysWarn("recv from socket#%d failed", conn->fd);

@@ -532,7 +532,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         ret = swSocket_send(ev->socket, chunk->store.ptr, chunk->length, 0);
         if (ret < 0)
         {
-            return (swConnection_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
+            return (swSocket_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
         }
         else
         {

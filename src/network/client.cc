@@ -1203,7 +1203,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
     n = swSocket_recv(event->socket, buf, buf_size, 0);
     if (n < 0)
     {
-        switch (swConnection_error(errno))
+        switch (swSocket_error(errno))
         {
         case SW_ERROR:
             swSysWarn("Read from socket[%d] failed", event->fd);

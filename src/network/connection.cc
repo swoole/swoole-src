@@ -73,7 +73,7 @@ int swSocket_onSendfile(swSocket *conn, swBuffer_chunk *chunk)
 
     if (ret <= 0)
     {
-        switch (swConnection_error(errno))
+        switch (swSocket_error(errno))
         {
         case SW_ERROR:
             swSysWarn("sendfile(%s, %ld, %d) failed", task->filename, (long)task->offset, sendn);
@@ -139,7 +139,7 @@ int swSocket_buffer_send(swSocket *conn)
     ssize_t ret = swSocket_send(conn, (char*) chunk->store.ptr + chunk->offset, sendn, 0);
     if (ret < 0)
     {
-        switch (swConnection_error(errno))
+        switch (swSocket_error(errno))
         {
         case SW_ERROR:
             swSysWarn("send to fd[%d] failed", conn->fd);
