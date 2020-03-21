@@ -174,7 +174,7 @@ swStream* swStream_new(char *dst_host, int dst_port, enum swSocket_type type);
 int swStream_send(swStream *stream, char *data, size_t length);
 void swStream_set_protocol(swProtocol *protocol);
 void swStream_set_max_length(swStream *stream, uint32_t max_length);
-int swStream_recv_blocking(int fd, void *__buf, size_t __len);
+int swStream_recv_blocking(swSocket *sock, void *__buf, size_t __len);
 //----------------------------------------Stream End------------------------------------
 
 SW_EXTERN_C_END

@@ -1518,7 +1518,7 @@ char* swoole_string_format(size_t n, const char *format, ...);
 int swoole_get_systemd_listen_fds();
 //----------------------core function---------------------
 int swSocket_set_timeout(swSocket *sock, double timeout);
-int swSocket_create_server(enum swSocket_type type, const char *address, int port, int backlog);
+swSocket* swSocket_create_server(enum swSocket_type type, const char *address, int port, int backlog);
 //----------------------------------------Socket---------------------------------------
 static sw_inline int swSocket_is_dgram(uint8_t type)
 {
@@ -1582,8 +1582,8 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
 swSocket* swSocket_new(int fd, enum swFd_type type);
 void swSocket_free(swSocket *sock);
 int swSocket_create(enum swSocket_type type, uchar nonblock, uchar cloexec);
-int swSocket_bind(int sock, int type, const char *host, int *port);
-swSocket* swSocket_accept(swSocket *sock, swSocketAddress *sa);
+int swSocket_bind(swSocket *sock, const char *host, int *port);
+swSocket* swSocket_accept(swSocket *server_socket, swSocketAddress *sa);
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
@@ -1593,8 +1593,8 @@ ssize_t swSocket_udp_sendto(int server_sock, const char *dst_ip, int dst_port, c
 ssize_t swSocket_udp_sendto6(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len);
 ssize_t swSocket_unix_sendto(int server_sock, const char *dst_path, const char *data, uint32_t len);
 int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t length, double timeout);
-ssize_t swSocket_write_blocking(int __fd, const void *__data, size_t __len);
-ssize_t swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
+ssize_t swSocket_write_blocking(swSocket *sock, const void *__data, size_t __len);
+ssize_t swSocket_recv_blocking(swSocket *sock, void *__data, size_t __len, int flags);
 
 static sw_inline int swSocket_set_nonblock(swSocket *sock)
 {
@@ -1851,8 +1851,8 @@ struct _swWorker
 
 typedef struct
 {
-    int socket;
-    int last_connection;
+    swSocket *socket;
+    swSocket *last_connection;
     char *socket_file;
     swString *response_buffer;
 } swStreamInfo;

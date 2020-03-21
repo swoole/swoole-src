@@ -88,7 +88,7 @@ struct swReactorThread
 {
     pthread_t thread_id;
     swReactor reactor;
-    int notify_pipe;
+    swSocket *notify_pipe;
     uint32_t pipe_num;
     swSocket *pipe_sockets;
     std::unordered_map<int, swString *> *send_buffers;

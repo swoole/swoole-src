@@ -177,14 +177,14 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
     return SW_OK;
 }
 
-ssize_t swSocket_write_blocking(int __fd, const void *__data, size_t __len)
+ssize_t swSocket_write_blocking(swSocket *sock, const void *__data, size_t __len)
 {
     ssize_t n = 0;
     ssize_t written = 0;
 
     while (written < (ssize_t) __len)
     {
-        n = write(__fd, (char *) __data + written, __len - written);
+        n = write(sock->fd, (char *) __data + written, __len - written);
         if (n < 0)
         {
             if (errno == EINTR)
@@ -192,7 +192,7 @@ ssize_t swSocket_write_blocking(int __fd, const void *__data, size_t __len)
                 continue;
             }
             else if (swConnection_error(errno) == SW_WAIT
-                    && swSocket_wait(__fd, (int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK)
+                    && swSocket_wait(sock->fd, (int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK)
             {
                 continue;
             }
@@ -233,17 +233,22 @@ ssize_t swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags)
     return read_bytes;
 }
 
-swSocket* swSocket_accept(swSocket *sock, swSocketAddress *sa)
+swSocket* swSocket_accept(swSocket *server_socket, swSocketAddress *sa)
 {
     int conn;
     sa->len = sizeof(sa->addr);
 #ifdef HAVE_ACCEPT4
-    conn = accept4(sock->fd, (struct sockaddr *) &sa->addr, &sa->len, SOCK_NONBLOCK | SOCK_CLOEXEC);
+    int flags = SOCK_CLOEXEC;
+    if (server_socket->nonblock)
+    {
+        flags |= SOCK_NONBLOCK;
+    }
+    conn = accept4(server_socket->fd, (struct sockaddr *) &sa->addr, &sa->len, flags);
 #else
-    conn = accept(sock->fd, (struct sockaddr *) &sa->addr, &sa->len);
+    conn = accept(server_socket->fd, (struct sockaddr *) &sa->addr, &sa->len);
     if (conn >= 0)
     {
-        swoole_fcntl_set_option(conn, 1, 1);
+        swoole_fcntl_set_option(conn, server_socket->nonblock, 1);
     }
 #endif
 
@@ -259,8 +264,8 @@ swSocket* swSocket_accept(swSocket *sock, swSocketAddress *sa)
     }
     else
     {
-        socket->socket_type = sock->socket_type;
-        socket->nonblock = 1;
+        socket->socket_type = server_socket->socket_type;
+        socket->nonblock = server_socket->nonblock;
         socket->cloexec = 1;
         memcpy(&socket->info.addr, sa, sa->len);
         socket->info.len = sa->len;
@@ -410,26 +415,26 @@ void swSocket_free(swSocket *sock)
     }
 }
 
-int swSocket_bind(int sock, int type, const char *host, int *port)
+int swSocket_bind(swSocket *sock, const char *host, int *port)
 {
     int ret;
     swSocketAddress address = {};
 
     int option = 1;
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) != 0)
+    if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) != 0)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed", sock);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed", sock->fd);
     }
     //UnixSocket
-    if (type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM)
+    if (sock->socket_type == SW_SOCK_UNIX_DGRAM || sock->socket_type == SW_SOCK_UNIX_STREAM)
     {
         unlink(host);
         address.addr.un.sun_family = AF_UNIX;
         strncpy(address.addr.un.sun_path, host, sizeof(address.addr.un.sun_path) - 1);
-        ret = bind(sock, (struct sockaddr *) &address.addr.un, sizeof(address.addr.un));
+        ret = bind(sock->fd, (struct sockaddr *) &address.addr.un, sizeof(address.addr.un));
     }
     //IPv6
-    else if (type > SW_SOCK_UDP)
+    else if (sock->socket_type > SW_SOCK_UDP)
     {
         if (inet_pton(AF_INET6, host, &address.addr.inet_v6.sin6_addr) < 0)
         {
@@ -438,11 +443,11 @@ int swSocket_bind(int sock, int type, const char *host, int *port)
         }
         address.addr.inet_v6.sin6_port = htons(*port);
         address.addr.inet_v6.sin6_family = AF_INET6;
-        ret = bind(sock, (struct sockaddr *) &address.addr.inet_v6, sizeof(address.addr.inet_v6));
+        ret = bind(sock->fd, (struct sockaddr *) &address.addr.inet_v6, sizeof(address.addr.inet_v6));
         if (ret == 0 && *port == 0)
         {
             address.len = sizeof(address.addr.inet_v6);
-            if (getsockname(sock, (struct sockaddr *) &address.addr.inet_v6, &address.len) != -1)
+            if (getsockname(sock->fd, (struct sockaddr *) &address.addr.inet_v6, &address.len) != -1)
             {
                 *port = ntohs(address.addr.inet_v6.sin6_port);
             }
@@ -458,11 +463,11 @@ int swSocket_bind(int sock, int type, const char *host, int *port)
         }
         address.addr.inet_v4.sin_port = htons(*port);
         address.addr.inet_v4.sin_family = AF_INET;
-        ret = bind(sock, (struct sockaddr *) &address.addr.inet_v4, sizeof(address.addr.inet_v4));
+        ret = bind(sock->fd, (struct sockaddr *) &address.addr.inet_v4, sizeof(address.addr.inet_v4));
         if (ret == 0 && *port == 0)
         {
             address.len = sizeof(address.addr.inet_v4);
-            if (getsockname(sock, (struct sockaddr *) &address.addr.inet_v4, &address.len) != -1)
+            if (getsockname(sock->fd, (struct sockaddr *) &address.addr.inet_v4, &address.len) != -1)
             {
                 *port = ntohs(address.addr.inet_v4.sin_port);
             }
@@ -515,53 +520,32 @@ int swSocket_set_timeout(swSocket *sock, double timeout)
     return SW_OK;
 }
 
-int swSocket_create_server(enum swSocket_type type, const char *address, int port, int backlog)
+swSocket* swSocket_create_server(enum swSocket_type type, const char *address, int port, int backlog)
 {
-#if 0
-    int type;
-    char host[32];
-    int port = 0;
-
-    if (SW_STRCASECT(address, strlen(address), "unix:/"))
-    {
-        address += 5;
-        type = SW_SOCK_UNIX_STREAM;
-    }
-    else
-    {
-        char *port_str = strchr(address, ':');
-        if (!port_str)
-        {
-            swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "invalid address[%s]", address);
-            return SW_ERR;
-        }
-        type = SW_SOCK_TCP6;
-        memcpy(host, address, port_str - address);
-        host[port_str - address] = 0;
-        port = atoi(port_str + 1);
-        address = host;
-    }
-#endif
-
     int fd = swSocket_create(type, 0, 0);
     if (fd < 0)
     {
         swSysWarn("socket() failed");
-        return SW_ERR;
+        return nullptr;
     }
-
-    if (swSocket_bind(fd, type, address, &port) < 0)
+    swSocket *sock = swSocket_new(fd, SW_FD_STREAM_SERVER);
+    if (!sock)
     {
         close(fd);
-        return SW_ERR;
+        return nullptr;
     }
-
+    sock->socket_type = type;
+    if (swSocket_bind(sock, address, &port) < 0)
+    {
+        swSocket_free(sock);
+        return nullptr;
+    }
     if (listen(fd, backlog) < 0)
     {
         swSysWarn("listen(%s:%d, %d) failed", address, port, backlog);
-        close(fd);
-        return SW_ERR;
+        swSocket_free(sock);
+        return nullptr;
     }
 
-    return fd;
+    return sock;
 }

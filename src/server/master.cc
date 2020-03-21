@@ -436,6 +436,7 @@ int swServer_create_task_workers(swServer *serv)
             return SW_ERR;
         }
     }
+
     return SW_OK;
 }
 
@@ -1341,7 +1342,7 @@ static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uin
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "send %d byte failed, because session#%d is closed", length, session_id);
         return SW_ERR;
     }
-    return swSocket_write_blocking(conn->fd, data, length);
+    return swSocket_write_blocking(conn->socket, data, length);
 }
 
 static sw_inline swString *swServer_worker_get_input_buffer(swServer *serv, int reactor_id)
@@ -1541,8 +1542,6 @@ SW_API int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCal
 
 static void swServer_check_port_type(swServer *serv, swListenPort *ls)
 {
-    ls->socket->socket_type = ls->type;
-
     if (swSocket_is_dgram(ls->type))
     {
         //dgram socket, setting socket buffer size
@@ -1678,21 +1677,21 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         swSysWarn("create socket failed");
         return NULL;
     }
-    //bind address and port
-    if (swSocket_bind(sock, ls->type, ls->host, &ls->port) < 0)
-    {
-        close(sock);
-        return NULL;
-    }
     ls->socket = swSocket_new(sock, swSocket_is_dgram(ls->type) ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
     if (ls->socket == nullptr)
     {
         close(sock);
         return nullptr;
     }
-    swServer_check_port_type(serv, ls);
     ls->socket->nonblock = 1;
     ls->socket->cloexec = 1;
+    ls->socket->socket_type = ls->type;
+    if (swSocket_bind(ls->socket, ls->host, &ls->port) < 0)
+    {
+        swSocket_free(ls->socket);
+        return NULL;
+    }
+    swServer_check_port_type(serv, ls);
 
     LL_APPEND(serv->listen_list, ls);
     serv->listen_port_num++;

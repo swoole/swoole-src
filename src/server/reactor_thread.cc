@@ -481,7 +481,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, si
     }
     else
     {
-        return swSocket_write_blocking(worker->pipe_master->fd, data, len);
+        return swSocket_write_blocking(worker->pipe_master, data, len);
     }
 }
 
@@ -978,9 +978,9 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
         {
             return SW_ERR;
         }
-        if (thread->notify_pipe == 0)
+        if (thread->notify_pipe == nullptr)
         {
-            thread->notify_pipe = serv->workers[i].pipe_worker->fd;
+            thread->notify_pipe = serv->workers[i].pipe_worker;
         }
         thread->pipe_num++;
     }

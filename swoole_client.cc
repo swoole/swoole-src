@@ -505,7 +505,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
         if (php_swoole_array_get_value(vht, "bind_address", ztmp))
         {
             zend::string str_v(ztmp);
-            swSocket_bind(cli->socket->fd, cli->type, str_v.val(), &bind_port);
+            swSocket_bind(cli->socket, str_v.val(), &bind_port);
         }
     }
     /**
