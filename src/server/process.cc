@@ -152,8 +152,6 @@ static int swFactoryProcess_start(swFactory *factory)
         {
             return SW_ERR;
         }
-        int _reuse_port = SwooleG.reuse_port;
-        SwooleG.reuse_port = 0;
         int sock_fd = swSocket_create_server(SW_SOCK_UNIX_STREAM, serv->stream_socket_file, 0, 2048);
         if (sock_fd < 0)
         {
@@ -167,7 +165,6 @@ static int swFactoryProcess_start(swFactory *factory)
         }
         swoole_fcntl_set_option(sock_fd, 1, 1);
         serv->stream_socket->nonblock = 1;
-        SwooleG.reuse_port = _reuse_port;
     }
 
     for (uint32_t i = 0; i < serv->worker_num; i++)

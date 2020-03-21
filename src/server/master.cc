@@ -1672,7 +1672,7 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
     }
 
     //create server socket
-    int sock = swSocket_create(ls->type);
+    int sock = swSocket_create(ls->type, 1, 1);
     if (sock < 0)
     {
         swSysWarn("create socket failed");
@@ -1684,8 +1684,6 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         close(sock);
         return NULL;
     }
-    //O_NONBLOCK & O_CLOEXEC
-    swoole_fcntl_set_option(sock, 1, 1);
     ls->socket = swSocket_new(sock, swSocket_is_dgram(ls->type) ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
     if (ls->socket == nullptr)
     {
@@ -1693,6 +1691,8 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         return nullptr;
     }
     swServer_check_port_type(serv, ls);
+    ls->socket->nonblock = 1;
+    ls->socket->cloexec = 1;
 
     LL_APPEND(serv->listen_list, ls);
     serv->listen_port_num++;

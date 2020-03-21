@@ -177,9 +177,11 @@ typedef struct
     zend_fcall_info_cache fci_cache;
 } php_swoole_fci;
 //---------------------------------------------------------
-#define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
 
-#define SW_LONG_CONNECTION_KEY_LEN          64
+static sw_inline enum swSocket_type php_swoole_socktype(long type)
+{
+    return (enum swSocket_type) (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL));
+}
 
 extern zend_class_entry *swoole_event_ce;
 extern zend_class_entry *swoole_timer_ce;

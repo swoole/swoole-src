@@ -8,13 +8,16 @@ define('R_DATA', random_bytes(N));
 //$serv = new swoole_server("0.0.0.0", 9502, SWOOLE_BASE);
 $serv = new Server("0.0.0.0", 9502);
 
-$serv->set(array(
+$serv->set(
+    array(
 //	'worker_num' => 1,
 //	'dispatch_mode' => 7,
-    'open_length_check' => true,
-    "package_length_type" => 'N',
-    'package_body_offset' => 4,
-));
+        'open_length_check' => true,
+        "package_length_type" => 'N',
+        'package_body_offset' => 4,
+        'enable_reuse_port' => true,
+    )
+);
 
 $serv->on('workerstart', function ($server, $id) {
     global $argv;

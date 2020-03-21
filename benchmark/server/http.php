@@ -12,6 +12,7 @@ $pool = [];
 $http->set([
 //    'worker_num' => 4,
     'hook_flags' => SWOOLE_HOOK_ALL,
+               'enable_reuse_port' => true,
 ]);
 
 $http->on('request', function (Request $request, Response $response) use (&$pool) {

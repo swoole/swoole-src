@@ -73,7 +73,8 @@ int swReactorProcess_start(swServer *serv)
             {
                 continue;
             }
-            if (SwooleG.reuse_port)
+#ifdef HAVE_REUSEPORT
+            if (serv->enable_reuse_port)
             {
                 if (close(ls->socket->fd) < 0)
                 {
@@ -82,6 +83,7 @@ int swReactorProcess_start(swServer *serv)
                 continue;
             }
             else
+#endif
             {
                 //listen server socket
                 if (swPort_listen(ls) < 0)
@@ -336,7 +338,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     {
         fdtype = swSocket_is_dgram(ls->type) ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
 #ifdef HAVE_REUSEPORT
-        if (fdtype == SW_FD_STREAM_SERVER && SwooleG.reuse_port)
+        if (fdtype == SW_FD_STREAM_SERVER && serv->enable_reuse_port)
         {
             if (swReactorProcess_reuse_port(ls) < 0)
             {
@@ -636,10 +638,16 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
 static int swReactorProcess_reuse_port(swListenPort *ls)
 {
     //create new socket
-    int sock = swSocket_create(ls->type);
+    int sock = swSocket_create(ls->type, 1, 1);
     if (sock < 0)
     {
         swSysWarn("create socket failed");
+        return SW_ERR;
+    }
+    int option = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) != 0)
+    {
+        close(sock);
         return SW_ERR;
     }
     //bind address and port
@@ -654,6 +662,8 @@ static int swReactorProcess_reuse_port(swListenPort *ls)
         swSocket_set_nonblock(ls->socket);
     }
     ls->socket->fd = sock;
+    ls->socket->nonblock = 1;
+    ls->socket->cloexec = 1;
     return swPort_listen(ls);
 }
 #endif

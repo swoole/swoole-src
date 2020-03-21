@@ -531,43 +531,12 @@ bool Socket::http_proxy_handshake()
 void Socket::init_sock_type(enum swSocket_type _sw_type)
 {
     type = _sw_type;
-    switch (type)
-    {
-    case SW_SOCK_TCP6:
-        sock_domain = AF_INET6;
-        sock_type = SOCK_STREAM;
-        break;
-    case SW_SOCK_UNIX_STREAM:
-        sock_domain = AF_UNIX;
-        sock_type = SOCK_STREAM;
-        break;
-    case SW_SOCK_UDP:
-        sock_domain = AF_INET;
-        sock_type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UDP6:
-        sock_domain = AF_INET6;
-        sock_type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UNIX_DGRAM:
-        sock_domain = AF_UNIX;
-        sock_type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_TCP:
-    default:
-        sock_domain = AF_INET;
-        sock_type = SOCK_STREAM;
-        break;
-    }
+    swSocket_get_domain_and_type(_sw_type, &sock_domain, &sock_type);
 }
 
 bool Socket::init_sock()
 {
-#ifdef SOCK_CLOEXEC
-    int _fd = ::socket(sock_domain, sock_type | SOCK_CLOEXEC, sock_protocol);
-#else
-    int _fd = ::socket(sock_domain, sock_type, sock_protocol);
-#endif
+    int _fd = swSocket_create(type, 1, 1);
     if (sw_unlikely(_fd < 0))
     {
         return false;
@@ -591,7 +560,8 @@ bool Socket::init_reactor_socket(int _fd)
     sock_fd = _fd;
     socket->object = this;
     socket->socket_type = type;
-    swSocket_set_nonblock(socket);
+    socket->nonblock = 1;
+    socket->cloexec = 1;
 
     return true;
 }
@@ -1168,16 +1138,6 @@ bool Socket::bind(std::string address, int port)
     {
         swSysWarn("setsockopt(%d, SO_REUSEADDR) failed", sock_fd);
     }
-#ifdef HAVE_REUSEPORT
-    if (SwooleG.reuse_port)
-    {
-        if (::setsockopt(sock_fd, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
-        {
-            swSysWarn("setsockopt(SO_REUSEPORT) failed");
-            SwooleG.reuse_port = 0;
-        }
-    }
-#endif
 
     int retval;
     socklen_t len;

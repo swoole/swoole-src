@@ -8,10 +8,13 @@ define('R_DATA', base64_encode(random_bytes(N)));
 //$serv = new swoole_server("0.0.0.0", 9502, SWOOLE_BASE);
 $serv = new Server("0.0.0.0", 9502);
 
-$serv->set(array(
-    'open_eof_check' => true,
-    'package_eof' => "\r\n",
-));
+$serv->set(
+    array(
+        'open_eof_check' => true,
+        'package_eof' => "\r\n",
+        'enable_reuse_port' => true,
+    )
+);
 
 $serv->on('workerstart', function ($server, $id) {
     global $argv;

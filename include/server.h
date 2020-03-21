@@ -416,6 +416,10 @@ struct swServer
      */
     uchar enable_delay_receive :1;
     /**
+     * reuse port
+     */
+    uchar enable_reuse_port :1;
+    /**
      * asynchronous reloading
      */
     uchar reload_async :1;
