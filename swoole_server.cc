@@ -2532,15 +2532,10 @@ static PHP_METHOD(swoole_server, set)
     {
         serv->enable_delay_receive = zval_is_true(ztmp);
     }
-    //reuse port
-#ifdef __linux__
+#if defined(__linux__) and defined(HAVE_REUSEPORT)
     if (php_swoole_array_get_value(vht, "enable_reuse_port", ztmp))
     {
         serv->enable_reuse_port = zval_is_true(ztmp);
-        if (swoole_version_compare(SwooleG.uname.release, "3.9.0") < 0)
-        {
-            serv->enable_reuse_port = 0;
-        }
     }
 #endif
     //task use object
