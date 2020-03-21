@@ -1,4 +1,5 @@
 <?php
+require __DIR__.'/functions.php';
 //$server = new swoole_websocket_server("0.0.0.0", 9502);
 $server = new swoole_websocket_server("0.0.0.0", 9502, SWOOLE_BASE);
 $server->set(['worker_num' => 4]);
@@ -13,7 +14,7 @@ $server->on('message', function (swoole_websocket_server $_server, $frame) {
     //var_dump($frame);
     //echo "received ".strlen($frame->data)." bytes\n";
     //echo "receive from {$fd}:{$data},opcode:{$opcode},fin:{$fin}\n";
-    $_server->push($frame->fd, "server:" . $frame->data);
+    $_server->push($frame->fd, SwooleBench\get_response($frame->data));
     //	$_server->close($frame->fd);
 });
 

@@ -48,7 +48,16 @@ class RunTest extends Command
 
         $f = $input->getArgument('method');
         $test = new Base($c, $n, $s, $f);
+
+        if ($input->hasOption('length')) {
+            $len = $input->getOption('length');
+            $test->setDataLength($len);
+        }
+
+        if ($input->getOption('verbose')) {
+            $test->setVerbose();
+        }
+
         $test->run();
     }
-
 }

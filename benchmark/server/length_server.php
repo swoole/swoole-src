@@ -1,4 +1,5 @@
 <?php
+require __DIR__.'/functions.php';
 Swoole\Async::set(array('enable_reuse_port' => true));
 //$serv = new swoole_server("0.0.0.0", 9502, SWOOLE_BASE);
 
