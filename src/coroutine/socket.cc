@@ -594,6 +594,7 @@ Socket::Socket(int _fd, enum swSocket_type _type)
     {
         return;
     }
+    swSocket_set_nonblock(socket);
     init_options();
 }
 
@@ -605,6 +606,7 @@ Socket::Socket(int _fd, int _domain, int _type, int _protocol) :
     {
         return;
     }
+    swSocket_set_nonblock(socket);
     init_options();
 }
 
