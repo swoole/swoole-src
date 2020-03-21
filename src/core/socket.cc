@@ -208,7 +208,7 @@ ssize_t swSocket_write_blocking(swSocket *sock, const void *__data, size_t __len
     return written;
 }
 
-ssize_t swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags)
+ssize_t swSocket_recv_blocking(swSocket *sock, void *__data, size_t __len, int flags)
 {
     ssize_t ret;
     size_t read_bytes = 0;
@@ -216,7 +216,7 @@ ssize_t swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags)
     while (read_bytes != __len)
     {
         errno = 0;
-        ret = recv(fd, (char *) __data + read_bytes, __len - read_bytes, flags);
+        ret = recv(sock->fd, (char *) __data + read_bytes, __len - read_bytes, flags);
         if (ret > 0)
         {
             read_bytes += ret;
