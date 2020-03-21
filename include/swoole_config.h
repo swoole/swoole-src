@@ -172,7 +172,6 @@
 
 #define SW_SSL_BUFFER_SIZE               16384
 #define SW_SSL_CIPHER_LIST               "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH"
-#define SW_SSL_ECDH_CURVE                "secp384r1"
 #define SW_SSL_NPN_ADVERTISE             "\x08http/1.1"
 #define SW_SSL_HTTP2_NPN_ADVERTISE       "\x02h2"
 
@@ -201,8 +200,6 @@
 #define SW_HTTP_RESPONSE_INIT_SIZE       65536
 #define SW_HTTP_HEADER_MAX_SIZE          65536
 #define SW_HTTP_HEADER_KEY_SIZE          128
-#define SW_HTTP_HEADER_VALUE_SIZE        4096
-#define SW_HTTP_HEADER_BUFFER_SIZE       128
 #define SW_HTTP_UPLOAD_TMPDIR_SIZE       256
 #define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"
 #define SW_HTTP_RFC1123_DATE_GMT         "%a, %d %b %Y %T GMT"

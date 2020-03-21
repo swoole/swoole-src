@@ -1781,7 +1781,6 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         ls->ssl_config.stapling = 1;
         ls->ssl_config.stapling_verify = 1;
         ls->ssl_config.ciphers = sw_strdup(SW_SSL_CIPHER_LIST);
-        ls->ssl_config.ecdh_curve = sw_strdup(SW_SSL_ECDH_CURVE);
 
         if (swSocket_is_dgram(type))
         {

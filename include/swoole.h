@@ -11,6 +11,7 @@
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  |         Twosee  <twose@qq.com>                                       |
   +----------------------------------------------------------------------+
 */
 
@@ -98,25 +99,6 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #endif
 #endif
 
-/*----------------------------------------------------------------------------*/
-
-#define SWOOLE_MAJOR_VERSION      4
-#define SWOOLE_MINOR_VERSION      5
-#define SWOOLE_RELEASE_VERSION    0
-#define SWOOLE_EXTRA_VERSION      "alpha"
-#define SWOOLE_VERSION            "4.5.0-alpha"
-#define SWOOLE_VERSION_ID         40500
-#define SWOOLE_BUG_REPORT \
-    "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
-    "The Swoole developers probably don't know about it,\n"\
-    "and unless you report it, chances are it won't be fixed.\n"\
-    "You can read How to report a bug doc before submitting any bug reports:\n"\
-    ">> https://github.com/swoole/swoole-src/blob/master/.github/ISSUE.md \n"\
-    "Please do not send bug reports in the mailing list or personal letters.\n"\
-    "The issue page is also suitable to submit feature requests.\n"
-
-/*----------------------------------------------------------------------------*/
-
 #ifndef ulong
 #define ulong unsigned long
 #endif
@@ -196,6 +178,7 @@ typedef unsigned long ulong_t;
 /*----------------------------------------------------------------------------*/
 
 #include "swoole_config.h"
+#include "swoole_version.h"
 #include "atomic.h"
 #include "hashmap.h"
 #include "list.h"
@@ -979,6 +962,23 @@ typedef struct _swDataHead
 } swDataHead;
 
 void swDataHead_dump(const swDataHead *data);
+
+#define swTask_type(task)                  ((task)->info.server_fd)
+
+/**
+ * use swDataHead->server_fd, 1 byte 8 bit
+ */
+enum swTask_type
+{
+    SW_TASK_TMPFILE    = 1,  //tmp file
+    SW_TASK_SERIALIZE  = 2,  //php serialize
+    SW_TASK_NONBLOCK   = 4,  //task
+    SW_TASK_CALLBACK   = 8,  //callback
+    SW_TASK_WAITALL    = 16, //for taskWaitAll
+    SW_TASK_COROUTINE  = 32, //coroutine
+    SW_TASK_PEEK       = 64, //peek
+    SW_TASK_NOREPLY    = 128, //don't reply
+};
 
 typedef struct _swEvent
 {

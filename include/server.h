@@ -70,21 +70,6 @@ enum swTask_ipc_mode
     SW_TASK_IPC_STREAM      = 4,
 };
 
-/**
- * use swDataHead->from_fd, 1 byte 8 bit
- */
-enum swTask_type
-{
-    SW_TASK_TMPFILE    = 1,  //tmp file
-    SW_TASK_SERIALIZE  = 2,  //php serialize
-    SW_TASK_NONBLOCK   = 4,  //task
-    SW_TASK_CALLBACK   = 8,  //callback
-    SW_TASK_WAITALL    = 16, //for taskWaitAll
-    SW_TASK_COROUTINE  = 32, //coroutine
-    SW_TASK_PEEK       = 64, //peek
-    SW_TASK_NOREPLY    = 128, //don't reply
-};
-
 enum swFactory_dispatch_mode
 {
     SW_DISPATCH_ROUND    = 1,
@@ -754,8 +739,6 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id);
 void swTaskWorker_onStop(swProcessPool *pool, int worker_id);
 int swTaskWorker_large_pack(swEventData *task, const void *data, size_t data_len);
 int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int flags, swEventData *current_task);
-
-#define swTask_type(task)                  ((task)->info.server_fd)
 
 static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
 {
