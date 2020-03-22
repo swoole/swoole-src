@@ -606,6 +606,7 @@ Socket::Socket(int _fd, int _domain, int _type, int _protocol) :
     {
         return;
     }
+    swSocket_set_nonblock(socket);
     init_options();
 }
 
