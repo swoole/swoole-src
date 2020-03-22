@@ -569,6 +569,7 @@ enum swTrace_type
     SW_TRACE_CONTEXT          = 1u << 26,
     SW_TRACE_CO_HTTP_SERVER   = 1u << 27,
 
+
     SW_TRACE_ALL              = 0xffffffff
 };
 
@@ -665,6 +666,7 @@ typedef struct _swSocket
      * memory buffer size;
      */
     uint32_t buffer_size;
+    uint32_t chunk_size;
 
     void *object;
 

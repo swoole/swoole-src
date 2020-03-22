@@ -84,6 +84,7 @@ int swClient_create(swClient *cli, enum swSocket_type type, int async)
 
     cli->socket->nonblock = async ? 1 : 0;
     cli->socket->cloexec = 1;
+    cli->socket->chunk_size = SW_SEND_BUFFER_SIZE;
 
     if (swSocket_is_stream(type))
     {
@@ -901,6 +902,7 @@ static int swClient_udp_connect(swClient *cli, const char *host, int port, doubl
         cli->ssl_option.dtls = 1;
         cli->ssl_option.method = SW_DTLS_CLIENT_METHOD;
         cli->socket->dtls = 1;
+        cli->socket->chunk_size = SW_BUFFER_SIZE_STD;
         cli->send = swClient_tcp_send_sync;
         cli->recv = swClient_tcp_recv_no_buffer;
     }

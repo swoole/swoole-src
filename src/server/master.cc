@@ -143,6 +143,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             swSocket_free(sock);
             return SW_OK;
         }
+        sock->chunk_size = SW_SEND_BUFFER_SIZE;
 
 #ifdef SW_USE_OPENSSL
         if (listen_host->ssl)
@@ -194,7 +195,7 @@ dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *port, swSocket
     dtls::Session *session = nullptr;
     swConnection *conn = nullptr;
 
-    int fd = swSocket_create(port->type);
+    int fd = swSocket_create(port->type, 1, 1);
     if (fd < 0)
     {
         return nullptr;
@@ -258,15 +259,17 @@ dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *port, swSocket
         break;
     }
 
-    sock = (swSocket *) sw_calloc(1, sizeof(*sock));
-    memcpy(&sock->info, sa, sizeof(*sa));
-    swoole_fcntl_set_option(fd, 1, 1);
+    sock = swSocket_new(fd, SW_FD_SESSION);
+    if (!sock)
+    {
+        goto _cleanup;
+    }
 
-    sock->fd = fd;
+    memcpy(&sock->info, sa, sizeof(*sa));
     sock->socket_type = port->type;
     sock->nonblock = 1;
     sock->cloexec = 1;
-    sock->removed = 1;
+    sock->chunk_size = SW_BUFFER_SIZE_STD;
 
     conn = swServer_connection_new(serv, port, sock, port->socket->fd);
     if (conn == nullptr)

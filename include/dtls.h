@@ -66,6 +66,21 @@ struct Session
     bool listen();
 
     void append(const char* data, ssize_t len);
+
+    inline void append(Buffer *buffer)
+    {
+        rxqueue.push_back(buffer);
+    }
+
+    inline size_t get_buffer_length()
+    {
+        size_t total_length;
+        for (auto i : rxqueue)
+        {
+            total_length += i->length;
+        }
+        return total_length;
+    }
 };
 //-------------------------------------------------------------------------------
 }}

@@ -655,7 +655,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
         dtls::Buffer *buffer = (dtls::Buffer *) sw_malloc(sizeof(*buffer) + SW_BUFFER_SIZE_UDP);
         buffer->length = read(event->fd, buffer->data, SW_BUFFER_SIZE_UDP);
         dtls::Session *session = port->dtls_sessions->find(event->fd)->second;
-        session->rxqueue.push_back(buffer);
+        session->append(buffer);
         if (!session->listened && !session->listen())
         {
             swReactorThread_close(reactor, event->socket);

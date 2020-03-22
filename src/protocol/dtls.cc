@@ -7,7 +7,7 @@ namespace swoole { namespace dtls {
 
 int BIO_write(BIO *b, const char *data, int dlen)
 {
-    swTrace("BIO_write(%d)", dlen);
+    swTraceLog(SW_TRACE_SSL, "BIO_write(%d)", dlen);
 
     Session *session = (Session *) BIO_get_data(b);
     return write(session->socket->fd, data, dlen);
@@ -15,11 +15,9 @@ int BIO_write(BIO *b, const char *data, int dlen)
 
 int BIO_read(BIO *b, char *data, int len)
 {
-    int ret;
     Session *session = (Session *) BIO_get_data(b);
     Buffer *buffer;
-
-    ret = -1;
+    BIO_clear_retry_flags(b);
 
     if (!session->rxqueue.empty())
     {
@@ -27,65 +25,80 @@ int BIO_read(BIO *b, char *data, int len)
 
         swTrace("BIO_read(%d, peek=%d)=%d", len, session->peek_mode, buffer->length);
 
-        ret = (buffer->length <= len) ? buffer->length : len;
-        memmove(data, buffer->data, ret);
+        int n = (buffer->length <= len) ? buffer->length : len;
+        memmove(data, buffer->data, n);
 
         if (!session->peek_mode)
         {
             session->rxqueue.pop_front();
             sw_free(buffer);
         }
-    }
 
-    return ret;
+        return n;
+    }
+    else
+    {
+        BIO_set_retry_read(b);
+        return -1;
+    }
 }
 
-long BIO_ctrl(BIO *b, int cmd, long larg, void *pargs)
+long BIO_ctrl(BIO *b, int cmd, long lval, void *ptrval)
 {
-    long ret = 0;
+    long retval = 0;
+    Session *session = (Session *) BIO_get_data(b);
 
-    swTrace("BIO_ctrl(BIO[0x%016lX], cmd[%d], larg[%ld], pargs[0x%016lX])", b, cmd, larg, pargs);
+    swTraceLog(SW_TRACE_SSL, "BIO_ctrl(BIO[0x%016lX], cmd[%d], lval[%ld], ptrval[0x%016lX])", b, cmd, lval, ptrval);
 
     switch (cmd)
     {
+    case BIO_CTRL_EOF:
+            return session->rxqueue.empty();
+        case BIO_CTRL_GET_CLOSE:
+            return BIO_get_shutdown(b);
+        case BIO_CTRL_SET_CLOSE:
+            BIO_set_shutdown(b, (int) lval);
+            break;
+        case BIO_CTRL_WPENDING:
+            return 0;
+        case BIO_CTRL_PENDING:
+            return (long) session->get_buffer_length();
+
     case BIO_CTRL_FLUSH:
     case BIO_CTRL_DGRAM_SET_CONNECTED:
     case BIO_CTRL_DGRAM_SET_PEER:
-        ret = 1;
+        retval = 1;
         break;
     case BIO_CTRL_DGRAM_GET_PEER:
-        if (pargs)
+        if (ptrval)
         {
-            memcpy(pargs, &((Session *) BIO_get_data(b))->socket->info, sizeof(swSocketAddress));
+            memcpy(ptrval, &session->socket->info, sizeof(session->socket->info.addr));
         }
-        ret = 1;
-        break;
-    case BIO_CTRL_WPENDING:
-        ret = 0;
+        retval = 1;
         break;
     case BIO_CTRL_DGRAM_QUERY_MTU:
     case BIO_CTRL_DGRAM_GET_FALLBACK_MTU:
-        ret = 1500;
+        retval = 1500;
         break;
     case BIO_CTRL_DGRAM_GET_MTU_OVERHEAD:
-        ret = 96; // random guess
+        retval = 96; // random guess
         break;
     case BIO_CTRL_DGRAM_SET_PEEK_MODE:
-        ((Session *) BIO_get_data(b))->peek_mode = !!larg;
-        ret = 1;
+        ((Session *) BIO_get_data(b))->peek_mode = !!lval;
+        retval = 1;
         break;
     case BIO_CTRL_PUSH:
     case BIO_CTRL_POP:
     case BIO_CTRL_DGRAM_SET_NEXT_TIMEOUT:
-        ret = 0;
+        retval = 0;
         break;
     default:
         swWarn("unknown cmd: %d", cmd);
-        ret = 0;
+        retval = 0;
         break;
     }
 
-    return ret;
+    return retval;
 }
 
 int BIO_create(BIO *b)
@@ -95,7 +108,7 @@ int BIO_create(BIO *b)
 
 int BIO_destroy(BIO *b)
 {
-    swTrace("BIO_destroy(BIO[0x%016lX])\n", b);
+    swTraceLog(SW_TRACE_SSL, "BIO_destroy(BIO[0x%016lX])\n", b);
     return 1;
 }
 
@@ -170,8 +183,11 @@ bool Session::listen()
     ERR_clear_error();
 
     int retval = DTLSv1_listen(socket->ssl, NULL);
-
     if (retval == 0)
+    {
+        return true;
+    }
+    else if (retval < 0)
     {
         int reason = ERR_GET_REASON(ERR_peek_error());
         swWarn(
@@ -181,10 +197,6 @@ bool Session::listen()
             reason, swSSL_get_error()
         );
         return false;
-    }
-    else if (retval < 0)
-    {
-        return ERR_get_error() == 0;
     }
     else
     {

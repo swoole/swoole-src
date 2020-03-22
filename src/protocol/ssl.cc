@@ -1228,6 +1228,13 @@ ssize_t swSSL_send(swSocket *conn, const void *__buf, size_t __n)
 {
     swSSL_clear_error(conn);
 
+#ifdef SW_SUPPORT_DTLS
+    if (conn->dtls && conn->chunk_size && __n > conn->chunk_size)
+    {
+        __n = conn->chunk_size;
+    }
+#endif
+
     int n = SSL_write(conn->ssl, __buf, __n);
     if (n < 0)
     {

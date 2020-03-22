@@ -286,7 +286,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
             _do_buffer:
             if (!socket->out_buffer)
             {
-                buffer = swBuffer_new(socket->fdtype == SW_FD_PIPE ? 0 : SW_SEND_BUFFER_SIZE);
+                buffer = swBuffer_new(socket->chunk_size);
                 if (!buffer)
                 {
                     swWarn("create worker buffer failed");
