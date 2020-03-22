@@ -910,3 +910,27 @@ ssize_t swSocket_send(swSocket *conn, const void *__buf, size_t __n, int __flags
 
     return retval;
 }
+
+ssize_t swSocket_peek(swSocket *conn, void *__buf, size_t __n, int __flags)
+{
+    ssize_t retval;
+    __flags |= MSG_PEEK;
+    do
+    {
+#ifdef SW_USE_OPENSSL
+        if (conn->ssl)
+        {
+            retval = SSL_peek(conn->ssl, __buf, __n);
+        }
+        else
+#endif
+        {
+            retval = recv(conn->fd, __buf, __n, __flags);
+        }
+    }
+    while (retval < 0 && errno == EINTR);
+
+    swTraceLog(SW_TRACE_SOCKET, "peek %ld/%ld bytes, errno=%d", retval, __n, errno);
+
+    return retval;
+}
