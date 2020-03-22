@@ -17,9 +17,10 @@
 #ifndef SW_CONNECTION_H_
 #define SW_CONNECTION_H_
 
-SW_EXTERN_C_BEGIN
-
+#include "swoole.h"
 #include "buffer.h"
+
+SW_EXTERN_C_BEGIN
 
 #ifdef SW_USE_OPENSSL
 
