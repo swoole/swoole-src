@@ -11,7 +11,6 @@ use SwooleTest\ProcessManager;
 use Swoole\Atomic;
 use Swoole\Client;
 
-$max = file_get_contents('/proc/sys/net/core/wmem_max');
 $size = rand(8192, 128000);
 
 $req = random_bytes($size);
