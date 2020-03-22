@@ -208,7 +208,7 @@ static Socket* client_coro_new(zval *zobject, int port)
 {
     zval *ztype = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("type"), 0);
     zend_long type = zval_get_long(ztype);
-    enum swSocket_type sock_type = (enum swSocket_type) php_swoole_socktype(type);
+    enum swSocket_type sock_type = php_swoole_socktype(type);
 
     if ((sock_type == SW_SOCK_TCP || sock_type == SW_SOCK_TCP6) && (port <= 0 || port > SW_CLIENT_MAX_PORT))
     {

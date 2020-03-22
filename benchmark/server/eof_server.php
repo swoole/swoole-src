@@ -1,14 +1,16 @@
 <?php
 require __DIR__.'/functions.php';
 
-Swoole\Async::set(array('enable_reuse_port' => true));
 $serv = new swoole_server("0.0.0.0", 9502, SWOOLE_BASE);
 //$serv = new swoole_server("0.0.0.0", 9502);
-$serv->set(array(
-    'worker_num' => 8,
-    'open_eof_check' => true,
-    'package_eof' => "\r\n\r\n",
-));
+$serv->set(
+    array(
+        'worker_num' => 8,
+        'open_eof_check' => true,
+        'enable_reuse_port' => true,
+        'package_eof' => "\r\n\r\n",
+    )
+);
 $serv->on('workerstart', function ($server, $id)
 {
     global $argv;

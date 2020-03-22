@@ -5,6 +5,7 @@ $serv = new Swoole\Server("0.0.0.0", 9502, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
 $serv->set(
     array(
         'dispatch_mode' => 1,
+        'enable_reuse_port' => true,
         'worker_num' => 8,    //worker process num
 //    //'log_file' => '/tmp/swoole.log',
 //    //'daemonize' => true,

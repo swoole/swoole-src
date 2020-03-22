@@ -72,7 +72,7 @@ static void swStream_free(swStream *stream)
     sw_free(stream);
 }
 
-swStream* swStream_new(char *dst_host, int dst_port, int type)
+swStream* swStream_new(char *dst_host, int dst_port, enum swSocket_type type)
 {
     swStream *stream = (swStream*) sw_malloc(sizeof(swStream));
     if (!stream)

@@ -507,7 +507,6 @@ static PHP_METHOD(swoole_process_pool, listen)
         RETURN_FALSE;
     }
 
-    SwooleG.reuse_port = 0;
     int ret;
     //unix socket
     if (SW_STRCASECT(host, l_host, "unix:/"))

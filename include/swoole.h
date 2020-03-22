@@ -1526,7 +1526,7 @@ char* swoole_string_format(size_t n, const char *format, ...);
 int swoole_get_systemd_listen_fds();
 //----------------------core function---------------------
 int swSocket_set_timeout(swSocket *sock, double timeout);
-int swSocket_create_server(int type, const char *address, int port, int backlog);
+int swSocket_create_server(enum swSocket_type type, const char *address, int port, int backlog);
 //----------------------------------------Socket---------------------------------------
 static sw_inline int swSocket_is_dgram(uint8_t type)
 {
@@ -1589,7 +1589,7 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
 
 swSocket* swSocket_new(int fd, enum swFd_type type);
 void swSocket_free(swSocket *sock);
-int swSocket_create(int type);
+int swSocket_create(enum swSocket_type type, uchar nonblock, uchar cloexec);
 int swSocket_bind(int sock, int type, const char *host, int *port);
 swSocket* swSocket_accept(swSocket *sock, swSocketAddress *sa);
 int swSocket_wait(int fd, int timeout_ms, int events);
@@ -1615,6 +1615,41 @@ static sw_inline int swSocket_set_nonblock(swSocket *sock)
         sock->nonblock = 1;
         return SW_OK;
     }
+}
+
+static sw_inline int swSocket_get_domain_and_type(enum swSocket_type type, int *sock_domain, int *sock_type)
+{
+    switch (type)
+    {
+    case SW_SOCK_TCP6:
+        *sock_domain = AF_INET6;
+        *sock_type = SOCK_STREAM;
+        break;
+    case SW_SOCK_UNIX_STREAM:
+        *sock_domain = AF_UNIX;
+        *sock_type = SOCK_STREAM;
+        break;
+    case SW_SOCK_UDP:
+        *sock_domain = AF_INET;
+        *sock_type = SOCK_DGRAM;
+        break;
+    case SW_SOCK_UDP6:
+        *sock_domain = AF_INET6;
+        *sock_type = SOCK_DGRAM;
+        break;
+    case SW_SOCK_UNIX_DGRAM:
+        *sock_domain = AF_UNIX;
+        *sock_type = SOCK_DGRAM;
+        break;
+    case SW_SOCK_TCP:
+        *sock_domain = AF_INET;
+        *sock_type = SOCK_STREAM;
+        break;
+    default:
+        return SW_ERR;
+    }
+
+    return SW_OK;
 }
 
 static sw_inline int swSocket_set_block(swSocket *sock)
@@ -2392,7 +2427,6 @@ typedef struct
     uchar enable_coroutine :1;
     uchar use_signalfd :1;
     uchar enable_signalfd :1;
-    uchar reuse_port :1;
     uchar socket_dontwait :1;
     uchar dns_lookup_random :1;
     uchar use_async_resolver :1;
