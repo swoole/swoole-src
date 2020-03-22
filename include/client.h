@@ -17,10 +17,10 @@
 #ifndef SW_CLIENT_H_
 #define SW_CLIENT_H_
 
-SW_EXTERN_C_BEGIN
-
-#include "buffer.h"
+#include "swoole_api.h"
 #include "connection.h"
+
+SW_EXTERN_C_BEGIN
 
 #define SW_SOCK_ASYNC    1
 #define SW_SOCK_SYNC     0

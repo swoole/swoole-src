@@ -17,7 +17,6 @@
 #pragma once
 
 #include "swoole_api.h"
-#include "buffer.h"
 #include "connection.h"
 #include "http.h"
 
