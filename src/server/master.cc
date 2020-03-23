@@ -1813,12 +1813,6 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &on, (socklen_t) sizeof(on));
     }
 #endif
-    //bind address and port
-    if (swSocket_bind(sock, ls->type, ls->host, &ls->port) < 0)
-    {
-        close(sock);
-        return NULL;
-    }
     ls->socket = swSocket_new(sock, swSocket_is_dgram(ls->type) ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
     if (ls->socket == nullptr)
     {
