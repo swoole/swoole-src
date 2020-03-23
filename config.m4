@@ -440,7 +440,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/memory/shared_memory.cc \
         src/memory/table.cc \
         src/network/client.cc \
-        src/network/connection.cc \
         src/network/dns.cc \
         src/network/process_pool.cc \
         src/network/stream.cc \

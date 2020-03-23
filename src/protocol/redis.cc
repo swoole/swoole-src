@@ -67,7 +67,7 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
     int n = swSocket_recv(socket, buf_ptr, buf_size, 0);
     if (n < 0)
     {
-        switch (swConnection_error(errno))
+        switch (swSocket_error(errno))
         {
         case SW_ERROR:
             swSysWarn("recv from socket#%d failed", conn->fd);

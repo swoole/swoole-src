@@ -505,7 +505,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
         if (php_swoole_array_get_value(vht, "bind_address", ztmp))
         {
             zend::string str_v(ztmp);
-            swSocket_bind(cli->socket->fd, cli->type, str_v.val(), &bind_port);
+            swSocket_bind(cli->socket, str_v.val(), &bind_port);
         }
     }
     /**
@@ -763,7 +763,7 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
             q->pop();
             //try recv, check connection status
             ret = recv(cli->socket->fd, &tmp_buf, sizeof(tmp_buf), MSG_DONTWAIT | MSG_PEEK);
-            if (ret == 0 || (ret < 0 && swConnection_error(errno) == SW_CLOSE))
+            if (ret == 0 || (ret < 0 && swSocket_error(errno) == SW_CLOSE))
             {
                 cli->close(cli);
                 php_swoole_client_free(zobject, cli);
@@ -1480,7 +1480,7 @@ static PHP_METHOD(swoole_client, close)
     }
     //Connection error, or short tcp connection.
     //No keep connection
-    if (force || !cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
+    if (force || !cli->keep || swSocket_error(SwooleG.error) == SW_CLOSE)
     {
         ret = cli->close(cli);
         php_swoole_client_free(ZEND_THIS, cli);

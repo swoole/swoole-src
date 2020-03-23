@@ -707,7 +707,7 @@ int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, in
     }
     else
     {
-        return swSocket_write_blocking(pipe_sock->fd, ev_data, sendn);
+        return swSocket_write_blocking(pipe_sock, ev_data, sendn);
     }
 }
 
@@ -820,6 +820,6 @@ int swWorker_send2worker(swWorker *dst_worker, const void *buf, int n, int flag)
     }
     else
     {
-        return swSocket_write_blocking(pipe_sock->fd, buf, n);
+        return swSocket_write_blocking(pipe_sock, buf, n);
     }
 }
