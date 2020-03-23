@@ -317,7 +317,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     n = swSocket_recv(_socket, buffer, SwooleTG.buffer_stack->size, 0);
     if (n < 0)
     {
-        switch (swConnection_error(errno))
+        switch (swSocket_error(errno))
         {
         case SW_ERROR:
             swSysWarn("recv from connection#%d failed", event->fd);
@@ -427,7 +427,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     ssize_t n = swSocket_recv(_socket, buffer->str + buffer->length, buffer->size - buffer->length, 0);
     if (n < 0)
     {
-        switch (swConnection_error(errno))
+        switch (swSocket_error(errno))
         {
         case SW_ERROR:
             swSysWarn("recv from connection#%d failed", event->fd);

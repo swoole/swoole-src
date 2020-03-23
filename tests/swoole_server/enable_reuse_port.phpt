@@ -8,6 +8,9 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Server;
 
+const N = IS_IN_TRAVIS ? 32 : 128;
+const W = 4;
+
 $pm = new SwooleTest\ProcessManager;
 $count = new Swoole\Atomic(0);
 
@@ -17,7 +20,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $workerCounter = [];
 
     $c->parallel(
-        IS_IN_TRAVIS ? 32 : 128,
+        N,
         function () use ($pm, &$workerCounter) {
             $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
             if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
@@ -39,6 +42,10 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
     $c->start();
     $pm->kill();
+
+    foreach ($workerCounter as $c) {
+        Assert::greaterThan($c, N / W / 2);
+    }
 };
 
 $pm->childFunc = function () use ($pm, $count) {
@@ -50,7 +57,7 @@ $pm->childFunc = function () use ($pm, $count) {
             'open_eof_split' => true,
             'enable_reuse_port' => true,
             'package_max_length' => 1024 * 1024 * 2, //2M
-            "worker_num" => 4,
+            "worker_num" => W,
             'log_file' => '/dev/null',
         )
     );

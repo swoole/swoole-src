@@ -511,7 +511,7 @@ static int swReactorProcess_send2worker(swSocket *socket, const void *data, size
 {
     if (!SwooleTG.reactor)
     {
-        return swSocket_write_blocking(socket->fd, data, length);
+        return swSocket_write_blocking(socket, data, length);
     }
     else
     {
@@ -637,7 +637,6 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
 #ifdef HAVE_REUSEPORT
 static int swReactorProcess_reuse_port(swListenPort *ls)
 {
-    //create new socket
     int sock = swSocket_create(ls->type, 1, 1);
     if (sock < 0)
     {
@@ -650,18 +649,13 @@ static int swReactorProcess_reuse_port(swListenPort *ls)
         close(sock);
         return SW_ERR;
     }
+    ls->socket->fd = sock;
     //bind address and port
-    if (swSocket_bind(sock, ls->type, ls->host, &ls->port) < 0)
+    if (swSocket_bind(ls->socket, ls->host, &ls->port) < 0)
     {
-        close(sock);
+        close(ls->socket->fd);
         return SW_ERR;
     }
-    //stream socket, set nonblock
-    if (swSocket_is_stream(ls->type))
-    {
-        swSocket_set_nonblock(ls->socket);
-    }
-    ls->socket->fd = sock;
     ls->socket->nonblock = 1;
     ls->socket->cloexec = 1;
     return swPort_listen(ls);

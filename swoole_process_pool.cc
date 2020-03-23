@@ -517,6 +517,11 @@ static PHP_METHOD(swoole_process_pool, listen)
     {
         ret = swProcessPool_create_tcp_socket(pool, host, port, backlog);
     }
+
+    swoole_fcntl_set_option(pool->stream->socket->fd, 0, 1);
+    pool->stream->socket->nonblock = 0;
+    pool->stream->socket->cloexec = 1;
+
     SW_CHECK_RETURN(ret);
 }
 

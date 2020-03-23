@@ -281,7 +281,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
                 goto _do_buffer;
             }
         }
-        else if (swConnection_error(errno) == SW_WAIT)
+        else if (swSocket_error(errno) == SW_WAIT)
         {
             _do_buffer:
             if (!socket->out_buffer)

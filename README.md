@@ -18,7 +18,7 @@ English | [中文](./README-CN.md)
 
 The network layer in Swoole is event-based and takes full advantage of the underlying epoll/kqueue implementation, making it really easy to serve millions of requests.
 
-Swoole 4.x use a brand new engine kernel and now it has a full-time developer team, so we are entering an unprecedented period in PHP history which offers a unique possibility for rapid evolution in performance.
+Swoole 4.x uses a brand new engine kernel and now it has a full-time developer team, so we are entering an unprecedented period in PHP history which offers a unique possibility for rapid evolution in performance.
 
 ## ⚡️Coroutine
 

@@ -143,10 +143,10 @@ int swStream_send(swStream *stream, char *data, size_t length)
     return SW_OK;
 }
 
-int swStream_recv_blocking(int fd, void *__buf, size_t __len)
+int swStream_recv_blocking(swSocket *sock, void *__buf, size_t __len)
 {
     int tmp = 0;
-    ssize_t ret = swSocket_recv_blocking(fd, &tmp, sizeof(tmp), MSG_WAITALL);
+    ssize_t ret = swSocket_recv_blocking(sock, &tmp, sizeof(tmp), MSG_WAITALL);
 
     if (ret <= 0)
     {
@@ -162,7 +162,7 @@ int swStream_recv_blocking(int fd, void *__buf, size_t __len)
         return SW_CLOSE;
     }
 
-    ret = swSocket_recv_blocking(fd, __buf, length, MSG_WAITALL);
+    ret = swSocket_recv_blocking(sock, __buf, length, MSG_WAITALL);
     if (ret <= 0)
     {
         return SW_CLOSE;
