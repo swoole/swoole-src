@@ -707,3 +707,14 @@ function readfile_with_lock($file)
     fclose($fp);
     return $data;
 }
+
+function dump_to_file($file, $data)
+{
+    $fp = fopen($file, "w+");
+    $out = bin2hex($data);
+    $lines = str_split($out, 160);
+    foreach ($lines as $l) {
+        fwrite($fp, $l . "\n");
+    }
+    fclose($fp);
+}

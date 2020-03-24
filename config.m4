@@ -465,6 +465,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/sha1.cc \
         src/protocol/socks5.cc \
         src/protocol/ssl.cc \
+        src/protocol/dtls.cc \
         src/protocol/websocket.cc \
         src/reactor/base.cc \
         src/reactor/epoll.cc \

@@ -1288,6 +1288,17 @@ bool Socket::ssl_check_context()
     {
         return true;
     }
+    if (swSocket_is_dgram(sock_type))
+    {
+#ifdef SW_SUPPORT_DTLS
+        socket->dtls = 1;
+        ssl_option.dtls = 1;
+        ssl_option.method = SW_DTLS_CLIENT_METHOD;
+#else
+        swWarn("DTLS support require openssl-1.1 or later");
+        return false;
+#endif
+    }
     ssl_context = swSSL_get_context(&ssl_option);
     if (ssl_context == nullptr)
     {
@@ -1310,12 +1321,10 @@ bool Socket::ssl_handshake()
     {
         return false;
     }
-    ssl_context = swSSL_get_context(&ssl_option);
-    if (ssl_context == NULL)
+    if (!ssl_check_context())
     {
         return false;
     }
-
     if (ssl_option.verify_peer)
     {
         if (swSSL_set_capath(&ssl_option, ssl_context) < 0)
@@ -1389,7 +1398,7 @@ bool Socket::ssl_handshake()
 
 bool Socket::ssl_accept()
 {
-    int retval;
+    enum swReturn_code retval;
     timer_controller timer(&read_timer, read_timeout, this, timer_callback);
     open_ssl = true;
 

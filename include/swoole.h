@@ -570,6 +570,7 @@ enum swTrace_type
     SW_TRACE_CONTEXT          = 1u << 26,
     SW_TRACE_CO_HTTP_SERVER   = 1u << 27,
 
+
     SW_TRACE_ALL              = 0xffffffff
 };
 
@@ -595,6 +596,9 @@ typedef unsigned char uchar;
 
 #ifdef SW_USE_OPENSSL
 #include <openssl/ssl.h>
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#define SW_SUPPORT_DTLS
+#endif
 #endif
 
 typedef void (*swDestructor)(void *data);
@@ -619,6 +623,7 @@ typedef struct
 {
     union
     {
+        struct sockaddr ss;
         struct sockaddr_in inet_v4;
         struct sockaddr_in6 inet_v6;
         struct sockaddr_un un;
@@ -643,6 +648,10 @@ typedef struct _swSocket
     uchar ssl_want_write :1;
     uchar ssl_renegotiation :1;
     uchar ssl_handshake_buffer_set :1;
+    uchar ssl_quiet_shutdown :1;
+#ifdef SW_SUPPORT_DTLS
+    uchar dtls :1;
+#endif
 #endif
     uchar dontwait :1;
     uchar close_wait :1;
@@ -658,6 +667,7 @@ typedef struct _swSocket
      * memory buffer size;
      */
     uint32_t buffer_size;
+    uint32_t chunk_size;
 
     void *object;
 

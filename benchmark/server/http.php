@@ -1,5 +1,5 @@
 <?php
-
+require __DIR__.'/functions.php';
 use Swoole\Http\Server;
 use Swoole\Http\Response;
 use Swoole\Http\Request;
