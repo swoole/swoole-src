@@ -313,7 +313,7 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
             buf.info.len = data_len;
         }
 
-        if (worker->pool->use_socket && worker->pool->stream->last_connection > 0)
+        if (worker->pool->use_socket && worker->pool->stream->last_connection)
         {
             int32_t _len = htonl(data_len);
             ret = swSocket_write_blocking(worker->pool->stream->last_connection, (void *) &_len, sizeof(_len));

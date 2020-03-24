@@ -168,7 +168,7 @@ int swProcessPool_create_unix_socket(swProcessPool *pool, char *socket_file, int
         return SW_ERR;
     }
     pool->stream->socket = swSocket_create_server(SW_SOCK_UNIX_STREAM, pool->stream->socket_file, 0, blacklog);
-    if (pool->stream->socket < 0)
+    if (!pool->stream->socket)
     {
         return SW_ERR;
     }
@@ -555,7 +555,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         ret = pool->onTask(pool, &out.buf);
         worker->status = SW_WORKER_IDLE;
 
-        if (pool->use_socket && pool->stream->last_connection > 0)
+        if (pool->use_socket && pool->stream->last_connection)
         {
             int _end = 0;
             swSocket_write_blocking(pool->stream->last_connection, (void *) &_end, sizeof(_end));
@@ -698,7 +698,7 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
 
         pool->onMessage(pool, data, n);
 
-        if (pool->use_socket && pool->stream->last_connection > 0)
+        if (pool->use_socket && pool->stream->last_connection)
         {
             swString *resp_buf = pool->stream->response_buffer;
             if (resp_buf && resp_buf->length > 0)
