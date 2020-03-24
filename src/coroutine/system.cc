@@ -458,12 +458,41 @@ static int socket_poll_error_callback(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-void System::init_reactor(swReactor *reactor)
+static int translate_events_to_poll(int events)
 {
-    swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_READ, socket_poll_read_callback);
-    swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
-    swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
-    swReactor_set_handler(reactor, SW_FD_AIO | SW_EVENT_READ, swAio_callback);
+    int poll_events = 0;
+
+    if (events & SW_EVENT_READ)
+    {
+        poll_events |= POLLIN;
+    }
+    if (events & SW_EVENT_WRITE)
+    {
+        poll_events |= POLLOUT;
+    }
+
+    return poll_events;
+}
+
+static int translate_events_from_poll(int events)
+{
+    int sw_events = 0;
+
+    if (events & POLLIN)
+    {
+        sw_events |= SW_EVENT_READ;
+    }
+    if (events & POLLOUT)
+    {
+        sw_events |= SW_EVENT_WRITE;
+    }
+    //ignore ERR and HUP, because event is already processed at IN and OUT handler.
+    if ((((events & POLLERR) || (events & POLLHUP)) && !((events & POLLIN) || (events & POLLOUT))))
+    {
+        sw_events |= SW_EVENT_ERROR;
+    }
+
+    return sw_events;
 }
 
 bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout)
@@ -473,14 +502,14 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
         struct pollfd *event_list = (struct pollfd *) sw_calloc(fds.size(), sizeof(struct pollfd));
         if (!event_list)
         {
-            swWarn("malloc[1] failed");
+            swWarn("calloc() failed");
             return false;
         }
         int j = 0;
         for (auto i = fds.begin(); i != fds.end(); i++)
         {
             event_list[j].fd = i->first;
-            event_list[j].events = i->second.events;
+            event_list[j].events = translate_events_to_poll(i->second.events);
             event_list[j].revents = 0;
             j++;
         }
@@ -490,22 +519,7 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
             for (size_t i = 0; i < fds.size(); i++)
             {
                 auto _e = fds.find(event_list[i].fd);
-                int16_t revents = event_list[i].revents;
-                int16_t sw_revents = 0;
-                if (revents & POLLIN)
-                {
-                    sw_revents |= SW_EVENT_READ;
-                }
-                if (revents & POLLOUT)
-                {
-                    sw_revents |= SW_EVENT_WRITE;
-                }
-                //ignore ERR and HUP, because event is already processed at IN and OUT handler.
-                if ((((revents & POLLERR) || (revents & POLLHUP)) && !((revents & POLLIN) || (revents & POLLOUT))))
-                {
-                    sw_revents |= SW_EVENT_ERROR;
-                }
-                _e->second.revents = sw_revents;
+                _e->second.revents = translate_events_from_poll(event_list[i].revents);;
             }
         }
         sw_free(event_list);
@@ -545,6 +559,130 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
     task.co->yield();
 
     return task.success;
+}
+
+struct event_waiter
+{
+    swSocket *socket;
+    swTimer_node *timer;
+    Coroutine *co;
+    int revents;
+
+    event_waiter(int fd, int events, double timeout)
+    {
+        revents = 0;
+        if (!(socket = swSocket_new(fd, SW_FD_CORO_EVENT)))
+        {
+            return;
+        }
+        socket->object = this;
+        if (swoole_event_add(socket, events) < 0)
+        {
+            goto _done;
+        }
+        if (timeout > 0)
+        {
+            timer = swoole_timer_add((long) (timeout * 1000), SW_FALSE, [](swTimer *timer, swTimer_node *tnode){
+                event_waiter *waiter = (event_waiter *) tnode->data;
+                waiter->timer = nullptr;
+                waiter->co->resume();
+            }, this);
+        }
+        else
+        {
+            timer = nullptr;
+        }
+        co = Coroutine::get_current();
+
+        co->yield();
+
+        if (timer != nullptr)
+        {
+            swoole_timer_del(timer);
+        }
+        else if (timeout > 0)
+        {
+            SwooleG.error = ETIMEDOUT;
+        }
+        swoole_event_del(socket);
+        _done:
+        socket->fd = -1; /* skip close */
+        swSocket_free(socket);
+    }
+
+};
+
+static inline void event_waiter_callback(swReactor *reactor, event_waiter *waiter, enum swEvent_type event)
+{
+    if (waiter->revents == 0) {
+        reactor->defer(reactor, [](void *data) {
+            event_waiter *waiter = (event_waiter *) data;
+            waiter->co->resume();
+        }, waiter);
+    }
+    waiter->revents |= event;
+}
+
+static int event_waiter_read_callback(swReactor *reactor, swEvent *event)
+{
+    event_waiter_callback(reactor, (event_waiter *) event->socket->object, SW_EVENT_READ);
+    return SW_OK;
+}
+
+static int event_waiter_write_callback(swReactor *reactor, swEvent *event)
+{
+    event_waiter_callback(reactor, (event_waiter *) event->socket->object, SW_EVENT_WRITE);
+    return SW_OK;
+}
+
+static int event_waiter_error_callback(swReactor *reactor, swEvent *event)
+{
+    event_waiter_callback(reactor, (event_waiter *) event->socket->object, SW_EVENT_ERROR);
+    return SW_OK;
+}
+
+int System::wait_event(int fd, int events, double timeout)
+{
+    events &= SW_EVENT_READ | SW_EVENT_WRITE | SW_EVENT_ERROR;
+    if (events == 0)
+    {
+        SwooleG.error = EINVAL;
+        return 0;
+    }
+
+    if (timeout == 0)
+    {
+        struct pollfd pfd;
+        pfd.fd = fd;
+        pfd.events = translate_events_to_poll(events);
+        pfd.revents = 0;
+
+        int retval = ::poll(&pfd, 1, 0);
+        if (retval == 1)
+        {
+            return translate_events_from_poll(pfd.revents);
+        }
+        if (retval < 0)
+        {
+            SwooleG.error = errno;
+        }
+        return 0;
+    }
+
+    return event_waiter(fd, events, timeout).revents;
+}
+
+void System::init_reactor(swReactor *reactor)
+{
+    swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_READ, socket_poll_read_callback);
+    swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
+    swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
+
+    swReactor_set_handler(reactor, SW_FD_CORO_EVENT | SW_EVENT_READ, event_waiter_read_callback);
+    swReactor_set_handler(reactor, SW_FD_CORO_EVENT | SW_EVENT_WRITE, event_waiter_write_callback);
+    swReactor_set_handler(reactor, SW_FD_CORO_EVENT | SW_EVENT_ERROR, event_waiter_error_callback);
+
+    swReactor_set_handler(reactor, SW_FD_AIO | SW_EVENT_READ, swAio_callback);
 }
 
 static void async_task_completed(swAio_event *event)

@@ -41,6 +41,7 @@ static const zend_function_entry swoole_coroutine_system_methods[] =
     PHP_ME(swoole_coroutine_system, wait, arginfo_swoole_coroutine_system_wait, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, waitPid, arginfo_swoole_coroutine_system_waitPid, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, waitSignal, arginfo_swoole_coroutine_system_waitSignal, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, waitEvent, arginfo_swoole_coroutine_system_waitEvent, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -857,4 +858,29 @@ PHP_METHOD(swoole_coroutine_system, waitSignal)
    }
 
    RETURN_TRUE;
+}
+
+PHP_METHOD(swoole_coroutine_system, waitEvent)
+{
+    zval *zfd;
+    zend_long events = SW_EVENT_READ;
+    double timeout = -1;
+
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_ZVAL(zfd)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(events)
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    int fd = swoole_convert_to_fd(zfd);
+    if (fd < 0)
+    {
+        php_swoole_fatal_error(E_WARNING, "unknow fd type");
+        RETURN_FALSE;
+    }
+
+    events = System::wait_event(fd, events, timeout);
+
+    RETURN_LONG(events);
 }

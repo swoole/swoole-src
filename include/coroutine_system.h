@@ -48,6 +48,8 @@ public:
     static pid_t waitpid(pid_t __pid, int *__stat_loc, int __options, double timeout = -1);
     /* signal */
     static bool wait_signal(int signo, double timeout = -1);
+    /* event */
+    static int wait_event(int fd, int events, double timeout);
 };
 //-------------------------------------------------------------------------------
 }}

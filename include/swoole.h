@@ -348,12 +348,14 @@ enum swFd_type
      * socket poll fd [coroutine::socket_poll]
      */
     SW_FD_CORO_POLL,
-    SW_FD_SIGNAL, //signalfd
-    SW_FD_DNS_RESOLVER,//dns resolver
     /**
-     * c-ares
+     * event waiter
      */
-    SW_FD_ARES,
+    SW_FD_CORO_EVENT,
+    /**
+     * signalfd
+     */
+    SW_FD_SIGNAL,
     /**
      * SW_FD_USER or SW_FD_USER+n: for custom event
      */
