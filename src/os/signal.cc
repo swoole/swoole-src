@@ -372,7 +372,7 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
 
 namespace swoole { namespace coroutine {
 
-bool System::waitSignal(int signo, double timeout)
+bool System::wait_signal(int signo, double timeout)
 {
     static Coroutine* listeners[SW_SIGNO_MAX];
 

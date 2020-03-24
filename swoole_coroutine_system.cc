@@ -842,7 +842,7 @@ PHP_METHOD(swoole_coroutine_system, waitSignal)
         Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-   if (!System::waitSignal(signo, timeout))
+   if (!System::wait_signal(signo, timeout))
    {
        if (errno == EBUSY)
        {
