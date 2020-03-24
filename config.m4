@@ -553,6 +553,7 @@ if test "$PHP_SWOOLE" != "no"; then
       [arm*], [SW_CPU="arm"],
       [aarch64*], [SW_CPU="arm64"],
       [arm64*], [SW_CPU="arm64"],
+      [mips*], [SW_CPU="mips32"],
       [
         SW_USE_ASM_CONTEXT="no"
       ]
