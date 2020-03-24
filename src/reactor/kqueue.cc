@@ -133,7 +133,6 @@ static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events)
         if (ret < 0)
         {
             swSysWarn("add events[fd=%d#%d, type=%d, events=read] failed", fd, reactor->id, socket->fdtype);
-            swReactor_del(reactor, socket);
             return SW_ERR;
         }
     }
@@ -145,7 +144,6 @@ static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events)
         if (ret < 0)
         {
             swSysWarn("add events[fd=%d#%d, type=%d, events=write] failed", fd, reactor->id, socket->fdtype);
-            swReactor_del(reactor, socket);
             return SW_ERR;
         }
     }
