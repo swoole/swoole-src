@@ -465,6 +465,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/sha1.cc \
         src/protocol/socks5.cc \
         src/protocol/ssl.cc \
+        src/protocol/dtls.cc \
         src/protocol/websocket.cc \
         src/reactor/base.cc \
         src/reactor/epoll.cc \
@@ -553,6 +554,7 @@ if test "$PHP_SWOOLE" != "no"; then
       [arm*], [SW_CPU="arm"],
       [aarch64*], [SW_CPU="arm64"],
       [arm64*], [SW_CPU="arm64"],
+      [mips*], [SW_CPU="mips32"],
       [
         SW_USE_ASM_CONTEXT="no"
       ]

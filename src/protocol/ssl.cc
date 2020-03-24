@@ -26,6 +26,7 @@
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+#include <openssl/rand.h>
 
 static int openssl_init = 0;
 static int ssl_connection_index = 0;
@@ -49,6 +50,9 @@ static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, v
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
 static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg);
 #endif
+
+static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len);
+static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len);
 
 #ifdef __GNUC__
     #define MAYBE_UNUSED __attribute__((used))
@@ -107,6 +111,10 @@ static const SSL_METHOD *swSSL_get_method(int method)
     case SW_DTLSv1_CLIENT_METHOD:
         return DTLSv1_client_method();
 #endif
+    case SW_DTLS_CLIENT_METHOD:
+        return DTLS_client_method();
+    case SW_DTLS_SERVER_METHOD:
+        return DTLS_server_method();
     case SW_SSLv23_METHOD:
     default:
         return SSLv23_method();
@@ -121,7 +129,7 @@ void swSSL_init(void)
         return;
     }
 #if OPENSSL_VERSION_NUMBER >= 0x10100003L && !defined(LIBRESSL_VERSION_NUMBER)
-    OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG, NULL);
+    OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
 #else
     OPENSSL_config(NULL);
     SSL_library_init();
@@ -171,6 +179,20 @@ static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, const char *fil
     {
         pthread_mutex_unlock(&(lock_array[type]));
     }
+}
+
+static int ssl_error_cb(const char *str, size_t len, void *buf)
+{
+    memcpy(buf, str, len);
+
+    return 0;
+}
+
+const char* swSSL_get_error()
+{
+    ERR_print_errors_cb(ssl_error_cb, SwooleTG.buffer_stack->str);
+
+    return SwooleTG.buffer_stack->str;
 }
 
 static sw_inline void swSSL_clear_error(swSocket *conn)
@@ -472,6 +494,14 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
         }
     }
 
+#ifdef SW_SUPPORT_DTLS
+    if (option->dtls)
+    {
+        SSL_CTX_set_cookie_generate_cb(ssl_context, swSSL_generate_cookie);
+        SSL_CTX_set_cookie_verify_cb(ssl_context, swSSL_verify_cookie);
+    }
+#endif
+
     return ssl_context;
 }
 
@@ -598,6 +628,92 @@ static int swSSL_check_name(char *name, ASN1_STRING *pattern)
         }
     }
     return SW_ERR;
+}
+#endif
+
+#ifdef SW_SUPPORT_DTLS
+
+#define COOKIE_SECRET_LENGTH (32)
+
+static void calculate_cookie(SSL* ssl, uchar *cookie_secret, uint cookie_length)
+{
+    long rv = (long) ssl;
+    long inum = (cookie_length - (((long) cookie_secret) % sizeof(long))) / sizeof(long);
+    long i = 0;
+    long *ip = (long*) cookie_secret;
+    for (i = 0; i < inum; ++i, ++ip)
+    {
+        *ip = rv;
+    }
+}
+
+static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len)
+{
+    uchar *buffer, result[EVP_MAX_MD_SIZE];
+    uint length = 0, result_len;
+    swSocketAddress sa = {};
+
+    uchar cookie_secret[COOKIE_SECRET_LENGTH];
+    calculate_cookie(ssl, cookie_secret, sizeof(cookie_secret));
+
+    /* Read peer information */
+    (void) BIO_dgram_get_peer(SSL_get_wbio(ssl), &sa);
+
+    length = 0;
+    switch (sa.addr.ss.sa_family)
+    {
+    case AF_INET:
+        length += sizeof(struct in_addr);
+        break;
+    case AF_INET6:
+        length += sizeof(struct in6_addr);
+        break;
+    default:
+        OPENSSL_assert(0);
+        break;
+    }
+
+    length += sizeof(in_port_t);
+    buffer = (uchar*) OPENSSL_malloc(length);
+
+    if (buffer == NULL)
+    {
+        swSysWarn("out of memory");
+        return 0;
+    }
+
+    switch (sa.addr.ss.sa_family)
+    {
+    case AF_INET:
+        memcpy(buffer, &sa.addr.inet_v4.sin_port, sizeof(in_port_t));
+        memcpy(buffer + sizeof(sa.addr.inet_v4.sin_port), &sa.addr.inet_v4.sin_addr, sizeof(struct in_addr));
+        break;
+    case AF_INET6:
+        memcpy(buffer, &sa.addr.inet_v6.sin6_port, sizeof(in_port_t));
+        memcpy(buffer + sizeof(in_port_t), &sa.addr.inet_v6.sin6_addr, sizeof(struct in6_addr));
+        break;
+    default:
+        OPENSSL_assert(0);
+        break;
+    }
+
+    HMAC(EVP_sha1(), (const void*) cookie_secret, COOKIE_SECRET_LENGTH, buffer, length, result, &result_len);
+    OPENSSL_free(buffer);
+
+    memcpy(cookie, result, result_len);
+    *cookie_len = result_len;
+
+    return 1;
+}
+
+static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len)
+{
+    uint result_len = 0;
+    uchar result[COOKIE_SECRET_LENGTH];
+
+    swSSL_generate_cookie(ssl, result, &result_len);
+
+    return cookie_len == result_len && memcmp(result, cookie, result_len) == 0;
 }
 #endif
 
@@ -786,11 +902,21 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
     return SW_ERR;
 }
 
-int swSSL_accept(swSocket *conn)
+enum swReturn_code swSSL_accept(swSocket *conn)
 {
     swSSL_clear_error(conn);
 
-    int n = SSL_do_handshake(conn->ssl);
+    int n;
+#ifdef SW_SUPPORT_DTLS
+    if (conn->dtls)
+    {
+        n = SSL_accept(conn->ssl);
+    }
+    else
+#endif
+    {
+        n = SSL_do_handshake(conn->ssl);
+    }
     /**
      * The TLS/SSL handshake was successfully completed
      */
@@ -840,9 +966,15 @@ int swSSL_accept(swSocket *conn)
         );
         return SW_ERROR;
     }
-    //EOF was observed
     else if (err == SSL_ERROR_SYSCALL)
     {
+#ifdef SW_SUPPORT_DTLS
+        if (conn->dtls && errno == 0)
+        {
+            conn->ssl_want_read = 1;
+            return SW_WAIT;
+        }
+#endif
         return SW_ERROR;
     }
     swWarn("SSL_do_handshake() failed. Error: %s[%ld|%d]", strerror(errno), err, errno);
@@ -951,8 +1083,11 @@ void swSSL_close(swSocket *conn)
         return;
     }
 
-    SSL_set_quiet_shutdown(conn->ssl, 1);
-    SSL_set_shutdown(conn->ssl, SSL_RECEIVED_SHUTDOWN | SSL_SENT_SHUTDOWN);
+    if (conn->ssl_quiet_shutdown)
+    {
+        SSL_set_quiet_shutdown(conn->ssl, 1);
+        SSL_set_shutdown(conn->ssl, SSL_RECEIVED_SHUTDOWN | SSL_SENT_SHUTDOWN);
+    }
 
     n = SSL_shutdown(conn->ssl);
 
@@ -1092,6 +1227,13 @@ ssize_t swSSL_recv(swSocket *conn, void *__buf, size_t __n)
 ssize_t swSSL_send(swSocket *conn, const void *__buf, size_t __n)
 {
     swSSL_clear_error(conn);
+
+#ifdef SW_SUPPORT_DTLS
+    if (conn->dtls && conn->chunk_size && __n > conn->chunk_size)
+    {
+        __n = conn->chunk_size;
+    }
+#endif
 
     int n = SSL_write(conn->ssl, __buf, __n);
     if (n < 0)

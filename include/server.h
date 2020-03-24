@@ -20,6 +20,10 @@
 #include "connection.h"
 #include "http.h"
 
+#ifdef SW_USE_OPENSSL
+#include "dtls.h"
+#endif
+
 #include <string>
 #include <queue>
 #include <unordered_map>
@@ -190,6 +194,9 @@ struct swListenPort
     SSL_CTX *ssl_context;
     swSSL_config ssl_config;
     swSSL_option ssl_option;
+#ifdef SW_SUPPORT_DTLS
+    std::unordered_map<int, swoole::dtls::Session*> *dtls_sessions;
+#endif
 #endif
 
     sw_atomic_t connection_num;
@@ -634,6 +641,28 @@ int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback f
 void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg);
 void swServer_clear_timer(swServer *serv);
 int swServer_create(swServer *serv);
+
+static inline bool swServer_if_require_receive_callback(swServer *serv, swListenPort *port, bool isset)
+{
+#ifdef SW_USE_OPENSSL
+    return (((swSocket_is_dgram(port->type) && port->ssl) || swSocket_is_stream(port->type)) && !isset);
+#else
+    return (swSocket_is_stream(port->type) && !isset);
+#endif
+}
+
+static inline bool swServer_if_require_packet_callback(swServer *serv, swListenPort *port, bool isset)
+{
+#ifdef SW_USE_OPENSSL
+    return (swSocket_is_dgram(port->type) && !port->ssl && !isset);
+#else
+    return (swSocket_is_dgram(port->type) && !isset);
+#endif
+}
+
+#ifdef SW_SUPPORT_DTLS
+swoole::dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *ls, swSocketAddress *sa);
+#endif
 int swServer_shutdown(swServer *serv);
 
 void swServer_set_ipc_max_size(swServer *serv);

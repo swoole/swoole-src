@@ -29,8 +29,11 @@ SW_EXTERN_C_BEGIN
 #include <openssl/conf.h>
 #include <openssl/ossl_typ.h>
 
-#define SW_SSL_BUFFER      1
-#define SW_SSL_CLIENT      2
+enum swSSL_create_flag
+{
+    SW_SSL_SERVER = 1,
+    SW_SSL_CLIENT = 2,
+};
 
 typedef struct _swSSL_option
 {
@@ -46,6 +49,9 @@ typedef struct _swSSL_option
     char *capath;
     uint8_t verify_depth;
     uint8_t method;
+#ifdef SW_SUPPORT_DTLS
+    uint8_t dtls;
+#endif
     uchar disable_compress :1;
     uchar verify_peer :1;
     uchar allow_self_signed :1;
@@ -92,6 +98,8 @@ enum swSSL_method
     SW_DTLSv1_METHOD,
     SW_DTLSv1_SERVER_METHOD,
     SW_DTLSv1_CLIENT_METHOD,
+    SW_DTLS_CLIENT_METHOD,
+    SW_DTLS_SERVER_METHOD,
 };
 
 typedef struct
@@ -119,8 +127,9 @@ int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth);
 int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx);
 int swSSL_check_host(swSocket *conn, char *tls_host_name);
 int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length);
+const char* swSSL_get_error();
 int swSSL_verify(swSocket *conn, int allow_self_signed);
-int swSSL_accept(swSocket *conn);
+enum swReturn_code swSSL_accept(swSocket *conn);
 int swSSL_connect(swSocket *conn);
 void swSSL_close(swSocket *conn);
 ssize_t swSSL_recv(swSocket *conn, void *__buf, size_t __n);

@@ -1,4 +1,6 @@
 <?php
+require __DIR__.'/functions.php';
+
 //$serv = new swoole_server("0.0.0.0", 9502, SWOOLE_BASE);
 
 $serv = new swoole_server("0.0.0.0", 9502);

@@ -17,6 +17,7 @@ class Base
     protected $nConcurrency = 100;
     protected $nRequest = 10000; // total
     protected $nShow;
+    protected $clientSocketType = SWOOLE_SOCK_TCP;
 
     protected $scheme;
     protected $host;
@@ -28,8 +29,9 @@ class Base
     protected $nSendBytes = 0;
 
     protected $requestCount = 0; // success
-    // protected $connectCount = 0;
+    protected $connectCount = 0;
     protected $connectErrorCount = 0;
+    protected $contentErrorCount = 0;
     protected $connectTime = 0;
 
     protected $keepAlive; // default disable
@@ -38,11 +40,7 @@ class Base
     protected $startTime;
     protected $beginSendTime;
     protected $testMethod;
-
-    protected $sentData;
-    protected $sentLen = 0;
-    protected $data;
-    protected $randomData;
+    protected $sentLength = self::TCP_SENT_LEN;
 
     protected $verbose; // default disable
 
@@ -74,6 +72,16 @@ class Base
         $this->nShow = $this->nRequest / 10;
     }
 
+    public function setDataLength($l)
+    {
+        $this->sentLength = $l;
+    }
+
+    public function setVerbose()
+    {
+        $this->verbose = true;
+    }
+
     protected function parseOpts()
     {
         $shortOpts = "c:n:l:s:t:d:khv";
@@ -84,7 +92,7 @@ class Base
         }
 
         if (isset($opts['l']) and intval($opts['l']) > 0) {
-            $this->sentLen = intval($opts['l']);
+            $this->sentLength = intval($opts['l']);
         }
 
         $this->path = $serv['path'] ?? self::PATH;
@@ -124,7 +132,7 @@ HELP
     public function setSentData($data)
     {
         $this->sentData = $data;
-        $this->sentLen = strlen($data);
+        $this->sentLength = strlen($data);
     }
 
     protected function finish()
@@ -138,19 +146,30 @@ HELP
         $requestPerSec = round($this->requestCount / $costTime, 2);
         $connectTime = $this->format($this->connectTime);
 
-        echo <<<EOF
-\n
-Concurrency Level:      {$this->nConcurrency}
-Time taken for tests:   {$costTime} seconds
-Complete requests:      {$nRequest}
-Failed requests:        {$requestErrorCount}
-Connect failed:         {$connectErrorCount}
-Total send:             {$nSendBytes} bytes
-Total reveive:          {$nRecvBytes} bytes
-Requests per second:    {$requestPerSec}
-Connection time:        {$connectTime} seconds
-\n
-EOF;
+        $output = '';
+        $output .= "Concurrency Level:      {$this->nConcurrency}";
+        $output .= "\nTime taken for tests:   {$costTime} seconds";
+        $output .= "\nComplete requests:      {$nRequest}";
+        $output .= "\nFailed requests:        " . $this->prettifyNumber($requestErrorCount);
+        $output .= "\nConnect failed:         {$connectErrorCount}";
+        $output .= "\nTotal send:             {$nSendBytes} bytes";
+        $output .= "\nTotal reveive:          {$nRecvBytes} bytes";
+        $output .= "\nRequests per second:    {$requestPerSec}";
+        $output .= "\nConnection time:        {$connectTime} seconds";
+        $output .= "\nContent Error:          " . $this->prettifyNumber($this->contentErrorCount);
+        $output .= "\n";
+        echo $output;
+    }
+
+    protected function prettifyNumber($n)
+    {
+        return ($n == 0 ? color(
+            '0',
+            SWOOLE_COLOR_GREEN
+        ) : color(
+            $n,
+            SWOOLE_COLOR_RED
+        ));
     }
 
     public function format($time)
@@ -158,12 +177,21 @@ EOF;
         return round($time, 4);
     }
 
+
+    protected function verifyResponse($req, $resp)
+    {
+        if ($resp !== get_response($req)) {
+            $this->contentErrorCount++;
+        }
+        $this->nRecvBytes += strlen($resp);
+    }
+
     /**
      * @throws ExitException
      */
     protected function ws()
     {
-        $wsCli = new Coroutine\http\client($this->host, $this->port);
+        $wsCli = new Coroutine\Http\Client($this->host, $this->port);
         $n = $this->nRequest / $this->nConcurrency;
         Coroutine::defer(function () use ($wsCli) {
             $wsCli->close();
@@ -174,7 +202,7 @@ EOF;
             'websocket_mask' => true,
         ];
         $wsCli->set($setting);
-        if (!$wsCli->upgrade($this->path)) {
+        if (!$wsCli->upgrade('/')) {
             if ($wsCli->errCode === 111) {
                 throw new ExitException(swoole_strerror($wsCli->errCode));
             } else if ($wsCli->errCode === 110) {
@@ -184,54 +212,81 @@ EOF;
             }
         }
 
-        if ($this->sentLen === 0) {
-            $this->sentLen = self::TCP_SENT_LEN;
+        if ($this->sentLength === 0) {
+            $this->sentLength = self::TCP_SENT_LEN;
         }
-        $this->setSentData(str_repeat('A', $this->sentLen));
+        $this->setSentData(str_repeat('A', $this->sentLength));
 
         while ($n--) {
-            //requset
-            if (!$wsCli->push($this->data)) {
+            $sentData = $this->getRandomData($this->sentLength, false);
+            if (!$wsCli->push($sentData)) {
                 if ($wsCli->errCode === 8502) {
                     throw new ExitException("Error OPCODE");
-                } else if ($wsCli->errCode === 8503) {
+                } elseif ($wsCli->errCode === 8503) {
                     throw new ExitException("Not connected to the server or the connection has been closed");
                 } else {
                     throw new ExitException("Handshake failed");
                 }
             }
-            $this->nSendBytes += $this->sentLen;
+            $this->nSendBytes += $this->sentLength;
             $this->requestCount++;
             if (($this->requestCount % $this->nShow === 0) and $this->verbose) {
-                echo "Completed {$this->requestCount} requests" . PHP_EOL;
+                $this->trace("Completed {$this->requestCount} requests");
             }
             //response
             $frame = $wsCli->recv();
-            $this->nRecvBytes += strlen($frame->data);
+            if (!$frame or !$frame->data) {
+                break;
+            } else {
+                $this->verifyResponse($sentData, $frame->data);
+            }
         }
     }
 
     /**
      * @throws ExitException
      */
-    protected function tcp()
+    protected function dtls()
     {
-        $cli = new Coroutine\Client(SWOOLE_TCP);
-        $n = $this->nRequest / $this->nConcurrency;
-        Coroutine::defer(function () use ($cli) {
-            $cli->close();
-        });
+        $this->clientSocketType = SWOOLE_UDP | SWOOLE_SSL;
+        $this->execute();
+    }
 
-        if ($this->sentLen === 0) {
-            $this->sentLen = self::TCP_SENT_LEN;
+    protected function trace($log) {
+        if ($this->verbose) {
+            echo $log."\n";
         }
-        $this->setSentData(str_repeat('A', $this->sentLen));
+    }
+
+    function udp() {
+        $this->clientSocketType = SWOOLE_SOCK_UDP;
+        $this->execute();
+    }
+
+    function tcp2() {
+        $this->clientSocketType = SWOOLE_SOCK_UDP;
+        $this->execute();
+    }
+
+
+    /**
+     * @throws ExitException
+     */
+    protected function execute()
+    {
+        $cli = new Coroutine\Client($this->clientSocketType);
+        $n = $this->nRequest / $this->nConcurrency;
+        Coroutine::defer(
+            function () use ($cli) {
+                $cli->close();
+            }
+        );
 
         if (!$cli->connect($this->host, $this->port)) { // connection failed
-            if ($cli->errCode === 111) { // connection refuse
+            if ($cli->errCode === SOCKET_ECONNREFUSED) { // connection refuse
                 throw new ExitException(swoole_strerror($cli->errCode));
             }
-            if ($cli->errCode === 110) { // connection timeout
+            if ($cli->errCode === SOCKET_ETIMEDOUT) { // connection timeout
                 $this->connectErrorCount++;
                 if ($this->verbose) {
                     echo swoole_strerror($cli->errCode) . PHP_EOL;
@@ -240,15 +295,19 @@ EOF;
             }
         }
 
+        $this->trace("connect success");
+
         while ($n--) {
             //requset
-            if (!$cli->send($this->sentData)) {
+            $sentData = $this->getRandomData($this->sentLength);
+            $this->trace("send data, length=".strlen($sentData));
+            if (!$cli->send($sentData)) {
                 if ($this->verbose) {
                     echo swoole_strerror($cli->errCode) . PHP_EOL;
                 }
                 continue;
             }
-            $this->nSendBytes += $this->sentLen;
+            $this->nSendBytes += $this->sentLength;
             $this->requestCount++;
             if (($this->requestCount % $this->nShow === 0) and $this->verbose) {
                 echo "Completed {$this->requestCount} requests" . PHP_EOL;
@@ -258,7 +317,7 @@ EOF;
             if ($recvData === false and $this->verbose) {
                 echo swoole_strerror($cli->errCode) . PHP_EOL;
             } else {
-                $this->nRecvBytes += strlen($recvData);
+                $this->verifyResponse($sentData, $recvData);
             }
         }
     }
@@ -387,6 +446,7 @@ EOF;
         $cli->close();
     }
 
+
     /**
      * @param $max
      * @param bool $raw
@@ -395,13 +455,14 @@ EOF;
      */
     protected function getRandomData($max, $raw = true)
     {
-        if (!$this->randomData) {
-            $this->randomData = random_bytes($max);
-            if (!$raw) {
-                $this->randomData = base64_encode($this->randomData);
-            }
+        if ($max == 0) {
+            $max = self::TCP_SENT_LEN;
         }
-        return $this->randomData;
+        $randomData = random_bytes($max);
+        if (!$raw) {
+            $randomData = base64_encode($randomData);
+        }
+        return $randomData;
     }
 
     /**
