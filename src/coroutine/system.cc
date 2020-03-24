@@ -365,13 +365,10 @@ struct coro_poll_task
     bool wait = true;
 };
 
-static std::unordered_map<int, coro_poll_task *> coro_poll_task_map;
-
 static inline void socket_poll_clean(coro_poll_task *task)
 {
     for (auto i = task->fds->begin(); i != task->fds->end(); i++)
     {
-        coro_poll_task_map.erase(i->first);
         swSocket *socket = i->second.socket;
         if (!socket)
         {
@@ -408,9 +405,8 @@ static void socket_poll_completed(void *data)
     task->co->resume();
 }
 
-static inline void socket_poll_trigger_event(swReactor *reactor, int fd, enum swEvent_type event)
+static inline void socket_poll_trigger_event(swReactor *reactor, coro_poll_task *task, int fd, enum swEvent_type event)
 {
-    coro_poll_task *task = coro_poll_task_map[fd];
     auto i = task->fds->find(fd);
     if (event == SW_EVENT_ERROR && !(i->second.events & SW_EVENT_ERROR))
     {
@@ -442,19 +438,19 @@ static inline void socket_poll_trigger_event(swReactor *reactor, int fd, enum sw
 
 static int socket_poll_read_callback(swReactor *reactor, swEvent *event)
 {
-    socket_poll_trigger_event(reactor, event->fd, SW_EVENT_READ);
+    socket_poll_trigger_event(reactor, (coro_poll_task *) event->socket->object, event->fd, SW_EVENT_READ);
     return SW_OK;
 }
 
 static int socket_poll_write_callback(swReactor *reactor, swEvent *event)
 {
-    socket_poll_trigger_event(reactor, event->fd, SW_EVENT_WRITE);
+    socket_poll_trigger_event(reactor, (coro_poll_task *) event->socket->object, event->fd, SW_EVENT_WRITE);
     return SW_OK;
 }
 
 static int socket_poll_error_callback(swReactor *reactor, swEvent *event)
 {
-    socket_poll_trigger_event(reactor, event->fd, SW_EVENT_ERROR);
+    socket_poll_trigger_event(reactor, (coro_poll_task *) event->socket->object, event->fd, SW_EVENT_ERROR);
     return SW_OK;
 }
 
@@ -541,7 +537,7 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
         {
             continue;
         }
-        coro_poll_task_map[i->first] = &task;
+        i->second.socket->object = &task;
         tasked_num++;
     }
 
