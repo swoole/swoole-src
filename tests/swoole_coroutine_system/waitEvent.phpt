@@ -21,5 +21,8 @@ Coroutine\run(function () {
     Assert::contains($response, 'www.qq.com');
 });
 
+echo "DONE\n";
+
 ?>
 --EXPECT--
+DONE

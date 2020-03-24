@@ -573,11 +573,13 @@ struct event_waiter
         revents = 0;
         if (!(socket = swSocket_new(fd, SW_FD_CORO_EVENT)))
         {
+            SwooleG.error = errno;
             return;
         }
         socket->object = this;
         if (swoole_event_add(socket, events) < 0)
         {
+            SwooleG.error = errno;
             goto _done;
         }
         if (timeout > 0)
@@ -643,7 +645,7 @@ static int event_waiter_error_callback(swReactor *reactor, swEvent *event)
 
 int System::wait_event(int fd, int events, double timeout)
 {
-    events &= SW_EVENT_READ | SW_EVENT_WRITE | SW_EVENT_ERROR;
+    events &= SW_EVENT_READ | SW_EVENT_WRITE;
     if (events == 0)
     {
         SwooleG.error = EINVAL;
@@ -669,7 +671,22 @@ int System::wait_event(int fd, int events, double timeout)
         return 0;
     }
 
-    return event_waiter(fd, events, timeout).revents;
+    int revents = event_waiter(fd, events, timeout).revents;
+
+    if (revents & SW_EVENT_ERROR)
+    {
+        revents ^= SW_EVENT_ERROR;
+        if (events & SW_EVENT_READ)
+        {
+            revents |= SW_EVENT_READ;
+        }
+        if (events & SW_EVENT_WRITE)
+        {
+            revents |= SW_EVENT_WRITE;
+        }
+    }
+
+    return revents;
 }
 
 void System::init_reactor(swReactor *reactor)
