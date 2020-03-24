@@ -9,7 +9,7 @@ use Symfony;
 
 class Base
 {
-    protected const TCP_SENT_LEN = 1024;
+    protected const SENT_LEN = 1024;
     protected const TIMEOUT = 3; // seconds
     protected const PATH = '/';
     protected const QUERY = '';
@@ -22,7 +22,7 @@ class Base
     protected $scheme;
     protected $host;
     protected $port;
-    protected $path;
+    protected $path = '/';
     protected $query;
 
     protected $nRecvBytes = 0;
@@ -40,8 +40,10 @@ class Base
     protected $startTime;
     protected $beginSendTime;
     protected $testMethod;
-    protected $sentLength = self::TCP_SENT_LEN;
-
+    protected $sentLength = self::SENT_LEN;
+    protected $enableEofProtocol = false;
+    protected $packetEofString = "\r\n\r\n";
+    protected $enableLengthProtocol = false;
     protected $verbose; // default disable
 
     /**
@@ -80,59 +82,6 @@ class Base
     public function setVerbose()
     {
         $this->verbose = true;
-    }
-
-    protected function parseOpts()
-    {
-        $shortOpts = "c:n:l:s:t:d:khv";
-        $opts = getopt($shortOpts);
-
-        if (isset($opts['h'])) {
-            $this->showHelp();
-        }
-
-        if (isset($opts['l']) and intval($opts['l']) > 0) {
-            $this->sentLength = intval($opts['l']);
-        }
-
-        $this->path = $serv['path'] ?? self::PATH;
-        $this->query = $serv['query'] ?? self::QUERY;
-        $this->timeout = $opts['t'] ? intval($opts['t']) : self::TIMEOUT;
-        $this->keepAlive = isset($opts['k']);
-        $this->verbose = isset($opts['v']);
-        if (isset($opts['d'])) {
-            $this->setSentData($opts['d']);
-        }
-    }
-
-    public function showHelp()
-    {
-        exit(<<<HELP
-Usage: php co_run.php [OPTIONS]
-
-A bench script
-
-Options:
-  -c      Number of coroutines      E.g: -c 100
-  -n      Number of requests        E.g: -n 10000
-  -l      The length of the data sent per request       E.g: -l 1024
-  -s      URL       E.g: -s tcp://127.0.0.1:9501
-                    Support: tcp、http、ws
-  -t      Http request timeout detection
-                    Default is 3 seconds, -1 means disable
-  -k      Use HTTP KeepAlive
-  -d      HTTP post data
-  -h      Help list
-  -v      Flag enables verbose progress and debug output
-\n
-HELP
-        );
-    }
-
-    public function setSentData($data)
-    {
-        $this->sentData = $data;
-        $this->sentLength = strlen($data);
     }
 
     protected function finish()
@@ -177,19 +126,26 @@ HELP
         return round($time, 4);
     }
 
-
     protected function verifyResponse($req, $resp)
     {
-        if ($resp !== get_response($req)) {
-            $this->contentErrorCount++;
+        if ($this->enableLengthProtocol) {
+            if ($resp !== $req) {
+                $this->contentErrorCount++;
+            }
+        } else {
+            if ($resp !== get_response($req)) {
+                $this->contentErrorCount++;
+            }
         }
         $this->nRecvBytes += strlen($resp);
     }
 
-    /**
-     * @throws ExitException
-     */
-    protected function ws()
+    function ws()
+    {
+        $this->websocket();
+    }
+
+    protected function websocket()
     {
         $wsCli = new Coroutine\Http\Client($this->host, $this->port);
         $n = $this->nRequest / $this->nConcurrency;
@@ -212,11 +168,6 @@ HELP
             }
         }
 
-        if ($this->sentLength === 0) {
-            $this->sentLength = self::TCP_SENT_LEN;
-        }
-        $this->setSentData(str_repeat('A', $this->sentLength));
-
         while ($n--) {
             $sentData = $this->getRandomData($this->sentLength, false);
             if (!$wsCli->push($sentData)) {
@@ -228,7 +179,7 @@ HELP
                     throw new ExitException("Handshake failed");
                 }
             }
-            $this->nSendBytes += $this->sentLength;
+            $this->nSendBytes += strlen($sentData);
             $this->requestCount++;
             if (($this->requestCount % $this->nShow === 0) and $this->verbose) {
                 $this->trace("Completed {$this->requestCount} requests");
@@ -243,35 +194,34 @@ HELP
         }
     }
 
-    /**
-     * @throws ExitException
-     */
-    protected function dtls()
+    function dtls()
     {
         $this->clientSocketType = SWOOLE_UDP | SWOOLE_SSL;
         $this->execute();
     }
 
-    protected function trace($log) {
+    protected function trace($log)
+    {
         if ($this->verbose) {
-            echo $log."\n";
+            echo $log . "\n";
         }
     }
 
-    function udp() {
+    function udp()
+    {
         $this->clientSocketType = SWOOLE_SOCK_UDP;
         $this->execute();
     }
-
-    function tcp2() {
-        $this->clientSocketType = SWOOLE_SOCK_UDP;
-        $this->execute();
-    }
-
 
     /**
      * @throws ExitException
      */
+    function tcp()
+    {
+        $this->clientSocketType = SWOOLE_SOCK_TCP;
+        $this->execute();
+    }
+
     protected function execute()
     {
         $cli = new Coroutine\Client($this->clientSocketType);
@@ -297,6 +247,18 @@ HELP
 
         $this->trace("connect success");
 
+        if ($this->enableEofProtocol) {
+            $cli->set(array('open_eof_check' => true, "package_eof" => $this->packetEofString));
+        } elseif ($this->enableLengthProtocol) {
+            $cli->set(
+                array(
+                    'open_length_check' => true,
+                    "package_length_type" => 'N',
+                    'package_body_offset' => 4,
+                )
+            );
+        }
+
         while ($n--) {
             //requset
             $sentData = $this->getRandomData($this->sentLength);
@@ -307,7 +269,7 @@ HELP
                 }
                 continue;
             }
-            $this->nSendBytes += $this->sentLength;
+            $this->nSendBytes += strlen($sentData);
             $this->requestCount++;
             if (($this->requestCount % $this->nShow === 0) and $this->verbose) {
                 echo "Completed {$this->requestCount} requests" . PHP_EOL;
@@ -336,7 +298,7 @@ HELP
         $headers = [
             'Host' => "{$this->host}:{$this->port}",
             'Accept' => 'text/html,application/xhtml+xml,application/xml',
-            'content-type' => 'application/x-www-form-urlencoded',
+            'content-type' => 'application/binary-data',
         ];
         $httpCli->setHeaders($headers);
 
@@ -344,26 +306,26 @@ HELP
             'timeout' => $this->timeout,
             'keep_alive' => $this->keepAlive,
         ];
+
         $httpCli->set($setting);
-        if (isset($this->sentData)) {
-            $httpCli->setData($this->sentData);
-        }
 
         $query = empty($this->query) ? '' : "?$this->query";
 
         while ($n--) {
+            $sentData = $this->getRandomData($this->sentLength);
+            $httpCli->setData($sentData);
             $httpCli->execute("{$this->path}{$query}");
 
             if (!$this->checkStatusCode($httpCli)) {
                 continue;
             }
-
+            $this->nSendBytes += strlen($sentData);
             $this->requestCount++;
             if ($this->requestCount % $this->nShow === 0 and $this->verbose) {
                 echo "Completed {$this->requestCount} requests" . PHP_EOL;
             }
             $recvData = $httpCli->body;
-            $this->nRecvBytes += strlen($recvData);
+            $this->verifyResponse($sentData, $recvData);
         }
     }
 
@@ -405,81 +367,59 @@ HELP
 
     protected function eof()
     {
-        $eof = "\r\n\r\n";
-        $cli = new Coroutine\Client(SWOOLE_TCP);
-        $cli->set(array('open_eof_check' => true, "package_eof" => $eof));
-        $cli->connect($this->host, $this->port);
-        $n = $this->nRequest / $this->nConcurrency;
-        while ($n--) {
-            //requset
-            $data = $this->sentData . $eof;
-            $cli->send($data);
-            $this->nSendBytes += strlen($data);
-            $this->requestCount++;
-            //response
-            $rdata = $cli->recv();
-            $this->nRecvBytes += strlen($rdata);
-        }
-        $cli->close();
+        $this->enableEofProtocol = true;
+        $this->execute();
     }
 
     protected function length()
     {
-        $cli = new Coroutine\Client(SWOOLE_TCP);
-        $cli->set(array(
-            'open_length_check' => true,
-            "package_length_type" => 'N',
-            'package_body_offset' => 4,
-        ));
-        $cli->connect($this->host, $this->port);
-        $n = $this->nRequest / $this->nConcurrency;
-        while ($n--) {
-            //requset
-            $data = pack('N', strlen($this->sentData)) . $this->sentData;
-            $cli->send($data);
-            $this->nSendBytes += strlen($data);
-            $this->requestCount++;
-            //response
-            $rdata = $cli->recv();
-            $this->nRecvBytes += strlen($rdata);
-        }
-        $cli->close();
+        $this->enableLengthProtocol = true;
+        $this->execute();
     }
 
-
     /**
-     * @param $max
-     * @param bool $raw
+     * @param $length
      * @return string
-     * @throws \Exception
      */
-    protected function getRandomData($max, $raw = true)
+    protected function getRandomData($length)
     {
-        if ($max == 0) {
-            $max = self::TCP_SENT_LEN;
+        if ($length == 0) {
+            $length = self::SENT_LEN;
         }
-        $randomData = random_bytes($max);
-        if (!$raw) {
-            $randomData = base64_encode($randomData);
+        try {
+            $randomData = random_bytes($length);
+        } catch (\Exception $e) {
+            return "";
         }
-        return $randomData;
+
+        if ($this->enableEofProtocol) {
+            return base64_encode($randomData) . $this->packetEofString;
+        } elseif ($this->enableLengthProtocol) {
+            return pack('N', strlen($randomData)) . $randomData;
+        } else {
+            return $randomData;
+        }
     }
 
-    /**
-     * @throws \Exception
-     */
     protected function random_data()
     {
         $cli = new Coroutine\Client(SWOOLE_TCP);
-        $cli->set(array(
-            'open_length_check' => true,
-            "package_length_type" => 'N',
-            'package_body_offset' => 4,
-        ));
+        $cli->set(
+            array(
+                'open_length_check' => true,
+                "package_length_type" => 'N',
+                'package_body_offset' => 4,
+            )
+        );
         $cli->connect($this->host, $this->port);
 
         $max = 32 * 1024 * 1024;
-        $random_data = $this->getRandomData($max);
+
+        static $random_data = null;
+        if (!$random_data) {
+            $random_data = $this->getRandomData($max);
+        }
+
         $cid = Coroutine::getCid();
 
         $n = $this->nRequest / $this->nConcurrency;
@@ -496,13 +436,12 @@ HELP
             $this->nRecvBytes += strlen($rdata);
             $hash = substr($data, 4, 32);
             if ($hash !== md5(substr($data, -128, 128))) {
+                $this->contentErrorCount++;
                 echo "[Co-$cid]\tResponse Data Error\n";
-                break;
             }
         }
         $cli->close();
     }
-
 
     /**
      * @throws \Exception
@@ -510,10 +449,12 @@ HELP
     protected function random_data_eof()
     {
         $cli = new Coroutine\Client(SWOOLE_TCP);
-        $cli->set(array(
-            'open_eof_check' => true,
-            'package_eof' => "\r\n",
-        ));
+        $cli->set(
+            array(
+                'open_eof_check' => true,
+                'package_eof' => "\r\n",
+            )
+        );
         $cli->connect($this->host, $this->port);
 
         $max = 32 * 1024 * 1024;
@@ -525,7 +466,7 @@ HELP
             //requset
             $len = mt_rand(1024, 1024 * 1024);
             $send_data = substr($random_data, rand(0, $max - $len), $len);
-            $data = md5(substr($send_data, -128, 128)) . $send_data."\r\n";
+            $data = md5(substr($send_data, -128, 128)) . $send_data . "\r\n";
             $cli->send($data);
             $this->nSendBytes += strlen($data);
             $this->requestCount++;
@@ -535,6 +476,7 @@ HELP
             $hash = substr($data, 0, 32);
             if ($hash !== md5(substr($data, -130, 128))) {
                 echo "[Co-$cid]\tResponse Data Error\n";
+                $this->contentErrorCount++;
                 break;
             }
         }
