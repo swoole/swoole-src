@@ -505,21 +505,20 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
             swWarn("calloc() failed");
             return false;
         }
-        int j = 0;
-        for (auto i = fds.begin(); i != fds.end(); i++)
+        int n = 0;
+        for (auto i = fds.begin(); i != fds.end(); i++, n++)
         {
-            event_list[j].fd = i->first;
-            event_list[j].events = translate_events_to_poll(i->second.events);
-            event_list[j].revents = 0;
-            j++;
+            event_list[n].fd = i->first;
+            event_list[n].events = translate_events_to_poll(i->second.events);
+            event_list[n].revents = 0;
         }
-        int retval = ::poll(event_list, fds.size(), 0);
+        int retval = ::poll(event_list, n, 0);
         if (retval > 0)
         {
-            for (size_t i = 0; i < fds.size(); i++)
+            int n = 0;
+            for (auto i = fds.begin(); i != fds.end(); i++, n++)
             {
-                auto _e = fds.find(event_list[i].fd);
-                _e->second.revents = translate_events_from_poll(event_list[i].revents);;
+                i->second.revents = translate_events_from_poll(event_list[n].revents);
             }
         }
         sw_free(event_list);
