@@ -874,7 +874,7 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize)
 swString *swString_new(size_t size);
 swString *swString_dup(const char *src_str, size_t length);
 swString *swString_dup2(swString *src);
-
+int swString_repeat(swString *src, const char *data, size_t len, size_t n);
 void swString_print(swString *str);
 int swString_append(swString *str, swString *append_str);
 int swString_append_ptr(swString *str, const char *append_str, size_t length);

@@ -350,3 +350,16 @@ void swoole_random_string(char *buf, size_t size)
     }
     buf[i] = '\0';
 }
+
+int swString_repeat(swString *src, const char *data, size_t len, size_t n)
+{
+    if (n <= 0)
+    {
+        return SW_ERR;
+    }
+    for (size_t i = 0; i < n; i++)
+    {
+        swString_append_ptr(src, data, len);
+    }
+    return SW_OK;
+}
