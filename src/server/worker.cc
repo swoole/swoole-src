@@ -723,21 +723,20 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     void *buffer;
     struct iovec buffers[2];
 
-    // peek
+    _read_from_pipe:
     recv_n = recv(event->fd, &pipe_buffer->info, sizeof(pipe_buffer->info), MSG_PEEK);
-    if (recv_n < 0 && errno == EAGAIN)
+    if (recv_n < 0)
     {
-        return SW_OK;
-    }
-    else if (recv_n < 0)
-    {
+        if (errno == EAGAIN)
+        {
+            return SW_OK;
+        }
         return SW_ERR;
     }
     
     if (pipe_buffer->info.flags & SW_EVENT_DATA_CHUNK)
     {
         buffer = serv->get_buffer(serv, &pipe_buffer->info);
-        _read_from_pipe:
 
         buffers[0].iov_base = &pipe_buffer->info;
         buffers[0].iov_len = sizeof(pipe_buffer->info);
@@ -756,7 +755,6 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 
         if (pipe_buffer->info.flags & SW_EVENT_DATA_CHUNK)
         {
-            //wait more chunk data
             if (!(pipe_buffer->info.flags & SW_EVENT_DATA_END))
             {
                 goto _read_from_pipe;

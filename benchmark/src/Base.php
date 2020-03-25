@@ -45,6 +45,7 @@ class Base
     protected $packetEofString = "\r\n\r\n";
     protected $enableLengthProtocol = false;
     protected $verbose; // default disable
+    protected $packetIndex = 0;
 
     /**
      * Base constructor.
@@ -424,18 +425,47 @@ class Base
 
         $n = $this->nRequest / $this->nConcurrency;
         while ($n--) {
-            //requset
+            /**
+             * 随机发送一个长度为 1K-1M 的包
+             */
             $len = mt_rand(1024, 1024 * 1024);
+            /**
+             * 随机数据，从 32M 的数据段随机中取 $len 字节
+             */
             $send_data = substr($random_data, rand(0, $max - $len), $len);
-            $data = pack('N', $len + 32) . md5(substr($send_data, -128, 128)) . $send_data;
+            /**
+             * 末尾 128 字节作为盐值，计算 md5，因为计算全量数据md5 CPU消耗过大)
+             */
+            $salt = substr($send_data, -128, 128);
+            /**
+             * 包序号，用于 debug
+             */
+            $id = $this->packetIndex++;
+            /**
+             * 格式说明：
+             * (length)[4Byte] + (id)[4Byte] + (md5)(32Byte) + (data)($N Byte 随机二进制字符串)
+             */
+            $data = pack('NN', $len + 32 + 4, $id) . md5($salt) . $send_data;
+
             $cli->send($data);
             $this->nSendBytes += strlen($data);
             $this->requestCount++;
             //response
             $rdata = $cli->recv();
+            if (!$rdata) {
+                echo "[Co-$cid]\tConnection Reset\n";
+                $this->contentErrorCount++;
+                break;
+            }
             $this->nRecvBytes += strlen($rdata);
-            $hash = substr($data, 4, 32);
-            if ($hash !== md5(substr($data, -128, 128))) {
+
+            /**
+             * 解析数据
+             */
+            $header = unpack('Nid', substr($data, 4, 4));
+            $hash = substr($data, 8, 32);
+            $salt2 = substr($data, -128, 128);
+            if ($hash !== md5($salt2)) {
                 $this->contentErrorCount++;
                 echo "[Co-$cid]\tResponse Data Error\n";
             }

@@ -5,6 +5,8 @@ use Swoole\Server;
 define('N', 32 * 1024 * 1024);
 define('R_DATA', random_bytes(N));
 
+const DEBUG = false;
+
 //$serv = new swoole_server("0.0.0.0", 9502, SWOOLE_BASE);
 $serv = new Server("0.0.0.0", 9502);
 
@@ -28,17 +30,25 @@ $serv->on('connect', function (Server $serv, $fd, $rid) {
     //echo "connect\n";;
 });
 
-$serv->on('receive', function (Server $serv, $fd, $rid, $data) {
-    $hash = substr($data, 4, 32);
-    if ($hash !== md5(substr($data, -128, 128))) {
-        echo "Client Request Data Error\n";
-        $serv->close($fd);
-    } else {
-        $len = mt_rand(1024, 1024 * 1024);
-        $send_data = substr(R_DATA, rand(0, N - $len), $len);
-        $serv->send($fd, pack('N', $len + 32) . md5(substr($send_data, -128, 128)) . $send_data);
+$serv->on(
+    'receive',
+    function (Server $serv, $fd, $rid, $data) {
+        $header = unpack('Nid', substr($data, 4, 4));
+        $id = $header['id'];
+        $hash = substr($data, 8, 32);
+        if ($hash !== md5(substr($data, -128, 128))) {
+            echo "Client Request Data Error, id={$header['id']}, length=" . strlen($data) . "\n";
+            $serv->close($fd);
+        } else {
+            $len = mt_rand(1024, 1024 * 1024);
+            $send_data = substr(R_DATA, rand(0, N - $len), $len);
+            $serv->send($fd, pack('NN', $len + 32 + 4, $id) . md5(substr($send_data, -128, 128)) . $send_data);
+            if (DEBUG) {
+                echo "Index-{$id} OK, length=" . strlen($data) . PHP_EOL;
+            }
+        }
     }
-});
+);
 
 $serv->on('close', function (Server $serv, $fd, $from_id) {
 });
