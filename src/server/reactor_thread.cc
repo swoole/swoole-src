@@ -138,7 +138,6 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
     swSendData task;
     swDgramPacket *pkt = (swDgramPacket *) SwooleTG.buffer_stack->str;
     swFactory *factory = &serv->factory;
-    swListenPort *port = (swListenPort *) server_sock->object;
 
     pkt->socket_addr.len = sizeof(pkt->socket_addr.addr);
 
@@ -173,6 +172,8 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
     }
 
 #ifdef SW_SUPPORT_DTLS
+    swListenPort *port = (swListenPort *) server_sock->object;
+
     if (port->ssl_option.dtls)
     {
         swoole::dtls::Session *session = swServer_dtls_accept(serv, port, &pkt->socket_addr);

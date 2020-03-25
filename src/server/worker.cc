@@ -722,6 +722,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     swPipeBuffer *pipe_buffer = serv->pipe_buffers[0];
     void *buffer;
     struct iovec buffers[2];
+    int recv_chunk_count = 0;
 
     _read_from_pipe:
     recv_n = recv(event->fd, &pipe_buffer->info, sizeof(pipe_buffer->info), MSG_PEEK);
@@ -744,6 +745,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
         buffers[1].iov_len = serv->ipc_max_size - sizeof(pipe_buffer->info);
         
         recv_n = readv(event->fd, buffers, 2);
+        assert(recv_n != 0);
         if (recv_n < 0 && errno == EAGAIN)
         {
             return SW_OK;
@@ -753,22 +755,37 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
             serv->add_buffer_len(serv, &pipe_buffer->info, recv_n - sizeof(pipe_buffer->info));
         }
 
-        if (pipe_buffer->info.flags & SW_EVENT_DATA_CHUNK)
+        recv_chunk_count++;
+
+        if (!(pipe_buffer->info.flags & SW_EVENT_DATA_END))
         {
-            if (!(pipe_buffer->info.flags & SW_EVENT_DATA_END))
+            /**
+             * if the reactor thread sends too many chunks to the worker process,
+             * the worker process may receive chunks all the time,
+             * resulting in the worker process being unable to handle other tasks.
+             * in order to make the worker process handle tasks fairly, 
+             * the maximum number of consecutive chunks received by the worker is limited.
+             */
+            if (recv_chunk_count >= SW_WORKER_MAX_RECV_CHUNK_COUNT)
             {
-                goto _read_from_pipe;
+                swTraceLog(
+                    SW_TRACE_WORKER,
+                    "worker process[%lu] receives the chunk data to the maximum[%d], return to event loop",
+                    SwooleWG.id, recv_chunk_count
+                );
+                return SW_OK;
             }
-            else
-            {
-                pipe_buffer->info.flags |= SW_EVENT_DATA_OBJ_PTR;
-                /**
-                 * Because we don't want to split the swEventData parameters into swDataHead and data, 
-                 * we store the value of the worker_buffer pointer in swEventData.data. 
-                 * The value of this pointer will be fetched in the swServer_worker_get_packet function.
-                 */
-                serv->move_buffer(serv, pipe_buffer);
-            }
+            goto _read_from_pipe;
+        }
+        else
+        {
+            pipe_buffer->info.flags |= SW_EVENT_DATA_OBJ_PTR;
+            /**
+             * Because we don't want to split the swEventData parameters into swDataHead and data, 
+             * we store the value of the worker_buffer pointer in swEventData.data. 
+             * The value of this pointer will be fetched in the swServer_worker_get_packet function.
+             */
+            serv->move_buffer(serv, pipe_buffer);
         }
     }
     else
