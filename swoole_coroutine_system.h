@@ -90,6 +90,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_waitSignal, 0, 0, 1)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_waitEvent, 0, 0, 1)
+    ZEND_ARG_INFO(0, fd)
+    ZEND_ARG_INFO(0, events)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
 PHP_METHOD(swoole_coroutine_system, exec);
 PHP_METHOD(swoole_coroutine_system, sleep);
 PHP_METHOD(swoole_coroutine_system, fread);
@@ -102,3 +108,4 @@ PHP_METHOD(swoole_coroutine_system, writeFile);
 PHP_METHOD(swoole_coroutine_system, wait);
 PHP_METHOD(swoole_coroutine_system, waitPid);
 PHP_METHOD(swoole_coroutine_system, waitSignal);
+PHP_METHOD(swoole_coroutine_system, waitEvent);
