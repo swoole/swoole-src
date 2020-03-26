@@ -3485,21 +3485,20 @@ static PHP_METHOD(swoole_server, heartbeat)
 
     int fd;
     int checktime = (int) time(NULL) - serv->heartbeat_idle_time;
-    swConnection *conn;
 
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
         swTrace("heartbeat check fd=%d", fd);
-        conn = &serv->connection_list[fd];
-
-        if (1 == conn->active && conn->last_time < checktime)
+        swConnection *conn = swServer_connection_get(serv, fd);
+        if (swServer_connection_valid(serv, conn))
         {
-            conn->close_force = 1;
-            /**
-             * Close the connection
-             */
+            if (conn->protect || conn->last_time > checktime)
+            {
+                continue;
+            }
             if (close_connection)
             {
+                conn->close_force = 1;
                 serv->factory.end(&serv->factory, fd);
             }
             add_next_index_long(return_value, conn->session_id);

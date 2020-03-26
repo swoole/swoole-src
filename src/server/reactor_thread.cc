@@ -1344,7 +1344,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     swSignal_none();
 
     swServer *serv = (swServer *) param->object;
-    swConnection *conn;
     swReactor *reactor;
 
     int fd;
@@ -1365,9 +1364,8 @@ static void swHeartbeatThread_loop(swThreadParam *param)
         for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
         {
             swTrace("check fd=%d", fd);
-            conn = swServer_connection_get(serv, fd);
-
-            if (conn && conn->socket && conn->active == 1 && conn->closed == 0 && conn->socket->fdtype == SW_FD_SESSION)
+            swConnection *conn = swServer_connection_get(serv, fd);
+            if (swServer_connection_valid(serv, conn))
             {
                 if (conn->protect || conn->last_time > checktime)
                 {

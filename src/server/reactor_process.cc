@@ -613,8 +613,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
         conn = swServer_connection_get(serv, fd);
-
-        if (conn && conn->socket && conn->active == 1 && conn->socket->fdtype == SW_FD_SESSION)
+        if (swServer_connection_valid(serv, conn))
         {
             if (conn->protect || conn->last_time > checktime)
             {
