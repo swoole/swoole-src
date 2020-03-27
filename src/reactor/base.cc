@@ -432,17 +432,11 @@ void swReactor_add_destroy_callback(swReactor *reactor, swCallback cb, void *dat
     cm->append(cb, data);
 }
 
-void swReactor_defer_task_destroy(swReactor *reactor)
-{
-    CallbackManager *tasks = (CallbackManager *) reactor->defer_tasks;
-    delete tasks;
-}
-
 static void defer_task_do(swReactor *reactor)
 {
     CallbackManager *cm = (CallbackManager *) reactor->defer_tasks;
-    cm->execute();
     reactor->defer_tasks = nullptr;
+    cm->execute();
     delete cm;
 }
 
