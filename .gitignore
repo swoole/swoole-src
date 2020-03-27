@@ -98,3 +98,4 @@ core-tests/samples/cmake_install\.cmake
 core-tests/samples/CMakeCache\.txt
 core-tests/samples/bin/
 core-tests/samples/CMakeFiles/
+/out

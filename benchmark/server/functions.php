@@ -21,3 +21,8 @@ function color(string $content, int $color): string
 {
     return "\033[3{$color}m{$content}\033[0m";
 }
+
+function get_args()
+{
+    return getopt('', ["readonly::"]);
+}

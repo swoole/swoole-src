@@ -138,7 +138,6 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
     swSendData task;
     swDgramPacket *pkt = (swDgramPacket *) SwooleTG.buffer_stack->str;
     swFactory *factory = &serv->factory;
-    swListenPort *port = (swListenPort *) server_sock->object;
 
     pkt->socket_addr.len = sizeof(pkt->socket_addr.addr);
 
@@ -173,6 +172,8 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
     }
 
 #ifdef SW_SUPPORT_DTLS
+    swListenPort *port = (swListenPort *) server_sock->object;
+
     if (port->ssl_option.dtls)
     {
         swoole::dtls::Session *session = swServer_dtls_accept(serv, port, &pkt->socket_addr);
@@ -1343,7 +1344,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     swSignal_none();
 
     swServer *serv = (swServer *) param->object;
-    swConnection *conn;
     swReactor *reactor;
 
     int fd;
@@ -1364,9 +1364,8 @@ static void swHeartbeatThread_loop(swThreadParam *param)
         for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
         {
             swTrace("check fd=%d", fd);
-            conn = swServer_connection_get(serv, fd);
-
-            if (conn && conn->socket && conn->active == 1 && conn->closed == 0 && conn->socket->fdtype == SW_FD_SESSION)
+            swConnection *conn = swServer_connection_get(serv, fd);
+            if (swServer_connection_valid(serv, conn))
             {
                 if (conn->protect || conn->last_time > checktime)
                 {

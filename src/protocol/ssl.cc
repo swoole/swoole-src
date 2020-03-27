@@ -906,17 +906,7 @@ enum swReturn_code swSSL_accept(swSocket *conn)
 {
     swSSL_clear_error(conn);
 
-    int n;
-#ifdef SW_SUPPORT_DTLS
-    if (conn->dtls)
-    {
-        n = SSL_accept(conn->ssl);
-    }
-    else
-#endif
-    {
-        n = SSL_do_handshake(conn->ssl);
-    }
+    int n = SSL_accept(conn->ssl);
     /**
      * The TLS/SSL handshake was successfully completed
      */
@@ -956,8 +946,9 @@ enum swReturn_code swSSL_accept(swSocket *conn)
     }
     else if (err == SSL_ERROR_SSL)
     {
-        int reason = ERR_GET_REASON(ERR_peek_error());
-        const char *error_string = ERR_error_string(reason, SwooleTG.buffer_stack->str);
+        int error = ERR_get_error();
+        int reason = ERR_GET_REASON(error);
+        const char *error_string = ERR_reason_error_string(error);
         swWarn(
             "bad SSL client[%s:%d], reason=%d, error_string=%s",
             swSocket_get_ip(conn->socket_type, &conn->info),

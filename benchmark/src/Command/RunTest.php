@@ -23,6 +23,7 @@ class RunTest extends Command
         $this->addOption('requests', 'r', InputOption::VALUE_REQUIRED, 'number or requests');
         $this->addOption('server', 's', InputOption::VALUE_REQUIRED, 'server ip:port');
         $this->addOption('length', 'l', InputOption::VALUE_OPTIONAL, 'data length');
+        $this->addOption('writeonly', '', InputOption::VALUE_NONE, 'write only');
         $this->setName('run');
         $this->setHelp("run benchmark test");
         $this->setDescription("Run benchmark test.");
@@ -55,7 +56,11 @@ class RunTest extends Command
         }
 
         if ($input->getOption('verbose')) {
-            $test->setVerbose();
+            $test->verbose = true;
+        }
+
+        if ($input->getOption('writeonly')) {
+            $test->writeOnly = true;
         }
 
         $test->run();

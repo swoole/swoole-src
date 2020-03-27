@@ -46,6 +46,6 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-[%s]	WARNING	swSSL_accept: bad SSL client[127.0.0.1:%d], reason=%d, error_string=error:%s
+[%s]	WARNING	swSSL_accept: bad SSL client[127.0.0.1:%d], reason=%d, error_string=%s
 [%s]	WARNING	accept(:%d): new Socket() failed, Error: SSL bad client[%d]
 <h1>Stop</h1>

@@ -44,7 +44,8 @@ class Base
     protected $enableEofProtocol = false;
     protected $packetEofString = "\r\n\r\n";
     protected $enableLengthProtocol = false;
-    protected $verbose; // default disable
+    public $verbose = false;
+    public $writeOnly;
     protected $packetIndex = 0;
 
     /**
@@ -450,6 +451,12 @@ class Base
             $cli->send($data);
             $this->nSendBytes += strlen($data);
             $this->requestCount++;
+            /**
+             * 只发送数据
+             */
+            if ($this->writeOnly) {
+                continue;
+            }
             //response
             $rdata = $cli->recv();
             if (!$rdata) {
@@ -473,22 +480,25 @@ class Base
         $cli->close();
     }
 
-    /**
-     * @throws \Exception
-     */
     protected function random_data_eof()
     {
         $cli = new Coroutine\Client(SWOOLE_TCP);
+        $options = array(
+            'open_eof_check' => true,
+            'package_eof' => "\r\n",
+        );
         $cli->set(
-            array(
-                'open_eof_check' => true,
-                'package_eof' => "\r\n",
-            )
+            $options
         );
         $cli->connect($this->host, $this->port);
+        $this->enableEofProtocol = true;
 
         $max = 32 * 1024 * 1024;
-        $random_data = $this->getRandomData($max, false);
+        static $random_data = null;
+        if (!$random_data) {
+            $random_data = $this->getRandomData($max);
+        }
+
         $cid = Coroutine::getCid();
 
         $n = $this->nRequest / $this->nConcurrency;
@@ -496,10 +506,16 @@ class Base
             //requset
             $len = mt_rand(1024, 1024 * 1024);
             $send_data = substr($random_data, rand(0, $max - $len), $len);
+            /**
+             * (32Byte)[hash] + (N Byte)[data] + (2 Byte)[EOF]
+             */
             $data = md5(substr($send_data, -128, 128)) . $send_data . "\r\n";
             $cli->send($data);
             $this->nSendBytes += strlen($data);
             $this->requestCount++;
+            if ($this->writeOnly) {
+                continue;
+            }
             //response
             $rdata = $cli->recv();
             $this->nRecvBytes += strlen($rdata);
