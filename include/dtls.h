@@ -74,7 +74,7 @@ struct Session
 
     inline size_t get_buffer_length()
     {
-        size_t total_length;
+        size_t total_length = 0;
         for (auto i : rxqueue)
         {
             total_length += i->length;
