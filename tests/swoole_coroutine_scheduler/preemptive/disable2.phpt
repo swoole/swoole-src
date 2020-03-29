@@ -10,7 +10,7 @@ require __DIR__ . '/../../include/bootstrap.php';
 
 $default = 10;
 $max_msec = 10;
-ini_set("swoole.enable_preemptive_scheduler","1");
+co::set(['enable_preemptive_scheduler' => true]);
 
 $start = microtime(1);
 echo "start\n";

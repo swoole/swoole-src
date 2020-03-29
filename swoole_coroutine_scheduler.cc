@@ -161,6 +161,10 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
     {
         PHPCoroutine::config.hook_flags = zval_get_long(ztmp);
     }
+    if (php_swoole_array_get_value(vht, "enable_preemptive_scheduler", ztmp))
+    {
+        PHPCoroutine::config.enable_preemptive_scheduler = zval_is_true(ztmp);
+    }
     if (php_swoole_array_get_value(vht, "c_stack_size", ztmp) || php_swoole_array_get_value(vht, "stack_size", ztmp))
     {
         Coroutine::set_stack_size(zval_get_long(ztmp));
