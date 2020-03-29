@@ -510,6 +510,7 @@ Enable it by adding a new line `extension=swoole_async.so` to `php.ini`.
 + [**MixPHP**](https://github.com/mix-php/mix) is a powerful single-threaded coroutine framework with a very small footprint, simple and elegant.
 + [**imi**](https://github.com/Yurunsoft/imi) is a high-performance coroutine application development framework based on PHP Swoole, which supports the development of HttpApi, WebSocket, TCP, UDP services.
 + [**Saber**](https://github.com/swlib/saber) is a human-friendly, high-performance HTTP client component that has almost everything you can imagine.
++ [**One**](https://github.com/lizhichao/one) is a minimalist, high-performance PHP framework that supports the [swoole | php-fpm] environment
 
 ## 🛠 Develop & Discussion
 
