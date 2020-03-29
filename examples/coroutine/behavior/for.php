@@ -1,5 +1,5 @@
 <?php
-ini_set("swoole.enable_preemptive_scheduler","1");
+co::set(['enable_preemptive_scheduler' => true]);
 $start = microtime(1);
 echo "start\n";
 $flag = 1;
