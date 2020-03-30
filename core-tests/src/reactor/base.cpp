@@ -74,6 +74,11 @@ TEST(reactor, swReactor_wait)
     swReactor reactor;
     swReactor_create(&reactor, SW_REACTOR_MAXEVENTS);
 
+    /**
+     * SwooleTG will be used in the event loop, so we need to set SwooleTG here
+     */
+    SwooleTG.reactor = &reactor;
+
     swPipe p;
 
     int ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
@@ -85,7 +90,8 @@ TEST(reactor, swReactor_wait)
         ssize_t n = read(ev->fd, buffer, sizeof(buffer));
         EXPECT_EQ(12, n);
         EXPECT_STREQ("hello world", buffer);
-        reactor->running = 0;
+        reactor->del(reactor, ev->socket);
+        reactor->wait_exit = 1;
         return SW_OK;
     });
 
