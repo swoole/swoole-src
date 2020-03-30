@@ -80,25 +80,20 @@ TEST(reactor, swReactor_wait)
 {
     int ret;
     swPipe p;
-    swReactor reactor;
 
-    ret = swReactor_create(&reactor, SW_REACTOR_MAXEVENTS);
+    ret = swoole_event_init();
     ASSERT_EQ(ret, SW_OK);
-
-    /**
-     * SwooleTG will be used in the event loop, so we need to set SwooleTG here
-     */
-    SwooleTG.reactor = &reactor;
+    ASSERT_NE(SwooleTG.reactor, nullptr);
 
     ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
     ASSERT_EQ(ret, SW_OK);
 
-    swReactor_set_handler(&reactor, SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *ev) -> int
+    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *ev) -> int
     {
         char buffer[16];
 
         ssize_t n = read(ev->fd, buffer, sizeof(buffer));
-        EXPECT_EQ(12, n);
+        EXPECT_EQ(sizeof("hello world"), n);
         EXPECT_STREQ("hello world", buffer);
         reactor->del(reactor, ev->socket);
         reactor->wait_exit = 1;
@@ -106,43 +101,35 @@ TEST(reactor, swReactor_wait)
         return SW_OK;
     });
 
-    reactor.add(&reactor, p.worker_socket, SW_EVENT_READ);
+    ret = swoole_event_add(p.worker_socket, SW_EVENT_READ);
+    ASSERT_EQ(ret, SW_OK);
+
     ret = p.write(&p, (void *) SW_STRS("hello world"));
     ASSERT_EQ(ret, sizeof("hello world"));
 
-    ret = reactor.wait(&reactor, NULL);
+    ret = swoole_event_wait();
     ASSERT_EQ(ret, SW_OK);
-
-    /**
-     * notice: we need to set SwooleTG.reactor to nullptr, because the other places depend on SwooleTG.reactor
-     */
-    reactor.free(&reactor);
-    SwooleTG.reactor = nullptr;
+    ASSERT_EQ(SwooleTG.reactor, nullptr);
 }
 
 TEST(reactor, swReactor_write)
 {
     int ret;
     swPipe p;
-    swReactor reactor;
 
-    ret = swReactor_create(&reactor, SW_REACTOR_MAXEVENTS);
+    ret = swoole_event_init();
     ASSERT_EQ(ret, SW_OK);
-
-    /**
-     * SwooleTG will be used in the event loop, so we need to set SwooleTG here
-     */
-    SwooleTG.reactor = &reactor;
+    ASSERT_NE(SwooleTG.reactor, nullptr);
 
     ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
     ASSERT_EQ(ret, SW_OK);
 
-    swReactor_set_handler(&reactor, SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *ev) -> int
+    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *ev) -> int
     {
         char buffer[16];
 
         ssize_t n = read(ev->fd, buffer, sizeof(buffer));
-        EXPECT_EQ(12, n);
+        EXPECT_EQ(sizeof("hello world"), n);
         EXPECT_STREQ("hello world", buffer);
         reactor->del(reactor, ev->socket);
         reactor->wait_exit = 1;
@@ -150,16 +137,13 @@ TEST(reactor, swReactor_write)
         return SW_OK;
     });
 
-    reactor.add(&reactor, p.worker_socket, SW_EVENT_READ);
-    ret = swReactor_write(&reactor, p.master_socket, (void *) SW_STRS("hello world"));
-    ASSERT_EQ(ret, sizeof("hello world"));
-
-    ret = reactor.wait(&reactor, NULL);
+    ret = swoole_event_add(p.worker_socket, SW_EVENT_READ);
     ASSERT_EQ(ret, SW_OK);
 
-    /**
-     * notice: we need to set SwooleTG.reactor to nullptr, because the other places depend on SwooleTG.reactor
-     */
-    reactor.free(&reactor);
-    SwooleTG.reactor = nullptr;
+    ret = swoole_event_write(p.master_socket, (void *) SW_STRS("hello world"));
+    ASSERT_EQ(ret, sizeof("hello world"));
+
+    ret = swoole_event_wait();
+    ASSERT_EQ(ret, SW_OK);
+    ASSERT_EQ(SwooleTG.reactor, nullptr);
 }
