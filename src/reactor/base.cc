@@ -220,10 +220,12 @@ int swReactor_close(swReactor *reactor, swSocket *socket)
     if (socket->out_buffer)
     {
         swBuffer_free(socket->out_buffer);
+        socket->out_buffer = NULL;
     }
     if (socket->in_buffer)
     {
         swBuffer_free(socket->in_buffer);
+        socket->in_buffer = NULL;
     }
 
     swTraceLog(SW_TRACE_CLOSE, "fd=%d", socket->fd);
