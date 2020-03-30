@@ -3,7 +3,17 @@
 TEST(reactor, swReactor_create)
 {
     swReactor reactor;
-    swReactor_create(&reactor, SW_REACTOR_MAXEVENTS);
+    int ret = swReactor_create(&reactor, SW_REACTOR_MAXEVENTS);
+    ASSERT_EQ(ret, SW_OK);
+
+    ASSERT_NE(reactor.object, nullptr);
+    ASSERT_EQ(reactor.max_event_num, SW_REACTOR_MAXEVENTS);
+
+    ASSERT_NE(reactor.add, nullptr);
+    ASSERT_NE(reactor.set, nullptr);
+    ASSERT_NE(reactor.del, nullptr);
+    ASSERT_NE(reactor.wait, nullptr);
+    ASSERT_NE(reactor.free, nullptr);
 
     ASSERT_EQ(reactor.running, 1);
     ASSERT_NE(reactor.onFinish, nullptr);
@@ -67,7 +77,7 @@ TEST(reactor, swReactor_wait)
     swPipe p;
 
     int ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
-    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(ret, SW_OK);
 
     swReactor_set_handler(&reactor, SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *ev) -> int
     {
