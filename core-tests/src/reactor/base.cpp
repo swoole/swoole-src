@@ -3,6 +3,7 @@
 TEST(reactor, swReactor_create)
 {
     swReactor reactor;
+
     int ret = swReactor_create(&reactor, SW_REACTOR_MAXEVENTS);
     ASSERT_EQ(ret, SW_OK);
 
@@ -50,10 +51,13 @@ TEST(reactor, swReactor_create)
 TEST(reactor, swReactor_set_handler)
 {
     swReactor reactor;
+
     swReactor_set_handler(&reactor, SW_EVENT_READ, (swReactor_handler) 0x1);
     ASSERT_EQ(reactor.read_handler[swReactor_fdtype(SW_EVENT_READ)], (swReactor_handler) 0x1);
+
     swReactor_set_handler(&reactor, SW_EVENT_WRITE, (swReactor_handler) 0x2);
     ASSERT_EQ(reactor.write_handler[swReactor_fdtype(SW_EVENT_WRITE)], (swReactor_handler) 0x2);
+
     swReactor_set_handler(&reactor, SW_EVENT_ERROR, (swReactor_handler) 0x3);
     ASSERT_EQ(reactor.error_handler[swReactor_fdtype(SW_EVENT_ERROR)], (swReactor_handler) 0x3);
 }
@@ -67,36 +71,45 @@ TEST(reactor, swReactor_close)
     socket->out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
 
     swReactor_close(&reactor, socket);
+
+    ASSERT_EQ(socket->in_buffer, nullptr);
+    ASSERT_EQ(socket->out_buffer, nullptr);
 }
 
 TEST(reactor, swReactor_wait)
 {
+    int ret;
+    swPipe p;
     swReactor reactor;
-    swReactor_create(&reactor, SW_REACTOR_MAXEVENTS);
+
+    ret = swReactor_create(&reactor, SW_REACTOR_MAXEVENTS);
+    ASSERT_EQ(ret, SW_OK);
 
     /**
      * SwooleTG will be used in the event loop, so we need to set SwooleTG here
      */
     SwooleTG.reactor = &reactor;
 
-    swPipe p;
 
-    int ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
+    ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
     ASSERT_EQ(ret, SW_OK);
 
     swReactor_set_handler(&reactor, SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *ev) -> int
     {
         char buffer[16];
+
         ssize_t n = read(ev->fd, buffer, sizeof(buffer));
         EXPECT_EQ(12, n);
         EXPECT_STREQ("hello world", buffer);
         reactor->del(reactor, ev->socket);
         reactor->wait_exit = 1;
+        
         return SW_OK;
     });
 
     reactor.add(&reactor, p.worker_socket, SW_EVENT_READ);
     ret = p.write(&p, (void *) SW_STRS("hello world"));
 
-    reactor.wait(&reactor, NULL);
+    ret = reactor.wait(&reactor, NULL);
+    ASSERT_EQ(ret, SW_OK);
 }
