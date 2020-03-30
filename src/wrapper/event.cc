@@ -104,3 +104,8 @@ int swoole_event_write(swSocket *socket, const void *data, size_t len)
 {
     return SwooleTG.reactor->write(SwooleTG.reactor, socket, data, len);
 }
+
+int swoole_event_set_handler(int fdtype, swReactor_handler handle)
+{
+    return swReactor_set_handler(SwooleTG.reactor, fdtype, handle);
+}
