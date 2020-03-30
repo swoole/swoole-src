@@ -113,6 +113,9 @@ TEST(reactor, swReactor_wait)
     ret = reactor.wait(&reactor, NULL);
     ASSERT_EQ(ret, SW_OK);
 
+    /**
+     * notice: we need to set SwooleTG.reactor to nullptr, because the other places depend on SwooleTG.reactor
+     */
     reactor.free(&reactor);
     SwooleTG.reactor = nullptr;
 }
@@ -154,6 +157,9 @@ TEST(reactor, swReactor_write)
     ret = reactor.wait(&reactor, NULL);
     ASSERT_EQ(ret, SW_OK);
 
+    /**
+     * notice: we need to set SwooleTG.reactor to nullptr, because the other places depend on SwooleTG.reactor
+     */
     reactor.free(&reactor);
     SwooleTG.reactor = nullptr;
 }
