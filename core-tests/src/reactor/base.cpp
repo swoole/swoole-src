@@ -47,3 +47,14 @@ TEST(reactor, swReactor_set_handler)
     swReactor_set_handler(&reactor, SW_EVENT_ERROR, (swReactor_handler) 0x3);
     ASSERT_EQ(reactor.error_handler[swReactor_fdtype(SW_EVENT_ERROR)], (swReactor_handler) 0x3);
 }
+
+TEST(reactor, swReactor_close)
+{
+    swReactor reactor;
+
+    swSocket *socket = swSocket_new(10, SW_FD_SESSION);
+    socket->in_buffer = swBuffer_new(SW_BUFFER_MIN_SIZE);
+    socket->out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
+
+    swReactor_close(&reactor, socket);
+}
