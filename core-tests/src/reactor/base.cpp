@@ -58,3 +58,29 @@ TEST(reactor, swReactor_close)
 
     swReactor_close(&reactor, socket);
 }
+
+TEST(reactor, swReactor_wait)
+{
+    swReactor reactor;
+    swReactor_create(&reactor, SW_REACTOR_MAXEVENTS);
+
+    swPipe p;
+
+    int ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
+    ASSERT_EQ(ret, 0);
+
+    swReactor_set_handler(&reactor, SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *ev) -> int
+    {
+        char buffer[16];
+        ssize_t n = read(ev->fd, buffer, sizeof(buffer));
+        EXPECT_EQ(12, n);
+        EXPECT_STREQ("hello world", buffer);
+        reactor->running = 0;
+        return SW_OK;
+    });
+
+    reactor.add(&reactor, p.worker_socket, SW_EVENT_READ);
+    ret = p.write(&p, (void *) SW_STRS("hello world"));
+
+    reactor.wait(&reactor, NULL);
+}
