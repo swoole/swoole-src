@@ -90,7 +90,6 @@ TEST(reactor, swReactor_wait)
      */
     SwooleTG.reactor = &reactor;
 
-
     ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
     ASSERT_EQ(ret, SW_OK);
 
@@ -103,12 +102,51 @@ TEST(reactor, swReactor_wait)
         EXPECT_STREQ("hello world", buffer);
         reactor->del(reactor, ev->socket);
         reactor->wait_exit = 1;
-        
+
         return SW_OK;
     });
 
     reactor.add(&reactor, p.worker_socket, SW_EVENT_READ);
     ret = p.write(&p, (void *) SW_STRS("hello world"));
+
+    ret = reactor.wait(&reactor, NULL);
+    ASSERT_EQ(ret, SW_OK);
+}
+
+TEST(reactor, swReactor_write)
+{
+    int ret;
+    std::string send_string = "hello world";
+    swPipe p;
+    swReactor reactor;
+
+    ret = swReactor_create(&reactor, SW_REACTOR_MAXEVENTS);
+    ASSERT_EQ(ret, SW_OK);
+
+    /**
+     * SwooleTG will be used in the event loop, so we need to set SwooleTG here
+     */
+    SwooleTG.reactor = &reactor;
+
+    ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
+    ASSERT_EQ(ret, SW_OK);
+
+    swReactor_write(&reactor, p.master_socket, send_string.c_str(), send_string.length());
+
+    swReactor_set_handler(&reactor, SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *ev) -> int
+    {
+        char buffer[16];
+
+        ssize_t n = read(ev->fd, buffer, sizeof(buffer));
+        EXPECT_EQ(11, n);
+        EXPECT_STREQ("hello world", buffer);
+        reactor->del(reactor, ev->socket);
+        reactor->wait_exit = 1;
+        
+        return SW_OK;
+    });
+
+    reactor.add(&reactor, p.worker_socket, SW_EVENT_READ);
 
     ret = reactor.wait(&reactor, NULL);
     ASSERT_EQ(ret, SW_OK);
