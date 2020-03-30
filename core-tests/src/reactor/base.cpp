@@ -36,3 +36,14 @@ TEST(reactor, swReactor_create)
 
     ASSERT_NE(reactor.read_handler[swReactor_fdtype(SW_FD_AIO | SW_EVENT_READ)], nullptr);
 }
+
+TEST(reactor, swReactor_set_handler)
+{
+    swReactor reactor;
+    swReactor_set_handler(&reactor, SW_EVENT_READ, (swReactor_handler) 0x1);
+    ASSERT_EQ(reactor.read_handler[swReactor_fdtype(SW_EVENT_READ)], (swReactor_handler) 0x1);
+    swReactor_set_handler(&reactor, SW_EVENT_WRITE, (swReactor_handler) 0x2);
+    ASSERT_EQ(reactor.write_handler[swReactor_fdtype(SW_EVENT_WRITE)], (swReactor_handler) 0x2);
+    swReactor_set_handler(&reactor, SW_EVENT_ERROR, (swReactor_handler) 0x3);
+    ASSERT_EQ(reactor.error_handler[swReactor_fdtype(SW_EVENT_ERROR)], (swReactor_handler) 0x3);
+}
