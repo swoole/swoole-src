@@ -108,15 +108,18 @@ TEST(reactor, swReactor_wait)
 
     reactor.add(&reactor, p.worker_socket, SW_EVENT_READ);
     ret = p.write(&p, (void *) SW_STRS("hello world"));
+    ASSERT_EQ(ret, sizeof("hello world"));
 
     ret = reactor.wait(&reactor, NULL);
     ASSERT_EQ(ret, SW_OK);
+
+    reactor.free(&reactor);
+    SwooleTG.reactor = nullptr;
 }
 
 TEST(reactor, swReactor_write)
 {
     int ret;
-    std::string send_string = "hello world";
     swPipe p;
     swReactor reactor;
 
@@ -131,14 +134,12 @@ TEST(reactor, swReactor_write)
     ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
     ASSERT_EQ(ret, SW_OK);
 
-    swReactor_write(&reactor, p.master_socket, send_string.c_str(), send_string.length());
-
     swReactor_set_handler(&reactor, SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *ev) -> int
     {
         char buffer[16];
 
         ssize_t n = read(ev->fd, buffer, sizeof(buffer));
-        EXPECT_EQ(11, n);
+        EXPECT_EQ(12, n);
         EXPECT_STREQ("hello world", buffer);
         reactor->del(reactor, ev->socket);
         reactor->wait_exit = 1;
@@ -147,7 +148,12 @@ TEST(reactor, swReactor_write)
     });
 
     reactor.add(&reactor, p.worker_socket, SW_EVENT_READ);
+    ret = swReactor_write(&reactor, p.master_socket, (void *) SW_STRS("hello world"));
+    ASSERT_EQ(ret, sizeof("hello world"));
 
     ret = reactor.wait(&reactor, NULL);
     ASSERT_EQ(ret, SW_OK);
+
+    reactor.free(&reactor);
+    SwooleTG.reactor = nullptr;
 }
