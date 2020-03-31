@@ -9,7 +9,7 @@ public:
     TestServer(string _host, int _port, int _mode = SW_MODE_PROCESS, enum swSocket_type _type = SW_SOCK_TCP) :
             Server(_host, _port, _mode, _type)
     {
-        serv.worker_num = 2;
+        serv.worker_num = 1;
     }
 
     virtual void onStart();
