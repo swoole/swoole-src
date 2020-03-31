@@ -1854,7 +1854,7 @@ static PHP_METHOD(swoole_http_client_coro, setHeaders)
     zval *headers;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_ARRAY(headers)
+        Z_PARAM_ARRAY_EX(headers, 0, 1)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zend_update_property(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("requestHeaders"), headers);
