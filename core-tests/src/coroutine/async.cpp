@@ -41,7 +41,14 @@ TEST(coroutine_async, gethostbyname)
 
         ASSERT_EQ(retval, true);
         match_results<string::const_iterator> result;
-        const regex pattern("(\\d{1,3}).(\\d{1,3}).(\\d{1,3}).(\\d{1,3})");
-        ASSERT_EQ(regex_match(ip, result, pattern), true);
+        try
+        {
+            const regex pattern("(\\d{1,3}).(\\d{1,3}).(\\d{1,3}).(\\d{1,3})");
+            ASSERT_EQ(regex_match(ip, result, pattern), true);
+        }
+        catch(std::exception &ex)
+        {
+            std::cerr << "regex error: gcc version must be 4.9+" << std::endl;
+        }
     });
 }

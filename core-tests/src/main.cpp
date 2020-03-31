@@ -1,46 +1,23 @@
 #include "tests.h"
 #include "swoole_api.h"
+#include "core-tests/include/wrapper/server.h"
 
-static int server_onReceive(swServer *serv, swEventData *req)
-{
-    char *data;
-    size_t length = serv->get_packet(serv, req, &data);
-
-    if (length >= sizeof("close") && memcmp(data, SW_STRS("close")) == 0)
-    {
-        serv->close(serv, req->info.fd, 0);
-    }
-    else
-    {
-        serv->send(serv, req->info.fd, data, length);
-    }
-    return SW_OK;
-}
+using namespace swoole;
 
 static pid_t create_server()
 {
     pid_t pid;
     pid = fork();
+
     if (pid < 0)
     {
         abort();
     }
     else if (pid == 0)
     {
-        swServer serv;
-        swServer_init(&serv);
-        serv.worker_num = 1;
-        serv.factory_mode = SW_MODE_BASE;
-        serv.onReceive = server_onReceive;
-        if (swServer_create(&serv) != 0)
-        {
-            abort();
-        }
-        swServer_add_port(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
-        if (swServer_start(&serv) != 0)
-        {
-            abort();
-        }
+        TestServer serv("127.0.0.1", 9501, SW_MODE_BASE, SW_SOCK_TCP);
+        serv.setEvents(EVENT_onReceive);
+        serv.start();
     }
     sleep(1); // wait 1s
     return pid;
