@@ -19,7 +19,7 @@ static pid_t create_server()
         serv.setEvents(EVENT_onReceive);
         serv.start();
     }
-    sleep(1); // wait 1s
+    sleep(1); // wait for the test server to start
     return pid;
 }
 
