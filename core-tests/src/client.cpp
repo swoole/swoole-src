@@ -1,6 +1,7 @@
 #include "tests.h"
 
 #define GREETER "Hello Swoole"
+#define GREETER_SIZE sizeof(GREETER)
 
 TEST(client, tcp)
 {
@@ -15,7 +16,7 @@ TEST(client, tcp)
     ret = cli.send(&cli, SW_STRS(GREETER), 0);
     ASSERT_GT(ret, 0);
     ret = cli.recv(&cli, buf, 128, 0);
-    ASSERT_GT(ret, 0);
+    ASSERT_EQ(ret, GREETER_SIZE);
+    ASSERT_STREQ(GREETER, buf);
     cli.close(&cli);
-    ASSERT_EQ(strncmp(buf, SW_STRL(GREETER)), 0);
 }
