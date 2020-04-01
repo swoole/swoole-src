@@ -1430,7 +1430,6 @@ bool Socket::ssl_handshake()
 
     return true;
 }
-#endif
 
 bool Socket::ssl_verify(bool allow_self_signed)
 {
@@ -1446,6 +1445,7 @@ bool Socket::ssl_verify(bool allow_self_signed)
 #endif
     return true;
 }
+#endif
 
 bool Socket::sendfile(const char *filename, off_t offset, size_t length)
 {
