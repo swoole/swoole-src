@@ -1,24 +1,24 @@
 #include "tests.h"
 #include "swoole_api.h"
 #include "core-tests/include/wrapper/server.h"
+#include "core-tests/include/process.h"
 
 using namespace swoole;
+using swoole::test::process;
 
 static pid_t create_server()
 {
     pid_t pid;
-    pid = fork();
 
-    if (pid < 0)
-    {
-        abort();
-    }
-    else if (pid == 0)
+    process *proc = new process([](process *proc)
     {
         TestServer serv("127.0.0.1", 9501, SW_MODE_BASE, SW_SOCK_TCP);
         serv.setEvents(EVENT_onReceive);
         serv.start();
-    }
+    });
+
+    pid = proc->start();
+
     sleep(1); // wait for the test server to start
     return pid;
 }

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "wrapper/server.hpp"
 
 using namespace std;
