@@ -332,7 +332,7 @@ public:
 #ifdef SW_USE_OPENSSL
     inline bool is_ssl_enable()
     {
-        return socket && socket->ssl != NULL;
+        return socket && ssl_handshaked;
     }
 
     bool ssl_shutdown();

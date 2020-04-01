@@ -1364,7 +1364,7 @@ bool Socket::ssl_create(SSL_CTX *ssl_context)
 
 bool Socket::ssl_handshake()
 {
-    if (!open_ssl || ssl_handshaked)
+    if (ssl_handshaked)
     {
         return false;
     }
@@ -1426,6 +1426,7 @@ bool Socket::ssl_handshake()
             return false;
         }
     }
+    open_ssl = true;
     ssl_handshaked = true;
 
     return true;
