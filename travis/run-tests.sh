@@ -23,7 +23,7 @@ do
     fi
 done
 
-# run tests @params($1=list_file, $1=options)
+# run tests @params($1=list_file, $2=options)
 run_tests(){
     ./start.sh \
     "`tr '\n' ' ' < ${1} | xargs`" \
@@ -51,10 +51,10 @@ trap "rm -f tests.list; echo ''; echo '⌛ Done on '`date "+%Y-%m-%d %H:%M:%S"`;
 echo "" && echo "🌵️️ Current branch is ${SWOOLE_BRANCH}" && echo ""
 if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
     dir="base"
-    options="-m"
+    options="-m -j8"
 else
     dir="swoole_*"
-    options=""
+    options="-j4"
 fi
 echo "${dir}" > tests.list
 for i in 1 2 3 4 5
