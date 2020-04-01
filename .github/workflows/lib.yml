@@ -22,6 +22,6 @@ jobs:
     - name: configure
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2
     - name: make
-      run: cmake . && make
+      run: cmake . && make && sudo make install
     - name: make test
       run: cd core-tests && ./run.sh
