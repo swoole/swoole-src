@@ -281,18 +281,6 @@ NO_PROC_OPEN_ERROR;
     define('QA_REPORTS_PAGE', 'http://qa.php.net/reports');
     define('TRAVIS_CI', (bool)getenv('TRAVIS'));
 
-    // swoole patch: color const
-    define('SWOOLE_TEST_TIMEOUT', file_exists('/.travisenv') ? 10 : 30);
-    define('SWOOLE_COLOR_RED', 1);
-    define('SWOOLE_COLOR_GREEN', 2);
-    define('SWOOLE_COLOR_YELLOW', 3);
-    define('SWOOLE_COLOR_BLUE', 4);
-    define('SWOOLE_COLOR_MAGENTA', 5);
-    define('SWOOLE_COLOR_CYAN', 6);
-    define('SWOOLE_COLOR_WHITE', 7);
-    // swoole patch: os check
-    define('SWOOLE_IS_MUSL_LIBC', !empty(`ldd 2>&1 | grep -i musl`));
-
     // Determine the tests to be run.
 
     $test_files = array();
@@ -3747,5 +3735,17 @@ class RuntestsValgrind
         }
     }
 }
+
+// swoole patch: color const
+define('SWOOLE_TEST_TIMEOUT', file_exists('/.travisenv') ? 10 : 30);
+define('SWOOLE_COLOR_RED', 1);
+define('SWOOLE_COLOR_GREEN', 2);
+define('SWOOLE_COLOR_YELLOW', 3);
+define('SWOOLE_COLOR_BLUE', 4);
+define('SWOOLE_COLOR_MAGENTA', 5);
+define('SWOOLE_COLOR_CYAN', 6);
+define('SWOOLE_COLOR_WHITE', 7);
+// swoole patch: libc check
+define('SWOOLE_IS_MUSL_LIBC', !empty(`ldd 2>&1 | grep -i musl`));
 
 main();
