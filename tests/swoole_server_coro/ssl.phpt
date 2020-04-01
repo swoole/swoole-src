@@ -6,6 +6,8 @@ swoole_coroutine_server: ssl
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
+require __DIR__ . '/../../library/examples/bootstrap.php';
+
 use Swoole\Coroutine\Server;
 use Swoole\Coroutine\Server\Connection;
 

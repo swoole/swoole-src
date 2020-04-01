@@ -631,14 +631,17 @@ Socket::Socket(swSocket *sock, Socket *server_sock)
     open_eof_check = server_sock->open_eof_check;
     http2 = server_sock->http2;
     protocol = server_sock->protocol;
-
 #ifdef SW_USE_OPENSSL
-    if (server_sock->open_ssl)
+    open_ssl = server_sock->open_ssl;
+    if (open_ssl)
     {
-        if (swSSL_create(socket, server_sock->ssl_context, 0) < 0 || !ssl_accept())
+        ssl_is_server = server_sock->ssl_is_server;
+        if (server_sock->ssl_context)
         {
-            close();
-            return;
+            if (!ssl_create(server_sock->ssl_context))
+            {
+                close();
+            }
         }
     }
 #endif
@@ -904,9 +907,13 @@ bool Socket::connect(string _host, int _port, int flags)
         return false;
     }
 #ifdef SW_USE_OPENSSL
-    if (open_ssl && ssl_handshake() == false)
+    ssl_is_server = false;
+    if (open_ssl)
     {
-        return false;
+        if (!ssl_handshake())
+        {
+            return false;
+        }
     }
 #endif
     return true;
@@ -1238,6 +1245,7 @@ bool Socket::listen(int backlog)
         return false;
     }
 #ifdef SW_USE_OPENSSL
+    ssl_is_server = true;
     if (open_ssl)
     {
         return ssl_check_context();
@@ -1284,7 +1292,7 @@ Socket* Socket::accept(double timeout)
 #ifdef SW_USE_OPENSSL
 bool Socket::ssl_check_context()
 {
-    if (ssl_context)
+    if (socket->ssl || ssl_context)
     {
         return true;
     }
@@ -1305,26 +1313,6 @@ bool Socket::ssl_check_context()
         swWarn("swSSL_get_context() error");
         return false;
     }
-    else
-    {
-        return true;
-    }
-}
-
-bool Socket::ssl_handshake()
-{
-    if (sw_unlikely(!is_available(SW_EVENT_RDWR)))
-    {
-        return -1;
-    }
-    if (socket->ssl)
-    {
-        return false;
-    }
-    if (!ssl_check_context())
-    {
-        return false;
-    }
     if (ssl_option.verify_peer)
     {
         if (swSSL_set_capath(&ssl_option, ssl_context) < 0)
@@ -1332,7 +1320,6 @@ bool Socket::ssl_handshake()
             return false;
         }
     }
-
     socket->ssl_send = 1;
 #if defined(SW_USE_HTTP2) && defined(SW_USE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10002000L
     if (http2)
@@ -1346,8 +1333,16 @@ bool Socket::ssl_handshake()
         }
     }
 #endif
+    return true;
+}
 
-    if (swSSL_create(socket, ssl_context, SW_SSL_CLIENT) < 0)
+bool Socket::ssl_create(SSL_CTX *ssl_context)
+{
+    if (socket->ssl)
+    {
+        return true;
+    }
+    if (swSSL_create(socket, ssl_context, 0) < 0)
     {
         return false;
     }
@@ -1364,75 +1359,93 @@ bool Socket::ssl_handshake()
         SSL_set_tlsext_host_name(socket->ssl, ssl_host_name.c_str());
     }
 #endif
-
-    while (true)
-    {
-        if (swSSL_connect(socket) < 0)
-        {
-            set_err(errno);
-            return false;
-        }
-        if (socket->ssl_state == SW_SSL_STATE_WAIT_STREAM)
-        {
-            timer_controller timer(&read_timer, read_timeout, this, timer_callback);
-            if (!timer.start() || !wait_event(SW_EVENT_READ))
-            {
-                return false;
-            }
-        }
-        else if (socket->ssl_state == SW_SSL_STATE_READY)
-        {
-            return true;
-        }
-    }
-
-    if (socket->ssl_state == SW_SSL_STATE_READY && ssl_option.verify_peer)
-    {
-        if (ssl_verify(ssl_option.allow_self_signed) < 0)
-        {
-            return false;
-        }
-    }
     return true;
 }
 
-bool Socket::ssl_accept()
+bool Socket::ssl_handshake()
 {
-    enum swReturn_code retval;
-    timer_controller timer(&read_timer, read_timeout, this, timer_callback);
-    open_ssl = true;
-
-    do
+    if (!open_ssl || ssl_handshaked)
     {
-        retval = swSSL_accept(socket);
-    } while (retval == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
-
-    if (retval != SW_READY)
-    {
-        set_err(SW_ERROR_SSL_BAD_CLIENT);
         return false;
+    }
+    if (sw_unlikely(!is_available(SW_EVENT_RDWR)))
+    {
+        return false;
+    }
+    if (!ssl_check_context())
+    {
+        return false;
+    }
+    if (!ssl_create(ssl_context))
+    {
+        return false;
+    }
+    if (!ssl_is_server) {
+        while (true)
+        {
+            if (swSSL_connect(socket) < 0)
+            {
+                set_err(errno);
+                return false;
+            }
+            if (socket->ssl_state == SW_SSL_STATE_WAIT_STREAM)
+            {
+                timer_controller timer(&read_timer, read_timeout, this, timer_callback);
+                if (!timer.start() || !wait_event(SW_EVENT_READ))
+                {
+                    return false;
+                }
+            }
+            else if (socket->ssl_state == SW_SSL_STATE_READY)
+            {
+                break;
+            }
+        }
     }
     else
     {
-        return true;
-    }
-}
+        enum swReturn_code retval;
+        timer_controller timer(&read_timer, read_timeout, this, timer_callback);
 
-int Socket::ssl_verify(bool allow_self_signed)
+        do
+        {
+            retval = swSSL_accept(socket);
+        }
+        while (retval == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
+
+        if (retval != SW_READY)
+        {
+            set_err(SW_ERROR_SSL_BAD_CLIENT);
+            return false;
+        }
+    }
+    if (ssl_option.verify_peer)
+    {
+        if (!ssl_verify(ssl_option.allow_self_signed))
+        {
+            return false;
+        }
+    }
+    ssl_handshaked = true;
+
+    return true;
+}
+#endif
+
+bool Socket::ssl_verify(bool allow_self_signed)
 {
     if (swSSL_verify(socket, allow_self_signed) < 0)
     {
-        return SW_ERR;
+        return false;
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (ssl_option.tls_host_name && swSSL_check_host(socket, ssl_option.tls_host_name) < 0)
     {
-        return SW_ERR;
+        return false;
     }
 #endif
-    return SW_OK;
+    return true;
 }
-#endif
 
 bool Socket::sendfile(const char *filename, off_t offset, size_t length)
 {

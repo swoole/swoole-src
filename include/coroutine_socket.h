@@ -111,10 +111,9 @@ public:
     ssize_t recvfrom(void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
 #ifdef SW_USE_OPENSSL
-    bool ssl_handshake();
-    int ssl_verify(bool allow_self_signed);
-    bool ssl_accept();
     bool ssl_check_context();
+    bool ssl_handshake();
+    bool ssl_verify(bool allow_self_signed);
 #endif
 
     static inline enum swSocket_type convert_to_type(int domain, int type, int protocol = 0)
@@ -371,8 +370,11 @@ private:
     swSocketAddress bind_address_info = {};
 
 #ifdef SW_USE_OPENSSL
-    std::string ssl_host_name;
+    bool ssl_is_server = false;
+    bool ssl_handshaked = false;
     SSL_CTX *ssl_context = nullptr;
+    std::string ssl_host_name;
+    bool ssl_create(SSL_CTX *ssl_context);
 #endif
 
     bool activated = true;

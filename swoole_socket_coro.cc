@@ -55,6 +55,9 @@ static PHP_METHOD(swoole_socket_coro, sendto);
 static PHP_METHOD(swoole_socket_coro, getOption);
 static PHP_METHOD(swoole_socket_coro, setOption);
 static PHP_METHOD(swoole_socket_coro, setProtocol);
+#ifdef SW_USE_OPENSSL
+static PHP_METHOD(swoole_socket_coro, sslHandshake);
+#endif
 static PHP_METHOD(swoole_socket_coro, shutdown);
 static PHP_METHOD(swoole_socket_coro, close);
 static PHP_METHOD(swoole_socket_coro, cancel);
@@ -171,6 +174,9 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, getOption,     arginfo_swoole_socket_coro_getOption,     ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, setProtocol,   arginfo_swoole_socket_coro_setProtocol,   ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, setOption,     arginfo_swoole_socket_coro_setOption,     ZEND_ACC_PUBLIC)
+#ifdef SW_USE_OPENSSL
+    PHP_ME(swoole_socket_coro, sslHandshake,  arginfo_swoole_void,                      ZEND_ACC_PUBLIC)
+#endif
     PHP_ME(swoole_socket_coro, shutdown,      arginfo_swoole_socket_coro_shutdown,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, cancel,        arginfo_swoole_socket_coro_cancel,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, close,         arginfo_swoole_void,                      ZEND_ACC_PUBLIC)
@@ -1758,3 +1764,12 @@ static PHP_METHOD(swoole_socket_coro, setProtocol)
         RETURN_BOOL(php_swoole_socket_set_protocol(sock->socket, zset));
     }
 }
+
+#ifdef SW_USE_OPENSSL
+static PHP_METHOD(swoole_socket_coro, sslHandshake)
+{
+    swoole_get_socket_coro(sock, ZEND_THIS);
+
+    RETURN_BOOL(sock->socket->ssl_handshake());
+}
+#endif
