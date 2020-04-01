@@ -48,7 +48,7 @@ should_exit_with_error(){
 touch tests.list
 trap "rm -f tests.list; echo ''; echo '⌛ Done on '`date "+%Y-%m-%d %H:%M:%S"`;" EXIT
 
-cpu_num="$(/usr/bin/env php -r "echo swoole_cpu_num() * 4;")"
+cpu_num="$(/usr/bin/env php -r "echo swoole_cpu_num();")"
 options="-j${cpu_num}"
 
 echo "" && echo "🌵️️ Current branch is ${SWOOLE_BRANCH}" && echo ""
