@@ -3,14 +3,15 @@
 #include <iostream>
 #include <regex>
 
-using namespace swoole::coroutine;
 using namespace std;
+using namespace swoole::coroutine;
+using swoole::test::coroutine;
 
 const int magic_code = 0x7009501;
 
 TEST(coroutine_async, usleep)
 {
-    coro_test([](void *arg)
+    coroutine::test([](void *arg)
     {
         swAio_event ev;
         bool retval = async([](swAio_event *event) {
@@ -24,7 +25,7 @@ TEST(coroutine_async, usleep)
 
 TEST(coroutine_async, gethostbyname)
 {
-    coro_test([](void *arg)
+    coroutine::test([](void *arg)
     {
         string domain("www.baidu.com"), ip;
 
