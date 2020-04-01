@@ -1,7 +1,7 @@
 #include "tests.h"
-#include "swoole_api.h"
-#include "core-tests/include/wrapper/server.h"
-#include "core-tests/include/process.h"
+#include "process.h"
+#include "wrapper/server.h"
+#include "swoole/swoole_api.h"
 
 using namespace swoole;
 using swoole::test::process;

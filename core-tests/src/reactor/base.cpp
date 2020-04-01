@@ -1,4 +1,5 @@
 #include "tests.h"
+#include "swoole/swoole_api.h"
 
 TEST(reactor, swReactor_create)
 {

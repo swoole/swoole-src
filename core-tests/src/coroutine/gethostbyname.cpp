@@ -1,6 +1,5 @@
 #include "tests.h"
-
-#include "coroutine_system.h"
+#include "swoole/coroutine_system.h"
 
 using swoole::Coroutine;
 using swoole::coroutine::System;

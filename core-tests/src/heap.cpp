@@ -1,5 +1,5 @@
-#include "swoole.h"
-#include "heap.h"
+#include "swoole/swoole.h"
+#include "swoole/heap.h"
 #include <gtest/gtest.h>
 #include <map>
 

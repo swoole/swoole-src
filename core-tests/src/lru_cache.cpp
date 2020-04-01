@@ -1,5 +1,5 @@
 #include "tests.h"
-#include "lru_cache.h"
+#include "swoole/lru_cache.h"
 
 using namespace swoole;
 using namespace std;

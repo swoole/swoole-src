@@ -1,6 +1,7 @@
-#include "wrapper/server.hpp"
-#include "core-tests/include/wrapper/server.h"
-#include "swoole_api.h"
+#include "wrapper/server.h"
+#include "swoole/wrapper/server.hpp"
+#include "swoole/swoole_api.h"
+#include "swoole/server.h"
 
 using namespace swoole;
 
