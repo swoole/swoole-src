@@ -102,10 +102,10 @@ $pm->childFunc = function () use ($pm) {
                 set_socket_coro_buffer_size($conn, BUFFER_SIZE);
             }
             go(function () use ($pm, $conn) {
+                if (!Assert::true($conn->sslHandshake())) {
+                    return;
+                }
                 while (true) {
-                    if (!Assert::true($conn->sslHandshake())) {
-                        break;
-                    }
                     // id
                     $head = $conn->recv(tcp_type_length(), -1);
                     if (!$head || ($id = tcp_length($head)) < 0) {
