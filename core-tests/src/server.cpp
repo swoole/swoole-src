@@ -1,5 +1,5 @@
-#include "swoole.h"
-#include "server.h"
+#include "swoole/swoole.h"
+#include "swoole/server.h"
 
 namespace swoole_test
 {

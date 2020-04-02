@@ -1,14 +1,15 @@
 #include "tests.h"
-#include "coroutine_socket.h"
+#include "swoole/coroutine_socket.h"
 
 using swoole::coroutine::Socket;
+using swoole::test::coroutine;
 
 TEST(coroutine_socket, connect_refused)
 {
     swoole_event_init();
     SwooleTG.reactor->wait_exit = 1;
 
-    coro_test([](void *arg)
+    coroutine::test([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.connect("127.0.0.1", 9801, 0.5);
@@ -19,7 +20,7 @@ TEST(coroutine_socket, connect_refused)
 
 TEST(coroutine_socket, connect_timeout)
 {
-    coro_test([](void *arg)
+    coroutine::test([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         sock.set_timeout(0.5);
@@ -31,7 +32,7 @@ TEST(coroutine_socket, connect_timeout)
 
 TEST(coroutine_socket, connect_with_dns)
 {
-    coro_test([](void *arg)
+    coroutine::test([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.connect("www.baidu.com", 80, 0.5);
@@ -42,7 +43,7 @@ TEST(coroutine_socket, connect_with_dns)
 
 TEST(coroutine_socket, recv_success)
 {
-    coro_test([](void *arg)
+    coroutine::test([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.connect("127.0.0.1", 9501, -1);
@@ -58,7 +59,7 @@ TEST(coroutine_socket, recv_success)
 
 TEST(coroutine_socket, recv_fail)
 {
-    coro_test([](void *arg) 
+    coroutine::test([](void *arg) 
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.connect("127.0.0.1", 9501, -1);
@@ -73,7 +74,7 @@ TEST(coroutine_socket, recv_fail)
 
 TEST(coroutine_socket, bind_success)
 {
-    coro_test([](void *arg)
+    coroutine::test([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.bind("127.0.0.1", 9909);
@@ -83,7 +84,7 @@ TEST(coroutine_socket, bind_success)
 
 TEST(coroutine_socket, bind_fail)
 {
-    coro_test([](void *arg)
+    coroutine::test([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.bind("192.111.11.1", 9909);
@@ -94,7 +95,7 @@ TEST(coroutine_socket, bind_fail)
 
 TEST(coroutine_socket, listen)
 {
-    coro_test([](void *arg)
+    coroutine::test([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.bind("127.0.0.1", 9909);
@@ -105,7 +106,7 @@ TEST(coroutine_socket, listen)
 
 TEST(coroutine_socket, accept)
 {
-    coro_test({
+    coroutine::test({
         [](void *arg)
         {
             Socket sock(SW_SOCK_TCP);
