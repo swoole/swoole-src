@@ -633,9 +633,9 @@ Socket::Socket(swSocket *sock, Socket *server_sock)
     protocol = server_sock->protocol;
 #ifdef SW_USE_OPENSSL
     open_ssl = server_sock->open_ssl;
+    ssl_is_server = server_sock->ssl_is_server;
     if (open_ssl)
     {
-        ssl_is_server = server_sock->ssl_is_server;
         if (server_sock->ssl_context)
         {
             if (!ssl_create(server_sock->ssl_context))
