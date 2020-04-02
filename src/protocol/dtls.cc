@@ -159,7 +159,7 @@ bool Session::init()
     {
         return false;
     }
-    if (swSSL_create(socket, ctx, 0) < 0)
+    if (swSSL_create(socket, ctx, SW_SSL_SERVER) < 0)
     {
         return false;
     }

@@ -148,7 +148,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 #ifdef SW_USE_OPENSSL
         if (listen_host->ssl)
         {
-            if (swSSL_create(sock, listen_host->ssl_context, 0) < 0)
+            if (swSSL_create(sock, listen_host->ssl_context, SW_SSL_SERVER) < 0)
             {
                 reactor->close(reactor, sock);
                 return SW_OK;

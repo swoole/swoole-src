@@ -1069,17 +1069,12 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
         php_swoole_fatal_error(E_WARNING, "SSL has been enabled");
         RETURN_FALSE;
     }
-    cli->open_ssl = true;
     zval *zset = sw_zend_read_property(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
     if (php_swoole_array_length_safe(zset) > 0)
     {
         php_swoole_socket_set_ssl(cli, zset);
     }
-    if (cli->ssl_handshake() == false)
-    {
-        RETURN_FALSE;
-    }
-    RETURN_TRUE;
+    RETURN_BOOL(cli->ssl_handshake());
 }
 
 static PHP_METHOD(swoole_client_coro, getPeerCert)
@@ -1120,6 +1115,6 @@ static PHP_METHOD(swoole_client_coro, verifyPeerCert)
     {
         RETURN_FALSE;
     }
-    SW_CHECK_RETURN(cli->ssl_verify(allow_self_signed));
+    RETURN_BOOL(cli->ssl_verify(allow_self_signed));
 }
 #endif

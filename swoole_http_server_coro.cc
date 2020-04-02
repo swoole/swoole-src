@@ -340,32 +340,27 @@ static PHP_METHOD(swoole_http_server_coro, __construct)
         zend_throw_exception_ex(swoole_exception_ce, sock->errCode, "bind(%s:%d) failed", host, (int) port);
         RETURN_FALSE;
     }
-
-#ifdef SW_USE_OPENSSL
-    /**
-     * Do not initialize ssl in listen method
-     */
-    sock->open_ssl = false;
+    //check ssl
+    if (ssl)
+    {
+#ifndef SW_USE_OPENSSL
+        zend_throw_exception_ex(
+            swoole_exception_ce,
+            EPROTONOSUPPORT, "you must configure with `--enable-openssl` to support ssl connection when compiling Swoole"
+        );
+        RETURN_FALSE;
+#else
+        /* we have to call ssl_check_context after user setProtocols */
+        zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
+        add_assoc_bool(zsettings, "open_ssl", 1);
 #endif
+    }
     if (!sock->listen())
     {
         http_server_set_error(ZEND_THIS, sock);
         zend_throw_exception_ex(swoole_exception_ce, sock->errCode, "listen() failed");
         RETURN_FALSE;
     }
-    //check ssl
-#ifndef SW_USE_OPENSSL
-    if (ssl)
-    {
-        zend_throw_exception_ex(
-            swoole_exception_ce,
-            EPROTONOSUPPORT, "you must configure with `--enable-openssl` to support ssl connection when compiling Swoole"
-        );
-        RETURN_FALSE;
-    }
-#else
-    sock->open_ssl = ssl;
-#endif
 
     zend_update_property_long(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("fd"), sock->get_fd());
     zend_update_property_long(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("port"), sock->get_bind_port());
@@ -411,25 +406,23 @@ static PHP_METHOD(swoole_http_server_coro, set)
 static PHP_METHOD(swoole_http_server_coro, start)
 {
     http_server *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
+    Socket *sock = hs->socket;
 
-    auto sock = hs->socket;
+    /* get callback fci cache */
     char *func_name = NULL;
     zend_fcall_info_cache fci_cache;
     zval zcallback;
     ZVAL_STRING(&zcallback, "onAccept");
-
     if (!sw_zend_is_callable_ex(&zcallback, ZEND_THIS, 0, &func_name, NULL, &fci_cache, NULL))
     {
-        php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+        php_swoole_fatal_error(E_CORE_ERROR, "function '%s' is not callable", func_name);
         return;
     }
     efree(func_name);
 
-    zval zsocket;
-
+    /* check settings */
     zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
     php_swoole_socket_set_protocol(hs->socket, zsettings);
-
 #ifdef SW_HAVE_ZLIB
     HashTable *vht = Z_ARRVAL_P(zsettings);
     zval *ztmp;
@@ -446,6 +439,7 @@ static PHP_METHOD(swoole_http_server_coro, start)
         auto conn = sock->accept();
         if (conn)
         {
+            zval zsocket;
             php_swoole_init_socket_object(&zsocket, conn);
             long cid = PHPCoroutine::create(&fci_cache, 1, &zsocket);
             zval_dtor(&zsocket);
@@ -501,6 +495,17 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Socket *sock = php_swoole_get_socket(zconn);
+
+#ifdef SW_USE_OPENSSL
+    if (sock->open_ssl)
+    {
+        if (!sock->ssl_handshake())
+        {
+            return;
+        }
+    }
+#endif
+
     swString* buffer = sock->get_read_buffer();
     size_t total_bytes = 0;
     http_context *ctx = nullptr;

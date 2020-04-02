@@ -536,6 +536,18 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
 
     Socket *clisock = sock->accept();
 
+#ifdef SW_USE_OPENSSL
+    if (clisock != nullptr && clisock->open_ssl)
+    {
+        if (!clisock->ssl_handshake())
+        {
+            sock->errCode = clisock->errCode;
+            delete clisock;
+            clisock = nullptr;
+        }
+    }
+#endif
+
     if (clisock == nullptr)
     {
         error = sock->errCode;
