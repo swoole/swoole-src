@@ -98,8 +98,10 @@ enum swSSL_method
     SW_DTLSv1_METHOD,
     SW_DTLSv1_SERVER_METHOD,
     SW_DTLSv1_CLIENT_METHOD,
+#ifdef SW_SUPPORT_DTLS
     SW_DTLS_CLIENT_METHOD,
     SW_DTLS_SERVER_METHOD,
+#endif
 };
 
 typedef struct
