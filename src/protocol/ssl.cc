@@ -51,8 +51,10 @@ static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, v
 static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg);
 #endif
 
+#ifdef SW_SUPPORT_DTLS
 static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len);
 static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len);
+#endif
 
 #ifdef __GNUC__
     #define MAYBE_UNUSED __attribute__((used))
@@ -111,10 +113,13 @@ static const SSL_METHOD *swSSL_get_method(int method)
     case SW_DTLSv1_CLIENT_METHOD:
         return DTLSv1_client_method();
 #endif
+
+#ifdef SW_SUPPORT_DTLS
     case SW_DTLS_CLIENT_METHOD:
         return DTLS_client_method();
     case SW_DTLS_SERVER_METHOD:
         return DTLS_server_method();
+#endif
     case SW_SSLv23_METHOD:
     default:
         return SSLv23_method();
