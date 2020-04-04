@@ -17,7 +17,6 @@
  */
 
 #include "swoole_cxx.h"
-#include "connection.h"
 
 using namespace swoole;
 

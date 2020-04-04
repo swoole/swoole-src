@@ -18,7 +18,7 @@
 #pragma once
 
 #include "coroutine.h"
-#include "connection.h"
+#include "ssl.h"
 #include "socks5.h"
 
 #include <vector>

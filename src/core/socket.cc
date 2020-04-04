@@ -15,7 +15,7 @@
  */
 
 #include "swoole_api.h"
-#include "connection.h"
+#include "ssl.h"
 
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL        0

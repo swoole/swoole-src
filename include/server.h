@@ -17,7 +17,7 @@
 #pragma once
 
 #include "swoole_api.h"
-#include "connection.h"
+#include "ssl.h"
 #include "http.h"
 
 #ifdef SW_USE_OPENSSL

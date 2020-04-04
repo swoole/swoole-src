@@ -17,7 +17,6 @@
 #include "server.h"
 #include "swoole_cxx.h"
 #include "http.h"
-#include "connection.h"
 #include <sys/time.h>
 #include <time.h>
 

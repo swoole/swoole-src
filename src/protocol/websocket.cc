@@ -17,7 +17,6 @@
 #include "swoole.h"
 #include "server.h"
 #include "websocket.h"
-#include "connection.h"
 
 static inline uint16_t swWebSocket_get_ext_flags(uchar opcode, uchar flags)
 {

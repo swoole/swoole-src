@@ -29,7 +29,6 @@ extern "C"
 }
 
 #include "websocket.h"
-#include "connection.h"
 #include "base64.h"
 #include "thirdparty/swoole_http_parser.h"
 

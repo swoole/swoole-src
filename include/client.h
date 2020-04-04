@@ -18,7 +18,7 @@
 #define SW_CLIENT_H_
 
 #include "swoole_api.h"
-#include "connection.h"
+#include "ssl.h"
 
 SW_EXTERN_C_BEGIN
 

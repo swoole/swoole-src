@@ -31,7 +31,6 @@ extern "C"
 }
 
 #include "websocket.h"
-#include "connection.h"
 #include "base64.h"
 
 #ifdef SW_HAVE_ZLIB
