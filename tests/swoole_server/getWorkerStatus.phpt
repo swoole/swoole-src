@@ -18,8 +18,8 @@ $pm->parentFunc = function () use ($pm) {
         $json = json_decode($data);
         Assert::assert($json);
 
-        Assert::eq($json->current_worker, 1);
-        Assert::eq($json->another_worker, 2);
+        Assert::eq($json->current_worker, SWOOLE_WORKER_BUSY);
+        Assert::eq($json->another_worker, SWOOLE_WORKER_IDLE);
 
         $pm->kill();
     });
