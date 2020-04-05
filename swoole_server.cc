@@ -4372,7 +4372,6 @@ static PHP_METHOD(swoole_server, getWorkerStatus)
         RETURN_FALSE;
     }
 
-
     zend_long worker_id = SwooleWG.id;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &worker_id) == FAILURE)
     {
