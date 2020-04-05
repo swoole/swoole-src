@@ -426,10 +426,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_resume, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_confirm, 0, 0, 1)
-    ZEND_ARG_INFO(0, fd)
-ZEND_END_ARG_INFO()
-
 #ifdef SWOOLE_SOCKETS_SUPPORT
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_getSocket, 0, 0, 0)
     ZEND_ARG_INFO(0, port)
@@ -554,7 +550,6 @@ static PHP_METHOD(swoole_server, sendwait);
 static PHP_METHOD(swoole_server, exists);
 static PHP_METHOD(swoole_server, protect);
 static PHP_METHOD(swoole_server, close);
-static PHP_METHOD(swoole_server, confirm);
 static PHP_METHOD(swoole_server, pause);
 static PHP_METHOD(swoole_server, resume);
 static PHP_METHOD(swoole_server, task);
@@ -618,7 +613,7 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, protect, arginfo_swoole_server_protect, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, sendfile, arginfo_swoole_server_sendfile, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, close, arginfo_swoole_server_close, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, confirm, arginfo_swoole_server_confirm, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_server, confirm, resume, arginfo_swoole_server_resume, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, pause, arginfo_swoole_server_pause, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, resume, arginfo_swoole_server_resume, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, task, arginfo_swoole_server_task, ZEND_ACC_PUBLIC)
@@ -3293,31 +3288,6 @@ static PHP_METHOD(swoole_server, close)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     SW_CHECK_RETURN(serv->close(serv, (int )fd, (int )reset));
-}
-
-static PHP_METHOD(swoole_server, confirm)
-{
-    if (swIsMaster())
-    {
-        php_swoole_fatal_error(E_WARNING, "can't confirm the connections in master process");
-        RETURN_FALSE;
-    }
-
-    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
-    if (sw_unlikely(!serv->gs->start))
-    {
-        php_swoole_fatal_error(E_WARNING, "server is not running");
-        RETURN_FALSE;
-    }
-
-    zend_long fd;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &fd) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-
-    SW_CHECK_RETURN(serv->feedback(serv, fd, SW_SERVER_EVENT_CONFIRM));
 }
 
 static PHP_METHOD(swoole_server, pause)

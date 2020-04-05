@@ -658,7 +658,6 @@ typedef struct _swSocket
     uchar dontwait :1;
     uchar close_wait :1;
     uchar send_wait :1;
-    uchar listen_wait :1;
     uchar tcp_nopush :1;
     uchar tcp_nodelay :1;
     uchar skip_recv :1;
