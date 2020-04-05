@@ -1085,11 +1085,6 @@ static int swServer_tcp_feedback(swServer *serv, int session_id, int event)
         return SW_ERR;
     }
 
-    if (event == SW_SERVER_EVENT_CONFIRM && !conn->socket->listen_wait)
-    {
-        return SW_ERR;
-    }
-
     swSendData _send;
     bzero(&_send, sizeof(_send));
     _send.info.type = event;
@@ -1214,17 +1209,15 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     {
         goto _close_fd;
     }
-    else if (_send->info.type == SW_SERVER_EVENT_CONFIRM)
-    {
-        reactor->add(reactor, conn->socket, SW_EVENT_READ);
-        conn->socket->listen_wait = 0;
-        return SW_OK;
-    }
     /**
      * pause recv data
      */
     else if (_send->info.type == SW_SERVER_EVENT_PAUSE_RECV)
     {
+        if (_socket->removed || !(_socket->events & SW_EVENT_READ))
+        {
+            return SW_OK;
+        }
         if (_socket->events & SW_EVENT_WRITE)
         {
             return reactor->set(reactor, conn->socket, SW_EVENT_WRITE);
@@ -1239,6 +1232,10 @@ int swServer_master_send(swServer *serv, swSendData *_send)
      */
     else if (_send->info.type == SW_SERVER_EVENT_RESUME_RECV)
     {
+        if (!_socket->removed || (_socket->events & SW_EVENT_READ))
+        {
+            return SW_OK;
+        }
         if (_socket->events & SW_EVENT_WRITE)
         {
             return reactor->set(reactor, _socket, SW_EVENT_READ | SW_EVENT_WRITE);
@@ -1964,6 +1961,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, s
     swConnection *connection = &(serv->connection_list[fd]);
     bzero(connection, sizeof(*connection));
     _socket->object = connection;
+    _socket->removed = 1;
     _socket->buffer_size = ls->socket_buffer_size;
 
     //TCP Nodelay
