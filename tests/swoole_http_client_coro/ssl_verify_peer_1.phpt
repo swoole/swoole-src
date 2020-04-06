@@ -3,6 +3,7 @@ swoole_http_client_coro: ssl_verify_peer [1]
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+skip_if_openssl_version_lower_than('1.1.0');
 ?>
 --FILE--
 <?php

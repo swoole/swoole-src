@@ -1455,7 +1455,7 @@ std::string Socket::ssl_get_peer_cert()
         return "";
     }
     int n = swSSL_get_peer_cert(socket->ssl, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
-    if (n < 0)
+    if (n <= 0)
     {
         return "";
     }
