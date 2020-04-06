@@ -369,7 +369,8 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
     SSL_CTX *ssl_context = SSL_CTX_new(swSSL_get_method(option->method));
     if (ssl_context == NULL)
     {
-        ERR_print_errors_fp(stderr);
+        int error = ERR_get_error();
+        swWarn("SSL_CTX_new() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
         return NULL;
     }
 
@@ -469,7 +470,8 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
          */
         if (SSL_CTX_use_certificate_file(ssl_context, option->cert_file, SSL_FILETYPE_PEM) <= 0)
         {
-            ERR_print_errors_fp(stderr);
+            int error = ERR_get_error();
+            swWarn("SSL_CTX_use_certificate_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
             return NULL;
         }
         /*
@@ -478,7 +480,8 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
          */
         if (SSL_CTX_use_certificate_chain_file(ssl_context, option->cert_file) <= 0)
         {
-            ERR_print_errors_fp(stderr);
+            int error = ERR_get_error();
+            swWarn("SSL_CTX_use_certificate_chain_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
             return NULL;
         }
         /*
@@ -486,7 +489,8 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
          */
         if (SSL_CTX_use_PrivateKey_file(ssl_context, option->key_file, SSL_FILETYPE_PEM) <= 0)
         {
-            ERR_print_errors_fp(stderr);
+            int error = ERR_get_error();
+            swWarn("SSL_CTX_use_PrivateKey_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
             return NULL;
         }
         /*
