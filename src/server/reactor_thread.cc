@@ -60,7 +60,7 @@ static inline enum swReturn_code swReactorThread_verify_ssl_state(swReactor *rea
     conn->ssl_ready = 1;
     if (port->ssl_option.client_cert_file)
     {
-        int retval = swSSL_get_client_certificate(_socket->ssl, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
+        int retval = swSSL_get_peer_cert(_socket->ssl, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
         if (retval < 0)
         {
             if (port->ssl_option.verify_peer)

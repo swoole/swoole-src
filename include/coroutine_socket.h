@@ -114,6 +114,7 @@ public:
     bool ssl_check_context();
     bool ssl_handshake();
     bool ssl_verify(bool allow_self_signed);
+    std::string ssl_get_peer_cert();
 #endif
 
     static inline enum swSocket_type convert_to_type(int domain, int type, int protocol = 0)

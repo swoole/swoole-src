@@ -858,7 +858,7 @@ int swSSL_verify(swSocket *conn, int allow_self_signed)
     return SW_ERR;
 }
 
-int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
+int swSSL_get_peer_cert(SSL *ssl, char *buffer, size_t length)
 {
     long len;
     BIO *bio;

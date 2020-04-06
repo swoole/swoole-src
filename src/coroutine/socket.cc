@@ -1436,6 +1436,7 @@ bool Socket::ssl_verify(bool allow_self_signed)
 {
     if (swSSL_verify(socket, allow_self_signed) < 0)
     {
+        set_err(SW_ERROR_SSL_VEFIRY_FAILED);
         return false;
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
@@ -1445,6 +1446,23 @@ bool Socket::ssl_verify(bool allow_self_signed)
     }
 #endif
     return true;
+}
+
+std::string Socket::ssl_get_peer_cert()
+{
+    if (!socket->ssl)
+    {
+        return "";
+    }
+    int n = swSSL_get_peer_cert(socket->ssl, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
+    if (n < 0)
+    {
+        return "";
+    }
+    else
+    {
+        return std::string(SwooleTG.buffer_stack->str, n);
+    }
 }
 #endif
 

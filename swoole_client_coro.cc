@@ -1090,7 +1090,7 @@ static PHP_METHOD(swoole_client_coro, getPeerCert)
         RETURN_FALSE;
     }
     char buf[8192];
-    int n = swSSL_get_client_certificate(cli->socket->ssl, buf, sizeof(buf));
+    int n = swSSL_get_peer_cert(cli->socket->ssl, buf, sizeof(buf));
     if (n < 0)
     {
         RETURN_FALSE;
