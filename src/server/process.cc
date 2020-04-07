@@ -94,8 +94,8 @@ static void swFactoryProcess_free(swFactory *factory)
     if (serv->stream_socket_file)
     {
         unlink(serv->stream_socket_file);
-        close(serv->stream_socket->fd);
         sw_free(serv->stream_socket_file);
+        swSocket_free(serv->stream_socket);
     }
 
     for (i = 0; i < serv->worker_num; i++)

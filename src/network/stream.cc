@@ -60,7 +60,11 @@ static void swStream_onReceive(swClient *cli, char *data, uint32_t length)
 
 static void swStream_onClose(swClient *cli)
 {
-    swStream_free((swStream *) cli->object);
+    swoole_event_defer([](void *data) {
+        swClient *cli = (swClient *) data;
+        swClient_free(cli);
+        swStream_free((swStream *) cli->object);
+    }, cli);
 }
 
 static void swStream_free(swStream *stream)

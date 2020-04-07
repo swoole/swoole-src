@@ -1218,7 +1218,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
 
         if (n < 0)
         {
-            return  cli->close(cli);
+            return cli->close(cli);
         }
         else
         {

@@ -871,12 +871,6 @@ int swReactorThread_start(swServer *serv)
         reactor->add(reactor, ls->socket, SW_EVENT_READ);
     }
 
-    if (serv->stream_socket)
-    {
-        swSocket_free(serv->stream_socket);
-        serv->stream_socket = nullptr;
-    }
-
     /**
      * create reactor thread
      */
