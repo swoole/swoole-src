@@ -106,15 +106,17 @@ static const SSL_METHOD *swSSL_get_method(int method)
     case SW_TLSv1_2_CLIENT_METHOD:
         return TLSv1_2_client_method();
 #endif
+#endif
+/**
+ * DTLS supports
+ */
+#ifdef SW_SUPPORT_DTLS
     case SW_DTLSv1_METHOD:
         return DTLSv1_method();
     case SW_DTLSv1_SERVER_METHOD:
         return DTLSv1_server_method();
     case SW_DTLSv1_CLIENT_METHOD:
         return DTLSv1_client_method();
-#endif
-
-#ifdef SW_SUPPORT_DTLS
     case SW_DTLS_CLIENT_METHOD:
         return DTLS_client_method();
     case SW_DTLS_SERVER_METHOD:
