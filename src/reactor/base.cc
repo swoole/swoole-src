@@ -387,7 +387,7 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
 
 int swReactor_wait_write_buffer(swReactor *reactor, swSocket *socket)
 {
-    swEvent event;
+    swEvent event = {};
 
     if (!swBuffer_empty(socket->out_buffer))
     {
@@ -395,6 +395,7 @@ int swReactor_wait_write_buffer(swReactor *reactor, swSocket *socket)
         event.fd = socket->fd;
         return swReactor_onWrite(reactor, &event);
     }
+    
     return SW_OK;
 }
 
