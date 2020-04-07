@@ -10,7 +10,7 @@ use SwooleTest\LengthServer;
 
 class TestServer_5 extends LengthServer
 {
-    protected $show_lost_package = true;
+    protected $show_lost_package = false;
 
     function onWorkerStart()
     {

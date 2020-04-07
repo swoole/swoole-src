@@ -9,7 +9,7 @@ require __DIR__ . '/../../include/api/swoole_server/TestServer.php';
 
 class PkgServer_2 extends TestServer
 {
-    protected $show_lost_package = true;
+    protected $show_lost_package = false;
     function onReceive($serv, $fd, $reactor_id, $data)
     {
         static $index = 0;
