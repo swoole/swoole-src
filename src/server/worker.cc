@@ -738,11 +738,12 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     if (pipe_buffer->info.flags & SW_EVENT_DATA_CHUNK)
     {
         buffer = serv->get_buffer(serv, &pipe_buffer->info);
+        size_t remain_len = pipe_buffer->info.len - serv->get_buffer_len(serv, &pipe_buffer->info);
 
         buffers[0].iov_base = &pipe_buffer->info;
         buffers[0].iov_len = sizeof(pipe_buffer->info);
         buffers[1].iov_base = buffer;
-        buffers[1].iov_len = serv->ipc_max_size - sizeof(pipe_buffer->info);
+        buffers[1].iov_len = SW_MIN(serv->ipc_max_size - sizeof(pipe_buffer->info), remain_len);
         
         recv_n = readv(event->fd, buffers, 2);
         assert(recv_n != 0);

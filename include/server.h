@@ -611,6 +611,7 @@ struct swServer
      */
     void** (*create_buffers)(swServer *serv, uint buffer_num);
     void* (*get_buffer)(swServer *serv, swDataHead *info);
+    size_t (*get_buffer_len)(swServer *serv, swDataHead *info);
     void (*add_buffer_len)(swServer *serv, swDataHead *info, size_t len);
     void (*move_buffer)(swServer *serv, swPipeBuffer *buffer);
     size_t (*get_packet)(swServer *serv, swEventData *req, char **data_ptr);
