@@ -505,7 +505,7 @@ void swWorker_stop(swWorker *worker)
         swReactor_remove_read_event(reactor, worker->pipe_worker);
     }
 
-    if (serv->factory_mode == SW_MODE_BASE)
+    if (serv->factory_mode == SW_MODE_BASE && swIsWorker())
     {
         swListenPort *port;
         LL_FOREACH(serv->listen_list, port)
@@ -537,7 +537,7 @@ void swWorker_stop(swWorker *worker)
     msg.worker_id = SwooleWG.id;
 
     //send message to manager
-    if (swChannel_push(serv->message_box, &msg, sizeof(msg)) < 0)
+    if (serv->message_box && swChannel_push(serv->message_box, &msg, sizeof(msg)) < 0)
     {
         SwooleG.running = 0;
     }
