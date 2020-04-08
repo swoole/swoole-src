@@ -1353,7 +1353,7 @@ static PHP_METHOD(swoole_http_response, create)
 
     swServer *serv = nullptr;
 
-    if (Z_TYPE_P(arg1) == IS_OBJECT && instanceof_function(Z_OBJCE_P(arg1), swoole_server_ce))
+    if (ZEND_NUM_ARGS() == 2 && Z_TYPE_P(arg1) == IS_OBJECT && instanceof_function(Z_OBJCE_P(arg1), swoole_server_ce))
     {
         serv = php_swoole_server_get_and_check_server(arg1);
         fd = zval_get_long(arg2);
