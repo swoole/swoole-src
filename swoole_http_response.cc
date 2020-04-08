@@ -1342,24 +1342,49 @@ static PHP_METHOD(swoole_http_response, detach)
 
 static PHP_METHOD(swoole_http_response, create)
 {
-    if (!sw_server() || !sw_server()->gs->start)
+    zval *arg1, *arg2;
+    zend_long fd;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_ZVAL(arg1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ZVAL(arg2)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    swServer *serv = nullptr;
+
+    if (Z_TYPE_P(arg1) == IS_OBJECT && instanceof_function(Z_OBJCE_P(arg1), swoole_server_ce))
+    {
+        serv = php_swoole_server_get_and_check_server(arg1);
+        fd = zval_get_long(arg2);
+    }
+    else
+    {
+        serv = sw_server();
+        fd = zval_get_long(arg1);
+    }
+
+    if (serv == nullptr || !sw_server()->gs->start)
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
-    zend_long fd;
-
-    ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_LONG(fd)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
     http_context *ctx = (http_context *) ecalloc(1, sizeof(http_context));
+    if (!ctx)
+    {
+        RETURN_FALSE;
+    }
 
     ctx->fd = (int) fd;
     ctx->keepalive = 1;
 
     swoole_http_server_init_context(sw_server(), ctx);
+
+    if (sw_unlikely(swoole_http_buffer == nullptr))
+    {
+        php_swoole_http_server_init_global_variant();
+    }
 
     object_init_ex(return_value, swoole_http_response_ce);
     php_swoole_http_response_set_context(return_value, ctx);

@@ -80,3 +80,5 @@ int php_swoole_onPacket(swServer *, swEventData *);
 void php_swoole_onClose(swServer *, swDataHead *);
 void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
+
+swServer* php_swoole_server_get_and_check_server(zval *zobject);
