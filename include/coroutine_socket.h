@@ -56,6 +56,7 @@ public:
     swSocket *socket = nullptr;
     int errCode = 0;
     const char *errMsg = "";
+    std::string errString;
 
     bool open_length_check = false;
     bool open_eof_check = false;
@@ -244,6 +245,14 @@ public:
     {
         errCode = errno = e;
         errMsg = s;
+    }
+
+
+    inline void set_err(int e, std::string s)
+    {
+        errCode = errno = e;
+        errString = s;
+        errMsg = errString.c_str();
     }
 
     /* set connect read write timeout */

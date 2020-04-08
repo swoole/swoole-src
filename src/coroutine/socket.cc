@@ -817,7 +817,7 @@ bool Socket::connect(string _host, int _port, int flags)
         }
         else if (_port == 0 || _port >= 65536)
         {
-            set_err(EINVAL, cpp_string::format("Invalid port [%d]", _port).c_str());
+            set_err(EINVAL, cpp_string::format("Invalid port [%d]", _port));
             return false;
         }
     }
@@ -1142,7 +1142,7 @@ bool Socket::bind(std::string address, int port)
     }
     if ((sock_domain == AF_INET || sock_domain == AF_INET6) && (port < 0 || port > 65535))
     {
-        set_err(EINVAL, cpp_string::format("Invalid port [%d]", port).c_str());
+        set_err(EINVAL, cpp_string::format("Invalid port [%d]", port));
         return false;
     }
 
@@ -1183,7 +1183,7 @@ bool Socket::bind(std::string address, int port)
                 cpp_string::format(
                     "UNIXSocket bind path(%s) is too long, the maxium limit of bytes number is %zu",
                     bind_address.c_str(), sizeof(sa->sun_path)
-                ).c_str()
+                )
             );
             return false;
         }
@@ -1456,7 +1456,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length)
     int file_fd = ::open(filename, O_RDONLY);
     if (file_fd < 0)
     {
-        set_err(errno, cpp_string::format("open(%s) failed, %s", filename, strerror(errno)).c_str());
+        set_err(errno, cpp_string::format("open(%s) failed, %s", filename, strerror(errno)));
         return false;
     }
 
@@ -1465,7 +1465,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length)
         struct stat file_stat;
         if (::fstat(file_fd, &file_stat) < 0)
         {
-            set_err(errno, cpp_string::format("fstat(%s) failed, %s", filename, strerror(errno)).c_str());
+            set_err(errno, cpp_string::format("fstat(%s) failed, %s", filename, strerror(errno)));
             ::close(file_fd);
             return false;
         }
@@ -1504,7 +1504,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length)
         }
         else if (errno != EAGAIN)
         {
-            set_err(errno, cpp_string::format("sendfile(%d, %s) failed, %s", sock_fd, filename, strerror(errno)).c_str());
+            set_err(errno, cpp_string::format("sendfile(%d, %s) failed, %s", sock_fd, filename, strerror(errno)));
             ::close(file_fd);
             return false;
         }
@@ -1540,7 +1540,7 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
     {
         if (::inet_aton(address, &addr.in.sin_addr) == 0)
         {
-            set_err(EINVAL, cpp_string::format("ip[%s] is invalid", address).c_str());
+            set_err(EINVAL, cpp_string::format("ip[%s] is invalid", address));
             retval = -1;
             break;
         }
@@ -1553,7 +1553,7 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
     {
         if (::inet_pton(AF_INET6, address, &addr.in6.sin6_addr) < 0)
         {
-            set_err(EINVAL, cpp_string::format("ip[%s] is invalid", address).c_str());
+            set_err(EINVAL, cpp_string::format("ip[%s] is invalid", address));
             retval = -1;
             break;
         }
