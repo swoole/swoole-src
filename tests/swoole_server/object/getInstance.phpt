@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: getInstance
+swoole_server/object: getInstance
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';

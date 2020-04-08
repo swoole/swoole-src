@@ -457,6 +457,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/pipe/unix_socket.cc \
         src/protocol/base.cc \
         src/protocol/base64.cc \
+        src/protocol/dtls.cc \
         src/protocol/http.cc \
         src/protocol/http2.cc \
         src/protocol/mime_type.cc \
@@ -465,7 +466,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/sha1.cc \
         src/protocol/socks5.cc \
         src/protocol/ssl.cc \
-        src/protocol/dtls.cc \
         src/protocol/websocket.cc \
         src/reactor/base.cc \
         src/reactor/epoll.cc \

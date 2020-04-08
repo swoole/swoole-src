@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: getMasterPid
+swoole_server/object: getMasterPid
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';

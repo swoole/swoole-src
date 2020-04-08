@@ -127,7 +127,7 @@ echo "[Version] => {$package_release_ver}\n";
 echo "[API-Ver] => {$package_api_ver}\n";
 echo "[RStable] => {$package_release_stable}\n";
 echo "[AStable] => {$package_api_stable}\n";
-check_source_ver($package_release_ver, dirname(__DIR__) . '/include/swoole.h');
+check_source_ver($package_release_ver, dirname(__DIR__) . '/include/swoole_version.h');
 check_source_ver($package_release_ver, dirname(__DIR__) . '/CMakeLists.txt');
 
 // check file lists

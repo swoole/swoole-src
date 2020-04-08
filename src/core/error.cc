@@ -88,6 +88,8 @@ const char* swoole_strerror(int code)
         return "Session invalid id";
     case SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA:
         return "Session discard timeout data";
+    case SW_ERROR_SESSION_DISCARD_DATA:
+        return "Session discard data";
     case SW_ERROR_OUTPUT_BUFFER_OVERFLOW:
         return "Output buffer overflow";
     case SW_ERROR_OUTPUT_SEND_YIELD:

@@ -42,60 +42,72 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2019-12-17</date>
-    <time>16:00:00</time>
+    <date>2020-04-08</date>
+    <time>13:00:00</time>
     <version>
-        <release>4.4.13</release>
+        <release>4.5.0RC1</release>
         <api>4.0</api>
     </version>
     <stability>
-        <release>stable</release>
-        <api>stable</api>
+        <release>beta</release>
+        <api>beta</api>
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        New API
+        New APIs
         ---
-        + Built-in Connection Pool ([examples](https://github.com/swoole/library/tree/master/examples)) ([doc](https://wiki.swoole.com/wiki/page/p-library.html)) (@twose)
+        + DTLS supports, we can build WebRTC applications now (#3188) (@matyhtf)
+        + Built-in `FastCGI` client, we can proxy HTTP request to FPM with one line of code now (swoole/library#17) (@twose)
+        + `Co::wait`, `Co::waitPid`, `Co::waitSignal` (#3158) (@twose)
+        + `Co::waitEvent` (#3197) (@twose)
+        + `Co::set(['exit_condition' => $callable])` to exit condition of reactor (#2918) (#3012) (@twose)
+        + `Co::getElapsed` to get the coroutine elapsed time (#3162) (@doubaokun)
+        + `Socket::checkLiveness`, `Socket::peek` (#3057) (@twose)
+        + `Socket->setProtocol(['open_fastcgi_protocol' => $bool])` (#3103) (@twose)
+        + `Server::getInstance`, `Server::get(Master|Manager|Worker)Pid`, `Server::getWorkerId` (#2793) (#3019) (@matyhtf)
+        + `Server::getWorkerStatus` (SWOOLE_WORKER_BUSY, SWOOLE_WORKER_IDLE) (#3225) (@matyhtf)
+        + `Server->on('beforeReload', $callable)` and `Server->on('afterReload', $callable)` (Server reload event on manager process) (#3130) (@huanghantao)
+        + `Http\Server` support `http_index_files` and `http_autoindex` with static handler (#3171) (@huanghantao)
+        + `Http2\Client->read(float $timeout = -1)`, support Coroutine\HTTP2\Client read more than once (#3011) (#3117) (@twose)
+        + `Http\Request->getContent` (alias of rawContent) (#3128) (@huanghantao)
+        + `swoole_mime_type_(add|set|delete|get|exists)` (mime APIs) (#3134) (@twose)
 
         Enhancement
         ---
-        + Support websocket compression on Coroutine\Http\Server (#2943) (@twose)
-        + Support `CURLOPT_PUT`, `CURLOPT_INFILE`, `CURLOPT_INFILESIZE` (#2954) (@twose)
-        + Add error info for bind error (#2972) (@LeiZhang-Hunter) (@twose)
-        + Update error info if socket call failed (it will not warn anymore if not necessary) (1e9b8cbb) (@twose)
-        + Move the library to [a separate repo](https://github.com/swoole/library) (@twose)
-        + Support `CURLOPT_IPRESOLVE` (library-12ffb4d6) (@twose)
-        + Support `CURLOPT_PORT`, `CURLOPT_PROXYPORT`, `CURLOPT_DNS_USE_GLOBAL_CACHE` (library-5a718920) (@twose)
-        + Better `CURLOPT_ENCODING` support (library-7b680712) (@twose)
-        + Support `curl_reset`, `CURLOPT_PROXYTYPE`, `CURLOPT_PROXYUSERNAME`, `CURLOPT_PROXYPASSWORD`, `CURLOPT_PROXYUSERPWD` (library-84ce0a04) (@twose)
+        + Optimize memory-copy between master and worker (4x faster) (#3075) (#3087) (@huanghantao)
+        + Optimize websocket dispatch (1x faster) (#3076) (@matyhtf)
+        + Optimize memory-copy in websocket_construct_frame (1x faster) (#3097) (@matyhtf)
+        + Optimize SSL validation (#3226) (@matyhtf)
+        + Separate SSL accept and SSL handshake (#3214) (@twose)
+        + Support MIPS (#3196) (@ekongyun)
+        + Support CURLOPT_FAILONERROR (swoole/library#20) (@sy-records)
 
-        Fixed
+        Remove
         ---
-        * Fixed gdbinit in docker (missing symbol) (d46dc2d7 (@twose)
-        * Fixed compression in POST request (#2947) (@twose)
-        * Fixed compatibility of `Websocket->push` method (ac7dbcbc) (@twose)
-        * Fixed `$output` result inconsistency (@Yurunsoft) (#2955)
-        * Fixed `Coroutine::fread` (#2958) (@matyhtf)
-        * Fixed `Coroutine\Server` can not exit normally #2837 (#2962) (@twose)
-        * Fixed memory leak in HTTP2 Server (#2964) (@twose)
-        * Fixed `unsafe_event` (#2970) (@matyhtf)
-        * Fixed illegal call after server start (#2977) (@twose)
-        * Fixed `WebSocket\Frame` can not enable mask (#2982) (#2983) (@twose)
-        * Fixed memory leak of `Process` callback (898894a7) (@twose)
-        * Fixed case where minfd is never updated (#2985)
-        * Fixed HTTP2 module is always enable (3925e212) (@twose)
-        * Fixed HTTP2 context double free (#2987) (f4cdff1b) (@twose)
-        * Fixed string comparison (#2988) (97c6c425) (9e5eae63) (@twose)
-        * Fixed HTTP2 pipeline (#2993) (@twose)
-        * Fixed coroutine context has been destroyed (#2991) (@twose)
-        * Fixed illegal usage of `Process::daemon` (#3005) (@twose)
-        * Fixed compilation without zlib (#3008) (@twose)
+        - Remove `Runtime::enableStrictMode` method (b45838e3) (@twose)
+        - Remove `Buffer` class (559a49a8) (@twose)
 
         Kernel
         ---
-        * Refactor `swoole_(get|set)_object` to the way of extending `zend_object` (more stable and efficient) (#2966) (@twose)
-        * Support Github Actions (@twose) (@matyhtf)
+        * New C++ API: `coroutine::async` with lambda (#3127) (@matyhtf)
+        * Refactor event API and reactor fd to swSocket (#3030) (@matyhtf)
+        * Convert all source files to C++ (#3030) (71f987f3) (@matyhtf)
+        * Code optimizations (#3063) (#3067) (#3115) (#3135) (#3138) (#3139) (#3151) (#3168) (@huanghantao)
+        * Code optimization for header files (#3051) (@matyhtf)
+        * Refactor `enable_reuse_port` option (#3192) (@matyhtf)
+        * Reactor Socket API (#3193) (@matyhtf)
+        * Reduce one system call (3b5aa85d) (@matyhtf)
+        * Remove swServerGS::now (#3152) (@huanghantao)
+        * Improve protocol setter (#3108) (@twose)
+        * Use the Better way to init C object on stack (#3069) (@twose)
+        * Use type `uchar` for bit field (#3071) (@twose)
+        * Support parallel test (#3215) (@twose)
+
+        Fixed
+        ---
+        * Fixed `enable_delay_receive` (#3221) (#3224) (@matyhtf)
+        * Fixed `ConnectionPool->fill` (swoole/library#18) (@NHZEX)
+        * All other bug fix patches have already been merged into the v4.4.x branch, we will not reiterate them here
     </notes>
     <contents>
         <dir name="/">
@@ -104,6 +116,7 @@
             <file role="doc" name="LICENSE" />
             <file role="doc" name="README-CN.md" />
             <file role="doc" name="README.md" />
+            <file role="doc" name="SUPPORTED.md" />
             <file role="src" name="benchmark/ab.sh" />
             <file role="src" name="benchmark/aio.php" />
             <file role="src" name="benchmark/benchmark.php" />
@@ -128,7 +141,9 @@
             <file role="src" name="benchmark/redis.go" />
             <file role="src" name="benchmark/runtime.php" />
             <file role="src" name="benchmark/seria_bench.php" />
+            <file role="src" name="benchmark/server/dtls.php" />
             <file role="src" name="benchmark/server/eof_server.php" />
+            <file role="src" name="benchmark/server/functions.php" />
             <file role="src" name="benchmark/server/http.php" />
             <file role="src" name="benchmark/server/length_server.php" />
             <file role="src" name="benchmark/server/random_data.php" />
@@ -147,7 +162,10 @@
             <file role="src" name="code_stats.sh" />
             <file role="src" name="config.m4" />
             <file role="src" name="core-tests/CMakeLists.txt" />
+            <file role="src" name="core-tests/include/process.h" />
             <file role="src" name="core-tests/include/tests.h" />
+            <file role="src" name="core-tests/include/wrapper/coroutine.h" />
+            <file role="src" name="core-tests/include/wrapper/server.h" />
             <file role="src" name="core-tests/run.sh" />
             <file role="src" name="core-tests/samples/CMakeLists.txt" />
             <file role="doc" name="core-tests/samples/README.md" />
@@ -166,16 +184,17 @@
             <file role="src" name="core-tests/src/os/signal.cpp" />
             <file role="src" name="core-tests/src/os/wait.cpp" />
             <file role="src" name="core-tests/src/pipe.cpp" />
-            <file role="src" name="core-tests/src/rbtree.cpp" />
+            <file role="src" name="core-tests/src/reactor/base.cpp" />
             <file role="src" name="core-tests/src/ringbuffer.cpp" />
             <file role="src" name="core-tests/src/server.cpp" />
+            <file role="src" name="core-tests/src/server/base.cpp" />
+            <file role="src" name="core-tests/src/server/server.cpp" />
             <file role="src" name="core-tests/src/socket.cpp" />
             <file role="src" name="core-tests/src/string.cpp" />
             <file role="src" name="core-tests/src/thread_pool.cpp" />
             <file role="doc" name="examples/atomic/long.php" />
             <file role="doc" name="examples/atomic/test.php" />
             <file role="doc" name="examples/atomic/wait.php" />
-            <file role="doc" name="examples/buffer.php" />
             <file role="doc" name="examples/c10k.php" />
             <file role="doc" name="examples/client/async.php" />
             <file role="doc" name="examples/client/get_socket.php" />
@@ -193,6 +212,7 @@
             <file role="doc" name="examples/coroutine/behavior/for.php" />
             <file role="doc" name="examples/coroutine/behavior/foreach.php" />
             <file role="doc" name="examples/coroutine/behavior/goto.php" />
+            <file role="doc" name="examples/coroutine/behavior/preemptive_timer.php" />
             <file role="doc" name="examples/coroutine/behavior/tick.php" />
             <file role="doc" name="examples/coroutine/behavior/while.php" />
             <file role="doc" name="examples/coroutine/behavior/while2.php" />
@@ -297,8 +317,10 @@
             <file role="doc" name="examples/coroutine/websocket/server.php" />
             <file role="doc" name="examples/cpp/Makefile" />
             <file role="doc" name="examples/cpp/co.cc" />
-            <file role="doc" name="examples/cpp/test_server.c" />
+            <file role="doc" name="examples/cpp/test_server.cc" />
             <file role="doc" name="examples/db_pool.php" />
+            <file role="doc" name="examples/dtls/client.php" />
+            <file role="doc" name="examples/dtls/server.php" />
             <file role="doc" name="examples/eof/async_client.php" />
             <file role="doc" name="examples/eof/client.php" />
             <file role="doc" name="examples/eof/server.php" />
@@ -316,16 +338,20 @@
             <file role="doc" name="examples/http/curl.php" />
             <file role="doc" name="examples/http/detach.php" />
             <file role="doc" name="examples/http/download.php" />
+            <file role="doc" name="examples/http/empty.txt" />
             <file role="doc" name="examples/http/http_proxy.php" />
             <file role="doc" name="examples/http/http_proxy_auth.php" />
             <file role="doc" name="examples/http/https_proxy.php" />
+            <file role="doc" name="examples/http/moc.moc" />
             <file role="doc" name="examples/http/post.data" />
             <file role="doc" name="examples/http/raw.php" />
             <file role="doc" name="examples/http/redirect.php" />
             <file role="doc" name="examples/http/server.php" />
+            <file role="doc" name="examples/http/static_handler.php" />
             <file role="doc" name="examples/http/test.txt" />
             <file role="doc" name="examples/http/upload_file.php" />
             <file role="doc" name="examples/http2/server.php" />
+            <file role="doc" name="examples/http2/test.html" />
             <file role="doc" name="examples/ipv6/tcp_client.php" />
             <file role="doc" name="examples/ipv6/tcp_server.php" />
             <file role="doc" name="examples/ipv6/udp_client.php" />
@@ -397,7 +423,6 @@
             <file role="doc" name="examples/runtime/sleep.php" />
             <file role="doc" name="examples/runtime/ssl.php" />
             <file role="doc" name="examples/runtime/stream.php" />
-            <file role="doc" name="examples/runtime/strictmode.php" />
             <file role="doc" name="examples/runtime/sync.php" />
             <file role="doc" name="examples/runtime/time_sleep_until.php" />
             <file role="doc" name="examples/runtime/unlink.phpt" />
@@ -447,10 +472,12 @@
             <file role="doc" name="examples/ssl/client.c" />
             <file role="doc" name="examples/ssl/client.php" />
             <file role="doc" name="examples/ssl/co_client.php" />
+            <file role="doc" name="examples/ssl/gen_cert.md" />
             <file role="doc" name="examples/ssl/http_client.php" />
             <file role="doc" name="examples/ssl/passphrase.php" />
             <file role="doc" name="examples/ssl/server.php" />
             <file role="doc" name="examples/ssl/ssl.crt" />
+            <file role="doc" name="examples/ssl/ssl.csr" />
             <file role="doc" name="examples/ssl/ssl.key" />
             <file role="doc" name="examples/ssl/ssl_passwd/ssl.crt" />
             <file role="doc" name="examples/ssl/ssl_passwd/ssl.csr" />
@@ -497,15 +524,22 @@
             <file role="doc" name="examples/websocket/server.php" />
             <file role="doc" name="examples/wrapper/CMakeLists.txt" />
             <file role="doc" name="examples/wrapper/server.cpp" />
+            <file role="doc" name="examples/www/dir1/file1.txt" />
+            <file role="doc" name="examples/www/dir1/file2.txt" />
+            <file role="doc" name="examples/www/dir2/file1.txt" />
+            <file role="doc" name="examples/www/dir2/file2.txt" />
+            <file role="doc" name="examples/www/dir2/index.txt" />
+            <file role="doc" name="examples/www/file1.txt" />
+            <file role="doc" name="examples/www/file2.txt" />
+            <file role="doc" name="examples/www/index.html" />
+            <file role="doc" name="examples/www/index.txt" />
             <file role="doc" name="gdbinit" />
-            <file role="src" name="include/array.h" />
             <file role="src" name="include/asm_context.h" />
             <file role="src" name="include/async.h" />
             <file role="src" name="include/atomic.h" />
             <file role="src" name="include/base64.h" />
             <file role="src" name="include/buffer.h" />
             <file role="src" name="include/client.h" />
-            <file role="src" name="include/connection.h" />
             <file role="src" name="include/context.h" />
             <file role="src" name="include/coroutine.h" />
             <file role="src" name="include/coroutine_c_api.h" />
@@ -513,6 +547,7 @@
             <file role="src" name="include/coroutine_cxx_api.h" />
             <file role="src" name="include/coroutine_socket.h" />
             <file role="src" name="include/coroutine_system.h" />
+            <file role="src" name="include/dtls.h" />
             <file role="src" name="include/error.h" />
             <file role="src" name="include/file_hook.h" />
             <file role="src" name="include/hash.h" />
@@ -523,9 +558,8 @@
             <file role="src" name="include/http2.h" />
             <file role="src" name="include/list.h" />
             <file role="src" name="include/lru_cache.h" />
-            <file role="src" name="include/mime_types.h" />
+            <file role="src" name="include/mime_type.h" />
             <file role="src" name="include/mqtt.h" />
-            <file role="src" name="include/rbtree.h" />
             <file role="doc" name="include/readme" />
             <file role="src" name="include/redis.h" />
             <file role="src" name="include/ring_queue.h" />
@@ -533,10 +567,13 @@
             <file role="src" name="include/sha1.h" />
             <file role="src" name="include/socket_hook.h" />
             <file role="src" name="include/socks5.h" />
+            <file role="src" name="include/ssl.h" />
+            <file role="src" name="include/static_handler.h" />
             <file role="src" name="include/swoole.h" />
             <file role="src" name="include/swoole_api.h" />
             <file role="src" name="include/swoole_config.h" />
             <file role="src" name="include/swoole_cxx.h" />
+            <file role="src" name="include/swoole_version.h" />
             <file role="src" name="include/table.h" />
             <file role="src" name="include/uthash.h" />
             <file role="src" name="include/websocket.h" />
@@ -550,18 +587,15 @@
             <file role="src" name="php_swoole_cxx.h" />
             <file role="src" name="php_swoole_library.h" />
             <file role="src" name="remake_library.sh" />
-            <file role="src" name="src/core/array.c" />
-            <file role="src" name="src/core/base.c" />
-            <file role="src" name="src/core/channel.c" />
+            <file role="src" name="src/core/base.cc" />
+            <file role="src" name="src/core/channel.cc" />
             <file role="src" name="src/core/error.cc" />
-            <file role="src" name="src/core/hashmap.c" />
-            <file role="src" name="src/core/heap.c" />
-            <file role="src" name="src/core/list.c" />
-            <file role="src" name="src/core/log.c" />
-            <file role="src" name="src/core/rbtree.c" />
-            <file role="src" name="src/core/ring_queue.c" />
-            <file role="src" name="src/core/socket.c" />
-            <file role="src" name="src/core/string.c" />
+            <file role="src" name="src/core/hashmap.cc" />
+            <file role="src" name="src/core/heap.cc" />
+            <file role="src" name="src/core/log.cc" />
+            <file role="src" name="src/core/ring_queue.cc" />
+            <file role="src" name="src/core/socket.cc" />
+            <file role="src" name="src/core/string.cc" />
             <file role="src" name="src/coroutine/base.cc" />
             <file role="src" name="src/coroutine/channel.cc" />
             <file role="src" name="src/coroutine/context.cc" />
@@ -571,54 +605,54 @@
             <file role="src" name="src/coroutine/system.cc" />
             <file role="src" name="src/coroutine/thread_context.cc" />
             <file role="src" name="src/coroutine/ucontext.cc" />
-            <file role="src" name="src/lock/atomic.c" />
-            <file role="src" name="src/lock/cond.c" />
-            <file role="src" name="src/lock/file_lock.c" />
-            <file role="src" name="src/lock/mutex.c" />
-            <file role="src" name="src/lock/rw_lock.c" />
-            <file role="src" name="src/lock/semaphore.c" />
-            <file role="src" name="src/lock/spin_lock.c" />
-            <file role="src" name="src/memory/buffer.c" />
-            <file role="src" name="src/memory/fixed_pool.c" />
-            <file role="src" name="src/memory/global_memory.c" />
-            <file role="src" name="src/memory/malloc.c" />
-            <file role="src" name="src/memory/ring_buffer.c" />
-            <file role="src" name="src/memory/shared_memory.c" />
-            <file role="src" name="src/memory/table.c" />
-            <file role="src" name="src/network/client.c" />
-            <file role="src" name="src/network/connection.c" />
+            <file role="src" name="src/lock/atomic.cc" />
+            <file role="src" name="src/lock/cond.cc" />
+            <file role="src" name="src/lock/file_lock.cc" />
+            <file role="src" name="src/lock/mutex.cc" />
+            <file role="src" name="src/lock/rw_lock.cc" />
+            <file role="src" name="src/lock/semaphore.cc" />
+            <file role="src" name="src/lock/spin_lock.cc" />
+            <file role="src" name="src/memory/buffer.cc" />
+            <file role="src" name="src/memory/fixed_pool.cc" />
+            <file role="src" name="src/memory/global_memory.cc" />
+            <file role="src" name="src/memory/malloc.cc" />
+            <file role="src" name="src/memory/ring_buffer.cc" />
+            <file role="src" name="src/memory/shared_memory.cc" />
+            <file role="src" name="src/memory/table.cc" />
+            <file role="src" name="src/network/client.cc" />
             <file role="src" name="src/network/dns.cc" />
-            <file role="src" name="src/network/process_pool.c" />
-            <file role="src" name="src/network/stream.c" />
-            <file role="src" name="src/network/thread_pool.c" />
-            <file role="src" name="src/network/timer.c" />
+            <file role="src" name="src/network/process_pool.cc" />
+            <file role="src" name="src/network/stream.cc" />
+            <file role="src" name="src/network/thread_pool.cc" />
+            <file role="src" name="src/network/timer.cc" />
             <file role="src" name="src/os/async_thread.cc" />
-            <file role="src" name="src/os/base.c" />
-            <file role="src" name="src/os/msg_queue.c" />
-            <file role="src" name="src/os/sendfile.c" />
-            <file role="src" name="src/os/signal.c" />
-            <file role="src" name="src/os/timer.c" />
+            <file role="src" name="src/os/base.cc" />
+            <file role="src" name="src/os/msg_queue.cc" />
+            <file role="src" name="src/os/sendfile.cc" />
+            <file role="src" name="src/os/signal.cc" />
+            <file role="src" name="src/os/timer.cc" />
             <file role="src" name="src/os/wait.cc" />
-            <file role="src" name="src/pipe/base.c" />
-            <file role="src" name="src/pipe/eventfd.c" />
-            <file role="src" name="src/pipe/unix_socket.c" />
+            <file role="src" name="src/pipe/base.cc" />
+            <file role="src" name="src/pipe/eventfd.cc" />
+            <file role="src" name="src/pipe/unix_socket.cc" />
             <file role="src" name="src/protocol/base.cc" />
-            <file role="src" name="src/protocol/base64.c" />
-            <file role="src" name="src/protocol/http.c" />
-            <file role="src" name="src/protocol/http2.c" />
-            <file role="src" name="src/protocol/mime_types.cc" />
-            <file role="src" name="src/protocol/mqtt.c" />
-            <file role="src" name="src/protocol/redis.c" />
-            <file role="src" name="src/protocol/sha1.c" />
-            <file role="src" name="src/protocol/socks5.c" />
-            <file role="src" name="src/protocol/ssl.c" />
-            <file role="src" name="src/protocol/websocket.c" />
+            <file role="src" name="src/protocol/base64.cc" />
+            <file role="src" name="src/protocol/dtls.cc" />
+            <file role="src" name="src/protocol/http.cc" />
+            <file role="src" name="src/protocol/http2.cc" />
+            <file role="src" name="src/protocol/mime_type.cc" />
+            <file role="src" name="src/protocol/mqtt.cc" />
+            <file role="src" name="src/protocol/redis.cc" />
+            <file role="src" name="src/protocol/sha1.cc" />
+            <file role="src" name="src/protocol/socks5.cc" />
+            <file role="src" name="src/protocol/ssl.cc" />
+            <file role="src" name="src/protocol/websocket.cc" />
             <file role="src" name="src/reactor/base.cc" />
             <file role="src" name="src/reactor/epoll.cc" />
-            <file role="src" name="src/reactor/kqueue.c" />
-            <file role="src" name="src/reactor/poll.c" />
-            <file role="src" name="src/reactor/select.c" />
-            <file role="src" name="src/server/base.c" />
+            <file role="src" name="src/reactor/kqueue.cc" />
+            <file role="src" name="src/reactor/poll.cc" />
+            <file role="src" name="src/reactor/select.cc" />
+            <file role="src" name="src/server/base.cc" />
             <file role="src" name="src/server/manager.cc" />
             <file role="src" name="src/server/master.cc" />
             <file role="src" name="src/server/port.cc" />
@@ -634,9 +668,9 @@
             <file role="src" name="swoole.cc" />
             <file role="src" name="swoole_async_coro.cc" />
             <file role="src" name="swoole_atomic.cc" />
-            <file role="src" name="swoole_buffer.c" />
             <file role="src" name="swoole_channel_coro.cc" />
             <file role="src" name="swoole_client.cc" />
+            <file role="src" name="swoole_client.h" />
             <file role="src" name="swoole_client_coro.cc" />
             <file role="src" name="swoole_coroutine.cc" />
             <file role="src" name="swoole_coroutine.h" />
@@ -652,6 +686,7 @@
             <file role="src" name="swoole_http_request.cc" />
             <file role="src" name="swoole_http_response.cc" />
             <file role="src" name="swoole_http_server.cc" />
+            <file role="src" name="swoole_http_server.h" />
             <file role="src" name="swoole_http_server_coro.cc" />
             <file role="src" name="swoole_lock.cc" />
             <file role="src" name="swoole_mysql_coro.cc" />
@@ -663,6 +698,7 @@
             <file role="src" name="swoole_redis_server.cc" />
             <file role="src" name="swoole_runtime.cc" />
             <file role="src" name="swoole_server.cc" />
+            <file role="src" name="swoole_server.h" />
             <file role="src" name="swoole_server_port.cc" />
             <file role="src" name="swoole_socket_coro.cc" />
             <file role="src" name="swoole_table.cc" />
@@ -730,8 +766,7 @@
             <file role="test" name="tests/include/bootstrap.php" />
             <file role="test" name="tests/include/config.php" />
             <file role="test" name="tests/include/functions.php" />
-            <file role="test" name="tests/include/lib/.gitignore" />
-            <file role="test" name="tests/include/lib/composer.json" />
+            <file role="test" name="tests/include/lib/src/Assert.php" />
             <file role="test" name="tests/include/lib/src/CoServer.php" />
             <file role="test" name="tests/include/lib/src/CurlManager.php" />
             <file role="test" name="tests/include/lib/src/DbWrapper.php" />
@@ -747,6 +782,7 @@
             <file role="test" name="tests/include/lib/src/ServerManager.php" />
             <file role="test" name="tests/include/lib/src/TcpStat.php" />
             <file role="test" name="tests/include/lib/src/responder/get.php" />
+            <file role="test" name="tests/include/lib/vendor/autoload.php" />
             <file role="test" name="tests/include/macos/phpstorm.py" />
             <file role="test" name="tests/include/skipif.inc" />
             <file role="test" name="tests/init" />
@@ -805,11 +841,14 @@
             <file role="test" name="tests/swoole_client_coro/connect_dns_timeout.phpt" />
             <file role="test" name="tests/swoole_client_coro/connect_timeout.phpt" />
             <file role="test" name="tests/swoole_client_coro/connect_with_dns.phpt" />
+            <file role="test" name="tests/swoole_client_coro/dtls.phpt" />
             <file role="test" name="tests/swoole_client_coro/eof.phpt" />
             <file role="test" name="tests/swoole_client_coro/eof_02.phpt" />
             <file role="test" name="tests/swoole_client_coro/eof_03.phpt" />
             <file role="test" name="tests/swoole_client_coro/eof_04.phpt" />
             <file role="test" name="tests/swoole_client_coro/fixed_package.phpt" />
+            <file role="test" name="tests/swoole_client_coro/getpeername.phpt" />
+            <file role="test" name="tests/swoole_client_coro/getsockname.phpt" />
             <file role="test" name="tests/swoole_client_coro/isConnected.phpt" />
             <file role="test" name="tests/swoole_client_coro/length_01.phpt" />
             <file role="test" name="tests/swoole_client_coro/length_02.phpt" />
@@ -882,6 +921,7 @@
             <file role="test" name="tests/swoole_coroutine/cid.phpt" />
             <file role="test" name="tests/swoole_coroutine/create_after_rshutdown.phpt" />
             <file role="test" name="tests/swoole_coroutine/current.phpt" />
+            <file role="test" name="tests/swoole_coroutine/dead_lock.phpt" />
             <file role="test" name="tests/swoole_coroutine/defer/defer.phpt" />
             <file role="test" name="tests/swoole_coroutine/defer/defer_close.phpt" />
             <file role="test" name="tests/swoole_coroutine/defer/defer_exception.phpt" />
@@ -907,6 +947,7 @@
             <file role="test" name="tests/swoole_coroutine/forbidden_case/call_user.phpt" />
             <file role="test" name="tests/swoole_coroutine/forbidden_case/invoke.phpt" />
             <file role="test" name="tests/swoole_coroutine/getContext.phpt" />
+            <file role="test" name="tests/swoole_coroutine/getElasped.phpt" />
             <file role="test" name="tests/swoole_coroutine/getPcid.phpt" />
             <file role="test" name="tests/swoole_coroutine/getPcid_by_random_cid.phpt.phpt" />
             <file role="test" name="tests/swoole_coroutine/gethostbyname.phpt" />
@@ -933,6 +974,7 @@
             <file role="test" name="tests/swoole_coroutine/private_access.phpt" />
             <file role="test" name="tests/swoole_coroutine/resume_loop.phpt" />
             <file role="test" name="tests/swoole_coroutine/scheduler.phpt" />
+            <file role="test" name="tests/swoole_coroutine/signal_listener.phpt" />
             <file role="test" name="tests/swoole_coroutine/stats.phpt" />
             <file role="test" name="tests/swoole_coroutine/use_process.phpt" />
             <file role="test" name="tests/swoole_coroutine/user_coroutine.phpt" />
@@ -949,6 +991,7 @@
             <file role="test" name="tests/swoole_coroutine_scheduler/preemptive/for2.phpt" />
             <file role="test" name="tests/swoole_coroutine_scheduler/preemptive/goto.phpt" />
             <file role="test" name="tests/swoole_coroutine_scheduler/preemptive/goto2.phpt" />
+            <file role="test" name="tests/swoole_coroutine_scheduler/preemptive/timer.phpt" />
             <file role="test" name="tests/swoole_coroutine_scheduler/preemptive/while.phpt" />
             <file role="test" name="tests/swoole_coroutine_scheduler/preemptive/while2.phpt" />
             <file role="test" name="tests/swoole_coroutine_scheduler/preemptive/while3.phpt" />
@@ -961,11 +1004,6 @@
             <file role="test" name="tests/swoole_coroutine_scheduler/start.phpt" />
             <file role="test" name="tests/swoole_coroutine_scheduler/start_in_server_shutdown.phpt" />
             <file role="test" name="tests/swoole_coroutine_scheduler/start_in_server_worker_stop.phpt" />
-            <file role="test" name="tests/swoole_coroutine_server/length_1.phpt" />
-            <file role="test" name="tests/swoole_coroutine_server/random_port.phpt" />
-            <file role="test" name="tests/swoole_coroutine_server/reuse_port.phpt" />
-            <file role="test" name="tests/swoole_coroutine_server/ssl.phpt" />
-            <file role="test" name="tests/swoole_coroutine_server/tcp.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/aio_thread_num.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/fread.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/fwrite.phpt" />
@@ -975,6 +1013,10 @@
             <file role="test" name="tests/swoole_coroutine_system/gethostbyname_timeout.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/readfile.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/sleep.phpt" />
+            <file role="test" name="tests/swoole_coroutine_system/wait.phpt" />
+            <file role="test" name="tests/swoole_coroutine_system/waitEvent.phpt" />
+            <file role="test" name="tests/swoole_coroutine_system/waitPid.phpt" />
+            <file role="test" name="tests/swoole_coroutine_system/waitSignal.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/writefile.phpt" />
             <file role="test" name="tests/swoole_coroutine_util/dns_lookup.phpt" />
             <file role="test" name="tests/swoole_coroutine_util/exec.phpt" />
@@ -1041,6 +1083,7 @@
             <file role="test" name="tests/swoole_http2_client_coro/no-gzip.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/number.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/ping.phpt" />
+            <file role="test" name="tests/swoole_http2_client_coro/pipeline.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/post.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/send-cookies.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/send_only_bug.phpt" />
@@ -1051,14 +1094,17 @@
             <file role="test" name="tests/swoole_http2_server/nghttp2_big_data.phpt" />
             <file role="test" name="tests/swoole_http2_server/no_compression.phpt" />
             <file role="test" name="tests/swoole_http2_server/ping.phpt" />
+            <file role="test" name="tests/swoole_http2_server/sendfile.phpt" />
+            <file role="test" name="tests/swoole_http2_server/static_handler.phpt" />
             <file role="test" name="tests/swoole_http2_server/trailer.phpt" />
+            <file role="test" name="tests/swoole_http2_server_coro/cookies.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/204.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/addData.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/alias.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/another_coroutine.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/auto_reconnect.phpt" />
-            <file role="test" name="tests/swoole_http_client_coro/buffer.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/bug_2661.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/bug_3118.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/compression_with_big_data.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/connect_timeout.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/construct_failed.phpt" />
@@ -1093,6 +1139,8 @@
             <file role="test" name="tests/swoole_http_client_coro/socks5_proxy.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/ssl.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/ssl_host_name.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/ssl_verify_peer_1.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/ssl_verify_peer_2.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/timeout_before_connect.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/timeout_when_recv.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/unixsocket.phpt" />
@@ -1112,6 +1160,7 @@
             <file role="test" name="tests/swoole_http_server/bug_2786.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_2947.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_2988.phpt" />
+            <file role="test" name="tests/swoole_http_server/bug_compression_level.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_get_request_data_after_end.phpt" />
             <file role="test" name="tests/swoole_http_server/callback_new_obj_method.phpt" />
             <file role="test" name="tests/swoole_http_server/callback_new_static_method.phpt" />
@@ -1120,6 +1169,7 @@
             <file role="test" name="tests/swoole_http_server/callback_with_private.phpt" />
             <file role="test" name="tests/swoole_http_server/callback_with_protected.phpt" />
             <file role="test" name="tests/swoole_http_server/chunk.phpt" />
+            <file role="test" name="tests/swoole_http_server/chunked_pipeline_request.phpt" />
             <file role="test" name="tests/swoole_http_server/co_switching.phpt" />
             <file role="test" name="tests/swoole_http_server/compression.phpt" />
             <file role="test" name="tests/swoole_http_server/cookie_delete.phpt" />
@@ -1133,6 +1183,9 @@
             <file role="test" name="tests/swoole_http_server/error_413.phpt" />
             <file role="test" name="tests/swoole_http_server/form_data_with_charset.phpt" />
             <file role="test" name="tests/swoole_http_server/head_method.phpt" />
+            <file role="test" name="tests/swoole_http_server/http_autoindex.phpt" />
+            <file role="test" name="tests/swoole_http_server/http_index_files.phpt" />
+            <file role="test" name="tests/swoole_http_server/http_index_files_autoindex.phpt" />
             <file role="test" name="tests/swoole_http_server/https.phpt" />
             <file role="test" name="tests/swoole_http_server/issue_2360.phpt" />
             <file role="test" name="tests/swoole_http_server/large_url.phpt" />
@@ -1164,21 +1217,29 @@
             <file role="test" name="tests/swoole_http_server/upload_file_array_default.phpt" />
             <file role="test" name="tests/swoole_http_server/upload_file_array_parsed.phpt" />
             <file role="test" name="tests/swoole_http_server/upload_file_empty.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/bad_request.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/bug_2682.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/bug_3025.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/bug_no_handle.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/error_404.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/handle.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/http2.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/https.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/ipv6.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/keepalive.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/pipeline.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/post_array.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/random_port.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/rawContent_get_big_data.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/remote_addr.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/reuse_port.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/sendfile.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/ssl_bad_client.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/tcp_nodelay.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/upload.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/websocket.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/websocket_compression.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/websocket_mixed.phpt" />
             <file role="test" name="tests/swoole_library/array_object/base.phpt" />
             <file role="test" name="tests/swoole_library/curl/basic/1.phpt" />
             <file role="test" name="tests/swoole_library/curl/basic/10.phpt" />
@@ -1221,6 +1282,7 @@
             <file role="test" name="tests/swoole_library/exec/exec/1.phpt" />
             <file role="test" name="tests/swoole_library/exec/exec/2.phpt" />
             <file role="test" name="tests/swoole_library/exec/shell_exec/1.phpt" />
+            <file role="test" name="tests/swoole_library/multibyte_string_object/base.phpt" />
             <file role="test" name="tests/swoole_library/string_object/base.phpt" />
             <file role="test" name="tests/swoole_library/wait_group/normal.phpt" />
             <file role="test" name="tests/swoole_library/wait_group/timeout.phpt" />
@@ -1404,7 +1466,6 @@
             <file role="test" name="tests/swoole_runtime/stream_select/base.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_select/blocked.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_select/bug46024.phpt" />
-            <file role="test" name="tests/swoole_runtime/stream_select/bug53427.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_select/bug60120.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_select/bug60602.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_select/bug64438.phpt" />
@@ -1438,6 +1499,7 @@
             <file role="test" name="tests/swoole_server/bug_2639.phpt" />
             <file role="test" name="tests/swoole_server/bug_2736.phpt" />
             <file role="test" name="tests/swoole_server/bug_aio.phpt" />
+            <file role="test" name="tests/swoole_server/check_chunk_total_size.phpt" />
             <file role="test" name="tests/swoole_server/close_in_non_current_worker.phpt" />
             <file role="test" name="tests/swoole_server/close_in_task_worker.phpt" />
             <file role="test" name="tests/swoole_server/connections.phpt" />
@@ -1450,6 +1512,8 @@
             <file role="test" name="tests/swoole_server/dispatch_mode_7.phpt" />
             <file role="test" name="tests/swoole_server/duplicate_registered.phpt" />
             <file role="test" name="tests/swoole_server/enable_coroutine.phpt" />
+            <file role="test" name="tests/swoole_server/enable_delay_receive.phpt" />
+            <file role="test" name="tests/swoole_server/enable_reuse_port.phpt" />
             <file role="test" name="tests/swoole_server/eof_protocol.phpt" />
             <file role="test" name="tests/swoole_server/eof_server.phpt" />
             <file role="test" name="tests/swoole_server/event/manager_start.phpt" />
@@ -1466,6 +1530,7 @@
             <file role="test" name="tests/swoole_server/getClientList.phpt" />
             <file role="test" name="tests/swoole_server/getLastError.phpt" />
             <file role="test" name="tests/swoole_server/getSocket.phpt" />
+            <file role="test" name="tests/swoole_server/getWorkerStatus.phpt" />
             <file role="test" name="tests/swoole_server/heartbeat.phpt" />
             <file role="test" name="tests/swoole_server/heartbeat_true.phpt" />
             <file role="test" name="tests/swoole_server/heartbeat_with_base.phpt" />
@@ -1480,10 +1545,17 @@
             <file role="test" name="tests/swoole_server/length/03.phpt" />
             <file role="test" name="tests/swoole_server/length_protocol.phpt" />
             <file role="test" name="tests/swoole_server/listen_fail.phpt" />
+            <file role="test" name="tests/swoole_server/max_queued_bytes.phpt" />
             <file role="test" name="tests/swoole_server/max_request.phpt" />
             <file role="test" name="tests/swoole_server/max_request_grace_disabled.phpt" />
             <file role="test" name="tests/swoole_server/max_request_grace_enabled.phpt" />
             <file role="test" name="tests/swoole_server/max_request_threshold.phpt" />
+            <file role="test" name="tests/swoole_server/object/getInstance.phpt" />
+            <file role="test" name="tests/swoole_server/object/getManagerPid.phpt" />
+            <file role="test" name="tests/swoole_server/object/getMasterPid.phpt" />
+            <file role="test" name="tests/swoole_server/object/getWorkerId.phpt" />
+            <file role="test" name="tests/swoole_server/object/getWorkerPid.phpt" />
+            <file role="test" name="tests/swoole_server/onReload.phpt" />
             <file role="test" name="tests/swoole_server/pid_file.phpt" />
             <file role="test" name="tests/swoole_server/protect.phpt" />
             <file role="test" name="tests/swoole_server/protect_false.phpt" />
@@ -1511,10 +1583,13 @@
             <file role="test" name="tests/swoole_server/sigint_with_base.phpt" />
             <file role="test" name="tests/swoole_server/sigint_with_process.phpt" />
             <file role="test" name="tests/swoole_server/slow_client.phpt" />
-            <file role="test" name="tests/swoole_server/ssl.phpt" />
-            <file role="test" name="tests/swoole_server/ssl_verify_01.phpt" />
-            <file role="test" name="tests/swoole_server/ssl_verify_02.phpt" />
-            <file role="test" name="tests/swoole_server/ssl_verify_03.phpt" />
+            <file role="test" name="tests/swoole_server/ssl/00.phpt" />
+            <file role="test" name="tests/swoole_server/ssl/bad_client.phpt" />
+            <file role="test" name="tests/swoole_server/ssl/dtls.phpt" />
+            <file role="test" name="tests/swoole_server/ssl/dtls_with_length_protocol.phpt" />
+            <file role="test" name="tests/swoole_server/ssl/verify_01.phpt" />
+            <file role="test" name="tests/swoole_server/ssl/verify_02.phpt" />
+            <file role="test" name="tests/swoole_server/ssl/verify_03.phpt" />
             <file role="test" name="tests/swoole_server/stats.phpt" />
             <file role="test" name="tests/swoole_server/stop.phpt" />
             <file role="test" name="tests/swoole_server/task/base.phpt" />
@@ -1552,6 +1627,11 @@
             <file role="test" name="tests/swoole_server/user_process_force_exit.phpt" />
             <file role="test" name="tests/swoole_server/wrong_eof_setting.phpt" />
             <file role="test" name="tests/swoole_server/z_conn_10k.phpt" />
+            <file role="test" name="tests/swoole_server_coro/length_1.phpt" />
+            <file role="test" name="tests/swoole_server_coro/random_port.phpt" />
+            <file role="test" name="tests/swoole_server_coro/reuse_port.phpt" />
+            <file role="test" name="tests/swoole_server_coro/ssl.phpt" />
+            <file role="test" name="tests/swoole_server_coro/tcp.phpt" />
             <file role="test" name="tests/swoole_server_port/duplicate_registered.phpt" />
             <file role="test" name="tests/swoole_server_port/heartbeat.phpt" />
             <file role="test" name="tests/swoole_server_port/http.phpt" />
@@ -1567,7 +1647,10 @@
             <file role="test" name="tests/swoole_socket_coro/construct_parse_args_failed.phpt" />
             <file role="test" name="tests/swoole_socket_coro/fd.phpt" />
             <file role="test" name="tests/swoole_socket_coro/getopt/get.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/getpeername.phpt" />
             <file role="test" name="tests/swoole_socket_coro/getsockname.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/peek_and_checkLiveness.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/protocol/package_length_func.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recvAll_timeout.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recv_timeout.phpt" />
             <file role="test" name="tests/swoole_socket_coro/reuse.phpt" />
@@ -1768,6 +1851,7 @@
             <file role="src" name="tools/get-ip-info.php" />
             <file role="src" name="tools/pecl-package.php" />
             <file role="src" name="tools/phpt-fixer.php" />
+            <file role="src" name="tools/rename.php" />
             <file role="src" name="tools/send-http-data.php" />
             <file role="src" name="tools/show-big-files.php" />
             <file role="src" name="travis/.gitignore" />

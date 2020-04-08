@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine_server: (length protocol) 1
+swoole_server_coro: (length protocol) 1
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
