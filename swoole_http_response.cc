@@ -1343,33 +1343,29 @@ static PHP_METHOD(swoole_http_response, detach)
 
 static PHP_METHOD(swoole_http_response, create)
 {
-    zval *zserver;
+    zval *zserver = NULL;
     zend_long fd;
+    swServer *serv;
 
-    ZEND_PARSE_PARAMETERS_START(1, 2)
-        Z_PARAM_ZVAL(zserver)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_LONG(fd)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    swServer *serv = nullptr;
-
-    if (ZEND_NUM_ARGS() == 2 && Z_TYPE_P(zserver) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zserver), swoole_server_ce))
+    if (ZEND_NUM_ARGS() == 1)
     {
-        serv = php_swoole_server_get_and_check_server(zserver);
-    }
-    else if (Z_TYPE_P(zserver) == IS_LONG)
-    {
+        ZEND_PARSE_PARAMETERS_START(1, 1)
+            Z_PARAM_LONG(fd)
+        ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
         serv = sw_server();
-        fd = zval_get_long(zserver);
     }
     else
     {
-        php_swoole_fatal_error(E_WARNING, "expects parameter 1 to be $server object, and parameter 2 to be $fd");
-        RETURN_FALSE;
+        ZEND_PARSE_PARAMETERS_START(2, 2)
+            Z_PARAM_OBJECT_OF_CLASS(zserver, swoole_server_ce)
+            Z_PARAM_LONG(fd)
+        ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+        serv = php_swoole_server_get_and_check_server(zserver);
     }
 
-    if (serv == nullptr || !sw_server()->gs->start)
+    if (serv == nullptr || !serv->gs->start)
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
