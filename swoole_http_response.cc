@@ -247,6 +247,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_redirect, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_create, 0, 0, 1)
+    ZEND_ARG_INFO(0, server)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
@@ -1342,24 +1343,49 @@ static PHP_METHOD(swoole_http_response, detach)
 
 static PHP_METHOD(swoole_http_response, create)
 {
-    if (!sw_server() || !sw_server()->gs->start)
+    zval *zserver = NULL;
+    zend_long fd;
+    swServer *serv;
+
+    if (ZEND_NUM_ARGS() == 1)
+    {
+        ZEND_PARSE_PARAMETERS_START(1, 1)
+            Z_PARAM_LONG(fd)
+        ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+        serv = sw_server();
+    }
+    else
+    {
+        ZEND_PARSE_PARAMETERS_START(2, 2)
+            Z_PARAM_OBJECT_OF_CLASS(zserver, swoole_server_ce)
+            Z_PARAM_LONG(fd)
+        ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+        serv = php_swoole_server_get_and_check_server(zserver);
+    }
+
+    if (serv == nullptr || !serv->gs->start)
     {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
 
-    zend_long fd;
-
-    ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_LONG(fd)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
     http_context *ctx = (http_context *) ecalloc(1, sizeof(http_context));
+    if (!ctx)
+    {
+        RETURN_FALSE;
+    }
 
     ctx->fd = (int) fd;
     ctx->keepalive = 1;
 
     swoole_http_server_init_context(sw_server(), ctx);
+
+    if (sw_unlikely(swoole_http_buffer == nullptr))
+    {
+        php_swoole_http_server_init_global_variant();
+    }
 
     object_init_ex(return_value, swoole_http_response_ce);
     php_swoole_http_response_set_context(return_value, ctx);

@@ -217,8 +217,6 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     return SW_OK;
 }
 
-extern swServer* php_swoole_server_get_and_check_server(zval *zobject);
-
 static PHP_METHOD(swoole_redis_server, start)
 {
     swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);

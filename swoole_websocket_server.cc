@@ -816,8 +816,6 @@ static sw_inline int swoole_websocket_server_close(swServer *serv, int fd, swStr
     }
 }
 
-extern swServer* php_swoole_server_get_and_check_server(zval *zobject);
-
 static PHP_METHOD(swoole_websocket_server, disconnect)
 {
     swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
