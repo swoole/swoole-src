@@ -428,7 +428,7 @@ void set(const string &suffix, const string &mime_type)
     map[suffix] = mime_type;
 }
 
-bool del(const string &suffix, const string &mime_type)
+bool del(const string &suffix)
 {
     if (map.find(suffix) == map.end())
     {

@@ -86,10 +86,14 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_hashcode, 0, 0, 1)
     ZEND_ARG_INFO(0, type)
 ZEND_END_ARG_INFO()
 
-/* add/set/delete */
+/* add/set */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mime_type_write, 0, 0, 2)
     ZEND_ARG_INFO(0, suffix)
     ZEND_ARG_INFO(0, mime_type)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mime_type_delete, 0, 0, 1)
+    ZEND_ARG_INFO(0, suffix)
 ZEND_END_ARG_INFO()
 
 /* get/exists */
@@ -126,7 +130,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_hashcode, arginfo_swoole_hashcode)
     PHP_FE(swoole_mime_type_add, arginfo_swoole_mime_type_write)
     PHP_FE(swoole_mime_type_set, arginfo_swoole_mime_type_write)
-    PHP_FE(swoole_mime_type_delete, arginfo_swoole_mime_type_write)
+    PHP_FE(swoole_mime_type_delete, arginfo_swoole_mime_type_delete)
     PHP_FE(swoole_mime_type_get, arginfo_swoole_mime_type_read)
     PHP_FALIAS(swoole_get_mime_type, swoole_mime_type_get, arginfo_swoole_mime_type_read)
     PHP_FE(swoole_mime_type_exists, arginfo_swoole_mime_type_read)
@@ -811,71 +815,61 @@ PHP_FUNCTION(swoole_strerror)
 
 PHP_FUNCTION(swoole_mime_type_add)
 {
-    char *suffix;
-    size_t suffix_len;
-    char *mime_type;
-    size_t mime_type_len;
+    zend_string *suffix;
+    zend_string *mime_type;
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
-        Z_PARAM_STRING(suffix, suffix_len)
-        Z_PARAM_STRING(mime_type, mime_type_len)
+        Z_PARAM_STR(suffix)
+        Z_PARAM_STR(mime_type)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(swoole::mime_type::add(suffix, mime_type));
+    RETURN_BOOL(swoole::mime_type::add(ZSTR_VAL(suffix), ZSTR_VAL(mime_type)));
 }
 
 PHP_FUNCTION(swoole_mime_type_set)
 {
-    char *suffix;
-    size_t suffix_len;
-    char *mime_type;
-    size_t mime_type_len;
+    zend_string *suffix;
+    zend_string *mime_type;
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
-        Z_PARAM_STRING(suffix, suffix_len)
-        Z_PARAM_STRING(mime_type, mime_type_len)
+        Z_PARAM_STR(suffix)
+        Z_PARAM_STR(mime_type)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    swoole::mime_type::set(suffix, mime_type);
+    swoole::mime_type::set(ZSTR_VAL(suffix), ZSTR_VAL(mime_type));
 }
 
 PHP_FUNCTION(swoole_mime_type_delete)
 {
-    char *suffix;
-    size_t suffix_len;
-    char *mime_type;
-    size_t mime_type_len;
+    zend_string *suffix;
 
-    ZEND_PARSE_PARAMETERS_START(2, 2)
-        Z_PARAM_STRING(suffix, suffix_len)
-        Z_PARAM_STRING(mime_type, mime_type_len)
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STR(suffix)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(swoole::mime_type::del(suffix, mime_type));
+    RETURN_BOOL(swoole::mime_type::del(ZSTR_VAL(suffix)));
 }
 
 PHP_FUNCTION(swoole_mime_type_get)
 {
-    char *filename;
-    size_t filename_len;
+    zend_string *filename;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_STRING(filename, filename_len)
+        Z_PARAM_STR(filename)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_STRING(swoole::mime_type::get(filename).c_str());
+    RETURN_STRING(swoole::mime_type::get(ZSTR_VAL(filename)).c_str());
 }
 
 PHP_FUNCTION(swoole_mime_type_exists)
 {
-    char *filename;
-    size_t filename_len;
+    zend_string *filename;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_STRING(filename, filename_len)
+        Z_PARAM_STR(filename)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(swoole::mime_type::exists(filename));
+    RETURN_BOOL(swoole::mime_type::exists(ZSTR_VAL(filename)));
 }
 
 PHP_FUNCTION(swoole_mime_type_list)

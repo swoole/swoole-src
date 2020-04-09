@@ -24,7 +24,7 @@ namespace swoole { namespace mime_type {
     const std::unordered_map<std::string, std::string>& list();
     bool add(const std::string &suffix, const std::string &mime_type);
     void set(const std::string &suffix, const std::string &mime_type);
-    bool del(const std::string &suffix, const std::string &mime_type);
+    bool del(const std::string &suffix);
     const std::string& get(const std::string &filename);
     bool exists(const std::string &filename);
 }}
