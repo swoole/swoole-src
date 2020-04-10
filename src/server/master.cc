@@ -1833,7 +1833,7 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         return NULL;
     }
     swServer_check_port_type(serv, ls);
-
+    ls->socket_fd = ls->socket->fd;
     LL_APPEND(serv->listen_list, ls);
     serv->listen_port_num++;
     return ls;

@@ -126,6 +126,7 @@ struct swListenPort
     enum swSocket_type type;
     uint8_t ssl;
     int port;
+    int socket_fd;
     swSocket *socket;
     pthread_t thread_id;
     char host[SW_HOST_MAXSIZE];

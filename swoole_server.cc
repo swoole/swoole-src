@@ -4517,7 +4517,7 @@ static PHP_METHOD(swoole_connection_iterator, valid)
             }
 #endif
             if (iterator->port
-                    && (iterator->port->socket->fd < 0 || conn->server_fd != (uint32_t) iterator->port->socket->fd))
+                    && (iterator->port->socket_fd < 0 || conn->server_fd != (uint32_t) iterator->port->socket_fd))
             {
                 continue;
             }
