@@ -19,10 +19,6 @@
 
 #ifdef SW_USE_OPENSSL
 
-#if OPENSSL_VERSION_NUMBER < 0x10000000L
-#error "require openssl version 1.0 or later"
-#endif
-
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
@@ -39,8 +35,8 @@ static RSA* swSSL_rsa_key_callback(SSL *ssl, int is_export, int key_length);
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 static int swSSL_set_default_dhparam(SSL_CTX* ssl_context);
 #endif
-static int swSSL_set_dhparam(SSL_CTX* ssl_context, const char *file);
-static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context, const char *ecdh_curve);
+static int swSSL_set_dhparam(SSL_CTX* ssl_context, char *file);
+static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context);
 
 #ifdef TLSEXT_TYPE_next_proto_neg
 static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg);
@@ -267,7 +263,7 @@ int swSSL_server_set_cipher(SSL_CTX* ssl_context, swSSL_config *cfg)
 #endif
     if (cfg->ecdh_curve && strlen(cfg->ecdh_curve) > 0)
     {
-        swSSL_set_ecdh_curve(ssl_context, cfg->ecdh_curve);
+        swSSL_set_ecdh_curve(ssl_context);
     }
     return SW_OK;
 }
@@ -1229,8 +1225,9 @@ static int swSSL_set_default_dhparam(SSL_CTX* ssl_context)
 }
 #endif
 
-static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context, const char *ecdh_curve)
+static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context)
 {
+#if OPENSSL_VERSION_NUMBER >= 0x0090800fL
 #ifndef OPENSSL_NO_ECDH
 
     EC_KEY *ecdh;
@@ -1240,17 +1237,17 @@ static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context, const char *ecdh_curve)
      * binary fields. OpenSSL only supports the "named curves", which provide
      * maximum interoperability.
      */
-    int nid = OBJ_sn2nid(ecdh_curve);
+    int nid = OBJ_sn2nid(SW_SSL_ECDH_CURVE);
     if (nid == 0)
     {
-        swWarn("Unknown curve name \"%s\"", ecdh_curve);
+        swWarn("Unknown curve name \"%s\"", SW_SSL_ECDH_CURVE);
         return SW_ERR;
     }
 
     ecdh = EC_KEY_new_by_curve_name(nid);
     if (ecdh == NULL)
     {
-        swWarn("Unable to create curve \"%s\"", ecdh_curve);
+        swWarn("Unable to create curve \"%s\"", SW_SSL_ECDH_CURVE);
         return SW_ERR;
     }
 
@@ -1259,11 +1256,12 @@ static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context, const char *ecdh_curve)
 
     EC_KEY_free(ecdh);
 #endif
+#endif
 
     return SW_OK;
 }
 
-static int swSSL_set_dhparam(SSL_CTX* ssl_context, const char *file)
+static int swSSL_set_dhparam(SSL_CTX* ssl_context, char *file)
 {
     DH *dh;
     BIO *bio;
