@@ -782,7 +782,15 @@ static PHP_METHOD(swoole_client_coro, sendto)
             RETURN_FALSE;
         }
     }
-    SW_CHECK_RETURN(cli->sendto(host, port, data, len));
+
+    ssize_t ret = cli->sendto(host, port, data, len);
+    if (ret < 0)
+    {
+        zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), cli->errCode);
+        zend_update_property_string(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errMsg"), cli->errMsg);
+        RETURN_FALSE;
+    }
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_client_coro, recvfrom)
