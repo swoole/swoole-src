@@ -1534,45 +1534,64 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
     } addr = {};
     size_t addr_size = 0;
 
-    switch (type)
+    std::string host(address);
+
+    for (size_t i = 0; i < 2; i++)
     {
-    case SW_SOCK_UDP:
-    {
-        if (::inet_aton(address, &addr.in.sin_addr) == 0)
+        if (type == SW_SOCK_UDP)
         {
-            set_err(EINVAL, cpp_string::format("ip[%s] is invalid", address));
+            if (::inet_aton(host.c_str(), &addr.in.sin_addr) == 0)
+            {
+                read_co = write_co = Coroutine::get_current_safe();
+                host = System::gethostbyname(std::string(address), sock_domain, dns_timeout);
+                read_co = write_co = nullptr;
+                if (host.empty())
+                {
+                    set_err(SwooleG.error, swoole_strerror(SwooleG.error));
+                    return -1;
+                }
+                continue;
+            }
+            else
+            {
+                addr.in.sin_family = AF_INET;
+                addr.in.sin_port = htons(port);
+                addr_size = sizeof(addr.in);
+                break;
+            }
+        }
+        else if (type == SW_SOCK_UDP6)
+        {
+            if (::inet_pton(AF_INET6, host.c_str(), &addr.in6.sin6_addr) == 0)
+            {
+                read_co = write_co = Coroutine::get_current_safe();
+                std::string host = System::gethostbyname(std::string(address), sock_domain, dns_timeout);
+                read_co = write_co = nullptr;
+                if (host.empty())
+                {
+                    set_err(SwooleG.error, swoole_strerror(SwooleG.error));
+                    return -1;
+                }
+                continue;
+            }
+            addr.in6.sin6_port = (uint16_t) htons(port);
+            addr.in6.sin6_family = AF_INET6;
+            addr_size = sizeof(addr.in6);
+            break;
+        }
+        else if (type == SW_SOCK_UNIX_DGRAM)
+        {
+            addr.un.sun_family = AF_UNIX;
+            strncpy(addr.un.sun_path, address, sizeof(addr.un.sun_path) - 1);
+            addr_size = sizeof(addr.un);
+            break;
+        }
+        else
+        {
+            set_err(EPROTONOSUPPORT);
             retval = -1;
             break;
         }
-        addr.in.sin_family = AF_INET;
-        addr.in.sin_port = htons(port);
-        addr_size = sizeof(addr.in);
-        break;
-    }
-    case SW_SOCK_UDP6:
-    {
-        if (::inet_pton(AF_INET6, address, &addr.in6.sin6_addr) < 0)
-        {
-            set_err(EINVAL, cpp_string::format("ip[%s] is invalid", address));
-            retval = -1;
-            break;
-        }
-        addr.in6.sin6_port = (uint16_t) htons(port);
-        addr.in6.sin6_family = AF_INET6;
-        addr_size = sizeof(addr.in6);
-        break;
-    }
-    case SW_SOCK_UNIX_DGRAM:
-    {
-        addr.un.sun_family = AF_UNIX;
-        strncpy(addr.un.sun_path, address, sizeof(addr.un.sun_path) - 1);
-        addr_size = sizeof(addr.un);
-        break;
-    }
-    default:
-        set_err(EPROTONOSUPPORT);
-        retval = -1;
-        break;
     }
 
     if (addr_size > 0)
