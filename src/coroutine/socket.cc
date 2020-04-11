@@ -1553,13 +1553,15 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
     } addr = {};
     size_t addr_size = 0;
 
+    std::string ip = System::gethostbyname(std::string(address), sock_domain, dns_timeout);
+
     switch (type)
     {
     case SW_SOCK_UDP:
     {
-        if (::inet_aton(address, &addr.in.sin_addr) == 0)
+        if (::inet_aton(ip.c_str(), &addr.in.sin_addr) == 0)
         {
-            set_err(EINVAL, cpp_string::format("ip[%s] is invalid", address));
+            set_err(EINVAL, cpp_string::format("ip[%s] is invalid", ip.c_str()));
             retval = -1;
             break;
         }
@@ -1570,9 +1572,9 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
     }
     case SW_SOCK_UDP6:
     {
-        if (::inet_pton(AF_INET6, address, &addr.in6.sin6_addr) < 0)
+        if (::inet_pton(AF_INET6, ip.c_str(), &addr.in6.sin6_addr) < 0)
         {
-            set_err(EINVAL, cpp_string::format("ip[%s] is invalid", address));
+            set_err(EINVAL, cpp_string::format("ip[%s] is invalid", ip.c_str()));
             retval = -1;
             break;
         }

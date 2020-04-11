@@ -757,13 +757,13 @@ static PHP_METHOD(swoole_client_coro, send)
 
 static PHP_METHOD(swoole_client_coro, sendto)
 {
-    char* ip;
-    size_t ip_len;
+    char* host;
+    size_t host_len;
     long port;
     char *data;
     size_t len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sls", &ip, &ip_len, &port, &data, &len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sls", &host, &host_len, &port, &data, &len) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -782,7 +782,7 @@ static PHP_METHOD(swoole_client_coro, sendto)
             RETURN_FALSE;
         }
     }
-    SW_CHECK_RETURN(cli->sendto(ip, port, data, len));
+    SW_CHECK_RETURN(cli->sendto(host, port, data, len));
 }
 
 static PHP_METHOD(swoole_client_coro, recvfrom)

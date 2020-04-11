@@ -12,14 +12,17 @@ go(function () use ($port) {
     $socket->bind('127.0.0.1', $port);
     $peer = null;
     echo $socket->recvfrom($peer);
+    echo $socket->recvfrom($peer);
 });
 
 go(function () use ($port) {
     $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_UDP);
     $cli->sendto('127.0.0.1', $port, "hello\n");
+    $cli->sendto('localhost', $port, "hello\n");
 });
 
 swoole_event::wait();
 ?>
 --EXPECT--
+hello
 hello
