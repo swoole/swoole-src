@@ -1554,6 +1554,11 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
     size_t addr_size = 0;
 
     std::string ip = System::gethostbyname(std::string(address), sock_domain, dns_timeout);
+    if (ip.empty())
+    {
+        set_err(SwooleG.error, swoole_strerror(SwooleG.error));
+        return -1;
+    }
 
     switch (type)
     {
