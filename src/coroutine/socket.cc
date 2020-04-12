@@ -1436,7 +1436,7 @@ bool Socket::ssl_verify(bool allow_self_signed)
 {
     if (swSSL_verify(socket, allow_self_signed) < 0)
     {
-        set_err(SW_ERROR_SSL_VEFIRY_FAILED);
+        set_err(SW_ERROR_SSL_VERIFY_FAILED);
         return false;
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME

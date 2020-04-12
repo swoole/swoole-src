@@ -100,8 +100,8 @@ const char* swoole_strerror(int code)
         return "SSL cannot use senfile";
     case SW_ERROR_SSL_EMPTY_PEER_CERTIFICATE:
         return "SSL empty peer certificate";
-    case SW_ERROR_SSL_VEFIRY_FAILED:
-        return "SSL vefiry failed";
+    case SW_ERROR_SSL_VERIFY_FAILED:
+        return "SSL verify failed";
     case SW_ERROR_SSL_BAD_CLIENT:
         return "SSL bad client";
     case SW_ERROR_SSL_BAD_PROTOCOL:

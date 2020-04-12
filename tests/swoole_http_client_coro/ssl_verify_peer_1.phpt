@@ -53,7 +53,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $result = $client->get("/");
         Assert::eq($result, false);
         Assert::eq($client->getStatusCode(), -1);
-        Assert::eq($client->errCode, SWOOLE_ERROR_SSL_VEFIRY_FAILED);
+        Assert::eq($client->errCode, SWOOLE_ERROR_SSL_VERIFY_FAILED);
     });
     Swoole\Event::wait();
     $pm->kill();
