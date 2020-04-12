@@ -847,7 +847,7 @@ int swSSL_verify(swSocket *conn, int allow_self_signed)
         else
         {
             swoole_error_log(
-                SW_LOG_NOTICE, SW_ERROR_SSL_VEFIRY_FAILED,
+                SW_LOG_NOTICE, SW_ERROR_SSL_VERIFY_FAILED,
                 "self signed certificate from fd#%d is not allowed",
                 conn->fd
             );
@@ -857,7 +857,7 @@ int swSSL_verify(swSocket *conn, int allow_self_signed)
         break;
     }
     swoole_error_log(
-        SW_LOG_NOTICE, SW_ERROR_SSL_VEFIRY_FAILED,
+        SW_LOG_NOTICE, SW_ERROR_SSL_VERIFY_FAILED,
         "could not verify peer from fd#%d with error#%d: %s",
         conn->fd, err, X509_verify_cert_error_string(err)
     );
