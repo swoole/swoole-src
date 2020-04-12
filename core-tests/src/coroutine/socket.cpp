@@ -56,14 +56,14 @@ TEST(coroutine_socket, recv_success)
 {
     pid_t pid;
 
-    process *proc = new process([](process *proc)
+    process proc([](process *proc)
     {
         server serv("127.0.0.1", 9501, SW_MODE_BASE, SW_SOCK_TCP);
         serv.on("onReceive", (void *) recv_success_on_receive);
         serv.start();
     });
 
-    pid = proc->start();
+    pid = proc.start();
 
     sleep(1); // wait for the test server to start
 
@@ -92,14 +92,14 @@ TEST(coroutine_socket, recv_fail)
 {
     pid_t pid;
 
-    process *proc = new process([](process *proc)
+    process proc([](process *proc)
     {
         server serv("127.0.0.1", 9501, SW_MODE_BASE, SW_SOCK_TCP);
         serv.on("onReceive", (void *) recv_fail_on_receive);
         serv.start();
     });
 
-    pid = proc->start();
+    pid = proc.start();
 
     sleep(1); // wait for the test server to start
 

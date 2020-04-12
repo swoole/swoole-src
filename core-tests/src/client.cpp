@@ -8,7 +8,7 @@
 using swoole::test::process;
 using swoole::test::server;
 
-static void onReceive(swServer *serv, swEventData *data)
+static void tcp_on_receive(swServer *serv, swEventData *data)
 {
     char *data_ptr = NULL;
     size_t data_len = serv->get_packet(serv, data, &data_ptr);
@@ -24,14 +24,14 @@ TEST(client, tcp)
 
     pid_t pid;
 
-    process *proc = new process([](process *proc)
+    process proc([](process *proc)
     {
         server serv("127.0.0.1", 9501, SW_MODE_BASE, SW_SOCK_TCP);
-        serv.on("onReceive", (void *) onReceive);
+        serv.on("onReceive", (void *) tcp_on_receive);
         serv.start();
     });
 
-    pid = proc->start();
+    pid = proc.start();
 
     sleep(1); // wait for the test server to start
 
