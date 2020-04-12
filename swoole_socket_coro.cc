@@ -1418,7 +1418,7 @@ static PHP_METHOD(swoole_socket_coro, sendto)
 
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    ssize_t retval = sock->socket->sendto(addr, port, data, l_data);
+    ssize_t retval = sock->socket->sendto(std::string(addr, l_addr), port, data, l_data);
     swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     if (retval < 0)
     {

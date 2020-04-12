@@ -1537,7 +1537,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length)
     return true;
 }
 
-ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t __n)
+ssize_t Socket::sendto(const string &host, int port, const void *__buf, size_t __n)
 {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE)))
     {
@@ -1553,18 +1553,18 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
     } addr = {};
     size_t addr_size = 0;
 
-    std::string host(address);
+    std::string ip = host;
 
     for (size_t i = 0; i < 2; i++)
     {
         if (type == SW_SOCK_UDP)
         {
-            if (::inet_aton(host.c_str(), &addr.in.sin_addr) == 0)
+            if (::inet_aton(ip.c_str(), &addr.in.sin_addr) == 0)
             {
                 read_co = write_co = Coroutine::get_current_safe();
-                host = System::gethostbyname(std::string(address), sock_domain, dns_timeout);
+                ip = System::gethostbyname(host, sock_domain, dns_timeout);
                 read_co = write_co = nullptr;
-                if (host.empty())
+                if (ip.empty())
                 {
                     set_err(SwooleG.error, swoole_strerror(SwooleG.error));
                     return -1;
@@ -1581,27 +1581,30 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
         }
         else if (type == SW_SOCK_UDP6)
         {
-            if (::inet_pton(AF_INET6, host.c_str(), &addr.in6.sin6_addr) == 0)
+            if (::inet_pton(AF_INET6, ip.c_str(), &addr.in6.sin6_addr) == 0)
             {
                 read_co = write_co = Coroutine::get_current_safe();
-                std::string host = System::gethostbyname(std::string(address), sock_domain, dns_timeout);
+                ip = System::gethostbyname(host, sock_domain, dns_timeout);
                 read_co = write_co = nullptr;
-                if (host.empty())
+                if (ip.empty())
                 {
                     set_err(SwooleG.error, swoole_strerror(SwooleG.error));
                     return -1;
                 }
                 continue;
             }
-            addr.in6.sin6_port = (uint16_t) htons(port);
-            addr.in6.sin6_family = AF_INET6;
-            addr_size = sizeof(addr.in6);
-            break;
+            else
+            {
+                addr.in6.sin6_port = (uint16_t) htons(port);
+                addr.in6.sin6_family = AF_INET6;
+                addr_size = sizeof(addr.in6);
+                break;
+            }
         }
         else if (type == SW_SOCK_UNIX_DGRAM)
         {
             addr.un.sun_family = AF_UNIX;
-            strncpy(addr.un.sun_path, address, sizeof(addr.un.sun_path) - 1);
+            strncpy(addr.un.sun_path, host.c_str(), sizeof(addr.un.sun_path) - 1);
             addr_size = sizeof(addr.un);
             break;
         }
