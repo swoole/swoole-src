@@ -1,48 +1,98 @@
+#include "tests.h"
 #include "wrapper/server.h"
-#include "swoole/wrapper/server.hpp"
-#include "swoole/swoole_api.h"
-#include "swoole/server.h"
 
-using namespace swoole;
+using swoole::test::server;
 
-void TestServer::onReceive(int fd, const DataBuffer &data)
+server::server(std::string _host, int _port, int _mode, int _type):
+        host(_host), port(_port), mode(_mode), type(_type)
 {
-    if (data.length >= sizeof("close") && memcmp(data.buffer, SW_STRS("close")) == 0)
+    serv.worker_num = 1;
+    swServer_init(&serv);
+
+    if (mode == SW_MODE_BASE)
     {
-        this->close(fd);
+        serv.reactor_num = 1;
+        serv.worker_num = 1;
+    }
+
+    serv.factory_mode = (uint8_t) mode;
+    serv.dispatch_mode = 2;
+
+    //create Server
+    int ret = swServer_create(&serv);
+    if (ret < 0)
+    {
+        swTrace("create server fail[error=%d].\n", ret);
+        exit(0);
+    }
+    this->listen(host, port, (swSocket_type) type);
+}
+
+server::~server()
+{
+}
+
+void server::on(std::string event, void *fn)
+{
+    if (event == "Start")
+    {
+        serv.onStart = (_onStart) fn;
+    }
+    else if (event == "onShutdown")
+    {
+        serv.onShutdown = (_onShutdown) fn;
+    }
+    else if (event == "onPipeMessage")
+    {
+        serv.onPipeMessage = (_onPipeMessage) fn;
+    }
+    else if (event == "onWorkerStart")
+    {
+        serv.onWorkerStart = (_onWorkerStart) fn;
+    }
+    else if (event == "onWorkerStop")
+    {
+        serv.onWorkerStop = (_onWorkerStop) fn;
+    }
+    else if (event == "onReceive")
+    {
+        serv.onReceive = (_onReceive) fn;
+    }
+    else if (event == "onPacket")
+    {
+        serv.onPacket = (_onPacket) fn;
+    }
+    else if (event == "onClose")
+    {
+        serv.onClose = (_onClose) fn;
     }
     else
     {
-        this->send(fd, (char *) data.buffer, data.length);
+        serv.onConnect = (_onConnect) fn;
     }
 }
 
-void TestServer::onPacket(const DataBuffer &data, ClientInfo &clientInfo)
+bool server::start()
 {
+    int ret = swServer_start(&serv);
+    if (ret < 0)
+    {
+        swTrace("start server fail[error=%d].\n", ret);
+        return false;
+    }
+    return true;
 }
 
-void TestServer::onConnect(int fd)
+bool server::listen(std::string host, int port, enum swSocket_type type)
 {
-}
+    swListenPort *ls = swServer_add_port(&serv, type, (char *) host.c_str(), port);
+    if (ls == nullptr)
+    {
+        return false;
+    }
 
-void TestServer::onClose(int fd)
-{
-}
-
-void TestServer::onTask(int task_id, int src_worker_id, const DataBuffer &data)
-{
-}
-
-void TestServer::onFinish(int task_id, const DataBuffer &data)
-{
-}
-
-void TestServer::onStart()
-{
-}
-
-void TestServer::onWorkerStart(int worker_id)
-{
+    ports.push_back(ls);
+    return true;
 }
 
 void create_test_server(swServer *serv)
