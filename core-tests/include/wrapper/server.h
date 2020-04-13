@@ -31,6 +31,8 @@ public:
     void on(std::string event, void *fn);
     bool start();
     bool listen(std::string host, int port,  enum swSocket_type type);
+    size_t get_packet(swServer *serv, swEventData *req, char **data_ptr);
+    ssize_t sendto(swSocketAddress *address, const char *__buf, size_t __n, int server_socket = -1);
 };
 }
 }

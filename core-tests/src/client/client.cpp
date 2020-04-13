@@ -48,17 +48,14 @@ TEST(client, tcp)
     kill(pid, SIGKILL);
 }
 
-static void udp_on_packet(swServer *serv, swEventData *data)
+static void udp_on_packet(swServer *serv, swEventData *req)
 {
+    server *_this = (server *) serv->ptr2;
     char *data_ptr = NULL;
-    serv->get_packet(serv, data, &data_ptr);
+    _this->get_packet(serv, req, &data_ptr);
     swDgramPacket *packet = (swDgramPacket *) data_ptr;
-    char ip[256];
-    
-    inet_ntop(AF_INET, &packet->socket_addr.addr.inet_v4.sin_addr, ip, sizeof(ip));
-    uint16_t port = ntohs(packet->socket_addr.addr.inet_v4.sin_port);
 
-    swSocket_udp_sendto(data->info.server_fd, ip, port, packet->data, packet->length);
+    _this->sendto(&packet->socket_addr, packet->data, packet->length, req->info.server_fd);
 }
 
 TEST(client, udp)

@@ -6,6 +6,7 @@ using swoole::test::server;
 server::server(std::string _host, int _port, int _mode, int _type):
         host(_host), port(_port), mode(_mode), type(_type)
 {
+    serv.ptr2 = this;
     serv.worker_num = 1;
     swServer_init(&serv);
 
@@ -93,6 +94,22 @@ bool server::listen(std::string host, int port, enum swSocket_type type)
 
     ports.push_back(ls);
     return true;
+}
+
+size_t server::get_packet(swServer *serv, swEventData *req, char **data_ptr)
+{
+    return serv->get_packet(serv, req, data_ptr);
+}
+
+ssize_t server::sendto(swSocketAddress *address, const char *__buf, size_t __n, int server_socket)
+{
+    char ip[256];
+    uint16_t port;
+
+    inet_ntop(AF_INET, (void *) &address->addr.inet_v4.sin_addr, ip, sizeof(ip));
+    port = ntohs(address->addr.inet_v4.sin_port);
+
+    return swSocket_udp_sendto(server_socket, ip, port, __buf, __n);
 }
 
 void create_test_server(swServer *serv)
