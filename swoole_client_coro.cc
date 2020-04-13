@@ -416,14 +416,17 @@ bool php_swoole_client_set(Socket *cli, zval *zset)
             if (php_swoole_array_get_value(vht, "socks5_username", ztmp))
             {
                 zend::string username(ztmp);
-                if (php_swoole_array_get_value(vht, "socks5_password", ztmp))
+                if (username.len() > 0 && php_swoole_array_get_value(vht, "socks5_password", ztmp))
                 {
                     zend::string password(ztmp);
-                    cli->socks5_proxy->method = 0x02;
-                    cli->socks5_proxy->username = estrdup(username.val());
-                    cli->socks5_proxy->l_username = username.len();
-                    cli->socks5_proxy->password = estrdup(password.val());
-                    cli->socks5_proxy->l_password = password.len();
+                    if (password.len() > 0)
+                    {
+                        cli->socks5_proxy->method = 0x02;
+                        cli->socks5_proxy->username = estrdup(username.val());
+                        cli->socks5_proxy->l_username = username.len();
+                        cli->socks5_proxy->password = estrdup(password.val());
+                        cli->socks5_proxy->l_password = password.len();
+                    }
                 }
                 else
                 {
@@ -453,13 +456,16 @@ bool php_swoole_client_set(Socket *cli, zval *zset)
             if (php_swoole_array_get_value(vht, "http_proxy_username", ztmp) || php_swoole_array_get_value(vht, "http_proxy_user", ztmp))
             {
                 zend::string username(ztmp);
-                if (php_swoole_array_get_value(vht, "http_proxy_password", ztmp))
+                if (username.len() > 0 && php_swoole_array_get_value(vht, "http_proxy_password", ztmp))
                 {
                     zend::string password(ztmp);
-                    cli->http_proxy->user = estrdup(username.val());
-                    cli->http_proxy->l_user = username.len();
-                    cli->http_proxy->password = estrdup(password.val());
-                    cli->http_proxy->l_password = password.len();
+                    if (password.len() > 0)
+                    {
+                        cli->http_proxy->user = estrdup(username.val());
+                        cli->http_proxy->l_user = username.len();
+                        cli->http_proxy->password = estrdup(password.val());
+                        cli->http_proxy->l_password = password.len();
+                    }
                 }
                 else
                 {

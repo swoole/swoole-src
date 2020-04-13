@@ -335,6 +335,40 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset)
 }
 #endif
 
+static void php_swoole_client_socket_free_socks5_proxy(swClient *cli)
+{
+    if (cli->socks5_proxy)
+    {
+        efree((void* )cli->socks5_proxy->host);
+        if (cli->socks5_proxy->username)
+        {
+            efree((void* )cli->socks5_proxy->username);
+        }
+        if (cli->socks5_proxy->password)
+        {
+            efree((void* )cli->socks5_proxy->password);
+        }
+        efree(cli->socks5_proxy);
+    }
+}
+
+static void php_swoole_client_socket_free_http_proxy(swClient *cli)
+{
+    if (cli->http_proxy)
+    {
+        efree((void* )cli->http_proxy->proxy_host);
+        if (cli->http_proxy->user)
+        {
+            efree((void* )cli->http_proxy->user);
+        }
+        if (cli->http_proxy->password)
+        {
+            efree((void* )cli->http_proxy->password);
+        }
+        efree(cli->http_proxy);
+    }
+}
+
 void php_swoole_client_check_setting(swClient *cli, zval *zset)
 {
     HashTable *vht;
@@ -536,6 +570,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
         zend::string host(ztmp);
         if (php_swoole_array_get_value(vht, "socks5_port", ztmp))
         {
+            php_swoole_client_socket_free_socks5_proxy(cli);
             cli->socks5_proxy = (struct _swSocks5 *) ecalloc(1, sizeof(swSocks5));
             cli->socks5_proxy->host = estrdup(host.val());
             cli->socks5_proxy->port = zval_get_long(ztmp);
@@ -543,14 +578,17 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
             if (php_swoole_array_get_value(vht, "socks5_username", ztmp))
             {
                 zend::string username(ztmp);
-                if (php_swoole_array_get_value(vht, "socks5_password", ztmp))
+                if (username.len() > 0 && php_swoole_array_get_value(vht, "socks5_password", ztmp))
                 {
                     zend::string password(ztmp);
-                    cli->socks5_proxy->method = 0x02;
-                    cli->socks5_proxy->username = username.val();
-                    cli->socks5_proxy->l_username = username.len();
-                    cli->socks5_proxy->password = password.val();
-                    cli->socks5_proxy->l_password = password.len();
+                    if (password.len() > 0)
+                    {
+                        cli->socks5_proxy->method = 0x02;
+                        cli->socks5_proxy->username = username.val();
+                        cli->socks5_proxy->l_username = username.len();
+                        cli->socks5_proxy->password = password.val();
+                        cli->socks5_proxy->l_password = password.len();
+                    }
                 }
                 else
                 {
@@ -571,19 +609,23 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
         zend::string host(ztmp);
         if (php_swoole_array_get_value(vht, "http_proxy_port", ztmp))
         {
+            php_swoole_client_socket_free_http_proxy(cli);
             cli->http_proxy = (struct _http_proxy*) ecalloc(1, sizeof(struct _http_proxy));
             cli->http_proxy->proxy_host = estrdup(host.val());
             cli->http_proxy->proxy_port = zval_get_long(ztmp);
             if (php_swoole_array_get_value(vht, "http_proxy_username", ztmp) || php_swoole_array_get_value(vht, "http_proxy_user", ztmp))
             {
                 zend::string username(ztmp);
-                if (php_swoole_array_get_value(vht, "http_proxy_password", ztmp))
+                if (username.len() > 0 && php_swoole_array_get_value(vht, "http_proxy_password", ztmp))
                 {
                     zend::string password(ztmp);
-                    cli->http_proxy->user = estrdup(username.val());
-                    cli->http_proxy->l_user = username.len();
-                    cli->http_proxy->password = estrdup(password.val());
-                    cli->http_proxy->l_password = password.len();
+                    if (password.len() > 0)
+                    {
+                        cli->http_proxy->user = estrdup(username.val());
+                        cli->http_proxy->l_user = username.len();
+                        cli->http_proxy->password = estrdup(password.val());
+                        cli->http_proxy->l_password = password.len();
+                    }
                 }
                 else
                 {
@@ -607,7 +649,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
 #endif
 }
 
-void php_swoole_client_free(zval *zobject, swClient *cli)
+static void php_swoole_client_free(zval *zobject, swClient *cli)
 {
     if (cli->timer)
     {
@@ -615,33 +657,9 @@ void php_swoole_client_free(zval *zobject, swClient *cli)
         cli->timer = NULL;
     }
     //socks5 proxy config
-    if (cli->socks5_proxy)
-    {
-        efree((void* )cli->socks5_proxy->host);
-        if (cli->socks5_proxy->username)
-        {
-            efree((void* )cli->socks5_proxy->username);
-        }
-        if (cli->socks5_proxy->password)
-        {
-            efree((void* )cli->socks5_proxy->password);
-        }
-        efree(cli->socks5_proxy);
-    }
+    php_swoole_client_socket_free_socks5_proxy(cli);
     //http proxy config
-    if (cli->http_proxy)
-    {
-        efree((void* )cli->http_proxy->proxy_host);
-        if (cli->http_proxy->user)
-        {
-            efree((void* )cli->http_proxy->user);
-        }
-        if (cli->http_proxy->password)
-        {
-            efree((void* )cli->http_proxy->password);
-        }
-        efree(cli->http_proxy);
-    }
+    php_swoole_client_socket_free_http_proxy(cli);
     if (cli->protocol.private_data)
     {
         sw_zend_fci_cache_discard((zend_fcall_info_cache *) cli->protocol.private_data);
