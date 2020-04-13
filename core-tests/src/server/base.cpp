@@ -98,10 +98,14 @@ bool server::listen(std::string host, int port, enum swSocket_type type)
     return true;
 }
 
-swDgramPacket *server::get_packet(swEventData *req)
+size_t server::get_packet(swEventData *req, char **data_ptr)
 {
-    serv.get_packet(&serv, req, (char **) &packet);
-    return packet;
+    return serv.get_packet(&serv, req, data_ptr);
+}
+
+int server::send(int session_id, void *data, uint32_t length)
+{
+    return serv.send(&serv, session_id, data, length);
 }
 
 ssize_t server::sendto(swSocketAddress *address, const char *__buf, size_t __n, int server_socket)
@@ -113,6 +117,11 @@ ssize_t server::sendto(swSocketAddress *address, const char *__buf, size_t __n, 
     port = ntohs(address->addr.inet_v4.sin_port);
 
     return swSocket_udp_sendto(server_socket, ip, port, __buf, __n);
+}
+
+int server::close(int session_id, int reset)
+{
+    return serv.close(&serv, session_id, reset);
 }
 
 void create_test_server(swServer *serv)

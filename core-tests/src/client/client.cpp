@@ -8,12 +8,13 @@
 using swoole::test::process;
 using swoole::test::server;
 
-static void tcp_on_receive(swServer *serv, swEventData *data)
+static void tcp_on_receive(ON_RECEIVE_PARAMS)
 {
     char *data_ptr = NULL;
-    size_t data_len = serv->get_packet(serv, data, &data_ptr);
 
-    serv->send(serv, data->info.fd, data_ptr, data_len);
+    size_t data_len = SERVER_THIS->get_packet(req, (char **) &data_ptr);
+
+    SERVER_THIS->send(req->info.fd, data_ptr, data_len);
 }
 
 TEST(client, tcp)
@@ -26,7 +27,7 @@ TEST(client, tcp)
 
     process proc([](process *proc)
     {
-        server serv("127.0.0.1", 9501, SW_MODE_BASE, SW_SOCK_TCP);
+        server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
         serv.on("onReceive", (void *) tcp_on_receive);
         serv.start();
     });
@@ -37,7 +38,7 @@ TEST(client, tcp)
 
     ret = swClient_create(&cli, SW_SOCK_TCP, SW_SOCK_SYNC);
     ASSERT_EQ(ret, 0);
-    ret = cli.connect(&cli, "127.0.0.1", 9501, -1, 0);
+    ret = cli.connect(&cli, TEST_HOST, TEST_PORT, -1, 0);
     ASSERT_EQ(ret, 0);
     ret = cli.send(&cli, SW_STRS(GREETER), 0);
     ASSERT_GT(ret, 0);
@@ -48,12 +49,13 @@ TEST(client, tcp)
     kill(pid, SIGKILL);
 }
 
-static void udp_on_packet(swServer *serv, swEventData *req)
+static void udp_on_packet(ON_PACKET_PARAMS)
 {
-    server *_this = (server *) serv->ptr2;
-    swDgramPacket *packet = _this->get_packet(req);
+    swDgramPacket *packet = nullptr;
 
-    _this->sendto(&packet->socket_addr, packet->data, packet->length, req->info.server_fd);
+    SERVER_THIS->get_packet(req, (char **) &packet);
+
+    SERVER_THIS->sendto(&packet->socket_addr, packet->data, packet->length, req->info.server_fd);
 }
 
 TEST(client, udp)
@@ -66,7 +68,7 @@ TEST(client, udp)
 
     process proc([](process *proc)
     {
-        server serv("127.0.0.1", 9501, SW_MODE_BASE, SW_SOCK_UDP);
+        server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_UDP);
         serv.on("onPacket", (void *) udp_on_packet);
         serv.start();
     });
@@ -77,7 +79,7 @@ TEST(client, udp)
 
     ret = swClient_create(&cli, SW_SOCK_UDP, SW_SOCK_SYNC);
     ASSERT_EQ(ret, 0);
-    ret = cli.connect(&cli, "127.0.0.1", 9501, -1, 0);
+    ret = cli.connect(&cli, TEST_HOST, TEST_PORT, -1, 0);
     ASSERT_EQ(ret, 0);
     ret = cli.send(&cli, SW_STRS(GREETER), 0);
     ASSERT_GT(ret, 0);

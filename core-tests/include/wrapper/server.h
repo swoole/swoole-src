@@ -4,6 +4,11 @@
 
 using namespace swoole;
 
+#define SERVER_THIS ((server *) serv->ptr2)
+
+#define ON_PACKET_PARAMS swServer *serv, swEventData *req
+#define ON_RECEIVE_PARAMS swServer *serv, swEventData *req
+
 typedef void (*_onStart)(swServer *serv);
 typedef void (*_onShutdown)(swServer *serv);
 typedef void (*_onPipeMessage)(swServer *, swEventData *data);
@@ -33,8 +38,10 @@ public:
     void on(std::string event, void *fn);
     bool start();
     bool listen(std::string host, int port,  enum swSocket_type type);
-    swDgramPacket *get_packet(swEventData *req);
+    size_t get_packet(swEventData *req, char **data_ptr);
+    int send(int session_id, void *data, uint32_t length);
     ssize_t sendto(swSocketAddress *address, const char *__buf, size_t __n, int server_socket = -1);
+    int close(int session_id, int reset);
 };
 }
 }
