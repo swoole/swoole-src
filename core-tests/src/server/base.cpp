@@ -6,9 +6,9 @@ using swoole::test::server;
 server::server(std::string _host, int _port, int _mode, int _type):
         host(_host), port(_port), mode(_mode), type(_type)
 {
-    serv.ptr2 = this;
-    serv.worker_num = 1;
     swServer_init(&serv);
+
+    serv.worker_num = 1;
 
     if (mode == SW_MODE_BASE)
     {
@@ -75,6 +75,8 @@ void server::on(std::string event, void *fn)
 
 bool server::start()
 {
+    serv.ptr2 = this;
+
     int ret = swServer_start(&serv);
     if (ret < 0)
     {
@@ -96,9 +98,10 @@ bool server::listen(std::string host, int port, enum swSocket_type type)
     return true;
 }
 
-size_t server::get_packet(swServer *serv, swEventData *req, char **data_ptr)
+swDgramPacket *server::get_packet(swEventData *req)
 {
-    return serv->get_packet(serv, req, data_ptr);
+    serv.get_packet(&serv, req, (char **) &packet);
+    return packet;
 }
 
 ssize_t server::sendto(swSocketAddress *address, const char *__buf, size_t __n, int server_socket)

@@ -51,9 +51,7 @@ TEST(client, tcp)
 static void udp_on_packet(swServer *serv, swEventData *req)
 {
     server *_this = (server *) serv->ptr2;
-    char *data_ptr = NULL;
-    _this->get_packet(serv, req, &data_ptr);
-    swDgramPacket *packet = (swDgramPacket *) data_ptr;
+    swDgramPacket *packet = _this->get_packet(req);
 
     _this->sendto(&packet->socket_addr, packet->data, packet->length, req->info.server_fd);
 }

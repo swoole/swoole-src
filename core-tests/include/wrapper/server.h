@@ -26,12 +26,14 @@ private:
     int type;
 
 public:
+    swDgramPacket *packet = nullptr;
+
     server(std::string _host, int _port, int _mode, int _type);
     ~server();
     void on(std::string event, void *fn);
     bool start();
     bool listen(std::string host, int port,  enum swSocket_type type);
-    size_t get_packet(swServer *serv, swEventData *req, char **data_ptr);
+    swDgramPacket *get_packet(swEventData *req);
     ssize_t sendto(swSocketAddress *address, const char *__buf, size_t __n, int server_socket = -1);
 };
 }
