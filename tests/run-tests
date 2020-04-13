@@ -1778,6 +1778,11 @@ function show_file_block($file, $block, $section = null)
             $section = strtoupper($file);
         }
 
+        static $max_length = 1024;
+        if (strlen($block) > $max_length) {
+            $block = substr($block, 0, $max_length) . '...';
+        }
+
         echo "\n========" . $section . "========\n";
         echo rtrim($block);
         echo "\n========DONE========\n";
