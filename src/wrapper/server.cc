@@ -474,7 +474,7 @@ int Server::_onPacket(swServer *serv, swEventData *req)
 
     if (packet->socket_type == SW_SOCK_UDP)
     {
-        inet_ntop(AF_INET6, &packet->socket_addr.addr.inet_v4.sin_addr, clientInfo.address, sizeof(clientInfo.address));
+        inet_ntop(AF_INET, &packet->socket_addr.addr.inet_v4.sin_addr, clientInfo.address, sizeof(clientInfo.address));
         clientInfo.port = ntohs(packet->socket_addr.addr.inet_v4.sin_port);
     }
     else if (packet->socket_type == SW_SOCK_UDP6)
