@@ -8,15 +8,6 @@
 using swoole::test::process;
 using swoole::test::server;
 
-static void tcp_on_receive(ON_RECEIVE_PARAMS)
-{
-    char *data_ptr = NULL;
-
-    size_t data_len = SERVER_THIS->get_packet(req, (char **) &data_ptr);
-
-    SERVER_THIS->send(req->info.fd, data_ptr, data_len);
-}
-
 TEST(client, tcp)
 {
     int ret;
@@ -27,8 +18,16 @@ TEST(client, tcp)
 
     process proc([](process *proc)
     {
+        on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS)
+        {
+            char *data_ptr = NULL;
+            size_t data_len = SERVER_THIS->get_packet(req, (char **) &data_ptr);
+
+            SERVER_THIS->send(req->info.fd, data_ptr, data_len);
+        };
+        
         server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
-        serv.on("onReceive", (void *) tcp_on_receive);
+        serv.on("onReceive", (void *) receive_fn);
         serv.start();
     });
 
@@ -49,15 +48,6 @@ TEST(client, tcp)
     kill(pid, SIGKILL);
 }
 
-static void udp_on_packet(ON_PACKET_PARAMS)
-{
-    swDgramPacket *packet = nullptr;
-
-    SERVER_THIS->get_packet(req, (char **) &packet);
-
-    SERVER_THIS->sendto(&packet->socket_addr, packet->data, packet->length, req->info.server_fd);
-}
-
 TEST(client, udp)
 {
     int ret;
@@ -68,8 +58,16 @@ TEST(client, udp)
 
     process proc([](process *proc)
     {
+        on_packet_lambda_type packet_fn = [](ON_PACKET_PARAMS)
+        {
+            swDgramPacket *packet = nullptr;
+            SERVER_THIS->get_packet(req, (char **) &packet);
+
+            SERVER_THIS->sendto(&packet->socket_addr, packet->data, packet->length, req->info.server_fd);
+        };
+
         server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_UDP);
-        serv.on("onPacket", (void *) udp_on_packet);
+        serv.on("onPacket", (void *) packet_fn);
         serv.start();
     });
 

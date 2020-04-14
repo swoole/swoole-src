@@ -44,23 +44,22 @@ TEST(coroutine_socket, connect_with_dns)
     });
 }
 
-static void recv_success_on_receive(ON_RECEIVE_PARAMS)
-{
-    char *data_ptr = NULL;
-    
-    size_t data_len = SERVER_THIS->get_packet(req, (char **) &data_ptr);
-
-    SERVER_THIS->send(req->info.fd, data_ptr, data_len);
-}
-
 TEST(coroutine_socket, recv_success)
 {
     pid_t pid;
 
     process proc([](process *proc)
     {
+        on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS)
+        {
+            char *data_ptr = NULL;
+            size_t data_len = SERVER_THIS->get_packet(req, (char **) &data_ptr);
+
+            SERVER_THIS->send(req->info.fd, data_ptr, data_len);
+        };
+
         server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
-        serv.on("onReceive", (void *) recv_success_on_receive);
+        serv.on("onReceive", (void *) receive_fn);
         serv.start();
     });
 
@@ -84,19 +83,19 @@ TEST(coroutine_socket, recv_success)
     kill(pid, SIGKILL);
 }
 
-static void recv_fail_on_receive(ON_RECEIVE_PARAMS)
-{
-    SERVER_THIS->close(req->info.fd, 0);
-}
-
 TEST(coroutine_socket, recv_fail)
 {
     pid_t pid;
 
     process proc([](process *proc)
     {
+        on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS)
+        {
+            SERVER_THIS->close(req->info.fd, 0);
+        };
+
         server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
-        serv.on("onReceive", (void *) recv_fail_on_receive);
+        serv.on("onReceive", (void *) receive_fn);
         serv.start();
     });
 
