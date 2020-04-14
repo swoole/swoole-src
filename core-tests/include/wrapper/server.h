@@ -6,8 +6,9 @@ using namespace swoole;
 
 #define SERVER_THIS ((server *) serv->ptr2)
 
-#define ON_PACKET_PARAMS swServer *serv, swEventData *req
-#define ON_RECEIVE_PARAMS swServer *serv, swEventData *req
+#define ON_WORKERSTART_PARAMS   swServer *serv, int worker_id
+#define ON_PACKET_PARAMS        swServer *serv, swEventData *req
+#define ON_RECEIVE_PARAMS       swServer *serv, swEventData *req
 
 typedef void (*_onStart)(swServer *serv);
 typedef void (*_onShutdown)(swServer *serv);
@@ -18,6 +19,10 @@ typedef int (*_onReceive)(swServer *, swEventData *);
 typedef int (*_onPacket)(swServer *, swEventData *);
 typedef void (*_onClose)(swServer *serv, swDataHead *);
 typedef void (*_onConnect)(swServer *serv, swDataHead *);
+
+using on_workerstart_lambda_type = void (*)(ON_WORKERSTART_PARAMS);
+using on_receive_lambda_type = void (*)(ON_RECEIVE_PARAMS);
+using on_packet_lambda_type = void (*)(ON_PACKET_PARAMS);
 
 namespace swoole { namespace test {
 class server
