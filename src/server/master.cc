@@ -560,10 +560,23 @@ int swServer_create_task_workers(swServer *serv)
 }
 
 /**
- * only the memory of the swWorker structure is allocated, no process is fork
+ * @description: 
+ *  only the memory of the swWorker structure is allocated, no process is fork.
+ *  called when the manager process start.
+ * @param swServer
+ * @return: SW_OK|SW_ERR
  */
 int swServer_create_user_workers(swServer *serv)
 {
+    /**
+     * if Swoole\Server::addProcess is called first, 
+     * swServer::user_worker_list is initialized in the swServer_add_worker function
+     */
+    if (serv->user_worker_list == nullptr)
+    {
+        serv->user_worker_list = new std::list<swWorker *>;
+    }
+
     serv->user_workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->user_worker_num * sizeof(swWorker));
     if (serv->user_workers == NULL)
     {
@@ -1640,6 +1653,10 @@ void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
 
 int swServer_add_worker(swServer *serv, swWorker *worker)
 {
+    if (serv->user_worker_list == nullptr)
+    {
+        serv->user_worker_list = new std::list<swWorker *>;
+    }
     serv->user_worker_num++;
     serv->user_worker_list->push_back(worker);
 

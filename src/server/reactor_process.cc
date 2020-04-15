@@ -31,7 +31,7 @@ static uint32_t heartbeat_check_lasttime = 0;
 
 static bool swServer_is_single(swServer *serv)
 {
-    return serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 && serv->user_worker_list == NULL;
+    return serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 && serv->user_worker_list == nullptr;
 }
 
 int swReactorProcess_create(swServer *serv)
