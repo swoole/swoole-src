@@ -62,7 +62,8 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
         return NULL;
     }
     table->iterator = new swTable_iterator;
-    table->columns = new std::unordered_map<std::string, swTableColumn*>;
+    table->column_map = new std::unordered_map<std::string, swTableColumn*>;
+    table->column_list = new std::vector<swTableColumn*>;
     table->size = rows_size;
     table->mask = rows_size - 1;
     table->conflict_proportion = conflict_proportion;
@@ -95,7 +96,8 @@ bool swTableColumn_add(swTable *table, const std::string &name, enum swTableColu
     swTableColumn *col = new swTableColumn(name, type, size);
     col->index = table->item_size;
     table->item_size += col->size;
-    table->columns->emplace(name, col);
+    table->column_map->emplace(name, col);
+    table->column_list->push_back(col);
 
     return true;
 }
@@ -168,13 +170,14 @@ void swTable_free(swTable *table)
             conflict_count, conflict_max_level, insert_count);
 #endif
 
-    auto i = table->columns->begin();
-    while (i != table->columns->end())
+    auto i = table->column_map->begin();
+    while (i != table->column_map->end())
     {
         delete i->second;
-        table->columns->erase(i++);
+        table->column_map->erase(i++);
     }
-    delete table->columns;
+    delete table->column_map;
+    delete table->column_list;
     delete table->iterator;
     if (table->memory)
     {

@@ -18,6 +18,7 @@
 
 #include "atomic.h"
 #include "hash.h"
+#include <vector>
 #include <unordered_map>
 
 typedef uint32_t swTable_string_length_t;
@@ -115,7 +116,8 @@ struct swTableColumn
 
 struct swTable
 {
-    std::unordered_map<std::string, swTableColumn*> *columns;
+    std::unordered_map<std::string, swTableColumn*> *column_map;
+    std::vector<swTableColumn*> *column_list;
     swLock lock;
     size_t size;
     size_t mask;
@@ -163,8 +165,8 @@ int swTableRow_del(swTable *table, char *key, int keylen);
 
 static sw_inline swTableColumn* swTableColumn_get(swTable *table, const std::string &key)
 {
-    auto i = table->columns->find(key);
-    if (i == table->columns->end())
+    auto i = table->column_map->find(key);
+    if (i == table->column_map->end())
     {
         return nullptr;
     }
