@@ -25,9 +25,9 @@ static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, z
     double dval = 0;
     int64_t lval = 0;
 
-    for (auto i = table->columns->begin(); i != table->columns->end(); i++)
+    for (auto i = table->column_list->begin(); i != table->column_list->end(); i++)
     {
-        swTableColumn *col = i->second;
+        swTableColumn *col = *i;
         if (col->type == SW_TABLE_STRING)
         {
             memcpy(&vlen, row->data + col->index, sizeof(swTable_string_length_t));
@@ -805,7 +805,7 @@ static PHP_METHOD(swoole_table, count)
     }
     else
     {
-        RETURN_LONG(table->row_num * table->columns->size());
+        RETURN_LONG(table->row_num * table->column_list->size());
     }
 }
 
