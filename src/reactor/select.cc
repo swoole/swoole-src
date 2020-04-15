@@ -23,8 +23,13 @@ struct swReactorSelect
     fd_set rfds;
     fd_set wfds;
     fd_set efds;
-    std::unordered_map<int, swSocket*> *fds;
+    std::unordered_map<int, swSocket*> fds;
     int maxfd;
+
+    swReactorSelect()
+    {
+        maxfd = 0;
+    }
 };
 
 #define SW_FD_SET(fd, set)    do{ if (fd<FD_SETSIZE) FD_SET(fd, set);} while(0)
@@ -40,16 +45,7 @@ static void swReactorSelect_free(swReactor *reactor);
 int swReactorSelect_create(swReactor *reactor)
 {
     //create reactor object
-    swReactorSelect *object = (swReactorSelect *) sw_malloc(sizeof(swReactorSelect));
-    if (object == NULL)
-    {
-        swWarn("[swReactorSelect_create] malloc[0] fail\n");
-        return SW_ERR;
-    }
-    bzero(object, sizeof(swReactorSelect));
-
-    object->fds = new std::unordered_map<int, swSocket*>;
-    object->maxfd = 0;
+    swReactorSelect *object = new swReactorSelect;
     reactor->object = object;
     //binding method
     reactor->add = swReactorSelect_add;
@@ -64,7 +60,7 @@ int swReactorSelect_create(swReactor *reactor)
 void swReactorSelect_free(swReactor *reactor)
 {
     swReactorSelect *object = (swReactorSelect *) reactor->object;
-    delete object->fds;
+    delete object;
     sw_free(reactor->object);
 }
 
@@ -79,7 +75,7 @@ int swReactorSelect_add(swReactor *reactor, swSocket *socket, int events)
 
     swReactorSelect *object = (swReactorSelect *) reactor->object;
     swReactor_add(reactor, socket, events);
-    object->fds->emplace(fd, socket);
+    object->fds.emplace(fd, socket);
     if (fd > object->maxfd)
     {
         object->maxfd = fd;
@@ -92,7 +88,7 @@ int swReactorSelect_del(swReactor *reactor, swSocket *socket)
 {
     swReactorSelect *object = (swReactorSelect *) reactor->object;
     int fd = socket->fd;
-    if (object->fds->erase(fd) == 0)
+    if (object->fds.erase(fd) == 0)
     {
         swWarn("swReactorSelect: fd[%d] not found", fd);
         return SW_ERR;
@@ -107,8 +103,8 @@ int swReactorSelect_del(swReactor *reactor, swSocket *socket)
 int swReactorSelect_set(swReactor *reactor, swSocket *socket, int events)
 {
     swReactorSelect *object = (swReactorSelect *) reactor->object;
-    auto i = object->fds->find(socket->fd);
-    if (i == object->fds->end())
+    auto i = object->fds.find(socket->fd);
+    if (i == object->fds.end())
     {
         swWarn("swReactorSelect: sock[%d] not found", socket->fd);
         return SW_ERR;
@@ -150,7 +146,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
             reactor->onBegin(reactor);
         }
 
-        for (auto i = object->fds->begin(); i != object->fds->end(); i++)
+        for (auto i = object->fds.begin(); i != object->fds.end(); i++)
         {
             int fd = i->first;
             int events = i->second->events;
@@ -209,8 +205,8 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
         {
             for (int fd = 0; fd <= object->maxfd; fd++)
             {
-                auto i = object->fds->find(fd);
-                if (i == object->fds->end())
+                auto i = object->fds.find(fd);
+                if (i == object->fds.end())
                 {
                     continue;
                 }
