@@ -732,11 +732,13 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
         php_stream *stream;
 
         zstream = zend_get_constant_str(name, name_len);
-        if (!zstream) {
+        if (!zstream)
+        {
             return;
         }
         stream = (php_stream*) zend_fetch_resource2_ex((zstream), "stream", php_file_le_stream(), php_file_le_pstream());
-        if (!stream) {
+        if (!stream)
+        {
             return;
         }
         stream->flags |= PHP_STREAM_FLAG_NO_CLOSE;
