@@ -129,17 +129,17 @@ typedef struct
     zend_object std;
 } table_t;
 
-static sw_inline table_t* php_swoole_table_fetch_object(zend_object *obj)
+static inline table_t* php_swoole_table_fetch_object(zend_object *obj)
 {
     return (table_t *) ((char *) obj - swoole_table_handlers.offset);
 }
 
-static swTable * php_swoole_table_get_ptr(zval *zobject)
+static inline swTable * php_swoole_table_get_ptr(zval *zobject)
 {
     return php_swoole_table_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
-static swTable * php_swoole_table_get_and_check_ptr(zval *zobject)
+static inline swTable * php_swoole_table_get_and_check_ptr(zval *zobject)
 {
     swTable *table = php_swoole_table_get_ptr(zobject);
     if (!table)
@@ -149,7 +149,7 @@ static swTable * php_swoole_table_get_and_check_ptr(zval *zobject)
     return table;
 }
 
-static swTable * php_swoole_table_get_and_check_ptr2(zval *zobject)
+static inline swTable * php_swoole_table_get_and_check_ptr2(zval *zobject)
 {
     swTable *table = php_swoole_table_get_and_check_ptr(zobject);
     if (!table->memory)
@@ -159,17 +159,17 @@ static swTable * php_swoole_table_get_and_check_ptr2(zval *zobject)
     return table;
 }
 
-void php_swoole_table_set_ptr(zval *zobject, swTable *ptr)
+static void inline php_swoole_table_set_ptr(zval *zobject, swTable *ptr)
 {
     php_swoole_table_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
 }
 
-static void php_swoole_table_free_object(zend_object *object)
+static inline void php_swoole_table_free_object(zend_object *object)
 {
     zend_object_std_dtor(object);
 }
 
-static zend_object *php_swoole_table_create_object(zend_class_entry *ce)
+static inline zend_object *php_swoole_table_create_object(zend_class_entry *ce)
 {
     table_t *table = (table_t *) ecalloc(1, sizeof(table_t) + zend_object_properties_size(ce));
     zend_object_std_init(&table->std, ce);
@@ -184,17 +184,17 @@ typedef struct
     zend_object std;
 } table_row_t;
 
-static sw_inline table_row_t* php_swoole_table_row_fetch_object(zend_object *obj)
+static inline table_row_t* php_swoole_table_row_fetch_object(zend_object *obj)
 {
     return (table_row_t *) ((char *) obj - swoole_table_row_handlers.offset);
 }
 
-static swTable * php_swoole_table_row_get_ptr(zval *zobject)
+static inline swTable * php_swoole_table_row_get_ptr(zval *zobject)
 {
     return php_swoole_table_row_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
-static swTable * php_swoole_table_row_get_and_check_ptr(zval *zobject)
+static inline swTable * php_swoole_table_row_get_and_check_ptr(zval *zobject)
 {
     swTable *table_row = php_swoole_table_row_get_ptr(zobject);
     if (!table_row)
@@ -204,17 +204,17 @@ static swTable * php_swoole_table_row_get_and_check_ptr(zval *zobject)
     return table_row;
 }
 
-void php_swoole_table_row_set_ptr(zval *zobject, swTable *ptr)
+static inline void php_swoole_table_row_set_ptr(zval *zobject, swTable *ptr)
 {
     php_swoole_table_row_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
 }
 
-static void php_swoole_table_row_free_object(zend_object *object)
+static inline void php_swoole_table_row_free_object(zend_object *object)
 {
     zend_object_std_dtor(object);
 }
 
-static zend_object *php_swoole_table_row_create_object(zend_class_entry *ce)
+static inline zend_object *php_swoole_table_row_create_object(zend_class_entry *ce)
 {
     table_row_t *table_row = (table_row_t *) ecalloc(1, sizeof(table_row_t) + zend_object_properties_size(ce));
     zend_object_std_init(&table_row->std, ce);

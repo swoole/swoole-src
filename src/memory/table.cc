@@ -208,7 +208,7 @@ int swTable_create(swTable *table)
 #ifdef SW_TABLE_USE_PHP_HASH
     table->hash_func = swoole_hash_php;
 #else
-    table->hash_func= swoole_hash_austin;
+    table->hash_func = swoole_hash_austin;
 #endif
 
     return SW_OK;
