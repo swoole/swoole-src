@@ -14,18 +14,16 @@
   +----------------------------------------------------------------------+
 */
 
-
-
-#ifndef SW_TABLE_H_
-#define SW_TABLE_H_
-
-SW_EXTERN_C_BEGIN
+#pragma once
 
 #include "atomic.h"
-#include "hashmap.h"
 #include "hash.h"
+#include <vector>
+#include <unordered_map>
 
-typedef struct _swTableRow
+typedef uint32_t swTable_string_length_t;
+
+struct swTableRow
 {
     sw_atomic_t lock;
     pid_t lock_pid;
@@ -33,28 +31,93 @@ typedef struct _swTableRow
      * 1:used, 0:empty
      */
     uint8_t active;
+    uint8_t key_len;
     /**
      * next slot
      */
-    struct _swTableRow *next;
+    swTableRow *next;
     /**
      * Hash Key
      */
     char key[SW_TABLE_KEY_SIZE];
     char data[0];
-} swTableRow;
+};
 
-typedef struct
+struct swTable_iterator
 {
     uint32_t absolute_index;
     uint32_t collision_index;
     swTableRow *row;
-} swTable_iterator;
+};
 
-typedef struct
+enum swTableColumn_type
 {
-    swHashMap *columns;
-    uint16_t column_num;
+    SW_TABLE_INT = 1,
+    SW_TABLE_INT8,
+    SW_TABLE_INT16,
+    SW_TABLE_INT32,
+#ifdef __x86_64__
+    SW_TABLE_INT64,
+#endif
+    SW_TABLE_FLOAT,
+    SW_TABLE_STRING,
+};
+
+struct swTableColumn
+{
+    enum swTableColumn_type type;
+    uint32_t size;
+    std::string name;
+    size_t index;
+
+    swTableColumn(const std::string &_name, enum swTableColumn_type _type, size_t _size) :
+            name(_name)
+    {
+        index = 0;
+        switch (_type)
+        {
+        case SW_TABLE_INT:
+            switch (_size)
+            {
+            case 1:
+                size = 1;
+                type = SW_TABLE_INT8;
+                break;
+            case 2:
+                size = 2;
+                type = SW_TABLE_INT16;
+                break;
+#ifdef __x86_64__
+            case 8:
+                size = 8;
+                type = SW_TABLE_INT64;
+                break;
+#endif
+            default:
+                size = 4;
+                type = SW_TABLE_INT32;
+                break;
+            }
+            break;
+        case SW_TABLE_FLOAT:
+            size = sizeof(double);
+            type = SW_TABLE_FLOAT;
+            break;
+        case SW_TABLE_STRING:
+            size = _size + sizeof(swTable_string_length_t);
+            type = SW_TABLE_STRING;
+            break;
+        default:
+            abort();
+            break;
+        }
+    }
+};
+
+struct swTable
+{
+    std::unordered_map<std::string, swTableColumn*> *column_map;
+    std::vector<swTableColumn*> *column_list;
     swLock lock;
     size_t size;
     size_t mask;
@@ -71,29 +134,9 @@ typedef struct
     swMemoryPool *pool;
 
     swTable_iterator *iterator;
+    uint64_t (*hash_func)(const char *key, size_t len);
 
     void *memory;
-} swTable;
-
-typedef struct
-{
-   uint8_t type;
-   uint32_t size;
-   swString* name;
-   size_t index;
-} swTableColumn;
-
-enum swoole_table_type
-{
-    SW_TABLE_INT = 1,
-    SW_TABLE_INT8,
-    SW_TABLE_INT16,
-    SW_TABLE_INT32,
-#ifdef __x86_64__
-    SW_TABLE_INT64,
-#endif
-    SW_TABLE_FLOAT,
-    SW_TABLE_STRING,
 };
 
 enum swoole_table_find
@@ -111,7 +154,7 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion);
 size_t swTable_get_memory_size(swTable *table);
 int swTable_create(swTable *table);
 void swTable_free(swTable *table);
-int swTableColumn_add(swTable *table, const char *name, int len, int type, int size);
+bool swTableColumn_add(swTable *table, const std::string &name, enum swTableColumn_type type, size_t size);
 swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableRow **rowlock);
 swTableRow* swTableRow_get(swTable *table, const char *key, int keylen, swTableRow **rowlock);
 
@@ -120,9 +163,17 @@ swTableRow* swTable_iterator_current(swTable *table);
 void swTable_iterator_forward(swTable *table);
 int swTableRow_del(swTable *table, char *key, int keylen);
 
-static sw_inline swTableColumn* swTableColumn_get(swTable *table, char *column_key, int keylen)
+static sw_inline swTableColumn* swTableColumn_get(swTable *table, const std::string &key)
 {
-    return (swTableColumn*) swHashMap_find(table->columns, column_key, keylen);
+    auto i = table->column_map->find(key);
+    if (i == table->column_map->end())
+    {
+        return nullptr;
+    }
+    else
+    {
+        return i->second;
+    }
 }
 
 static sw_inline void swTableRow_lock(swTableRow *row)
@@ -164,9 +215,7 @@ static sw_inline void swTableRow_unlock(swTableRow *row)
     sw_spinlock_release(&row->lock);
 }
 
-typedef uint32_t swTable_string_length_t;
-
-static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col, void *value, size_t vlen)
+static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn *col, void *value, size_t vlen)
 {
     int8_t _i8;
     int16_t _i16;
@@ -200,7 +249,7 @@ static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col,
     default:
         if (vlen > (col->size - sizeof(swTable_string_length_t)))
         {
-            swWarn("[key=%s,field=%s]string value is too long", row->key, col->name->str);
+            swWarn("[key=%s,field=%s]string value is too long", row->key, col->name.c_str());
             vlen = col->size - sizeof(swTable_string_length_t);
         }
         memcpy(row->data + col->index, &vlen, sizeof(swTable_string_length_t));
@@ -208,7 +257,3 @@ static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col,
         break;
     }
 }
-
-SW_EXTERN_C_END
-
-#endif /* SW_TABLE_H_ */

@@ -37,7 +37,7 @@ do {                                                                            
 /**
  * jenkins
  */
-static inline uint64_t swoole_hash_jenkins(const char *key, uint32_t keylen)
+static inline uint64_t swoole_hash_jenkins(const char *key, size_t keylen)
 {
     uint64_t hashv;
 
@@ -176,7 +176,7 @@ static inline uint32_t swoole_hash_austin(const char *key, unsigned int keylen)
  *
  *                  -- Ralf S. Engelschall <rse@engelschall.com>
  */
-static inline uint64_t swoole_hash_php(const char *key, uint32_t len)
+static inline uint64_t swoole_hash_php(const char *key, size_t len)
 {
     register ulong_t hash = 5381;
     /* variant with the hash unrolled eight times */
