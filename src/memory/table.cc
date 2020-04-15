@@ -26,14 +26,6 @@ static int insert_count = 0;
 static int conflict_max_level = 0;
 #endif
 
-static void swTableColumn_free(swTableColumn *col);
-
-static void swTableColumn_free(swTableColumn *col)
-{
-    swString_free(col->name);
-    sw_free(col);
-}
-
 swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
 {
     if (rows_size >= 0x80000000)
@@ -75,33 +67,33 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
         swWarn("malloc failed");
         return NULL;
     }
-    table->columns = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, (swHashMap_dtor)swTableColumn_free);
-    if (!table->columns)
-    {
-        return NULL;
-    }
-
+    table->columns = new std::unordered_map<std::string, swTableColumn*>;
     table->size = rows_size;
     table->mask = rows_size - 1;
     table->conflict_proportion = conflict_proportion;
+#ifdef SW_TABLE_USE_PHP_HASH
+    table->hash_func = swoole_hash_php;
+#else
+    table->hash_func = swoole_hash_austin;
+#endif
 
     bzero(table->iterator, sizeof(swTable_iterator));
     table->memory = NULL;
     return table;
 }
 
-int swTableColumn_add(swTable *table, const char *name, int len, int type, int size)
+bool swTableColumn_add(swTable *table, const char *name, int len, int type, int size)
 {
     swTableColumn *col = (swTableColumn *) sw_malloc(sizeof(swTableColumn));
     if (!col)
     {
-        return SW_ERR;
+        return false;
     }
     col->name = swString_dup(name, len);
     if (!col->name)
     {
         sw_free(col);
-        return SW_ERR;
+        return false;
     }
     switch(type)
     {
@@ -138,13 +130,16 @@ int swTableColumn_add(swTable *table, const char *name, int len, int type, int s
         break;
     default:
         swWarn("unkown column type");
-        swTableColumn_free(col);
-        return SW_ERR;
+        swString_free(col->name);
+        sw_free(col);
+        return false;
     }
+
     col->index = table->item_size;
     table->item_size += col->size;
-    ++table->column_num;
-    return swHashMap_add(table->columns, name, len, col);
+    table->columns->emplace(std::string(name, len), col);
+
+    return true;
 }
 
 size_t swTable_get_memory_size(swTable *table)
@@ -205,12 +200,6 @@ int swTable_create(swTable *table)
     memory_size -= row_memory_size * table->size;
     table->pool = swFixedPool_new2(row_memory_size, memory, memory_size);
 
-#ifdef SW_TABLE_USE_PHP_HASH
-    table->hash_func = swoole_hash_php;
-#else
-    table->hash_func = swoole_hash_austin;
-#endif
-
     return SW_OK;
 }
 
@@ -221,7 +210,14 @@ void swTable_free(swTable *table)
             conflict_count, conflict_max_level, insert_count);
 #endif
 
-    swHashMap_free(table->columns);
+    auto i = table->columns->begin();
+    while (i != table->columns->end())
+    {
+        swString_free(i->second->name);
+        sw_free(i->second);
+        table->columns->erase(i++);
+    }
+
     sw_free(table->iterator);
     if (table->memory)
     {

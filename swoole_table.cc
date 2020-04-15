@@ -15,27 +15,19 @@
 */
 
 #include "php_swoole.h"
-
 #include "table.h"
 
 static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *return_value)
 {
     array_init(return_value);
 
-    swTableColumn *col = NULL;
     swTable_string_length_t vlen = 0;
     double dval = 0;
     int64_t lval = 0;
-    char *k;
 
-    swHashMap_rewind(table->columns);
-    while (1)
+    for (auto i = table->columns->begin(); i != table->columns->end(); i++)
     {
-        col = (swTableColumn *) swHashMap_each(table->columns, &k);
-        if (col == NULL)
-        {
-            break;
-        }
+        swTableColumn *col = i->second;
         if (col->type == SW_TABLE_STRING)
         {
             memcpy(&vlen, row->data + col->index, sizeof(swTable_string_length_t));
@@ -77,7 +69,7 @@ static inline void php_swoole_table_get_field_value(swTable *table, swTableRow *
     double dval = 0;
     int64_t lval = 0;
 
-    swTableColumn *col = (swTableColumn *) swHashMap_find(table->columns, field, field_len);
+    swTableColumn *col = swTableColumn_get(table, std::string(field, field_len));
     if (!col)
     {
         ZVAL_FALSE(return_value);
@@ -441,8 +433,7 @@ PHP_METHOD(swoole_table, column)
         php_swoole_fatal_error(E_WARNING, "unable to add column after table has been created");
         RETURN_FALSE;
     }
-    swTableColumn_add(table, name, len, type, size);
-    RETURN_TRUE;
+    RETURN_BOOL(swTableColumn_add(table, name, len, type, size));
 }
 
 static PHP_METHOD(swoole_table, create)
@@ -509,7 +500,7 @@ static PHP_METHOD(swoole_table, set)
 
     SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, zv)
     {
-        col = swTableColumn_get(table, k, klen);
+        col = swTableColumn_get(table, std::string(k, klen));
         if (k == NULL || col == NULL)
         {
             continue;
@@ -556,7 +547,7 @@ static PHP_METHOD(swoole_table, incr)
         RETURN_FALSE;
     }
 
-    swTableRow *_rowlock = NULL;
+    swTableRow *_rowlock = nullptr;
     swTableRow *row = swTableRow_set(table, key, key_len, &_rowlock);
     if (!row)
     {
@@ -565,9 +556,8 @@ static PHP_METHOD(swoole_table, incr)
         RETURN_FALSE;
     }
 
-    swTableColumn *column;
-    column = swTableColumn_get(table, col, col_len);
-    if (column == NULL)
+    swTableColumn *column = swTableColumn_get(table, std::string(col, col_len));
+    if (column == nullptr)
     {
         swTableRow_unlock(_rowlock);
         php_swoole_fatal_error(E_WARNING, "column[%s] does not exist", col);
@@ -635,9 +625,8 @@ static PHP_METHOD(swoole_table, decr)
         RETURN_FALSE;
     }
 
-    swTableColumn *column;
-    column = swTableColumn_get(table, col, col_len);
-    if (column == NULL)
+    swTableColumn *column = swTableColumn_get(table, std::string(col, col_len));
+    if (column == nullptr)
     {
         swTableRow_unlock(_rowlock);
         php_swoole_fatal_error(E_WARNING, "column[%s] does not exist", col);
@@ -818,7 +807,7 @@ static PHP_METHOD(swoole_table, count)
     }
     else
     {
-        RETURN_LONG(table->row_num * table->column_num);
+        RETURN_LONG(table->row_num * table->columns->size());
     }
 }
 
@@ -948,8 +937,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
         RETURN_FALSE;
     }
 
-    swTableColumn *col;
-    col = swTableColumn_get(table, key, keylen);
+    swTableColumn *col = swTableColumn_get(table, std::string(key, keylen));
     if (col == NULL)
     {
         swTableRow_unlock(_rowlock);
