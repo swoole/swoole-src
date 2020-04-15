@@ -157,17 +157,16 @@ int swReactorProcess_start(swServer *serv)
             swSysWarn("gmalloc[server->user_workers] failed");
             return SW_ERR;
         }
-        swUserWorker_node *user_worker;
-        LL_FOREACH(serv->user_worker_list, user_worker)
+        for (auto worker : *serv->user_worker_list)
         {
             /**
              * store the pipe object
              */
-            if (user_worker->worker->pipe_object)
+            if (worker->pipe_object)
             {
-                swServer_store_pipe_fd(serv, user_worker->worker->pipe_object);
+                swServer_store_pipe_fd(serv, worker->pipe_object);
             }
-            swManager_spawn_user_worker(serv, user_worker->worker);
+            swManager_spawn_user_worker(serv, worker);
         }
     }
 

@@ -26,6 +26,7 @@
 
 #include <string>
 #include <queue>
+#include <list>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -204,12 +205,6 @@ struct swListenPort
     swProtocol protocol;
     void *ptr;
     int (*onRead)(swReactor *reactor, swListenPort *port, swEvent *event);
-};
-
-struct swUserWorker_node
-{
-    swUserWorker_node *next, *prev;
-    swWorker *worker;
 };
 
 struct swWorkerStopMessage
@@ -507,7 +502,7 @@ struct swServer
      * user process
      */
     uint32_t user_worker_num;
-    swUserWorker_node *user_worker_list;
+    std::list<swWorker*> *user_worker_list;
     swHashMap *user_worker_map;
     swWorker *user_workers;
 

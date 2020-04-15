@@ -151,14 +151,13 @@ static sw_inline int swManager_spawn_user_workers(swServer *serv)
 
     if (serv->user_worker_list)
     {
-        swUserWorker_node *user_worker;
-        LL_FOREACH(serv->user_worker_list, user_worker)
+        for (auto worker : *serv->user_worker_list)
         {
-            if (user_worker->worker->pipe_object)
+            if (worker->pipe_object)
             {
-                swServer_store_pipe_fd(serv, user_worker->worker->pipe_object);
+                swServer_store_pipe_fd(serv, worker->pipe_object);
             }
-            pid = swManager_spawn_user_worker(serv, user_worker->worker);
+            pid = swManager_spawn_user_worker(serv, worker);
             if (pid < 0)
             {
                 return SW_ERR;
@@ -205,11 +204,11 @@ int swManager_start(swServer *serv)
         {
             return SW_ERR;
         }
-        swUserWorker_node *user_worker;
+
         i = 0;
-        LL_FOREACH(serv->user_worker_list, user_worker)
+        for (auto worker : *serv->user_worker_list)
         {
-            memcpy(&serv->user_workers[i], user_worker->worker, sizeof(swWorker));
+            memcpy(&serv->user_workers[i], worker, sizeof(swWorker));
             if (swServer_worker_create(serv, &serv->user_workers[i]) < 0)
             {
                 return SW_ERR;

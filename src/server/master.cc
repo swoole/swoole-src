@@ -812,11 +812,10 @@ int swServer_start(swServer *serv)
      */
     if (serv->user_worker_list)
     {
-        swUserWorker_node *user_worker;
         i = 0;
-        LL_FOREACH(serv->user_worker_list, user_worker)
+        for (auto worker : *serv->user_worker_list)
         {
-            user_worker->worker->id = serv->worker_num + serv->task_worker_num + i;
+            worker->id = serv->worker_num + serv->task_worker_num + i;
             i++;
         }
     }
@@ -1641,16 +1640,9 @@ void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
 
 int swServer_add_worker(swServer *serv, swWorker *worker)
 {
-    swUserWorker_node *user_worker = (swUserWorker_node *) sw_malloc(sizeof(swUserWorker_node));
-    if (!user_worker)
-    {
-        return SW_ERR;
-    }
-
     serv->user_worker_num++;
-    user_worker->worker = worker;
+    serv->user_worker_list->push_back(worker);
 
-    LL_APPEND(serv->user_worker_list, user_worker);
     if (!serv->user_worker_map)
     {
         serv->user_worker_map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
