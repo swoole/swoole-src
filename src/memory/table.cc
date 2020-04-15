@@ -76,12 +76,6 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
     bzero(table->iterator, sizeof(swTable_iterator));
     table->memory = NULL;
 
-#ifdef SW_TABLE_USE_PHP_HASH
-    table->hash_func = swoole_hash_php;
-#else
-    table->hash_func = swoole_hash_austin;
-#endif
-
     return table;
 }
 
