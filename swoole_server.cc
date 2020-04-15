@@ -2286,8 +2286,6 @@ static PHP_METHOD(swoole_server, __construct)
     }
     serv->factory_mode = serv_mode;
 
-    auto primary_port = serv->listen_list->front();
-
     /* primary port */
     do
     {
@@ -2318,7 +2316,7 @@ static PHP_METHOD(swoole_server, __construct)
             php_swoole_server_add_port(serv, ls);
         }
 
-        server_port_list.primary_port = (php_swoole_server_port_property *) primary_port->ptr;
+        server_port_list.primary_port = (php_swoole_server_port_property *) serv->listen_list->front()->ptr;
     } while (0);
 
     /* iterator */
@@ -2336,7 +2334,7 @@ static PHP_METHOD(swoole_server, __construct)
 
     /* info */
     zend_update_property_stringl(swoole_server_ce, zserv, ZEND_STRL("host"), host, host_len);
-    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("port"), (zend_long) primary_port->port);
+    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("port"), (zend_long) serv->listen_list->front()->port);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("mode"), serv->factory_mode);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("type"), sock_type);
 }
