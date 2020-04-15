@@ -82,62 +82,18 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
     return table;
 }
 
-bool swTableColumn_add(swTable *table, const char *name, int len, int type, int size)
+bool swTableColumn_add(swTable *table, const std::string &name, enum swTableColumn_type type, size_t size)
 {
-    swTableColumn *col = (swTableColumn *) sw_malloc(sizeof(swTableColumn));
-    if (!col)
+    if (type < SW_TABLE_INT || type > SW_TABLE_STRING)
     {
-        return false;
-    }
-    col->name = swString_dup(name, len);
-    if (!col->name)
-    {
-        sw_free(col);
-        return false;
-    }
-    switch(type)
-    {
-    case SW_TABLE_INT:
-        switch(size)
-        {
-        case 1:
-            col->size = 1;
-            col->type = SW_TABLE_INT8;
-            break;
-        case 2:
-            col->size = 2;
-            col->type = SW_TABLE_INT16;
-            break;
-#ifdef __x86_64__
-        case 8:
-            col->size = 8;
-            col->type = SW_TABLE_INT64;
-            break;
-#endif
-        default:
-            col->size = 4;
-            col->type = SW_TABLE_INT32;
-            break;
-        }
-        break;
-    case SW_TABLE_FLOAT:
-        col->size = sizeof(double);
-        col->type = SW_TABLE_FLOAT;
-        break;
-    case SW_TABLE_STRING:
-        col->size = size + sizeof(swTable_string_length_t);
-        col->type = SW_TABLE_STRING;
-        break;
-    default:
         swWarn("unkown column type");
-        swString_free(col->name);
-        sw_free(col);
         return false;
     }
 
+    swTableColumn *col = new swTableColumn(name, type, size);
     col->index = table->item_size;
     table->item_size += col->size;
-    table->columns->emplace(std::string(name, len), col);
+    table->columns->emplace(name, col);
 
     return true;
 }
@@ -213,8 +169,7 @@ void swTable_free(swTable *table)
     auto i = table->columns->begin();
     while (i != table->columns->end())
     {
-        swString_free(i->second->name);
-        sw_free(i->second);
+        delete i->second;
         table->columns->erase(i++);
     }
 

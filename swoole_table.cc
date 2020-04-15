@@ -31,12 +31,12 @@ static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, z
         if (col->type == SW_TABLE_STRING)
         {
             memcpy(&vlen, row->data + col->index, sizeof(swTable_string_length_t));
-            add_assoc_stringl_ex(return_value, col->name->str, col->name->length, row->data + col->index + sizeof(swTable_string_length_t), vlen);
+            add_assoc_stringl_ex(return_value, col->name.c_str(), col->name.length(), row->data + col->index + sizeof(swTable_string_length_t), vlen);
         }
         else if (col->type == SW_TABLE_FLOAT)
         {
             memcpy(&dval, row->data + col->index, sizeof(dval));
-            add_assoc_double_ex(return_value, col->name->str, col->name->length, dval);
+            add_assoc_double_ex(return_value, col->name.c_str(), col->name.length(), dval);
         }
         else
         {
@@ -44,19 +44,19 @@ static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, z
             {
             case SW_TABLE_INT8:
                 memcpy(&lval, row->data + col->index, 1);
-                add_assoc_long_ex(return_value, col->name->str, col->name->length, (int8_t) lval);
+                add_assoc_long_ex(return_value, col->name.c_str(), col->name.length(), (int8_t) lval);
                 break;
             case SW_TABLE_INT16:
                 memcpy(&lval, row->data + col->index, 2);
-                add_assoc_long_ex(return_value, col->name->str, col->name->length, (int16_t) lval);
+                add_assoc_long_ex(return_value, col->name.c_str(), col->name.length(), (int16_t) lval);
                 break;
             case SW_TABLE_INT32:
                 memcpy(&lval, row->data + col->index, 4);
-                add_assoc_long_ex(return_value, col->name->str, col->name->length, (int32_t) lval);
+                add_assoc_long_ex(return_value, col->name.c_str(), col->name.length(), (int32_t) lval);
                 break;
             default:
                 memcpy(&lval, row->data + col->index, 8);
-                add_assoc_long_ex(return_value, col->name->str, col->name->length, lval);
+                add_assoc_long_ex(return_value, col->name.c_str(), col->name.length(), lval);
                 break;
             }
         }
@@ -370,11 +370,6 @@ void php_swoole_table_minit(int module_number)
     zend_declare_property_null(swoole_table_row_ce, ZEND_STRL("value"), ZEND_ACC_PUBLIC);
 }
 
-void swoole_table_column_free(swTableColumn *col)
-{
-    swString_free(col->name);
-}
-
 PHP_METHOD(swoole_table, __construct)
 {
     swTable *table = php_swoole_table_get_ptr(ZEND_THIS);
@@ -433,7 +428,7 @@ PHP_METHOD(swoole_table, column)
         php_swoole_fatal_error(E_WARNING, "unable to add column after table has been created");
         RETURN_FALSE;
     }
-    RETURN_BOOL(swTableColumn_add(table, name, len, type, size));
+    RETURN_BOOL(swTableColumn_add(table, std::string(name, len), (enum swTableColumn_type )type, size));
 }
 
 static PHP_METHOD(swoole_table, create)
