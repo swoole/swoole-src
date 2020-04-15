@@ -49,15 +49,13 @@ static void swServer_check_port_type(swServer *serv, swListenPort *ls);
 
 static void swServer_disable_accept(swServer *serv)
 {
-    swListenPort *ls;
-
     serv->enable_accept_timer = swoole_timer_add(SW_ACCEPT_RETRY_TIME * 1000, 0, swServer_enable_accept, serv);
     if (serv->enable_accept_timer == nullptr)
     {
         return;
     }
 
-    LL_FOREACH(serv->listen_list, ls)
+    for (auto ls : *serv->listen_list)
     {
         //UDP
         if (swSocket_is_dgram(ls->type))
@@ -70,10 +68,9 @@ static void swServer_disable_accept(swServer *serv)
 
 static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode)
 {
-    swListenPort *ls;
     swServer *serv = (swServer *) tnode->data;
 
-    LL_FOREACH(serv->listen_list, ls)
+    for (auto ls : *serv->listen_list)
     {
         if (swSocket_is_dgram(ls->type))
         {
@@ -87,8 +84,7 @@ static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode)
 
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port)
 {
-    swListenPort *ls;
-    LL_FOREACH(serv->listen_list, ls)
+    for (auto ls : *serv->listen_list)
     {
         if (only_stream_port && swSocket_is_dgram(ls->type))
         {
@@ -400,8 +396,7 @@ static int swServer_start_check(swServer *serv)
         swWarn("serv->max_connection is exceed the SW_SESSION_LIST_SIZE, it's reset to %u", SW_SESSION_LIST_SIZE);
     }
     // package max length
-    swListenPort *ls;
-    LL_FOREACH(serv->listen_list, ls)
+    for (auto ls : *serv->listen_list)
     {
         if (ls->protocol.package_max_length < SW_BUFFER_MIN_SIZE)
         {
@@ -433,9 +428,9 @@ static int swServer_start_check(swServer *serv)
 
 void swServer_store_listen_socket(swServer *serv)
 {
-    swListenPort *ls;
     int sockfd;
-    LL_FOREACH(serv->listen_list, ls)
+
+    for (auto ls : *serv->listen_list)
     {
         sockfd = ls->socket->fd;
         //save server socket to connection_list
@@ -995,12 +990,11 @@ int swServer_shutdown(swServer *serv)
     {
         swReactor *reactor = SwooleTG.reactor;
         reactor->wait_exit = 1;
-        swListenPort *port;
-        LL_FOREACH(serv->listen_list, port)
+        for (auto ls : *serv->listen_list)
         {
-            if (swSocket_is_stream(port->type))
+            if (swSocket_is_stream(ls->type))
             {
-                reactor->del(reactor, port->socket);
+                reactor->del(reactor, ls->socket);
             }
         }
         swServer_clear_timer(serv);
@@ -1040,10 +1034,9 @@ static int swServer_destory(swServer *serv)
         swReactorThread_join(serv);
     }
 
-    swListenPort *port;
-    LL_FOREACH(serv->listen_list, port)
+    for (auto ls : *serv->listen_list)
     {
-        swPort_free(port);
+        swPort_free(ls);
     }
     //close log file
     if (SwooleG.log_file != 0)
@@ -1748,7 +1741,7 @@ int swServer_add_systemd_socket(swServer *serv)
         }
         swServer_check_port_type(serv, ls);
 
-        LL_APPEND(serv->listen_list, ls);
+        serv->listen_list->push_back(ls);
         serv->listen_port_num++;
         count++;
     }
@@ -1843,15 +1836,18 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
     }
     swServer_check_port_type(serv, ls);
     ls->socket_fd = ls->socket->fd;
-    LL_APPEND(serv->listen_list, ls);
+    if (serv->listen_list == nullptr)
+    {
+        serv->listen_list = new std::list<swListenPort *>;
+    }
+    serv->listen_list->push_back(ls);
     serv->listen_port_num++;
     return ls;
 }
 
 int swServer_get_socket(swServer *serv, int port)
 {
-    swListenPort *ls;
-    LL_FOREACH(serv->listen_list, ls)
+    for (auto ls : *serv->listen_list)
     {
         if (ls->port == port || port == 0)
         {

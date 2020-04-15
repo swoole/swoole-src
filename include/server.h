@@ -99,8 +99,6 @@ struct swReactorThread
 
 struct swListenPort
 {
-    swListenPort *next, *prev;
-
     /**
      * tcp socket listen backlog
      */
@@ -485,7 +483,7 @@ struct swServer
     void *private_data_3;
 
     swFactory factory;
-    swListenPort *listen_list;
+    std::list<swListenPort*> *listen_list;
     pthread_t heartbeat_pidt;
 
     /**

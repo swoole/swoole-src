@@ -507,10 +507,9 @@ void swWorker_stop(swWorker *worker)
 
     if (serv->factory_mode == SW_MODE_BASE && swIsWorker())
     {
-        swListenPort *port;
-        LL_FOREACH(serv->listen_list, port)
+        for (auto ls : *serv->listen_list)
         {
-            reactor->del(reactor, port->socket);
+            reactor->del(reactor, ls->socket);
         }
         if (worker->pipe_master)
         {

@@ -61,13 +61,12 @@ void swReactorProcess_free(swServer *serv)
 
 int swReactorProcess_start(swServer *serv)
 {
-    swListenPort *ls;
     serv->single_thread = 1;
 
     //listen TCP
     if (serv->have_stream_sock == 1)
     {
-        LL_FOREACH(serv->listen_list, ls)
+        for (auto ls : *serv->listen_list)
         {
             if (swSocket_is_dgram(ls->type))
             {
@@ -330,10 +329,9 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         return SW_ERR;
     }
 
-    swListenPort *ls;
     int fdtype;
 
-    LL_FOREACH(serv->listen_list, ls)
+    for (auto ls : *serv->listen_list)
     {
         fdtype = swSocket_is_dgram(ls->type) ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
 #ifdef HAVE_REUSEPORT
