@@ -87,6 +87,13 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
 
     bzero(table->iterator, sizeof(swTable_iterator));
     table->memory = NULL;
+
+#ifdef SW_TABLE_USE_PHP_HASH
+    table->hash_func = swoole_hash_php;
+#else
+    table->hash_func = swoole_hash_austin;
+#endif
+
     return table;
 }
 
@@ -204,12 +211,6 @@ int swTable_create(swTable *table)
     memory = (char *) memory + row_memory_size * table->size;
     memory_size -= row_memory_size * table->size;
     table->pool = swFixedPool_new2(row_memory_size, memory, memory_size);
-
-#ifdef SW_TABLE_USE_PHP_HASH
-    table->hash_func = swoole_hash_php;
-#else
-    table->hash_func = swoole_hash_austin;
-#endif
 
     return SW_OK;
 }
