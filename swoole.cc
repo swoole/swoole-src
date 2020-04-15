@@ -725,6 +725,27 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
     SwooleG.running = 0;
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;
 
+#ifdef PHP_STREAM_FLAG_NO_CLOSE
+    auto php_swoole_set_stdio_no_close = [](const char *name, size_t name_len)
+    {
+        zval *zstream;
+        php_stream *stream;
+
+        zstream = zend_get_constant_str(name, name_len);
+        if (!zstream) {
+            return;
+        }
+        stream = (php_stream*) zend_fetch_resource2_ex((zstream), "stream", php_file_le_stream(), php_file_le_pstream());
+        if (!stream) {
+            return;
+        }
+        stream->flags |= PHP_STREAM_FLAG_NO_CLOSE;
+    };
+    /* do not close the stdout and stderr */
+    php_swoole_set_stdio_no_close(ZEND_STRL("STDOUT"));
+    php_swoole_set_stdio_no_close(ZEND_STRL("STDERR"));
+#endif
+
     return SUCCESS;
 }
 
