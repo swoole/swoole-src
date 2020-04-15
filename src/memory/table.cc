@@ -26,14 +26,6 @@ static int insert_count = 0;
 static int conflict_max_level = 0;
 #endif
 
-static void swTableColumn_free(swTableColumn *col);
-
-static void swTableColumn_free(swTableColumn *col)
-{
-    swString_free(col->name);
-    sw_free(col);
-}
-
 swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
 {
     if (rows_size >= 0x80000000)
@@ -69,21 +61,16 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
         swWarn("mutex create failed");
         return NULL;
     }
-    table->iterator = (swTable_iterator *) sw_malloc(sizeof(swTable_iterator));
-    if (!table->iterator)
-    {
-        swWarn("malloc failed");
-        return NULL;
-    }
-    table->columns = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, (swHashMap_dtor)swTableColumn_free);
-    if (!table->columns)
-    {
-        return NULL;
-    }
-
+    table->iterator = new swTable_iterator;
+    table->columns = new std::unordered_map<std::string, swTableColumn*>;
     table->size = rows_size;
     table->mask = rows_size - 1;
     table->conflict_proportion = conflict_proportion;
+#ifdef SW_TABLE_USE_PHP_HASH
+    table->hash_func = swoole_hash_php;
+#else
+    table->hash_func = swoole_hash_austin;
+#endif
 
     bzero(table->iterator, sizeof(swTable_iterator));
     table->memory = NULL;
@@ -97,61 +84,20 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
     return table;
 }
 
-int swTableColumn_add(swTable *table, const char *name, int len, int type, int size)
+bool swTableColumn_add(swTable *table, const std::string &name, enum swTableColumn_type type, size_t size)
 {
-    swTableColumn *col = (swTableColumn *) sw_malloc(sizeof(swTableColumn));
-    if (!col)
+    if (type < SW_TABLE_INT || type > SW_TABLE_STRING)
     {
-        return SW_ERR;
-    }
-    col->name = swString_dup(name, len);
-    if (!col->name)
-    {
-        sw_free(col);
-        return SW_ERR;
-    }
-    switch(type)
-    {
-    case SW_TABLE_INT:
-        switch(size)
-        {
-        case 1:
-            col->size = 1;
-            col->type = SW_TABLE_INT8;
-            break;
-        case 2:
-            col->size = 2;
-            col->type = SW_TABLE_INT16;
-            break;
-#ifdef __x86_64__
-        case 8:
-            col->size = 8;
-            col->type = SW_TABLE_INT64;
-            break;
-#endif
-        default:
-            col->size = 4;
-            col->type = SW_TABLE_INT32;
-            break;
-        }
-        break;
-    case SW_TABLE_FLOAT:
-        col->size = sizeof(double);
-        col->type = SW_TABLE_FLOAT;
-        break;
-    case SW_TABLE_STRING:
-        col->size = size + sizeof(swTable_string_length_t);
-        col->type = SW_TABLE_STRING;
-        break;
-    default:
         swWarn("unkown column type");
-        swTableColumn_free(col);
-        return SW_ERR;
+        return false;
     }
+
+    swTableColumn *col = new swTableColumn(name, type, size);
     col->index = table->item_size;
     table->item_size += col->size;
-    ++table->column_num;
-    return swHashMap_add(table->columns, name, len, col);
+    table->columns->emplace(name, col);
+
+    return true;
 }
 
 size_t swTable_get_memory_size(swTable *table)
@@ -222,8 +168,14 @@ void swTable_free(swTable *table)
             conflict_count, conflict_max_level, insert_count);
 #endif
 
-    swHashMap_free(table->columns);
-    sw_free(table->iterator);
+    auto i = table->columns->begin();
+    while (i != table->columns->end())
+    {
+        delete i->second;
+        table->columns->erase(i++);
+    }
+    delete table->columns;
+    delete table->iterator;
     if (table->memory)
     {
         sw_shm_free(table->memory);
