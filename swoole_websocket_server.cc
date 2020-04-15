@@ -612,7 +612,7 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
     int fd = req->info.fd;
     uchar flags = 0;
     zend_long opcode = 0;
-    auto primary_port = serv->listen_list->begin();
+    auto primary_port = serv->listen_list->front();
 
     zval zdata;
     char frame_header[2];
@@ -624,7 +624,7 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
     flags  = frame_header[0];
     opcode = frame_header[1];
 
-    if (opcode == WEBSOCKET_OPCODE_CLOSE && !(*primary_port)->open_websocket_close_frame)
+    if (opcode == WEBSOCKET_OPCODE_CLOSE && !primary_port->open_websocket_close_frame)
     {
         zval_ptr_dtor(&zdata);
         return SW_OK;

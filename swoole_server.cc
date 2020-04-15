@@ -1136,9 +1136,9 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
         return;
     }
 
-    auto primary_port = serv->listen_list->begin();
+    auto primary_port = serv->listen_list->front();
 
-    swTraceLog(SW_TRACE_SERVER, "Create Swoole\\Server: host=%s, port=%d, mode=%d, type=%d", (*primary_port)->host, (int) (*primary_port)->port, serv->factory_mode, (int) (*primary_port)->type);
+    swTraceLog(SW_TRACE_SERVER, "Create Swoole\\Server: host=%s, port=%d, mode=%d, type=%d", primary_port->host, (int) primary_port->port, serv->factory_mode, (int) primary_port->type);
 
     if (serv->enable_coroutine)
     {
@@ -2286,7 +2286,7 @@ static PHP_METHOD(swoole_server, __construct)
     }
     serv->factory_mode = serv_mode;
 
-    auto primary_port = serv->listen_list->begin();
+    auto primary_port = serv->listen_list->front();
 
     /* primary port */
     do
@@ -2318,7 +2318,7 @@ static PHP_METHOD(swoole_server, __construct)
             php_swoole_server_add_port(serv, ls);
         }
 
-        server_port_list.primary_port = (php_swoole_server_port_property *) (*primary_port)->ptr;
+        server_port_list.primary_port = (php_swoole_server_port_property *) primary_port->ptr;
     } while (0);
 
     /* iterator */
@@ -2336,7 +2336,7 @@ static PHP_METHOD(swoole_server, __construct)
 
     /* info */
     zend_update_property_stringl(swoole_server_ce, zserv, ZEND_STRL("host"), host, host_len);
-    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("port"), (zend_long) (*primary_port)->port);
+    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("port"), (zend_long) primary_port->port);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("mode"), serv->factory_mode);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("type"), sock_type);
 }
@@ -3092,21 +3092,21 @@ static PHP_METHOD(swoole_server, start)
             SW_WEBSOCKET_PROTOCOL = 1u << 2
         };
         uint8_t protocol_flag = 0;
-        auto primary_port = serv->listen_list->begin();
-        if ((*primary_port)->open_http2_protocol)
+        auto primary_port = serv->listen_list->front();
+        if (primary_port->open_http2_protocol)
         {
             add_assoc_bool(zsetting, "open_http2_protocol", 1);
             protocol_flag |= SW_HTTP2_PROTOCOL;
         }
-        if ((*primary_port)->open_websocket_protocol || is_websocket_server(zserv))
+        if (primary_port->open_websocket_protocol || is_websocket_server(zserv))
         {
             add_assoc_bool(zsetting, "open_websocket_protocol", 1);
             protocol_flag |= SW_WEBSOCKET_PROTOCOL;
         }
-        swPort_clear_protocol(*primary_port);
-        (*primary_port)->open_http_protocol = 1;
-        (*primary_port)->open_http2_protocol = !!(protocol_flag & SW_HTTP2_PROTOCOL);
-        (*primary_port)->open_websocket_protocol = !!(protocol_flag & SW_WEBSOCKET_PROTOCOL);
+        swPort_clear_protocol(primary_port);
+        primary_port->open_http_protocol = 1;
+        primary_port->open_http2_protocol = !!(protocol_flag & SW_HTTP2_PROTOCOL);
+        primary_port->open_websocket_protocol = !!(protocol_flag & SW_WEBSOCKET_PROTOCOL);
     }
 
     php_swoole_server_before_start(serv, zserv);
