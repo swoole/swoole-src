@@ -61,12 +61,7 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
         swWarn("mutex create failed");
         return NULL;
     }
-    table->iterator = (swTable_iterator *) sw_malloc(sizeof(swTable_iterator));
-    if (!table->iterator)
-    {
-        swWarn("malloc failed");
-        return NULL;
-    }
+    table->iterator = new swTable_iterator;
     table->columns = new std::unordered_map<std::string, swTableColumn*>;
     table->size = rows_size;
     table->mask = rows_size - 1;
@@ -172,8 +167,8 @@ void swTable_free(swTable *table)
         delete i->second;
         table->columns->erase(i++);
     }
-
-    sw_free(table->iterator);
+    delete table->columns;
+    delete table->iterator;
     if (table->memory)
     {
         sw_shm_free(table->memory);
