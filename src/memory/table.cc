@@ -205,6 +205,12 @@ int swTable_create(swTable *table)
     memory_size -= row_memory_size * table->size;
     table->pool = swFixedPool_new2(row_memory_size, memory, memory_size);
 
+#ifdef SW_TABLE_USE_PHP_HASH
+    table->hash_func = swoole_hash_php;
+#else
+    table->hash_func= swoole_hash_austin;
+#endif
+
     return SW_OK;
 }
 
@@ -225,11 +231,7 @@ void swTable_free(swTable *table)
 
 static sw_inline swTableRow* swTable_hash(swTable *table, const char *key, int keylen)
 {
-#ifdef SW_TABLE_USE_PHP_HASH
-    uint64_t hashv = swoole_hash_php(key, keylen);
-#else
-    uint64_t hashv = swoole_hash_austin(key, keylen);
-#endif
+    uint64_t hashv = table->hash_func(key, keylen);
     uint64_t index = hashv & table->mask;
     assert(index < table->size);
     return table->rows[index];
@@ -302,7 +304,7 @@ swTableRow* swTableRow_get(swTable *table, const char *key, int keylen, swTableR
 
     for (;;)
     {
-        if (strncmp(row->key, key, keylen) == 0)
+        if (sw_mem_equal(row->key, row->key_len, key, keylen))
         {
             if (!row->active)
             {
@@ -343,7 +345,7 @@ swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableR
     {
         for (;;)
         {
-            if (strncmp(row->key, key, keylen) == 0)
+            if (sw_mem_equal(row->key, row->key_len, key, keylen))
             {
                 break;
             }
@@ -392,6 +394,7 @@ swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableR
 
     memcpy(row->key, key, keylen);
     row->key[keylen] = '\0';
+    row->key_len = keylen;
     row->active = 1;
     return row;
 }
@@ -416,7 +419,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     swTableRow_lock(row);
     if (row->next == NULL)
     {
-        if (strncmp(row->key, key, keylen) == 0)
+        if (sw_mem_equal(row->key, row->key_len, key, keylen))
         {
             bzero(row, sizeof(swTableRow) + table->item_size);
             goto _delete_element;
@@ -430,7 +433,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     {
         while (tmp)
         {
-            if ((strncmp(tmp->key, key, keylen) == 0))
+            if (sw_mem_equal(row->key, row->key_len, key, keylen))
             {
                 break;
             }

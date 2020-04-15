@@ -29,7 +29,7 @@ static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, z
     char *k;
 
     swHashMap_rewind(table->columns);
-    while(1)
+    while (1)
     {
         col = (swTableColumn *) swHashMap_each(table->columns, &k);
         if (col == NULL)
@@ -406,6 +406,7 @@ PHP_METHOD(swoole_table, __construct)
         zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
+    table->hash_func = zend_hash_func;
     php_swoole_table_set_ptr(ZEND_THIS, table);
 }
 
@@ -474,10 +475,10 @@ static PHP_METHOD(swoole_table, set)
     char *key;
     size_t keylen;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sa", &key, &keylen, &array) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 2, 2)
+        Z_PARAM_STRING(key, keylen)
+        Z_PARAM_ARRAY(array)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (!table->memory)
     {
@@ -689,10 +690,11 @@ static PHP_METHOD(swoole_table, get)
     char *field = NULL;
     size_t field_len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|s", &key, &keylen, &field, &field_len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 2)
+        Z_PARAM_STRING(key, keylen)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STRING(field, field_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swTableRow *_rowlock = NULL;
     swTableRow *row = swTableRow_get(table, key, keylen, &_rowlock);
@@ -780,10 +782,9 @@ static PHP_METHOD(swoole_table, del)
     char *key;
     size_t keylen;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
+        Z_PARAM_STRING(key, keylen)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     SW_CHECK_RETURN(swTableRow_del(table, key, keylen));
 }

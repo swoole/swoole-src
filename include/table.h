@@ -33,6 +33,7 @@ typedef struct _swTableRow
      * 1:used, 0:empty
      */
     uint8_t active;
+    uint8_t key_len;
     /**
      * next slot
      */
@@ -71,6 +72,7 @@ typedef struct
     swMemoryPool *pool;
 
     swTable_iterator *iterator;
+    uint64_t (*hash_func)(const char *key, size_t len);
 
     void *memory;
 } swTable;
