@@ -483,7 +483,7 @@ struct swServer
     void *private_data_3;
 
     swFactory factory;
-    std::list<swListenPort*> *listen_list;
+    std::vector<swListenPort*> *listen_list;
     pthread_t heartbeat_pidt;
 
     /**
@@ -500,7 +500,7 @@ struct swServer
      * user process
      */
     uint32_t user_worker_num;
-    std::list<swWorker*> *user_worker_list;
+    std::vector<swWorker*> *user_worker_list;
     swHashMap *user_worker_map;
     swWorker *user_workers;
 

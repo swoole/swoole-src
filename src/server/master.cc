@@ -569,7 +569,7 @@ int swServer_create_user_workers(swServer *serv)
      */
     if (serv->user_worker_list == nullptr)
     {
-        serv->user_worker_list = new std::list<swWorker *>;
+        serv->user_worker_list = new std::vector<swWorker *>;
     }
 
     serv->user_workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->user_worker_num * sizeof(swWorker));
@@ -1648,7 +1648,7 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
 {
     if (serv->user_worker_list == nullptr)
     {
-        serv->user_worker_list = new std::list<swWorker *>;
+        serv->user_worker_list = new std::vector<swWorker *>;
     }
     serv->user_worker_num++;
     serv->user_worker_list->push_back(worker);
@@ -1838,7 +1838,7 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
     ls->socket_fd = ls->socket->fd;
     if (serv->listen_list == nullptr)
     {
-        serv->listen_list = new std::list<swListenPort *>;
+        serv->listen_list = new std::vector<swListenPort *>;
     }
     serv->listen_list->push_back(ls);
     serv->listen_port_num++;

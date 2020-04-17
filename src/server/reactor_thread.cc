@@ -851,7 +851,7 @@ int swReactorThread_start(swServer *serv)
 #endif
 
     //set listen socket options
-    std::list<swListenPort *>::iterator ls;
+    std::vector<swListenPort *>::iterator ls;
     for (ls = serv->listen_list->begin(); ls != serv->listen_list->end(); ls++)
     {
         if (swSocket_is_dgram((*ls)->type))
