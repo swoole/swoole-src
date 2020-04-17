@@ -1037,7 +1037,19 @@ static int swServer_destory(swServer *serv)
     for (auto ls : *serv->listen_list)
     {
         swPort_free(ls);
+        SwooleG.memory_pool->free(SwooleG.memory_pool, ls);
     }
+    delete serv->listen_list;
+    serv->listen_list = nullptr;
+
+    /**
+     * because the swWorker in user_worker_list is the memory allocated by emalloc, 
+     * the efree function will be called when the user process is destructed, 
+     * so there's no need to call the efree here.
+     */
+    delete serv->user_worker_list;
+    serv->user_worker_list = nullptr;
+
     //close log file
     if (SwooleG.log_file != 0)
     {
