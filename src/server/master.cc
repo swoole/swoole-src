@@ -1037,7 +1037,6 @@ static int swServer_destory(swServer *serv)
     for (auto ls : *serv->listen_list)
     {
         swPort_free(ls);
-        SwooleG.memory_pool->free(SwooleG.memory_pool, ls);
     }
     delete serv->listen_list;
     serv->listen_list = nullptr;
