@@ -71,8 +71,18 @@ public:
     std::list<Socket *> receivers;
 
     /* options */
+    bool http_parse_cookie :1;
+    bool http_parse_post :1;
+    bool http_parse_files :1;
+#ifdef SW_HAVE_COMPRESSION
+    bool http_compression :1;
+#endif
 #ifdef SW_HAVE_ZLIB
-    bool websocket_compression;
+    bool websocket_compression :1;
+#endif
+    char *upload_tmp_dir;
+#ifdef SW_HAVE_COMPRESSION
+    uint8_t http_compression_level;
 #endif
 
     http_server(enum swSocket_type type)
@@ -81,9 +91,22 @@ public:
         default_handler = nullptr;
         running = true;
 
+        http_parse_cookie = true;
+        http_parse_post = true;
+        http_parse_files = false;
+#ifdef SW_HAVE_COMPRESSION
+        http_compression = true;
+        http_compression_level = SW_Z_BEST_SPEED;
+#endif
 #ifdef SW_HAVE_ZLIB
         websocket_compression = false;
 #endif
+        upload_tmp_dir = sw_strdup("/tmp");
+    }
+
+    ~http_server()
+    {
+        sw_free(upload_tmp_dir);
     }
 
     void set_handler(string pattern, php_swoole_fci *fci)
@@ -125,11 +148,12 @@ public:
     http_context* create_context(Socket *conn, zval *zconn)
     {
         http_context *ctx = swoole_http_context_new(conn->get_fd());
-        ctx->parse_body = 1;
-        ctx->parse_cookie = 1;
+        ctx->parse_body = http_parse_post;
+        ctx->parse_cookie = http_parse_cookie;
+        ctx->parse_files = http_parse_files;
 #ifdef SW_HAVE_COMPRESSION
-        ctx->enable_compression = 1;
-        ctx->compression_level = SW_Z_BEST_SPEED;
+        ctx->enable_compression = http_compression;
+        ctx->compression_level = http_compression_level;
 #endif
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = websocket_compression;
@@ -139,7 +163,7 @@ public:
         ctx->send = http_context_send_data;
         ctx->sendfile = http_context_sendfile;
         ctx->close = http_context_disconnect;
-        ctx->upload_tmp_dir = "/tmp";
+        ctx->upload_tmp_dir = upload_tmp_dir;
 
         swoole_http_parser *parser = &ctx->parser;
         parser->data = ctx;
@@ -423,14 +447,64 @@ static PHP_METHOD(swoole_http_server_coro, start)
     /* check settings */
     zval *zsettings = sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
     php_swoole_socket_set_protocol(hs->socket, zsettings);
-#ifdef SW_HAVE_ZLIB
     HashTable *vht = Z_ARRVAL_P(zsettings);
     zval *ztmp;
+    //parse cookie header
+    if (php_swoole_array_get_value(vht, "http_parse_cookie", ztmp))
+    {
+        hs->http_parse_cookie = zval_is_true(ztmp);
+    }
+    //parse x-www-form-urlencoded form data
+    if (php_swoole_array_get_value(vht, "http_parse_post", ztmp))
+    {
+        hs->http_parse_post = zval_is_true(ztmp);
+    }
+    //parse multipart/form-data file uploads
+    if (php_swoole_array_get_value(vht, "http_parse_files", ztmp))
+    {
+        hs->http_parse_files = zval_is_true(ztmp);
+    }
+#ifdef SW_HAVE_COMPRESSION
+    //http content compression
+    if (php_swoole_array_get_value(vht, "http_compression", ztmp))
+    {
+        hs->http_compression = zval_is_true(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "http_compression_level", ztmp) || php_swoole_array_get_value(vht, "http_gzip_level", ztmp))
+    {
+        zend_long level = zval_get_long(ztmp);
+        if (level > UINT8_MAX)
+        {
+            level = UINT8_MAX;
+        }
+        else if (level < 0)
+        {
+            level = 0;
+        }
+        hs->http_compression_level = level;
+    }
+#endif
+#ifdef SW_HAVE_ZLIB
     if (php_swoole_array_get_value(vht, "websocket_compression", ztmp))
     {
         hs->websocket_compression = zval_is_true(ztmp);
     }
 #endif
+    //temporary directory for HTTP uploaded file.
+    if (php_swoole_array_get_value(vht, "upload_tmp_dir", ztmp))
+    {
+        zend::string str_v(ztmp);
+        if (php_swoole_create_dir(str_v.val(), str_v.len()) < 0)
+        {
+            php_swoole_fatal_error(E_ERROR, "Unable to create upload_tmp_dir[%s]", str_v.val());
+            return;
+        }
+        if (hs->upload_tmp_dir)
+        {
+            sw_free(hs->upload_tmp_dir);
+        }
+        hs->upload_tmp_dir = str_v.dup();
+    }
 
     php_swoole_http_server_init_global_variant();
 
