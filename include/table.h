@@ -18,6 +18,7 @@
 
 #include "atomic.h"
 #include "hash.h"
+#include <string>
 #include <vector>
 #include <unordered_map>
 
