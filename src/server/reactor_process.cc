@@ -31,7 +31,7 @@ static uint32_t heartbeat_check_lasttime = 0;
 
 static bool swServer_is_single(swServer *serv)
 {
-    return serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 && serv->user_worker_list == NULL;
+    return serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 && serv->user_worker_list == nullptr;
 }
 
 int swReactorProcess_create(swServer *serv)
@@ -61,13 +61,12 @@ void swReactorProcess_free(swServer *serv)
 
 int swReactorProcess_start(swServer *serv)
 {
-    swListenPort *ls;
     serv->single_thread = 1;
 
     //listen TCP
     if (serv->have_stream_sock == 1)
     {
-        LL_FOREACH(serv->listen_list, ls)
+        for (auto ls : *serv->listen_list)
         {
             if (swSocket_is_dgram(ls->type))
             {
@@ -157,17 +156,16 @@ int swReactorProcess_start(swServer *serv)
             swSysWarn("gmalloc[server->user_workers] failed");
             return SW_ERR;
         }
-        swUserWorker_node *user_worker;
-        LL_FOREACH(serv->user_worker_list, user_worker)
+        for (auto worker : *serv->user_worker_list)
         {
             /**
              * store the pipe object
              */
-            if (user_worker->worker->pipe_object)
+            if (worker->pipe_object)
             {
-                swServer_store_pipe_fd(serv, user_worker->worker->pipe_object);
+                swServer_store_pipe_fd(serv, worker->pipe_object);
             }
-            swManager_spawn_user_worker(serv, user_worker->worker);
+            swManager_spawn_user_worker(serv, worker);
         }
     }
 
@@ -331,10 +329,9 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         return SW_ERR;
     }
 
-    swListenPort *ls;
     int fdtype;
 
-    LL_FOREACH(serv->listen_list, ls)
+    for (auto ls : *serv->listen_list)
     {
         fdtype = swSocket_is_dgram(ls->type) ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
 #ifdef HAVE_REUSEPORT

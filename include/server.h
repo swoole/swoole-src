@@ -98,8 +98,6 @@ struct swReactorThread
 
 struct swListenPort
 {
-    swListenPort *next, *prev;
-
     /**
      * tcp socket listen backlog
      */
@@ -204,12 +202,6 @@ struct swListenPort
     swProtocol protocol;
     void *ptr;
     int (*onRead)(swReactor *reactor, swListenPort *port, swEvent *event);
-};
-
-struct swUserWorker_node
-{
-    swUserWorker_node *next, *prev;
-    swWorker *worker;
 };
 
 struct swWorkerStopMessage
@@ -490,7 +482,7 @@ struct swServer
     void *private_data_3;
 
     swFactory factory;
-    swListenPort *listen_list;
+    std::vector<swListenPort*> *listen_list;
     pthread_t heartbeat_pidt;
 
     /**
@@ -507,7 +499,7 @@ struct swServer
      * user process
      */
     uint32_t user_worker_num;
-    swUserWorker_node *user_worker_list;
+    std::vector<swWorker*> *user_worker_list;
     swHashMap *user_worker_map;
     swWorker *user_workers;
 

@@ -49,15 +49,13 @@ static void swServer_check_port_type(swServer *serv, swListenPort *ls);
 
 static void swServer_disable_accept(swServer *serv)
 {
-    swListenPort *ls;
-
     serv->enable_accept_timer = swoole_timer_add(SW_ACCEPT_RETRY_TIME * 1000, 0, swServer_enable_accept, serv);
     if (serv->enable_accept_timer == nullptr)
     {
         return;
     }
 
-    LL_FOREACH(serv->listen_list, ls)
+    for (auto ls : *serv->listen_list)
     {
         //UDP
         if (swSocket_is_dgram(ls->type))
@@ -70,10 +68,9 @@ static void swServer_disable_accept(swServer *serv)
 
 static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode)
 {
-    swListenPort *ls;
     swServer *serv = (swServer *) tnode->data;
 
-    LL_FOREACH(serv->listen_list, ls)
+    for (auto ls : *serv->listen_list)
     {
         if (swSocket_is_dgram(ls->type))
         {
@@ -87,8 +84,7 @@ static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode)
 
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port)
 {
-    swListenPort *ls;
-    LL_FOREACH(serv->listen_list, ls)
+    for (auto ls : *serv->listen_list)
     {
         if (only_stream_port && swSocket_is_dgram(ls->type))
         {
@@ -400,8 +396,7 @@ static int swServer_start_check(swServer *serv)
         swWarn("serv->max_connection is exceed the SW_SESSION_LIST_SIZE, it's reset to %u", SW_SESSION_LIST_SIZE);
     }
     // package max length
-    swListenPort *ls;
-    LL_FOREACH(serv->listen_list, ls)
+    for (auto ls : *serv->listen_list)
     {
         if (ls->protocol.package_max_length < SW_BUFFER_MIN_SIZE)
         {
@@ -433,9 +428,9 @@ static int swServer_start_check(swServer *serv)
 
 void swServer_store_listen_socket(swServer *serv)
 {
-    swListenPort *ls;
     int sockfd;
-    LL_FOREACH(serv->listen_list, ls)
+
+    for (auto ls : *serv->listen_list)
     {
         sockfd = ls->socket->fd;
         //save server socket to connection_list
@@ -560,10 +555,23 @@ int swServer_create_task_workers(swServer *serv)
 }
 
 /**
- * only the memory of the swWorker structure is allocated, no process is fork
+ * @description: 
+ *  only the memory of the swWorker structure is allocated, no process is fork.
+ *  called when the manager process start.
+ * @param swServer
+ * @return: SW_OK|SW_ERR
  */
 int swServer_create_user_workers(swServer *serv)
 {
+    /**
+     * if Swoole\Server::addProcess is called first, 
+     * swServer::user_worker_list is initialized in the swServer_add_worker function
+     */
+    if (serv->user_worker_list == nullptr)
+    {
+        serv->user_worker_list = new std::vector<swWorker *>;
+    }
+
     serv->user_workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->user_worker_num * sizeof(swWorker));
     if (serv->user_workers == NULL)
     {
@@ -812,11 +820,10 @@ int swServer_start(swServer *serv)
      */
     if (serv->user_worker_list)
     {
-        swUserWorker_node *user_worker;
         i = 0;
-        LL_FOREACH(serv->user_worker_list, user_worker)
+        for (auto worker : *serv->user_worker_list)
         {
-            user_worker->worker->id = serv->worker_num + serv->task_worker_num + i;
+            worker->id = serv->worker_num + serv->task_worker_num + i;
             i++;
         }
     }
@@ -983,12 +990,11 @@ int swServer_shutdown(swServer *serv)
     {
         swReactor *reactor = SwooleTG.reactor;
         reactor->wait_exit = 1;
-        swListenPort *port;
-        LL_FOREACH(serv->listen_list, port)
+        for (auto ls : *serv->listen_list)
         {
-            if (swSocket_is_stream(port->type))
+            if (swSocket_is_stream(ls->type))
             {
-                reactor->del(reactor, port->socket);
+                reactor->del(reactor, ls->socket);
             }
         }
         swServer_clear_timer(serv);
@@ -1028,11 +1034,21 @@ static int swServer_destory(swServer *serv)
         swReactorThread_join(serv);
     }
 
-    swListenPort *port;
-    LL_FOREACH(serv->listen_list, port)
+    for (auto ls : *serv->listen_list)
     {
-        swPort_free(port);
+        swPort_free(ls);
     }
+    delete serv->listen_list;
+    serv->listen_list = nullptr;
+
+    /**
+     * because the swWorker in user_worker_list is the memory allocated by emalloc, 
+     * the efree function will be called when the user process is destructed, 
+     * so there's no need to call the efree here.
+     */
+    delete serv->user_worker_list;
+    serv->user_worker_list = nullptr;
+
     //close log file
     if (SwooleG.log_file != 0)
     {
@@ -1641,16 +1657,13 @@ void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
 
 int swServer_add_worker(swServer *serv, swWorker *worker)
 {
-    swUserWorker_node *user_worker = (swUserWorker_node *) sw_malloc(sizeof(swUserWorker_node));
-    if (!user_worker)
+    if (serv->user_worker_list == nullptr)
     {
-        return SW_ERR;
+        serv->user_worker_list = new std::vector<swWorker *>;
     }
-
     serv->user_worker_num++;
-    user_worker->worker = worker;
+    serv->user_worker_list->push_back(worker);
 
-    LL_APPEND(serv->user_worker_list, user_worker);
     if (!serv->user_worker_map)
     {
         serv->user_worker_map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
@@ -1739,7 +1752,7 @@ int swServer_add_systemd_socket(swServer *serv)
         }
         swServer_check_port_type(serv, ls);
 
-        LL_APPEND(serv->listen_list, ls);
+        serv->listen_list->push_back(ls);
         serv->listen_port_num++;
         count++;
     }
@@ -1835,15 +1848,18 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
     }
     swServer_check_port_type(serv, ls);
     ls->socket_fd = ls->socket->fd;
-    LL_APPEND(serv->listen_list, ls);
+    if (serv->listen_list == nullptr)
+    {
+        serv->listen_list = new std::vector<swListenPort *>;
+    }
+    serv->listen_list->push_back(ls);
     serv->listen_port_num++;
     return ls;
 }
 
 int swServer_get_socket(swServer *serv, int port)
 {
-    swListenPort *ls;
-    LL_FOREACH(serv->listen_list, ls)
+    for (auto ls : *serv->listen_list)
     {
         if (ls->port == port || port == 0)
         {

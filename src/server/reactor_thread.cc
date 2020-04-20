@@ -392,8 +392,7 @@ static void swReactorThread_shutdown(swReactor *reactor)
     //stop listen UDP Port
     if (serv->have_dgram_sock == 1)
     {
-        swListenPort *ls;
-        LL_FOREACH(serv->listen_list, ls)
+        for (auto ls : *serv->listen_list)
         {
             if (swSocket_is_dgram(ls->type))
             {
@@ -619,9 +618,8 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
     //Read
     swReactor_set_handler(reactor, SW_FD_SESSION | SW_EVENT_READ, swReactorThread_onRead);
 
-    swListenPort *ls;
     //listen the all tcp port
-    LL_FOREACH(serv->listen_list, ls)
+    for (auto ls : *serv->listen_list)
     {
         if (swSocket_is_dgram(ls->type)
 #ifdef SW_SUPPORT_DTLS
@@ -853,14 +851,14 @@ int swReactorThread_start(swServer *serv)
 #endif
 
     //set listen socket options
-    swListenPort *ls;
-    LL_FOREACH(serv->listen_list, ls)
+    std::vector<swListenPort *>::iterator ls;
+    for (ls = serv->listen_list->begin(); ls != serv->listen_list->end(); ls++)
     {
-        if (swSocket_is_dgram(ls->type))
+        if (swSocket_is_dgram((*ls)->type))
         {
             continue;
         }
-        if (swPort_listen(ls) < 0)
+        if (swPort_listen(*ls) < 0)
         {
             _failed:
             reactor->free(reactor);
@@ -868,7 +866,7 @@ int swReactorThread_start(swServer *serv)
             sw_free(reactor);
             return SW_ERR;
         }
-        reactor->add(reactor, ls->socket, SW_EVENT_READ);
+        reactor->add(reactor, (*ls)->socket, SW_EVENT_READ);
     }
 
     /**
@@ -996,8 +994,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
     //listen UDP port
     if (serv->have_dgram_sock == 1)
     {
-        swListenPort *ls;
-        LL_FOREACH(serv->listen_list, ls)
+        for (auto ls : *serv->listen_list)
         {
             if (swSocket_is_stream(ls->type))
             {
