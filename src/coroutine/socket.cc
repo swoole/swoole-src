@@ -1543,7 +1543,7 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
             if (::inet_aton(host.c_str(), &addr.in.sin_addr) == 0)
             {
                 read_co = write_co = Coroutine::get_current_safe();
-                host = System::gethostbyname(std::string(address), sock_domain, dns_timeout);
+                host = System::gethostbyname(std::string(address), sock_domain, connect_timeout);
                 read_co = write_co = nullptr;
                 if (host.empty())
                 {
@@ -1565,7 +1565,7 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
             if (::inet_pton(AF_INET6, host.c_str(), &addr.in6.sin6_addr) == 0)
             {
                 read_co = write_co = Coroutine::get_current_safe();
-                std::string host = System::gethostbyname(std::string(address), sock_domain, dns_timeout);
+                std::string host = System::gethostbyname(std::string(address), sock_domain, connect_timeout);
                 read_co = write_co = nullptr;
                 if (host.empty())
                 {

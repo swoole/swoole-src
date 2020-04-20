@@ -350,7 +350,6 @@ void php_swoole_event_wait();
 void php_swoole_event_exit();
 
 void php_swoole_server_register_callbacks(swServer *serv);
-void php_swoole_client_free(zval *zobject, swClient *cli);
 swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int port);
 void php_swoole_client_check_setting(swClient *cli, zval *zset);
 #ifdef SW_USE_OPENSSL
@@ -392,6 +391,7 @@ void swoole_php_socket_free(zval *zsocket);
 #endif
 
 zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int server_fd, int event_type);
+int php_swoole_create_dir(const char* path, size_t length);
 void php_swoole_server_before_start(swServer *serv, zval *zobject);
 void php_swoole_http_server_init_global_variant();
 void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value);
