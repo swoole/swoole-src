@@ -781,7 +781,7 @@ zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int serve
     }
 }
 
-static int php_swoole_create_dir(const char* path, size_t length)
+int php_swoole_create_dir(const char* path, size_t length)
 {
     if (access(path, F_OK) == 0)
     {
