@@ -355,6 +355,7 @@ enum swFd_type
      * signalfd
      */
     SW_FD_SIGNAL,
+    SW_FD_DNS_RESOLVER,
     /**
      * SW_FD_USER or SW_FD_USER+n: for custom event
      */
