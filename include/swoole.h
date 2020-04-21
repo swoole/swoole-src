@@ -182,7 +182,6 @@ typedef unsigned long ulong_t;
 #include "atomic.h"
 #include "buffer.h"
 #include "hashmap.h"
-#include "list.h"
 #include "heap.h"
 #include "ring_queue.h"
 #include "error.h"
