@@ -107,6 +107,7 @@ static void php_swoole_channel_coro_dtor_object(zend_object *object)
         delete chan;
         chan_coro->chan = nullptr;
     }
+    zend_objects_destroy_object(object);
 }
 
 static void php_swoole_channel_coro_free_object(zend_object *object)
