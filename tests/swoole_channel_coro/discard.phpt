@@ -23,4 +23,3 @@ var_dump('scheduler end');
 --EXPECTF--
 string(12) "push success"
 string(13) "scheduler end"
-[%s]	WARNING	~Channel (ERRNO %d): %s

@@ -713,6 +713,9 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 #define SW_SET_CLASS_CREATE(module, _create_object) \
     module##_ce->create_object = _create_object
 
+#define SW_SET_CLASS_DTOR(module, _dtor_obj) \
+    module##_handlers.dtor_obj = _dtor_obj
+
 #define SW_SET_CLASS_FREE(module, _free_obj) \
     module##_handlers.free_obj = _free_obj
 
