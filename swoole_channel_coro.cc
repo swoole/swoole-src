@@ -96,9 +96,9 @@ static void php_swoole_channel_coro_dtor_object(zend_object *object)
 {
     channel_coro *chan_coro = php_swoole_channel_coro_fetch_object(object);
     Channel *chan = chan_coro->chan;
-    chan->close();
     if (chan)
     {
+        chan->close();
         zval *data;
         while ((data = (zval *) chan->pop_data()))
         {
