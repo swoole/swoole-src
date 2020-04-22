@@ -94,6 +94,8 @@ static sw_inline Channel * php_swoole_get_channel(zval *zobject)
 
 static void php_swoole_channel_coro_dtor_object(zend_object *object)
 {
+    zend_objects_destroy_object(object);
+
     channel_coro *chan_coro = php_swoole_channel_coro_fetch_object(object);
     Channel *chan = chan_coro->chan;
     if (chan)
@@ -107,7 +109,6 @@ static void php_swoole_channel_coro_dtor_object(zend_object *object)
         delete chan;
         chan_coro->chan = nullptr;
     }
-    zend_objects_destroy_object(object);
 }
 
 static void php_swoole_channel_coro_free_object(zend_object *object)
