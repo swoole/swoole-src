@@ -579,15 +579,15 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
     size_t total_bytes = 0;
     http_context *ctx = nullptr;
 
+    hs->receivers.push_front(sock);
+    auto receiver = hs->receivers.begin();
+
     while (true)
     {
         ssize_t retval;
         if (ctx != nullptr || total_bytes == 0)
         {
-            hs->receivers.push_front(sock);
-            auto receiver = hs->receivers.begin();
             retval = sock->recv(buffer->str + total_bytes, buffer->size - total_bytes);
-            hs->receivers.erase(receiver);
 
             if (sw_unlikely(retval <= 0))
             {
@@ -648,7 +648,9 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
             buffer->length = total_bytes - (sizeof(SW_HTTP2_PRI_STRING) - 1);
             buffer->offset = buffer->length == 0 ? 0 : (sizeof(SW_HTTP2_PRI_STRING) - 1);
             hs->recv_http2_frame(ctx);
-            return;
+            /* ownership of ctx has been transferred */
+            ctx = nullptr;
+            break;
         }
 #endif
 
@@ -706,6 +708,8 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
         zval_dtor(ctx->request.zobject);
         zval_dtor(ctx->response.zobject);
     }
+
+    hs->receivers.erase(receiver);
 }
 
 static PHP_METHOD(swoole_http_server_coro, shutdown)
