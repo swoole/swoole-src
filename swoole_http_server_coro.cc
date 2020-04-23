@@ -573,7 +573,12 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
 #ifdef SW_USE_OPENSSL
     if (sock->open_ssl)
     {
-        if (!sock->ssl_handshake())
+        bool ret;
+        hs->receivers.push_front(sock);
+        auto receiver = hs->receivers.begin();
+        ret = sock->ssl_handshake();
+        hs->receivers.erase(receiver);
+        if (!ret)
         {
             return;
         }
