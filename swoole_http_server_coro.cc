@@ -591,10 +591,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
         ssize_t retval;
         if (ctx != nullptr || total_bytes == 0)
         {
-            hs->receivers.push_front(sock);
-            auto receiver = hs->receivers.begin();
             retval = sock->recv(buffer->str + total_bytes, buffer->size - total_bytes);
-            hs->receivers.erase(receiver);
 
             if (sw_unlikely(retval <= 0))
             {
