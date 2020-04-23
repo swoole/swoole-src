@@ -54,6 +54,7 @@ extern "C"
 {
 static PHP_METHOD(swoole_runtime, enableCoroutine);
 static PHP_METHOD(swoole_runtime, getHookFlags);
+static PHP_METHOD(swoole_runtime, setHookFlags);
 static PHP_FUNCTION(swoole_sleep);
 static PHP_FUNCTION(swoole_usleep);
 static PHP_FUNCTION(swoole_time_nanosleep);
@@ -81,6 +82,10 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_runtime_enableCoroutine, 0, 0, 0)
     ZEND_ARG_INFO(0, enable)
+    ZEND_ARG_INFO(0, flags)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_runtime_setHookFlags, 0, 0, 1)
     ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
@@ -149,6 +154,7 @@ static const zend_function_entry swoole_runtime_methods[] =
 {
     PHP_ME(swoole_runtime, enableCoroutine, arginfo_swoole_runtime_enableCoroutine, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_runtime, getHookFlags, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_runtime, setHookFlags, arginfo_swoole_runtime_setHookFlags, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -1320,6 +1326,17 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
 static PHP_METHOD(swoole_runtime, getHookFlags)
 {
     RETURN_LONG(hook_flags);
+}
+
+static PHP_METHOD(swoole_runtime, setHookFlags)
+{
+    zend_long flags = SW_HOOK_ALL;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(flags)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    RETURN_BOOL(PHPCoroutine::enable_hook(flags));
 }
 
 static PHP_FUNCTION(swoole_sleep)
