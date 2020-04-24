@@ -30,6 +30,7 @@ $pm->childFunc = function () use ($pm) {
         $server->handle('/shutdown', function ($request, $response) use ($server) {
             echo "shutdown\n";
             $response->status(200);
+            $response->end();
             $server->shutdown();
         });
         $pm->wakeup();
