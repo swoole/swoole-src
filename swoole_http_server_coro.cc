@@ -126,6 +126,10 @@ public:
     {
         for (auto i = handlers.begin(); i != handlers.end(); i++)
         {
+            if (&i->second == default_handler)
+            {
+                continue;
+            }
             if (swoole_strcasect(ctx->request.path, ctx->request.path_len, i->first.c_str(), i->first.length()))
             {
                 return &i->second;
@@ -295,7 +299,7 @@ void php_swoole_http_server_coro_minit(int module_number)
     {
         http_server_coro_t *hs = php_swoole_http_server_coro_fetch_object(SW_Z7_OBJ_P(object));
         *gc_data = &hs->server->zcallbacks;
-        *gc_count = zend_hash_num_elements(Z_ARRVAL_P(&hs->server->zcallbacks));
+        *gc_count = 1;
         return zend_std_get_properties(object);
     };
 
@@ -704,7 +708,11 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
 #ifdef SW_USE_OPENSSL
     _handshake_failed:
 #endif
-    hs->clients.erase(client_iterator);
+    /* notice: do not erase the element when server is shutting down */
+    if (hs->running)
+    {
+        hs->clients.erase(client_iterator);
+    }
 }
 
 static PHP_METHOD(swoole_http_server_coro, shutdown)
@@ -717,6 +725,7 @@ static PHP_METHOD(swoole_http_server_coro, shutdown)
     {
         client->close();
     }
+    hs->clients.clear();
 }
 
 #ifdef SW_USE_HTTP2
