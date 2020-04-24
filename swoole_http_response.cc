@@ -454,17 +454,37 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
         (void)type;
     }
 
+    //http cookies
+    zval *zcookie = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("cookie"), 0);
+    if (ZVAL_IS_ARRAY(zcookie))
+    {
+        zval *zvalue;
+        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zcookie), zvalue)
+        {
+            if (Z_TYPE_P(zvalue) != IS_STRING)
+            {
+                continue;
+            }
+            swString_append_ptr(response, ZEND_STRL("Set-Cookie: "));
+            swString_append_ptr(response, Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue));
+            swString_append_ptr(response, ZEND_STRL("\r\n"));
+        }
+        SW_HASHTABLE_FOREACH_END();
+    }
+
     if (!(header_flag & HTTP_HEADER_SERVER))
     {
         swString_append_ptr(response, ZEND_STRL("Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"));
     }
-    //websocket protocol
+
+    // websocket protocol (subsequent header info is unnecessary)
     if (ctx->upgrade == 1)
     {
         swString_append_ptr(response, ZEND_STRL("\r\n"));
         ctx->send_header = 1;
         return;
     }
+
     if (!(header_flag & HTTP_HEADER_CONNECTION))
     {
         if (ctx->keepalive)
@@ -506,24 +526,6 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
 #endif
         n = sw_snprintf(buf, l_buf, "Content-Length: %d\r\n", body_length);
         swString_append_ptr(response, buf, n);
-    }
-
-    //http cookies
-    zval *zcookie = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("cookie"), 0);
-    if (ZVAL_IS_ARRAY(zcookie))
-    {
-        zval *zvalue;
-        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zcookie), zvalue)
-        {
-            if (Z_TYPE_P(zvalue) != IS_STRING)
-            {
-                continue;
-            }
-            swString_append_ptr(response, ZEND_STRL("Set-Cookie: "));
-            swString_append_ptr(response, Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue));
-            swString_append_ptr(response, ZEND_STRL("\r\n"));
-        }
-        SW_HASHTABLE_FOREACH_END();
     }
 #ifdef SW_HAVE_COMPRESSION
     //http compress
