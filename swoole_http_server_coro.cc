@@ -68,7 +68,7 @@ public:
     map<string, php_swoole_fci *> handlers;
     php_swoole_fci *default_handler;
     bool running;
-    std::list<Socket *> receivers;
+    std::list<Socket *> clients;
 
     /* options */
     bool http_parse_cookie :1;
@@ -573,8 +573,8 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
     size_t total_bytes = 0;
     http_context *ctx = nullptr;
 
-    hs->receivers.push_front(sock);
-    auto receiver = hs->receivers.begin();
+    hs->clients.push_front(sock);
+    auto client_iterator = hs->clients.begin();
 
 #ifdef SW_USE_OPENSSL
     if (sock->open_ssl)
@@ -716,7 +716,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
 #ifdef SW_USE_OPENSSL
     _handshake_failed:
 #endif
-    hs->receivers.erase(receiver);
+    hs->clients.erase(client_iterator);
 }
 
 static PHP_METHOD(swoole_http_server_coro, shutdown)
@@ -724,9 +724,10 @@ static PHP_METHOD(swoole_http_server_coro, shutdown)
     http_server *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     hs->running = false;
     hs->socket->cancel(SW_EVENT_READ);
-    while (!hs->receivers.empty())
+    /* accept has been canceled, we only need to traverse once */
+    for (auto client : hs->clients)
     {
-        hs->receivers.back()->close();
+        client->close();
     }
 }
 
