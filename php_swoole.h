@@ -896,9 +896,13 @@ static sw_inline zval* sw_zend_read_and_convert_property_array(zend_class_entry 
 //----------------------------------Function API------------------------------------
 
 #if PHP_VERSION_ID < 80000
-#define SW_Z8_OBJ_P(zobj) zobj
+#define sw_zend7_object      zval
+#define SW_Z7_OBJ_P(object)  Z_OBJ_P(object)
+#define SW_Z8_OBJ_P(zobj)    zobj
 #else
-#define SW_Z8_OBJ_P(zobj) Z_OBJ_P(zobj)
+#define sw_zend7_object      zend_object
+#define SW_Z7_OBJ_P(object)  object
+#define SW_Z8_OBJ_P(zobj)    Z_OBJ_P(zobj)
 #endif
 
 /**
