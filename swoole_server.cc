@@ -567,7 +567,6 @@ static PHP_METHOD(swoole_server, shutdown);
 static PHP_METHOD(swoole_server, heartbeat);
 static PHP_METHOD(swoole_server, getClientList);
 static PHP_METHOD(swoole_server, getClientInfo);
-static PHP_METHOD(swoole_server, getInstance);
 static PHP_METHOD(swoole_server, getWorkerId);
 static PHP_METHOD(swoole_server, getWorkerPid);
 static PHP_METHOD(swoole_server, getWorkerStatus);
@@ -634,7 +633,6 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, heartbeat, arginfo_swoole_server_heartbeat, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, getClientInfo, arginfo_swoole_server_getClientInfo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, getClientList, arginfo_swoole_server_getClientList, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, getInstance, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_server, getWorkerId, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, getWorkerPid, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, getWorkerStatus, arginfo_swoole_server_getWorkerStatus, ZEND_ACC_PUBLIC)
@@ -4346,20 +4344,6 @@ static PHP_METHOD(swoole_server, getReceivedTime)
     }
 }
 #endif
-
-static PHP_METHOD(swoole_server, getInstance)
-{
-    if (!sw_server())
-    {
-        RETURN_FALSE;
-    }
-    swServer *serv = sw_server();
-    if (!serv->ptr2)
-    {
-        RETURN_FALSE;
-    }
-    RETURN_ZVAL((zval * )serv->ptr2, 1, 0);
-}
 
 static PHP_METHOD(swoole_server, getWorkerId)
 {
