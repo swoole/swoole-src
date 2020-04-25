@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-04-01</date>
-    <time>12:00:00</time>
+    <date>2020-04-25</date>
+    <time>16:00:00</time>
     <version>
-        <release>4.4.17</release>
+        <release>4.4.18</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -56,34 +56,28 @@
     <notes>
         Enhancement
         ---
-        + Improve SSL Server performance (#3077) (85a9a595) (@matyhtf)
-        + Remove SW_HTTP_HEADER_VALUE_SIZE, SW_HTTP_HEADER_BUFFER_SIZE (#3187) limitation (@twose)
-        + Support MIPS (#3196) (@ekongyun)
-        + Support CURLOPT_HTTPAUTH (swoole/library@570318be) (@twose)
+        + Resolve the domain name when use udp coroutine client (#3236) (#3239) (@huanghantao)
+        + Do not close stdout and stderr (show error logs after shutdown) (#3249) (@twose)
+        + Support some common options for Coroutine\Http\Server (#3257) (@twose)
+        + Support set cookies when websocket handshake (#3270) (#3272) (@twose)
+        + Support CURLOPT_FAILONERROR (swoole/library#20) (@sy-records)
+        + Support CURLOPT_SSLCERTTYPE, CURLOPT_SSLCERT, CURLOPT_SSLKEYTYPE, CURLOPT_SSLKEY (swoole/library#22) (@sy-records)
+        + Support CURLOPT_HTTPGET (swoole/library@d730bd08) (@shiguangqi)
+        + Compatible with different versions of Redis extension as much as possible (swoole/library#24) (@twose)
+        + Disable Cloning of Database Proxy Objects (swoole/library#23) (@deminy)
 
         Fixed
         ---
-        * Fixed behavior of package_length_func and memory leak (#3111) (@twose)
-        * Fixed HTTP 304 error (#3118) (#3120) (@twose)
-        * Fixed incorrect macro expansion (#3142) (@twose)
-        * Fixed OpenSSL function signature (#3154) (#3155) (@twose)
-        * Fixed SSL error msg (#3172) (@matyhtf) (@twose)
-        * Fixed PHP-7.4 compatibility (@twose) (@matyhtf)
-        * Fixed HTTP chunk length parser (19a1c712) (@twose)
-        * Fixed chunked multipart parser (3692d9de) (@twose)
-        * Fixed ZEND_ASSUME failed (fc0982be) (@twose)
-        * Fixed Socket address error (d72c5e3a) (@twose)
-        * Fixed Socket get name #3177 (#3179) (@matyhtf)
-        * Fixed static handler with empty file (#3182) (@twose)
-        * Fixed upload file handler on Coroutine\Http\Client (#3189) (#3191) (@twose)
-        * Fixed possible memory error on shutdown (44aef60a) (@matyhtf)
-        * Fixed Server->heartbeat (#3203) (@matyhtf)
-        * Fixed reactor defer task (only tasks of the current round will be called) (#3207) (@twose)
-        * Fixed invalid write on immutable array (#3212) (@twose)
-        * Fixed double wait, improve error message (swoole/library@537a82e1) (@twose)
-        * Fixed empty header (keep same with cURL) (swoole/library@7c92ed5a) (@twose)
-        * Fixed non-IO methods error handler (swoole/library@f6997394) (@twose)
-        * Fixed wrong proxy header (swoole/library@5e94e5da) (@twose)
+        * Fixed SSL handshake failure (dc5ac29a) (@twose)
+        * Fixed memory error when generate error message (#3229) (@twose)
+        * Fixed empty proxy authorization info (#3243) (@twose)
+        * Fixed channel unreal memory leak (#3260) (@twose)
+        * Fixed memory leak of Co\Http\Server (#3271) (@twose)
+        * Fixed `ConnectionPool->fill` (swoole/library#18) (@NHZEX)
+        * Fixed use new client for the redirection requests (swoole/library#21) (@doubaokun)
+        * Fixed null socket error in ioException (swoole/library@4d15a4c3) (@twose)
+        * Fixed ConnectionPool@put when error happens (swoole/library#25) (@Sinute)
+        * Fixed mysqli write_property error (swoole/library#26) (@twose)
     </notes>
     <contents>
         <dir name="/">
@@ -767,6 +761,7 @@
             <file role="test" name="tests/swoole_channel_coro/chan_stats.phpt" />
             <file role="test" name="tests/swoole_channel_coro/close.phpt" />
             <file role="test" name="tests/swoole_channel_coro/coro_wait.phpt" />
+            <file role="test" name="tests/swoole_channel_coro/discard.phpt" />
             <file role="test" name="tests/swoole_channel_coro/fibonacci.phpt" />
             <file role="test" name="tests/swoole_channel_coro/http2.phpt" />
             <file role="test" name="tests/swoole_channel_coro/hybird_chan.phpt" />
@@ -1524,6 +1519,7 @@
             <file role="test" name="tests/swoole_server/task/bug_2585.phpt" />
             <file role="test" name="tests/swoole_server/task/callback_is_null.phpt" />
             <file role="test" name="tests/swoole_server/task/enable_coroutine.phpt" />
+            <file role="test" name="tests/swoole_server/task/finish_timeout.phpt" />
             <file role="test" name="tests/swoole_server/task/huge_data.phpt" />
             <file role="test" name="tests/swoole_server/task/idle_worekr_num.phpt" />
             <file role="test" name="tests/swoole_server/task/kill_01.phpt" />
@@ -1647,6 +1643,7 @@
             <file role="test" name="tests/swoole_websocket_server/recv_decode.phpt" />
             <file role="test" name="tests/swoole_websocket_server/send_encode.phpt" />
             <file role="test" name="tests/swoole_websocket_server/send_encode_async.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/set_cookie_on_hanshake.phpt" />
             <file role="test" name="tests/template" />
             <file role="test" name="tests/test.sql" />
             <file role="src" name="thirdparty/boost/asm/combined.S" />

@@ -36,6 +36,7 @@ $files = [
     'core/Coroutine/Server/Connection.php',
     # <core for connection pool> #
     'core/ConnectionPool.php',
+    'core/Database/ObjectProxy.php',
     'core/Database/MysqliConfig.php',
     'core/Database/MysqliException.php',
     'core/Database/MysqliPool.php',
