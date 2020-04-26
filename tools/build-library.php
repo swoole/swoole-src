@@ -36,6 +36,7 @@ $files = [
     'core/Coroutine/Server/Connection.php',
     # <core for connection pool> #
     'core/ConnectionPool.php',
+    'core/Database/ObjectProxy.php',
     'core/Database/MysqliConfig.php',
     'core/Database/MysqliException.php',
     'core/Database/MysqliPool.php',
@@ -74,6 +75,7 @@ $files = [
     'core/FastCGI/HttpResponse.php',
     'core/Coroutine/FastCGI/Client.php',
     'core/Coroutine/FastCGI/Client/Exception.php',
+    'core/Coroutine/FastCGI/Proxy.php',
     # <ext> #
     'ext/curl.php',
     # <finalizer> #
