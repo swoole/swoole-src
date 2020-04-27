@@ -104,6 +104,10 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #endif
 typedef unsigned long ulong_t;
 
+#ifndef PRId64
+#define PRId64 "lld"
+#endif
+
 #ifndef PRIu64
 #define PRIu64 "llu"
 #endif

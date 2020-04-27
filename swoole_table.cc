@@ -393,7 +393,7 @@ PHP_METHOD(swoole_table, __construct)
         zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
-    table->hash_func = [](const char *key, size_t len) {
+    table->hash_func = [](const char *key, size_t len) -> uint64_t {
         zend_string *string = (zend_string *) (key - offsetof(zend_string, val));
         return zend_string_hash_val(string);
     };
