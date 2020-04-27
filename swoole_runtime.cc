@@ -467,9 +467,10 @@ static int socket_stat(php_stream *stream, php_stream_statbuf *ssb)
 
 static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xport_param *xparam)
 {
-    char *host = NULL;
-    int portno = 0;
+    char *host = NULL, *bindto = NULL;
+    int portno = 0, bindport = 0;
     int ret = 0;
+    zval *tmpzval = NULL;
     char *ip_address = NULL;
 
     if (UNEXPECTED(sock->get_fd() < 0))
@@ -496,6 +497,31 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     {
         return FAILURE;
     }
+    if (PHP_STREAM_CONTEXT(stream) && (tmpzval = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "socket", "bindto")) != NULL)
+    {
+        if (Z_TYPE_P(tmpzval) != IS_STRING)
+        {
+            if (xparam->want_errortext)
+            {
+                xparam->outputs.error_text = strpprintf(0, "local_addr context option is not a string.");
+            }
+            efree(ip_address);
+            return FAILURE;
+        }
+        bindto = parse_ip_address_ex(Z_STRVAL_P(tmpzval), Z_STRLEN_P(tmpzval), &bindport, xparam->want_errortext, &xparam->outputs.error_text);
+        if (bindto == NULL)
+        {
+            efree(ip_address);
+            return FAILURE;
+        }
+        if (!sock->bind(bindto, bindport))
+        {
+            efree(ip_address);
+            efree(bindto);
+            return FAILURE;
+        }
+    }
+    
     if (xparam->inputs.timeout)
     {
         sock->set_timeout(xparam->inputs.timeout, SW_TIMEOUT_CONNECT);
@@ -512,6 +538,10 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     if (ip_address)
     {
         efree(ip_address);
+    }
+    if (bindto)
+    {
+        efree(bindto);
     }
     return ret;
 }
