@@ -690,7 +690,9 @@ static PHP_METHOD(swoole_client_coro, connect)
     Socket *cli = php_swoole_get_sock(ZEND_THIS);
     if (cli)
     {
-        delete cli;
+        zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), EISCONN);
+        zend_update_property_string(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errMsg"), swoole_strerror(EISCONN));
+        RETURN_FALSE;
     }
 
     cli = client_coro_new(ZEND_THIS, (int) port);

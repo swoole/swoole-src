@@ -18,8 +18,11 @@ $pm->parentFunc = function () use ($pm) {
         $client = new Client(SWOOLE_SOCK_TCP);
         reconnect:
         if (!$client->connect('127.0.0.1', 9501)) {
-            Assert::eq($client->errCode, 111);
-            Assert::eq($client->errMsg, 'Connection refused');
+            /**
+            * if we want to reconnect server, we should call $client->close() first
+            */
+            Assert::eq($client->errCode, SOCKET_EISCONN);
+            Assert::eq($client->errMsg, swoole_strerror(SOCKET_EISCONN));
         }
 
         $pm->kill();
