@@ -797,7 +797,7 @@ static zend_always_inline void *zend_object_alloc(size_t obj_size, zend_class_en
 
 static sw_inline zend_object *sw_zend_create_object(zend_class_entry *ce, zend_object_handlers *handlers)
 {
-    zend_object* object = zend_object_alloc(sizeof(zend_object), ce);
+    zend_object* object = (zend_object *) zend_object_alloc(sizeof(zend_object), ce);
     zend_object_std_init(object, ce);
     object_properties_init(object, ce);
     object->handlers = handlers;
