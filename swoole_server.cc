@@ -247,7 +247,7 @@ static void php_swoole_server_free_object(zend_object *object)
 
 static zend_object *php_swoole_server_create_object(zend_class_entry *ce)
 {
-    server_t *server = (server_t *) ecalloc(1, sizeof(server_t) + zend_object_properties_size(ce));
+    server_t *server = (server_t *) zend_object_alloc(sizeof(server_t), ce);
     zend_object_std_init(&server->std, ce);
     object_properties_init(&server->std, ce);
     server->std.handlers = &swoole_server_handlers;
@@ -287,7 +287,7 @@ static void php_swoole_connection_iterator_free_object(zend_object *object)
 
 static zend_object *php_swoole_connection_iterator_create_object(zend_class_entry *ce)
 {
-    connection_iterator_t *connection = (connection_iterator_t *) ecalloc(1, sizeof(connection_iterator_t) + zend_object_properties_size(ce));
+    connection_iterator_t *connection = (connection_iterator_t *) zend_object_alloc(sizeof(connection_iterator_t), ce);
     zend_object_std_init(&connection->std, ce);
     object_properties_init(&connection->std, ce);
     connection->std.handlers = &swoole_connection_iterator_handlers;
@@ -343,7 +343,7 @@ static void php_swoole_server_task_free_object(zend_object *object)
 
 static zend_object *php_swoole_server_task_create_object(zend_class_entry *ce)
 {
-    server_task_t *server_task = (server_task_t *) ecalloc(1, sizeof(server_task_t) + zend_object_properties_size(ce));
+    server_task_t *server_task = (server_task_t *) zend_object_alloc(sizeof(server_task_t), ce);
     zend_object_std_init(&server_task->std, ce);
     object_properties_init(&server_task->std, ce);
     server_task->std.handlers = &swoole_server_task_handlers;

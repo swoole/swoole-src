@@ -157,7 +157,7 @@ static void php_swoole_client_coro_free_object(zend_object *object)
 
 static zend_object *php_swoole_client_coro_create_object(zend_class_entry *ce)
 {
-    client_coro *sock_t = (client_coro *) ecalloc(1, sizeof(client_coro) + zend_object_properties_size(ce));
+    client_coro *sock_t = (client_coro *) zend_object_alloc(sizeof(client_coro), ce);
     zend_object_std_init(&sock_t->std, ce);
     object_properties_init(&sock_t->std, ce);
     sock_t->std.handlers = &swoole_client_coro_handlers;

@@ -846,9 +846,22 @@ static sw_inline int sw_zend_register_class_alias(const char *name, size_t name_
 #endif
 }
 
+#if PHP_VERSION_ID < 70300
+/* Allocates object type and zeros it, but not the properties.
+ * Properties MUST be initialized using object_properties_init(). */
+static zend_always_inline void *zend_object_alloc(size_t obj_size, zend_class_entry *ce)
+{
+    void *obj = emalloc(obj_size + zend_object_properties_size(ce));
+    /* Subtraction of sizeof(zval) is necessary, because zend_object_properties_size() may be
+     * -sizeof(zval), if the object has no properties. */
+    memset(obj, 0, obj_size - sizeof(zval));
+    return obj;
+}
+#endif
+
 static sw_inline zend_object *sw_zend_create_object(zend_class_entry *ce, zend_object_handlers *handlers)
 {
-    zend_object* object = (zend_object *) ecalloc(1, sizeof(zend_object) + zend_object_properties_size(ce));
+    zend_object* object = (zend_object *) zend_object_alloc(sizeof(zend_object), ce);
     zend_object_std_init(object, ce);
     object_properties_init(object, ce);
     object->handlers = handlers;
