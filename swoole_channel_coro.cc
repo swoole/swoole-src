@@ -124,7 +124,7 @@ static void php_swoole_channel_coro_free_object(zend_object *object)
 
 static zend_object *php_swoole_channel_coro_create_object(zend_class_entry *ce)
 {
-    channel_coro *chan_t = (channel_coro *) ecalloc(1, sizeof(channel_coro) + zend_object_properties_size(ce));
+    channel_coro *chan_t = (channel_coro *) zend_object_alloc(sizeof(channel_coro), ce);
     zend_object_std_init(&chan_t->std, ce);
     object_properties_init(&chan_t->std, ce);
     chan_t->std.handlers = &swoole_channel_coro_handlers;

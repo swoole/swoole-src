@@ -1720,7 +1720,7 @@ static void php_swoole_http_client_coro_free_object(zend_object *object)
 
 static zend_object *php_swoole_http_client_coro_create_object(zend_class_entry *ce)
 {
-    http_client_coro *hcc = (http_client_coro *) ecalloc(1, sizeof(http_client_coro) + zend_object_properties_size(ce));
+    http_client_coro *hcc = (http_client_coro *) zend_object_alloc(sizeof(http_client_coro), ce);
     zend_object_std_init(&hcc->std, ce);
     object_properties_init(&hcc->std, ce);
     hcc->std.handlers = &swoole_http_client_coro_handlers;

@@ -57,7 +57,7 @@ static void php_swoole_lock_free_object(zend_object *object)
 
 static zend_object *php_swoole_lock_create_object(zend_class_entry *ce)
 {
-    lock_t *lock = (lock_t *) ecalloc(1, sizeof(lock_t) + zend_object_properties_size(ce));
+    lock_t *lock = (lock_t *) zend_object_alloc(sizeof(lock_t), ce);
     zend_object_std_init(&lock->std, ce);
     object_properties_init(&lock->std, ce);
     lock->std.handlers = &swoole_lock_handlers;

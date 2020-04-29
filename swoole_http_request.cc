@@ -269,7 +269,7 @@ static void php_swoole_http_request_free_object(zend_object *object)
 
 static zend_object *php_swoole_http_request_create_object(zend_class_entry *ce)
 {
-    http_request_t *request = (http_request_t *) ecalloc(1, sizeof(http_request_t) + zend_object_properties_size(ce));
+    http_request_t *request = (http_request_t *) zend_object_alloc(sizeof(http_request_t), ce);
     zend_object_std_init(&request->std, ce);
     object_properties_init(&request->std, ce);
     request->std.handlers = &swoole_http_request_handlers;

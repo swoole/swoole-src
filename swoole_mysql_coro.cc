@@ -1824,7 +1824,7 @@ static void php_swoole_mysql_coro_free_object(zend_object *object)
 
 static zend_object *php_swoole_mysql_coro_create_object(zend_class_entry *ce)
 {
-    mysql_coro_t *zmc = (mysql_coro_t *) ecalloc(1, sizeof(mysql_coro_t) + zend_object_properties_size(ce));
+    mysql_coro_t *zmc = (mysql_coro_t *) zend_object_alloc(sizeof(mysql_coro_t), ce);
     zend_object_std_init(&zmc->std, ce);
     object_properties_init(&zmc->std, ce);
     zmc->std.handlers = &swoole_mysql_coro_handlers;
@@ -1853,7 +1853,7 @@ static void php_swoole_mysql_coro_statement_free_object(zend_object *object)
 static sw_inline zend_object* php_swoole_mysql_coro_statement_create_object(zend_class_entry *ce, mysql_statement *statement, zend_object *client)
 {
     zval zobject;
-    mysql_coro_statement_t *zms = (mysql_coro_statement_t *) ecalloc(1, sizeof(mysql_coro_statement_t) + zend_object_properties_size(ce));
+    mysql_coro_statement_t *zms = (mysql_coro_statement_t *) zend_object_alloc(sizeof(mysql_coro_statement_t), ce);
     zend_object_std_init(&zms->std, ce);
     object_properties_init(&zms->std, ce);
     zms->std.handlers = &swoole_mysql_coro_statement_handlers;

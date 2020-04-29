@@ -216,7 +216,7 @@ static void php_swoole_socket_coro_free_object(zend_object *object)
 
 static zend_object* php_swoole_socket_coro_create_object(zend_class_entry *ce)
 {
-    socket_coro *sock = (socket_coro *) ecalloc(1, sizeof(socket_coro) + zend_object_properties_size(ce));
+    socket_coro *sock = (socket_coro *) zend_object_alloc(sizeof(socket_coro), ce);
     zend_object_std_init(&sock->std, ce);
     /* Even if you don't use properties yourself you should still call object_properties_init(),
      * because extending classes may use properties. (Generally a lot of the stuff you will do is

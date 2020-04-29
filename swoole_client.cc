@@ -97,7 +97,7 @@ static void php_swoole_client_free_object(zend_object *object)
 
 static zend_object *php_swoole_client_create_object(zend_class_entry *ce)
 {
-    client_t *client = (client_t *) ecalloc(1, sizeof(client_t) + zend_object_properties_size(ce));
+    client_t *client = (client_t *) zend_object_alloc(sizeof(client_t), ce);
     zend_object_std_init(&client->std, ce);
     object_properties_init(&client->std, ce);
     client->std.handlers = &swoole_client_handlers;

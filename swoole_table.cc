@@ -163,7 +163,7 @@ static inline void php_swoole_table_free_object(zend_object *object)
 
 static inline zend_object *php_swoole_table_create_object(zend_class_entry *ce)
 {
-    table_t *table = (table_t *) ecalloc(1, sizeof(table_t) + zend_object_properties_size(ce));
+    table_t *table = (table_t *) zend_object_alloc(sizeof(table_t), ce);
     zend_object_std_init(&table->std, ce);
     object_properties_init(&table->std, ce);
     table->std.handlers = &swoole_table_handlers;
@@ -208,7 +208,7 @@ static inline void php_swoole_table_row_free_object(zend_object *object)
 
 static inline zend_object *php_swoole_table_row_create_object(zend_class_entry *ce)
 {
-    table_row_t *table_row = (table_row_t *) ecalloc(1, sizeof(table_row_t) + zend_object_properties_size(ce));
+    table_row_t *table_row = (table_row_t *) zend_object_alloc(sizeof(table_row_t), ce);
     zend_object_std_init(&table_row->std, ce);
     object_properties_init(&table_row->std, ce);
     table_row->std.handlers = &swoole_table_row_handlers;

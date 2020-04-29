@@ -233,7 +233,7 @@ static const zend_function_entry swoole_http_server_coro_methods[] =
 
 static zend_object *php_swoole_http_server_coro_create_object(zend_class_entry *ce)
 {
-    http_server_coro_t *hsc = (http_server_coro_t *) ecalloc(1, sizeof(http_server_coro_t) + zend_object_properties_size(ce));
+    http_server_coro_t *hsc = (http_server_coro_t *) zend_object_alloc(sizeof(http_server_coro_t), ce);
     zend_object_std_init(&hsc->std, ce);
     object_properties_init(&hsc->std, ce);
     hsc->std.handlers = &swoole_http_server_coro_handlers;
