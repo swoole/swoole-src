@@ -1,5 +1,4 @@
-#include "tests.h"
-#include "swoole/swoole_cxx.h"
+#include "test_server.h"
 
 using namespace std;
 

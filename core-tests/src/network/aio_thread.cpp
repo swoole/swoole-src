@@ -1,5 +1,9 @@
 #include "tests.h"
+#ifdef HAVE_SWOOLE_DIR
+#include "async.h"
+#else
 #include "swoole/async.h"
+#endif
 
 #include <atomic>
 

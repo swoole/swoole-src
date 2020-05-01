@@ -1,5 +1,4 @@
-#include "tests.h"
-#include "swoole/coroutine_channel.h"
+#include "test_coroutine.h"
 
 using swoole::coroutine::Channel;
 

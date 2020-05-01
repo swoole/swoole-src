@@ -1,10 +1,16 @@
 #pragma once
 
-#include "wrapper/coroutine.h"
-
+#ifdef HAVE_SWOOLE_DIR
+#include "swoole.h"
+#include "client.h"
+#include "server.h"
+#include "swoole_cxx.h"
+#else
 #include "swoole/swoole.h"
 #include "swoole/client.h"
 #include "swoole/server.h"
+#include "swoole/swoole_cxx.h"
+#endif
 
 #include <gtest/gtest.h>
 

@@ -1,6 +1,4 @@
-#include "swoole/swoole.h"
-#include "swoole/heap.h"
-#include <gtest/gtest.h>
+#include "tests.h"
 #include <map>
 
 typedef struct node_t

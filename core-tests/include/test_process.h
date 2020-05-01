@@ -1,7 +1,8 @@
 #pragma once
 
 #include <functional>
-#include "swoole/swoole.h"
+
+#include "tests.h"
 
 using namespace std;
 

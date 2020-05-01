@@ -1,5 +1,4 @@
-#include "tests.h"
-#include "wrapper/server.h"
+#include "test_server.h"
 
 using swoole::test::server;
 

@@ -1,7 +1,6 @@
-#include "tests.h"
-#include "swoole/coroutine_socket.h"
-#include "process.h"
-#include "wrapper/server.h"
+#include "test_coroutine.h"
+#include "test_process.h"
+#include "test_server.h"
 
 using namespace swoole::test;
 
