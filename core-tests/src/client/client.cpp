@@ -1,6 +1,6 @@
 #include "tests.h"
-#include "process.h"
-#include "wrapper/server.h"
+#include "test_process.h"
+#include "test_server.h"
 
 #define GREETER "Hello Swoole"
 #define GREETER_SIZE sizeof(GREETER)

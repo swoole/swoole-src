@@ -1,5 +1,4 @@
 #include "tests.h"
-#include "swoole/swoole_cxx.h"
 
 using namespace std;
 

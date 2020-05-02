@@ -1,7 +1,20 @@
 #pragma once
 
+#include "tests.h"
+
+#ifdef HAVE_SWOOLE_DIR
+#include "coroutine.h"
+#include "coroutine_channel.h"
+#include "coroutine_system.h"
+#include "coroutine_socket.h"
+#include "coroutine_c_api.h"
+#else
 #include "swoole/coroutine.h"
-#include <gtest/gtest.h>
+#include "swoole/coroutine_channel.h"
+#include "swoole/coroutine_system.h"
+#include "swoole/coroutine_socket.h"
+#include "swoole/coroutine_c_api.h"
+#endif
 
 namespace swoole { namespace test {
 

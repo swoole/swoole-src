@@ -1,5 +1,4 @@
-#include "tests.h"
-#include "swoole/coroutine_c_api.h"
+#include "test_coroutine.h"
 
 using namespace swoole;
 using namespace swoole::test;

@@ -2,11 +2,18 @@ PROJECT(libswoole)
 
 ENABLE_LANGUAGE(ASM)
 SET(SWOOLE_VERSION 4.5.1-alpha)
-SET(SWOOLE_CLFLAGS pthread rt dl ssl crypt crypto)
+
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+
+if (APPLE)
+    set(SWOOLE_CLFLAGS pthread dl ssl crypto)
+    set(CMAKE_SHARED_LINKER_FLAGS "-undefined dynamic_lookup")
+else()
+    set(SWOOLE_CLFLAGS pthread rt dl ssl crypt crypto)
+endif()
 
 SET(CMAKE_BUILD_TYPE Debug)
 
@@ -24,15 +31,25 @@ add_definitions(-DHAVE_CONFIG_H)
 # test
 #add_definitions(-DSW_USE_THREAD_CONTEXT)
 
-INCLUDE_DIRECTORIES(BEFORE ./include ./include/wrapper ./)
+include_directories(BEFORE ./include ./include/wrapper ./)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
+
+if (DEFINED openssl_dir) 
+    include_directories(BEFORE ${openssl_dir}/include)
+    link_directories(${openssl_dir}/lib)
+endif()
+
+if (DEFINED brotli_dir) 
+    include_directories(BEFORE ${brotli_dir}/include)
+    link_directories(${brotli_dir}/lib)
+endif()
 
 execute_process(COMMAND php-config --includes OUTPUT_VARIABLE PHP_INCLUDES OUTPUT_STRIP_TRAILING_WHITESPACE)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PHP_INCLUDES}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PHP_INCLUDES}")
 
 # lib-swoole
-LINK_DIRECTORIES(${LIBRARY_OUTPUT_PATH})
+link_directories(${LIBRARY_OUTPUT_PATH})
 add_library(lib-swoole SHARED ${SRC_LIST})
 set_target_properties(lib-swoole PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
 target_link_libraries(lib-swoole ${SWOOLE_CLFLAGS})
