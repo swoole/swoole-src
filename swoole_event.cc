@@ -505,7 +505,7 @@ static PHP_FUNCTION(swoole_event_add)
 
     if (fci_read.size == 0 && fci_write.size == 0)
     {
-        php_swoole_fatal_error(E_WARNING, "both read and write callbacks are emoty");
+        php_swoole_fatal_error(E_WARNING, "both read and write callbacks are empty");
         RETURN_FALSE;
     }
 
