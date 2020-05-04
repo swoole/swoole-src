@@ -393,9 +393,9 @@ size_t swHttp_url_decode(char *str, size_t len)
 
 char* swHttp_url_encode(char const *str, size_t len)
 {
-    static unsigned char hexchars[] = "0123456789ABCDEF";
+    static uchar hexchars[] = "0123456789ABCDEF";
 
-    register size_t x, y;
+    size_t x, y;
     char *ret = (char*) sw_malloc(len * 3);
 
     for (x = 0, y = 0; len--; x++, y++)
