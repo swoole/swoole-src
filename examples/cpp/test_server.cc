@@ -132,7 +132,7 @@ int my_onPacket(swServer *serv, swEventData *req)
     int length;
     char address[256];
     int port = 0;
-    int ret;
+    int ret = 0;
 
     swDgramPacket *packet;
 
@@ -180,6 +180,11 @@ int my_onPacket(swServer *serv, swEventData *req)
     {
         ret = swSocket_unix_sendto(serv_sock, address, resp_data, n);
     }
+    else
+    {
+        assert(0);
+        return 1;
+    }
 
     if (ret < 0)
     {
@@ -200,7 +205,7 @@ void my_onStart(swServer *serv)
 
 void my_onShutdown(swServer *serv)
 {
-    swNotice("Server is shutdown\n");
+    swNotice("Server is shutdown");
 }
 
 void my_onConnect(swServer *serv, swDataHead *info)

@@ -24,15 +24,16 @@ int main(int argc, char **argv)
 
     Coroutine::create([](void *arg) {
         System::sleep(2.0);
-        cout << "CO1\n";
+        cout << "CO-1, sleep 2\n";
     });
 
     Coroutine::create([](void *arg) {
         System::sleep(1);
-        cout << "CO2\n";
+        cout << "CO-2, sleep 1\n";
     });
 
     Coroutine::create([](void *arg) {
+        cout << "CO-3, listen tcp:0.0.0.0:9001\n";
         Socket s(SW_SOCK_TCP);
         s.bind("0.0.0.0", 9001);
         s.listen();
