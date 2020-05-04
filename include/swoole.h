@@ -1360,10 +1360,11 @@ enum swPipe_type
 #define swIsUserWorker()      (SwooleG.process_type==SW_PROCESS_USERWORKER)
 
 //----------------------Logger---------------------
-int swLog_init(char *logfile);
-void swLog_put(int level, char *content, size_t length);
+int swLog_init(const char *logfile);
+void swLog_put(int level, const char *content, size_t length);
 void swLog_reopen(enum swBool_type redirect);
 void swLog_free(void);
+void swLog_set_date_format(const char *_date_format);
 
 //----------------------Tool Function---------------------
 uint64_t swoole_hash_key(char *str, int str_len);
@@ -2532,7 +2533,7 @@ typedef struct
     char *log_file;
     uint32_t trace_flags;
 
-    void (*write_log)(int level, char *content, size_t len);
+    void (*write_log)(int level, const char *content, size_t len);
     void (*fatal_error)(int code, const char *str, ...);
 
     //-----------------------[System]--------------------------

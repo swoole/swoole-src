@@ -483,7 +483,7 @@ static unsigned int crc32_tab[] = {
 static inline uint32_t crc32(const char *buf, unsigned int size)
 {
     const char *p;
-    register int crc = 0;
+    int crc = 0;
 
     p = buf;
     while (size--)

@@ -15,25 +15,28 @@
 */
 
 #include "swoole.h"
-
 #include <sys/file.h>
+#include <string>
+#include <chrono>
 
 #define SW_LOG_BUFFER_SIZE  (SW_ERROR_MSG_SIZE+256)
 #define SW_LOG_DATE_STRLEN  64
 
-static int is_file = SW_FALSE;
+static bool is_file = false;
+static bool enable_micro_second = false;
+static std::string date_format = "%F %T";
 
-int swLog_init(char *logfile)
+int swLog_init(const char *logfile)
 {
     SwooleG.log_fd = open(logfile, O_APPEND | O_RDWR | O_CREAT, 0666);
     if (SwooleG.log_fd < 0)
     {
         printf("open(%s) failed. Error: %s[%d]\n", logfile, strerror(errno), errno);
         SwooleG.log_fd = STDOUT_FILENO;
-        is_file = SW_FALSE;
+        is_file = false;
         return SW_ERR;
     }
-    is_file = SW_TRUE;
+    is_file = true;
     return SW_OK;
 }
 
@@ -43,8 +46,13 @@ void swLog_free(void)
     {
         close(SwooleG.log_fd);
         SwooleG.log_fd = STDOUT_FILENO;
-        is_file = SW_FALSE;
+        is_file = false;
     }
+}
+
+void swLog_set_date_format(const char *_date_format)
+{
+    date_format = _date_format;
 }
 
 /**
@@ -67,7 +75,7 @@ void swLog_reopen(enum swBool_type redirect)
     }
 }
 
-void swLog_put(int level, char *content, size_t length)
+void swLog_put(int level, const char *content, size_t length)
 {
     const char *level_str;
     char date_str[SW_LOG_DATE_STRLEN];
@@ -97,17 +105,13 @@ void swLog_put(int level, char *content, size_t length)
         break;
     }
 
-    time_t t;
-    struct tm *p;
-    t = time(NULL);
-    p = localtime(&t);
-    size_t l_data_str = sw_snprintf(
-        date_str, SW_LOG_DATE_STRLEN, "%d-%.2d-%.2d %.2d:%.2d:%.2d",
-        p->tm_year + 1900, p->tm_mon + 1, p->tm_mday, p->tm_hour, p->tm_min, p->tm_sec
-    );
-#if 0
-    l_data_str = sw_snprintf(date_str + l_data_str, SW_LOG_DATE_STRLEN - l_data_str, " <%lf> ", swoole_microtime());
-#endif
+    auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    size_t l_data_str = std::strftime(date_str, sizeof(date_str), date_format.c_str(), std::localtime(&t));
+
+    if (enable_micro_second)
+    {
+        l_data_str = sw_snprintf(date_str + l_data_str, SW_LOG_DATE_STRLEN - l_data_str, " <%lf> ", swoole_microtime());
+    }
 
     char process_flag = '@';
     int process_id = 0;
