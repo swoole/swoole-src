@@ -1024,13 +1024,13 @@ static PHP_METHOD(swoole_client, send)
 
 static PHP_METHOD(swoole_client, sendto)
 {
-    char* ip;
-    size_t ip_len;
+    char* host;
+    size_t host_len;
     long port;
     char *data;
     size_t len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sls", &ip, &ip_len, &port, &data, &len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sls", &host, &host_len, &port, &data, &len) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -1044,13 +1044,56 @@ static PHP_METHOD(swoole_client, sendto)
     swClient *cli = php_swoole_client_get_cli(ZEND_THIS);
     if (!cli)
     {
-        cli = php_swoole_client_new(ZEND_THIS, ip, ip_len, port);
+        cli = php_swoole_client_new(ZEND_THIS, host, host_len, port);
         if (cli == NULL)
         {
             RETURN_FALSE;
         }
         cli->active = 1;
         php_swoole_client_set_cli(ZEND_THIS, cli);
+    }
+
+    void *addr;
+    swSocketAddress server_addr;
+
+    if (cli->type == SW_SOCK_UDP)
+    {
+        addr = &server_addr.addr.inet_v4.sin_addr.s_addr;
+    }
+    else
+    {
+        addr = server_addr.addr.inet_v6.sin6_addr.s6_addr;
+    }
+
+    if (swoole_gethostbyname(cli->_sock_domain, host, (char *) addr) < 0)
+    {
+        SwooleG.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
+        php_swoole_error(E_WARNING, "sendto to server[%s:%d] failed. Error: %s[%d]", host, (int ) port,
+                        swoole_strerror(SwooleG.error), SwooleG.error);
+        zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), SwooleG.error);
+        php_swoole_client_free(ZEND_THIS, cli);
+        RETURN_FALSE;
+    }
+
+    char ip[INET6_ADDRSTRLEN];
+
+    if (cli->type == SW_SOCK_UDP)
+    {
+        if (!inet_ntop(AF_INET, &server_addr.addr.inet_v4.sin_addr, ip, sizeof(ip)))
+        {
+            php_swoole_error(E_WARNING, "ip[%s] is invalid", ip);
+            zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), errno);
+            RETURN_FALSE;
+        }
+    }
+    else
+    {
+        if (!inet_ntop(AF_INET6, &server_addr.addr.inet_v6.sin6_addr, ip, sizeof(ip)))
+        {
+            php_swoole_error(E_WARNING, "ip[%s] is invalid", ip);
+            zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), errno);
+            RETURN_FALSE;
+        }
     }
 
     double ori_timeout = SwooleG.socket_send_timeout;
