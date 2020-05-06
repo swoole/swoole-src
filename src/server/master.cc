@@ -667,26 +667,6 @@ void swServer_worker_start(swServer *serv, swWorker *worker)
     }
 }
 
-void swServer_reopen_log_file(swServer *serv)
-{
-    if (!SwooleG.log_file)
-    {
-        return;
-    }
-    /**
-     * reopen log file
-     */
-    close(SwooleG.log_fd);
-    swLog_init(SwooleG.log_file);
-    /**
-     * redirect STDOUT & STDERR to log file
-     */
-    if (serv->daemonize)
-    {
-        swoole_redirect_stdout(SwooleG.log_fd);
-    }
-}
-
 int swServer_start(swServer *serv)
 {
     swFactory *factory = &serv->factory;
@@ -706,11 +686,6 @@ int swServer_start(swServer *serv)
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_ONLY_START_ONE, "must only start one server");
         return SW_ERR;
-    }
-    //init logger
-    if (SwooleG.log_file)
-    {
-        swLog_init(SwooleG.log_file);
     }
     //run as daemon
     if (serv->daemonize > 0)
@@ -1049,11 +1024,6 @@ static int swServer_destory(swServer *serv)
     delete serv->user_worker_list;
     serv->user_worker_list = nullptr;
 
-    //close log file
-    if (SwooleG.log_file != 0)
-    {
-        swLog_free();
-    }
     if (SwooleG.null_fd > 0)
     {
         close(SwooleG.null_fd);

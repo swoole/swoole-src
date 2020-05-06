@@ -152,6 +152,8 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     vht = Z_ARRVAL_P(zset);
+    php_swoole_set_global_option(vht);
+
     if (php_swoole_array_get_value(vht, "max_coroutine", ztmp))
     {
         zend_long max_num = zval_get_long(ztmp);
@@ -194,15 +196,7 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
         double t = zval_get_double(ztmp);
         if (t != 0) { Socket::default_write_timeout = t; }
     }
-    if (php_swoole_array_get_value(vht, "log_level", ztmp))
-    {
-        zend_long level = zval_get_long(ztmp);
-        SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
-    }
-    if (php_swoole_array_get_value(vht, "trace_flags", ztmp))
-    {
-        SwooleG.trace_flags = (uint32_t) SW_MAX(0, zval_get_long(ztmp));
-    }
+
     if (php_swoole_array_get_value(vht, "dns_cache_expire", ztmp))
     {
         System::set_dns_cache_expire((time_t) zval_get_long(ztmp));
@@ -218,10 +212,6 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
             sw_free(SwooleG.dns_server_v4);
         }
         SwooleG.dns_server_v4 = zend::string(ztmp).dup();
-    }
-    if (php_swoole_array_get_value(vht, "display_errors", ztmp))
-    {
-        SWOOLE_G(display_errors) = zval_is_true(ztmp);
     }
     /* AIO */
     if (php_swoole_array_get_value(vht, "aio_core_worker_num", ztmp))

@@ -22,37 +22,52 @@
 #define SW_LOG_BUFFER_SIZE  (SW_ERROR_MSG_SIZE+256)
 #define SW_LOG_DATE_STRLEN  64
 
-static bool is_file = false;
-static bool enable_micro_second = false;
+static bool opened = false;
+static bool date_with_microseconds = false;
 static std::string date_format = "%F %T";
+static std::string log_file = "";
 
-int swLog_init(const char *logfile)
+int swLog_open(const char *_log_file)
 {
-    SwooleG.log_fd = open(logfile, O_APPEND | O_RDWR | O_CREAT, 0666);
+    if (opened)
+    {
+        swLog_close();
+    }
+
+    SwooleG.log_fd = open(_log_file, O_APPEND | O_RDWR | O_CREAT, 0666);
     if (SwooleG.log_fd < 0)
     {
-        printf("open(%s) failed. Error: %s[%d]\n", logfile, strerror(errno), errno);
+        printf("open(%s) failed. Error: %s[%d]\n", _log_file, strerror(errno), errno);
         SwooleG.log_fd = STDOUT_FILENO;
-        is_file = false;
+        opened = false;
         return SW_ERR;
     }
-    is_file = true;
+
+    opened = true;
+    log_file = _log_file;
+
     return SW_OK;
 }
 
-void swLog_free(void)
+void swLog_close(void)
 {
-    if (is_file)
+    if (opened)
     {
         close(SwooleG.log_fd);
         SwooleG.log_fd = STDOUT_FILENO;
-        is_file = false;
+        log_file = "";
+        opened = false;
     }
 }
 
-void swLog_set_date_format(const char *_date_format)
+void swLog_set_date_format(const char *format)
 {
-    date_format = _date_format;
+    date_format = format;
+}
+
+void swLog_set_date_with_microseconds(bool enable)
+{
+    date_with_microseconds = enable;
 }
 
 /**
@@ -60,12 +75,13 @@ void swLog_set_date_format(const char *_date_format)
  */
 void swLog_reopen(enum swBool_type redirect)
 {
-    if (!SwooleG.log_file)
+    if (!opened)
     {
         return;
     }
-    swLog_free();
-    swLog_init(SwooleG.log_file);
+    std::string new_log_file(log_file);
+    swLog_close();
+    swLog_open(new_log_file.c_str());
     /**
      * redirect STDOUT & STDERR to log file
      */
@@ -105,12 +121,15 @@ void swLog_put(int level, const char *content, size_t length)
         break;
     }
 
-    auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    size_t l_data_str = std::strftime(date_str, sizeof(date_str), date_format.c_str(), std::localtime(&t));
+    auto now = std::chrono::system_clock::now();
+    auto now_sec = std::chrono::system_clock::to_time_t(now);
+    size_t l_data_str = std::strftime(date_str, sizeof(date_str), date_format.c_str(), std::localtime(&now_sec));
 
-    if (enable_micro_second)
+    if (date_with_microseconds)
     {
-        l_data_str = sw_snprintf(date_str + l_data_str, SW_LOG_DATE_STRLEN - l_data_str, " <%lf> ", swoole_microtime());
+        auto now_us = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
+        l_data_str += sw_snprintf(date_str + l_data_str, SW_LOG_DATE_STRLEN - l_data_str, "<.%ld>",
+                now_us - now_sec * 1000000);
     }
 
     char process_flag = '@';
@@ -139,16 +158,17 @@ void swLog_put(int level, const char *content, size_t length)
 
     n = sw_snprintf(log_str, SW_LOG_BUFFER_SIZE, "[%.*s %c%d.%d]\t%s\t%.*s\n", (int) l_data_str, date_str, process_flag, SwooleG.pid, process_id, level_str, (int) length, content);
 
-    if (is_file && flock(SwooleG.log_fd, LOCK_EX) == -1)
+    if (opened && flock(SwooleG.log_fd, LOCK_EX) == -1)
     {
+        printf("flock(%d, LOCK_EX) failed. Error: %s[%d]\n", SwooleG.log_fd, strerror(errno), errno);
         goto _print;
     }
     if (write(SwooleG.log_fd, log_str, n) < 0)
     {
         _print: printf("write(log_fd=%d, size=%d) failed. Error: %s[%d].\nMessage: %.*s\n", SwooleG.log_fd, n, strerror(errno), errno, n, log_str);
     }
-    if (is_file && flock(SwooleG.log_fd, LOCK_UN) == -1)
+    if (opened && flock(SwooleG.log_fd, LOCK_UN) == -1)
     {
-        printf("flock(%d, LOCK_UN) failed. Error: %s[%d]", SwooleG.log_fd, strerror(errno), errno);
+        printf("flock(%d, LOCK_UN) failed. Error: %s[%d]\n", SwooleG.log_fd, strerror(errno), errno);
     }
 }

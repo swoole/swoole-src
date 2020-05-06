@@ -81,6 +81,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_strerror, 0, 0, 1)
     ZEND_ARG_INFO(0, error_type)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_error_log, 0, 0, 2)
+    ZEND_ARG_INFO(0, level)
+    ZEND_ARG_INFO(0, message)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_hashcode, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
     ZEND_ARG_INFO(0, type)
@@ -101,6 +106,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mime_type_read, 0, 0, 1)
     ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
 
+static PHP_FUNCTION(swoole_error_log);
 static PHP_FUNCTION(swoole_hashcode);
 static PHP_FUNCTION(swoole_mime_type_add);
 static PHP_FUNCTION(swoole_mime_type_set);
@@ -127,6 +133,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_get_local_mac, arginfo_swoole_void)
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
+    PHP_FE(swoole_error_log, arginfo_swoole_error_log)
     PHP_FE(swoole_hashcode, arginfo_swoole_hashcode)
     PHP_FE(swoole_mime_type_add, arginfo_swoole_mime_type_write)
     PHP_FE(swoole_mime_type_set, arginfo_swoole_mime_type_write)
@@ -213,6 +220,44 @@ void php_swoole_register_shutdown_function(const char *function)
     shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
     ZVAL_STRING(&shutdown_function_entry.arguments[0], function);
     register_user_shutdown_function((char *) function, ZSTR_LEN(Z_STR(shutdown_function_entry.arguments[0])), &shutdown_function_entry);
+}
+
+void php_swoole_set_global_option(HashTable *vht)
+{
+    zval *ztmp;
+
+#ifdef SW_DEBUG
+    if (php_swoole_array_get_value(vht, "debug_mode", ztmp))
+    {
+        SwooleG.log_level = zval_is_true(ztmp) ? 0 : SwooleG.log_level;
+    }
+#endif
+    if (php_swoole_array_get_value(vht, "trace_flags", ztmp))
+    {
+        SwooleG.trace_flags = (uint32_t) SW_MAX(0, zval_get_long(ztmp));
+    }
+    if (php_swoole_array_get_value(vht, "log_file", ztmp))
+    {
+        swLog_open(zend::string(ztmp).val());
+    }
+    if (php_swoole_array_get_value(vht, "log_level", ztmp))
+    {
+        zend_long level;
+        level = zval_get_long(ztmp);
+        SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
+    }
+    if (php_swoole_array_get_value(vht, "log_date_format", ztmp))
+    {
+        swLog_set_date_format(zend::string(ztmp).val());
+    }
+    if (php_swoole_array_get_value(vht, "log_date_with_microseconds", ztmp))
+    {
+        swLog_set_date_with_microseconds(zval_is_true(ztmp));
+    }
+    if (php_swoole_array_get_value(vht, "display_errors", ztmp))
+    {
+        SWOOLE_G(display_errors) = zval_is_true(ztmp);
+    }
 }
 
 void php_swoole_register_rshutdown_callback(swCallback cb, void *private_data)
@@ -830,6 +875,23 @@ PHP_FUNCTION(swoole_strerror)
     else
     {
         RETURN_STRING(strerror(swoole_errno));
+    }
+}
+
+static PHP_FUNCTION(swoole_error_log)
+{
+    zend_long level;
+    char *message;
+    size_t l_message;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_LONG(level)
+        Z_PARAM_STRING(message, l_message)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (level >= SwooleG.log_level)
+    {
+        SwooleG.write_log(level, message, l_message);
     }
 }
 

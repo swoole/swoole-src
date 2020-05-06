@@ -354,6 +354,13 @@ struct swServer
     sw_atomic_t worker_round_id;
 
     /**
+     * worker(worker and task_worker) process chroot / user / group
+     */
+    char *chroot;
+    char *user;
+    char *group;
+
+    /**
      * run as a daemon process
      */
     uchar daemonize :1;
@@ -726,7 +733,6 @@ void swServer_worker_start(swServer *serv, swWorker *worker);
 
 int swServer_create_task_workers(swServer *serv);
 int swServer_create_user_workers(swServer *serv);
-void swServer_reopen_log_file(swServer *serv);
 
 void swTaskWorker_init(swServer *serv);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);

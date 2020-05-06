@@ -381,45 +381,45 @@ void swWorker_onStart(swServer *serv)
     if (is_root)
     {
         //get group info
-        if (SwooleG.group)
+        if (serv->group)
         {
-            group = getgrnam(SwooleG.group);
+            group = getgrnam(serv->group);
             if (!group)
             {
-                swWarn("get group [%s] info failed", SwooleG.group);
+                swWarn("get group [%s] info failed", serv->group);
             }
         }
         //get user info
-        if (SwooleG.user)
+        if (serv->user)
         {
-            passwd = getpwnam(SwooleG.user);
+            passwd = getpwnam(serv->user);
             if (!passwd)
             {
-                swWarn("get user [%s] info failed", SwooleG.user);
+                swWarn("get user [%s] info failed", serv->user);
             }
         }
         //chroot
-        if (SwooleG.chroot)
+        if (serv->chroot)
         {
-            if (0 > chroot(SwooleG.chroot))
+            if (0 > chroot(serv->chroot))
             {
-                swSysWarn("chroot to [%s] failed", SwooleG.chroot);
+                swSysWarn("chroot to [%s] failed", serv->chroot);
             }
         }
         //set process group
-        if (SwooleG.group && group)
+        if (serv->group && group)
         {
             if (setgid(group->gr_gid) < 0)
             {
-                swSysWarn("setgid to [%s] failed", SwooleG.group);
+                swSysWarn("setgid to [%s] failed", serv->group);
             }
         }
         //set process user
-        if (SwooleG.user && passwd)
+        if (serv->user && passwd)
         {
             if (setuid(passwd->pw_uid) < 0)
             {
-                swSysWarn("setuid to [%s] failed", SwooleG.user);
+                swSysWarn("setuid to [%s] failed", serv->user);
             }
         }
     }
