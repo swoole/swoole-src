@@ -25,30 +25,26 @@
 static bool opened = false;
 static bool date_with_microseconds = false;
 static std::string date_format = "%F %T";
+static std::string log_file = "";
 
-int swLog_open(const char *logfile)
+int swLog_open(const char *_log_file)
 {
     if (opened)
     {
         swLog_close();
     }
 
-    SwooleG.log_fd = open(logfile, O_APPEND | O_RDWR | O_CREAT, 0666);
+    SwooleG.log_fd = open(_log_file, O_APPEND | O_RDWR | O_CREAT, 0666);
     if (SwooleG.log_fd < 0)
     {
-        printf("open(%s) failed. Error: %s[%d]\n", logfile, strerror(errno), errno);
+        printf("open(%s) failed. Error: %s[%d]\n", _log_file, strerror(errno), errno);
         SwooleG.log_fd = STDOUT_FILENO;
         opened = false;
         return SW_ERR;
     }
 
     opened = true;
-
-    SwooleG.log_file = sw_strdup(logfile);
-    if (SwooleG.log_file == nullptr)
-    {
-        swLog_close();
-    }
+    log_file = _log_file;
 
     return SW_OK;
 }
@@ -59,11 +55,7 @@ void swLog_close(void)
     {
         close(SwooleG.log_fd);
         SwooleG.log_fd = STDOUT_FILENO;
-        if (SwooleG.log_file)
-        {
-            sw_free(SwooleG.log_file);
-            SwooleG.log_file = nullptr;
-        }
+        log_file = "";
         opened = false;
     }
 }
@@ -87,9 +79,9 @@ void swLog_reopen(enum swBool_type redirect)
     {
         return;
     }
-    std::string log_file(SwooleG.log_file);
+    std::string new_log_file(log_file);
     swLog_close();
-    swLog_open(log_file.c_str());
+    swLog_open(new_log_file.c_str());
     /**
      * redirect STDOUT & STDERR to log file
      */

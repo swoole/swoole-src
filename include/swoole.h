@@ -2524,7 +2524,6 @@ typedef struct
     int null_fd;
 
     uint32_t log_level;
-    char *log_file;
     uint32_t trace_flags;
 
     void (*write_log)(int level, const char *content, size_t len);
