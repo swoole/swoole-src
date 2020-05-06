@@ -19,6 +19,10 @@ static int g_receive_count = 0;
 int main(int argc, char **argv)
 {
     int ret;
+
+    swLog_set_date_format("%F %T");
+    swLog_set_date_with_microseconds(true);
+
     swServer serv;
     swServer_init(&serv);
 

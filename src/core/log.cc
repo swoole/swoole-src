@@ -23,7 +23,7 @@
 #define SW_LOG_DATE_STRLEN  64
 
 static bool is_file = false;
-static bool enable_micro_second = false;
+static bool date_with_microseconds = false;
 static std::string date_format = "%F %T";
 
 int swLog_init(const char *logfile)
@@ -50,9 +50,14 @@ void swLog_free(void)
     }
 }
 
-void swLog_set_date_format(const char *_date_format)
+void swLog_set_date_format(const char *format)
 {
-    date_format = _date_format;
+    date_format = format;
+}
+
+void swLog_set_date_with_microseconds(bool enable)
+{
+    date_with_microseconds = enable;
 }
 
 /**
@@ -105,12 +110,15 @@ void swLog_put(int level, const char *content, size_t length)
         break;
     }
 
-    auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    size_t l_data_str = std::strftime(date_str, sizeof(date_str), date_format.c_str(), std::localtime(&t));
+    auto now = std::chrono::system_clock::now();
+    auto now_sec = std::chrono::system_clock::to_time_t(now);
+    size_t l_data_str = std::strftime(date_str, sizeof(date_str), date_format.c_str(), std::localtime(&now_sec));
 
-    if (enable_micro_second)
+    if (date_with_microseconds)
     {
-        l_data_str = sw_snprintf(date_str + l_data_str, SW_LOG_DATE_STRLEN - l_data_str, " <%lf> ", swoole_microtime());
+        auto now_us = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
+        l_data_str += sw_snprintf(date_str + l_data_str, SW_LOG_DATE_STRLEN - l_data_str, "<.%ld>",
+                now_us - now_sec * 1000000);
     }
 
     char process_flag = '@';
@@ -141,6 +149,7 @@ void swLog_put(int level, const char *content, size_t length)
 
     if (is_file && flock(SwooleG.log_fd, LOCK_EX) == -1)
     {
+        printf("flock(%d, LOCK_EX) failed. Error: %s[%d]\n", SwooleG.log_fd, strerror(errno), errno);
         goto _print;
     }
     if (write(SwooleG.log_fd, log_str, n) < 0)
@@ -149,6 +158,6 @@ void swLog_put(int level, const char *content, size_t length)
     }
     if (is_file && flock(SwooleG.log_fd, LOCK_UN) == -1)
     {
-        printf("flock(%d, LOCK_UN) failed. Error: %s[%d]", SwooleG.log_fd, strerror(errno), errno);
+        printf("flock(%d, LOCK_UN) failed. Error: %s[%d]\n", SwooleG.log_fd, strerror(errno), errno);
     }
 }

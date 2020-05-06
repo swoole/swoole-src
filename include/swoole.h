@@ -1364,7 +1364,8 @@ int swLog_init(const char *logfile);
 void swLog_put(int level, const char *content, size_t length);
 void swLog_reopen(enum swBool_type redirect);
 void swLog_free(void);
-void swLog_set_date_format(const char *_date_format);
+void swLog_set_date_format(const char *format);
+void swLog_set_date_with_microseconds(bool enable);
 
 //----------------------Tool Function---------------------
 uint64_t swoole_hash_key(char *str, int str_len);

@@ -2527,6 +2527,14 @@ static PHP_METHOD(swoole_server, set)
         level = zval_get_long(ztmp);
         SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
     }
+    if (php_swoole_array_get_value(vht, "log_date_format", ztmp))
+    {
+        swLog_set_date_format(zend::string(ztmp).val());
+    }
+    if (php_swoole_array_get_value(vht, "log_date_with_microseconds", ztmp))
+    {
+        swLog_set_date_with_microseconds(zval_is_true(ztmp));
+    }
     /**
      * for dispatch_mode = 1/3
      */
