@@ -1360,10 +1360,10 @@ enum swPipe_type
 #define swIsUserWorker()      (SwooleG.process_type==SW_PROCESS_USERWORKER)
 
 //----------------------Logger---------------------
-int swLog_init(const char *logfile);
+int swLog_open(const char *logfile);
 void swLog_put(int level, const char *content, size_t length);
 void swLog_reopen(enum swBool_type redirect);
-void swLog_free(void);
+void swLog_close(void);
 void swLog_set_date_format(const char *format);
 void swLog_set_date_with_microseconds(bool enable);
 
@@ -2522,13 +2522,6 @@ typedef struct
     int signal_fd;
     int log_fd;
     int null_fd;
-
-    /**
-     * worker(worker and task_worker) process chroot / user / group
-     */
-    char *chroot;
-    char *user;
-    char *group;
 
     uint32_t log_level;
     char *log_file;

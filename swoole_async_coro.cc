@@ -77,6 +77,9 @@ PHP_FUNCTION(swoole_async_set)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     vht = Z_ARRVAL_P(zset);
+
+    php_swoole_set_global_option(vht);
+
     if (php_swoole_array_get_value(vht, "enable_signalfd", ztmp))
     {
         SwooleG.enable_signalfd = zval_is_true(ztmp);
@@ -101,11 +104,6 @@ PHP_FUNCTION(swoole_async_set)
             SwooleG.socket_send_timeout = INT_MAX;
         }
     }
-    if (php_swoole_array_get_value(vht, "log_level", ztmp))
-    {
-        zend_long level = zval_get_long(ztmp);
-        SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
-    }
     if (php_swoole_array_get_value(vht, "thread_num", ztmp) || php_swoole_array_get_value(vht, "min_thread_num", ztmp))
     {
         zend_long v = zval_get_long(ztmp);
@@ -117,10 +115,6 @@ PHP_FUNCTION(swoole_async_set)
         zend_long v = zval_get_long(ztmp);
         v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
         SwooleG.aio_worker_num= v;
-    }
-    if (php_swoole_array_get_value(vht, "display_errors", ztmp))
-    {
-        SWOOLE_G(display_errors) = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "socket_dontwait", ztmp))
     {

@@ -239,7 +239,7 @@ pid_t swoole_fork(int flags)
             /**
              * close log fd
              */
-            swLog_free();
+            swLog_close();
         }
         /**
          * reset signal handler

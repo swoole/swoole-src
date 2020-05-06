@@ -2358,48 +2358,35 @@ static PHP_METHOD(swoole_server, set)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     vht = Z_ARRVAL_P(zset);
+    php_swoole_set_global_option(vht);
 
     if (php_swoole_array_get_value(vht, "chroot", ztmp))
     {
-        if (SwooleG.chroot)
+        if (serv->chroot)
         {
-            sw_free(SwooleG.chroot);
+            sw_free(serv->chroot);
         }
-        SwooleG.chroot = zend::string(ztmp).dup();
+        serv->chroot = zend::string(ztmp).dup();
     }
     if (php_swoole_array_get_value(vht, "user", ztmp))
     {
-        if (SwooleG.user)
+        if (serv->user)
         {
-            sw_free(SwooleG.user);
+            sw_free(serv->user);
         }
-        SwooleG.user = zend::string(ztmp).dup();
+        serv->user = zend::string(ztmp).dup();
     }
     if (php_swoole_array_get_value(vht, "group", ztmp))
     {
-        if (SwooleG.group)
+        if (serv->group)
         {
-            sw_free(SwooleG.group);
+            sw_free(serv->group);
         }
-        SwooleG.group = zend::string(ztmp).dup();
+        serv->group = zend::string(ztmp).dup();
     }
     if (php_swoole_array_get_value(vht, "daemonize", ztmp))
     {
         serv->daemonize = zval_is_true(ztmp);
-    }
-#ifdef SW_DEBUG
-    //debug
-    if (php_swoole_array_get_value(vht, "debug_mode", ztmp))
-    {
-        if (zval_is_true(ztmp))
-        {
-            SwooleG.log_level = 0;
-        }
-    }
-#endif
-    if (php_swoole_array_get_value(vht, "trace_flags", ztmp))
-    {
-        SwooleG.trace_flags = (uint32_t) SW_MAX(0, zval_get_long(ztmp));
     }
     //pid file
     if (php_swoole_array_get_value(vht, "pid_file", ztmp))
@@ -2512,28 +2499,6 @@ static PHP_METHOD(swoole_server, set)
             break;
         }
         serv->dispatch_func = c_dispatch_func;
-    }
-    if (php_swoole_array_get_value(vht, "log_file", ztmp))
-    {
-        if (SwooleG.log_file)
-        {
-            sw_free(SwooleG.log_file);
-        }
-        SwooleG.log_file = zend::string(ztmp).dup();
-    }
-    if (php_swoole_array_get_value(vht, "log_level", ztmp))
-    {
-        zend_long level;
-        level = zval_get_long(ztmp);
-        SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
-    }
-    if (php_swoole_array_get_value(vht, "log_date_format", ztmp))
-    {
-        swLog_set_date_format(zend::string(ztmp).val());
-    }
-    if (php_swoole_array_get_value(vht, "log_date_with_microseconds", ztmp))
-    {
-        swLog_set_date_with_microseconds(zval_is_true(ztmp));
     }
     /**
      * for dispatch_mode = 1/3
