@@ -1071,23 +1071,11 @@ static PHP_METHOD(swoole_client, sendto)
             RETURN_FALSE;
         }
 
-        if (cli->type == SW_SOCK_UDP)
+        if (!inet_ntop(cli->_sock_domain, addr, ip, sizeof(ip)))
         {
-            if (!inet_ntop(AF_INET, addr, ip, sizeof(ip)))
-            {
-                php_swoole_error(E_WARNING, "ip[%s] is invalid", ip);
-                zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), errno);
-                RETURN_FALSE;
-            }
-        }
-        else
-        {
-            if (!inet_ntop(AF_INET6, addr, ip, sizeof(ip)))
-            {
-                php_swoole_error(E_WARNING, "ip[%s] is invalid", ip);
-                zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), errno);
-                RETURN_FALSE;
-            }
+            php_swoole_error(E_WARNING, "ip[%s] is invalid", ip);
+            zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), errno);
+            RETURN_FALSE;
         }
     }
 
