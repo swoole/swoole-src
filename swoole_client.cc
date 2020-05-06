@@ -1053,25 +1053,15 @@ static PHP_METHOD(swoole_client, sendto)
         php_swoole_client_set_cli(ZEND_THIS, cli);
     }
 
-    void *addr;
-    char ip[SW_HOST_MAXSIZE];
-    swSocketAddress server_addr;
+    char addr[SW_IP_MAX_LENGTH];
+    char ip[SW_IP_MAX_LENGTH];
 
     /**
      * udg doesn't need to use ip and port, so we don't need to deal with SW_SOCK_UNIX_DGRAM
      */
     if (cli->type != SW_SOCK_UNIX_DGRAM)
     {
-        if (cli->type == SW_SOCK_UDP)
-        {
-            addr = &server_addr.addr.inet_v4.sin_addr.s_addr;
-        }
-        else
-        {
-            addr = server_addr.addr.inet_v6.sin6_addr.s6_addr;
-        }
-
-        if (swoole_gethostbyname(cli->_sock_domain, host, (char *) addr) < 0)
+        if (swoole_gethostbyname(cli->_sock_domain, host, addr) < 0)
         {
             SwooleG.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
             php_swoole_error(E_WARNING, "sendto to server[%s:%d] failed. Error: %s[%d]", host, (int ) port,
@@ -1083,7 +1073,7 @@ static PHP_METHOD(swoole_client, sendto)
 
         if (cli->type == SW_SOCK_UDP)
         {
-            if (!inet_ntop(AF_INET, &server_addr.addr.inet_v4.sin_addr, ip, sizeof(ip)))
+            if (!inet_ntop(AF_INET, addr, ip, sizeof(ip)))
             {
                 php_swoole_error(E_WARNING, "ip[%s] is invalid", ip);
                 zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), errno);
@@ -1092,7 +1082,7 @@ static PHP_METHOD(swoole_client, sendto)
         }
         else
         {
-            if (!inet_ntop(AF_INET6, &server_addr.addr.inet_v6.sin6_addr, ip, sizeof(ip)))
+            if (!inet_ntop(AF_INET6, addr, ip, sizeof(ip)))
             {
                 php_swoole_error(E_WARNING, "ip[%s] is invalid", ip);
                 zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), errno);
