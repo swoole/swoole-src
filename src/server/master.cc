@@ -702,10 +702,10 @@ int swServer_start(swServer *serv)
          */
         else
         {
-            SwooleG.null_fd = open("/dev/null", O_WRONLY);
-            if (SwooleG.null_fd > 0)
+            serv->null_fd = open("/dev/null", O_WRONLY);
+            if (serv->null_fd > 0)
             {
-                swoole_redirect_stdout(SwooleG.null_fd);
+                swoole_redirect_stdout(serv->null_fd);
             }
             else
             {
@@ -876,6 +876,8 @@ void swServer_init(swServer *serv)
     serv->reload_async = 1;
     serv->send_yield = 1;
 
+    serv->null_fd = -1;
+
 #ifdef __linux__
     serv->timezone = timezone;
 #else
@@ -1024,9 +1026,10 @@ static int swServer_destory(swServer *serv)
     delete serv->user_worker_list;
     serv->user_worker_list = nullptr;
 
-    if (SwooleG.null_fd > 0)
+    if (serv->null_fd > 0)
     {
-        close(SwooleG.null_fd);
+        close(serv->null_fd);
+        serv->null_fd = -1;
     }
     swSignal_clear();
     /**
@@ -1056,6 +1059,21 @@ static int swServer_destory(swServer *serv)
     if (serv->http_index_files)
     {
         delete serv->http_index_files;
+    }
+    if (serv->chroot)
+    {
+        sw_free(serv->chroot);
+        serv->chroot = nullptr;
+    }
+    if (serv->user)
+    {
+        sw_free(serv->user);
+        serv->user = nullptr;
+    }
+    if (serv->group)
+    {
+        sw_free(serv->group);
+        serv->group = nullptr;
     }
     serv->lock.free(&serv->lock);
     SwooleG.serv = nullptr;

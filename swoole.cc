@@ -258,6 +258,14 @@ void php_swoole_set_global_option(HashTable *vht)
     {
         SWOOLE_G(display_errors) = zval_is_true(ztmp);
     }
+    if (php_swoole_array_get_value(vht, "dns_server", ztmp))
+    {
+        if (SwooleG.dns_server_v4)
+        {
+            sw_free(SwooleG.dns_server_v4);
+        }
+        SwooleG.dns_server_v4 = zend::string(ztmp).dup();
+    }
 }
 
 void php_swoole_register_rshutdown_callback(swCallback cb, void *private_data)

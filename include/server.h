@@ -343,6 +343,7 @@ struct swServer
 
     int udp_socket_ipv4;
     int udp_socket_ipv6;
+    int null_fd;
 
     uint32_t max_wait_time;
 

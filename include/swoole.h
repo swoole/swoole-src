@@ -2521,7 +2521,6 @@ typedef struct
 
     int signal_fd;
     int log_fd;
-    int null_fd;
 
     uint32_t log_level;
     uint32_t trace_flags;

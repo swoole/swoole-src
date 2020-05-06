@@ -124,14 +124,6 @@ PHP_FUNCTION(swoole_async_set)
     {
         SwooleG.dns_lookup_random = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "dns_server", ztmp))
-    {
-        if (SwooleG.dns_server_v4)
-        {
-            sw_free(SwooleG.dns_server_v4);
-        }
-        SwooleG.dns_server_v4 = zend::string(ztmp).dup();
-    }
     if (php_swoole_array_get_value(vht, "use_async_resolver", ztmp))
     {
         SwooleG.use_async_resolver = zval_is_true(ztmp);
