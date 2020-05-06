@@ -506,21 +506,17 @@ void swAio_handler_write(swAio_event *event)
 
 void swAio_handler_gethostbyname(swAio_event *event)
 {
-    struct in_addr addr_v4;
-    struct in6_addr addr_v6;
+    char addr[SW_IP_MAX_LENGTH];
     int ret;
+    int sock_domain;
 
 #ifndef HAVE_GETHOSTBYNAME2_R
     SwooleG.lock.lock(&SwooleG.lock);
 #endif
-    if (event->flags == AF_INET6)
-    {
-        ret = swoole_gethostbyname(AF_INET6, (char*) event->buf, (char *) &addr_v6);
-    }
-    else
-    {
-        ret = swoole_gethostbyname(AF_INET, (char*) event->buf, (char *) &addr_v4);
-    }
+
+    sock_domain = event->flags == AF_INET6 ? AF_INET6 : AF_INET;
+    ret = swoole_gethostbyname(sock_domain, (char*) event->buf, addr);
+    
     bzero(event->buf, event->nbytes);
 #ifndef HAVE_GETHOSTBYNAME2_R
     SwooleG.lock.unlock(&SwooleG.lock);
@@ -532,8 +528,7 @@ void swAio_handler_gethostbyname(swAio_event *event)
     }
     else
     {
-        if (inet_ntop(event->flags == AF_INET6 ? AF_INET6 : AF_INET,
-                event->flags == AF_INET6 ? (void *) &addr_v6 : (void *) &addr_v4, (char*) event->buf, event->nbytes) == NULL)
+        if (inet_ntop(sock_domain, addr, (char *) event->buf, event->nbytes) == NULL)
         {
             ret = -1;
             event->error = SW_ERROR_BAD_IPV6_ADDRESS;
