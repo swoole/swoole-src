@@ -122,5 +122,32 @@ typedef std::function<bool (char *, size_t)> StringExplodeHandler;
 size_t string_split(swString *str, const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
 std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2);
 
+class String
+{
+private:
+    swString *str;
+public:
+    String(swString *_str)
+    {
+        str = _str;
+    }
+    char* value()
+    {
+        return str->str;
+    }
+    size_t length()
+    {
+        return str->length;
+    }
+    swString* get()
+    {
+        return str;
+    }
+    ~String()
+    {
+        swString_free(str);
+    }
+};
+
 //-------------------------------------------------------------------------------
 }

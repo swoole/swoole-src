@@ -1110,7 +1110,7 @@ void swSSL_close(swSocket *conn)
 
 static sw_inline void swSSL_connection_error(swSocket *conn)
 {
-    uint32_t level = SW_LOG_NOTICE;
+    int level = SW_LOG_NOTICE;
     int reason = ERR_GET_REASON(ERR_peek_error());
 
 #if 0

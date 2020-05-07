@@ -21,10 +21,11 @@
 
 #define SW_LOG_BUFFER_SIZE  (SW_ERROR_MSG_SIZE+256)
 #define SW_LOG_DATE_STRLEN  64
+#define SW_LOG_DEFAULT_DATE_FORMAT  "%F %T"
 
 static bool opened = false;
 static bool date_with_microseconds = false;
-static std::string date_format = "%F %T";
+static std::string date_format = SW_LOG_DEFAULT_DATE_FORMAT;
 static std::string log_file = "";
 
 int swLog_open(const char *_log_file)
@@ -58,6 +59,26 @@ void swLog_close(void)
         log_file = "";
         opened = false;
     }
+}
+
+void swLog_set_level(int level)
+{
+    if (level < SW_LOG_DEBUG)
+    {
+        level = SW_LOG_DEBUG;
+    }
+    if (level > SW_LOG_NONE)
+    {
+        level = SW_LOG_NONE;
+    }
+    SwooleG.log_level = level;
+}
+
+void swLog_reset()
+{
+    date_format = SW_LOG_DEFAULT_DATE_FORMAT;
+    date_with_microseconds = false;
+    SwooleG.log_level = SW_LOG_INFO;
 }
 
 void swLog_set_date_format(const char *format)
@@ -97,6 +118,11 @@ void swLog_put(int level, const char *content, size_t length)
     char date_str[SW_LOG_DATE_STRLEN];
     char log_str[SW_LOG_BUFFER_SIZE];
     int n;
+
+    if (level < SwooleG.log_level)
+    {
+        return;
+    }
 
     switch (level)
     {

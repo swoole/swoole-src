@@ -1364,6 +1364,8 @@ int swLog_open(const char *logfile);
 void swLog_put(int level, const char *content, size_t length);
 void swLog_reopen(enum swBool_type redirect);
 void swLog_close(void);
+void swLog_reset();
+void swLog_set_level(int lv);
 void swLog_set_date_format(const char *format);
 void swLog_set_date_with_microseconds(bool enable);
 
@@ -1503,6 +1505,11 @@ static inline void swoole_strtolower(char *str, int length)
         *c = tolower(*c);
         c++;
     }
+}
+
+static inline int swString_contains(swString *str, const char *needle, size_t l_needle)
+{
+    return swoole_strnstr(str->str, str->length, needle, l_needle) != NULL;
 }
 
 int swoole_itoa(char *buf, long value);
@@ -2522,7 +2529,7 @@ typedef struct
     int signal_fd;
     int log_fd;
 
-    uint32_t log_level;
+    int log_level;
     uint32_t trace_flags;
 
     void (*write_log)(int level, const char *content, size_t len);

@@ -726,6 +726,7 @@ swString* swoole_file_get_contents(const char *filename)
     }
     close(fd);
     content->length = readn;
+    swString_append_ptr(content, "\0", 1);
     return content;
 }
 
