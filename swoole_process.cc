@@ -1188,19 +1188,7 @@ static PHP_METHOD(swoole_process, exit)
         ret_code = 1;
     }
 
-    close(process->pipe_current->fd);
-    process->pipe_current->fd = -1;
-
-    SwooleG.running = 0;
-
-    if (ret_code == 0)
-    {
-        sw_zend_bailout();
-    }
-    else
-    {
-        exit(ret_code);
-    }
+    exit(ret_code);
 }
 
 static PHP_METHOD(swoole_process, close)
