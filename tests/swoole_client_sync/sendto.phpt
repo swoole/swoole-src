@@ -19,6 +19,7 @@ $pm->parentFunc = function () use ($pm) {
     $cli->sendto('localhost', $pm->getFreePort(), "hello");
     Assert::false($cli->sendto('error_domain', $pm->getFreePort(), "hello"));
     Assert::assert($cli->errCode, SWOOLE_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+    $cli->sendto('localhost', $pm->getFreePort(), "hello");
     echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
@@ -26,6 +27,8 @@ $pm->childFunc = function () use ($pm) {
         $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_DGRAM, 0);
         $socket->bind('127.0.0.1', $pm->getFreePort());
         $peer = null;
+        $ret = $socket->recvfrom($peer);
+        Assert::eq($ret, 'hello');
         $ret = $socket->recvfrom($peer);
         Assert::eq($ret, 'hello');
         $ret = $socket->recvfrom($peer);
