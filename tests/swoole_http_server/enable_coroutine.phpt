@@ -20,7 +20,7 @@ $pm->childFunc = function () use ($pm) {
     $http->set([
         'enable_coroutine' => false, // close build-in coroutine
         'worker_num' => 1,
-        'log_level' => -1
+        'log_level' => SWOOLE_LOG_NONE,
     ]);
     $http->on("request", function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->header("Content-Type", "text/plain");
