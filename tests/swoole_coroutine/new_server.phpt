@@ -12,8 +12,4 @@ go(function () {
 });
 ?>
 --EXPECTF--
-Fatal error: Uncaught Swoole\Exception: eventLoop has already been created. unable to create Swoole\Server in %s:%d
-Stack trace:
-#0 %s(%d): Swoole\Server->__construct('127.0.0.1')
-#1 {main}
-  thrown in %s on line %d
+Warning: Swoole\Server::start(): eventLoop has already been created, unable to start %s in %s on line %d
