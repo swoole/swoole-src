@@ -28,7 +28,9 @@ $pm->childFunc = function () use ($pm) {
     $server->set(
         [
             'log_file' => TMP_LOG_FILE,
+            'log_level' => SWOOLE_LOG_NOTICE,
             'task_worker_num' => 1,
+            'socket_send_timeout' => 1.0,
             'worker_num' => 1,
         ]
     );
