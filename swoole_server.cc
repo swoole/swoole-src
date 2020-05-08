@@ -2073,12 +2073,6 @@ static PHP_METHOD(swoole_server, __construct)
         RETURN_FALSE;
     }
 
-    if (SwooleTG.reactor)
-    {
-        zend_throw_exception_ex(swoole_exception_ce, -2, "eventLoop has already been created. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
-        RETURN_FALSE;
-    }
-
     if (SwooleG.serv != NULL)
     {
         zend_throw_exception_ex(swoole_exception_ce, -3, "server is running. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
@@ -2869,6 +2863,7 @@ static PHP_METHOD(swoole_server, start)
 {
     zval *zserv = ZEND_THIS;
     swServer *serv = php_swoole_server_get_and_check_server(zserv);
+
     if (serv->gs->start > 0)
     {
         php_swoole_fatal_error(E_WARNING, "server is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
@@ -2877,6 +2872,12 @@ static PHP_METHOD(swoole_server, start)
     if (serv->gs->shutdown > 0)
     {
         php_swoole_fatal_error(E_WARNING, "server have been shutdown, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        RETURN_FALSE;
+    }
+
+    if (SwooleTG.reactor)
+    {
+        php_swoole_fatal_error(E_WARNING, "eventLoop has already been created, unable to start %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
