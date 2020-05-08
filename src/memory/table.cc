@@ -377,7 +377,6 @@ int swTableRow_del(swTable *table, const char *key, int keylen)
         }
         else
         {
-            printf("no found[2], key1=%s[len=%d], key2=%s[len=%d]\n", key, keylen,  row->key, row->key_len);
             goto _not_exists;
         }
     }
