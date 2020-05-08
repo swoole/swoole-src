@@ -257,6 +257,14 @@ void php_swoole_set_global_option(HashTable *vht)
         }
         SwooleG.dns_server_v4 = zend::string(ztmp).dup();
     }
+    if (php_swoole_array_get_value(vht, "socket_send_timeout", ztmp))
+    {
+        SwooleG.socket_send_timeout = zval_get_double(ztmp);
+        if (SwooleG.socket_send_timeout <= 0 || SwooleG.socket_send_timeout > INT_MAX)
+        {
+            SwooleG.socket_send_timeout = INT_MAX;
+        }
+    }
 }
 
 void php_swoole_register_rshutdown_callback(swCallback cb, void *private_data)
