@@ -26,6 +26,14 @@ static int insert_count = 0;
 static int conflict_max_level = 0;
 #endif
 
+static inline void swTable_check_key_length(int &keylen)
+{
+    if (keylen >= SW_TABLE_KEY_SIZE)
+    {
+        keylen = SW_TABLE_KEY_SIZE - 1;
+    }
+}
+
 swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
 {
     if (rows_size >= 0x80000000)
@@ -243,10 +251,7 @@ void swTable_iterator_forward(swTable *table)
 
 swTableRow* swTableRow_get(swTable *table, const char *key, int keylen, swTableRow** rowlock)
 {
-    if (keylen > SW_TABLE_KEY_SIZE)
-    {
-        keylen = SW_TABLE_KEY_SIZE;
-    }
+    swTable_check_key_length(keylen);
 
     swTableRow *row = swTable_hash(table, key, keylen);
     *rowlock = row;
@@ -276,12 +281,19 @@ swTableRow* swTableRow_get(swTable *table, const char *key, int keylen, swTableR
     return row;
 }
 
+static inline void swTableRow_init(swTable *table, swTableRow *new_row, const char *key, int keylen)
+{
+    bzero(new_row, sizeof(swTableRow));
+    memcpy(new_row->key, key, keylen);
+    new_row->key[keylen] = '\0';
+    new_row->key_len = keylen;
+    new_row->active = 1;
+    sw_atomic_fetch_add(&(table->row_num), 1);
+}
+
 swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableRow **rowlock)
 {
-    if (keylen >= SW_TABLE_KEY_SIZE)
-    {
-        keylen = SW_TABLE_KEY_SIZE - 1;
-    }
+    swTable_check_key_length(keylen);
 
     swTableRow *row = swTable_hash(table, key, keylen);
     *rowlock = row;
@@ -299,7 +311,7 @@ swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableR
             {
                 break;
             }
-            else if (row->next == NULL)
+            else if (row->next == nullptr)
             {
                 table->lock.lock(&table->lock);
                 swTableRow *new_row = (swTableRow *) table->pool->alloc(table->pool, 0);
@@ -313,14 +325,11 @@ swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableR
 
 #endif
                 table->lock.unlock(&table->lock);
-
                 if (!new_row)
                 {
-                    return NULL;
+                    return nullptr;
                 }
-                //add row_num
-                bzero(new_row, sizeof(swTableRow));
-                sw_atomic_fetch_add(&(table->row_num), 1);
+                swTableRow_init(table, new_row, key, keylen);
                 row->next = new_row;
                 row = new_row;
                 break;
@@ -339,22 +348,15 @@ swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableR
 #ifdef SW_TABLE_DEBUG
         insert_count ++;
 #endif
-        sw_atomic_fetch_add(&(table->row_num), 1);
+        swTableRow_init(table, row, key, keylen);
     }
 
-    memcpy(row->key, key, keylen);
-    row->key[keylen] = '\0';
-    row->key_len = keylen;
-    row->active = 1;
     return row;
 }
 
-int swTableRow_del(swTable *table, char *key, int keylen)
+int swTableRow_del(swTable *table, const char *key, int keylen)
 {
-    if (keylen > SW_TABLE_KEY_SIZE)
-    {
-        keylen = SW_TABLE_KEY_SIZE;
-    }
+    swTable_check_key_length(keylen);
 
     swTableRow *row = swTable_hash(table, key, keylen);
     //no exists
@@ -363,15 +365,14 @@ int swTableRow_del(swTable *table, char *key, int keylen)
         return SW_ERR;
     }
 
-    swTableRow *tmp = row;
-    swTableRow *prev = NULL;
+    swTableRow *tmp, *prev = nullptr;
 
     swTableRow_lock(row);
-    if (row->next == NULL)
+    if (row->next == nullptr)
     {
         if (sw_mem_equal(row->key, row->key_len, key, keylen))
         {
-            bzero(row, sizeof(swTableRow) + table->item_size);
+            bzero(row, sizeof(swTableRow));
             goto _delete_element;
         }
         else
@@ -381,9 +382,10 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     }
     else
     {
+        tmp = row;
         while (tmp)
         {
-            if (sw_mem_equal(row->key, row->key_len, key, keylen))
+            if (sw_mem_equal(tmp->key, tmp->key_len, key, keylen))
             {
                 break;
             }
@@ -391,10 +393,11 @@ int swTableRow_del(swTable *table, char *key, int keylen)
             tmp = tmp->next;
         }
 
-        if (tmp == NULL)
+        if (tmp == nullptr)
         {
             _not_exists:
             swTableRow_unlock(row);
+
             return SW_ERR;
         }
 
@@ -404,7 +407,8 @@ int swTableRow_del(swTable *table, char *key, int keylen)
         {
             tmp = tmp->next;
             row->next = tmp->next;
-            memcpy(row->key, tmp->key, strlen(tmp->key) + 1);
+            memcpy(row->key, tmp->key, tmp->key_len + 1);
+            row->key_len = tmp->key_len;
             memcpy(row->data, tmp->data, table->item_size);
         }
         if (prev)

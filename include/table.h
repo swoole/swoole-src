@@ -162,7 +162,7 @@ swTableRow* swTableRow_get(swTable *table, const char *key, int keylen, swTableR
 void swTable_iterator_rewind(swTable *table);
 swTableRow* swTable_iterator_current(swTable *table);
 void swTable_iterator_forward(swTable *table);
-int swTableRow_del(swTable *table, char *key, int keylen);
+int swTableRow_del(swTable *table, const char *key, int keylen);
 
 static sw_inline swTableColumn* swTableColumn_get(swTable *table, const std::string &key)
 {
