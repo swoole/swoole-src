@@ -943,7 +943,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
     if (file_stat.st_size == 0)
     {
-        php_swoole_sys_error(E_WARNING, "can't send empty file[%s]", file);
+        php_swoole_error(E_WARNING, "can't send empty file[%s]", file);
         RETURN_FALSE;
     }
     if (file_stat.st_size <= offset)
@@ -953,7 +953,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
     if (length > file_stat.st_size - offset)
     {
-        php_swoole_sys_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] exceeds the file size", length);
+        php_swoole_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] exceeds the file size", length);
         RETURN_FALSE;
     }
     if (length == 0)
