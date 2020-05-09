@@ -47,6 +47,7 @@ class ProcessManager
 
     protected $childPid;
     protected $childStatus = 255;
+    protected $expectExitSignal = [0];
     protected $parentFirst = false;
     /**
      * @var Process
@@ -249,6 +250,10 @@ class ProcessManager
         Event::wait();
         $waitInfo = Process::wait(true);
         $this->childStatus = $waitInfo['code'];
+        if (!in_array($waitInfo['signal'], $this->expectExitSignal)) {
+            throw new RuntimeException("Unexpected exit code {$waitInfo['signal']}");
+        }
+
         return true;
     }
 
@@ -275,5 +280,13 @@ class ProcessManager
         if (!in_array($this->childStatus, $code)) {
             throw new RuntimeException("Unexpected exit code {$this->childStatus}");
         }
+    }
+
+    public function setExpectExitSignal($signal = 0)
+    {
+        if (!is_array($signal)) {
+            $signal = [$signal];
+        }
+        $this->expectExitSignal = $signal;
     }
 }
