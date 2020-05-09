@@ -104,7 +104,7 @@ function skip_if_file_not_exist(string $filename)
 
 function skip_if_command_not_found(string $command)
 {
-    skip("command {$command} not found", empty(`{$command} --help | grep -i usage`));
+    skip("command {$command} not found", empty(`{$command} --help 2>&1 | grep -i usage`));
 }
 
 function skip_if_no_ssl()
@@ -132,7 +132,7 @@ function skip_if_no_http2()
 
 function skip_if_no_ipv6()
 {
-    skip('no ipv6 address', !stream_socket_server('tcp://[::1]:0'));
+    skip('no ipv6 address', !@stream_socket_server('tcp://[::1]:0'));
 }
 
 function skip_if_no_top()

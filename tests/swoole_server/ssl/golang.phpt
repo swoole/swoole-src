@@ -5,7 +5,7 @@ swoole_server/ssl: golang client
 require __DIR__ . '/../../include/skipif.inc';
 $dir = __DIR__.'/code';
 chdir($dir);
-`go build -o go_client client.go`;
+`go build -o go_client client.go >/dev/null 2>&1`;
 skip_if_file_not_exist( __DIR__.'/code/go_client');
 ?>
 --FILE--
