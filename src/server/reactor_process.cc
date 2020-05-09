@@ -624,6 +624,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
             }
 #endif
             notify_ev.fd = fd;
+            notify_ev.socket = conn->socket;
             notify_ev.reactor_id = conn->reactor_id;
             swReactorProcess_onClose(reactor, &notify_ev);
         }
