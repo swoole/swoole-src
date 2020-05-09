@@ -47,7 +47,7 @@ class ProcessManager
 
     protected $childPid;
     protected $childStatus = 255;
-    protected $expectExitSignal = [0];
+    protected $expectExitSignal = [0, SIGTERM];
     protected $parentFirst = false;
     /**
      * @var Process
