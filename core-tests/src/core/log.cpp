@@ -60,3 +60,19 @@ TEST(log, date_with_microseconds)
     std::regex e("\\[\\S+\\s\\d{2}:\\d{2}:\\d{2}\\<\\.(\\d+)\\>\\s@\\d+\\.\\d+\\]\tWARNING\thello world");
     ASSERT_TRUE(std::regex_search(content.value(), e));
 }
+
+TEST(log, rotation)
+{
+    swLog_reset();
+    swLog_set_rotation(SW_LOG_ROTATION_DAILY);
+    swLog_open(file);
+
+    swLog_put(SW_LOG_WARNING, SW_STRL("hello world"));
+
+    ASSERT_EQ(access(swLog_get_file(), R_OK), -1);
+    ASSERT_EQ(errno, ENOENT);
+    ASSERT_EQ(access(swLog_get_real_file(), R_OK), 0);
+
+    swLog_close();
+    unlink(swLog_get_real_file());
+}
