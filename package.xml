@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-04-26</date>
+    <date>2020-05-11</date>
     <time>14:00:00</time>
     <version>
-        <release>4.5.0</release>
+        <release>4.5.1</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -54,68 +54,34 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        New APIs
-        ---
-        + DTLS supports, we can build WebRTC applications now (#3188) (@matyhtf)
-        + Built-in `FastCGI` client, we can proxy HTTP request to FPM with one line of code now (swoole/library#17) (@twose)
-        + `Co::wait`, `Co::waitPid`, `Co::waitSignal` (#3158) (@twose)
-        + `Co::waitEvent` (#3197) (@twose)
-        + `Co::set(['exit_condition' => $callable])` to exit condition of reactor (#2918) (#3012) (@twose)
-        + `Co::getElapsed` to get the coroutine elapsed time (#3162) (@doubaokun)
-        + `Socket::checkLiveness`, `Socket::peek` (#3057) (@twose)
-        + `Socket->setProtocol(['open_fastcgi_protocol' => $bool])` (#3103) (@twose)
-        + `Server::getInstance`, `Server::get(Master|Manager|Worker)Pid`, `Server::getWorkerId` (#2793) (#3019) (@matyhtf)
-        + `Server::getWorkerStatus` (SWOOLE_WORKER_BUSY, SWOOLE_WORKER_IDLE) (#3225) (@matyhtf)
-        + `Server->on('beforeReload', $callable)` and `Server->on('afterReload', $callable)` (Server reload event on manager process) (#3130) (@huanghantao)
-        + `Http\Server` support `http_index_files` and `http_autoindex` with static handler (#3171) (@huanghantao)
-        + `Http2\Client->read(float $timeout = -1)`, support Coroutine\HTTP2\Client read more than once (#3011) (#3117) (@twose)
-        + `Http\Request->getContent` (alias of rawContent) (#3128) (@huanghantao)
-        + `swoole_mime_type_(add|set|delete|get|exists)` (mime APIs) (#3134) (@twose)
-
         Enhancement
         ---
-        + Optimize memory-copy between master and worker (4x faster) (#3075) (#3087) (@huanghantao)
-        + Optimize websocket dispatch (1x faster) (#3076) (@matyhtf)
-        + Optimize memory-copy in websocket_construct_frame (1x faster) (#3097) (@matyhtf)
-        + Optimize SSL validation (#3226) (@matyhtf)
-        + Separate SSL accept and SSL handshake (#3214) (@twose)
-        + Support MIPS (#3196) (@ekongyun)
-        + Resolve the domain name when use udp coroutine client (#3236) (#3239) (@huanghantao)
-        + Do not close stdout and stderr (show error logs after shutdown) (#3249) (@twose)
-        + Support some common options for Coroutine\Http\Server (#3257) (@twose)
-        + Support set cookies when websocket handshake (#3270) (#3272) (@twose)
-        + Support CURLOPT_FAILONERROR (swoole/library#20) (@sy-records)
-        + Support CURLOPT_FAILONERROR (swoole/library#20) (@sy-records)
-        + Support CURLOPT_SSLCERTTYPE, CURLOPT_SSLCERT, CURLOPT_SSLKEYTYPE, CURLOPT_SSLKEY (swoole/library#22) (@sy-records)
-        + Support CURLOPT_HTTPGET (swoole/library@d730bd08) (@shiguangqi)
-        + Compatible with different versions of Redis extension as much as possible (swoole/library#24) (@twose)
-        + Disable Cloning of Database Proxy Objects (swoole/library#23) (@deminy)
-
-        Remove
-        ---
-        - Remove `Runtime::enableStrictMode` method (b45838e3) (@twose)
-        - Remove `Buffer` class (559a49a8) (@twose)
-
-        Kernel
-        ---
-        * New C++ API: `coroutine::async` with lambda (#3127) (@matyhtf)
-        * Refactor event API and reactor fd to swSocket (#3030) (@matyhtf)
-        * Convert all source files to C++ (#3030) (71f987f3) (@matyhtf)
-        * Code optimizations (#3063) (#3067) (#3115) (#3135) (#3138) (#3139) (#3151) (#3168) (@huanghantao)
-        * Code optimization for header files (#3051) (@matyhtf)
-        * Refactor `enable_reuse_port` option (#3192) (@matyhtf)
-        * Reactor Socket API (#3193) (@matyhtf)
-        * Reduce one system call (3b5aa85d) (@matyhtf)
-        * Remove swServerGS::now (#3152) (@huanghantao)
-        * Improve protocol setter (#3108) (@twose)
-        * Use the Better way to init C object on stack (#3069) (@twose)
-        * Use type `uchar` for bit field (#3071) (@twose)
-        * Support parallel test (#3215) (@twose)
+        + Support socket context bindto in hook (#3275) (#3278) (@codinghuang)
+        + Support dns resolve in client::sendto (#3292) (@codinghuang)
+        + Process->exit(0) will call os.exit directly (a732fe56) (@matyhtf)
+        + Support `log_date_format` to change format of log date, `log_date_with_microseconds` to show micro-time in log (baf895bc) (@matyhtf)
+        + Support CURLOPT_CAINFO and CURLOPT_CAPATH (swoole/library#32) (@sy-records)
+        + Support CURLOPT_FORBID_REUSE (swoole/library#33) (@sy-records)
 
         Fixed
         ---
-        * Fixed `enable_delay_receive` (#3221) (#3224) (@matyhtf)
-        * All other bug fix patches have already been merged into the v4.4.x branch, we will not reiterate them here
+        * Fixed 32-bit build (#3276) (#3277) (@remicollet) (@twose)
+        * Fixed missing error info (#3280) (@codinghuang)
+        * Fixed potential bugs in Table (d7b87b65) (@matyhtf)
+        * Fixed null ptr error in Server (defensive programming) (#3304) (#3305) (@twose)
+        * Fixed heartbeat timeout null ptr error (#3307) (@twose)
+        * Fixed mysqli options error (swoole/library#35)
+        * Fixed response header parsing when there is no space after the colon in the response header (swoole/library#27) (@Yurunsoft)
+
+        Deprecated
+        ---
+        - Mark Coroutine\System::(fread/fgets/fwrite) as deprecated, please use runtime hook instead (it should have been included in v4.5.0) (c7c9bb40) (@twose)
+
+        Kernel
+        ---
+        + Use zend_object_alloc (cf1afb25) (@twose)
+        + Add more options for log (#3296) (@matyhtf)
+        + Improve code and add more tests (swoole/library) (@deminy)
     </notes>
     <contents>
         <dir name="/">
@@ -129,15 +95,16 @@
             <file role="src" name="code_stats.sh" />
             <file role="src" name="config.m4" />
             <file role="src" name="core-tests/CMakeLists.txt" />
-            <file role="src" name="core-tests/include/process.h" />
+            <file role="src" name="core-tests/include/test_coroutine.h" />
+            <file role="src" name="core-tests/include/test_process.h" />
+            <file role="src" name="core-tests/include/test_server.h" />
             <file role="src" name="core-tests/include/tests.h" />
-            <file role="src" name="core-tests/include/wrapper/coroutine.h" />
-            <file role="src" name="core-tests/include/wrapper/server.h" />
             <file role="src" name="core-tests/run.sh" />
             <file role="src" name="core-tests/samples/CMakeLists.txt" />
             <file role="doc" name="core-tests/samples/README.md" />
             <file role="src" name="core-tests/samples/s1.cc" />
             <file role="src" name="core-tests/src/client/client.cpp" />
+            <file role="src" name="core-tests/src/core/log.cpp" />
             <file role="src" name="core-tests/src/coroutine/async.cpp" />
             <file role="src" name="core-tests/src/coroutine/base.cpp" />
             <file role="src" name="core-tests/src/coroutine/channel.cpp" />
@@ -826,6 +793,7 @@
             <file role="test" name="tests/swoole_client_coro/length_protocol_func.phpt" />
             <file role="test" name="tests/swoole_client_coro/length_types.phpt" />
             <file role="test" name="tests/swoole_client_coro/read_and_write.phpt" />
+            <file role="test" name="tests/swoole_client_coro/reconnect.phpt" />
             <file role="test" name="tests/swoole_client_coro/recv_after_close.phpt" />
             <file role="test" name="tests/swoole_client_coro/recv_timeout.phpt" />
             <file role="test" name="tests/swoole_client_coro/recv_timeout2.phpt" />
@@ -863,6 +831,7 @@
             <file role="test" name="tests/swoole_client_sync/select_null.phpt" />
             <file role="test" name="tests/swoole_client_sync/send_recv.phpt" />
             <file role="test" name="tests/swoole_client_sync/sendfile.phpt" />
+            <file role="test" name="tests/swoole_client_sync/sendto.phpt" />
             <file role="test" name="tests/swoole_client_sync/ssl_recv_timeout.phpt" />
             <file role="test" name="tests/swoole_client_sync/sync_send_recv.phpt" />
             <file role="test" name="tests/swoole_client_sync/udg_send_timeout.phpt" />
@@ -1398,6 +1367,7 @@
             <file role="test" name="tests/swoole_runtime/accept.phpt" />
             <file role="test" name="tests/swoole_runtime/accept_timeout.phpt" />
             <file role="test" name="tests/swoole_runtime/base.phpt" />
+            <file role="test" name="tests/swoole_runtime/bindto.phpt" />
             <file role="test" name="tests/swoole_runtime/block.phpt" />
             <file role="test" name="tests/swoole_runtime/destruct.phpt" />
             <file role="test" name="tests/swoole_runtime/enable_crypto.phpt" />
