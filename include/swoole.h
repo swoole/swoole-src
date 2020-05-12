@@ -431,6 +431,12 @@ enum swLog_level
     SW_LOG_ERROR,
     SW_LOG_NONE,
 };
+
+enum swLog_rotation_type
+{
+    SW_LOG_ROTATION_SINGLE = 0,
+    SW_LOG_ROTATION_DAILY,
+};
 //-------------------------------------------------------------------------------
 enum swWorker_status
 {
@@ -1366,7 +1372,10 @@ void swLog_reopen(enum swBool_type redirect);
 void swLog_close(void);
 void swLog_reset();
 void swLog_set_level(int lv);
-void swLog_set_date_format(const char *format);
+int swLog_set_date_format(const char *format);
+void swLog_set_rotation(int rotation);
+const char* swLog_get_real_file();
+const char* swLog_get_file();
 void swLog_set_date_with_microseconds(bool enable);
 
 //----------------------Tool Function---------------------
