@@ -2590,6 +2590,19 @@ extern __thread swThreadGlobal_t SwooleTG;   //Thread Global Variable
 
 #define SW_CPU_NUM                    (SwooleG.cpu_num)
 
+static sw_inline void swoole_set_last_error(int error)
+{
+    SwooleG.error = error;
+}
+
+static sw_inline int swoole_get_last_error()
+{
+    return SwooleG.error;
+}
+
+SW_API const char* swoole_strerror(int code);
+SW_API void swoole_throw_error(int code);
+
 //-----------------------------------------------
 //OS Feature
 #if defined(HAVE_KQUEUE) || !defined(HAVE_SENDFILE)

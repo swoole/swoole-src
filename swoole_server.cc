@@ -1872,7 +1872,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
                 {
                     php_coro_context *context = coros_list->front();
                     coros_list->pop_front();
-                    SwooleG.error = ECONNRESET;
+                    swoole_set_last_error(ECONNRESET);
                     zval_ptr_dtor(&context->coro_params);
                     ZVAL_NULL(&context->coro_params);
                     php_swoole_server_send_resume(serv, context, info->fd);
@@ -1923,7 +1923,7 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
     zval result;
     zval *retval = NULL;
 
-    SwooleG.error = ETIMEDOUT;
+    swoole_set_last_error(ETIMEDOUT);
     ZVAL_FALSE(&result);
 
     int fd = (int) (long) context->private_data;
@@ -1977,7 +1977,7 @@ static enum swReturn_code php_swoole_server_send_resume(swServer *serv, php_coro
             goto _fail;
         }
         int ret = serv->send(serv, fd, data, length);
-        if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_SEND_YIELD && serv->send_yield)
+        if (ret < 0 && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD && serv->send_yield)
         {
             return SW_CONTINUE;
         }
@@ -3149,7 +3149,7 @@ static PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
     ret = serv->send(serv, fd, data, length);
-    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_SEND_YIELD)
+    if (ret < 0 && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD)
     {
         zval_add_ref(zdata);
         php_swoole_server_send_yield(serv, fd, zdata, return_value);
@@ -3657,7 +3657,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
 
     if (n_task == 0)
     {
-        SwooleG.error = SW_ERROR_TASK_DISPATCH_FAIL;
+        swoole_set_last_error(SW_ERROR_TASK_DISPATCH_FAIL);
         RETURN_FALSE;
     }
 
@@ -3803,7 +3803,7 @@ static PHP_METHOD(swoole_server, taskCo)
 
     if (n_task == 0)
     {
-        SwooleG.error = SW_ERROR_TASK_DISPATCH_FAIL;
+        swoole_set_last_error(SW_ERROR_TASK_DISPATCH_FAIL);
         RETURN_FALSE;
     }
 

@@ -58,7 +58,7 @@ TEST(log, date_format_long_string)
     int retval = swLog_set_date_format(str->str);
 
     ASSERT_EQ(retval, SW_ERR);
-    ASSERT_EQ(SwooleG.error, SW_ERROR_INVALID_PARAMS);
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_INVALID_PARAMS);
 }
 
 TEST(log, date_with_microseconds)

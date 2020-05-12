@@ -855,7 +855,7 @@ static PHP_FUNCTION(swoole_hashcode)
 
 PHP_FUNCTION(swoole_last_error)
 {
-    RETURN_LONG(SwooleG.error);
+    RETURN_LONG(swoole_get_last_error());
 }
 
 PHP_FUNCTION(swoole_cpu_num)
