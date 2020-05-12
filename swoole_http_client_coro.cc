@@ -1013,7 +1013,11 @@ bool http_client::send()
         // See: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.23
         const std::string *_host;
         std::string __host;
+#ifndef SW_USE_OPENSSL
+        if (port != 80)
+#else
         if (!ssl ? port != 80 : port != 443)
+#endif
         {
             __host = cpp_string::format("%s:%u", host.c_str(), port);
             _host = &__host;

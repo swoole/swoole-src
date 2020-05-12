@@ -1092,7 +1092,12 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
     {
         const std::string *host;
         std::string _host;
-        if (!h2c->ssl ? h2c->port != 80 : h2c->port != 443) {
+#ifndef SW_USE_OPENSSL
+        if (h2c->port != 80)
+#else
+        if (!h2c->ssl ? h2c->port != 80 : h2c->port != 443)
+#endif
+        {
             _host = cpp_string::format("%s:%d", h2c->host.c_str(), h2c->port);
             host = &_host;
         } else {
