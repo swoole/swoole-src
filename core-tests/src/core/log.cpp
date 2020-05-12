@@ -45,6 +45,21 @@ TEST(log, date_format)
     ASSERT_TRUE(n);
 }
 
+TEST(log, date_format_long_string)
+{
+    swLog_reset();
+    swLog_set_level(SW_LOG_ERROR);
+    auto str = swString_new(256);
+
+    swString_repeat(str, "x", 1, 120);
+    swString_append_ptr(str, SW_STRL("day %d of %B in the year %Y. Time: %I:%S %p"));
+
+    int retval = swLog_set_date_format(str->str);
+
+    ASSERT_EQ(retval, SW_ERR);
+    ASSERT_EQ(SwooleG.error, SW_ERROR_INVALID_PARAMS);
+}
+
 TEST(log, date_with_microseconds)
 {
     swLog_reset();

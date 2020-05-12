@@ -106,9 +106,27 @@ void swLog_reset()
     SwooleG.log_level = SW_LOG_INFO;
 }
 
-void swLog_set_date_format(const char *format)
+int swLog_set_date_format(const char *format)
 {
-    date_format = format;
+    char date_str[SW_LOG_DATE_STRLEN];
+    time_t now_sec;
+
+    now_sec = time(NULL);
+    size_t l_data_str = std::strftime(date_str, sizeof(date_str), format, std::localtime(&now_sec));
+
+    if (l_data_str == 0)
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "The date format string[length=%ld] is too long",
+                strlen(format));
+
+        return SW_ERR;
+    }
+    else
+    {
+        date_format = format;
+
+        return SW_OK;
+    }
 }
 
 void swLog_set_date_with_microseconds(bool enable)
