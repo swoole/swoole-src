@@ -985,12 +985,18 @@ bool http_client::send()
     else
     {
         // See: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.23
-        const std::string *_host = &host;
+        const std::string *_host;
         std::string __host;
-        if (port != 80 && port != 443)
+#ifndef SW_USE_OPENSSL
+        if (port != 80)
+#else
+        if (!ssl ? port != 80 : port != 443)
+#endif
         {
             __host = cpp_string::format("%s:%u", host.c_str(), port);
             _host = &__host;
+        } else {
+            _host = &host;
         }
         http_client_swString_append_headers(buffer, ZEND_STRL("Host"), _host->c_str(), _host->length());
     }
