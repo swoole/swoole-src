@@ -414,8 +414,8 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/heap.cc \
         src/core/log.cc \
         src/core/ring_queue.cc \
-        src/core/socket.cc \
         src/core/string.cc \
+        src/core/timer.cc \
         src/coroutine/base.cc \
         src/coroutine/channel.cc \
         src/coroutine/context.cc \
@@ -441,15 +441,15 @@ if test "$PHP_SWOOLE" != "no"; then
         src/memory/table.cc \
         src/network/client.cc \
         src/network/dns.cc \
-        src/network/process_pool.cc \
+        src/network/socket.cc \
         src/network/stream.cc \
-        src/network/thread_pool.cc \
-        src/network/timer.cc \
         src/os/async_thread.cc \
         src/os/base.cc \
         src/os/msg_queue.cc \
+        src/os/process_pool.cc \
         src/os/sendfile.cc \
         src/os/signal.cc \
+        src/os/thread_pool.cc \
         src/os/timer.cc \
         src/os/wait.cc \
         src/pipe/base.cc \
