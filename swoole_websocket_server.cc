@@ -149,7 +149,7 @@ void php_swoole_websocket_frame_unpack_ex(swString *data, zval *zframe, uchar un
 
     if (data->length < sizeof(frame.header))
     {
-        SwooleG.error = SW_ERROR_PROTOCOL_ERROR;
+        swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
         ZVAL_FALSE(zframe);
         return;
     }
@@ -162,7 +162,7 @@ void php_swoole_websocket_frame_unpack_ex(swString *data, zval *zframe, uchar un
         swString_clear(swoole_zlib_buffer);
         if (!websocket_message_uncompress(swoole_zlib_buffer, frame.payload, frame.payload_length))
         {
-            SwooleG.error = SW_ERROR_PROTOCOL_ERROR;
+            swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
             ZVAL_FALSE(zframe);
             return;
         }
@@ -777,13 +777,13 @@ static sw_inline int swoole_websocket_server_push(swServer *serv, int fd, swStri
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (!conn || conn->websocket_status < WEBSOCKET_STATUS_HANDSHAKE)
     {
-        SwooleG.error = SW_ERROR_WEBSOCKET_UNCONNECTED;
+        swoole_set_last_error(SW_ERROR_WEBSOCKET_UNCONNECTED);
         php_swoole_fatal_error(E_WARNING, "the connected client of connection[%d] is not a websocket client or closed", (int ) fd);
         return SW_ERR;
     }
 
     int ret = serv->send(serv, fd, buffer->str, buffer->length);
-    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_SEND_YIELD)
+    if (ret < 0 && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD)
     {
         zval _return_value;
         zval *return_value = &_return_value;

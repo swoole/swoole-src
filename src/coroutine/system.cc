@@ -142,7 +142,7 @@ swString* System::read_file(const char *file, bool lock)
     }
     else
     {
-        SwooleG.error = ev.error;
+        swoole_set_last_error(ev.error);
         return NULL;
     }
 }
@@ -174,7 +174,7 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock
     task.co->yield();
     if (ev.error != 0)
     {
-        SwooleG.error = ev.error;
+        swoole_set_last_error(ev.error);
     }
     return ev.ret;
 }
@@ -252,7 +252,7 @@ string System::gethostbyname(const string &hostname, int domain, double timeout)
 
     if (ev.ret == -1)
     {
-        SwooleG.error = ev.error;
+        swoole_set_last_error(ev.error);
         return "";
     }
     else
@@ -318,7 +318,7 @@ vector<string> System::getaddrinfo(const string &hostname, int family, int sockt
 
     if (ev.ret == -1)
     {
-        SwooleG.error = ev.error;
+        swoole_set_last_error(ev.error);
     }
 
     struct sockaddr_in *addr_v4;
@@ -350,7 +350,7 @@ vector<string> System::getaddrinfo(const string &hostname, int family, int sockt
     }
     else
     {
-        SwooleG.error = ev.error;
+        swoole_set_last_error(ev.error);
     }
 
     return retval;
@@ -568,13 +568,13 @@ struct event_waiter
         revents = 0;
         if (!(socket = swSocket_new(fd, SW_FD_CORO_EVENT)))
         {
-            SwooleG.error = errno;
+            swoole_set_last_error(errno);
             return;
         }
         socket->object = this;
         if (swoole_event_add(socket, events) < 0)
         {
-            SwooleG.error = errno;
+            swoole_set_last_error(errno);
             goto _done;
         }
         if (timeout > 0)
@@ -599,7 +599,7 @@ struct event_waiter
         }
         else if (timeout > 0)
         {
-            SwooleG.error = ETIMEDOUT;
+            swoole_set_last_error(ETIMEDOUT);
         }
         swoole_event_del(socket);
         _done:
@@ -643,7 +643,7 @@ int System::wait_event(int fd, int events, double timeout)
     events &= SW_EVENT_READ | SW_EVENT_WRITE;
     if (events == 0)
     {
-        SwooleG.error = EINVAL;
+        swoole_set_last_error(EINVAL);
         return 0;
     }
 
@@ -661,7 +661,7 @@ int System::wait_event(int fd, int events, double timeout)
         }
         if (retval < 0)
         {
-            SwooleG.error = errno;
+            swoole_set_last_error(errno);
         }
         return 0;
     }

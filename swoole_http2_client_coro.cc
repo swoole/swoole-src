@@ -126,7 +126,7 @@ public:
     {
         if (sw_unlikely(!client))
         {
-            SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
+            swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
             zend_update_property_long(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errCode"), ECONNRESET);
             zend_update_property_string(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errMsg"), "client is not connected to server");
             return false;

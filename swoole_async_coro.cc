@@ -167,7 +167,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
     vector<string> result = swoole::coroutine::dns_lookup(Z_STRVAL_P(domain), timeout);
     if (result.empty())
     {
-        SwooleG.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
+        swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         RETURN_FALSE;
     }
 

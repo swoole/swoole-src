@@ -144,8 +144,8 @@ static sw_inline swClient* client_get_ptr(zval *zobject)
     }
     else
     {
-        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
-        zend_update_property_long(swoole_client_ce, zobject, ZEND_STRL("errCode"), SwooleG.error);
+        swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
+        zend_update_property_long(swoole_client_ce, zobject, ZEND_STRL("errCode"), swoole_get_last_error());
         php_swoole_error(E_WARNING, "client is not connected to server");
         return NULL;
     }
@@ -747,7 +747,7 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
     if ((client_type == SW_SOCK_TCP || client_type == SW_SOCK_TCP6) && (port <= 0 || port > SW_CLIENT_MAX_PORT))
     {
         php_swoole_fatal_error(E_WARNING, "The port is invalid");
-        SwooleG.error = SW_ERROR_INVALID_PARAMS;
+        swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
         return NULL;
     }
 
@@ -965,12 +965,12 @@ static PHP_METHOD(swoole_client, connect)
     {
         if (errno == 0)
         {
-            if (SwooleG.error == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED)
+            if (swoole_get_last_error() == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED)
             {
                 php_swoole_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int ) port,
-                        swoole_strerror(SwooleG.error), SwooleG.error);
+                        swoole_strerror(swoole_get_last_error()), swoole_get_last_error());
             }
-            zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), SwooleG.error);
+            zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), swoole_get_last_error());
         }
         else
         {
@@ -1008,12 +1008,12 @@ static PHP_METHOD(swoole_client, send)
     }
 
     //clear errno
-    SwooleG.error = 0;
+    swoole_set_last_error(0);
     int ret = cli->send(cli, data, data_len, flags);
     if (ret < 0)
     {
         php_swoole_sys_error(E_WARNING, "failed to send(%d) %zu bytes", cli->socket->fd, data_len);
-        zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), SwooleG.error);
+        zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), swoole_get_last_error());
         RETVAL_FALSE;
     }
     else
@@ -1063,10 +1063,10 @@ static PHP_METHOD(swoole_client, sendto)
     {
         if (swoole_gethostbyname(cli->_sock_domain, host, addr) < 0)
         {
-            SwooleG.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
+            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
             php_swoole_error(E_WARNING, "sendto to server[%s:%d] failed. Error: %s[%d]", host, (int ) port,
-                            swoole_strerror(SwooleG.error), SwooleG.error);
-            zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), SwooleG.error);
+                            swoole_strerror(swoole_get_last_error()), swoole_get_last_error());
+            zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), swoole_get_last_error());
             RETURN_FALSE;
         }
 
@@ -1131,13 +1131,13 @@ static PHP_METHOD(swoole_client, sendfile)
         RETURN_FALSE;
     }
     //clear errno
-    SwooleG.error = 0;
+    swoole_set_last_error(0);
     int ret = cli->sendfile(cli, file, offset, length);
     if (ret < 0)
     {
-        SwooleG.error = errno;
-        php_swoole_fatal_error(E_WARNING, "sendfile() failed. Error: %s [%d]", swoole_strerror(SwooleG.error), SwooleG.error);
-        zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), SwooleG.error);
+        swoole_set_last_error(errno);
+        php_swoole_fatal_error(E_WARNING, "sendfile() failed. Error: %s [%d]", swoole_strerror(swoole_get_last_error()), swoole_get_last_error());
+        zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), swoole_get_last_error());
         RETVAL_FALSE;
     }
     else
@@ -1322,7 +1322,7 @@ static PHP_METHOD(swoole_client, recv)
 
         buf = (char *) emalloc(buf_len + 1);
         memcpy(buf, cli->buffer->str, cli->buffer->length);
-        SwooleG.error = 0;
+        swoole_set_last_error(0);
         ret = cli->recv(cli, buf + header_len, buf_len - cli->buffer->length, MSG_WAITALL);
         if (ret > 0)
         {
@@ -1340,15 +1340,15 @@ static PHP_METHOD(swoole_client, recv)
             buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
         }
         buf = (char *) emalloc(buf_len + 1);
-        SwooleG.error = 0;
+        swoole_set_last_error(0);
         ret = cli->recv(cli, buf, buf_len, flags);
     }
 
     if (ret < 0)
     {
-        SwooleG.error = errno;
-        php_swoole_error(E_WARNING, "recv() failed. Error: %s [%d]", swoole_strerror(SwooleG.error), SwooleG.error);
-        zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), SwooleG.error);
+        swoole_set_last_error(errno);
+        php_swoole_error(E_WARNING, "recv() failed. Error: %s [%d]", swoole_strerror(swoole_get_last_error()), swoole_get_last_error());
+        zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), swoole_get_last_error());
         if (buf)
         {
             efree(buf);
@@ -1523,7 +1523,7 @@ static PHP_METHOD(swoole_client, close)
     }
     //Connection error, or short tcp connection.
     //No keep connection
-    if (force || !cli->keep || swSocket_error(SwooleG.error) == SW_CLOSE)
+    if (force || !cli->keep || swSocket_error(swoole_get_last_error()) == SW_CLOSE)
     {
         ret = cli->close(cli);
         php_swoole_client_free(ZEND_THIS, cli);

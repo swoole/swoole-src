@@ -60,14 +60,14 @@ int main(int argc, char **argv)
     ret = swServer_create(&serv);
     if (ret < 0)
     {
-        swWarn("create server fail[error=%d]", SwooleG.error);
+        swWarn("create server fail[error=%d]", swoole_get_last_error());
         exit(1);
     }
 
     swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
     if (!port)
     {
-        swWarn("listen failed, [error=%d]", SwooleG.error);
+        swWarn("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
 

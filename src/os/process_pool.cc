@@ -251,7 +251,7 @@ int swProcessPool_response(swProcessPool *pool, char *data, int length)
 {
     if (pool->stream == nullptr || pool->stream->last_connection == nullptr || pool->stream->response_buffer == nullptr)
     {
-        SwooleG.error = SW_ERROR_INVALID_PARAMS;
+        swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
         return SW_ERR;
     }
     return swString_append_ptr(pool->stream->response_buffer, data, length);
