@@ -2506,6 +2506,7 @@ typedef struct
     swPipe aio_pipe;
     swSocket *aio_read_socket;
     swSocket *aio_write_socket;
+    int error;
 #ifdef SW_AIO_WRITE_LOCK
     swLock aio_lock;
 #endif
@@ -2592,12 +2593,12 @@ extern __thread swThreadGlobal_t SwooleTG;   //Thread Global Variable
 
 static sw_inline void swoole_set_last_error(int error)
 {
-    SwooleG.error = error;
+    SwooleTG.error = error;
 }
 
 static sw_inline int swoole_get_last_error()
 {
-    return SwooleG.error;
+    return SwooleTG.error;
 }
 
 SW_API const char* swoole_strerror(int code);
