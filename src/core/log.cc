@@ -130,7 +130,7 @@ int swLog_set_date_format(const char *format)
     }
 }
 
-void swLog_set_date_with_microseconds(bool enable)
+void swLog_set_date_with_microseconds(uchar enable)
 {
     date_with_microseconds = enable;
 }

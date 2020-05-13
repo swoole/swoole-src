@@ -1376,7 +1376,7 @@ int swLog_set_date_format(const char *format);
 void swLog_set_rotation(int rotation);
 const char* swLog_get_real_file();
 const char* swLog_get_file();
-void swLog_set_date_with_microseconds(bool enable);
+void swLog_set_date_with_microseconds(uchar enable);
 
 //----------------------Tool Function---------------------
 uint64_t swoole_hash_key(char *str, int str_len);
