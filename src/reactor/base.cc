@@ -310,7 +310,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
         }
         else
         {
-            SwooleG.error = errno;
+            swoole_set_last_error(errno);
             return SW_ERR;
         }
     }
@@ -321,7 +321,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
         {
             if (socket->dontwait)
             {
-                SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
+                swoole_set_last_error(SW_ERROR_OUTPUT_BUFFER_OVERFLOW);
                 return SW_ERR;
             }
             else

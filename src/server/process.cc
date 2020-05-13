@@ -426,7 +426,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     {
         if (serv->send_yield && process_is_supported_send_yield(serv, conn))
         {
-            SwooleG.error = SW_ERROR_OUTPUT_SEND_YIELD;
+            swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
         }
         else
         {
@@ -483,7 +483,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (conn == NULL || conn->active == 0)
     {
-        SwooleG.error = SW_ERROR_SESSION_NOT_EXIST;
+        swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
         return SW_ERR;
     }
     else if (conn->close_force)

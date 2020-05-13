@@ -352,7 +352,7 @@ static int swClient_inet_addr(swClient *cli, const char *host, int port)
     {
         if (swoole_gethostbyname(cli->_sock_domain, host, (char*) addr) < 0)
         {
-            SwooleG.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
+            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
             return SW_ERR;
         }
     }
@@ -686,7 +686,7 @@ static int swClient_tcp_connect_async(swClient *cli, const char *host, int port,
             {
                 continue;
             }
-            SwooleG.error = errno;
+            swoole_set_last_error(errno);
         }
         break;
     }
@@ -722,7 +722,7 @@ static int swClient_tcp_send_async(swClient *cli, const char *data, int length, 
     int n = length;
     if (swoole_event_write(cli->socket, data, length) < 0)
     {
-        if (SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW)
+        if (swoole_get_last_error() == SW_ERROR_OUTPUT_BUFFER_OVERFLOW)
         {
             n = -1;
             cli->high_watermark = 1;
@@ -765,7 +765,7 @@ static int swClient_tcp_send_sync(swClient *cli, const char *data, int length, i
             }
             else
             {
-                SwooleG.error = errno;
+                swoole_set_last_error(errno);
                 return SW_ERR;
             }
         }
@@ -780,7 +780,7 @@ static int swClient_tcp_sendfile_sync(swClient *cli, const char *filename, off_t
 {
     if (swSocket_sendfile_sync(cli->socket->fd, filename, offset, length, cli->timeout) < 0)
     {
-        SwooleG.error = errno;
+        swoole_set_last_error(errno);
         return SW_ERR;
     }
     return SW_OK;
@@ -790,7 +790,7 @@ static int swClient_tcp_sendfile_async(swClient *cli, const char *filename, off_
 {
     if (swSocket_sendfile(cli->socket, filename, offset, length) < 0)
     {
-        SwooleG.error = errno;
+        swoole_set_last_error(errno);
         return SW_ERR;
     }
     if (!(cli->socket->events & SW_EVENT_WRITE))
@@ -1303,7 +1303,7 @@ static int swClient_onError(swReactor *reactor, swEvent *event)
 static void swClient_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     swClient *cli = (swClient *) tnode->data;
-    SwooleG.error = ETIMEDOUT;
+    swoole_set_last_error(ETIMEDOUT);
 
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl && cli->socket->ssl_state != SW_SSL_STATE_READY)
@@ -1344,7 +1344,7 @@ static void swClient_onResolveCompleted(swAio_event *event)
     }
     else
     {
-        SwooleG.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
+        swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         cli->socket->removed = 1;
         cli->close(cli);
         if (cli->onError)
@@ -1359,7 +1359,9 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
 {
     swClient *cli = (swClient *) event->socket->object;
     swSocket *_socket = cli->socket;
-    socklen_t len = sizeof(SwooleG.error);
+    int ret;
+    int err;
+    socklen_t len = sizeof(err);
 
     if (cli->active)
     {
@@ -1396,14 +1398,16 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
         return SW_OK;
     }
 
-    if (getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &SwooleG.error, &len) < 0)
+    ret = getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &err, &len);
+    swoole_set_last_error(err);
+    if (ret < 0)
     {
         swSysWarn("getsockopt(%d) failed", event->fd);
         return SW_ERR;
     }
 
     //success
-    if (SwooleG.error == 0)
+    if (swoole_get_last_error() == 0)
     {
         //listen read event
         swoole_event_set(event->socket, SW_EVENT_READ);

@@ -892,7 +892,7 @@ bool http_client::send()
     socket->check_bound_co(SW_EVENT_WRITE);
 
     //clear errno
-    SwooleG.error = 0;
+    swoole_set_last_error(0);
     //alloc buffer
     swString *buffer = socket->get_write_buffer();
     swString_clear(buffer);
@@ -1425,7 +1425,8 @@ bool http_client::recv(double timeout)
     }
     if (!socket || !socket->is_connect())
     {
-        zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION);
+        swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
+        zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), swoole_get_last_error());
         zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), "connection is not available");
         zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         return false;
@@ -1471,7 +1472,8 @@ void http_client::recv(zval *zframe, double timeout)
     ZVAL_FALSE(zframe);
     if (!socket || !socket->is_connect())
     {
-        zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION);
+        swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
+        zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), swoole_get_last_error());
         zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), "connection is not available");
         zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         return;
@@ -1585,15 +1587,17 @@ bool http_client::push(zval *zdata, zend_long opcode, uint8_t flags)
 {
     if (!websocket)
     {
+        swoole_set_last_error(SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED);
         php_swoole_fatal_error(E_WARNING, "websocket handshake failed, cannot push data");
-        zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), SwooleG.error = SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED);
+        zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), swoole_get_last_error());
         zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), "websocket handshake failed, cannot push data");
         zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
         return false;
     }
     if (!socket || !socket->is_connect())
     {
-        zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION);
+        swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
+        zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("errCode"), swoole_get_last_error());
         zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("errMsg"), "connection is not available");
         zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         return false;

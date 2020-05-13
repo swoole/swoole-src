@@ -1019,7 +1019,7 @@ int swSSL_connect(swSocket *conn)
     {
         if (n)
         {
-            SwooleG.error = errno;
+            swoole_set_last_error(errno);
             return SW_ERR;
         }
     }

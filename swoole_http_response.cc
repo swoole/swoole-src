@@ -1229,7 +1229,7 @@ static PHP_METHOD(swoole_http_response, push)
     http_context *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (UNEXPECTED(!ctx))
     {
-        SwooleG.error = SW_ERROR_SESSION_CLOSED;
+        swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
         RETURN_FALSE;
     }
     if (UNEXPECTED(!ctx->co_socket || !ctx->upgrade))
@@ -1279,7 +1279,7 @@ static PHP_METHOD(swoole_http_response, close)
     http_context *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (UNEXPECTED(!ctx))
     {
-        SwooleG.error = SW_ERROR_SESSION_CLOSED;
+        swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
         RETURN_FALSE;
     }
     RETURN_BOOL(ctx->close(ctx));
@@ -1290,7 +1290,7 @@ static PHP_METHOD(swoole_http_response, recv)
     http_context *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (UNEXPECTED(!ctx))
     {
-        SwooleG.error = SW_ERROR_SESSION_CLOSED;
+        swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
         RETURN_FALSE;
     }
     if (UNEXPECTED(!ctx->co_socket || !ctx->upgrade))
@@ -1312,7 +1312,7 @@ static PHP_METHOD(swoole_http_response, recv)
 
     if (retval < 0)
     {
-        SwooleG.error = sock->errCode;
+        swoole_set_last_error(sock->errCode);
         RETURN_FALSE;
     }
     else if (retval == 0)

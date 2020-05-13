@@ -116,6 +116,7 @@ int swLog_set_date_format(const char *format)
 
     if (l_data_str == 0)
     {
+        swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "The date format string[length=%ld] is too long",
                 strlen(format));
 
