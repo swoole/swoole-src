@@ -2517,6 +2517,7 @@ typedef struct
     uchar running :1;
     uchar enable_coroutine :1;
     uchar use_signalfd :1;
+    uchar wait_signal :1;
     uchar enable_signalfd :1;
     uchar socket_dontwait :1;
     uchar dns_lookup_random :1;

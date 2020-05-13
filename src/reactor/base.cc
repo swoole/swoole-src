@@ -130,6 +130,10 @@ int swReactor_empty(swReactor *reactor)
     {
         return SW_FALSE;
     }
+    if (SwooleTG.reactor->signal_listener_num > 0 && SwooleG.wait_signal)
+    {
+        return SW_FALSE;
+    }
 
     int event_num = reactor->event_num;
     int empty = SW_FALSE;
