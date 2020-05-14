@@ -934,12 +934,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
         php_swoole_sys_error(E_WARNING, "stat(%s) failed", file);
         RETURN_FALSE;
     }
-    if (file_stat.st_size == 0)
-    {
-        php_swoole_error(E_WARNING, "can't send empty file[%s]", file);
-        RETURN_FALSE;
-    }
-    if (file_stat.st_size <= offset)
+    if (file_stat.st_size < offset)
     {
         php_swoole_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] exceeds the file size", offset);
         RETURN_FALSE;
@@ -981,10 +976,13 @@ static PHP_METHOD(swoole_http_response, sendfile)
         }
     }
 
-    if (!ctx->sendfile(ctx, file, l_file, offset, length))
+    if (length != 0)
     {
-        ctx->close(ctx);
-        RETURN_FALSE;
+        if (!ctx->sendfile(ctx, file, l_file, offset, length))
+        {
+            ctx->close(ctx);
+            RETURN_FALSE;
+        }
     }
 
     ctx->end = 1;
