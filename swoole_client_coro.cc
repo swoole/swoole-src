@@ -745,7 +745,7 @@ static PHP_METHOD(swoole_client_coro, send)
     }
 
     Socket::timeout_setter ts(cli, timeout, SW_TIMEOUT_WRITE);
-    ssize_t ret = cli->send_all(data, data_len);
+    ssize_t ret = cli->send_all(data, data_len, true);
     if (ret < 0)
     {
         zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), cli->errCode);
@@ -791,7 +791,7 @@ static PHP_METHOD(swoole_client_coro, sendto)
         }
     }
 
-    ssize_t ret = cli->sendto(std::string(host, host_len), port, data, len);
+    ssize_t ret = cli->sendto(std::string(host, host_len), port, data, len, true);
     if (ret < 0)
     {
         zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), cli->errCode);

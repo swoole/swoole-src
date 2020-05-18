@@ -189,7 +189,7 @@ private:
 
     inline bool send(const char *buf, size_t len)
     {
-        if (sw_unlikely(client->send_all(buf, len) != (ssize_t )len))
+        if (sw_unlikely(client->send_all(buf, len, true) != (ssize_t )len))
         {
             io_error();
             return false;

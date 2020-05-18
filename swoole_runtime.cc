@@ -282,7 +282,7 @@ static ssize_t socket_write(php_stream *stream, const char *buf, size_t count)
     {
         return 0;
     }
-    didwrite = sock->send_all(buf, count);
+    didwrite = sock->send_all(buf, count, true);
     if (didwrite > 0)
     {
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), didwrite, 0);
@@ -668,7 +668,7 @@ static inline int socket_sendto(Socket *sock, const char *buf, size_t buflen, st
     }
     else
     {
-        return sock->send(buf, buflen);
+        return sock->send(buf, buflen, true);
     }
 }
 

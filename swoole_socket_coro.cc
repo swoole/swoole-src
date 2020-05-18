@@ -1310,7 +1310,7 @@ static sw_inline void swoole_socket_coro_send(INTERNAL_FUNCTION_PARAMETERS, cons
     swoole_get_socket_coro(sock, ZEND_THIS);
 
     Socket::timeout_setter ts(sock->socket, timeout, SW_TIMEOUT_WRITE);
-    ssize_t retval = all ? sock->socket->send_all(data, length) : sock->socket->send(data, length);
+    ssize_t retval = all ? sock->socket->send_all(data, length, true) : sock->socket->send(data, length, true);
     swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     if (UNEXPECTED(retval < 0))
     {
@@ -1418,7 +1418,7 @@ static PHP_METHOD(swoole_socket_coro, sendto)
 
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    ssize_t retval = sock->socket->sendto(std::string(addr, l_addr), port, data, l_data);
+    ssize_t retval = sock->socket->sendto(std::string(addr, l_addr), port, data, l_data, true);
     swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     if (retval < 0)
     {

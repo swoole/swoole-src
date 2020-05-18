@@ -326,7 +326,7 @@ public:
                 io_error();
                 return false;
             }
-            if (sw_unlikely(socket->send_all(data, length) != (ssize_t ) length))
+            if (sw_unlikely(socket->send_all(data, length, true) != (ssize_t ) length))
             {
                 io_error();
                 return false;
@@ -800,7 +800,7 @@ bool mysql_client::send_command(enum sw_mysql_command command, const char* sql, 
 void mysql_client::send_command_without_check(enum sw_mysql_command command, const char* sql, size_t length)
 {
     mysql::command_packet command_packet(command, sql, length);
-    (void) (socket && socket->send(command_packet.get_data(), command_packet.get_data_length()));
+    (void) (socket && socket->send(command_packet.get_data(), command_packet.get_data_length(), true));
 }
 
 bool mysql_client::handshake()
@@ -1415,7 +1415,7 @@ void mysql_statement::send_execute_request(zval *return_value, zval *params)
         RETURN_FALSE;
     }
 
-    swString *buffer = SwooleTG.buffer_stack;
+    swString *buffer = client->socket->get_write_buffer();
     char *p = buffer->str;
 
     memset(p, 0, 5);
