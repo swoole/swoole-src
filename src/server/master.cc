@@ -1159,7 +1159,7 @@ static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_
 int swServer_master_send(swServer *serv, swSendData *_send)
 {
     uint32_t session_id = _send->info.fd;
-    char *_send_data = _send->data;
+    const char *_send_data = _send->data;
     uint32_t _send_length = _send->info.len;
 
     swConnection *conn;

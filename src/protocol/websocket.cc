@@ -240,13 +240,13 @@ void swWebSocket_print_frame(swWebSocket_frame *frame)
     }
 }
 
-int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data, uint32_t length)
+int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char *data, uint32_t length)
 {
     swServer *serv = (swServer *) proto->private_data_2;
     swConnection *conn = (swConnection *) _socket->object;
     swString frame;
     bzero(&frame, sizeof(frame));
-    frame.str = data;
+    frame.str = const_cast<char*>(data);
     frame.length = length;
 
     swString send_frame = {};
