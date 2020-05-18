@@ -254,7 +254,7 @@ pid_t swoole_fork(int flags)
     return pid;
 }
 
-uint64_t swoole_hash_key(char *str, int str_len)
+uint64_t swoole_hash_key(const char *str, int str_len)
 {
     uint64_t hash = 5381;
     int c, i = 0;

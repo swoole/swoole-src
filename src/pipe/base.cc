@@ -17,7 +17,7 @@
 #include "swoole.h"
 
 static int swPipeBase_read(swPipe *p, void *data, int length);
-static int swPipeBase_write(swPipe *p, void *data, int length);
+static int swPipeBase_write(swPipe *p, const void *data, int length);
 static int swPipeBase_close(swPipe *p);
 
 typedef struct _swPipeBase
@@ -108,7 +108,7 @@ static int swPipeBase_read(swPipe *p, void *data, int length)
     return read(object->pipes[0], data, length);
 }
 
-static int swPipeBase_write(swPipe *p, void *data, int length)
+static int swPipeBase_write(swPipe *p, const void *data, int length)
 {
     swPipeBase *object = (swPipeBase *) p->object;
     return write(object->pipes[1], data, length);

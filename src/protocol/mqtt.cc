@@ -23,7 +23,7 @@ void swMqtt_print_package(swMqtt_packet *pkg)
     printf("type=%d, length=%d\n", pkg->type, pkg->length);
 }
 
-static sw_inline ssize_t swMqtt_get_length(char *data, uint32_t size, ssize_t *count)
+static sw_inline ssize_t swMqtt_get_length(const char *data, uint32_t size, ssize_t *count)
 {
     uint8_t byte;
     int mul = 1;
@@ -61,7 +61,7 @@ int swMqtt_unpack(swMqtt_packet *pkg, char *data, uint32_t size)
 }
 #endif
 
-ssize_t swMqtt_get_package_length(swProtocol *protocol, swSocket *conn, char *data, uint32_t size)
+ssize_t swMqtt_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t size)
 {
     if (size < SW_MQTT_MIN_LENGTH)
     {

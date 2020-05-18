@@ -155,7 +155,7 @@ int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueu
     return SW_OK;
 }
 
-int swProcessPool_create_unix_socket(swProcessPool *pool, char *socket_file, int blacklog)
+int swProcessPool_create_unix_socket(swProcessPool *pool, const char *socket_file, int blacklog)
 {
     if (pool->ipc_mode != SW_IPC_SOCKET)
     {
@@ -175,7 +175,7 @@ int swProcessPool_create_unix_socket(swProcessPool *pool, char *socket_file, int
     return SW_OK;
 }
 
-int swProcessPool_create_tcp_socket(swProcessPool *pool, char *host, int port, int blacklog)
+int swProcessPool_create_tcp_socket(swProcessPool *pool, const char *host, int port, int blacklog)
 {
     if (pool->ipc_mode != SW_IPC_SOCKET)
     {
@@ -247,7 +247,7 @@ static sw_inline int swProcessPool_schedule(swProcessPool *pool)
     return target_worker_id;
 }
 
-int swProcessPool_response(swProcessPool *pool, char *data, int length)
+int swProcessPool_response(swProcessPool *pool, const char *data, int length)
 {
     if (pool->stream == nullptr || pool->stream->last_connection == nullptr || pool->stream->response_buffer == nullptr)
     {

@@ -929,7 +929,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset)
         sock->protocol.package_length_size = FCGI_HEADER_LEN;
         sock->protocol.package_length_offset = 0;
         sock->protocol.package_body_offset = 0;
-        sock->protocol.get_package_length = [](swProtocol *protocol, swSocket *conn, char *data, uint32_t size) {
+        sock->protocol.get_package_length = [](swProtocol *protocol, swSocket *conn, const char *data, uint32_t size) {
             const uint8_t *p = (const uint8_t *) data;
             ssize_t length = 0;
             if (size >= FCGI_HEADER_LEN)

@@ -85,7 +85,7 @@ swChannel* swChannel_new(size_t size, size_t maxlen, int flags)
 /**
  * push data(no lock)
  */
-int swChannel_in(swChannel *object, void *in, int data_length)
+int swChannel_in(swChannel *object, const void *in, int data_length)
 {
     assert(data_length <= object->maxlen);
     if (swChannel_full(object))
@@ -190,7 +190,7 @@ int swChannel_notify(swChannel *object)
 /**
  * push data (lock)
  */
-int swChannel_push(swChannel *object, void *in, int data_length)
+int swChannel_push(swChannel *object, const void *in, int data_length)
 {
     assert(object->flag & SW_CHAN_LOCK);
     object->lock.lock(&object->lock);

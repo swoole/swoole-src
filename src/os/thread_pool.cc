@@ -68,7 +68,7 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
     return SW_OK;
 }
 
-int swThreadPool_dispatch(swThreadPool *pool, void *task, int task_len)
+int swThreadPool_dispatch(swThreadPool *pool, const void *task, int task_len)
 {
     int ret;
 
@@ -76,7 +76,7 @@ int swThreadPool_dispatch(swThreadPool *pool, void *task, int task_len)
 #ifdef SW_THREADPOOL_USE_CHANNEL
     ret = swChannel_in(pool->chan, task, task_len);
 #else
-    ret = swRingQueue_push(&pool->queue, task);
+    ret = swRingQueue_push(&pool->queue, (char*) task);
 #endif
     pool->cond.unlock(&pool->cond);
 

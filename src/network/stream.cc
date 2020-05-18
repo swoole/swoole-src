@@ -45,7 +45,7 @@ static void swStream_onError(swClient *cli)
     swStream_free((swStream *) cli->object);
 }
 
-static void swStream_onReceive(swClient *cli, char *data, uint32_t length)
+static void swStream_onReceive(swClient *cli, const char *data, uint32_t length)
 {
     swStream *stream = (swStream*) cli->object;
     if (length == 4)
@@ -76,7 +76,7 @@ static void swStream_free(swStream *stream)
     sw_free(stream);
 }
 
-swStream* swStream_new(char *dst_host, int dst_port, enum swSocket_type type)
+swStream* swStream_new(const char *dst_host, int dst_port, enum swSocket_type type)
 {
     swStream *stream = (swStream*) sw_malloc(sizeof(swStream));
     if (!stream)
@@ -129,7 +129,7 @@ void swStream_set_max_length(swStream *stream, uint32_t max_length)
     stream->client.protocol.package_max_length = max_length;
 }
 
-int swStream_send(swStream *stream, char *data, size_t length)
+int swStream_send(swStream *stream, const char *data, size_t length)
 {
     if (stream->buffer == NULL)
     {

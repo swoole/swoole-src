@@ -76,7 +76,7 @@ swString *swString_dup(const char *src_str, size_t length)
     return str;
 }
 
-int swString_append(swString *str, swString *append_str)
+int swString_append(swString *str, const swString *append_str)
 {
     size_t new_size = str->length + append_str->length;
     if (new_size > str->size)
@@ -147,7 +147,7 @@ int swString_write(swString *str, off_t offset, swString *write_str)
     return SW_OK;
 }
 
-int swString_write_ptr(swString *str, off_t offset, char *write_str, size_t length)
+int swString_write_ptr(swString *str, off_t offset, const char *write_str, size_t length)
 {
     size_t new_length = offset + length;
     if (new_length > str->size)

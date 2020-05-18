@@ -25,7 +25,7 @@
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamRead(swReactor *reactor, swEvent *event);
-static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, char *data, uint32_t length);
+static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, const char *data, uint32_t length);
 static int swWorker_onStreamClose(swReactor *reactor, swEvent *event);
 static int swWorker_reactor_is_empty(swReactor *reactor);
 
@@ -206,7 +206,7 @@ static int swWorker_onStreamClose(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, char *data, uint32_t length)
+static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, const char *data, uint32_t length)
 {
     swServer *serv = (swServer *) proto->private_data_2;
 
@@ -219,7 +219,7 @@ static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, char *dat
 
     bzero(&task.data, sizeof(task.data));
     task.data.length = length - (uint32_t) sizeof(task.info) - 4;
-    task.data.str = data + 4 + sizeof(task.info);
+    task.data.str = (char*) (data + 4 + sizeof(task.info));
 
     /**
      * do task

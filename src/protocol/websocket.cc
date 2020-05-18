@@ -48,7 +48,7 @@ static inline uint16_t swWebSocket_get_ext_flags(uchar opcode, uchar flags)
  +---------------------------------------------------------------+
  */
 
-ssize_t swWebSocket_get_package_length(swProtocol *protocol, swSocket *conn, char *buf, uint32_t length)
+ssize_t swWebSocket_get_package_length(swProtocol *protocol, swSocket *conn, const char *buf, uint32_t length)
 {
     //need more data
     if (length < SW_WEBSOCKET_HEADER_LEN)
@@ -240,13 +240,13 @@ void swWebSocket_print_frame(swWebSocket_frame *frame)
     }
 }
 
-int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, char *data, uint32_t length)
+int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char *data, uint32_t length)
 {
     swServer *serv = (swServer *) proto->private_data_2;
     swConnection *conn = (swConnection *) _socket->object;
     swString frame;
     bzero(&frame, sizeof(frame));
-    frame.str = data;
+    frame.str = const_cast<char*>(data);
     frame.length = length;
 
     swString send_frame = {};
