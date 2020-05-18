@@ -705,7 +705,7 @@ static void php_swoole_client_free(zval *zobject, swClient *cli)
     php_swoole_client_set_cli(zobject, NULL);
 }
 
-ssize_t php_swoole_length_func(swProtocol *protocol, swSocket *_socket, char *data, uint32_t length)
+ssize_t php_swoole_length_func(swProtocol *protocol, swSocket *_socket, const char *data, uint32_t length)
 {
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
     zval zdata;

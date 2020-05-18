@@ -48,7 +48,7 @@ static inline uint16_t swWebSocket_get_ext_flags(uchar opcode, uchar flags)
  +---------------------------------------------------------------+
  */
 
-ssize_t swWebSocket_get_package_length(swProtocol *protocol, swSocket *conn, char *buf, uint32_t length)
+ssize_t swWebSocket_get_package_length(swProtocol *protocol, swSocket *conn, const char *buf, uint32_t length)
 {
     //need more data
     if (length < SW_WEBSOCKET_HEADER_LEN)

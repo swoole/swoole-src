@@ -824,7 +824,7 @@ string swHttpRequest_get_date_if_modified_since(swHttpRequest *request)
 
 
 #ifdef SW_USE_HTTP2
-ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *socket, char *data, uint32_t length)
+ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *socket, const char *data, uint32_t length)
 {
     swConnection *conn = (swConnection *) socket->object;
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
@@ -860,7 +860,7 @@ uint8_t swHttpMix_get_package_length_size(swSocket *socket)
     }
 }
 
-int swHttpMix_dispatch_frame(swProtocol *proto, swSocket *socket, char *data, uint32_t length)
+int swHttpMix_dispatch_frame(swProtocol *proto, swSocket *socket, const char *data, uint32_t length)
 {
     swConnection *conn = (swConnection *) socket->object;
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)

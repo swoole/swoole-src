@@ -23,7 +23,7 @@ using namespace swoole;
 /**
  * return the package total length
  */
-ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *conn, char *data, uint32_t size)
+ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t size)
 {
     uint16_t length_offset = protocol->package_length_offset;
     uint8_t package_length_size = protocol->get_package_length_size ? protocol->get_package_length_size(conn) : protocol->package_length_size;

@@ -136,7 +136,7 @@ typedef struct _swClient
 
     void (*onConnect)(struct _swClient *cli);
     void (*onError)(struct _swClient *cli);
-    void (*onReceive)(struct _swClient *cli, char *data, uint32_t length);
+    void (*onReceive)(struct _swClient *cli, const char *data, uint32_t length);
     void (*onClose)(struct _swClient *cli);
     void (*onBufferFull)(struct _swClient *cli);
     void (*onBufferEmpty)(struct _swClient *cli);
@@ -166,12 +166,12 @@ typedef struct _swStream
     swString *buffer;
     uint8_t cancel;
     void *private_data;
-    void (*response)(struct _swStream *stream, char *data, uint32_t length);
+    void (*response)(struct _swStream *stream, const char *data, uint32_t length);
     swClient client;
 } swStream;
 
-swStream* swStream_new(char *dst_host, int dst_port, enum swSocket_type type);
-int swStream_send(swStream *stream, char *data, size_t length);
+swStream* swStream_new(const char *dst_host, int dst_port, enum swSocket_type type);
+int swStream_send(swStream *stream, const char *data, size_t length);
 void swStream_set_protocol(swProtocol *protocol);
 void swStream_set_max_length(swStream *stream, uint32_t max_length);
 int swStream_recv_blocking(swSocket *sock, void *__buf, size_t __len);

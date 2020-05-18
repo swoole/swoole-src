@@ -1061,8 +1061,8 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_join(swServer *serv);
 void swReactorThread_free(swServer *serv);
 int swReactorThread_close(swReactor *reactor, swSocket *_socket);
-int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, char *data, uint32_t length);
-int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, size_t len);
+int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, const char *data, uint32_t length);
+int swReactorThread_send2worker(swServer *serv, swWorker *worker, const void *data, size_t len);
 
 int swReactorProcess_create(swServer *serv);
 int swReactorProcess_start(swServer *serv);

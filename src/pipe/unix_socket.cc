@@ -17,7 +17,7 @@
 #include "swoole.h"
 
 static int swPipeUnsock_read(swPipe *p, void *data, int length);
-static int swPipeUnsock_write(swPipe *p, void *data, int length);
+static int swPipeUnsock_write(swPipe *p, const void *data, int length);
 static int swPipeUnsock_close(swPipe *p);
 
 typedef struct _swPipeUnsock
@@ -120,7 +120,7 @@ static int swPipeUnsock_read(swPipe *p, void *data, int length)
     return read(((swPipeUnsock *) p->object)->socks[0], data, length);
 }
 
-static int swPipeUnsock_write(swPipe *p, void *data, int length)
+static int swPipeUnsock_write(swPipe *p, const void *data, int length)
 {
     return write(((swPipeUnsock *) p->object)->socks[1], data, length);
 }

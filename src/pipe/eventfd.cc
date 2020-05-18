@@ -20,7 +20,7 @@
 #include <sys/eventfd.h>
 
 static int swPipeEventfd_read(swPipe *p, void *data, int length);
-static int swPipeEventfd_write(swPipe *p, void *data, int length);
+static int swPipeEventfd_write(swPipe *p, const void *data, int length);
 static int swPipeEventfd_close(swPipe *p);
 
 typedef struct _swPipeEventfd
@@ -114,7 +114,7 @@ static int swPipeEventfd_read(swPipe *p, void *data, int length)
     return ret;
 }
 
-static int swPipeEventfd_write(swPipe *p, void *data, int length)
+static int swPipeEventfd_write(swPipe *p, const void *data, int length)
 {
     int ret;
     swPipeEventfd *object = (swPipeEventfd *) p->object;
