@@ -794,6 +794,7 @@ static sw_inline void swoole_socket_coro_sync_properties(zval *zobject, socket_c
 
 static void sw_inline php_swoole_init_socket(zval *zobject, socket_coro *sock)
 {
+    sock->socket->set_zero_copy(true);
     zend_update_property_long(swoole_socket_coro_ce, zobject, ZEND_STRL("fd"), sock->socket->get_fd());
 }
 

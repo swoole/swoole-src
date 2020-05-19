@@ -986,6 +986,8 @@ static php_stream *socket_create(
         return NULL;
     }
 
+    sock->set_zero_copy(true);
+
     abstract = (php_swoole_netstream_data_t*) ecalloc(1, sizeof(*abstract));
     abstract->socket = sock;
     abstract->stream.socket = sock->get_fd();

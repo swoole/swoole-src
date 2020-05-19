@@ -209,7 +209,7 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
     }
     else // if (event == SW_EVENT_WRITE)
     {
-        if (sw_unlikely(__n > 0 && *__buf != get_write_buffer()->str))
+        if (sw_unlikely(!zero_copy && __n > 0 && *__buf != get_write_buffer()->str))
         {
             swString_clear(write_buffer);
             if (swString_append_ptr(write_buffer, (const char *) *__buf, __n) != SW_OK)

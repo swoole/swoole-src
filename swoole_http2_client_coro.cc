@@ -403,6 +403,7 @@ bool http2_client::connect()
         client = nullptr;
         return false;
     }
+    client->set_zero_copy(true);
 #ifdef SW_USE_OPENSSL
     client->open_ssl = ssl;
 #endif
