@@ -26,6 +26,7 @@
 #include <functional>
 #include <vector>
 #include <set>
+#include <chrono>
 
 namespace swoole {
 //-------------------------------------------------------------------------------
@@ -115,6 +116,20 @@ static inline void hook_call(void **hooks, int type, void *arg)
     for (auto i = l->begin(); i != l->end(); i++)
     {
         (*i)(arg);
+    }
+}
+
+static inline long get_millisecond(bool steady = false)
+{
+    if (steady)
+    {
+        auto now = std::chrono::steady_clock::now();
+        return std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    }
+    else
+    {
+        auto now = std::chrono::system_clock::now();
+        return std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
     }
 }
 
