@@ -1637,9 +1637,10 @@ void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_NO_IDLE_WORKER, "No idle worker is available");
     }
 
-    if (swServer_task_worker_idle_num(serv) == 0 && serv->warning_time < now)
+    if (serv->gs->task_workers.scheduler_warning && serv->gs->task_workers.warning_time < now)
     {
-        serv->warning_time = now;
+        serv->gs->task_workers.scheduler_warning = 0;
+        serv->gs->task_workers.warning_time = now;
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_NO_IDLE_WORKER, "No idle task worker is available");
     }
 
