@@ -95,20 +95,20 @@ public:
     bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
-    ssize_t send(const void *__buf, size_t __n, bool zero_copy = false);
+    ssize_t send(const void *__buf, size_t __n);
     ssize_t read(void *__buf, size_t __n);
-    ssize_t write(const void *__buf, size_t __n, bool zero_copy = false);
+    ssize_t write(const void *__buf, size_t __n);
     ssize_t recvmsg(struct msghdr *msg, int flags);
     ssize_t sendmsg(const struct msghdr *msg, int flags);
     ssize_t recv_all(void *__buf, size_t __n);
-    ssize_t send_all(const void *__buf, size_t __n, bool zero_copy = false);
+    ssize_t send_all(const void *__buf, size_t __n);
     ssize_t recv_packet(double timeout = 0);
     bool poll(enum swEvent_type type);
     Socket* accept(double timeout = 0);
     bool bind(std::string address, int port = 0);
     bool listen(int backlog = 0);
     bool sendfile(const char *filename, off_t offset, size_t length);
-    ssize_t sendto(const std::string &host, int port, const void *__buf, size_t __n, bool zero_copy = false);
+    ssize_t sendto(const std::string &host, int port, const void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
 #ifdef SW_USE_OPENSSL
@@ -339,6 +339,11 @@ public:
         return write_buffer;
     }
 
+    inline void set_zero_copy(bool enable)
+    {
+        zero_copy = enable;
+    }
+
 #ifdef SW_USE_OPENSSL
     inline bool is_ssl_enable()
     {
@@ -392,6 +397,8 @@ private:
     bool shutdown_write = false;
     bool closed = false;
 
+    bool zero_copy = false;
+
     static void timer_callback(swTimer *timer, swTimer_node *tnode);
     static int readable_event_callback(swReactor *reactor, swEvent *event);
     static int writable_event_callback(swReactor *reactor, swEvent *event);
@@ -415,7 +422,7 @@ private:
     }
 
     bool add_event(const enum swEvent_type event);
-    bool wait_event(const enum swEvent_type event, const void **__buf = nullptr, size_t __n = 0, bool zero_copy = false);
+    bool wait_event(const enum swEvent_type event, const void **__buf = nullptr, size_t __n = 0);
 
     inline bool is_available(const enum swEvent_type event)
     {

@@ -189,7 +189,7 @@ private:
 
     inline bool send(const char *buf, size_t len)
     {
-        if (sw_unlikely(client->send_all(buf, len, true) != (ssize_t )len))
+        if (sw_unlikely(client->send_all(buf, len) != (ssize_t )len))
         {
             io_error();
             return false;
@@ -403,6 +403,7 @@ bool http2_client::connect()
         client = nullptr;
         return false;
     }
+    client->set_zero_copy(true);
 #ifdef SW_USE_OPENSSL
     client->open_ssl = ssl;
 #endif

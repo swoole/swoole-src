@@ -229,6 +229,8 @@ static Socket* client_coro_new(zval *zobject, int port)
 
     zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("fd"), cli->get_fd());
 
+    cli->set_zero_copy(true);
+
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL)
     {
@@ -745,7 +747,7 @@ static PHP_METHOD(swoole_client_coro, send)
     }
 
     Socket::timeout_setter ts(cli, timeout, SW_TIMEOUT_WRITE);
-    ssize_t ret = cli->send_all(data, data_len, true);
+    ssize_t ret = cli->send_all(data, data_len);
     if (ret < 0)
     {
         zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), cli->errCode);
@@ -791,7 +793,7 @@ static PHP_METHOD(swoole_client_coro, sendto)
         }
     }
 
-    ssize_t ret = cli->sendto(std::string(host, host_len), port, data, len, true);
+    ssize_t ret = cli->sendto(std::string(host, host_len), port, data, len);
     if (ret < 0)
     {
         zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), cli->errCode);

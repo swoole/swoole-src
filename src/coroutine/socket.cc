@@ -166,7 +166,7 @@ bool Socket::add_event(const enum swEvent_type event)
     return ret;
 }
 
-bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_t __n, bool zero_copy)
+bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_t __n)
 {
     enum swEvent_type added_event = event;
     Coroutine *co = Coroutine::get_current_safe();
@@ -980,7 +980,7 @@ ssize_t Socket::recv(void *__buf, size_t __n)
     return retval;
 }
 
-ssize_t Socket::send(const void *__buf, size_t __n, bool zero_copy)
+ssize_t Socket::send(const void *__buf, size_t __n)
 {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE)))
     {
@@ -990,7 +990,7 @@ ssize_t Socket::send(const void *__buf, size_t __n, bool zero_copy)
     timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     do {
         retval = swSocket_send(socket, __buf, __n, 0);
-    } while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n, zero_copy));
+    } while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -1010,7 +1010,7 @@ ssize_t Socket::read(void *__buf, size_t __n)
     return retval;
 }
 
-ssize_t Socket::write(const void *__buf, size_t __n, bool zero_copy)
+ssize_t Socket::write(const void *__buf, size_t __n)
 {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE)))
     {
@@ -1020,7 +1020,7 @@ ssize_t Socket::write(const void *__buf, size_t __n, bool zero_copy)
     timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     do {
         retval = ::write(sock_fd, (void *) __buf, __n);
-    } while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n, zero_copy));
+    } while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -1056,7 +1056,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
     return total_bytes;
 }
 
-ssize_t Socket::send_all(const void *__buf, size_t __n, bool zero_copy)
+ssize_t Socket::send_all(const void *__buf, size_t __n)
 {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE)))
     {
@@ -1070,7 +1070,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n, bool zero_copy)
         {
             retval = swSocket_send(socket, (char *) __buf + total_bytes, __n - total_bytes, 0);
         }
-        while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n, zero_copy));
+        while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n));
         /**
          * failed to send
          */
@@ -1537,7 +1537,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length)
     return true;
 }
 
-ssize_t Socket::sendto(const string &host, int port, const void *__buf, size_t __n, bool zero_copy)
+ssize_t Socket::sendto(const string &host, int port, const void *__buf, size_t __n)
 {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE)))
     {
@@ -1622,7 +1622,7 @@ ssize_t Socket::sendto(const string &host, int port, const void *__buf, size_t _
         do {
             retval = ::sendto(sock_fd, __buf, __n, 0, (struct sockaddr *) &addr, addr_size);
             swTraceLog(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, __n, errno);
-        } while (retval < 0 && (errno == EINTR || (swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n, zero_copy))));
+        } while (retval < 0 && (errno == EINTR || (swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n))));
         set_err(retval < 0 ? errno : 0);
     }
 

@@ -326,7 +326,7 @@ public:
                 io_error();
                 return false;
             }
-            if (sw_unlikely(socket->send_all(data, length, true) != (ssize_t ) length))
+            if (sw_unlikely(socket->send_all(data, length) != (ssize_t ) length))
             {
                 io_error();
                 return false;
@@ -650,6 +650,7 @@ bool mysql_client::connect(std::string host, uint16_t port, bool ssl)
             socket = nullptr;
             return false;
         }
+        socket->set_zero_copy(true);
 #ifdef SW_USE_OPENSSL
         socket->open_ssl = ssl;
 #endif
@@ -800,7 +801,7 @@ bool mysql_client::send_command(enum sw_mysql_command command, const char* sql, 
 void mysql_client::send_command_without_check(enum sw_mysql_command command, const char* sql, size_t length)
 {
     mysql::command_packet command_packet(command, sql, length);
-    (void) (socket && socket->send(command_packet.get_data(), command_packet.get_data_length(), true));
+    (void) (socket && socket->send(command_packet.get_data(), command_packet.get_data_length()));
 }
 
 bool mysql_client::handshake()
