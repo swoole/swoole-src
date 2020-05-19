@@ -3521,15 +3521,21 @@ static PHP_METHOD(swoole_server, taskwait)
     swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_READ);
 
     //clear history task
-    while (read(task_notify_socket->fd, &notify, sizeof(notify)) > 0) {}
+    while (swSocket_wait(task_notify_socket->fd, 0, SW_EVENT_READ) == SW_OK)
+    {
+        read(task_notify_socket->fd, &notify, sizeof(notify));
+    }
 
     sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
 
     if (swProcessPool_dispatch_blocking(&serv->gs->task_workers, &buf, &_dst_worker_id) >= 0)
     {
-        task_notify_pipe->timeout = timeout;
         while(1)
         {
+            if (swSocket_wait(task_notify_socket->fd, (int) (timeout * 1000), SW_EVENT_READ) != SW_OK)
+            {
+                break;
+            }
             if (task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify)) > 0)
             {
                 if (task_result->info.fd != task_id)
