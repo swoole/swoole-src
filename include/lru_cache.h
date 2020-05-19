@@ -51,7 +51,7 @@ public:
             return nullptr;
         }
 
-        if (iter->second->second.first < time(nullptr) && iter->second->second.first > 0)
+        if (iter->second->second.first < ::time(nullptr) && iter->second->second.first > 0)
         {
             return nullptr;
         }
@@ -70,7 +70,7 @@ public:
         }
         else
         {
-            expire_time = time(nullptr) + expire;
+            expire_time = ::time(nullptr) + expire;
         }
 
         auto iter = cache_map.find(key);

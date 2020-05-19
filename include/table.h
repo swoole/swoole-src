@@ -220,14 +220,14 @@ static sw_inline void swTableRow_lock(swTableRow *row)
          */
         if (t == 0)
         {
-            t = swoole::get_millisecond(true);
+            t = swoole::time<std::chrono::milliseconds>(true);
         }
         /**
          * The deadlock time exceeds 2 seconds (SW_TABLE_FORCE_UNLOCK_TIME),
          * indicating that the lock process has OOM,
          * and the PID has been reused, forcing the unlock
          */
-        else if ((swoole::get_millisecond(true) - t) > SW_TABLE_FORCE_UNLOCK_TIME)
+        else if ((swoole::time<std::chrono::milliseconds>(true) - t) > SW_TABLE_FORCE_UNLOCK_TIME)
         {
             *lock = 1;
             goto _success;
