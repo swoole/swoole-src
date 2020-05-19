@@ -100,18 +100,18 @@ static int swPipeBase_read(swPipe *p, void *data, int length)
     swPipeBase *object = (swPipeBase *) p->object;
     if (p->blocking == 1 && p->timeout > 0)
     {
-        if (swSocket_wait(object->pipes[0], p->timeout * 1000, SW_EVENT_READ) < 0)
+        if (swSocket_wait(object->pipes[SW_PIPE_READ], p->timeout * 1000, SW_EVENT_READ) < 0)
         {
             return SW_ERR;
         }
     }
-    return read(object->pipes[0], data, length);
+    return read(object->pipes[SW_PIPE_READ], data, length);
 }
 
 static int swPipeBase_write(swPipe *p, const void *data, int length)
 {
     swPipeBase *object = (swPipeBase *) p->object;
-    return write(object->pipes[1], data, length);
+    return write(object->pipes[SW_PIPE_WRITE], data, length);
 }
 
 static int swPipeBase_close(swPipe *p)

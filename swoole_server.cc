@@ -3518,7 +3518,7 @@ static PHP_METHOD(swoole_server, taskwait)
     swEventData *task_result = &(serv->task_result[SwooleWG.id]);
     bzero(task_result, sizeof(swEventData));
     swPipe *task_notify_pipe = &serv->task_notify[SwooleWG.id];
-    swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_WORKER);
+    swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_READ);
 
     //clear history task
     while (read(task_notify_socket->fd, &notify, sizeof(notify)) > 0) {}

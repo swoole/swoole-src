@@ -404,7 +404,7 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
             ret = task_notify_pipe->write(task_notify_pipe, &flag, sizeof(flag));
             if (ret < 0 && swSocket_error(errno) == SW_WAIT)
             {
-                if (swSocket_wait(task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_MASTER)->fd, -1, SW_EVENT_WRITE) == 0)
+                if (swSocket_wait(task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_WRITE)->fd, -1, SW_EVENT_WRITE) == 0)
                 {
                     continue;
                 }
