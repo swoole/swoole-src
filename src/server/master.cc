@@ -1637,6 +1637,13 @@ void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_NO_IDLE_WORKER, "No idle worker is available");
     }
 
+    if (serv->gs->task_workers.scheduler_warning && serv->gs->task_workers.warning_time < now)
+    {
+        serv->gs->task_workers.scheduler_warning = 0;
+        serv->gs->task_workers.warning_time = now;
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_NO_IDLE_WORKER, "No idle task worker is available");
+    }
+
     if (serv->hooks[SW_SERVER_HOOK_MASTER_TIMER])
     {
         swServer_call_hook(serv, SW_SERVER_HOOK_MASTER_TIMER, serv);
@@ -2097,4 +2104,41 @@ int swServer_create_pipe_buffers(swServer *serv)
     }
 
     return SW_OK;
+}
+
+int swServer_worker_idle_num(swServer *serv)
+{
+    uint32_t i;
+    uint32_t worker_num = serv->worker_num;
+    uint32_t idle_worker_num = 0;
+
+    for (i = 0; i < worker_num; i++)
+    {
+        swWorker *worker = swServer_get_worker(serv, i);
+        if (worker->status == SW_WORKER_IDLE)
+        {
+            idle_worker_num++;
+        }
+    }
+
+    return idle_worker_num;
+}
+
+int swServer_task_worker_idle_num(swServer *serv)
+{
+    uint32_t i;
+    uint32_t worker_num = serv->worker_num;
+    uint32_t task_worker_num = serv->task_worker_num;
+    uint32_t idle_worker_num = 0;
+
+    for (i = worker_num; i < (worker_num + task_worker_num); i++)
+    {
+        swWorker *worker = swServer_get_worker(serv, i);
+        if (worker->status == SW_WORKER_IDLE)
+        {
+            idle_worker_num++;
+        }
+    }
+
+    return idle_worker_num;
 }

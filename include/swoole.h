@@ -2011,6 +2011,12 @@ struct _swProcessPool
     uint32_t max_request;
     uint32_t max_request_grace;
 
+    /**
+     * No idle task work process is available.
+     */
+    uint8_t scheduler_warning;
+    time_t warning_time;
+
     int (*onTask)(struct _swProcessPool *pool, swEventData *task);
 
     void (*onWorkerStart)(struct _swProcessPool *pool, int worker_id);

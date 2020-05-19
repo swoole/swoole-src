@@ -643,6 +643,9 @@ void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg)
 void swServer_clear_timer(swServer *serv);
 int swServer_create(swServer *serv);
 
+int swServer_worker_idle_num(swServer *serv);
+int swServer_task_worker_idle_num(swServer *serv);
+
 static inline bool swServer_if_require_receive_callback(swServer *serv, swListenPort *port, bool isset)
 {
 #ifdef SW_USE_OPENSSL

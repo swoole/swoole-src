@@ -3328,8 +3328,6 @@ static PHP_METHOD(swoole_server, stats)
         RETURN_FALSE;
     }
 
-    uint32_t i;
-
     array_init(return_value);
     add_assoc_long_ex(return_value, ZEND_STRL("start_time"), serv->stats->start_time);
     add_assoc_long_ex(return_value, ZEND_STRL("connection_num"), serv->stats->connection_num);
@@ -3344,17 +3342,12 @@ static PHP_METHOD(swoole_server, stats)
         tasking_num = serv->stats->tasking_num = 0;
     }
 
-    uint32_t worker_num = serv->worker_num;
     uint32_t idle_worker_num = 0;
+    uint32_t worker_num = serv->worker_num;
+
     add_assoc_long_ex(return_value, ZEND_STRL("worker_num"), worker_num);
-    for (i = 0; i < worker_num; i++)
-    {
-        swWorker *worker = swServer_get_worker(serv, i);
-        if (worker->status == SW_WORKER_IDLE)
-        {
-            idle_worker_num++;
-        }
-    }
+    idle_worker_num = swServer_worker_idle_num(serv);
+
     add_assoc_long_ex(return_value, ZEND_STRL("idle_worker_num"), idle_worker_num);
     add_assoc_long_ex(return_value, ZEND_STRL("tasking_num"), tasking_num);
     add_assoc_long_ex(return_value, ZEND_STRL("request_count"), serv->stats->request_count);
@@ -3377,15 +3370,7 @@ static PHP_METHOD(swoole_server, stats)
 
     if (serv->task_worker_num > 0)
     {
-        idle_worker_num = 0;
-        for (i = worker_num; i < (worker_num + serv->task_worker_num); i++)
-        {
-            swWorker *worker = swServer_get_worker(serv, i);
-            if (worker->status == SW_WORKER_IDLE)
-            {
-                idle_worker_num++;
-            }
-        }
+        idle_worker_num = swServer_task_worker_idle_num(serv);
         add_assoc_long_ex(return_value, ZEND_STRL("task_idle_worker_num"), idle_worker_num);
     }
 

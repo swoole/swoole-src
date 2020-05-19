@@ -235,14 +235,20 @@ static sw_inline int swProcessPool_schedule(swProcessPool *pool)
     }
 
     uint32_t i, target_worker_id = 0;
+    uint8_t found = 0;
 
     for (i = 0; i < pool->worker_num + 1; i++)
     {
         target_worker_id = sw_atomic_fetch_add(&pool->round_id, 1) % pool->worker_num;
         if (pool->workers[target_worker_id].status == SW_WORKER_IDLE)
         {
+            found = 1;
             break;
         }
+    }
+    if (found == 0)
+    {
+        pool->scheduler_warning = 1;
     }
     return target_worker_id;
 }
