@@ -26,7 +26,6 @@
 #include <sys/resource.h>
 #include <sys/ioctl.h>
 
-#include <chrono>
 #include <algorithm>
 
 #ifdef HAVE_EXECINFO
