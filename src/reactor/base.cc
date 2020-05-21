@@ -130,6 +130,10 @@ int swReactor_empty(swReactor *reactor)
     {
         return SW_FALSE;
     }
+    if (SwooleTG.reactor->signal_listener_num > 0 && SwooleG.wait_signal)
+    {
+        return SW_FALSE;
+    }
 
     int event_num = reactor->event_num;
     int empty = SW_FALSE;
@@ -306,7 +310,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
         }
         else
         {
-            SwooleG.error = errno;
+            swoole_set_last_error(errno);
             return SW_ERR;
         }
     }
@@ -317,7 +321,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
         {
             if (socket->dontwait)
             {
-                SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
+                swoole_set_last_error(SW_ERROR_OUTPUT_BUFFER_OVERFLOW);
                 return SW_ERR;
             }
             else

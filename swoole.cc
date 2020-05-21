@@ -245,6 +245,10 @@ void php_swoole_set_global_option(HashTable *vht)
     {
         swLog_set_date_with_microseconds(zval_is_true(ztmp));
     }
+    if (php_swoole_array_get_value(vht, "log_rotation", ztmp))
+    {
+        swLog_set_rotation(zval_get_long(ztmp));
+    }
     if (php_swoole_array_get_value(vht, "display_errors", ztmp))
     {
         SWOOLE_G(display_errors) = zval_is_true(ztmp);
@@ -539,6 +543,9 @@ PHP_MINIT_FUNCTION(swoole)
     SW_REGISTER_LONG_CONSTANT("SWOOLE_LOG_WARNING", SW_LOG_WARNING);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_LOG_ERROR", SW_LOG_ERROR);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_LOG_NONE", SW_LOG_NONE);
+
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_LOG_ROTATION_SINGLE", SW_LOG_ROTATION_SINGLE);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_LOG_ROTATION_DAILY", SW_LOG_ROTATION_DAILY);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_NONE", SW_IPC_NONE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_UNIXSOCK", SW_IPC_UNIXSOCK);
@@ -848,7 +855,7 @@ static PHP_FUNCTION(swoole_hashcode)
 
 PHP_FUNCTION(swoole_last_error)
 {
-    RETURN_LONG(SwooleG.error);
+    RETURN_LONG(swoole_get_last_error());
 }
 
 PHP_FUNCTION(swoole_cpu_num)

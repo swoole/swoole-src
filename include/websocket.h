@@ -173,8 +173,8 @@ void swWebSocket_decode(swWebSocket_frame *frame, swString *data);
 int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_t length, uint8_t flags);
 void swWebSocket_print_frame(swWebSocket_frame *frame);
 
-ssize_t swWebSocket_get_package_length(swProtocol *protocol, swSocket *conn, char *data, uint32_t length);
-int swWebSocket_dispatch_frame(swProtocol *protocol, swSocket *conn, char *data, uint32_t length);
+ssize_t swWebSocket_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length);
+int swWebSocket_dispatch_frame(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length);
 
 SW_EXTERN_C_END
 

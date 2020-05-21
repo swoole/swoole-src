@@ -84,6 +84,10 @@ PHP_FUNCTION(swoole_async_set)
     {
         SwooleG.enable_signalfd = zval_is_true(ztmp);
     }
+    if (php_swoole_array_get_value(vht, "wait_signal", ztmp))
+    {
+        SwooleG.wait_signal = zval_is_true(ztmp);
+    }
     if (php_swoole_array_get_value(vht, "dns_cache_refresh_time", ztmp))
     {
           SwooleG.dns_cache_refresh_time = zval_get_double(ztmp);
@@ -167,7 +171,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
     vector<string> result = swoole::coroutine::dns_lookup(Z_STRVAL_P(domain), timeout);
     if (result.empty())
     {
-        SwooleG.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
+        swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         RETURN_FALSE;
     }
 

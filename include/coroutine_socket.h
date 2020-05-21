@@ -339,6 +339,11 @@ public:
         return write_buffer;
     }
 
+    inline void set_zero_copy(bool enable)
+    {
+        zero_copy = enable;
+    }
+
 #ifdef SW_USE_OPENSSL
     inline bool is_ssl_enable()
     {
@@ -391,6 +396,8 @@ private:
     bool shutdown_read = false;
     bool shutdown_write = false;
     bool closed = false;
+
+    bool zero_copy = false;
 
     static void timer_callback(swTimer *timer, swTimer_node *tnode);
     static int readable_event_callback(swReactor *reactor, swEvent *event);

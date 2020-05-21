@@ -986,6 +986,8 @@ static php_stream *socket_create(
         return NULL;
     }
 
+    sock->set_zero_copy(true);
+
     abstract = (php_swoole_netstream_data_t*) ecalloc(1, sizeof(*abstract));
     abstract->socket = sock;
     abstract->stream.socket = sock->get_fd();
@@ -1176,9 +1178,12 @@ bool PHPCoroutine::enable_hook(int flags)
     {
         if (hook_flags & SW_HOOK_TLS)
         {
-            if (ori_factory.tls != nullptr) {
+            if (ori_factory.tls != nullptr)
+            {
                 php_stream_xport_register("tls", ori_factory.tls);
-            } else {
+            }
+            else
+            {
                 php_stream_xport_unregister("tls");
             }
         }
@@ -1271,8 +1276,8 @@ bool PHPCoroutine::enable_hook(int flags)
         if (hook_flags & SW_HOOK_BLOCKING_FUNCTION)
         {
             SW_UNHOOK_FUNC(gethostbyname);
-            unhook_func(ZEND_STRL("exec"));
-            unhook_func(ZEND_STRL("shell_exec"));
+            SW_UNHOOK_FUNC(exec);
+            SW_UNHOOK_FUNC(shell_exec);
         }
     }
 
@@ -1296,16 +1301,16 @@ bool PHPCoroutine::enable_hook(int flags)
     {
         if (hook_flags & SW_HOOK_CURL)
         {
-            unhook_func(ZEND_STRL("curl_init"));
-            unhook_func(ZEND_STRL("curl_setopt"));
-            unhook_func(ZEND_STRL("curl_setopt_array"));
-            unhook_func(ZEND_STRL("curl_exec"));
-            unhook_func(ZEND_STRL("curl_getinfo"));
-            unhook_func(ZEND_STRL("curl_errno"));
-            unhook_func(ZEND_STRL("curl_error"));
-            unhook_func(ZEND_STRL("curl_reset"));
-            unhook_func(ZEND_STRL("curl_close"));
-            unhook_func(ZEND_STRL("curl_multi_getcontent"));
+            SW_UNHOOK_FUNC(curl_init);
+            SW_UNHOOK_FUNC(curl_setopt);
+            SW_UNHOOK_FUNC(curl_setopt_array);
+            SW_UNHOOK_FUNC(curl_exec);
+            SW_UNHOOK_FUNC(curl_getinfo);
+            SW_UNHOOK_FUNC(curl_errno);
+            SW_UNHOOK_FUNC(curl_error);
+            SW_UNHOOK_FUNC(curl_reset);
+            SW_UNHOOK_FUNC(curl_close);
+            SW_UNHOOK_FUNC(curl_multi_getcontent);
         }
     }
 
@@ -1321,7 +1326,7 @@ bool PHPCoroutine::disable_hook()
 static PHP_METHOD(swoole_runtime, enableCoroutine)
 {
     zval *zflags = nullptr;
-    /*TODO: enable SW_HOOK_CURL by default after curl handler completed */
+    /*TODO:[v4.6] enable SW_HOOK_CURL by default after curl handler completed */
     zend_long flags = SW_HOOK_ALL;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)

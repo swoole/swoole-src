@@ -1019,7 +1019,7 @@ int swSSL_connect(swSocket *conn)
     {
         if (n)
         {
-            SwooleG.error = errno;
+            swoole_set_last_error(errno);
             return SW_ERR;
         }
     }
@@ -1371,6 +1371,39 @@ static int swSSL_set_default_dhparam(SSL_CTX* ssl_context)
 static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context, const char *ecdh_curve)
 {
 #ifndef OPENSSL_NO_ECDH
+    /*
+     * Elliptic-Curve Diffie-Hellman parameters are either "named curves"
+     * from RFC 4492 section 5.1.1, or explicitly described curves over
+     * binary fields.  OpenSSL only supports the "named curves", which provide
+     * maximum interoperability.
+     */
+#if (defined SSL_CTX_set1_curves_list || defined SSL_CTRL_SET_CURVES_LIST)
+    /*
+     * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
+     * curve previously supported.  By default an internal list is used,
+     * with prime256v1 being preferred by server in OpenSSL 1.0.2b+
+     * and X25519 in OpenSSL 1.1.0+.
+     *
+     * By default a curve preferred by the client will be used for
+     * key exchange.  The SSL_OP_CIPHER_SERVER_PREFERENCE option can
+     * be used to prefer server curves instead, similar to what it
+     * does for ciphers.
+     */
+    SSL_CTX_set_options(ssl_context, SSL_OP_SINGLE_ECDH_USE);
+#if SSL_CTRL_SET_ECDH_AUTO
+    /* not needed in OpenSSL 1.1.0+ */
+    SSL_CTX_set_ecdh_auto(ssl_context, 1);
+#endif
+    if (strcmp(ecdh_curve, "auto") == 0)
+    {
+        return SW_OK;
+    }
+    if (SSL_CTX_set1_curves_list(ssl_context, ecdh_curve) == 0)
+    {
+        swWarn("SSL_CTX_set1_curves_list(\"%s\") failed", ecdh_curve);
+        return SW_ERR;
+    }
+#else
 
     EC_KEY *ecdh;
     /*
@@ -1397,6 +1430,7 @@ static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context, const char *ecdh_curve)
     SSL_CTX_set_tmp_ecdh(ssl_context, ecdh);
 
     EC_KEY_free(ecdh);
+#endif
 #endif
 
     return SW_OK;

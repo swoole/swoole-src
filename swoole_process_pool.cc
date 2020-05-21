@@ -234,7 +234,7 @@ static void pool_onWorkerStart(swProcessPool *pool, int worker_id)
     }
 }
 
-static void pool_onMessage(swProcessPool *pool, char *data, uint32_t length)
+static void pool_onMessage(swProcessPool *pool, const char *data, uint32_t length)
 {
     zval *zobject = (zval *) pool->ptr;
     process_pool_property *pp = php_swoole_process_pool_get_and_check_pp(zobject);

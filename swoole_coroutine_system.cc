@@ -80,7 +80,7 @@ static void aio_onReadCompleted(swAio_event *event)
     }
     else
     {
-        SwooleG.error = event->error;
+        swoole_set_last_error(event->error);
         ZVAL_FALSE(&result);
     }
 
@@ -106,7 +106,7 @@ static void aio_onFgetsCompleted(swAio_event *event)
     }
     else
     {
-        SwooleG.error = event->error;
+        swoole_set_last_error(event->error);
         ZVAL_FALSE(&result);
     }
 
@@ -135,7 +135,7 @@ static void aio_onWriteCompleted(swAio_event *event)
 
     if (event->ret < 0)
     {
-        SwooleG.error = event->error;
+        swoole_set_last_error(event->error);
         ZVAL_FALSE(&result);
     }
     else
@@ -215,7 +215,7 @@ static int co_socket_onWritable(swReactor *reactor, swEvent *event)
     int n = write(event->fd, context->private_data, sock->nbytes);
     if (n < 0)
     {
-        SwooleG.error = errno;
+        swoole_set_last_error(errno);
         ZVAL_FALSE(&result);
     }
     else
@@ -248,7 +248,7 @@ static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETER
 
     if (swoole_event_add(&sock->socket, SW_EVENT_READ) < 0)
     {
-        SwooleG.error = errno;
+        swoole_set_last_error(errno);
         efree(sock);
         RETURN_FALSE;
     }
@@ -268,7 +268,7 @@ static void co_socket_write(int fd, char* str, size_t l_str, INTERNAL_FUNCTION_P
         {
             goto _yield;
         }
-        SwooleG.error = errno;
+        swoole_set_last_error(errno);
         RETURN_FALSE;
     }
     else
@@ -287,7 +287,7 @@ static void co_socket_write(int fd, char* str, size_t l_str, INTERNAL_FUNCTION_P
 
     if (swoole_event_add(&sock->socket, SW_EVENT_WRITE) < 0)
     {
-        SwooleG.error = errno;
+        swoole_set_last_error(errno);
         RETURN_FALSE;
     }
 
@@ -330,13 +330,13 @@ PHP_METHOD(swoole_coroutine_system, fread)
         struct stat file_stat;
         if (swoole_coroutine_fstat(fd, &file_stat) < 0)
         {
-            SwooleG.error = errno;
+            swoole_set_last_error(errno);
             RETURN_FALSE;
         }
         off_t _seek = swoole_coroutine_lseek(fd, 0, SEEK_CUR);
         if (_seek < 0)
         {
-            SwooleG.error = errno;
+            swoole_set_last_error(errno);
             RETURN_FALSE;
         }
         if (_seek >= file_stat.st_size)
@@ -802,7 +802,7 @@ static void swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAMETERS, pid_t pid
     }
     else
     {
-        SwooleG.error = errno;
+        swoole_set_last_error(errno);
         RETURN_FALSE;
     }
 }
@@ -854,7 +854,7 @@ PHP_METHOD(swoole_coroutine_system, waitSignal)
        {
            php_swoole_fatal_error(E_WARNING, "Invalid signal [" ZEND_LONG_FMT "]", signo);
        }
-       SwooleG.error = errno;
+       swoole_set_last_error(errno);
        RETURN_FALSE;
    }
 

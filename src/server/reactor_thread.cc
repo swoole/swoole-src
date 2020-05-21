@@ -33,7 +33,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event);
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
-static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint32_t length);
+static void swReactorThread_onStreamResponse(swStream *stream, const char *data, uint32_t length);
 static int swReactorThread_is_empty(swReactor *reactor);
 static void swReactorThread_shutdown(swReactor *reactor);
 static void swReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *tnode);
@@ -106,7 +106,7 @@ static inline enum swReturn_code swReactorThread_verify_ssl_state(swReactor *rea
 }
 #endif
 
-static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint32_t length)
+static void swReactorThread_onStreamResponse(swStream *stream, const char *data, uint32_t length)
 {
     swSendData response;
     swDataHead *pkg_info = (swDataHead *) data;
@@ -524,7 +524,7 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
     return SW_OK;
 }
 
-int swReactorThread_send2worker(swServer *serv, swWorker *worker, void *data, size_t len)
+int swReactorThread_send2worker(swServer *serv, swWorker *worker, const void *data, size_t len)
 {
     if (SwooleTG.reactor)
     {
@@ -1187,7 +1187,7 @@ static void swReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *
 /**
  * dispatch request data [only data frame]
  */
-int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, char *data, uint32_t length)
+int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, const char *data, uint32_t length)
 {
     swServer *serv = (swServer *) proto->private_data_2;
     swSendData task;

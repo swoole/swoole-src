@@ -934,12 +934,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
         php_swoole_sys_error(E_WARNING, "stat(%s) failed", file);
         RETURN_FALSE;
     }
-    if (file_stat.st_size == 0)
-    {
-        php_swoole_error(E_WARNING, "can't send empty file[%s]", file);
-        RETURN_FALSE;
-    }
-    if (file_stat.st_size <= offset)
+    if (file_stat.st_size < offset)
     {
         php_swoole_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] exceeds the file size", offset);
         RETURN_FALSE;
@@ -981,10 +976,13 @@ static PHP_METHOD(swoole_http_response, sendfile)
         }
     }
 
-    if (!ctx->sendfile(ctx, file, l_file, offset, length))
+    if (length != 0)
     {
-        ctx->close(ctx);
-        RETURN_FALSE;
+        if (!ctx->sendfile(ctx, file, l_file, offset, length))
+        {
+            ctx->close(ctx);
+            RETURN_FALSE;
+        }
     }
 
     ctx->end = 1;
@@ -1229,7 +1227,7 @@ static PHP_METHOD(swoole_http_response, push)
     http_context *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (UNEXPECTED(!ctx))
     {
-        SwooleG.error = SW_ERROR_SESSION_CLOSED;
+        swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
         RETURN_FALSE;
     }
     if (UNEXPECTED(!ctx->co_socket || !ctx->upgrade))
@@ -1279,7 +1277,7 @@ static PHP_METHOD(swoole_http_response, close)
     http_context *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (UNEXPECTED(!ctx))
     {
-        SwooleG.error = SW_ERROR_SESSION_CLOSED;
+        swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
         RETURN_FALSE;
     }
     RETURN_BOOL(ctx->close(ctx));
@@ -1290,7 +1288,7 @@ static PHP_METHOD(swoole_http_response, recv)
     http_context *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (UNEXPECTED(!ctx))
     {
-        SwooleG.error = SW_ERROR_SESSION_CLOSED;
+        swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
         RETURN_FALSE;
     }
     if (UNEXPECTED(!ctx->co_socket || !ctx->upgrade))
@@ -1312,7 +1310,7 @@ static PHP_METHOD(swoole_http_response, recv)
 
     if (retval < 0)
     {
-        SwooleG.error = sock->errCode;
+        swoole_set_last_error(sock->errCode);
         RETURN_FALSE;
     }
     else if (retval == 0)

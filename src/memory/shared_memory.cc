@@ -86,7 +86,7 @@ void* sw_shm_realloc(void *ptr, size_t new_size)
     }
 }
 
-void *swShareMemory_mmap_create(swShareMemory *object, size_t size, char *mapfile)
+void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *mapfile)
 {
     void *mem;
     int tmpfd = -1;

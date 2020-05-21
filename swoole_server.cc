@@ -1872,7 +1872,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
                 {
                     php_coro_context *context = coros_list->front();
                     coros_list->pop_front();
-                    SwooleG.error = ECONNRESET;
+                    swoole_set_last_error(ECONNRESET);
                     zval_ptr_dtor(&context->coro_params);
                     ZVAL_NULL(&context->coro_params);
                     php_swoole_server_send_resume(serv, context, info->fd);
@@ -1923,7 +1923,7 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
     zval result;
     zval *retval = NULL;
 
-    SwooleG.error = ETIMEDOUT;
+    swoole_set_last_error(ETIMEDOUT);
     ZVAL_FALSE(&result);
 
     int fd = (int) (long) context->private_data;
@@ -1977,7 +1977,7 @@ static enum swReturn_code php_swoole_server_send_resume(swServer *serv, php_coro
             goto _fail;
         }
         int ret = serv->send(serv, fd, data, length);
-        if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_SEND_YIELD && serv->send_yield)
+        if (ret < 0 && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD && serv->send_yield)
         {
             return SW_CONTINUE;
         }
@@ -3149,7 +3149,7 @@ static PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
     ret = serv->send(serv, fd, data, length);
-    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_SEND_YIELD)
+    if (ret < 0 && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD)
     {
         zval_add_ref(zdata);
         php_swoole_server_send_yield(serv, fd, zdata, return_value);
@@ -3328,8 +3328,6 @@ static PHP_METHOD(swoole_server, stats)
         RETURN_FALSE;
     }
 
-    uint32_t i;
-
     array_init(return_value);
     add_assoc_long_ex(return_value, ZEND_STRL("start_time"), serv->stats->start_time);
     add_assoc_long_ex(return_value, ZEND_STRL("connection_num"), serv->stats->connection_num);
@@ -3344,17 +3342,12 @@ static PHP_METHOD(swoole_server, stats)
         tasking_num = serv->stats->tasking_num = 0;
     }
 
-    uint32_t worker_num = serv->worker_num;
     uint32_t idle_worker_num = 0;
+    uint32_t worker_num = serv->worker_num;
+
     add_assoc_long_ex(return_value, ZEND_STRL("worker_num"), worker_num);
-    for (i = 0; i < worker_num; i++)
-    {
-        swWorker *worker = swServer_get_worker(serv, i);
-        if (worker->status == SW_WORKER_IDLE)
-        {
-            idle_worker_num++;
-        }
-    }
+    idle_worker_num = swServer_worker_idle_num(serv);
+
     add_assoc_long_ex(return_value, ZEND_STRL("idle_worker_num"), idle_worker_num);
     add_assoc_long_ex(return_value, ZEND_STRL("tasking_num"), tasking_num);
     add_assoc_long_ex(return_value, ZEND_STRL("request_count"), serv->stats->request_count);
@@ -3377,15 +3370,7 @@ static PHP_METHOD(swoole_server, stats)
 
     if (serv->task_worker_num > 0)
     {
-        idle_worker_num = 0;
-        for (i = worker_num; i < (worker_num + serv->task_worker_num); i++)
-        {
-            swWorker *worker = swServer_get_worker(serv, i);
-            if (worker->status == SW_WORKER_IDLE)
-            {
-                idle_worker_num++;
-            }
-        }
+        idle_worker_num = swServer_task_worker_idle_num(serv);
         add_assoc_long_ex(return_value, ZEND_STRL("task_idle_worker_num"), idle_worker_num);
     }
 
@@ -3518,18 +3503,24 @@ static PHP_METHOD(swoole_server, taskwait)
     swEventData *task_result = &(serv->task_result[SwooleWG.id]);
     bzero(task_result, sizeof(swEventData));
     swPipe *task_notify_pipe = &serv->task_notify[SwooleWG.id];
-    swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_WORKER);
+    swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_READ);
 
     //clear history task
-    while (read(task_notify_socket->fd, &notify, sizeof(notify)) > 0) {}
+    while (swSocket_wait(task_notify_socket->fd, 0, SW_EVENT_READ) == SW_OK)
+    {
+        read(task_notify_socket->fd, &notify, sizeof(notify));
+    }
 
     sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
 
     if (swProcessPool_dispatch_blocking(&serv->gs->task_workers, &buf, &_dst_worker_id) >= 0)
     {
-        task_notify_pipe->timeout = timeout;
         while(1)
         {
+            if (swSocket_wait(task_notify_socket->fd, (int) (timeout * 1000), SW_EVENT_READ) != SW_OK)
+            {
+                break;
+            }
             if (task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify)) > 0)
             {
                 if (task_result->info.fd != task_id)
@@ -3657,7 +3648,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
 
     if (n_task == 0)
     {
-        SwooleG.error = SW_ERROR_TASK_DISPATCH_FAIL;
+        swoole_set_last_error(SW_ERROR_TASK_DISPATCH_FAIL);
         RETURN_FALSE;
     }
 
@@ -3803,7 +3794,7 @@ static PHP_METHOD(swoole_server, taskCo)
 
     if (n_task == 0)
     {
-        SwooleG.error = SW_ERROR_TASK_DISPATCH_FAIL;
+        swoole_set_last_error(SW_ERROR_TASK_DISPATCH_FAIL);
         RETURN_FALSE;
     }
 

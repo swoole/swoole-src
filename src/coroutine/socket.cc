@@ -209,7 +209,7 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
     }
     else // if (event == SW_EVENT_WRITE)
     {
-        if (sw_unlikely(__n > 0 && *__buf != get_write_buffer()->str))
+        if (sw_unlikely(!zero_copy && __n > 0 && *__buf != get_write_buffer()->str))
         {
             swString_clear(write_buffer);
             if (swString_append_ptr(write_buffer, (const char *) *__buf, __n) != SW_OK)
@@ -835,7 +835,7 @@ bool Socket::connect(string _host, int _port, int flags)
                 read_co = write_co = nullptr;
                 if (connect_host.empty())
                 {
-                    set_err(SwooleG.error, swoole_strerror(SwooleG.error));
+                    set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
                     return false;
                 }
                 continue;
@@ -863,7 +863,7 @@ bool Socket::connect(string _host, int _port, int flags)
                 connect_host = System::gethostbyname(connect_host, AF_INET6, dns_timeout);
                 if (connect_host.empty())
                 {
-                    set_err(SwooleG.error);
+                    set_err(swoole_get_last_error());
                     return false;
                 }
                 continue;
@@ -1566,7 +1566,7 @@ ssize_t Socket::sendto(const string &host, int port, const void *__buf, size_t _
                 read_co = write_co = nullptr;
                 if (ip.empty())
                 {
-                    set_err(SwooleG.error, swoole_strerror(SwooleG.error));
+                    set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
                     return -1;
                 }
                 continue;
@@ -1588,7 +1588,7 @@ ssize_t Socket::sendto(const string &host, int port, const void *__buf, size_t _
                 read_co = write_co = nullptr;
                 if (ip.empty())
                 {
-                    set_err(SwooleG.error, swoole_strerror(SwooleG.error));
+                    set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
                     return -1;
                 }
                 continue;

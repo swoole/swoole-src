@@ -77,7 +77,7 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
         pkg.info.flags = SW_EVENT_DATA_PTR;
         swString_clear(&pkg.data);
         pkg.data.length = task->info.len;
-        pkg.data.str = task->data;
+        pkg.data.str = (char*) task->data;
 
         return swWorker_onTask(factory, (swEventData *) &pkg);
     }

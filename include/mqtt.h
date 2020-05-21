@@ -61,7 +61,7 @@ typedef struct
 #define SETQOS(HDR, Q)      (HDR | ((Q) << 1))
 #define SETDUP(HDR, D)      (HDR | ((D) << 3))
 
-ssize_t swMqtt_get_package_length(swProtocol *protocol, swSocket *conn, char *data, uint32_t size);
+ssize_t swMqtt_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t size);
 
 SW_EXTERN_C_END
 

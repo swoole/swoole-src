@@ -254,7 +254,7 @@ pid_t swoole_fork(int flags)
     return pid;
 }
 
-uint64_t swoole_hash_key(char *str, int str_len)
+uint64_t swoole_hash_key(const char *str, int str_len)
 {
     uint64_t hash = 5381;
     int c, i = 0;
@@ -660,12 +660,12 @@ long swoole_file_size(const char *filename)
     if (lstat(filename, &file_stat) < 0)
     {
         swSysWarn("lstat(%s) failed", filename);
-        SwooleG.error = errno;
+        swoole_set_last_error(errno);
         return -1;
     }
     if ((file_stat.st_mode & S_IFMT) != S_IFREG)
     {
-        SwooleG.error = EISDIR;
+        swoole_set_last_error(EISDIR);
         return -1;
     }
     return file_stat.st_size;

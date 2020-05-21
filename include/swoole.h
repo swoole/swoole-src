@@ -431,6 +431,12 @@ enum swLog_level
     SW_LOG_ERROR,
     SW_LOG_NONE,
 };
+
+enum swLog_rotation_type
+{
+    SW_LOG_ROTATION_SINGLE = 0,
+    SW_LOG_ROTATION_DAILY,
+};
 //-------------------------------------------------------------------------------
 enum swWorker_status
 {
@@ -838,12 +844,12 @@ typedef struct _swProtocol
     uint16_t real_header_length;
     uint16_t ext_flags;
 
-    int (*onPackage)(struct _swProtocol *, swSocket *, char *, uint32_t);
-    ssize_t (*get_package_length)(struct _swProtocol *, swSocket *, char *, uint32_t);
+    int (*onPackage)(struct _swProtocol *, swSocket *, const char *, uint32_t);
+    ssize_t (*get_package_length)(struct _swProtocol *, swSocket *, const char *, uint32_t);
     uint8_t (*get_package_length_size)(swSocket *);
 } swProtocol;
 
-typedef ssize_t (*swProtocol_length_function)(struct _swProtocol *, swSocket *, char *, uint32_t);
+typedef ssize_t (*swProtocol_length_function)(struct _swProtocol *, swSocket *, const char *, uint32_t);
 //------------------------------String--------------------------------
 #define swoole_tolower(c)      (uchar) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c)      (uchar) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
@@ -879,10 +885,10 @@ swString *swString_dup(const char *src_str, size_t length);
 swString *swString_dup2(swString *src);
 int swString_repeat(swString *src, const char *data, size_t len, size_t n);
 void swString_print(swString *str);
-int swString_append(swString *str, swString *append_str);
+int swString_append(swString *str, const swString *append_str);
 int swString_append_ptr(swString *str, const char *append_str, size_t length);
 int swString_write(swString *str, off_t offset, swString *write_str);
-int swString_write_ptr(swString *str, off_t offset, char *write_str, size_t length);
+int swString_write_ptr(swString *str, off_t offset, const char *write_str, size_t length);
 int swString_extend(swString *str, size_t new_size);
 char* swString_alloc(swString *str, size_t __size);
 
@@ -1019,7 +1025,7 @@ typedef struct _swDgramPacket
 typedef struct _swSendData
 {
     swDataHead info;
-    char *data;
+    const char *data;
 } swSendData;
 
 typedef struct
@@ -1044,7 +1050,7 @@ typedef struct _swPipe
     swSocket *worker_socket;
 
     int (*read)(struct _swPipe *, void *recv, int length);
-    int (*write)(struct _swPipe *, void *send, int length);
+    int (*write)(struct _swPipe *, const void *send, int length);
     swSocket* (*getSocket)(struct _swPipe *, int master);
     int (*close)(struct _swPipe *);
 } swPipe;
@@ -1217,7 +1223,7 @@ typedef struct _swShareMemory_mmap
     void *mem;
 } swShareMemory;
 
-void *swShareMemory_mmap_create(swShareMemory *object, size_t size, char *mapfile);
+void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *mapfile);
 void *swShareMemory_sysv_create(swShareMemory *object, size_t size, int key);
 int swShareMemory_sysv_free(swShareMemory *object, int rm);
 int swShareMemory_mmap_free(swShareMemory *object);
@@ -1366,16 +1372,19 @@ void swLog_reopen(enum swBool_type redirect);
 void swLog_close(void);
 void swLog_reset();
 void swLog_set_level(int lv);
-void swLog_set_date_format(const char *format);
-void swLog_set_date_with_microseconds(bool enable);
+int swLog_set_date_format(const char *format);
+void swLog_set_rotation(int rotation);
+const char* swLog_get_real_file();
+const char* swLog_get_file();
+void swLog_set_date_with_microseconds(uchar enable);
 
 //----------------------Tool Function---------------------
-uint64_t swoole_hash_key(char *str, int str_len);
+uint64_t swoole_hash_key(const char *str, int str_len);
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v);
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
 
-extern void swoole_sha1(const char *str, int _len, unsigned char *digest);
-extern void swoole_sha256(const char *str, int _len, unsigned char *digest);
+extern void swoole_sha1(const char *str, int _len, uchar *digest);
+extern void swoole_sha256(const char *str, int _len, uchar *digest);
 
 static sw_inline uint16_t swoole_swap_endian16(uint16_t x)
 {
@@ -1621,7 +1630,6 @@ ssize_t swSocket_unix_sendto(int server_sock, const char *dst_path, const char *
 int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t length, double timeout);
 ssize_t swSocket_write_blocking(swSocket *sock, const void *__data, size_t __len);
 ssize_t swSocket_recv_blocking(swSocket *sock, void *__data, size_t __len, int flags);
-
 
 static sw_inline int swSocket_error(int err)
 {
@@ -2003,10 +2011,16 @@ struct _swProcessPool
     uint32_t max_request;
     uint32_t max_request_grace;
 
+    /**
+     * No idle task work process is available.
+     */
+    uint8_t scheduler_warning;
+    time_t warning_time;
+
     int (*onTask)(struct _swProcessPool *pool, swEventData *task);
 
     void (*onWorkerStart)(struct _swProcessPool *pool, int worker_id);
-    void (*onMessage)(struct _swProcessPool *pool, char *data, uint32_t length);
+    void (*onMessage)(struct _swProcessPool *pool, const char *data, uint32_t length);
     void (*onWorkerStop)(struct _swProcessPool *pool, int worker_id);
 
     int (*main_loop)(struct _swProcessPool *pool, swWorker *worker);
@@ -2233,8 +2247,8 @@ int swReactorSelect_create(swReactor *reactor);
 
 /*----------------------------Process Pool-------------------------------*/
 int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueue_key, int ipc_mode);
-int swProcessPool_create_unix_socket(swProcessPool *pool, char *socket_file, int blacklog);
-int swProcessPool_create_tcp_socket(swProcessPool *pool, char *host, int port, int blacklog);
+int swProcessPool_create_unix_socket(swProcessPool *pool, const char *socket_file, int blacklog);
+int swProcessPool_create_tcp_socket(swProcessPool *pool, const char *host, int port, int blacklog);
 int swProcessPool_set_protocol(swProcessPool *pool, int task_protocol, uint32_t max_packet_size);
 void swProcessPool_set_max_request(swProcessPool *pool, uint32_t max_request, uint32_t max_request_grace);
 int swProcessPool_wait(swProcessPool *pool);
@@ -2242,7 +2256,7 @@ int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
 pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker);
 int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *worker_id);
-int swProcessPool_response(swProcessPool *pool, char *data, int length);
+int swProcessPool_response(swProcessPool *pool, const char *data, int length);
 int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int *dst_worker_id);
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker);
 int swProcessPool_del_worker(swProcessPool *pool, swWorker *worker);
@@ -2308,9 +2322,9 @@ swChannel* swChannel_new(size_t size, size_t maxlen, int flag);
 #define swChannel_empty(ch) (ch->num == 0)
 #define swChannel_full(ch) ((ch->head == ch->tail && ch->tail_tag != ch->head_tag) || (ch->bytes + sizeof(int) * ch->num == ch->size))
 int swChannel_pop(swChannel *object, void *out, int buffer_length);
-int swChannel_push(swChannel *object, void *in, int data_length);
+int swChannel_push(swChannel *object, const void *in, int data_length);
 int swChannel_out(swChannel *object, void *out, int buffer_length);
-int swChannel_in(swChannel *object, void *in, int data_length);
+int swChannel_in(swChannel *object, const void *in, int data_length);
 int swChannel_peek(swChannel *object, void *out, int buffer_length);
 int swChannel_wait(swChannel *object);
 int swChannel_notify(swChannel *object);
@@ -2361,13 +2375,13 @@ struct _swThread
     swThreadPool *pool;
 };
 
-int swThreadPool_dispatch(swThreadPool *pool, void *task, int task_len);
+int swThreadPool_dispatch(swThreadPool *pool, const void *task, int task_len);
 int swThreadPool_create(swThreadPool *pool, int max_num);
 int swThreadPool_run(swThreadPool *pool);
 int swThreadPool_free(swThreadPool *pool);
 
 //--------------------------------protocol------------------------------
-ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *conn, char *data, uint32_t size);
+ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t size);
 int swProtocol_recv_check_length(swProtocol *protocol, swSocket *conn, swString *buffer);
 int swProtocol_recv_check_eof(swProtocol *protocol, swSocket *conn, swString *buffer);
 
@@ -2497,6 +2511,7 @@ typedef struct
     swPipe aio_pipe;
     swSocket *aio_read_socket;
     swSocket *aio_write_socket;
+    int error;
 #ifdef SW_AIO_WRITE_LOCK
     swLock aio_lock;
 #endif
@@ -2517,6 +2532,7 @@ typedef struct
     uchar running :1;
     uchar enable_coroutine :1;
     uchar use_signalfd :1;
+    uchar wait_signal :1;
     uchar enable_signalfd :1;
     uchar socket_dontwait :1;
     uchar dns_lookup_random :1;
@@ -2580,6 +2596,19 @@ extern swWorkerGlobal_t SwooleWG;             //Worker Global Variable
 extern __thread swThreadGlobal_t SwooleTG;   //Thread Global Variable
 
 #define SW_CPU_NUM                    (SwooleG.cpu_num)
+
+static sw_inline void swoole_set_last_error(int error)
+{
+    SwooleTG.error = error;
+}
+
+static sw_inline int swoole_get_last_error()
+{
+    return SwooleTG.error;
+}
+
+SW_API const char* swoole_strerror(int code);
+SW_API void swoole_throw_error(int code);
 
 //-----------------------------------------------
 //OS Feature

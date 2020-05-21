@@ -794,6 +794,7 @@ static sw_inline void swoole_socket_coro_sync_properties(zval *zobject, socket_c
 
 static void sw_inline php_swoole_init_socket(zval *zobject, socket_coro *sock)
 {
+    sock->socket->set_zero_copy(true);
     zend_update_property_long(swoole_socket_coro_ce, zobject, ZEND_STRL("fd"), sock->socket->get_fd());
 }
 
@@ -929,7 +930,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset)
         sock->protocol.package_length_size = FCGI_HEADER_LEN;
         sock->protocol.package_length_offset = 0;
         sock->protocol.package_body_offset = 0;
-        sock->protocol.get_package_length = [](swProtocol *protocol, swSocket *conn, char *data, uint32_t size) {
+        sock->protocol.get_package_length = [](swProtocol *protocol, swSocket *conn, const char *data, uint32_t size) {
             const uint8_t *p = (const uint8_t *) data;
             ssize_t length = 0;
             if (size >= FCGI_HEADER_LEN)

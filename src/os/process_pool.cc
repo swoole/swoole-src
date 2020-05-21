@@ -155,7 +155,7 @@ int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueu
     return SW_OK;
 }
 
-int swProcessPool_create_unix_socket(swProcessPool *pool, char *socket_file, int blacklog)
+int swProcessPool_create_unix_socket(swProcessPool *pool, const char *socket_file, int blacklog)
 {
     if (pool->ipc_mode != SW_IPC_SOCKET)
     {
@@ -175,7 +175,7 @@ int swProcessPool_create_unix_socket(swProcessPool *pool, char *socket_file, int
     return SW_OK;
 }
 
-int swProcessPool_create_tcp_socket(swProcessPool *pool, char *host, int port, int blacklog)
+int swProcessPool_create_tcp_socket(swProcessPool *pool, const char *host, int port, int blacklog)
 {
     if (pool->ipc_mode != SW_IPC_SOCKET)
     {
@@ -235,23 +235,29 @@ static sw_inline int swProcessPool_schedule(swProcessPool *pool)
     }
 
     uint32_t i, target_worker_id = 0;
+    uint8_t found = 0;
 
     for (i = 0; i < pool->worker_num + 1; i++)
     {
         target_worker_id = sw_atomic_fetch_add(&pool->round_id, 1) % pool->worker_num;
         if (pool->workers[target_worker_id].status == SW_WORKER_IDLE)
         {
+            found = 1;
             break;
         }
+    }
+    if (found == 0)
+    {
+        pool->scheduler_warning = 1;
     }
     return target_worker_id;
 }
 
-int swProcessPool_response(swProcessPool *pool, char *data, int length)
+int swProcessPool_response(swProcessPool *pool, const char *data, int length)
 {
     if (pool->stream == nullptr || pool->stream->last_connection == nullptr || pool->stream->response_buffer == nullptr)
     {
-        SwooleG.error = SW_ERROR_INVALID_PARAMS;
+        swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
         return SW_ERR;
     }
     return swString_append_ptr(pool->stream->response_buffer, data, length);

@@ -1,10 +1,10 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.1)
 
 project(core_tests)
 
 #set(CMAKE_BUILD_TYPE Released)
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
 
 file(GLOB_RECURSE SOURCE_FILES FOLLOW_SYMLINKS src/*.cpp)
 

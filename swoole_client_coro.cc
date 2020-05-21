@@ -229,6 +229,8 @@ static Socket* client_coro_new(zval *zobject, int port)
 
     zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("fd"), cli->get_fd());
 
+    cli->set_zero_copy(true);
+
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL)
     {

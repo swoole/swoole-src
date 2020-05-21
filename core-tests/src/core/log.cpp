@@ -45,6 +45,22 @@ TEST(log, date_format)
     ASSERT_TRUE(n);
 }
 
+TEST(log, date_format_long_string)
+{
+    swLog_reset();
+    swLog_set_level(SW_LOG_ERROR);
+    swoole::String content(swString_new(256));
+    auto str = content.get();
+
+    swString_repeat(str, "x", 1, 120);
+    swString_append_ptr(str, SW_STRL("day %d of %B in the year %Y. Time: %I:%S %p"));
+
+    int retval = swLog_set_date_format(str->str);
+
+    ASSERT_EQ(retval, SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_INVALID_PARAMS);
+}
+
 TEST(log, date_with_microseconds)
 {
     swLog_reset();
@@ -59,4 +75,20 @@ TEST(log, date_with_microseconds)
 
     std::regex e("\\[\\S+\\s\\d{2}:\\d{2}:\\d{2}\\<\\.(\\d+)\\>\\s@\\d+\\.\\d+\\]\tWARNING\thello world");
     ASSERT_TRUE(std::regex_search(content.value(), e));
+}
+
+TEST(log, rotation)
+{
+    swLog_reset();
+    swLog_set_rotation(SW_LOG_ROTATION_DAILY);
+    swLog_open(file);
+
+    swLog_put(SW_LOG_WARNING, SW_STRL("hello world"));
+
+    ASSERT_EQ(access(swLog_get_file(), R_OK), -1);
+    ASSERT_EQ(errno, ENOENT);
+    ASSERT_EQ(access(swLog_get_real_file(), R_OK), 0);
+
+    swLog_close();
+    unlink(swLog_get_real_file());
 }

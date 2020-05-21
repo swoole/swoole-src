@@ -650,6 +650,7 @@ bool mysql_client::connect(std::string host, uint16_t port, bool ssl)
             socket = nullptr;
             return false;
         }
+        socket->set_zero_copy(true);
 #ifdef SW_USE_OPENSSL
         socket->open_ssl = ssl;
 #endif
@@ -1415,7 +1416,7 @@ void mysql_statement::send_execute_request(zval *return_value, zval *params)
         RETURN_FALSE;
     }
 
-    swString *buffer = SwooleTG.buffer_stack;
+    swString *buffer = client->socket->get_write_buffer();
     char *p = buffer->str;
 
     memset(p, 0, 5);

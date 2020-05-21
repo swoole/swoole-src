@@ -137,7 +137,8 @@ int swoole_coroutine_flock_ex(char *filename, int fd, int operation)
     char *real = realpath(filename, SwooleTG.buffer_stack->str);
     if (real == NULL)
     {
-        SwooleG.error = errno = ENOENT;
+        errno = ENOENT;
+        swoole_set_last_error(ENOENT);
         return -1;
     }
 

@@ -16,10 +16,9 @@
 
 #pragma once
 
+#include "swoole_cxx.h"
 #include "atomic.h"
 #include "hash.h"
-#include <string>
-#include <vector>
 #include <unordered_map>
 
 typedef uint32_t swTable_string_length_t;
@@ -177,11 +176,15 @@ static sw_inline swTableColumn* swTableColumn_get(swTable *table, const std::str
     }
 }
 
+#define SW_TABLE_FORCE_UNLOCK_TIME  2000 //milliseconds
+
 static sw_inline void swTableRow_lock(swTableRow *row)
 {
     sw_atomic_t *lock = &row->lock;
     uint32_t i, n;
-    while(1)
+    long t = 0;
+
+    while (1)
     {
         if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1))
         {
@@ -202,7 +205,29 @@ static sw_inline void swTableRow_lock(swTableRow *row)
                 }
             }
         }
+        /**
+         * The process occupied by the resource no longer exists,
+         * indicating that OOM occurred during the locking process,
+         * forced to unlock
+         */
         if (kill(row->lock_pid, 0) < 0 && errno == ESRCH)
+        {
+            *lock = 1;
+            goto _success;
+        }
+        /**
+         * Mark time
+         */
+        if (t == 0)
+        {
+            t = swoole::time<std::chrono::milliseconds>(true);
+        }
+        /**
+         * The deadlock time exceeds 2 seconds (SW_TABLE_FORCE_UNLOCK_TIME),
+         * indicating that the lock process has OOM,
+         * and the PID has been reused, forcing the unlock
+         */
+        else if ((swoole::time<std::chrono::milliseconds>(true) - t) > SW_TABLE_FORCE_UNLOCK_TIME)
         {
             *lock = 1;
             goto _success;

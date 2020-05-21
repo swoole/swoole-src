@@ -145,7 +145,7 @@ static sw_inline ssize_t swHttp2_get_length(const char *buf)
     return (((uint8_t) buf[0]) << 16) + (((uint8_t) buf[1]) << 8) + (uint8_t) buf[2];
 }
 
-ssize_t swHttp2_get_frame_length(swProtocol *protocol, swSocket *conn, char *buf, uint32_t length);
+ssize_t swHttp2_get_frame_length(swProtocol *protocol, swSocket *conn, const char *buf, uint32_t length);
 int swHttp2_send_setting_frame(swProtocol *protocol, swSocket *conn);
 const char* swHttp2_get_type(int type);
 int swHttp2_get_type_color(int type);
