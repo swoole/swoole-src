@@ -272,7 +272,7 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
 #ifdef SW_USE_OPENSSL
     if (socket->ssl)
     {
-        conn->socket->ssl_quiet_shutdown = 1;
+        conn->socket->ssl_quiet_shutdown = conn->peer_closed;
         swSSL_close(conn->socket);
     }
 #ifdef SW_SUPPORT_DTLS
