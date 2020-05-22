@@ -272,6 +272,10 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
 #ifdef SW_USE_OPENSSL
     if (socket->ssl)
     {
+        /**
+         * If it is peer close first, local should be set to silent mode and do not send any data, 
+         * otherwise the peer will send RST segment.
+         */
         conn->socket->ssl_quiet_shutdown = 1;
         swSSL_close(conn->socket);
     }
