@@ -272,6 +272,7 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
 #ifdef SW_USE_OPENSSL
     if (socket->ssl)
     {
+        conn->socket->ssl_quiet_shutdown = conn->peer_closed;
         swSSL_close(conn->socket);
     }
 #ifdef SW_SUPPORT_DTLS
@@ -376,6 +377,10 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
         }
         else
         {
+            /**
+             * peer_closed indicates that the client has closed the connection 
+             * and the connection is no longer available.
+             */
             conn->peer_closed = 1;
             return serv->factory.notify(&serv->factory, &notify_ev);
         }
