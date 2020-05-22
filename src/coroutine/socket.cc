@@ -776,9 +776,18 @@ bool Socket::connect(string _host, int _port, int flags)
 #endif
     if (socks5_proxy)
     {
-        //enable socks5 proxy
-        socks5_proxy->target_host = sw_strndup((char *) _host.c_str(), _host.size());
-        socks5_proxy->l_target_host = _host.size();
+#ifdef SW_USE_OPENSSL
+        if (open_ssl && ssl_option.tls_host_name)
+        {
+            socks5_proxy->target_host = sw_strdup(ssl_option.tls_host_name);
+            socks5_proxy->l_target_host = strlen(ssl_option.tls_host_name);
+        }
+        else
+#endif
+        {
+            socks5_proxy->target_host = sw_strndup((char *) _host.c_str(), _host.size());
+            socks5_proxy->l_target_host = _host.size();
+        }
         socks5_proxy->target_port = _port;
 
         _host = socks5_proxy->host;
@@ -786,9 +795,18 @@ bool Socket::connect(string _host, int _port, int flags)
     }
     else if (http_proxy)
     {
-        //enable http proxy
-        http_proxy->target_host = sw_strndup((char *) _host.c_str(), _host.size());
-        http_proxy->l_target_host = _host.size();
+#ifdef SW_USE_OPENSSL
+        if (open_ssl && ssl_option.tls_host_name)
+        {
+            http_proxy->target_host = sw_strdup(ssl_option.tls_host_name);
+            http_proxy->l_target_host = strlen(ssl_option.tls_host_name);
+        }
+        else
+#endif
+        {
+            http_proxy->target_host = sw_strndup((char *) _host.c_str(), _host.size());
+            http_proxy->l_target_host = _host.size();
+        }
         http_proxy->target_port = _port;
 
         _host = http_proxy->proxy_host;
@@ -824,7 +842,7 @@ bool Socket::connect(string _host, int _port, int flags)
             if (!inet_pton(AF_INET, connect_host.c_str(), &socket->info.addr.inet_v4.sin_addr))
             {
 #ifdef SW_USE_OPENSSL
-                if (open_ssl)
+                if (open_ssl && !(socks5_proxy || http_proxy))
                 {
                     ssl_host_name = connect_host;
                 }
@@ -855,7 +873,7 @@ bool Socket::connect(string _host, int _port, int flags)
             if (!inet_pton(AF_INET6, connect_host.c_str(), &socket->info.addr.inet_v6.sin6_addr))
             {
 #ifdef SW_USE_OPENSSL
-                if (open_ssl)
+                if (open_ssl && !(socks5_proxy || http_proxy))
                 {
                     ssl_host_name = connect_host;
                 }
