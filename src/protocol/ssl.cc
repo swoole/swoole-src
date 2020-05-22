@@ -1082,8 +1082,11 @@ void swSSL_close(swSocket *conn)
     if (conn->ssl_quiet_shutdown)
     {
         SSL_set_quiet_shutdown(conn->ssl, 1);
-        SSL_set_shutdown(conn->ssl, SSL_RECEIVED_SHUTDOWN | SSL_SENT_SHUTDOWN);
     }
+
+    int mode = SSL_get_shutdown(conn->ssl);
+
+    SSL_set_shutdown(conn->ssl, mode | SSL_RECEIVED_SHUTDOWN | SSL_SENT_SHUTDOWN);
 
     n = SSL_shutdown(conn->ssl);
 
