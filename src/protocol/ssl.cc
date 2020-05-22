@@ -1079,6 +1079,10 @@ void swSSL_close(swSocket *conn)
         return;
     }
 
+    /**
+     * If the peer close first, local should be set to quiet mode and do not send any data, 
+     * otherwise the peer will send RST segment.
+     */
     if (conn->ssl_quiet_shutdown)
     {
         SSL_set_quiet_shutdown(conn->ssl, 1);
