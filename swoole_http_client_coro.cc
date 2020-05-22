@@ -880,6 +880,14 @@ bool http_client::send()
     zcookies = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("cookies"), 0);
     z_download_file = sw_zend_read_property_not_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("downloadFile"), 0);
 
+    // ============   host   ============
+    zend::string str_host;
+
+    if ((ZVAL_IS_ARRAY(zheaders)) && ((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))) || (zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("host")))))
+    {
+        str_host = zvalue;
+    }
+
     // ============ download ============
     if (z_download_file)
     {
@@ -943,18 +951,13 @@ bool http_client::send()
     if (socket->http_proxy)
 #endif
     {
-        zend::string str_host;
         const static char *pre = "http://";
         char *_host = (char *) host.c_str();
         size_t _host_len = host.length();
-        if (ZVAL_IS_ARRAY(zheaders))
+        if (str_host.get())
         {
-            if ((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))))
-            {
-                str_host = zvalue;
-                _host = str_host.val();
-                _host_len = str_host.len();
-            }
+            _host = str_host.val();
+            _host_len = str_host.len();
         }
         size_t proxy_uri_len = path.length() + _host_len + strlen(pre) + 10;
         char *proxy_uri = (char*) emalloc(proxy_uri_len);
@@ -977,10 +980,9 @@ bool http_client::send()
 
     // As much as possible to ensure that Host is the first header.
     // See: http://tools.ietf.org/html/rfc7230#section-5.4
-    if ((ZVAL_IS_ARRAY(zheaders)) && ((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))) || (zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("host")))))
+    if (str_host.get())
     {
-        zend::string str_value(zvalue);
-        http_client_swString_append_headers(buffer, ZEND_STRL("Host"), str_value.val(), str_value.len());
+        http_client_swString_append_headers(buffer, ZEND_STRL("Host"), str_host.val(), str_host.len());
     }
     else
     {

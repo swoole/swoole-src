@@ -410,6 +410,15 @@ bool Socket::http_proxy_handshake()
 
     //CONNECT
     int n;
+    const char *host = http_proxy->target_host;
+    int host_len = http_proxy->l_target_host;
+#ifdef SW_USE_OPENSSL
+    if (open_ssl && ssl_option.tls_host_name)
+    {
+        host = ssl_option.tls_host_name;
+        host_len = strlen(ssl_option.tls_host_name);
+    }
+#endif
     if (http_proxy->password)
     {
         char auth_buf[256];
@@ -422,9 +431,9 @@ bool Socket::http_proxy_handshake()
         swBase64_encode((unsigned char *) auth_buf, n, encode_buf);
         n = sw_snprintf(
             buffer->str, buffer->size,
-            HTTP_PROXY_FMT "Proxy-Authorization:Basic %s\r\n\r\n",
+            HTTP_PROXY_FMT "Proxy-Authorization: Basic %s\r\n\r\n",
             http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port,
-            http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port,
+            host_len, host, http_proxy->target_port,
             encode_buf
         );
     }
@@ -434,7 +443,7 @@ bool Socket::http_proxy_handshake()
             buffer->str, buffer->size,
             HTTP_PROXY_FMT "\r\n",
             http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port,
-            http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port
+            host_len, host, http_proxy->target_port
         );
     }
 
@@ -789,7 +798,6 @@ bool Socket::connect(string _host, int _port, int flags)
 #endif
     if (socks5_proxy)
     {
-        //enable socks5 proxy
         socks5_proxy->target_host = sw_strndup((char *) _host.c_str(), _host.size());
         socks5_proxy->l_target_host = _host.size();
         socks5_proxy->target_port = _port;
@@ -799,7 +807,6 @@ bool Socket::connect(string _host, int _port, int flags)
     }
     else if (http_proxy)
     {
-        //enable http proxy
         http_proxy->target_host = sw_strndup((char *) _host.c_str(), _host.size());
         http_proxy->l_target_host = _host.size();
         http_proxy->target_port = _port;
@@ -837,7 +844,7 @@ bool Socket::connect(string _host, int _port, int flags)
             if (!inet_pton(AF_INET, connect_host.c_str(), &socket->info.addr.inet_v4.sin_addr))
             {
 #ifdef SW_USE_OPENSSL
-                if (open_ssl)
+                if (open_ssl && !(socks5_proxy || http_proxy))
                 {
                     ssl_host_name = connect_host;
                 }
@@ -868,7 +875,7 @@ bool Socket::connect(string _host, int _port, int flags)
             if (!inet_pton(AF_INET6, connect_host.c_str(), &socket->info.addr.inet_v6.sin6_addr))
             {
 #ifdef SW_USE_OPENSSL
-                if (open_ssl)
+                if (open_ssl && !(socks5_proxy || http_proxy))
                 {
                     ssl_host_name = connect_host;
                 }
