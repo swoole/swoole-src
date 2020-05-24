@@ -45,8 +45,8 @@ Run `./clean` to remove all of the tests log files.
 ## Contribute the test script
 Run `./new [test-script-filename]`
 
-E.g. : `./new ./swoole-coroutine/co_sleep.phpt`
+E.g. : `./new ./swoole_coroutine/co_sleep.phpt`
 
 It will generate the test script file and auto open on your ide (MacOS only).
 
-![](https://ws1.sinaimg.cn/large/006DQdzWly1frvn56azn9g30rs0m8b29.gif)
+![](https://cdn.jsdelivr.net/gh/sy-records/staticfile/images/swoole/generate-example.gif)

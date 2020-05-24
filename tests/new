@@ -47,9 +47,9 @@ if (!pathinfo($filename, PATHINFO_EXTENSION)) {
 $path['dirname'] = trim($path['dirname'], './'); // i know arg2 is a list but it's no problem
 
 $replacement = [];
-$tip = swoole_color("[Test name]: ", SWOOLE_COLOR_BLUE);
+$tip = swoole_color("[Test name]", SWOOLE_COLOR_BLUE);
 $path['filename'] = fgetsin($tip, false);// use test name to be filename
-$tip = swoole_color("[Test intro]: ", SWOOLE_COLOR_BLUE);
+$tip = swoole_color("[Test intro]", SWOOLE_COLOR_BLUE);
 $replacement['test_intro'] = fgetsin($tip, false);
 $this_dir_name = explode('/', $path['dirname']);
 $replacement['test_name'] = end($this_dir_name); // use dir name to be test name
@@ -99,14 +99,14 @@ if (file_put_contents($filename, $template)) {
     @shell_exec('/usr/bin/env git add ' . __DIR__ . "/$filename");
     if (\stripos(PHP_OS, 'Darwin') !== false) {
         //MacOS
-        $pstorm = '/usr/local/bin/pstorm';
+        $pstorm = '/usr/local/bin/phpstorm';
         if (file_exists($pstorm) || (
                 file_exists('/Applications/PhpStorm.app') &&
                 file_put_contents($pstorm, file_get_contents(__DIR__ . '/include/macos/phpstorm.py')) &&
                 chmod($pstorm, 0744)
             )
         ) {
-            @shell_exec("/usr/local/bin/phpstorm {$filename}");
+            @shell_exec("{$pstorm} {$filename}");
         }
     }
 } else {
