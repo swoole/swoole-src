@@ -196,10 +196,7 @@ void swPort_set_protocol(swServer *serv, swListenPort *ls)
     }
     else if (ls->open_mqtt_protocol)
     {
-        ls->protocol.package_length_size = SW_MQTT_MIN_LENGTH;
-        ls->protocol.package_length_offset = 1;
-        ls->protocol.package_body_offset = 0;
-        ls->protocol.get_package_length = swMqtt_get_package_length;
+        swMqtt_set_protocol(&ls->protocol);
         ls->protocol.onPackage = swReactorThread_dispatch;
         ls->onRead = swPort_onRead_check_length;
     }

@@ -23,6 +23,14 @@ void swMqtt_print_package(swMqtt_packet *pkg)
     printf("type=%d, length=%d\n", pkg->type, pkg->length);
 }
 
+void swMqtt_set_protocol(swProtocol *protocol)
+{
+    protocol->package_length_size = SW_MQTT_MIN_LENGTH;
+    protocol->package_length_offset = 1;
+    protocol->package_body_offset = 0;
+    protocol->get_package_length = swMqtt_get_package_length;
+}
+
 static sw_inline ssize_t swMqtt_get_length(const char *data, uint32_t size, ssize_t *count)
 {
     uint8_t byte;
