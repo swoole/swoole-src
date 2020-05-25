@@ -412,10 +412,10 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", ztmp))
     {
         cli->open_length_check = zval_is_true(ztmp);
-        cli->protocol.package_length_size = SW_MQTT_MIN_LENGTH;
-        cli->protocol.package_length_offset = 1;
-        cli->protocol.package_body_offset = 0;
-        cli->protocol.get_package_length = swMqtt_get_package_length;
+        if (zval_is_true(ztmp))
+        {
+            swMqtt_set_protocol(&cli->protocol);
+        }
     }
     //open length check
     if (php_swoole_array_get_value(vht, "open_length_check", ztmp))

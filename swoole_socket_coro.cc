@@ -904,10 +904,10 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset)
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", ztmp))
     {
         sock->open_length_check = zval_is_true(ztmp);
-        sock->protocol.package_length_size = SW_MQTT_MIN_LENGTH;
-        sock->protocol.package_length_offset = 1;
-        sock->protocol.package_body_offset = 0;
-        sock->protocol.get_package_length = swMqtt_get_package_length;
+        if (zval_is_true(ztmp))
+        {
+            swMqtt_set_protocol(&sock->protocol);
+        }
     }
     // open length check
     if (php_swoole_array_get_value(vht, "open_length_check", ztmp))
