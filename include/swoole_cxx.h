@@ -143,25 +143,84 @@ class String
 private:
     swString *str;
 public:
+    String(const char *_str, size_t length)
+    {
+        str = swString_dup(_str, length);
+    }
     String(swString *_str)
     {
         str = _str;
     }
-    char* value()
+    String(String &&src)
+    {
+        str = src.str;
+        src.str = nullptr;
+    }
+    String(String &src)
+    {
+        str = swString_dup2(src.get());
+    }
+    String& operator =(String& src)
+    {
+        if (&src == this)
+        {
+            return *this;
+        }
+        if (str)
+        {
+            swString_free(str);
+        }
+        str = swString_dup2(src.get());
+        return *this;
+    }
+    String& operator=(String&& src)
+    {
+        if (&src == this)
+        {
+            return *this;
+        }
+        if (str)
+        {
+            swString_free(str);
+        }
+        str = src.str;
+        src.str = nullptr;
+        return *this;
+    }
+    inline char* value()
     {
         return str->str;
     }
-    size_t length()
+    inline size_t length()
     {
         return str->length;
     }
-    swString* get()
+    inline swString* get()
     {
         return str;
     }
+    inline operator int()
+    {
+        return swString_to_int(str);
+    }
+    inline operator long()
+    {
+        return swString_to_long(str);
+    }
+    inline operator float()
+    {
+        return swString_to_float(str);
+    }
+    inline operator double()
+    {
+        return swString_to_double(str);
+    }
     ~String()
     {
-        swString_free(str);
+        if (str)
+        {
+            swString_free(str);
+        }
     }
 };
 
