@@ -217,6 +217,15 @@ static void reactor_begin(swReactor *reactor)
     }
 }
 
+static void socket_close(void *ptr)
+{
+    swSocket *sock = (swSocket *) ptr;
+    if (sock->fd != -1 && close(sock->fd) != 0)
+    {
+        swSysWarn("close(%d) failed", sock->fd);
+    }
+}
+
 int swReactor_close(swReactor *reactor, int fd)
 {
     swSocket *socket = swReactor_get(reactor, fd);
@@ -233,8 +242,12 @@ int swReactor_close(swReactor *reactor, int fd)
 
     bzero(socket, sizeof(swSocket));
     socket->removed = 1;
+    socket->fd = fd;
+
     swTraceLog(SW_TRACE_CLOSE, "fd=%d", fd);
-    return close(fd);
+    swoole_event_defer(socket_close, socket);
+
+    return SW_OK;
 }
 
 int swReactor_write(swReactor *reactor, int fd, const void *buf, int n)
