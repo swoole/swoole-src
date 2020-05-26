@@ -517,7 +517,7 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
         }
     }
     // Content-Length
-    else if (body_length > 0 ||ctx->parser.method != PHP_HTTP_HEAD)
+    else if (body_length > 0 || ctx->parser.method != PHP_HTTP_HEAD)
     {
 #ifdef SW_HAVE_COMPRESSION
         if (ctx->accept_compression)
