@@ -51,7 +51,7 @@ using swoole::coroutine::Socket;
 zend_class_entry *swoole_http_response_ce;
 static zend_object_handlers swoole_http_response_handlers;
 
-static void http_build_header(http_context *, swString *response, int body_length);
+static void http_build_header(http_context *, swString *response, size_t body_length);
 
 static inline void http_header_key_format(char *key, int length)
 {
@@ -337,7 +337,7 @@ static PHP_METHOD(swoole_http_response, write)
     {
         ctx->send_chunked = 1;
         swString_clear(http_buffer);
-        http_build_header(ctx, http_buffer, -1);
+        http_build_header(ctx, http_buffer, 0);
         if (!ctx->send(ctx, http_buffer->str, http_buffer->length))
         {
             ctx->send_chunked = 0;
@@ -378,7 +378,7 @@ static PHP_METHOD(swoole_http_response, write)
     RETURN_BOOL(ctx->send(ctx, http_buffer->str, http_buffer->length));
 }
 
-static void http_build_header(http_context *ctx, swString *response, int body_length)
+static void http_build_header(http_context *ctx, swString *response, size_t body_length)
 {
     char *buf = SwooleTG.buffer_stack->str;
     size_t l_buf = SwooleTG.buffer_stack->size;
@@ -510,6 +510,7 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
 
     if (ctx->send_chunked)
     {
+        SW_ASSERT(body_length == 0);
         if (!(header_flag & HTTP_HEADER_TRANSFER_ENCODING))
         {
             swString_append_ptr(response, ZEND_STRL("Transfer-Encoding: chunked\r\n"));
@@ -524,7 +525,7 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
             body_length = swoole_zlib_buffer->length;
         }
 #endif
-        n = sw_snprintf(buf, l_buf, "Content-Length: %d\r\n", body_length);
+        n = sw_snprintf(buf, l_buf, "Content-Length: %zu\r\n", body_length);
         swString_append_ptr(response, buf, n);
     }
 #ifdef SW_HAVE_COMPRESSION
