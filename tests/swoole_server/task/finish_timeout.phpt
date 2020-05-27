@@ -24,13 +24,13 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
+    swoole_async_set(['socket_send_timeout' => 1.0]);
     $server = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set(
         [
             'log_file' => TMP_LOG_FILE,
             'log_level' => SWOOLE_LOG_NOTICE,
             'task_worker_num' => 1,
-            'socket_send_timeout' => 1.0,
             'worker_num' => 1,
         ]
     );
