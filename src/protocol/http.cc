@@ -524,7 +524,10 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
     else if (memcmp(p, SW_STRL("PRI")) == 0)
     {
         request->method = SW_HTTP_PRI;
-        if (memcmp(p, SW_STRL(SW_HTTP2_PRI_STRING)) == 0)
+        if (
+            request->buffer->length >= (sizeof(SW_HTTP2_PRI_STRING) - 1) &&
+            memcmp(p, SW_STRL(SW_HTTP2_PRI_STRING)) == 0
+        )
         {
             request->buffer->offset = sizeof(SW_HTTP2_PRI_STRING) - 1;
             return SW_OK;
