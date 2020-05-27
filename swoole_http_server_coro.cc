@@ -634,8 +634,11 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
         }
 
 #ifdef SW_USE_HTTP2
-        if (ctx->parser.method == PHP_HTTP_NOT_IMPLEMENTED
-                && memcmp(buffer->str, SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1) == 0)
+        if (
+            ctx->parser.method == PHP_HTTP_NOT_IMPLEMENTED &&
+            total_bytes >= (sizeof(SW_HTTP2_PRI_STRING) - 1) &&
+            memcmp(buffer->str, SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1) == 0
+        )
         {
             buffer->length = total_bytes - (sizeof(SW_HTTP2_PRI_STRING) - 1);
             buffer->offset = buffer->length == 0 ? 0 : (sizeof(SW_HTTP2_PRI_STRING) - 1);
